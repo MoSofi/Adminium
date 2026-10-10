@@ -71,6 +71,7 @@ import type { RenderDeps } from '../documents/render.js';
 import { ActionFailure, type ActionContext, type ActionSource } from './actions/types.js';
 import { evaluateCondition, type ConditionContext } from './conditions.js';
 import { countRelatedRows } from './related-count.js';
+import { loadRelated, relatedUses } from './related.js';
 import { tokensFor } from './templating.js';
 import { TRACE_EN, TraceBuilder, triggerSummary, type TraceText } from './trace.js';
 
@@ -214,10 +215,13 @@ export async function walkRule(deps: RunnerDeps, input: WalkInput): Promise<RunO
     ...(deps.createTransport === undefined ? {} : { createTransport: deps.createTransport }),
     ...(deps.fetch === undefined ? {} : { fetch: deps.fetch }),
   };
+  // The rows the rule reaches through a link, read once for the whole run.
+  if (source !== null) source.related = await loadRelated(source, relatedUses(input.rule.graph).map((use) => use.link));
   const refreshTokens = (): void => {
     ctx.tokens = tokensFor({
       row: source?.row ?? null,
       table: source?.table ?? null,
+      related: source?.related,
       ruleName: input.rule.name,
       recordLabel: source?.record.label ?? '',
       now,

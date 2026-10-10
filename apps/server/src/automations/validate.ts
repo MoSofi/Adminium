@@ -37,6 +37,7 @@ import { guardOutboundUrl } from '../connections/dsn.js';
 import { isConditionComplete } from './conditions.js';
 import { isDateColumn } from './relative-time.js';
 import { isSlackWebhookUrl } from './actions/webhook.js';
+import { isAddressColumn, parseRelated, relatedTarget, relatedUses, type RelatedRef } from './related.js';
 
 /** Every node, branch children included, in walk order. */
 export function flattenNodes(graph: AutomationGraph): AutomationNode[] {
@@ -148,6 +149,30 @@ function readColumn(table: ResolvedTable, name: string, where: string): Resolved
   return column;
 }
 
+/**
+ * A column of a related row (`customer_id.email`), checked as the AUTHOR reads
+ * the schema: the link is one the snapshot holds from the rule's table, the
+ * far table is theirs to see, the far column is there and shown to them.
+ * Answers the far column; throws the refusal that says which half is wrong.
+ */
+function relatedColumn(table: ResolvedTable, ref: RelatedRef, ctx: ResolveContext, where: string): { target: ResolvedTable; column: ResolvedColumn } {
+  if (readColumn(table, ref.link, where) === undefined) {
+    throw new ValidationFailedError(`${where}: ${table.id} has no column ${ref.link}.`, { column: ref.link });
+  }
+  const target = ctx.view === null ? null : relatedTarget(ctx.view, table, ref.link);
+  if (target === null) {
+    throw new ValidationFailedError(`${where}: ${ref.link} is not a link to another table, so it has no ${ref.column}.`, { column: ref.link, reason: 'not-a-link' });
+  }
+  const column = readColumn(target.table, ref.column, where);
+  if (column === undefined) {
+    throw new ValidationFailedError(`${where}: ${target.table.id} has no column ${ref.column}.`, { column: `${ref.link}.${ref.column}` });
+  }
+  return { target: target.table, column };
+}
+
+/** A typed address, as a mail server would take it: one @, something on both sides, a dot after it, no spaces. */
+const ADDRESS = /^[^\s@,;<>]+@[^\s@,;<>]+\.[^\s@,;<>]+$/;
+
 function checkCondition(
   condition: AutomationCondition,
   table: ResolvedTable,
@@ -217,8 +242,17 @@ function checkAction(
             {},
           );
         }
-        if (readColumn(table, action.to.column, where) === undefined) {
+        const related = parseRelated(action.to.column);
+        if (related !== null) relatedColumn(table, related, ctx, where);
+        else if (readColumn(table, action.to.column, where) === undefined) {
           throw new ValidationFailedError(`${where}: ${table.id} has no column ${action.to.column}.`, {});
+        }
+      }
+      // A typed address is one nobody can check later: a mistake in it is said now.
+      if (action.to?.kind === 'fixed') {
+        const wrong = action.to.addresses.map((address) => address.trim()).find((address) => address !== '' && !ADDRESS.test(address));
+        if (wrong !== undefined) {
+          throw new ValidationFailedError(`${where}: “${wrong}” is not an email address.`, { address: wrong, reason: 'not-an-address' });
         }
       }
       return;
@@ -381,7 +415,57 @@ export function resolveRule(
       checkCondition(node.condition, table, ctx, where);
     }
   }
+  // A placeholder that reaches through a link (`{{customer_id.name}}`): the link and the far
+  // column must be there, and a protected column is no placeholder there either. A name whose
+  // first half is no link is left alone: an unknown placeholder stays as written, as ever.
+  if (table !== null && ctx.view !== null) {
+    for (const use of relatedUses(graph)) {
+      if (use.as !== 'token' || relatedTarget(ctx.view, table, use.link) === null) continue;
+      const where = `Step “${use.title}”`;
+      const { column } = relatedColumn(table, use, ctx, where);
+      // As for the record's own columns: a mail's values may carry a personal column (the mail
+      // goes to that person), no other step may, and a secret is carried by nothing.
+      if (column.secret || (column.masked && use.step !== 'email')) {
+        throw new ValidationFailedError(`${where}: ${use.link}.${use.column} is a protected column and cannot be a placeholder.`, { column: `${use.link}.${use.column}` });
+      }
+    }
+  }
   return table;
+}
+
+/** Something a person should look at that does not stop the rule: drawn on the step, said at the save. */
+export interface RuleWarning {
+  nodeId: string;
+  code: 'recipient-not-address';
+  column: string;
+}
+
+/**
+ * What a saved rule is warned of. Today one thing: an email step addressed to
+ * a column that does not hold addresses. A rule made by hand may do it (the
+ * schema's reading of a column can be wrong, and old rules must go on
+ * running); a person is told, on the step.
+ */
+export function ruleWarnings(trigger: AutomationTrigger, graph: AutomationGraph, view: SnapshotView | null): RuleWarning[] {
+  if (view === null) return [];
+  const subject = trigger.kind === 'record' ? trigger.table : (trigger.forEach?.table ?? null);
+  if (subject === null) return [];
+  let table: ResolvedTable;
+  try {
+    table = view.table(subject);
+  } catch {
+    return [];
+  }
+  const out: RuleWarning[] = [];
+  for (const node of flattenNodes(graph)) {
+    if (node.kind !== 'action' || node.action.kind !== 'email' || node.action.to?.kind !== 'field' || node.action.to.column === '') continue;
+    const name = node.action.to.column;
+    const related = parseRelated(name);
+    const far = related === null ? null : relatedTarget(view, table, related.link);
+    const holds = related === null ? isAddressColumn(table, name) : far !== null && isAddressColumn(far.table, related.column);
+    if (!holds) out.push({ nodeId: node.id, code: 'recipient-not-address', column: name });
+  }
+  return out;
 }
 
 /** The tables a save must prove the AUTHOR can reach, and with which verb (D2). */
@@ -389,6 +473,8 @@ export function requiredGrants(
   trigger: AutomationTrigger,
   graph: AutomationGraph,
   connectionId: string | null,
+  /** The schema, to know which table a link leads to: reading a related row is reading its table. */
+  view: SnapshotView | null = null,
 ): { permission: string; table: string }[] {
   if (connectionId === null) return [];
   const wanted: { permission: string; table: string }[] = [];
@@ -413,6 +499,20 @@ export function requiredGrants(
       add(node.action.table, 'create');
     }
     if (node.action.kind === 'record.update' && subject !== null) add(subject, 'update');
+  }
+  if (view !== null && subject !== null) {
+    let table: ResolvedTable | null = null;
+    try {
+      table = view.table(subject);
+    } catch {
+      table = null;
+    }
+    if (table !== null) {
+      for (const use of relatedUses(graph)) {
+        const target = relatedTarget(view, table, use.link);
+        if (target !== null) add(target.table.id, 'read');
+      }
+    }
   }
   return wanted;
 }

@@ -17,14 +17,16 @@ import {
   automationGraphSchema,
   automationTriggerSchema,
   automationsRepo,
-  emailTemplatesRepo,
   type AutomationGraph,
   type AutomationTrigger,
 } from '@adminium/meta';
 import { z } from 'zod';
 
-import { RULE_EMAIL_VARS, templatePlaceholders } from '../../automations/actions/email.js';
-import { firstIncompleteNode, flattenNodes, requiredGrants, resolveRule } from '../../automations/validate.js';
+import { RULE_EMAIL_VARS } from '../../automations/actions/email.js';
+import { templateFamilies } from '../../automations/templates.js';
+import { isAddressColumn, relatedTargets } from '../../automations/related.js';
+import { firstIncompleteNode, flattenNodes, requiredGrants, resolveRule, ruleWarnings } from '../../automations/validate.js';
+import type { ResolvedTable, SnapshotView } from '../../crud/identifiers.js';
 import { readViewForUser } from '../../crud/read-view.js';
 import { loadSnapshotView } from '../../data-io/snapshot-view.js';
 import { PERMISSIONS } from '../../rbac/permissions.js';
@@ -54,16 +56,30 @@ interface LiveTemplate {
   ownedByApp: boolean;
 }
 
+/** The keys a step may name, one row each: the same list the page's own select shows and the save checks. */
 export async function liveTemplateKeys(deps: Pick<AssistantToolDeps, 'meta'>): Promise<LiveTemplate[]> {
-  const rows = await emailTemplatesRepo(deps.meta).list({ kind: 'template', archived: false });
-  const seen = new Set<string>();
-  const out: LiveTemplate[] = [];
-  for (const row of rows) {
-    if (!row.enabled || seen.has(row.key)) continue;
-    seen.add(row.key);
-    out.push({ key: row.key, name: row.name, placeholders: templatePlaceholders(row), ownedByApp: row.managedBy !== null });
+  return (await templateFamilies(deps.meta)).live;
+}
+
+/**
+ * The columns of a table, and of the rows its links lead to, that hold email
+ * addresses: what an email step's recipient may be, as a rule spells it.
+ */
+export function addressColumns(view: SnapshotView, tableId: string): string[] {
+  let table: ResolvedTable;
+  try {
+    table = view.table(tableId);
+  } catch {
+    return [];
   }
-  return out;
+  const own = [...table.columns.keys()].filter((name) => isAddressColumn(table, name));
+  const far = relatedTargets(view, table).flatMap(({ link, target }) => [...target.table.columns.keys()].filter((name) => isAddressColumn(target.table, name)).map((name) => `${link}.${name}`));
+  return [...own, ...far];
+}
+
+function addressColumnsLine(view: SnapshotView, tableId: string): string {
+  const names = addressColumns(view, tableId);
+  return names.length === 0 ? `No column of ${tableId}, or of a row it links to, does: use typed addresses, or say that there is nobody to write to.` : `The columns that do: ${names.join(', ')}.`;
 }
 
 function templateLine(row: LiveTemplate): string {
@@ -201,11 +217,27 @@ const automationDocument: AssistantDocument = {
     }
     // The author's own reach, as the page's own save asks it: read on what the rule watches,
     // create and update on what its steps write.
-    for (const { permission, table } of requiredGrants(trigger, graph, connectionId)) {
+    const whole = connectionId === null ? null : await loadSnapshotView(deps.meta, connectionId).catch(() => null);
+    for (const { permission, table } of requiredGrants(trigger, graph, connectionId, whole)) {
       if (await deps.can(permission)) continue;
       return {
         ok: false,
         errors: [{ path: 'graph', code: 'TABLE_FORBIDDEN', message: `You do not have access to ${table}, so a rule cannot use it.` }],
+      };
+    }
+    // A mail goes to a column that holds addresses. A person may point one elsewhere and is
+    // warned; a draft may not, and is told which columns do, one hop away included, so it
+    // writes to the order's customer and not to "customer_id".
+    const odd = ruleWarnings(trigger, graph, whole);
+    if (odd.length > 0 && whole !== null) {
+      const subject = trigger.kind === 'record' ? trigger.table : (trigger.forEach?.table ?? '');
+      return {
+        ok: false,
+        errors: odd.map((warning) => ({
+          path: `graph.nodes[${warning.nodeId}].action.to.column`,
+          code: 'RECIPIENT_NOT_ADDRESS',
+          message: `"${warning.column}" does not hold email addresses. ${addressColumnsLine(whole, subject)}`,
+        })),
       };
     }
     const incomplete = firstIncompleteNode(graph);

@@ -45,6 +45,11 @@ export const ruleViewSchema = z.object({
   valid: z.boolean(),
   /** The first step that is not finished; null when `valid`. */
   incompleteNodeId: z.string().nullable(),
+  /**
+   * What a person should look at that does not stop the rule: today, an email
+   * step addressed to a column that does not hold addresses. Drawn on the step.
+   */
+  warnings: z.array(z.object({ nodeId: z.string(), code: z.literal('recipient-not-address'), column: z.string() })),
   stats: ruleStatsSchema,
   /**
    * What shipped the rule, for one an app or an add-on brought with it; null
@@ -131,6 +136,13 @@ const sourceTableSchema = z.object({
   watch: z.object({ created: z.string().nullable(), updated: z.string().nullable() }),
   columns: z.array(sourceColumnSchema),
   /**
+   * Where this table's own links lead, one hop: the column that holds the
+   * link, the table it points at, and that table's columns. What a step may
+   * name as `<link>.<column>`: the order's customer's email. Only a table the
+   * asker may read is listed, with the columns their role is shown.
+   */
+  links: z.array(z.object({ column: z.string(), table: z.string(), label: z.string(), columns: z.array(sourceColumnSchema) })),
+  /**
    * Tables whose rows point AT this one, and the column that does it —
    * child-table picker, seeded from foreign keys.
    *
@@ -163,7 +175,12 @@ export const automationSourcesReply = z.object({
       tables: z.array(sourceTableSchema),
     }),
   ),
-  /** Live template keys for the email step's select. */
+  /**
+   * How many template keys exist and are switched off in every language: not
+   * in `templates`, and said under the list so nobody wonders where one went.
+   */
+  templatesOff: z.number().int(),
+  /** Live template keys for the email step's select: one row a key, whatever its languages. */
   templates: z.array(
     z.object({
       key: z.string(),

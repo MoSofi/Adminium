@@ -332,7 +332,7 @@ async function createDraft(input: AssistantActionInput, at: number): Promise<Ass
       templateKeys: new Set((await liveTemplateKeys({ meta: input.meta })).map((row) => row.key)),
       blockLoopback: process.env['NODE_ENV'] === 'production',
     });
-    for (const { permission, table } of requiredGrants(trigger, graph, connectionId)) {
+    for (const { permission, table } of requiredGrants(trigger, graph, connectionId, whole)) {
       if (await input.can(permission)) continue;
       throw new ForbiddenError(`You do not have access to ${table}, so this rule cannot use it.`, 'TABLE_FORBIDDEN', { permission, table });
     }

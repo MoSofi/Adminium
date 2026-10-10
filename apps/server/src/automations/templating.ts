@@ -75,6 +75,12 @@ export interface TokenContext {
    * this, and only for the column it is addressing.
    */
   includeMasked?: boolean | undefined;
+  /**
+   * The rows the record's links point at, for the ones the rule names:
+   * `{{customer_id.name}}` reads the customer's name. A link whose row is
+   * missing fills its placeholders with nothing.
+   */
+  related?: ReadonlyMap<string, { table: ResolvedTable; row: Row | null }> | undefined;
 }
 
 /**
@@ -95,6 +101,15 @@ export function tokensFor(ctx: TokenContext): TokenMap {
     const value = asText(ctx.row[name], column.logicalType);
     tokens[`record.${name}`] = value;
     tokens[name] = value;
+  }
+  for (const [link, far] of ctx.related ?? []) {
+    for (const [name, column] of far.table.columns) {
+      // A secret is never a placeholder; a masked column is one exactly where the record's own are (a mail's values).
+      if (column.secret || (column.masked && !(ctx.includeMasked ?? false))) continue;
+      const value = far.row === null ? '' : asText(far.row[name], column.logicalType);
+      tokens[`record.${link}.${name}`] = value;
+      tokens[`${link}.${name}`] = value;
+    }
   }
   return tokens;
 }

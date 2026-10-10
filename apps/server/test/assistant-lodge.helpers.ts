@@ -162,10 +162,12 @@ export interface Stack {
   manager: ConnectionManager;
   dialect: Dialect;
   table: { rooms: string; stays: string };
+  /** The id of any table of the source, by its name in the database. */
+  tableId: (name: string) => string;
   close: () => Promise<void>;
 }
 
-export async function stack(dialect: Dialect): Promise<Stack> {
+export async function stack(dialect: Dialect, manifest: Record<string, unknown> = MANIFEST): Promise<Stack> {
   const dataDir = await mkdtemp(join(tmpdir(), 'app-role-read-'));
   const meta = createSqliteMetaDb({ database: new BetterSqlite3(':memory:') });
   await firstRun(meta);
@@ -192,7 +194,7 @@ export async function stack(dialect: Dialect): Promise<Stack> {
   await composed.jobs.worker.stop();
   composed.jobs.scheduler.stop();
   const owner = await signIn(app, 'owner@lodge.dev');
-  const tarball = packageTarball({ 'manifest.json': JSON.stringify(MANIFEST), 'staff/index.html': '<!doctype html><html><body></body></html>' });
+  const tarball = packageTarball({ 'manifest.json': JSON.stringify(manifest), 'staff/index.html': '<!doctype html><html><body></body></html>' });
   const staged = await app.inject({
     method: 'POST',
     url: `/api/v1/apps/upload?expectedSha512=${encodeURIComponent(sha512Integrity(tarball))}`,
@@ -213,6 +215,7 @@ export async function stack(dialect: Dialect): Promise<Stack> {
       await sql.raw(statement).execute(handle.db);
     },
     table: { rooms: idOf('lodge_rooms'), stays: idOf('lodge_stays') },
+    tableId: idOf,
     manager,
     runJobs: async () => {
       while ((await composed.jobs.worker.runOnce()) > 0);

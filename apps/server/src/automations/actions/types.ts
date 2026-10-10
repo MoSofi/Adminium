@@ -39,6 +39,12 @@ export interface ActionSource {
   record: RecordRef;
   /** The record, RE-READ at this step and unmasked. */
   row: Row;
+  /**
+   * The rows the record's links point at, for the links this rule names,
+   * read once when the run began and unmasked. A link the schema no longer
+   * holds has no entry: the step that names it fails by name.
+   */
+  related?: ReadonlyMap<string, { table: ResolvedTable; row: Row | null }> | undefined;
 }
 
 export interface ActionContext {
