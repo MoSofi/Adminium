@@ -308,7 +308,7 @@ export function WorkBar({
                 </button>,
               )
             : null}
-          {rows
+          {rows || !preview.canOpenTab
             ? null
             : tip(
                 t('designer:preview.newTab', 'Open in a new tab'),
@@ -317,7 +317,7 @@ export function WorkBar({
                 </button>,
               )}
           {level === 0 ? null : live ? (
-            <MoreMenu rows={rows} sides={choices} side={side} onSide={(value) => preview.setSide(value as PreviewSide)} seen={seen} sees={sees} onSees={setSees} onNewTab={preview.openTab} />
+            <MoreMenu rows={rows} sides={choices} side={side} onSide={(value) => preview.setSide(value as PreviewSide)} seen={seen} sees={sees} onSees={setSees} {...(preview.canOpenTab ? { onNewTab: preview.openTab } : {})} />
           ) : (
             <span className={TOOL_ICON} />
           )}

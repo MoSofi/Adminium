@@ -54,6 +54,7 @@ function model(over: Partial<PreviewModel> = {}): PreviewModel {
     ticketError: null,
     running: false,
     openTab: vi.fn(),
+    canOpenTab: true,
     ...over,
   };
 }
@@ -164,6 +165,17 @@ describe('the work bar', () => {
     expect(within(menu).getByRole('menuitemcheckbox', { name: 'The Designer looks at the page after it builds' })).toBeTruthy();
     await userEvent.click(within(menu).getByRole('menuitem', { name: 'Open in a new tab' }));
     expect(preview.openTab).toHaveBeenCalled();
+  });
+
+  it('offers no new tab where there is nowhere to open one (the dashboard’s pages, inside the desktop app)', async () => {
+    bar(4, model({ side: 'dashboard', canOpenTab: false }));
+    await userEvent.click(screen.getByRole('button', { name: 'More' }));
+    expect(within(await screen.findByRole('menu', { name: 'More' })).queryByRole('menuitem', { name: 'Open in a new tab' })).toBeNull();
+  });
+
+  it('and no button for it on the wide bar either', () => {
+    bar(0, model({ side: 'dashboard', canOpenTab: false }));
+    expect(parts().newTab).toBe(false);
   });
 
   it('moves through the sides with the arrow keys, the chosen one the row’s one tab stop', async () => {

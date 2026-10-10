@@ -165,6 +165,32 @@ export function decideNavigation(target: string, appOrigin: string | null): Navi
 }
 
 /**
+ * The rule for a NEW window (`window.open`, `target="_blank"`). None is ever
+ * made; the question is only whether the address is handed to the system's
+ * browser.
+ *
+ * `https:` goes there, as {@link decideNavigation} says. So does a page on the
+ * Designer's preview origin: "Open in a new tab" on the build page means the
+ * person's own browser, where the screen being built is seen as a visitor will
+ * see it. That origin is `http://localhost:<port>` and is this app's own
+ * server, so the only thing handed over is an address of ours: the scheme and
+ * the origin are both compared, as everywhere in this file.
+ *
+ * The app's own origin (`http://127.0.0.1:<port>`) is NOT handed over: the
+ * dashboard there is signed in by this window's own session, and a browser
+ * with no session would only show a sign-in page nobody holds a password for.
+ */
+export function decideNewWindow(target: string, appOrigin: string | null, previewOrigin: string | null): NavigationDecision {
+  const preview = previewOrigin === null ? null : safeParse(previewOrigin);
+  const url = safeParse(target);
+  if (preview !== null && url !== null && url.protocol === 'http:' && url.protocol === preview.protocol && url.origin === preview.origin) {
+    return { action: 'external', url: url.toString() };
+  }
+  const decision = decideNavigation(target, appOrigin);
+  return decision.action === 'allow' ? { action: 'deny', reason: 'the app’s own pages open in this window only' } : decision;
+}
+
+/**
  * The rule for a frame that is NOT the main one (`will-frame-navigate`, and
  * `will-redirect` on a subframe): it may load the app's own origin (a hosted
  * app's screens are framed there) or the Designer's preview origin, and nothing
@@ -699,7 +725,7 @@ export function createWindowManager(opts: CreateWindowManagerOptions): DesktopWi
     // window created here would be a NEW BrowserWindow this manager never
     // configured, carrying none of the posture above and none of these handlers.
     created.webContents.setWindowOpenHandler(({ url }) => {
-      const decision = decideNavigation(url, appOrigin);
+      const decision = decideNewWindow(url, appOrigin, previewOrigin);
       if (decision.action === 'external') void shell.openExternal(decision.url);
       return { action: 'deny' };
     });

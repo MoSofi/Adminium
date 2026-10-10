@@ -23,6 +23,7 @@ import {
   crashRenderScript,
   decideFrameNavigation,
   decideNavigation,
+  decideNewWindow,
   isPermissionAllowed,
   jsonForScript,
   originOf,
@@ -490,6 +491,28 @@ const html = (name: string): string =>
  * contract.
  */
 const markup = (name: string): string => html(name).replace(/<!--[\s\S]*?-->/g, '');
+
+describe('a new window', () => {
+  const APP = 'http://127.0.0.1:52341';
+  const PREVIEW = 'http://localhost:52341';
+
+  it('hands a page of the preview to the system’s browser: "Open in a new tab" on the build page', () => {
+    expect(decideNewWindow(`${PREVIEW}/apps/shop/customer/menu`, APP, PREVIEW)).toEqual({ action: 'external', url: `${PREVIEW}/apps/shop/customer/menu` });
+    expect(decideNewWindow(`${PREVIEW}/designer-preview/enter?ticket=abc&to=%2Fa%2Fshop`, APP, PREVIEW)).toMatchObject({ action: 'external' });
+  });
+
+  it('hands over nothing that only looks like the preview, and nothing when no project is being built', () => {
+    for (const target of ['http://localhost:9999/x', 'http://localhost.evil.com:52341/x', `blob:${PREVIEW}/1b2c`, 'about:blank', '', 'file:///etc/passwd', 'javascript:alert(1)']) {
+      expect(decideNewWindow(target, APP, PREVIEW).action, target).toBe('deny');
+    }
+    expect(decideNewWindow(`${PREVIEW}/apps/shop/customer`, APP, null)).toMatchObject({ action: 'deny' });
+  });
+
+  it('never opens the app’s own pages anywhere else, and still sends https to the browser', () => {
+    expect(decideNewWindow(`${APP}/tables`, APP, PREVIEW)).toMatchObject({ action: 'deny' });
+    expect(decideNewWindow('https://docs.adminium.dev/', APP, PREVIEW)).toEqual({ action: 'external', url: 'https://docs.adminium.dev/' });
+  });
+});
 
 describe('boot.html / crash.html (offline guarantee)', () => {
   it.each(['boot.html', 'crash.html'])('%s references no remote origin', (name) => {
