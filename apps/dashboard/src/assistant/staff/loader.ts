@@ -76,8 +76,35 @@ iframe {
 iframe[hidden] { display: none; }
 `;
 
-const SPARKLES =
-  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/><path d="M20 3v4"/><path d="M22 5h-4"/><path d="M4 17v2"/><path d="M5 18H3"/></svg>';
+/** The sparkles of the dashboard's own button, drawn by hand: nothing here is ever parsed from a string of markup. */
+const SPARKLES: readonly string[] = [
+  'M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z',
+  'M20 3v4',
+  'M22 5h-4',
+  'M4 17v2',
+  'M5 18H3',
+];
+
+function sparkles(): SVGSVGElement {
+  const SVG = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(SVG, 'svg');
+  for (const [name, value] of Object.entries({ viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '2', 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'aria-hidden': 'true' })) {
+    svg.setAttribute(name, value);
+  }
+  for (const d of SPARKLES) {
+    const path = document.createElementNS(SVG, 'path');
+    path.setAttribute('d', d);
+    svg.append(path);
+  }
+  return svg;
+}
+
+function hiddenSpan(className: string): HTMLSpanElement {
+  const span = document.createElement('span');
+  span.className = className;
+  span.hidden = true;
+  return span;
+}
 
 async function start(): Promise<void> {
   // The dashboard's own frame of this side has the dashboard's button; and never twice.
@@ -106,12 +133,12 @@ async function start(): Promise<void> {
   const label = openLabel(__MILO_OPEN_LABELS__, name, [document.documentElement.lang, ...navigator.languages].filter((language) => language !== ''));
   button.setAttribute('aria-label', label);
   button.title = label;
-  button.innerHTML = `<span class="ring" hidden></span>${SPARKLES}<span class="dot" hidden></span>`;
+  const ring = hiddenSpan('ring');
+  const dot = hiddenSpan('dot');
+  button.append(ring, sparkles(), dot);
   root.append(style, button);
   document.body.append(host);
 
-  const ring = button.querySelector<HTMLElement>('.ring') as HTMLElement;
-  const dot = button.querySelector<HTMLElement>('.dot') as HTMLElement;
   let frame: HTMLIFrameElement | null = null;
 
   const show = (open: boolean): void => {
