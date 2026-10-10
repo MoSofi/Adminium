@@ -17,6 +17,9 @@ import { t } from '../../i18n/t.js';
 import { getDesktopApi } from '../../lib/desktop-runtime.js';
 import { ExportDialog, useExportOutcome } from './DesktopExport.js';
 import { ShareDialog } from './DesktopShare.js';
+import { showInFolderLabel } from './showInFolderLabel.js';
+
+export { showInFolderLabel };
 
 /** Asked once per page load: the project a window holds does not change under a page. */
 let asked: Promise<DesktopProjectInfo | null> | null = null;
@@ -46,13 +49,6 @@ export function useDesktopProject(): DesktopProjectInfo | null {
     };
   }, []);
   return info;
-}
-
-/** The system's own name for where folders are looked at. */
-export function showInFolderLabel(platform: string | undefined): string {
-  if (platform === 'darwin') return t('designer:project.showFinder', 'Show in Finder');
-  if (platform === 'win32') return t('designer:project.showExplorer', 'Show in File Explorer');
-  return t('designer:project.showFiles', 'Show in the file manager');
 }
 
 /** The rule, then the project's name as a button with its menu. */

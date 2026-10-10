@@ -14,7 +14,7 @@ import { Button, Modal, ModalBody, ModalFooter, ModalHeader } from '@adminium/ui
 import { t } from '../../i18n/t.js';
 import { getDesktopApi } from '../../lib/desktop-runtime.js';
 import { useAppToasts } from '../../pages/toasts.js';
-import { showInFolderLabel } from './DesktopProject.js';
+import { showInFolderLabel } from './showInFolderLabel.js';
 
 export function ExportDialog({ name, open, onOpenChange }: { name: string; open: boolean; onOpenChange: (open: boolean) => void }): ReactNode {
   const group = useId();
