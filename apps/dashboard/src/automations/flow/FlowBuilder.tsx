@@ -205,7 +205,10 @@ function NodeCard(props: NodeCardProps): ReactNode {
       }}
       {...(movable ? draggable.listeners : {})}
       {...(movable ? draggable.attributes : {})}
-      role="button"
+      // A group, not a button: the card holds controls of its own (remove), and a button may hold none.
+      // It is still reached by Tab, opened with Enter and moved from the keyboard.
+      role="group"
+      aria-label={node.title}
       tabIndex={0}
       aria-current={selected}
       onClick={() => {
