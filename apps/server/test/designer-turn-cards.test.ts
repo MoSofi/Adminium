@@ -147,7 +147,7 @@ describe('gift cards at a till, start to finish', () => {
     const written = answers.filter((answer) => answer.startsWith('Written:'));
     expect(written).toHaveLength(2);
     expect(written[0]).toContain(`${base}/tables/ticket_lines.json: added gift_card_id (int, a link to offers.gift_cards), load_amount (money); the rule "card-load" posts into offers/value (issue)`);
-    expect(written[0]).toContain(`${base}/add-ons.json: requires offers >=1.0.9`);
+    expect(written[0]).toContain(`${base}/add-ons.json: requires offers >=1.0.12`);
     expect(written[1]).toContain(`${base}/tables/payments.json: added card_code (text), card_id (int, a link to offers.gift_cards), card_last4 (text), card_balance_after (money), voided_at (timestamptz); the rule "card" posts into offers/value (spend)`);
     // The ticket's own "due" is what the card is asked to pay: nothing was added to the ticket.
     expect(written[1]).toContain(`${base}/tables/tickets.json: no column added`);
@@ -166,7 +166,7 @@ describe('gift cards at a till, start to finish', () => {
     const next = await prompt(store.read(session.id)!, [{ role: 'user', content: [{ type: 'text', text: 'Rename the page.' }] }]);
     expect(next.system).toContain('  posts to offers/value (issue), as lines of ticket_id:');
     expect(next.system).toContain('  posts to offers/value (spend), as lines of ticket_id:');
-    expect(next.system).toContain('Requires the add-on offers >=1.0.9');
+    expect(next.system).toContain('Requires the add-on offers >=1.0.12');
     expect(next.system).toContain('===== adminium-add-ons/SKILL.md =====');
   }, 60_000);
 });
