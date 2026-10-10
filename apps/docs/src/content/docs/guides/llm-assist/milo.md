@@ -75,6 +75,39 @@ Everything it reads goes to the AI provider **you** configured. If that matters
 for your data, leave the row switch off — the assistant still drafts from your
 documents and your schema.
 
+## Speaking to it
+
+With **Settings → AI → Voice → Speak to the assistant** switched on (it is off
+on a new workspace), the field has a microphone at its start.
+
+1. Press it. The first time, a line says where your voice goes; press **OK**.
+2. Speak. The field shows the language being listened in and the seconds.
+3. Press it again, or press Escape. The words are written into the field,
+   selected, for you to check.
+4. Send them yourself. **Nothing is sent to the assistant by voice alone.**
+
+A recording stops by itself at two minutes. Leaving the panel while it listens
+stops it and throws away what was heard.
+
+**Who writes the words down** depends on the workspace's AI provider:
+
+| Provider | Who writes it down |
+|---|---|
+| OpenAI, or a compatible server that has a transcription route | The provider. The recording goes to it through your Adminium server, and is kept nowhere: not stored, not logged. The audit log says who dictated and for how many seconds, never what was said. |
+| Anthropic, Ollama, or a compatible server without that route | Your browser's own speech service, where the browser has one (Chrome, Edge, Safari). The server never hears it. |
+
+Where neither can work, there is no microphone: Firefox with a provider that
+does not transcribe, and the desktop app with such a provider.
+
+**Minutes a person may dictate in a day** (Settings → AI → Voice; 30 by
+default, 0 for no limit) are counted for the provider's way, from what the
+server received, before the provider is asked. One person has one recording
+under way at a time. When the day's minutes are used, the microphone says so.
+
+In the **desktop app** the microphone is the only browser permission that is
+ever allowed, for audio only, and only while the switch is on. macOS asks once
+for the microphone, by the app's name.
+
 ## What it never does
 
 - **It never writes.** The model's last move is a draft. Creating the row is a
