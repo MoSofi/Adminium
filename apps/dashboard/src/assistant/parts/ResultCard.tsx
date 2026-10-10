@@ -44,9 +44,13 @@ export interface ResultCardProps {
   alwaysLeftOut?: boolean | undefined;
   /** Under that row: what would give the part left out (an add-on's card). */
   under?: ReactNode;
+  /** Beside the title: what will become of the draft ("Will be saved switched off"). */
+  badge?: ReactNode;
+  /** One line above the actions: what pressing one does and does not do ("Nothing is saved until you save the rule."). */
+  note?: string | undefined;
 }
 
-export function ResultCard({ result, preview, kind, tokensIn, tokensOut, footer, alwaysLeftOut, under }: ResultCardProps) {
+export function ResultCard({ result, preview, kind, tokensIn, tokensOut, footer, alwaysLeftOut, under, badge, note }: ResultCardProps) {
   return (
     <div data-testid="assistant-result" className="min-w-0 flex-1 overflow-hidden rounded-[16px] border border-border bg-surface shadow-menu">
       <Tabs variant="pill" defaultValue="preview" className="gap-0">
@@ -56,6 +60,7 @@ export function ResultCard({ result, preview, kind, tokensIn, tokensOut, footer,
             {result.meta === '' ? null : (
               <div className="mt-0.5 truncate text-caption text-fg-muted">{result.meta}</div>
             )}
+            {badge === undefined || badge === null ? null : <div className="mt-1.5">{badge}</div>}
           </div>
           <TabsList className="shrink-0 border border-border">
             <TabsTrigger data-testid="assistant-tab" data-tab="preview" value="preview">{t('assistant:tabs.preview', 'Preview')}</TabsTrigger>
@@ -77,6 +82,11 @@ export function ResultCard({ result, preview, kind, tokensIn, tokensOut, footer,
       </Tabs>
       {alwaysLeftOut === true || result.leftOut.length > 0 ? <LeftOut items={result.leftOut} /> : null}
       {under === undefined || under === null ? null : <div className="flex flex-col gap-2 px-4 pb-3.5 ps-[42px]">{under}</div>}
+      {note === undefined ? null : (
+        <p data-testid="assistant-result-note" className="border-t border-border px-4 py-2.5 text-caption leading-[1.5] text-fg-muted">
+          {note}
+        </p>
+      )}
       {footer}
     </div>
   );

@@ -9,7 +9,7 @@
  * decides what a prompt can only ask for: a step no installed add-on gives, an
  * input a step needs, a template placeholder nothing fills. On each database.
  */
-import { emailTemplatesRepo, usersRepo, type AutomationGraph } from '@adminium/meta';
+import { automationsRepo, emailTemplatesRepo, usersRepo, type AutomationGraph } from '@adminium/meta';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { ACTION_NOTES, NOT_FOR_A_DRAFT, actionKinds, ruleFormat, schemaFieldNames } from '../src/assistant/contexts/automation-format.js';
@@ -136,6 +136,19 @@ for (const [dialect, available] of legs) {
       expect(automationContext.toolNames).toEqual(expect.arrayContaining(['rule_parts', 'list_add_ons', 'describe_schema']));
       expect(setup.system).toContain('`rule_parts` lists them for a table');
       expect(setup.system).not.toContain('p64-thanks');
+    });
+
+    it('with a rule open in the builder, the model is told which, and how a change to it differs from a new rule', async () => {
+      const owner = (await usersRepo(s.meta).findByEmail('owner@lodge.dev'))!;
+      const rule = await automationsRepo(s.meta).create({ connectionId: s.connectionId, name: 'Thank the guest', enabled: true, trigger: trigger(), graph: graphOf(mail('p64-plain')) }, Date.now());
+      const open = await turnAs(s, owner.id, 'automation', { documentId: rule.id });
+      expect(open.system).toContain(`The rule open in the builder right now is "Thank the guest" (id ${rule.id})`);
+      expect(open.system).toContain(`"basedOn": "${rule.id}"`);
+      expect(open.system).toContain('nothing is saved until the person saves');
+      // With none open, or one that is not there, nothing is said of it.
+      expect(setup.system).not.toContain('The rule open in the builder');
+      expect((await turnAs(s, owner.id, 'automation', { documentId: 'auto_gone' })).system).not.toContain('The rule open in the builder');
+      await automationsRepo(s.meta).remove(rule.id);
     });
 
     it('rule_parts names the address columns one link away, the templates with what each must be given, and the steps add-ons give', async () => {

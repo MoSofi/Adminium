@@ -453,5 +453,9 @@
     "noRows": "附加组件的表不存在，无可选择。",
     "findRow": "查找…",
     "noRow": "没有匹配项。"
+  },
+  "assistant": {
+    "changed": "{name} 修改了此规则。",
+    "undo": "撤销 {name} 的修改"
   }
 }

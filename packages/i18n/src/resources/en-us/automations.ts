@@ -463,5 +463,9 @@ export default {
     "noRows": "The add-on’s table is not there to choose from.",
     "findRow": "Find one…",
     "noRow": "Nothing matches."
+  },
+  "assistant": {
+    "changed": "{name} changed this rule.",
+    "undo": "Undo {name}’s change"
   }
 } as const;

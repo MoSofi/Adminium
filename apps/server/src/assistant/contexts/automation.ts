@@ -356,6 +356,21 @@ const automationDocument: AssistantDocument = {
   },
 };
 
+/**
+ * What the model is told when a rule is open in the builder. The rule itself
+ * (as it is on the screen, unsaved edits and all) is the document it is shown;
+ * this says which rule that is and how a change to it differs from a new rule.
+ */
+function openRuleLines(rules: readonly { id: string; name: string }[], openId: string | undefined): string[] {
+  const open = openId === undefined || openId === '' ? undefined : rules.find((rule) => rule.id === openId);
+  if (open === undefined) return [];
+  return [
+    `The rule open in the builder right now is "${open.name}" (id ${open.id}): the document you are shown is that rule as it is on the person's screen.`,
+    `To CHANGE it ("wait two hours before the email", "also notify the managers"), return the WHOLE rule with the change made and "basedOn": "${open.id}". Keep the id of every step you do not change, and give a new step a new id. The change goes into the builder; nothing is saved until the person saves, so do not say it is saved or switched off.`,
+    'To make a DIFFERENT rule, leave "basedOn" out: that one is saved as a new rule, switched off.',
+  ];
+}
+
 export const automationContext: AssistantContextAdapter = {
   key: 'automation',
   pageLabel: 'Automation rules',
@@ -378,6 +393,7 @@ export const automationContext: AssistantContextAdapter = {
       scope: { primary: 'automations', extra: summary.tables },
       prompt: [
         `This page holds ${countLabel(rules.length, 'rule', 'rules')}: ${documentNamesSection(rules.map((rule) => `${rule.name} (${rule.enabled ? 'on' : 'off'})`))}.`,
+        ...openRuleLines(rules, deps.host.documentId),
         '',
         templates.length === 0
           ? 'No live email template exists: an email step cannot be completed until one does; say so, and offer to draft one on Email templates.'

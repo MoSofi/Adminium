@@ -38,6 +38,7 @@ import { t } from '../i18n/t.js';
 import { PageActions } from '../shell/PageActionsProvider.js';
 import { PageSurface } from '../shell/PageSurface.js';
 import { useAppToasts } from '../pages/toasts.js';
+import { assistantName, bootstrapQuery } from '../app/bootstrap.js';
 import { useAutomationAssistant } from './assistant.js';
 import { automationIcon } from './icons.js';
 import { automationsApi, tableForTrigger, type RuleView, type SourceTable } from './api.js';
@@ -49,7 +50,7 @@ import { useTestRun } from './flow/useTestRun.js';
 import { NewRuleModal } from './rules/NewRuleModal.js';
 import { FlowHeader, RuleCard, RulesEmpty, RulesKpiStrip, ShippedRuleGroups, splitShipped, type RulesKpi } from './rules/parts.js';
 import { FilterPills } from './logs/parts.js';
-import { countSteps, locate, type Condition, type Graph, type Trigger } from './model/graph.js';
+import { countSteps, flatten, locate, type Condition, type Graph, type Trigger } from './model/graph.js';
 import type { Action, FlowNode } from './model/graph.js';
 import {
   insert,
@@ -123,14 +124,11 @@ export function AutomationRulesPage(): ReactNode {
   const [confirmDelete, setConfirmDelete] = useState<RuleView | null>(null);
   const [pendingLeave, setPendingLeave] = useState<(() => void) | null>(null);
   const test = useTestRun();
-  // PROTOTYPE: the assistant drafts a NEW rule; a save lands it switched off and selects it.
-  const assistantHost = useAutomationAssistant({
-    sources: sources.data ?? null,
-    onOpen: (id, incompleteNodeId) => {
-      setDraft(null);
-      setInspectId(incompleteNodeId);
-    },
-  });
+  // What the assistant put into the open rule's unsaved draft, until the next edit, save or undo:
+  // the draft as it was before, and the steps that are new (comp `Milo Automations` 4b).
+  const [byAssistant, setByAssistant] = useState<{ ruleId: string; before: { id: string; graph: Graph; trigger: Trigger } | null; added: string[] } | null>(null);
+  const boot = useQuery({ ...bootstrapQuery(), enabled: false });
+  const assistant = boot.data === undefined ? 'Milo' : assistantName(boot.data);
 
   const all = rules.data?.rules ?? [];
   // The owner's own rules, and the ones an app or an add-on brought: listed apart, never mixed.
@@ -152,6 +150,8 @@ export function AutomationRulesPage(): ReactNode {
     (next: { graph?: Graph; trigger?: Trigger }) => {
       // A rule that came with an app or an add-on is shown, not changed: its copy is what is edited.
       if (selected === null || (selected.managed !== null && selected.managed !== undefined)) return;
+      // The person's own edit: what the assistant changed is theirs now, and its one undo is gone.
+      setByAssistant(null);
       setDraft((current) => {
         const base =
           current !== null && current.id === selected.id
@@ -162,6 +162,28 @@ export function AutomationRulesPage(): ReactNode {
     },
     [selected],
   );
+
+  // The assistant drafts a new rule (saved switched off, then selected), or changes the open one:
+  // that goes into this page's own unsaved draft, exactly as if the person had made the edit.
+  const editable = selected !== null && (selected.managed === null || selected.managed === undefined);
+  const assistantHost = useAutomationAssistant({
+    sources: sources.data ?? null,
+    name: assistant,
+    open: !editable || selected === null || graph === null || trigger === null ? null : { id: selected.id, name: selected.name, description: selected.description ?? null, trigger, graph },
+    onApply: (rule) => {
+      if (!editable || selected === null || graph === null) return;
+      const had = new Set(flatten(graph).map((node) => node.id));
+      setByAssistant({ ruleId: selected.id, before: dirty ? draft : null, added: flatten(rule.graph).filter((node) => !had.has(node.id)).map((node) => node.id) });
+      setDraft({ id: selected.id, graph: rule.graph, trigger: rule.trigger });
+      setInspectId(null);
+    },
+    onOpen: (id, incompleteNodeId) => {
+      setDraft(null);
+      setByAssistant(null);
+      setInspectId(incompleteNodeId);
+    },
+  });
+  const changedByAssistant = byAssistant !== null && selected !== null && byAssistant.ruleId === selected.id && dirty ? byAssistant : null;
 
   /**
    * Saved or switched on, and said: an email step whose template reads a
@@ -189,6 +211,7 @@ export function AutomationRulesPage(): ReactNode {
     },
     onSuccess: async (updated) => {
       setDraft(null);
+      setByAssistant(null);
       toastSuccess(t('automations:toast.saved', 'Rule saved'));
       warnUnfilled(updated);
       await invalidateRules(queryClient);
@@ -461,6 +484,24 @@ export function AutomationRulesPage(): ReactNode {
                 {t('automations:shipped.readOnly', 'This rule came with {name}. Switch it on or off here; to change what it does, edit a copy.', { name: selectedShipped.name })}
               </p>
             )}
+            {changedByAssistant === null ? null : (
+              <div role="status" data-testid="rule-changed-by-assistant" className="flex items-center gap-3 border-b border-border bg-accent-soft px-5 py-2.5">
+                <span className="min-w-0 flex-1 text-[12.5px] font-bold text-accent">{t('automations:assistant.changed', '{name} changed this rule.', { name: assistant })}</span>
+                <button
+                  type="button"
+                  data-testid="rule-undo-assistant"
+                  onClick={() => {
+                    // The draft as it was before: the rule as saved, or the person's own unsaved edits.
+                    setDraft(changedByAssistant.before);
+                    setByAssistant(null);
+                    setInspectId(null);
+                  }}
+                  className="shrink-0 rounded-lg border border-accent/40 bg-surface px-2.5 py-[5px] text-[12px] font-bold text-accent hover:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                >
+                  {t('automations:assistant.undo', 'Undo {name}’s change', { name: assistant })}
+                </button>
+              </div>
+            )}
             {/* Shown, not changed: nothing in a shipped rule's flow takes a click or a key. */}
             <div {...(selectedShipped === null ? {} : { inert: true })} data-part="rule-flow">
             <FlowBuilder
@@ -471,6 +512,7 @@ export function AutomationRulesPage(): ReactNode {
               ranIds={test.ranIds}
               incompleteId={incomplete?.id ?? null}
               subFor={(node) => subLineFor(node, table)}
+              tagFor={(node) => (changedByAssistant !== null && changedByAssistant.added.includes(node.id) ? t('assistant:automation.addedBy', 'Added by {name}', { name: assistant }) : null)}
               addOnFor={(node) => {
                 if (node.kind !== 'action' || node.action.kind !== 'add-on.step') return null;
                 const step = findStep(node.action);

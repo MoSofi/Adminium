@@ -45,7 +45,16 @@ export default {
     "placeholder": "描述你需要的規則…",
     "readPage": "自動化規則 · {rules, plural, other {# 條規則}} · {tables, plural, other {# 個可讀資料表}}",
     "scopePrimary": "automations",
-    "workTitle": "已起草新規則"
+    "workTitle": "已起草新規則",
+    "addedBy": "由 {name} 新增",
+    "applied": "已套用到此規則，尚未儲存。",
+    "apply": "套用到此規則",
+    "handoff": "開啟郵件範本來草擬一個。",
+    "handoffSub": "此對話會隨你一起過去。",
+    "handoffOpen": "開啟郵件範本",
+    "waiting": "等待範本",
+    "savedOff": "將以關閉狀態儲存",
+    "notSaved": "在你儲存規則之前，不會儲存任何內容。"
   },
   "button": "詢問 {name}",
   "buttonTitle": "就此頁面詢問 {name}",

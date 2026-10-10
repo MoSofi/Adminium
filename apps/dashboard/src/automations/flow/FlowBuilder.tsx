@@ -62,6 +62,12 @@ export interface FlowBuilderProps {
   addOnFor?: ((node: FlowNode) => { name: string; gone: string | null } | null) | undefined;
   /** Shown, not changed (a rule that came with an app or an add-on): no place to add a step. */
   readOnly?: boolean;
+  /** A small drawing of the flow for a narrow place (the assistant's card): small cards, a tight frame. */
+  compact?: boolean;
+  /** A word on a step's card saying where it came from ("Added by Milo"); null for none. */
+  tagFor?: ((node: FlowNode) => string | null) | undefined;
+  /** The trigger's own second line, where the page that draws the flow has one. */
+  triggerSub?: string | undefined;
 }
 
 const STEM = 'w-0.5 flex-1 bg-border-strong';
@@ -105,12 +111,12 @@ export function FlowBuilder(props: FlowBuilderProps): ReactNode {
     >
       {/* The canvas: surface-2, 24/28/26 padding, an inner column capped at
           660 px and centred (comp 250-251). */}
-      <div className="bg-surface-2 px-7 pb-[26px] pt-6">
+      <div className={props.compact === true ? 'bg-surface-2 px-3 py-3' : 'bg-surface-2 px-7 pb-[26px] pt-6'}>
         <div className="mx-auto flex max-w-[660px] flex-col items-stretch">
           {props.graph.nodes.map((node, index) => (
             <div key={node.id} className="flex flex-col items-stretch">
               {index > 0 ? props.readOnly === true ? <Stem /> : <Connector onClick={() => { props.onInsert({ index }); }} /> : null}
-              <NodeCard {...props} node={node} dragId={dragId} small={false} />
+              <NodeCard {...props} node={node} dragId={dragId} small={props.compact === true} />
               {node.kind === 'branch' ? (
                 <BranchGroup {...props} node={node} dragId={dragId} />
               ) : null}
@@ -186,7 +192,8 @@ function NodeCard(props: NodeCardProps): ReactNode {
 
   const draggable = useDraggable({ id: node.id, disabled: !movable });
   const droppable = useDroppable({ id: node.id, disabled: !movable });
-  const sub = props.subFor(node);
+  const sub = node.kind === 'trigger' && props.triggerSub !== undefined ? props.triggerSub : props.subFor(node);
+  const tag = props.tagFor?.(node) ?? null;
   const addOn = props.addOnFor?.(node) ?? null;
   const gone = addOn?.gone ?? null;
 
@@ -247,6 +254,11 @@ function NodeCard(props: NodeCardProps): ReactNode {
           </div>
           {sub === '' ? null : (
             <div className={`mt-0.5 text-fg-muted ${small ? 'text-[11px]' : 'text-[11.5px]'}`}>{sub}</div>
+          )}
+          {tag === null ? null : (
+            <span data-testid="flow-node-tag" className="mt-1.5 inline-flex items-center rounded-md bg-accent-soft px-1.5 py-0.5 text-[10.5px] font-bold text-accent">
+              {tag}
+            </span>
           )}
         </div>
         {ran ? (

@@ -35,7 +35,16 @@
     "placeholder": "Beskriv den regel, du har brug for …",
     "readPage": "Automatiseringsregler · {rules, plural, one {# regel} other {# regler}} · {tables, plural, one {# læsbar tabel} other {# læsbare tabeller}}",
     "scopePrimary": "automations",
-    "workTitle": "Udkast til ny regel"
+    "workTitle": "Udkast til ny regel",
+    "addedBy": "Tilføjet af {name}",
+    "applied": "Anvendt på denne regel. Den er ikke gemt endnu.",
+    "apply": "Anvend på denne regel",
+    "handoff": "Åbn E-mailskabeloner for at lave et udkast.",
+    "handoffSub": "Samtalen følger med dig.",
+    "handoffOpen": "Åbn E-mailskabeloner",
+    "waiting": "Venter på en skabelon",
+    "savedOff": "Gemmes slået fra",
+    "notSaved": "Intet gemmes, før du gemmer reglen."
   },
   "button": "Spørg {name}",
   "buttonTitle": "Spørg {name} om denne side",

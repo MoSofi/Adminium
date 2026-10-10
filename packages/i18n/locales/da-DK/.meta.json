@@ -323,6 +323,18 @@
     "status": "mt",
     "srcHash": "ae9ae0852690"
   },
+  "assistant.automation.addedBy": {
+    "status": "mt",
+    "srcHash": "19b77b48a1ea"
+  },
+  "assistant.automation.applied": {
+    "status": "mt",
+    "srcHash": "fed59e5ca63f"
+  },
+  "assistant.automation.apply": {
+    "status": "mt",
+    "srcHash": "b11043429fee"
+  },
   "assistant.automation.blurb": {
     "status": "mt",
     "srcHash": "3bae85feaf60"
@@ -371,6 +383,22 @@
     "status": "mt",
     "srcHash": "4e2d345acd3e"
   },
+  "assistant.automation.handoff": {
+    "status": "mt",
+    "srcHash": "f43f8d5936ed"
+  },
+  "assistant.automation.handoffOpen": {
+    "status": "mt",
+    "srcHash": "5e6e998ea30c"
+  },
+  "assistant.automation.handoffSub": {
+    "status": "mt",
+    "srcHash": "8c7e4fcc1970"
+  },
+  "assistant.automation.notSaved": {
+    "status": "mt",
+    "srcHash": "2c92f3e24e5a"
+  },
   "assistant.automation.page": {
     "status": "mt",
     "srcHash": "9dae5e98ba24"
@@ -383,9 +411,17 @@
     "status": "mt",
     "srcHash": "4897ffcf4a27"
   },
+  "assistant.automation.savedOff": {
+    "status": "mt",
+    "srcHash": "71f04d496a92"
+  },
   "assistant.automation.scopePrimary": {
     "status": "src",
     "srcHash": "e75653813e85"
+  },
+  "assistant.automation.waiting": {
+    "status": "mt",
+    "srcHash": "283c08b2a088"
   },
   "assistant.automation.workTitle": {
     "status": "mt",
@@ -1702,6 +1738,14 @@
   "automations.addOn.typedNumber": {
     "status": "mt",
     "srcHash": "ad871a1e5638"
+  },
+  "automations.assistant.changed": {
+    "status": "mt",
+    "srcHash": "cedf01e284f0"
+  },
+  "automations.assistant.undo": {
+    "status": "mt",
+    "srcHash": "8105f8e58705"
   },
   "automations.branch.ifMatches": {
     "status": "mt",

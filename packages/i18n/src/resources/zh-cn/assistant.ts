@@ -45,7 +45,16 @@ export default {
     "placeholder": "描述你需要的规则…",
     "readPage": "自动化规则 · {rules, plural, other {# 条规则}} · {tables, plural, other {# 张可读表}}",
     "scopePrimary": "automations",
-    "workTitle": "已起草新规则"
+    "workTitle": "已起草新规则",
+    "addedBy": "由 {name} 添加",
+    "applied": "已应用到此规则，尚未保存。",
+    "apply": "应用到此规则",
+    "handoff": "打开邮件模板来起草一个。",
+    "handoffSub": "此对话会随你一起过去。",
+    "handoffOpen": "打开邮件模板",
+    "waiting": "等待模板",
+    "savedOff": "将以关闭状态保存",
+    "notSaved": "在你保存规则之前，不会保存任何内容。"
   },
   "button": "询问 {name}",
   "buttonTitle": "就此页面询问 {name}",

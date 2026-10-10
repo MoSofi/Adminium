@@ -463,5 +463,9 @@ export default {
     "noRows": "Die Tabelle des Add-ons ist nicht vorhanden, es gibt nichts auszuwählen.",
     "findRow": "Suchen…",
     "noRow": "Keine Treffer."
+  },
+  "assistant": {
+    "changed": "{name} hat diese Regel geändert.",
+    "undo": "Änderung von {name} rückgängig machen"
   }
 } as const;

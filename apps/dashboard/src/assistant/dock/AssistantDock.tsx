@@ -583,6 +583,10 @@ export function AssistantDock({ visible, pages }: AssistantDockProps) {
                       if (floating) close();
                       void navigate({ to: '/studio/add-ons' });
                     }}
+                    // The panel stays open: the conversation goes to Email templates with the person.
+                    onOpenEmailTemplates={() => {
+                      void navigate({ to: '/email-templates' });
+                    }}
                   />
                 ) : (
                   <ParkedDraft

@@ -463,5 +463,9 @@ export default {
     "noRows": "Tabulka doplňku tu není, není z čeho vybírat.",
     "findRow": "Najít…",
     "noRow": "Nic neodpovídá."
+  },
+  "assistant": {
+    "changed": "{name} změnil toto pravidlo.",
+    "undo": "Vrátit změnu, kterou provedl {name}"
   }
 } as const;

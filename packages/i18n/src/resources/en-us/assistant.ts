@@ -45,7 +45,16 @@ export default {
     "placeholder": "Describe the rule you need…",
     "readPage": "Automation rules · {rules, plural, one {# rule} other {# rules}} · {tables, plural, one {# readable table} other {# readable tables}}",
     "scopePrimary": "automations",
-    "workTitle": "Drafted a new rule"
+    "workTitle": "Drafted a new rule",
+    "addedBy": "Added by {name}",
+    "applied": "Applied to this rule. It is not saved yet.",
+    "apply": "Apply to this rule",
+    "handoff": "Open Email templates to draft one.",
+    "handoffSub": "This conversation comes with you.",
+    "handoffOpen": "Open Email templates",
+    "waiting": "Waiting for a template",
+    "savedOff": "Will be saved switched off",
+    "notSaved": "Nothing is saved until you save the rule."
   },
   "button": "Ask {name}",
   "buttonTitle": "Ask {name} about this page",

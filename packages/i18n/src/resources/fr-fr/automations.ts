@@ -463,5 +463,9 @@ export default {
     "noRows": "La table du module n’est pas là : rien à choisir.",
     "findRow": "Rechercher…",
     "noRow": "Aucun résultat."
+  },
+  "assistant": {
+    "changed": "{name} a modifié cette règle.",
+    "undo": "Annuler la modification de {name}"
   }
 } as const;

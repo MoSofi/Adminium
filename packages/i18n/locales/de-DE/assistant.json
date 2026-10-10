@@ -35,7 +35,16 @@
     "placeholder": "Beschreibe die Regel, die du brauchst …",
     "readPage": "Automatisierungsregeln · {rules, plural, one {# Regel} other {# Regeln}} · {tables, plural, one {# lesbare Tabelle} other {# lesbare Tabellen}}",
     "scopePrimary": "automations",
-    "workTitle": "Neue Regel entworfen"
+    "workTitle": "Neue Regel entworfen",
+    "addedBy": "Von {name} hinzugefügt",
+    "applied": "Auf diese Regel angewendet. Sie ist noch nicht gespeichert.",
+    "apply": "Auf diese Regel anwenden",
+    "handoff": "Öffnen Sie die E-Mail-Vorlagen, um eine zu entwerfen.",
+    "handoffSub": "Diese Unterhaltung kommt mit.",
+    "handoffOpen": "E-Mail-Vorlagen öffnen",
+    "waiting": "Wartet auf eine Vorlage",
+    "savedOff": "Wird ausgeschaltet gespeichert",
+    "notSaved": "Nichts wird gespeichert, bis Sie die Regel speichern."
   },
   "button": "{name} fragen",
   "buttonTitle": "{name} zu dieser Seite fragen",

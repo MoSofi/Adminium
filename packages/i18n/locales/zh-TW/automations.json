@@ -453,5 +453,9 @@
     "noRows": "附加元件的資料表不存在，無可選擇。",
     "findRow": "尋找…",
     "noRow": "沒有相符項目。"
+  },
+  "assistant": {
+    "changed": "{name} 修改了此規則。",
+    "undo": "復原 {name} 的修改"
   }
 }

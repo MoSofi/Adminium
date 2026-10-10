@@ -463,5 +463,9 @@ export default {
     "noRows": "جدول الإضافة غير موجود للاختيار منه.",
     "findRow": "ابحث عن واحد…",
     "noRow": "لا شيء مطابق."
+  },
+  "assistant": {
+    "changed": "{name} غيّر هذه القاعدة.",
+    "undo": "التراجع عن تغيير {name}"
   }
 } as const;

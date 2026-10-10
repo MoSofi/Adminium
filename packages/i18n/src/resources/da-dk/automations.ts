@@ -463,5 +463,9 @@ export default {
     "noRows": "Tilføjelsens tabel findes ikke at vælge fra.",
     "findRow": "Find en…",
     "noRow": "Intet matcher."
+  },
+  "assistant": {
+    "changed": "{name} har ændret denne regel.",
+    "undo": "Fortryd ændringen fra {name}"
   }
 } as const;
