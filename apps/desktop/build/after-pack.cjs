@@ -96,8 +96,30 @@ function checkWorkspacePackages(context) {
   console.log(`  • ${Object.keys(scope).length} workspace packages in the archive, each holding only what its \`files\` names`);
 }
 
+/**
+ * The starter lockfile made for this release is in the archive, both files of
+ * it. It once was not: the packer leaves out every file named
+ * `package-lock.json`, the folder arrived with its manifest alone, and every
+ * new project resolved its own versions with nothing saying so.
+ */
+function checkStarter(context) {
+  const archive = join(resourcesDir(context), 'app.asar');
+  if (!existsSync(archive)) return;
+  const made = existsSync(join(context.packager.projectDir, 'resources', 'starter', 'starter.json'));
+  const packed = archiveHeader(archive).files?.resources?.files?.starter?.files ?? {};
+  if (!made) {
+    console.log('  • no starter lockfile was made for this build: a new project resolves its own versions');
+    return;
+  }
+  for (const name of ['starter.json', 'starter-lock.json']) {
+    if (packed[name] === undefined) throw new Error(`after-pack: resources/starter/${name} was made and is not in the archive.`);
+  }
+  console.log('  • the starter lockfile is in the archive');
+}
+
 exports.default = async function afterPack(context) {
   checkWorkspacePackages(context);
+  checkStarter(context);
   const from = realpathSync(join(context.packager.projectDir, 'node_modules', 'npm'));
   const to = join(resourcesDir(context), 'npm');
   rmSync(to, { recursive: true, force: true });

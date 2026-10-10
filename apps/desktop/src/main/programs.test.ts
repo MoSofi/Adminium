@@ -130,7 +130,7 @@ describe('the starter’s lockfile', () => {
     const dir = join(userData, 'starter');
     expect(provideDesktopPrograms({ ...base, starterDir: dir }).starter).toBeNull();
     mkdirSync(dir);
-    writeFileSync(join(dir, 'package-lock.json'), '{}');
+    writeFileSync(join(dir, 'starter-lock.json'), '{}');
     expect(provideDesktopPrograms({ ...base, starterDir: dir }).starter).toBe(dir);
     expect(provideDesktopPrograms({ ...base, starterDir: null }).starter).toBeNull();
   });

@@ -22,7 +22,13 @@ import { PUBLIC_CLIENT_PACKAGE } from './apps/scaffold-app.js';
 import { desktopPrograms } from './programs.js';
 
 /** The two files of a carried starter: the lockfile, and what it was made for. */
-export const STARTER_LOCK = 'package-lock.json';
+/**
+ * The carried lockfile's own name. NOT `package-lock.json`: the packer leaves every file of that name out of the
+ * app's archive, so a starter kept under it reached no packed app at all.
+ */
+export const STARTER_LOCK = 'starter-lock.json';
+/** The name it takes in a project, where npm reads it. */
+const PROJECT_LOCK = 'package-lock.json';
 export const STARTER_MANIFEST = 'starter.json';
 
 /** The React a project's screens are built with: what the Designer adds to a project it makes. */
@@ -77,7 +83,7 @@ export function addScreenPackagesTo(root: string, version: string): void {
  * lockfile, or the lockfile was made for other dependencies.
  */
 export function starterLockFor(root: string, starterDir: string): string | null {
-  if (existsSync(join(root, STARTER_LOCK))) return null;
+  if (existsSync(join(root, PROJECT_LOCK))) return null;
   const project = readJson(join(root, 'package.json'));
   const madeFor = readJson(join(starterDir, STARTER_MANIFEST));
   const lock = readJson(join(starterDir, STARTER_LOCK));
@@ -104,6 +110,6 @@ export function applyStarterLock(root: string, env: Readonly<Record<string, stri
   if (starter === null) return false;
   const text = starterLockFor(root, starter);
   if (text === null) return false;
-  writeFileSync(join(root, STARTER_LOCK), text);
+  writeFileSync(join(root, PROJECT_LOCK), text);
   return true;
 }

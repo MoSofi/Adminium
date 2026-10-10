@@ -16,7 +16,7 @@ beforeEach(() => {
   starter = join(root, '.carried');
   mkdirSync(starter);
   writeFileSync(join(starter, 'starter.json'), JSON.stringify(LISTED));
-  writeFileSync(join(starter, 'package-lock.json'), JSON.stringify({ name: 'starter', version: '0.0.0', lockfileVersion: 3, packages: { '': { name: 'starter', version: '0.0.0', ...LISTED }, 'node_modules/react': { version: '19.2.0', integrity: 'sha512-x' } } }));
+  writeFileSync(join(starter, 'starter-lock.json'), JSON.stringify({ name: 'starter', version: '0.0.0', lockfileVersion: 3, packages: { '': { name: 'starter', version: '0.0.0', ...LISTED }, 'node_modules/react': { version: '19.2.0', integrity: 'sha512-x' } } }));
   writeFileSync(join(root, 'package.json'), JSON.stringify({ name: 'juniper-kitchen', version: '0.1.0', private: true, ...LISTED }));
 });
 afterEach(() => {
@@ -55,9 +55,9 @@ describe('the lockfile a new project starts with', () => {
 
   it('is nothing on a terminal, in a build that carries none, or when what is carried is not whole', () => {
     expect(applyStarterLock(root, {})).toBe(false);
-    rmSync(join(starter, 'package-lock.json'));
+    rmSync(join(starter, 'starter-lock.json'));
     expect(applyStarterLock(root, env())).toBe(false);
-    writeFileSync(join(starter, 'package-lock.json'), '{"lockfileVersion":3}');
+    writeFileSync(join(starter, 'starter-lock.json'), '{"lockfileVersion":3}');
     expect(starterLockFor(root, starter)).toBeNull();
   });
 

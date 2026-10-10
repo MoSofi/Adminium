@@ -138,7 +138,7 @@ export function provideDesktopPrograms(input: ProvideProgramsInput): DesktopProg
     npmCache: join(npmHome, 'cache'),
     approvals: join(input.userDataDir, 'approved-builds'),
     // Named only when it is really there: a build made outside a release carries none.
-    starter: input.starterDir != null && existsSync(join(input.starterDir, 'package-lock.json')) ? input.starterDir : null,
+    starter: input.starterDir != null && existsSync(join(input.starterDir, 'starter-lock.json')) ? input.starterDir : null,
   };
   mkdirSync(shims, { recursive: true });
   mkdirSync(value.npmCache, { recursive: true });

@@ -354,7 +354,7 @@ jobs:
         run: |
           set -euo pipefail
           node scripts/release/starter-lockfile.mjs
-          test -s apps/desktop/resources/starter/package-lock.json
+          test -s apps/desktop/resources/starter/starter-lock.json
           test -s apps/desktop/resources/starter/starter.json
 
       # ── Step 3: package + (mac) sign + notarize ──────────────────────────────

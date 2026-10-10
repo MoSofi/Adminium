@@ -9,7 +9,7 @@
  * the three packages an app's screens are built with), asks npm to resolve it
  * without installing anything, and writes two files the app carries:
  *
- *   apps/desktop/resources/starter/package-lock.json   what to install
+ *   apps/desktop/resources/starter/starter-lock.json   what to install
  *   apps/desktop/resources/starter/starter.json        what it was made for
  *
  * A new project is given this lockfile only when it lists exactly what

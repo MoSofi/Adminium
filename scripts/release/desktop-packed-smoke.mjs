@@ -77,7 +77,10 @@ async function main() {
   let app;
   let failed = null;
   try {
-    app = await electron.launch({ executablePath: program, args: [`--user-data-dir=${userData}`], env, timeout: 120_000 });
+    // A home folder of its own has no login keychain, and macOS then stops the app on a "Keychain Not Found" window
+    // nobody is there to answer. Chromium's stand-in keychain keeps the key store's calls answered and off the
+    // machine's own.
+    app = await electron.launch({ executablePath: program, args: [`--user-data-dir=${userData}`, '--use-mock-keychain'], env, timeout: 120_000 });
     let page = await app.firstWindow();
     await page.getByRole('heading', { name: 'What would you like to do?' }).waitFor({ timeout: 120_000 });
     step('Start is shown, from inside the archive.');
