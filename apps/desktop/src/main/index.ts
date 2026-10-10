@@ -85,8 +85,11 @@ import { EPHEMERAL_PORT, generateBootToken, LOOPBACK_HOST } from '../server/env.
 import { LAN_PORT_IN_USE, registerIpcHandlers, type DesktopRuntimeSnapshot } from './ipc.js';
 import { findGit, removeUnfinishedGit, runProgram } from './git.js';
 import { createDesktopLogging } from './logging.js';
+import { createMakeProject, runToEnd } from './make-project.js';
 import { carriedNpmDir, provideDesktopPrograms } from './programs.js';
 import { firstFreePort, projectPortRange, seamProject, sessionCookieNames, stopBusyWords } from './project.js';
+import { realFolderDeps, type FolderDeps } from './projects.js';
+import { createStartService, type StartChoice, type StartDeps, type StartService } from './start.js';
 import {
   createServerManager,
   type CreateServerManagerOptions,
@@ -392,6 +395,8 @@ export interface DesktopBridgeContext {
    * routes a push straight to it.
    */
   setMenuLabels: (labels: DesktopMenuLabels) => void;
+  /** The first screens' service while Start is what the window holds; `null` otherwise. */
+  start?: (() => StartService | null) | undefined;
 }
 
 /** What the boot sequence knows about itself; `getRuntimeInfo` reads it. */
@@ -550,6 +555,23 @@ export interface DesktopBootDeps {
    * it is the test seam in the production wiring, which a packaged app ignores.
    */
   openProject?: { readonly root: string } | undefined;
+  /**
+   * The first screens (Start, New app). Present: a launch with nothing to open
+   * shows Start and waits for the person's choice; "Use my own database" then
+   * goes on into the classic workspace exactly as a launch without this does.
+   * Absent (every boot test that predates the screens): the classic workspace
+   * at once. A file handed to the app at launch belongs to the classic
+   * workspace and skips Start.
+   */
+  startScreen?:
+    | {
+        readonly folder: FolderDeps;
+        readonly chooseDirectory: StartDeps['chooseDirectory'];
+        readonly makeProject?: StartDeps['makeProject'];
+        /** Whether the classic workspace was ever set up in this data folder. */
+        readonly classicUsed: (config: DesktopConfig) => boolean;
+      }
+    | undefined;
   /** A free port for a project's server, asked for before every fork (from 4700, as `adminium design` does). */
   pickProjectPort?: ((mode: 'design' | 'serve') => Promise<number>) | undefined;
   /** The app's own bundled apps, as an absolute path. */
@@ -636,6 +658,10 @@ export function createDesktopApp(deps: DesktopBootDeps): DesktopApp {
   /** The croner handle. Stopped on quit so it cannot fire into a closing app.
    * */
   let stopAutoBackup: (() => void) | null = null;
+  /** The first screens' service, made when Start is shown; kept after the choice for {@link StartService.trustNow}. */
+  let startService: StartService | null = null;
+  /** Start is what the window holds: only then are its bridge calls answered. */
+  let startOpen = false;
   /**
    * The updater, `null` until step 5 and `null` forever in `disabled` mode.
    * Held here — rather than a step-5 const — for the quit hook below, which
@@ -907,6 +933,7 @@ export function createDesktopApp(deps: DesktopBootDeps): DesktopApp {
           menuLabels = labels;
           rebuildMenu();
         },
+        start: () => (startOpen ? startService : null),
       });
 
       // The three buttons, graceful shutdown. BOTH before the config steps
@@ -1003,6 +1030,8 @@ export function createDesktopApp(deps: DesktopBootDeps): DesktopApp {
             stopping = true;
             finish();
             await target.stop().catch(() => undefined);
+            // The folder's code as the app leaves it is what was agreed to: its own changes are not asked about.
+            if (target.project !== null) await startService?.trustNow(target.project.root).catch(() => undefined);
             host.quit();
           })();
           return;
@@ -1112,6 +1141,34 @@ export function createDesktopApp(deps: DesktopBootDeps): DesktopApp {
         if (deps.openProject !== undefined) {
           await bootProject(loaded.config, deps.openProject);
           return;
+        }
+        const screen = deps.startScreen;
+        if (screen !== undefined && windows.showStart !== undefined && windows.pendingFileArgument() === null) {
+          const classicUsed = screen.classicUsed(loaded.config);
+          const choice = await new Promise<StartChoice>((choose) => {
+            startService = createStartService({
+              readConfig: () => config ?? loaded.config,
+              saveConfig: async (next) => {
+                await deps.config.save(next);
+                config = next;
+              },
+              folder: screen.folder,
+              classicUsed: () => classicUsed,
+              chooseDirectory: screen.chooseDirectory,
+              ...(screen.makeProject === undefined ? {} : { makeProject: screen.makeProject }),
+              onChoice: choose,
+            });
+            startOpen = true;
+            void windows.showStart?.();
+          });
+          startOpen = false;
+          if (choice.kind === 'project') {
+            await bootProject(config ?? loaded.config, { root: choice.root });
+            return;
+          }
+          // "Use my own database". Writing the recent list made `config.json`, so its absence no longer says
+          // whether the classic workspace was ever set up: the data folder does.
+          firstRun = !classicUsed;
         }
         const resolved = await deps.config.resolveSecret(loaded.config);
         secret = resolved.secret;
@@ -1895,6 +1952,27 @@ export function electronBootDeps(): DesktopBootDeps {
   };
   const windows = createWindowManager({ userDataDir });
   const dialogs = createNativeDialogs();
+  // The app's own Node (this program, asked to be Node), the npm it carries, and the stand-ins, made now from
+  // THIS launch's path; and a git that really works here, or none (versions are then off, and never Apple's
+  // stand-in started "to see").
+  const projectPrograms = async () => {
+    const cleared = removeUnfinishedGit(userDataDir);
+    if (cleared.length > 0) mainLog(`[git] removed a download that was cut short: ${cleared.join(', ')}`);
+    const git = await findGit({ platform: process.platform, arch: process.arch, env: process.env, userDataDir, exists: existsSync, run: runProgram });
+    mainLog(git === null ? '[git] none found: versions are off' : `[git] ${git.path} (${git.from})`);
+    return JSON.stringify(
+      provideDesktopPrograms({
+        binary: process.execPath,
+        // Packaged: beside the archive, as real files. From the sources: this package's own dependency.
+        npmDir: carriedNpmDir(app.isPackaged, process.resourcesPath, dirname(fileURLToPath(import.meta.url))),
+        userDataDir,
+        git: git?.path ?? null,
+        // Made by the release (`scripts/release/starter-lockfile.mjs`); a build without it installs the ordinary way.
+        starterDir: resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', 'resources', 'starter'),
+        platform: process.platform,
+      }),
+    );
+  };
   /** The relaunch — one implementation, two callers (the host port). */
   const relaunchApp = (): void => {
     // `relaunch()` only QUEUES the restart. It is `quit()` that ends this
@@ -2115,28 +2193,22 @@ export function electronBootDeps(): DesktopBootDeps {
     // A project folder (plan 66). Until the app's own first screens exist, the
     // only way in is the test seam, which a packaged app does not read.
     openProject: openedProject,
-    projectEnv: process.env,
-    // The app's own Node (this program, asked to be Node), the npm it carries, and the stand-ins, made now from
-    // THIS launch's path; and a git that really works here, or none (versions are then off, and never Apple's
-    // stand-in started "to see").
-    projectPrograms: async () => {
-      const cleared = removeUnfinishedGit(userDataDir);
-      if (cleared.length > 0) mainLog(`[git] removed a download that was cut short: ${cleared.join(', ')}`);
-      const git = await findGit({ platform: process.platform, arch: process.arch, env: process.env, userDataDir, exists: existsSync, run: runProgram });
-      mainLog(git === null ? '[git] none found: versions are off' : `[git] ${git.path} (${git.from})`);
-      return JSON.stringify(
-        provideDesktopPrograms({
-          binary: process.execPath,
-          // Packaged: beside the archive, as real files. From the sources: this package's own dependency.
-          npmDir: carriedNpmDir(app.isPackaged, process.resourcesPath, dirname(fileURLToPath(import.meta.url))),
-          userDataDir,
-          git: git?.path ?? null,
-          // Made by the release (`scripts/release/starter-lockfile.mjs`); a build without it installs the ordinary way.
-          starterDir: resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', 'resources', 'starter'),
-          platform: process.platform,
-        }),
-      );
+    // The app's own first screens: Start, and from it a new project, a recent one, or the classic workspace.
+    startScreen: {
+      folder: realFolderDeps(app.isPackaged ? dirname(process.resourcesPath) : resolve(dirname(fileURLToPath(import.meta.url)), '..', '..')),
+      chooseDirectory: (opts) => dialogs.chooseDirectory(opts),
+      makeProject: createMakeProject({
+        binary: process.execPath,
+        cliEntry: resolve(dirname(createRequire(import.meta.url).resolve('@adminium/server')), 'cli', 'index.js'),
+        programs: projectPrograms,
+        env: process.env,
+        run: runToEnd,
+        log: mainLog,
+      }),
+      classicUsed: (loaded) => existsSync(join(loaded.dataDir, 'meta.db')),
     },
+    projectEnv: process.env,
+    projectPrograms,
     pickProjectPort: () => {
       const range = projectPortRange(process.env, app.isPackaged);
       return firstFreePort(range.first, range.last);
@@ -2165,6 +2237,7 @@ export function electronBootDeps(): DesktopBootDeps {
       const handlers = registerIpcHandlers({
         ipc: ipcMain,
         pinSender: app.isPackaged,
+        start: context.start,
         // The two synchronous properties. `versions.app` is `app.getVersion()`
         // and exists ONLY here: a sandboxed preload's polyfilled `process` knows
         // electron/chrome/node and nothing about the app itself, which is the

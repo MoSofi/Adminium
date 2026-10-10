@@ -11,6 +11,10 @@
  * BrowserWindow, a real utilityProcess) are Playwright `_electron` suite.
  */
 
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+
 import { describe, expect, it, vi } from 'vitest';
 
 import type { BackupCoordinator } from './backup.js';
@@ -31,6 +35,7 @@ import {
 } from './index.js';
 import type { ProbeResult } from './lan.js';
 import type { MenuHandlers, MenuTranslate } from './menu.js';
+import { realFolderDeps } from './projects.js';
 import type {
   CreateServerManagerOptions,
   ServerExit,
@@ -1601,5 +1606,121 @@ describe('projectUrl', () => {
     expect(projectUrl({ port: 4700, mode: 'design', token: 'ab' })).toBe('http://127.0.0.1:4700/design#designToken=ab');
     expect(projectUrl({ port: 4700, mode: 'design', token: null })).toBe('http://127.0.0.1:4700/design');
     expect(projectUrl({ port: 4712, mode: 'serve', token: 'ab' })).toBe('http://127.0.0.1:4712/');
+  });
+});
+
+// ─── the first screens ───────────────────────────────────────────────────────
+
+describe('createDesktopApp opening on Start', () => {
+  const settle = async (): Promise<void> => {
+    for (let i = 0; i < 20; i += 1) await Promise.resolve();
+  };
+
+  function startHarness(over: { classicUsed?: boolean; pendingFile?: string | null; firstRun?: boolean } = {}) {
+    const h = harness({ firstRun: over.firstRun ?? false });
+    const sessions: Array<string | null> = [];
+    const projectOptions: CreateServerManagerOptions[] = [];
+    const deps: DesktopBootDeps = {
+      ...h.deps,
+      windows: {
+        ...h.deps.windows,
+        showStart: () => {
+          h.calls.push('showStart');
+          return Promise.resolve();
+        },
+        pendingFileArgument: () => over.pendingFile ?? null,
+        useProjectSession: (root) => void sessions.push(root),
+      },
+      createServerManager: (o) => {
+        if (o.project !== undefined) projectOptions.push(o);
+        return h.deps.createServerManager(o);
+      },
+      pickProjectPort: () => Promise.resolve(4700),
+      startScreen: {
+        folder: { home: '/home/ava', appDir: '/opt/Adminium', platform: 'linux', exists: () => false, real: (path) => path, list: () => null },
+        chooseDirectory: () => Promise.resolve(null),
+        classicUsed: () => over.classicUsed ?? false,
+      },
+    };
+    return { h, deps, sessions, projectOptions };
+  }
+
+  it('shows Start and starts nothing until the person chooses', async () => {
+    const s = startHarness();
+    void createDesktopApp(s.deps).start();
+    await settle();
+    expect(s.h.calls).toContain('showStart');
+    for (const never of ['config.resolveSecret', 'server.start', 'showBoot', 'createBackup']) expect(s.h.calls).not.toContain(never);
+    // The bridge answers Start's calls only while Start is what the window holds.
+    expect(s.h.bridge()?.start?.()).not.toBeNull();
+    expect(s.h.bridge()?.start?.()?.state()).toMatchObject({ firstLaunch: true, recent: [], proposedParent: '/home/ava/Adminium' });
+  });
+
+  it('"Use my own database" goes on into the classic workspace as a launch without Start does', async () => {
+    const s = startHarness({ classicUsed: true });
+    const started = createDesktopApp(s.deps).start();
+    await settle();
+    s.h.bridge()?.start?.()?.useClassic();
+    await started;
+    const after = s.h.calls.slice(s.h.calls.indexOf('showStart') + 1);
+    expect(after.filter((call) => ['config.resolveSecret', 'server.start', 'showBoot', 'loadApp'].includes(call))).toEqual(['config.resolveSecret', 'server.start', 'showBoot', 'loadApp']);
+    expect(s.h.loaded[0]).not.toContain('/desktop/setup');
+    // Start is gone: its calls are no longer answered.
+    expect(s.h.bridge()?.start?.()).toBeNull();
+  });
+
+  it('sends a classic workspace that was never set up to its setup, whether or not config.json exists', async () => {
+    // config.json was written by Start itself (a project was remembered), so "first run" is read from the data folder.
+    const s = startHarness({ classicUsed: false, firstRun: false });
+    const started = createDesktopApp(s.deps).start();
+    await settle();
+    s.h.bridge()?.start?.()?.useClassic();
+    await started;
+    expect(s.h.loaded[0]).toMatch(/\/desktop\/setup$/);
+  });
+
+  it('skips Start for a file handed to the app at launch: that belongs to the classic workspace', async () => {
+    const s = startHarness({ pendingFile: '/home/ava/backup.zip' });
+    await createDesktopApp(s.deps).start();
+    expect(s.h.calls).not.toContain('showStart');
+    expect(s.h.calls).toContain('server.start');
+  });
+
+  it('boots the project a person opens from Start, on its own cookie jar, with no classic secret', async () => {
+    const home = realpathSync(mkdtempSync(join(tmpdir(), 'adminium-boot-start-')));
+    try {
+      const root = join(home, 'shop');
+      mkdirSync(join(root, 'node_modules'), { recursive: true });
+      writeFileSync(join(root, 'adminium.config.ts'), 'export default {};\n');
+      const s = startHarness();
+      const deps: DesktopBootDeps = { ...s.deps, startScreen: { ...s.deps.startScreen!, folder: { ...realFolderDeps('/opt/Adminium', 'linux'), home } } };
+      const started = createDesktopApp(deps).start();
+      await settle();
+      const start = s.h.bridge()?.start?.();
+      // Asked first: nothing of the folder is started on a first open.
+      await expect(start?.openProject({ path: root })).resolves.toMatchObject({ status: 'trust-needed' });
+      expect(s.projectOptions).toEqual([]);
+      await expect(start?.openProject({ path: root, agreed: true })).resolves.toEqual({ status: 'opened' });
+      await started;
+
+      expect(s.projectOptions).toHaveLength(1);
+      expect(s.projectOptions[0]?.project).toMatchObject({ root, mode: 'design' });
+      expect(s.sessions).toEqual([root]);
+      expect(s.h.calls).not.toContain('config.resolveSecret');
+      expect(s.h.calls).not.toContain('createBackup');
+      // Remembered, in the app's own config, with what was agreed to.
+      expect(s.h.saved.at(-1)?.projects).toMatchObject([{ path: root, name: 'Shop', state: 'building' }]);
+      expect(s.h.saved.at(-1)?.projects[0]?.trusted).toMatch(/^[0-9a-f]{64}$/);
+      expect(s.h.bridge()?.start?.()).toBeNull();
+    } finally {
+      rmSync(home, { recursive: true, force: true });
+    }
+  });
+
+  it('without the screens (every boot before them) goes to the classic workspace at once', async () => {
+    const h = harness();
+    await createDesktopApp(h.deps).start();
+    expect(h.calls).not.toContain('showStart');
+    expect(h.bridge()?.start?.()).toBeNull();
   });
 });

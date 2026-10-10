@@ -15,7 +15,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import type { AdminiumDesktopApi } from './api.js';
-import { BRIDGE_KEY, IPC_CHANNELS, ipcFail, ipcOk, type BridgeBootstrap } from './channels.js';
+import { BRIDGE_KEY, IPC_CHANNELS, START_CHANNELS, ipcFail, ipcOk, type BridgeBootstrap } from './channels.js';
 import {
   createDesktopApi,
   DesktopBridgeError,
@@ -113,11 +113,28 @@ describe('the exposed surface', () => {
     'setMenuLabels',
     'showItemInFolder',
     'showLogs',
+    'start',
     'versions',
   ];
 
   it('is exactly — no more, no less', () => {
     expect(Object.keys(build()).sort()).toEqual(SECTION_4_KEYS);
+  });
+
+  it('exposes the first screens as exactly their nine calls, each over its own channel', async () => {
+    const ipc = new FakeIpc();
+    const { start } = createDesktopApi({ ipc, bootstrap: BOOTSTRAP });
+    expect(Object.keys(start).sort()).toEqual(['chooseFolder', 'chooseParent', 'createProject', 'forgetProject', 'judgeNewFolder', 'locateProject', 'openProject', 'state', 'useClassic']);
+    await start.state();
+    await start.judgeNewFolder({ parent: '/p', name: 'n' });
+    await start.chooseParent({ from: '/p', title: 't' });
+    await start.createProject({ parent: '/p', name: 'n' });
+    await start.chooseFolder({ title: 't' });
+    await start.openProject({ path: '/p' });
+    await start.forgetProject('/p');
+    await start.locateProject({ path: '/p', title: 't' });
+    await start.useClassic();
+    expect(ipc.calls.map((call) => call.channel)).toEqual([...START_CHANNELS]);
   });
 
   it('exposes capabilities as exactly list + invoke', () => {

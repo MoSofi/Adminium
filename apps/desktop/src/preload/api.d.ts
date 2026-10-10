@@ -394,6 +394,116 @@ export interface DesktopBridgeErrorLike extends Error {
   readonly code: DesktopErrorCode;
 }
 
+// ─── The first screens ───────────────────────────────────────────────────────
+
+/** A project in the recent list, as Start draws it. */
+export interface DesktopRecentProject {
+  /** The folder, by its real path: what is handed back to open, locate or remove it. */
+  readonly path: string;
+  /** The same path as a person reads it (`~/Adminium/shop` under the home folder). */
+  readonly displayPath: string;
+  readonly name: string;
+  /** When it was last opened here (ISO 8601). */
+  readonly lastOpened: string;
+  readonly state: 'building' | 'shared';
+  /** The folder is gone, or is no longer a project. */
+  readonly missing: boolean;
+}
+
+export type DesktopThemeChoice = 'system' | 'light' | 'dark';
+
+/** What Start needs to draw itself. */
+export interface DesktopStartState {
+  /** No recent project and no classic workspace: the welcome line is shown. */
+  readonly firstLaunch: boolean;
+  readonly recent: readonly DesktopRecentProject[];
+  /** Where a new project is proposed (`~/Adminium`), real and as a person reads it. */
+  readonly proposedParent: string;
+  /** The same folder as a person reads it. */
+  readonly proposedParentDisplay: string;
+  /** The app's saved language (a locale tag), or `null`: the system's. */
+  readonly language: string | null;
+  readonly theme: DesktopThemeChoice;
+}
+
+/** Why a folder cannot hold a new project. */
+export type DesktopFolderRefusal =
+  | 'no-name'
+  | 'bad-name'
+  | 'home-folder'
+  | 'system-folder'
+  | 'inside-the-app'
+  | 'inside-a-project'
+  | 'exists-with-files'
+  | 'not-absolute';
+
+/** What a person is warned of and may still choose. */
+export type DesktopFolderWarning = 'icloud' | 'onedrive' | 'dropbox' | 'googledrive' | 'no-links';
+
+export interface DesktopNewFolderInput {
+  /** The folder the project's own folder is made IN. */
+  readonly parent: string;
+  /** The project's name as the person typed it. */
+  readonly name: string;
+}
+
+/** Main's judgement of where a new project would go. */
+export type DesktopNewFolderJudgement =
+  | { readonly ok: true; readonly path: string; readonly displayPath: string; readonly warning: DesktopFolderWarning | null }
+  | { readonly ok: false; readonly path: string | null; readonly displayPath: string | null; readonly refused: DesktopFolderRefusal };
+
+export interface DesktopCreateProjectInput extends DesktopNewFolderInput {
+  /** The person read the warning and chose "Use it anyway". */
+  readonly acceptWarning?: boolean | undefined;
+}
+
+export type DesktopCreateProjectResult =
+  | { readonly status: 'created'; readonly path: string }
+  | { readonly status: 'refused'; readonly refused: DesktopFolderRefusal }
+  | { readonly status: 'warned'; readonly warning: DesktopFolderWarning }
+  | { readonly status: 'failed'; readonly detail: string };
+
+export interface DesktopOpenProjectInput {
+  readonly path: string;
+  /** The person answered "Open" to the question about running this folder's code. */
+  readonly agreed?: boolean | undefined;
+}
+
+export type DesktopOpenProjectResult =
+  | { readonly status: 'opened' }
+  /** Not agreed to yet on this computer, or its code changed since: ask, then call again with `agreed`. */
+  | { readonly status: 'trust-needed'; readonly path: string; readonly displayPath: string; readonly changed: boolean }
+  | { readonly status: 'missing' }
+  | { readonly status: 'not-a-project' }
+  | { readonly status: 'needs-packages' };
+
+export type DesktopLocateProjectResult =
+  | { readonly status: 'located'; readonly recent: readonly DesktopRecentProject[] }
+  | { readonly status: 'cancelled' }
+  | { readonly status: 'not-a-project' }
+  | { readonly status: 'already-listed' };
+
+/**
+ * What the app's own first screens ask of main. Answered ONLY for the app's own
+ * pages: a project's dashboard, which holds the rest of this bridge, is refused
+ * (a page a project's code can draw into must not be able to open another folder).
+ */
+export interface DesktopStartApi {
+  state(): Promise<DesktopStartState>;
+  judgeNewFolder(input: DesktopNewFolderInput): Promise<DesktopNewFolderJudgement>;
+  /** The system's folder picker, for "Change…". `null` on cancel. */
+  chooseParent(input: { readonly from: string; readonly title: string }): Promise<string | null>;
+  createProject(input: DesktopCreateProjectInput): Promise<DesktopCreateProjectResult>;
+  /** The system's folder picker, for "Open a folder". `null` on cancel. */
+  chooseFolder(input: { readonly title: string }): Promise<{ readonly path: string; readonly displayPath: string } | null>;
+  openProject(input: DesktopOpenProjectInput): Promise<DesktopOpenProjectResult>;
+  forgetProject(path: string): Promise<readonly DesktopRecentProject[]>;
+  /** "Locate…": the system's folder picker, then the entry moves there. */
+  locateProject(input: { readonly path: string; readonly title: string }): Promise<DesktopLocateProjectResult>;
+  /** "Use my own database": the classic workspace. */
+  useClassic(): Promise<void>;
+}
+
 // ─── The API ─────────────────────────────────────────────────────────────────
 
 /**
@@ -495,6 +605,9 @@ export interface AdminiumDesktopApi {
 
   relaunch(): Promise<void>;
   showLogs(): Promise<void>;
+
+  // the first screens (the app's own pages only)
+  readonly start: DesktopStartApi;
 }
 
 /**

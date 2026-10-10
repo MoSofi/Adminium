@@ -44,10 +44,19 @@ import type {
   DesktopBridgeErrorLike,
   DesktopBundledTextKind,
   DesktopConfigPatch,
+  DesktopCreateProjectInput,
+  DesktopCreateProjectResult,
   DesktopDiagnostics,
   DesktopErrorCode,
+  DesktopLocateProjectResult,
   DesktopMenuLabels,
+  DesktopNewFolderInput,
+  DesktopNewFolderJudgement,
+  DesktopOpenProjectInput,
+  DesktopOpenProjectResult,
+  DesktopRecentProject,
   DesktopRuntimeInfo,
+  DesktopStartState,
   DesktopUpdateCheckResult,
   DesktopUpdateEvent,
   OpenFileOptions,
@@ -264,6 +273,25 @@ export function createDesktopApi(deps: Pick<PreloadDeps, 'ipc' | 'bootstrap'>): 
     relaunch: (): Promise<void> => unwrap(ipc.invoke(IPC_CHANNELS.relaunch)),
 
     showLogs: (): Promise<void> => unwrap(ipc.invoke(IPC_CHANNELS.showLogs)),
+
+    start: {
+      state: (): Promise<DesktopStartState> => unwrap(ipc.invoke(IPC_CHANNELS.startState)),
+      judgeNewFolder: (input: DesktopNewFolderInput): Promise<DesktopNewFolderJudgement> =>
+        unwrap(ipc.invoke(IPC_CHANNELS.startJudgeNewFolder, input)),
+      chooseParent: (input: { readonly from: string; readonly title: string }): Promise<string | null> =>
+        unwrap(ipc.invoke(IPC_CHANNELS.startChooseParent, input)),
+      createProject: (input: DesktopCreateProjectInput): Promise<DesktopCreateProjectResult> =>
+        unwrap(ipc.invoke(IPC_CHANNELS.startCreateProject, input)),
+      chooseFolder: (input: { readonly title: string }): Promise<{ readonly path: string; readonly displayPath: string } | null> =>
+        unwrap(ipc.invoke(IPC_CHANNELS.startChooseFolder, input)),
+      openProject: (input: DesktopOpenProjectInput): Promise<DesktopOpenProjectResult> =>
+        unwrap(ipc.invoke(IPC_CHANNELS.startOpenProject, input)),
+      forgetProject: (path: string): Promise<readonly DesktopRecentProject[]> =>
+        unwrap(ipc.invoke(IPC_CHANNELS.startForgetProject, path)),
+      locateProject: (input: { readonly path: string; readonly title: string }): Promise<DesktopLocateProjectResult> =>
+        unwrap(ipc.invoke(IPC_CHANNELS.startLocateProject, input)),
+      useClassic: (): Promise<void> => unwrap(ipc.invoke(IPC_CHANNELS.startUseClassic)),
+    },
   };
 }
 

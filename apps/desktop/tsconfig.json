@@ -10,7 +10,9 @@
     // `electron-vite/node` declares the ?asset / ?nodeWorker / *.node module
     // shims the main + server bundles may import (packaging uses ?asset&asarUnpack
     // for the native binaries).
-    "types": ["node", "electron-vite/node"]
+    "types": ["node", "electron-vite/node"],
+    // src/renderer/app: the app's own pages are React.
+    "jsx": "react-jsx"
   },
   "include": ["src", "electron.vite.config.ts", "vitest.config.ts"]
 }

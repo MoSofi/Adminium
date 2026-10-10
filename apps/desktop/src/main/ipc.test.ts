@@ -15,6 +15,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import {
   INVOKE_CHANNELS,
+  START_CHANNELS,
   IPC_CHANNELS,
   type BridgeBootstrap,
   type IpcResult,
@@ -32,8 +33,10 @@ import {
   type IpcInvokeEventLike,
   type IpcMainLike,
   type IpcSyncEventLike,
+  ownPagePolicy,
   type RegisterIpcHandlersOptions,
 } from './ipc.js';
+import type { StartService } from './start.js';
 import type { SetDataDirResult } from '../preload/api.js';
 import type { UpdateManager } from './updates.js';
 
@@ -663,5 +666,103 @@ describe('dialogs and lifecycle route to their ports', () => {
     expectOk(await ipc.invoke(IPC_CHANNELS.showLogs));
     expect(relaunch).toHaveBeenCalledOnce();
     expect(showLogs).toHaveBeenCalledOnce();
+  });
+});
+
+// ─── the first screens ───────────────────────────────────────────────────────
+
+describe('the first screens’ channels', () => {
+  const OWN_PAGE: IpcInvokeEventLike = { senderFrame: { url: 'file:///Applications/Adminium.app/Contents/Resources/app.asar/out/renderer/app/index.html#/new' } };
+
+  const service = (): StartService => ({
+    state: vi.fn(() => ({ firstLaunch: true, recent: [], proposedParent: '/home/ava/Adminium', proposedParentDisplay: '~/Adminium', language: null, theme: 'system' as const })),
+    judgeNewFolder: vi.fn(() => ({ ok: true as const, path: '/home/ava/Adminium/shop', displayPath: '~/Adminium/shop', warning: null })),
+    chooseParent: vi.fn(() => Promise.resolve('/picked')),
+    createProject: vi.fn(() => Promise.resolve({ status: 'created' as const, path: '/home/ava/Adminium/shop' })),
+    chooseFolder: vi.fn(() => Promise.resolve({ path: '/p', displayPath: '/p' })),
+    openProject: vi.fn(() => Promise.resolve({ status: 'opened' as const })),
+    forgetProject: vi.fn(() => Promise.resolve([])),
+    locateProject: vi.fn(() => Promise.resolve({ status: 'cancelled' as const })),
+    useClassic: vi.fn(),
+    trustNow: vi.fn(() => Promise.resolve()),
+  });
+
+  const PAYLOADS: Record<string, unknown> = {
+    [IPC_CHANNELS.startState]: undefined,
+    [IPC_CHANNELS.startJudgeNewFolder]: { parent: '/home/ava/Adminium', name: 'Shop' },
+    [IPC_CHANNELS.startChooseParent]: { from: '/home/ava/Adminium', title: 'Where to keep it' },
+    [IPC_CHANNELS.startCreateProject]: { parent: '/home/ava/Adminium', name: 'Shop', acceptWarning: true },
+    [IPC_CHANNELS.startChooseFolder]: { title: 'Open a folder' },
+    [IPC_CHANNELS.startOpenProject]: { path: '/home/ava/Adminium/shop', agreed: true },
+    [IPC_CHANNELS.startForgetProject]: '/home/ava/Adminium/shop',
+    [IPC_CHANNELS.startLocateProject]: { path: '/home/ava/Adminium/shop', title: 'Where is Shop now?' },
+    [IPC_CHANNELS.startUseClassic]: undefined,
+  };
+
+  it('are answered for the app’s own pages, each by its own call', async () => {
+    const start = service();
+    const h = harness({ start: () => start });
+    for (const channel of START_CHANNELS) expectOk(await h.ipc.invoke(channel, PAYLOADS[channel], OWN_PAGE));
+    expect(start.judgeNewFolder).toHaveBeenCalledWith({ parent: '/home/ava/Adminium', name: 'Shop' });
+    expect(start.chooseParent).toHaveBeenCalledWith({ from: '/home/ava/Adminium', title: 'Where to keep it' });
+    expect(start.createProject).toHaveBeenCalledWith({ parent: '/home/ava/Adminium', name: 'Shop', acceptWarning: true });
+    expect(start.chooseFolder).toHaveBeenCalledWith({ title: 'Open a folder' });
+    expect(start.openProject).toHaveBeenCalledWith({ path: '/home/ava/Adminium/shop', agreed: true });
+    expect(start.forgetProject).toHaveBeenCalledWith('/home/ava/Adminium/shop');
+    expect(start.locateProject).toHaveBeenCalledWith({ path: '/home/ava/Adminium/shop', title: 'Where is Shop now?' });
+    expect(start.useClassic).toHaveBeenCalledTimes(1);
+    expect(start.state).toHaveBeenCalledTimes(1);
+  });
+
+  it('leaves out what the page did not say rather than passing undefined', async () => {
+    const start = service();
+    const h = harness({ start: () => start });
+    expectOk(await h.ipc.invoke(IPC_CHANNELS.startCreateProject, { parent: '/p', name: 'Shop' }, OWN_PAGE));
+    expectOk(await h.ipc.invoke(IPC_CHANNELS.startOpenProject, { path: '/p' }, OWN_PAGE));
+    expect(start.createProject).toHaveBeenCalledWith({ parent: '/p', name: 'Shop' });
+    expect(start.openProject).toHaveBeenCalledWith({ path: '/p' });
+  });
+
+  it('are refused for a project’s dashboard, which holds the rest of the bridge: every one of them', async () => {
+    const start = service();
+    const log = vi.fn();
+    const h = harness({ start: () => start, log });
+    for (const channel of START_CHANNELS) {
+      // The loopback page is trusted for the rest of the bridge…
+      expect(expectFail(await h.ipc.invoke(channel, PAYLOADS[channel], APP_FRAME)).code).toBe('UNTRUSTED_SENDER');
+      // …and a frame with no address at all is nobody.
+      expect(expectFail(await h.ipc.invoke(channel, PAYLOADS[channel], { senderFrame: null })).code).toBe('UNTRUSTED_SENDER');
+    }
+    for (const call of Object.values(start)) expect(call).not.toHaveBeenCalled();
+    expect(log).toHaveBeenCalledWith(expect.stringContaining('not the app’s own'.replace('’', "'")));
+  });
+
+  it('say so when Start is not what the window holds', async () => {
+    for (const h of [harness({ start: () => null }), harness()]) {
+      expect(expectFail(await h.ipc.invoke(IPC_CHANNELS.startState, undefined, OWN_PAGE)).code).toBe('UNAVAILABLE');
+    }
+  });
+
+  it('refuse a path that is not absolute, a title that is empty, and a field nobody named', async () => {
+    const start = service();
+    const h = harness({ start: () => start });
+    const bad: Array<[string, unknown]> = [
+      [IPC_CHANNELS.startOpenProject, { path: 'relative/shop' }],
+      [IPC_CHANNELS.startJudgeNewFolder, { parent: '../up', name: 'Shop' }],
+      [IPC_CHANNELS.startChooseFolder, { title: '' }],
+      [IPC_CHANNELS.startCreateProject, { parent: '/p', name: 'Shop', extra: true }],
+      [IPC_CHANNELS.startForgetProject, 42],
+      [IPC_CHANNELS.startUseClassic, { anything: 1 }],
+    ];
+    for (const [channel, payload] of bad) expect(expectFail(await h.ipc.invoke(channel, payload, OWN_PAGE)).code).toBe('INVALID_PAYLOAD');
+    expect(start.openProject).not.toHaveBeenCalled();
+    expect(start.createProject).not.toHaveBeenCalled();
+  });
+
+  it('the own-page rule is the file: scheme and nothing else', () => {
+    expect(ownPagePolicy('file:///opt/Adminium/resources/app.asar/out/renderer/app/index.html')).toBe(true);
+    expect(ownPagePolicy('http://127.0.0.1:4700/design')).toBe(false);
+    expect(ownPagePolicy('https://example.com/file://')).toBe(false);
+    expect(ownPagePolicy(null)).toBe(false);
   });
 });

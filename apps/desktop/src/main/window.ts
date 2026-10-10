@@ -481,6 +481,8 @@ export function crashRenderScript(info: CrashScreenInfo): string {
 export interface DesktopWindows {
   /** The bundled splash. Creates the window if it does not exist. */
   showBoot(): Promise<void>;
+  /** The app's own first screens (Start). Absent from a fake that predates them. */
+  showStart?(): Promise<void>;
   /**
    * Navigate to the loopback app URL. `preview: true` while a project is being
    * built: a subframe may then also load the Designer's preview origin
@@ -568,6 +570,8 @@ export function createWindowManager(opts: CreateWindowManagerOptions): DesktopWi
   const configPath = configPathFor(opts.userDataDir);
   const bootPage = resolve(rendererDir(), 'boot.html');
   const crashPage = resolve(rendererDir(), 'crash.html');
+  // The app's own pages (Start and the screens after it): one document, its screens switched by the hash.
+  const startPage = resolve(rendererDir(), 'app', 'index.html');
   const crashPageUrl = pathToFileUrl(crashPage);
 
   let win: BrowserWindow | null = null;
@@ -576,6 +580,10 @@ export function createWindowManager(opts: CreateWindowManagerOptions): DesktopWi
   /** The Designer's preview origin a subframe may load; `null` outside a project being built. */
   let previewOrigin: string | null = null;
   let lastAppPreview = false;
+  /** The app's own pages are what the window holds: what `reopen` returns to. */
+  let showingStart = false;
+  /** A window on the previous session partition, kept until its replacement stands (see `useProjectSession`). */
+  let retiring: BrowserWindow | null = null;
   /** The session partition new windows are made on; `undefined` is Electron's default session. */
   let partition: string | undefined;
   /**
@@ -645,6 +653,11 @@ export function createWindowManager(opts: CreateWindowManagerOptions): DesktopWi
       webPreferences: { ...WEB_PREFERENCES, preload: preloadEntry(), ...(partition === undefined ? {} : { partition }) },
     });
     win = created;
+    // Only now: closing the last window is how the app is quit on Windows and Linux.
+    if (retiring !== null) {
+      if (!retiring.isDestroyed()) retiring.destroy();
+      retiring = null;
+    }
 
     if (state.maximized) created.maximize();
     created.once('ready-to-show', () => {
@@ -776,7 +789,19 @@ export function createWindowManager(opts: CreateWindowManagerOptions): DesktopWi
       appOrigin = null;
       previewOrigin = null;
       showingCrash = false;
+      showingStart = false;
       await target.loadFile(bootPage);
+    },
+
+    async showStart(): Promise<void> {
+      const target = await create();
+      appOrigin = null;
+      previewOrigin = null;
+      showingCrash = false;
+      showingStart = true;
+      lastAppUrl = null;
+      await target.loadFile(startPage);
+      if (!target.isVisible()) target.show();
     },
 
     async loadApp(url: string, opts?: { readonly preview?: boolean }): Promise<void> {
@@ -785,6 +810,7 @@ export function createWindowManager(opts: CreateWindowManagerOptions): DesktopWi
       lastAppPreview = opts?.preview === true;
       previewOrigin = lastAppPreview ? previewOriginOf(url) : null;
       showingCrash = false;
+      showingStart = false;
       lastAppUrl = url;
       await target.loadURL(url);
     },
@@ -794,6 +820,7 @@ export function createWindowManager(opts: CreateWindowManagerOptions): DesktopWi
       appOrigin = null;
       previewOrigin = null;
       showingCrash = true;
+      showingStart = false;
       await target.loadFile(crashPage);
       await target.webContents.executeJavaScript(crashRenderScript(info));
       if (!target.isVisible()) target.show();
@@ -807,7 +834,7 @@ export function createWindowManager(opts: CreateWindowManagerOptions): DesktopWi
       // boot got — the app if it ever came up, the splash if it did not.
       showingCrash = false;
       if (lastAppUrl === null) {
-        await target.loadFile(bootPage);
+        await target.loadFile(showingStart ? startPage : bootPage);
         return;
       }
       appOrigin = originOf(lastAppUrl);
@@ -823,7 +850,9 @@ export function createWindowManager(opts: CreateWindowManagerOptions): DesktopWi
       const next = root === null ? undefined : projectPartition(root);
       if (next === partition) return;
       partition = next;
-      if (win !== null && !win.isDestroyed()) win.destroy();
+      // The window on the old partition goes when the next one stands, never before: with the first screens a
+      // window is already open here, and a moment with none is "all windows closed", which quits the app.
+      if (win !== null && !win.isDestroyed()) retiring = win;
       win = null;
     },
 

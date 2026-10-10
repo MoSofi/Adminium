@@ -80,6 +80,20 @@ export async function waitForAppWindow(
 ): Promise<Page> {
   const page = await app.firstWindow({ timeout: 30_000 });
   const timeout = opts.timeout ?? 120_000;
+  // The app opens on its own first screen. These specs are the classic workspace's: they take its card, as a
+  // person does. (A launch that names a project, or hands the app a file, never shows the screen.)
+  const classic = page.locator('[data-choice="db"]');
+  const onStart = await Promise.race([
+    classic.waitFor({ state: 'visible', timeout }).then(
+      () => true,
+      () => false,
+    ),
+    page.waitForURL(/^http:\/\/127\.0\.0\.1:\d+\//, { timeout }).then(
+      () => false,
+      () => false,
+    ),
+  ]);
+  if (onStart) await classic.click();
   try {
     await page.waitForURL(/^http:\/\/127\.0\.0\.1:\d+\//, { timeout });
   } catch (error) {

@@ -71,6 +71,7 @@ import {
   CAPABILITY_STUB,
   type CapabilityHost,
 } from './capabilities/host.js';
+import type { StartService } from './start.js';
 import {
   autoBackupSchema,
   lanShareSchema,
@@ -207,6 +208,17 @@ const menuLabelsSchema = z.strictObject({
  * cannot turn this into an arbitrary-file read.
  */
 const bundledTextSchema = z.enum(['license', 'third-party-notices']);
+
+// The first screens. A path is a string here and judged by `main/start.ts`, which is where the rules are.
+const dialogTitleSchema = z.string().min(1).max(200);
+const projectNameSchema = z.string().max(200);
+const absolutePathSchema = z.string().min(1).max(4096).refine(isAbsolute, { message: 'must be an absolute path' });
+const startNewFolderSchema = z.strictObject({ parent: absolutePathSchema, name: projectNameSchema });
+const startChooseParentSchema = z.strictObject({ from: absolutePathSchema, title: dialogTitleSchema });
+const startCreateProjectSchema = z.strictObject({ parent: absolutePathSchema, name: projectNameSchema, acceptWarning: z.boolean().optional() });
+const startChooseFolderSchema = z.strictObject({ title: dialogTitleSchema });
+const startOpenProjectSchema = z.strictObject({ path: absolutePathSchema, agreed: z.boolean().optional() });
+const startLocateProjectSchema = z.strictObject({ path: absolutePathSchema, title: dialogTitleSchema });
 
 const capabilityInvokeSchema = z.strictObject({
   capabilityId: z.string().min(1).max(120),
@@ -460,6 +472,11 @@ export interface RegisterIpcHandlersOptions {
   showLogs: () => Promise<void>;
   /** Relaunch the app (e.g. after a data-dir change). */
   relaunch: () => void;
+  /**
+   * The first screens' service (`main/start.ts`), or `null` while there is none
+   * (a build or a moment in which Start is not offered). Read at each call.
+   */
+  start?: (() => StartService | null) | undefined;
   /** An override. Defaults to {@link loopbackSenderPolicy}, or to {@link pinnedSenderPolicy} with `pinSender`. */
   senderPolicy?: SenderPolicy | undefined;
   /** The packaged app: only the origin of the server main started may call. Off in the dev loop. */
@@ -556,6 +573,15 @@ function senderUrlOf(event: IpcInvokeEventLike): string | null {
   }
 }
 
+/**
+ * Who may use the first screens' channels: the app's OWN pages, which are the
+ * only `file:` documents a window of this app ever holds. A project's dashboard
+ * (loopback, and trusted for the rest of the bridge) is refused: its preview and
+ * its pages are drawn from a folder's code, and "open that other folder" or
+ * "make a project there" must not be something that code can ask for.
+ */
+export const ownPagePolicy: SenderPolicy = (senderUrl) => senderUrl !== null && senderUrl.startsWith('file://');
+
 // ─── Error mapping ───────────────────────────────────────────────────────────
 
 /** `disabled` mode, as seen from the bridge: the port does not exist. */
@@ -649,9 +675,10 @@ export function registerIpcHandlers(opts: RegisterIpcHandlersOptions): IpcHandle
     channel: string,
     schema: S,
     run: (input: z.output<S>) => Promise<T>,
+    allowed: (event: IpcInvokeEventLike, channel: string) => boolean = trusted,
   ): void {
     ipc.handle(channel, async (event, ...args): Promise<IpcResult<T>> => {
-      if (!trusted(event, channel)) return untrusted;
+      if (!allowed(event, channel)) return untrusted;
       const parsed = schema.safeParse(args[0]);
       if (!parsed.success) {
         const detail = formatIssues(parsed.error);
@@ -775,6 +802,47 @@ export function registerIpcHandlers(opts: RegisterIpcHandlersOptions): IpcHandle
     return Promise.resolve();
   });
   register(IPC_CHANNELS.showLogs, noPayloadSchema, () => opts.showLogs());
+
+  // ─── the first screens ─────────────────────────────────────────────────────
+
+  const ownPage = (event: IpcInvokeEventLike, channel: string): boolean => {
+    const url = senderUrlOf(event);
+    if (ownPagePolicy(url)) return true;
+    log(`ipc: refused ${channel} from a page that is not the app's own: ${url ?? '(no frame)'}`);
+    return false;
+  };
+  const start = (): StartService => {
+    const service = opts.start?.() ?? null;
+    if (service === null) throw new UnavailableError('The first screens are not open.');
+    return service;
+  };
+  register(IPC_CHANNELS.startState, noPayloadSchema, () => Promise.resolve(start().state()), ownPage);
+  register(IPC_CHANNELS.startJudgeNewFolder, startNewFolderSchema, (input) => Promise.resolve(start().judgeNewFolder(input)), ownPage);
+  register(IPC_CHANNELS.startChooseParent, startChooseParentSchema, (input) => start().chooseParent(input), ownPage);
+  register(
+    IPC_CHANNELS.startCreateProject,
+    startCreateProjectSchema,
+    (input) => start().createProject({ parent: input.parent, name: input.name, ...(input.acceptWarning === undefined ? {} : { acceptWarning: input.acceptWarning }) }),
+    ownPage,
+  );
+  register(IPC_CHANNELS.startChooseFolder, startChooseFolderSchema, (input) => start().chooseFolder(input), ownPage);
+  register(
+    IPC_CHANNELS.startOpenProject,
+    startOpenProjectSchema,
+    (input) => start().openProject({ path: input.path, ...(input.agreed === undefined ? {} : { agreed: input.agreed }) }),
+    ownPage,
+  );
+  register(IPC_CHANNELS.startForgetProject, absolutePathSchema, (path) => start().forgetProject(path), ownPage);
+  register(IPC_CHANNELS.startLocateProject, startLocateProjectSchema, (input) => start().locateProject(input), ownPage);
+  register(
+    IPC_CHANNELS.startUseClassic,
+    noPayloadSchema,
+    () => {
+      start().useClassic();
+      return Promise.resolve();
+    },
+    ownPage,
+  );
 
   return {
     emitUpdateEvent(event: DesktopUpdateEvent): void {

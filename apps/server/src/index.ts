@@ -254,6 +254,8 @@ export {
 // The `adminium` CLI. `runCli` returns an exit code and never touches
 // `process` — `src/cli/index.ts` is the only module that exits.
 export { COMMANDS, findCommand, runCli, type RunCliOptions } from './cli/run.js';
+// The database a project made for the Designer starts with (the desktop app makes projects the same way).
+export { DESIGN_DATABASE } from './cli/commands/design.js';
 export { HOST_DECIDED_ENV, startProject, type StartProjectOptions, type StartedProject } from './cli/start-project.js';
 export type { StartBusy } from './cli/commands/start.js';
 export { readRunning, runningMessage, type RunningMark } from './project/running.js';

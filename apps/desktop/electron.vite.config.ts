@@ -54,6 +54,8 @@ import { createRequire } from 'node:module';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import tailwindcss from '@tailwindcss/vite';
+import react from '@vitejs/plugin-react';
 import { defineConfig } from 'electron-vite';
 import type { Plugin } from 'vite';
 
@@ -157,17 +159,26 @@ export default defineConfig({
     root: src('renderer'),
     build: {
       outDir: 'out/renderer',
+      // Minified, as the dashboard's build is: smaller, and a library's comments (their links to its docs among
+      // them) do not ride into an app that must never reach the network.
+      minify: 'esbuild',
+      cssMinify: true,
       // No index.html here on purpose: the renderer's real document is served by
       // the embedded Fastify over loopback ("Loopback HTTP, not
-      // file://"). These two are the only pages that exist before/without a
-      // server (steps 6 and 9).
+      // file://"). These are the only pages that exist before/without a
+      // server: the splash, the crash page, and the app's own first screens.
       rollupOptions: {
         input: {
           boot: src('renderer', 'boot.html'),
           crash: src('renderer', 'crash.html'),
+          // The app's own pages (Start and the screens before any server runs): a small React bundle of its
+          // own. It imports the kit, the tokens and its own words, and never the dashboard.
+          app: src('renderer', 'app', 'index.html'),
         },
       },
     },
-    plugins: [copyTokenCss()],
+    // Relative addresses: these pages are opened from the disk, not served.
+    base: './',
+    plugins: [react(), tailwindcss(), copyTokenCss()],
   },
 });

@@ -1,0 +1,29 @@
+/* The app's own pages. Import order per @adminium/tokens/tailwind.css:
+   tailwindcss → tokens custom properties → tokens theme mapping. */
+@import "tailwindcss";
+@import "@adminium/tokens/index.css";
+@import "@adminium/tokens/tailwind.css";
+
+/* Utilities for these pages AND the kit's parts they use: the kit is styled by
+   its consumer's Tailwind, and node_modules is outside the automatic sources. */
+@source "./**/*.{ts,tsx}";
+@source "../../../node_modules/@adminium/ui/src/**/*.{ts,tsx}";
+
+html,
+body,
+#root {
+  block-size: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Arrows that point "back" follow the reading direction. */
+[dir="rtl"] .adm-mirror {
+  transform: scaleX(-1);
+}

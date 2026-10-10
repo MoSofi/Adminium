@@ -55,10 +55,36 @@ export const IPC_CHANNELS = {
   relaunch: 'adminium-desktop:relaunch',
   showLogs: 'adminium-desktop:show-logs',
   /** main → renderer push, `onUpdateEvent`. The only one-way channel. */
+  startState: 'adminium-desktop:start-state',
+  startJudgeNewFolder: 'adminium-desktop:start-judge-new-folder',
+  startChooseParent: 'adminium-desktop:start-choose-parent',
+  startCreateProject: 'adminium-desktop:start-create-project',
+  startChooseFolder: 'adminium-desktop:start-choose-folder',
+  startOpenProject: 'adminium-desktop:start-open-project',
+  startForgetProject: 'adminium-desktop:start-forget-project',
+  startLocateProject: 'adminium-desktop:start-locate-project',
+  startUseClassic: 'adminium-desktop:start-use-classic',
   updateEvent: 'adminium-desktop:update-event',
 } as const;
 
 export type IpcChannel = (typeof IPC_CHANNELS)[keyof typeof IPC_CHANNELS];
+
+/**
+ * The first screens' channels. Answered only for the app's own pages (see
+ * `ownPagePolicy` in `main/ipc.ts`): the list is here so both the registration
+ * and the test of who may call are made from one statement.
+ */
+export const START_CHANNELS = [
+  IPC_CHANNELS.startState,
+  IPC_CHANNELS.startJudgeNewFolder,
+  IPC_CHANNELS.startChooseParent,
+  IPC_CHANNELS.startCreateProject,
+  IPC_CHANNELS.startChooseFolder,
+  IPC_CHANNELS.startOpenProject,
+  IPC_CHANNELS.startForgetProject,
+  IPC_CHANNELS.startLocateProject,
+  IPC_CHANNELS.startUseClassic,
+] as const;
 
 /** Every channel `registerIpcHandlers` answers with `ipcMain.handle`. */
 export const INVOKE_CHANNELS = [
@@ -79,6 +105,7 @@ export const INVOKE_CHANNELS = [
   IPC_CHANNELS.readBundledText,
   IPC_CHANNELS.relaunch,
   IPC_CHANNELS.showLogs,
+  ...START_CHANNELS,
 ] as const;
 
 /**
