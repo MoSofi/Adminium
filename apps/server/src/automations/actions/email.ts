@@ -47,9 +47,9 @@ import { inlineRefs, prepareEmail } from '../../email/send.js';
 import { formatTag } from '../../i18n/bcp47.js';
 import { recipientLocale } from '../../i18n/server-i18n.js';
 import { resolveEmailParts } from '../../jobs/email-send.js';
-import { placeholders, valueForms } from '../../outbox/sender.js';
+import { valueForms } from '../../outbox/sender.js';
 import { parseRelated } from '../related.js';
-import { resolveRuleTemplate } from '../templates.js';
+import { resolveRuleTemplate, templatePlaceholders } from '../templates.js';
 import { substitute, tokensFor, type TokenMap } from '../templating.js';
 import { ActionFailure, type ActionContext, type ActionResult } from './types.js';
 
@@ -107,18 +107,8 @@ async function existsInAnyLocale(meta: MetaDb, key: string, locale: string): Pro
   return (await repo.findByKeyLocale(key, 'en_US')) !== null;
 }
 
-/**
- * Every placeholder a template reads, in the order it reads them. A
- * `{{row.*}}` is left out: it belongs to the rows a list block draws, and a
- * rule's email draws none.
- */
-export function templatePlaceholders(
-  template: Pick<EmailTemplate, 'subject' | 'preheader' | 'blocks' | 'footer'>,
-): string[] {
-  return [...placeholders([template.subject, template.preheader, template.blocks, template.footer])].filter(
-    (name) => !name.startsWith('row.'),
-  );
-}
+// Where a template's placeholders are read: beside what a template key means, which this step also asks.
+export { templatePlaceholders } from '../templates.js';
 
 /** What every rule's email can read whatever its record is. */
 export const RULE_EMAIL_VARS = ['now', 'ruleName', 'recordLabel', 'appName'] as const;

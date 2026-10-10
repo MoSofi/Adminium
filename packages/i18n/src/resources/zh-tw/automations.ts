@@ -279,9 +279,14 @@ export default {
       "text": "一段文字",
       "textFor": "{token} 的文字"
     },
-    "notAddress": "此欄看起來不包含電子郵件地址。郵件可能無人接收。",
+    "notAddress": "{column} 不是位址。請選擇包含位址的欄。",
     "templatesOff": "{count, plural, other {#}} 個範本已關閉，未在此顯示。",
-    "templatesOffLink": "開啟郵件範本"
+    "templatesOffLink": "開啟郵件範本",
+    "findColumn": "尋找欄…",
+    "noColumn": "沒有符合的欄。",
+    "addressColumns": "位址欄",
+    "thisTable": "此資料表 · {table}",
+    "fromLink": "來自 {link} · {table}.{column}"
   },
   "notif": {
     "to": "傳送給",

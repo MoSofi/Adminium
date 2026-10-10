@@ -279,9 +279,14 @@ export default {
       "text": "Un texte",
       "textFor": "Texte pour {token}"
     },
-    "notAddress": "Cette colonne ne semble pas contenir d’adresses e-mail. L’e-mail risque de n’avoir aucun destinataire.",
+    "notAddress": "{column} n’est pas une adresse. Choisissez une colonne qui en contient une.",
     "templatesOff": "{count, plural, one {# modèle est désactivé et n’est pas affiché} other {# modèles sont désactivés et ne sont pas affichés}}.",
-    "templatesOffLink": "Ouvrir les modèles d’e-mail"
+    "templatesOffLink": "Ouvrir les modèles d’e-mail",
+    "findColumn": "Rechercher une colonne…",
+    "noColumn": "Aucune colonne ne correspond.",
+    "addressColumns": "Colonnes d’adresse",
+    "thisTable": "Cette table · {table}",
+    "fromLink": "Via {link} · {table}.{column}"
   },
   "notif": {
     "to": "Envoyer à",

@@ -11,7 +11,7 @@
  *   pnpm --filter @adminium/i18n gen:a11y-keys
  */
 
-/** `namespace:key` — 2822 entries. */
+/** `namespace:key` — 2824 entries. */
 export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'addOns:failed.title',
   'addOns:noBundle.title',
@@ -142,8 +142,10 @@ export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'automations:delete.cancel',
   'automations:delete.confirm',
   'automations:delete.title',
+  'automations:email.addressColumns',
   'automations:email.addresses',
   'automations:email.column',
+  'automations:email.findColumn',
   'automations:email.ph.fillWith',
   'automations:email.ph.textFor',
   'automations:email.template',

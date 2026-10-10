@@ -269,9 +269,14 @@
       "text": "نص",
       "textFor": "نص {token}"
     },
-    "notAddress": "لا يبدو أن هذا العمود يحتوي عناوين بريد إلكتروني. قد لا يجد البريد من يذهب إليه.",
+    "notAddress": "{column} ليس عنوانًا. اختر عمودًا يحتوي عنوانًا.",
     "templatesOff": "{count, plural, zero {لا قوالب متوقفة} one {قالب واحد متوقف وغير معروض} two {قالبان متوقفان وغير معروضين} few {# قوالب متوقفة وغير معروضة} many {# قالبًا متوقفًا وغير معروض} other {# قالب متوقف وغير معروض}}.",
-    "templatesOffLink": "افتح قوالب البريد"
+    "templatesOffLink": "افتح قوالب البريد",
+    "findColumn": "ابحث عن عمود…",
+    "noColumn": "لا عمود مطابق.",
+    "addressColumns": "أعمدة العناوين",
+    "thisTable": "هذا الجدول · {table}",
+    "fromLink": "عبر {link} · {table}.{column}"
   },
   "notif": {
     "to": "إرسال إلى",

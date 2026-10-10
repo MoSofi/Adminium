@@ -269,9 +269,14 @@
       "text": "En tekst",
       "textFor": "Tekst til {token}"
     },
-    "notAddress": "Denne kolonne ser ikke ud til at indeholde e-mailadresser. Mailen har måske ingen modtager.",
+    "notAddress": "{column} er ikke en adresse. Vælg en kolonne, der indeholder en.",
     "templatesOff": "{count, plural, one {# skabelon er} other {# skabeloner er}} slået fra og vises ikke.",
-    "templatesOffLink": "Åbn e-mailskabeloner"
+    "templatesOffLink": "Åbn e-mailskabeloner",
+    "findColumn": "Find en kolonne…",
+    "noColumn": "Ingen kolonne passer.",
+    "addressColumns": "Adressekolonner",
+    "thisTable": "Denne tabel · {table}",
+    "fromLink": "Via {link} · {table}.{column}"
   },
   "notif": {
     "to": "Send til",

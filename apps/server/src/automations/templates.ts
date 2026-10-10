@@ -17,7 +17,20 @@
 import { emailTemplatesRepo, type EmailTemplate, type MetaDb } from '@adminium/meta';
 
 import { resolveEmailTemplate } from '../email/builtins.js';
-import { templatePlaceholders } from './actions/email.js';
+import { placeholders } from '../outbox/sender.js';
+
+/**
+ * Every placeholder a template reads, in the order it reads them. A
+ * `{{row.*}}` is left out: it belongs to the rows a list block draws, and a
+ * rule's email draws none.
+ */
+export function templatePlaceholders(
+  template: Pick<EmailTemplate, 'subject' | 'preheader' | 'blocks' | 'footer'>,
+): string[] {
+  return [...placeholders([template.subject, template.preheader, template.blocks, template.footer])].filter(
+    (name) => !name.startsWith('row.'),
+  );
+}
 
 /** One live key, as a person or a model picks it. */
 export interface TemplateFamily {

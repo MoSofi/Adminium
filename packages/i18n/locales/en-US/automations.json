@@ -269,9 +269,14 @@
       "text": "A text",
       "textFor": "Text for {token}"
     },
-    "notAddress": "This column does not look like it holds email addresses. The mail may have nobody to go to.",
+    "notAddress": "{column} is not an address. Choose a column that holds one.",
     "templatesOff": "{count, plural, one {# template is} other {# templates are}} switched off and not shown.",
-    "templatesOffLink": "Open Email templates"
+    "templatesOffLink": "Open Email templates",
+    "findColumn": "Find a column…",
+    "noColumn": "No column matches.",
+    "addressColumns": "Address columns",
+    "thisTable": "This table · {table}",
+    "fromLink": "From {link} · {table}.{column}"
   },
   "notif": {
     "to": "Send to",

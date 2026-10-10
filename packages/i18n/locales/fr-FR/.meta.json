@@ -1711,6 +1711,10 @@
     "status": "mt",
     "srcHash": "2b434962c996"
   },
+  "automations.email.addressColumns": {
+    "status": "mt",
+    "srcHash": "6abb31d0ff47"
+  },
   "automations.email.addresses": {
     "status": "mt",
     "srcHash": "79c252d1f3a5"
@@ -1718,6 +1722,18 @@
   "automations.email.column": {
     "status": "mt",
     "srcHash": "65ba00e95e60"
+  },
+  "automations.email.findColumn": {
+    "status": "mt",
+    "srcHash": "8f5fc51e6fd6"
+  },
+  "automations.email.fromLink": {
+    "status": "mt",
+    "srcHash": "d35d597a7534"
+  },
+  "automations.email.noColumn": {
+    "status": "mt",
+    "srcHash": "803f94b37592"
   },
   "automations.email.notAddress": {
     "status": "mt",
@@ -1774,6 +1790,10 @@
   "automations.email.templatesOffLink": {
     "status": "mt",
     "srcHash": "5e6e998ea30c"
+  },
+  "automations.email.thisTable": {
+    "status": "mt",
+    "srcHash": "6feb14282664"
   },
   "automations.email.to": {
     "status": "mt",

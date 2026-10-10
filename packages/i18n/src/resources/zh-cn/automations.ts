@@ -279,9 +279,14 @@ export default {
       "text": "一段文字",
       "textFor": "{token} 的文字"
     },
-    "notAddress": "此列看起来不包含电子邮件地址。邮件可能无人接收。",
+    "notAddress": "{column} 不是地址。请选择包含地址的列。",
     "templatesOff": "{count, plural, other {#}} 个模板已关闭，未在此显示。",
-    "templatesOffLink": "打开邮件模板"
+    "templatesOffLink": "打开邮件模板",
+    "findColumn": "查找列…",
+    "noColumn": "没有匹配的列。",
+    "addressColumns": "地址列",
+    "thisTable": "此表 · {table}",
+    "fromLink": "来自 {link} · {table}.{column}"
   },
   "notif": {
     "to": "发送给",

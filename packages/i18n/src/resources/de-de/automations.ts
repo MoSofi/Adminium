@@ -279,9 +279,14 @@ export default {
       "text": "Ein Text",
       "textFor": "Text für {token}"
     },
-    "notAddress": "Diese Spalte sieht nicht so aus, als enthielte sie E-Mail-Adressen. Die Mail hat dann vielleicht keinen Empfänger.",
+    "notAddress": "{column} ist keine Adresse. Wähle eine Spalte, die eine enthält.",
     "templatesOff": "{count, plural, one {# Vorlage ist} other {# Vorlagen sind}} ausgeschaltet und wird hier nicht gezeigt.",
-    "templatesOffLink": "E-Mail-Vorlagen öffnen"
+    "templatesOffLink": "E-Mail-Vorlagen öffnen",
+    "findColumn": "Spalte suchen…",
+    "noColumn": "Keine Spalte passt.",
+    "addressColumns": "Adressspalten",
+    "thisTable": "Diese Tabelle · {table}",
+    "fromLink": "Über {link} · {table}.{column}"
   },
   "notif": {
     "to": "Senden an",

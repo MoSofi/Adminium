@@ -20,7 +20,8 @@
  * `connectionId` is a prop: see `RecordSettings`.
  */
 
-import { ChipInput, Combobox, Input, Select, Textarea } from '@adminium/ui';
+import { ChipInput, Combobox, Input, Select, Textarea, type ComboboxOption } from '@adminium/ui';
+import { AtSign, CircleAlert, Columns3, Link2 } from 'lucide-react';
 import { useId, type ReactNode } from 'react';
 
 import { t } from '../../../i18n/t.js';
@@ -82,8 +83,6 @@ function EmailSettings({
   onChange,
 }: ActionSettingsProps & { action: Extract<Action, { kind: 'email' }> }): ReactNode {
   const to = action.to;
-  const columns = table?.columns ?? [];
-  const linked = linkedColumns(table);
   const off = sources?.templatesOff ?? 0;
   const template = templateOf(sources, action);
   const rows = placeholderRows(action, template, table);
@@ -143,39 +142,26 @@ function EmailSettings({
 
       {to?.kind === 'field' ? (
         <Field label={t('automations:email.column', 'Column')}>
-          <Select
-            value={to.column}
-            onChange={(event) => {
-              onChange({ to: { kind: 'field', column: event.target.value } });
+          {/* The columns that hold an address: this table's first, then the ones a link leads to
+              (the order's customer's). Whatever else the table has follows, for a column the
+              schema's reading got wrong; choosing one is warned of, not refused. */}
+          <Combobox
+            options={recipientOptions(table, to.column)}
+            value={to.column === '' ? null : to.column}
+            onValueChange={(column) => {
+              onChange({ to: { kind: 'field', column: column ?? '' } });
             }}
+            placeholder={t('automations:email.findColumn', 'Find a column…')}
+            emptyText={t('automations:email.noColumn', 'No column matches.')}
+            aria-label={t('automations:email.addressColumns', 'Address columns')}
+            error={holdsAddresses(table, to.column) === false}
+            mono
             data-testid="email-to-column"
-          >
-            <option value="">{t('automations:email.column', 'Column')}</option>
-            {/* The address column first: the classifier already knows which
-                columns look like an email (`emailLike` on the wire). */}
-            {[...columns].sort((a, b) => Number(b.emailLike) - Number(a.emailLike)).map((column) => (
-              <option key={column.name} value={column.name}>
-                {column.label}
-              </option>
-            ))}
-            {/* One hop away: the address of the row a link points at (the order's customer's). Only
-                the columns that hold addresses, and whatever the step already names. */}
-            {linked.map((group) => {
-              const offered = group.columns.filter((column) => column.emailLike || column.name === to.column);
-              return offered.length === 0 ? null : (
-                <optgroup key={group.link} label={group.label}>
-                  {offered.map((column) => (
-                    <option key={column.name} value={column.name}>
-                      {column.label}
-                    </option>
-                  ))}
-                </optgroup>
-              );
-            })}
-          </Select>
+          />
           {holdsAddresses(table, to.column) === false ? (
-            <p role="status" className="mt-1 text-[11px] font-semibold leading-[1.45] text-warn" data-testid="email-to-not-address">
-              {t('automations:email.notAddress', 'This column does not look like it holds email addresses. The mail may have nobody to go to.')}
+            <p role="alert" className="mt-[7px] flex items-start gap-[7px] text-[12px] font-semibold leading-[1.5] text-danger" data-testid="email-to-not-address">
+              <CircleAlert className="mt-0.5 size-[13px] shrink-0" aria-hidden="true" />
+              <span>{t('automations:email.notAddress', '{column} is not an address. Choose a column that holds one.', { column: to.column })}</span>
             </p>
           ) : null}
         </Field>
@@ -213,6 +199,40 @@ function EmailSettings({
       ) : null}
     </Card>
   );
+}
+
+/**
+ * What an email step may be addressed to, in the order a person looks for
+ * it: this table's address columns, the address columns of the rows its
+ * links lead to, then the table's other columns. Each says where it is from
+ * on its second line, as the picker has no headings of its own.
+ */
+function recipientOptions(table: SourceTable | null, current: string): ComboboxOption[] {
+  if (table === null) return [];
+  const here = t('automations:email.thisTable', 'This table · {table}', { table: table.label });
+  const own = (column: SourceTable['columns'][number], address: boolean): ComboboxOption => ({
+    value: column.name,
+    label: column.name,
+    description: column.label === column.name ? here : `${column.label} · ${here}`,
+    leading: address ? <AtSign className="size-[13px] text-fg-subtle" aria-hidden="true" /> : <Columns3 className="size-[13px] text-fg-subtle" aria-hidden="true" />,
+  });
+  const out: ComboboxOption[] = table.columns.filter((column) => column.emailLike).map((column) => own(column, true));
+  for (const link of table.links ?? []) {
+    const through = table.columns.find((column) => column.name === link.column)?.label ?? link.column;
+    for (const column of link.columns) {
+      const name = `${link.column}.${column.name}`;
+      // Of a linked row only what holds an address, and whatever the step already names.
+      if (!column.emailLike && name !== current) continue;
+      out.push({
+        value: name,
+        label: `${link.column} → ${column.name}`,
+        description: t('automations:email.fromLink', 'From {link} · {table}.{column}', { link: through, table: link.label, column: column.name }),
+        leading: <Link2 className="size-[13px] text-fg-subtle" aria-hidden="true" />,
+      });
+    }
+  }
+  out.push(...table.columns.filter((column) => !column.emailLike).map((column) => own(column, false)));
+  return out;
 }
 
 /**

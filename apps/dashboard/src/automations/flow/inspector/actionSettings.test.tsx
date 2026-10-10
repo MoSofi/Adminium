@@ -250,34 +250,41 @@ describe('ActionSettings — an email step that reaches the row a link points at
     return { onChange, user: userEvent.setup() };
   }
 
-  it('offers the address of the linked row beside the record`s own, and only address columns of it', async () => {
+  const toBox = (): HTMLElement => screen.getByRole('combobox', { name: 'Address columns' });
+
+  it('lists what holds an address first, this table`s and then the linked row`s, and can be searched', async () => {
     const { user, onChange } = renderEmail({ kind: 'email', templateKey: 'thanks', to: { kind: 'field', column: '' } });
-    const select = screen.getByTestId('email-to-column');
-    const options = within(select).getAllByRole('option').map((option) => [option.getAttribute('value'), option.textContent]);
-    // The record's own address column first; then the one a link leads to. The customer's name and tier are not addresses.
-    expect(options).toEqual([
-      ['', 'Column'],
-      ['contact', 'Contact'],
-      ['customer_id', 'Customer'],
-      ['total', 'Total'],
-      ['customer_id.email', 'Customer → Email'],
+    await user.click(toBox());
+    const list = await screen.findByRole('listbox');
+    const rows = within(list).getAllByRole('option').map((row) => row.textContent);
+    // The record's own address, then the customer's (never the customer's name or tier), then the table's other columns.
+    expect(rows).toEqual([
+      'contactContact · This table · orders',
+      'customer_id → emailFrom Customer · customers.email',
+      'customer_idCustomer · This table · orders',
+      'totalTotal · This table · orders',
     ]);
-    expect(within(select).getByRole('group', { name: 'Customer (customers)' })).toBeTruthy();
-    await user.selectOptions(select, 'customer_id.email');
+    await user.keyboard('email');
+    await waitFor(() => {
+      expect(within(list).getAllByRole('option')).toHaveLength(1);
+    });
+    await user.click(within(list).getByRole('option'));
     expect(onChange).toHaveBeenLastCalledWith({ to: { kind: 'field', column: 'customer_id.email' } });
   });
 
-  it('warns under the column when it holds no addresses, and not when it does, one hop away too', () => {
-    renderEmail({ kind: 'email', templateKey: 'thanks', to: { kind: 'field', column: 'customer_id' } });
-    expect(screen.getByTestId('email-to-not-address').textContent).toContain('does not look like it holds email addresses');
+  it('says in the comp`s words when the column is not an address, and not when it is, one hop away too', async () => {
+    const { user } = renderEmail({ kind: 'email', templateKey: 'thanks', to: { kind: 'field', column: 'customer_id' } });
+    expect(screen.getByRole('alert').textContent).toBe('customer_id is not an address. Choose a column that holds one.');
+    expect(toBox().getAttribute('aria-invalid')).toBe('true');
     cleanup();
     renderEmail({ kind: 'email', templateKey: 'thanks', to: { kind: 'field', column: 'customer_id.email' } });
     expect(screen.queryByTestId('email-to-not-address')).toBeNull();
     cleanup();
     // A step that already names a linked column that is no address keeps it in the list, and is warned.
     renderEmail({ kind: 'email', templateKey: 'thanks', to: { kind: 'field', column: 'customer_id.name' } });
-    expect((screen.getByTestId('email-to-column') as HTMLSelectElement).value).toBe('customer_id.name');
     expect(screen.getByTestId('email-to-not-address')).toBeTruthy();
+    await user.click(toBox());
+    expect(within(await screen.findByRole('listbox')).getAllByRole('option').map((row) => row.textContent)).toContain('customer_id → nameFrom Customer · customers.name');
   });
 
   it('knows a placeholder the linked row fills, and fills another from it', async () => {
