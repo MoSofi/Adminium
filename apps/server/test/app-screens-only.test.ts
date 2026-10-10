@@ -19,6 +19,7 @@ import {
   rolesRepo,
   settingsRepo,
   usersRepo,
+  assistantSessionsRepo,
   type MetaDb,
 } from '@adminium/meta';
 
@@ -149,6 +150,20 @@ describe('someone who opens only an app’s own screens', () => {
       expect(refused.statusCode, context).toBe(403);
       expect(refused.json().error, context).toMatchObject({ code: 'FORBIDDEN', details: { reason: 'screens-only', context } });
     }
+    // A conversation from before, held on a page that is not theirs any more (they had another role then):
+    // it is closed the moment they come back, and they are handed none of it.
+    const me = await usersRepo(meta).findByEmail('cara@example.com');
+    const sessions = assistantSessionsRepo(meta);
+    const old = await sessions.create({ context: 'email', host: { connectionIds: [] }, createdBy: me!.id, kind: 'panel' });
+    const current = await get('/api/v1/assistant/sessions/current', cookie);
+    expect(current.statusCode, current.body).toBe(200);
+    expect(current.json()).toMatchObject({ session: null, turns: [] });
+    expect((await sessions.findSession(old.id))?.status).toBe('closed');
+    // One on their own kind of page is theirs to go on with.
+    const mine = await sessions.create({ context: 'general', host: { connectionIds: [] }, createdBy: me!.id, kind: 'panel' });
+    expect((await get('/api/v1/assistant/sessions/current', cookie)).json().session).toMatchObject({ id: mine.id });
+    await sessions.close(mine.id);
+
     // Everything else is as closed as it was.
     expect((await get('/api/v1/assistant/settings', cookie)).json().error?.code).toBe('APP_SCREENS_ONLY');
     expect((await get('/api/v1/roles', cookie)).json().error?.code).toBe('APP_SCREENS_ONLY');

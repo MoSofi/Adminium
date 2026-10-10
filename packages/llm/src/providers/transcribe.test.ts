@@ -54,11 +54,19 @@ describe('a recording turned into text', () => {
     const form = seen[0]!.init.body as FormData;
     expect(form.get('model')).toBe('whisper-1');
     expect(form.get('language')).toBe('de');
-    expect(form.get('response_format')).toBe('json');
+    expect(form.get('response_format')).toBe('verbose_json');
     const file = form.get('file') as File;
     expect(file.name).toBe('speech.webm');
     expect(file.type).toBe('audio/webm');
     expect(new Uint8Array(await file.arrayBuffer())).toEqual(AUDIO);
+  });
+
+  it('hands back how long the service says the recording was, when it says', async () => {
+    answer(200, { text: 'ok', duration: 93.4 });
+    const client = createProviderClient({ provider: 'openai', apiKey: KEY, model: 'gpt-x' });
+    expect(await client.transcribe!({ audio: AUDIO, mime: 'audio/webm' })).toEqual({ text: 'ok', seconds: 93.4 });
+    answer(200, { text: 'ok', duration: 'long' });
+    expect(await client.transcribe!({ audio: AUDIO, mime: 'audio/webm' })).toEqual({ text: 'ok' });
   });
 
   it('names the file by what the browser recorded, and sends a language only as two letters', async () => {

@@ -1556,7 +1556,8 @@ function electronMicrophoneReader(serverOrigin: () => string | null): Microphone
     const cookies = await session.defaultSession.cookies.get({ url: origin, name: SESSION_COOKIE_NAME });
     const cookie = cookies[0];
     if (cookie === undefined) return false;
-    const response = await fetch(`${origin}/api/v1/assistant/availability`, { method: 'GET', headers: { cookie: `${cookie.name}=${cookie.value}` } });
+    // A server that does not answer is a "no" within four seconds: the browser's ask must never hang on it.
+    const response = await fetch(`${origin}/api/v1/assistant/availability`, { method: 'GET', headers: { cookie: `${cookie.name}=${cookie.value}` }, signal: AbortSignal.timeout(4_000) });
     if (!response.ok) return false;
     const body = (await response.json().catch(() => null)) as { voice?: { input?: unknown } } | null;
     return microphoneSwitchedOn(body);

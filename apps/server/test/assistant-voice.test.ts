@@ -12,7 +12,7 @@ import { ProviderError, type ProviderClient, type TranscribeRequest } from '@adm
 import { assistantUseDay, assistantUseRepo, auditRepo, permissionsRepo, rolesRepo, settingsRepo, userPrefsRepo } from '@adminium/meta';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
-import { VOICE_MAX_BYTES, recordingSeconds, voiceWay } from '../src/assistant/voice.js';
+import { VOICE_MAX_BYTES, forgetTranscription, recordingSeconds, voiceWay } from '../src/assistant/voice.js';
 import type { AiConnections } from '../src/llm/connections.js';
 import { assistantRoutes } from '../src/routes/assistant/index.js';
 import { asUser, buildDataTestApp, type DataTestContext } from './connections-helpers.js';
@@ -61,6 +61,7 @@ beforeEach(async () => {
   provider = 'openai';
   heard = [];
   answer = async () => ({ text: 'How many orders shipped today?' });
+  forgetTranscription();
   await settingsRepo(t.meta).set('assistant.voice.input', true);
   await settingsRepo(t.meta).set('assistant.voice.dailyMinutes', 30);
   await t.meta.db.deleteFrom('adminium_assistant_use').execute();
@@ -83,6 +84,7 @@ describe('how a recording becomes text here', () => {
   });
 
   it('is counted from what arrived: never less than its weight, never more than one recording may be', () => {
+    // The weight is read at the heaviest rate a browser records speech at (128 kbit/s): what it proves at the least.
     expect(recordingSeconds(16_000, 1)).toBe(1);
     expect(recordingSeconds(16_000, 14.2)).toBe(15);
     // "One second" of a heavy file is counted by its weight.
@@ -179,7 +181,15 @@ describe('POST /assistant/transcribe', () => {
     answer = async () => {
       throw new ProviderError({ provider: 'openai-compatible', code: 'not_found', status: 404, message: 'openai-compatible: HTTP 404' });
     };
-    expect((await say(1_000)).json().error).toMatchObject({ details: { reason: 'voice-not-here' } });
+    expect((await say(16_000, '?seconds=9')).json().error).toMatchObject({ details: { reason: 'voice-not-here' } });
+    // Nothing was written down, so nothing was taken from the person's day; and it is remembered: the
+    // panel is told the browser's way from now on, and the service is not asked again.
+    expect((await assistantUseRepo(t.meta).get(t.users.admin.id, assistantUseDay(Date.now()))).voiceSeconds).toBe(0);
+    expect((await availability()).voice).toMatchObject({ input: 'browser' });
+    const asked = heard.length;
+    expect((await say(16_000)).json().error).toMatchObject({ details: { reason: 'voice-not-here' } });
+    expect(heard).toHaveLength(asked);
+    forgetTranscription();
     // Any other fault of the provider is a failed recording, with nothing of the provider's own words.
     answer = async () => {
       throw new ProviderError({ provider: 'openai', code: 'server', status: 500, message: 'openai: HTTP 500 — secret words' });
@@ -220,6 +230,39 @@ describe('POST /assistant/transcribe', () => {
     await settingsRepo(t.meta).set('assistant.voice.dailyMinutes', 0);
     answer = async () => ({ text: 'ok' });
     expect((await say(16_000, '?seconds=100')).statusCode).toBe(200);
+  });
+
+  it('counts a recording by what the service says it lasted, when that is more than its weight showed', async () => {
+    // A light encoding: 240 kB that the browser calls 3 seconds and the service says ran two minutes.
+    answer = async () => ({ text: 'a long one', seconds: 118.2 });
+    const res = await say(240_000, '?seconds=3');
+    expect(res.json()).toMatchObject({ seconds: 119, allowance: { usedSeconds: 119 } });
+    expect((await auditRepo(t.meta).list({ category: 'llm', limit: 1 }))[0]).toMatchObject({ changes: { after: { seconds: 119 } } });
+    // Less than was taken changes nothing: the estimate is the floor.
+    answer = async () => ({ text: 'short', seconds: 2 });
+    expect((await say(16_000, '?seconds=10')).json()).toMatchObject({ seconds: 10, allowance: { usedSeconds: 129 } });
+  });
+
+  it('stops the service when the person goes away, and gives the seconds back', async () => {
+    let seen: AbortSignal | undefined;
+    answer = (req) =>
+      new Promise((_resolve, reject) => {
+        seen = req.signal;
+        req.signal?.addEventListener('abort', () => reject(new ProviderError({ provider: 'openai', code: 'aborted', message: 'stopped' })));
+      });
+    // Asked over a real socket, which the test then closes mid-way.
+    const address = await t.app.listen({ port: 0, host: '127.0.0.1' });
+    const gone = new AbortController();
+    const asking = fetch(`${address}/api/v1/assistant/transcribe?seconds=5`, { method: 'POST', headers: { ...asUser(t.users.admin), 'content-type': 'audio/webm' }, body: Buffer.alloc(16_000, 7), signal: gone.signal }).catch(() => null);
+    await expect.poll(() => heard.length).toBe(1);
+    expect(seen?.aborted).toBe(false);
+    gone.abort();
+    await asking;
+    await expect.poll(() => seen?.aborted).toBe(true);
+    // Their turn at the microphone is free again, and the day is as it was.
+    await expect.poll(async () => (await assistantUseRepo(t.meta).get(t.users.admin.id, assistantUseDay(Date.now()))).voiceSeconds).toBe(0);
+    answer = async () => ({ text: 'again' });
+    await expect.poll(async () => (await say(16_000, '?seconds=1')).statusCode).toBe(200);
   });
 
   it('gives one person one recording at a time, and frees their turn when it ends', async () => {

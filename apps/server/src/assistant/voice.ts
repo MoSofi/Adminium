@@ -34,17 +34,37 @@ export const VOICE_MAX_SECONDS = 120;
 export const VOICE_MAX_BYTES = 4 * 1024 * 1024;
 /** The types a browser's recorder makes. */
 export const VOICE_TYPES: readonly string[] = ['audio/webm', 'audio/mp4', 'audio/ogg', 'audio/wav', 'audio/mpeg'];
-/** Bytes a second at the slowest rate speech is recorded at (about 16 kbit/s): the floor a length is counted from. */
-const SLOWEST_BYTES_A_SECOND = 2_000;
+/**
+ * Bytes a second at the HEAVIEST rate a browser records speech at (128 kbit/s): what a recording's weight proves
+ * of its length at the least. A lighter encoding holds more seconds in the same bytes, which the weight cannot
+ * show: where the service says how long the recording was, that is what is counted (`settleVoice`).
+ */
+const HEAVIEST_BYTES_A_SECOND = 16_000;
 
 export type VoiceWay = 'provider' | 'browser' | 'none';
 
 /** The providers whose service turns a recording into text. */
 const TRANSCRIBES: readonly string[] = ['openai', 'openai-compatible'];
 
+/**
+ * The connections found, by asking, to have no transcription route (a
+ * compatible server that copies the chat route and not this one). Kept while
+ * the process runs: the panel is then told `browser`, and nobody's minutes
+ * are spent on asking again.
+ */
+const cannotTranscribe = new Set<string>();
+export function noteCannotTranscribe(connectionId: string): void {
+  cannotTranscribe.add(connectionId);
+}
+/** For a test: what was learned is forgotten. */
+export function forgetTranscription(): void {
+  cannotTranscribe.clear();
+}
+
 /** How dictation works in this workspace, as the panel is told it. */
-export function voiceWay(input: { on: boolean; provider: string | null; enabled: boolean }): VoiceWay {
+export function voiceWay(input: { on: boolean; provider: string | null; enabled: boolean; connectionId?: string | null | undefined }): VoiceWay {
   if (!input.on) return 'none';
+  if (input.connectionId !== null && input.connectionId !== undefined && cannotTranscribe.has(input.connectionId)) return 'browser';
   return input.enabled && input.provider !== null && TRANSCRIBES.includes(input.provider) ? 'provider' : 'browser';
 }
 
@@ -53,7 +73,7 @@ export function voiceWay(input: { on: boolean; provider: string | null; enabled:
  * never less than its weight allows, and never more than one recording may be.
  */
 export function recordingSeconds(bytes: number, claimed: number | undefined): number {
-  const byWeight = Math.ceil(bytes / (SLOWEST_BYTES_A_SECOND * 8));
+  const byWeight = Math.ceil(bytes / HEAVIEST_BYTES_A_SECOND);
   const said = claimed === undefined || !Number.isFinite(claimed) ? 0 : Math.ceil(claimed);
   return Math.min(VOICE_MAX_SECONDS, Math.max(1, said, byWeight));
 }
@@ -99,6 +119,25 @@ export async function reserveVoice(
     throw error;
   }
   return { ok: true, release: () => underWay.delete(userId) };
+}
+
+/**
+ * After the service answered: count what the recording really was. `said` is
+ * the length the service gave, where it gives one. More than was taken (a
+ * light encoding held more seconds than its weight showed) is added; nothing
+ * is given back for less, the estimate being the floor.
+ */
+export async function settleVoice(meta: MetaDb, userId: string, taken: number, said: number | undefined, at: number): Promise<number> {
+  if (said === undefined || !Number.isFinite(said)) return taken;
+  const real = Math.ceil(said);
+  if (real <= taken) return taken;
+  await assistantUseRepo(meta).add(userId, assistantUseDay(at), { voiceSeconds: real - taken });
+  return real;
+}
+
+/** Nothing was written down for these seconds (no such route, the person went away): they go back. */
+export async function giveBackVoice(meta: MetaDb, userId: string, seconds: number, at: number): Promise<void> {
+  await assistantUseRepo(meta).giveBackVoice(userId, assistantUseDay(at), seconds);
 }
 
 // ─── the assistant speaking: one person's own choices ─────────────────────────

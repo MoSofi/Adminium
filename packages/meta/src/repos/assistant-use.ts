@@ -86,6 +86,22 @@ export function assistantUseRepo(meta: MetaDb) {
     },
 
     /** Everybody who used the assistant on one day, most first. */
+    /**
+     * Give back seconds that were taken for a recording nobody wrote down (the
+     * service had no such route, the person went away). One statement, never
+     * below nothing.
+     */
+    async giveBackVoice(userId: string, day: string, seconds: number): Promise<void> {
+      const back = whole(seconds);
+      if (back === 0) return;
+      await db
+        .updateTable('adminium_assistant_use')
+        .set({ voiceSeconds: sql<number>`CASE WHEN voice_seconds > ${back} THEN voice_seconds - ${back} ELSE 0 END` })
+        .where('userId', '=', userId)
+        .where('day', '=', day)
+        .execute();
+    },
+
     async listDay(day: string): Promise<AssistantUse[]> {
       const rows = await db.selectFrom('adminium_assistant_use').selectAll().where('day', '=', day).orderBy('tokens', 'desc').orderBy('userId', 'asc').execute();
       return rows.map((row) => ({ userId: row.userId, day: row.day, tokens: Number(row.tokens), turns: Number(row.turns), voiceSeconds: Number(row.voiceSeconds) }));

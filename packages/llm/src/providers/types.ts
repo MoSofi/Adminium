@@ -28,7 +28,7 @@ export interface ProviderClient {
    * transcribes (OpenAI, and OpenAI-compatible servers that offer the same
    * route); absent on the others, which is how a caller knows.
    */
-  transcribe?(req: TranscribeRequest): Promise<{ text: string }>;
+  transcribe?(req: TranscribeRequest): Promise<{ text: string; seconds?: number }>;
 }
 
 /** One recording to turn into text. */

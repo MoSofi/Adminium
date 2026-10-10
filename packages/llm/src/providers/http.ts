@@ -265,14 +265,15 @@ export async function transcribeOpenAiStyle(opts: {
   timeoutMs?: number;
   model: string;
   req: { audio: Uint8Array; mime: string; language?: string; signal?: AbortSignal };
-}): Promise<{ text: string }> {
+}): Promise<{ text: string; seconds?: number }> {
   const form = new FormData();
   // A copy: the bytes handed in may be a view of a larger buffer, and a Blob takes what it is given.
   form.append('file', new Blob([opts.req.audio.slice()], { type: opts.req.mime.split(';')[0] ?? opts.req.mime }), recordingName(opts.req.mime));
   form.append('model', opts.model);
-  form.append('response_format', 'json');
+  // The verbose form also says how long the recording was: what it is counted by, where the service says it.
+  form.append('response_format', 'verbose_json');
   if (opts.req.language !== undefined && /^[a-z]{2}$/.test(opts.req.language)) form.append('language', opts.req.language);
-  const json = await requestJson<{ text?: unknown }>({
+  const json = await requestJson<{ text?: unknown; duration?: unknown }>({
     provider: opts.provider,
     method: 'POST',
     url: `${opts.baseUrl}/audio/transcriptions`,
@@ -284,5 +285,6 @@ export async function transcribeOpenAiStyle(opts: {
   if (typeof json.text !== 'string') {
     throw new ProviderError({ provider: opts.provider, code: 'bad_response', message: `${opts.provider}: the transcription had no text` });
   }
-  return { text: json.text.trim() };
+  const seconds = typeof json.duration === 'number' && Number.isFinite(json.duration) && json.duration > 0 ? json.duration : undefined;
+  return { text: json.text.trim(), ...(seconds === undefined ? {} : { seconds }) };
 }
