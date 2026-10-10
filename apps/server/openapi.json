@@ -86514,7 +86514,8 @@
                 "addOns",
                 "apiDocs",
                 "roles",
-                "designer"
+                "designer",
+                "desktop"
               ]
             },
             "in": "path",
@@ -86650,7 +86651,8 @@
                 "addOns",
                 "apiDocs",
                 "roles",
-                "designer"
+                "designer",
+                "desktop"
               ]
             },
             "in": "query",
@@ -86857,7 +86859,8 @@
                       "addOns",
                       "apiDocs",
                       "roles",
-                      "designer"
+                      "designer",
+                      "desktop"
                     ]
                   },
                   "key": {
@@ -87012,7 +87015,8 @@
                 "addOns",
                 "apiDocs",
                 "roles",
-                "designer"
+                "designer",
+                "desktop"
               ]
             },
             "in": "query",
@@ -87171,7 +87175,8 @@
                             "addOns",
                             "apiDocs",
                             "roles",
-                            "designer"
+                            "designer",
+                            "desktop"
                           ]
                         },
                         "key": {
