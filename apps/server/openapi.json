@@ -26861,6 +26861,32 @@
                               }
                             ]
                           },
+                          "warnings": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "nodeId": {
+                                  "type": "string"
+                                },
+                                "code": {
+                                  "type": "string",
+                                  "enum": [
+                                    "recipient-not-address"
+                                  ]
+                                },
+                                "column": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "nodeId",
+                                "code",
+                                "column"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
                           "stats": {
                             "type": "object",
                             "properties": {
@@ -26961,6 +26987,7 @@
                           "nextRunAt",
                           "valid",
                           "incompleteNodeId",
+                          "warnings",
                           "stats",
                           "managed",
                           "createdAt",
@@ -33364,6 +33391,32 @@
                         }
                       ]
                     },
+                    "warnings": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "nodeId": {
+                            "type": "string"
+                          },
+                          "code": {
+                            "type": "string",
+                            "enum": [
+                              "recipient-not-address"
+                            ]
+                          },
+                          "column": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "nodeId",
+                          "code",
+                          "column"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
                     "stats": {
                       "type": "object",
                       "properties": {
@@ -33464,6 +33517,7 @@
                     "nextRunAt",
                     "valid",
                     "incompleteNodeId",
+                    "warnings",
                     "stats",
                     "managed",
                     "createdAt",
@@ -33593,6 +33647,69 @@
                                     "additionalProperties": false
                                   }
                                 },
+                                "links": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "column": {
+                                        "type": "string"
+                                      },
+                                      "table": {
+                                        "type": "string"
+                                      },
+                                      "label": {
+                                        "type": "string"
+                                      },
+                                      "columns": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "object",
+                                          "properties": {
+                                            "name": {
+                                              "type": "string"
+                                            },
+                                            "label": {
+                                              "type": "string"
+                                            },
+                                            "logicalType": {
+                                              "type": "string"
+                                            },
+                                            "isPk": {
+                                              "type": "boolean"
+                                            },
+                                            "pii": {
+                                              "type": "boolean"
+                                            },
+                                            "emailLike": {
+                                              "type": "boolean"
+                                            },
+                                            "dateLike": {
+                                              "type": "boolean"
+                                            }
+                                          },
+                                          "required": [
+                                            "name",
+                                            "label",
+                                            "logicalType",
+                                            "isPk",
+                                            "pii",
+                                            "emailLike",
+                                            "dateLike"
+                                          ],
+                                          "additionalProperties": false
+                                        }
+                                      }
+                                    },
+                                    "required": [
+                                      "column",
+                                      "table",
+                                      "label",
+                                      "columns"
+                                    ],
+                                    "additionalProperties": false
+                                  }
+                                },
                                 "children": {
                                   "type": "array",
                                   "items": {
@@ -33635,6 +33752,7 @@
                                 "canUpdate",
                                 "watch",
                                 "columns",
+                                "links",
                                 "children",
                                 "pageSlug"
                               ],
@@ -33651,6 +33769,11 @@
                         ],
                         "additionalProperties": false
                       }
+                    },
+                    "templatesOff": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
                     },
                     "templates": {
                       "type": "array",
@@ -33704,6 +33827,7 @@
                   },
                   "required": [
                     "connections",
+                    "templatesOff",
                     "templates",
                     "roles"
                   ],
@@ -37098,6 +37222,32 @@
                         }
                       ]
                     },
+                    "warnings": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "nodeId": {
+                            "type": "string"
+                          },
+                          "code": {
+                            "type": "string",
+                            "enum": [
+                              "recipient-not-address"
+                            ]
+                          },
+                          "column": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "nodeId",
+                          "code",
+                          "column"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
                     "stats": {
                       "type": "object",
                       "properties": {
@@ -37198,6 +37348,7 @@
                     "nextRunAt",
                     "valid",
                     "incompleteNodeId",
+                    "warnings",
                     "stats",
                     "managed",
                     "createdAt",
@@ -43589,6 +43740,32 @@
                         }
                       ]
                     },
+                    "warnings": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "nodeId": {
+                            "type": "string"
+                          },
+                          "code": {
+                            "type": "string",
+                            "enum": [
+                              "recipient-not-address"
+                            ]
+                          },
+                          "column": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "nodeId",
+                          "code",
+                          "column"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
                     "stats": {
                       "type": "object",
                       "properties": {
@@ -43689,6 +43866,7 @@
                     "nextRunAt",
                     "valid",
                     "incompleteNodeId",
+                    "warnings",
                     "stats",
                     "managed",
                     "createdAt",
@@ -47033,6 +47211,32 @@
                         }
                       ]
                     },
+                    "warnings": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "nodeId": {
+                            "type": "string"
+                          },
+                          "code": {
+                            "type": "string",
+                            "enum": [
+                              "recipient-not-address"
+                            ]
+                          },
+                          "column": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "nodeId",
+                          "code",
+                          "column"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
                     "stats": {
                       "type": "object",
                       "properties": {
@@ -47133,6 +47337,7 @@
                     "nextRunAt",
                     "valid",
                     "incompleteNodeId",
+                    "warnings",
                     "stats",
                     "managed",
                     "createdAt",

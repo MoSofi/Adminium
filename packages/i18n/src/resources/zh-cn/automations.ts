@@ -278,7 +278,10 @@ export default {
       "fillWith": "{token} 的填充内容",
       "text": "一段文字",
       "textFor": "{token} 的文字"
-    }
+    },
+    "notAddress": "此列看起来不包含电子邮件地址。邮件可能无人接收。",
+    "templatesOff": "{count, plural, other {#}} 个模板已关闭，未在此显示。",
+    "templatesOffLink": "打开邮件模板"
   },
   "notif": {
     "to": "发送给",

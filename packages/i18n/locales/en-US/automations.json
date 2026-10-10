@@ -268,7 +268,10 @@
       "fillWith": "Fill {token} with",
       "text": "A text",
       "textFor": "Text for {token}"
-    }
+    },
+    "notAddress": "This column does not look like it holds email addresses. The mail may have nobody to go to.",
+    "templatesOff": "{count, plural, one {# template is} other {# templates are}} switched off and not shown.",
+    "templatesOffLink": "Open Email templates"
   },
   "notif": {
     "to": "Send to",

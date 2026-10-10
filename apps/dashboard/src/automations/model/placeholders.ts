@@ -35,11 +35,55 @@ export interface PlaceholderRow {
 
 const RECORD_PREFIX = 'record.';
 
+/** A column of the row a link points at, as a rule spells it and as a person reads it. */
+export interface LinkedColumn {
+  /** `customer_id.email` */
+  name: string;
+  /** The link's own label and the far column's: "Customer → Email". */
+  label: string;
+  emailLike: boolean;
+}
+
+/** Every column one hop away from a table, link by link, in the links' own order. */
+export function linkedColumns(table: SourceTable | null): { link: string; label: string; columns: LinkedColumn[] }[] {
+  return (table?.links ?? []).map((link) => {
+    const own = table?.columns.find((column) => column.name === link.column)?.label ?? link.column;
+    return {
+      link: link.column,
+      label: `${own} (${link.label})`,
+      columns: link.columns.map((column) => ({ name: `${link.column}.${column.name}`, label: `${own} → ${column.label}`, emailLike: column.emailLike })),
+    };
+  });
+}
+
+/** Whether a name is a column of the table, its own or one a link leads to. */
+export function knowsColumn(table: SourceTable | null, name: string): boolean {
+  if (table === null) return false;
+  if (table.columns.some((candidate) => candidate.name === name)) return true;
+  return linkedColumns(table).some((group) => group.columns.some((candidate) => candidate.name === name));
+}
+
+/**
+ * Whether a recipient column holds email addresses, by the schema's own
+ * reading. `null` when the name is not a column this table knows (nothing to
+ * say of it here: the save says so).
+ */
+export function holdsAddresses(table: SourceTable | null, name: string): boolean | null {
+  if (table === null || name === '') return null;
+  const own = table.columns.find((candidate) => candidate.name === name);
+  if (own !== undefined) return own.emailLike;
+  for (const group of linkedColumns(table)) {
+    const far = group.columns.find((candidate) => candidate.name === name);
+    if (far !== undefined) return far.emailLike;
+  }
+  return null;
+}
+
 export function placeholderState(name: string, action: EmailAction, table: SourceTable | null): PlaceholderState {
   if (action.vars !== undefined && Object.hasOwn(action.vars, name)) return 'mapped';
   if (RULE_EMAIL_VARS.includes(name)) return 'rule';
   const column = name.startsWith(RECORD_PREFIX) ? name.slice(RECORD_PREFIX.length) : name;
-  if (table?.columns.some((candidate) => candidate.name === column) === true) return 'record';
+  if (knowsColumn(table, column)) return 'record';
   return 'unfilled';
 }
 
@@ -62,7 +106,7 @@ export function columnOfValue(value: string, table: SourceTable | null): string 
   const match = /^\{\{record\.([A-Za-z0-9_.-]+)\}\}$/.exec(value);
   const name = match?.[1];
   if (name === undefined) return null;
-  return table?.columns.some((candidate) => candidate.name === name) === true ? name : null;
+  return knowsColumn(table, name) ? name : null;
 }
 
 /** The step's `vars` without the entries a newly picked template does not read. */

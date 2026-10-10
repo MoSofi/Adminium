@@ -37,6 +37,8 @@ export interface RuleView {
   /** Complete enough to switch on (D12). */
   valid: boolean;
   incompleteNodeId: string | null;
+  /** What a person should look at that does not stop the rule. Absent from a server before it said so. */
+  warnings?: { nodeId: string; code: 'recipient-not-address'; column: string }[];
   stats: RuleStats;
   /**
    * What shipped the rule, for one an app or an add-on brought with it; null
@@ -89,6 +91,12 @@ export interface SourceTable {
   watch: { created: string | null; updated: string | null };
   columns: SourceColumn[];
   /**
+   * Where this table's links lead, one hop: what a step may name as
+   * `<link>.<column>` (the order's customer's email). Absent from a server
+   * before rules could reach a related row.
+   */
+  links?: SourceLink[];
+  /**
    * Tables whose rows point at this one — collection picker.
    *
    * Already filtered by the server to edges a document mapping can store; see
@@ -97,6 +105,14 @@ export interface SourceTable {
    */
   children: SourceChildTable[];
   pageSlug: string | null;
+}
+
+/** One link of a table: the column that holds it, the table it points at, and that table's columns. */
+export interface SourceLink {
+  column: string;
+  table: string;
+  label: string;
+  columns: SourceColumn[];
 }
 
 export interface SourceChildTable {
@@ -126,6 +142,8 @@ export interface SourceTemplate {
 export interface Sources {
   connections: SourceConnection[];
   templates: SourceTemplate[];
+  /** Template keys that exist and are switched off in every language: not in `templates`. */
+  templatesOff?: number;
   roles: { id: string; name: string }[];
 }
 

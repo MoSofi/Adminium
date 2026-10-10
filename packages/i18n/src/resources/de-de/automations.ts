@@ -278,7 +278,10 @@ export default {
       "fillWith": "{token} füllen mit",
       "text": "Ein Text",
       "textFor": "Text für {token}"
-    }
+    },
+    "notAddress": "Diese Spalte sieht nicht so aus, als enthielte sie E-Mail-Adressen. Die Mail hat dann vielleicht keinen Empfänger.",
+    "templatesOff": "{count, plural, one {# Vorlage ist} other {# Vorlagen sind}} ausgeschaltet und wird hier nicht gezeigt.",
+    "templatesOffLink": "E-Mail-Vorlagen öffnen"
   },
   "notif": {
     "to": "Senden an",

@@ -278,7 +278,10 @@ export default {
       "fillWith": "Remplir {token} avec",
       "text": "Un texte",
       "textFor": "Texte pour {token}"
-    }
+    },
+    "notAddress": "Cette colonne ne semble pas contenir d’adresses e-mail. L’e-mail risque de n’avoir aucun destinataire.",
+    "templatesOff": "{count, plural, one {# modèle est désactivé et n’est pas affiché} other {# modèles sont désactivés et ne sont pas affichés}}.",
+    "templatesOffLink": "Ouvrir les modèles d’e-mail"
   },
   "notif": {
     "to": "Envoyer à",

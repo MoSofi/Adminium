@@ -268,7 +268,10 @@
       "fillWith": "Udfyld {token} med",
       "text": "En tekst",
       "textFor": "Tekst til {token}"
-    }
+    },
+    "notAddress": "Denne kolonne ser ikke ud til at indeholde e-mailadresser. Mailen har måske ingen modtager.",
+    "templatesOff": "{count, plural, one {# skabelon er} other {# skabeloner er}} slået fra og vises ikke.",
+    "templatesOffLink": "Åbn e-mailskabeloner"
   },
   "notif": {
     "to": "Send til",

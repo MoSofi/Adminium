@@ -278,7 +278,10 @@ export default {
       "fillWith": "{token} 的填入內容",
       "text": "一段文字",
       "textFor": "{token} 的文字"
-    }
+    },
+    "notAddress": "此欄看起來不包含電子郵件地址。郵件可能無人接收。",
+    "templatesOff": "{count, plural, other {#}} 個範本已關閉，未在此顯示。",
+    "templatesOffLink": "開啟郵件範本"
   },
   "notif": {
     "to": "傳送給",

@@ -26,7 +26,7 @@ import { useId, type ReactNode } from 'react';
 import { t } from '../../../i18n/t.js';
 import type { SourceTable, Sources } from '../../api.js';
 import type { Action, WriteValue } from '../../model/graph.js';
-import { columnOfValue, placeholderRows, templateOf, varsFor, type PlaceholderRow } from '../../model/placeholders.js';
+import { columnOfValue, holdsAddresses, linkedColumns, placeholderRows, templateOf, varsFor, type PlaceholderRow } from '../../model/placeholders.js';
 import { Card, Field } from './primitives.js';
 
 export interface ActionSettingsProps {
@@ -83,6 +83,8 @@ function EmailSettings({
 }: ActionSettingsProps & { action: Extract<Action, { kind: 'email' }> }): ReactNode {
   const to = action.to;
   const columns = table?.columns ?? [];
+  const linked = linkedColumns(table);
+  const off = sources?.templatesOff ?? 0;
   const template = templateOf(sources, action);
   const rows = placeholderRows(action, template, table);
   const setVar = (name: string, value: string | null): void => {
@@ -111,6 +113,15 @@ function EmailSettings({
             </option>
           ))}
         </Select>
+        {off === 0 ? null : (
+          // A template that is off in every language is not in the list: said, so nobody wonders where it went.
+          <p className="mt-1 text-[11px] leading-[1.45] text-fg-subtle" data-testid="email-templates-off">
+            {t('automations:email.templatesOff', '{count, plural, one {# template is} other {# templates are}} switched off and not shown.', { count: off })}{' '}
+            <a href="/email-templates" className="font-bold text-accent underline-offset-2 hover:underline">
+              {t('automations:email.templatesOffLink', 'Open Email templates')}
+            </a>
+          </p>
+        )}
       </Field>
 
       <Field label={t('automations:email.to', 'To')}>
@@ -147,7 +158,26 @@ function EmailSettings({
                 {column.label}
               </option>
             ))}
+            {/* One hop away: the address of the row a link points at (the order's customer's). Only
+                the columns that hold addresses, and whatever the step already names. */}
+            {linked.map((group) => {
+              const offered = group.columns.filter((column) => column.emailLike || column.name === to.column);
+              return offered.length === 0 ? null : (
+                <optgroup key={group.link} label={group.label}>
+                  {offered.map((column) => (
+                    <option key={column.name} value={column.name}>
+                      {column.label}
+                    </option>
+                  ))}
+                </optgroup>
+              );
+            })}
           </Select>
+          {holdsAddresses(table, to.column) === false ? (
+            <p role="status" className="mt-1 text-[11px] font-semibold leading-[1.45] text-warn" data-testid="email-to-not-address">
+              {t('automations:email.notAddress', 'This column does not look like it holds email addresses. The mail may have nobody to go to.')}
+            </p>
+          ) : null}
         </Field>
       ) : null}
 
@@ -242,6 +272,15 @@ function PlaceholderLine({
               <option key={candidate.name} value={`column:${candidate.name}`}>
                 {candidate.label}
               </option>
+            ))}
+            {linkedColumns(table).map((group) => (
+              <optgroup key={group.link} label={group.label}>
+                {group.columns.map((candidate) => (
+                  <option key={candidate.name} value={`column:${candidate.name}`}>
+                    {candidate.label}
+                  </option>
+                ))}
+              </optgroup>
             ))}
           </Select>
           {mode === 'text' ? (

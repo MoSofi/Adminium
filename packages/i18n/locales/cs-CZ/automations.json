@@ -268,7 +268,10 @@
       "fillWith": "Vyplnit {token} hodnotou",
       "text": "Text",
       "textFor": "Text pro {token}"
-    }
+    },
+    "notAddress": "Tento sloupec nevypadá, že obsahuje e-mailové adresy. E-mail možná nebude mít komu přijít.",
+    "templatesOff": "{count, plural, one {# šablona je vypnutá a není zobrazena} few {# šablony jsou vypnuté a nejsou zobrazeny} other {# šablon je vypnutých a není zobrazeno}}.",
+    "templatesOffLink": "Otevřít e-mailové šablony"
   },
   "notif": {
     "to": "Odeslat komu",
