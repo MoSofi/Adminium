@@ -64,11 +64,14 @@ test('the button on a staff side opens the panel, a question is answered, and th
   await expect(panel.getByTestId('assistant-input')).toBeVisible({ timeout: 30_000 });
   await expect(button).toBeHidden();
 
-  // The general assistant, asked from the app's address.
+  // The general assistant, asked from the app's address. It is this person's one conversation: what they
+  // asked in the dashboard before (another spec of this suite) is here too, so the count starts from that.
+  await page.waitForTimeout(1_500);
+  const before = await panel.getByTestId('assistant-asked-on').count();
   await panel.getByTestId('assistant-input').fill('Where do I invite a colleague?');
   await panel.getByTestId('assistant-send').click();
+  await expect(panel.getByTestId('assistant-asked-on')).toHaveCount(before + 1, { timeout: 30_000 });
   await expect(panel.getByText(/Team|do not have access/).last()).toBeVisible({ timeout: 30_000 });
-  await expect(panel.getByTestId('assistant-asked-on')).toHaveCount(1);
 
   // Closed from inside the panel: the frame goes, the button is back and holds the focus.
   await panel.getByTestId('assistant-close').click();
@@ -76,7 +79,7 @@ test('the button on a staff side opens the panel, a question is answered, and th
   await expect(page.locator('[data-milo-host] iframe')).toBeHidden();
   // Opened again it is the same conversation, not a new document.
   await button.click();
-  await expect(panel.getByTestId('assistant-asked-on')).toHaveCount(1);
+  await expect(panel.getByTestId('assistant-asked-on')).toHaveCount(before + 1);
 
   // The customer side of the same app, by the same signed-in person: the file as it is, and no button.
   const customer = await (await page.request.get(`/apps/${APP_KEY}/customer/`, { headers: { 'sec-fetch-dest': 'document' } })).text();
