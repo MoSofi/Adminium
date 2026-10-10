@@ -48,21 +48,30 @@ export interface ResultCardProps {
   badge?: ReactNode;
   /** One line above the actions: what pressing one does and does not do ("Nothing is saved until you save the rule."). */
   note?: string | undefined;
+  /**
+   * The title on a row of its own, whole, with the tabs under it: for a draft
+   * whose name is what a person reads first (a rule's), where beside the tabs
+   * a narrow panel would cut it to a word.
+   */
+  stacked?: boolean | undefined;
 }
 
-export function ResultCard({ result, preview, kind, tokensIn, tokensOut, footer, alwaysLeftOut, under, badge, note }: ResultCardProps) {
+export function ResultCard({ result, preview, kind, tokensIn, tokensOut, footer, alwaysLeftOut, under, badge, note, stacked }: ResultCardProps) {
   return (
     <div data-testid="assistant-result" className="min-w-0 flex-1 overflow-hidden rounded-[16px] border border-border bg-surface shadow-menu">
       <Tabs variant="pill" defaultValue="preview" className="gap-0">
-        <div className="flex items-center gap-3 border-b border-border px-4 py-[13px]">
-          <div className="min-w-0 flex-1">
-            <div className="truncate text-[13.5px] font-extrabold tracking-[-0.01em] text-fg">{result.title}</div>
-            {result.meta === '' ? null : (
-              <div className="mt-0.5 truncate text-caption text-fg-muted">{result.meta}</div>
-            )}
-            {badge === undefined || badge === null ? null : <div className="mt-1.5">{badge}</div>}
+        <div className={cn('border-b border-border px-4 py-[13px]', stacked === true ? 'flex flex-col gap-3' : 'flex items-center gap-3')}>
+          <div className={cn('min-w-0', stacked === true ? 'flex items-start gap-3' : 'flex-1')}>
+            <div className="min-w-0 flex-1">
+              <div className={cn('text-[13.5px] font-extrabold tracking-[-0.01em] text-fg', stacked === true ? 'text-pretty leading-[1.35]' : 'truncate')}>{result.title}</div>
+              {result.meta === '' ? null : (
+                <div className={cn('mt-0.5 text-caption text-fg-muted', stacked === true ? 'text-pretty' : 'truncate')}>{result.meta}</div>
+              )}
+              {stacked === true || badge === undefined || badge === null ? null : <div className="mt-1.5">{badge}</div>}
+            </div>
+            {stacked === true && badge !== undefined && badge !== null ? <div className="shrink-0">{badge}</div> : null}
           </div>
-          <TabsList className="shrink-0 border border-border">
+          <TabsList className={cn('border border-border', stacked === true ? 'w-full [&>*]:flex-1' : 'shrink-0')}>
             <TabsTrigger data-testid="assistant-tab" data-tab="preview" value="preview">{t('assistant:tabs.preview', 'Preview')}</TabsTrigger>
             <TabsTrigger data-testid="assistant-tab" data-tab="diff" value="diff">{t('assistant:tabs.diff', 'Diff')}</TabsTrigger>
             <TabsTrigger data-testid="assistant-tab" data-tab="details" value="details">{t('assistant:tabs.details', 'Details')}</TabsTrigger>

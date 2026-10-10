@@ -54,7 +54,8 @@ export default {
     "handoffOpen": "Open Email templates",
     "waiting": "Waiting for a template",
     "savedOff": "Will be saved switched off",
-    "notSaved": "Nothing is saved until you save the rule."
+    "notSaved": "Nothing is saved until you save the rule.",
+    "workTitleChange": "Changed the open rule"
   },
   "button": "Ask {name}",
   "buttonTitle": "Ask {name} about this page",

@@ -44,7 +44,8 @@
     "handoffOpen": "開啟郵件範本",
     "waiting": "等待範本",
     "savedOff": "將以關閉狀態儲存",
-    "notSaved": "在你儲存規則之前，不會儲存任何內容。"
+    "notSaved": "在你儲存規則之前，不會儲存任何內容。",
+    "workTitleChange": "已修改開啟的規則"
   },
   "button": "詢問 {name}",
   "buttonTitle": "就此頁面詢問 {name}",

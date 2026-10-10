@@ -54,7 +54,8 @@ export default {
     "handoffOpen": "Åbn E-mailskabeloner",
     "waiting": "Venter på en skabelon",
     "savedOff": "Gemmes slået fra",
-    "notSaved": "Intet gemmes, før du gemmer reglen."
+    "notSaved": "Intet gemmes, før du gemmer reglen.",
+    "workTitleChange": "Ændrede den åbne regel"
   },
   "button": "Spørg {name}",
   "buttonTitle": "Spørg {name} om denne side",

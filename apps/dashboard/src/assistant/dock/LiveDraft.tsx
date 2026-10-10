@@ -187,9 +187,10 @@ export function LiveDraft({ turn, result, host, copy, name, enabled, canWrite, o
         preview={light || page === null ? null : page.renderPreview(sample?.artefact ?? result.artefact, { basedOn: result.basedOn })}
         // A rule that does less than was asked must say so where the rule is shown.
         alwaysLeftOut={rule}
+        stacked={rule}
         badge={
           !rule || change ? null : (
-            <span data-testid="assistant-rule-badge" className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-[3px] text-[11px] font-bold ${waiting ? 'bg-warn-soft text-warn' : 'bg-surface-3 text-fg-muted'}`}>
+            <span data-testid="assistant-rule-badge" className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-[3px] text-[11px] font-bold ${waiting ? 'bg-warn-soft text-warn' : 'bg-surface-3 text-fg-muted'}`}>
               {waiting ? <Hourglass className="size-3" aria-hidden="true" /> : <PowerOff className="size-3" aria-hidden="true" />}
               {waiting ? t('assistant:automation.waiting', 'Waiting for a template') : t('assistant:automation.savedOff', 'Will be saved switched off')}
             </span>

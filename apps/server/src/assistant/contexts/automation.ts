@@ -366,7 +366,7 @@ function openRuleLines(rules: readonly { id: string; name: string }[], openId: s
   if (open === undefined) return [];
   return [
     `The rule open in the builder right now is "${open.name}" (id ${open.id}): the document you are shown is that rule as it is on the person's screen.`,
-    `To CHANGE it ("wait two hours before the email", "also notify the managers"), return the WHOLE rule with the change made and "basedOn": "${open.id}". Keep the id of every step you do not change, and give a new step a new id. The change goes into the builder; nothing is saved until the person saves, so do not say it is saved or switched off.`,
+    `To CHANGE it ("wait two hours before the email", "also notify the managers"), return the WHOLE rule with the change made and "basedOn": "${open.id}". Keep the id of every step you do not change, and give a new step a new id. The change goes into the builder; nothing is saved until the person saves, so do not say it is saved or switched off. Propose no action with it, unless the person asked you to SAVE the change: then, and only where it is offered, "doc.change". Never "doc.save" with a change: that would save a second rule.`,
     'To make a DIFFERENT rule, leave "basedOn" out: that one is saved as a new rule, switched off.',
   ];
 }

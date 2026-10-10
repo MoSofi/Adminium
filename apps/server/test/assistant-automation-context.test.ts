@@ -145,6 +145,7 @@ for (const [dialect, available] of legs) {
       expect(open.system).toContain(`The rule open in the builder right now is "Thank the guest" (id ${rule.id})`);
       expect(open.system).toContain(`"basedOn": "${rule.id}"`);
       expect(open.system).toContain('nothing is saved until the person saves');
+      expect(open.system).toContain('Never "doc.save" with a change');
       // With none open, or one that is not there, nothing is said of it.
       expect(setup.system).not.toContain('The rule open in the builder');
       expect((await turnAs(s, owner.id, 'automation', { documentId: 'auto_gone' })).system).not.toContain('The rule open in the builder');

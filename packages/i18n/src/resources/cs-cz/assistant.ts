@@ -54,7 +54,8 @@ export default {
     "handoffOpen": "Otevřít Šablony e-mailů",
     "waiting": "Čeká na šablonu",
     "savedOff": "Uloží se vypnuté",
-    "notSaved": "Nic se neuloží, dokud pravidlo neuložíte."
+    "notSaved": "Nic se neuloží, dokud pravidlo neuložíte.",
+    "workTitleChange": "Změnil otevřené pravidlo"
   },
   "button": "Zeptat se {name}",
   "buttonTitle": "Zeptat se {name} na tuto stránku",

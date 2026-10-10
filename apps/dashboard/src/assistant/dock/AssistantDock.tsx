@@ -227,6 +227,12 @@ function proposalHome(turn: ThreadTurn, pages: unknown): DraftHome | null {
   return draftHome(turn.context, turn.on.documentId);
 }
 
+/** Whether a turn's draft is a change to the rule that is open on the rules page: it names that rule as what it was built from. */
+function changesOpenRule(turn: { context: string; result: { basedOn: string | null } | null }, page: AssistantHostContext | null): boolean {
+  if (turn.context !== 'automation' || turn.result === null || turn.result.basedOn === null || page === null) return false;
+  return (page.host as { documentId?: string | undefined }).documentId === turn.result.basedOn;
+}
+
 export function AssistantDock({ visible, pages }: AssistantDockProps) {
   useAssistantMessages();
   const navigate = useNavigate();
@@ -512,7 +518,7 @@ export function AssistantDock({ visible, pages }: AssistantDockProps) {
               live={turn.id === turns.at(-1)?.id}
               liveSteps={conversation.liveSteps}
               answered={index < turns.length - 1}
-              workTitle={contextCopy(turn.context, {}, name).workTitle}
+              workTitle={changesOpenRule(turn, pageHost()) ? t('assistant:automation.workTitleChange', 'Changed the open rule') : contextCopy(turn.context, {}, name).workTitle}
               context={turn.context}
               name={name}
               canConfigure={canConfigure}
@@ -532,6 +538,9 @@ export function AssistantDock({ visible, pages }: AssistantDockProps) {
               onGo={() => conversation.answer(turn.id, picks[turn.id] ?? {}, askedPage)}
               onRetry={turn.askText === null ? null : () => submit(turn.askText ?? '')}
               renderProposal={(proposal, indent) => {
+                // A change to the rule that is open goes into the builder (the card's own "Apply to this rule").
+                // Offered beside it, "save as a new rule" would make a second rule of the same thing: not drawn.
+                if (changesOpenRule(turn, pageHost()) && proposal.actions.every((action) => action.do === 'doc.save')) return null;
                 const home = proposalHome(turn, pages);
                 const open = (): void => {
                   if (home === null) return;

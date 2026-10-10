@@ -427,6 +427,10 @@
     "status": "mt",
     "srcHash": "13895d6d39b7"
   },
+  "assistant.automation.workTitleChange": {
+    "status": "mt",
+    "srcHash": "1e5aa19745d8"
+  },
   "assistant.budget.usedUp": {
     "status": "mt",
     "srcHash": "0df3780afc66"

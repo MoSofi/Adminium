@@ -44,7 +44,8 @@
     "handoffOpen": "E-Mail-Vorlagen öffnen",
     "waiting": "Wartet auf eine Vorlage",
     "savedOff": "Wird ausgeschaltet gespeichert",
-    "notSaved": "Nichts wird gespeichert, bis Sie die Regel speichern."
+    "notSaved": "Nichts wird gespeichert, bis Sie die Regel speichern.",
+    "workTitleChange": "Geöffnete Regel geändert"
   },
   "button": "{name} fragen",
   "buttonTitle": "{name} zu dieser Seite fragen",

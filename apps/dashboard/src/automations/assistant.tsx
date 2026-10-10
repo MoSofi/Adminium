@@ -42,7 +42,7 @@ function everyNode(graph: Graph): FlowNode[] {
  * a key: it is a picture of the rule, and the card's own buttons act on it.
  * A step the open rule does not have yet says who added it.
  */
-function RulePreview({ artefact, sources, base, name }: { artefact: Record<string, unknown>; sources: Sources | null; base: Graph | null; name: string }): ReactNode {
+export function RulePreview({ artefact, sources, base, name }: { artefact: Record<string, unknown>; sources: Sources | null; base: Graph | null; name: string }): ReactNode {
   const trigger = artefact['trigger'] as Trigger | undefined;
   const graph = artefact['graph'] as Graph | undefined;
   if (trigger === undefined || graph === undefined || !Array.isArray(record(graph)['nodes'])) return null;

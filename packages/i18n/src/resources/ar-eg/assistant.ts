@@ -54,7 +54,8 @@ export default {
     "handoffOpen": "فتح قوالب البريد",
     "waiting": "بانتظار قالب",
     "savedOff": "ستُحفظ وهي متوقفة",
-    "notSaved": "لا شيء يُحفظ حتى تحفظ القاعدة."
+    "notSaved": "لا شيء يُحفظ حتى تحفظ القاعدة.",
+    "workTitleChange": "غيّر القاعدة المفتوحة"
   },
   "button": "اسأل {name}",
   "buttonTitle": "اسأل {name} عن هذه الصفحة",

@@ -54,7 +54,8 @@ export default {
     "handoffOpen": "Ouvrir les modèles d’e-mail",
     "waiting": "En attente d’un modèle",
     "savedOff": "Sera enregistrée désactivée",
-    "notSaved": "Rien n’est enregistré tant que vous n’enregistrez pas la règle."
+    "notSaved": "Rien n’est enregistré tant que vous n’enregistrez pas la règle.",
+    "workTitleChange": "Règle ouverte modifiée"
   },
   "button": "Demander à {name}",
   "buttonTitle": "Interroger {name} sur cette page",
