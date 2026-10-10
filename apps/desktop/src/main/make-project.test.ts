@@ -55,6 +55,28 @@ describe('making a project', () => {
     expect(log).toHaveBeenCalledWith(expect.stringContaining('exit 0'));
   });
 
+  it('takes away a folder it made and could not finish, so the same name can be tried again', async () => {
+    const root = join(home, 'shop');
+    const run: MakeProjectDeps['run'] = () => {
+      mkdirSync(root, { recursive: true });
+      writeFileSync(join(root, 'package.json'), '{}');
+      return Promise.resolve(ran({ code: 1, output: 'npm ci failed' }));
+    };
+    await expect(createMakeProject(deps(run))({ parent: home, folder: 'shop', root })).resolves.toEqual({ ok: false, detail: 'npm ci failed' });
+    expect(existsSync(root)).toBe(false);
+  });
+
+  it('leaves a folder that was there before it, whatever happened', async () => {
+    const root = join(home, 'shop');
+    mkdirSync(root);
+    const run: MakeProjectDeps['run'] = () => {
+      writeFileSync(join(root, 'package.json'), '{}');
+      return Promise.resolve(ran({ code: null, output: '', timedOut: true }));
+    };
+    await expect(createMakeProject(deps(run))({ parent: home, folder: 'shop', root })).resolves.toMatchObject({ ok: false });
+    expect(existsSync(join(root, 'package.json'))).toBe(true);
+  });
+
   it('keeps a database that is already there', async () => {
     const root = join(home, 'shop');
     const run: MakeProjectDeps['run'] = () => {

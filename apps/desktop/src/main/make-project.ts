@@ -14,7 +14,7 @@
  * ELECTRON-FREE: the program, the entry and the runner are handed in.
  */
 
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 
 import type { MakeProjectResult } from './start.js';
@@ -66,6 +66,19 @@ export function createMakeProject(deps: MakeProjectDeps): (input: { parent: stri
     } catch (error) {
       return { ok: false, detail: `Could not make ${parent}: ${error instanceof Error ? error.message : String(error)}` };
     }
+    // A folder this call makes and cannot finish is taken away again: left behind it is a project with no packages,
+    // which "Create" then refuses as a folder with files in it. One that was there before (empty) is the person's.
+    const madeHere = !existsSync(root);
+    const failed = (detail: string): MakeProjectResult => {
+      if (madeHere) {
+        try {
+          rmSync(root, { recursive: true, force: true });
+        } catch {
+          // Still there (a file held open): the detail below is what matters.
+        }
+      }
+      return { ok: false, detail };
+    };
     const programs = await deps.programs();
     const env: Record<string, string> = {};
     for (const [key, value] of Object.entries(deps.env)) if (value !== undefined) env[key] = value;
@@ -76,8 +89,8 @@ export function createMakeProject(deps: MakeProjectDeps): (input: { parent: stri
 
     const ran = await deps.run(deps.binary, [deps.cliEntry, 'new', folder, '--yes', '--database', NEW_PROJECT_DATABASE], { cwd: parent, env, timeoutMs: MAKE_PROJECT_TIMEOUT_MS });
     deps.log?.(`[new project] ${root}: exit ${String(ran.code)}${ran.timedOut ? ' (timed out)' : ''}\n${lastLines(ran.output, 20)}`);
-    if (ran.timedOut) return { ok: false, detail: 'Getting the packages took too long and was stopped.' };
-    if (ran.code !== 0) return { ok: false, detail: lastLines(ran.output) };
+    if (ran.timedOut) return failed('Getting the packages took too long and was stopped.');
+    if (ran.code !== 0) return failed(lastLines(ran.output));
 
     // A SQLite connection opens only a file that exists; an empty file is an empty database.
     const database = resolve(root, NEW_PROJECT_DATABASE.slice('sqlite:'.length));
