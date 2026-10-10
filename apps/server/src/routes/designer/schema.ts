@@ -41,6 +41,8 @@ export const designerStateReply = z.object({
   active: z.object({ sessionId: z.string(), turn: z.number().int() }).nullable(),
   /** Whether the person asking is the owner `design` made, still with no password: the dashboard then offers to set one. */
   ownerNeedsPassword: z.boolean(),
+  /** Names in the project's `.env` or config that were not obeyed, because the host decides them. Empty on a terminal. */
+  ignoredEnv: z.array(z.string()),
 });
 
 export const designerOwnerPasswordBody = z.object({ email: z.string().min(3).max(254), password: z.string().min(1).max(1024) });

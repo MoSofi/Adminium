@@ -60,7 +60,7 @@ export interface CreateRelocationHostOptions {
   /** The project folder the server runs, passed to every boot. */
   project?: ProjectServerOptions | undefined;
   /** Adminium Designer, when this server runs it (`adminium design`). */
-  designer?: { mode: 'local'; token: string | null; port: number } | undefined;
+  designer?: { mode: 'local'; token: string | null; port: number; /** Names of the project's `.env` and config a host did not obey: said on the Designer's Home. */ ignoredEnv?: readonly string[] | undefined } | undefined;
   /** Test seam: defaults to `process.exit`. */
   exit?: (code: number) => void;
   /** Test seam: defaults to running the task on the next tick. */

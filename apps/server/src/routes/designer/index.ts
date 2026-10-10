@@ -100,6 +100,8 @@ export interface DesignerRoutesDeps {
   versions: Versions | null;
   connections: AiConnections;
   mode: 'local' | 'live';
+  /** Names from the project's `.env` and config that the host did not obey (the desktop app decides them itself). */
+  ignoredEnv?: readonly string[] | undefined;
   root: string;
   limits: () => Promise<{ maxSteps: number; turnTokens: number; sessionTokens: number }>;
   /** The adminium.dev app list, for "Start with an app". */
@@ -201,6 +203,7 @@ export function designerRoutes(deps: DesignerRoutesDeps): FastifyPluginAsyncZod 
       limits: await deps.limits(),
       active: runner.active(),
       ownerNeedsPassword: deps.owner === undefined ? false : await deps.owner.needsPassword(request.user?.id ?? null),
+      ignoredEnv: [...(deps.ignoredEnv ?? [])],
     }));
 
     // The owner `design` made, given an address and a password on the page (as `adminium owner set` does in the terminal).

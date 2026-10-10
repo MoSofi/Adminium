@@ -21,7 +21,7 @@ import { expect, test, type ElectronApplication, type Page } from '@playwright/t
 
 import { createDesignerModelServer } from '../scripts/fake-llm.mjs';
 import { ProjectHarness } from '../tests/projectHarness.js';
-import { closeDesktop, launchDesktop } from './helpers/launch.js';
+import { closeDesktop, launchDesktop, readExternalOpens, stubExternalOpen } from './helpers/launch.js';
 
 const APP_KEY = 'repair-desk';
 /** Inside the run's own ports when it was given any; else in the product's range. */
@@ -70,6 +70,8 @@ test.beforeAll(async ({}, testInfo) => {
   // The model, where the Designer's own model screen writes it today: the project's `.env` (keys are to move to the
   // app's own store). Not the environment: the app's server child inherits none of the app's.
   appendFileSync(join(project.root, '.env'), `\nADMINIUM_AI_OLLAMA_BASE_URL=${modelUrl}\nADMINIUM_AI_MODEL=ollama/fake\n`);
+  // A name the app decides itself: a folder from somewhere else may say anything of it.
+  appendFileSync(join(project.root, '.env'), 'ADMINIUM_TRUST_PROXY=true\n');
 
   ({ app, userDataDir } = await launchDesktop({
     env: {
@@ -99,6 +101,8 @@ test('opens the folder in the Designer, signed in, on this machine only', async 
   expect(Number(url.port)).toBeGreaterThanOrEqual(FIRST_PORT);
   expect(Number(url.port)).toBeLessThan(FIRST_PORT + 20);
   await expect(page.getByRole('button', { name: 'Model: fake' })).toBeVisible();
+  // What the folder's .env said of a name the app decides was not obeyed, and the page says which.
+  await expect(page.getByRole('note')).toContainText('ADMINIUM_TRUST_PROXY');
   expect(await page.evaluate(() => typeof (window as unknown as { adminiumDesktop?: unknown }).adminiumDesktop)).toBe('object');
 
   // The folder is served, and says who serves it.
@@ -131,6 +135,29 @@ test('a request builds an app, saves a version and shows it', async () => {
   await expect(frame.getByRole('button', { name: 'Set your password' })).toBeVisible({ timeout: 60_000 });
   // No frame has the app's bridge.
   expect(await frame.locator('body').evaluate(() => typeof (window as unknown as { adminiumDesktop?: unknown }).adminiumDesktop)).toBe('undefined');
+});
+
+test('"Open in a new tab" hands the system’s browser a link that signs the owner in there, once', async ({ playwright }) => {
+  await stubExternalOpen(app);
+  await page.getByRole('button', { name: /Open in a new tab/ }).first().click();
+  await expect.poll(() => readExternalOpens(app), { timeout: 15_000 }).toHaveLength(1);
+  const [link] = await readExternalOpens(app);
+  const url = new URL(link ?? '');
+  // The app's own address, in the one shape it is ever handed over in: with a one-use token after #.
+  expect(url.origin).toBe(new URL(page.url()).origin);
+  expect(url.hash).toMatch(/^#designToken=[0-9a-f]{64}$/);
+  // No window was made for it, and this one did not move.
+  expect(app.windows()).toHaveLength(1);
+
+  // What that browser does with it: it holds no cookie of this server.
+  const exchange = async (): Promise<number> => {
+    const browser = await playwright.request.newContext();
+    const reply = await browser.post(`${url.origin}/api/v1/auth/design-session`, { headers: { origin: url.origin }, data: { designToken: url.hash.slice('#designToken='.length) } });
+    await browser.dispose();
+    return reply.status();
+  };
+  expect(await exchange()).toBe(200);
+  expect(await exchange()).toBe(401);
 });
 
 test('the build page’s first bar holds the project’s button and Build | Share, and still fits at the window’s smallest', async () => {

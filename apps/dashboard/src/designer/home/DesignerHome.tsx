@@ -31,6 +31,7 @@ import { useDesignerModel } from '../models/useModel.js';
 import { useModelControl } from '../models/useModelControl.js';
 import { TurnVersionsOn, useDesktopVersions, VersionsCard } from '../parts/DesktopVersions.js';
 import { TopBar } from '../parts/TopBar.js';
+import { IgnoredEnv } from './IgnoredEnv.js';
 import { StartSheet } from './StartSheet.js';
 import { StartWithAnApp } from './StartWithAnApp.js';
 import { YourApps } from './YourApps.js';
@@ -138,6 +139,7 @@ export function DesignerHome(): ReactNode {
       <TopBar dashboardLink />
       <main className="flex flex-col items-center px-[clamp(16px,4.5vw,48px)] pb-[clamp(56px,7vw,112px)] pt-[clamp(44px,7.5vw,112px)]">
         <div className="flex w-full max-w-[1040px] flex-col items-center">
+          <IgnoredEnv />
           <VersionsCard versions={desktopVersions} reopened={versionsReopened} />
           <h1 className="m-0 text-balance text-center text-[clamp(28px,2.9vw,42px)] font-extrabold leading-tight tracking-tight">
             {t('designer:home.title', 'What do you want to build?')}

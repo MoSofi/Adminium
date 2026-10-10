@@ -28,7 +28,9 @@
     "noModel": "Adminium Designer bruger din egen AI-model. Tilføj en for at begynde.",
     "cannotBuild": "Denne model kan ikke bygge apps: den understøtter ikke værktøjer. Vælg en anden model.",
     "failed": "Designeren kunne ikke starte",
-    "noModelSet": "Der er ikke valgt en model til Designeren på denne server. En tilføjes i Indstillinger → AI."
+    "noModelSet": "Der er ikke valgt en model til Designeren på denne server. En tilføjes i Indstillinger → AI.",
+    "ignoredEnv": "Appen bestemmer selv disse, så det, projektets .env siger om dem, blev ignoreret:",
+    "ignoredEnvHide": "Skjul denne note"
   },
   "target": {
     "label": "Hvad der skal bygges: {target}",

@@ -38,7 +38,9 @@ export default {
     "noModel": "Adminium Designer utilise votre propre modèle d’IA. Ajoutez-en un pour commencer.",
     "cannotBuild": "Ce modèle ne peut pas créer d’applications : il ne prend pas en charge les outils. Choisissez un autre modèle.",
     "failed": "Le Designer n’a pas pu démarrer",
-    "noModelSet": "Aucun modèle n’est défini pour le Designer sur ce serveur. On en ajoute un dans Paramètres → IA."
+    "noModelSet": "Aucun modèle n’est défini pour le Designer sur ce serveur. On en ajoute un dans Paramètres → IA.",
+    "ignoredEnv": "L’application les décide elle-même ; ce que le fichier .env de ce projet en dit a donc été ignoré :",
+    "ignoredEnvHide": "Masquer cette note"
   },
   "target": {
     "label": "Ce qu’il faut créer : {target}",

@@ -269,7 +269,7 @@ export interface StartServerOptions {
   /** The project folder this server runs, when there is one. */
   project?: ProjectServerOptions | undefined;
   /** Adminium Designer, when this server runs it (`adminium design`). */
-  designer?: { mode: 'local'; token: string | null; port: number } | undefined;
+  designer?: { mode: 'local'; token: string | null; port: number; /** Names of the project's `.env` and config a host did not obey: said on the Designer's Home. */ ignoredEnv?: readonly string[] | undefined } | undefined;
 }
 
 /** Boot + listen. Injected ({@link CliDeps.startServer}) so tests never bind a port. */

@@ -452,7 +452,7 @@ export async function startUp({ io, deps }: Pick<CommandContext, 'io' | 'deps'>,
       env,
       deps,
       ...(projectServer === undefined ? {} : { project: projectServer }),
-      ...(prepared === null ? {} : { designer: { mode: 'local' as const, token: prepared.token, port: env.PORT } }),
+      ...(prepared === null ? {} : { designer: { mode: 'local' as const, token: prepared.token, port: env.PORT, ...(project === null || project.refused.length === 0 ? {} : { ignoredEnv: project.refused }) } }),
       log: (message) => {
         io.out(message);
       },

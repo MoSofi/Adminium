@@ -28,7 +28,9 @@
     "noModel": "Adminium Designer 使用你自己的 AI 模型。新增一個即可開始。",
     "cannotBuild": "此模型無法建立應用程式：它不支援工具。請選擇其他模型。",
     "failed": "Designer 無法啟動",
-    "noModelSet": "此伺服器尚未為 Designer 設定模型。請在「設定 → AI」中新增。"
+    "noModelSet": "此伺服器尚未為 Designer 設定模型。請在「設定 → AI」中新增。",
+    "ignoredEnv": "這些值由應用程式自行決定，因此此專案的 .env 中對它們的設定已被忽略：",
+    "ignoredEnvHide": "隱藏此提示"
   },
   "target": {
     "label": "建立內容：{target}",

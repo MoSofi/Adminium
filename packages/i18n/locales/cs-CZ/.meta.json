@@ -9307,6 +9307,14 @@
     "status": "mt",
     "srcHash": "0c1088882713"
   },
+  "designer.home.ignoredEnv": {
+    "status": "mt",
+    "srcHash": "9e8ace684210"
+  },
+  "designer.home.ignoredEnvHide": {
+    "status": "mt",
+    "srcHash": "df5e8308034d"
+  },
   "designer.home.lead": {
     "status": "mt",
     "srcHash": "f11fc4a62007"

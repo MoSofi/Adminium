@@ -38,7 +38,9 @@ export default {
     "noModel": "Adminium Designer nutzt Ihr eigenes KI-Modell. Fügen Sie eines hinzu, um zu beginnen.",
     "cannotBuild": "Dieses Modell kann keine Apps bauen: Es unterstützt keine Werkzeuge. Wählen Sie ein anderes Modell.",
     "failed": "Der Designer konnte nicht starten",
-    "noModelSet": "Auf diesem Server ist für den Designer kein Modell eingerichtet. Eines wird unter Einstellungen → KI hinzugefügt."
+    "noModelSet": "Auf diesem Server ist für den Designer kein Modell eingerichtet. Eines wird unter Einstellungen → KI hinzugefügt.",
+    "ignoredEnv": "Die App legt diese selbst fest, daher wurde ignoriert, was die .env dieses Projekts dazu sagt:",
+    "ignoredEnvHide": "Diesen Hinweis ausblenden"
   },
   "target": {
     "label": "Was gebaut wird: {target}",

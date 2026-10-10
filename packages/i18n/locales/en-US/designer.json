@@ -28,7 +28,9 @@
     "noModel": "Adminium Designer uses your own AI model. Add one to begin.",
     "cannotBuild": "This model cannot build apps: it does not support tools. Pick another model.",
     "failed": "The Designer could not start",
-    "noModelSet": "No model is set for the Designer on this server. One is added in Settings → AI."
+    "noModelSet": "No model is set for the Designer on this server. One is added in Settings → AI.",
+    "ignoredEnv": "The app decides these itself, so what this project’s .env says of them was ignored:",
+    "ignoredEnvHide": "Hide this note"
   },
   "target": {
     "label": "What to build: {target}",

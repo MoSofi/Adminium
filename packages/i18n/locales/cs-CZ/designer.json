@@ -28,7 +28,9 @@
     "noModel": "Adminium Designer používá váš vlastní model AI. Začněte jeho přidáním.",
     "cannotBuild": "Tento model neumí vytvářet aplikace: nepodporuje nástroje. Vyberte jiný model.",
     "failed": "Designer se nepodařilo spustit",
-    "noModelSet": "Pro Designer není na tomto serveru nastaven žádný model. Přidává se v Nastavení → AI."
+    "noModelSet": "Pro Designer není na tomto serveru nastaven žádný model. Přidává se v Nastavení → AI.",
+    "ignoredEnv": "O těchto hodnotách rozhoduje aplikace sama, takže to, co o nich říká soubor .env tohoto projektu, bylo ignorováno:",
+    "ignoredEnvHide": "Skrýt tuto poznámku"
   },
   "target": {
     "label": "Co vytvořit: {target}",
