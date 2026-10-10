@@ -27,6 +27,8 @@ export interface DesktopProgramsValue {
   npmGlobalConfig: string;
   npmCache: string;
   starter: string | null;
+  /** Where this computer's approvals of apps' own build lines are kept: a folder's own list is not believed here. */
+  approvals: string;
 }
 
 export interface ProvideProgramsInput {
@@ -134,6 +136,7 @@ export function provideDesktopPrograms(input: ProvideProgramsInput): DesktopProg
     npmUserConfig: join(npmHome, 'user.npmrc'),
     npmGlobalConfig: join(npmHome, 'global.npmrc'),
     npmCache: join(npmHome, 'cache'),
+    approvals: join(input.userDataDir, 'approved-builds'),
     // Named only when it is really there: a build made outside a release carries none.
     starter: input.starterDir != null && existsSync(join(input.starterDir, 'package-lock.json')) ? input.starterDir : null,
   };

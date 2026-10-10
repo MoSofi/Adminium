@@ -50,7 +50,9 @@ describe('desktopPrograms', () => {
   });
 
   it('reads what the app wrote', () => {
-    expect(desktopPrograms(desktop())).toEqual(APP);
+    // An app older than the approvals folder names none.
+    expect(desktopPrograms(desktop())).toEqual({ ...APP, approvals: null });
+    expect(desktopPrograms(desktop({ approvals: '/u/approved-builds' }))?.approvals).toBe('/u/approved-builds');
     expect(desktopPrograms(desktop({ git: null }))?.git).toBeNull();
     // The starter's lockfile is carried by a release build, and by no other.
     expect(desktopPrograms(desktop({ starter: '/Applications/Adminium.app/Contents/Resources/starter' }))?.starter).toBe('/Applications/Adminium.app/Contents/Resources/starter');

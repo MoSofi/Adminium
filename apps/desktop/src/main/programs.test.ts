@@ -30,6 +30,7 @@ describe('provideDesktopPrograms', () => {
       npmUserConfig: join(userData, 'programs', 'npm', 'user.npmrc'),
       npmGlobalConfig: join(userData, 'programs', 'npm', 'global.npmrc'),
       npmCache: join(userData, 'programs', 'npm', 'cache'),
+      approvals: join(userData, 'approved-builds'),
       starter: null,
     });
     expect(readdirSync(value.shims).sort()).toEqual(['node', 'npm', 'npx']);

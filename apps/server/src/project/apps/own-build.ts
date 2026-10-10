@@ -32,10 +32,10 @@
  */
 import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join, posix } from 'node:path';
 
-import { buildLinePath } from '../programs.js';
+import { buildLinePath, desktopPrograms } from '../programs.js';
 
 import { BUILD_DIR } from '../build-shared.js';
 import { APPS_DIR, SIDES, appDir, type AppSide } from './read-app.js';
@@ -85,9 +85,27 @@ export function readAppBuild(root: string, key: string): AppBuildFile | { proble
 /** What an approval is of: the exact words of all three lines. */
 export const buildFingerprint = (build: AppBuildFile): string => sha256(`${build.install}\n${build.command}\n${build.output}`);
 
+/**
+ * Where a project's approvals are kept: in the project, on a terminal; in the
+ * desktop app, in the app's own folder, by the project's real path. There a
+ * project is often a folder someone sent, and an approval that travelled with
+ * it would be the sender's yes to running a shell line on this computer.
+ */
+export function approvalsFile(root: string, env: Readonly<Record<string, string | undefined>> = process.env): string {
+  const kept = desktopPrograms(env)?.approvals ?? null;
+  if (kept === null) return join(root, APPROVED_BUILDS_FILE);
+  let real = root;
+  try {
+    real = realpathSync(root);
+  } catch {
+    // Not there (yet): its name as given.
+  }
+  return join(kept, `${sha256(real)}.json`);
+}
+
 function approvals(root: string): Record<string, string> {
   try {
-    const parsed = JSON.parse(readFileSync(join(root, APPROVED_BUILDS_FILE), 'utf8')) as unknown;
+    const parsed = JSON.parse(readFileSync(approvalsFile(root), 'utf8')) as unknown;
     return parsed !== null && typeof parsed === 'object' && !Array.isArray(parsed) ? (parsed as Record<string, string>) : {};
   } catch {
     return {};
@@ -98,7 +116,7 @@ export const isBuildApproved = (root: string, key: string, build: AppBuildFile):
 
 /** Record that a person approved this app's build as it reads now. */
 export function approveBuild(root: string, key: string, build: AppBuildFile): void {
-  const file = join(root, APPROVED_BUILDS_FILE);
+  const file = approvalsFile(root);
   mkdirSync(dirname(file), { recursive: true });
   writeFileSync(file, `${JSON.stringify({ ...approvals(root), [key]: buildFingerprint(build) }, null, 2)}\n`, { mode: 0o600 });
 }

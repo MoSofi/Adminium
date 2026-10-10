@@ -44,6 +44,12 @@ export interface DesktopPrograms {
   npmCache: string;
   /** The folder of the lockfile a new project starts with (`starter-lock.ts`), or `null`: this build carries none. */
   starter: string | null;
+  /**
+   * A folder of the app's own where approvals of apps' build lines are kept, one file per project, or `null`: an
+   * app older than this. With it, a project folder's own `.adminium/approved-builds.json` is not read: a folder
+   * from someone else must not arrive with its build lines already approved.
+   */
+  approvals: string | null;
 }
 
 /** What it takes to start a program: the file, its arguments, and what to add to the child's environment. */
@@ -87,6 +93,7 @@ export function desktopPrograms(env: Readonly<Record<string, string | undefined>
     npmGlobalConfig: path('npmGlobalConfig'),
     npmCache: path('npmCache'),
     starter: value['starter'] === undefined || value['starter'] === null ? null : path('starter'),
+    approvals: value['approvals'] === undefined || value['approvals'] === null ? null : path('approvals'),
   };
 }
 
