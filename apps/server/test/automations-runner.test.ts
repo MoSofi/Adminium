@@ -582,9 +582,16 @@ describe('42 — the runner walks the owner’s first example', () => {
       const outcome = await walkRule(deps(), { rule: await thanksRule({}), runId: 'arun_test', event: event(), dryRun: true });
       if (outcome.kind !== 'finished') throw new Error('expected a finished run');
       expect(sent).toHaveLength(0);
-      expect(outcome.trace.steps[1]?.log).toBe(
-        'Would send “Thanks, {{first_name}}!” to jordan@acme.io · nothing filled {{first_name}}, {{order.number}}',
-      );
+      // A person is watching a test: it stops at the step and names what nothing fills (the owner's ruling on Q-I).
+      expect(outcome.status).toBe('failed');
+      expect(outcome.trace.steps[1]).toMatchObject({
+        status: 'fail',
+        log: 'Nothing fills {{first_name}}, {{order.number}}. Fill it in this step, or give it a backup in the template. A real run would send it as written.',
+      });
+      // With both filled the test says what it would send.
+      await automationsRepo(t.meta).remove((await automationsRepo(t.meta).list())[0]!.id);
+      const filled = await walkRule(deps(), { rule: await thanksRule({ first_name: 'x', 'order.number': '1' }), runId: 'arun_test2', event: event(), dryRun: true });
+      expect(filled.kind === 'finished' ? filled.trace.steps[1]?.log : '').toBe('Would send “Thanks, x!” to jordan@acme.io');
     });
 
     it('a date of the record reads as a date in the mail, not as the stored text', async () => {

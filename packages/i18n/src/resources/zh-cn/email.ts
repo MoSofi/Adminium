@@ -178,6 +178,7 @@ export default {
     "count": "{total, plural, other {# 位收件人}}",
     "optedOut": "{skipped} 位已退订",
     "note": "变量会按收件人填充 — {token} 会变成每个人的名字。",
+    "unfilled": "没有内容可填充 {names}：每位收件人都会收到原样的文字。请在编辑器中为它设置备用文字，或将其删除。",
     "send": "发送活动",
     "scheduleAction": "定时发送活动",
     "sending": "发送中…",

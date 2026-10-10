@@ -178,6 +178,7 @@ export default {
     "count": "{total, plural, one {# Empfänger} other {# Empfänger}}",
     "optedOut": "{skipped} abgemeldet",
     "note": "Variablen werden je Empfänger gefüllt — aus {token} wird der Name der jeweiligen Person.",
+    "unfilled": "Nichts füllt {names}: Alle Empfänger würden es so erhalten, wie es dasteht. Geben Sie ihm im Editor einen Ersatztext oder entfernen Sie es.",
     "send": "Kampagne senden",
     "scheduleAction": "Kampagne terminieren",
     "sending": "Wird gesendet…",

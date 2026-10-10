@@ -525,7 +525,12 @@ describe('42 — the automations routes', () => {
     expect(res.statusCode).toBe(200);
     const body = res.json() as { trace: AutomationTrace; sample: { pk: Record<string, unknown> } };
     expect(body.sample.pk).toEqual({ id: 7 });
-    expect(body.trace.steps[1]?.log).toContain('Would send');
+    // The welcome template reads {{first_name}} and the step fills nothing: a test stops there, by name.
+    expect(body.trace.steps[1]).toMatchObject({ status: 'fail', log: 'Nothing fills {{first_name}}. Fill it in this step, or give it a backup in the template. A real run would send it as written.' });
+    const filled = completeGraph();
+    (filled.nodes[1] as { action: { vars: Record<string, string> } }).action.vars = { first_name: '{{record.full_name}}' };
+    const again = await post(`/automations/${id}/test`, { trigger: TRIGGER(connectionId), graph: filled });
+    expect((again.json() as { trace: AutomationTrace }).trace.steps[1]?.log).toContain('Would send');
     // The dry run creates no run row: Test is not an execution.
     expect(await automationRunsRepo(t.meta).list({ since: T0 - 1000 })).toHaveLength(0);
   });

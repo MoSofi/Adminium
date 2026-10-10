@@ -744,6 +744,12 @@ for (const [dialect, available] of legs) {
       const unread = await turn(owner.id, [reply({ propose: { title: 'Send it', actions: [send(draft.id, ['Planner'])] } })], Date.now(), undefined, 'email');
       expect((await check(owner, unread)).proposal.actions![0]!.refused).toMatchObject({ code: 'NOT_LIVE' });
 
+      // A campaign that reads a name nothing fills would reach everyone as written: the card says so, and offers no send.
+      const misspelt = await templates.create({ kind: 'campaign', key: `p64-misspelt-${dialect}`, locale: 'en_US', name: 'Misspelt', category: 'lifecycle', starter: null, enabled: true, createdBy: owner.id, ...documentColumns(normalizeDocument({ subject: 'Hello {{frist_name}}', blocks: [] } as never)) });
+      const named = await check(owner, await one(send(misspelt.id, ['Planner'])));
+      expect(named.proposal.actions![0]!.refused).toMatchObject({ code: 'PLACEHOLDER_UNFILLED' });
+      expect(named.proposal.actions![0]!.refused!.message).toContain('{{frist_name}}');
+
       // No mail server is set up on this workspace: the page's own route says so, and nothing is queued.
       const done = await apply(owner, made, shown.proposal.hash);
       expect(done.status, done.body).toBe(200);

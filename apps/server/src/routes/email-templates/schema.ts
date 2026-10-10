@@ -248,7 +248,12 @@ export const savedBlockDetailReply = z.object({ block: savedBlockView });
 // ------------------------------------------------------------------
 
 export const emailAudiencePreviewBody = z.object({ audience: emailAudienceSchema });
-export const emailAudiencePreviewReply = z.object({ total: z.number().int(), skipped: z.number().int() });
+export const emailAudiencePreviewReply = z.object({
+  total: z.number().int(),
+  skipped: z.number().int(),
+  /** The placeholders no recipient's send would fill; while there is one, the send is refused. */
+  unfilled: z.array(z.string()),
+});
 
 export const emailSendBody = z.object({
   audience: emailAudienceSchema,

@@ -21,9 +21,12 @@ import {
   rolesRepo,
   usersRepo,
   type EmailAudience,
+  type EmailTemplate,
   type MetaDb,
   type User,
 } from '@adminium/meta';
+
+import { templateRequiredPlaceholders } from '../automations/templates.js';
 
 /** The notification-prefs kind a person switches off to stop receiving campaigns (D11). */
 export const EMAIL_CAMPAIGN_PREF_KIND = 'email.campaign';
@@ -101,4 +104,28 @@ export function recipientVars(user: Pick<User, 'name' | 'email'>, appName: strin
     first_name: name.split(/\s+/)[0] ?? '',
     email: user.email,
   };
+}
+
+/** A stand-in recipient: every value a campaign gives is there. */
+const SOMEBODY = recipientVars({ name: 'x x', email: 'x' }, 'x');
+
+/**
+ * The placeholders of a campaign that no recipient's send would fill: written
+ * with no backup, in a block that is shown, and none of the four a campaign
+ * gives (`recipientVars`). Read over every language the campaign is sent in.
+ * Such a mail would reach every recipient with `{{…}}` in it, so the send is
+ * refused while a person is there to put it right.
+ */
+export function campaignUnfilled(variants: readonly Pick<EmailTemplate, 'subject' | 'preheader' | 'blocks' | 'footer'>[]): string[] {
+  const out = new Set<string>();
+  for (const variant of variants) {
+    for (const name of templateRequiredPlaceholders(variant, SOMEBODY)) if (!Object.hasOwn(SOMEBODY, name)) out.add(name);
+  }
+  return [...out];
+}
+
+/** `{{a}}, {{b}}`: at most five named, the rest counted. */
+export function listedPlaceholders(names: readonly string[]): string {
+  const shown = names.slice(0, 5).map((name) => `{{${name}}}`).join(', ');
+  return names.length > 5 ? `${shown} +${String(names.length - 5)}` : shown;
 }

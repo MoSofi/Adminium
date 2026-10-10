@@ -290,7 +290,12 @@ async function checkSend(input: { action: CheckedAction; abilities: CheckDocInpu
       const refused = refusalOf(tried);
       return { checked: { ...placed, refused }, ...(tried.status === 429 ? { stop: refused } : {}) };
     }
-    const counted = tried.body as { total?: unknown; skipped?: unknown };
+    const counted = tried.body as { total?: unknown; skipped?: unknown; unfilled?: unknown };
+    // The send itself would be refused: said on the card, before anybody is asked to confirm.
+    const unfilled = Array.isArray(counted.unfilled) ? counted.unfilled.filter((name): name is string => typeof name === 'string') : [];
+    if (unfilled.length > 0) {
+      return { checked: { ...placed, refused: { code: 'PLACEHOLDER_UNFILLED', message: `Nothing fills ${unfilled.slice(0, 5).map((name) => `{{${name}}}`).join(', ')} in this campaign: give it a backup in the editor first.` } } };
+    }
     const skipped = typeof counted.skipped === 'number' ? counted.skipped : 0;
     // The route counts everyone in the roles, those who opted out included: the card says who gets it.
     const total = Math.max((typeof counted.total === 'number' ? counted.total : 0) - skipped, 0);

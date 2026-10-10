@@ -103,8 +103,13 @@ Switch on **Preview with missing values** above the canvas to see the email as
 a reader with none of those values is sent it: every backup in its sentence,
 every tied block gone or saying its other words.
 
-A variable with no backup that nothing fills is still sent as written
-(`{{first_name}}`), so that you can see which one it was.
+A variable with no backup that nothing fills is stopped where a person is
+there to put it right: a [campaign](/guides/email/campaigns/#sending) cannot be
+sent, and a rule's **Test** fails at the email step, each naming the variable.
+A rule that runs on its own still sends the email, with the variable as written
+(`{{first_name}}`), and the line under the step in Workflow Logs says which one
+it was: an order's email with one variable in it is a smaller fault than an
+order nobody was told about.
 
 ## Languages
 

@@ -59085,11 +59085,18 @@
                       "type": "integer",
                       "minimum": -9007199254740991,
                       "maximum": 9007199254740991
+                    },
+                    "unfilled": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
                     }
                   },
                   "required": [
                     "total",
-                    "skipped"
+                    "skipped",
+                    "unfilled"
                   ],
                   "additionalProperties": false
                 }

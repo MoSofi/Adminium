@@ -177,6 +177,33 @@ describe('email.campaign-run', () => {
     return await app.inject({ method: 'POST', url: `/email-templates/${id}/send`, headers: as(user), payload: body });
   }
 
+  it('a placeholder no recipient\'s send would fill stops the send, by name, and a backup lets it go', async () => {
+    const doc = await campaign();
+    const save = async (subject: string) => {
+      const put = await app.inject({ method: 'PUT', url: `/email-templates/${doc.id}`, headers: as(manager), payload: { name: doc.name, category: doc.category, enabled: true, document: { ...doc.document, subject } } });
+      expect(put.statusCode, put.body).toBe(200);
+    };
+    const preview = async () => (await app.inject({ method: 'POST', url: `/email-templates/${doc.id}/audience/preview`, headers: as(manager), payload: { audience: { kind: 'users' } } })).json() as { unfilled: string[] };
+
+    // What a campaign gives every recipient is asked of nobody.
+    await save('Your week, {{first_name}} ({{email}}, {{name}}, {{appName}})');
+    expect((await preview()).unfilled).toEqual([]);
+
+    // A misspelt name would reach everyone as written: the dialog is told, and the send is refused.
+    await save('Your week, {{frist_name}}');
+    expect((await preview()).unfilled).toEqual(['frist_name']);
+    const refused = await send(doc.id);
+    expect(refused.statusCode).toBe(422);
+    expect(refused.json()).toMatchObject({ error: { code: 'PLACEHOLDER_UNFILLED', details: { placeholders: ['frist_name'] } } });
+    expect(refused.json().error.message).toContain('Nothing fills {{frist_name}} in this campaign.');
+    expect(await emailRunsRepo(meta).listByTemplate(doc.id)).toHaveLength(0);
+
+    // With a backup of its own it says what to write, and goes.
+    await save('Your week, {{frist_name|there}}');
+    expect((await preview()).unfilled).toEqual([]);
+    expect((await send(doc.id)).statusCode).toBe(202);
+  });
+
   it('resolves the audience live: opted-out and suspended are skipped, a translated sibling serves its locale', async () => {
     const users = usersRepo(meta);
     const optedOut = await users.create({ email: 'no@adminium.test', name: 'No Thanks', status: 'active' });
@@ -204,7 +231,7 @@ describe('email.campaign-run', () => {
       headers: as(manager),
       payload: { audience: { kind: 'users' } },
     });
-    expect(preview.json()).toEqual({ total: 4, skipped: 1 });
+    expect(preview.json()).toEqual({ total: 4, skipped: 1, unfilled: [] });
     expect((await resolveCampaignAudience(meta, { kind: 'users' })).recipients.map((u) => u.email)).toEqual([
       'ava@adminium.test',
       'liam@adminium.test',

@@ -260,7 +260,7 @@ export const emailApi = {
   testSend: (id: string, body: { to: string[]; document: EmailDocumentInput }) =>
     api.post<EmailTestSendReply>(`${BASE}/${encodeURIComponent(id)}/test-send`, body),
   previewAudience: (id: string, audience: EmailAudience) =>
-    api.post<{ total: number; skipped: number }>(`${BASE}/${encodeURIComponent(id)}/audience/preview`, { audience }),
+    api.post<{ total: number; skipped: number; unfilled?: string[] }>(`${BASE}/${encodeURIComponent(id)}/audience/preview`, { audience }),
   send: (id: string, body: { audience: EmailAudience; scheduleAt?: number | undefined }) =>
     api.post<{ run: EmailRunView }>(`${BASE}/${encodeURIComponent(id)}/send`, body),
   runs: (id: string) => api.get<{ runs: EmailRunView[] }>(`${BASE}/${encodeURIComponent(id)}/runs`),
