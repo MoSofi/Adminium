@@ -586,6 +586,7 @@ export default {
     "previewNoRole": "這是應用程式的預覽，以沒有角色的人的身分檢視。這不是你自己的登入：在這裡無法進入 Studio、人員或設定。",
     "openOwn": "以你自己的身分開啟儀表板",
     "owner": "你是此專案的擁有者，透過 Adminium Designer 印出的連結登入。在專案於其他地方執行之前，請設定電子郵件與密碼。",
+    "ownerApp": "你是此專案的擁有者，由 Adminium 應用程式在這台電腦上為你登入。在分享專案或讓它於其他地方執行之前，請設定電子郵件與密碼。",
     "ownerLabel": "你的擁有者帳戶",
     "ownerSet": "設定密碼",
     "ownerLater": "暫不",

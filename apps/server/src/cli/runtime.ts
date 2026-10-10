@@ -270,6 +270,8 @@ export interface StartServerOptions {
   project?: ProjectServerOptions | undefined;
   /** Adminium Designer, when this server runs it (`adminium design`). */
   designer?: { mode: 'local'; token: string | null; port: number; /** Names of the project's `.env` and config a host did not obey: said on the Designer's Home. */ ignoredEnv?: readonly string[] | undefined } | undefined;
+  /** A project the desktop app shares on the network (`ComposeServerOptions.shared`). */
+  shared?: { port: number; ownerOnThisComputer?: boolean } | undefined;
 }
 
 /** Boot + listen. Injected ({@link CliDeps.startServer}) so tests never bind a port. */
@@ -320,6 +322,7 @@ export const startServer: StartServer = async (runtime, opts = {}) => {
     ...(opts.onMetaRelocated === undefined ? {} : { onMetaRelocated: opts.onMetaRelocated }),
     ...(opts.project === undefined ? {} : { project: opts.project }),
     ...(opts.designer === undefined ? {} : { designer: opts.designer }),
+    ...(opts.shared === undefined ? {} : { shared: opts.shared }),
   });
   // Falling through on a missed override is the resolver's contract (the
   // implicit candidates degrade the same way), but a path the operator WROTE

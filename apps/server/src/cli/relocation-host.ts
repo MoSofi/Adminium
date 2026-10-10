@@ -61,6 +61,8 @@ export interface CreateRelocationHostOptions {
   project?: ProjectServerOptions | undefined;
   /** Adminium Designer, when this server runs it (`adminium design`). */
   designer?: { mode: 'local'; token: string | null; port: number; /** Names of the project's `.env` and config a host did not obey: said on the Designer's Home. */ ignoredEnv?: readonly string[] | undefined } | undefined;
+  /** A project the desktop app shares on the network (`ComposeServerOptions.shared`). */
+  shared?: { port: number; ownerOnThisComputer?: boolean } | undefined;
   /** Test seam: defaults to `process.exit`. */
   exit?: (code: number) => void;
   /** Test seam: defaults to running the task on the next tick. */
@@ -91,6 +93,7 @@ export function createRelocationHost(opts: CreateRelocationHostOptions): Relocat
       onMetaRelocated,
       ...(opts.project === undefined ? {} : { project: opts.project }),
       ...(opts.designer === undefined ? {} : { designer: opts.designer }),
+      ...(opts.shared === undefined ? {} : { shared: opts.shared }),
     });
     setShutdownTarget(server.app);
     return server;

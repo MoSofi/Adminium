@@ -6,6 +6,7 @@
  * on the same folder works.
  */
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { request as httpRequest } from 'node:http';
 import { request } from 'node:http';
 import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
@@ -89,6 +90,39 @@ describe('startProject', () => {
       const res = await fetch(`${live.url}${path}`, { method: path.endsWith('lan-share') ? 'GET' : 'POST' });
       expect(res.status, path).toBe(404);
     }
+  });
+
+  it('shared by the desktop app: this computer’s own names only, and the app’s window signs the owner in', { timeout: 120_000 }, async () => {
+    // Made as the app makes it: built first, which is where its owner comes from.
+    live = await startProject({ root, port: await anyPort(), mode: 'design', io: fakeIo(), env: env() });
+    await live.close();
+    const port = await anyPort();
+    const token = 'e'.repeat(64);
+    live = await startProject({ root, port, mode: 'serve', io: fakeIo(), env: { ...env(), ADMINIUM_RUNTIME: 'desktop', ADMINIUM_BOOT_TOKEN: token }, shared: true, ownerOnThisComputer: true });
+    const asHost = (host: string): Promise<number> =>
+      new Promise((done, failed) => {
+        const asked = httpRequest({ host: '127.0.0.1', port, path: '/api/v1/healthz', headers: { host }, agent: false }, (res) => {
+          res.resume();
+          done(res.statusCode ?? 0);
+        });
+        asked.on('error', failed);
+        asked.end();
+      });
+    expect(await asHost(`127.0.0.1:${String(port)}`)).toBe(200);
+    expect(await asHost(`localhost:${String(port)}`)).toBe(200);
+    expect(await asHost(`evil.example:${String(port)}`)).toBe(421);
+
+    const signedIn = await fetch(`${live.url}/api/v1/auth/desktop-session`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ bootToken: token }) });
+    expect(signedIn.status).toBe(200);
+    expect(((await signedIn.json()) as { data: { user: { email: string } } }).data.user.email).toBe('owner@adminium.localhost');
+    await live.close();
+    live = null;
+
+    // Served without that word (a terminal's `adminium start`, or a host that did not ask): any name, and no such door.
+    const plain = await anyPort();
+    live = await startProject({ root, port: plain, mode: 'serve', io: fakeIo(), env: { ...env(), ADMINIUM_RUNTIME: 'desktop', ADMINIUM_BOOT_TOKEN: token } });
+    const other = await fetch(`${live.url}/api/v1/auth/desktop-session`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ bootToken: token }) });
+    expect(other.status).toBe(403);
   });
 
   it('design mode: this machine only, the owner made, the Designer answering, nothing busy', { timeout: 120_000 }, async () => {

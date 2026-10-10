@@ -9,7 +9,9 @@
  * Everything here is asked over loopback: the server does listen on every
  * network while shared, and nothing in this spec reaches it from one.
  */
-import { readFileSync } from 'node:fs';
+import { cpSync, mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs';
+import { request } from 'node:http';
+import { hostname, tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { expect, test, type ElectronApplication, type Page } from '@playwright/test';
@@ -30,6 +32,16 @@ test.describe.configure({ mode: 'serial' });
 
 const entry = (): { state: string; sharePort: number | null } =>
   (JSON.parse(readFileSync(join(userDataDir, 'config.json'), 'utf8')) as { projects: Array<{ path: string; state: string; sharePort: number | null }> }).projects.find((found) => found.path === project.root) ?? { state: 'none', sharePort: null };
+/** The status a request gets from the shared server when it asks for it by `host`. */
+const asHost = (host: string): Promise<number> =>
+  new Promise((done, failed) => {
+    const asked = request({ host: '127.0.0.1', port: sharedPort, path: '/api/v1/healthz', headers: { host }, agent: false }, (res) => {
+      res.resume();
+      done(res.statusCode ?? 0);
+    });
+    asked.on('error', failed);
+    asked.end();
+  });
 const mark = (): { port: number; mode: string } => JSON.parse(readFileSync(join(project.root, '.adminium', 'running.json'), 'utf8')) as { port: number; mode: string };
 /** What a device with no cookie gets from the project's server. */
 const from = async (playwright: { request: { newContext: () => Promise<import('@playwright/test').APIRequestContext> } }, run: (client: import('@playwright/test').APIRequestContext, origin: string) => Promise<number>): Promise<number> => {
@@ -83,6 +95,19 @@ test('Share first asks how the owner signs in from other devices, and only then 
   expect(await from(playwright, async (client, origin) => (await client.get(`${origin}/api/v1/designer/state`)).status())).not.toBe(200);
   expect(await from(playwright, async (client, origin) => (await client.post(`${origin}/api/v1/auth/login`, { headers: { origin }, data: { email: OWNER.email, password: 'wrong password entirely' } })).status())).toBe(401);
   expect(await from(playwright, async (client, origin) => (await client.post(`${origin}/api/v1/auth/login`, { headers: { origin }, data: OWNER })).status())).toBe(200);
+  // The app's own door does not open to a guess, and a device's password sign-in is the only other way in.
+  expect(await from(playwright, async (client, origin) => (await client.post(`${origin}/api/v1/auth/desktop-session`, { headers: { origin }, data: { bootToken: 'a'.repeat(64) } })).status())).toBe(401);
+});
+
+test('shared, the server answers to this computer’s own names and to no other', async () => {
+  expect(await asHost(`127.0.0.1:${String(sharedPort)}`)).toBe(200);
+  expect(await asHost(`localhost:${String(sharedPort)}`)).toBe(200);
+  const name = (hostname().split('.')[0] ?? '').toLowerCase();
+  if (/^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/.test(name) && name !== 'localhost') expect(await asHost(`${name}.local:${String(sharedPort)}`)).toBe(200);
+  // A page on another name whose DNS now points here still sends its own name.
+  expect(await asHost(`evil.example:${String(sharedPort)}`)).toBe(421);
+  expect(await asHost(`127.0.0.1:${String(sharedPort + 1)}`)).toBe(421);
+  expect(await asHost('evil.example')).toBe(421);
 });
 
 test('the sharing details show an address or say there is no network, and open the project’s dashboard', async () => {
@@ -93,10 +118,9 @@ test('the sharing details show an address or say there is no network, and open t
 
   await page.getByRole('button', { name: 'Open the dashboard' }).click();
   await page.waitForURL(new RegExp(`^http://127\\.0\\.0\\.1:${String(sharedPort)}/`), { timeout: 60_000 });
-  // The owner has a password now: on this computer too, the dashboard asks for it.
-  await page.getByLabel(/email/i).first().fill(OWNER.email);
-  await page.getByLabel(/password/i).first().fill(OWNER.password);
-  await page.keyboard.press('Enter');
+  // The owner has a password now, and it is for other devices: on this computer the app signs them in.
+  // The token that did it is gone from the address before anything else is asked.
+  await expect.poll(() => page.url()).not.toContain('bootToken');
   await expect(page.getByRole('status').filter({ hasText: 'This project is shared on your network.' })).toBeVisible({ timeout: 60_000 });
   await page.getByRole('button', { name: 'Sharing details' }).click();
   await expect(page.getByRole('heading', { name: 'Demo is shared' })).toBeVisible({ timeout: 60_000 });
@@ -129,4 +153,74 @@ test('shared a second time: no password is asked again, and the port is the one 
   await dialog.getByRole('button', { name: 'Share now' }).click();
   await expect(page.getByRole('heading', { name: 'Demo is shared' })).toBeVisible({ timeout: 120_000 });
   expect(mark().port).toBe(sharedPort);
+});
+
+test('shared again, the dashboard opens with no sign-in, the second time by the window’s own session', async () => {
+  test.setTimeout(180_000);
+  for (const time of ['first', 'second']) {
+    await page.getByRole('button', { name: 'Open the dashboard' }).click();
+    await page.waitForURL(new RegExp(`^http://127\\.0\\.0\\.1:${String(sharedPort)}/`), { timeout: 60_000 });
+    await expect(page.getByRole('status').filter({ hasText: 'This project is shared on your network.' }), time).toBeVisible({ timeout: 60_000 });
+    await page.getByRole('button', { name: 'Sharing details' }).click();
+    await expect(page.getByRole('heading', { name: 'Demo is shared' })).toBeVisible({ timeout: 60_000 });
+  }
+});
+
+test('with a password set, the project still opens on this computer without it: an app that holds no session', async () => {
+  test.setTimeout(300_000);
+  await page.getByRole('button', { name: 'Go back to building' }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Go back to building' }).click();
+  // Between the two servers there is no mark at all.
+  await expect
+    .poll(
+      () => {
+        try {
+          return mark().mode;
+        } catch {
+          return 'none';
+        }
+      },
+      { timeout: 120_000 },
+    )
+    .toBe('design');
+  await expect(page.getByRole('radio', { name: 'Share' })).toBeVisible({ timeout: 120_000 });
+  await closeDesktop(app, userDataDir);
+  // Another folder for the app's own files: no cookie, no window session, nothing agreed to before.
+  ({ app, userDataDir } = await launchDesktop({ env: { ADMINIUM_DESKTOP_E2E_PROJECT: project.root, ADMINIUM_DESKTOP_E2E_PORT: String(FIRST_PORT), ADMINIUM_DISABLE_UPDATES: '1' } }));
+  page = await app.firstWindow();
+  await expect(page.getByRole('heading', { name: 'What do you want to build?' })).toBeVisible({ timeout: 180_000 });
+  // The owner has a password, so the Designer does not ask for one to be set.
+  await expect(page.getByRole('region', { name: 'Your owner account' })).toHaveCount(0);
+});
+
+test('a copy of the folder says it came with accounts, then opens in the Designer as its owner', async () => {
+  test.setTimeout(420_000);
+  await closeDesktop(app, userDataDir);
+  const home = realpathSync(mkdtempSync(join(tmpdir(), 'adminium-desktop-home-')));
+  const copy = join(home, 'Demo copy');
+  // As a folder handed over arrives: everything but the mark of the server that was running.
+  cpSync(project.root, copy, { recursive: true, verbatimSymlinks: true, filter: (source) => !source.endsWith(join('.adminium', 'running.json')) });
+  try {
+    ({ app, userDataDir } = await launchDesktop({ env: { HOME: home, USERPROFILE: home, ADMINIUM_DESKTOP_E2E_PORT: String(FIRST_PORT), ADMINIUM_DISABLE_UPDATES: '1' } }));
+    page = await app.firstWindow();
+    await expect(page.getByRole('heading', { name: 'What would you like to do?' })).toBeVisible({ timeout: 60_000 });
+    await app.evaluate(({ dialog }, picked) => {
+      dialog.showOpenDialog = (() => Promise.resolve({ canceled: false, filePaths: [picked] })) as typeof dialog.showOpenDialog;
+    }, copy);
+    await page.getByRole('button', { name: /Open a folder/ }).click();
+    await page.getByRole('dialog').getByRole('button', { name: 'Open' }).click();
+    await expect(page.getByText('Found this project’s data.')).toBeVisible({ timeout: 60_000 });
+    await page.getByRole('button', { name: 'Continue' }).click();
+    // One person, no keys: it is the owner's password that makes this a folder with accounts.
+    await expect(page.getByRole('heading', { name: 'This project came with accounts' })).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByText(/You will work as its owner on this computer/)).toBeVisible();
+    const next = app.waitForEvent('window');
+    await page.getByRole('button', { name: 'Continue' }).click();
+    page = await next;
+    await expect(page.getByRole('heading', { name: 'What do you want to build?' })).toBeVisible({ timeout: 240_000 });
+  } finally {
+    // `afterAll` closes it again, which an app already closed takes as nothing.
+    await closeDesktop(app, userDataDir).catch(() => undefined);
+    rmSync(home, { recursive: true, force: true });
+  }
 });

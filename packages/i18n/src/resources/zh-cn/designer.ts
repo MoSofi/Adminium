@@ -586,6 +586,7 @@ export default {
     "previewNoRole": "这是应用的预览，以没有角色的人的身份查看。这不是你自己的登录：在这里无法进入 Studio、人员或设置。",
     "openOwn": "以你自己的身份打开仪表盘",
     "owner": "你是此项目的所有者，通过 Adminium Designer 打印的链接登录。在项目运行到其他地方之前，请设置邮箱和密码。",
+    "ownerApp": "你是此项目的所有者，由 Adminium 应用在这台电脑上为你登录。在共享项目或让它运行到其他地方之前，请设置邮箱和密码。",
     "ownerLabel": "你的所有者账户",
     "ownerSet": "设置密码",
     "ownerLater": "暂不",

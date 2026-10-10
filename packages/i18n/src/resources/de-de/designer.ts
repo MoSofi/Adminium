@@ -586,6 +586,7 @@ export default {
     "previewNoRole": "Das ist eine Vorschau der App aus Sicht einer Person ohne Rolle. Es ist nicht deine eigene Anmeldung: Studio, Personen und Einstellungen erreichst du hier nicht.",
     "openOwn": "Dashboard als du selbst öffnen",
     "owner": "Du bist Eigentümer dieses Projekts, angemeldet über den Link, den Adminium Designer ausgegeben hat. Lege eine Adresse und ein Passwort fest, bevor das Projekt woanders läuft.",
+    "ownerApp": "Du bist Eigentümer dieses Projekts und auf diesem Computer von der Adminium-App angemeldet. Lege eine Adresse und ein Passwort fest, bevor das Projekt geteilt wird oder woanders läuft.",
     "ownerLabel": "Dein Eigentümerkonto",
     "ownerSet": "Passwort festlegen",
     "ownerLater": "Nicht jetzt",

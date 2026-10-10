@@ -576,6 +576,7 @@
     "previewNoRole": "Dette er en forhåndsvisning af appen, set som en person uden rolle. Det er ikke dit eget login: du kan ikke nå Studio, personer eller indstillinger her.",
     "openOwn": "Åbn dashboardet som dig selv",
     "owner": "Du er ejer af dette projekt, logget ind med det link, Adminium Designer udskrev. Angiv en adresse og en adgangskode, før projektet kører andre steder.",
+    "ownerApp": "Du er ejer af dette projekt og er logget ind af Adminium-appen på denne computer. Angiv en adresse og en adgangskode, før projektet deles eller kører andre steder.",
     "ownerLabel": "Din ejerkonto",
     "ownerSet": "Angiv din adgangskode",
     "ownerLater": "Ikke nu",

@@ -407,7 +407,9 @@ export async function runProjectEntry(opts: RunProjectEntryOptions): Promise<Sta
         refuse: HOST_DECIDED_ENV,
         logLevel: project.logLevel ?? 'warn',
         // This IS the person's own computer: the owner is signed in here whether or not Share gave them a password.
-        ...(project.mode === 'design' ? { token: project.bootToken, ownerOnThisComputer: true } : {}),
+        // Shared: the same owner is signed in by the app's own window (this boot's token, this computer only), and the
+        // server answers to this computer's own names and addresses, never to a name a web page made up.
+        ...(project.mode === 'design' ? { token: project.bootToken, ownerOnThisComputer: true } : { shared: true, ownerOnThisComputer: true }),
       });
     });
   } catch (error) {

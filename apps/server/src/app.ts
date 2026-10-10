@@ -42,6 +42,7 @@ import { corePlugin } from './plugins/core.js';
 import { publicOriginPlugin } from './plugins/public-origin.js';
 import { staticPlugin } from './plugins/static.js';
 import { designSessionCookie, registerDesignMode, type DesignModeOptions } from './designer/design-mode.js';
+import { registerSharedHosts, type SharedHostsOptions } from './desktop/shared-hosts.js';
 import { MILO_LOADER_PATH } from './plugins/surface-index.js';
 import { DEV_BUILD_ADDRESS, isHostReservedPath, surfacesPlugin } from './plugins/surfaces.js';
 import {
@@ -258,6 +259,8 @@ export interface BuildServerOptions {
    * on its own name, and name the session cookie for the port.
    */
   design?: DesignModeOptions | undefined;
+  /** A project shared from the desktop app: answer to this computer's own names and addresses only. */
+  sharedHosts?: SharedHostsOptions | undefined;
   /**
    * Include real messages in 500 envelopes. Default: `NODE_ENV !== 'production'`.
    * In production the message is generic; the stack goes to the log under the
@@ -543,6 +546,7 @@ export async function buildServer(opts: BuildServerOptions = {}) {
     app.decorate('sessionCookieName', designSessionCookie(opts.design.port));
     registerDesignMode(app, opts.design);
   }
+  if (opts.sharedHosts !== undefined) registerSharedHosts(app, opts.sharedHosts);
   // `staticRoot` rides along so core can hash the served index.html's inline
   // scripts into the CSP allowance (plugins/core.ts).
   await app.register(corePlugin, { env, staticRoot: opts.staticRoot });

@@ -99,10 +99,22 @@ address and a password: on your own computer you never needed them, but another
 device has nothing else to sign in with. A project is never shared without an
 owner password.
 
+That password is for other devices. On your own computer the app goes on
+signing you in as the project's owner, while you build and when you open the
+dashboard of a shared project. This holds for a project made in the app or with
+`adminium design`; a project whose first account was made on the setup page
+asks for that account's password here too.
+
 While it is shared the app shows the addresses to open on another device (the
 one marked **Best** uses your computer's name and survives a change of network
 number), a QR code for a phone's camera, and keeps your computer awake. The port
 is kept per project, so a bookmark keeps working the next time you share.
+
+A shared project answers only to the addresses the app shows: your computer's
+`.local` name, its addresses on the networks it is on, and `localhost` and
+`127.0.0.1` on the computer itself, each on the project's port. A request that
+asks for it by any other name is refused, so a web page elsewhere cannot reach
+your project by pointing a name of its own at your computer.
 
 Sharing is plain `http`: traffic on your network is not encrypted. Share only on
 a network you trust. **Go back to building** ends it; people using the project

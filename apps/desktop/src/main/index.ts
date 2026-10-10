@@ -200,11 +200,15 @@ export const CLASSIC_ONLY_SETTING = 'This setting belongs to the classic workspa
  * While it is built: the Designer, with the one-use token after `#` (never part
  * of a request a log could hold). It signs the project's own owner in, once,
  * while that owner has no password: the same door `adminium design` opens in a
- * browser. Shared: the dashboard's front door.
+ * browser. With `ownerOnThisComputer` that owner is signed in there once they
+ * have a password too. Shared: the dashboard's front door, with this start's
+ * token the first time the app's window opens it.
  */
 export function projectUrl(opts: { port: number; mode: 'design' | 'serve'; token: string | null; land?: 'dashboard' | undefined; /** A page of the project's own to arrive at instead (a path): where the person was before the server was stopped for them. */ to?: string | undefined }): string {
   const origin = `http://127.0.0.1:${String(opts.port)}`;
-  if (opts.mode === 'serve') return `${origin}/`;
+  // Shared: this boot's token, once, signs the project's owner in on this computer (the dashboard takes it from the
+  // address and spends it before anything else is asked). Without one: the front door, and the sign-in page.
+  if (opts.mode === 'serve') return opts.token === null ? `${origin}/` : `${origin}/?bootToken=${opts.token}`;
   // The token is taken on whatever page it arrives at: "Open dashboard" on Start lands on the dashboard's front door.
   const page = opts.to ?? (opts.land === 'dashboard' ? '/' : '/design');
   return opts.token === null ? `${origin}${page}` : `${origin}${page}#designToken=${opts.token}`;
@@ -1291,6 +1295,8 @@ export function createDesktopApp(deps: DesktopBootDeps): DesktopApp {
         // One switch of the project's server at a time: sharing, going back to building and an export each stop it and
         // start it again, and two of them at once would start two servers for one folder.
         let switching = false;
+        /** The boot token the Shared page's "Open the dashboard" has already handed to the window. */
+        let dashboardToken: string | null = null;
         projectSharing =
           sharing === undefined
             ? null
@@ -1362,7 +1368,12 @@ export function createDesktopApp(deps: DesktopBootDeps): DesktopApp {
                 async openDashboard() {
                   const state = projectManager.state;
                   if (projectManager.project?.mode !== 'serve' || state.status !== 'ready') return;
-                  await windows.loadApp(projectUrl({ port: state.port, mode: 'serve', token: null }), { preview: false });
+                  // On this computer the owner is not asked for the password other devices sign in with. The token is
+                  // good once per start of the server: after that the window's own session is what opens the dashboard.
+                  const token = projectManager.bootToken;
+                  const first = token !== null && token !== dashboardToken;
+                  if (first) dashboardToken = token;
+                  await windows.loadApp(projectUrl({ port: state.port, mode: 'serve', token: first ? token : null }), { preview: false });
                 },
               };
         // Opened to be built, whatever it was when the app last let go of it (a quit while shared).

@@ -170,7 +170,9 @@ describe('runProjectEntry', () => {
     expect(chdir).toHaveBeenCalledWith(ROOT);
     expect(chdir.mock.invocationCallOrder[0]).toBeLessThan(start.mock.invocationCallOrder[0] ?? 0);
     const given = (start.mock.calls[0] as unknown as [Record<string, unknown>])[0];
-    expect(given).toMatchObject({ root: ROOT, port: 4700, mode: 'design', host: '127.0.0.1', token: TOKEN, refuse: HOST_DECIDED_ENV });
+    // `ownerOnThisComputer`: this is the person's own computer, so the owner is signed in here with or without a password.
+    expect(given).toMatchObject({ root: ROOT, port: 4700, mode: 'design', host: '127.0.0.1', token: TOKEN, ownerOnThisComputer: true, refuse: HOST_DECIDED_ENV });
+    expect(given).not.toHaveProperty('shared');
     // While a project is built the token opens design mode's one door and no other.
     expect(given.env).not.toHaveProperty('ADMINIUM_BOOT_TOKEN');
     expect(given.env).toMatchObject({ ADMINIUM_RUNTIME: 'desktop', LANG: 'C' });
@@ -184,7 +186,8 @@ describe('runProjectEntry', () => {
     const start = vi.fn(async () => started({ token: null }));
     await runProjectEntry({ parentPort: port, env: block({ mode: 'serve', host: '0.0.0.0' }), start, chdir: vi.fn(), exit: vi.fn(), onLog: vi.fn() });
     const given = (start.mock.calls[0] as unknown as [Record<string, unknown>])[0];
-    expect(given).toMatchObject({ mode: 'serve', host: '0.0.0.0' });
+    // Shared: only this computer's own names are answered to, and the app's window signs the owner in here.
+    expect(given).toMatchObject({ mode: 'serve', host: '0.0.0.0', shared: true, ownerOnThisComputer: true });
     expect(given).not.toHaveProperty('token');
     expect(given.env).toHaveProperty('ADMINIUM_BOOT_TOKEN', TOKEN);
   });

@@ -586,6 +586,7 @@ export default {
     "previewNoRole": "Toto je náhled aplikace očima osoby bez role. Není to vaše vlastní přihlášení: do Studia, k lidem ani k nastavení se tu nedostanete.",
     "openOwn": "Otevřít dashboard jako vy",
     "owner": "Jste vlastníkem tohoto projektu, přihlášeni odkazem, který vypsal Adminium Designer. Než projekt poběží jinde, nastavte adresu a heslo.",
+    "ownerApp": "Jste vlastníkem tohoto projektu a na tomto počítači vás přihlásila aplikace Adminium. Než projekt začnete sdílet nebo poběží jinde, nastavte adresu a heslo.",
     "ownerLabel": "Váš účet vlastníka",
     "ownerSet": "Nastavit heslo",
     "ownerLater": "Teď ne",

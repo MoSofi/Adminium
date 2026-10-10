@@ -9579,6 +9579,10 @@
     "status": "mt",
     "srcHash": "e2fefcf49a07"
   },
+  "designer.banner.ownerApp": {
+    "status": "mt",
+    "srcHash": "f55f3bffb9d1"
+  },
   "designer.banner.ownerCancel": {
     "status": "mt",
     "srcHash": "77dfd2135f4d"

@@ -1741,9 +1741,13 @@ describe('createDesktopApp opening a project folder', () => {
       expect(p.sharedShown()).toBe(0);
       await sharing?.share();
       await sharing?.openDashboard();
-      expect(p.shown.at(-1)).toEqual({ url: 'http://127.0.0.1:4700/', preview: false });
+      // On this computer the owner is not asked to sign in: this start's token, once, on the dashboard's front door.
+      expect(p.shown.at(-1)).toEqual({ url: `http://127.0.0.1:4700/?bootToken=${'c'.repeat(64)}`, preview: false });
       await sharing?.showShared();
       expect(p.sharedShown()).toBe(2);
+      // It is spent by then: the window's own session opens the dashboard the next time.
+      await sharing?.openDashboard();
+      expect(p.shown.at(-1)).toEqual({ url: 'http://127.0.0.1:4700/', preview: false });
     });
 
     it('a build that cannot share has no sharing to offer', async () => {
@@ -1868,7 +1872,9 @@ describe('projectUrl', () => {
   it('is the Designer with its token after #, or the front door when shared', () => {
     expect(projectUrl({ port: 4700, mode: 'design', token: 'ab' })).toBe('http://127.0.0.1:4700/design#designToken=ab');
     expect(projectUrl({ port: 4700, mode: 'design', token: null })).toBe('http://127.0.0.1:4700/design');
-    expect(projectUrl({ port: 4712, mode: 'serve', token: 'ab' })).toBe('http://127.0.0.1:4712/');
+    expect(projectUrl({ port: 4712, mode: 'serve', token: null })).toBe('http://127.0.0.1:4712/');
+    // Shared, from the app's own window: the token the dashboard spends to sign the owner in on this computer.
+    expect(projectUrl({ port: 4712, mode: 'serve', token: 'ab' })).toBe('http://127.0.0.1:4712/?bootToken=ab');
     // "Open dashboard" on Start: the same one-use token, taken on the dashboard's front door.
     expect(projectUrl({ port: 4700, mode: 'design', token: 'ab', land: 'dashboard' })).toBe('http://127.0.0.1:4700/#designToken=ab');
     expect(projectUrl({ port: 4700, mode: 'design', token: null, land: 'dashboard' })).toBe('http://127.0.0.1:4700/');

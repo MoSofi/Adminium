@@ -576,6 +576,7 @@
     "previewNoRole": "Ceci est un aperçu de l’application, vue par une personne sans rôle. Ce n’est pas votre propre connexion : Studio, les personnes et les réglages ne sont pas accessibles ici.",
     "openOwn": "Ouvrir le tableau de bord en tant que vous-même",
     "owner": "Vous êtes le propriétaire de ce projet, connecté par le lien qu’Adminium Designer a affiché. Définissez une adresse et un mot de passe avant que le projet ne tourne ailleurs.",
+    "ownerApp": "Vous êtes le propriétaire de ce projet, connecté par l’application Adminium sur cet ordinateur. Définissez une adresse et un mot de passe avant que le projet ne soit partagé ou ne tourne ailleurs.",
     "ownerLabel": "Votre compte propriétaire",
     "ownerSet": "Définir votre mot de passe",
     "ownerLater": "Pas maintenant",

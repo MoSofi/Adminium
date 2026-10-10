@@ -463,6 +463,13 @@ export interface ComposeServerOptions {
    * project folder; registers `/api/v1/designer` and nothing else changes.
    */
   designer?: { mode: 'local'; token: string | null; port: number; /** Started by a host on the person's own computer: the link signs the owner in with or without a password. */ thisComputer?: boolean; /** Names of the project's `.env` and config a host did not obey: said on the Designer's Home. */ ignoredEnv?: readonly string[] | undefined } | undefined;
+  /**
+   * A project the desktop app shares on the network (`startProject`, `serve`):
+   * the server answers to this computer's own names and addresses only, and
+   * `ownerOnThisComputer` lets the app's own window sign the project's owner
+   * in with this boot's token, from this computer only.
+   */
+  shared?: { port: number; ownerOnThisComputer?: boolean } | undefined;
   /** Tests only: whether the project can build screens. Production asks the project for its esbuild. */
   designerBundler?: (() => boolean) | undefined;
   /** For tests: a hand save, a style change or going back calls this as it reaches a step, so one can be held open or made to fail there. */
@@ -634,6 +641,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     ...(opts.logger === undefined ? {} : { logger: opts.logger }),
     ...(opts.openapi === undefined ? {} : { openapi: opts.openapi }),
     ...(opts.designer === undefined ? {} : { design: { port: opts.designer.port } }),
+    ...(opts.shared === undefined ? {} : { sharedHosts: { port: opts.shared.port } }),
   });
   // The live Designer: the operator allowed it, and this is not `adminium design` (which is local) nor the desktop app.
   const liveAllowed = opts.designer === undefined && env.ADMINIUM_DESIGNER === 'live' && env.ADMINIUM_RUNTIME !== 'desktop';
@@ -1652,7 +1660,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   await app.register(
     async (api) => {
       if (desktopSession !== null) {
-        await api.register(desktopSessionRoutes({ meta, bootToken: desktopSession.bootToken }));
+        await api.register(desktopSessionRoutes({ meta, bootToken: desktopSession.bootToken, ...(opts.shared?.ownerOnThisComputer === true ? { projectOwner: true } : {}) }));
       }
       // AFTER `rbacPlugin` above, which is what `app.rbac.require` needs to
       // exist at registration time — the reason this lives here and not in

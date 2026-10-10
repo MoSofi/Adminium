@@ -12,7 +12,7 @@
  *  3. Anyone else sees nothing.
  */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
 import { Suspense } from 'react';
 import { userEvent } from '@testing-library/user-event';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -103,6 +103,21 @@ describe('the dashboard on a `design` server', () => {
     await waitFor(() => expect(screen.queryByRole('region', { name: 'Your owner account' })).toBeNull());
     expect(posted.at(-1)).toEqual({ email: 'sam@example.test', password: 'a-long-enough-password-1!' });
     expect(await screen.findByText('You now sign in as sam@example.test, with your password.')).toBeTruthy();
+  });
+
+  it('says who signed the owner in: the link in a browser, the app in the app (which prints no link)', async () => {
+    await mount('owner@adminium.localhost');
+    expect((await screen.findByRole('region', { name: 'Your owner account' })).textContent).toContain('signed in by the link Adminium Designer printed');
+    cleanup();
+    (window as unknown as { adminiumDesktop?: unknown }).adminiumDesktop = {};
+    try {
+      await mount('owner@adminium.localhost');
+      const region = await screen.findByRole('region', { name: 'Your owner account' });
+      expect(region.textContent).toContain('signed in by the Adminium app on this computer');
+      expect(region.textContent).not.toContain('printed');
+    } finally {
+      delete (window as unknown as { adminiumDesktop?: unknown }).adminiumDesktop;
+    }
   });
 
   it('can be put away, and shows nothing to an owner who has a password', async () => {

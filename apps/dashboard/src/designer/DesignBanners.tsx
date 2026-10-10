@@ -27,6 +27,7 @@ import { Button, FormField, Input } from '@adminium/ui';
 import { ApiError } from '../app/api.js';
 import { designerApi, designerKeys, designerStateQuery, PREVIEW_USER_EMAIL } from './api.js';
 import { t } from '../i18n/t.js';
+import { getDesktopApi } from '../lib/desktop-runtime.js';
 import { useDesignerMessages } from './designerMessages.js';
 import { useAppToasts } from '../pages/toasts.js';
 
@@ -121,7 +122,9 @@ function OwnerPassword(): ReactNode {
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         <KeyRound aria-hidden="true" className="size-4 shrink-0 text-accent" />
         <span className="min-w-0 flex-1">
-          {t('designer:banner.owner', 'You are this project’s owner, signed in by the link Adminium Designer printed. Set an address and a password before the project runs anywhere else.')}
+          {getDesktopApi() !== null
+            ? t('designer:banner.ownerApp', 'You are this project’s owner, signed in by the Adminium app on this computer. Set an address and a password before the project is shared or runs anywhere else.')
+            : t('designer:banner.owner', 'You are this project’s owner, signed in by the link Adminium Designer printed. Set an address and a password before the project runs anywhere else.')}
         </span>
         {open ? null : (
           <Button size="sm" onClick={() => setOpen(true)}>

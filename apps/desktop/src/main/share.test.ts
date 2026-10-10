@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
+// A test may import the server freely (it does not ship): main may not, so the two copies of the rule are held here.
+import { sharedHosts, sharedLocalName } from '@adminium/server';
 import { describe, expect, it, vi } from 'vitest';
 
 import { localName, shareAddresses, sharePortFor } from './share.js';
@@ -21,6 +23,13 @@ describe('a computer’s name on the network', () => {
 });
 
 describe('the addresses a shared project answers on', () => {
+  it('every address the app shows is one the shared server answers to', () => {
+    for (const name of ['Office-Mac.local', 'DESKTOP-7QK2', 'studio.lan.example', '', 'localhost', 'bad_name', '-x']) expect(sharedLocalName(name), name).toBe(localName(name));
+    const answered = sharedHosts(4712, 'Office-Mac.local', NET() as never);
+    const shown = shareAddresses(4712, 'Office-Mac.local', NET as never);
+    expect(shown.length).toBeGreaterThan(0);
+    for (const address of shown) expect(answered.has(new URL(address.url).host), address.url).toBe(true);
+  });
   it('gives the computer’s name first, as the one to hand out, then one per network', () => {
     expect(shareAddresses(4712, 'Office-Mac.local', NET as never)).toEqual([
       { url: 'http://office-mac.local:4712', via: null, best: true },
