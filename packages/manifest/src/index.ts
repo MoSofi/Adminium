@@ -132,6 +132,24 @@ export {
 } from './capacity.js';
 
 export {
+  OTHERWISE_BLOCKS,
+  blocksShownFor,
+  fillPlaceholders,
+  otherwiseOf,
+  placeholderNames,
+  placeholderPattern,
+  placeholderValue,
+  placeholdersIn,
+  requiredNamesOfEmail,
+  requiredPlaceholderNames,
+  showWhenNames,
+  showWhenOf,
+  writePlaceholder,
+  type Placeholder,
+  type ShowWhen,
+} from './placeholders.js';
+
+export {
   OUTBOX_WRITTEN,
   REPEAT_KEY_LENGTH,
   WAS_MIN_LENGTH,

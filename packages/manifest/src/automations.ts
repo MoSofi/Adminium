@@ -22,6 +22,7 @@
  */
 import { z } from 'zod';
 
+import { placeholderNames, requiredNamesOfEmail, showWhenNames } from './placeholders.js';
 import { bcp47TagSchema, refSchema, type ReferenceIssue } from './refs.js';
 
 /** The most rules one manifest ships, and the most steps one rule holds. */
@@ -231,8 +232,17 @@ export const RULE_EMAIL_VARS = ['now', 'ruleName', 'recordLabel', 'appName'] as 
  * them. A `{{row.*}}` is left out: it belongs to the rows a list block draws.
  */
 export function templatePlaceholdersOf(content: { subject: string; preheader?: string | undefined; blocks: readonly unknown[]; footer?: string | undefined }): string[] {
-  const text = JSON.stringify([content.subject, content.preheader, content.blocks, content.footer]);
-  return [...new Set([...text.matchAll(/\{\{\s*([A-Za-z0-9_.-]+)\s*\}\}/g)].map((match) => match[1] as string))].filter((name) => !name.startsWith('row.'));
+  return [...new Set([...placeholderNames([content.subject, content.preheader, content.blocks, content.footer]), ...showWhenNames(content.blocks)])].filter((name) => !name.startsWith('row.'));
+}
+
+/**
+ * The placeholders of a template that must be given a value: written
+ * somewhere with no backup. One that says its own backup (`{{first_name|there}}`),
+ * that only decides whether a block is shown, or that is read only inside the
+ * block it decides, is asked of nobody.
+ */
+export function templateRequiredPlaceholdersOf(content: { subject: string; preheader?: string | undefined; blocks: readonly unknown[]; footer?: string | undefined }): string[] {
+  return requiredNamesOfEmail(content).filter((name) => !name.startsWith('row.'));
 }
 
 const NUMBERS = ['int', 'bigint', 'decimal', 'money', 'float'];
@@ -332,7 +342,7 @@ export function automationIssues(m: {
     const tokens = (text: unknown, path: (string | number)[]) => {
       const texts = typeof text === 'string' ? [text] : typeof text === 'object' && text !== null ? Object.values(text as Record<string, unknown>).filter((value): value is string => typeof value === 'string') : [];
       for (const each of texts) {
-        for (const match of each.matchAll(/\{\{\s*record\.([A-Za-z0-9_]+)\s*\}\}/g)) {
+        for (const match of each.matchAll(/\{\{\s*record\.([A-Za-z0-9_]+)\s*(?:\|[^{}]*)?\}\}/g)) {
           if (record === undefined) out.push({ path, message: `{{record.${match[1] as string}}}: this rule runs for no record (a clock with no rows to visit)` });
           else if (!record.columns.some((candidate) => candidate.ref === match[1])) out.push({ path, message: `{{record.${match[1] as string}}}: "${record.ref}" has no column "${match[1] as string}"` });
         }
@@ -400,7 +410,7 @@ export function automationIssues(m: {
           }
           const names = templatePlaceholdersOf(content);
           for (const name of names) everywhere.add(name);
-          const unfilled = names.filter((name) => !filled(name));
+          const unfilled = templateRequiredPlaceholdersOf(content).filter((name) => !filled(name));
           if (unfilled.length > 0) {
             const first = unfilled[0] as string;
             out.push({

@@ -28,6 +28,7 @@ import { z } from 'zod';
 
 import type { AddOnNeeds } from './add-ons.js';
 import { formulaColumns, type FormulaExpr } from './formula.js';
+import { placeholderPattern } from './placeholders.js';
 import { personalColumn, unlistedColumn } from './public-access.js';
 import { reachedOnlyByUndo, type StateMove } from './states.js';
 import {
@@ -374,6 +375,10 @@ const emailBlockSchema = z
     id: z.string().min(1).max(60).optional(),
     label: z.string().min(1).max(120).optional(),
     data: z.record(z.string(), z.unknown()).optional(),
+    /** The block is sent only when this variable has a value. */
+    showWhen: z.object({ var: z.string().regex(/^[A-Za-z0-9_.-]{1,120}$/) }).strict().optional(),
+    /** What a text block says in its own place when that variable has none. */
+    otherwise: z.string().min(1).max(4000).optional(),
   })
   .strict();
 
@@ -965,7 +970,6 @@ export type EmailRowsData = z.infer<typeof emailRowsDataSchema>;
 
 /** A QR code of a code column, as the whole value of an image: `{{ticket.code.qr}}`. */
 const QR_VALUE = /^\{\{\s*([A-Za-z0-9_.-]+)\.qr\s*\}\}$/;
-const PLACEHOLDERS = /\{\{\s*([A-Za-z0-9_.-]+)\s*\}\}/g;
 
 /** Every string inside a value, with the path it sits at. */
 function stringsIn(value: unknown, path: (string | number)[], out: { text: string; path: (string | number)[] }[] = []) {
@@ -1048,7 +1052,7 @@ function emailBlockIssues(
         if (block.block !== 'email.rows') {
           // Only a block that lists rows has a row to read.
           for (const { text, path } of stringsIn(block.data, [])) {
-            if ([...text.matchAll(PLACEHOLDERS)].some((m) => m[1]!.startsWith('row.'))) {
+            if ([...text.matchAll(placeholderPattern())].some((m) => m[1]!.startsWith('row.'))) {
               out.push({ path: at('data', ...path), message: '{{row.…}} is read only inside an email.rows block' });
             }
           }
@@ -1108,7 +1112,7 @@ function emailBlockIssues(
         }
         // Each {{row.*}} names something a row fills, in a form its type has.
         for (const { text, path } of stringsIn({ row: data.row, empty: data.empty }, [])) {
-          for (const m of text.matchAll(PLACEHOLDERS)) {
+          for (const m of text.matchAll(placeholderPattern())) {
             const name = m[1]!;
             if (!name.startsWith('row.')) continue;
             const parts = name.split('.').slice(1);
