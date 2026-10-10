@@ -624,6 +624,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     // Under `adminium dev` an open screen of a folder app asks whether it was rebuilt.
     ...(opts.project?.mode === 'dev' && projectRoot !== null ? { appDevBuild: (key: string) => projectApps?.buildOf(key) ?? null } : {}),
     ...(opts.staticRoot === undefined ? {} : { staticRoot: opts.staticRoot }),
+    // The assistant on an app's own staff address: only where a model can be set up, and while the workspace leaves it on.
+    ...(allowed === null ? {} : { surfaceAssistant: async () => (await settingsRepo(meta).get('assistant.staffAddresses')) === true }),
     ...(opts.surfaces === undefined ? {} : { surfaces: opts.surfaces }),
     ...(opts.logger === undefined ? {} : { logger: opts.logger }),
     ...(opts.openapi === undefined ? {} : { openapi: opts.openapi }),
