@@ -181,7 +181,7 @@ describe('fetchGit', () => {
     routes = new Map();
     server = createServer((req, res) => {
       const route = routes.get(req.url ?? '');
-      if (route === undefined) {
+      if (typeof route !== 'function') {
         res.statusCode = 404;
         res.end();
       } else route(res);
