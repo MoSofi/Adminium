@@ -48,6 +48,7 @@ import {
   Palette,
   PenLine,
   PenTool,
+  Puzzle,
   Play,
   Receipt,
   Save,
@@ -98,6 +99,8 @@ export const ASSISTANT_ICONS: Readonly<Record<string, LucideIcon>> = {
   // the result card's actions
   send: Send,
   'pen-tool': PenTool,
+  // a starter question an add-on offers on its page
+  puzzle: Puzzle,
   save: Save,
   eye: Eye,
   play: Play,

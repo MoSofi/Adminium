@@ -146,6 +146,8 @@ const SWEEP_IGNORE = [
   'apps/dashboard/src/assistant/contexts.ts',
   // The rule draft's one own action ("Apply to this rule"), drawn by the same row through `assistantIcon`.
   'apps/dashboard/src/assistant/dock/LiveDraft.tsx',
+  // An add-on's starter questions wear the add-on glyph, from the same map.
+  'apps/dashboard/src/assistant/parts/Idle.tsx',
 ];
 
 /** Files whose curated arrays are icon vocabularies in full. */

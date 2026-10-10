@@ -284,6 +284,7 @@ export default {
     "value": "{n} tokens"
   },
   "try": "Prøv",
+  "tryFrom": "Fra {addOn}",
   "unavailable": {
     "askAdmin": "Bed en administrator om at sætte en op.",
     "forbidden": "Du har ikke tilladelse til at bruge {name}.",

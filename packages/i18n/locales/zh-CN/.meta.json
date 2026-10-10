@@ -1671,6 +1671,10 @@
     "status": "mt",
     "srcHash": "72677028b4d0"
   },
+  "assistant.tryFrom": {
+    "status": "mt",
+    "srcHash": "f2b724fd9ba3"
+  },
   "assistant.unavailable.askAdmin": {
     "status": "mt",
     "srcHash": "574a5a47f385"

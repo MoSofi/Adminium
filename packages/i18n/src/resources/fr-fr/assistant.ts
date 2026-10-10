@@ -284,6 +284,7 @@ export default {
     "value": "{n} jetons"
   },
   "try": "Essayer",
+  "tryFrom": "De {addOn}",
   "unavailable": {
     "askAdmin": "Demandez à un administrateur d’en configurer un.",
     "forbidden": "Vous n’avez pas la permission d’utiliser {name}.",

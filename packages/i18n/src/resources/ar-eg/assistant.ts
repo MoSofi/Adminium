@@ -284,6 +284,7 @@ export default {
     "value": "{n} رمز"
   },
   "try": "جرّب",
+  "tryFrom": "من {addOn}",
   "unavailable": {
     "askAdmin": "اطلب من مسؤول إعداد واحد.",
     "forbidden": "ليس لديك إذن لاستخدام {name}.",

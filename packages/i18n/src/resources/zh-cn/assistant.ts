@@ -284,6 +284,7 @@ export default {
     "value": "{n} 令牌"
   },
   "try": "试试",
+  "tryFrom": "来自 {addOn}",
   "unavailable": {
     "askAdmin": "请让管理员配置一个。",
     "forbidden": "你没有使用 {name} 的权限。",

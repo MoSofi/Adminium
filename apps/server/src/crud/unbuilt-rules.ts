@@ -63,6 +63,8 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   // A step an add-on gives to Automations (a named write of one row of its own), and a rule that uses one.
   'addOn.steps',
   'automations.addOnStep',
+  // What an add-on tells the assistant: read with the schema, and as starters on its pages.
+  'addOn.assistant',
   // What a template writes when a value is missing: a block tied to a value, a backup after a bar. The email renderer's.
   'email.showWhen',
   'placeholder.backup',

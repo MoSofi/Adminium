@@ -9,6 +9,7 @@
  * clicking one submits it verbatim, so what they say is what gets asked.
  */
 import { t } from '../../i18n/t.js';
+import type { AssistantStarter } from '../api.js';
 import type { AssistantSuggestion } from '../contexts.js';
 import { AssistantBubble } from './AssistantBubble.js';
 import { ChipList } from './ChipList.js';
@@ -17,11 +18,16 @@ export interface IdleProps {
   greeting: string;
   greetingSub: string;
   suggestions: readonly AssistantSuggestion[];
+  /** Questions an installed add-on offers on this page of its own: after the page's, under the add-on's name. */
+  starters?: readonly AssistantStarter[] | undefined;
   onPick: (label: string) => void;
   disabled?: boolean;
 }
 
-export function Idle({ greeting, greetingSub, suggestions, onPick, disabled }: IdleProps) {
+export function Idle({ greeting, greetingSub, suggestions, starters, onPick, disabled }: IdleProps) {
+  // One group an add-on: the words are that add-on's, and are said to be.
+  const byAddOn = new Map<string, AssistantStarter[]>();
+  for (const starter of starters ?? []) byAddOn.set(starter.addOn, [...(byAddOn.get(starter.addOn) ?? []), starter]);
   return (
     <div className="flex max-w-[660px] flex-col gap-3.5">
       <AssistantBubble>
@@ -35,6 +41,12 @@ export function Idle({ greeting, greetingSub, suggestions, onPick, disabled }: I
           onPick={onPick}
           {...(disabled === undefined ? {} : { disabled })}
         />
+        {[...byAddOn].map(([addOn, list]) => (
+          <div key={addOn} data-testid="assistant-add-on-starters" className="mt-2 flex flex-col gap-[7px]">
+            <span className="text-micro uppercase text-fg-muted">{t('assistant:tryFrom', 'From {addOn}', { addOn })}</span>
+            <ChipList items={list.map((starter) => ({ icon: 'puzzle', label: starter.text }))} onPick={onPick} {...(disabled === undefined ? {} : { disabled })} />
+          </div>
+        ))}
       </div>
     </div>
   );

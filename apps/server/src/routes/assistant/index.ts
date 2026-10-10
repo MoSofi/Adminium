@@ -29,6 +29,7 @@
  * prefix is deliberately not one the project sync watches.
  */
 
+import { startersFor } from '../../assistant/add-on-notes.js';
 import type { AddOnInstalls } from '../../apps/table-ref.js';
 import type { AiConnections } from '../../llm/connections.js';
 import { estimateTokens } from '@adminium/llm';
@@ -468,7 +469,8 @@ export function assistantRoutes(deps: AssistantRoutesDeps): FastifyPluginAsyncZo
           ...(deps.addOns === undefined ? {} : { addOns: deps.addOns }),
           ...(deps.installs === undefined ? {} : { installs: deps.installs }),
         });
-        return { facts: { values: setup.facts as never, scope: (await setup.adapter.pageFacts(setup.deps)).scope }, nextTurnTokens: estimateTokens(setup.system) };
+        // The questions an installed add-on offers on this page of its own: text for the panel, never for the prompt.
+        return { facts: { values: setup.facts as never, scope: (await setup.adapter.pageFacts(setup.deps)).scope }, nextTurnTokens: estimateTokens(setup.system), starters: await startersFor(setup.deps) };
       },
     );
 

@@ -31,6 +31,7 @@ import {
   type AssistantContext,
   type AssistantFacts,
   type AssistantHostRef,
+  type AssistantStarter,
   type AssistantTurnStatus,
 } from '../api.js';
 import { messageOf, reasonOf, toThreadTurn, type ActionOutcome, type ThreadTurn } from '../thread.js';
@@ -64,6 +65,8 @@ export interface PanelConversation {
   /** A question is on its way to the server: nothing else may be started or ended meanwhile. */
   asking: boolean;
   nextTurnTokens: number;
+  /** Questions an installed add-on offers on this page of its own. */
+  starters: AssistantStarter[];
   problem: string | null;
   usedUpUntil: number | null;
   /** The conversation on screen was closed somewhere else: nothing more can be asked in it. */
@@ -93,6 +96,8 @@ export function usePanelConversation(page: PanelPage, active: boolean): PanelCon
   const [turns, setTurns] = useState<ThreadTurn[]>([]);
   const [earlier, setEarlier] = useState(0);
   const [nextTurnTokens, setNextTurnTokens] = useState(0);
+  // What an installed add-on offers to ask on this page of its own.
+  const [starters, setStarters] = useState<AssistantStarter[]>([]);
   const [problem, setProblem] = useState<string | null>(null);
   const [usedUpUntil, setUsedUpUntil] = useState<number | null>(null);
   const [closedElsewhere, setClosedElsewhere] = useState(false);
@@ -206,10 +211,14 @@ export function usePanelConversation(page: PanelPage, active: boolean): PanelCon
           if (cancelled) return;
           setFacts(reply.facts);
           setNextTurnTokens(reply.nextTurnTokens);
+          setStarters(reply.starters ?? []);
         },
         () => {
           // The header then says less; asking still works, and the turn reads the page itself.
-          if (!cancelled) setFacts(null);
+          if (!cancelled) {
+            setFacts(null);
+            setStarters([]);
+          }
         },
       );
     }, FACTS_SETTLE_MS);
@@ -395,6 +404,7 @@ export function usePanelConversation(page: PanelPage, active: boolean): PanelCon
     busyElsewhere,
     asking,
     nextTurnTokens,
+    starters,
     problem,
     usedUpUntil,
     loadWhole,

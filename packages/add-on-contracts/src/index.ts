@@ -222,3 +222,5 @@ export {
   type AddOnStepInputKind,
   type AddOnStepValue,
 } from './steps.js';
+
+export { ADD_ON_COLUMN_NOTE_MAX, ADD_ON_QUESTIONS_MAX, ADD_ON_TABLE_NOTE_MAX, addOnAssistantSchema, type AddOnAssistant } from './assistant-block.js';

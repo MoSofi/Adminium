@@ -131,6 +131,7 @@ export {
   type SlotCapacityRule,
 } from './capacity.js';
 
+export { assistantIssues, type AssistantTableShape } from './assistant.js';
 export { stepsIssues, type StepTableShape } from './steps.js';
 
 export {

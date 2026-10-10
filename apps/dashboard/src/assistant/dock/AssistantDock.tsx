@@ -105,8 +105,10 @@ function usePanelPage(): { page: PanelPage; shown: PageAssistantShown; view: Pag
   const route = useRouterState({
     select: (state) => {
       const match = state.matches.at(-1);
-      const appKey = (match?.params as { appKey?: unknown } | undefined)?.appKey;
-      return `${match?.routeId ?? ''}\n${typeof appKey === 'string' ? appKey : ''}`;
+      const params = (match?.params ?? {}) as { appKey?: unknown; key?: unknown; _splat?: unknown };
+      // One of an add-on's own screens (`/add-ons/<key>/<ref>`): which add-on, and which screen of it.
+      const addOn = match?.routeId === '/add-ons/$key/$' && typeof params.key === 'string' ? `${params.key}\n${typeof params._splat === 'string' ? params._splat : ''}` : '\n';
+      return `${match?.routeId ?? ''}\n${typeof params.appKey === 'string' ? params.appKey : ''}\n${addOn}`;
     },
   });
   return useMemo(() => {
@@ -117,8 +119,8 @@ function usePanelPage(): { page: PanelPage; shown: PageAssistantShown; view: Pag
         view: published.host.view,
       };
     }
-    const [routeId = '', app = ''] = route.split('\n');
-    const host: AssistantHostRef = { connectionIds: [], ...(routeId === '' ? {} : { route: routeId }), ...(app === '' ? {} : { app }) };
+    const [routeId = '', app = '', addOn = '', addOnPage = ''] = route.split('\n');
+    const host: AssistantHostRef = { connectionIds: [], ...(routeId === '' ? {} : { route: routeId }), ...(app === '' ? {} : { app }), ...(addOn === '' ? {} : { addOn, addOnPage }) };
     return { page: { context: 'general', host }, shown: {}, view: undefined };
   }, [published, route]);
 }
@@ -506,6 +508,7 @@ export function AssistantDock({ visible, pages }: AssistantDockProps) {
               greeting={copy.greeting}
               greetingSub={copy.greetingSub}
               suggestions={copy.suggestions}
+              starters={conversation.starters}
               onPick={submit}
               disabled={blocked || working}
             />

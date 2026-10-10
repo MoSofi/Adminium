@@ -284,6 +284,7 @@ export default {
     "value": "{n} 權杖"
   },
   "try": "試試",
+  "tryFrom": "來自 {addOn}",
   "unavailable": {
     "askAdmin": "請請管理員設定一個。",
     "forbidden": "你沒有使用 {name} 的權限。",

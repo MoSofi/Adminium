@@ -49,6 +49,7 @@ import {
   type TableIndex,
 } from './refs.js';
 import { compareSemver, parseSemverRange } from './semver.js';
+import { assistantIssues, type AssistantTableShape } from './assistant.js';
 import { stepsIssues, type StepTableShape } from './steps.js';
 import { WORD_FLOORS, installFloorWords } from './words.js';
 import { automationIssues, manifestAutomationsSchema, type AutomationTableShape, type ManifestAutomation } from './automations.js';
@@ -3120,7 +3121,7 @@ const ADD_ON_BLOCKS = ['pages', 'roles', 'seeds', 'navGroups', 'optionLists', 'p
 export function installsLikeAnApp(m: Manifest): boolean {
   if (m.kind !== 'add-on') return false;
   if (ADD_ON_BLOCKS.some((block) => m[block] !== undefined)) return true;
-  if (m.requiredSchema?.prefixed === true || m.addOn.settingsTable !== undefined || m.addOn.ledgers !== undefined || m.addOn.adjuster !== undefined || m.addOn.words !== undefined || m.addOn.recordTabs !== undefined || m.addOn.steps !== undefined) return true;
+  if (m.requiredSchema?.prefixed === true || m.addOn.settingsTable !== undefined || m.addOn.ledgers !== undefined || m.addOn.adjuster !== undefined || m.addOn.words !== undefined || m.addOn.recordTabs !== undefined || m.addOn.steps !== undefined || m.addOn.assistant !== undefined) return true;
   return (m.requiredSchema?.tables ?? []).some(
     (table) =>
       table.states !== undefined ||
@@ -3239,6 +3240,11 @@ function addOnInstallIssues(m: AddOnManifest): { path: (string | number)[]; mess
     } else {
       out.push(...wordsIssues({ words: parsed.data, ledgers, tables: tables as readonly LedgerTableShape[], settingsTable: m.addOn.settingsTable }));
     }
+  }
+
+  // What it tells the assistant: only of its own tables, columns and pages.
+  if (m.addOn.assistant !== undefined) {
+    out.push(...assistantIssues(m.addOn.assistant, tables as unknown as readonly AssistantTableShape[], [...(m.pages ?? []).map((page) => page.ref), ...(m.addOn.pages ?? []).map((page) => page.ref)]));
   }
 
   // Steps the add-on gives to Automations: the row each writes is one of its own tables.

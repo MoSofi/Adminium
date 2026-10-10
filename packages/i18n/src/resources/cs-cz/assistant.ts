@@ -284,6 +284,7 @@ export default {
     "value": "{n} tokenů"
   },
   "try": "Vyzkoušej",
+  "tryFrom": "Z doplňku {addOn}",
   "unavailable": {
     "askAdmin": "Požádej správce, ať nějakého nastaví.",
     "forbidden": "Nemáš oprávnění používat {name}.",

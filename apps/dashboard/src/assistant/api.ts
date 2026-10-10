@@ -64,6 +64,9 @@ export interface AssistantHostRef {
   /** A screen with no context of its own: the router's route id, and the app's key over a framed staff side. */
   route?: string;
   app?: string;
+  /** One of an add-on's own screens: its key, and the screen's ref. */
+  addOn?: string;
+  addOnPage?: string;
 }
 
 /** A data page's state, in the list route's own spellings. */
@@ -196,6 +199,15 @@ export interface AssistantCurrentReply {
 export interface AssistantFactsReply {
   facts: AssistantFacts;
   nextTurnTokens: number;
+  /** Questions an installed add-on offers on this page of its own. Absent from an older server. */
+  starters?: AssistantStarter[] | undefined;
+}
+
+/** A question an add-on offers on one of its pages, in the reader's language, with whose it is. */
+export interface AssistantStarter {
+  key: string;
+  text: string;
+  addOn: string;
 }
 
 export interface AssistantTurnReply {

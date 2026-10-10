@@ -2652,6 +2652,12 @@ export const assistantHostSchema = z.object({
    */
   route: z.string().optional(),
   app: z.string().optional(),
+  /**
+   * One of an add-on's own screens: the add-on's key and the screen's ref.
+   * Read to offer that add-on's starter questions there, and for nothing else.
+   */
+  addOn: z.string().optional(),
+  addOnPage: z.string().optional(),
 });
 export type AssistantHost = z.infer<typeof assistantHostSchema>;
 

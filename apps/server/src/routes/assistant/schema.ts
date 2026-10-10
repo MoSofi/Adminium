@@ -45,6 +45,9 @@ export const assistantHostBody = z.object({
   /** A screen with no context of its own: the router's route id, and the app's key over a framed staff side. */
   route: z.string().max(120).optional(),
   app: z.string().max(64).optional(),
+  /** One of an add-on's own screens: its key, and the screen's ref. */
+  addOn: z.string().max(64).optional(),
+  addOnPage: z.string().max(120).optional(),
 });
 
 export const assistantAvailabilityQuery = z.object({
@@ -331,4 +334,7 @@ export const assistantCurrentReply = z.object({
 
 /** `POST /assistant/facts` — what the header says of ONE page, for a conversation that has walked to it. */
 export const assistantFactsBody = z.object({ context: assistantContextSchema, host: assistantHostBody });
-export const assistantFactsReply = z.object({ facts: assistantFactsView, nextTurnTokens: z.number() });
+/** A question an installed add-on offers on the page, in the reader's language, with the add-on's name. */
+export const assistantStarterView = z.object({ key: z.string(), text: z.string(), addOn: z.string() });
+
+export const assistantFactsReply = z.object({ facts: assistantFactsView, nextTurnTokens: z.number(), starters: z.array(assistantStarterView) });

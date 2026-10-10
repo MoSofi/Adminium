@@ -109703,6 +109703,14 @@
                       "app": {
                         "type": "string",
                         "maxLength": 64
+                      },
+                      "addOn": {
+                        "type": "string",
+                        "maxLength": 64
+                      },
+                      "addOnPage": {
+                        "type": "string",
+                        "maxLength": 120
                       }
                     }
                   },
@@ -110531,6 +110539,14 @@
                       "app": {
                         "type": "string",
                         "maxLength": 64
+                      },
+                      "addOn": {
+                        "type": "string",
+                        "maxLength": 64
+                      },
+                      "addOnPage": {
+                        "type": "string",
+                        "maxLength": 120
                       }
                     }
                   }
@@ -110600,11 +110616,35 @@
                     },
                     "nextTurnTokens": {
                       "type": "number"
+                    },
+                    "starters": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "key": {
+                            "type": "string"
+                          },
+                          "text": {
+                            "type": "string"
+                          },
+                          "addOn": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "key",
+                          "text",
+                          "addOn"
+                        ],
+                        "additionalProperties": false
+                      }
                     }
                   },
                   "required": [
                     "facts",
-                    "nextTurnTokens"
+                    "nextTurnTokens",
+                    "starters"
                   ],
                   "additionalProperties": false
                 }
@@ -110711,6 +110751,14 @@
                       "app": {
                         "type": "string",
                         "maxLength": 64
+                      },
+                      "addOn": {
+                        "type": "string",
+                        "maxLength": 64
+                      },
+                      "addOnPage": {
+                        "type": "string",
+                        "maxLength": 120
                       }
                     }
                   },

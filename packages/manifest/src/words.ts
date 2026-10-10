@@ -88,6 +88,7 @@ export const INSTALL_FLOOR_WORD_NAMES = [
   'unlockBy.self',
   'availability.words',
   'addOn.steps',
+  'addOn.assistant',
   'automations.addOnStep',
   'email.showWhen',
   'placeholder.backup',
@@ -105,6 +106,8 @@ export const WORD_FLOORS: Readonly<Partial<Record<ManifestWordName, string>>> = 
   'roles.writableFrom': '0.3.19',
   // A step an add-on gives to Automations, and a rule that uses one.
   'addOn.steps': '0.3.22',
+  // What an add-on tells the assistant: what its tables are, and questions for its pages.
+  'addOn.assistant': '0.3.22',
   'automations.addOnStep': '0.3.22',
   // What a template writes when a value is missing: a block tied to a value, a backup after a bar.
   'email.showWhen': '0.3.22',
@@ -133,6 +136,7 @@ export function installFloorWords(document: unknown): ManifestWord[] {
     if (block['hostApi'] === 2) out.push({ word: 'addOn.hostApi.2', path: 'addOn.hostApi' });
     if (block['lookUp'] !== undefined) out.push({ word: 'addOn.lookUp', path: 'addOn.lookUp' });
     if (block['steps'] !== undefined) out.push({ word: 'addOn.steps', path: 'addOn.steps' });
+    if (block['assistant'] !== undefined) out.push({ word: 'addOn.assistant', path: 'addOn.assistant' });
     // An amount Adminium decides for a ledger's action (what a card may pay).
     list(block['ledgers']).forEach((ledger, l) => {
       for (const [name, action] of Object.entries(isDoc(ledger) && isDoc(ledger['actions']) ? ledger['actions'] : {})) {
