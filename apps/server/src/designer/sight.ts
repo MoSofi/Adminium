@@ -20,8 +20,15 @@
 /** The most a picture of the page may be, and the most lines said of it. */
 export const SIGHT_PICTURE_MAX_BYTES = 700 * 1024;
 export const SIGHT_FAULTS_MAX = 8;
-/** How long a turn waits for the page to show what it built. */
-export const SIGHT_WAIT_MS = 15_000;
+/** How long a turn waits for the page to show what it built. A slow computer builds, opens and draws a page in more than a quarter of a minute. */
+export const SIGHT_WAIT_MS = 30_000;
+/**
+ * How long a page that looked whole is given to stop after all. A screen can
+ * show that it loads, stand still long enough to be looked at, and then stop
+ * with an error: the page says so in a second sight, and a turn that had
+ * already taken the first would tell the person it works.
+ */
+export const SIGHT_SETTLE_MS = 4000;
 
 export interface Sight {
   /** The page is blank, or a part of it stopped with an error: worth a second word in the same turn. */
@@ -144,7 +151,11 @@ export function faultLine(input: unknown): string | null {
     }
     case 'error': {
       const error = browserError(fault['error']);
-      return error === null ? null : `A part of the page stopped with the browser's error "${error}", and is likely empty: fix that in the screen.`;
+      // An error in the page's own words (a load that threw, a call that was refused) is not quoted, and is still said:
+      // unsaid, a screen that stops a moment after it opens was looked at and called fine.
+      return error === null
+        ? 'A part of the page stopped with an error after it opened, and is likely empty or still showing that it loads: read what the screen loads as it opens for a call that can fail or a value it reads before it is there, and fix that in the screen.'
+        : `A part of the page stopped with the browser's error "${error}", and is likely empty: fix that in the screen.`;
     }
     case 'wide': {
       const width = count(fault['width']);
@@ -180,8 +191,11 @@ export function faultLine(input: unknown): string | null {
 export interface Sights {
   /** Keep what a page saw; only the newest of a session is kept. */
   put(sessionId: string, sight: Omit<Sight, 'at'>): void;
-  /** The newest sight of a session taken at or after `since`, waited for; null when none comes in time or the turn is stopped. */
-  wait(sessionId: string, since: number, opts?: { timeoutMs?: number; signal?: AbortSignal }): Promise<Sight | null>;
+  /**
+   * The newest sight of a session taken at or after `since`, waited for; null when none comes in time or the turn is
+   * stopped. One of a page that looked whole is held for `settleMs`, in case the page says after it that it stopped.
+   */
+  wait(sessionId: string, since: number, opts?: { timeoutMs?: number; settleMs?: number; signal?: AbortSignal }): Promise<Sight | null>;
 }
 
 export function createSights(opts: { now?: () => number } = {}): Sights {
@@ -193,10 +207,15 @@ export function createSights(opts: { now?: () => number } = {}): Sights {
       // A server that runs long does not keep the last page of every session it ever had.
       while (held.size > 50) held.delete(held.keys().next().value as string);
     },
-    async wait(sessionId, since, { timeoutMs = SIGHT_WAIT_MS, signal } = {}) {
+    async wait(sessionId, since, { timeoutMs = SIGHT_WAIT_MS, settleMs = SIGHT_SETTLE_MS, signal } = {}) {
       for (const until = now() + timeoutMs; ; ) {
         const sight = held.get(sessionId);
-        if (sight !== undefined && sight.at >= since) return sight;
+        if (sight !== undefined && sight.at >= since) {
+          // A page that stopped has nothing better to say later. One that looked whole is given a moment to stop.
+          if (sight.stopped || now() >= sight.at + settleMs || signal?.aborted === true) return sight;
+          await new Promise((resolve) => setTimeout(resolve, 200));
+          continue;
+        }
         if (signal?.aborted === true || now() >= until) return null;
         await new Promise((resolve) => setTimeout(resolve, 200));
       }

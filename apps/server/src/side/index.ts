@@ -145,6 +145,8 @@ export function reportErrorsToFrame(target: { addEventListener: Window['addEvent
     // Kept for the look at the page: a screen that stopped is said with what stopped it.
     lastError = (message instanceof Error ? message.message : typeof message === 'string' ? message : '').split('\n')[0]?.slice(0, 200) ?? '';
     later(() => {
+      // A page already looked at is looked at again: what it showed then is not what it shows now.
+      lookAgain?.();
       if (blank()) post(message, false);
       // The screen still shows something. A thing its own code threw (a TypeError in a load nobody awaited) left a part of
       // it empty with no word to the person: said, as an error the screen went on from. The browser's own notices
@@ -170,6 +172,8 @@ reportErrorsToFrame();
 
 /** The last error this page's own code threw, first line (dev bundles only). */
 let lastError = '';
+/** Set by the look at the page: asked for by an error that comes after the page was looked at. */
+let lookAgain: (() => void) | undefined;
 
 /** How often this page has read each list since it opened (dev bundles only). */
 const sameReads = new Map<string, number>();
@@ -399,14 +403,16 @@ export function reportSightToFrame(target: Window | undefined = framed(), dev: b
   if (!dev || target === undefined || typeof target.document === 'undefined') return;
   const doc = target.document;
   let sent = false;
-  const send = async (): Promise<void> => {
+  let again = 0;
+  const send = async (late = false): Promise<void> => {
     if (sent) return;
     sent = true;
     try {
       await (doc.fonts?.ready ?? Promise.resolve());
       const faults = pageFaults(doc, target);
       // The picture is worth a few seconds and no more: what was measured goes whether or not the browser draws it.
-      const picture = await Promise.race([pagePicture(doc, target), new Promise<null>((resolve) => setTimeout(() => resolve(null), 6000))]);
+      // A late look carries none: it is sent to say the page stopped, and that must not wait on a drawing.
+      const picture = late ? null : await Promise.race([pagePicture(doc, target), new Promise<null>((resolve) => setTimeout(() => resolve(null), 6000))]);
       target.parent.postMessage(
         { type: 'adminium:side-sight', app: APP_KEY, side: SIDE, path: pagePath(target.location.pathname), width: doc.documentElement.clientWidth, faults, ...(picture === null ? {} : { picture }) },
         '*',
@@ -414,6 +420,14 @@ export function reportSightToFrame(target: Window | undefined = framed(), dev: b
     } catch {
       // Looking never breaks the page.
     }
+  };
+  // A screen can show that it loads, stand still long enough to be looked at, and stop a moment later. The error that
+  // stops it asks for the page to be looked at again: twice at most, so a screen that throws without end says little.
+  lookAgain = (): void => {
+    if (!sent || again >= 2) return;
+    again += 1;
+    sent = false;
+    void send(true);
   };
   // Once the page has been still for a moment (its rows and pictures are in), or after a few seconds whatever it does.
   let quiet: ReturnType<typeof setTimeout> | undefined;

@@ -63,6 +63,7 @@ How it works:
 - Every table a person works with gets a dashboard page of its own, and the role gets each table's grants and each page's page:@<ref>:view grant.
 - The person sees the app in the preview beside this chat, and the server applies it for them. Never tell them to run a command or open a file.
 - Work in few steps. Put every tool call that does not wait on another into ONE reply: all the table files at once, then all the pages and the roles at once. Do not read a file you have just written.
+- When the person says a screen stopped with an error, a clean check_app does not show it is mended: the check reads the files, and the error happens when the page runs. Say it is fixed only when the page was looked at after your change and nothing was reported. Otherwise say what you changed and why, and ask them to open the page and tell you what they see.
 
 End every turn the same way: check_app, fix every error it names, apply_app, then tell the person in a few plain sentences what you built and what they can do next. Do not list files, and use no words of the trade ("rung", "CRUD", "manifest", "endpoint"): say what they can now do, in their words.`;
 
