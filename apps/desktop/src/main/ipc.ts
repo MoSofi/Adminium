@@ -146,6 +146,9 @@ const chooseDirectorySchema = z.strictObject({
  * dropped, and both outcomes are worse than a rejection.
  */
 const setConfigSchema = z.strictObject({
+  // What the app's own screens open in: picked in the dashboard, read by Start.
+  language: z.string().min(2).max(35).regex(/^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*$/).nullable().optional(),
+  theme: z.enum(['system', 'light', 'dark']).optional(),
   singleUser: z.boolean().optional(),
   lanShare: lanShareSchema.optional(),
   updates: updatesSchema.optional(),
@@ -290,11 +293,11 @@ type Assert<T extends true> = T;
  */
 type Settled<T> = { [K in keyof T]-?: Exclude<T[K], undefined> };
 
-/** The five settable keys. */
-type PatchKey = 'singleUser' | 'lanShare' | 'updates' | 'telemetryOptIn' | 'autoBackup';
+/** The seven settable keys. */
+type PatchKey = 'language' | 'theme' | 'singleUser' | 'lanShare' | 'updates' | 'telemetryOptIn' | 'autoBackup';
 
 /**
- * The patch offers exactly five keys, each carrying exactly the value type
+ * The patch offers exactly seven keys, each carrying exactly the value type
  * `config.json` stores under it.
  */
 export type _PatchKeysMatchContract = Assert<Mutual<keyof DesktopConfigPatch, PatchKey>>;

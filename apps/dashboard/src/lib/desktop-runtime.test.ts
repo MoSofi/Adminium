@@ -8,11 +8,11 @@
  * code paths (About, reveal-in-folder) that nobody clicks during a Cloud demo.
  */
 
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import type { AdminiumDesktopApi } from '@adminium/desktop/api';
 
-import { desktopErrorCode, getDesktopApi, isDesktopRuntime } from './desktop-runtime.js';
+import { desktopErrorCode, getDesktopApi, isDesktopRuntime, rememberInDesktopApp } from './desktop-runtime.js';
 
 /** Enough of the bridge to be recognised as one. */
 const fakeBridge = (): AdminiumDesktopApi =>
@@ -78,5 +78,28 @@ describe('desktopErrorCode', () => {
   it('does not mistake a lookalike prefix for a code', () => {
     expect(desktopErrorCode(new Error('NOT_A_CODE: nope'))).toBeNull();
     expect(desktopErrorCode(new Error('Error invoking remote method: INTERNAL'))).toBeNull();
+  });
+});
+
+describe('rememberInDesktopApp', () => {
+  it('tells the app of a picked language (as a tag) and a picked theme, and of nothing else', () => {
+    const setConfig = vi.fn(() => Promise.resolve());
+    installBridge({ ...fakeBridge(), setConfig } as unknown as AdminiumDesktopApi);
+    rememberInDesktopApp('locale', 'de_DE');
+    rememberInDesktopApp('theme', 'dark');
+    rememberInDesktopApp('accent', 'orange');
+    rememberInDesktopApp('density', 'compact');
+    rememberInDesktopApp('theme', 'neon');
+    rememberInDesktopApp('theme', 3);
+    expect(setConfig.mock.calls).toEqual([[{ language: 'de-DE' }], [{ theme: 'dark' }]]);
+  });
+
+  it('does nothing in a browser, and an app that refuses is not an error here', async () => {
+    rememberInDesktopApp('locale', 'de_DE');
+    const setConfig = vi.fn(() => Promise.reject(new Error('UNAVAILABLE')));
+    installBridge({ ...fakeBridge(), setConfig } as unknown as AdminiumDesktopApi);
+    rememberInDesktopApp('theme', 'light');
+    await Promise.resolve();
+    expect(setConfig).toHaveBeenCalledTimes(1);
   });
 });

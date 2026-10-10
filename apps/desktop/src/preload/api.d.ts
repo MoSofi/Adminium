@@ -145,6 +145,10 @@ export interface DesktopAutoBackupConfig {
  * rejection rather than a silent merge.
  */
 export interface DesktopConfigPatch {
+  /** The language of the app's own screens (a locale tag such as `de-DE`), or `null`: the system's. */
+  readonly language?: string | null | undefined;
+  /** Light, dark, or as the system is, for the app's own screens. */
+  readonly theme?: 'system' | 'light' | 'dark' | undefined;
   readonly singleUser?: boolean | undefined;
   readonly lanShare?: DesktopLanShareConfig | undefined;
   readonly updates?: DesktopUpdatesConfig | undefined;

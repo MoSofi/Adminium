@@ -1573,6 +1573,8 @@ export function createDesktopApp(deps: DesktopBootDeps): DesktopApp {
  */
 export function applyConfigPatch(config: DesktopConfig, patch: DesktopConfigPatch): DesktopConfig {
   const next: DesktopConfig = { ...config };
+  if (patch.language !== undefined) next.language = patch.language;
+  if (patch.theme !== undefined) next.theme = patch.theme;
   if (patch.singleUser !== undefined) next.singleUser = patch.singleUser;
   if (patch.lanShare !== undefined) next.lanShare = { ...patch.lanShare };
   if (patch.updates !== undefined) next.updates = { ...patch.updates };

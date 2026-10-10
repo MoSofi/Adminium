@@ -261,6 +261,8 @@ describe('an invalid payload is rejected by zod, not passed through', () => {
     ['setConfig with a bad update mode', IPC_CHANNELS.setConfig, { updates: { mode: 'silent' } }],
     ['setConfig with keep out of range', IPC_CHANNELS.setConfig, { autoBackup: { enabled: true, keep: 0 } }],
     ['setConfig with a non-boolean', IPC_CHANNELS.setConfig, { singleUser: 'yes' }],
+    ['setConfig with a language that is not a tag', IPC_CHANNELS.setConfig, { language: '../../etc' }],
+    ['setConfig with a theme that is not one', IPC_CHANNELS.setConfig, { theme: 'neon' }],
     ['capabilities.invoke with an empty id', IPC_CHANNELS.capabilitiesInvoke, { capabilityId: '', method: 'print' }],
     ['relaunch with a smuggled argument', IPC_CHANNELS.relaunch, { force: true }],
   ])('%s', async (_name, channel, payload) => {

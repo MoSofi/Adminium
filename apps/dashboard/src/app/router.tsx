@@ -18,6 +18,8 @@ import {
   type RouterHistory,
 } from '@tanstack/react-router';
 import { allLocales, getI18nRevision, subscribeI18nRevision } from '@adminium/i18n';
+
+import { rememberInDesktopApp } from '../lib/desktop-runtime.js';
 import { ThemeProvider, TooltipProvider, type ThemePrefs } from '@adminium/ui';
 import { ChartDirectionBridge, WidgetRuntimeProvider } from '@adminium/widgets';
 
@@ -183,6 +185,9 @@ function RootComponent() {
           { globalDefaults: { locale: bootLocale() } }
         : { userPrefs: toThemePrefs(boot.data.prefs) })}
       onPrefChange={(key, value) => {
+        // In the desktop app the two the app's own screens share are kept by the app as well, so its first screen
+        // opens in the language and theme picked here. A pick only: nothing is written at boot.
+        rememberInDesktopApp(key, value);
         // Persist per-user axes once signed in (ThemeProvider wiring).
         if (!authed) return;
         api.patch('/api/v1/me/prefs', { [key]: value }).catch(() => {

@@ -895,6 +895,9 @@ describe('applyConfigPatch', () => {
 
   it('leaves the secret, dataDir and version untouched — they are not keys', () => {
     const withSecret: DesktopConfig = { ...base, secretPlain: 'shhh', secretStorage: 'plain' };
+    // The app's own screens' language and theme, as picked in the dashboard; `null` is the system's language again.
+    expect(applyConfigPatch(withSecret, { language: 'de-DE', theme: 'dark' })).toMatchObject({ language: 'de-DE', theme: 'dark', secretPlain: 'shhh' });
+    expect(applyConfigPatch({ ...withSecret, language: 'de-DE' }, { language: null }).language).toBeNull();
     const next = applyConfigPatch(withSecret, { telemetryOptIn: true });
     expect(next.secretPlain).toBe('shhh');
     expect(next.dataDir).toBe('/data');
