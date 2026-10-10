@@ -1,0 +1,92 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+/**
+ * GENERATED MIRROR of ../../../locales/da-DK/desktop.json — do not edit by hand.
+ * The JSON file is the canonical hand-authored bundle;
+ * this TS mirror exists so the runtime can bundle a namespace (en-US's eager
+ * ones) or chunk-split it (every other locale, and en-US's deferred `studio`)
+ * without JSON import attributes (browser + NodeNext safe).
+ * Parity is enforced by src/resources/parity.test.ts. Regenerate with
+ * scripts/gen-resources.mjs.
+ */
+export default {
+  "new": {
+    "back": "Tilbage",
+    "change": "Skift…",
+    "create": "Opret",
+    "creating": "Gør klar…",
+    "failed": "Projektet kunne ikke oprettes.",
+    "heading": "Byg en app",
+    "help": "Adminium opretter denne mappe for dig. Alt om din app ligger i den.",
+    "name": "Navn",
+    "refuse": {
+      "badName": "Brug mindst ét bogstav eller tal i navnet.",
+      "existsWithFiles": "Der findes allerede en mappe med dette navn, og den indeholder filer. Vælg et andet navn eller en anden mappe.",
+      "homeFolder": "Et projekt kan ikke ligge direkte i din hjemmemappe. Vælg eller opret en mappe i den.",
+      "insideAProject": "Denne mappe ligger i et andet projekt. Vælg en mappe uden for det.",
+      "insideTheApp": "Et projekt kan ikke ligge inde i selve Adminium. Vælg en anden mappe.",
+      "notAbsolute": "Vælg en mappe med knappen “Skift…”.",
+      "systemFolder": "Et projekt kan ikke ligge i en mappe, der tilhører systemet. Vælg en af dine egne mapper."
+    },
+    "warn": {
+      "another": "Vælg en anden mappe",
+      "anyway": "Brug den alligevel",
+      "dropbox": "Denne mappe synkroniseres af Dropbox. Projekter fungerer dårligt i synkroniserede mapper: synkroniseringen kan beskadige deres data.",
+      "googledrive": "Denne mappe synkroniseres af Google Drive. Projekter fungerer dårligt i synkroniserede mapper: synkroniseringen kan beskadige deres data.",
+      "icloud": "Denne mappe synkroniseres af iCloud Drive. Projekter fungerer dårligt i synkroniserede mapper: synkroniseringen kan beskadige deres data.",
+      "noLinks": "Denne disk kan ikke rumme de links, som et projekts pakker har brug for, så det vil sandsynligvis mislykkes at hente dem.",
+      "onedrive": "Denne mappe synkroniseres af OneDrive. Projekter fungerer dårligt i synkroniserede mapper: synkroniseringen kan beskadige deres data."
+    },
+    "where": "Hvor den skal ligge"
+  },
+  "start": {
+    "choice": {
+      "build": {
+        "line": "Beskriv den, så bygger Designer den på denne computer.",
+        "title": "Byg en app"
+      },
+      "connect": {
+        "line": "Brug et Adminium, der kører på en anden computer.",
+        "title": "Opret forbindelse til et andet Adminium"
+      },
+      "db": {
+        "line": "Lav skærme til en database, du allerede har.",
+        "title": "Brug min egen database"
+      },
+      "open": {
+        "line": "Fortsæt med en app, der allerede ligger i en mappe, eller som nogen har sendt dig.",
+        "title": "Åbn en mappe"
+      }
+    },
+    "heading": "Hvad vil du gerne gøre?",
+    "open": {
+      "needsPackages": "Dette projekts pakker er endnu ikke på denne computer.",
+      "notAProject": "Denne mappe er ikke et Adminium-projekt."
+    },
+    "recent": {
+      "alreadyListed": "Den mappe står allerede på listen.",
+      "building": "Under opbygning",
+      "gone": "Denne mappe er flyttet eller slettet",
+      "heading": "Seneste projekter",
+      "locate": "Find…",
+      "locateTitle": "Hvor ligger {name} nu?",
+      "notThatProject": "Den mappe er ikke et Adminium-projekt.",
+      "open": "Åbn {name}",
+      "opened": "Åbnet {when}",
+      "remove": "Fjern",
+      "removed": "Fjernet fra de seneste projekter",
+      "shared": "Delt"
+    },
+    "welcome": "Velkommen til Adminium."
+  },
+  "toast": {
+    "dismiss": "Luk",
+    "region": "Meddelelser"
+  },
+  "trust": {
+    "body": "Når du åbner den, køres dens kode på denne computer med din adgang til dine filer. Åbn kun mapper, du selv har lavet, eller som kommer fra nogen, du har tillid til.",
+    "cancel": "Annuller",
+    "changed": "Koden i denne mappe er ændret, siden du sidst åbnede den.",
+    "open": "Åbn",
+    "title": "Vil du åbne denne mappe?"
+  }
+} as const;

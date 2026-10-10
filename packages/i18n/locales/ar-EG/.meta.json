@@ -10879,6 +10879,222 @@
     "status": "mt",
     "srcHash": "f1fbb2b43dca"
   },
+  "desktop.new.back": {
+    "status": "mt",
+    "srcHash": "b52b36b7269f"
+  },
+  "desktop.new.change": {
+    "status": "mt",
+    "srcHash": "49b1cd843f93"
+  },
+  "desktop.new.create": {
+    "status": "mt",
+    "srcHash": "6e157c5da441"
+  },
+  "desktop.new.creating": {
+    "status": "mt",
+    "srcHash": "ef3f043da7fb"
+  },
+  "desktop.new.failed": {
+    "status": "mt",
+    "srcHash": "eeed3849d32c"
+  },
+  "desktop.new.heading": {
+    "status": "mt",
+    "srcHash": "d8f37ac32cf1"
+  },
+  "desktop.new.help": {
+    "status": "mt",
+    "srcHash": "c582cda11c02"
+  },
+  "desktop.new.name": {
+    "status": "mt",
+    "srcHash": "709a23220f2c"
+  },
+  "desktop.new.refuse.badName": {
+    "status": "mt",
+    "srcHash": "c507e7a06153"
+  },
+  "desktop.new.refuse.existsWithFiles": {
+    "status": "mt",
+    "srcHash": "41759979dce2"
+  },
+  "desktop.new.refuse.homeFolder": {
+    "status": "mt",
+    "srcHash": "c6debb7f51d4"
+  },
+  "desktop.new.refuse.insideAProject": {
+    "status": "mt",
+    "srcHash": "7964161bcbde"
+  },
+  "desktop.new.refuse.insideTheApp": {
+    "status": "mt",
+    "srcHash": "5adfcab48f21"
+  },
+  "desktop.new.refuse.notAbsolute": {
+    "status": "mt",
+    "srcHash": "9b8011158938"
+  },
+  "desktop.new.refuse.systemFolder": {
+    "status": "mt",
+    "srcHash": "75019f7d12a9"
+  },
+  "desktop.new.warn.another": {
+    "status": "mt",
+    "srcHash": "af3575d7895a"
+  },
+  "desktop.new.warn.anyway": {
+    "status": "mt",
+    "srcHash": "851fa1671f78"
+  },
+  "desktop.new.warn.dropbox": {
+    "status": "mt",
+    "srcHash": "77b819b08224"
+  },
+  "desktop.new.warn.googledrive": {
+    "status": "mt",
+    "srcHash": "e79beb19c56d"
+  },
+  "desktop.new.warn.icloud": {
+    "status": "mt",
+    "srcHash": "56e738f2c6c8"
+  },
+  "desktop.new.warn.noLinks": {
+    "status": "mt",
+    "srcHash": "a9bf82650d1a"
+  },
+  "desktop.new.warn.onedrive": {
+    "status": "mt",
+    "srcHash": "1af8f68f7d74"
+  },
+  "desktop.new.where": {
+    "status": "mt",
+    "srcHash": "dac1b475bad4"
+  },
+  "desktop.start.choice.build.line": {
+    "status": "mt",
+    "srcHash": "694b31fabb15"
+  },
+  "desktop.start.choice.build.title": {
+    "status": "mt",
+    "srcHash": "d8f37ac32cf1"
+  },
+  "desktop.start.choice.connect.line": {
+    "status": "mt",
+    "srcHash": "f3a33c1063cd"
+  },
+  "desktop.start.choice.connect.title": {
+    "status": "mt",
+    "srcHash": "f3c203e216a6"
+  },
+  "desktop.start.choice.db.line": {
+    "status": "mt",
+    "srcHash": "e359657b5174"
+  },
+  "desktop.start.choice.db.title": {
+    "status": "mt",
+    "srcHash": "3c1803ebfd18"
+  },
+  "desktop.start.choice.open.line": {
+    "status": "mt",
+    "srcHash": "c42c04722d9d"
+  },
+  "desktop.start.choice.open.title": {
+    "status": "mt",
+    "srcHash": "2be2d388b03e"
+  },
+  "desktop.start.heading": {
+    "status": "mt",
+    "srcHash": "7b52603bb25e"
+  },
+  "desktop.start.open.needsPackages": {
+    "status": "mt",
+    "srcHash": "265bf3fc8f5d"
+  },
+  "desktop.start.open.notAProject": {
+    "status": "mt",
+    "srcHash": "70005655684d"
+  },
+  "desktop.start.recent.alreadyListed": {
+    "status": "mt",
+    "srcHash": "099fc25c9db7"
+  },
+  "desktop.start.recent.building": {
+    "status": "mt",
+    "srcHash": "9d914bfcf1c5"
+  },
+  "desktop.start.recent.gone": {
+    "status": "mt",
+    "srcHash": "65fa048bb825"
+  },
+  "desktop.start.recent.heading": {
+    "status": "mt",
+    "srcHash": "176fd17feb7c"
+  },
+  "desktop.start.recent.locate": {
+    "status": "mt",
+    "srcHash": "a96a0f9e9d80"
+  },
+  "desktop.start.recent.locateTitle": {
+    "status": "mt",
+    "srcHash": "624e6e18a0b9"
+  },
+  "desktop.start.recent.notThatProject": {
+    "status": "mt",
+    "srcHash": "d0ef124493eb"
+  },
+  "desktop.start.recent.open": {
+    "status": "mt",
+    "srcHash": "7bac7999cae0"
+  },
+  "desktop.start.recent.opened": {
+    "status": "mt",
+    "srcHash": "a94c51ab08c7"
+  },
+  "desktop.start.recent.remove": {
+    "status": "mt",
+    "srcHash": "e963907dac5c"
+  },
+  "desktop.start.recent.removed": {
+    "status": "mt",
+    "srcHash": "dd8f1bee611b"
+  },
+  "desktop.start.recent.shared": {
+    "status": "mt",
+    "srcHash": "50d0d8dd11a9"
+  },
+  "desktop.start.welcome": {
+    "status": "mt",
+    "srcHash": "f17295fbbe7f"
+  },
+  "desktop.toast.dismiss": {
+    "status": "mt",
+    "srcHash": "70afe9eff3f2"
+  },
+  "desktop.toast.region": {
+    "status": "mt",
+    "srcHash": "e94865d46012"
+  },
+  "desktop.trust.body": {
+    "status": "mt",
+    "srcHash": "7af6e68a7774"
+  },
+  "desktop.trust.cancel": {
+    "status": "mt",
+    "srcHash": "77dfd2135f4d"
+  },
+  "desktop.trust.changed": {
+    "status": "mt",
+    "srcHash": "2e92807d0e5b"
+  },
+  "desktop.trust.open": {
+    "status": "mt",
+    "srcHash": "cf9b77061f7b"
+  },
+  "desktop.trust.title": {
+    "status": "mt",
+    "srcHash": "9760e265be93"
+  },
   "email.actions.archived": {
     "status": "mt",
     "srcHash": "eddc813f35b1"

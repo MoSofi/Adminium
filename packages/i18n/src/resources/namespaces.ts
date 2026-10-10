@@ -31,6 +31,7 @@ export const NAMESPACES = [
   'apiDocs',
   'roles',
   'designer',
+  'desktop',
 ] as const;
 export type Namespace = (typeof NAMESPACES)[number];
 
@@ -175,6 +176,13 @@ export const DEFERRED_NAMESPACES = [
    * this namespace before they render.
    */
   'designer',
+  /*
+   * The desktop app's own pages (Start, a new project, the question before a
+   * folder is opened): drawn by the app's own small bundle before any server
+   * runs, and by nothing in the dashboard. That bundle awaits this namespace
+   * before its first render.
+   */
+  'desktop',
 ] as const;
 export type DeferredNamespace = (typeof DEFERRED_NAMESPACES)[number];
 
