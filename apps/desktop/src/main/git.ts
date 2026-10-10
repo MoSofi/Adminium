@@ -113,7 +113,7 @@ export function readGitRecord(home: string): GitInstallRecord | null {
  * exists. Any tag will do: an app that pins a newer one still uses the older
  * one a person already has.
  */
-export function ownGit(userDataDir: string, platform: string, arch: string): string | null {
+export function ownGit(userDataDir: string, platform: string, arch: string, pinned: GitDownload | null = gitDownloadFor(platform, arch)): string | null {
   const base = join(userDataDir, 'git');
   let tags: string[];
   try {
@@ -126,7 +126,7 @@ export function ownGit(userDataDir: string, platform: string, arch: string): str
     const record = readGitRecord(home);
     if (record === null || record.tag !== tag) continue;
     // The pinned release must match its pinned hash; an older release is trusted by its own record.
-    if (tag === GIT_TAG && record.sha256 !== gitDownloadFor(platform, arch)?.sha256) continue;
+    if (tag === GIT_TAG && record.sha256 !== pinned?.sha256) continue;
     const program = gitProgramIn(home, platform);
     if (existsSync(program)) return program;
   }
@@ -168,6 +168,9 @@ export interface FindGitDeps {
   exists: (path: string) => boolean;
   /** Start a program with a time limit and an environment that is ONLY what is given. Never throws. */
   run: (command: string, args: readonly string[], opts: { timeoutMs: number; env: Record<string, string> }) => Promise<RunResult>;
+  /** Test seams. `onlyOwn`: this computer is taken to have no git but the app's. `download`: the file the app's own is checked against. */
+  onlyOwn?: boolean | undefined;
+  download?: GitDownload | undefined;
 }
 
 export type GitFound = { path: string; from: 'app' | 'shell' | 'system' };
@@ -237,8 +240,9 @@ async function candidates(deps: FindGitDeps): Promise<Array<{ path: string; from
  * when the person says "Look again".
  */
 export async function findGit(deps: FindGitDeps): Promise<GitFound | null> {
-  const own = ownGit(deps.userDataDir, deps.platform, deps.arch);
+  const own = deps.download === undefined ? ownGit(deps.userDataDir, deps.platform, deps.arch) : ownGit(deps.userDataDir, deps.platform, deps.arch, deps.download);
   if (own !== null && (await answers(deps, own))) return { path: own, from: 'app' };
+  if (deps.onlyOwn === true) return null;
 
   let appleTools: boolean | null = null;
   for (const { path, from } of await candidates(deps)) {

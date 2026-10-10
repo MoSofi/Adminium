@@ -3,7 +3,7 @@ import { createServer, type Server } from 'node:net';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { E2E_PORT_ENV, E2E_PROJECT_ENV, PROJECT_PORTS, firstFreePort, projectPortRange, seamProject, sessionCookieNames, stopBusyWords } from './project.js';
+import { E2E_GIT_ENV, E2E_PORT_ENV, E2E_PROJECT_ENV, PROJECT_PORTS, firstFreePort, projectPortRange, seamGit, seamProject, sessionCookieNames, stopBusyWords } from './project.js';
 
 const open: Server[] = [];
 afterEach(async () => {
@@ -30,6 +30,35 @@ describe('firstFreePort', () => {
   it('says so when the whole range is taken', async () => {
     const taken = await listenAnywhere();
     await expect(firstFreePort(taken, taken)).rejects.toThrow(`No port from ${String(taken)} to ${String(taken)} is free`);
+  });
+});
+
+describe('seamGit (the second test seam)', () => {
+  const SHA = 'a'.repeat(64);
+  const named = (value: unknown): NodeJS.ProcessEnv => ({ [E2E_GIT_ENV]: typeof value === 'string' ? value : JSON.stringify(value) });
+
+  it('names the test’s own file on this machine', () => {
+    expect(seamGit(named({ url: 'http://127.0.0.1:9401/git.tar.gz', sha256: SHA, bytes: 512 }), false)).toEqual({
+      url: 'http://127.0.0.1:9401/git.tar.gz',
+      download: { file: 'git.tar.gz', bytes: 512, sha256: SHA },
+    });
+  });
+
+  it('is never read by a packaged app: it would choose the program the app fetches and runs', () => {
+    expect(seamGit(named({ url: 'http://127.0.0.1:9401/git.tar.gz', sha256: SHA, bytes: 512 }), true)).toBeNull();
+  });
+
+  it('is nothing when it is absent, not JSON, another machine’s address, or not a file’s hash and size', () => {
+    expect(seamGit({}, false)).toBeNull();
+    expect(seamGit(named('  '), false)).toBeNull();
+    expect(seamGit(named('{'), false)).toBeNull();
+    expect(seamGit(named({ url: 'https://example.com/git.tar.gz', sha256: SHA, bytes: 512 }), false)).toBeNull();
+    expect(seamGit(named({ url: 7, sha256: SHA, bytes: 512 }), false)).toBeNull();
+    expect(seamGit(named({ url: 'http://127.0.0.1:9401/git.tar.gz', sha256: 'abc', bytes: 512 }), false)).toBeNull();
+    expect(seamGit(named({ url: 'http://127.0.0.1:9401/git.tar.gz', sha256: 5, bytes: 512 }), false)).toBeNull();
+    expect(seamGit(named({ url: 'http://127.0.0.1:9401/git.tar.gz', sha256: SHA, bytes: 0 }), false)).toBeNull();
+    expect(seamGit(named({ url: 'http://127.0.0.1:9401/git.tar.gz', sha256: SHA, bytes: '512' }), false)).toBeNull();
+    expect(seamGit(named({ url: 'http://127.0.0.1:9401/git.tar.gz', sha256: SHA, bytes: 1.5 }), false)).toBeNull();
   });
 });
 

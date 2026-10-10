@@ -195,6 +195,23 @@ describe.skipIf(!hasGit)('versions that come on after a session was worked in', 
     expect(read('apps/repairs/manifest/tables/jobs.json')).toBe('{"ref":"jobs"}');
   });
 
+  it('come on in the same object when the host finds a git later, without a restart', async () => {
+    // The desktop app: none at the start, one fetched while the project is open.
+    let found: string | null = null;
+    const versions = createVersions(root, { git: () => found });
+    put('apps/repairs/manifest/app.json', '{"key":"repairs"}');
+    expect(await versions.available()).toBe(false);
+    expect(await versions.commit(session)).toBeNull();
+
+    found = 'git';
+    expect(await versions.available()).toBe(true);
+    expect(await versions.catchUp(session)).toEqual({ n: 1, name: 'v1 · Before versions were on' });
+
+    // And off again when it goes (the app's own git deleted): asked each time, never remembered across paths.
+    found = null;
+    expect(await versions.available()).toBe(false);
+  });
+
   it('do nothing for a session that had versions on from its start', async () => {
     const on = createVersions(root);
     put('apps/repairs/manifest/app.json', '{"key":"repairs"}');

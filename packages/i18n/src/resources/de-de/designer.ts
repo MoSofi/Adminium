@@ -753,5 +753,30 @@ export default {
     "label": "Bauen oder teilen",
     "build": "Bauen",
     "share": "Teilen"
+  },
+  "versionsOffer": {
+    "title": "Versionen Ihrer Arbeit aufbewahren?",
+    "body": "Adminium verwendet git, um nach jeder Änderung eine Version aufzubewahren, damit Sie zurückgehen können. Auf diesem Computer ist keines vorhanden.",
+    "download": "git herunterladen ({size} MB)",
+    "notNow": "Nicht jetzt",
+    "apple": "Oder installieren Sie Apples Entwicklerwerkzeuge (etwa 1 GB), die es enthalten.",
+    "appleLink": "Apples Werkzeuge installieren",
+    "lookAgain": "Erneut suchen",
+    "noDownload": "Für diese Art von Computer gibt es kein git zum Herunterladen. Installieren Sie git selbst und suchen Sie dann erneut.",
+    "downloading": "git wird heruntergeladen",
+    "progress": "{received} von {total} MB",
+    "cancel": "Abbrechen",
+    "tryAgain": "Erneut versuchen",
+    "turnOn": "Versionen einschalten",
+    "offHere": "Versionen sind auf diesem Computer ausgeschaltet.",
+    "offButton": "Versionen: aus",
+    "offWord": "Aus",
+    "nowOn": "Versionen sind eingeschaltet",
+    "nowOnNext": "Ihre nächste Änderung wird als Version aufbewahrt.",
+    "failed": {
+      "wrongFile": "Der Download entsprach nicht dem, was Adminium erwartet hat, und wurde gelöscht.",
+      "noConnection": "Das Internet war nicht erreichbar. Prüfen Sie Ihre Verbindung und versuchen Sie es erneut.",
+      "other": "git konnte auf diesem Computer nicht eingerichtet werden."
+    }
   }
 } as const;

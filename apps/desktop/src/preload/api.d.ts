@@ -544,6 +544,41 @@ export interface DesktopProjectInfo {
   readonly mode: 'design' | 'serve';
 }
 
+/** How far a download of git is, or why it did not finish. */
+export type DesktopVersionsDownload =
+  | { readonly phase: 'idle' }
+  | { readonly phase: 'downloading'; readonly received: number; readonly total: number }
+  | { readonly phase: 'failed'; readonly reason: 'no-connection' | 'wrong-file' | 'failed' };
+
+/** Versions of a project's work need git. What the app knows of it on this computer. */
+export interface DesktopVersionsState {
+  /** A git that works is known: versions are on. */
+  readonly on: boolean;
+  /** The person said "Not now" to the offer on this computer. */
+  readonly declined: boolean;
+  /** The download's size in megabytes, or `null`: there is none for this kind of computer. */
+  readonly megabytes: number | null;
+  /** A Mac: Apple's own developer tools are the other road. */
+  readonly appleTools: boolean;
+  readonly download: DesktopVersionsDownload;
+}
+
+/**
+ * The offer to keep versions, on a computer with no git. Nothing is fetched
+ * before `download()`, which only the person's own click calls.
+ */
+export interface DesktopVersionsApi {
+  state(): Promise<DesktopVersionsState>;
+  /** Starts the download and answers at once: ask `state()` for how far it is. */
+  download(): Promise<DesktopVersionsState>;
+  cancel(): Promise<DesktopVersionsState>;
+  notNow(): Promise<DesktopVersionsState>;
+  /** A git installed since the project was opened is found without a restart. */
+  lookAgain(): Promise<DesktopVersionsState>;
+  /** macOS: start Apple's own installer of its developer tools. */
+  appleTools(): Promise<DesktopVersionsState>;
+}
+
 /**
  * What a project's own page asks of the app. Each call names nothing: it acts
  * on the project this window holds, so a page cannot point it at another folder.
@@ -558,6 +593,8 @@ export interface DesktopProjectApi {
    * chose to keep working (something was in the middle of running).
    */
   close(): Promise<boolean>;
+  /** Absent in an app older than the offer. */
+  readonly versions?: DesktopVersionsApi | undefined;
 }
 
 // ─── The API ─────────────────────────────────────────────────────────────────

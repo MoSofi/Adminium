@@ -29,6 +29,7 @@ import { t } from '../../i18n/t.js';
 import { designerApi, yourAppsQuery, type DesignerTarget, type CatalogApp } from '../api.js';
 import { useDesignerModel } from '../models/useModel.js';
 import { useModelControl } from '../models/useModelControl.js';
+import { TurnVersionsOn, useDesktopVersions, VersionsCard } from '../parts/DesktopVersions.js';
 import { TopBar } from '../parts/TopBar.js';
 import { StartSheet } from './StartSheet.js';
 import { StartWithAnApp } from './StartWithAnApp.js';
@@ -63,6 +64,10 @@ export function DesignerHome(): ReactNode {
   const [turn, setTurn] = useState(0);
   /** The app whose sheet is open. */
   const [starting, setStarting] = useState<CatalogApp | null>(null);
+  // Inside the desktop app on a computer with no git: the offer to keep versions.
+  const desktopVersions = useDesktopVersions(() => toasts.push({ variant: 'success', title: t('designer:versionsOffer.nowOn', 'Versions are on'), description: t('designer:versionsOffer.nowOnNext', 'Your next change is kept as a version.') }));
+  /** "Turn versions on" was pressed after an earlier "Not now": the card is back for this visit. */
+  const [versionsReopened, setVersionsReopened] = useState(false);
   const box = useRef<HTMLTextAreaElement>(null);
   const attach = useAttach();
   /** The session a first message with files made, kept until that message is sent. */
@@ -133,12 +138,14 @@ export function DesignerHome(): ReactNode {
       <TopBar dashboardLink />
       <main className="flex flex-col items-center px-[clamp(16px,4.5vw,48px)] pb-[clamp(56px,7vw,112px)] pt-[clamp(44px,7.5vw,112px)]">
         <div className="flex w-full max-w-[1040px] flex-col items-center">
+          <VersionsCard versions={desktopVersions} reopened={versionsReopened} />
           <h1 className="m-0 text-balance text-center text-[clamp(28px,2.9vw,42px)] font-extrabold leading-tight tracking-tight">
             {t('designer:home.title', 'What do you want to build?')}
           </h1>
           <p className="mt-3 max-w-[560px] text-pretty text-center text-[clamp(14px,1.15vw,16px)] leading-normal text-fg-muted">
             {t('designer:home.lead', 'Describe it. Adminium brings the database, the dashboard, sign-in and the API.')}
           </p>
+          <TurnVersionsOn versions={desktopVersions} reopened={versionsReopened} onReopen={() => setVersionsReopened(true)} />
 
           <form onSubmit={send} className="relative z-20 mt-[clamp(26px,2.6vw,36px)] w-full max-w-[700px]">
             <div

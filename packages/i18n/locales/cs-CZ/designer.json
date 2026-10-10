@@ -743,5 +743,30 @@
     "label": "Stavět, nebo sdílet",
     "build": "Stavět",
     "share": "Sdílet"
+  },
+  "versionsOffer": {
+    "title": "Uchovávat verze vaší práce?",
+    "body": "Adminium používá git, aby po každé změně uchovalo verzi a vy jste se mohli vrátit. Na tomto počítači žádný není.",
+    "download": "Stáhnout git ({size} MB)",
+    "notNow": "Teď ne",
+    "apple": "Nebo nainstalujte vývojářské nástroje od Applu (asi 1 GB), které jej obsahují.",
+    "appleLink": "Nainstalovat nástroje od Applu",
+    "lookAgain": "Hledat znovu",
+    "noDownload": "Pro tento druh počítače není git ke stažení. Nainstalujte si git sami a pak hledejte znovu.",
+    "downloading": "Stahuje se git",
+    "progress": "{received} z {total} MB",
+    "cancel": "Zrušit",
+    "tryAgain": "Zkusit znovu",
+    "turnOn": "Zapnout verze",
+    "offHere": "Verze jsou na tomto počítači vypnuté.",
+    "offButton": "Verze: vypnuto",
+    "offWord": "Vypnuto",
+    "nowOn": "Verze jsou zapnuté",
+    "nowOnNext": "Vaše příští změna se uchová jako verze.",
+    "failed": {
+      "wrongFile": "Stažený soubor neodpovídal tomu, co Adminium očekávalo, a byl smazán.",
+      "noConnection": "Nepodařilo se připojit k internetu. Zkontrolujte připojení a zkuste to znovu.",
+      "other": "git se na tomto počítači nepodařilo nastavit."
+    }
   }
 }

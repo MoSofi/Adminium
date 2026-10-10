@@ -11,6 +11,8 @@ import { existsSync, realpathSync } from 'node:fs';
 import { createServer } from 'node:net';
 import { isAbsolute, join } from 'node:path';
 
+import { LOOPBACK_HOST } from '../server/env.js';
+import type { GitDownload } from './git.js';
 import type { ServerBusy } from './server-manager.js';
 
 /** The ports a project's server tries, in order: the same range `adminium design` uses on a terminal. */
@@ -70,6 +72,33 @@ export function seamProject(
   }
   // The folder itself, never a parent that happens to be a project.
   return CONFIG_FILES.some((file) => fs.exists(join(root, file))) ? { root } : undefined;
+}
+
+/**
+ * A second seam, for the offer to keep versions: this computer is taken to have
+ * no git, and the download is the test's own file from the test's own server.
+ * JSON: `{ "url": "http://127.0.0.1:…", "sha256": "…", "bytes": 123 }`.
+ * A PACKAGED APP NEVER READS IT: it would let an environment variable choose
+ * the program the app fetches and runs.
+ */
+export const E2E_GIT_ENV = 'ADMINIUM_DESKTOP_E2E_GIT';
+
+export function seamGit(env: NodeJS.ProcessEnv, isPackaged: boolean): { readonly url: string; readonly download: GitDownload } | null {
+  if (isPackaged) return null;
+  const raw = env[E2E_GIT_ENV]?.trim() ?? '';
+  if (raw === '') return null;
+  try {
+    const value = JSON.parse(raw) as { url?: unknown; sha256?: unknown; bytes?: unknown };
+    if (typeof value.url !== 'string') return null;
+    // This machine only, by its number: parsed, not matched as text.
+    const address = new URL(value.url);
+    if (address.protocol !== 'http:' || address.hostname !== LOOPBACK_HOST || address.port === '') return null;
+    if (typeof value.sha256 !== 'string' || !/^[0-9a-f]{64}$/.test(value.sha256)) return null;
+    if (typeof value.bytes !== 'number' || !Number.isInteger(value.bytes) || value.bytes < 1) return null;
+    return { url: value.url, download: { file: 'git.tar.gz', bytes: value.bytes, sha256: value.sha256 } };
+  } catch {
+    return null;
+  }
 }
 
 /** With the seam only: the first port to try, so a test run stays inside the ports it was given. */

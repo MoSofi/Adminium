@@ -68,19 +68,21 @@ export class VersionsError extends Error {
   override readonly name = 'VersionsError';
 }
 
-export function createVersions(root: string, opts: { git?: string | null } = {}): Versions {
+export function createVersions(root: string, opts: { git?: string | null | (() => string | null) } = {}): Versions {
   // `null`: the host looked and found no git (the desktop app). Versions are off, and NOTHING is started to find
   // out: on a Mac with no developer tools the `git` on the PATH is Apple's stand-in, and starting it raises the
   // system's install dialog.
-  const gitBinary = opts.git ?? 'git';
-  const none = opts.git === null;
+  // A function: the host may find one LATER (the desktop app fetches git on a person's yes, while the project is
+  // open), so the path is asked for each time and what was learned about one path is not believed of the next.
+  const source = opts.git;
+  const gitPath = (): string | null => (typeof source === 'function' ? source() : source === undefined ? 'git' : source);
   const gitDir = join(root, DESIGNER_DIR, 'versions.git');
-  let known: boolean | null = null;
+  let known: { path: string | null; works: boolean } | null = null;
 
   function git(args: readonly string[], env: Record<string, string> = {}): Promise<string> {
     return new Promise((resolve, reject) => {
       execFile(
-        gitBinary,
+        gitPath() ?? 'git',
         [
           '-c',
           'core.hooksPath=/dev/null',
@@ -128,7 +130,7 @@ export function createVersions(root: string, opts: { git?: string | null } = {})
     if (existsSync(join(gitDir, 'HEAD'))) return;
     mkdirSync(join(root, DESIGNER_DIR), { recursive: true });
     await new Promise<void>((resolve, reject) => {
-      execFile(gitBinary, ['init', '--bare', '--quiet', gitDir], { timeout: GIT_TIMEOUT_MS, env: { ...scrubbedEnvironment(), GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_NOSYSTEM: '1' } }, (error) => {
+      execFile(gitPath() ?? 'git', ['init', '--bare', '--quiet', gitDir], { timeout: GIT_TIMEOUT_MS, env: { ...scrubbedEnvironment(), GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_NOSYSTEM: '1' } }, (error) => {
         if (error !== null) reject(new VersionsError(`git init failed: ${error.message}`));
         else resolve();
       });
@@ -181,12 +183,17 @@ export function createVersions(root: string, opts: { git?: string | null } = {})
 
   return {
     async available() {
-      if (known !== null) return known;
-      if (none) return (known = false);
-      known = await new Promise<boolean>((resolve) => {
-        execFile(gitBinary, ['--version'], { timeout: 5000 }, (error) => resolve(error === null));
+      const path = gitPath();
+      if (known !== null && known.path === path) return known.works;
+      if (path === null) {
+        known = { path, works: false };
+        return false;
+      }
+      const works = await new Promise<boolean>((resolve) => {
+        execFile(path, ['--version'], { timeout: 5000 }, (error) => resolve(error === null));
       });
-      return known;
+      known = { path, works };
+      return works;
     },
     async commit(session, label) {
       if (!(await this.available())) return null;

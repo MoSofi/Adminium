@@ -110,9 +110,13 @@ describe('desktopConfigSchema', () => {
       ],
       language: 'ar',
       theme: 'dark',
+      versionsDeclined: true,
     };
 
     expect(desktopConfigSchema.parse(body)).toEqual(body);
+    // A file written before the versions offer has no such key, and is read as "never asked".
+    const { versionsDeclined: _, ...before } = body;
+    expect(desktopConfigSchema.parse(before).versionsDeclined).toBe(false);
   });
 
   it('accepts the default config, with window position left to the OS', () => {
@@ -815,7 +819,7 @@ describe('version 1 → 2: the first screens', () => {
   it('adds an empty list of projects, the system’s language and theme, and changes nothing else', () => {
     const { raw, fromVersion } = migrateConfig(V1);
     expect(fromVersion).toBe(1);
-    expect(desktopConfigSchema.parse(raw)).toEqual({ ...V1, version: 2, projects: [], language: null, theme: 'system' });
+    expect(desktopConfigSchema.parse(raw)).toEqual({ ...V1, version: 2, projects: [], language: null, theme: 'system', versionsDeclined: false });
   });
 
   it('a version 2 file read by an older build is refused with words a person can act on', () => {

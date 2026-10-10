@@ -58,6 +58,7 @@ import type {
   DesktopOpenProjectResult,
   DesktopProjectInfo,
   DesktopRecentProject,
+  DesktopVersionsState,
   DesktopRuntimeInfo,
   DesktopStartState,
   DesktopUpdateCheckResult,
@@ -303,6 +304,14 @@ export function createDesktopApi(deps: Pick<PreloadDeps, 'ipc' | 'bootstrap'>): 
       info: (): Promise<DesktopProjectInfo | null> => unwrap(ipc.invoke(IPC_CHANNELS.projectInfo)),
       showInFolder: (): Promise<void> => unwrap(ipc.invoke(IPC_CHANNELS.projectShowInFolder)),
       close: (): Promise<boolean> => unwrap(ipc.invoke(IPC_CHANNELS.projectClose)),
+      versions: {
+        state: (): Promise<DesktopVersionsState> => unwrap(ipc.invoke(IPC_CHANNELS.versionsState)),
+        download: (): Promise<DesktopVersionsState> => unwrap(ipc.invoke(IPC_CHANNELS.versionsDownload)),
+        cancel: (): Promise<DesktopVersionsState> => unwrap(ipc.invoke(IPC_CHANNELS.versionsCancel)),
+        notNow: (): Promise<DesktopVersionsState> => unwrap(ipc.invoke(IPC_CHANNELS.versionsNotNow)),
+        lookAgain: (): Promise<DesktopVersionsState> => unwrap(ipc.invoke(IPC_CHANNELS.versionsLookAgain)),
+        appleTools: (): Promise<DesktopVersionsState> => unwrap(ipc.invoke(IPC_CHANNELS.versionsAppleTools)),
+      },
     },
   };
 }

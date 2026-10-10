@@ -23,6 +23,7 @@ import {
 import { getI18nInstance, t } from '../../i18n/t.js';
 import type { DesignerVersion } from '../api.js';
 import { editedWhen } from '../home/YourApps.js';
+import { VERSIONS_PILL } from '../parts/DesktopVersions.js';
 import { MENU_HEADING } from './MoreMenu.js';
 import { versionLabel, versionName } from './versionName.js';
 
@@ -63,6 +64,7 @@ export function SessionTitle({
   current,
   onGoBack,
   busy,
+  onTurnVersionsOn,
 }: {
   title: string;
   onRename: (title: string) => void;
@@ -71,6 +73,8 @@ export function SessionTitle({
   current: DesignerVersion | null;
   onGoBack: (version: DesignerVersion) => void;
   busy: boolean;
+  /** Inside the desktop app, on a computer with no git: versions can be turned on from here. */
+  onTurnVersionsOn?: (() => void) | undefined;
 }): ReactNode {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(title);
@@ -130,7 +134,30 @@ export function SessionTitle({
         </Tooltip>
       )}
 
-      {!available ? (
+      {!available && onTurnVersionsOn !== undefined ? (
+        <DropdownMenu modal={false}>
+          <DropdownMenuTrigger
+            aria-label={t('designer:versionsOffer.offButton', 'Versions: off')}
+            className="inline-flex h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-[9px] border border-border bg-surface-2 pe-[7px] ps-[9px] text-[12.5px] font-bold leading-[normal] text-fg hover:border-border-strong focus-visible:outline-2 focus-visible:outline-accent"
+          >
+            <History aria-hidden="true" className="size-3.5 text-fg-subtle" />
+            <span className="text-fg-muted">{t('designer:versionsOffer.offWord', 'Off')}</span>
+            <ChevronDown aria-hidden="true" className="size-3.5 text-fg-subtle" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="center" className="w-[420px] max-w-[calc(100vw-24px)] rounded-[14px] p-1.5 leading-[normal]">
+            <DropdownMenuLabel className={MENU_HEADING}>{t('designer:versions.title', 'Versions')}</DropdownMenuLabel>
+            <div className="flex flex-col items-center gap-3 px-4 pb-5 pt-[22px] text-center">
+              <span aria-hidden="true" className="flex size-10 items-center justify-center rounded-[12px] bg-surface-3 text-fg-muted">
+                <History className="size-[19px]" />
+              </span>
+              <span className="text-[13px] text-fg-muted">{t('designer:versionsOffer.offHere', 'Versions are off on this computer.')}</span>
+              <DropdownMenuItem onSelect={onTurnVersionsOn} icon={<History />} className={`${VERSIONS_PILL} w-auto [&_svg]:size-3.5`}>
+                {t('designer:versionsOffer.turnOn', 'Turn versions on')}
+              </DropdownMenuItem>
+            </div>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      ) : !available ? (
         <Tooltip content={t('designer:versions.offHint', 'Versions need git on this machine. Install git and start the Designer again.')}>
           <span tabIndex={0} className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-semibold text-fg-subtle">
             <History aria-hidden="true" className="size-3.5" />

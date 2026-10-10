@@ -743,5 +743,30 @@
     "label": "Build or share",
     "build": "Build",
     "share": "Share"
+  },
+  "versionsOffer": {
+    "title": "Keep versions of your work?",
+    "body": "Adminium uses git to keep a version after every change, so you can go back. This computer has none.",
+    "download": "Download git ({size} MB)",
+    "notNow": "Not now",
+    "apple": "Or install Apple’s developer tools (about 1 GB), which include it.",
+    "appleLink": "Install Apple’s tools",
+    "lookAgain": "Look again",
+    "noDownload": "There is no git to download for this kind of computer. Install git yourself, then look again.",
+    "downloading": "Downloading git",
+    "progress": "{received} of {total} MB",
+    "cancel": "Cancel",
+    "tryAgain": "Try again",
+    "turnOn": "Turn versions on",
+    "offHere": "Versions are off on this computer.",
+    "offButton": "Versions: off",
+    "offWord": "Off",
+    "nowOn": "Versions are on",
+    "nowOnNext": "Your next change is kept as a version.",
+    "failed": {
+      "wrongFile": "The download did not match what Adminium expected and was deleted.",
+      "noConnection": "Could not reach the internet. Check your connection and try again.",
+      "other": "git could not be set up on this computer."
+    }
   }
 }

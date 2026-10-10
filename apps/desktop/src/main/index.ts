@@ -32,6 +32,7 @@ import {
   BrowserWindow,
   dialog,
   ipcMain,
+  net,
   powerMonitor,
   safeStorage,
   session,
@@ -83,12 +84,13 @@ import {
 import { buildAppMenu, menuTranslator, type MenuHandlers, type MenuTranslate } from './menu.js';
 import { EPHEMERAL_PORT, generateBootToken, LOOPBACK_HOST } from '../server/env.js';
 import { LAN_PORT_IN_USE, registerIpcHandlers, type DesktopRuntimeSnapshot } from './ipc.js';
-import { findGit, removeUnfinishedGit, runProgram } from './git.js';
+import { fetchGit, findGit, gitDownloadFor, removeUnfinishedGit, runProgram } from './git.js';
 import { createDesktopLogging } from './logging.js';
 import { createInstallPackages, createMakeProject, runToEnd, type MakeProjectDeps } from './make-project.js';
 import { carriedNpmDir, provideDesktopPrograms } from './programs.js';
-import { firstFreePort, projectPortRange, seamProject, sessionCookieNames, stopBusyWords } from './project.js';
+import { firstFreePort, projectPortRange, seamGit, seamProject, sessionCookieNames, stopBusyWords } from './project.js';
 import { realFolderDeps, type FolderDeps } from './projects.js';
+import { createVersionsOffer, type VersionsOffer, type VersionsOfferDeps } from './versions-offer.js';
 import { createStartService, displayPathOf, nameFromFolder, type StartChoice, type StartDeps, type StartService } from './start.js';
 import {
   createServerManager,
@@ -400,7 +402,14 @@ export interface DesktopBridgeContext {
   /** The first screens' service while Start is what the window holds; `null` otherwise. */
   start?: (() => StartService | null) | undefined;
   /** The project the window holds (`info` is `null` in the classic workspace), and the way out of it. */
-  project?: { info: () => { root: string; displayPath: string; name: string; mode: 'design' | 'serve' } | null; close: () => Promise<boolean> } | undefined;
+  project?:
+    | {
+        info: () => { root: string; displayPath: string; name: string; mode: 'design' | 'serve' } | null;
+        close: () => Promise<boolean>;
+        /** The offer to keep versions, of the project that is open. */
+        versions?: (() => VersionsOffer | null) | undefined;
+      }
+    | undefined;
 }
 
 /** What the boot sequence knows about itself; `getRuntimeInfo` reads it. */
@@ -587,6 +596,21 @@ export interface DesktopBootDeps {
    */
   projectPrograms?: (() => string | Promise<string>) | undefined;
   /**
+   * git on this computer, for the offer to keep versions: whether the last
+   * `projectPrograms()` found one, the file there is to fetch, and the fetch.
+   * Left out: nothing is offered (a build that cannot look).
+   */
+  projectGit?:
+    | {
+        readonly found: () => boolean;
+        readonly bytes: number | null;
+        readonly platform: string;
+        readonly fetch: VersionsOfferDeps['fetch'];
+        readonly installAppleTools?: (() => Promise<void>) | undefined;
+        readonly log?: ((line: string) => void) | undefined;
+      }
+    | undefined;
+  /**
    * The environment a project's server starts from, before main's own block
    * is laid over it (and the stripped names are taken out). A terminal's
    * server has the person's environment: their PATH is where `git` is found
@@ -669,6 +693,8 @@ export function createDesktopApp(deps: DesktopBootDeps): DesktopApp {
   let startOpen = false;
   /** Set by `start()`; `null` before it and in a boot that cannot return to Start. */
   let closeProject: (() => Promise<boolean>) | null = null;
+  /** The offer to keep versions, of the project that is open. */
+  let versionsOffer: VersionsOffer | null = null;
   /**
    * The updater, `null` until step 5 and `null` forever in `disabled` mode.
    * Held here — rather than a step-5 const — for the quit hook below, which
@@ -951,6 +977,7 @@ export function createDesktopApp(deps: DesktopBootDeps): DesktopApp {
             return { root: open.root, displayPath, name: known?.name ?? nameFromFolder(open.root), mode: open.mode };
           },
           close: () => (closeProject === null ? Promise.resolve(false) : closeProject()),
+          versions: () => (manager?.project == null ? null : versionsOffer),
         },
       });
 
@@ -1111,6 +1138,33 @@ export function createDesktopApp(deps: DesktopBootDeps): DesktopApp {
           },
         });
         manager = projectManager;
+        const git = deps.projectGit;
+        versionsOffer =
+          git === undefined || deps.projectPrograms === undefined
+            ? null
+            : createVersionsOffer({
+                found: git.found(),
+                bytes: git.bytes,
+                platform: git.platform,
+                declined: () => (config ?? loadedConfig).versionsDeclined,
+                setDeclined: async (declined) => {
+                  const current = config ?? loadedConfig;
+                  if (current.versionsDeclined === declined) return;
+                  const next: DesktopConfig = { ...current, versionsDeclined: declined };
+                  await deps.config.save(next);
+                  config = next;
+                },
+                fetch: git.fetch,
+                // The stand-ins are made again and git looked for again; the server that is running is told, and
+                // so is every later start of it.
+                refresh: async () => {
+                  const value = await deps.projectPrograms?.();
+                  if (value !== undefined && manager === projectManager) projectManager.setPrograms(value);
+                  return git.found();
+                },
+                ...(git.installAppleTools === undefined ? {} : { installAppleTools: git.installAppleTools }),
+                ...(git.log === undefined ? {} : { log: git.log }),
+              });
         updateManager = deps.createUpdateManager({ mode: loadedConfig.updates.mode });
         menuHandlers = {
           showLogs: () => void deps.showLogs(),
@@ -1474,6 +1528,8 @@ export function createDesktopApp(deps: DesktopBootDeps): DesktopApp {
         if (busy !== null && deps.confirmStopBusy !== undefined && !(await deps.confirmStopBusy(busy, 'close').catch(() => true))) return false;
         await target.stop().catch(() => undefined);
         await startService?.trustNow(root).catch(() => undefined);
+        versionsOffer?.dispose();
+        versionsOffer = null;
         updateManager?.dispose();
         updateManager = null;
         manager = null;
@@ -2016,10 +2072,24 @@ export function electronBootDeps(): DesktopBootDeps {
   // The app's own Node (this program, asked to be Node), the npm it carries, and the stand-ins, made now from
   // THIS launch's path; and a git that really works here, or none (versions are then off, and never Apple's
   // stand-in started "to see").
+  // The test seam (see `project.ts`): a computer with no git but the app's own, and a stand-in for the download.
+  const gitSeam = seamGit(process.env, app.isPackaged);
+  let gitFound = false;
+  let gitFetching = false;
   const projectPrograms = async () => {
-    const cleared = removeUnfinishedGit(userDataDir);
+    // Not while a download is being unpacked: its half-made folder is exactly what this would delete.
+    const cleared = gitFetching ? [] : removeUnfinishedGit(userDataDir);
     if (cleared.length > 0) mainLog(`[git] removed a download that was cut short: ${cleared.join(', ')}`);
-    const git = await findGit({ platform: process.platform, arch: process.arch, env: process.env, userDataDir, exists: existsSync, run: runProgram });
+    const git = await findGit({
+      platform: process.platform,
+      arch: process.arch,
+      env: process.env,
+      userDataDir,
+      exists: existsSync,
+      run: runProgram,
+      ...(gitSeam === null ? {} : { onlyOwn: true, download: gitSeam.download }),
+    });
+    gitFound = git !== null;
     mainLog(git === null ? '[git] none found: versions are off' : `[git] ${git.path} (${git.from})`);
     return JSON.stringify(
       provideDesktopPrograms({
@@ -2273,6 +2343,33 @@ export function electronBootDeps(): DesktopBootDeps {
     },
     projectEnv: process.env,
     projectPrograms,
+    projectGit: {
+      found: () => gitFound,
+      bytes: (gitSeam?.download ?? gitDownloadFor(process.platform, process.arch))?.bytes ?? null,
+      platform: process.platform,
+      fetch: async ({ signal, onProgress }) => {
+        gitFetching = true;
+        try {
+          return await fetchGit({
+            userDataDir,
+            platform: process.platform,
+            arch: process.arch,
+            // Electron's own fetch: the system's proxy and certificates, as the updater uses.
+            fetch: (url, init) => net.fetch(url, init),
+            signal,
+            onProgress,
+            ...(gitSeam === null ? {} : { download: gitSeam.download, url: gitSeam.url, allowHost: () => true }),
+          });
+        } finally {
+          gitFetching = false;
+        }
+      },
+      // Apple's own dialog, asked for by the person's click: the one time its stand-in is started on purpose.
+      installAppleTools: async () => {
+        await runProgram('/usr/bin/xcode-select', ['--install'], { timeoutMs: 10_000, env: {} });
+      },
+      log: mainLog,
+    },
     pickProjectPort: () => {
       const range = projectPortRange(process.env, app.isPackaged);
       return firstFreePort(range.first, range.last);

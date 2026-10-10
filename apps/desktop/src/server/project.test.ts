@@ -120,6 +120,13 @@ describe('the messages', () => {
     expect(parseParentMessage({ type: 'eval', code: 'x' }).ok).toBe(false);
   });
 
+  it('main may say where its programs are now, and nothing shapeless', () => {
+    expect(parseParentMessage({ type: 'programs', value: '{"binary":"/app/Adminium","git":"/data/git/bin/git"}' }).ok).toBe(true);
+    expect(parseParentMessage({ type: 'programs' }).ok).toBe(false);
+    expect(parseParentMessage({ type: 'programs', value: '' }).ok).toBe(false);
+    expect(parseParentMessage({ type: 'programs', value: 'x'.repeat(8193) }).ok).toBe(false);
+  });
+
   it('and the server answers with the Designer’s word, or nothing', () => {
     expect(parseServerMessage({ type: 'busy', busy: null }).ok).toBe(true);
     expect(parseServerMessage({ type: 'busy', busy: { kind: 'turn', sessionId: 'ds_1' } }).ok).toBe(true);
@@ -202,6 +209,18 @@ describe('runProjectEntry', () => {
     expect(exit).not.toHaveBeenCalled();
     release();
     await vi.waitFor(() => expect(exit).toHaveBeenCalledWith(0));
+  });
+
+  it('takes the app’s word for where its programs are now, without stopping', async () => {
+    const { port, send } = fakePort();
+    const handle = started();
+    const env = block();
+    const exit = vi.fn();
+    await runProjectEntry({ parentPort: port, env, start: vi.fn(async () => handle), chdir: vi.fn(), exit, onLog: vi.fn() });
+    send({ type: 'programs', value: '{"binary":"/app/Adminium","git":"/data/git/bin/git"}' });
+    expect(env['ADMINIUM_DESKTOP_PROGRAMS']).toBe('{"binary":"/app/Adminium","git":"/data/git/bin/git"}');
+    expect(handle.close).not.toHaveBeenCalled();
+    expect(exit).not.toHaveBeenCalled();
   });
 
   it('a start that fails says at which step, with the server’s own words, and exits', async () => {

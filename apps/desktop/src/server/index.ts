@@ -302,6 +302,8 @@ export async function runServerEntry(opts: RunServerEntryOptions): Promise<Boote
         post({ type: 'busy', busy: null });
         return;
       }
+      // A project's message: here there is no folder whose versions a git could keep.
+      if (parsed.message.type === 'programs') return;
       void shutdown(booted).then(
         () => exit(0),
         () => exit(1),
@@ -416,6 +418,12 @@ export async function runProjectEntry(opts: RunProjectEntryOptions): Promise<Sta
       }
       if (parsed.message.type === 'busy?') {
         post({ type: 'busy', busy: started.busy() });
+        return;
+      }
+      if (parsed.message.type === 'programs') {
+        // Read again at each use (`project/programs.ts`): the next thing that asks for git finds the new one.
+        (opts.env ?? process.env)['ADMINIUM_DESKTOP_PROGRAMS'] = parsed.message.value;
+        log('[server] the app says its programs changed');
         return;
       }
       // A second `shutdown` while the first is still closing changes nothing: the first one's exit is the answer.

@@ -69,6 +69,12 @@ export const IPC_CHANNELS = {
   projectInfo: 'adminium-desktop:project-info',
   projectShowInFolder: 'adminium-desktop:project-show-in-folder',
   projectClose: 'adminium-desktop:project-close',
+  versionsState: 'adminium-desktop:versions-state',
+  versionsDownload: 'adminium-desktop:versions-download',
+  versionsCancel: 'adminium-desktop:versions-cancel',
+  versionsNotNow: 'adminium-desktop:versions-not-now',
+  versionsLookAgain: 'adminium-desktop:versions-look-again',
+  versionsAppleTools: 'adminium-desktop:versions-apple-tools',
   updateEvent: 'adminium-desktop:update-event',
 } as const;
 
@@ -91,6 +97,16 @@ export const START_CHANNELS = [
   IPC_CHANNELS.startForgetProject,
   IPC_CHANNELS.startLocateProject,
   IPC_CHANNELS.startUseClassic,
+] as const;
+
+/** The versions offer's channels: answered for the project's own page, each naming nothing. */
+export const VERSIONS_CHANNELS = [
+  IPC_CHANNELS.versionsState,
+  IPC_CHANNELS.versionsDownload,
+  IPC_CHANNELS.versionsCancel,
+  IPC_CHANNELS.versionsNotNow,
+  IPC_CHANNELS.versionsLookAgain,
+  IPC_CHANNELS.versionsAppleTools,
 ] as const;
 
 /** Every channel `registerIpcHandlers` answers with `ipcMain.handle`. */
@@ -116,6 +132,7 @@ export const INVOKE_CHANNELS = [
   IPC_CHANNELS.projectInfo,
   IPC_CHANNELS.projectShowInFolder,
   IPC_CHANNELS.projectClose,
+  ...VERSIONS_CHANNELS,
 ] as const;
 
 /**

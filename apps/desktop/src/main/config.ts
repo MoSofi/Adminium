@@ -214,6 +214,12 @@ export const desktopConfigSchema = z.strictObject({
   language: z.string().min(2).nullable(),
   /** Light, dark, or as the system is. */
   theme: themeChoiceSchema,
+  /**
+   * The person said "Not now" to keeping versions (a computer with no git). Not
+   * for ever: the offer becomes a button. A default and not a new version: a
+   * file written before this key is read as "never asked".
+   */
+  versionsDeclined: z.boolean().default(false),
 });
 
 export type DesktopConfig = z.infer<typeof desktopConfigSchema>;
@@ -258,6 +264,7 @@ export function createDefaultConfig(dataDir: string): DesktopConfig {
     projects: [],
     language: null,
     theme: 'system',
+    versionsDeclined: false,
   };
 }
 
@@ -288,6 +295,7 @@ export function redactConfig(config: DesktopConfig): RedactedDesktopConfig {
     projects: config.projects.map((project) => ({ ...project })),
     language: config.language,
     theme: config.theme,
+    versionsDeclined: config.versionsDeclined,
   };
 }
 

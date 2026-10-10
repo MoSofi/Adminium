@@ -15,7 +15,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import type { AdminiumDesktopApi } from './api.js';
-import { BRIDGE_KEY, IPC_CHANNELS, START_CHANNELS, ipcFail, ipcOk, type BridgeBootstrap } from './channels.js';
+import { BRIDGE_KEY, IPC_CHANNELS, START_CHANNELS, ipcFail, ipcOk, type BridgeBootstrap, VERSIONS_CHANNELS } from './channels.js';
 import {
   createDesktopApi,
   DesktopBridgeError,
@@ -143,7 +143,7 @@ describe('the exposed surface', () => {
   it('exposes the project’s three calls, and none of them takes a folder', async () => {
     const ipc = new FakeIpc();
     const { project } = createDesktopApi({ ipc, bootstrap: BOOTSTRAP });
-    expect(Object.keys(project).sort()).toEqual(['close', 'info', 'showInFolder']);
+    expect(Object.keys(project).sort()).toEqual(['close', 'info', 'showInFolder', 'versions']);
     await project.info();
     await project.showInFolder();
     await project.close();
@@ -152,6 +152,18 @@ describe('the exposed surface', () => {
       { channel: IPC_CHANNELS.projectShowInFolder, args: [] },
       { channel: IPC_CHANNELS.projectClose, args: [] },
     ]);
+  });
+
+  it('exposes the versions offer’s six calls, none of which takes anything', async () => {
+    const ipc = new FakeIpc();
+    const versions = createDesktopApi({ ipc, bootstrap: BOOTSTRAP }).project.versions;
+    await versions?.state();
+    await versions?.download();
+    await versions?.cancel();
+    await versions?.notNow();
+    await versions?.lookAgain();
+    await versions?.appleTools();
+    expect(ipc.calls).toEqual(VERSIONS_CHANNELS.map((channel) => ({ channel, args: [] })));
   });
 
   it('exposes capabilities as exactly list + invoke', () => {

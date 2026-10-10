@@ -73,6 +73,7 @@ import {
   type CapabilityHost,
 } from './capabilities/host.js';
 import type { StartService } from './start.js';
+import type { VersionsOffer } from './versions-offer.js';
 import {
   autoBackupSchema,
   lanShareSchema,
@@ -480,7 +481,14 @@ export interface RegisterIpcHandlersOptions {
    */
   start?: (() => StartService | null) | undefined;
   /** The project the window holds: what it is (`null` in the classic workspace) and the way out of it. */
-  project?: { info: () => (DesktopProjectInfo & { root: string }) | null; close: () => Promise<boolean> } | undefined;
+  project?:
+    | {
+        info: () => (DesktopProjectInfo & { root: string }) | null;
+        close: () => Promise<boolean>;
+        /** The versions offer of the project that is open, or `null`: no project, or a build that cannot look for git. */
+        versions?: (() => VersionsOffer | null) | undefined;
+      }
+    | undefined;
   /** An override. Defaults to {@link loopbackSenderPolicy}, or to {@link pinnedSenderPolicy} with `pinSender`. */
   senderPolicy?: SenderPolicy | undefined;
   /** The packaged app: only the origin of the server main started may call. Off in the dev loop. */
@@ -857,6 +865,20 @@ export function registerIpcHandlers(opts: RegisterIpcHandlersOptions): IpcHandle
     if (opts.project === undefined || opts.project.info() === null) throw new UnavailableError('This window holds no project.');
     return opts.project.close();
   });
+
+  // The versions offer. `download` is the one call in this bridge that reaches out to the internet for a
+  // program: it fetches one pinned file from its publisher, and only this project's own page can ask.
+  const versions = (): VersionsOffer => {
+    const offer = opts.project?.versions?.() ?? null;
+    if (offer === null) throw new UnavailableError('This window holds no project.');
+    return offer;
+  };
+  register(IPC_CHANNELS.versionsState, noPayloadSchema, () => Promise.resolve(versions().state()));
+  register(IPC_CHANNELS.versionsDownload, noPayloadSchema, () => Promise.resolve(versions().download()));
+  register(IPC_CHANNELS.versionsCancel, noPayloadSchema, () => Promise.resolve(versions().cancel()));
+  register(IPC_CHANNELS.versionsNotNow, noPayloadSchema, () => versions().notNow());
+  register(IPC_CHANNELS.versionsLookAgain, noPayloadSchema, () => versions().lookAgain());
+  register(IPC_CHANNELS.versionsAppleTools, noPayloadSchema, () => versions().appleTools());
 
   register(
     IPC_CHANNELS.startUseClassic,

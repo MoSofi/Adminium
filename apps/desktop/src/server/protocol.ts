@@ -119,6 +119,9 @@ export type ServerMessage = z.infer<typeof serverMessageSchema>;
 export const parentMessageSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('shutdown') }),
   z.object({ type: z.literal('busy?') }),
+  // Where the app's own programs are NOW (`ADMINIUM_DESKTOP_PROGRAMS`): sent when one of them came while the
+  // project was open (git, fetched on a person's yes). A project's server only.
+  z.object({ type: z.literal('programs'), value: z.string().min(2).max(8192) }),
 ]);
 
 export type ParentMessage = z.infer<typeof parentMessageSchema>;

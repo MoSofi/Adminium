@@ -18,8 +18,7 @@ import {
   START_CHANNELS,
   IPC_CHANNELS,
   type BridgeBootstrap,
-  type IpcResult,
-} from '../preload/channels.js';
+  type IpcResult, VERSIONS_CHANNELS } from '../preload/channels.js';
 import { CAPABILITY_NOT_GRANTED, CAPABILITY_STUB, type CapabilityHost } from './capabilities/host.js';
 import { createDefaultConfig, type DesktopConfig } from './config.js';
 import {
@@ -805,6 +804,37 @@ describe('the project’s channels', () => {
     const h = harness({ project: { info: () => INFO, close } });
     expect(expectOk(await h.ipc.invoke(IPC_CHANNELS.projectClose))).toBe(true);
     expect(expectOk(await h.ipc.invoke(IPC_CHANNELS.projectClose))).toBe(false);
+  });
+
+  it('carry the versions offer of the project that is open, and nothing when there is none', async () => {
+    const STATE = { on: false, declined: false, megabytes: 62, appleTools: true, download: { phase: 'idle' as const } };
+    const offer = {
+      state: vi.fn(() => STATE),
+      download: vi.fn(() => ({ ...STATE, download: { phase: 'downloading' as const, received: 0, total: 62 } })),
+      cancel: vi.fn(() => STATE),
+      notNow: vi.fn(() => Promise.resolve({ ...STATE, declined: true })),
+      lookAgain: vi.fn(() => Promise.resolve({ ...STATE, on: true })),
+      appleTools: vi.fn(() => Promise.resolve(STATE)),
+      dispose: vi.fn(),
+    };
+    const h = harness({ project: { info: () => INFO, close: () => Promise.resolve(true), versions: () => offer } });
+    expect(expectOk(await h.ipc.invoke(IPC_CHANNELS.versionsState))).toEqual(STATE);
+    expect(expectOk(await h.ipc.invoke(IPC_CHANNELS.versionsDownload))).toMatchObject({ download: { phase: 'downloading' } });
+    expect(expectOk(await h.ipc.invoke(IPC_CHANNELS.versionsCancel))).toEqual(STATE);
+    expect(expectOk(await h.ipc.invoke(IPC_CHANNELS.versionsNotNow))).toMatchObject({ declined: true });
+    expect(expectOk(await h.ipc.invoke(IPC_CHANNELS.versionsLookAgain))).toMatchObject({ on: true });
+    expect(expectOk(await h.ipc.invoke(IPC_CHANNELS.versionsAppleTools))).toEqual(STATE);
+    for (const call of [offer.state, offer.download, offer.cancel, offer.notNow, offer.lookAgain, offer.appleTools]) expect(call).toHaveBeenCalledTimes(1);
+    // A page cannot say what is fetched or from where: no call takes anything.
+    expect(expectFail(await h.ipc.invoke(IPC_CHANNELS.versionsDownload, { url: 'https://example.com/git.tar.gz' })).code).toBe('INVALID_PAYLOAD');
+    expect(offer.download).toHaveBeenCalledTimes(1);
+
+    const stranger: IpcInvokeEventLike = { senderFrame: { url: 'https://example.com/' } };
+    for (const channel of VERSIONS_CHANNELS) expect(expectFail(await h.ipc.invoke(channel, undefined, stranger)).code).toBe('UNTRUSTED_SENDER');
+    // The classic workspace, a build with no offer, and a project whose offer is gone: unavailable, each.
+    for (const none of [harness(), harness({ project: { info: () => INFO, close: () => Promise.resolve(true) } }), harness({ project: { info: () => INFO, close: () => Promise.resolve(true), versions: () => null } })]) {
+      for (const channel of VERSIONS_CHANNELS) expect(expectFail(await none.ipc.invoke(channel)).code).toBe('UNAVAILABLE');
+    }
   });
 
   it('are refused to a page that is not the app’s', async () => {

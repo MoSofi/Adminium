@@ -10899,6 +10899,90 @@
     "status": "mt",
     "srcHash": "8efabdc039b9"
   },
+  "designer.versionsOffer.apple": {
+    "status": "mt",
+    "srcHash": "1f6bcdb12c40"
+  },
+  "designer.versionsOffer.appleLink": {
+    "status": "mt",
+    "srcHash": "c3227846c046"
+  },
+  "designer.versionsOffer.body": {
+    "status": "mt",
+    "srcHash": "771b8be74dfb"
+  },
+  "designer.versionsOffer.cancel": {
+    "status": "mt",
+    "srcHash": "77dfd2135f4d"
+  },
+  "designer.versionsOffer.download": {
+    "status": "mt",
+    "srcHash": "d49ea351db8f"
+  },
+  "designer.versionsOffer.downloading": {
+    "status": "mt",
+    "srcHash": "709bd50ce2aa"
+  },
+  "designer.versionsOffer.failed.noConnection": {
+    "status": "mt",
+    "srcHash": "6aeb76882176"
+  },
+  "designer.versionsOffer.failed.other": {
+    "status": "mt",
+    "srcHash": "ef6891b815ee"
+  },
+  "designer.versionsOffer.failed.wrongFile": {
+    "status": "mt",
+    "srcHash": "d5a585d09104"
+  },
+  "designer.versionsOffer.lookAgain": {
+    "status": "mt",
+    "srcHash": "c394e963c144"
+  },
+  "designer.versionsOffer.noDownload": {
+    "status": "mt",
+    "srcHash": "50d9e0e0c21b"
+  },
+  "designer.versionsOffer.notNow": {
+    "status": "mt",
+    "srcHash": "e45714907316"
+  },
+  "designer.versionsOffer.nowOn": {
+    "status": "mt",
+    "srcHash": "41e71d2dd13d"
+  },
+  "designer.versionsOffer.nowOnNext": {
+    "status": "mt",
+    "srcHash": "6afa6060bd61"
+  },
+  "designer.versionsOffer.offButton": {
+    "status": "mt",
+    "srcHash": "cef9e0d6fd51"
+  },
+  "designer.versionsOffer.offHere": {
+    "status": "mt",
+    "srcHash": "df2457b2e423"
+  },
+  "designer.versionsOffer.offWord": {
+    "status": "mt",
+    "srcHash": "e3de5ab0ca4c"
+  },
+  "designer.versionsOffer.progress": {
+    "status": "mt",
+    "srcHash": "cef57c9a7872"
+  },
+  "designer.versionsOffer.title": {
+    "status": "mt",
+    "srcHash": "8c342817dca6"
+  },
+  "designer.versionsOffer.tryAgain": {
+    "status": "mt",
+    "srcHash": "042c862e4467"
+  },
+  "designer.versionsOffer.turnOn": {
+    "status": "mt",
+    "srcHash": "e60020f3e41a"
+  },
   "designer.work.architecture": {
     "status": "mt",
     "srcHash": "b040b4179b8b"

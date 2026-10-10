@@ -743,5 +743,30 @@
     "label": "Construire ou partager",
     "build": "Construire",
     "share": "Partager"
+  },
+  "versionsOffer": {
+    "title": "Conserver des versions de votre travail ?",
+    "body": "Adminium utilise git pour conserver une version après chaque modification, afin que vous puissiez revenir en arrière. Cet ordinateur n’en a pas.",
+    "download": "Télécharger git ({size} Mo)",
+    "notNow": "Pas maintenant",
+    "apple": "Ou installez les outils de développement d’Apple (environ 1 Go), qui le contiennent.",
+    "appleLink": "Installer les outils d’Apple",
+    "lookAgain": "Chercher à nouveau",
+    "noDownload": "Il n’y a pas de git à télécharger pour ce type d’ordinateur. Installez git vous-même, puis cherchez à nouveau.",
+    "downloading": "Téléchargement de git",
+    "progress": "{received} sur {total} Mo",
+    "cancel": "Annuler",
+    "tryAgain": "Réessayer",
+    "turnOn": "Activer les versions",
+    "offHere": "Les versions sont désactivées sur cet ordinateur.",
+    "offButton": "Versions : désactivées",
+    "offWord": "Désactivées",
+    "nowOn": "Les versions sont activées",
+    "nowOnNext": "Votre prochaine modification sera conservée comme version.",
+    "failed": {
+      "wrongFile": "Le téléchargement ne correspondait pas à ce qu’Adminium attendait et a été supprimé.",
+      "noConnection": "Impossible de joindre Internet. Vérifiez votre connexion et réessayez.",
+      "other": "git n’a pas pu être installé sur cet ordinateur."
+    }
   }
 }

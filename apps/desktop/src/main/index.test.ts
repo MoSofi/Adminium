@@ -316,6 +316,7 @@ function harness(
       return liveBootToken;
     },
     project: null,
+    setPrograms: () => undefined,
     busy: () => Promise.resolve(null),
     start: () =>
       fork(
@@ -1415,6 +1416,10 @@ describe('createDesktopApp opening a project folder', () => {
     const shown: Array<{ url: string; preview: boolean }> = [];
     const sessions: Array<string | null> = [];
     const confirmed: string[] = [];
+    /** What the running server was told of the app's programs. */
+    const told: string[] = [];
+    /** Whether the last look found a git: the test's to change. */
+    const git = { found: false, looks: 0, fetched: 0 };
     let stops = 0;
     let stateListener: (s: ServerState) => void = () => undefined;
     let exitListener: (e: ServerExit) => void = () => undefined;
@@ -1425,6 +1430,7 @@ describe('createDesktopApp opening a project folder', () => {
       get project() {
         return { root: ROOT, mode };
       },
+      setPrograms: (value) => void told.push(value),
       busy: () => Promise.resolve(over.busy ?? null),
       start: () => (over.startFails === undefined ? Promise.resolve(PROJECT_READY) : Promise.reject(over.startFails)),
       stop: () => {
@@ -1467,13 +1473,26 @@ describe('createDesktopApp opening a project folder', () => {
       bundledAppsDir: '/app/apps-bundle',
       projectEnv: { PATH: '/usr/bin:/bin', ADMINIUM_SECRET: 'from the shell' },
       // Looked up before the fork, and it may take a moment (git is looked for): the boot waits for it.
-      projectPrograms: () => Promise.resolve('{"binary":"/app/Adminium"}'),
+      projectPrograms: () => {
+        git.looks += 1;
+        return Promise.resolve(git.found ? '{"binary":"/app/Adminium","git":"/data/git/bin/git"}' : '{"binary":"/app/Adminium"}');
+      },
+      projectGit: {
+        found: () => git.found,
+        bytes: 62_348_987,
+        platform: 'darwin',
+        fetch: () => {
+          git.fetched += 1;
+          git.found = true;
+          return Promise.resolve('/data/git/bin/git');
+        },
+      },
       confirmStopBusy: (busy) => {
         confirmed.push(busy.kind);
         return Promise.resolve(over.confirm ?? true);
       },
     };
-    return { h, deps, opts, shown, sessions, confirmed, stops: () => stops, manager, fireExit: (e: ServerExit) => exitListener(e), emit: (state: ServerState) => stateListener(state) };
+    return { h, deps, opts, shown, sessions, confirmed, told, git, stops: () => stops, manager, fireExit: (e: ServerExit) => exitListener(e), emit: (state: ServerState) => stateListener(state) };
   }
   const settle = async (): Promise<void> => {
     for (let i = 0; i < 10; i += 1) await Promise.resolve();
@@ -1497,6 +1516,25 @@ describe('createDesktopApp opening a project folder', () => {
     expect(p.h.menuHandlers()).not.toHaveProperty('backupNow');
     expect(p.h.menuHandlers()).not.toHaveProperty('restore');
     expect(p.h.menuHandlers()?.showLogs).toBeTypeOf('function');
+  });
+
+  it('offers to keep versions when no git was found, and a download tells the running server without a restart', async () => {
+    const p = projectHarness();
+    await createDesktopApp(p.deps).start();
+    const offer = p.h.bridge()?.project?.versions?.() ?? null;
+    expect(offer?.state()).toEqual({ on: false, declined: false, megabytes: 62, appleTools: true, download: { phase: 'idle' } });
+
+    // "Not now" is kept for this computer, in the app's own file.
+    expect((await offer?.notNow())?.declined).toBe(true);
+    expect(p.h.bridge()?.readConfig().versionsDeclined).toBe(true);
+
+    expect(offer?.download().download).toEqual({ phase: 'downloading', received: 0, total: 62_348_987 });
+    await settle();
+    expect(p.git.fetched).toBe(1);
+    // Looked for again (the stand-ins are made again), and the server that is running was told.
+    expect(p.told).toEqual(['{"binary":"/app/Adminium","git":"/data/git/bin/git"}']);
+    expect(offer?.state()).toMatchObject({ on: true, declined: false, download: { phase: 'idle' } });
+    expect(p.h.bridge()?.readConfig().versionsDeclined).toBe(false);
   });
 
   it('opens the Designer with the one-use token after #, on a cookie jar of the project’s own, the preview allowed', async () => {

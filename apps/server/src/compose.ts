@@ -2111,7 +2111,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
         // The skills, read once: the same files a coding agent reads.
         const designerSkills = createSkills();
         // The git this host found: by name on a terminal; in the desktop app the path it looked up, or none at all.
-        const designerVersions = createVersions(root, { git: gitProgram() });
+        // Asked each time: the app may fetch one while this project is open, and says so through the environment.
+        const designerVersions = createVersions(root, { git: () => gitProgram() });
         const designerService = appService;
         /*
          * An add-on from inside a turn: the page's download job and the page's

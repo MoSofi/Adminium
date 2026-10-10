@@ -362,6 +362,24 @@ describe('findGit', () => {
   }
   const VERSION: RunResult = { ok: true, stdout: 'git version 2.45.2\n' };
 
+  it('with the test seam: this computer has no git but the app’s own, checked against the test’s file', async () => {
+    const { deps, started } = world('darwin', ['/opt/homebrew/bin/git'], { '/bin/zsh': { ok: true, stdout: '/opt/homebrew/bin/git\n' }, '/opt/homebrew/bin/git': VERSION });
+    const download = { file: 'git.tar.gz', bytes: 512, sha256: 'b'.repeat(64) };
+    expect(await findGit({ ...deps, onlyOwn: true, download })).toBeNull();
+    // Nothing of the person's own was looked for, let alone started.
+    expect(started).toEqual([]);
+
+    const home = gitHome(dir);
+    mkdirSync(join(home, 'bin'), { recursive: true });
+    writeFileSync(join(home, 'bin', 'git'), GIT_SCRIPT, { mode: 0o755 });
+    writeFileSync(join(home, GIT_RECORD_FILE), JSON.stringify({ tag: GIT_TAG, sha256: download.sha256, entries: 1 }));
+    const program = gitProgramIn(home, 'darwin');
+    const own = world('darwin', [], { [program]: VERSION });
+    expect(await findGit({ ...own.deps, onlyOwn: true, download })).toEqual({ path: program, from: 'app' });
+    // Without the seam's file that record names a hash this app does not pin: not the app's own.
+    expect(await findGit({ ...own.deps, onlyOwn: true })).toBeNull();
+  });
+
   it('on a Mac with Homebrew: the one the login shell knows, greeting and all', async () => {
     const { deps, started } = world('darwin', ['/opt/homebrew/bin/git', '/usr/bin/git'], {
       '/bin/zsh': { ok: true, stdout: 'Last login: Fri Oct  9\nWelcome back\n/opt/homebrew/bin/git\n' },

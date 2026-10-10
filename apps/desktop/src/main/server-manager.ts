@@ -406,6 +406,12 @@ export interface ServerManager {
   stop(): Promise<void>;
   /** Deliberate (LAN toggle). Not throttled, not counted. */
   restart(changes?: { host?: string; port?: number; mode?: DesktopProjectMode }): Promise<ServerReadyInfo>;
+  /**
+   * The app's own programs changed while a project is open (git was fetched):
+   * the live child is told, and every later fork starts with the new value.
+   * Nothing for the classic workspace.
+   */
+  setPrograms(value: string): void;
   /** The project this manager serves and how, or `null` for the classic workspace. */
   readonly project: { readonly root: string; readonly mode: DesktopProjectMode } | null;
   /**
@@ -435,6 +441,8 @@ class ServerManagerImpl implements ServerManager {
   readonly #stateListeners = new Set<ServerStateListener>();
   readonly #exitListeners = new Set<ServerExitListener>();
 
+  /** The programs value a later `setPrograms` gave, over the one this manager was made with. */
+  #programs: string | null = null;
   #state: ServerState = { status: 'idle' };
   #child: ServerChildLike | null = null;
   /** `run` ⇒ applies to an exit; anything else ⇒ we asked for it. */
@@ -600,6 +608,18 @@ class ServerManagerImpl implements ServerManager {
     return this.#opts.project === undefined || this.#mode === null ? null : { root: this.#opts.project.root, mode: this.#mode };
   }
 
+  setPrograms(value: string): void {
+    if (this.#opts.project === undefined) return;
+    this.#programs = value;
+    const child = this.#child;
+    if (child === null || this.#state.status !== 'ready') return;
+    try {
+      child.postMessage({ type: 'programs', value });
+    } catch {
+      // A child on its way out: the next fork has the value.
+    }
+  }
+
   async busy(): Promise<ServerBusy | null> {
     const child = this.#child;
     if (child === null || this.#state.status !== 'ready') return null;
@@ -639,6 +659,7 @@ class ServerManagerImpl implements ServerManager {
     if (project !== undefined) {
       const mode = this.#mode ?? project.mode;
       const bootToken = this.#bootToken;
+      const programs = this.#programs ?? project.programs;
       return project.pickPort(mode).then((port) => {
         this.#port = port;
         return buildProjectServerEnv({
@@ -651,7 +672,7 @@ class ServerManagerImpl implements ServerManager {
         ...(this.#opts.staticRoot === undefined ? {} : { staticRoot: this.#opts.staticRoot }),
         ...(this.#opts.bundledAddOnsDir === undefined ? {} : { bundledAddOnsDir: this.#opts.bundledAddOnsDir }),
         ...(project.bundledAppsDir === undefined ? {} : { bundledAppsDir: project.bundledAppsDir }),
-        ...(project.programs === undefined ? {} : { programs: project.programs }),
+        ...(programs === undefined ? {} : { programs }),
         ...(this.#opts.inheritEnv === undefined ? {} : { inherit: this.#opts.inheritEnv }),
         });
       });

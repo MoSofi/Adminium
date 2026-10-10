@@ -743,5 +743,30 @@
     "label": "Byg eller del",
     "build": "Byg",
     "share": "Del"
+  },
+  "versionsOffer": {
+    "title": "Vil du gemme versioner af dit arbejde?",
+    "body": "Adminium bruger git til at gemme en version efter hver ændring, så du kan gå tilbage. Denne computer har ingen.",
+    "download": "Hent git ({size} MB)",
+    "notNow": "Ikke nu",
+    "apple": "Eller installer Apples udviklerværktøjer (ca. 1 GB), som indeholder det.",
+    "appleLink": "Installer Apples værktøjer",
+    "lookAgain": "Kig igen",
+    "noDownload": "Der er ingen git at hente til denne slags computer. Installer selv git, og kig så igen.",
+    "downloading": "Henter git",
+    "progress": "{received} af {total} MB",
+    "cancel": "Annuller",
+    "tryAgain": "Prøv igen",
+    "turnOn": "Slå versioner til",
+    "offHere": "Versioner er slået fra på denne computer.",
+    "offButton": "Versioner: fra",
+    "offWord": "Fra",
+    "nowOn": "Versioner er slået til",
+    "nowOnNext": "Din næste ændring gemmes som en version.",
+    "failed": {
+      "wrongFile": "Det hentede svarede ikke til det, Adminium forventede, og blev slettet.",
+      "noConnection": "Kunne ikke nå internettet. Tjek din forbindelse, og prøv igen.",
+      "other": "git kunne ikke sættes op på denne computer."
+    }
   }
 }

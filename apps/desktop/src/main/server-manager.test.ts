@@ -858,6 +858,34 @@ describe('ServerManager serving a project', () => {
     await expect(next).resolves.toEqual({ kind: 'save', sessionId: null });
   });
 
+  it('tells the running server when the app’s programs change, and starts every later one with them', async () => {
+    const h = project();
+    // Before it is up there is nobody to tell: the value waits for the fork.
+    h.manager.setPrograms('{"binary":"/app/Adminium","git":null}');
+    void h.manager.start();
+    await up(h, 0, 4700);
+    expect(h.forkCalls[0]?.env).toHaveProperty('ADMINIUM_DESKTOP_PROGRAMS', '{"binary":"/app/Adminium","git":null}');
+    expect(childAt(h, 0).posted).toEqual([]);
+
+    const WITH_GIT = '{"binary":"/app/Adminium","git":"/data/git/bin/git"}';
+    h.manager.setPrograms(WITH_GIT);
+    expect(childAt(h, 0).posted).toEqual([{ type: 'programs', value: WITH_GIT }]);
+
+    // A child that cannot be told any more (on its way out) is not a failure: the next fork has the value.
+    childAt(h, 0).postMessage = () => {
+      throw new Error('closed');
+    };
+    expect(() => h.manager.setPrograms(WITH_GIT)).not.toThrow();
+  });
+
+  it('the classic workspace has no programs to be told of', async () => {
+    const h = harness();
+    void h.manager.start();
+    await up(h, 0, 4600);
+    h.manager.setPrograms('{"binary":"/app/Adminium"}');
+    expect(childAt(h, 0).posted).toEqual([]);
+  });
+
   it('a server that is not up is not asked', async () => {
     const h = project();
     await expect(h.manager.busy()).resolves.toBeNull();

@@ -753,5 +753,30 @@ export default {
     "label": "构建或共享",
     "build": "构建",
     "share": "共享"
+  },
+  "versionsOffer": {
+    "title": "要保留作品的版本吗？",
+    "body": "Adminium 使用 git 在每次更改后保留一个版本，方便你回退。这台电脑上没有 git。",
+    "download": "下载 git（{size} MB）",
+    "notNow": "暂时不要",
+    "apple": "或者安装 Apple 的开发者工具（约 1 GB），其中包含 git。",
+    "appleLink": "安装 Apple 的工具",
+    "lookAgain": "重新查找",
+    "noDownload": "没有适用于这类电脑的 git 可供下载。请自行安装 git，然后重新查找。",
+    "downloading": "正在下载 git",
+    "progress": "{received} / {total} MB",
+    "cancel": "取消",
+    "tryAgain": "重试",
+    "turnOn": "开启版本",
+    "offHere": "这台电脑上的版本功能已关闭。",
+    "offButton": "版本：关闭",
+    "offWord": "关闭",
+    "nowOn": "版本功能已开启",
+    "nowOnNext": "你的下一次更改将保留为一个版本。",
+    "failed": {
+      "wrongFile": "下载的文件与 Adminium 预期的不一致，已被删除。",
+      "noConnection": "无法连接互联网。请检查网络连接后重试。",
+      "other": "无法在这台电脑上设置 git。"
+    }
   }
 } as const;
