@@ -209,6 +209,7 @@ import type { RunService } from './llm/run-service.js';
 import { rbacPlugin } from './plugins/rbac.js';
 import { NO_SURFACE_SETTINGS } from './surfaces/settings.js';
 import { ADD_ON_DOCUMENT_ROUTE, ADD_ON_LOOK_UP_ROUTE, STAFF_WORDS_ROUTE, allowedForScreensOnly, appAddOns, appConnections, screensOnlyError } from './apps/screens-only.js';
+import { isGranted } from './rbac/permissions.js';
 import { permissionSetAllows, resolvePermissionSet } from './rbac/resolver.js';
 import { API_PREFIX } from './routes/index.js';
 import { apiKeysRoutes } from './routes/api-keys/index.js';
@@ -656,7 +657,9 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     const connections = await appConnections(meta, settings, set.screensOnly);
     // Their apps' add-ons are read only for the one route that asks an add-on something.
     const addOns = route === STAFF_WORDS_ROUTE || route === ADD_ON_LOOK_UP_ROUTE || route === ADD_ON_DOCUMENT_ROUTE ? await appAddOns(meta, set.screensOnly, connections) : undefined;
-    if (allowedForScreensOnly(request.method, route, request.params, connections, set.screensOnly, addOns)) return;
+    // The assistant's routes, when their role was given the assistant (never by default, and no app's manifest can).
+    const assistant = route.startsWith('/api/v1/assistant/') && isGranted(set.grants, 'system:assistant:use');
+    if (allowedForScreensOnly(request.method, route, request.params, connections, set.screensOnly, addOns, assistant)) return;
     throw screensOnlyError(settings, set.screensOnly, request);
   });
 

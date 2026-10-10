@@ -86,9 +86,15 @@ export function allowedForScreensOnly(
   connections: ReadonlySet<string>,
   appKeys: readonly string[] = [],
   addOns: ReadonlySet<string> = new Set(),
+  /** Their role holds the assistant's own permission (the caller asks; this stays a pure function). */
+  assistant = false,
 ): boolean {
   if (!route.startsWith(`${API}/`)) return true;
   const rest = route.slice(API.length);
+  // The assistant, for a person whose role was given it: asked from their app's own staff address. Its
+  // settings stay an administrator's; what it may read is still what this person's role reads, and its
+  // own routes keep it to the two kinds of conversation that are theirs (`routes/assistant`).
+  if (assistant && rest.startsWith('/assistant/') && rest !== '/assistant/settings') return true;
   if (/^\/(auth|data|i18n)(\/|$)/.test(rest)) return true;
   // Their app's own documents (a folio printed at the desk): drawn, then read and printed. Each route
   // checks the reads a document needs, and a screens-only person holds only their app's grants.

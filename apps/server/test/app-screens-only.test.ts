@@ -31,6 +31,7 @@ import { dsnCryptoFromSecret } from '../src/connections/crypto.js';
 import { createApplyService } from '../src/llm/apply-service.js';
 import { createRunService } from '../src/llm/run-service.js';
 import type { MetaStoreHandle } from '../src/meta/store.js';
+import { matrixRowsFromGrants } from '../src/rbac/permissions.js';
 import { adminPasswordHash, ADMIN_PASSWORD, sessionCookie } from './auth-helpers.js';
 import { makeEnv, TEST_SECRET } from './helpers.js';
 
@@ -85,11 +86,15 @@ async function person(email: string, roles: { screensOnly: boolean }[]): Promise
   return sessionCookie(res.headers['set-cookie']);
 }
 
+/** The first test's cashier, signed in. */
+let cara = '';
+
 const get = (url: string, cookie: string) => app.inject({ method: 'GET', url, headers: { cookie } });
 
 describe('someone who opens only an app’s own screens', () => {
   it('is sent to their screens by the dashboard, and refused the rest of the API', async () => {
     const cookie = await person('cara@example.com', [{ screensOnly: true }]);
+    cara = cookie;
     const bootstrap = await get('/api/v1/bootstrap', cookie);
     expect(bootstrap.statusCode).toBe(403);
     expect(bootstrap.json().error).toMatchObject({ code: 'APP_SCREENS_ONLY', details: { openUrl: '/apps/clients/staff/' } });
@@ -115,6 +120,39 @@ describe('someone who opens only an app’s own screens', () => {
     for (const url of ['/api/v1/words/stock/item?table=stock:items&ids=1', '/%61pi/v1/words/stock/item?table=stock:items&ids=1']) {
       expect((await get(url, cookie)).json().error?.code, url).toBe('APP_SCREENS_ONLY');
     }
+  });
+
+  it('reaches the assistant only when their role was given it, and then only its two kinds of conversation', async () => {
+    // The gate itself: the assistant's routes for a person who holds the permission, its settings for nobody here.
+    const gate = (route: string, assistant: boolean) => allowedForScreensOnly('GET', route, {}, new Set(['conn_1']), ['clients'], new Set(), assistant);
+    expect(gate('/api/v1/assistant/availability', false)).toBe(false);
+    expect(gate('/api/v1/assistant/availability', true)).toBe(true);
+    expect(gate('/api/v1/assistant/sessions/:id/turns', true)).toBe(true);
+    expect(gate('/api/v1/assistant/settings', true)).toBe(false);
+    expect(gate('/api/v1/roles', true)).toBe(false);
+
+    // No role holds the assistant by default: a cashier is refused it like the rest of the API.
+    // The cashier of the test above (one sign-in fewer: this file's sign-ins share one minute's allowance).
+    const cookie = cara;
+    expect((await get('/api/v1/assistant/availability', cookie)).json().error?.code).toBe('APP_SCREENS_ONLY');
+
+    // Given it by an administrator, on their own role.
+    const role = await rolesRepo(meta).findBySlug('cara-0');
+    for (const row of matrixRowsFromGrants(['system:assistant:use']).rows) await permissionsRepo(meta).grant(role!.id, row.resourceKind, row.resourceRef, row.actions as never);
+    const open = await get('/api/v1/assistant/availability', cookie);
+    expect(open.statusCode, open.body).toBe(200);
+    expect(open.json()).toMatchObject({ name: 'Milo' });
+    expect((await get('/api/v1/assistant/availability?context=data', cookie)).statusCode).toBe(200);
+    // The document pages are not their screens, so neither are those conversations.
+    for (const context of ['email', 'invoices', 'report', 'automation']) {
+      const refused = await get(`/api/v1/assistant/availability?context=${context}`, cookie);
+      expect(refused.statusCode, context).toBe(403);
+      expect(refused.json().error, context).toMatchObject({ code: 'FORBIDDEN', details: { reason: 'screens-only', context } });
+    }
+    // Everything else is as closed as it was.
+    expect((await get('/api/v1/assistant/settings', cookie)).json().error?.code).toBe('APP_SCREENS_ONLY');
+    expect((await get('/api/v1/roles', cookie)).json().error?.code).toBe('APP_SCREENS_ONLY');
+    expect((await get('/api/v1/bootstrap', cookie)).statusCode).toBe(403);
   });
 
   it('may ask the stock words of an add-on their app uses: that route, read only, and that add-on', () => {
