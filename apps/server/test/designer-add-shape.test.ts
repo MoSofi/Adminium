@@ -145,9 +145,9 @@ describe('build_on_shape, for a shape added to the app\'s own tables', () => {
       { id: 'card-load', into: { addOn: 'offers', ledger: 'value', action: 'issue' }, via: 'ticket_id', map: { card: 'gift_card_id', amount: 'load_amount' }, post: { on: { to: ['paid'] } }, reverse: { on: { to: ['void'], from: ['paid'] } } },
     ]);
     expect((lines['columns'] as { ref: string; rules?: unknown }[]).find((column) => column.ref === 'gift_card_id')).toMatchObject({ type: 'int', nullable: true, rules: { addOnLink: { addOn: 'offers', table: 'gift_cards' } } });
-    expect(json('add-ons.json')['requires']).toEqual([expect.objectContaining({ key: 'offers', range: '>=1.0.9' })]);
+    expect(json('add-ons.json')['requires']).toEqual([expect.objectContaining({ key: 'offers', range: '>=1.0.12' })]);
     // The first Adminium the add-on itself runs on.
-    expect((json('app.json')['compatibility'] as { minAdminiumVersion: string }).minAdminiumVersion).toBe('0.3.19'); // what Offers & gift cards itself runs on
+    expect((json('app.json')['compatibility'] as { minAdminiumVersion: string }).minAdminiumVersion).toBe('0.3.22'); // what Offers & gift cards itself runs on
     expect(done.content).toContain('apps/till/manifest/tables/ticket_lines.json: added gift_card_id (int, a link to offers.gift_cards), load_amount (money); the rule "card-load" posts into offers/value (issue)');
     expect(done.content).toContain('apps/till/manifest/tables/tickets.json: no column added');
     expect(done.content).toContain('"tables" on the role');
@@ -339,7 +339,7 @@ describe('build_on_shape, for a shape added to the app\'s own tables', () => {
   it('a server older than the add-on runs on is told so, and nothing is written', async () => {
     till();
     const done = await build({ shape: 'card-sale@1', tables: { order: 'tickets', lines: 'ticket_lines' }, when: PAID }, '0.3.18');
-    expect(done).toMatchObject({ isError: true, content: 'This server is Adminium 0.3.18, and Offers & gift cards needs 0.3.19 or later. Tell the person; build the app without it.' });
+    expect(done).toMatchObject({ isError: true, content: 'This server is Adminium 0.3.18, and Offers & gift cards needs 0.3.22 or later. Tell the person; build the app without it.' });
     expect(columns('ticket_lines')).toEqual(['id', 'ticket_id', 'item_id', 'line_total']);
   });
 
