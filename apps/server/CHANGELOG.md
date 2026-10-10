@@ -1,5 +1,28 @@
 # @adminium/server
 
+## 0.3.25
+
+### Patch Changes
+
+- The desktop app builds apps. It opens on a first screen with four choices: build an app by describing it (Adminium Designer on your own computer, with the Node, npm and, when you ask for it, the git it needs carried by the app), open a folder that holds a project, connect to another Adminium, or use your own database as before. A project is a folder: its apps, its data and its key. A folder somebody sent you is opened only after you agree to run it, and the app says what it found in it: its data, its key, the accounts it came with, an older Adminium, missing packages.
+  
+  A project is built or shared, never both. Shared, it is on your network with the Designer off: the app shows the addresses and a QR code, keeps the port, and keeps the computer awake. Before the first share you choose an email address and a password, which other devices sign in with. On your own computer the app goes on signing you in as the project's owner. A shared project answers only to your computer's own names and addresses on its port, and refuses any other.
+  
+  Model keys you add in the app are kept by the app, in the system's key store where there is one, and never written into a project. "Export this project" makes one ZIP, with the data and the key or with the apps only.
+  
+  The Windows installer carries the same app and is not code-signed.
+- Updated dependencies
+  - @adminium/meta@0.3.25
+  - @adminium/i18n@0.3.25
+  - @adminium/engine@0.3.25
+  - @adminium/llm@0.3.25
+  - @adminium/adapter-mysql@0.3.25
+  - @adminium/adapter-postgres@0.3.25
+  - @adminium/adapter-sqlite@0.3.25
+  - @adminium/schema-import@0.3.25
+  - @adminium/add-on-contracts@0.3.25
+  - @adminium/manifest@0.3.25
+
 ## 0.3.24
 
 ### Patch Changes
