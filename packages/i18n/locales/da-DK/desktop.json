@@ -181,5 +181,11 @@
       "app": "Det er åbent i et andet Adminium-vindue, på port ‹{port}›. Luk det der først.",
       "again": "Kig igen"
     }
+  },
+  "install": {
+    "offline": "Kunne ikke nå internettet. Pakkerne kommer fra registry.npmjs.org: tjek din forbindelse, og prøv igen.",
+    "proxy": "Dit netværks proxy afviste hentningen. Tjek denne computers proxyindstillinger, og prøv igen.",
+    "disk": "Denne disk er fuld. Frigør plads, og prøv igen.",
+    "registry": "Pakkeregistret svarede med en fejl. Prøv igen om lidt."
   }
 }

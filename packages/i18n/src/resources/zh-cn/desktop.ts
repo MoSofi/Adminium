@@ -191,5 +191,11 @@ export default {
       "app": "它已在另一个 Adminium 窗口中打开，端口为 ‹{port}›。请先在那里关闭它。",
       "again": "重新检查"
     }
+  },
+  "install": {
+    "offline": "无法连接互联网。软件包来自 registry.npmjs.org：请检查网络连接后重试。",
+    "proxy": "你的网络代理拒绝了下载。请检查这台电脑的代理设置后重试。",
+    "disk": "此磁盘已满。请释放一些空间后重试。",
+    "registry": "软件包注册表返回了错误。请稍后重试。"
   }
 } as const;

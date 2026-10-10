@@ -11119,6 +11119,22 @@
     "status": "mt",
     "srcHash": "411cc73d2a4a"
   },
+  "desktop.install.disk": {
+    "status": "mt",
+    "srcHash": "836bc49a75b5"
+  },
+  "desktop.install.offline": {
+    "status": "mt",
+    "srcHash": "bb3206284f60"
+  },
+  "desktop.install.proxy": {
+    "status": "mt",
+    "srcHash": "a6860d8fe2d9"
+  },
+  "desktop.install.registry": {
+    "status": "mt",
+    "srcHash": "4cd031066381"
+  },
   "desktop.key.body": {
     "status": "mt",
     "srcHash": "a12a7e653a6b"

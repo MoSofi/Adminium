@@ -191,5 +191,11 @@ export default {
       "app": "Je otevřený v jiném okně Adminia, na portu ‹{port}›. Nejprve jej tam zavřete.",
       "again": "Zkontrolovat znovu"
     }
+  },
+  "install": {
+    "offline": "Nepodařilo se připojit k internetu. Balíčky pocházejí z registry.npmjs.org: zkontrolujte připojení a zkuste to znovu.",
+    "proxy": "Proxy vaší sítě stahování odmítla. Zkontrolujte nastavení proxy tohoto počítače a zkuste to znovu.",
+    "disk": "Tento disk je plný. Uvolněte místo a zkuste to znovu.",
+    "registry": "Registr balíčků odpověděl chybou. Zkuste to za chvíli znovu."
   }
 } as const;

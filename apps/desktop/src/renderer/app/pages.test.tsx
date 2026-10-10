@@ -11,6 +11,7 @@ import type { AdminiumDesktopApi, DesktopOpenProjectResult, DesktopRecentProject
 import { App, screenFromHash } from './App.js';
 import { desktopApi } from './bridge.js';
 import { refusalWords, warningWords } from './new/NewProjectScreen.js';
+import { installFailureKind, installFailureWords } from './shell/installFailure.js';
 import { hiddenFilesWords } from './start/Opening.js';
 import { openedWhen } from './start/StartScreen.js';
 import { PAGE_LANGUAGES, initWords, loadWords, localeFor } from './words.js';
@@ -269,7 +270,7 @@ describe('Start', () => {
     expect((screen.getByRole('button', { name: 'Not now' }) as HTMLButtonElement).disabled).toBe(true);
     finish({ status: 'failed', detail: 'npm error code ENOTFOUND' });
     const alert = await screen.findByRole('alert');
-    expect(alert.textContent).toContain('The packages could not be fetched.');
+    expect(alert.textContent).toContain('Could not reach the internet.');
     expect(alert.textContent).toContain('npm error code ENOTFOUND');
     // And it can be tried again, or left.
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
@@ -468,7 +469,7 @@ describe('New app', () => {
     });
     fireEvent.click(create);
     const alert = await screen.findByRole('alert');
-    expect(alert.textContent).toContain('The project could not be made.');
+    expect(alert.textContent).toContain('Could not reach the internet.');
     expect(alert.textContent).toContain('npm error code ENOTFOUND');
     // And it can be tried again.
     expect((screen.getByRole('button', { name: 'Create' }) as HTMLButtonElement).disabled).toBe(false);
@@ -684,5 +685,23 @@ describe('the screens on the way into a folder', () => {
     const t = ((_key: string, fallback: string) => fallback) as never;
     expect(hiddenFilesWords(t, 'win32')).toBe('In File Explorer, choose View › Show › Hidden items.');
     expect(hiddenFilesWords(t, 'linux')).toBe('In your file manager, press Ctrl H.');
+  });
+});
+
+describe('why an install failed', () => {
+  const t = ((_key: string, fallback: string) => fallback) as never;
+  it('tells the four causes a person can act on apart, from the installer’s own lines', () => {
+    expect(installFailureKind('npm error code ENOTFOUND\nnpm error network request to https://registry.npmjs.org/react failed')).toBe('offline');
+    expect(installFailureKind('npm error code ETIMEDOUT')).toBe('offline');
+    expect(installFailureKind('npm error code E407\nnpm error 407 Proxy Authentication Required')).toBe('proxy');
+    expect(installFailureKind('npm error code ENOSPC\nnpm error nospc ENOSPC: no space left on device')).toBe('disk');
+    expect(installFailureKind('npm error code E503\nnpm error 503 Service Unavailable')).toBe('registry');
+    expect(installFailureKind('npm error code E404')).toBe('registry');
+    expect(installFailureKind('npm error code EJSONPARSE')).toBeNull();
+    expect(installFailureKind('')).toBeNull();
+  });
+  it('has a sentence for each, and none for the rest', () => {
+    for (const kind of ['offline', 'proxy', 'disk', 'registry'] as const) expect(installFailureWords(t, kind)).toMatch(/try again/i);
+    expect(installFailureWords(t, null)).toBeNull();
   });
 });

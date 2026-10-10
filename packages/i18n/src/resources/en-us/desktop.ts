@@ -191,5 +191,11 @@ export default {
       "app": "It is open in another Adminium window, on port ‹{port}›. Close it there first.",
       "again": "Look again"
     }
+  },
+  "install": {
+    "offline": "Could not reach the internet. The packages come from registry.npmjs.org: check your connection and try again.",
+    "proxy": "Your network’s proxy refused the download. Check the proxy settings of this computer and try again.",
+    "disk": "This disk is full. Free some space and try again.",
+    "registry": "The package registry answered with an error. Try again in a moment."
   }
 } as const;

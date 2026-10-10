@@ -191,5 +191,11 @@ export default {
       "app": "Il est ouvert dans une autre fenêtre d’Adminium, sur le port ‹{port}›. Fermez-le d’abord là-bas.",
       "again": "Vérifier à nouveau"
     }
+  },
+  "install": {
+    "offline": "Impossible de joindre Internet. Les paquets viennent de registry.npmjs.org : vérifiez votre connexion et réessayez.",
+    "proxy": "Le proxy de votre réseau a refusé le téléchargement. Vérifiez les réglages de proxy de cet ordinateur et réessayez.",
+    "disk": "Ce disque est plein. Libérez de l’espace et réessayez.",
+    "registry": "Le registre de paquets a répondu par une erreur. Réessayez dans un instant."
   }
 } as const;

@@ -4,6 +4,7 @@
  * its own, made from the name; main judges it as the name is typed and again
  * when "Create" is pressed.
  */
+import { installFailureKind, installFailureWords } from '../shell/installFailure.js';
 import { useT } from '@adminium/i18n/react';
 import { Ban, Check, LoaderCircle, TriangleAlert } from 'lucide-react';
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
@@ -301,7 +302,7 @@ export function NewProjectScreen({
             <Ban className="size-[17px]" />
           </span>
           <div className="flex min-w-0 flex-1 flex-col gap-2">
-            <div className="text-[13px] font-bold leading-[1.55]">{t('desktop:new.failed', 'The project could not be made.')}</div>
+            <div className="text-[13px] font-bold leading-[1.55]">{installFailureWords(t, installFailureKind(failure)) ?? t('desktop:new.failed', 'The project could not be made.')}</div>
             <pre dir="ltr" className="m-0 whitespace-pre-wrap font-mono text-[12px] leading-[1.5] text-fg-muted [overflow-wrap:anywhere]">
               {failure}
             </pre>

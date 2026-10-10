@@ -7,6 +7,7 @@
  * It is asked, not done unasked: the fetch is a download of minutes, and the
  * person opened a folder, not a download.
  */
+import { installFailureKind, installFailureWords } from '../shell/installFailure.js';
 import { useT } from '@adminium/i18n/react';
 import { Modal, ModalFooter, ModalHeader } from '@adminium/ui';
 import { LoaderCircle, PackageOpen } from 'lucide-react';
@@ -68,7 +69,7 @@ export function PackagesDialog({ question, now, onCancel, onGet }: { question: P
                 ) : null}
                 {question.failure === null ? null : (
                   <span role="alert" className="flex flex-col gap-1.5 rounded-[10px] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] bg-danger-soft px-3 py-2.5">
-                    <span className="text-[13px] font-bold text-fg">{t('desktop:packages.failed', 'The packages could not be fetched.')}</span>
+                    <span className="text-[13px] font-bold text-fg">{installFailureWords(t, installFailureKind(question.failure)) ?? t('desktop:packages.failed', 'The packages could not be fetched.')}</span>
                     <span dir="ltr" className="whitespace-pre-wrap font-mono text-[12px] leading-[1.5] text-fg-muted [overflow-wrap:anywhere]">
                       {question.failure}
                     </span>

@@ -181,5 +181,11 @@
       "app": "Es ist in einem anderen Adminium-Fenster geöffnet, auf Port ‹{port}›. Schließen Sie es zuerst dort.",
       "again": "Erneut prüfen"
     }
+  },
+  "install": {
+    "offline": "Das Internet war nicht erreichbar. Die Pakete kommen von registry.npmjs.org: Prüfen Sie Ihre Verbindung und versuchen Sie es erneut.",
+    "proxy": "Der Proxy Ihres Netzwerks hat den Download abgelehnt. Prüfen Sie die Proxy-Einstellungen dieses Computers und versuchen Sie es erneut.",
+    "disk": "Dieser Datenträger ist voll. Geben Sie Speicherplatz frei und versuchen Sie es erneut.",
+    "registry": "Die Paket-Registry hat mit einem Fehler geantwortet. Versuchen Sie es gleich noch einmal."
   }
 }
