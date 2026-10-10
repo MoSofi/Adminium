@@ -51,6 +51,7 @@ import type {
   DesktopConfigPatch,
   DesktopDiagnostics,
   DesktopMenuLabels,
+  DesktopProjectInfo,
   DesktopRuntimeInfo,
   DesktopUpdateCheckResult,
   DesktopUpdateEvent,
@@ -477,6 +478,8 @@ export interface RegisterIpcHandlersOptions {
    * (a build or a moment in which Start is not offered). Read at each call.
    */
   start?: (() => StartService | null) | undefined;
+  /** The project the window holds: what it is (`null` in the classic workspace) and the way out of it. */
+  project?: { info: () => (DesktopProjectInfo & { root: string }) | null; close: () => Promise<boolean> } | undefined;
   /** An override. Defaults to {@link loopbackSenderPolicy}, or to {@link pinnedSenderPolicy} with `pinSender`. */
   senderPolicy?: SenderPolicy | undefined;
   /** The packaged app: only the origin of the server main started may call. Off in the dev loop. */
@@ -834,6 +837,24 @@ export function registerIpcHandlers(opts: RegisterIpcHandlersOptions): IpcHandle
   );
   register(IPC_CHANNELS.startForgetProject, absolutePathSchema, (path) => start().forgetProject(path), ownPage);
   register(IPC_CHANNELS.startLocateProject, startLocateProjectSchema, (input) => start().locateProject(input), ownPage);
+  // ─── the project this window holds ─────────────────────────────────────────
+
+  // Answered for the project's own page (the ordinary sender rule). None of the three takes a path: a page
+  // cannot aim them at a folder other than the one it is served from.
+  register(IPC_CHANNELS.projectInfo, noPayloadSchema, () => {
+    const info = opts.project?.info() ?? null;
+    return Promise.resolve<DesktopProjectInfo | null>(info === null ? null : { name: info.name, displayPath: info.displayPath, mode: info.mode });
+  });
+  register(IPC_CHANNELS.projectShowInFolder, noPayloadSchema, async () => {
+    const info = opts.project?.info() ?? null;
+    if (info === null) throw new UnavailableError('This window holds no project.');
+    await opts.dialogs.showItemInFolder(info.root);
+  });
+  register(IPC_CHANNELS.projectClose, noPayloadSchema, () => {
+    if (opts.project === undefined || opts.project.info() === null) throw new UnavailableError('This window holds no project.');
+    return opts.project.close();
+  });
+
   register(
     IPC_CHANNELS.startUseClassic,
     noPayloadSchema,

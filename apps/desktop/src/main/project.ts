@@ -92,7 +92,7 @@ export interface StopBusyWords {
 }
 
 /** What is said before the app ends a project's server that is in the middle of something. */
-export function stopBusyWords(busy: ServerBusy): StopBusyWords {
+export function stopBusyWords(busy: ServerBusy, why: 'quit' | 'close' = 'quit'): StopBusyWords {
   const what: Record<string, string> = {
     turn: 'The Designer is in the middle of a turn.',
     start: 'An app is being added to this project.',
@@ -102,8 +102,8 @@ export function stopBusyWords(busy: ServerBusy): StopBusyWords {
   };
   return {
     title: what[busy.kind] ?? 'This project is being changed.',
-    detail: 'If you quit now it is stopped where it is. What was already written stays.',
-    goOn: 'Quit anyway',
+    detail: why === 'close' ? 'If you close the project now it is stopped where it is. What was already written stays.' : 'If you quit now it is stopped where it is. What was already written stays.',
+    goOn: why === 'close' ? 'Close anyway' : 'Quit anyway',
     stay: 'Keep working',
   };
 }

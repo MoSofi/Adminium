@@ -89,7 +89,7 @@ import { createMakeProject, runToEnd } from './make-project.js';
 import { carriedNpmDir, provideDesktopPrograms } from './programs.js';
 import { firstFreePort, projectPortRange, seamProject, sessionCookieNames, stopBusyWords } from './project.js';
 import { realFolderDeps, type FolderDeps } from './projects.js';
-import { createStartService, type StartChoice, type StartDeps, type StartService } from './start.js';
+import { createStartService, displayPathOf, nameFromFolder, type StartChoice, type StartDeps, type StartService } from './start.js';
 import {
   createServerManager,
   type CreateServerManagerOptions,
@@ -397,6 +397,8 @@ export interface DesktopBridgeContext {
   setMenuLabels: (labels: DesktopMenuLabels) => void;
   /** The first screens' service while Start is what the window holds; `null` otherwise. */
   start?: (() => StartService | null) | undefined;
+  /** The project the window holds (`info` is `null` in the classic workspace), and the way out of it. */
+  project?: { info: () => { root: string; displayPath: string; name: string; mode: 'design' | 'serve' } | null; close: () => Promise<boolean> } | undefined;
 }
 
 /** What the boot sequence knows about itself; `getRuntimeInfo` reads it. */
@@ -594,7 +596,7 @@ export interface DesktopBootDeps {
    * something. Resolves `true` to go on, `false` to leave it running. Left
    * out: nobody to ask, and the app goes on.
    */
-  confirmStopBusy?: ((busy: ServerBusy, why: 'quit') => Promise<boolean>) | undefined;
+  confirmStopBusy?: ((busy: ServerBusy, why: 'quit' | 'close') => Promise<boolean>) | undefined;
 }
 
 /** What {@link DesktopBootDeps.createBackup} needs from the boot sequence. */
@@ -662,6 +664,8 @@ export function createDesktopApp(deps: DesktopBootDeps): DesktopApp {
   let startService: StartService | null = null;
   /** Start is what the window holds: only then are its bridge calls answered. */
   let startOpen = false;
+  /** Set by `start()`; `null` before it and in a boot that cannot return to Start. */
+  let closeProject: (() => Promise<boolean>) | null = null;
   /**
    * The updater, `null` until step 5 and `null` forever in `disabled` mode.
    * Held here — rather than a step-5 const — for the quit hook below, which
@@ -934,6 +938,17 @@ export function createDesktopApp(deps: DesktopBootDeps): DesktopApp {
           rebuildMenu();
         },
         start: () => (startOpen ? startService : null),
+        project: {
+          info: () => {
+            const open = manager?.project ?? null;
+            if (open === null) return null;
+            const known = config?.projects.find((entry) => entry.path === open.root);
+            const folder = deps.startScreen?.folder;
+            const displayPath = folder === undefined ? open.root : displayPathOf(open.root, folder.home, folder.platform);
+            return { root: open.root, displayPath, name: known?.name ?? nameFromFolder(open.root), mode: open.mode };
+          },
+          close: () => (closeProject === null ? Promise.resolve(false) : closeProject()),
+        },
       });
 
       // The three buttons, graceful shutdown. BOTH before the config steps
@@ -1130,299 +1145,334 @@ export function createDesktopApp(deps: DesktopBootDeps): DesktopApp {
         });
       };
 
-      let firstRun: boolean;
-      let secret: string;
-      try {
-        // Step 2 — a missing config.json means first-run mode.
-        const loaded = await deps.config.load();
-        config = loaded.config;
-        firstRun = loaded.firstRun;
-        // Step 3 — safeStorage, or the flagged plaintext fallback.
-        if (deps.openProject !== undefined) {
-          await bootProject(loaded.config, deps.openProject);
-          return;
-        }
-        const screen = deps.startScreen;
-        if (screen !== undefined && windows.showStart !== undefined && windows.pendingFileArgument() === null) {
-          const classicUsed = screen.classicUsed(loaded.config);
-          const choice = await new Promise<StartChoice>((choose) => {
-            startService = createStartService({
-              readConfig: () => config ?? loaded.config,
-              saveConfig: async (next) => {
-                await deps.config.save(next);
-                config = next;
-              },
-              folder: screen.folder,
-              classicUsed: () => classicUsed,
-              chooseDirectory: screen.chooseDirectory,
-              ...(screen.makeProject === undefined ? {} : { makeProject: screen.makeProject }),
-              onChoice: choose,
-            });
-            startOpen = true;
-            void windows.showStart?.();
-          });
-          startOpen = false;
-          if (choice.kind === 'project') {
-            await bootProject(config ?? loaded.config, { root: choice.root });
+      /*
+       * What is opened, and its boot. Entered at launch, and AGAIN each time a
+       * project is closed (`again`): Start comes back, and the person's next
+       * choice is booted exactly as the first was. Everything above this line
+       * is done once per launch; everything in here is per thing opened.
+       */
+      const chooseAndBoot = async (again: boolean): Promise<void> => {
+        let firstRun: boolean;
+        let secret: string;
+        try {
+          // Step 2 — a missing config.json means first-run mode.
+          // Back from a closed project: the config is the one in hand (it was saved as it changed).
+          const loaded = again && config !== null ? { config, firstRun: false } : await deps.config.load();
+          config = loaded.config;
+          firstRun = loaded.firstRun;
+          // Step 3 — safeStorage, or the flagged plaintext fallback.
+          if (!again && deps.openProject !== undefined) {
+            await bootProject(loaded.config, deps.openProject);
             return;
           }
-          // "Use my own database". Writing the recent list made `config.json`, so its absence no longer says
-          // whether the classic workspace was ever set up: the data folder does.
-          firstRun = !classicUsed;
-        }
-        const resolved = await deps.config.resolveSecret(loaded.config);
-        secret = resolved.secret;
-        runtime = {
-          dataDir: loaded.config.dataDir,
-          firstRun,
-          secretStorage: resolved.secretStorage,
-          serverPort: -1,
-        };
-      } catch (error) {
-        await windows.showCrash({
-          reason: error instanceof Error ? error.message : String(error),
-          canRestart: false,
-        });
-        return;
-      }
-      const loadedConfig = config;
-
-      // Step 5. Step 4's token is minted by the manager, once per FORK — see
-      // `CreateServerManagerOptions.createBootToken`. The shell must therefore
-      // read `manager.bootToken` at each navigation instead of closing over a
-      // value: a `const` here would be a token every restart invalidates, and
-      // (worse, before the manager owned the mint) one that every restart
-      // re-armed for a second passwordless session.
-      manager = deps.createServerManager({
-        entry: deps.serverEntry,
-        dataDir: loadedConfig.dataDir,
-        secret,
-        createBootToken: deps.createBootToken,
-        logsDir: deps.logsDir,
-        telemetryOptIn: loadedConfig.telemetryOptIn,
-        // The mirror. The child writes this into `adminium_settings` at boot
-        // and the auto-login route reads it back; without it the route refuses
-        // the very token this boot puts in the window URL at step 8.
-        singleUser: loadedConfig.singleUser,
-        // Where the SPA is. See DesktopBootDeps.staticRoot.
-        ...(deps.staticRoot === undefined ? {} : { staticRoot: deps.staticRoot }),
-        // Where the demo seed script is. See DesktopBootDeps.demoSeedScript.
-        ...(deps.demoSeedScript === undefined ? {} : { demoSeedScript: deps.demoSeedScript }),
-        // Where the bundled add-on set is. See
-        // DesktopBootDeps.bundledAddOnsDir.
-        ...(deps.bundledAddOnsDir === undefined
-          ? {}
-          : { bundledAddOnsDir: deps.bundledAddOnsDir }),
-        // Loopback unless the user opted into LAN share. Omitting both is not
-        // laziness — the manager defaults to 127.0.0.1 + port 0, so the shell
-        // cannot bind every interface by forgetting something.
-        ...(loadedConfig.lanShare.enabled
-          ? { host: '0.0.0.0', port: loadedConfig.lanShare.port }
-          : {}),
-      });
-      const startedManager = manager;
-
-      // The coordinator, menu — both here, because both need the manager
-      // that only just came into existence.
-      //
-      // THIS IS THE WIRING. `createBackupCoordinator` and `buildAppMenu` were
-      // each called by NOTHING before this line, which meant backup/restore and
-      // the entire native menu bar were absent from every launch while both
-      // modules compiled, unit-tested green, and looked finished. That is the
-      // failure this codebase has now shipped five times (`registerIpcHandlers`
-      // never called; `staticRoot` never passed). The grep that proves it is
-      // fixed is a grep for THIS call site, not a passing test.
-      backup = deps.createBackup({
-        // `config`, NOT `loadedConfig`. The two differ the moment the settings
-        // panel writes: `writeConfig` reassigns the outer `config`, and
-        // `loadedConfig` is the step-2 snapshot the rest of this function uses
-        // for values the SERVER FORK froze anyway (dataDir, singleUser). The backup
-        // scheduler is the opposite case — it re-reads on every tick precisely
-        // so "Automatic backups: off" takes effect at 03:00 tonight rather than
-        // next launch. Handing it the snapshot would make that toggle, and
-        // `keep`, silently inert.
-        readConfig: () => config ?? loadedConfig,
-        // dataDir is genuinely immutable for this boot: the server was forked
-        // against it at step 5, makes changing it a quit-and-move operation.
-        // The snapshot is the honest source here.
-        dataDir: loadedConfig.dataDir,
-        server: {
-          stop: () => startedManager.stop(),
-          start: async () => {
-            const ready = await startedManager.start();
-            return { metaVersion: ready.metaVersion };
-          },
-          // The handshake is the only source (`protocol.ts`); `null` before it,
-          // which `validateArchive` turns into a refusal rather than a skipped
-          // check.
-          metaVersion: () =>
-            startedManager.state.status === 'ready' ? startedManager.state.metaVersion : null,
-        },
-        serverOrigin: () =>
-          startedManager.state.status === 'ready'
-            ? `http://127.0.0.1:${String(startedManager.state.port)}`
-            : null,
-      });
-      const coordinator = backup;
-
-      // The updater. Created HERE, after the config load that carries
-      // `updates.mode`, and BEFORE the menu that wires its "Check for updates…"
-      // item. THIS IS THE WIRING: `deps.createUpdateManager` is the same class of
-      // call as `createBackup` above, and the port feeds two consumers from one
-      // manager — the ipc `updates` getter (so checkForUpdates / downloadUpdate /
-      // quitAndInstall reach it from the SPA) and the Help menu below. `null` in
-      // `disabled` mode (or under `ADMINIUM_DISABLE_UPDATES=1`, which the port
-      // resolves): the correctness rule — nothing is constructed, so an
-      // air-gapped install makes zero non-loopback requests. `notify` mode
-      // schedules its own launch + daily checks; nothing here drives them.
-      updateManager = deps.createUpdateManager({ mode: loadedConfig.updates.mode });
-
-      // Assemble the menu's command handlers ONCE, here at step 5 — File's
-      // backup/restore (coordinator), Help's Show Logs, and (when the updater
-      // exists) Help's Check for updates. `rebuildMenu` turns them plus the
-      // current labels into the installed menu; a later locale push
-      // (`setMenuLabels`) rebuilds with these SAME handlers and the new `t`.
-      //
-      // THIS IS THE WIRING: `deps.installMenu` is reached only through
-      // `rebuildMenu`, and `rebuildMenu` was called by nothing before this line —
-      // so the whole native menu bar, and its locale rebuild, would otherwise be
-      // absent from every launch while `menu.ts` compiled and unit-tested green.
-      menuHandlers = {
-        backupNow: () => void coordinator.backupNow(),
-        restore: () => {
-          void (async () => {
-            // The open dialog is, and the coordinator does not own one — it
-            // takes a path (launch-argument path hands it one directly).
-            const file = await deps.pickBackupFile();
-            if (file !== null) await coordinator.restoreFrom(file);
-          })();
-        },
-        showLogs: () => void deps.showLogs(),
-        // "About Adminium" opens the SAME `/about` panel the Settings surface
-        // uses. A window navigation, not an IPC push to the SPA: the route exists
-        // and the server serves it, so this cannot regress into a dead item the
-        // way a push whose renderer subscriber went unmounted would (the exact
-        // "green but broken" shape the crash-page note warns about). Guarded on
-        // `ready` because before the handshake there is no origin to navigate to
-        // — the item is reachable only after the app is up anyway.
-        about: () => {
-          const state = startedManager.state;
-          if (state.status !== 'ready') return;
-          void windows.loadApp(
-            appUrl({ host: state.host, port: state.port, firstRun: false, path: ABOUT_PATH }),
-          );
-        },
-        // Help → "Check for updates…". In `manual` mode this is the
-        // ONLY check path; in `notify` it supplements the scheduled ones. `null`
-        // (disabled) leaves the item disabled via `menu.ts`'s unwired-handler
-        // rule. An `available` result surfaces through the ONE notification
-        // pipeline (`onUpdateEvent`); a `none`/`error` result is the SPA button's
-        // to render (About / Settings), not this native item's.
-        ...(updateManager === null
-          ? {}
-          : { checkForUpdates: (): void => void updateManager?.checkForUpdates() }),
-      };
-      rebuildMenu();
-
-      // The daily 03:00 auto-backup. Started here rather than lazily on the
-      // first tick because a schedule nobody constructs is a schedule that never
-      // fires — the same bug as the two above, one layer down.
-      stopAutoBackup = coordinator.startAutoBackup();
-
-      // Steps 5 and 6, in the doc's order and for the doc's reason: the fork is
-      // started but NOT awaited, so the splash paints while the server migrates.
-      // Awaiting the handshake first leaves an empty window on screen for as
-      // long as the boot takes — which, on a first run with migrations to apply,
-      // is the longest it will ever be.
-      const started = manager.start();
-      await windows.showBoot();
-
-      // Step 7 — the handshake (or its 30 s timeout) resolves the real port. The
-      // child listens on :0, so its `ready` message is the only place that
-      // number exists.
-      let ready: ServerReadyInfo;
-      try {
-        ready = await started;
-      } catch (error) {
-        await windows.showCrash(crashFromStartError(error));
-        return;
-      }
-      runtime = { ...runtime, serverPort: ready.port };
-
-      // Step 8. The token rides in the URL only while `singleUser` is on — with
-      // it off the desktop-session route is not registered and the SPA must fall
-      // through to the standard login.
-      //
-      // Read from the manager, never cached: it minted this token for the child
-      // that just reported `ready`, and the next restart mints another.
-      await windows.loadApp(
-        appUrl({
-          host: ready.host,
-          port: ready.port,
-          firstRun,
-          ...bootTokenParam(loadedConfig.singleUser, manager.bootToken),
-        }),
-      );
-
-      // Step 9. The POLICY is the manager's — it is the only thing that knows
-      // how many children have died and when — so the shell only renders what it
-      // reports. `onExit` fires for UNEXPECTED post-`ready` exits only, which is
-      // why the try/catch above cannot double-report the same failure.
-      manager.onExit((exit: ServerExit) => {
-        if (exit.willRestart) {
-          // "Silent restart" means no crash dialog — not a live window pointed
-          // at a port nobody is listening on any more.
-          void windows.showBoot();
+          const screen = deps.startScreen;
+          if (screen !== undefined && windows.showStart !== undefined && (again || windows.pendingFileArgument() === null)) {
+            const classicUsed = screen.classicUsed(loaded.config);
+            const choice = await new Promise<StartChoice>((choose) => {
+              startService = createStartService({
+                readConfig: () => config ?? loaded.config,
+                saveConfig: async (next) => {
+                  await deps.config.save(next);
+                  config = next;
+                },
+                folder: screen.folder,
+                classicUsed: () => classicUsed,
+                chooseDirectory: screen.chooseDirectory,
+                ...(screen.makeProject === undefined ? {} : { makeProject: screen.makeProject }),
+                onChoice: choose,
+              });
+              startOpen = true;
+              void windows.showStart?.();
+            });
+            startOpen = false;
+            if (choice.kind === 'project') {
+              await bootProject(config ?? loaded.config, { root: choice.root });
+              return;
+            }
+            // "Use my own database". Writing the recent list made `config.json`, so its absence no longer says
+            // whether the classic workspace was ever set up: the data folder does.
+            firstRun = !classicUsed;
+          }
+          const resolved = await deps.config.resolveSecret(loaded.config);
+          secret = resolved.secret;
+          runtime = {
+            dataDir: loaded.config.dataDir,
+            firstRun,
+            secretStorage: resolved.secretStorage,
+            serverPort: -1,
+          };
+        } catch (error) {
+          await windows.showCrash({
+            reason: error instanceof Error ? error.message : String(error),
+            canRestart: false,
+          });
           return;
         }
-        void windows.showCrash({
-          reason:
-            exit.code === null
-              ? `The Adminium server stopped unexpectedly (signal ${exit.signal ?? 'unknown'}).`
-              : `The Adminium server stopped unexpectedly (exit code ${String(exit.code)}).`,
-          logPath: exit.logPath,
-          // Once the 3-in-60 s cap trips, restarting is the user's move, not
-          // ours.
-          canRestart: !exit.giveUp,
-        });
-      });
+        const loadedConfig = config;
 
-      // A restart re-forks the child, which listens on :0 again and therefore
-      // comes back on a DIFFERENT port — so the window has to be sent to the new
-      // origin or it stays pointed at a dead one. `subscribe` replays the
-      // current state immediately; the port guard makes that replay a no-op.
-      // (The boot token survives: it is ours, not the child's, so the SPA's
-      // exchange still works against the new process.)
-      manager.subscribe((state: ServerState) => {
-        if (state.status !== 'ready') return;
-        // The toggle leaves a path here; every other restart finds none and
-        // lands on `/`. Consumed as soon as a `ready` arrives — INCLUDING the
-        // one the port guard below discards, which is the case that matters: a
-        // rebind that happened to land on the same port navigates nowhere, and a
-        // note left behind by it would hijack the next crash recovery's URL.
-        const path = pendingAppPath;
-        pendingAppPath = null;
-        if (runtime !== null && state.port === runtime.serverPort) return;
-        runtime = runtime === null ? runtime : { ...runtime, serverPort: state.port };
-        void windows.loadApp(
+        // Step 5. Step 4's token is minted by the manager, once per FORK — see
+        // `CreateServerManagerOptions.createBootToken`. The shell must therefore
+        // read `manager.bootToken` at each navigation instead of closing over a
+        // value: a `const` here would be a token every restart invalidates, and
+        // (worse, before the manager owned the mint) one that every restart
+        // re-armed for a second passwordless session.
+        manager = deps.createServerManager({
+          entry: deps.serverEntry,
+          dataDir: loadedConfig.dataDir,
+          secret,
+          createBootToken: deps.createBootToken,
+          logsDir: deps.logsDir,
+          telemetryOptIn: loadedConfig.telemetryOptIn,
+          // The mirror. The child writes this into `adminium_settings` at boot
+          // and the auto-login route reads it back; without it the route refuses
+          // the very token this boot puts in the window URL at step 8.
+          singleUser: loadedConfig.singleUser,
+          // Where the SPA is. See DesktopBootDeps.staticRoot.
+          ...(deps.staticRoot === undefined ? {} : { staticRoot: deps.staticRoot }),
+          // Where the demo seed script is. See DesktopBootDeps.demoSeedScript.
+          ...(deps.demoSeedScript === undefined ? {} : { demoSeedScript: deps.demoSeedScript }),
+          // Where the bundled add-on set is. See
+          // DesktopBootDeps.bundledAddOnsDir.
+          ...(deps.bundledAddOnsDir === undefined
+            ? {}
+            : { bundledAddOnsDir: deps.bundledAddOnsDir }),
+          // Loopback unless the user opted into LAN share. Omitting both is not
+          // laziness — the manager defaults to 127.0.0.1 + port 0, so the shell
+          // cannot bind every interface by forgetting something.
+          ...(loadedConfig.lanShare.enabled
+            ? { host: '0.0.0.0', port: loadedConfig.lanShare.port }
+            : {}),
+        });
+        const startedManager = manager;
+
+        // The coordinator, menu — both here, because both need the manager
+        // that only just came into existence.
+        //
+        // THIS IS THE WIRING. `createBackupCoordinator` and `buildAppMenu` were
+        // each called by NOTHING before this line, which meant backup/restore and
+        // the entire native menu bar were absent from every launch while both
+        // modules compiled, unit-tested green, and looked finished. That is the
+        // failure this codebase has now shipped five times (`registerIpcHandlers`
+        // never called; `staticRoot` never passed). The grep that proves it is
+        // fixed is a grep for THIS call site, not a passing test.
+        backup = deps.createBackup({
+          // `config`, NOT `loadedConfig`. The two differ the moment the settings
+          // panel writes: `writeConfig` reassigns the outer `config`, and
+          // `loadedConfig` is the step-2 snapshot the rest of this function uses
+          // for values the SERVER FORK froze anyway (dataDir, singleUser). The backup
+          // scheduler is the opposite case — it re-reads on every tick precisely
+          // so "Automatic backups: off" takes effect at 03:00 tonight rather than
+          // next launch. Handing it the snapshot would make that toggle, and
+          // `keep`, silently inert.
+          readConfig: () => config ?? loadedConfig,
+          // dataDir is genuinely immutable for this boot: the server was forked
+          // against it at step 5, makes changing it a quit-and-move operation.
+          // The snapshot is the honest source here.
+          dataDir: loadedConfig.dataDir,
+          server: {
+            stop: () => startedManager.stop(),
+            start: async () => {
+              const ready = await startedManager.start();
+              return { metaVersion: ready.metaVersion };
+            },
+            // The handshake is the only source (`protocol.ts`); `null` before it,
+            // which `validateArchive` turns into a refusal rather than a skipped
+            // check.
+            metaVersion: () =>
+              startedManager.state.status === 'ready' ? startedManager.state.metaVersion : null,
+          },
+          serverOrigin: () =>
+            startedManager.state.status === 'ready'
+              ? `http://127.0.0.1:${String(startedManager.state.port)}`
+              : null,
+        });
+        const coordinator = backup;
+
+        // The updater. Created HERE, after the config load that carries
+        // `updates.mode`, and BEFORE the menu that wires its "Check for updates…"
+        // item. THIS IS THE WIRING: `deps.createUpdateManager` is the same class of
+        // call as `createBackup` above, and the port feeds two consumers from one
+        // manager — the ipc `updates` getter (so checkForUpdates / downloadUpdate /
+        // quitAndInstall reach it from the SPA) and the Help menu below. `null` in
+        // `disabled` mode (or under `ADMINIUM_DISABLE_UPDATES=1`, which the port
+        // resolves): the correctness rule — nothing is constructed, so an
+        // air-gapped install makes zero non-loopback requests. `notify` mode
+        // schedules its own launch + daily checks; nothing here drives them.
+        updateManager = deps.createUpdateManager({ mode: loadedConfig.updates.mode });
+
+        // Assemble the menu's command handlers ONCE, here at step 5 — File's
+        // backup/restore (coordinator), Help's Show Logs, and (when the updater
+        // exists) Help's Check for updates. `rebuildMenu` turns them plus the
+        // current labels into the installed menu; a later locale push
+        // (`setMenuLabels`) rebuilds with these SAME handlers and the new `t`.
+        //
+        // THIS IS THE WIRING: `deps.installMenu` is reached only through
+        // `rebuildMenu`, and `rebuildMenu` was called by nothing before this line —
+        // so the whole native menu bar, and its locale rebuild, would otherwise be
+        // absent from every launch while `menu.ts` compiled and unit-tested green.
+        menuHandlers = {
+          backupNow: () => void coordinator.backupNow(),
+          restore: () => {
+            void (async () => {
+              // The open dialog is, and the coordinator does not own one — it
+              // takes a path (launch-argument path hands it one directly).
+              const file = await deps.pickBackupFile();
+              if (file !== null) await coordinator.restoreFrom(file);
+            })();
+          },
+          showLogs: () => void deps.showLogs(),
+          // "About Adminium" opens the SAME `/about` panel the Settings surface
+          // uses. A window navigation, not an IPC push to the SPA: the route exists
+          // and the server serves it, so this cannot regress into a dead item the
+          // way a push whose renderer subscriber went unmounted would (the exact
+          // "green but broken" shape the crash-page note warns about). Guarded on
+          // `ready` because before the handshake there is no origin to navigate to
+          // — the item is reachable only after the app is up anyway.
+          about: () => {
+            const state = startedManager.state;
+            if (state.status !== 'ready') return;
+            void windows.loadApp(
+              appUrl({ host: state.host, port: state.port, firstRun: false, path: ABOUT_PATH }),
+            );
+          },
+          // Help → "Check for updates…". In `manual` mode this is the
+          // ONLY check path; in `notify` it supplements the scheduled ones. `null`
+          // (disabled) leaves the item disabled via `menu.ts`'s unwired-handler
+          // rule. An `available` result surfaces through the ONE notification
+          // pipeline (`onUpdateEvent`); a `none`/`error` result is the SPA button's
+          // to render (About / Settings), not this native item's.
+          ...(updateManager === null
+            ? {}
+            : { checkForUpdates: (): void => void updateManager?.checkForUpdates() }),
+        };
+        rebuildMenu();
+
+        // The daily 03:00 auto-backup. Started here rather than lazily on the
+        // first tick because a schedule nobody constructs is a schedule that never
+        // fires — the same bug as the two above, one layer down.
+        stopAutoBackup = coordinator.startAutoBackup();
+
+        // Steps 5 and 6, in the doc's order and for the doc's reason: the fork is
+        // started but NOT awaited, so the splash paints while the server migrates.
+        // Awaiting the handshake first leaves an empty window on screen for as
+        // long as the boot takes — which, on a first run with migrations to apply,
+        // is the longest it will ever be.
+        const started = manager.start();
+        await windows.showBoot();
+
+        // Step 7 — the handshake (or its 30 s timeout) resolves the real port. The
+        // child listens on :0, so its `ready` message is the only place that
+        // number exists.
+        let ready: ServerReadyInfo;
+        try {
+          ready = await started;
+        } catch (error) {
+          await windows.showCrash(crashFromStartError(error));
+          return;
+        }
+        runtime = { ...runtime, serverPort: ready.port };
+
+        // Step 8. The token rides in the URL only while `singleUser` is on — with
+        // it off the desktop-session route is not registered and the SPA must fall
+        // through to the standard login.
+        //
+        // Read from the manager, never cached: it minted this token for the child
+        // that just reported `ready`, and the next restart mints another.
+        await windows.loadApp(
           appUrl({
-            host: state.host,
-            port: state.port,
+            host: ready.host,
+            port: ready.port,
             firstRun,
-            // The RESTARTED child's token, not the one this app launched with.
-            // `manager` re-mints per fork, so the URL below carries a token the
-            // process now listening has actually heard of — and the previous
-            // one is dead rather than re-armed for a second free session.
-            ...bootTokenParam(loadedConfig.singleUser, manager?.bootToken ?? null),
-            ...(path === null ? {} : { path }),
+            ...bootTokenParam(loadedConfig.singleUser, manager.bootToken),
           }),
         );
-      });
 
-      // A file handed to us on the command line is a restore/open request, and
-      // it can only be acted on once the SPA is up to render the flow.
-      const launchFile = extractFileArgument(host.argv);
-      if (launchFile !== null) routeFileArgument(launchFile);
+        // Step 9. The POLICY is the manager's — it is the only thing that knows
+        // how many children have died and when — so the shell only renders what it
+        // reports. `onExit` fires for UNEXPECTED post-`ready` exits only, which is
+        // why the try/catch above cannot double-report the same failure.
+        manager.onExit((exit: ServerExit) => {
+          if (exit.willRestart) {
+            // "Silent restart" means no crash dialog — not a live window pointed
+            // at a port nobody is listening on any more.
+            void windows.showBoot();
+            return;
+          }
+          void windows.showCrash({
+            reason:
+              exit.code === null
+                ? `The Adminium server stopped unexpectedly (signal ${exit.signal ?? 'unknown'}).`
+                : `The Adminium server stopped unexpectedly (exit code ${String(exit.code)}).`,
+            logPath: exit.logPath,
+            // Once the 3-in-60 s cap trips, restarting is the user's move, not
+            // ours.
+            canRestart: !exit.giveUp,
+          });
+        });
+
+        // A restart re-forks the child, which listens on :0 again and therefore
+        // comes back on a DIFFERENT port — so the window has to be sent to the new
+        // origin or it stays pointed at a dead one. `subscribe` replays the
+        // current state immediately; the port guard makes that replay a no-op.
+        // (The boot token survives: it is ours, not the child's, so the SPA's
+        // exchange still works against the new process.)
+        manager.subscribe((state: ServerState) => {
+          if (state.status !== 'ready') return;
+          // The toggle leaves a path here; every other restart finds none and
+          // lands on `/`. Consumed as soon as a `ready` arrives — INCLUDING the
+          // one the port guard below discards, which is the case that matters: a
+          // rebind that happened to land on the same port navigates nowhere, and a
+          // note left behind by it would hijack the next crash recovery's URL.
+          const path = pendingAppPath;
+          pendingAppPath = null;
+          if (runtime !== null && state.port === runtime.serverPort) return;
+          runtime = runtime === null ? runtime : { ...runtime, serverPort: state.port };
+          void windows.loadApp(
+            appUrl({
+              host: state.host,
+              port: state.port,
+              firstRun,
+              // The RESTARTED child's token, not the one this app launched with.
+              // `manager` re-mints per fork, so the URL below carries a token the
+              // process now listening has actually heard of — and the previous
+              // one is dead rather than re-armed for a second free session.
+              ...bootTokenParam(loadedConfig.singleUser, manager?.bootToken ?? null),
+              ...(path === null ? {} : { path }),
+            }),
+          );
+        });
+
+        // A file handed to us on the command line is a restore/open request, and
+        // it can only be acted on once the SPA is up to render the flow.
+        if (again) return;
+        const launchFile = extractFileArgument(host.argv);
+        if (launchFile !== null) routeFileArgument(launchFile);
+      };
+
+      /*
+       * "Close project": the folder's server is stopped as a quit stops it (the
+       * same question first when it is in the middle of something), what was
+       * agreed to is taken again, the window goes back to the app's own cookie
+       * jar, and Start is shown.
+       */
+      closeProject = async (): Promise<boolean> => {
+        const target = manager;
+        if (target === null || target.project === null) return false;
+        const root = target.project.root;
+        const busy = await target.busy().catch(() => null);
+        if (busy !== null && deps.confirmStopBusy !== undefined && !(await deps.confirmStopBusy(busy, 'close').catch(() => true))) return false;
+        await target.stop().catch(() => undefined);
+        await startService?.trustNow(root).catch(() => undefined);
+        updateManager?.dispose();
+        updateManager = null;
+        manager = null;
+        runtime = null;
+        windows.useProjectSession?.(null);
+        void chooseAndBoot(true);
+        return true;
+      };
+
+      await chooseAndBoot(false);
     },
   };
 }
@@ -2216,8 +2266,8 @@ export function electronBootDeps(): DesktopBootDeps {
     // Absolute even though this build bundles no apps: the server's default is
     // `./apps-bundle`, which a project's child would look for inside the opened folder.
     bundledAppsDir: resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', 'resources', 'apps-bundle'),
-    confirmStopBusy: async (busy) => {
-      const words = stopBusyWords(busy);
+    confirmStopBusy: async (busy, why) => {
+      const words = stopBusyWords(busy, why);
       const parent = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0] ?? null;
       const options: Electron.MessageBoxOptions = {
         type: 'warning',
@@ -2238,6 +2288,7 @@ export function electronBootDeps(): DesktopBootDeps {
         ipc: ipcMain,
         pinSender: app.isPackaged,
         start: context.start,
+        project: context.project,
         // The two synchronous properties. `versions.app` is `app.getVersion()`
         // and exists ONLY here: a sandboxed preload's polyfilled `process` knows
         // electron/chrome/node and nothing about the app itself, which is the

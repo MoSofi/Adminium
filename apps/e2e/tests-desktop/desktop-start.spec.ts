@@ -161,3 +161,24 @@ test('the next launch lists it under Recent projects and opens it without asking
   page = await next;
   await expect(page.getByRole('heading', { name: 'What do you want to build?' })).toBeVisible({ timeout: 180_000 });
 });
+
+test('"Close project" comes back to Start, and the project can be opened again', async () => {
+  test.setTimeout(240_000);
+  // The project's own page asks: what it holds, then to be closed. (The dashboard's menu will call the same.)
+  const info = await page.evaluate(() => (window as unknown as { adminiumDesktop: { project: { info: () => Promise<unknown> } } }).adminiumDesktop.project.info());
+  // Outside the (temporary) home folder, so the path is shown whole.
+  expect(info).toEqual({ name: 'Demo', displayPath: project.root, mode: 'design' });
+
+  const next = app.waitForEvent('window');
+  void page.evaluate(() => (window as unknown as { adminiumDesktop: { project: { close: () => Promise<boolean> } } }).adminiumDesktop.project.close()).catch(() => undefined);
+  page = await next;
+  await expect(page.getByRole('heading', { name: 'What would you like to do?' })).toBeVisible({ timeout: 60_000 });
+  expect(app.windows()).toHaveLength(1);
+  // Stopped: the folder is free again.
+  await expect.poll(() => existsSync(join(project.root, '.adminium', 'running.json'))).toBe(false);
+
+  const again = app.waitForEvent('window');
+  await page.locator(`[data-recent="${project.root}"]`).getByRole('button').first().click();
+  page = await again;
+  await expect(page.getByRole('heading', { name: 'What do you want to build?' })).toBeVisible({ timeout: 180_000 });
+});

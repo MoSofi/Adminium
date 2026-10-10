@@ -766,3 +766,48 @@ describe('the first screens’ channels', () => {
     expect(ownPagePolicy(null)).toBe(false);
   });
 });
+
+// ─── the project this window holds ───────────────────────────────────────────
+
+describe('the project’s channels', () => {
+  const INFO = { root: '/home/ava/Adminium/shop', displayPath: '~/Adminium/shop', name: 'Shop', mode: 'design' as const };
+
+  it('say what the window holds, without the folder’s real path', async () => {
+    const h = harness({ project: { info: () => INFO, close: () => Promise.resolve(true) } });
+    expect(expectOk(await h.ipc.invoke(IPC_CHANNELS.projectInfo))).toEqual({ name: 'Shop', displayPath: '~/Adminium/shop', mode: 'design' });
+  });
+
+  it('answer null in the classic workspace, and refuse the two that act', async () => {
+    for (const h of [harness(), harness({ project: { info: () => null, close: () => Promise.resolve(true) } })]) {
+      expect(expectOk(await h.ipc.invoke(IPC_CHANNELS.projectInfo))).toBeNull();
+      expect(expectFail(await h.ipc.invoke(IPC_CHANNELS.projectShowInFolder)).code).toBe('UNAVAILABLE');
+      expect(expectFail(await h.ipc.invoke(IPC_CHANNELS.projectClose)).code).toBe('UNAVAILABLE');
+      expect(h.dialogs.showItemInFolder).not.toHaveBeenCalled();
+    }
+  });
+
+  it('show the project’s own folder, whatever the page sends', async () => {
+    const h = harness({ project: { info: () => INFO, close: () => Promise.resolve(true) } });
+    expectOk(await h.ipc.invoke(IPC_CHANNELS.projectShowInFolder));
+    expect(h.dialogs.showItemInFolder).toHaveBeenCalledWith('/home/ava/Adminium/shop');
+    // No call takes a path: a page cannot aim one at another folder.
+    expect(expectFail(await h.ipc.invoke(IPC_CHANNELS.projectShowInFolder, '/etc')).code).toBe('INVALID_PAYLOAD');
+    expect(expectFail(await h.ipc.invoke(IPC_CHANNELS.projectClose, { path: '/etc' })).code).toBe('INVALID_PAYLOAD');
+    expect(h.dialogs.showItemInFolder).toHaveBeenCalledTimes(1);
+  });
+
+  it('close it, and say whether the person kept working', async () => {
+    const close = vi.fn<() => Promise<boolean>>().mockResolvedValueOnce(true).mockResolvedValueOnce(false);
+    const h = harness({ project: { info: () => INFO, close } });
+    expect(expectOk(await h.ipc.invoke(IPC_CHANNELS.projectClose))).toBe(true);
+    expect(expectOk(await h.ipc.invoke(IPC_CHANNELS.projectClose))).toBe(false);
+  });
+
+  it('are refused to a page that is not the app’s', async () => {
+    const h = harness({ project: { info: () => INFO, close: () => Promise.resolve(true) } });
+    const stranger: IpcInvokeEventLike = { senderFrame: { url: 'https://example.com/' } };
+    for (const channel of [IPC_CHANNELS.projectInfo, IPC_CHANNELS.projectShowInFolder, IPC_CHANNELS.projectClose]) {
+      expect(expectFail(await h.ipc.invoke(channel, undefined, stranger)).code).toBe('UNTRUSTED_SENDER');
+    }
+  });
+});

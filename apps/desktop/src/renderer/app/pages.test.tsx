@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // @vitest-environment happy-dom
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { userEvent } from '@testing-library/user-event';
 import type { I18nInstance } from '@adminium/i18n';
 import { I18nProvider } from '@adminium/i18n/react';
 import type { ReactNode } from 'react';

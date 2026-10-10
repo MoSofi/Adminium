@@ -64,6 +64,9 @@ export const IPC_CHANNELS = {
   startForgetProject: 'adminium-desktop:start-forget-project',
   startLocateProject: 'adminium-desktop:start-locate-project',
   startUseClassic: 'adminium-desktop:start-use-classic',
+  projectInfo: 'adminium-desktop:project-info',
+  projectShowInFolder: 'adminium-desktop:project-show-in-folder',
+  projectClose: 'adminium-desktop:project-close',
   updateEvent: 'adminium-desktop:update-event',
 } as const;
 
@@ -106,6 +109,9 @@ export const INVOKE_CHANNELS = [
   IPC_CHANNELS.relaunch,
   IPC_CHANNELS.showLogs,
   ...START_CHANNELS,
+  IPC_CHANNELS.projectInfo,
+  IPC_CHANNELS.projectShowInFolder,
+  IPC_CHANNELS.projectClose,
 ] as const;
 
 /**

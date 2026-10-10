@@ -504,6 +504,33 @@ export interface DesktopStartApi {
   useClassic(): Promise<void>;
 }
 
+// ─── A project the window holds ──────────────────────────────────────────────
+
+/** The project folder this window serves. */
+export interface DesktopProjectInfo {
+  readonly name: string;
+  /** The folder, as a person reads it (`~/Adminium/shop`). */
+  readonly displayPath: string;
+  /** `design`: being built, on this computer only. `serve`: shared. */
+  readonly mode: 'design' | 'serve';
+}
+
+/**
+ * What a project's own page asks of the app. Each call names nothing: it acts
+ * on the project this window holds, so a page cannot point it at another folder.
+ */
+export interface DesktopProjectApi {
+  /** `null` in the classic workspace: the window holds no project. */
+  info(): Promise<DesktopProjectInfo | null>;
+  /** "Show in Finder" / "Show in File Explorer": the project's folder. */
+  showInFolder(): Promise<void>;
+  /**
+   * "Close project": back to the app's first screen. `false` when the person
+   * chose to keep working (something was in the middle of running).
+   */
+  close(): Promise<boolean>;
+}
+
 // ─── The API ─────────────────────────────────────────────────────────────────
 
 /**
@@ -608,6 +635,9 @@ export interface AdminiumDesktopApi {
 
   // the first screens (the app's own pages only)
   readonly start: DesktopStartApi;
+
+  // the project this window holds
+  readonly project: DesktopProjectApi;
 }
 
 /**

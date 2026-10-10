@@ -54,6 +54,7 @@ import type {
   DesktopNewFolderJudgement,
   DesktopOpenProjectInput,
   DesktopOpenProjectResult,
+  DesktopProjectInfo,
   DesktopRecentProject,
   DesktopRuntimeInfo,
   DesktopStartState,
@@ -291,6 +292,12 @@ export function createDesktopApi(deps: Pick<PreloadDeps, 'ipc' | 'bootstrap'>): 
       locateProject: (input: { readonly path: string; readonly title: string }): Promise<DesktopLocateProjectResult> =>
         unwrap(ipc.invoke(IPC_CHANNELS.startLocateProject, input)),
       useClassic: (): Promise<void> => unwrap(ipc.invoke(IPC_CHANNELS.startUseClassic)),
+    },
+
+    project: {
+      info: (): Promise<DesktopProjectInfo | null> => unwrap(ipc.invoke(IPC_CHANNELS.projectInfo)),
+      showInFolder: (): Promise<void> => unwrap(ipc.invoke(IPC_CHANNELS.projectShowInFolder)),
+      close: (): Promise<boolean> => unwrap(ipc.invoke(IPC_CHANNELS.projectClose)),
     },
   };
 }

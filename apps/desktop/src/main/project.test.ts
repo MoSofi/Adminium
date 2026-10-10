@@ -85,6 +85,8 @@ describe('stopBusyWords', () => {
       stay: 'Keep working',
     });
     expect(stopBusyWords({ kind: 'save', sessionId: null }).title).toBe('Your changes are being saved.');
+    // Closing a project asks the same thing in its own words.
+    expect(stopBusyWords({ kind: 'turn', sessionId: 'ds_1' }, 'close')).toMatchObject({ goOn: 'Close anyway', detail: 'If you close the project now it is stopped where it is. What was already written stays.' });
     expect(stopBusyWords({ kind: 'something-new', sessionId: null }).title).toBe('This project is being changed.');
   });
 });

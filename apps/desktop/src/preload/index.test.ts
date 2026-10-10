@@ -97,6 +97,7 @@ describe('the exposed surface', () => {
     'onUpdateEvent',
     'openFile',
     'platform',
+    'project',
     'quitAndInstall',
     'readBundledText',
     'relaunch',
@@ -135,6 +136,20 @@ describe('the exposed surface', () => {
     await start.locateProject({ path: '/p', title: 't' });
     await start.useClassic();
     expect(ipc.calls.map((call) => call.channel)).toEqual([...START_CHANNELS]);
+  });
+
+  it('exposes the project’s three calls, and none of them takes a folder', async () => {
+    const ipc = new FakeIpc();
+    const { project } = createDesktopApi({ ipc, bootstrap: BOOTSTRAP });
+    expect(Object.keys(project).sort()).toEqual(['close', 'info', 'showInFolder']);
+    await project.info();
+    await project.showInFolder();
+    await project.close();
+    expect(ipc.calls).toEqual([
+      { channel: IPC_CHANNELS.projectInfo, args: [] },
+      { channel: IPC_CHANNELS.projectShowInFolder, args: [] },
+      { channel: IPC_CHANNELS.projectClose, args: [] },
+    ]);
   });
 
   it('exposes capabilities as exactly list + invoke', () => {

@@ -1717,6 +1717,75 @@ describe('createDesktopApp opening on Start', () => {
     }
   });
 
+  it('"Close project" stops its server, takes back the app’s cookie jar and shows Start again; the next choice boots as the first did', async () => {
+    const home = realpathSync(mkdtempSync(join(tmpdir(), 'adminium-boot-close-')));
+    try {
+      const root = join(home, 'shop');
+      mkdirSync(join(root, 'node_modules'), { recursive: true });
+      mkdirSync(join(root, 'hooks'));
+      writeFileSync(join(root, 'adminium.config.ts'), 'export default {};\n');
+      const s = startHarness({ classicUsed: true });
+      let live: { root: string; mode: 'design' | 'serve' } | null = null;
+      let busy: { kind: string; sessionId: string | null } | null = null;
+      const asked: string[] = [];
+      const deps: DesktopBootDeps = {
+        ...s.deps,
+        startScreen: { ...s.deps.startScreen!, folder: { ...realFolderDeps('/opt/Adminium', 'linux'), home } },
+        createServerManager: (o) => {
+          const made = s.deps.createServerManager(o);
+          if (o.project === undefined) return made;
+          live = { root: o.project.root, mode: 'design' };
+          // The fake manager is the classic one: as a project's it says which folder it serves.
+          return Object.create(made, { project: { get: () => live }, busy: { value: () => Promise.resolve(busy) } }) as typeof made;
+        },
+        confirmStopBusy: (_busy, why) => {
+          asked.push(why);
+          return Promise.resolve(false);
+        },
+      };
+      void createDesktopApp(deps).start();
+      await settle();
+      await s.h.bridge()?.start?.()?.openProject({ path: root, agreed: true });
+      await settle();
+      const bridge = s.h.bridge();
+      expect(bridge?.project?.info()).toEqual({ root, displayPath: '~/shop', name: 'Shop', mode: 'design' });
+
+      // In the middle of a turn, and the person keeps working: nothing is stopped.
+      busy = { kind: 'turn', sessionId: 'ds_1' };
+      await expect(bridge?.project?.close()).resolves.toBe(false);
+      expect(asked).toEqual(['close']);
+      expect(s.h.stopped()).toBe(0);
+      expect(bridge?.project?.info()).not.toBeNull();
+
+      // The Designer changed the folder's code while it was open.
+      writeFileSync(join(root, 'hooks', 'on-save.ts'), 'export default 1;\n');
+      busy = null;
+      const shownBefore = s.h.calls.filter((call) => call === 'showStart').length;
+      await expect(bridge?.project?.close()).resolves.toBe(true);
+      await settle();
+      expect(s.h.stopped()).toBe(1);
+      expect(s.sessions).toEqual([root, null]);
+      expect(s.h.calls.filter((call) => call === 'showStart')).toHaveLength(shownBefore + 1);
+      expect(bridge?.project?.info()).toBeNull();
+      // Start is back, lists the project, and does not ask about the app's own changes.
+      const start = bridge?.start?.();
+      expect(start?.state().recent).toMatchObject([{ path: root, name: 'Shop', missing: false }]);
+      await expect(start?.openProject({ path: root })).resolves.toEqual({ status: 'opened' });
+      await settle();
+      expect(s.projectOptions).toHaveLength(2);
+      // And from there the classic workspace is one choice away, as at launch.
+      await expect(bridge?.project?.close()).resolves.toBe(true);
+      await settle();
+      bridge?.start?.()?.useClassic();
+      await settle();
+      expect(s.h.calls).toContain('config.resolveSecret');
+      expect(bridge?.project?.info()).toBeNull();
+      await expect(bridge?.project?.close()).resolves.toBe(false);
+    } finally {
+      rmSync(home, { recursive: true, force: true });
+    }
+  });
+
   it('without the screens (every boot before them) goes to the classic workspace at once', async () => {
     const h = harness();
     await createDesktopApp(h.deps).start();
