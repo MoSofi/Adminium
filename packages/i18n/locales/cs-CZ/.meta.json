@@ -1059,6 +1059,62 @@
     "status": "mt",
     "srcHash": "263ac6470e15"
   },
+  "assistant.mic.asking": {
+    "status": "mt",
+    "srcHash": "e7b95695e2de"
+  },
+  "assistant.mic.blocked": {
+    "status": "mt",
+    "srcHash": "26a93eab8535"
+  },
+  "assistant.mic.check": {
+    "status": "mt",
+    "srcHash": "7ba8a72e3c5f"
+  },
+  "assistant.mic.failed": {
+    "status": "mt",
+    "srcHash": "fa9c0cf87f18"
+  },
+  "assistant.mic.listening": {
+    "status": "mt",
+    "srcHash": "dc353487021a"
+  },
+  "assistant.mic.noticeBrowser": {
+    "status": "mt",
+    "srcHash": "2ae4357a11ba"
+  },
+  "assistant.mic.noticeOk": {
+    "status": "src",
+    "srcHash": "9ce3bd4224c8"
+  },
+  "assistant.mic.noticeProvider": {
+    "status": "mt",
+    "srcHash": "c8d5ec8cee44"
+  },
+  "assistant.mic.ownService": {
+    "status": "mt",
+    "srcHash": "ffb9fb901480"
+  },
+  "assistant.mic.speak": {
+    "status": "mt",
+    "srcHash": "ccc7fab294ff"
+  },
+  "assistant.mic.stop": {
+    "status": "mt",
+    "srcHash": "e134211eedf1"
+  },
+  "assistant.mic.stopped": {
+    "status": "mt",
+    "srcHash": "ef81b5cfcbc7"
+  },
+  "assistant.mic.used": {
+    "status": "mt",
+    "srcHash": "e833a1f54ca1"
+  },
+  "assistant.mic.working": {
+    "status": "mt",
+    "srcHash": "def1020f3366"
+  },
   "assistant.panel.aged": {
     "status": "mt",
     "srcHash": "0dc491cf5e3e"

@@ -53,6 +53,22 @@
     "send": "Odeslat",
     "working": "Pracuje se…"
   },
+  "mic": {
+    "speak": "Mluvit s {name}",
+    "stop": "Přestat poslouchat",
+    "listening": "Poslouchá",
+    "asking": "Povolte mikrofon, abyste mohli mluvit s {name}",
+    "working": "Zapisuje se, co jste řekli…",
+    "check": "Zkontrolujte text a odešlete.",
+    "stopped": "Zastaveno po {minutes, plural, one {# minutě} few {# minutách} many {# minuty} other {# minutách}}.",
+    "blocked": "Mikrofon je pro tento web zablokován. Povolte jej v adresním řádku prohlížeče.",
+    "used": "Dnešní čas na mluvení je vyčerpán.",
+    "failed": "Nepovedlo se. Zkuste to znovu.",
+    "noticeProvider": "To, co říkáte, se odesílá k zapsání službě {provider}. Nic se neuchovává.",
+    "noticeBrowser": "To, co říkáte, zapisuje hlasová služba vašeho prohlížeče.",
+    "noticeOk": "OK",
+    "ownService": "modelová služba vašeho pracovního prostoru"
+  },
   "confirm": {
     "cancel": "Zrušit"
   },

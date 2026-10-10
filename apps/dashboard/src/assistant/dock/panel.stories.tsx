@@ -284,3 +284,47 @@ export const AsASheet = {
     </Panel>
   ),
 };
+
+// ── speaking to the assistant (comp 19, 20) ─────────────────────────────────
+const MIC = { state: 'idle' as const, seconds: 0, language: 'English', note: null, maxMinutes: 2, notice: null, onNoticeRead: noop, onToggle: noop };
+
+export const MicIdle = { render: () => <Panel mic={MIC}>{IDLE}</Panel> };
+
+export const MicListening = {
+  tags: ['vrt'],
+  render: () => (
+    <Panel mic={{ ...MIC, state: 'listening', seconds: 7 }} input="Which dishes sold best last">
+      {IDLE}
+    </Panel>
+  ),
+};
+
+export const MicWritingItDown = { render: () => <Panel mic={{ ...MIC, state: 'working' }}>{IDLE}</Panel> };
+
+export const MicDone = {
+  tags: ['vrt'],
+  render: () => (
+    <Panel mic={{ ...MIC, note: 'check' }} input="Which dishes sold best last weekend?">
+      {IDLE}
+    </Panel>
+  ),
+};
+
+export const MicBlockedByTheBrowser = { tags: ['vrt'], render: () => <Panel mic={{ ...MIC, note: 'blocked' }}>{IDLE}</Panel> };
+
+export const MicUsedUpForToday = { render: () => <Panel mic={{ ...MIC, note: 'used' }}>{IDLE}</Panel> };
+
+export const MicFailed = { render: () => <Panel mic={{ ...MIC, note: 'failed' }}>{IDLE}</Panel> };
+
+export const MicStoppedByItself = {
+  render: () => (
+    <Panel mic={{ ...MIC, note: 'stopped' }} input="Which dishes sold best last weekend, and which ones should we take off the autumn menu because">
+      {IDLE}
+    </Panel>
+  ),
+};
+
+export const MicTheOneTimeNotice = {
+  tags: ['vrt'],
+  render: () => <Panel mic={{ ...MIC, notice: 'What you say is sent to OpenAI to be written down. Nothing is kept.' }}>{IDLE}</Panel>,
+};

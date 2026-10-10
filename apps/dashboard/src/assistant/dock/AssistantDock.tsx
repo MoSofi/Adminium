@@ -49,6 +49,9 @@ import { LiveProposal } from './LiveProposal.js';
 import { PanelView, type ScopeChip } from './PanelView.js';
 import { draftHome, ParkedDraft, type DraftHome } from './ParkedDraft.js';
 import { usePanelConversation, type PanelPage } from './usePanelConversation.js';
+import { bootLocale } from '../../i18n/setup.js';
+import { useDictation } from '../voice/useDictation.js';
+import type { MicView } from './PanelView.js';
 
 export interface AssistantDockProps {
   /** False while the panel is closed: nothing is drawn, the conversation is still followed. */
@@ -97,6 +100,22 @@ function findSlug(pages: unknown, pageId: string): string | null {
     return null;
   };
   return walk(pages, 0);
+}
+
+/** A language by its own name ("Deutsch"), as the listening line says it. */
+function languageName(locale: string): string {
+  const tag = locale.replace('_', '-');
+  try {
+    return new Intl.DisplayNames([tag], { type: 'language' }).of(tag.split('-')[0] ?? tag) ?? tag;
+  } catch {
+    return tag;
+  }
+}
+
+/** Who writes the words down, for the one-time notice. */
+function providerName(provider: string | null): string {
+  if (provider === 'openai') return 'OpenAI';
+  return t('assistant:mic.ownService', 'your workspace’s model service');
 }
 
 /** The page the person is on, for the assistant: what the page published, or the general one. */
@@ -386,7 +405,84 @@ export function AssistantDock({ visible, pages }: AssistantDockProps) {
     }
   }, [visible, floating, element, fieldClosed]);
 
+  // ── speaking to the assistant ──────────────────────────────────────────────
+  const voice = conversation.availability?.voice;
+  const spoken = bootLocale();
+  /** What was in the field when the microphone was pressed: the words heard are added after it. */
+  const beforeSpeech = useRef('');
+  const dictation = useDictation({
+    way: voice?.input ?? 'none',
+    maxSeconds: voice?.maxSeconds ?? 120,
+    language: spoken,
+    onText: (text, final) => {
+      const before = beforeSpeech.current.trimEnd();
+      setInput(before === '' ? text : `${before} ${text}`);
+      // Written down: the words wait in the field, selected, to be checked and sent by the person.
+      if (final) requestAnimationFrame(() => {
+        inputRef.current?.focus();
+        inputRef.current?.select();
+      });
+    },
+  });
+  // Said once per way, on this device: where the voice goes. Until it is read, the microphone does not listen.
+  const noticeKey = `adminium-assistant-voice-notice:${dictation.way}`;
+  const [noticeShown, setNoticeShown] = useState(false);
+  const noticeRead = (): boolean => {
+    try {
+      return window.localStorage.getItem(noticeKey) === '1';
+    } catch {
+      return false;
+    }
+  };
+  const listen = (): void => {
+    beforeSpeech.current = input;
+    dictation.toggle();
+  };
+  const mic: MicView | undefined =
+    dictation.way === 'none'
+      ? undefined
+      : {
+          state: dictation.state,
+          seconds: dictation.seconds,
+          language: languageName(spoken),
+          note: dictation.note,
+          maxMinutes: Math.round((voice?.maxSeconds ?? 120) / 60),
+          notice: !noticeShown
+            ? null
+            : dictation.way === 'provider'
+              ? t('assistant:mic.noticeProvider', 'What you say is sent to {provider} to be written down. Nothing is kept.', { provider: providerName(voice?.to ?? null) })
+              : t('assistant:mic.noticeBrowser', 'What you say is written down by your browser’s own speech service.'),
+          onNoticeRead: () => {
+            try {
+              window.localStorage.setItem(noticeKey, '1');
+            } catch {
+              // A browser that keeps nothing says it again next time.
+            }
+            setNoticeShown(false);
+            listen();
+          },
+          onToggle: () => {
+            if (dictation.state === 'idle' && !noticeRead()) {
+              setNoticeShown(true);
+              return;
+            }
+            listen();
+          },
+        };
+  // Leaving the panel while listening: stopped, and what was heard is thrown away.
+  const cancelDictation = dictation.cancel;
+  useEffect(() => {
+    if (!visible) cancelDictation();
+  }, [visible, cancelDictation]);
+
   const onKeyDown = (event: KeyboardEvent<HTMLElement>): void => {
+    // Escape while listening stops and writes down; the panel stays.
+    if (event.key === 'Escape' && dictation.state === 'listening') {
+      event.stopPropagation();
+      event.preventDefault();
+      dictation.toggle();
+      return;
+    }
     if (event.key === 'Escape' && floating && !event.defaultPrevented) {
       event.stopPropagation();
       close();
@@ -480,8 +576,15 @@ export function AssistantDock({ visible, pages }: AssistantDockProps) {
       onDismissChip={() => setDismissedView(viewKey)}
       followups={newestDraft === null ? [] : newestDraft.followups}
       input={input}
-      onInput={setInput}
-      onSubmit={submit}
+      onInput={(value) => {
+        dictation.clearNote();
+        setInput(value);
+      }}
+      onSubmit={(text) => {
+        dictation.clearNote();
+        submit(text);
+      }}
+      mic={mic}
       placeholder={copy.placeholder}
       blocked={blocked}
       working={working}

@@ -53,6 +53,22 @@
     "send": "Envoyer",
     "working": "Travail en cours…"
   },
+  "mic": {
+    "speak": "Parler à {name}",
+    "stop": "Arrêter l’écoute",
+    "listening": "À l’écoute",
+    "asking": "Autorisez le microphone pour parler à {name}",
+    "working": "Transcription de vos paroles…",
+    "check": "Vérifiez le texte, puis envoyez.",
+    "stopped": "Arrêté à {minutes, plural, one {# minute} other {# minutes}}.",
+    "blocked": "Le microphone est bloqué pour ce site. Autorisez-le dans la barre d’adresse de votre navigateur.",
+    "used": "Le temps de parole est épuisé pour aujourd’hui.",
+    "failed": "Cela n’a pas fonctionné. Réessayez.",
+    "noticeProvider": "Ce que vous dites est envoyé à {provider} pour être transcrit. Rien n’est conservé.",
+    "noticeBrowser": "Ce que vous dites est transcrit par le service vocal de votre navigateur.",
+    "noticeOk": "OK",
+    "ownService": "le service de modèles de votre espace de travail"
+  },
   "confirm": {
     "cancel": "Annuler"
   },

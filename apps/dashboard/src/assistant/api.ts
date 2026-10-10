@@ -43,6 +43,13 @@ export interface AssistantAvailability {
   abilities?: AssistantAbilities;
   /** The most changes one confirmation may make. */
   maxRows?: number;
+  /**
+   * Voice. `input`: a recording is written down by the workspace's own model
+   * service (`provider`, named in `to`), by the browser's own speech service,
+   * or not at all. `output`: replies may be read aloud. Absent from a server
+   * before voice.
+   */
+  voice?: { input: 'provider' | 'browser' | 'none'; to: string | null; output: boolean; maxSeconds: number };
 }
 
 /** The workspace's four switches on what the assistant may do. */

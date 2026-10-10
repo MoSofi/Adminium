@@ -63,6 +63,22 @@ export default {
     "send": "Senden",
     "working": "Arbeitet …"
   },
+  "mic": {
+    "speak": "Mit {name} sprechen",
+    "stop": "Zuhören beenden",
+    "listening": "Hört zu",
+    "asking": "Erlauben Sie das Mikrofon, um mit {name} zu sprechen",
+    "working": "Ihre Worte werden aufgeschrieben…",
+    "check": "Text prüfen, dann senden.",
+    "stopped": "Nach {minutes, plural, one {# Minute} other {# Minuten}} beendet.",
+    "blocked": "Das Mikrofon ist für diese Website gesperrt. Erlauben Sie es in der Adressleiste Ihres Browsers.",
+    "used": "Die Sprachzeit für heute ist aufgebraucht.",
+    "failed": "Das hat nicht geklappt. Versuchen Sie es erneut.",
+    "noticeProvider": "Was Sie sagen, wird zum Aufschreiben an {provider} gesendet. Nichts wird aufbewahrt.",
+    "noticeBrowser": "Was Sie sagen, schreibt der Sprachdienst Ihres Browsers auf.",
+    "noticeOk": "OK",
+    "ownService": "den Modelldienst Ihres Arbeitsbereichs"
+  },
   "confirm": {
     "cancel": "Abbrechen"
   },
