@@ -78,9 +78,11 @@ export interface StepPickerProps {
   contextLine: string;
   onPick: (definition: StepDefinition) => void;
   onClose: () => void;
+  /** The steps installed add-ons give on this rule's database (comp `Milo Automations` 5b); none, and the group is not drawn. */
+  addOnSteps?: readonly StepDefinition[] | undefined;
 }
 
-export function StepPicker({ target, contextLine, onPick, onClose }: StepPickerProps): ReactNode {
+export function StepPicker({ target, contextLine, onPick, onClose, addOnSteps }: StepPickerProps): ReactNode {
   if (target === null) return null;
   const inBranch = target.branchId !== undefined;
   const logic = inBranch ? LOGIC_STEPS.filter((step) => step.key !== 'branch') : LOGIC_STEPS;
@@ -106,6 +108,9 @@ export function StepPicker({ target, contextLine, onPick, onClose }: StepPickerP
             onPick={onPick}
           />
           <Group label={t('automations:picker.logic', 'Logic')} steps={logic} onPick={onPick} />
+          {addOnSteps === undefined || addOnSteps.length === 0 ? null : (
+            <Group label={t('automations:picker.addOns', 'From add-ons')} steps={addOnSteps} onPick={onPick} wide />
+          )}
         </div>
       </ModalBody>
     </Modal>
@@ -116,20 +121,24 @@ function Group({
   label,
   steps,
   onPick,
+  wide,
 }: {
   label: string;
   steps: readonly StepDefinition[];
   onPick: (definition: StepDefinition) => void;
+  /** One tile a row: an add-on's step is named with its add-on, which is long. */
+  wide?: boolean;
 }): ReactNode {
   return (
     <div>
       <div className="mb-[9px] text-[10.5px] font-bold uppercase tracking-[0.06em] text-fg-subtle">
         {label}
       </div>
-      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+      <div className={wide === true ? 'grid grid-cols-1 gap-2' : 'grid grid-cols-1 gap-2 sm:grid-cols-2'}>
         {steps.map((step) => {
           const text = TILE_TEXT[step.key];
-          const meta = KIND_META[step.kind];
+          // A step from an add-on wears the accent, not an action's green: it is somebody else's (comp 5b).
+          const meta = step.addOnName === undefined ? KIND_META[step.kind] : { ...KIND_META[step.kind], soft: 'bg-accent-soft', text: 'text-accent' };
           const Icon = automationIcon(step.icon);
           return (
             <button
@@ -148,7 +157,7 @@ function Group({
               </span>
               <span className="min-w-0">
                 <span className="block text-[12.5px] font-bold text-fg">
-                  {text === undefined ? step.label : t(text.label[0], text.label[1])}
+                  {text === undefined ? (step.addOnName === undefined ? step.label : t('automations:picker.addOnStep', '{addOn}: {step}', { addOn: step.addOnName, step: step.label })) : t(text.label[0], text.label[1])}
                 </span>
                 <span className="mt-0.5 block text-[11px] text-fg-subtle">
                   {text === undefined ? step.desc : t(text.desc[0], text.desc[1])}

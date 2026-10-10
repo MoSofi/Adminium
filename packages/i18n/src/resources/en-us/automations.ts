@@ -106,7 +106,9 @@ export default {
     "inBranch": "Inside branch · {label}",
     "actions": "Actions",
     "logic": "Logic",
-    "close": "Close"
+    "close": "Close",
+    "addOns": "From add-ons",
+    "addOnStep": "{addOn}: {step}"
   },
   "pick": {
     "email": "Send email",
@@ -447,5 +449,19 @@ export default {
     "edited": "Changed by you",
     "copy": "Edit a copy",
     "readOnly": "This rule came with {name}. Switch it on or off here; to change what it does, edit a copy."
+  },
+  "addOn": {
+    "gone": "The add-on {name} is no longer installed.",
+    "goneNote": "The step keeps its settings. If the add-on comes back, the step works again; until then the rule cannot be switched on.",
+    "noRight": "Your role may not add rows for {name}, so a rule of yours cannot use this step.",
+    "optional": "{label} (optional)",
+    "choose": "Choose…",
+    "fillWith": "Fill {label} with",
+    "fromColumn": "A column of the record",
+    "typedAddress": "A typed address",
+    "typedNumber": "A typed number",
+    "noRows": "The add-on’s table is not there to choose from.",
+    "findRow": "Find one…",
+    "noRow": "Nothing matches."
   }
 } as const;

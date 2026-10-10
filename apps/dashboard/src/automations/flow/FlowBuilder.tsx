@@ -58,6 +58,8 @@ export interface FlowBuilderProps {
   onMoveIntoBranch: (dragId: string, branchId: string) => void;
   /** The node's sub-line, computed from its settings (Appendix A summaries). */
   subFor: (node: FlowNode) => string;
+  /** For a step an add-on gives: the add-on's name over the card, and — when the add-on is gone — the sentence that says so (comp `Milo Automations` 5a, 5c). */
+  addOnFor?: ((node: FlowNode) => { name: string; gone: string | null } | null) | undefined;
   /** Shown, not changed (a rule that came with an app or an add-on): no place to add a step. */
   readOnly?: boolean;
 }
@@ -185,6 +187,8 @@ function NodeCard(props: NodeCardProps): ReactNode {
   const draggable = useDraggable({ id: node.id, disabled: !movable });
   const droppable = useDroppable({ id: node.id, disabled: !movable });
   const sub = props.subFor(node);
+  const addOn = props.addOnFor?.(node) ?? null;
+  const gone = addOn?.gone ?? null;
 
   return (
     <div
@@ -205,15 +209,15 @@ function NodeCard(props: NodeCardProps): ReactNode {
       }}
       data-testid={`flow-node-${node.id}`}
       className={[
-        'group relative rounded-[13px] border border-s-[3px] bg-surface transition-shadow select-none',
-        meta.borderLeft,
+        'group relative rounded-[13px] border border-s-[3px] transition-shadow select-none',
+        gone === null ? `bg-surface ${meta.borderLeft}` : 'border-s-danger bg-danger-soft',
         small ? 'px-3 py-[11px]' : 'px-[15px] py-3.5',
         movable ? 'cursor-grab' : 'cursor-pointer',
         // The comp's three ring states: running 30 %, selected 13 %, else the
         // card shadow (comp 524).
         running
           ? 'border-accent ring-[3px] ring-accent/30'
-          : incomplete
+          : incomplete || gone !== null
             ? 'border-danger ring-[3px] ring-danger/20'
             : selected
               ? 'border-accent ring-[3px] ring-accent/15'
@@ -223,7 +227,7 @@ function NodeCard(props: NodeCardProps): ReactNode {
     >
       <div className={`flex items-center ${small ? 'gap-2.5' : 'gap-3'}`}>
         <div
-          className={`flex shrink-0 items-center justify-center ${meta.soft} ${meta.text} ${
+          className={`flex shrink-0 items-center justify-center ${gone === null ? `${meta.soft} ${meta.text}` : 'bg-surface text-danger'} ${
             small ? 'size-8 rounded-[9px]' : 'size-10 rounded-[11px]'
           }`}
         >
@@ -231,9 +235,10 @@ function NodeCard(props: NodeCardProps): ReactNode {
         </div>
         <div className="min-w-0 flex-1">
           <div
-            className={`font-extrabold tracking-[0.07em] ${meta.text} ${small ? 'text-[9px]' : 'text-[9.5px]'}`}
+            className={`font-extrabold uppercase tracking-[0.07em] ${gone === null ? meta.text : 'text-danger'} ${small ? 'text-[9px]' : 'text-[9.5px]'}`}
+            data-testid={addOn === null ? undefined : 'flow-node-add-on'}
           >
-            {t(meta.labelKey, meta.fallback)}
+            {addOn === null ? t(meta.labelKey, meta.fallback) : addOn.name}
           </div>
           <div
             className={`mt-[3px] font-bold tracking-[-0.01em] ${small ? 'text-[12.5px]' : 'text-[13.5px]'}`}
@@ -267,8 +272,38 @@ function NodeCard(props: NodeCardProps): ReactNode {
           </button>
         ) : null}
       </div>
+      {gone === null ? null : (
+        <div role="alert" data-testid="flow-node-gone" className="mt-3 flex items-center gap-2.5 border-t border-danger/25 pt-3">
+          <Alert className="size-3.5 shrink-0 text-danger" />
+          <span className="min-w-0 flex-1 text-[12px] font-semibold leading-[1.45] text-danger">{gone}</span>
+          {props.readOnly === true ? null : (
+            <button
+              type="button"
+              data-testid="flow-node-gone-remove"
+              onClick={(event) => {
+                event.stopPropagation();
+                props.onRemove(node.id);
+              }}
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-border bg-surface px-2.5 py-[5px] text-[11.5px] font-bold text-fg hover:border-border-strong"
+            >
+              <Trash className="size-3" />
+              {t('automations:canvas.remove', 'Remove step')}
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
+}
+
+function Alert({ className }: { className: string }): ReactNode {
+  const Icon = automationIcon('circle-alert');
+  return <Icon aria-hidden className={className} />;
+}
+
+function Trash({ className }: { className: string }): ReactNode {
+  const Icon = automationIcon('trash-2');
+  return <Icon aria-hidden className={className} />;
 }
 
 function Check({ className }: { className: string }): ReactNode {

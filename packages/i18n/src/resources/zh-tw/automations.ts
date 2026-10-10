@@ -106,7 +106,9 @@ export default {
     "inBranch": "在分支 {label} 內",
     "actions": "動作",
     "logic": "邏輯",
-    "close": "關閉"
+    "close": "關閉",
+    "addOns": "來自附加元件",
+    "addOnStep": "{addOn}：{step}"
   },
   "pick": {
     "email": "傳送郵件",
@@ -447,5 +449,19 @@ export default {
     "edited": "已由您變更",
     "copy": "編輯副本",
     "readOnly": "此規則隨 {name} 提供。可在此開啟或關閉；若要變更其行為，請編輯副本。"
+  },
+  "addOn": {
+    "gone": "附加元件 {name} 已不再安裝。",
+    "goneNote": "此步驟會保留其設定。附加元件恢復後，步驟即可再次執行；在此之前無法開啟該規則。",
+    "noRight": "你的角色不能為 {name} 新增資料列，因此你的規則無法使用此步驟。",
+    "optional": "{label}（選填）",
+    "choose": "請選擇…",
+    "fillWith": "用以下內容填寫「{label}」",
+    "fromColumn": "記錄中的某一欄",
+    "typedAddress": "手動輸入的地址",
+    "typedNumber": "手動輸入的數字",
+    "noRows": "附加元件的資料表不存在，無可選擇。",
+    "findRow": "尋找…",
+    "noRow": "沒有相符項目。"
   }
 } as const;

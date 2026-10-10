@@ -96,7 +96,9 @@
     "inBranch": "Im Zweig · {label}",
     "actions": "Aktionen",
     "logic": "Logik",
-    "close": "Schließen"
+    "close": "Schließen",
+    "addOns": "Aus Add-ons",
+    "addOnStep": "{addOn}: {step}"
   },
   "pick": {
     "email": "E-Mail senden",
@@ -437,5 +439,19 @@
     "edited": "Von Ihnen geändert",
     "copy": "Kopie bearbeiten",
     "readOnly": "Diese Regel kam mit {name}. Schalten Sie sie hier ein oder aus; um zu ändern, was sie tut, bearbeiten Sie eine Kopie."
+  },
+  "addOn": {
+    "gone": "Das Add-on {name} ist nicht mehr installiert.",
+    "goneNote": "Der Schritt behält seine Einstellungen. Kommt das Add-on zurück, funktioniert der Schritt wieder; bis dahin lässt sich die Regel nicht einschalten.",
+    "noRight": "Ihre Rolle darf für {name} keine Zeilen anlegen, daher kann eine Ihrer Regeln diesen Schritt nicht verwenden.",
+    "optional": "{label} (optional)",
+    "choose": "Auswählen…",
+    "fillWith": "„{label}“ füllen mit",
+    "fromColumn": "Eine Spalte des Datensatzes",
+    "typedAddress": "Eine eingegebene Adresse",
+    "typedNumber": "Eine eingegebene Zahl",
+    "noRows": "Die Tabelle des Add-ons ist nicht vorhanden, es gibt nichts auszuwählen.",
+    "findRow": "Suchen…",
+    "noRow": "Keine Treffer."
   }
 }

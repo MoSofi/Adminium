@@ -1647,6 +1647,54 @@
     "status": "mt",
     "srcHash": "8dc2cdd52ffe"
   },
+  "automations.addOn.choose": {
+    "status": "mt",
+    "srcHash": "c3b69e661eec"
+  },
+  "automations.addOn.fillWith": {
+    "status": "mt",
+    "srcHash": "a493696be930"
+  },
+  "automations.addOn.findRow": {
+    "status": "mt",
+    "srcHash": "22dc6d2a3b4c"
+  },
+  "automations.addOn.fromColumn": {
+    "status": "mt",
+    "srcHash": "bc9929af271a"
+  },
+  "automations.addOn.gone": {
+    "status": "mt",
+    "srcHash": "94cf204aa1c8"
+  },
+  "automations.addOn.goneNote": {
+    "status": "mt",
+    "srcHash": "782520ff4b0c"
+  },
+  "automations.addOn.noRight": {
+    "status": "mt",
+    "srcHash": "42a32b5fe39d"
+  },
+  "automations.addOn.noRow": {
+    "status": "mt",
+    "srcHash": "9f85767365ab"
+  },
+  "automations.addOn.noRows": {
+    "status": "mt",
+    "srcHash": "8de370ef3f2a"
+  },
+  "automations.addOn.optional": {
+    "status": "mt",
+    "srcHash": "67c70cfcd4bf"
+  },
+  "automations.addOn.typedAddress": {
+    "status": "mt",
+    "srcHash": "bd074020a7ba"
+  },
+  "automations.addOn.typedNumber": {
+    "status": "mt",
+    "srcHash": "ad871a1e5638"
+  },
   "automations.branch.ifMatches": {
     "status": "mt",
     "srcHash": "3947d16c419d"
@@ -2502,6 +2550,14 @@
   "automations.picker.actions": {
     "status": "src",
     "srcHash": "c3cd636a585b"
+  },
+  "automations.picker.addOnStep": {
+    "status": "mt",
+    "srcHash": "3f697fe48c3f"
+  },
+  "automations.picker.addOns": {
+    "status": "mt",
+    "srcHash": "81346faf6645"
   },
   "automations.picker.before": {
     "status": "mt",

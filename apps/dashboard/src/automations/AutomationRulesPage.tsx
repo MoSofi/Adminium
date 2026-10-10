@@ -67,6 +67,7 @@ import {
   type StepDefinition,
 } from './model/ops.js';
 import { firstUnfilledEmail, listPlaceholders } from './model/placeholders.js';
+import { addOnNameOf, addOnStepTiles, stepOf } from './model/addOnSteps.js';
 import { firstIncompleteNode } from './model/validate.js';
 import { subLineFor, triggerSentence } from './model/summaries.js';
 
@@ -309,7 +310,10 @@ export function AutomationRulesPage(): ReactNode {
   );
   const inspectNode: FlowNode | null =
     graph === null || inspectId === null ? null : (locate(graph, inspectId)?.node ?? null);
-  const incomplete = graph === null ? null : firstIncompleteNode(graph);
+  // What installed add-ons give to a rule on this database, and the step each `add-on.step` of the flow names (null: gone).
+  const connectionOfRule = trigger?.connectionId ?? null;
+  const findStep = (action: Extract<Action, { kind: 'add-on.step' }>) => stepOf(sources.data ?? null, connectionOfRule, action);
+  const incomplete = graph === null ? null : firstIncompleteNode(graph, sources.data === undefined ? undefined : findStep);
   const Plus = automationIcon('plus');
 
   const selectRule = (id: string): void => {
@@ -467,6 +471,13 @@ export function AutomationRulesPage(): ReactNode {
               ranIds={test.ranIds}
               incompleteId={incomplete?.id ?? null}
               subFor={(node) => subLineFor(node, table)}
+              addOnFor={(node) => {
+                if (node.kind !== 'action' || node.action.kind !== 'add-on.step') return null;
+                const step = findStep(node.action);
+                const name = addOnNameOf(step, node.action);
+                // Gone only once the list of what is installed has been read: never while it is still on its way.
+                return { name, gone: step !== null || sources.data === undefined ? null : t('automations:addOn.gone', 'The add-on {name} is no longer installed.', { name }) };
+              }}
               onSelect={setInspectId}
               onRemove={(id) => {
                 edit({ graph: remove(graph, id) });
@@ -488,6 +499,7 @@ export function AutomationRulesPage(): ReactNode {
       <StepPicker
         target={pickerTarget}
         contextLine={pickerContext(pickerTarget, graph)}
+        addOnSteps={addOnStepTiles(sources.data ?? null, connectionOfRule)}
         onClose={() => {
           setPickerTarget(null);
         }}

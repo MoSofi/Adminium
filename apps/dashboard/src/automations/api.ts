@@ -128,6 +128,35 @@ export interface SourceConnection {
   dialect: string;
   timezone: string;
   tables: SourceTable[];
+  /** The steps installed add-ons give here. Absent from a server that offers none. */
+  steps?: SourceStep[] | undefined;
+}
+
+/** A text in each of the product's languages, as an add-on's manifest carries it. */
+export type EveryLanguage = Readonly<Record<string, string>>;
+
+export interface SourceStepInput {
+  key: string;
+  label: EveryLanguage;
+  kind: 'text' | 'email' | 'number' | 'choice' | 'record';
+  required: boolean;
+  options?: { value: string; label: EveryLanguage }[] | undefined;
+  /** For `record`: the table a row is picked from, and its key column. */
+  table?: string | null | undefined;
+  tableKey?: string | null | undefined;
+}
+
+/** A step an installed add-on gives to a rule on one database. */
+export interface SourceStep {
+  addOn: string;
+  addOnName: string;
+  key: string;
+  name: EveryLanguage;
+  does: EveryLanguage;
+  table: string | null;
+  /** Whether the person may create rows in the step's table: only then can a rule of theirs use it. */
+  canCreate: boolean;
+  inputs: SourceStepInput[];
 }
 
 export interface SourceTemplate {

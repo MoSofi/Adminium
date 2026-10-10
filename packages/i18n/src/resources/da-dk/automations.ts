@@ -106,7 +106,9 @@ export default {
     "inBranch": "I grenen · {label}",
     "actions": "Handlinger",
     "logic": "Logik",
-    "close": "Luk"
+    "close": "Luk",
+    "addOns": "Fra tilføjelser",
+    "addOnStep": "{addOn}: {step}"
   },
   "pick": {
     "email": "Send e-mail",
@@ -447,5 +449,19 @@ export default {
     "edited": "Ændret af dig",
     "copy": "Rediger en kopi",
     "readOnly": "Denne regel fulgte med {name}. Slå den til eller fra her; rediger en kopi for at ændre, hvad den gør."
+  },
+  "addOn": {
+    "gone": "Tilføjelsen {name} er ikke længere installeret.",
+    "goneNote": "Trinnet beholder sine indstillinger. Kommer tilføjelsen tilbage, virker trinnet igen; indtil da kan reglen ikke slås til.",
+    "noRight": "Din rolle må ikke tilføje rækker for {name}, så en regel, du laver, kan ikke bruge dette trin.",
+    "optional": "{label} (valgfrit)",
+    "choose": "Vælg…",
+    "fillWith": "Udfyld “{label}” med",
+    "fromColumn": "En kolonne fra posten",
+    "typedAddress": "En indtastet adresse",
+    "typedNumber": "Et indtastet tal",
+    "noRows": "Tilføjelsens tabel findes ikke at vælge fra.",
+    "findRow": "Find en…",
+    "noRow": "Intet matcher."
   }
 } as const;

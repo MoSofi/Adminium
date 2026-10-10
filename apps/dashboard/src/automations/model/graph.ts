@@ -92,6 +92,12 @@ export type Action =
    * this step is shown and not edited here.
    */
   | { kind: 'document.render'; profileId: string }
+  /**
+   * A step an installed add-on gives ("Issue a voucher"): which add-on, which
+   * step, and what fills each of the step's inputs. What the inputs ARE is
+   * read from the add-on (`Sources`), never kept here.
+   */
+  | { kind: 'add-on.step'; addOn: string; step: string; addOnName?: string | undefined; inputs: Record<string, string> }
   | {
       kind: 'webhook';
       url: string | null;

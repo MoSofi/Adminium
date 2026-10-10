@@ -22,10 +22,13 @@
 
 import { ChipInput, Combobox, Input, Select, Textarea, type ComboboxOption } from '@adminium/ui';
 import { AtSign, CircleAlert, Columns3, Link2 } from 'lucide-react';
-import { useId, type ReactNode } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { useId, useState, type ReactNode } from 'react';
 
 import { t } from '../../../i18n/t.js';
-import type { SourceTable, Sources } from '../../api.js';
+import { createCrudApi } from '../../../api/crud.js';
+import type { SourceStepInput, SourceTable, Sources } from '../../api.js';
+import { addOnNameOf, columnOfInput, inLanguage, inputMode, stepOf, type StepAction } from '../../model/addOnSteps.js';
 import type { Action, WriteValue } from '../../model/graph.js';
 import { columnOfValue, holdsAddresses, linkedColumns, placeholderRows, templateOf, varsFor, type PlaceholderRow } from '../../model/placeholders.js';
 import { Card, Field } from './primitives.js';
@@ -69,9 +72,184 @@ export function ActionSettings(props: ActionSettingsProps): ReactNode {
           </p>
         </Card>
       );
+    case 'add-on.step':
+      return <AddOnStepSettings {...props} action={props.action} />;
     default:
       return null;
   }
+}
+
+// --- a step an add-on gives (comp `Milo Automations` 5a, 5c) ------------------
+
+/**
+ * The step's fields are the add-on's own: read from its description
+ * (`Sources`), never written here. An input that takes a text, an address or
+ * a number is filled from a column of the record — its own, or one a link
+ * leads to — or with what is typed; a choice is one of the add-on's options;
+ * a record is a row of the add-on's own table.
+ */
+function AddOnStepSettings({ action, sources, table, connectionId, onChange }: ActionSettingsProps & { action: StepAction }): ReactNode {
+  const step = stepOf(sources, connectionId, action);
+  const name = addOnNameOf(step, action);
+  if (step === null) {
+    return (
+      <Card title={name}>
+        <p role="alert" className="flex items-start gap-[7px] text-[12px] font-semibold leading-[1.5] text-danger" data-testid="add-on-step-gone">
+          <CircleAlert className="mt-0.5 size-[13px] shrink-0" aria-hidden="true" />
+          <span>{t('automations:addOn.gone', 'The add-on {name} is no longer installed.', { name })}</span>
+        </p>
+        <p className="text-xs text-fg-muted">
+          {t('automations:addOn.goneNote', 'The step keeps its settings. If the add-on comes back, the step works again; until then the rule cannot be switched on.')}
+        </p>
+      </Card>
+    );
+  }
+  const set = (key: string, value: string): void => {
+    const next = { ...action.inputs };
+    if (value === '') delete next[key];
+    else next[key] = value;
+    onChange({ inputs: next });
+  };
+  return (
+    <Card title={t('automations:picker.addOnStep', '{addOn}: {step}', { addOn: name, step: inLanguage(step.name) })}>
+      <p className="text-xs text-fg-muted" data-testid="add-on-step-does">{inLanguage(step.does)}</p>
+      {step.canCreate ? null : (
+        <p role="alert" className="text-[12px] font-semibold leading-[1.5] text-warn" data-testid="add-on-step-no-right">
+          {t('automations:addOn.noRight', 'Your role may not add rows for {name}, so a rule of yours cannot use this step.', { name })}
+        </p>
+      )}
+      {step.inputs.map((input) => (
+        <StepInputField key={input.key} input={input} value={action.inputs[input.key] ?? ''} table={table} connectionId={connectionId} onChange={(value) => set(input.key, value)} />
+      ))}
+    </Card>
+  );
+}
+
+/** Every column a rule can read for an input: the record's own, then the ones a link leads to. Addresses first for an address. */
+function inputColumnOptions(table: SourceTable | null, kind: SourceStepInput['kind'], current: string | null): ComboboxOption[] {
+  if (kind === 'email') return recipientOptions(table, current ?? '');
+  if (table === null) return [];
+  const here = t('automations:email.thisTable', 'This table · {table}', { table: table.label });
+  const out: ComboboxOption[] = table.columns.map((column) => ({
+    value: column.name,
+    label: column.name,
+    description: column.label === column.name ? here : `${column.label} · ${here}`,
+    leading: <Columns3 className="size-[13px] text-fg-subtle" aria-hidden="true" />,
+  }));
+  for (const group of linkedColumns(table)) {
+    for (const column of group.columns) {
+      out.push({ value: column.name, label: column.name.replace('.', ' → '), description: column.label, leading: <Link2 className="size-[13px] text-fg-subtle" aria-hidden="true" /> });
+    }
+  }
+  return out;
+}
+
+function StepInputField({ input, value, table, connectionId, onChange }: { input: SourceStepInput; value: string; table: SourceTable | null; connectionId: string | null; onChange: (value: string) => void }): ReactNode {
+  const label = inLanguage(input.label);
+  const title = input.required ? label : t('automations:addOn.optional', '{label} (optional)', { label });
+  const testId = `add-on-input-${input.key}`;
+  if (input.kind === 'choice') {
+    return (
+      <Field label={title}>
+        <Select value={value} onChange={(event) => onChange(event.target.value)} data-testid={testId}>
+          <option value="">{t('automations:addOn.choose', 'Choose…')}</option>
+          {(input.options ?? []).map((option) => (
+            <option key={option.value} value={option.value}>
+              {inLanguage(option.label)}
+            </option>
+          ))}
+        </Select>
+      </Field>
+    );
+  }
+  if (input.kind === 'record') {
+    return (
+      <div role="group" aria-label={title} className="block">
+        <span className="mb-1.5 block text-[11.5px] font-bold">{title}</span>
+        <RowPicker input={input} value={value} connectionId={connectionId} label={label} onChange={onChange} testId={testId} />
+      </div>
+    );
+  }
+  return <ColumnOrTyped input={input} value={value} table={table} label={label} title={title} testId={testId} onChange={onChange} />;
+}
+
+/** One field, two ways to fill it: a column of the record, or what is typed. Which one is the person's choice, kept while the step is open. */
+function ColumnOrTyped({ input, value, table, label, title, testId, onChange }: { input: SourceStepInput; value: string; table: SourceTable | null; label: string; title: string; testId: string; onChange: (value: string) => void }): ReactNode {
+  const column = columnOfInput(value);
+  const [chosen, setChosen] = useState<'column' | 'text' | null>(null);
+  // What is filled in says how it was filled; the person's own choice only decides an empty field.
+  const mode = value.trim() === '' ? (chosen ?? inputMode(input, value)) : inputMode(input, value);
+  const notAddress = input.kind === 'email' && column !== null && holdsAddresses(table, column) === false;
+  return (
+    // A group, not a label: two controls share the caption, and each says itself what it is.
+    <div role="group" aria-label={title} className="block">
+      <span className="mb-1.5 block text-[11.5px] font-bold">{title}</span>
+      <Select
+        value={mode}
+        aria-label={t('automations:addOn.fillWith', 'Fill {label} with', { label })}
+        onChange={(event) => {
+          setChosen(event.target.value === 'column' ? 'column' : 'text');
+          // What was there belongs to the other way of filling it.
+          onChange('');
+        }}
+        data-testid={`${testId}-mode`}
+      >
+        <option value="column">{t('automations:addOn.fromColumn', 'A column of the record')}</option>
+        <option value="text">{input.kind === 'email' ? t('automations:addOn.typedAddress', 'A typed address') : input.kind === 'number' ? t('automations:addOn.typedNumber', 'A typed number') : t('automations:email.ph.text', 'A text')}</option>
+      </Select>
+      <div className="mt-1.5">
+        {mode === 'column' ? (
+          <Combobox
+            options={inputColumnOptions(table, input.kind, column)}
+            value={column}
+            onValueChange={(next) => onChange(next === null ? '' : `{{record.${next}}}`)}
+            placeholder={t('automations:email.findColumn', 'Find a column…')}
+            emptyText={t('automations:email.noColumn', 'No column matches.')}
+            aria-label={label}
+            error={notAddress}
+            mono
+            data-testid={testId}
+          />
+        ) : (
+          <Input value={value} type={input.kind === 'number' ? 'number' : input.kind === 'email' ? 'email' : 'text'} aria-label={label} onChange={(event) => onChange(event.target.value)} data-testid={testId} />
+        )}
+      </div>
+      {notAddress ? (
+        <p role="alert" className="mt-[7px] flex items-start gap-[7px] text-[12px] font-semibold leading-[1.5] text-danger">
+          <CircleAlert className="mt-0.5 size-[13px] shrink-0" aria-hidden="true" />
+          <span>{t('automations:email.notAddress', '{column} is not an address. Choose a column that holds one.', { column: column ?? '' })}</span>
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+/** A row of the add-on's own table, found by typing: what a `record` input is given is the row's key. */
+function RowPicker({ input, value, connectionId, label, onChange, testId }: { input: SourceStepInput; value: string; connectionId: string | null; label: string; onChange: (value: string) => void; testId: string }): ReactNode {
+  const table = input.table ?? null;
+  const key = input.tableKey ?? null;
+  const ready = connectionId !== null && table !== null && key !== null;
+  const rows = useQuery({
+    queryKey: ['automations', 'add-on-rows', connectionId, table, key],
+    queryFn: () => createCrudApi(connectionId as string, table as string).lookup?.({ table: table as string, column: key as string }, '') ?? Promise.resolve([]),
+    enabled: ready,
+    staleTime: 30_000,
+  });
+  if (!ready) return <p className="text-xs text-fg-muted">{t('automations:addOn.noRows', 'The add-on’s table is not there to choose from.')}</p>;
+  const options: ComboboxOption[] = (rows.data ?? []).map((row) => ({ value: row.value, label: row.label, ...(row.detail === undefined ? {} : { description: row.detail }) }));
+  // What the rule already names stays choosable when it is not among the first rows read.
+  if (value !== '' && !options.some((option) => option.value === value)) options.unshift({ value, label: value });
+  return (
+    <Combobox
+      options={options}
+      value={value === '' ? null : value}
+      onValueChange={(next) => onChange(next ?? '')}
+      placeholder={t('automations:addOn.findRow', 'Find one…')}
+      emptyText={t('automations:addOn.noRow', 'Nothing matches.')}
+      aria-label={label}
+      data-testid={testId}
+    />
+  );
 }
 
 // --- email (D15) ------------------------------------------------------------
