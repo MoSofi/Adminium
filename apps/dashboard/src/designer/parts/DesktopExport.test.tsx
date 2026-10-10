@@ -61,7 +61,7 @@ describe('"Export this project…"', () => {
     expect(screen.getByRole('radio', { name: /its data and its key/ }).getAttribute('aria-checked')).toBe('true');
     await userEvent.keyboard('{ArrowDown}');
     await userEvent.click(screen.getByRole('button', { name: 'Export…' }));
-    expect(run).toHaveBeenCalledWith({ kind: 'apps', title: 'Export Juniper Kitchen' });
+    expect(run).toHaveBeenCalledWith({ kind: 'apps', title: 'Export Juniper Kitchen', from: `${window.location.pathname}${window.location.search}` });
     // Cancelled in the system's dialog: the choice is still there.
     await waitFor(() => expect((screen.getByRole('button', { name: 'Export…' }) as HTMLButtonElement).disabled).toBe(false));
   });

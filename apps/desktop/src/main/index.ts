@@ -199,11 +199,11 @@ export const CLASSIC_ONLY_SETTING = 'This setting belongs to the classic workspa
  * while that owner has no password: the same door `adminium design` opens in a
  * browser. Shared: the dashboard's front door.
  */
-export function projectUrl(opts: { port: number; mode: 'design' | 'serve'; token: string | null; land?: 'dashboard' | undefined }): string {
+export function projectUrl(opts: { port: number; mode: 'design' | 'serve'; token: string | null; land?: 'dashboard' | undefined; /** A page of the project's own to arrive at instead (a path): where the person was before the server was stopped for them. */ to?: string | undefined }): string {
   const origin = `http://127.0.0.1:${String(opts.port)}`;
   if (opts.mode === 'serve') return `${origin}/`;
   // The token is taken on whatever page it arrives at: "Open dashboard" on Start lands on the dashboard's front door.
-  const page = opts.land === 'dashboard' ? '/' : '/design';
+  const page = opts.to ?? (opts.land === 'dashboard' ? '/' : '/design');
   return opts.token === null ? `${origin}${page}` : `${origin}${page}#designToken=${opts.token}`;
 }
 
@@ -1169,6 +1169,8 @@ export function createDesktopApp(deps: DesktopBootDeps): DesktopApp {
       const bootProject = async (loadedConfig: DesktopConfig, project: { readonly root: string; readonly land?: 'dashboard' | undefined }): Promise<void> => {
         // Where Start asked to land, for the first page only: a restart after a crash comes back to the Designer.
         let land = project.land;
+        /** The page to come back to after the server was stopped for the person (an export), once. */
+        let returnTo: string | undefined;
         /** The window was taken off the project's page (an export) and must be pointed at it again, same port or not. */
         let showAgain = false;
         /** How the project was being served when the window was last pointed at it. */
@@ -1263,8 +1265,9 @@ export function createDesktopApp(deps: DesktopBootDeps): DesktopApp {
           showAgain = false;
           // Shared: the Designer is off, and what the window holds is the app's own page with the addresses.
           if (mode === 'serve' && windows.showShared !== undefined) return windows.showShared();
-          const url = projectUrl({ port: ready.port, mode, token: projectManager.bootToken, land });
+          const url = projectUrl({ port: ready.port, mode, token: projectManager.bootToken, land, ...(returnTo === undefined ? {} : { to: returnTo }) });
           land = undefined;
+          returnTo = undefined;
           return windows.loadApp(url, { preview: mode === 'design' });
         };
         const sharing = deps.sharing;
@@ -1337,7 +1340,7 @@ export function createDesktopApp(deps: DesktopBootDeps): DesktopApp {
           exporter === undefined
             ? null
             : {
-                async run({ kind, title }) {
+                async run({ kind, title, from }) {
                   if (exportingNow) return { status: 'busy' };
                   // Never under a turn, a save or a restore: the files would be caught half-written.
                   if ((await projectManager.busy().catch(() => null)) !== null) return { status: 'busy' };
@@ -1359,6 +1362,7 @@ export function createDesktopApp(deps: DesktopBootDeps): DesktopApp {
                     lastExport = { result, path: result.status === 'saved' ? to : null };
                     // And on again, as it was served before; the page that comes back reads the outcome.
                     showAgain = true;
+                    if (mode === 'design') returnTo = from;
                     await projectManager.restart({ mode, host: mode === 'serve' ? '0.0.0.0' : LOOPBACK_HOST });
                   } catch (error) {
                     result = { status: 'failed', detail: error instanceof Error ? error.message : String(error) };

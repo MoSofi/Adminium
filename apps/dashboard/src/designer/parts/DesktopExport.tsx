@@ -38,7 +38,7 @@ export function ExportDialog({ name, open, onOpenChange }: { name: string; open:
     setBusy(true);
     setProblem(null);
     project
-      .export({ kind, title: t('designer:export.saveTitle', 'Export {name}', { name }) })
+      .export({ kind, title: t('designer:export.saveTitle', 'Export {name}', { name }), from: `${window.location.pathname}${window.location.search}` })
       .then((result) => {
         setBusy(false);
         if (result.status === 'cancelled') return;

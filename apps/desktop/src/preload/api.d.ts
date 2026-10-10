@@ -715,7 +715,7 @@ export interface DesktopProjectApi {
    * page that asked is gone when it is done: the outcome is read with
    * `exportResult()` by the page that comes back. Absent in an older app.
    */
-  export?(input: { readonly kind: DesktopExportKind; readonly title: string }): Promise<DesktopExportResult>;
+  export?(input: { readonly kind: DesktopExportKind; readonly title: string; /** The page to come back to (a path of the project's own server). */ readonly from?: string | undefined }): Promise<DesktopExportResult>;
   /** The outcome of the last export, once: `null` when there is none to tell. */
   exportResult?(): Promise<DesktopExportResult | null>;
   /** Show the file the last export saved, in the system's file manager. */

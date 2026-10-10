@@ -1652,12 +1652,14 @@ describe('createDesktopApp opening a project folder', () => {
       const p = projectHarness({ exportTo: join(scratch, 'juniper.zip') });
       await createDesktopApp(p.deps).start();
       const exporting = exportOf(p);
-      const result = await exporting?.run({ kind: 'everything', title: 't' });
+      const result = await exporting?.run({ kind: 'everything', title: 't', from: '/design/ds_abc' });
       expect(result?.status).toBe('failed');
       expect(p.stops()).toBe(1);
       expect(p.restarts).toEqual([{ mode: 'design', host: '127.0.0.1' }]);
       // Pointed at the project's page again, though the port may be the one it had.
       expect(p.shown).toHaveLength(2);
+      // On the page the person was on, with the new server's own token.
+      expect(p.shown[1]?.url).toMatch(/^http:\/\/127\.0\.0\.1:\d+\/design\/ds_abc#designToken=c{64}$/);
       expect(exporting?.takeResult()).toMatchObject({ status: 'failed' });
       expect(exporting?.takeResult()).toBeNull();
       await exporting?.show();

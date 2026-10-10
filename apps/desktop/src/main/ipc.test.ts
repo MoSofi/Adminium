@@ -846,10 +846,12 @@ describe('the project’s channels', () => {
     expectOk(await h.ipc.invoke(IPC_CHANNELS.projectShowExport));
     expect(exporting.show).toHaveBeenCalledTimes(1);
     // A page cannot say where the file is written, nor ask for a kind there is none of.
-    for (const bad of [{ kind: 'everything', title: 't', to: '/etc/cron.d/x' }, { kind: 'secrets', title: 't' }, { kind: 'apps' }, undefined]) {
+    expectOk(await h.ipc.invoke(IPC_CHANNELS.projectExport, { kind: 'apps', title: 't', from: '/design/ds_abc?x=1' }));
+    expect(exporting.run).toHaveBeenLastCalledWith({ kind: 'apps', title: 't', from: '/design/ds_abc?x=1' });
+    for (const bad of [{ kind: 'apps', title: 't', from: '//evil.example/x' }, { kind: 'apps', title: 't', from: 'https://evil.example/' }, { kind: 'apps', title: 't', from: '/x#designToken=1' }, { kind: 'everything', title: 't', to: '/etc/cron.d/x' }, { kind: 'secrets', title: 't' }, { kind: 'apps' }, undefined]) {
       expect(expectFail(await h.ipc.invoke(IPC_CHANNELS.projectExport, bad)).code).toBe('INVALID_PAYLOAD');
     }
-    expect(exporting.run).toHaveBeenCalledTimes(1);
+    expect(exporting.run).toHaveBeenCalledTimes(2);
     const stranger: IpcInvokeEventLike = { senderFrame: { url: 'https://example.com/' } };
     for (const channel of [IPC_CHANNELS.projectExport, IPC_CHANNELS.projectExportResult, IPC_CHANNELS.projectShowExport]) expect(expectFail(await h.ipc.invoke(channel, { kind: 'apps', title: 't' }, stranger)).code).toBe('UNTRUSTED_SENDER');
     const none = harness();

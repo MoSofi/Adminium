@@ -637,7 +637,7 @@ export const ownPagePolicy: SenderPolicy = (senderUrl) => senderUrl !== null && 
 /** Build and Share of the project a window holds, as main does them (`main/index.ts`). */
 /** "Export this project…", of the project a window holds. */
 export interface ProjectExporting {
-  run(input: { kind: DesktopExportKind; title: string }): Promise<DesktopExportResult>;
+  run(input: { kind: DesktopExportKind; title: string; from?: string | undefined }): Promise<DesktopExportResult>;
   /** The last outcome, handed over once. */
   takeResult(): DesktopExportResult | null;
   show(): Promise<void>;
@@ -943,7 +943,14 @@ export function registerIpcHandlers(opts: RegisterIpcHandlersOptions): IpcHandle
     if (found === null) throw new UnavailableError('This window holds no project.');
     return found;
   };
-  register(IPC_CHANNELS.projectExport, z.strictObject({ kind: z.enum(['everything', 'apps']), title: dialogTitleSchema }), (input) => exporting().run(input));
+  register(IPC_CHANNELS.projectExport, z.strictObject({
+      kind: z.enum(['everything', 'apps']),
+      title: dialogTitleSchema,
+      // A page of the project's own server, by its path: never another origin (`//host`, a scheme), never a fragment.
+      from: z.string().max(400).regex(/^\/(?!\/)[^\\#\s]*$/).optional(),
+    }),
+    (input) => exporting().run({ kind: input.kind, title: input.title, ...(input.from === undefined ? {} : { from: input.from }) }),
+  );
   register(IPC_CHANNELS.projectExportResult, noPayloadSchema, () => Promise.resolve(opts.project?.exporting?.()?.takeResult() ?? null));
   register(IPC_CHANNELS.projectShowExport, noPayloadSchema, () => exporting().show());
 

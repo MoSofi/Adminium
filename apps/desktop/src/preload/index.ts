@@ -316,7 +316,7 @@ export function createDesktopApi(deps: Pick<PreloadDeps, 'ipc' | 'bootstrap'>): 
       showInFolder: (): Promise<void> => unwrap(ipc.invoke(IPC_CHANNELS.projectShowInFolder)),
       close: (): Promise<boolean> => unwrap(ipc.invoke(IPC_CHANNELS.projectClose)),
       setStopWords: (words: DesktopStopWords): Promise<void> => unwrap(ipc.invoke(IPC_CHANNELS.projectStopWords, words)),
-      export: (input: { readonly kind: DesktopExportKind; readonly title: string }): Promise<DesktopExportResult> => unwrap(ipc.invoke(IPC_CHANNELS.projectExport, input)),
+      export: (input: { readonly kind: DesktopExportKind; readonly title: string; readonly from?: string | undefined }): Promise<DesktopExportResult> => unwrap(ipc.invoke(IPC_CHANNELS.projectExport, input)),
       exportResult: (): Promise<DesktopExportResult | null> => unwrap(ipc.invoke(IPC_CHANNELS.projectExportResult)),
       showExport: (): Promise<void> => unwrap(ipc.invoke(IPC_CHANNELS.projectShowExport)),
       share: (): Promise<DesktopShareResult> => unwrap(ipc.invoke(IPC_CHANNELS.projectShare)),
