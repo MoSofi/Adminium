@@ -12,6 +12,7 @@
  *    back and its toast are built on.
  */
 
+import type { AddOnInstalls } from '../src/apps/table-ref.js';
 import BetterSqlite3 from 'better-sqlite3';
 import type { LightMyRequestResponse } from 'fastify';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -70,6 +71,42 @@ function completeGraph(): AutomationGraph {
   };
 }
 
+const LOCALES = ['ar-EG', 'cs-CZ', 'da-DK', 'de-DE', 'en-US', 'fr-FR', 'zh-CN', 'zh-TW'];
+const words = (text: string): Record<string, string> => Object.fromEntries(LOCALES.map((locale) => [locale, text]));
+
+const NOTHING_INSTALLED: AddOnInstalls = { installed: () => null, tableOf: () => null, refOf: (_connectionId, tableId) => tableId, keys: () => [], tableOfRef: () => null, featureOn: () => false };
+
+/** An add-on "Kit" installed on one database, giving one step that adds a row to the fixture's users. */
+function kitInstalled(connectionId: string): AddOnInstalls {
+  const manifest = {
+    kind: 'add-on',
+    key: 'kit',
+    name: 'Kit',
+    addOn: {
+      steps: [
+        {
+          key: 'invite',
+          name: words('Invite a friend'),
+          does: words('Adds a person'),
+          inputs: [
+            { key: 'to', label: words('Send to'), kind: 'email', required: true },
+            { key: 'name', label: words('Name'), kind: 'text' },
+            { key: 'like', label: words('Like'), kind: 'record', table: 'people' },
+          ],
+          writes: { table: 'people', values: { email: { input: 'to' }, full_name: { input: 'name' }, notes: { input: 'like' }, status: { text: 'invited' } } },
+        },
+      ],
+    },
+  };
+  const here = (id: string): boolean => id === connectionId;
+  return {
+    ...NOTHING_INSTALLED,
+    installed: (id, key) => (here(id) && key === 'kit' ? { manifest: manifest as never, version: '1.0.0', status: 'installed', hosts: new Map() } : null),
+    tableOf: (id, key, ref) => (here(id) && key === 'kit' && ref === 'people' ? 'main.users' : null),
+    keys: (id) => (here(id) ? ['kit'] : []),
+  };
+}
+
 /** What the New-rule modal actually creates: an action with nothing set. */
 function draftGraph(): AutomationGraph {
   return {
@@ -93,6 +130,8 @@ describe('42 — the automations routes', () => {
   let connectionId: string;
   let now: number;
   let rebuilds = 0;
+  /** What is installed, as the routes are told it; a test puts an add-on with a step there, or takes it away. */
+  let installed: AddOnInstalls = NOTHING_INSTALLED;
 
   async function enqueue(input: EnqueueJobInput): Promise<Job> {
     return jobsRepo(t.meta).enqueue({ ...input, kind: 'noop-progress' }, now);
@@ -101,6 +140,7 @@ describe('42 — the automations routes', () => {
   beforeEach(async () => {
     now = T0;
     rebuilds = 0;
+    installed = NOTHING_INSTALLED;
     sqlite = seedAutomationsSqlite();
     t = await buildDataTestApp({
       registry: makeAutomationsRegistry(sqlite),
@@ -116,6 +156,7 @@ describe('42 — the automations routes', () => {
             onRulesChanged: () => {
               rebuilds += 1;
             },
+            installs: async () => installed,
           }) as never,
         );
         await api.register(automationRunsRoutes({ meta: ctx.meta, now: () => now }) as never);
@@ -487,6 +528,90 @@ describe('42 — the automations routes', () => {
     expect(body.trace.steps[1]?.log).toContain('Would send');
     // The dry run creates no run row: Test is not an execution.
     expect(await automationRunsRepo(t.meta).list({ since: T0 - 1000 })).toHaveLength(0);
+  });
+
+  describe('a step an add-on gives', () => {
+    const stepGraph = (inputs: Record<string, string>): AutomationGraph =>
+      ({ version: 1, nodes: [{ id: 'n1', kind: 'trigger', title: 'When a user signs up' }, { id: 'n2', kind: 'action', title: 'Invite a friend', onError: false, action: { kind: 'add-on.step', addOn: 'kit', step: 'invite', addOnName: 'Kit', inputs } }] }) as unknown as AutomationGraph;
+    const rule = (inputs: Record<string, string>, enabled = true, headers = asAdmin()) =>
+      post('/automations', { name: 'Invite', connectionId, trigger: TRIGGER(connectionId), graph: stepGraph(inputs), enabled }, headers);
+
+    it('is offered to the builder with its inputs, and says whether the person may use it', async () => {
+      installed = kitInstalled(connectionId);
+      const steps = (await get('/automations/sources')).json().connections[0].steps as Record<string, unknown>[];
+      expect(steps).toHaveLength(1);
+      expect(steps[0]).toMatchObject({ addOn: 'kit', addOnName: 'Kit', key: 'invite', table: 'main.users', canCreate: true, name: { 'en-US': 'Invite a friend' }, does: { 'en-US': 'Adds a person' } });
+      expect(steps[0]!['inputs']).toEqual([
+        { key: 'to', label: words('Send to'), kind: 'email', required: true },
+        { key: 'name', label: words('Name'), kind: 'text', required: false },
+        { key: 'like', label: words('Like'), kind: 'record', required: false, table: 'main.users', tableKey: 'id' },
+      ]);
+      // The editor reads users and may not add one: the step is shown as not theirs to use.
+      const asEditor = (await get('/automations/sources', asUser(t.users.editor))).json().connections[0].steps as Record<string, unknown>[];
+      expect(asEditor[0]).toMatchObject({ key: 'invite', canCreate: false });
+      // With no add-on that gives one, there is none.
+      installed = NOTHING_INSTALLED;
+      expect((await get('/automations/sources')).json().connections[0].steps).toEqual([]);
+    });
+
+    it('is saved unfinished and switched off while a needed input is empty, and switched on once it is filled', async () => {
+      installed = kitInstalled(connectionId);
+      const draft = await rule({ name: '{{record.full_name}}' });
+      expect(draft.statusCode, draft.body).toBe(201);
+      expect(draft.json()).toMatchObject({ enabled: false, valid: false, incompleteNodeId: 'n2' });
+      const id = (draft.json() as { id: string }).id;
+      const on = await patch(`/automations/${id}`, { enabled: true });
+      expect(on.statusCode).toBe(422);
+      expect(on.json()).toMatchObject({ error: { code: 'AUTOMATION_INCOMPLETE', message: 'Finish “Invite a friend” before switching this rule on.' } });
+      const filled = await patch(`/automations/${id}`, { graph: stepGraph({ to: '{{record.email}}', name: '{{record.full_name}}' }), enabled: true });
+      expect(filled.statusCode, filled.body).toBe(200);
+      expect(filled.json()).toMatchObject({ enabled: true, valid: true });
+      // What the step does not take is a refusal, not an unfinished step.
+      const odd = await rule({ to: 'not an address' });
+      expect(odd.statusCode).toBe(422);
+      expect(odd.json().error.message).toContain('“not an address” is not an email address (Send to).');
+    });
+
+    it('needs its author to be allowed to add the row it adds', async () => {
+      installed = kitInstalled(connectionId);
+      const refused = await rule({ to: '{{record.email}}' }, true, asUser(t.users.editor));
+      expect(refused.statusCode).toBe(403);
+      expect(refused.json()).toMatchObject({ error: { code: 'TABLE_FORBIDDEN', details: { table: 'main.users' } } });
+    });
+
+    it('a test run fills the inputs from the sample record and writes nothing', async () => {
+      installed = kitInstalled(connectionId);
+      const made = await rule({ to: '{{record.email}}', name: 'Friend of {{record.full_name}}' });
+      const id = (made.json() as { id: string }).id;
+      const res = await post(`/automations/${id}/test`, { trigger: TRIGGER(connectionId), graph: stepGraph({ to: '{{record.email}}', name: 'Friend of {{record.full_name}}' }) });
+      expect(res.statusCode, res.body).toBe(200);
+      const log = (res.json() as { trace: AutomationTrace }).trace.steps[1]?.log ?? '';
+      expect(log).toContain('Would run “Invite a friend” with');
+      // A person's address and name go into columns the table keeps personal: the run says they are filled, and does not show them.
+      expect(log).toContain('Send to = filled in (kept private), Name = filled in (kept private)');
+      expect(log).not.toContain('Jordan');
+      expect(sqlite.prepare('SELECT COUNT(*) AS n FROM users').get()).toEqual({ n: 1 });
+    });
+
+    it('once its add-on is gone the rule is kept, reads as unfinished, cannot be switched on, and its test run says which add-on it lost', async () => {
+      installed = kitInstalled(connectionId);
+      const made = await rule({ to: '{{record.email}}' });
+      expect(made.json()).toMatchObject({ enabled: true, valid: true });
+      const id = (made.json() as { id: string }).id;
+      installed = NOTHING_INSTALLED;
+      const list = (await get('/automations')).json() as { rules?: { id: string; valid: boolean; incompleteNodeId: string | null }[]; data?: { id: string; valid: boolean; incompleteNodeId: string | null }[] };
+      expect((list.rules ?? list.data ?? []).find((one) => one.id === id)).toMatchObject({ valid: false, incompleteNodeId: 'n2' });
+      // Its settings are kept: saving it again (a new name) is not refused.
+      const renamed = await patch(`/automations/${id}`, { name: 'Invite, later', graph: stepGraph({ to: '{{record.email}}' }) });
+      expect(renamed.statusCode, renamed.body).toBe(200);
+      await patch(`/automations/${id}`, { enabled: false });
+      const on = await patch(`/automations/${id}`, { enabled: true });
+      expect(on.statusCode).toBe(422);
+      expect(on.json()).toMatchObject({ error: { code: 'AUTOMATION_INCOMPLETE' } });
+      const res = await post(`/automations/${id}/test`, { trigger: TRIGGER(connectionId), graph: stepGraph({ to: '{{record.email}}' }) });
+      expect(res.statusCode, res.body).toBe(200);
+      expect((res.json() as { trace: AutomationTrace }).trace.steps[1]).toMatchObject({ status: 'fail', log: 'The add-on Kit is no longer installed.' });
+    });
   });
 
   it('the dry run refuses when the trigger table is empty', async () => {

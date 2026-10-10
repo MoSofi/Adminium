@@ -110,6 +110,17 @@ export function automationsRoutes(deps: AutomationsRoutesDeps): FastifyPluginAsy
     return (addOn, step) => findStep(installs, connectionId, addOn, step);
   }
 
+  /** The one column a table's rows are told apart by, or null when it has none or several. */
+  function keyColumnOf(view: SnapshotView, tableId: string | null): string | null {
+    if (tableId === null) return null;
+    try {
+      const key = view.table(tableId).primaryKey;
+      return key.length === 1 ? (key[0] as string) : null;
+    } catch {
+      return null;
+    }
+  }
+
   /** The view a rule is checked in when a person saves it: their own read of the schema, column limits included. */
   async function authorViewFor(request: FastifyRequest, connectionId: string | null) {
     const whole = await viewFor(connectionId);
@@ -351,7 +362,7 @@ export function automationsRoutes(deps: AutomationsRoutesDeps): FastifyPluginAsy
                 kind: input.kind,
                 required: input.required === true,
                 ...(input.options === undefined ? {} : { options: input.options }),
-                ...(input.table === undefined ? {} : { table: installed.inputTables[input.key] ?? null }),
+                ...(input.table === undefined ? {} : { table: installed.inputTables[input.key] ?? null, tableKey: keyColumnOf(view, installed.inputTables[input.key] ?? null) }),
               })),
             });
           }

@@ -188,6 +188,8 @@ const sourceStepSchema = z.object({
       options: z.array(z.object({ value: z.string(), label: everyLanguage })).optional(),
       /** For `record`: the table a row is picked from; null while it is not there. */
       table: z.string().nullable().optional(),
+      /** For `record`: that table's key column, which is what the step is given. */
+      tableKey: z.string().nullable().optional(),
     }),
   ),
 });

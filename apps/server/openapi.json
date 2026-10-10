@@ -24663,6 +24663,52 @@
                                                     "headerValueEncrypted"
                                                   ],
                                                   "additionalProperties": false
+                                                },
+                                                {
+                                                  "type": "object",
+                                                  "properties": {
+                                                    "kind": {
+                                                      "type": "string",
+                                                      "enum": [
+                                                        "add-on.step"
+                                                      ]
+                                                    },
+                                                    "addOn": {
+                                                      "default": "",
+                                                      "type": "string",
+                                                      "maxLength": 80
+                                                    },
+                                                    "step": {
+                                                      "default": "",
+                                                      "type": "string",
+                                                      "maxLength": 80
+                                                    },
+                                                    "addOnName": {
+                                                      "default": "",
+                                                      "type": "string",
+                                                      "maxLength": 120
+                                                    },
+                                                    "inputs": {
+                                                      "default": {},
+                                                      "type": "object",
+                                                      "propertyNames": {
+                                                        "type": "string",
+                                                        "maxLength": 80
+                                                      },
+                                                      "additionalProperties": {
+                                                        "type": "string",
+                                                        "maxLength": 2000
+                                                      }
+                                                    }
+                                                  },
+                                                  "required": [
+                                                    "kind",
+                                                    "addOn",
+                                                    "step",
+                                                    "addOnName",
+                                                    "inputs"
+                                                  ],
+                                                  "additionalProperties": false
                                                 }
                                               ]
                                             }
@@ -25610,6 +25656,52 @@
                                                                           "headerValueEncrypted"
                                                                         ],
                                                                         "additionalProperties": false
+                                                                      },
+                                                                      {
+                                                                        "type": "object",
+                                                                        "properties": {
+                                                                          "kind": {
+                                                                            "type": "string",
+                                                                            "enum": [
+                                                                              "add-on.step"
+                                                                            ]
+                                                                          },
+                                                                          "addOn": {
+                                                                            "default": "",
+                                                                            "type": "string",
+                                                                            "maxLength": 80
+                                                                          },
+                                                                          "step": {
+                                                                            "default": "",
+                                                                            "type": "string",
+                                                                            "maxLength": 80
+                                                                          },
+                                                                          "addOnName": {
+                                                                            "default": "",
+                                                                            "type": "string",
+                                                                            "maxLength": 120
+                                                                          },
+                                                                          "inputs": {
+                                                                            "default": {},
+                                                                            "type": "object",
+                                                                            "propertyNames": {
+                                                                              "type": "string",
+                                                                              "maxLength": 80
+                                                                            },
+                                                                            "additionalProperties": {
+                                                                              "type": "string",
+                                                                              "maxLength": 2000
+                                                                            }
+                                                                          }
+                                                                        },
+                                                                        "required": [
+                                                                          "kind",
+                                                                          "addOn",
+                                                                          "step",
+                                                                          "addOnName",
+                                                                          "inputs"
+                                                                        ],
+                                                                        "additionalProperties": false
                                                                       }
                                                                     ]
                                                                   }
@@ -26406,6 +26498,52 @@
                                                                           "body",
                                                                           "headerName",
                                                                           "headerValueEncrypted"
+                                                                        ],
+                                                                        "additionalProperties": false
+                                                                      },
+                                                                      {
+                                                                        "type": "object",
+                                                                        "properties": {
+                                                                          "kind": {
+                                                                            "type": "string",
+                                                                            "enum": [
+                                                                              "add-on.step"
+                                                                            ]
+                                                                          },
+                                                                          "addOn": {
+                                                                            "default": "",
+                                                                            "type": "string",
+                                                                            "maxLength": 80
+                                                                          },
+                                                                          "step": {
+                                                                            "default": "",
+                                                                            "type": "string",
+                                                                            "maxLength": 80
+                                                                          },
+                                                                          "addOnName": {
+                                                                            "default": "",
+                                                                            "type": "string",
+                                                                            "maxLength": 120
+                                                                          },
+                                                                          "inputs": {
+                                                                            "default": {},
+                                                                            "type": "object",
+                                                                            "propertyNames": {
+                                                                              "type": "string",
+                                                                              "maxLength": 80
+                                                                            },
+                                                                            "additionalProperties": {
+                                                                              "type": "string",
+                                                                              "maxLength": 2000
+                                                                            }
+                                                                          }
+                                                                        },
+                                                                        "required": [
+                                                                          "kind",
+                                                                          "addOn",
+                                                                          "step",
+                                                                          "addOnName",
+                                                                          "inputs"
                                                                         ],
                                                                         "additionalProperties": false
                                                                       }
@@ -28023,6 +28161,47 @@
                                           "required": [
                                             "kind"
                                           ]
+                                        },
+                                        {
+                                          "type": "object",
+                                          "properties": {
+                                            "kind": {
+                                              "type": "string",
+                                              "enum": [
+                                                "add-on.step"
+                                              ]
+                                            },
+                                            "addOn": {
+                                              "default": "",
+                                              "type": "string",
+                                              "maxLength": 80
+                                            },
+                                            "step": {
+                                              "default": "",
+                                              "type": "string",
+                                              "maxLength": 80
+                                            },
+                                            "addOnName": {
+                                              "default": "",
+                                              "type": "string",
+                                              "maxLength": 120
+                                            },
+                                            "inputs": {
+                                              "default": {},
+                                              "type": "object",
+                                              "propertyNames": {
+                                                "type": "string",
+                                                "maxLength": 80
+                                              },
+                                              "additionalProperties": {
+                                                "type": "string",
+                                                "maxLength": 2000
+                                              }
+                                            }
+                                          },
+                                          "required": [
+                                            "kind"
+                                          ]
                                         }
                                       ]
                                     }
@@ -28921,6 +29100,47 @@
                                                                 "required": [
                                                                   "kind"
                                                                 ]
+                                                              },
+                                                              {
+                                                                "type": "object",
+                                                                "properties": {
+                                                                  "kind": {
+                                                                    "type": "string",
+                                                                    "enum": [
+                                                                      "add-on.step"
+                                                                    ]
+                                                                  },
+                                                                  "addOn": {
+                                                                    "default": "",
+                                                                    "type": "string",
+                                                                    "maxLength": 80
+                                                                  },
+                                                                  "step": {
+                                                                    "default": "",
+                                                                    "type": "string",
+                                                                    "maxLength": 80
+                                                                  },
+                                                                  "addOnName": {
+                                                                    "default": "",
+                                                                    "type": "string",
+                                                                    "maxLength": 120
+                                                                  },
+                                                                  "inputs": {
+                                                                    "default": {},
+                                                                    "type": "object",
+                                                                    "propertyNames": {
+                                                                      "type": "string",
+                                                                      "maxLength": 80
+                                                                    },
+                                                                    "additionalProperties": {
+                                                                      "type": "string",
+                                                                      "maxLength": 2000
+                                                                    }
+                                                                  }
+                                                                },
+                                                                "required": [
+                                                                  "kind"
+                                                                ]
                                                               }
                                                             ]
                                                           }
@@ -29671,6 +29891,47 @@
                                                                   },
                                                                   "headerValueSet": {
                                                                     "type": "boolean"
+                                                                  }
+                                                                },
+                                                                "required": [
+                                                                  "kind"
+                                                                ]
+                                                              },
+                                                              {
+                                                                "type": "object",
+                                                                "properties": {
+                                                                  "kind": {
+                                                                    "type": "string",
+                                                                    "enum": [
+                                                                      "add-on.step"
+                                                                    ]
+                                                                  },
+                                                                  "addOn": {
+                                                                    "default": "",
+                                                                    "type": "string",
+                                                                    "maxLength": 80
+                                                                  },
+                                                                  "step": {
+                                                                    "default": "",
+                                                                    "type": "string",
+                                                                    "maxLength": 80
+                                                                  },
+                                                                  "addOnName": {
+                                                                    "default": "",
+                                                                    "type": "string",
+                                                                    "maxLength": 120
+                                                                  },
+                                                                  "inputs": {
+                                                                    "default": {},
+                                                                    "type": "object",
+                                                                    "propertyNames": {
+                                                                      "type": "string",
+                                                                      "maxLength": 80
+                                                                    },
+                                                                    "additionalProperties": {
+                                                                      "type": "string",
+                                                                      "maxLength": 2000
+                                                                    }
                                                                   }
                                                                 },
                                                                 "required": [
@@ -31193,6 +31454,52 @@
                                               "headerValueEncrypted"
                                             ],
                                             "additionalProperties": false
+                                          },
+                                          {
+                                            "type": "object",
+                                            "properties": {
+                                              "kind": {
+                                                "type": "string",
+                                                "enum": [
+                                                  "add-on.step"
+                                                ]
+                                              },
+                                              "addOn": {
+                                                "default": "",
+                                                "type": "string",
+                                                "maxLength": 80
+                                              },
+                                              "step": {
+                                                "default": "",
+                                                "type": "string",
+                                                "maxLength": 80
+                                              },
+                                              "addOnName": {
+                                                "default": "",
+                                                "type": "string",
+                                                "maxLength": 120
+                                              },
+                                              "inputs": {
+                                                "default": {},
+                                                "type": "object",
+                                                "propertyNames": {
+                                                  "type": "string",
+                                                  "maxLength": 80
+                                                },
+                                                "additionalProperties": {
+                                                  "type": "string",
+                                                  "maxLength": 2000
+                                                }
+                                              }
+                                            },
+                                            "required": [
+                                              "kind",
+                                              "addOn",
+                                              "step",
+                                              "addOnName",
+                                              "inputs"
+                                            ],
+                                            "additionalProperties": false
                                           }
                                         ]
                                       }
@@ -32140,6 +32447,52 @@
                                                                     "headerValueEncrypted"
                                                                   ],
                                                                   "additionalProperties": false
+                                                                },
+                                                                {
+                                                                  "type": "object",
+                                                                  "properties": {
+                                                                    "kind": {
+                                                                      "type": "string",
+                                                                      "enum": [
+                                                                        "add-on.step"
+                                                                      ]
+                                                                    },
+                                                                    "addOn": {
+                                                                      "default": "",
+                                                                      "type": "string",
+                                                                      "maxLength": 80
+                                                                    },
+                                                                    "step": {
+                                                                      "default": "",
+                                                                      "type": "string",
+                                                                      "maxLength": 80
+                                                                    },
+                                                                    "addOnName": {
+                                                                      "default": "",
+                                                                      "type": "string",
+                                                                      "maxLength": 120
+                                                                    },
+                                                                    "inputs": {
+                                                                      "default": {},
+                                                                      "type": "object",
+                                                                      "propertyNames": {
+                                                                        "type": "string",
+                                                                        "maxLength": 80
+                                                                      },
+                                                                      "additionalProperties": {
+                                                                        "type": "string",
+                                                                        "maxLength": 2000
+                                                                      }
+                                                                    }
+                                                                  },
+                                                                  "required": [
+                                                                    "kind",
+                                                                    "addOn",
+                                                                    "step",
+                                                                    "addOnName",
+                                                                    "inputs"
+                                                                  ],
+                                                                  "additionalProperties": false
                                                                 }
                                                               ]
                                                             }
@@ -32936,6 +33289,52 @@
                                                                     "body",
                                                                     "headerName",
                                                                     "headerValueEncrypted"
+                                                                  ],
+                                                                  "additionalProperties": false
+                                                                },
+                                                                {
+                                                                  "type": "object",
+                                                                  "properties": {
+                                                                    "kind": {
+                                                                      "type": "string",
+                                                                      "enum": [
+                                                                        "add-on.step"
+                                                                      ]
+                                                                    },
+                                                                    "addOn": {
+                                                                      "default": "",
+                                                                      "type": "string",
+                                                                      "maxLength": 80
+                                                                    },
+                                                                    "step": {
+                                                                      "default": "",
+                                                                      "type": "string",
+                                                                      "maxLength": 80
+                                                                    },
+                                                                    "addOnName": {
+                                                                      "default": "",
+                                                                      "type": "string",
+                                                                      "maxLength": 120
+                                                                    },
+                                                                    "inputs": {
+                                                                      "default": {},
+                                                                      "type": "object",
+                                                                      "propertyNames": {
+                                                                        "type": "string",
+                                                                        "maxLength": 80
+                                                                      },
+                                                                      "additionalProperties": {
+                                                                        "type": "string",
+                                                                        "maxLength": 2000
+                                                                      }
+                                                                    }
+                                                                  },
+                                                                  "required": [
+                                                                    "kind",
+                                                                    "addOn",
+                                                                    "step",
+                                                                    "addOnName",
+                                                                    "inputs"
                                                                   ],
                                                                   "additionalProperties": false
                                                                 }
@@ -33758,6 +34157,150 @@
                               ],
                               "additionalProperties": false
                             }
+                          },
+                          "steps": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "addOn": {
+                                  "type": "string"
+                                },
+                                "addOnName": {
+                                  "type": "string"
+                                },
+                                "key": {
+                                  "type": "string"
+                                },
+                                "name": {
+                                  "type": "object",
+                                  "propertyNames": {
+                                    "type": "string"
+                                  },
+                                  "additionalProperties": {
+                                    "type": "string"
+                                  }
+                                },
+                                "does": {
+                                  "type": "object",
+                                  "propertyNames": {
+                                    "type": "string"
+                                  },
+                                  "additionalProperties": {
+                                    "type": "string"
+                                  }
+                                },
+                                "table": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "canCreate": {
+                                  "type": "boolean"
+                                },
+                                "inputs": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "key": {
+                                        "type": "string"
+                                      },
+                                      "label": {
+                                        "type": "object",
+                                        "propertyNames": {
+                                          "type": "string"
+                                        },
+                                        "additionalProperties": {
+                                          "type": "string"
+                                        }
+                                      },
+                                      "kind": {
+                                        "type": "string",
+                                        "enum": [
+                                          "text",
+                                          "email",
+                                          "number",
+                                          "choice",
+                                          "record"
+                                        ]
+                                      },
+                                      "required": {
+                                        "type": "boolean"
+                                      },
+                                      "options": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "object",
+                                          "properties": {
+                                            "value": {
+                                              "type": "string"
+                                            },
+                                            "label": {
+                                              "type": "object",
+                                              "propertyNames": {
+                                                "type": "string"
+                                              },
+                                              "additionalProperties": {
+                                                "type": "string"
+                                              }
+                                            }
+                                          },
+                                          "required": [
+                                            "value",
+                                            "label"
+                                          ],
+                                          "additionalProperties": false
+                                        }
+                                      },
+                                      "table": {
+                                        "anyOf": [
+                                          {
+                                            "type": "string"
+                                          },
+                                          {
+                                            "type": "null"
+                                          }
+                                        ]
+                                      },
+                                      "tableKey": {
+                                        "anyOf": [
+                                          {
+                                            "type": "string"
+                                          },
+                                          {
+                                            "type": "null"
+                                          }
+                                        ]
+                                      }
+                                    },
+                                    "required": [
+                                      "key",
+                                      "label",
+                                      "kind",
+                                      "required"
+                                    ],
+                                    "additionalProperties": false
+                                  }
+                                }
+                              },
+                              "required": [
+                                "addOn",
+                                "addOnName",
+                                "key",
+                                "name",
+                                "does",
+                                "table",
+                                "canCreate",
+                                "inputs"
+                              ],
+                              "additionalProperties": false
+                            }
                           }
                         },
                         "required": [
@@ -33765,7 +34308,8 @@
                           "name",
                           "dialect",
                           "timezone",
-                          "tables"
+                          "tables",
+                          "steps"
                         ],
                         "additionalProperties": false
                       }
@@ -35031,6 +35575,52 @@
                                               "headerValueEncrypted"
                                             ],
                                             "additionalProperties": false
+                                          },
+                                          {
+                                            "type": "object",
+                                            "properties": {
+                                              "kind": {
+                                                "type": "string",
+                                                "enum": [
+                                                  "add-on.step"
+                                                ]
+                                              },
+                                              "addOn": {
+                                                "default": "",
+                                                "type": "string",
+                                                "maxLength": 80
+                                              },
+                                              "step": {
+                                                "default": "",
+                                                "type": "string",
+                                                "maxLength": 80
+                                              },
+                                              "addOnName": {
+                                                "default": "",
+                                                "type": "string",
+                                                "maxLength": 120
+                                              },
+                                              "inputs": {
+                                                "default": {},
+                                                "type": "object",
+                                                "propertyNames": {
+                                                  "type": "string",
+                                                  "maxLength": 80
+                                                },
+                                                "additionalProperties": {
+                                                  "type": "string",
+                                                  "maxLength": 2000
+                                                }
+                                              }
+                                            },
+                                            "required": [
+                                              "kind",
+                                              "addOn",
+                                              "step",
+                                              "addOnName",
+                                              "inputs"
+                                            ],
+                                            "additionalProperties": false
                                           }
                                         ]
                                       }
@@ -35978,6 +36568,52 @@
                                                                     "headerValueEncrypted"
                                                                   ],
                                                                   "additionalProperties": false
+                                                                },
+                                                                {
+                                                                  "type": "object",
+                                                                  "properties": {
+                                                                    "kind": {
+                                                                      "type": "string",
+                                                                      "enum": [
+                                                                        "add-on.step"
+                                                                      ]
+                                                                    },
+                                                                    "addOn": {
+                                                                      "default": "",
+                                                                      "type": "string",
+                                                                      "maxLength": 80
+                                                                    },
+                                                                    "step": {
+                                                                      "default": "",
+                                                                      "type": "string",
+                                                                      "maxLength": 80
+                                                                    },
+                                                                    "addOnName": {
+                                                                      "default": "",
+                                                                      "type": "string",
+                                                                      "maxLength": 120
+                                                                    },
+                                                                    "inputs": {
+                                                                      "default": {},
+                                                                      "type": "object",
+                                                                      "propertyNames": {
+                                                                        "type": "string",
+                                                                        "maxLength": 80
+                                                                      },
+                                                                      "additionalProperties": {
+                                                                        "type": "string",
+                                                                        "maxLength": 2000
+                                                                      }
+                                                                    }
+                                                                  },
+                                                                  "required": [
+                                                                    "kind",
+                                                                    "addOn",
+                                                                    "step",
+                                                                    "addOnName",
+                                                                    "inputs"
+                                                                  ],
+                                                                  "additionalProperties": false
                                                                 }
                                                               ]
                                                             }
@@ -36774,6 +37410,52 @@
                                                                     "body",
                                                                     "headerName",
                                                                     "headerValueEncrypted"
+                                                                  ],
+                                                                  "additionalProperties": false
+                                                                },
+                                                                {
+                                                                  "type": "object",
+                                                                  "properties": {
+                                                                    "kind": {
+                                                                      "type": "string",
+                                                                      "enum": [
+                                                                        "add-on.step"
+                                                                      ]
+                                                                    },
+                                                                    "addOn": {
+                                                                      "default": "",
+                                                                      "type": "string",
+                                                                      "maxLength": 80
+                                                                    },
+                                                                    "step": {
+                                                                      "default": "",
+                                                                      "type": "string",
+                                                                      "maxLength": 80
+                                                                    },
+                                                                    "addOnName": {
+                                                                      "default": "",
+                                                                      "type": "string",
+                                                                      "maxLength": 120
+                                                                    },
+                                                                    "inputs": {
+                                                                      "default": {},
+                                                                      "type": "object",
+                                                                      "propertyNames": {
+                                                                        "type": "string",
+                                                                        "maxLength": 80
+                                                                      },
+                                                                      "additionalProperties": {
+                                                                        "type": "string",
+                                                                        "maxLength": 2000
+                                                                      }
+                                                                    }
+                                                                  },
+                                                                  "required": [
+                                                                    "kind",
+                                                                    "addOn",
+                                                                    "step",
+                                                                    "addOnName",
+                                                                    "inputs"
                                                                   ],
                                                                   "additionalProperties": false
                                                                 }
@@ -38374,6 +39056,47 @@
                                           "required": [
                                             "kind"
                                           ]
+                                        },
+                                        {
+                                          "type": "object",
+                                          "properties": {
+                                            "kind": {
+                                              "type": "string",
+                                              "enum": [
+                                                "add-on.step"
+                                              ]
+                                            },
+                                            "addOn": {
+                                              "default": "",
+                                              "type": "string",
+                                              "maxLength": 80
+                                            },
+                                            "step": {
+                                              "default": "",
+                                              "type": "string",
+                                              "maxLength": 80
+                                            },
+                                            "addOnName": {
+                                              "default": "",
+                                              "type": "string",
+                                              "maxLength": 120
+                                            },
+                                            "inputs": {
+                                              "default": {},
+                                              "type": "object",
+                                              "propertyNames": {
+                                                "type": "string",
+                                                "maxLength": 80
+                                              },
+                                              "additionalProperties": {
+                                                "type": "string",
+                                                "maxLength": 2000
+                                              }
+                                            }
+                                          },
+                                          "required": [
+                                            "kind"
+                                          ]
                                         }
                                       ]
                                     }
@@ -39272,6 +39995,47 @@
                                                                 "required": [
                                                                   "kind"
                                                                 ]
+                                                              },
+                                                              {
+                                                                "type": "object",
+                                                                "properties": {
+                                                                  "kind": {
+                                                                    "type": "string",
+                                                                    "enum": [
+                                                                      "add-on.step"
+                                                                    ]
+                                                                  },
+                                                                  "addOn": {
+                                                                    "default": "",
+                                                                    "type": "string",
+                                                                    "maxLength": 80
+                                                                  },
+                                                                  "step": {
+                                                                    "default": "",
+                                                                    "type": "string",
+                                                                    "maxLength": 80
+                                                                  },
+                                                                  "addOnName": {
+                                                                    "default": "",
+                                                                    "type": "string",
+                                                                    "maxLength": 120
+                                                                  },
+                                                                  "inputs": {
+                                                                    "default": {},
+                                                                    "type": "object",
+                                                                    "propertyNames": {
+                                                                      "type": "string",
+                                                                      "maxLength": 80
+                                                                    },
+                                                                    "additionalProperties": {
+                                                                      "type": "string",
+                                                                      "maxLength": 2000
+                                                                    }
+                                                                  }
+                                                                },
+                                                                "required": [
+                                                                  "kind"
+                                                                ]
                                                               }
                                                             ]
                                                           }
@@ -40022,6 +40786,47 @@
                                                                   },
                                                                   "headerValueSet": {
                                                                     "type": "boolean"
+                                                                  }
+                                                                },
+                                                                "required": [
+                                                                  "kind"
+                                                                ]
+                                                              },
+                                                              {
+                                                                "type": "object",
+                                                                "properties": {
+                                                                  "kind": {
+                                                                    "type": "string",
+                                                                    "enum": [
+                                                                      "add-on.step"
+                                                                    ]
+                                                                  },
+                                                                  "addOn": {
+                                                                    "default": "",
+                                                                    "type": "string",
+                                                                    "maxLength": 80
+                                                                  },
+                                                                  "step": {
+                                                                    "default": "",
+                                                                    "type": "string",
+                                                                    "maxLength": 80
+                                                                  },
+                                                                  "addOnName": {
+                                                                    "default": "",
+                                                                    "type": "string",
+                                                                    "maxLength": 120
+                                                                  },
+                                                                  "inputs": {
+                                                                    "default": {},
+                                                                    "type": "object",
+                                                                    "propertyNames": {
+                                                                      "type": "string",
+                                                                      "maxLength": 80
+                                                                    },
+                                                                    "additionalProperties": {
+                                                                      "type": "string",
+                                                                      "maxLength": 2000
+                                                                    }
                                                                   }
                                                                 },
                                                                 "required": [
@@ -41549,6 +42354,52 @@
                                               "headerValueEncrypted"
                                             ],
                                             "additionalProperties": false
+                                          },
+                                          {
+                                            "type": "object",
+                                            "properties": {
+                                              "kind": {
+                                                "type": "string",
+                                                "enum": [
+                                                  "add-on.step"
+                                                ]
+                                              },
+                                              "addOn": {
+                                                "default": "",
+                                                "type": "string",
+                                                "maxLength": 80
+                                              },
+                                              "step": {
+                                                "default": "",
+                                                "type": "string",
+                                                "maxLength": 80
+                                              },
+                                              "addOnName": {
+                                                "default": "",
+                                                "type": "string",
+                                                "maxLength": 120
+                                              },
+                                              "inputs": {
+                                                "default": {},
+                                                "type": "object",
+                                                "propertyNames": {
+                                                  "type": "string",
+                                                  "maxLength": 80
+                                                },
+                                                "additionalProperties": {
+                                                  "type": "string",
+                                                  "maxLength": 2000
+                                                }
+                                              }
+                                            },
+                                            "required": [
+                                              "kind",
+                                              "addOn",
+                                              "step",
+                                              "addOnName",
+                                              "inputs"
+                                            ],
+                                            "additionalProperties": false
                                           }
                                         ]
                                       }
@@ -42496,6 +43347,52 @@
                                                                     "headerValueEncrypted"
                                                                   ],
                                                                   "additionalProperties": false
+                                                                },
+                                                                {
+                                                                  "type": "object",
+                                                                  "properties": {
+                                                                    "kind": {
+                                                                      "type": "string",
+                                                                      "enum": [
+                                                                        "add-on.step"
+                                                                      ]
+                                                                    },
+                                                                    "addOn": {
+                                                                      "default": "",
+                                                                      "type": "string",
+                                                                      "maxLength": 80
+                                                                    },
+                                                                    "step": {
+                                                                      "default": "",
+                                                                      "type": "string",
+                                                                      "maxLength": 80
+                                                                    },
+                                                                    "addOnName": {
+                                                                      "default": "",
+                                                                      "type": "string",
+                                                                      "maxLength": 120
+                                                                    },
+                                                                    "inputs": {
+                                                                      "default": {},
+                                                                      "type": "object",
+                                                                      "propertyNames": {
+                                                                        "type": "string",
+                                                                        "maxLength": 80
+                                                                      },
+                                                                      "additionalProperties": {
+                                                                        "type": "string",
+                                                                        "maxLength": 2000
+                                                                      }
+                                                                    }
+                                                                  },
+                                                                  "required": [
+                                                                    "kind",
+                                                                    "addOn",
+                                                                    "step",
+                                                                    "addOnName",
+                                                                    "inputs"
+                                                                  ],
+                                                                  "additionalProperties": false
                                                                 }
                                                               ]
                                                             }
@@ -43292,6 +44189,52 @@
                                                                     "body",
                                                                     "headerName",
                                                                     "headerValueEncrypted"
+                                                                  ],
+                                                                  "additionalProperties": false
+                                                                },
+                                                                {
+                                                                  "type": "object",
+                                                                  "properties": {
+                                                                    "kind": {
+                                                                      "type": "string",
+                                                                      "enum": [
+                                                                        "add-on.step"
+                                                                      ]
+                                                                    },
+                                                                    "addOn": {
+                                                                      "default": "",
+                                                                      "type": "string",
+                                                                      "maxLength": 80
+                                                                    },
+                                                                    "step": {
+                                                                      "default": "",
+                                                                      "type": "string",
+                                                                      "maxLength": 80
+                                                                    },
+                                                                    "addOnName": {
+                                                                      "default": "",
+                                                                      "type": "string",
+                                                                      "maxLength": 120
+                                                                    },
+                                                                    "inputs": {
+                                                                      "default": {},
+                                                                      "type": "object",
+                                                                      "propertyNames": {
+                                                                        "type": "string",
+                                                                        "maxLength": 80
+                                                                      },
+                                                                      "additionalProperties": {
+                                                                        "type": "string",
+                                                                        "maxLength": 2000
+                                                                      }
+                                                                    }
+                                                                  },
+                                                                  "required": [
+                                                                    "kind",
+                                                                    "addOn",
+                                                                    "step",
+                                                                    "addOnName",
+                                                                    "inputs"
                                                                   ],
                                                                   "additionalProperties": false
                                                                 }
@@ -45020,6 +45963,52 @@
                                               "headerValueEncrypted"
                                             ],
                                             "additionalProperties": false
+                                          },
+                                          {
+                                            "type": "object",
+                                            "properties": {
+                                              "kind": {
+                                                "type": "string",
+                                                "enum": [
+                                                  "add-on.step"
+                                                ]
+                                              },
+                                              "addOn": {
+                                                "default": "",
+                                                "type": "string",
+                                                "maxLength": 80
+                                              },
+                                              "step": {
+                                                "default": "",
+                                                "type": "string",
+                                                "maxLength": 80
+                                              },
+                                              "addOnName": {
+                                                "default": "",
+                                                "type": "string",
+                                                "maxLength": 120
+                                              },
+                                              "inputs": {
+                                                "default": {},
+                                                "type": "object",
+                                                "propertyNames": {
+                                                  "type": "string",
+                                                  "maxLength": 80
+                                                },
+                                                "additionalProperties": {
+                                                  "type": "string",
+                                                  "maxLength": 2000
+                                                }
+                                              }
+                                            },
+                                            "required": [
+                                              "kind",
+                                              "addOn",
+                                              "step",
+                                              "addOnName",
+                                              "inputs"
+                                            ],
+                                            "additionalProperties": false
                                           }
                                         ]
                                       }
@@ -45967,6 +46956,52 @@
                                                                     "headerValueEncrypted"
                                                                   ],
                                                                   "additionalProperties": false
+                                                                },
+                                                                {
+                                                                  "type": "object",
+                                                                  "properties": {
+                                                                    "kind": {
+                                                                      "type": "string",
+                                                                      "enum": [
+                                                                        "add-on.step"
+                                                                      ]
+                                                                    },
+                                                                    "addOn": {
+                                                                      "default": "",
+                                                                      "type": "string",
+                                                                      "maxLength": 80
+                                                                    },
+                                                                    "step": {
+                                                                      "default": "",
+                                                                      "type": "string",
+                                                                      "maxLength": 80
+                                                                    },
+                                                                    "addOnName": {
+                                                                      "default": "",
+                                                                      "type": "string",
+                                                                      "maxLength": 120
+                                                                    },
+                                                                    "inputs": {
+                                                                      "default": {},
+                                                                      "type": "object",
+                                                                      "propertyNames": {
+                                                                        "type": "string",
+                                                                        "maxLength": 80
+                                                                      },
+                                                                      "additionalProperties": {
+                                                                        "type": "string",
+                                                                        "maxLength": 2000
+                                                                      }
+                                                                    }
+                                                                  },
+                                                                  "required": [
+                                                                    "kind",
+                                                                    "addOn",
+                                                                    "step",
+                                                                    "addOnName",
+                                                                    "inputs"
+                                                                  ],
+                                                                  "additionalProperties": false
                                                                 }
                                                               ]
                                                             }
@@ -46763,6 +47798,52 @@
                                                                     "body",
                                                                     "headerName",
                                                                     "headerValueEncrypted"
+                                                                  ],
+                                                                  "additionalProperties": false
+                                                                },
+                                                                {
+                                                                  "type": "object",
+                                                                  "properties": {
+                                                                    "kind": {
+                                                                      "type": "string",
+                                                                      "enum": [
+                                                                        "add-on.step"
+                                                                      ]
+                                                                    },
+                                                                    "addOn": {
+                                                                      "default": "",
+                                                                      "type": "string",
+                                                                      "maxLength": 80
+                                                                    },
+                                                                    "step": {
+                                                                      "default": "",
+                                                                      "type": "string",
+                                                                      "maxLength": 80
+                                                                    },
+                                                                    "addOnName": {
+                                                                      "default": "",
+                                                                      "type": "string",
+                                                                      "maxLength": 120
+                                                                    },
+                                                                    "inputs": {
+                                                                      "default": {},
+                                                                      "type": "object",
+                                                                      "propertyNames": {
+                                                                        "type": "string",
+                                                                        "maxLength": 80
+                                                                      },
+                                                                      "additionalProperties": {
+                                                                        "type": "string",
+                                                                        "maxLength": 2000
+                                                                      }
+                                                                    }
+                                                                  },
+                                                                  "required": [
+                                                                    "kind",
+                                                                    "addOn",
+                                                                    "step",
+                                                                    "addOnName",
+                                                                    "inputs"
                                                                   ],
                                                                   "additionalProperties": false
                                                                 }
@@ -48360,6 +49441,47 @@
                                           "required": [
                                             "kind"
                                           ]
+                                        },
+                                        {
+                                          "type": "object",
+                                          "properties": {
+                                            "kind": {
+                                              "type": "string",
+                                              "enum": [
+                                                "add-on.step"
+                                              ]
+                                            },
+                                            "addOn": {
+                                              "default": "",
+                                              "type": "string",
+                                              "maxLength": 80
+                                            },
+                                            "step": {
+                                              "default": "",
+                                              "type": "string",
+                                              "maxLength": 80
+                                            },
+                                            "addOnName": {
+                                              "default": "",
+                                              "type": "string",
+                                              "maxLength": 120
+                                            },
+                                            "inputs": {
+                                              "default": {},
+                                              "type": "object",
+                                              "propertyNames": {
+                                                "type": "string",
+                                                "maxLength": 80
+                                              },
+                                              "additionalProperties": {
+                                                "type": "string",
+                                                "maxLength": 2000
+                                              }
+                                            }
+                                          },
+                                          "required": [
+                                            "kind"
+                                          ]
                                         }
                                       ]
                                     }
@@ -49258,6 +50380,47 @@
                                                                 "required": [
                                                                   "kind"
                                                                 ]
+                                                              },
+                                                              {
+                                                                "type": "object",
+                                                                "properties": {
+                                                                  "kind": {
+                                                                    "type": "string",
+                                                                    "enum": [
+                                                                      "add-on.step"
+                                                                    ]
+                                                                  },
+                                                                  "addOn": {
+                                                                    "default": "",
+                                                                    "type": "string",
+                                                                    "maxLength": 80
+                                                                  },
+                                                                  "step": {
+                                                                    "default": "",
+                                                                    "type": "string",
+                                                                    "maxLength": 80
+                                                                  },
+                                                                  "addOnName": {
+                                                                    "default": "",
+                                                                    "type": "string",
+                                                                    "maxLength": 120
+                                                                  },
+                                                                  "inputs": {
+                                                                    "default": {},
+                                                                    "type": "object",
+                                                                    "propertyNames": {
+                                                                      "type": "string",
+                                                                      "maxLength": 80
+                                                                    },
+                                                                    "additionalProperties": {
+                                                                      "type": "string",
+                                                                      "maxLength": 2000
+                                                                    }
+                                                                  }
+                                                                },
+                                                                "required": [
+                                                                  "kind"
+                                                                ]
                                                               }
                                                             ]
                                                           }
@@ -50008,6 +51171,47 @@
                                                                   },
                                                                   "headerValueSet": {
                                                                     "type": "boolean"
+                                                                  }
+                                                                },
+                                                                "required": [
+                                                                  "kind"
+                                                                ]
+                                                              },
+                                                              {
+                                                                "type": "object",
+                                                                "properties": {
+                                                                  "kind": {
+                                                                    "type": "string",
+                                                                    "enum": [
+                                                                      "add-on.step"
+                                                                    ]
+                                                                  },
+                                                                  "addOn": {
+                                                                    "default": "",
+                                                                    "type": "string",
+                                                                    "maxLength": 80
+                                                                  },
+                                                                  "step": {
+                                                                    "default": "",
+                                                                    "type": "string",
+                                                                    "maxLength": 80
+                                                                  },
+                                                                  "addOnName": {
+                                                                    "default": "",
+                                                                    "type": "string",
+                                                                    "maxLength": 120
+                                                                  },
+                                                                  "inputs": {
+                                                                    "default": {},
+                                                                    "type": "object",
+                                                                    "propertyNames": {
+                                                                      "type": "string",
+                                                                      "maxLength": 80
+                                                                    },
+                                                                    "additionalProperties": {
+                                                                      "type": "string",
+                                                                      "maxLength": 2000
+                                                                    }
                                                                   }
                                                                 },
                                                                 "required": [
