@@ -828,6 +828,7 @@ export function registerIpcHandlers(opts: RegisterIpcHandlersOptions): IpcHandle
     (input) => start().createProject({ parent: input.parent, name: input.name, ...(input.acceptWarning === undefined ? {} : { acceptWarning: input.acceptWarning }) }),
     ownPage,
   );
+  register(IPC_CHANNELS.startMakeProgress, noPayloadSchema, () => Promise.resolve(start().makeProgress()), ownPage);
   register(IPC_CHANNELS.startChooseFolder, startChooseFolderSchema, (input) => start().chooseFolder(input), ownPage);
   register(
     IPC_CHANNELS.startOpenProject,

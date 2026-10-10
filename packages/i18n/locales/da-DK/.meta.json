@@ -10975,6 +10975,30 @@
     "status": "mt",
     "srcHash": "75019f7d12a9"
   },
+  "desktop.new.step.database": {
+    "status": "mt",
+    "srcHash": "517b42ee404e"
+  },
+  "desktop.new.step.files": {
+    "status": "mt",
+    "srcHash": "b7f19741660f"
+  },
+  "desktop.new.step.label": {
+    "status": "mt",
+    "srcHash": "cda4382ddfaf"
+  },
+  "desktop.new.step.opening": {
+    "status": "mt",
+    "srcHash": "d5026c48ce0d"
+  },
+  "desktop.new.step.packages": {
+    "status": "mt",
+    "srcHash": "ff2878ff07e3"
+  },
+  "desktop.new.step.slow": {
+    "status": "mt",
+    "srcHash": "cabc5556f7c9"
+  },
   "desktop.new.warn.another": {
     "status": "mt",
     "srcHash": "af3575d7895a"

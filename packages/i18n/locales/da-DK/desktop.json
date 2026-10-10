@@ -17,6 +17,14 @@
       "notAbsolute": "Vælg en mappe med knappen “Skift…”.",
       "systemFolder": "Et projekt kan ikke ligge i en mappe, der tilhører systemet. Vælg en af dine egne mapper."
     },
+    "step": {
+      "files": "Lægger din apps filer på plads",
+      "packages": "Henter det, din app er bygget med",
+      "database": "Opretter dens database",
+      "opening": "Åbner din app",
+      "slow": "Det her er det lange trin første gang: et par minutter på en langsom forbindelse. Senere apps starter hurtigere.",
+      "label": "Det, der sker nu"
+    },
     "warn": {
       "another": "Vælg en anden mappe",
       "anyway": "Brug den alligevel",

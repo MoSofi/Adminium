@@ -27,6 +27,14 @@ export default {
       "notAbsolute": "Wählen Sie einen Ordner mit der Schaltfläche „Ändern…“.",
       "systemFolder": "Ein Projekt kann nicht in einem Ordner liegen, der dem System gehört. Wählen Sie einen eigenen Ordner."
     },
+    "step": {
+      "files": "Die Dateien Ihrer App werden angelegt",
+      "packages": "Die Bausteine Ihrer App werden geladen",
+      "database": "Die Datenbank wird erstellt",
+      "opening": "Ihre App wird geöffnet",
+      "slow": "Das ist beim ersten Mal der lange Schritt: ein paar Minuten bei langsamer Verbindung. Spätere Apps starten schneller.",
+      "label": "Was gerade geschieht"
+    },
     "warn": {
       "another": "Anderen Ordner wählen",
       "anyway": "Trotzdem verwenden",

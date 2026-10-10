@@ -46,6 +46,7 @@ import type {
   DesktopConfigPatch,
   DesktopCreateProjectInput,
   DesktopCreateProjectResult,
+  DesktopMakeProgress,
   DesktopDiagnostics,
   DesktopErrorCode,
   DesktopLocateProjectResult,
@@ -283,6 +284,7 @@ export function createDesktopApi(deps: Pick<PreloadDeps, 'ipc' | 'bootstrap'>): 
         unwrap(ipc.invoke(IPC_CHANNELS.startChooseParent, input)),
       createProject: (input: DesktopCreateProjectInput): Promise<DesktopCreateProjectResult> =>
         unwrap(ipc.invoke(IPC_CHANNELS.startCreateProject, input)),
+      makeProgress: (): Promise<DesktopMakeProgress> => unwrap(ipc.invoke(IPC_CHANNELS.startMakeProgress)),
       chooseFolder: (input: { readonly title: string }): Promise<{ readonly path: string; readonly displayPath: string } | null> =>
         unwrap(ipc.invoke(IPC_CHANNELS.startChooseFolder, input)),
       openProject: (input: DesktopOpenProjectInput): Promise<DesktopOpenProjectResult> =>

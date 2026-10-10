@@ -45,6 +45,7 @@ function fakeStart(over: Partial<DesktopStartApi> = {}): DesktopStartApi {
     ),
     chooseParent: vi.fn(() => Promise.resolve<string | null>('/Users/sam/Documents')),
     createProject: vi.fn(() => Promise.resolve({ status: 'created' as const, path: '/Users/sam/Adminium/shop' })),
+    makeProgress: vi.fn(() => Promise.resolve({ step: null, since: 0 })),
     chooseFolder: vi.fn(() => Promise.resolve<{ path: string; displayPath: string } | null>({ path: '/Users/sam/Downloads/shop', displayPath: '~/Downloads/shop' })),
     openProject: vi.fn(() => Promise.resolve({ status: 'opened' as const })),
     forgetProject: vi.fn(() => Promise.resolve([recentProject()])),
@@ -375,6 +376,31 @@ describe('New app', () => {
     judgeNewFolder.mockResolvedValue({ ok: false, path: '/p/shop', displayPath: '/p/shop', refused: 'exists-with-files' });
     fireEvent.click(create);
     expect((await screen.findByRole('alert')).textContent).toContain('A folder with this name is already there and holds files.');
+  });
+
+  it('shows what is being done while the project is made, with the step in hand marked', async () => {
+    let finish: (value: { status: 'failed'; detail: string }) => void = () => undefined;
+    const start = fakeStart({
+      createProject: vi.fn(() => new Promise<{ status: 'failed'; detail: string }>((done) => (finish = done))),
+      makeProgress: vi.fn(() => Promise.resolve({ step: 'packages' as const, since: Date.now() - 65_000 })),
+    });
+    open(start);
+    await userEvent.type(screen.getByLabelText('Name'), 'Shop');
+    const create = screen.getByRole('button', { name: 'Create' }) as HTMLButtonElement;
+    await waitFor(() => {
+      expect(create.disabled).toBe(false);
+    });
+    fireEvent.click(create);
+    const steps = await screen.findByRole('status', { name: 'What is being done' });
+    const states = [...steps.querySelectorAll('li')].map((item) => `${item.dataset.step ?? ''}:${item.dataset.state ?? ''}`);
+    expect(states).toEqual(['files:done', 'packages:active', 'database:waiting', 'opening:waiting']);
+    expect(steps.textContent).toContain('Getting what your app is built with');
+    expect(steps.textContent).toMatch(/1:0\d/);
+    expect(screen.getByText(/This is the long step, the first time/)).toBeDefined();
+    // It ended: the steps go with it.
+    finish({ status: 'failed', detail: 'no' });
+    await screen.findByRole('alert');
+    expect(screen.queryByRole('status', { name: 'What is being done' })).toBeNull();
   });
 
   it('says why a project could not be made, in the maker’s own last lines', async () => {

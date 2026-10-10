@@ -27,6 +27,14 @@ export default {
       "notAbsolute": "Choisissez un dossier avec le bouton « Modifier… ».",
       "systemFolder": "Un projet ne peut pas être placé dans un dossier qui appartient au système. Choisissez un dossier à vous."
     },
+    "step": {
+      "files": "Mise en place des fichiers de votre application",
+      "packages": "Récupération de ce avec quoi votre application est construite",
+      "database": "Création de sa base de données",
+      "opening": "Ouverture de votre application",
+      "slow": "C’est l’étape longue, la première fois : quelques minutes avec une connexion lente. Les applications suivantes démarrent plus vite.",
+      "label": "Ce qui est en cours"
+    },
     "warn": {
       "another": "Choisir un autre dossier",
       "anyway": "L’utiliser quand même",

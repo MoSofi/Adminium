@@ -27,6 +27,14 @@ export default {
       "notAbsolute": "Choose a folder with the “Change…” button.",
       "systemFolder": "A project cannot be kept in a folder that belongs to the system. Choose a folder of your own."
     },
+    "step": {
+      "files": "Laying out your app’s files",
+      "packages": "Getting what your app is built with",
+      "database": "Making its database",
+      "opening": "Opening your app",
+      "slow": "This is the long step, the first time: a few minutes on a slow connection. Later apps start faster.",
+      "label": "What is being done"
+    },
     "warn": {
       "another": "Choose another folder",
       "anyway": "Use it anyway",

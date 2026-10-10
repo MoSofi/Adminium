@@ -5,15 +5,80 @@
  * when "Create" is pressed.
  */
 import { useT } from '@adminium/i18n/react';
-import { Ban, LoaderCircle, TriangleAlert } from 'lucide-react';
+import { Ban, Check, LoaderCircle, TriangleAlert } from 'lucide-react';
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 
-import type { DesktopFolderRefusal, DesktopFolderWarning, DesktopNewFolderJudgement } from '../../../preload/api.js';
+import type { DesktopFolderRefusal, DesktopFolderWarning, DesktopMakeProgress, DesktopMakeStep, DesktopNewFolderJudgement } from '../../../preload/api.js';
 import { startApi } from '../bridge.js';
 import { BackLink } from '../shell/PlainShell.js';
 
 type Say = (title: string, variant?: 'success' | 'error' | 'info') => void;
 type T = (key: string, fallback: string, args?: Record<string, unknown>) => string;
+
+/** The steps of making a project, in the order they go. */
+const MAKE_STEPS: readonly DesktopMakeStep[] = ['files', 'packages', 'database', 'opening'];
+
+/** How often main is asked where it is. */
+const PROGRESS_EVERY_MS = 400;
+
+function stepWords(t: T, step: DesktopMakeStep): string {
+  switch (step) {
+    case 'files':
+      return t('desktop:new.step.files', 'Laying out your app’s files');
+    case 'packages':
+      return t('desktop:new.step.packages', 'Getting what your app is built with');
+    case 'database':
+      return t('desktop:new.step.database', 'Making its database');
+    case 'opening':
+      return t('desktop:new.step.opening', 'Opening your app');
+  }
+}
+
+/** Minutes and seconds, as a clock shows them. */
+export function elapsedWords(ms: number): string {
+  const seconds = Math.max(0, Math.floor(ms / 1000));
+  return `${String(Math.floor(seconds / 60))}:${String(seconds % 60).padStart(2, '0')}`;
+}
+
+/**
+ * What is being done while "Create" works: the steps, the one in hand marked,
+ * and a clock on it. The packages are a download of minutes on a slow line, and
+ * a button that only spins for that long reads as an app that has stopped.
+ */
+function MakeSteps({ progress, now }: { progress: DesktopMakeProgress; now: number }): ReactNode {
+  const t = useT();
+  const current = progress.step === null ? 0 : MAKE_STEPS.indexOf(progress.step);
+  return (
+    <div className="mt-6 flex flex-col gap-2.5 rounded-[12px] border border-border bg-surface px-[18px] py-4">
+      <ol role="status" aria-label={t('desktop:new.step.label', 'What is being done')} className="m-0 flex list-none flex-col gap-2.5 p-0">
+        {MAKE_STEPS.map((step, index) => {
+          const done = index < current;
+          const active = index === current;
+          return (
+            <li key={step} data-step={step} data-state={done ? 'done' : active ? 'active' : 'waiting'} className={`flex items-center gap-2.5 text-[13px] leading-[1.5] ${done || active ? 'text-fg' : 'text-fg-subtle'}`}>
+              <span aria-hidden="true" className="flex size-[18px] shrink-0 items-center justify-center">
+                {done ? (
+                  <Check className="size-[15px] text-pos" />
+                ) : active ? (
+                  <LoaderCircle className="size-[15px] animate-spin text-accent" />
+                ) : (
+                  <span className="size-[6px] rounded-full bg-border-strong" />
+                )}
+              </span>
+              <span className={active ? 'font-bold' : ''}>{stepWords(t, step)}</span>
+              {active ? <span className="font-mono text-[12px] tabular-nums text-fg-muted">{elapsedWords(now - progress.since)}</span> : null}
+            </li>
+          );
+        })}
+      </ol>
+      {progress.step === 'packages' ? (
+        <p className="m-0 ps-7 text-[12.5px] leading-[1.55] text-fg-muted [text-wrap:pretty]">
+          {t('desktop:new.step.slow', 'This is the long step, the first time: a few minutes on a slow connection. Later apps start faster.')}
+        </p>
+      ) : null}
+    </div>
+  );
+}
 
 /** The sentence for each thing a person is warned of and may still choose. */
 export function warningWords(t: T, warning: DesktopFolderWarning): string {
@@ -75,6 +140,34 @@ export function NewProjectScreen({
   const [creating, setCreating] = useState(false);
   const [failure, setFailure] = useState<string | null>(null);
   const asked = useRef(0);
+  const [progress, setProgress] = useState<DesktopMakeProgress | null>(null);
+  const [now, setNow] = useState(() => Date.now());
+
+  // While a project is being made, main is asked where it is: the steps are drawn from its answer.
+  useEffect(() => {
+    if (!creating) {
+      setProgress(null);
+      return;
+    }
+    let live = true;
+    const ask = (): void => {
+      void startApi()
+        .makeProgress()
+        .then((value) => {
+          if (!live) return;
+          setProgress(value);
+          setNow(Date.now());
+        })
+        // The steps are a comfort, not the work: if they cannot be read, the button still says it is busy.
+        .catch(() => undefined);
+    };
+    ask();
+    const timer = setInterval(ask, PROGRESS_EVERY_MS);
+    return () => {
+      live = false;
+      clearInterval(timer);
+    };
+  }, [creating]);
 
   useEffect(() => {
     const mine = (asked.current += 1);
@@ -100,10 +193,10 @@ export function NewProjectScreen({
       if (result.status === 'failed') setFailure(result.detail);
       // 'refused' and 'warned': main saw something this page had not yet; ask again and show it.
       else if (result.status !== 'created') setJudged(await startApi().judgeNewFolder({ parent, name }));
-      // 'created': main is already taking the window to the project.
+      // 'created': main is already taking the window to the project; the steps stay until this page is gone.
+      if (result.status !== 'created') setCreating(false);
     } catch (error) {
       say(error instanceof Error ? error.message : String(error), 'error');
-    } finally {
       setCreating(false);
     }
   };
@@ -215,6 +308,8 @@ export function NewProjectScreen({
           </div>
         </div>
       )}
+
+      {creating && progress !== null && progress.step !== null ? <MakeSteps progress={progress} now={now} /> : null}
 
       <div className="mt-8 flex justify-end">
         <button

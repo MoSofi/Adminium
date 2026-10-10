@@ -189,10 +189,38 @@ describe('a new project', () => {
     const { start } = service({ makeProject });
     const root = join(parent, 'juniper-kitchen');
     await expect(start.createProject({ parent, name: ' Juniper Kitchen ' })).resolves.toEqual({ status: 'created', path: root });
-    expect(makeProject).toHaveBeenCalledWith({ parent, folder: 'juniper-kitchen', root });
+    expect(makeProject).toHaveBeenCalledWith({ parent, folder: 'juniper-kitchen', root, onStep: expect.any(Function) as unknown });
     expect(config.projects).toEqual([{ path: root, name: 'Juniper Kitchen', lastOpened: '2026-10-10T08:00:00.000Z', state: 'building', sharePort: null, trusted: projectFingerprint(root) }]);
     expect(config.projects[0]?.trusted).not.toBeNull();
     expect(chosen).toEqual([{ kind: 'project', root }]);
+  });
+
+  it('says where the making is while it runs, and nothing once it failed', async () => {
+    const seen: (string | null)[] = [];
+    let fail = false;
+    const made: { start?: ReturnType<typeof service>['start'] } = {};
+    const makeProject = vi.fn(({ root, onStep }: { root: string; onStep?: (step: 'files' | 'packages' | 'database') => void }) => {
+      seen.push(made.start?.makeProgress().step ?? null);
+      onStep?.('files');
+      seen.push(made.start?.makeProgress().step ?? null);
+      onStep?.('packages');
+      seen.push(made.start?.makeProgress().step ?? null);
+      if (fail) return Promise.resolve({ ok: false as const, detail: 'no' });
+      mkdirSync(root, { recursive: true });
+      writeFileSync(join(root, 'adminium.config.ts'), 'export default {};\n');
+      return Promise.resolve({ ok: true as const });
+    });
+    const { start } = service({ makeProject });
+    made.start = start;
+    expect(start.makeProgress().step).toBeNull();
+    fail = true;
+    await start.createProject({ parent: join(home, 'Adminium'), name: 'Shop' });
+    expect(seen).toEqual([null, 'files', 'packages']);
+    expect(start.makeProgress().step).toBeNull();
+    fail = false;
+    await start.createProject({ parent: join(home, 'Adminium'), name: 'Shop' });
+    // Made: the page is about to be replaced, and is not sent back to "Create" for a moment first.
+    expect(start.makeProgress()).toEqual({ step: 'opening', since: new Date('2026-10-10T08:00:00.000Z').getTime() });
   });
 
   it('says why when the maker fails, and remembers nothing', async () => {

@@ -26,6 +26,8 @@ import type {
   DesktopCreateProjectInput,
   DesktopCreateProjectResult,
   DesktopLocateProjectResult,
+  DesktopMakeProgress,
+  DesktopMakeStep,
   DesktopNewFolderInput,
   DesktopNewFolderJudgement,
   DesktopOpenProjectInput,
@@ -136,7 +138,7 @@ export interface StartDeps {
    * app's programs) and install what it is built with. Absent in a build that
    * cannot (no engine entry): "Create" then fails with its own sentence.
    */
-  makeProject?: ((input: { parent: string; folder: string; root: string }) => Promise<MakeProjectResult>) | undefined;
+  makeProject?: ((input: { parent: string; folder: string; root: string; onStep?: (step: DesktopMakeStep) => void }) => Promise<MakeProjectResult>) | undefined;
   fingerprint?: ((root: string) => string | null) | undefined;
   /** Whether the folder has what it is built with (a `node_modules`). */
   hasPackages?: ((root: string) => boolean) | undefined;
@@ -151,6 +153,7 @@ export interface StartService {
   judgeNewFolder(input: DesktopNewFolderInput): DesktopNewFolderJudgement;
   chooseParent(input: { from: string; title: string }): Promise<string | null>;
   createProject(input: DesktopCreateProjectInput): Promise<DesktopCreateProjectResult>;
+  makeProgress(): DesktopMakeProgress;
   chooseFolder(input: { title: string }): Promise<{ path: string; displayPath: string } | null>;
   openProject(input: DesktopOpenProjectInput): Promise<DesktopOpenProjectResult>;
   forgetProject(path: string): Promise<DesktopRecentProject[]>;
@@ -189,6 +192,10 @@ export function createStartService(deps: StartDeps): StartService {
 
   // One "make" at a time: a second click while npm runs must not start a second project.
   let making = false;
+  let progress: DesktopMakeProgress = { step: null, since: 0 };
+  const at = (step: DesktopMakeStep | null): void => {
+    progress = { step, since: now().getTime() };
+  };
 
   return {
     state: () => {
@@ -217,8 +224,9 @@ export function createStartService(deps: StartDeps): StartService {
       if (making) return { status: 'failed', detail: 'A project is already being made.' };
       making = true;
       try {
-        const made = await deps.makeProject({ parent: input.parent, folder: folderNameFor(input.name), root: judged.path });
+        const made = await deps.makeProject({ parent: input.parent, folder: folderNameFor(input.name), root: judged.path, onStep: at });
         if (!made.ok) return { status: 'failed', detail: made.detail };
+        at('opening');
         // By its real path now that it exists: that is how it is found again.
         const root = real(judged.path);
         // Made here, by the person, a moment ago: agreed to by making it.
@@ -227,8 +235,12 @@ export function createStartService(deps: StartDeps): StartService {
         return { status: 'created', path: root };
       } finally {
         making = false;
+        // Left on 'opening' when it worked: the page is about to be replaced, and must not flash back to "Create".
+        if (progress.step !== 'opening') at(null);
       }
     },
+
+    makeProgress: () => progress,
 
     async chooseFolder(input) {
       const picked = await deps.chooseDirectory({ title: input.title, defaultPath: proposedParent(deps.folder.home) });

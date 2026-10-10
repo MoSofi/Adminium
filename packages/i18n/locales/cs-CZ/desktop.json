@@ -17,6 +17,14 @@
       "notAbsolute": "Vyberte složku tlačítkem „Změnit…“.",
       "systemFolder": "Projekt nemůže být ve složce, která patří systému. Vyberte vlastní složku."
     },
+    "step": {
+      "files": "Připravují se soubory vaší aplikace",
+      "packages": "Stahuje se to, z čeho je aplikace postavena",
+      "database": "Vytváří se její databáze",
+      "opening": "Otevírá se vaše aplikace",
+      "slow": "Tohle je napoprvé ten dlouhý krok: na pomalém připojení pár minut. Další aplikace začnou rychleji.",
+      "label": "Co se právě děje"
+    },
     "warn": {
       "another": "Vybrat jinou složku",
       "anyway": "Přesto použít",

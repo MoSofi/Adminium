@@ -7,7 +7,7 @@ import { join } from 'node:path';
 import { DESIGN_DATABASE } from '@adminium/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { MAKE_PROJECT_TIMEOUT_MS, NEW_PROJECT_DATABASE, createMakeProject, lastLines, runToEnd, type MakeProjectDeps, type RanProgram } from './make-project.js';
+import { INSTALLING_LINE, MAKE_PROJECT_TIMEOUT_MS, NEW_PROJECT_DATABASE, createMakeProject, lastLines, runToEnd, type MakeProjectDeps, type RanProgram } from './make-project.js';
 
 let home: string;
 beforeEach(() => {
@@ -46,7 +46,7 @@ describe('making a project', () => {
     expect(run).toHaveBeenCalledWith(
       '/Applications/Adminium.app/Contents/MacOS/Adminium',
       ['/app/node_modules/@adminium/server/dist/cli/index.js', 'new', 'shop', '--yes', '--database', NEW_PROJECT_DATABASE],
-      { cwd: parent, env: { PATH: '/usr/bin', ELECTRON_RUN_AS_NODE: '1', ADMINIUM_DESKTOP_PROGRAMS: '{"binary":"x"}' }, timeoutMs: MAKE_PROJECT_TIMEOUT_MS },
+      { cwd: parent, env: { PATH: '/usr/bin', ELECTRON_RUN_AS_NODE: '1', ADMINIUM_DESKTOP_PROGRAMS: '{"binary":"x"}' }, timeoutMs: MAKE_PROJECT_TIMEOUT_MS, onOutput: expect.any(Function) as unknown },
     );
     // The parent was made first: `new` is run IN it.
     expect(existsSync(parent)).toBe(true);
@@ -75,6 +75,27 @@ describe('making a project', () => {
     };
     await expect(createMakeProject(deps(run))({ parent: home, folder: 'shop', root })).resolves.toMatchObject({ ok: false });
     expect(existsSync(join(root, 'package.json'))).toBe(true);
+  });
+
+  it('says where it is: the files, the packages once the engine hands over to npm, then the database', async () => {
+    const root = join(home, 'shop');
+    const steps: string[] = [];
+    const run: MakeProjectDeps['run'] = (_command, _args, opts) => {
+      mkdirSync(root, { recursive: true });
+      // In pieces, as a pipe delivers it: the line is found across two chunks, and said once.
+      opts.onOutput?.('Started a git repository.\nInstalling depen');
+      steps.push('(before the line is whole)');
+      opts.onOutput?.('dencies with npm…\n');
+      opts.onOutput?.('added 212 packages\nInstalling dependencies with npm…\n');
+      return Promise.resolve(ran());
+    };
+    await createMakeProject(deps(run))({ parent: home, folder: 'shop', root, onStep: (step) => steps.push(step) });
+    expect(steps).toEqual(['files', '(before the line is whole)', 'packages', 'database']);
+  });
+
+  it('listens for the very words the engine prints before its install', () => {
+    const source = readFileSync(new URL('../../../server/src/cli/commands/new.ts', import.meta.url), 'utf8');
+    expect(source).toContain(`io.out(\`${INSTALLING_LINE} \${command}…\`)`);
   });
 
   it('keeps a database that is already there', async () => {

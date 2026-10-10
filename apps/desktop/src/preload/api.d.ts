@@ -484,6 +484,19 @@ export type DesktopLocateProjectResult =
   | { readonly status: 'already-listed' };
 
 /**
+ * Where the making of a new project is, in the order it goes: the files are
+ * laid, the packages are fetched (the long one), the database is made, and the
+ * project is opened.
+ */
+export type DesktopMakeStep = 'files' | 'packages' | 'database' | 'opening';
+
+/** `step` is `null` when nothing is being made. `since` is when that step began (milliseconds, the app's clock). */
+export interface DesktopMakeProgress {
+  readonly step: DesktopMakeStep | null;
+  readonly since: number;
+}
+
+/**
  * What the app's own first screens ask of main. Answered ONLY for the app's own
  * pages: a project's dashboard, which holds the rest of this bridge, is refused
  * (a page a project's code can draw into must not be able to open another folder).
@@ -494,6 +507,8 @@ export interface DesktopStartApi {
   /** The system's folder picker, for "Change…". `null` on cancel. */
   chooseParent(input: { readonly from: string; readonly title: string }): Promise<string | null>;
   createProject(input: DesktopCreateProjectInput): Promise<DesktopCreateProjectResult>;
+  /** Where `createProject` is, asked while it runs: the page shows the step so a long wait is not a silent one. */
+  makeProgress(): Promise<DesktopMakeProgress>;
   /** The system's folder picker, for "Open a folder". `null` on cancel. */
   chooseFolder(input: { readonly title: string }): Promise<{ readonly path: string; readonly displayPath: string } | null>;
   openProject(input: DesktopOpenProjectInput): Promise<DesktopOpenProjectResult>;
