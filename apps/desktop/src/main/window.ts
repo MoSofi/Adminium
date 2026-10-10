@@ -21,10 +21,11 @@
  * against a table of hostile URLs.
  */
 
+import { createHash } from 'node:crypto';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { BrowserWindow, dialog, screen, shell, type WebPreferences } from 'electron';
+import { BrowserWindow, dialog, screen, session, shell, type WebPreferences } from 'electron';
 
 import type { OpenFileKind } from '../preload/api.js';
 import {
@@ -35,6 +36,7 @@ import {
   saveConfig,
   type DesktopConfig,
 } from './config.js';
+import { guestMayNavigate, guestPartition } from './guest.js';
 import type { DesktopDialogs } from './ipc.js';
 
 // ─── The posture ─────────────────────────────────────────────────────────────
@@ -210,6 +212,98 @@ export function decideNavigation(target: string, appOrigin: string | null): Navi
   }
 
   return { action: 'deny', reason: `blocked ${url.protocol} navigation to ${url.host || target}` };
+}
+
+/** A one-use sign-in token after `#`, as the server mints it. */
+const SIGN_IN_HASH = /^#designToken=[0-9a-f]{64}$/;
+
+/**
+ * The rule for a NEW window (`window.open`, `target="_blank"`). None is ever
+ * made; the question is only whether the address is handed to the system's
+ * browser.
+ *
+ * `https:` goes there, as {@link decideNavigation} says. So does a page on the
+ * Designer's preview origin: "Open in a new tab" on the build page means the
+ * person's own browser, where the screen being built is seen as a visitor will
+ * see it. That origin is `http://localhost:<port>` and is this app's own
+ * server, so the only thing handed over is an address of ours: the scheme and
+ * the origin are both compared, as everywhere in this file.
+ *
+ * The app's own origin (`http://127.0.0.1:<port>`) is handed over in ONE shape
+ * only: with a one-use sign-in token after `#` (`#designToken=<64 hex>`), which
+ * the server mints for the signed-in owner (`POST /auth/design-link`). The
+ * dashboard there is signed in by this window's own session; without that
+ * token the system's browser would show a sign-in page nobody holds a password
+ * for, so a bare address of ours is never sent there.
+ */
+export function decideNewWindow(target: string, appOrigin: string | null, previewOrigin: string | null): NavigationDecision {
+  const preview = previewOrigin === null ? null : safeParse(previewOrigin);
+  const url = safeParse(target);
+  if (preview !== null && url !== null && url.protocol === 'http:' && url.protocol === preview.protocol && url.origin === preview.origin) {
+    return { action: 'external', url: url.toString() };
+  }
+  const decision = decideNavigation(target, appOrigin);
+  if (decision.action !== 'allow') return decision;
+  if (url !== null && SIGN_IN_HASH.test(url.hash)) return { action: 'external', url: url.toString() };
+  return { action: 'deny', reason: 'the app’s own pages open in this window only' };
+}
+
+/**
+ * The rule for a frame that is NOT the main one (`will-frame-navigate`, and
+ * `will-redirect` on a subframe): it may load the app's own origin (a hosted
+ * app's screens are framed there) or the Designer's preview origin, and nothing
+ * else. Nothing is handed to the system browser from here: a frame that wants
+ * to leave simply does not.
+ *
+ * WHY A SECOND RULE AND NOT A WIDER FIRST ONE. The Designer's preview is a frame
+ * on `http://localhost:<port>` that signs in with a 303 on that name. Tried on a
+ * packed build: `will-redirect` fires for subframes too, so the
+ * main frame's rule cancelled that redirect and the preview stayed blank.
+ * Adding `localhost` to the main frame's rule instead would let a page written
+ * by a model take the whole window to `localhost` (with a click's activation
+ * Chromium lets a frame set `top.location`), where the preload loads and the
+ * bridge is live. So the main frame keeps {@link decideNavigation} unchanged,
+ * and only a subframe may be on the preview's name.
+ *
+ * @param previewOrigin `http://localhost:<port>` while a project is being
+ *                      built, else `null`.
+ */
+export function decideFrameNavigation(
+  target: string,
+  appOrigin: string | null,
+  previewOrigin: string | null,
+): 'allow' | 'deny' {
+  const url = safeParse(target);
+  if (url === null) return 'deny';
+  for (const allowed of [appOrigin, previewOrigin]) {
+    const origin = allowed === null ? null : safeParse(allowed);
+    // The scheme is matched for the reason given on decideNavigation: `blob:`
+    // inherits the origin of the URL inside it.
+    if (origin !== null && url.protocol === origin.protocol && url.origin === origin.origin) return 'allow';
+  }
+  return 'deny';
+}
+
+/**
+ * The session partition of a project: persistent, and named by a hash of the
+ * folder's path so that two projects never share cookies and the name says
+ * nothing about where the folder is.
+ */
+export function projectPartition(root: string): string {
+  return `persist:project-${createHash('sha256').update(root).digest('hex').slice(0, 24)}`;
+}
+
+/**
+ * The preview's origin for an app URL: the same port under the name
+ * `localhost`, which is what design mode serves the preview on. `null` for
+ * anything that is not `http://127.0.0.1:<port>`.
+ */
+export function previewOriginOf(appUrl: string): string | null {
+  const parsed = safeParse(appUrl);
+  if (parsed === null || parsed.protocol !== 'http:' || parsed.hostname !== '127.0.0.1' || parsed.port === '') return null;
+  // Built from the parsed URL, not written out: the same port, the other name.
+  parsed.hostname = 'localhost';
+  return parsed.origin;
 }
 
 /** `new URL`, as a value rather than an exception. */
@@ -471,8 +565,30 @@ export function crashRenderScript(info: CrashScreenInfo): string {
 export interface DesktopWindows {
   /** The bundled splash. Creates the window if it does not exist. */
   showBoot(): Promise<void>;
-  /** Navigate to the loopback app URL. */
-  loadApp(url: string): Promise<void>;
+  /** The app's own first screens (Start). Absent from a fake that predates them. */
+  showStart?(): Promise<void>;
+  /**
+   * Another Adminium, in a window of its own: no preload (so none of the app's
+   * bridge), a cookie jar of its own, held to its address. One window per
+   * address: a second ask brings the first to the front.
+   */
+  openGuest?(guest: { origin: string; encrypted: boolean }): Promise<void>;
+  /** Delete a guest's cookies and stored data, and close its window if one is open. */
+  clearGuest?(origin: string): Promise<void>;
+  /** The app's own page with a shared project's addresses (the same document as Start, on its own screen). */
+  showShared?(): Promise<void>;
+  /**
+   * Navigate to the loopback app URL. `preview: true` while a project is being
+   * built: a subframe may then also load the Designer's preview origin
+   * ({@link decideFrameNavigation}).
+   */
+  loadApp(url: string, opts?: { readonly preview?: boolean; /** What a reopened window loads instead of `url`. */ readonly again?: string }): Promise<void>;
+  /**
+   * Give the window a cookie jar of this project's own (a session partition
+   * named by the folder's path), or `null` for the default one. A window that
+   * exists on another jar is closed; the next page makes a new one.
+   */
+  useProjectSession?(root: string | null): void;
   /** The bundled crash page. */
   showCrash(info: CrashScreenInfo): Promise<void>;
   /** A second launch focuses the existing window. */
@@ -547,6 +663,9 @@ export interface CreateWindowManagerOptions {
 const PERSIST_DEBOUNCE_MS = 400;
 
 const rendererDir = (): string => resolve(dirname(fileURLToPath(import.meta.url)), '..', 'renderer');
+/** The screen of the app's own document that shows a shared project's addresses. */
+export const SHARED_HASH = '/shared';
+
 const preloadEntry = (): string =>
   resolve(dirname(fileURLToPath(import.meta.url)), '..', 'preload', 'index.cjs');
 
@@ -554,11 +673,26 @@ export function createWindowManager(opts: CreateWindowManagerOptions): DesktopWi
   const configPath = configPathFor(opts.userDataDir);
   const bootPage = resolve(rendererDir(), 'boot.html');
   const crashPage = resolve(rendererDir(), 'crash.html');
+  // The app's own pages (Start and the screens after it): one document, its screens switched by the hash.
+  const startPage = resolve(rendererDir(), 'app', 'index.html');
   const crashPageUrl = pathToFileUrl(crashPage);
 
   let win: BrowserWindow | null = null;
   /** The loopback origin nav is locked to; `null` whenever no server page is up. */
   let appOrigin: string | null = null;
+  /** The Designer's preview origin a subframe may load; `null` outside a project being built. */
+  let previewOrigin: string | null = null;
+  let lastAppPreview = false;
+  /** The app's own pages are what the window holds: what `reopen` returns to. */
+  let showingStart = false;
+  /** Other Adminiums that are open, each in a window of its own, by address. */
+  const guests = new Map<string, BrowserWindow>();
+  /** The sharing details are what the window holds: what `reopen` returns to. */
+  let showingShared = false;
+  /** A window on the previous session partition, kept until its replacement stands (see `useProjectSession`). */
+  let retiring: BrowserWindow | null = null;
+  /** The session partition new windows are made on; `undefined` is Electron's default session. */
+  let partition: string | undefined;
   /**
    * Whether the crash page is the document currently loaded — the gate on
    * treating a `?action=` navigation as a button press.
@@ -627,9 +761,14 @@ export function createWindowManager(opts: CreateWindowManagerOptions): DesktopWi
       show: false,
       // "standard OS chrome in v1 (no custom titlebar)".
       title: 'Adminium',
-      webPreferences: { ...WEB_PREFERENCES, preload: preloadEntry() },
+      webPreferences: { ...WEB_PREFERENCES, preload: preloadEntry(), ...(partition === undefined ? {} : { partition }) },
     });
     win = created;
+    // Only now: closing the last window is how the app is quit on Windows and Linux.
+    if (retiring !== null) {
+      if (!retiring.isDestroyed()) retiring.destroy();
+      retiring = null;
+    }
 
     if (state.maximized) created.maximize();
     created.once('ready-to-show', () => {
@@ -671,15 +810,26 @@ export function createWindowManager(opts: CreateWindowManagerOptions): DesktopWi
     // window created here would be a NEW BrowserWindow this manager never
     // configured, carrying none of the posture above and none of these handlers.
     created.webContents.setWindowOpenHandler(({ url }) => {
-      const decision = decideNavigation(url, appOrigin);
+      const decision = decideNewWindow(url, appOrigin, previewOrigin);
       if (decision.action === 'external') void shell.openExternal(decision.url);
       return { action: 'deny' };
     });
 
     // A redirect can cross origins after `will-navigate` already allowed the
     // request, so the decision is re-made on the redirect itself.
+    // It fires for subframes as well, which have their own rule.
     created.webContents.on('will-redirect', (event, target) => {
-      if (decideNavigation(target, appOrigin).action !== 'allow') event.preventDefault();
+      const allowed = event.isMainFrame
+        ? decideNavigation(target, appOrigin).action === 'allow'
+        : decideFrameNavigation(target, appOrigin, previewOrigin) === 'allow';
+      if (!allowed) event.preventDefault();
+    });
+
+    // `will-navigate` is the main frame's only. This one fires for every frame,
+    // a frame's first load included; the main frame is left to the handler above.
+    created.webContents.on('will-frame-navigate', (event) => {
+      if (event.isMainFrame) return;
+      if (decideFrameNavigation(event.url, appOrigin, previewOrigin) !== 'allow') event.preventDefault();
     });
 
     // ── permission handlers ──
@@ -763,22 +913,118 @@ export function createWindowManager(opts: CreateWindowManagerOptions): DesktopWi
       // handshake lands. Clearing it means a server that died and is restarting
       // cannot leave a dead origin allowed.
       appOrigin = null;
+      previewOrigin = null;
       showingCrash = false;
+      showingStart = false;
+      showingShared = false;
       await target.loadFile(bootPage);
     },
 
-    async loadApp(url: string): Promise<void> {
+    async showStart(): Promise<void> {
+      const target = await create();
+      appOrigin = null;
+      previewOrigin = null;
+      showingCrash = false;
+      showingStart = true;
+      showingShared = false;
+      lastAppUrl = null;
+      await target.loadFile(startPage);
+      if (!target.isVisible()) target.show();
+    },
+
+    async openGuest(guest: { origin: string; encrypted: boolean }): Promise<void> {
+      const open = guests.get(guest.origin);
+      if (open !== undefined && !open.isDestroyed()) {
+        open.focus();
+        return;
+      }
+      const host = new URL(guest.origin).host;
+      const view = new BrowserWindow({
+        width: 1280,
+        height: 800,
+        minWidth: MIN_WINDOW_WIDTH,
+        minHeight: MIN_WINDOW_HEIGHT,
+        // Its address is its name, and says so when what is typed there can be read on the way.
+        title: guest.encrypted ? `${host} — Adminium` : `${host} (not encrypted) — Adminium`,
+        // The same posture as the app's own window, and NO preload: this page is somebody else's.
+        webPreferences: { ...WEB_PREFERENCES, partition: guestPartition(guest.origin) },
+      });
+      guests.set(guest.origin, view);
+      view.on('closed', () => {
+        if (guests.get(guest.origin) === view) guests.delete(guest.origin);
+      });
+      // The page's own title would take the address away.
+      view.on('page-title-updated', (event) => event.preventDefault());
+      // Held to the address that was typed: anything else leaves for the system's browser, or nowhere.
+      const leave = (event: { preventDefault: () => void }, target: string): void => {
+        if (guestMayNavigate(target, guest.origin)) return;
+        event.preventDefault();
+        const decision = decideNavigation(target, null);
+        if (decision.action === 'external') void shell.openExternal(decision.url);
+      };
+      view.webContents.on('will-navigate', leave);
+      view.webContents.on('will-redirect', leave);
+      view.webContents.setWindowOpenHandler(({ url }) => {
+        // No second window is ever made from a guest's page: its own address goes there itself, a site to the browser.
+        if (guestMayNavigate(url, guest.origin)) void view.loadURL(url);
+        else {
+          const decision = decideNavigation(url, null);
+          if (decision.action === 'external') void shell.openExternal(decision.url);
+        }
+        return { action: 'deny' };
+      });
+      // Camera, notifications, the clipboard read: refused, not asked. A download is refused the same way.
+      const { session } = view.webContents;
+      session.setPermissionRequestHandler((_contents, _permission, callback) => {
+        callback(false);
+      });
+      session.setPermissionCheckHandler(() => false);
+      session.on('will-download', (event) => {
+        event.preventDefault();
+      });
+      await view.loadURL(`${guest.origin}/`);
+    },
+
+    async clearGuest(origin: string): Promise<void> {
+      const open = guests.get(origin);
+      if (open !== undefined && !open.isDestroyed()) open.destroy();
+      guests.delete(origin);
+      await session.fromPartition(guestPartition(origin)).clearStorageData();
+    },
+
+    async showShared(): Promise<void> {
+      const target = await create();
+      // The app's own page: no server page is what the window holds, so no origin is allowed to navigate it.
+      appOrigin = null;
+      previewOrigin = null;
+      showingCrash = false;
+      showingStart = false;
+      lastAppUrl = null;
+      showingShared = true;
+      await target.loadFile(startPage, { hash: SHARED_HASH });
+      if (!target.isVisible()) target.show();
+    },
+
+    async loadApp(url: string, opts?: { readonly preview?: boolean; readonly again?: string }): Promise<void> {
       const target = await create();
       appOrigin = originOf(url);
+      lastAppPreview = opts?.preview === true;
+      previewOrigin = lastAppPreview ? previewOriginOf(url) : null;
       showingCrash = false;
-      lastAppUrl = url;
+      showingStart = false;
+      showingShared = false;
+      // What a reopened window loads: the same address, or the one the caller says (an address whose one-use
+      // sign-in token is spent by this load is remembered without it).
+      lastAppUrl = opts?.again ?? url;
       await target.loadURL(url);
     },
 
     async showCrash(info: CrashScreenInfo): Promise<void> {
       const target = await create();
       appOrigin = null;
+      previewOrigin = null;
       showingCrash = true;
+      showingStart = false;
       await target.loadFile(crashPage);
       await target.webContents.executeJavaScript(crashRenderScript(info));
       if (!target.isVisible()) target.show();
@@ -792,15 +1038,27 @@ export function createWindowManager(opts: CreateWindowManagerOptions): DesktopWi
       // boot got — the app if it ever came up, the splash if it did not.
       showingCrash = false;
       if (lastAppUrl === null) {
-        await target.loadFile(bootPage);
+        if (showingShared) await target.loadFile(startPage, { hash: SHARED_HASH });
+        else await target.loadFile(showingStart ? startPage : bootPage);
         return;
       }
       appOrigin = originOf(lastAppUrl);
+      previewOrigin = lastAppPreview ? previewOriginOf(lastAppUrl) : null;
       await target.loadURL(lastAppUrl);
     },
 
     exists(): boolean {
       return win !== null && !win.isDestroyed();
+    },
+
+    useProjectSession(root: string | null): void {
+      const next = root === null ? undefined : projectPartition(root);
+      if (next === partition) return;
+      partition = next;
+      // The window on the old partition goes when the next one stands, never before: with the first screens a
+      // window is already open here, and a moment with none is "all windows closed", which quits the app.
+      if (win !== null && !win.isDestroyed()) retiring = win;
+      win = null;
     },
 
     handleFileArgument(path: string): void {

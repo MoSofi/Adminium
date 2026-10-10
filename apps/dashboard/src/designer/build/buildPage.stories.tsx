@@ -59,6 +59,7 @@ function previewOf(sides: readonly PreviewSide[], side: PreviewSide, seenAs: rea
     ticketError: null,
     running: false,
     openTab: noop,
+    canOpenTab: true,
   };
 }
 

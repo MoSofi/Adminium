@@ -28,7 +28,9 @@
     "noModel": "Adminium Designer bruger din egen AI-model. Tilføj en for at begynde.",
     "cannotBuild": "Denne model kan ikke bygge apps: den understøtter ikke værktøjer. Vælg en anden model.",
     "failed": "Designeren kunne ikke starte",
-    "noModelSet": "Der er ikke valgt en model til Designeren på denne server. En tilføjes i Indstillinger → AI."
+    "noModelSet": "Der er ikke valgt en model til Designeren på denne server. En tilføjes i Indstillinger → AI.",
+    "ignoredEnv": "Appen bestemmer selv disse, så det, projektets .env siger om dem, blev ignoreret:",
+    "ignoredEnvHide": "Skjul denne note"
   },
   "target": {
     "label": "Hvad der skal bygges: {target}",
@@ -157,7 +159,12 @@
     "save": "Gem",
     "saving": "Gemmer…",
     "addedToast": "Model tilføjet.",
-    "none": "Ingen model"
+    "none": "Ingen model",
+    "envNotUsed": "Dette projekts .env nævner en model. I appen opbevares modeller på denne computer; den linje bruges ikke.",
+    "keptPlain": "på denne computer, som almindelig tekst i en fil, som kun du kan læse: denne computer har intet nøglelager. Den lægges ikke i dit projekt, så et projekt, du eksporterer eller deler, indeholder ingen.",
+    "keptMac": "på denne computer, krypteret af Nøglering. Den lægges ikke i dit projekt, så et projekt, du eksporterer eller deler, indeholder ingen.",
+    "keptWindows": "på denne computer, krypteret af Windows. Den lægges ikke i dit projekt, så et projekt, du eksporterer eller deler, indeholder ingen.",
+    "keptLinux": "på denne computer, krypteret af dit skrivebords nøglelager. Den lægges ikke i dit projekt, så et projekt, du eksporterer eller deler, indeholder ingen."
   },
   "provider": {
     "anthropic": "Anthropic",
@@ -569,6 +576,7 @@
     "previewNoRole": "Dette er en forhåndsvisning af appen, set som en person uden rolle. Det er ikke dit eget login: du kan ikke nå Studio, personer eller indstillinger her.",
     "openOwn": "Åbn dashboardet som dig selv",
     "owner": "Du er ejer af dette projekt, logget ind med det link, Adminium Designer udskrev. Angiv en adresse og en adgangskode, før projektet kører andre steder.",
+    "ownerApp": "Du er ejer af dette projekt og er logget ind af Adminium-appen på denne computer. Angiv en adresse og en adgangskode, før projektet deles eller kører andre steder.",
     "ownerLabel": "Din ejerkonto",
     "ownerSet": "Angiv din adgangskode",
     "ownerLater": "Ikke nu",
@@ -730,5 +738,77 @@
   "chat": {
     "copy": "Kopiér denne besked",
     "copied": "Kopieret"
+  },
+  "project": {
+    "menu": "Projekt: {name}",
+    "export": "Eksportér dette projekt…",
+    "showFinder": "Vis i Finder",
+    "showExplorer": "Vis i Stifinder",
+    "showFiles": "Vis i filhåndteringen",
+    "close": "Luk projektet"
+  },
+  "mode": {
+    "label": "Byg eller del",
+    "build": "Byg",
+    "share": "Del"
+  },
+  "versionsOffer": {
+    "title": "Vil du gemme versioner af dit arbejde?",
+    "body": "Adminium bruger git til at gemme en version efter hver ændring, så du kan gå tilbage. Denne computer har ingen.",
+    "download": "Hent git ({size} MB)",
+    "notNow": "Ikke nu",
+    "apple": "Eller installer Apples udviklerværktøjer (ca. 1 GB), som indeholder det.",
+    "appleLink": "Installer Apples værktøjer",
+    "lookAgain": "Kig igen",
+    "noDownload": "Der er ingen git at hente til denne slags computer. Installer selv git, og kig så igen.",
+    "downloading": "Henter git",
+    "progress": "{received} af {total} MB",
+    "cancel": "Annuller",
+    "tryAgain": "Prøv igen",
+    "turnOn": "Slå versioner til",
+    "offHere": "Versioner er slået fra på denne computer.",
+    "offButton": "Versioner: fra",
+    "offWord": "Fra",
+    "nowOn": "Versioner er slået til",
+    "nowOnNext": "Din næste ændring gemmes som en version.",
+    "failed": {
+      "wrongFile": "Det hentede svarede ikke til det, Adminium forventede, og blev slettet.",
+      "noConnection": "Kunne ikke nå internettet. Tjek din forbindelse, og prøv igen.",
+      "other": "git kunne ikke sættes op på denne computer."
+    }
+  },
+  "share": {
+    "passwordTitle": "Vælg, hvordan du logger ind fra andre enheder",
+    "beforeTitle": "Før du deler",
+    "step": "Del · {step} af {steps}",
+    "email": "Din e-mail",
+    "password": "Adgangskode",
+    "again": "Den samme adgangskode igen",
+    "passwordNote": "På denne computer har du aldrig brug for dem. Du skriver dem på en telefon eller en anden computer.",
+    "next": "Næste",
+    "reach": "Personer på dette netværk kan nå dette projekt, mens det er delt. Hver af dem logger ind.",
+    "dataStays": "Dit projekts data bliver på denne computer.",
+    "firewall": "Din computer spørger måske, om Adminium må modtage forbindelser. Vælg Tillad.",
+    "notEncrypted": "Trafikken på dit lokale netværk er ikke krypteret. Del kun på et netværk, du stoler på. En app, du har åbnet for offentligheden, kan bruges der uden login.",
+    "designerOff": "Designeren er slået fra, mens projektet er delt. Du kommer tilbage til den med “Gå tilbage til at bygge”.",
+    "cancel": "Annuller",
+    "sharing": "Deler…",
+    "now": "Del nu"
+  },
+  "export": {
+    "everything": "Projektets apps, dets data og dets nøgle",
+    "everythingLine": "Den, der åbner det, kan læse det hele, også gemte databaseforbindelser. Send det kun til nogen, du ville give det til.",
+    "apps": "Kun appene",
+    "appsLine": "Uden dataene, nøglen og dine samtaler med Designeren. Den, der åbner det, starter med tomme data.",
+    "saveTitle": "Eksportér {name}",
+    "busy": "Noget kører stadig i dette projekt. Eksportér det, når det er færdigt.",
+    "title": "Eksportér {name}",
+    "noModelKeys": "Dine modelnøgler er aldrig med: de bliver på denne computer.",
+    "stops": "Projektet stopper et øjeblik, mens filen laves, og dette vindue kommer tilbage, når den er færdig.",
+    "cancel": "Annuller",
+    "working": "Eksporterer…",
+    "go": "Eksportér…",
+    "saved": "Gemte {file}, {size} MB",
+    "failed": "Eksporten kunne ikke laves"
   }
 }

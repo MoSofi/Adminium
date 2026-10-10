@@ -26,6 +26,7 @@ import { installTestI18n } from '../../i18n/testing.js';
 import { AppToastProvider } from '../../pages/toasts.js';
 import { jsonResponse } from '../../test/fixtures.js';
 import type { ConnectionTest, DesignerModels } from '../api.js';
+import { keptByAppWords } from './AddModelDialog.js';
 import { ModelButton } from './ModelButton.js';
 import { useDesignerModel } from './useModel.js';
 import { useModelControl } from './useModelControl.js';
@@ -323,5 +324,44 @@ describe('the model button', () => {
       <ModelButton model={{ loading: true, hasModels: false, models: undefined, canAdd: true, picked: null, canBuild: null, cannotBuildMessage: null, pick: () => undefined }} />,
     );
     expect(container.querySelector('[aria-hidden="true"]')).not.toBeNull();
+  });
+});
+
+describe('where a key is kept, inside the desktop app', () => {
+  const open = async (): Promise<HTMLElement> => {
+    mount();
+    await userEvent.click(await screen.findByRole('button', { name: 'Add a model' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Add a model' });
+    await userEvent.click(within(dialog).getByRole('button', { name: /Anthropic/ }));
+    return dialog;
+  };
+
+  it('on a terminal it is the project’s .env, as before', async () => {
+    models = NONE;
+    const dialog = await open();
+    expect(dialog.textContent).toContain('in the file .env in your project folder');
+    expect(within(dialog).queryByRole('note')).toBeNull();
+  });
+
+  it('in the app it is the app’s own keeping, and a model line in the project’s .env is said to be unused', async () => {
+    models = { ...NONE, kept: 'key-store', ignoredEnv: ['ADMINIUM_AI_MODEL'] };
+    const dialog = await open();
+    expect(dialog.textContent).toContain('It is not put in your project, so a project you export or share carries none.');
+    expect(dialog.textContent).not.toContain('in the file .env in your project folder');
+    expect(within(dialog).getByRole('note').textContent).toBe('This project’s .env names a model. In the app, models are kept on this computer; that line is not used.');
+  });
+
+  it('with no key store it says so plainly, and with nothing in .env there is no note', async () => {
+    models = { ...NONE, kept: 'plain', ignoredEnv: [] };
+    const dialog = await open();
+    expect(dialog.textContent).toContain('this computer has no key store');
+    expect(within(dialog).queryByRole('note')).toBeNull();
+  });
+
+  it('names the system’s own key store', () => {
+    expect(keptByAppWords('key-store', 'darwin')).toContain('encrypted by Keychain');
+    expect(keptByAppWords('key-store', 'win32')).toContain('encrypted by Windows');
+    expect(keptByAppWords('key-store', 'linux')).toContain('your desktop’s key store');
+    expect(keptByAppWords('key-store', undefined)).toContain('your desktop’s key store');
   });
 });

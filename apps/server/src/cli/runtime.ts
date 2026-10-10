@@ -16,7 +16,7 @@
  */
 
 import { spawnSync } from 'node:child_process';
-import { resolve } from 'node:path';
+import { resolve, win32 } from 'node:path';
 
 import { adapterRegistry } from '@adminium/engine/adapter';
 import type { AllowedVocabularies } from '@adminium/llm';
@@ -37,6 +37,7 @@ import { createConnectionStatsCollector } from '../llm/stats-collector.js';
 import type { CollectRunStats } from '../llm/prompt-service.js';
 import type { OnMetaRelocated } from '../meta/relocate.js';
 import { openMetaStore, type MetaStoreHandle } from '../meta/store.js';
+import { mayOpenBrowser } from '../project/programs.js';
 import type { ProjectServerOptions } from '../project/service.js';
 import { loadAllowedVocabularies } from './allowlist.js';
 import { CliError } from './exit.js';
@@ -268,7 +269,9 @@ export interface StartServerOptions {
   /** The project folder this server runs, when there is one. */
   project?: ProjectServerOptions | undefined;
   /** Adminium Designer, when this server runs it (`adminium design`). */
-  designer?: { mode: 'local'; token: string | null; port: number } | undefined;
+  designer?: { mode: 'local'; token: string | null; port: number; /** Started by a host on the person's own computer (`ComposeServerOptions.designer`). */ thisComputer?: boolean; /** Names of the project's `.env` and config a host did not obey: said on the Designer's Home. */ ignoredEnv?: readonly string[] | undefined } | undefined;
+  /** A project the desktop app shares on the network (`ComposeServerOptions.shared`). */
+  shared?: { port: number; ownerToken?: string } | undefined;
 }
 
 /** Boot + listen. Injected ({@link CliDeps.startServer}) so tests never bind a port. */
@@ -319,6 +322,7 @@ export const startServer: StartServer = async (runtime, opts = {}) => {
     ...(opts.onMetaRelocated === undefined ? {} : { onMetaRelocated: opts.onMetaRelocated }),
     ...(opts.project === undefined ? {} : { project: opts.project }),
     ...(opts.designer === undefined ? {} : { designer: opts.designer }),
+    ...(opts.shared === undefined ? {} : { shared: opts.shared }),
   });
   // Falling through on a missed override is the resolver's contract (the
   // implicit candidates degrade the same way), but a path the operator WROTE
@@ -506,17 +510,28 @@ export function installSignalShutdown(
 export type RunProcess = (
   command: string,
   args: readonly string[],
-  opts: { cwd: string; inherit?: boolean },
+  opts: { cwd: string; inherit?: boolean; env?: Readonly<Record<string, string>> },
 ) => { status: number | null; stdout: string };
+
+/**
+ * Whether Windows needs its shell to start `command`. A bare name does: npm,
+ * pnpm and yarn are `.cmd` shims there, which only a shell runs. A whole path
+ * does not, and must not have one: the shell is handed the words joined by
+ * spaces, so a path with a space in it (`C:\Users\Ada Lovelace\…`, where the
+ * desktop app and its npm live) is cut at the space and nothing starts.
+ */
+export function needsShell(command: string, platform: NodeJS.Platform = process.platform): boolean {
+  return platform === 'win32' && !win32.isAbsolute(command);
+}
 
 export const runProcess: RunProcess = (command, args, opts) => {
   const result = spawnSync(command, [...args], {
     cwd: opts.cwd,
     stdio: opts.inherit === true ? 'inherit' : ['ignore', 'pipe', 'pipe'],
     encoding: 'utf8',
-    // npm, pnpm and yarn are `.cmd` shims on Windows, which only a shell runs.
-    // The arguments are fixed words, never user input.
-    shell: process.platform === 'win32',
+    ...(opts.env === undefined ? {} : { env: { ...process.env, ...opts.env } }),
+    // Where a shell is used the arguments are fixed words, never user input.
+    shell: needsShell(command),
   });
   return {
     status: result.error === undefined ? result.status : null,
@@ -582,6 +597,8 @@ export const openBrowser: OpenBrowser = async (url) => {
   // Only ever called with a URL this process just bound, but the check is cheap
   // and keeps a future caller from turning this into a shell-injection sink.
   if (!/^https?:\/\//.test(url)) return false;
+  // Inside the desktop app the window is the browser: nothing is opened beside it.
+  if (!mayOpenBrowser()) return false;
   try {
     const { spawn } = await import('node:child_process');
     const { command, args } = browserCommand(process.platform);

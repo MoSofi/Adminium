@@ -28,7 +28,9 @@
     "noModel": "Adminium Designer uses your own AI model. Add one to begin.",
     "cannotBuild": "This model cannot build apps: it does not support tools. Pick another model.",
     "failed": "The Designer could not start",
-    "noModelSet": "No model is set for the Designer on this server. One is added in Settings → AI."
+    "noModelSet": "No model is set for the Designer on this server. One is added in Settings → AI.",
+    "ignoredEnv": "The app decides these itself, so what this project’s .env says of them was ignored:",
+    "ignoredEnvHide": "Hide this note"
   },
   "target": {
     "label": "What to build: {target}",
@@ -157,7 +159,12 @@
     "save": "Save",
     "saving": "Saving…",
     "addedToast": "Model added.",
-    "none": "No model"
+    "none": "No model",
+    "envNotUsed": "This project’s .env names a model. In the app, models are kept on this computer; that line is not used.",
+    "keptPlain": "on this computer, as plain text in a file only you can read: this computer has no key store. It is not put in your project, so a project you export or share carries none.",
+    "keptMac": "on this computer, encrypted by Keychain. It is not put in your project, so a project you export or share carries none.",
+    "keptWindows": "on this computer, encrypted by Windows. It is not put in your project, so a project you export or share carries none.",
+    "keptLinux": "on this computer, encrypted by your desktop’s key store. It is not put in your project, so a project you export or share carries none."
   },
   "provider": {
     "anthropic": "Anthropic",
@@ -569,6 +576,7 @@
     "previewNoRole": "This is a preview of the app, seen as a person with no role. It is not your own sign-in: you cannot reach Studio, people or settings here.",
     "openOwn": "Open the dashboard as yourself",
     "owner": "You are this project’s owner, signed in by the link Adminium Designer printed. Set an address and a password before the project runs anywhere else.",
+    "ownerApp": "You are this project’s owner, signed in by the Adminium app on this computer. Set an address and a password before the project is shared or runs anywhere else.",
     "ownerLabel": "Your owner account",
     "ownerSet": "Set your password",
     "ownerLater": "Not now",
@@ -730,5 +738,77 @@
   "chat": {
     "copy": "Copy this message",
     "copied": "Copied"
+  },
+  "project": {
+    "menu": "Project: {name}",
+    "export": "Export this project…",
+    "showFinder": "Show in Finder",
+    "showExplorer": "Show in File Explorer",
+    "showFiles": "Show in the file manager",
+    "close": "Close project"
+  },
+  "mode": {
+    "label": "Build or share",
+    "build": "Build",
+    "share": "Share"
+  },
+  "versionsOffer": {
+    "title": "Keep versions of your work?",
+    "body": "Adminium uses git to keep a version after every change, so you can go back. This computer has none.",
+    "download": "Download git ({size} MB)",
+    "notNow": "Not now",
+    "apple": "Or install Apple’s developer tools (about 1 GB), which include it.",
+    "appleLink": "Install Apple’s tools",
+    "lookAgain": "Look again",
+    "noDownload": "There is no git to download for this kind of computer. Install git yourself, then look again.",
+    "downloading": "Downloading git",
+    "progress": "{received} of {total} MB",
+    "cancel": "Cancel",
+    "tryAgain": "Try again",
+    "turnOn": "Turn versions on",
+    "offHere": "Versions are off on this computer.",
+    "offButton": "Versions: off",
+    "offWord": "Off",
+    "nowOn": "Versions are on",
+    "nowOnNext": "Your next change is kept as a version.",
+    "failed": {
+      "wrongFile": "The download did not match what Adminium expected and was deleted.",
+      "noConnection": "Could not reach the internet. Check your connection and try again.",
+      "other": "git could not be set up on this computer."
+    }
+  },
+  "share": {
+    "passwordTitle": "Choose how you sign in from other devices",
+    "beforeTitle": "Before you share",
+    "step": "Share · {step} of {steps}",
+    "email": "Your email",
+    "password": "Password",
+    "again": "The same password again",
+    "passwordNote": "On this computer you never need them. You will type them on a phone or another computer.",
+    "next": "Next",
+    "reach": "People on this network can reach this project while it is shared. Each of them signs in.",
+    "dataStays": "Your project’s data stays on this computer.",
+    "firewall": "Your computer may ask whether Adminium may accept connections. Choose Allow.",
+    "notEncrypted": "Traffic on your local network is not encrypted. Share only on a network you trust. An app you opened to the public can be used there without a sign-in.",
+    "designerOff": "The Designer is off while the project is shared. You come back to it with “Go back to building”.",
+    "cancel": "Cancel",
+    "sharing": "Sharing…",
+    "now": "Share now"
+  },
+  "export": {
+    "everything": "The project’s apps, its data and its key",
+    "everythingLine": "Whoever opens it can read all of it, saved database connections included. Send it only to someone you would give that to.",
+    "apps": "The apps only",
+    "appsLine": "Without the data, the key and your chats with the Designer. Whoever opens it starts with empty data.",
+    "saveTitle": "Export {name}",
+    "busy": "Something is still running in this project. Export it when that is done.",
+    "title": "Export {name}",
+    "noModelKeys": "Your model keys are never included: they stay on this computer.",
+    "stops": "The project stops for a moment while the file is made, and this window comes back when it is done.",
+    "cancel": "Cancel",
+    "working": "Exporting…",
+    "go": "Export…",
+    "saved": "Saved {file}, {size} MB",
+    "failed": "The export could not be made"
   }
 }

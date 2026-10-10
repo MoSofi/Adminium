@@ -120,7 +120,9 @@ export function Preview({ preview, session, turns, onFix, compact }: { preview: 
       const sight = sightFrom(event.data, session.appKey);
       if (sight !== null) {
         // Once for each time the frame was opened, and never twice within two seconds: a screen that posts without end sends nothing more.
-        const due = sentSight.current.round !== round || Date.now() - sentSight.current.at > 2000;
+        // A sight that says the page stopped is passed on whenever it comes: it is the one the turn must not miss.
+        const stops = sight.faults.some((fault) => fault['kind'] === 'blank' || fault['kind'] === 'error');
+        const due = sentSight.current.round !== round || stops || Date.now() - sentSight.current.at > 2000;
         if (runningNow.current && seesPage() && due && sentSight.current.count < 3) {
           sentSight.current = { round, at: Date.now(), count: sentSight.current.round === round ? sentSight.current.count + 1 : 1 };
           void designerApi.sendSight(session.id, sight).catch(() => undefined);

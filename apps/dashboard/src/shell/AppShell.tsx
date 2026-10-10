@@ -35,6 +35,7 @@ import { AssistantBubble } from './AssistantBubble.js';
    pay for that. Rendered only once opened, so no Suspense fallback is needed —
    there is nothing on screen to replace while the chunk loads. */
 const DesignBanners = lazy(async () => ({ default: (await import('../designer/DesignBanners.js')).DesignBanners }));
+const ShareBanner = lazy(async () => ({ default: (await import('../desktop/ShareBanner.js')).ShareBanner }));
 const ShortcutsPanel = lazy(async () => ({
   default: (await import('./ShortcutsPanel.js')).ShortcutsPanel,
 }));
@@ -323,6 +324,12 @@ export function AppShell() {
             onOpenHelp={() => void navigate({ to: '/help' })}
             onOpenChangelog={() => void navigate({ to: '/changelog' })}
           />
+          {/* Inside the desktop app only (the bridge says so): a project shared on the network says it is. */}
+          {getDesktopApi()?.project?.shareInfo === undefined ? null : (
+            <Suspense fallback={null}>
+              <ShareBanner />
+            </Suspense>
+          )}
           {/* Only a server run by `adminium design` says these: the file is asked for there and nowhere else. */}
           {designMode ? (
             <Suspense fallback={null}>

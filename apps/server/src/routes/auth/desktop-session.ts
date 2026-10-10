@@ -18,6 +18,9 @@
  *  3. POLICY. `adminium_settings.desktop.singleUser` must be true — the mirror of
  * `config.json`'s `singleUser`, i.e. the user has not turned on "Require login on
  *     this device".
+ *     For a project the app shares (`projectOwner`), the policy is instead
+ *     that the project has the owner it was made for: that owner is who is
+ *     signed in, and a project without one has no one for this door.
  *  4. TOKEN. Constant-time match against this boot's token, single-use.
  *
  * They run IN THAT ORDER, which is itself a decision: a non-loopback peer is
@@ -44,6 +47,7 @@ import { settingsRepo, usersRepo, type MetaDb, type User } from '@adminium/meta'
 import { AppError } from '../../errors.js';
 import { auditAuth } from '../../auth/audit.js';
 import { createBootTokenGuard, isLoopbackPeer } from '../../auth/desktop-session.js';
+import { ownerOnThisComputer } from '../../auth/local-owner.js';
 import { createSession, setSessionCookie } from '../../auth/sessions.js';
 import { toUserView } from './handlers.js';
 import { RATE_LIMIT_BUCKETS } from './index.js';
@@ -53,6 +57,14 @@ export interface DesktopSessionRoutesDeps {
   meta: MetaDb;
   /** This boot's `ADMINIUM_BOOT_TOKEN`. Never persisted. */
   bootToken: string;
+  /**
+   * A project the desktop app shares (plan 66): gate 3 is not the classic
+   * workspace's "skip login on this computer" but "this project has the owner
+   * it was made for", and that owner, not the oldest super admin, is who is
+   * signed in. A project with no such owner (its first account was made at
+   * `/setup`) has no one for this door: the person signs in with a password.
+   */
+  projectOwner?: boolean;
 }
 
 /** Uniform credential failure — identical for wrong, replayed, and stale. */
@@ -141,7 +153,8 @@ export function desktopSessionRoutes(deps: DesktopSessionRoutesDeps): FastifyPlu
         // not the only writer we ever want to allow, and a stale cache here fails
         // OPEN, which is the wrong direction for the one flag that says "this
         // machine may skip its login".
-        if (!(await settings.get('desktop.singleUser'))) {
+        const projectOwner = deps.projectOwner === true ? await ownerOnThisComputer(meta) : null;
+        if (deps.projectOwner === true ? projectOwner === null || projectOwner.status !== 'active' : !(await settings.get('desktop.singleUser'))) {
           throw new AppError(
             403,
             'DESKTOP_AUTOLOGIN_DISABLED',
@@ -163,7 +176,7 @@ export function desktopSessionRoutes(deps: DesktopSessionRoutesDeps): FastifyPlu
           throw invalidBootToken();
         }
 
-        const user = await findSuperAdmin(meta);
+        const user = deps.projectOwner === true ? projectOwner : await findSuperAdmin(meta);
         if (user === null) {
           // No super admin yet ⇒ this is a first-run boot and the wizard, not
           // this route, is the way in. Not a credential failure: the token

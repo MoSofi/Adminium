@@ -35,6 +35,8 @@ export const SERVER_BOOT_STAGES = [
   'migrate',
   'compose',
   'listen',
+  // Project mode: the terminal's start path, as one stage (it prints its own lines).
+  'project',
 ] as const;
 
 export type ServerBootStage = (typeof SERVER_BOOT_STAGES)[number];
@@ -87,13 +89,52 @@ export const serverErrorMessageSchema = z.object({
 });
 
 /** Child → parent. */
+/**
+ * A project's server answering `busy?`: what has the folder right now (a turn,
+ * a save, a restore…), or `null`. Main asks before anything that ends the
+ * child, so that it can ask the person first.
+ */
+export const serverBusyMessageSchema = z.object({
+  type: z.literal('busy'),
+  busy: z.object({ kind: z.string().min(1), sessionId: z.string().nullable() }).nullable(),
+});
+
+/** The names of the keys the app keeps for a project's server: a model's six and the two picture sources'. */
+export const KEPT_KEY_NAMES = [
+  'ADMINIUM_AI_ANTHROPIC_API_KEY',
+  'ADMINIUM_AI_OPENAI_API_KEY',
+  'ADMINIUM_AI_COMPATIBLE_BASE_URL',
+  'ADMINIUM_AI_COMPATIBLE_API_KEY',
+  'ADMINIUM_AI_OLLAMA_BASE_URL',
+  'ADMINIUM_AI_MODEL',
+  'PEXELS_API_KEY',
+  'UNSPLASH_ACCESS_KEY',
+] as const;
+export type KeptKeyName = (typeof KEPT_KEY_NAMES)[number];
+const keptValue = z.string().min(1).max(4096);
+const keptNames = z.enum(KEPT_KEY_NAMES);
+
+/**
+ * A project's server handing the app what the Designer's model screen saved:
+ * the app keeps it (in the system's key store) and answers with `models`.
+ * `null` takes a name away. Only the eight names; anything else is not a message.
+ */
+export const serverKeepModelMessageSchema = z.object({
+  type: z.literal('keep-model'),
+  values: z.partialRecord(keptNames, keptValue.nullable()),
+});
+
 export const serverMessageSchema = z.discriminatedUnion('type', [
   serverReadyMessageSchema,
   serverErrorMessageSchema,
+  serverBusyMessageSchema,
+  serverKeepModelMessageSchema,
 ]);
 
 export type ServerReadyMessage = z.infer<typeof serverReadyMessageSchema>;
 export type ServerErrorMessage = z.infer<typeof serverErrorMessageSchema>;
+export type ServerBusyMessage = z.infer<typeof serverBusyMessageSchema>;
+export type ServerKeepModelMessage = z.infer<typeof serverKeepModelMessageSchema>;
 export type ServerMessage = z.infer<typeof serverMessageSchema>;
 
 /**
@@ -102,7 +143,16 @@ export type ServerMessage = z.infer<typeof serverMessageSchema>;
  * `wal_checkpoint(TRUNCATE)` when the meta store wires it) and exits 0. The
  * parent only reaches for `kill()` when this is ignored.
  */
-export const parentMessageSchema = z.object({ type: z.literal('shutdown') });
+export const parentMessageSchema = z.discriminatedUnion('type', [
+  z.object({ type: z.literal('shutdown') }),
+  z.object({ type: z.literal('busy?') }),
+  // Where the app's own programs are NOW (`ADMINIUM_DESKTOP_PROGRAMS`): sent when one of them came while the
+  // project was open (git, fetched on a person's yes). A project's server only.
+  z.object({ type: z.literal('programs'), value: z.string().min(2).max(8192) }),
+  // The keys the app keeps, all of them, whenever they change and once the server is up. NEVER in the environment:
+  // a project's hooks read that. `keeping` is how the app holds them at rest, for the model screen's one line.
+  z.object({ type: z.literal('models'), values: z.partialRecord(keptNames, keptValue), keeping: z.enum(['key-store', 'plain']) }),
+]);
 
 export type ParentMessage = z.infer<typeof parentMessageSchema>;
 

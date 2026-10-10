@@ -47,7 +47,9 @@ import {
   StoppedNote,
   UsageLine,
 } from '../parts/chat.js';
+import { useDesktopVersions, VersionsOfferDialog } from '../parts/DesktopVersions.js';
 import { TopBar } from '../parts/TopBar.js';
+import { DesktopBuildShare } from '../parts/DesktopProject.js';
 import { CHAT_WIDTH, FOLDED_NEED_GUESS, views } from './barLevel.js';
 import { LeaveGuard } from './LeaveGuard.js';
 import { StyleMenu } from './LookMenu.js';
@@ -91,6 +93,12 @@ export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
   const session = useQuery(sessionQuery(sessionId));
   const apps = useQuery({ ...yourAppsQuery(), enabled: session.data !== undefined });
   const versions = useQuery({ ...versionsQuery(sessionId), enabled: session.data !== undefined });
+  // Inside the desktop app on a computer with no git: versions can be turned on without leaving the page.
+  const desktopVersions = useDesktopVersions(() => {
+    void queryClient.invalidateQueries({ queryKey: designerKeys.versions(sessionId) });
+    toasts.push({ variant: 'success', title: t('designer:versionsOffer.nowOn', 'Versions are on'), description: t('designer:versionsOffer.nowOnNext', 'Your next change is kept as a version.') });
+  });
+  const [offeringVersions, setOfferingVersions] = useState(false);
   const { events, loaded } = useSessionEvents(sessionId);
   const turns = useMemo(() => foldTurns(events), [events]);
   const working = isWorking(turns);
@@ -498,6 +506,7 @@ export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
 
   return (
     <div className="flex h-dvh flex-col bg-bg text-fg">
+      {desktopVersions === null ? null : <VersionsOfferDialog versions={desktopVersions} open={offeringVersions} onOpenChange={setOfferingVersions} />}
       <TopBar
         build
         middle={
@@ -510,6 +519,7 @@ export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
               current={current}
               busy={busy || working}
               onGoBack={(version) => restore.mutate({ n: version.n, record: true })}
+              onTurnVersionsOn={desktopVersions === null || desktopVersions.state.on ? undefined : () => setOfferingVersions(true)}
             />
           )
         }
@@ -525,6 +535,7 @@ export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
                 onOpen={(id) => void navigate({ to: '/design/$sessionId', params: { sessionId: id } })}
               />
             )}
+            <DesktopBuildShare />
             <a
               href="/"
               aria-label={t('designer:build.openDash', 'Open Dashboard')}

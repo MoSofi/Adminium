@@ -122,6 +122,30 @@ npmRebuild: true
 files:
   - "out/**"
   - "resources/**"
+  # npm is carried as real files (extraResources below), not inside the archive:
+  # a program run as Node cannot be handed a script that lives in an archive
+  # by a child that is not Electron, and one copy is enough.
+  - "!node_modules/npm{,/**}"
+  # A workspace package rides in the archive as its whole folder, where the
+  # same package on npm is only what its `files` names. So each one is cut back
+  # to that: no sources, no coverage, no build caches, and none of the UI
+  # package's test pictures and Storybook build (41 MB of them were in every
+  # installer). `build/after-pack.cjs` reads the finished archive and stops the
+  # build when a workspace package carries anything its own `files` does not
+  # name, so a new folder cannot ride along unseen.
+  - "!node_modules/@adminium/*/{coverage,.turbo,vrt,storybook-static,.storybook,test,tests,scripts,data,e2e,fixtures,demo}{,/**}"
+  - "!node_modules/@adminium/*/{vitest.config.ts,playwright.config.ts,eslint.config.js,openapi.json,a11y-baseline.json,tsconfig.json,tsconfig.build.json,*.tsbuildinfo,CHANGELOG.md,TRANSLATIONS.md}"
+  # Sources, except the two packages whose `files` name some: the tokens' (CSS
+  # read at run time) and the charts' one stylesheet.
+  - "!node_modules/@adminium/{server,ui,widgets,engine,meta,manifest,llm,i18n,schema-import,add-on-contracts,public-client,adapter-sqlite,adapter-postgres,adapter-mysql}/src{,/**}"
+  - "!node_modules/@adminium/charts/src/**/*.{ts,tsx}"
+
+# The npm a project is installed with: real files at <resources>/npm, where
+# `main/index.ts` looks for it in a packaged app. `build/after-pack.cjs` copies
+# it there whole (an `extraResources` copy leaves npm's own `node_modules` out,
+# and without them npm cannot start). It is a pinned dependency of this package
+# so that the notices attribute it and the packages it bundles.
+afterPack: build/after-pack.cjs
 
 mac:
   category: public.app-category.developer-tools
@@ -209,6 +233,27 @@ linux:
 # `app-update.yml` is read at DOWNLOAD time, for `updaterCacheDirName` and (on
 # NSIS) `publisherName`. Nothing reads it at construction, so a missing file
 # breaks the download, never the check.
+# What the .deb asks the system for. Written out whole because naming any
+# replaces electron-builder's own list (the first nine below are that list).
+# The last two were missing: the program links against libgbm and libasound,
+# a desktop system happens to have both, and a minimal one does not, where the
+# installed app then failed to start with "libgbm.so.1: cannot open shared
+# object file" (seen on Debian 12 with the 0.2.10 package). The second spelling
+# of libasound is the name newer Ubuntu releases gave it.
+deb:
+  depends:
+    - libgtk-3-0
+    - libnotify4
+    - libnss3
+    - libxss1
+    - libxtst6
+    - xdg-utils
+    - libatspi2.0-0
+    - libuuid1
+    - libsecret-1-0
+    - libgbm1
+    - libasound2 | libasound2t64
+
 publish:
   provider: github
   owner: MoSofi

@@ -1,0 +1,234 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+/**
+ * GENERATED MIRROR of ../../../locales/cs-CZ/desktop.json — do not edit by hand.
+ * The JSON file is the canonical hand-authored bundle;
+ * this TS mirror exists so the runtime can bundle a namespace (en-US's eager
+ * ones) or chunk-split it (every other locale, and en-US's deferred `studio`)
+ * without JSON import attributes (browser + NodeNext safe).
+ * Parity is enforced by src/resources/parity.test.ts. Regenerate with
+ * scripts/gen-resources.mjs.
+ */
+export default {
+  "new": {
+    "back": "Zpět",
+    "change": "Změnit…",
+    "create": "Vytvořit",
+    "creating": "Připravuje se…",
+    "failed": "Projekt se nepodařilo vytvořit.",
+    "heading": "Vytvořit aplikaci",
+    "help": "Adminium tuto složku vytvoří za vás. Je v ní všechno, co k vaší aplikaci patří.",
+    "name": "Název",
+    "refuse": {
+      "badName": "Použijte v názvu aspoň jedno písmeno nebo číslici.",
+      "existsWithFiles": "Složka s tímto názvem už existuje a obsahuje soubory. Zvolte jiný název nebo jinou složku.",
+      "homeFolder": "Projekt nemůže být přímo ve vaší domovské složce. Vyberte nebo vytvořte složku uvnitř ní.",
+      "insideAProject": "Tato složka je uvnitř jiného projektu. Vyberte složku mimo něj.",
+      "insideTheApp": "Projekt nemůže být uvnitř samotného Adminia. Vyberte jinou složku.",
+      "notAbsolute": "Vyberte složku tlačítkem „Změnit…“.",
+      "systemFolder": "Projekt nemůže být ve složce, která patří systému. Vyberte vlastní složku."
+    },
+    "step": {
+      "files": "Připravují se soubory vaší aplikace",
+      "packages": "Stahuje se to, z čeho je aplikace postavena",
+      "database": "Vytváří se její databáze",
+      "opening": "Otevírá se vaše aplikace",
+      "slow": "Tohle je napoprvé ten dlouhý krok: na pomalém připojení pár minut. Další aplikace začnou rychleji.",
+      "label": "Co se právě děje"
+    },
+    "warn": {
+      "another": "Vybrat jinou složku",
+      "anyway": "Přesto použít",
+      "dropbox": "Tuto složku synchronizuje Dropbox. Projekty v synchronizovaných složkách fungují špatně: synchronizace může poškodit jejich data.",
+      "googledrive": "Tuto složku synchronizuje Google Drive. Projekty v synchronizovaných složkách fungují špatně: synchronizace může poškodit jejich data.",
+      "icloud": "Tuto složku synchronizuje iCloud Drive. Projekty v synchronizovaných složkách fungují špatně: synchronizace může poškodit jejich data.",
+      "noLinks": "Tento disk neumí uložit odkazy, které balíčky projektu potřebují, takže jejich stažení nejspíš selže.",
+      "onedrive": "Tuto složku synchronizuje OneDrive. Projekty v synchronizovaných složkách fungují špatně: synchronizace může poškodit jejich data."
+    },
+    "where": "Kam ji uložit"
+  },
+  "packages": {
+    "again": "Zkusit znovu",
+    "body": "To, z čeho je tento projekt postaven, v tomto počítači ještě není. Adminium to může teď stáhnout a pak projekt otevřít. Na pomalém připojení to trvá pár minut.",
+    "cancel": "Teď ne",
+    "failed": "Balíčky se nepodařilo stáhnout.",
+    "get": "Stáhnout a otevřít",
+    "title": "Stáhnout balíčky tohoto projektu?",
+    "working": "Stahují se balíčky"
+  },
+  "start": {
+    "choice": {
+      "build": {
+        "line": "Popište ji a Designer ji na tomto počítači postaví.",
+        "title": "Vytvořit aplikaci"
+      },
+      "connect": {
+        "line": "Použít Adminium, které běží na jiném počítači.",
+        "title": "Připojit se k jinému Adminiu"
+      },
+      "db": {
+        "line": "Vytvořit obrazovky pro databázi, kterou už máte.",
+        "title": "Použít vlastní databázi"
+      },
+      "open": {
+        "line": "Pokračovat s aplikací, která už je ve složce, nebo kterou vám někdo poslal.",
+        "title": "Otevřít složku"
+      }
+    },
+    "heading": "Co chcete udělat?",
+    "open": {
+      "notAProject": "Tato složka není projekt Adminia."
+    },
+    "recent": {
+      "alreadyListed": "Tato složka už v seznamu je.",
+      "building": "Ve výstavbě",
+      "gone": "Tato složka byla přesunuta nebo smazána",
+      "heading": "Nedávné projekty",
+      "locate": "Najít…",
+      "locateTitle": "Kde je teď {name}?",
+      "notThatProject": "Tato složka není projekt Adminia.",
+      "open": "Otevřít {name}",
+      "openDashboard": "Otevřít dashboard",
+      "openDashboardOf": "Otevřít dashboard projektu {name}",
+      "openDesigner": "Otevřít v Designeru",
+      "openDesignerOf": "Otevřít {name} v Designeru",
+      "opened": "Otevřeno {when}",
+      "remove": "Odebrat",
+      "removed": "Odebráno z nedávných projektů",
+      "shared": "Sdíleno"
+    },
+    "welcome": "Vítejte v Adminiu."
+  },
+  "toast": {
+    "dismiss": "Zavřít",
+    "region": "Oznámení"
+  },
+  "trust": {
+    "body": "Otevřením se na tomto počítači spustí její kód, s vaším přístupem k vašim souborům. Otevírejte jen složky, které jste vytvořili sami nebo které pocházejí od někoho, komu důvěřujete.",
+    "cancel": "Zrušit",
+    "changed": "Kód této složky se od posledního otevření změnil.",
+    "open": "Otevřít",
+    "title": "Otevřít tuto složku?"
+  },
+  "found": {
+    "data": "Data tohoto projektu byla nalezena.",
+    "key": "Jeho klíč byl nalezen.",
+    "noData": "Tato složka obsahuje projekt, ale žádná data.",
+    "madeBoth": "Adminium vytvořilo nový klíč a prázdnou databázi.",
+    "madeDatabase": "Adminium vytvořilo prázdnou databázi.",
+    "rowsLost": "Vlastní tabulky aplikací se vytvoří znovu. Řádky ze starých dat zde nejsou."
+  },
+  "opening": {
+    "continue": "Pokračovat",
+    "close": "Zavřít",
+    "notAProject": {
+      "line": "Nový projekt můžete vytvořit ve složce uvnitř ní.",
+      "another": "Vybrat jinou složku",
+      "make": "Vytvořit zde nový projekt"
+    }
+  },
+  "key": {
+    "heading": "Data tohoto projektu jsou zde, ale jeho klíč chybí.",
+    "body": "Klíč je řádek v souboru s názvem ‹.env› ve složce projektu. Váš počítač skrývá soubory, jejichž název začíná tečkou.",
+    "body2": "Bez klíče nelze přečíst uložená připojení k databázím ani klíče API v datech tohoto projektu.",
+    "hidden": {
+      "mac": "Ve Finderu je zobrazíte stisknutím ⌘ ⇧ .",
+      "windows": "V Průzkumníku souborů zvolte Zobrazit › Zobrazit › Skryté položky.",
+      "linux": "Ve správci souborů stiskněte Ctrl H."
+    },
+    "env": {
+      "title": "Mám soubor .env",
+      "line": "Vyberte jej a Adminium jej zkopíruje.",
+      "pick": "Vyberte soubor .env tohoto projektu",
+      "notAKey": "Tento soubor neobsahuje žádný klíč. Vyberte soubor .env, který patří k datům tohoto projektu."
+    },
+    "fresh": {
+      "title": "Začít s daty znovu, aplikace ponechat",
+      "line": "Vaše stará data se přesunou do složky s názvem ‹{folder}›. Nic se nesmaže."
+    },
+    "new": {
+      "title": "Pokračovat s novým klíčem",
+      "line": "Data zůstanou. Uložená připojení a klíče v nich přestanou fungovat a je třeba je zadat znovu."
+    },
+    "failed": "To se nepodařilo provést."
+  },
+  "accounts": {
+    "heading": "Tento projekt přišel s účty",
+    "people": "{count, plural, one {# osoba} few {# osoby} many {# osoby} other {# osob}}",
+    "peopleLabel": "Lidé",
+    "apiKeys": "{count, plural, one {# klíč API} few {# klíče API} many {# klíče API} other {# klíčů API}}",
+    "apiKeysLabel": "Klíče API",
+    "publicKeys": "{count, plural, one {# klíč otevřený veřejnosti} few {# klíče otevřené veřejnosti} many {# klíče otevřeného veřejnosti} other {# klíčů otevřených veřejnosti}}",
+    "publicKeysLabel": "Otevřeno veřejnosti",
+    "body": "Na tomto počítači budete pracovat jako jeho vlastník. Než jej nasdílíte ve své síti, zvolíte nové heslo vlastníka a staré relace a klíče API přestanou fungovat.",
+    "show": "Zobrazit je",
+    "hide": "Skrýt je",
+    "more": "a dalších {count}"
+  },
+  "notice": {
+    "manager": {
+      "title": "Tento projekt používá {manager}.",
+      "line": "Adminium místo toho instaluje pomocí npm. Váš soubor {manager} zůstane tak, jak je."
+    },
+    "older": {
+      "title": "Tento projekt byl vytvořen ve starším Adminiu (‹{was}›).",
+      "line": "Aktualizujte jej na ‹{here}›, aby vše odpovídalo. Změní se jeden řádek v projektu a jeho stavební bloky se stáhnou znovu.",
+      "update": "Aktualizovat tento projekt",
+      "notNow": "Teď ne",
+      "working": "Projekt se aktualizuje…",
+      "failed": "Tento projekt se nepodařilo aktualizovat. Stále se otevře tak, jak je."
+    },
+    "newer": {
+      "title": "Tento projekt potřebuje novější Adminium.",
+      "line": "Naposledy byl otevřen v Adminiu ‹{last}›. Tento počítač má ‹{here}›.",
+      "lineUnknown": "Naposledy byl otevřen v novějším Adminiu. Tento počítač má ‹{here}›.",
+      "update": "Aktualizovat Adminium",
+      "looking": "Hledá se novější Adminium. Až se najde, nabídne se zde.",
+      "cannot": "Tato kopie Adminia se sama neaktualizuje. Nejnovější získáte na adminium.dev."
+    },
+    "running": {
+      "title": "Tento projekt už běží",
+      "cli": "Je otevřený v terminálu, na portu ‹{port}›. Nejprve jej tam zavřete.",
+      "app": "Je otevřený v jiném okně Adminia, na portu ‹{port}›. Nejprve jej tam zavřete.",
+      "again": "Zkontrolovat znovu"
+    }
+  },
+  "install": {
+    "offline": "Nepodařilo se připojit k internetu. Balíčky pocházejí z registry.npmjs.org: zkontrolujte připojení a zkuste to znovu.",
+    "proxy": "Proxy vaší sítě stahování odmítla. Zkontrolujte nastavení proxy tohoto počítače a zkuste to znovu.",
+    "disk": "Tento disk je plný. Uvolněte místo a zkuste to znovu.",
+    "registry": "Registr balíčků odpověděl chybou. Zkuste to za chvíli znovu."
+  },
+  "shared": {
+    "copyFailed": "Adresu se nepodařilo zkopírovat.",
+    "best": "Nejlepší",
+    "copy": "Kopírovat {address}",
+    "portChanged": "Port {was} byl obsazený, takže se adresa změnila na {now}.",
+    "heading": "{name} je sdílen",
+    "noNetwork": "Tento počítač není v žádné síti, takže se k němu zatím žádné jiné zařízení nedostane. Připojte se k Wi-Fi nebo zapojte kabel: adresa se objeví zde.",
+    "open": "Otevřete to na jiném zařízení",
+    "qr": "Kód k naskenování pro {address}",
+    "notEncrypted": "Provoz ve vaší místní síti není šifrovaný. Sdílejte jen v síti, které důvěřujete.",
+    "awake": "Počítač zůstává vzhůru, dokud je projekt sdílený. Zavřením víka sdílení skončí.",
+    "dashboard": "Otevřít dashboard",
+    "build": "Zpět ke stavění",
+    "designerOff": "Designer je po dobu sdílení projektu vypnutý. Chcete-li změnit své aplikace, vraťte se ke stavění.",
+    "keep": "Sdílet dál",
+    "buildAsk": "Vrátit se ke stavění?",
+    "buildAskBody": "Lidé, kteří jej používají na jiných zařízeních, budou odpojeni."
+  },
+  "connect": {
+    "notAnAddress": "To není adresa. Zadejte třeba office-pc.local:4600.",
+    "notPrivate": "Adminium se bez šifrování připojuje jen ve vaší vlastní síti. Použijte adresu https.",
+    "noAnswer": "Na této adrese nic neodpovědělo. Zkontrolujte, zda je druhý počítač zapnutý a sdílí.",
+    "notAdminium": "Na této adrese neodpovědělo nic, co by vypadalo jako Adminium.",
+    "address": "Adresa",
+    "checking": "Kontroluje se…",
+    "go": "Připojit",
+    "notEncrypted": "Tato adresa není šifrovaná. Používejte ji jen v síti, které důvěřujete.",
+    "anyway": "Přesto připojit",
+    "recent": "Nedávné",
+    "version": "Adminium {version}",
+    "forgetOf": "Zapomenout {address}",
+    "forget": "Zapomenout"
+  }
+} as const;

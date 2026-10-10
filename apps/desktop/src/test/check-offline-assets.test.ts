@@ -44,9 +44,9 @@ interface Run {
 }
 
 /** Spawn the gate over `dir`. Never throws — the exit code IS the assertion. */
-function run(dir: string): Run {
+function run(dir: string, as: '--root' | '--project-root' = '--root'): Run {
   try {
-    const stdout = execFileSync(process.execPath, [script, '--root', dir], {
+    const stdout = execFileSync(process.execPath, [script, as, dir], {
       cwd: repoRoot,
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'pipe'],
@@ -300,5 +300,68 @@ describe('check-offline-assets — what it must NOT flag', () => {
   it('ignores sourcemaps — they embed original sources, and nothing evaluates them', () => {
     const result = run(fixture({ 'app.js.map': '{"sourcesContent":["// see https://fonts.googleapis.com/x"]}' }));
     expect(result.status).toBe(0);
+  });
+});
+
+// ─── the second half: what a project may reach ───────────────────────────────
+
+describe('check-offline-assets — a project reaches a written list, and the classic workspace still reaches nothing', () => {
+  const inProject = (code: string): Run => run(fixture({ 'server.js': code }), '--project-root');
+  const inClassic = (code: string): Run => run(fixture({ 'main.js': code }));
+
+  it.each([
+    ['the npm registry, for a project’s packages', 'const REGISTRY = "https://registry.npmjs.org/";'],
+    ['an app’s archive at its tag', 'fetch(`https://codeload.github.com/${owner}/${repo}/tar.gz/refs/tags/v${version}`);'],
+    ['the pattern that recognizes a repository’s address', 'const found = /^https:\\/\\/github\\.com\\/([^/]+)\\/([^/]+)/.exec(url);'],
+    ['picture search on a site the person allowed', 'fetch(`https://api.pexels.com/v1/search?${query.toString()}`); fetch("https://api.openverse.org/v1/images/"); fetch("https://api.unsplash.com/search/photos");'],
+    ['the licence pages picture search links to', 'const licences = ["https://www.pexels.com/license/", "https://unsplash.com/license"];'],
+    ['the preview’s own name on this machine', 'const preview = `http://localhost:${String(port)}`;'],
+    ['a bare scheme prefix, which is no address', 'const schemes = ["http://", "https://"];'],
+  ])('a project’s server may name %s', (_label, code) => {
+    const result = inProject(code);
+    expect(result.output).toContain('[offline-assets] ok');
+    expect(result.status).toBe(0);
+  });
+
+  it.each([
+    ['the npm registry', 'const REGISTRY = "https://registry.npmjs.org/";', 'registry.npmjs.org'],
+    ['an app’s archive', 'fetch("https://codeload.github.com/a/b/tar.gz/refs/tags/v1");', 'codeload.github.com'],
+    ['a picture site', 'fetch("https://api.pexels.com/v1/search");', 'api.pexels.com'],
+  ])('the classic workspace’s own output may not name %s: it makes no request', (_label, code, host) => {
+    const result = inClassic(code);
+    expect(result.status).toBe(1);
+    expect(result.output).toContain('rule: project-address-in-the-classic-workspace');
+    expect(result.output).toContain(`'${host}' is an address only a project's server may reach`);
+  });
+
+  it('a project’s server naming an address nobody wrote down fails, by its own rule', () => {
+    const result = inProject('fetch("https://telemetry.somewhere-new.io/v1/collect");');
+    expect(result.status).toBe(1);
+    expect(result.output).toContain('rule: unlisted-project-address');
+    expect(result.output).toContain('telemetry.somewhere-new.io');
+  });
+
+  it('another registry is not the registry', () => {
+    for (const code of ['const R = "https://registry.npmjs.org.evil-mirror.io/";', 'const R = "https://registry.yarnpkg.com/";', 'const R = "https://npm.pkg.github.com/";']) {
+      expect(inProject(code).status, code).toBe(1);
+    }
+  });
+
+  it('what is blocked everywhere is blocked in a project too', () => {
+    const result = inProject('const css = "https://fonts.googleapis.com/css2?family=Manrope";');
+    expect(result.status).toBe(1);
+    expect(result.output).toContain('rule: blocked-host');
+  });
+
+  it('the real outputs pass: the code that serves a project names only what is on the list', () => {
+    // The default run is every root, both halves; it needs the builds, as the gate itself does.
+    let output: string;
+    try {
+      output = execFileSync(process.execPath, [script], { cwd: repoRoot, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+    } catch (error) {
+      output = `${(error as { stdout?: string }).stdout ?? ''}${(error as { stderr?: string }).stderr ?? ''}`;
+    }
+    if (output.includes('MISSING BUILD OUTPUT')) return;
+    expect(output).toMatch(/\[offline-assets\] ok — \d+ file\(s\) across 6 build output\(s\)/);
   });
 });

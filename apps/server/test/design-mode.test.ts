@@ -32,7 +32,9 @@ import { createRunService } from '../src/llm/run-service.js';
 import type { MetaStoreHandle } from '../src/meta/store.js';
 import { previewUser, safeTarget } from '../src/designer/preview.js';
 import { createSessionStore } from '../src/designer/session-store.js';
+import { ownerOnThisComputer, setLocalOwnerCredentials } from '../src/auth/local-owner.js';
 import { hashPassword } from '../src/auth/passwords.js';
+import { localOwnerStart } from '../src/cli/commands/start.js';
 import { makeInstall, type Install } from './project-fixtures.js';
 import { asProject } from './app-project-helpers.js';
 import { makeEnv } from './helpers.js';
@@ -55,7 +57,7 @@ function memoryStore(meta: MetaDb): MetaStoreHandle {
   return { meta, url: 'sqlite::memory:', engine: 'sqlite', source: 'embedded', close: async () => Promise.resolve() };
 }
 
-async function server(opts: { designer?: boolean; owner?: 'local' | 'password' | 'none' } = {}): Promise<{ meta: MetaDb; app: ComposedServer['app'] }> {
+async function server(opts: { designer?: boolean; owner?: 'local' | 'password' | 'none'; thisComputer?: boolean; token?: string } = {}): Promise<{ meta: MetaDb; app: ComposedServer['app'] }> {
   install = await makeInstall();
   const root = asProject(install.dir);
   mkdirSync(join(root, '.adminium', 'build'), { recursive: true });
@@ -75,7 +77,7 @@ async function server(opts: { designer?: boolean; owner?: 'local' | 'password' |
     telemetry: false,
     onMetaRelocated: () => undefined,
     project: { root, mode: 'dev', log: () => undefined, warn: () => undefined, databases: ['main'] },
-    ...(opts.designer === false ? {} : { designer: { mode: 'local' as const, token: opts.owner === 'password' ? null : TOKEN, port: PORT } }),
+    ...(opts.designer === false ? {} : { designer: { mode: 'local' as const, token: opts.token ?? (opts.owner === 'password' ? null : TOKEN), port: PORT, ...(opts.thisComputer === true ? { thisComputer: true } : {}) } }),
   });
   await composed.app.ready();
   return { meta, app: composed.app };
@@ -144,6 +146,44 @@ describe('a server running adminium design', () => {
     expect((await exchange(app)).statusCode).toBe(200);
   });
 
+  it('gives the signed-in owner one more link for another browser: good once, landing where it was asked to', async () => {
+    const { app } = await server();
+    const owner = String((await exchange(app)).headers['set-cookie']).split(';')[0] ?? '';
+    const csrf = ((await app.inject({ method: 'GET', url: '/api/v1/bootstrap', headers: { host: DESIGNER, cookie: owner } })).json() as { data: { csrfToken: string } }).data.csrfToken;
+    const ask = (to: string, headers: Record<string, string> = { cookie: owner, 'x-adminium-csrf': csrf }, host = DESIGNER) =>
+      app.inject({ method: 'POST', url: '/api/v1/auth/design-link', headers: { host, origin: `http://${host}`, ...headers }, payload: { to } });
+
+    const asked = await ask('/tables');
+    expect(asked.statusCode, asked.body).toBe(200);
+    const url = (asked.json() as { data: { url: string } }).data.url;
+    expect(url).toMatch(new RegExp(`^http://127\\.0\\.0\\.1:${String(PORT)}/tables#designToken=[0-9a-f]{64}$`));
+    const token = url.split('#designToken=')[1] ?? '';
+    // The run's own link is spent; this one signs the same owner in, with no cookie, and only once.
+    expect((await exchange(app)).statusCode).toBe(401);
+    const signedIn = await exchange(app, DESIGNER, token);
+    expect(signedIn.statusCode, signedIn.body).toBe(200);
+    expect(signedIn.json()).toMatchObject({ data: { user: { email: LOCAL_OWNER_EMAIL } } });
+    expect((await exchange(app, DESIGNER, token)).statusCode).toBe(401);
+
+    // Nobody but that owner's own session is given one, and never on the preview's name or without the CSRF token.
+    expect((await ask('/', {})).statusCode).toBe(401);
+    expect((await ask('/', { cookie: owner })).statusCode).toBe(403);
+    expect((await ask('/', undefined, PREVIEW)).statusCode).toBeGreaterThanOrEqual(400);
+    // It lands on a page of this server and nowhere else.
+    for (const to of ['//evil.example/x', 'https://evil.example', 'tables', '/a#designToken=x', '/a b']) expect((await ask(to)).statusCode, to).toBe(422);
+  });
+
+  it('gives no link for another browser once the owner has a password', async () => {
+    const { app, meta } = await server();
+    const owner = String((await exchange(app)).headers['set-cookie']).split(';')[0] ?? '';
+    const csrf = ((await app.inject({ method: 'GET', url: '/api/v1/bootstrap', headers: { host: DESIGNER, cookie: owner } })).json() as { data: { csrfToken: string } }).data.csrfToken;
+    const ownerId = (await settingsRepo(meta).get('designer.localOwnerId')) as string;
+    await usersRepo(meta).updatePassword(ownerId, await hashPassword('a-long-enough-test-password-1!'));
+    const res = await app.inject({ method: 'POST', url: '/api/v1/auth/design-link', headers: { host: DESIGNER, origin: `http://${DESIGNER}`, cookie: owner, 'x-adminium-csrf': csrf }, payload: { to: '/' } });
+    // Refused one way or the other: a password change ends the session it was asked with, or the route says why.
+    expect([401, 409]).toContain(res.statusCode);
+  });
+
   it('never signs in an owner who has a password, and has no link at all then', async () => {
     const { app } = await server({ owner: 'password' });
     expect((await exchange(app)).statusCode).toBe(404);
@@ -153,6 +193,46 @@ describe('a server running adminium design', () => {
     const { app, meta } = await server();
     const ownerId = (await settingsRepo(meta).get('designer.localOwnerId')) as string;
     await usersRepo(meta).updatePassword(ownerId, await hashPassword('a-long-enough-test-password-1!'));
+    const res = await exchange(app);
+    expect(res.statusCode).toBe(409);
+    expect(res.json()).toMatchObject({ error: { details: { reason: 'OWNER_HAS_PASSWORD' } } });
+  });
+
+  it('started by a host on the person’s own computer: the owner is signed in there even after they chose a password', async () => {
+    const { app, meta } = await server({ thisComputer: true });
+    const made = (await settingsRepo(meta).get('designer.localOwnerId')) as string;
+    // What "Share" does first: an address and a password, for other devices.
+    await setLocalOwnerCredentials(meta, { email: 'ava@example.test', password: 'a-long-enough-test-password-1!' });
+    expect(await settingsRepo(meta).get('designer.localOwnerId')).toBeNull();
+    expect(await settingsRepo(meta).get('designer.ownerId')).toBe(made);
+    expect((await ownerOnThisComputer(meta))?.id).toBe(made);
+
+    const res = await exchange(app);
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toMatchObject({ data: { user: { id: made, email: 'ava@example.test' } } });
+    // Every other gate stands: once, on the Designer's own name, from this machine.
+    expect((await exchange(app)).statusCode).toBe(401);
+    // And the signed-in owner can ask for one more link, for the system's browser.
+    const cookie = String(res.headers['set-cookie']).split(';')[0] ?? '';
+    const csrf = ((await app.inject({ method: 'GET', url: '/api/v1/bootstrap', headers: { host: DESIGNER, cookie } })).json() as { data: { csrfToken: string } }).data.csrfToken;
+    const link = await app.inject({ method: 'POST', url: '/api/v1/auth/design-link', headers: { host: DESIGNER, origin: `http://${DESIGNER}`, cookie, 'x-adminium-csrf': csrf }, payload: { to: '/' } });
+    expect(link.statusCode, link.body).toBe(200);
+  });
+
+  it('on that host a project whose owner was never made by design still signs in with its password', async () => {
+    // With a token, as the app always hands one: the door is there, and it has no one to sign in.
+    const { app, meta } = await server({ owner: 'password', thisComputer: true, token: TOKEN });
+    expect(await ownerOnThisComputer(meta)).toBeNull();
+    const res = await exchange(app);
+    expect(res.statusCode).toBe(409);
+    expect(res.json()).toMatchObject({ error: { details: { reason: 'OWNER_HAS_PASSWORD' } } });
+    // And the start a host really runs mints no link for such a project.
+    expect(await localOwnerStart({ out: () => undefined, err: () => undefined } as never, TOKEN, undefined, { thisComputer: true }).prepare(meta)).toEqual({ token: null, thisComputer: true });
+  });
+
+  it('a terminal’s design mode is as strict as before for an owner with a password', async () => {
+    const { app, meta } = await server();
+    await setLocalOwnerCredentials(meta, { email: 'ava@example.test', password: 'a-long-enough-test-password-1!' });
     const res = await exchange(app);
     expect(res.statusCode).toBe(409);
     expect(res.json()).toMatchObject({ error: { details: { reason: 'OWNER_HAS_PASSWORD' } } });

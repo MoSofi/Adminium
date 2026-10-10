@@ -28,7 +28,9 @@
     "noModel": "Adminium Designer utilise votre propre modèle d’IA. Ajoutez-en un pour commencer.",
     "cannotBuild": "Ce modèle ne peut pas créer d’applications : il ne prend pas en charge les outils. Choisissez un autre modèle.",
     "failed": "Le Designer n’a pas pu démarrer",
-    "noModelSet": "Aucun modèle n’est défini pour le Designer sur ce serveur. On en ajoute un dans Paramètres → IA."
+    "noModelSet": "Aucun modèle n’est défini pour le Designer sur ce serveur. On en ajoute un dans Paramètres → IA.",
+    "ignoredEnv": "L’application les décide elle-même ; ce que le fichier .env de ce projet en dit a donc été ignoré :",
+    "ignoredEnvHide": "Masquer cette note"
   },
   "target": {
     "label": "Ce qu’il faut créer : {target}",
@@ -157,7 +159,12 @@
     "save": "Enregistrer",
     "saving": "Enregistrement…",
     "addedToast": "Modèle ajouté.",
-    "none": "Aucun modèle"
+    "none": "Aucun modèle",
+    "envNotUsed": "Le fichier .env de ce projet nomme un modèle. Dans l’application, les modèles sont conservés sur cet ordinateur ; cette ligne n’est pas utilisée.",
+    "keptPlain": "sur cet ordinateur, en clair dans un fichier que vous seul pouvez lire : cet ordinateur n’a pas de trousseau. Elle n’est pas placée dans votre projet ; un projet exporté ou partagé n’en contient donc aucune.",
+    "keptMac": "sur cet ordinateur, chiffrée par le Trousseau. Elle n’est pas placée dans votre projet ; un projet exporté ou partagé n’en contient donc aucune.",
+    "keptWindows": "sur cet ordinateur, chiffrée par Windows. Elle n’est pas placée dans votre projet ; un projet exporté ou partagé n’en contient donc aucune.",
+    "keptLinux": "sur cet ordinateur, chiffrée par le trousseau de votre bureau. Elle n’est pas placée dans votre projet ; un projet exporté ou partagé n’en contient donc aucune."
   },
   "provider": {
     "anthropic": "Anthropic",
@@ -569,6 +576,7 @@
     "previewNoRole": "Ceci est un aperçu de l’application, vue par une personne sans rôle. Ce n’est pas votre propre connexion : Studio, les personnes et les réglages ne sont pas accessibles ici.",
     "openOwn": "Ouvrir le tableau de bord en tant que vous-même",
     "owner": "Vous êtes le propriétaire de ce projet, connecté par le lien qu’Adminium Designer a affiché. Définissez une adresse et un mot de passe avant que le projet ne tourne ailleurs.",
+    "ownerApp": "Vous êtes le propriétaire de ce projet, connecté par l’application Adminium sur cet ordinateur. Définissez une adresse et un mot de passe avant que le projet ne soit partagé ou ne tourne ailleurs.",
     "ownerLabel": "Votre compte propriétaire",
     "ownerSet": "Définir votre mot de passe",
     "ownerLater": "Pas maintenant",
@@ -730,5 +738,77 @@
   "chat": {
     "copy": "Copier ce message",
     "copied": "Copié"
+  },
+  "project": {
+    "menu": "Projet : {name}",
+    "export": "Exporter ce projet…",
+    "showFinder": "Afficher dans le Finder",
+    "showExplorer": "Afficher dans l’Explorateur de fichiers",
+    "showFiles": "Afficher dans le gestionnaire de fichiers",
+    "close": "Fermer le projet"
+  },
+  "mode": {
+    "label": "Construire ou partager",
+    "build": "Construire",
+    "share": "Partager"
+  },
+  "versionsOffer": {
+    "title": "Conserver des versions de votre travail ?",
+    "body": "Adminium utilise git pour conserver une version après chaque modification, afin que vous puissiez revenir en arrière. Cet ordinateur n’en a pas.",
+    "download": "Télécharger git ({size} Mo)",
+    "notNow": "Pas maintenant",
+    "apple": "Ou installez les outils de développement d’Apple (environ 1 Go), qui le contiennent.",
+    "appleLink": "Installer les outils d’Apple",
+    "lookAgain": "Chercher à nouveau",
+    "noDownload": "Il n’y a pas de git à télécharger pour ce type d’ordinateur. Installez git vous-même, puis cherchez à nouveau.",
+    "downloading": "Téléchargement de git",
+    "progress": "{received} sur {total} Mo",
+    "cancel": "Annuler",
+    "tryAgain": "Réessayer",
+    "turnOn": "Activer les versions",
+    "offHere": "Les versions sont désactivées sur cet ordinateur.",
+    "offButton": "Versions : désactivées",
+    "offWord": "Désactivées",
+    "nowOn": "Les versions sont activées",
+    "nowOnNext": "Votre prochaine modification sera conservée comme version.",
+    "failed": {
+      "wrongFile": "Le téléchargement ne correspondait pas à ce qu’Adminium attendait et a été supprimé.",
+      "noConnection": "Impossible de joindre Internet. Vérifiez votre connexion et réessayez.",
+      "other": "git n’a pas pu être installé sur cet ordinateur."
+    }
+  },
+  "share": {
+    "passwordTitle": "Choisissez comment vous vous connectez depuis d’autres appareils",
+    "beforeTitle": "Avant de partager",
+    "step": "Partager · {step} sur {steps}",
+    "email": "Votre e-mail",
+    "password": "Mot de passe",
+    "again": "Le même mot de passe à nouveau",
+    "passwordNote": "Sur cet ordinateur, vous n’en avez jamais besoin. Vous les saisirez sur un téléphone ou un autre ordinateur.",
+    "next": "Suivant",
+    "reach": "Les personnes sur ce réseau peuvent accéder à ce projet tant qu’il est partagé. Chacune se connecte.",
+    "dataStays": "Les données de votre projet restent sur cet ordinateur.",
+    "firewall": "Votre ordinateur peut demander si Adminium peut accepter des connexions. Choisissez Autoriser.",
+    "notEncrypted": "Le trafic sur votre réseau local n’est pas chiffré. Ne partagez que sur un réseau de confiance. Une application que vous avez ouverte au public peut y être utilisée sans connexion.",
+    "designerOff": "Le Designer est désactivé tant que le projet est partagé. Vous y revenez avec « Revenir à la construction ».",
+    "cancel": "Annuler",
+    "sharing": "Partage…",
+    "now": "Partager maintenant"
+  },
+  "export": {
+    "everything": "Les applications du projet, ses données et sa clé",
+    "everythingLine": "Quiconque l’ouvre peut tout lire, y compris les connexions aux bases de données enregistrées. Ne l’envoyez qu’à quelqu’un à qui vous donneriez cela.",
+    "apps": "Les applications seulement",
+    "appsLine": "Sans les données, la clé ni vos échanges avec le Designer. Quiconque l’ouvre commence avec des données vides.",
+    "saveTitle": "Exporter {name}",
+    "busy": "Quelque chose est encore en cours dans ce projet. Exportez-le quand ce sera terminé.",
+    "title": "Exporter {name}",
+    "noModelKeys": "Vos clés de modèle ne sont jamais incluses : elles restent sur cet ordinateur.",
+    "stops": "Le projet s’arrête un instant pendant la création du fichier, et cette fenêtre revient quand c’est terminé.",
+    "cancel": "Annuler",
+    "working": "Export…",
+    "go": "Exporter…",
+    "saved": "{file} enregistré, {size} Mo",
+    "failed": "L’export n’a pas pu être créé"
   }
 }

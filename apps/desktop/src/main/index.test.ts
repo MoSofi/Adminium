@@ -11,11 +11,17 @@
  * BrowserWindow, a real utilityProcess) are Playwright `_electron` suite.
  */
 
-import { describe, expect, it, vi } from 'vitest';
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { BackupCoordinator } from './backup.js';
 import { createDefaultConfig, type DesktopConfig, type UpdateMode } from './config.js';
 import {
+  projectUrl,
+  CLASSIC_ONLY_SETTING,
   appUrl,
   applyConfigPatch,
   createDesktopApp,
@@ -29,12 +35,14 @@ import {
 } from './index.js';
 import type { ProbeResult } from './lan.js';
 import type { MenuHandlers, MenuTranslate } from './menu.js';
+import { realFolderDeps } from './projects.js';
 import type {
   CreateServerManagerOptions,
   ServerExit,
   ServerManager,
   ServerReadyInfo,
   ServerState,
+  KeptModels,
 } from './server-manager.js';
 import type { UpdateManager } from './updates.js';
 import type { CrashAction, CrashScreenInfo, DesktopWindows } from './window.js';
@@ -309,6 +317,11 @@ function harness(
     get bootToken() {
       return liveBootToken;
     },
+    project: null,
+    setPrograms: () => undefined,
+    setModels: () => undefined,
+    onKeepModel: () => () => undefined,
+    busy: () => Promise.resolve(null),
     start: () =>
       fork(
         overrides.start ??
@@ -886,6 +899,9 @@ describe('applyConfigPatch', () => {
 
   it('leaves the secret, dataDir and version untouched — they are not keys', () => {
     const withSecret: DesktopConfig = { ...base, secretPlain: 'shhh', secretStorage: 'plain' };
+    // The app's own screens' language and theme, as picked in the dashboard; `null` is the system's language again.
+    expect(applyConfigPatch(withSecret, { language: 'de-DE', theme: 'dark' })).toMatchObject({ language: 'de-DE', theme: 'dark', secretPlain: 'shhh' });
+    expect(applyConfigPatch({ ...withSecret, language: 'de-DE' }, { language: null }).language).toBeNull();
     const next = applyConfigPatch(withSecret, { telemetryOptIn: true });
     expect(next.secretPlain).toBe('shhh');
     expect(next.dataDir).toBe('/data');
@@ -1392,6 +1408,664 @@ describe('isElectronMain', () => {
     // If this ever returns true in a test runner, the module-scope guard at the
     // bottom of index.ts would boot a real app during the suite.
     expect(isElectronMain()).toBe(false);
+  });
+});
+
+// ─── a project folder (plan 66, spec 05) ─────────────────────────────────────
+
+describe('createDesktopApp opening a project folder', () => {
+  const ROOT = '/Users/someone/Adminium/juniper';
+  const PROJECT_READY = { ...READY, port: 4700, url: 'http://127.0.0.1:4700' };
+
+  function projectHarness(over: { busy?: { kind: string; sessionId: string | null } | null; confirm?: boolean; startFails?: Error; restartFails?: Error; ownerHasPassword?: boolean | null; keptPortFree?: boolean; exportTo?: string } = {}) {
+    const h = harness();
+    const opts: CreateServerManagerOptions[] = [];
+    const shown: Array<{ url: string; preview: boolean }> = [];
+    const sessions: Array<string | null> = [];
+    const confirmed: string[] = [];
+    const restarts: Array<{ host?: string; port?: number; mode?: 'design' | 'serve' }> = [];
+    const awake: boolean[] = [];
+    const savedAs: Array<{ title: string; defaultName: string }> = [];
+    const revealed: string[] = [];
+    let sharedShown = 0;
+    /** The words each question was asked with: the page's, or none yet. */
+    const said: Array<string | null> = [];
+    /** What the running server was told of the app's programs. */
+    const told: string[] = [];
+    /** The keys it was told, each time; and the way a saved model comes up from it. */
+    const modelsTold: KeptModels[] = [];
+    let keepModel: (values: Partial<Record<string, string | null>>) => void = () => undefined;
+    /** Whether the last look found a git: the test's to change. */
+    const git = { found: false, looks: 0, fetched: 0 };
+    let stops = 0;
+    let stateListener: (s: ServerState) => void = () => undefined;
+    let exitListener: (e: ServerExit) => void = () => undefined;
+    let mode: 'design' | 'serve' = 'design';
+    let managerState: ServerState = { status: 'ready', ...PROJECT_READY };
+    const manager: ServerManager = {
+      get state() {
+        return managerState;
+      },
+      bootToken: 'c'.repeat(64),
+      get project() {
+        return { root: ROOT, mode };
+      },
+      setPrograms: (value) => void told.push(value),
+      setModels: (models) => void modelsTold.push(models),
+      onKeepModel: (listener) => {
+        keepModel = listener;
+        return () => undefined;
+      },
+      busy: () => Promise.resolve(over.busy ?? null),
+      start: () => (over.startFails === undefined ? Promise.resolve(PROJECT_READY) : Promise.reject(over.startFails)),
+      stop: () => {
+        stops += 1;
+        h.calls.push('server.stop');
+        return Promise.resolve();
+      },
+      restart: async (changes) => {
+        restarts.push(changes ?? {});
+        if (over.restartFails !== undefined && changes?.mode === 'serve') throw over.restartFails;
+        if (changes?.mode !== undefined) mode = changes.mode;
+        // The port is asked for as a real fork asks: by the mode it is about to start in.
+        const port = changes?.mode === undefined ? 4701 : await (opts[0]?.project?.pickPort(changes.mode) ?? Promise.resolve(4701));
+        const next = { ...PROJECT_READY, port, url: `http://127.0.0.1:${String(port)}` };
+        managerState = { status: 'ready', ...next };
+        stateListener({ status: 'ready', ...next });
+        return next;
+      },
+      onExit: (l) => {
+        exitListener = l;
+        return () => undefined;
+      },
+      subscribe: (l) => {
+        stateListener = l;
+        // As the real manager does: the state it is in, which after a start that failed is not `ready`.
+        l(over.startFails === undefined ? { status: 'ready', ...PROJECT_READY } : { status: 'stopped' });
+        return () => undefined;
+      },
+    };
+    const deps: DesktopBootDeps = {
+      ...h.deps,
+      windows: {
+        ...h.deps.windows,
+        loadApp: (url, o) => {
+          shown.push({ url, preview: o?.preview === true });
+          return Promise.resolve();
+        },
+        useProjectSession: (root) => void sessions.push(root),
+        showShared: () => {
+          sharedShown += 1;
+          return Promise.resolve();
+        },
+      },
+      createServerManager: (o) => {
+        opts.push(o);
+        return manager;
+      },
+      openProject: { root: ROOT },
+      pickProjectPort: () => Promise.resolve(4700),
+      bundledAppsDir: '/app/apps-bundle',
+      projectEnv: { PATH: '/usr/bin:/bin', ADMINIUM_SECRET: 'from the shell' },
+      // Looked up before the fork, and it may take a moment (git is looked for): the boot waits for it.
+      projectPrograms: () => {
+        git.looks += 1;
+        return Promise.resolve(git.found ? '{"binary":"/app/Adminium","git":"/data/git/bin/git"}' : '{"binary":"/app/Adminium"}');
+      },
+      projectGit: {
+        found: () => git.found,
+        bytes: 62_348_987,
+        platform: 'darwin',
+        fetch: () => {
+          git.fetched += 1;
+          git.found = true;
+          return Promise.resolve('/data/git/bin/git');
+        },
+      },
+      exporting: {
+        saveAs: (o) => {
+          savedAs.push(o);
+          return Promise.resolve(over.exportTo === undefined ? null : over.exportTo);
+        },
+        showInFolder: (path) => {
+          revealed.push(path);
+          return Promise.resolve();
+        },
+        stamp: () => ({ system: 'darwin', chip: 'arm64', engine: '0.3.22' }),
+      },
+      sharing: { hostname: () => 'Office-Mac.local', isFree: () => Promise.resolve(over.keptPortFree ?? true), keepAwake: (on) => void awake.push(on) },
+      startScreen: {
+        folder: { home: '/Users/someone', platform: 'darwin', exists: () => true, list: () => [], isInsideApp: () => false, real: (path: string) => path } as never,
+        chooseDirectory: () => Promise.resolve(null),
+        classicUsed: () => false,
+        folderFacts: () => Promise.resolve({ ownerHasPassword: over.ownerHasPassword === undefined ? true : over.ownerHasPassword } as never),
+      },
+      confirmStopBusy: (busy, why, words) => {
+        confirmed.push(why === 'share' ? `share:${busy.kind}` : busy.kind);
+        said.push(words?.keepWorking ?? null);
+        return Promise.resolve(over.confirm ?? true);
+      },
+    };
+    return { h, deps, opts, shown, sessions, confirmed, restarts, awake, savedAs, revealed, sharedShown: () => sharedShown, said, told, modelsTold, saveModel: (values: Partial<Record<string, string | null>>) => keepModel(values), git, stops: () => stops, manager, fireExit: (e: ServerExit) => exitListener(e), emit: (state: ServerState) => stateListener(state) };
+  }
+  const settle = async (): Promise<void> => {
+    for (let i = 0; i < 10; i += 1) await Promise.resolve();
+  };
+
+  it('serves the folder, not the classic workspace: no secret, no backup, no schedule', async () => {
+    const p = projectHarness();
+    await createDesktopApp(p.deps).start();
+
+    expect(p.opts).toHaveLength(1);
+    expect(p.opts[0]).toMatchObject({ project: { root: ROOT, mode: 'design', bundledAppsDir: '/app/apps-bundle', programs: '{"binary":"/app/Adminium"}' }, staticRoot: '/app/out/dashboard' });
+    for (const name of ['dataDir', 'secret', 'singleUser', 'host', 'port']) expect(p.opts[0]).not.toHaveProperty(name);
+    // The person's environment, as a terminal's server has it (the manager strips what main decides).
+    expect(p.opts[0]?.inheritEnv).toEqual({ PATH: '/usr/bin:/bin', ADMINIUM_SECRET: 'from the shell' });
+    // Resolving the classic secret may write to the key store; a project has its own in its .env.
+    expect(p.h.calls).not.toContain('config.resolveSecret');
+    expect(p.h.calls).not.toContain('createBackup');
+    expect(p.h.autoBackupRunning()).toBe(false);
+    expect(p.h.backupWiring()).toBeNull();
+    // The menu's two backup entries have no handler, which is how the menu disables them.
+    expect(p.h.menuHandlers()).not.toHaveProperty('backupNow');
+    expect(p.h.menuHandlers()).not.toHaveProperty('restore');
+    expect(p.h.menuHandlers()?.showLogs).toBeTypeOf('function');
+  });
+
+  it('offers to keep versions when no git was found, and a download tells the running server without a restart', async () => {
+    const p = projectHarness();
+    await createDesktopApp(p.deps).start();
+    const offer = p.h.bridge()?.project?.versions?.() ?? null;
+    expect(offer?.state()).toEqual({ on: false, declined: false, megabytes: 62, appleTools: true, download: { phase: 'idle' } });
+
+    // "Not now" is kept for this computer, in the app's own file.
+    expect((await offer?.notNow())?.declined).toBe(true);
+    expect(p.h.bridge()?.readConfig().versionsDeclined).toBe(true);
+
+    expect(offer?.download().download).toEqual({ phase: 'downloading', received: 0, total: 62_348_987 });
+    await settle();
+    expect(p.git.fetched).toBe(1);
+    // Looked for again (the stand-ins are made again), and the server that is running was told.
+    expect(p.told).toEqual(['{"binary":"/app/Adminium","git":"/data/git/bin/git"}']);
+    expect(offer?.state()).toMatchObject({ on: true, declined: false, download: { phase: 'idle' } });
+    expect(p.h.bridge()?.readConfig().versionsDeclined).toBe(false);
+  });
+
+  it('tells the project’s server the keys the app keeps, and keeps what its model screen saves', async () => {
+    const p = projectHarness();
+    let kept: KeptModels = { values: { ADMINIUM_AI_MODEL: 'ollama/llama3' }, keeping: 'key-store' };
+    const keep = vi.fn((patch: Partial<Record<string, string | null>>) => {
+      const values = { ...kept.values } as Record<string, string>;
+      for (const [name, value] of Object.entries(patch)) {
+        if (value === null) Reflect.deleteProperty(values, name);
+        else if (value !== undefined) values[name] = value;
+      }
+      kept = { ...kept, values };
+      return kept;
+    });
+    const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    await createDesktopApp({ ...p.deps, models: { read: () => kept, keep } }).start();
+    expect(p.modelsTold).toEqual([{ values: { ADMINIUM_AI_MODEL: 'ollama/llama3' }, keeping: 'key-store' }]);
+    // Never part of what the server was started with.
+    expect(JSON.stringify(p.opts[0])).not.toContain('ollama/llama3');
+
+    p.saveModel({ ADMINIUM_AI_ANTHROPIC_API_KEY: 'sk-ant-1', ADMINIUM_AI_MODEL: 'anthropic/claude' });
+    expect(keep).toHaveBeenCalledWith({ ADMINIUM_AI_ANTHROPIC_API_KEY: 'sk-ant-1', ADMINIUM_AI_MODEL: 'anthropic/claude' });
+    expect(p.modelsTold.at(-1)).toEqual({ values: { ADMINIUM_AI_ANTHROPIC_API_KEY: 'sk-ant-1', ADMINIUM_AI_MODEL: 'anthropic/claude' }, keeping: 'key-store' });
+    // A store that cannot write is a line in the log, not a crash of the app.
+    keep.mockImplementationOnce(() => {
+      throw new Error('EACCES');
+    });
+    expect(() => p.saveModel({ ADMINIUM_AI_MODEL: 'x' })).not.toThrow();
+    expect(p.modelsTold).toHaveLength(2);
+    expect(error).toHaveBeenCalledWith(expect.stringContaining('EACCES'));
+    error.mockRestore();
+  });
+
+  describe('"Export this project…"', () => {
+    let scratch: string;
+    beforeEach(() => {
+      scratch = mkdtempSync(join(tmpdir(), 'adminium-export-boot-'));
+    });
+    afterEach(() => {
+      rmSync(scratch, { recursive: true, force: true });
+    });
+    const exportOf = (p: ReturnType<typeof projectHarness>) => p.h.bridge()?.project?.exporting?.() ?? null;
+
+    it('asks where to save first, and a cancel stops nothing', async () => {
+      const p = projectHarness();
+      await createDesktopApp(p.deps).start();
+      await expect(exportOf(p)?.run({ kind: 'apps', title: 'Export Juniper' })).resolves.toEqual({ status: 'cancelled' });
+      expect(p.savedAs).toEqual([{ title: 'Export Juniper', defaultName: 'juniper.zip' }]);
+      expect(p.stops()).toBe(0);
+      expect(exportOf(p)?.takeResult()).toBeNull();
+    });
+
+    it('never exports under a turn: the files would be caught half-written', async () => {
+      const p = projectHarness({ busy: { kind: 'turn', sessionId: 'ds_1' }, exportTo: '/tmp/x.zip' });
+      await createDesktopApp(p.deps).start();
+      await expect(exportOf(p)?.run({ kind: 'everything', title: 't' })).resolves.toEqual({ status: 'busy' });
+      expect(p.savedAs).toEqual([]);
+      expect(p.stops()).toBe(0);
+    });
+
+    it('stops the project for the file, starts it again as it was, and says how it went once to the page that comes back', async () => {
+      // The harness's folder does not exist: the ZIP cannot be made, and the project still comes back.
+      const p = projectHarness({ exportTo: join(scratch, 'juniper.zip') });
+      await createDesktopApp(p.deps).start();
+      const exporting = exportOf(p);
+      const result = await exporting?.run({ kind: 'everything', title: 't', from: '/design/ds_abc' });
+      expect(result?.status).toBe('failed');
+      expect(p.stops()).toBe(1);
+      expect(p.restarts).toEqual([{ mode: 'design', host: '127.0.0.1' }]);
+      // Pointed at the project's page again, though the port may be the one it had.
+      expect(p.shown).toHaveLength(2);
+      // On the page the person was on, with the new server's own token.
+      expect(p.shown[1]?.url).toMatch(/^http:\/\/127\.0\.0\.1:\d+\/design\/ds_abc#designToken=c{64}$/);
+      expect(exporting?.takeResult()).toMatchObject({ status: 'failed' });
+      expect(exporting?.takeResult()).toBeNull();
+      await exporting?.show();
+      expect(p.revealed).toEqual([]);
+    });
+  });
+
+  describe('Build and Share', () => {
+    const shareOf = (p: ReturnType<typeof projectHarness>) => p.h.bridge()?.project?.sharing?.() ?? null;
+
+    it('Share serves the project on the network with the Designer off, keeps its port, and shows the addresses', async () => {
+      const p = projectHarness();
+      await createDesktopApp(p.deps).start();
+      const sharing = shareOf(p);
+      expect(sharing?.info()).toBeNull();
+      await expect(sharing?.share()).resolves.toEqual({ status: 'shared' });
+      expect(p.restarts).toEqual([{ mode: 'serve', host: '0.0.0.0' }]);
+      // The window holds the app's own page, not the project's (its Designer is off).
+      expect(p.sharedShown()).toBe(1);
+      expect(p.shown).toHaveLength(1);
+      expect(p.awake).toEqual([true]);
+      expect(sharing?.info()).toMatchObject({ name: 'Juniper', port: 4700, changedFrom: null, language: null, theme: 'system' });
+      expect(p.h.bridge()?.project?.info()).toMatchObject({ mode: 'serve' });
+      // A second "Share" while shared changes nothing.
+      await expect(sharing?.share()).resolves.toEqual({ status: 'shared' });
+      expect(p.restarts).toHaveLength(1);
+    });
+
+    it('never shares a project whose owner has no password: other devices could not sign in', async () => {
+      const p = projectHarness({ ownerHasPassword: false });
+      await createDesktopApp(p.deps).start();
+      await expect(shareOf(p)?.share()).resolves.toEqual({ status: 'needs-password' });
+      expect(p.restarts).toEqual([]);
+      expect(p.awake).toEqual([]);
+    });
+
+    it('asks before it stops a turn to share, in its own words, and "keep working" shares nothing', async () => {
+      const p = projectHarness({ busy: { kind: 'turn', sessionId: 'ds_1' }, confirm: false });
+      await createDesktopApp(p.deps).start();
+      await expect(shareOf(p)?.share()).resolves.toEqual({ status: 'kept-working' });
+      expect(p.confirmed).toEqual(['share:turn']);
+      expect(p.restarts).toEqual([]);
+    });
+
+    it('a share that cannot start goes back to building on this computer only, and says why', async () => {
+      const p = projectHarness({ restartFails: new Error('EADDRINUSE') });
+      await createDesktopApp(p.deps).start();
+      await expect(shareOf(p)?.share()).resolves.toEqual({ status: 'failed', detail: 'EADDRINUSE' });
+      expect(p.restarts).toEqual([{ mode: 'serve', host: '0.0.0.0' }, { mode: 'design', host: '127.0.0.1' }]);
+      expect(p.awake).toEqual([]);
+      expect(shareOf(p)?.info()).toBeNull();
+    });
+
+    it('"Go back to building" is this computer only again, lets it sleep, and opens the Designer', async () => {
+      const p = projectHarness();
+      await createDesktopApp(p.deps).start();
+      const sharing = shareOf(p);
+      // Building already: nothing to do.
+      await expect(sharing?.build()).resolves.toBe(true);
+      expect(p.restarts).toEqual([]);
+      await sharing?.share();
+      await expect(sharing?.build()).resolves.toBe(true);
+      expect(p.restarts.at(-1)).toEqual({ mode: 'design', host: '127.0.0.1' });
+      expect(p.awake).toEqual([true, false]);
+      expect(p.shown.at(-1)).toMatchObject({ preview: true });
+      expect(sharing?.info()).toBeNull();
+    });
+
+    it('from the addresses: the project’s dashboard, in the window, and back to the addresses', async () => {
+      const p = projectHarness();
+      await createDesktopApp(p.deps).start();
+      const sharing = shareOf(p);
+      // Not shared: neither does anything.
+      await sharing?.openDashboard();
+      await sharing?.showShared();
+      expect(p.shown).toHaveLength(1);
+      expect(p.sharedShown()).toBe(0);
+      await sharing?.share();
+      await sharing?.openDashboard();
+      // On this computer the owner is not asked to sign in: this start's token, once, on the dashboard's front door.
+      expect(p.shown.at(-1)).toEqual({ url: `http://127.0.0.1:4700/?bootToken=${'c'.repeat(64)}`, preview: false });
+      await sharing?.showShared();
+      expect(p.sharedShown()).toBe(2);
+      // It is spent by then: the window's own session opens the dashboard the next time.
+      await sharing?.openDashboard();
+      expect(p.shown.at(-1)).toEqual({ url: 'http://127.0.0.1:4700/', preview: false });
+    });
+
+    it('a build that cannot share has no sharing to offer', async () => {
+      const p = projectHarness();
+      Reflect.deleteProperty(p.deps, 'sharing');
+      await createDesktopApp(p.deps).start();
+      expect(shareOf(p)).toBeNull();
+    });
+  });
+
+  it('opens the Designer with the one-use token after #, on a cookie jar of the project’s own, the preview allowed', async () => {
+    const p = projectHarness();
+    await createDesktopApp(p.deps).start();
+    expect(p.sessions).toEqual([ROOT]);
+    expect(p.shown).toEqual([{ url: `http://127.0.0.1:4700/design#designToken=${'c'.repeat(64)}`, preview: true }]);
+    expect(p.h.bridge()?.runtime()).toMatchObject({ dataDir: ROOT, serverPort: 4700, secretStorage: 'plain' });
+  });
+
+  it('refuses the classic workspace’s network switch and data folder while the project is open', async () => {
+    const p = projectHarness();
+    await createDesktopApp(p.deps).start();
+    const bridge = p.h.bridge();
+    await expect(bridge?.writeConfig({ lanShare: { enabled: true, port: 4600 } })).rejects.toThrow(CLASSIC_ONLY_SETTING);
+    await expect(bridge?.setDataDir({ dir: '/elsewhere' })).rejects.toThrow(CLASSIC_ONLY_SETTING);
+    expect(p.h.restarted()).toBe(0);
+    // A setting that is the app's own still saves.
+    await expect(bridge?.writeConfig({ telemetryOptIn: false })).resolves.toBeUndefined();
+  });
+
+  it('quits at once when nothing is running', async () => {
+    const p = projectHarness();
+    await createDesktopApp(p.deps).start();
+    expect(p.h.fireBeforeQuit()).toBe(false);
+    await settle();
+    expect(p.confirmed).toEqual([]);
+    expect(p.stops()).toBe(1);
+    expect(p.h.quit()).toBe(true);
+  });
+
+  it('asks before it ends a turn, and “keep working” leaves the app whole', async () => {
+    const p = projectHarness({ busy: { kind: 'turn', sessionId: 'ds_1' }, confirm: false });
+    await createDesktopApp(p.deps).start();
+    expect(p.h.fireBeforeQuit()).toBe(false);
+    await settle();
+    expect(p.confirmed).toEqual(['turn']);
+    expect(p.stops()).toBe(0);
+    expect(p.h.quit()).toBe(false);
+    expect(p.h.updateDisposed()).toBe(0);
+    // Asked in English until the project's page hands over its own language's words, then in those.
+    expect(p.said).toEqual([null]);
+    p.h.bridge()?.project?.setStopWords?.({ turn: 't', start: 's', save: 'v', restore: 'r', style: 'y', other: 'o', quitDetail: 'q', closeDetail: 'c', quitAnyway: 'qa', closeAnyway: 'ca', keepWorking: 'Weiterarbeiten', shareDetail: 'sd', shareAnyway: 'sa' });
+    // Asked again the next time, not remembered as a no.
+    p.h.fireBeforeQuit();
+    await settle();
+    expect(p.confirmed).toEqual(['turn', 'turn']);
+    expect(p.said).toEqual([null, 'Weiterarbeiten']);
+  });
+
+  it('and on a yes stops the server first, then quits', async () => {
+    const p = projectHarness({ busy: { kind: 'turn', sessionId: 'ds_1' }, confirm: true });
+    await createDesktopApp(p.deps).start();
+    p.h.fireBeforeQuit();
+    await settle();
+    expect(p.stops()).toBe(1);
+    expect(p.h.quit()).toBe(true);
+    // The second pass, our own quit, goes through.
+    expect(p.h.fireBeforeQuit()).toBe(true);
+  });
+
+  it('a start that fails shows the server’s own words, with a way to try again', async () => {
+    const p = projectHarness({ startFails: new Error('The Adminium server failed to start (project): This project is already running (in a terminal), on port 4711.') });
+    await createDesktopApp(p.deps).start();
+    expect(p.shown).toEqual([]);
+    expect(p.h.crashes.at(-1)?.reason).toContain('already running (in a terminal), on port 4711');
+    // Fixed where it was wrong (the terminal closed), then "Try again": the window follows the server that comes up.
+    p.h.fireCrashAction('retry');
+    await settle();
+    expect(p.shown.at(-1)).toMatchObject({ preview: true });
+  });
+
+  it('a project that stops is not restarted: the crash page’s button is the way on, and it follows the new port', async () => {
+    const p = projectHarness();
+    await createDesktopApp(p.deps).start();
+    p.fireExit({ code: 1, signal: null, willRestart: false, giveUp: true, logPath: '/logs/server.log' });
+    await settle();
+    expect(p.h.crashes.at(-1)).toMatchObject({ reason: 'This project stopped unexpectedly (exit code 1).', canRestart: true });
+    p.h.fireCrashAction('retry');
+    await settle();
+    expect(p.shown.at(-1)).toEqual({ url: `http://127.0.0.1:4701/design#designToken=${'c'.repeat(64)}`, preview: true });
+    expect(p.h.bridge()?.runtime()).toMatchObject({ serverPort: 4701 });
+  });
+
+  it('a build with none of the optional folders and no updater still opens the project', async () => {
+    const p = projectHarness();
+    const bare: DesktopBootDeps = { ...p.deps, createUpdateManager: () => null };
+    for (const name of ['staticRoot', 'bundledAddOnsDir', 'bundledAppsDir', 'projectEnv', 'projectPrograms'] as const) Reflect.deleteProperty(bare, name);
+    await createDesktopApp(bare).start();
+    expect(p.opts[0]).not.toHaveProperty('staticRoot');
+    expect(p.opts[0]).not.toHaveProperty('inheritEnv');
+    expect(p.opts[0]?.project).toEqual({ root: ROOT, mode: 'design', pickPort: expect.any(Function) as unknown });
+    expect(p.h.menuHandlers()).not.toHaveProperty('checkForUpdates');
+    expect(p.shown).toHaveLength(1);
+
+    // A stop with no exit code (a signal) has its own words.
+    p.fireExit({ code: null, signal: 'SIGKILL', willRestart: false, giveUp: true, logPath: '/logs/server.log' });
+    await settle();
+    expect(p.h.crashes.at(-1)?.reason).toBe('This project stopped unexpectedly.');
+    // A state that is not "ready" moves nothing.
+    p.emit({ status: 'starting', attempt: 0 });
+    expect(p.shown).toHaveLength(1);
+  });
+
+  it('a build that cannot pick a port says so instead of forking', async () => {
+    const p = projectHarness();
+    await createDesktopApp({ ...p.deps, pickProjectPort: undefined }).start();
+    expect(p.opts).toHaveLength(0);
+    expect(p.h.crashes.at(-1)?.reason).toBe('This build cannot open a project folder.');
+  });
+});
+
+describe('projectUrl', () => {
+  it('is the Designer with its token after #, or the front door when shared', () => {
+    expect(projectUrl({ port: 4700, mode: 'design', token: 'ab' })).toBe('http://127.0.0.1:4700/design#designToken=ab');
+    expect(projectUrl({ port: 4700, mode: 'design', token: null })).toBe('http://127.0.0.1:4700/design');
+    expect(projectUrl({ port: 4712, mode: 'serve', token: null })).toBe('http://127.0.0.1:4712/');
+    // Shared, from the app's own window: the token the dashboard spends to sign the owner in on this computer.
+    expect(projectUrl({ port: 4712, mode: 'serve', token: 'ab' })).toBe('http://127.0.0.1:4712/?bootToken=ab');
+    // "Open dashboard" on Start: the same one-use token, taken on the dashboard's front door.
+    expect(projectUrl({ port: 4700, mode: 'design', token: 'ab', land: 'dashboard' })).toBe('http://127.0.0.1:4700/#designToken=ab');
+    expect(projectUrl({ port: 4700, mode: 'design', token: null, land: 'dashboard' })).toBe('http://127.0.0.1:4700/');
+  });
+});
+
+// ─── the first screens ───────────────────────────────────────────────────────
+
+describe('createDesktopApp opening on Start', () => {
+  const settle = async (): Promise<void> => {
+    for (let i = 0; i < 20; i += 1) await Promise.resolve();
+  };
+
+  function startHarness(over: { classicUsed?: boolean; pendingFile?: string | null; firstRun?: boolean } = {}) {
+    const h = harness({ firstRun: over.firstRun ?? false });
+    const sessions: Array<string | null> = [];
+    const projectOptions: CreateServerManagerOptions[] = [];
+    const deps: DesktopBootDeps = {
+      ...h.deps,
+      windows: {
+        ...h.deps.windows,
+        showStart: () => {
+          h.calls.push('showStart');
+          return Promise.resolve();
+        },
+        pendingFileArgument: () => over.pendingFile ?? null,
+        useProjectSession: (root) => void sessions.push(root),
+      },
+      createServerManager: (o) => {
+        if (o.project !== undefined) projectOptions.push(o);
+        return h.deps.createServerManager(o);
+      },
+      pickProjectPort: () => Promise.resolve(4700),
+      startScreen: {
+        folder: { home: '/home/ava', appDir: '/opt/Adminium', platform: 'linux', exists: () => false, real: (path) => path, list: () => null },
+        chooseDirectory: () => Promise.resolve(null),
+        classicUsed: () => over.classicUsed ?? false,
+      },
+    };
+    return { h, deps, sessions, projectOptions };
+  }
+
+  it('shows Start and starts nothing until the person chooses', async () => {
+    const s = startHarness();
+    void createDesktopApp(s.deps).start();
+    await settle();
+    expect(s.h.calls).toContain('showStart');
+    // The app's own menu is in place before Start is shown, not Electron's default one.
+    expect(s.h.calls.indexOf('installMenu')).toBeGreaterThanOrEqual(0);
+    expect(s.h.calls.indexOf('installMenu')).toBeLessThan(s.h.calls.indexOf('showStart'));
+    for (const never of ['config.resolveSecret', 'server.start', 'showBoot', 'createBackup']) expect(s.h.calls).not.toContain(never);
+    // The bridge answers Start's calls only while Start is what the window holds.
+    expect(s.h.bridge()?.start?.()).not.toBeNull();
+    expect(s.h.bridge()?.start?.()?.state()).toMatchObject({ firstLaunch: true, recent: [], proposedParent: '/home/ava/Adminium' });
+  });
+
+  it('"Use my own database" goes on into the classic workspace as a launch without Start does', async () => {
+    const s = startHarness({ classicUsed: true });
+    const started = createDesktopApp(s.deps).start();
+    await settle();
+    s.h.bridge()?.start?.()?.useClassic();
+    await started;
+    const after = s.h.calls.slice(s.h.calls.indexOf('showStart') + 1);
+    expect(after.filter((call) => ['config.resolveSecret', 'server.start', 'showBoot', 'loadApp'].includes(call))).toEqual(['config.resolveSecret', 'server.start', 'showBoot', 'loadApp']);
+    expect(s.h.loaded[0]).not.toContain('/desktop/setup');
+    // Start is gone: its calls are no longer answered.
+    expect(s.h.bridge()?.start?.()).toBeNull();
+  });
+
+  it('sends a classic workspace that was never set up to its setup, whether or not config.json exists', async () => {
+    // config.json was written by Start itself (a project was remembered), so "first run" is read from the data folder.
+    const s = startHarness({ classicUsed: false, firstRun: false });
+    const started = createDesktopApp(s.deps).start();
+    await settle();
+    s.h.bridge()?.start?.()?.useClassic();
+    await started;
+    expect(s.h.loaded[0]).toMatch(/\/desktop\/setup$/);
+  });
+
+  it('skips Start for a file handed to the app at launch: that belongs to the classic workspace', async () => {
+    const s = startHarness({ pendingFile: '/home/ava/backup.zip' });
+    await createDesktopApp(s.deps).start();
+    expect(s.h.calls).not.toContain('showStart');
+    expect(s.h.calls).toContain('server.start');
+  });
+
+  it('boots the project a person opens from Start, on its own cookie jar, with no classic secret', async () => {
+    const home = realpathSync(mkdtempSync(join(tmpdir(), 'adminium-boot-start-')));
+    try {
+      const root = join(home, 'shop');
+      mkdirSync(join(root, 'node_modules'), { recursive: true });
+      writeFileSync(join(root, 'adminium.config.ts'), 'export default {};\n');
+      const s = startHarness();
+      const deps: DesktopBootDeps = { ...s.deps, startScreen: { ...s.deps.startScreen!, folder: { ...realFolderDeps('/opt/Adminium', 'linux'), home } } };
+      const started = createDesktopApp(deps).start();
+      await settle();
+      const start = s.h.bridge()?.start?.();
+      // Asked first: nothing of the folder is started on a first open.
+      await expect(start?.openProject({ path: root })).resolves.toMatchObject({ status: 'trust-needed' });
+      expect(s.projectOptions).toEqual([]);
+      await expect(start?.openProject({ path: root, agreed: true })).resolves.toEqual({ status: 'opened' });
+      await started;
+
+      expect(s.projectOptions).toHaveLength(1);
+      expect(s.projectOptions[0]?.project).toMatchObject({ root, mode: 'design' });
+      expect(s.sessions).toEqual([root]);
+      expect(s.h.calls).not.toContain('config.resolveSecret');
+      expect(s.h.calls).not.toContain('createBackup');
+      // Remembered, in the app's own config, with what was agreed to.
+      expect(s.h.saved.at(-1)?.projects).toMatchObject([{ path: root, name: 'Shop', state: 'building' }]);
+      expect(s.h.saved.at(-1)?.projects[0]?.trusted).toMatch(/^[0-9a-f]{64}$/);
+      expect(s.h.bridge()?.start?.()).toBeNull();
+    } finally {
+      rmSync(home, { recursive: true, force: true });
+    }
+  });
+
+  it('"Close project" stops its server, takes back the app’s cookie jar and shows Start again; the next choice boots as the first did', async () => {
+    const home = realpathSync(mkdtempSync(join(tmpdir(), 'adminium-boot-close-')));
+    try {
+      const root = join(home, 'shop');
+      mkdirSync(join(root, 'node_modules'), { recursive: true });
+      mkdirSync(join(root, 'hooks'));
+      writeFileSync(join(root, 'adminium.config.ts'), 'export default {};\n');
+      const s = startHarness({ classicUsed: true });
+      let live: { root: string; mode: 'design' | 'serve' } | null = null;
+      let busy: { kind: string; sessionId: string | null } | null = null;
+      const asked: string[] = [];
+      const deps: DesktopBootDeps = {
+        ...s.deps,
+        startScreen: { ...s.deps.startScreen!, folder: { ...realFolderDeps('/opt/Adminium', 'linux'), home } },
+        createServerManager: (o) => {
+          const made = s.deps.createServerManager(o);
+          if (o.project === undefined) return made;
+          live = { root: o.project.root, mode: 'design' };
+          // The fake manager is the classic one: as a project's it says which folder it serves.
+          return Object.create(made, { project: { get: () => live }, busy: { value: () => Promise.resolve(busy) } }) as typeof made;
+        },
+        confirmStopBusy: (_busy, why) => {
+          asked.push(why);
+          return Promise.resolve(false);
+        },
+      };
+      void createDesktopApp(deps).start();
+      await settle();
+      await s.h.bridge()?.start?.()?.openProject({ path: root, agreed: true });
+      await settle();
+      const bridge = s.h.bridge();
+      expect(bridge?.project?.info()).toEqual({ root, displayPath: '~/shop', name: 'Shop', mode: 'design' });
+
+      // In the middle of a turn, and the person keeps working: nothing is stopped.
+      busy = { kind: 'turn', sessionId: 'ds_1' };
+      await expect(bridge?.project?.close()).resolves.toBe(false);
+      expect(asked).toEqual(['close']);
+      expect(s.h.stopped()).toBe(0);
+      expect(bridge?.project?.info()).not.toBeNull();
+
+      // The Designer changed the folder's code while it was open.
+      writeFileSync(join(root, 'hooks', 'on-save.ts'), 'export default 1;\n');
+      busy = null;
+      const shownBefore = s.h.calls.filter((call) => call === 'showStart').length;
+      await expect(bridge?.project?.close()).resolves.toBe(true);
+      await settle();
+      expect(s.h.stopped()).toBe(1);
+      expect(s.sessions).toEqual([root, null]);
+      expect(s.h.calls.filter((call) => call === 'showStart')).toHaveLength(shownBefore + 1);
+      expect(bridge?.project?.info()).toBeNull();
+      // Start is back, lists the project, and does not ask about the app's own changes.
+      const start = bridge?.start?.();
+      expect(start?.state().recent).toMatchObject([{ path: root, name: 'Shop', missing: false }]);
+      await expect(start?.openProject({ path: root })).resolves.toEqual({ status: 'opened' });
+      await settle();
+      expect(s.projectOptions).toHaveLength(2);
+      // And from there the classic workspace is one choice away, as at launch.
+      await expect(bridge?.project?.close()).resolves.toBe(true);
+      await settle();
+      bridge?.start?.()?.useClassic();
+      await settle();
+      expect(s.h.calls).toContain('config.resolveSecret');
+      expect(bridge?.project?.info()).toBeNull();
+      await expect(bridge?.project?.close()).resolves.toBe(false);
+    } finally {
+      rmSync(home, { recursive: true, force: true });
+    }
+  });
+
+  it('without the screens (every boot before them) goes to the classic workspace at once', async () => {
+    const h = harness();
+    await createDesktopApp(h.deps).start();
+    expect(h.calls).not.toContain('showStart');
+    expect(h.bridge()?.start?.()).toBeNull();
   });
 });
 

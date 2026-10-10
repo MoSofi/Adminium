@@ -520,6 +520,37 @@ describe('what is measurably broken on a page as it shows', () => {
       vi.useRealTimers();
     }
   });
+
+  it('looks again when the screen stops after it was looked at, without a picture, and twice at most', async () => {
+    vi.useFakeTimers();
+    try {
+      const customer = await bundled('repairs', 'customer');
+      const posted: Record<string, unknown>[] = [];
+      const heard = new Map<string, (event: unknown) => void>();
+      const doc = { ...page({}), readyState: 'complete', addEventListener: () => undefined };
+      const target = {
+        ...view,
+        innerHeight: 800,
+        document: doc,
+        location: { pathname: '/apps/repairs/customer/' },
+        addEventListener: (name: string, run: (event: unknown) => void) => void heard.set(name, run),
+        parent: { postMessage: (message: Record<string, unknown>) => void posted.push(message) },
+      };
+      customer.reportErrorsToFrame(target as unknown as Window, true, () => false, (run) => run());
+      customer.reportSightToFrame(target as unknown as Window, true);
+      // It shows that it loads and stands still: looked at, and nothing is wrong yet.
+      await vi.advanceTimersByTimeAsync(8000);
+      const sights = (): Record<string, unknown>[] => posted.filter((message) => message['type'] === 'adminium:side-sight');
+      expect(sights().map((message) => message['faults'])).toEqual([[]]);
+      // Then its load throws. The page is looked at again, and what stopped it is in that look.
+      for (let n = 0; n < 4; n += 1) heard.get('error')?.({ error: new Error('The menu could not be read') });
+      await vi.advanceTimersByTimeAsync(100);
+      expect(sights().slice(1).map((message) => message['faults'])).toEqual([[{ kind: 'error', error: 'The menu could not be read' }], [{ kind: 'error', error: 'The menu could not be read' }]]);
+      expect(sights().slice(1).every((message) => !('picture' in message))).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });
 
 describe('a page of a side has an address', () => {

@@ -38,7 +38,9 @@ export default {
     "noModel": "Adminium Designer používá váš vlastní model AI. Začněte jeho přidáním.",
     "cannotBuild": "Tento model neumí vytvářet aplikace: nepodporuje nástroje. Vyberte jiný model.",
     "failed": "Designer se nepodařilo spustit",
-    "noModelSet": "Pro Designer není na tomto serveru nastaven žádný model. Přidává se v Nastavení → AI."
+    "noModelSet": "Pro Designer není na tomto serveru nastaven žádný model. Přidává se v Nastavení → AI.",
+    "ignoredEnv": "O těchto hodnotách rozhoduje aplikace sama, takže to, co o nich říká soubor .env tohoto projektu, bylo ignorováno:",
+    "ignoredEnvHide": "Skrýt tuto poznámku"
   },
   "target": {
     "label": "Co vytvořit: {target}",
@@ -167,7 +169,12 @@ export default {
     "save": "Uložit",
     "saving": "Ukládá se…",
     "addedToast": "Model přidán.",
-    "none": "Žádný model"
+    "none": "Žádný model",
+    "envNotUsed": "Soubor .env tohoto projektu jmenuje model. V aplikaci se modely uchovávají na tomto počítači; ten řádek se nepoužívá.",
+    "keptPlain": "na tomto počítači, jako prostý text v souboru, který můžete číst jen vy: tento počítač nemá úložiště klíčů. Neukládá se do vašeho projektu, takže exportovaný nebo sdílený projekt žádný neobsahuje.",
+    "keptMac": "na tomto počítači, zašifrovaný Klíčenkou. Neukládá se do vašeho projektu, takže exportovaný nebo sdílený projekt žádný neobsahuje.",
+    "keptWindows": "na tomto počítači, zašifrovaný systémem Windows. Neukládá se do vašeho projektu, takže exportovaný nebo sdílený projekt žádný neobsahuje.",
+    "keptLinux": "na tomto počítači, zašifrovaný úložištěm klíčů vašeho prostředí. Neukládá se do vašeho projektu, takže exportovaný nebo sdílený projekt žádný neobsahuje."
   },
   "provider": {
     "anthropic": "Anthropic",
@@ -579,6 +586,7 @@ export default {
     "previewNoRole": "Toto je náhled aplikace očima osoby bez role. Není to vaše vlastní přihlášení: do Studia, k lidem ani k nastavení se tu nedostanete.",
     "openOwn": "Otevřít dashboard jako vy",
     "owner": "Jste vlastníkem tohoto projektu, přihlášeni odkazem, který vypsal Adminium Designer. Než projekt poběží jinde, nastavte adresu a heslo.",
+    "ownerApp": "Jste vlastníkem tohoto projektu a na tomto počítači vás přihlásila aplikace Adminium. Než projekt začnete sdílet nebo poběží jinde, nastavte adresu a heslo.",
     "ownerLabel": "Váš účet vlastníka",
     "ownerSet": "Nastavit heslo",
     "ownerLater": "Teď ne",
@@ -740,5 +748,77 @@ export default {
   "chat": {
     "copy": "Zkopírovat tuto zprávu",
     "copied": "Zkopírováno"
+  },
+  "project": {
+    "menu": "Projekt: {name}",
+    "export": "Exportovat tento projekt…",
+    "showFinder": "Zobrazit ve Finderu",
+    "showExplorer": "Zobrazit v Průzkumníku souborů",
+    "showFiles": "Zobrazit ve správci souborů",
+    "close": "Zavřít projekt"
+  },
+  "mode": {
+    "label": "Stavět, nebo sdílet",
+    "build": "Stavět",
+    "share": "Sdílet"
+  },
+  "versionsOffer": {
+    "title": "Uchovávat verze vaší práce?",
+    "body": "Adminium používá git, aby po každé změně uchovalo verzi a vy jste se mohli vrátit. Na tomto počítači žádný není.",
+    "download": "Stáhnout git ({size} MB)",
+    "notNow": "Teď ne",
+    "apple": "Nebo nainstalujte vývojářské nástroje od Applu (asi 1 GB), které jej obsahují.",
+    "appleLink": "Nainstalovat nástroje od Applu",
+    "lookAgain": "Hledat znovu",
+    "noDownload": "Pro tento druh počítače není git ke stažení. Nainstalujte si git sami a pak hledejte znovu.",
+    "downloading": "Stahuje se git",
+    "progress": "{received} z {total} MB",
+    "cancel": "Zrušit",
+    "tryAgain": "Zkusit znovu",
+    "turnOn": "Zapnout verze",
+    "offHere": "Verze jsou na tomto počítači vypnuté.",
+    "offButton": "Verze: vypnuto",
+    "offWord": "Vypnuto",
+    "nowOn": "Verze jsou zapnuté",
+    "nowOnNext": "Vaše příští změna se uchová jako verze.",
+    "failed": {
+      "wrongFile": "Stažený soubor neodpovídal tomu, co Adminium očekávalo, a byl smazán.",
+      "noConnection": "Nepodařilo se připojit k internetu. Zkontrolujte připojení a zkuste to znovu.",
+      "other": "git se na tomto počítači nepodařilo nastavit."
+    }
+  },
+  "share": {
+    "passwordTitle": "Zvolte, jak se budete přihlašovat z jiných zařízení",
+    "beforeTitle": "Než začnete sdílet",
+    "step": "Sdílení · {step} z {steps}",
+    "email": "Váš e-mail",
+    "password": "Heslo",
+    "again": "Stejné heslo znovu",
+    "passwordNote": "Na tomto počítači je nikdy nepotřebujete. Zadáte je na telefonu nebo jiném počítači.",
+    "next": "Další",
+    "reach": "Lidé v této síti se k tomuto projektu dostanou, dokud je sdílený. Každý z nich se přihlásí.",
+    "dataStays": "Data vašeho projektu zůstávají na tomto počítači.",
+    "firewall": "Váš počítač se může zeptat, zda smí Adminium přijímat připojení. Zvolte Povolit.",
+    "notEncrypted": "Provoz ve vaší místní síti není šifrovaný. Sdílejte jen v síti, které důvěřujete. Aplikaci, kterou jste otevřeli veřejnosti, tam lze používat bez přihlášení.",
+    "designerOff": "Designer je po dobu sdílení projektu vypnutý. Vrátíte se k němu volbou „Zpět ke stavění“.",
+    "cancel": "Zrušit",
+    "sharing": "Sdílí se…",
+    "now": "Sdílet nyní"
+  },
+  "export": {
+    "everything": "Aplikace projektu, jeho data a jeho klíč",
+    "everythingLine": "Kdo jej otevře, může přečíst vše, včetně uložených připojení k databázím. Pošlete jej jen někomu, komu byste to dali.",
+    "apps": "Jen aplikace",
+    "appsLine": "Bez dat, klíče a vašich rozhovorů s Designerem. Kdo jej otevře, začíná s prázdnými daty.",
+    "saveTitle": "Exportovat {name}",
+    "busy": "V tomto projektu ještě něco běží. Exportujte jej, až to skončí.",
+    "title": "Exportovat {name}",
+    "noModelKeys": "Vaše klíče k modelům nejsou nikdy součástí: zůstávají na tomto počítači.",
+    "stops": "Projekt se na chvíli zastaví, než se soubor vytvoří, a toto okno se vrátí, až bude hotovo.",
+    "cancel": "Zrušit",
+    "working": "Exportuje se…",
+    "go": "Exportovat…",
+    "saved": "Uloženo {file}, {size} MB",
+    "failed": "Export se nepodařilo vytvořit"
   }
 } as const;

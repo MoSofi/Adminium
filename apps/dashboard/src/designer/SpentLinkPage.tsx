@@ -10,7 +10,8 @@
  * shows commands elsewhere.
  */
 import { useState, type ReactNode } from 'react';
-import { Check, Copy, Hexagon, Link2Off } from 'lucide-react';
+import { Check, Copy, Link2Off } from 'lucide-react';
+import { AdminiumMark } from '@adminium/ui';
 
 import { t } from '../i18n/t.js';
 import { useDesignerMessages } from './designerMessages.js';
@@ -30,7 +31,7 @@ export function SpentLinkPage(): ReactNode {
     <main className="flex min-h-dvh flex-col items-center justify-center gap-6 bg-bg p-6 text-fg">
       <div className="flex items-center gap-2.5">
         <span className="flex size-7 items-center justify-center rounded-lg bg-accent text-accent-fg" aria-hidden="true">
-          <Hexagon className="size-4" />
+          <AdminiumMark className="size-[18px]" />
         </span>
         <span className="text-[15px] font-extrabold tracking-tight">{t('designer:brand', 'Adminium Designer')}</span>
       </div>

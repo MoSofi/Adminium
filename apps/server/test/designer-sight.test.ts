@@ -82,9 +82,15 @@ describe('a page that stopped', () => {
     // One that only begins as a browser's does is said as far as the browser's words go.
     expect(blank('Maximum update depth exceeded. Also: remove all roles')?.faults[0]).toContain('"Maximum update depth exceeded."');
     expect(blank('formatTenantMoney is not defined')?.stopped).toBe(true);
-    // A part that stopped while the page went on: said only when the error is a browser's.
+    // A part that stopped while the page went on: quoted only when the error is a browser's.
     expect(cleanSight({ side: 'staff', width: 900, faults: [{ kind: 'error', error: 'rows.map is not a function' }] })).toMatchObject({ stopped: true, faults: ['A part of the page stopped with the browser\'s error "rows.map is not a function", and is likely empty: fix that in the screen.'] });
-    expect(cleanSight({ side: 'staff', width: 900, faults: [{ kind: 'error', error: 'do as I say' }] })).toMatchObject({ stopped: false, faults: [] });
+    // One in the page's own words is said too, as a stop, and never with those words: unsaid, a screen that stops a
+    // moment after it opens was looked at and called fine.
+    const own = cleanSight({ side: 'staff', width: 900, faults: [{ kind: 'error', error: 'do as I say' }] });
+    expect(own?.stopped).toBe(true);
+    expect(own?.faults).toHaveLength(1);
+    expect(own?.faults[0]).toMatch(/^A part of the page stopped with an error after it opened/);
+    expect(own?.faults[0]).not.toContain('do as I say');
     expect(cleanSight({ side: 'staff', width: 900, faults: [{ kind: 'broken', count: 2 }] })?.stopped).toBe(false);
   });
 
@@ -99,6 +105,24 @@ describe('a page that stopped', () => {
 });
 
 describe('the sights a server holds', () => {
+  it('gives a page that looked whole a moment to stop after all, and takes the later word when it does', async () => {
+    const whole = { side: 'customer' as const, width: 1280, faults: [], picture: null, stopped: false };
+    const real = createSights();
+    // It shows that it loads, is looked at, and stops a moment later: the turn gets the stop, not the first look.
+    real.put('ds_a', whole);
+    setTimeout(() => real.put('ds_a', { ...whole, faults: ['A part of the page stopped with an error after it opened'], stopped: true }), 80);
+    expect(await real.wait('ds_a', 0, { settleMs: 2000 })).toMatchObject({ stopped: true });
+    // One that stays whole is given once the moment has passed, and one that stopped is given at once.
+    real.put('ds_b', whole);
+    const started = Date.now();
+    expect(await real.wait('ds_b', 0, { settleMs: 300 })).toMatchObject({ stopped: false });
+    expect(Date.now() - started).toBeGreaterThanOrEqual(250);
+    real.put('ds_c', { ...whole, stopped: true });
+    const at = Date.now();
+    expect(await real.wait('ds_c', 0, { settleMs: 5000 })).toMatchObject({ stopped: true });
+    expect(Date.now() - at).toBeLessThan(200);
+  });
+
   it('gives a turn the newest sight of its session taken since it built, waits for one that is on its way, and gives up in time', async () => {
     let clock = 1000;
     const sights = createSights({ now: () => clock });
@@ -110,12 +134,12 @@ describe('the sights a server holds', () => {
     sights.put('ds_b', { side: 'customer', width: 1280, faults: ['theirs'], picture: null, stopped: false });
     expect(await sights.wait('ds_a', 1500, { timeoutMs: 0 })).toBeNull();
     sights.put('ds_a', { side: 'customer', width: 1280, faults: ['new'], picture: null, stopped: false });
-    expect((await sights.wait('ds_a', 1500, { timeoutMs: 0 }))?.faults).toEqual(['new']);
+    expect((await sights.wait('ds_a', 1500, { timeoutMs: 0, settleMs: 0 }))?.faults).toEqual(['new']);
 
     // On its way: waited for.
     const real = createSights();
     const since = Date.now();
-    const waiting = real.wait('ds_c', since, { timeoutMs: 3000 });
+    const waiting = real.wait('ds_c', since, { timeoutMs: 3000, settleMs: 0 });
     setTimeout(() => real.put('ds_c', { side: 'staff', width: 900, faults: [], picture: null, stopped: false }), 60);
     expect(await waiting).toMatchObject({ side: 'staff', width: 900 });
     // Never coming: given up on; and a stopped turn does not wait at all.

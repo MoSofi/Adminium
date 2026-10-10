@@ -21,6 +21,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { api, ApiError } from '../../app/api.js';
 import { systemInfoQuery } from '../../app/capabilities.js';
+import { getDesktopApi } from '../../lib/desktop-runtime.js';
 import { createRealtimeClient } from '../../app/ws.js';
 import type { InstalledApp } from '../../studio/apps/appsApi.js';
 import { designerApi, type DesignerSession } from '../api.js';
@@ -74,6 +75,8 @@ export interface PreviewModel {
   /** Whether the last turn is still running: only then is anybody waiting to see the page. */
   running: boolean;
   openTab: () => void;
+  /** False where there is nowhere to open it. */
+  canOpenTab: boolean;
 }
 
 export function usePreview(session: DesignerSession, turns: readonly TurnView[]): PreviewModel {
@@ -255,7 +258,39 @@ export function usePreview(session: DesignerSession, turns: readonly TurnView[])
     },
     [setPath],
   );
+  // Inside the desktop app there are no tabs: "a new tab" is the person's own browser, and the app hands it the
+  // address. It is asked for with the address already in hand, because the app refuses a window and reads only that.
+  const inApp = getDesktopApi() !== null;
+  const canOpenTab = true;
+  const openInBrowser = (): void => {
+    if (side === 'customer' && origin !== null) {
+      window.open(`${origin}${to}`, '_blank', 'noopener');
+      return;
+    }
+    // The dashboard is signed into by this window's own session, which the system's browser does not hold: the owner is
+    // given a link that signs them in there, once, and lands on the page shown here.
+    if (side === 'dashboard') {
+      void designerApi
+        .browserLink(path)
+        .then((reply) => {
+          window.open(reply.data.url, '_blank', 'noopener');
+        })
+        .catch(() => undefined);
+      return;
+    }
+    if (side !== 'staff') return;
+    void designerApi
+      .previewTicket(session.id, `/a/${session.appKey}${path === '/' ? '' : path}`)
+      .then((reply) => {
+        window.open(reply.url, '_blank', 'noopener');
+      })
+      .catch(() => undefined);
+  };
   const openTab = (): void => {
+    if (inApp) {
+      openInBrowser();
+      return;
+    }
     // Opened now, filled when the ticket arrives: a window opened after a wait is a blocked pop-up.
     const tab = window.open('', '_blank');
     if (tab === null) return;
@@ -308,5 +343,6 @@ export function usePreview(session: DesignerSession, turns: readonly TurnView[])
     ticketError: ticket.isError && side !== 'dashboard' ? ticket.error.message : null,
     running,
     openTab,
+    canOpenTab,
   };
 }

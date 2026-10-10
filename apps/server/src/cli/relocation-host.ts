@@ -48,6 +48,8 @@ export interface RelocationHost {
   onMetaRelocated: OnMetaRelocated;
   /** The live server, for callers that print its URL. */
   current(): StartedServer | null;
+  /** End the live server, then its stores (after any restart that is under way). */
+  close(): Promise<void>;
 }
 
 export interface CreateRelocationHostOptions {
@@ -58,7 +60,9 @@ export interface CreateRelocationHostOptions {
   /** The project folder the server runs, passed to every boot. */
   project?: ProjectServerOptions | undefined;
   /** Adminium Designer, when this server runs it (`adminium design`). */
-  designer?: { mode: 'local'; token: string | null; port: number } | undefined;
+  designer?: { mode: 'local'; token: string | null; port: number; /** Started by a host on the person's own computer (`ComposeServerOptions.designer`). */ thisComputer?: boolean; /** Names of the project's `.env` and config a host did not obey: said on the Designer's Home. */ ignoredEnv?: readonly string[] | undefined } | undefined;
+  /** A project the desktop app shares on the network (`ComposeServerOptions.shared`). */
+  shared?: { port: number; ownerToken?: string } | undefined;
   /** Test seam: defaults to `process.exit`. */
   exit?: (code: number) => void;
   /** Test seam: defaults to running the task on the next tick. */
@@ -89,6 +93,7 @@ export function createRelocationHost(opts: CreateRelocationHostOptions): Relocat
       onMetaRelocated,
       ...(opts.project === undefined ? {} : { project: opts.project }),
       ...(opts.designer === undefined ? {} : { designer: opts.designer }),
+      ...(opts.shared === undefined ? {} : { shared: opts.shared }),
     });
     setShutdownTarget(server.app);
     return server;
@@ -149,5 +154,12 @@ export function createRelocationHost(opts: CreateRelocationHostOptions): Relocat
     start: boot,
     onMetaRelocated,
     current: () => server,
+    async close() {
+      await chain.catch(() => undefined);
+      await server?.close().catch(() => undefined);
+      await runtime?.close().catch(() => undefined);
+      server = null;
+      runtime = null;
+    },
   };
 }

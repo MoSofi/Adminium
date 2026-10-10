@@ -312,6 +312,51 @@ jobs:
           } >> "$GITHUB_ENV"
           clang++-17 --version | head -1
 
+      # ── Step 3.6: the engine the app pins must be on npm ───────────────────────
+      #
+      # A new project made in the app installs `@adminiumjs/adminium` at the app's
+      # own version, from npm. An app released before that version is published
+      # makes projects that cannot be made. On a real tag its absence stops the
+      # release; on a manual run of an unreleased version it is said, and the
+      # starter lockfile and the packed smoke below (which makes a project) are skipped.
+      # Asked BEFORE packaging: the starter lockfile is made from it and packed.
+      - name: The engine the app pins is on npm
+        id: engine
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(node -p "require('./apps/desktop/package.json').version")"
+          missing=""
+          for name in @adminiumjs/adminium @adminiumjs/public-client; do
+            if ! npm view "${name}@${version}" version >/dev/null 2>&1; then missing="${missing} ${name}@${version}"; fi
+          done
+          if [ -z "${missing}" ]; then
+            echo "published=true" >> "$GITHUB_OUTPUT"
+            echo "On npm: @adminiumjs/adminium@${version} and @adminiumjs/public-client@${version}."
+          else
+            echo "published=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::Not on npm:${missing}. A project made in this build could not install its packages."
+            case "${GITHUB_REF}" in
+              refs/tags/desktop-v*) echo "::error::Publish the engine first: the desktop app is released only after the version it pins is on npm."; exit 1 ;;
+            esac
+          fi
+
+      # ── Step 3.6b: the starter lockfile, packed with the app ───────────────────
+      #
+      # What a new project installs is what this release was tried with, package
+      # by package: the lockfile is resolved here, once, and carried in the app
+      # (`resources/starter`, which is not in the repository). Without this step
+      # every packed app carries none and a new project resolves its ranges on
+      # the person's computer, on the day they click "Create".
+      - name: Make the starter lockfile
+        if: steps.engine.outputs.published == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/release/starter-lockfile.mjs
+          test -s apps/desktop/resources/starter/starter-lock.json
+          test -s apps/desktop/resources/starter/starter.json
+
       # ── Step 3: package + (mac) sign + notarize ──────────────────────────────
       #
       # The `dist` script (= `electron-builder`) is the ONLY sanctioned call site
@@ -542,6 +587,50 @@ jobs:
       # rpm), the feed files, and .blockmaps into dist/. Ship the whole directory
       # to the release job; retention is short because these are release-candidate
       # binaries, not long-lived history (the published Release is the archive).
+      # ── Step 3.55: the entitlement a project's packages need, on the app AND its helper ──
+      #
+      # A project's own packages bring libraries signed by somebody else (SQLite,
+      # argon2, Tailwind's). The signed app loads them only with
+      # `disable-library-validation`, and the server runs in a HELPER, which has
+      # its own signature: the key on the app alone is a project that cannot start.
+      - name: The entitlement is on the app and on its helper (macOS)
+        if: matrix.platform == 'mac' && env.MAC_CSC_LINK != ''
+        shell: bash
+        run: |
+          set -euo pipefail
+          found=0
+          for app in apps/desktop/dist/mac*/Adminium.app; do
+            [ -d "$app" ] || continue
+            found=1
+            for signed in "$app" "$app"/Contents/Frameworks/*Helper*.app; do
+              [ -e "$signed" ] || continue
+              if ! codesign -d --entitlements - "$signed" 2>/dev/null | grep -q 'com.apple.security.cs.disable-library-validation'; then
+                echo "::error::$signed is signed without disable-library-validation: a project's packages would not load."
+                exit 1
+              fi
+              echo "ok: $signed"
+            done
+          done
+          [ "$found" = 1 ] || { echo "::error::no packed Adminium.app found to check"; exit 1; }
+
+      # ── Step 3.7: start the PACKED app and make a project in it ────────────────
+      #
+      # No other step runs what a person will run. This one starts the packed app
+      # (unpacked folder, the same files the installer lays down), makes a project
+      # (the engine's `new` run by the app's own program as Node, its packages
+      # fetched by the npm the app carries), runs one turn with a scripted model
+      # and checks the result. See scripts/release/desktop-packed-smoke.mjs.
+      - name: Packed smoke (make a project in the packed app)
+        if: steps.engine.outputs.published == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${{ matrix.platform }}" = "linux" ]; then
+            xvfb-run -a node scripts/release/desktop-packed-smoke.mjs
+          else
+            node scripts/release/desktop-packed-smoke.mjs
+          fi
+
       - name: Upload build artifacts
         uses: actions/upload-artifact@v7
         with:

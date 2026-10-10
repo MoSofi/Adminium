@@ -32,8 +32,10 @@
  */
 import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join, posix } from 'node:path';
+
+import { buildLinePath, desktopPrograms } from '../programs.js';
 
 import { BUILD_DIR } from '../build-shared.js';
 import { APPS_DIR, SIDES, appDir, type AppSide } from './read-app.js';
@@ -83,9 +85,27 @@ export function readAppBuild(root: string, key: string): AppBuildFile | { proble
 /** What an approval is of: the exact words of all three lines. */
 export const buildFingerprint = (build: AppBuildFile): string => sha256(`${build.install}\n${build.command}\n${build.output}`);
 
+/**
+ * Where a project's approvals are kept: in the project, on a terminal; in the
+ * desktop app, in the app's own folder, by the project's real path. There a
+ * project is often a folder someone sent, and an approval that travelled with
+ * it would be the sender's yes to running a shell line on this computer.
+ */
+export function approvalsFile(root: string, env: Readonly<Record<string, string | undefined>> = process.env): string {
+  const kept = desktopPrograms(env)?.approvals ?? null;
+  if (kept === null) return join(root, APPROVED_BUILDS_FILE);
+  let real = root;
+  try {
+    real = realpathSync(root);
+  } catch {
+    // Not there (yet): its name as given.
+  }
+  return join(kept, `${sha256(real)}.json`);
+}
+
 function approvals(root: string): Record<string, string> {
   try {
-    const parsed = JSON.parse(readFileSync(join(root, APPROVED_BUILDS_FILE), 'utf8')) as unknown;
+    const parsed = JSON.parse(readFileSync(approvalsFile(root), 'utf8')) as unknown;
     return parsed !== null && typeof parsed === 'object' && !Array.isArray(parsed) ? (parsed as Record<string, string>) : {};
   } catch {
     return {};
@@ -96,7 +116,7 @@ export const isBuildApproved = (root: string, key: string, build: AppBuildFile):
 
 /** Record that a person approved this app's build as it reads now. */
 export function approveBuild(root: string, key: string, build: AppBuildFile): void {
-  const file = join(root, APPROVED_BUILDS_FILE);
+  const file = approvalsFile(root);
   mkdirSync(dirname(file), { recursive: true });
   writeFileSync(file, `${JSON.stringify({ ...approvals(root), [key]: buildFingerprint(build) }, null, 2)}\n`, { mode: 0o600 });
 }
@@ -275,6 +295,11 @@ if (root) {
     }
   }
   syncBuiltinESMExports();
+  // For every Node this one starts: the same guard, by the road that reaches them. Inside the desktop app this file
+  // may have been loaded as an argument (a signed Mac app ignores NODE_OPTIONS when a shell started it), and a child
+  // this process forks is started by the app itself, which the app does listen to.
+  const again = '--require ' + JSON.stringify(__filename);
+  if (!String(process.env.NODE_OPTIONS || '').includes(__filename)) process.env.NODE_OPTIONS = ((process.env.NODE_OPTIONS || '') + ' ' + again).trim();
 }
 `;
 
@@ -284,7 +309,10 @@ export function guardEnvironment(root: string, dir: string): Record<string, stri
   mkdirSync(dirname(file), { recursive: true });
   if (!existsSync(file) || readFileSync(file, 'utf8') !== BUILD_GUARD_SOURCE) writeFileSync(file, BUILD_GUARD_SOURCE);
   // NODE_OPTIONS reads a quoted value, with a backslash before a quote or a backslash.
-  return { NODE_OPTIONS: `--require "${file.replace(/[\\"]/g, '\\$&')}"`, ADMINIUM_BUILD_ROOT: dir };
+  // ADMINIUM_BUILD_GUARD names the same file plainly, for the desktop app's stand-ins: a signed Mac app does not
+  // read NODE_OPTIONS when anything but the app itself started it, and a build line is started by a shell, so
+  // there `node`, `npm` and `npx` hand the guard to the app's program as an argument instead.
+  return { NODE_OPTIONS: `--require "${file.replace(/[\\"]/g, '\\$&')}"`, ADMINIUM_BUILD_ROOT: dir, ADMINIUM_BUILD_GUARD: file };
 }
 
 /** One line, run by the machine's shell in `cwd`. Killed after ten minutes, or when the signal says stop. */
@@ -305,7 +333,10 @@ export const runLine: StepRunner = (line, cwd, signal, env) =>
     let output = '';
     // Its own process group where there are groups: the shell's children (npm, Vite) end with it.
     const grouped = process.platform !== 'win32';
-    const child = spawn(line, { cwd, env: { ...buildEnvironment(process.env), ...env }, shell: true, stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true, detached: grouped });
+    const base = buildEnvironment(process.env);
+    // In the desktop app `node`, `npm` and `npx` on a build line are the app's own: their folder comes first.
+    const path = buildLinePath(base['PATH']);
+    const child = spawn(line, { cwd, env: { ...base, ...(path === undefined ? {} : { PATH: path }), ...env }, shell: true, stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true, detached: grouped });
     const keep = (chunk: Buffer): void => {
       output = `${output}${chunk.toString('utf8')}`.slice(-MAX_OUTPUT);
     };

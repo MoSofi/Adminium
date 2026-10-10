@@ -1,0 +1,234 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+/**
+ * GENERATED MIRROR of ../../../locales/fr-FR/desktop.json — do not edit by hand.
+ * The JSON file is the canonical hand-authored bundle;
+ * this TS mirror exists so the runtime can bundle a namespace (en-US's eager
+ * ones) or chunk-split it (every other locale, and en-US's deferred `studio`)
+ * without JSON import attributes (browser + NodeNext safe).
+ * Parity is enforced by src/resources/parity.test.ts. Regenerate with
+ * scripts/gen-resources.mjs.
+ */
+export default {
+  "new": {
+    "back": "Retour",
+    "change": "Modifier…",
+    "create": "Créer",
+    "creating": "Préparation…",
+    "failed": "Le projet n’a pas pu être créé.",
+    "heading": "Créer une application",
+    "help": "Adminium crée ce dossier pour vous. Tout ce qui concerne votre application s’y trouve.",
+    "name": "Nom",
+    "refuse": {
+      "badName": "Utilisez au moins une lettre ou un chiffre dans le nom.",
+      "existsWithFiles": "Un dossier portant ce nom existe déjà et contient des fichiers. Choisissez un autre nom ou un autre dossier.",
+      "homeFolder": "Un projet ne peut pas être placé directement dans votre dossier personnel. Choisissez ou créez un dossier à l’intérieur.",
+      "insideAProject": "Ce dossier se trouve dans un autre projet. Choisissez un dossier en dehors.",
+      "insideTheApp": "Un projet ne peut pas être placé dans Adminium lui-même. Choisissez un autre dossier.",
+      "notAbsolute": "Choisissez un dossier avec le bouton « Modifier… ».",
+      "systemFolder": "Un projet ne peut pas être placé dans un dossier qui appartient au système. Choisissez un dossier à vous."
+    },
+    "step": {
+      "files": "Mise en place des fichiers de votre application",
+      "packages": "Récupération de ce avec quoi votre application est construite",
+      "database": "Création de sa base de données",
+      "opening": "Ouverture de votre application",
+      "slow": "C’est l’étape longue, la première fois : quelques minutes avec une connexion lente. Les applications suivantes démarrent plus vite.",
+      "label": "Ce qui est en cours"
+    },
+    "warn": {
+      "another": "Choisir un autre dossier",
+      "anyway": "L’utiliser quand même",
+      "dropbox": "Ce dossier est synchronisé par Dropbox. Les projets fonctionnent mal dans les dossiers synchronisés : la synchronisation peut endommager leurs données.",
+      "googledrive": "Ce dossier est synchronisé par Google Drive. Les projets fonctionnent mal dans les dossiers synchronisés : la synchronisation peut endommager leurs données.",
+      "icloud": "Ce dossier est synchronisé par iCloud Drive. Les projets fonctionnent mal dans les dossiers synchronisés : la synchronisation peut endommager leurs données.",
+      "noLinks": "Ce disque ne peut pas contenir les liens dont les paquets d’un projet ont besoin : leur téléchargement risque d’échouer.",
+      "onedrive": "Ce dossier est synchronisé par OneDrive. Les projets fonctionnent mal dans les dossiers synchronisés : la synchronisation peut endommager leurs données."
+    },
+    "where": "Emplacement"
+  },
+  "packages": {
+    "again": "Réessayer",
+    "body": "Ce avec quoi ce projet est construit n’est pas encore sur cet ordinateur. Adminium peut le télécharger maintenant, puis ouvrir le projet. Cela prend quelques minutes avec une connexion lente.",
+    "cancel": "Pas maintenant",
+    "failed": "Les paquets n’ont pas pu être récupérés.",
+    "get": "Récupérer et ouvrir",
+    "title": "Récupérer les paquets de ce projet ?",
+    "working": "Récupération des paquets"
+  },
+  "start": {
+    "choice": {
+      "build": {
+        "line": "Décrivez-la, et le Designer la construit sur cet ordinateur.",
+        "title": "Créer une application"
+      },
+      "connect": {
+        "line": "Utiliser un Adminium qui tourne sur un autre ordinateur.",
+        "title": "Se connecter à un autre Adminium"
+      },
+      "db": {
+        "line": "Créer des écrans pour une base de données que vous avez déjà.",
+        "title": "Utiliser ma propre base de données"
+      },
+      "open": {
+        "line": "Continuer avec une application déjà présente dans un dossier, ou qu’on vous a envoyée.",
+        "title": "Ouvrir un dossier"
+      }
+    },
+    "heading": "Que souhaitez-vous faire ?",
+    "open": {
+      "notAProject": "Ce dossier n’est pas un projet Adminium."
+    },
+    "recent": {
+      "alreadyListed": "Ce dossier figure déjà dans la liste.",
+      "building": "En construction",
+      "gone": "Ce dossier a été déplacé ou supprimé",
+      "heading": "Projets récents",
+      "locate": "Localiser…",
+      "locateTitle": "Où se trouve {name} maintenant ?",
+      "notThatProject": "Ce dossier n’est pas un projet Adminium.",
+      "open": "Ouvrir {name}",
+      "openDashboard": "Ouvrir le tableau de bord",
+      "openDashboardOf": "Ouvrir le tableau de bord de {name}",
+      "openDesigner": "Ouvrir dans Designer",
+      "openDesignerOf": "Ouvrir {name} dans Designer",
+      "opened": "Ouvert {when}",
+      "remove": "Retirer",
+      "removed": "Retiré des projets récents",
+      "shared": "Partagé"
+    },
+    "welcome": "Bienvenue dans Adminium."
+  },
+  "toast": {
+    "dismiss": "Fermer",
+    "region": "Notifications"
+  },
+  "trust": {
+    "body": "L’ouvrir exécute son code sur cet ordinateur, avec votre accès à vos fichiers. N’ouvrez que des dossiers que vous avez créés ou qui viennent d’une personne de confiance.",
+    "cancel": "Annuler",
+    "changed": "Le code de ce dossier a changé depuis votre dernière ouverture.",
+    "open": "Ouvrir",
+    "title": "Ouvrir ce dossier ?"
+  },
+  "found": {
+    "data": "Les données de ce projet ont été trouvées.",
+    "key": "Sa clé a été trouvée.",
+    "noData": "Ce dossier contient le projet, mais pas de données.",
+    "madeBoth": "Adminium a créé une nouvelle clé et une base de données vide.",
+    "madeDatabase": "Adminium a créé une base de données vide.",
+    "rowsLost": "Les tables propres aux applications sont recréées. Les lignes des anciennes données ne sont pas ici."
+  },
+  "opening": {
+    "continue": "Continuer",
+    "close": "Fermer",
+    "notAProject": {
+      "line": "Vous pouvez créer un nouveau projet dans un dossier à l’intérieur.",
+      "another": "Choisir un autre dossier",
+      "make": "Créer un nouveau projet ici"
+    }
+  },
+  "key": {
+    "heading": "Les données de ce projet sont ici, mais sa clé est absente.",
+    "body": "La clé est une ligne d’un fichier nommé ‹.env› dans le dossier du projet. Votre ordinateur masque les fichiers dont le nom commence par un point.",
+    "body2": "Sans la clé, les connexions aux bases de données et les clés d’API enregistrées dans les données de ce projet ne peuvent pas être lues.",
+    "hidden": {
+      "mac": "Dans le Finder, appuyez sur ⌘ ⇧ . pour les afficher.",
+      "windows": "Dans l’Explorateur de fichiers, choisissez Affichage › Afficher › Éléments masqués.",
+      "linux": "Dans votre gestionnaire de fichiers, appuyez sur Ctrl H."
+    },
+    "env": {
+      "title": "J’ai le fichier .env",
+      "line": "Choisissez-le, et Adminium le copie.",
+      "pick": "Choisir le fichier .env de ce projet",
+      "notAKey": "Ce fichier ne contient pas de clé. Choisissez le fichier .env fourni avec les données de ce projet."
+    },
+    "fresh": {
+      "title": "Repartir de données vides, garder mes applications",
+      "line": "Vos anciennes données sont déplacées dans un dossier nommé ‹{folder}›. Rien n’est supprimé."
+    },
+    "new": {
+      "title": "Continuer avec une nouvelle clé",
+      "line": "Les données sont conservées. Les connexions et les clés qui y sont enregistrées cessent de fonctionner et doivent être saisies à nouveau."
+    },
+    "failed": "Cela n’a pas pu être fait."
+  },
+  "accounts": {
+    "heading": "Ce projet est arrivé avec des comptes",
+    "people": "{count, plural, one {# personne} other {# personnes}}",
+    "peopleLabel": "Personnes",
+    "apiKeys": "{count, plural, one {# clé d’API} other {# clés d’API}}",
+    "apiKeysLabel": "Clés d’API",
+    "publicKeys": "{count, plural, one {# clé ouverte au public} other {# clés ouvertes au public}}",
+    "publicKeysLabel": "Ouvert au public",
+    "body": "Vous travaillerez comme son propriétaire sur cet ordinateur. Avant de le partager sur votre réseau, vous choisirez un nouveau mot de passe de propriétaire, et les anciennes sessions et clés d’API cesseront de fonctionner.",
+    "show": "Les afficher",
+    "hide": "Les masquer",
+    "more": "et {count} de plus"
+  },
+  "notice": {
+    "manager": {
+      "title": "Ce projet utilise {manager}.",
+      "line": "Adminium installe avec npm à la place. Votre fichier {manager} est laissé tel quel."
+    },
+    "older": {
+      "title": "Ce projet a été créé avec une version plus ancienne d’Adminium (‹{was}›).",
+      "line": "Mettez-le à jour vers ‹{here}› pour que tout corresponde. Cela modifie une ligne du projet et télécharge à nouveau ses composants.",
+      "update": "Mettre ce projet à jour",
+      "notNow": "Pas maintenant",
+      "working": "Mise à jour de ce projet…",
+      "failed": "Ce projet n’a pas pu être mis à jour. Il s’ouvre toujours tel qu’il est."
+    },
+    "newer": {
+      "title": "Ce projet a besoin d’une version plus récente d’Adminium.",
+      "line": "Il a été ouvert pour la dernière fois avec Adminium ‹{last}›. Cet ordinateur a ‹{here}›.",
+      "lineUnknown": "Il a été ouvert pour la dernière fois avec une version plus récente d’Adminium. Cet ordinateur a ‹{here}›.",
+      "update": "Mettre Adminium à jour",
+      "looking": "Recherche d’une version plus récente d’Adminium. Elle sera proposée ici une fois trouvée.",
+      "cannot": "Cette copie d’Adminium ne se met pas à jour elle-même. Téléchargez la plus récente sur adminium.dev."
+    },
+    "running": {
+      "title": "Ce projet est déjà en cours d’exécution",
+      "cli": "Il est ouvert dans un terminal, sur le port ‹{port}›. Fermez-le d’abord là-bas.",
+      "app": "Il est ouvert dans une autre fenêtre d’Adminium, sur le port ‹{port}›. Fermez-le d’abord là-bas.",
+      "again": "Vérifier à nouveau"
+    }
+  },
+  "install": {
+    "offline": "Impossible de joindre Internet. Les paquets viennent de registry.npmjs.org : vérifiez votre connexion et réessayez.",
+    "proxy": "Le proxy de votre réseau a refusé le téléchargement. Vérifiez les réglages de proxy de cet ordinateur et réessayez.",
+    "disk": "Ce disque est plein. Libérez de l’espace et réessayez.",
+    "registry": "Le registre de paquets a répondu par une erreur. Réessayez dans un instant."
+  },
+  "shared": {
+    "copyFailed": "L’adresse n’a pas pu être copiée.",
+    "best": "Recommandée",
+    "copy": "Copier {address}",
+    "portChanged": "Le port {was} était pris ; l’adresse est donc passée à {now}.",
+    "heading": "{name} est partagé",
+    "noNetwork": "Cet ordinateur n’est sur aucun réseau ; aucun autre appareil ne peut donc l’atteindre pour l’instant. Rejoignez un Wi-Fi ou branchez un câble : l’adresse apparaîtra ici.",
+    "open": "Ouvrir ceci sur un autre appareil",
+    "qr": "Un code à scanner pour {address}",
+    "notEncrypted": "Le trafic sur votre réseau local n’est pas chiffré. Ne partagez que sur un réseau de confiance.",
+    "awake": "Votre ordinateur reste éveillé tant que le projet est partagé. Fermer le capot l’arrête.",
+    "dashboard": "Ouvrir le tableau de bord",
+    "build": "Revenir à la construction",
+    "designerOff": "Le Designer est désactivé tant que le projet est partagé. Revenez à la construction pour modifier vos applications.",
+    "keep": "Continuer à partager",
+    "buildAsk": "Revenir à la construction ?",
+    "buildAskBody": "Les personnes qui l’utilisent sur d’autres appareils seront déconnectées."
+  },
+  "connect": {
+    "notAnAddress": "Ce n’est pas une adresse. Saisissez-en une comme office-pc.local:4600.",
+    "notPrivate": "Adminium ne se connecte sans chiffrement que sur votre propre réseau. Utilisez une adresse https.",
+    "noAnswer": "Rien n’a répondu à cette adresse. Vérifiez que l’autre ordinateur est allumé et partage.",
+    "notAdminium": "Rien qui ressemble à Adminium n’a répondu à cette adresse.",
+    "address": "Adresse",
+    "checking": "Vérification…",
+    "go": "Se connecter",
+    "notEncrypted": "Cette adresse n’est pas chiffrée. Ne l’utilisez que sur un réseau de confiance.",
+    "anyway": "Se connecter quand même",
+    "recent": "Récents",
+    "version": "Adminium {version}",
+    "forgetOf": "Oublier {address}",
+    "forget": "Oublier"
+  }
+} as const;

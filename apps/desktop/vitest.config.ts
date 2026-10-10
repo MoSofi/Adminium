@@ -28,6 +28,7 @@ export default defineConfig({
     ...workers(),
     coverage: coverage({ statements: 76, branches: 89 }),
     environment: 'node',
-    include: ['src/**/*.test.ts'],
+    // `.tsx`: the app's own pages (src/renderer/app), each test file naming the DOM it runs in.
+    include: ['src/**/*.test.ts', 'src/**/*.test.tsx'],
   },
 });

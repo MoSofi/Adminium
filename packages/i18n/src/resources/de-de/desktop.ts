@@ -1,0 +1,234 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+/**
+ * GENERATED MIRROR of ../../../locales/de-DE/desktop.json — do not edit by hand.
+ * The JSON file is the canonical hand-authored bundle;
+ * this TS mirror exists so the runtime can bundle a namespace (en-US's eager
+ * ones) or chunk-split it (every other locale, and en-US's deferred `studio`)
+ * without JSON import attributes (browser + NodeNext safe).
+ * Parity is enforced by src/resources/parity.test.ts. Regenerate with
+ * scripts/gen-resources.mjs.
+ */
+export default {
+  "new": {
+    "back": "Zurück",
+    "change": "Ändern…",
+    "create": "Erstellen",
+    "creating": "Wird vorbereitet…",
+    "failed": "Das Projekt konnte nicht angelegt werden.",
+    "heading": "Eine App bauen",
+    "help": "Adminium legt diesen Ordner für Sie an. Alles zu Ihrer App liegt darin.",
+    "name": "Name",
+    "refuse": {
+      "badName": "Verwenden Sie mindestens einen Buchstaben oder eine Ziffer im Namen.",
+      "existsWithFiles": "Ein Ordner mit diesem Namen ist schon vorhanden und enthält Dateien. Wählen Sie einen anderen Namen oder einen anderen Ordner.",
+      "homeFolder": "Ein Projekt kann nicht direkt in Ihrem Benutzerordner liegen. Wählen oder erstellen Sie einen Ordner darin.",
+      "insideAProject": "Dieser Ordner liegt in einem anderen Projekt. Wählen Sie einen Ordner außerhalb davon.",
+      "insideTheApp": "Ein Projekt kann nicht in Adminium selbst liegen. Wählen Sie einen anderen Ordner.",
+      "notAbsolute": "Wählen Sie einen Ordner mit der Schaltfläche „Ändern…“.",
+      "systemFolder": "Ein Projekt kann nicht in einem Ordner liegen, der dem System gehört. Wählen Sie einen eigenen Ordner."
+    },
+    "step": {
+      "files": "Die Dateien Ihrer App werden angelegt",
+      "packages": "Die Bausteine Ihrer App werden geladen",
+      "database": "Die Datenbank wird erstellt",
+      "opening": "Ihre App wird geöffnet",
+      "slow": "Das ist beim ersten Mal der lange Schritt: ein paar Minuten bei langsamer Verbindung. Spätere Apps starten schneller.",
+      "label": "Was gerade geschieht"
+    },
+    "warn": {
+      "another": "Anderen Ordner wählen",
+      "anyway": "Trotzdem verwenden",
+      "dropbox": "Dieser Ordner wird von Dropbox synchronisiert. Projekte funktionieren in synchronisierten Ordnern schlecht: Die Synchronisierung kann ihre Daten beschädigen.",
+      "googledrive": "Dieser Ordner wird von Google Drive synchronisiert. Projekte funktionieren in synchronisierten Ordnern schlecht: Die Synchronisierung kann ihre Daten beschädigen.",
+      "icloud": "Dieser Ordner wird von iCloud Drive synchronisiert. Projekte funktionieren in synchronisierten Ordnern schlecht: Die Synchronisierung kann ihre Daten beschädigen.",
+      "noLinks": "Dieser Datenträger kann die Verknüpfungen nicht speichern, die die Pakete eines Projekts brauchen. Das Laden der Pakete schlägt daher wahrscheinlich fehl.",
+      "onedrive": "Dieser Ordner wird von OneDrive synchronisiert. Projekte funktionieren in synchronisierten Ordnern schlecht: Die Synchronisierung kann ihre Daten beschädigen."
+    },
+    "where": "Speicherort"
+  },
+  "packages": {
+    "again": "Erneut versuchen",
+    "body": "Die Bausteine dieses Projekts sind noch nicht auf diesem Computer. Adminium kann sie jetzt herunterladen und das Projekt danach öffnen. Bei langsamer Verbindung dauert das ein paar Minuten.",
+    "cancel": "Nicht jetzt",
+    "failed": "Die Pakete konnten nicht geladen werden.",
+    "get": "Laden und öffnen",
+    "title": "Pakete dieses Projekts laden?",
+    "working": "Pakete werden geladen"
+  },
+  "start": {
+    "choice": {
+      "build": {
+        "line": "Beschreiben Sie sie, und der Designer baut sie auf diesem Computer.",
+        "title": "Eine App bauen"
+      },
+      "connect": {
+        "line": "Ein Adminium nutzen, das auf einem anderen Computer läuft.",
+        "title": "Mit einem anderen Adminium verbinden"
+      },
+      "db": {
+        "line": "Oberflächen für eine Datenbank erstellen, die Sie schon haben.",
+        "title": "Eigene Datenbank verwenden"
+      },
+      "open": {
+        "line": "Mit einer App weitermachen, die schon in einem Ordner liegt oder die Ihnen jemand geschickt hat.",
+        "title": "Einen Ordner öffnen"
+      }
+    },
+    "heading": "Was möchten Sie tun?",
+    "open": {
+      "notAProject": "Dieser Ordner ist kein Adminium-Projekt."
+    },
+    "recent": {
+      "alreadyListed": "Dieser Ordner steht schon in der Liste.",
+      "building": "Im Bau",
+      "gone": "Dieser Ordner wurde verschoben oder gelöscht",
+      "heading": "Zuletzt verwendete Projekte",
+      "locate": "Suchen…",
+      "locateTitle": "Wo liegt {name} jetzt?",
+      "notThatProject": "Dieser Ordner ist kein Adminium-Projekt.",
+      "open": "{name} öffnen",
+      "openDashboard": "Dashboard öffnen",
+      "openDashboardOf": "Dashboard von {name} öffnen",
+      "openDesigner": "Im Designer öffnen",
+      "openDesignerOf": "{name} im Designer öffnen",
+      "opened": "Geöffnet: {when}",
+      "remove": "Entfernen",
+      "removed": "Aus den zuletzt verwendeten Projekten entfernt",
+      "shared": "Geteilt"
+    },
+    "welcome": "Willkommen bei Adminium."
+  },
+  "toast": {
+    "dismiss": "Schließen",
+    "region": "Hinweise"
+  },
+  "trust": {
+    "body": "Beim Öffnen wird sein Code auf diesem Computer ausgeführt, mit Ihrem Zugriff auf Ihre Dateien. Öffnen Sie nur Ordner, die Sie selbst angelegt haben oder die von jemandem stammen, dem Sie vertrauen.",
+    "cancel": "Abbrechen",
+    "changed": "Der Code dieses Ordners hat sich geändert, seit Sie ihn zuletzt geöffnet haben.",
+    "open": "Öffnen",
+    "title": "Diesen Ordner öffnen?"
+  },
+  "found": {
+    "data": "Die Daten dieses Projekts wurden gefunden.",
+    "key": "Sein Schlüssel wurde gefunden.",
+    "noData": "Dieser Ordner enthält das Projekt, aber keine Daten.",
+    "madeBoth": "Adminium hat einen neuen Schlüssel und eine leere Datenbank angelegt.",
+    "madeDatabase": "Adminium hat eine leere Datenbank angelegt.",
+    "rowsLost": "Die eigenen Tabellen der Apps werden neu angelegt. Zeilen aus den alten Daten sind nicht hier."
+  },
+  "opening": {
+    "continue": "Weiter",
+    "close": "Schließen",
+    "notAProject": {
+      "line": "Sie können in einem Ordner darin ein neues Projekt anlegen.",
+      "another": "Anderen Ordner wählen",
+      "make": "Hier ein neues Projekt anlegen"
+    }
+  },
+  "key": {
+    "heading": "Die Daten dieses Projekts sind hier, aber sein Schlüssel fehlt.",
+    "body": "Der Schlüssel ist eine Zeile in einer Datei namens ‹.env› im Ordner des Projekts. Ihr Computer blendet Dateien aus, deren Name mit einem Punkt beginnt.",
+    "body2": "Ohne den Schlüssel können die gespeicherten Datenbankverbindungen und API-Schlüssel in den Daten dieses Projekts nicht gelesen werden.",
+    "hidden": {
+      "mac": "Drücken Sie im Finder ⌘ ⇧ ., um sie anzuzeigen.",
+      "windows": "Wählen Sie im Datei-Explorer Ansicht › Einblenden › Ausgeblendete Elemente.",
+      "linux": "Drücken Sie in Ihrem Dateimanager Strg H."
+    },
+    "env": {
+      "title": "Ich habe die .env-Datei",
+      "line": "Wählen Sie sie aus, und Adminium kopiert sie hinein.",
+      "pick": "Die .env-Datei dieses Projekts wählen",
+      "notAKey": "Diese Datei enthält keinen Schlüssel. Wählen Sie die .env-Datei, die zu den Daten dieses Projekts gehört."
+    },
+    "fresh": {
+      "title": "Daten neu beginnen, meine Apps behalten",
+      "line": "Ihre alten Daten werden in einen Ordner namens ‹{folder}› verschoben. Nichts wird gelöscht."
+    },
+    "new": {
+      "title": "Mit einem neuen Schlüssel fortfahren",
+      "line": "Die Daten bleiben erhalten. Darin gespeicherte Verbindungen und Schlüssel funktionieren nicht mehr und müssen neu eingegeben werden."
+    },
+    "failed": "Das konnte nicht ausgeführt werden."
+  },
+  "accounts": {
+    "heading": "Dieses Projekt kam mit Konten",
+    "people": "{count, plural, one {# Person} other {# Personen}}",
+    "peopleLabel": "Personen",
+    "apiKeys": "{count, plural, one {# API-Schlüssel} other {# API-Schlüssel}}",
+    "apiKeysLabel": "API-Schlüssel",
+    "publicKeys": "{count, plural, one {# öffentlich zugänglicher Schlüssel} other {# öffentlich zugängliche Schlüssel}}",
+    "publicKeysLabel": "Öffentlich zugänglich",
+    "body": "Sie arbeiten auf diesem Computer als sein Eigentümer. Bevor Sie es in Ihrem Netzwerk teilen, wählen Sie ein neues Eigentümerpasswort, und die alten Sitzungen und API-Schlüssel funktionieren nicht mehr.",
+    "show": "Anzeigen",
+    "hide": "Ausblenden",
+    "more": "und {count} weitere"
+  },
+  "notice": {
+    "manager": {
+      "title": "Dieses Projekt verwendet {manager}.",
+      "line": "Adminium installiert stattdessen mit npm. Ihre {manager}-Datei bleibt, wie sie ist."
+    },
+    "older": {
+      "title": "Dieses Projekt wurde mit einem älteren Adminium erstellt (‹{was}›).",
+      "line": "Aktualisieren Sie es auf ‹{here}›, damit alles zusammenpasst. Das ändert eine Zeile im Projekt und lädt seine Bausteine erneut herunter.",
+      "update": "Dieses Projekt aktualisieren",
+      "notNow": "Nicht jetzt",
+      "working": "Dieses Projekt wird aktualisiert…",
+      "failed": "Dieses Projekt konnte nicht aktualisiert werden. Es lässt sich weiterhin so öffnen, wie es ist."
+    },
+    "newer": {
+      "title": "Dieses Projekt braucht ein neueres Adminium.",
+      "line": "Es wurde zuletzt mit Adminium ‹{last}› geöffnet. Dieser Computer hat ‹{here}›.",
+      "lineUnknown": "Es wurde zuletzt mit einem neueren Adminium geöffnet. Dieser Computer hat ‹{here}›.",
+      "update": "Adminium aktualisieren",
+      "looking": "Es wird nach einem neueren Adminium gesucht. Es wird hier angeboten, sobald es gefunden ist.",
+      "cannot": "Diese Kopie von Adminium aktualisiert sich nicht selbst. Holen Sie die neueste von adminium.dev."
+    },
+    "running": {
+      "title": "Dieses Projekt läuft bereits",
+      "cli": "Es ist in einem Terminal geöffnet, auf Port ‹{port}›. Schließen Sie es zuerst dort.",
+      "app": "Es ist in einem anderen Adminium-Fenster geöffnet, auf Port ‹{port}›. Schließen Sie es zuerst dort.",
+      "again": "Erneut prüfen"
+    }
+  },
+  "install": {
+    "offline": "Das Internet war nicht erreichbar. Die Pakete kommen von registry.npmjs.org: Prüfen Sie Ihre Verbindung und versuchen Sie es erneut.",
+    "proxy": "Der Proxy Ihres Netzwerks hat den Download abgelehnt. Prüfen Sie die Proxy-Einstellungen dieses Computers und versuchen Sie es erneut.",
+    "disk": "Dieser Datenträger ist voll. Geben Sie Speicherplatz frei und versuchen Sie es erneut.",
+    "registry": "Die Paket-Registry hat mit einem Fehler geantwortet. Versuchen Sie es gleich noch einmal."
+  },
+  "shared": {
+    "copyFailed": "Die Adresse konnte nicht kopiert werden.",
+    "best": "Beste",
+    "copy": "{address} kopieren",
+    "portChanged": "Port {was} war belegt, daher hat sich die Adresse auf {now} geändert.",
+    "heading": "{name} wird geteilt",
+    "noNetwork": "Dieser Computer ist in keinem Netzwerk, daher kann ihn noch kein anderes Gerät erreichen. Verbinden Sie sich mit einem WLAN oder stecken Sie ein Kabel ein: Die Adresse erscheint hier.",
+    "open": "Auf einem anderen Gerät öffnen",
+    "qr": "Ein Code zum Scannen für {address}",
+    "notEncrypted": "Der Datenverkehr in Ihrem lokalen Netzwerk ist nicht verschlüsselt. Teilen Sie nur in einem Netzwerk, dem Sie vertrauen.",
+    "awake": "Ihr Computer bleibt wach, solange das Projekt geteilt wird. Das Schließen des Deckels beendet es.",
+    "dashboard": "Dashboard öffnen",
+    "build": "Zurück zum Bauen",
+    "designerOff": "Der Designer ist aus, solange das Projekt geteilt wird. Gehen Sie zurück zum Bauen, um Ihre Apps zu ändern.",
+    "keep": "Weiter teilen",
+    "buildAsk": "Zurück zum Bauen?",
+    "buildAskBody": "Personen, die es auf anderen Geräten verwenden, werden getrennt."
+  },
+  "connect": {
+    "notAnAddress": "Das ist keine Adresse. Geben Sie eine wie office-pc.local:4600 ein.",
+    "notPrivate": "Adminium verbindet sich nur in Ihrem eigenen Netzwerk ohne Verschlüsselung. Verwenden Sie eine https-Adresse.",
+    "noAnswer": "Unter dieser Adresse hat nichts geantwortet. Prüfen Sie, ob der andere Computer eingeschaltet ist und teilt.",
+    "notAdminium": "Unter dieser Adresse hat nichts geantwortet, das nach Adminium aussieht.",
+    "address": "Adresse",
+    "checking": "Wird geprüft…",
+    "go": "Verbinden",
+    "notEncrypted": "Diese Adresse ist nicht verschlüsselt. Verwenden Sie sie nur in einem Netzwerk, dem Sie vertrauen.",
+    "anyway": "Trotzdem verbinden",
+    "recent": "Zuletzt",
+    "version": "Adminium {version}",
+    "forgetOf": "{address} vergessen",
+    "forget": "Vergessen"
+  }
+} as const;

@@ -38,7 +38,9 @@ export default {
     "noModel": "Adminium Designer 使用你自己的 AI 模型。添加一个即可开始。",
     "cannotBuild": "此模型无法构建应用：它不支持工具。请选择其他模型。",
     "failed": "Designer 无法启动",
-    "noModelSet": "此服务器尚未为 Designer 设置模型。请在“设置 → AI”中添加。"
+    "noModelSet": "此服务器尚未为 Designer 设置模型。请在“设置 → AI”中添加。",
+    "ignoredEnv": "这些值由应用自行决定，因此此项目的 .env 中对它们的设置已被忽略：",
+    "ignoredEnvHide": "隐藏此提示"
   },
   "target": {
     "label": "构建内容：{target}",
@@ -167,7 +169,12 @@ export default {
     "save": "保存",
     "saving": "正在保存…",
     "addedToast": "已添加模型。",
-    "none": "没有模型"
+    "none": "没有模型",
+    "envNotUsed": "此项目的 .env 指定了一个模型。在应用中，模型保存在这台电脑上；那一行不会被使用。",
+    "keptPlain": "保存在这台电脑上，以纯文本形式存放在只有你能读取的文件中：这台电脑没有密钥存储。它不会放进你的项目，因此你导出或共享的项目不包含任何密钥。",
+    "keptMac": "保存在这台电脑上，由钥匙串加密。它不会放进你的项目，因此你导出或共享的项目不包含任何密钥。",
+    "keptWindows": "保存在这台电脑上，由 Windows 加密。它不会放进你的项目，因此你导出或共享的项目不包含任何密钥。",
+    "keptLinux": "保存在这台电脑上，由桌面的密钥存储加密。它不会放进你的项目，因此你导出或共享的项目不包含任何密钥。"
   },
   "provider": {
     "anthropic": "Anthropic",
@@ -579,6 +586,7 @@ export default {
     "previewNoRole": "这是应用的预览，以没有角色的人的身份查看。这不是你自己的登录：在这里无法进入 Studio、人员或设置。",
     "openOwn": "以你自己的身份打开仪表盘",
     "owner": "你是此项目的所有者，通过 Adminium Designer 打印的链接登录。在项目运行到其他地方之前，请设置邮箱和密码。",
+    "ownerApp": "你是此项目的所有者，由 Adminium 应用在这台电脑上为你登录。在共享项目或让它运行到其他地方之前，请设置邮箱和密码。",
     "ownerLabel": "你的所有者账户",
     "ownerSet": "设置密码",
     "ownerLater": "暂不",
@@ -740,5 +748,77 @@ export default {
   "chat": {
     "copy": "复制这条消息",
     "copied": "已复制"
+  },
+  "project": {
+    "menu": "项目：{name}",
+    "export": "导出此项目…",
+    "showFinder": "在访达中显示",
+    "showExplorer": "在文件资源管理器中显示",
+    "showFiles": "在文件管理器中显示",
+    "close": "关闭项目"
+  },
+  "mode": {
+    "label": "构建或共享",
+    "build": "构建",
+    "share": "共享"
+  },
+  "versionsOffer": {
+    "title": "要保留作品的版本吗？",
+    "body": "Adminium 使用 git 在每次更改后保留一个版本，方便你回退。这台电脑上没有 git。",
+    "download": "下载 git（{size} MB）",
+    "notNow": "暂时不要",
+    "apple": "或者安装 Apple 的开发者工具（约 1 GB），其中包含 git。",
+    "appleLink": "安装 Apple 的工具",
+    "lookAgain": "重新查找",
+    "noDownload": "没有适用于这类电脑的 git 可供下载。请自行安装 git，然后重新查找。",
+    "downloading": "正在下载 git",
+    "progress": "{received} / {total} MB",
+    "cancel": "取消",
+    "tryAgain": "重试",
+    "turnOn": "开启版本",
+    "offHere": "这台电脑上的版本功能已关闭。",
+    "offButton": "版本：关闭",
+    "offWord": "关闭",
+    "nowOn": "版本功能已开启",
+    "nowOnNext": "你的下一次更改将保留为一个版本。",
+    "failed": {
+      "wrongFile": "下载的文件与 Adminium 预期的不一致，已被删除。",
+      "noConnection": "无法连接互联网。请检查网络连接后重试。",
+      "other": "无法在这台电脑上设置 git。"
+    }
+  },
+  "share": {
+    "passwordTitle": "选择从其他设备登录的方式",
+    "beforeTitle": "共享之前",
+    "step": "共享 · 第 {step} 步，共 {steps} 步",
+    "email": "你的邮箱",
+    "password": "密码",
+    "again": "再次输入相同的密码",
+    "passwordNote": "在这台电脑上你永远不需要它们。你会在手机或另一台电脑上输入它们。",
+    "next": "下一步",
+    "reach": "共享期间，此网络上的人可以访问此项目。每个人都需要登录。",
+    "dataStays": "项目的数据保留在这台电脑上。",
+    "firewall": "你的电脑可能会询问是否允许 Adminium 接受连接。请选择允许。",
+    "notEncrypted": "本地网络上的流量未加密。请只在你信任的网络上共享。你向公众开放的应用在那里无需登录即可使用。",
+    "designerOff": "项目共享期间 Designer 处于关闭状态。使用“返回构建”即可回到它。",
+    "cancel": "取消",
+    "sharing": "正在共享…",
+    "now": "立即共享"
+  },
+  "export": {
+    "everything": "项目的应用、数据和密钥",
+    "everythingLine": "打开它的人可以读取全部内容，包括已保存的数据库连接。只发给你愿意交出这些内容的人。",
+    "apps": "仅应用",
+    "appsLine": "不含数据、密钥以及你与 Designer 的对话。打开它的人从空数据开始。",
+    "saveTitle": "导出 {name}",
+    "busy": "此项目中仍有操作在运行。请在完成后再导出。",
+    "title": "导出 {name}",
+    "noModelKeys": "你的模型密钥绝不会包含在内：它们保留在这台电脑上。",
+    "stops": "生成文件时项目会暂停片刻，完成后此窗口会恢复。",
+    "cancel": "取消",
+    "working": "正在导出…",
+    "go": "导出…",
+    "saved": "已保存 {file}，{size} MB",
+    "failed": "无法生成导出文件"
   }
 } as const;

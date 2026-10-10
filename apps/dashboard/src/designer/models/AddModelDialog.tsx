@@ -15,6 +15,7 @@
  * savable. Changing the key or the address clears the test; changing the model
  * asks the new one.
  */
+import { getDesktopApi } from '../../lib/desktop-runtime.js';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Check, CircleAlert, CircleCheck, Cpu, FileText, Loader2, TriangleAlert } from 'lucide-react';
 import { Button, FormField, Input, Modal, ModalBody, ModalFooter, ModalHeader, SecretInput, Select } from '@adminium/ui';
@@ -328,10 +329,15 @@ export function AddModelDialog({
               )}
             </div>
 
-            <div className="flex items-start gap-2.5 rounded-[12px] border border-border bg-surface-2 px-3.5 py-3">
+            {models?.kept != null && (models.ignoredEnv ?? []).length > 0 ? (
+              <p role="note" className="m-0 text-pretty rounded-[12px] border border-border bg-surface-2 px-3.5 py-3 text-[12.5px] leading-normal text-fg-muted">
+                {t('designer:model.envNotUsed', 'This project’s .env names a model. In the app, models are kept on this computer; that line is not used.')}
+              </p>
+            ) : null}
+            <div className={`flex items-start gap-2.5 rounded-[12px] border px-3.5 py-3 ${models?.kept === 'plain' ? 'border-warn/30 bg-warn-soft' : 'border-border bg-surface-2'}`}>
               <FileText aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-fg-subtle" />
               <p className="m-0 text-pretty text-[12.5px] leading-normal text-fg-muted">
-                <span className="font-bold text-fg">{t('designer:model.keptLead', 'Where this is kept:')}</span> <KeptLine />
+                <span className="font-bold text-fg">{t('designer:model.keptLead', 'Where this is kept:')}</span> {models?.kept == null ? <KeptLine /> : keptByAppWords(models.kept, getDesktopApi()?.platform)}
               </p>
             </div>
           </>
@@ -362,6 +368,17 @@ export function AddModelDialog({
       )}
     </Modal>
   );
+}
+
+/**
+ * Where the desktop app keeps a key, in the words of the system it runs on. It says the key is encrypted at rest and
+ * is not in the project, and nothing more: it is not a promise about other programs on this computer.
+ */
+export function keptByAppWords(kept: 'key-store' | 'plain', platform: string | undefined): string {
+  if (kept === 'plain') return t('designer:model.keptPlain', 'on this computer, as plain text in a file only you can read: this computer has no key store. It is not put in your project, so a project you export or share carries none.');
+  if (platform === 'darwin') return t('designer:model.keptMac', 'on this computer, encrypted by Keychain. It is not put in your project, so a project you export or share carries none.');
+  if (platform === 'win32') return t('designer:model.keptWindows', 'on this computer, encrypted by Windows. It is not put in your project, so a project you export or share carries none.');
+  return t('designer:model.keptLinux', 'on this computer, encrypted by your desktop’s key store. It is not put in your project, so a project you export or share carries none.');
 }
 
 /** "in the file `.env` in your project folder, …", with the file name in mono wherever the language puts it. */

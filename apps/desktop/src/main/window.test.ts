@@ -21,11 +21,14 @@ import {
   WEB_PREFERENCES,
   clampWindowState,
   crashRenderScript,
+  decideFrameNavigation,
   decideNavigation,
+  decideNewWindow,
   isMicrophoneAllowed,
   isPermissionAllowed,
   jsonForScript,
   originOf,
+  previewOriginOf,
   parseCrashAction,
   type DisplayArea,
   type WindowState,
@@ -234,6 +237,48 @@ describe('decideNavigation', () => {
     // Same family as blob:, different scheme. The scheme check covers both
     // without either having to be enumerated.
     expect(decideNavigation(`filesystem:${APP_ORIGIN}/temporary/x`, APP_ORIGIN).action).toBe('deny');
+  });
+});
+
+describe('decideFrameNavigation (a frame that is not the main one)', () => {
+  const PREVIEW = previewOriginOf(`${APP_ORIGIN}/design`);
+
+  it('names the preview by the app\'s own port under localhost', () => {
+    expect(PREVIEW).toBe(`http://localhost:${new URL(APP_ORIGIN).port}`);
+    expect(previewOriginOf('https://127.0.0.1:4700/')).toBeNull();
+    expect(previewOriginOf('http://192.168.1.4:4700/')).toBeNull();
+    expect(previewOriginOf('http://127.0.0.1/')).toBeNull();
+    expect(previewOriginOf('not a url')).toBeNull();
+  });
+
+  it.each([
+    ['the preview\'s sign-in', (p: string) => `${p}/designer-preview/enter?ticket=abc`, 'allow'],
+    ['the page the sign-in redirects to', (p: string) => `${p}/a/repairs/`, 'allow'],
+    ['a hosted app framed on the app\'s own origin', () => `${APP_ORIGIN}/apps/repairs/staff/`, 'allow'],
+    ['another port on localhost', () => 'http://localhost:1/', 'deny'],
+    ['localhost over https', (p: string) => p.replace('http:', 'https:') + '/', 'deny'],
+    ['a look-alike host', (p: string) => p.replace('localhost', 'localhost.evil.com') + '/', 'deny'],
+    ['the web', () => 'https://example.com/', 'deny'],
+    ['a blob minted on the preview', (p: string) => `blob:${p}/abc-123`, 'deny'],
+    ['a data: document', () => 'data:text/html,x', 'deny'],
+    ['javascript:', () => 'javascript:alert(1)', 'deny'],
+    ['an unparseable target', () => 'http://', 'deny'],
+  ])('%s', (_label, make, expected) => {
+    expect(decideFrameNavigation(make(PREVIEW as string), APP_ORIGIN, PREVIEW)).toBe(expected);
+  });
+
+  it('knows no preview outside a project being built', () => {
+    expect(decideFrameNavigation(`${PREVIEW as string}/a/repairs/`, APP_ORIGIN, null)).toBe('deny');
+    expect(decideFrameNavigation(`${APP_ORIGIN}/apps/repairs/staff/`, APP_ORIGIN, null)).toBe('allow');
+  });
+
+  it('allows nothing before the handshake', () => {
+    expect(decideFrameNavigation(`${APP_ORIGIN}/`, null, null)).toBe('deny');
+  });
+
+  it('leaves the main frame\'s rule alone: the preview\'s name is not the app', () => {
+    // A frame may be on localhost; the window may not (the preload would load there).
+    expect(decideNavigation(`${PREVIEW as string}/takeover`, APP_ORIGIN).action).toBe('deny');
   });
 });
 
@@ -481,6 +526,33 @@ const html = (name: string): string =>
  * contract.
  */
 const markup = (name: string): string => html(name).replace(/<!--[\s\S]*?-->/g, '');
+
+describe('a new window', () => {
+  const APP = 'http://127.0.0.1:52341';
+  const PREVIEW = 'http://localhost:52341';
+
+  it('hands a page of the preview to the system’s browser: "Open in a new tab" on the build page', () => {
+    expect(decideNewWindow(`${PREVIEW}/apps/shop/customer/menu`, APP, PREVIEW)).toEqual({ action: 'external', url: `${PREVIEW}/apps/shop/customer/menu` });
+    expect(decideNewWindow(`${PREVIEW}/designer-preview/enter?ticket=abc&to=%2Fa%2Fshop`, APP, PREVIEW)).toMatchObject({ action: 'external' });
+  });
+
+  it('hands over nothing that only looks like the preview, and nothing when no project is being built', () => {
+    for (const target of ['http://localhost:9999/x', 'http://localhost.evil.com:52341/x', `blob:${PREVIEW}/1b2c`, 'about:blank', '', 'file:///etc/passwd', 'javascript:alert(1)']) {
+      expect(decideNewWindow(target, APP, PREVIEW).action, target).toBe('deny');
+    }
+    expect(decideNewWindow(`${PREVIEW}/apps/shop/customer`, APP, null)).toMatchObject({ action: 'deny' });
+  });
+
+  it('never opens the app’s own pages anywhere else, but for a one-use sign-in link; and still sends https to the browser', () => {
+    expect(decideNewWindow(`${APP}/tables`, APP, PREVIEW)).toMatchObject({ action: 'deny' });
+    const link = `${APP}/tables#designToken=${'a'.repeat(64)}`;
+    expect(decideNewWindow(link, APP, PREVIEW)).toEqual({ action: 'external', url: link });
+    for (const near of [`${APP}/tables#designToken=short`, `${APP}/tables#other=${'a'.repeat(64)}`, `http://127.0.0.1:9/tables#designToken=${'a'.repeat(64)}`]) {
+      expect(decideNewWindow(near, APP, PREVIEW), near).toMatchObject({ action: 'deny' });
+    }
+    expect(decideNewWindow('https://docs.adminium.dev/', APP, PREVIEW)).toEqual({ action: 'external', url: 'https://docs.adminium.dev/' });
+  });
+});
 
 describe('boot.html / crash.html (offline guarantee)', () => {
   it.each(['boot.html', 'crash.html'])('%s references no remote origin', (name) => {

@@ -7,8 +7,27 @@
  * > dashboard build for `https?://` string literals outside an allowlist (docs
  * > deep-links, `shell.openExternal` targets). Runs in CI on every desktop build.
  *
- * The promise is that "the desktop build must be fully functional with the network
- * cable unplugged, forever". The offline smoke test proves that for the paths it
+ * The promise has two halves since the app also serves project folders, and
+ * the gate checks each against its own list:
+ *
+ *  - THE CLASSIC WORKSPACE MAKES NO REQUEST. "The desktop build must be fully
+ *    functional with the network cable unplugged, forever": the window, the
+ *    dashboard and the main process name no remote address at all.
+ *  - A PROJECT REACHES A SHORT, WRITTEN LIST, each address for one thing a
+ *    person did: the npm registry once for a project's packages, the place an
+ *    app was copied from, a picture site the person asked for, and the model
+ *    they connected. That list is {@link PROJECT_REACHES}; the code that serves
+ *    a project is scanned against it, so a new address there fails here and is
+ *    read by someone before it ships. Without that half, this gate stayed
+ *    green while "no request, ever" stopped being true of the app.
+ *
+ * One request is the app's own and is neither: git, fetched from its
+ * publisher's releases on GitHub when a person with none says yes
+ * (apps/desktop/src/main/git.ts). `github.com` was already on the list below
+ * for the links the About screen opens; that one address is also dialled, once,
+ * on a yes, and the file it sends must match a hash written in the app.
+ *
+ * What follows was written for the first half and holds for both. The offline smoke test proves that for the paths it
  * walks; this gate covers what a smoke test structurally cannot — a remote asset
  * on a page nobody clicked during the run. A `<link>` to Google Fonts on the login
  * screen, a CDN `<script>` in a rarely-hit route, a tile server behind a widget
@@ -35,8 +54,9 @@
  *     matching how `check-deps` is wired.
  *
  * Usage: node scripts/check-offline-assets.mjs [--root <dir>]...
- *   --root  scan this directory instead of the defaults (repeatable). Used by the
- *           test suite to point the scanner at a fixture.
+ *   --root          scan this directory instead of the defaults (repeatable). Used by
+ *                   the test suite to point the scanner at a fixture.
+ *   --project-root  the same, as code that serves a project (PROJECT_REACHES applies).
  */
 
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
@@ -77,8 +97,24 @@ const DEFAULT_ROOTS = [
     // build-time check that a remote URL had not been linked into the process
     // that makes the requests.
     path: 'apps/desktop/out/main',
+    kind: 'classic',
     why: 'the Electron MAIN process — the updater, the window lifecycle and the utilityProcess supervisor. A remote URL reachable here is a request made with no renderer involved, which no renderer-only scan can see',
     build: 'pnpm --filter @adminium/desktop build',
+  },
+  {
+    // The code that serves a PROJECT inside the app: it installs packages,
+    // copies apps and looks for pictures. It may name what PROJECT_REACHES
+    // lists and nothing else.
+    path: 'apps/server/dist/project',
+    kind: 'project',
+    why: 'what makes, installs and builds a project folder: the one place the npm registry and an app\'s source are named',
+    build: 'pnpm --filter @adminium/server build',
+  },
+  {
+    path: 'apps/server/dist/designer',
+    kind: 'project',
+    why: 'Adminium Designer\'s server side: its installs, its picture search and its preview',
+    build: 'pnpm --filter @adminium/server build',
   },
 ];
 
@@ -348,6 +384,38 @@ const ALLOWED_HOSTS = [
 ];
 
 /**
+ * What a PROJECT's server may reach, beyond the list above: the whole of it.
+ *
+ * Each entry is one thing a person did, said in `when`. An address that is not
+ * here and not in ALLOWED_HOSTS fails the gate in the code that serves a
+ * project; and every address here STILL FAILS in the classic workspace's own
+ * outputs (the window, the dashboard, the main process), which is how "the
+ * classic workspace makes no request" stays checked.
+ */
+const PROJECT_REACHES = [
+  {
+    test: /^registry\.npmjs\.org$/,
+    when: 'a project\'s packages are installed: once for a new project, again when a package is added or the folder came from another machine. The one registry the carried npm is pointed at',
+  },
+  {
+    test: /^(codeload\.)?github(\.com)?$/,
+    when: 'the person starts from an app in the catalogue: its archive is fetched from the repository the catalogue names, at the version\'s tag (and the pattern that recognizes such an address)',
+  },
+  {
+    test: /^(api|images|www)\.pexels\.com$|^(api\.)?unsplash\.com$|^api\.openverse\.org$|^\$\{unsplash_host\}$/,
+    when: 'the Designer looks for pictures for a project\'s screens: only a site the person allowed, with their own key where the site needs one; the licence pages are links',
+  },
+  {
+    test: /^localhost:\$\{string$/,
+    when: 'never leaves the machine: the preview\'s own name, the same port as the Designer\'s under `localhost`',
+  },
+  {
+    test: /^$|^\[\^$/,
+    when: 'not an address: a bare scheme prefix (`\'https://\'`, where a typed address is checked) and the start of a pattern that tests for one (`https:\\/\\/[^…]`). No host follows, so nothing can be asked for',
+  },
+];
+
+/**
  * Absolute URLs in ASSET-LOADING POSITIONS. Unlike everything above, these fail
  * regardless of host: the allowlist certifies that a string is never fetched, and
  * a `<script src>` is the compiled proof that it is. the offline contract\'s icons row, "no CDN
@@ -430,7 +498,7 @@ function displayPath(file) {
   return rel.startsWith('..') ? file : rel;
 }
 
-function checkFile(file) {
+function checkFile(file, kind = 'classic') {
   const violations = [];
   const text = readFileSync(file, 'utf8');
   const where = displayPath(file);
@@ -458,11 +526,22 @@ function checkFile(file) {
       violations.push({ file: where, url, rule: 'blocked-host', why: blocked.why });
       continue;
     }
-    if (matches(ALLOWED_HOSTS, host) === undefined) {
+    if (matches(ALLOWED_HOSTS, host) !== undefined) continue;
+    if (kind === 'project' && matches(PROJECT_REACHES, host) !== undefined) continue;
+    if (kind !== 'project' && matches(PROJECT_REACHES, host) !== undefined) {
       violations.push({
         file: where,
         url,
-        rule: 'unallowlisted-host',
+        rule: 'project-address-in-the-classic-workspace',
+        why: `'${host}' is an address only a project's server may reach (PROJECT_REACHES). Here it is in the classic workspace's own output, which makes no request at all`,
+      });
+      continue;
+    }
+    {
+      violations.push({
+        file: where,
+        url,
+        rule: kind === 'project' ? 'unlisted-project-address' : 'unallowlisted-host',
         why: `'${host}' is not in the allowlist. If this URL is never fetched by the app (an identifier, an error string, a placeholder, or a shell.openExternal target), add it to ALLOWED_HOSTS in scripts/check-offline-assets.mjs with the reason. If it IS fetched, it cannot ship: the desktop build has to work offline, forever`,
       });
     }
@@ -473,10 +552,10 @@ function checkFile(file) {
 function parseRoots(argv) {
   const roots = [];
   for (let i = 0; i < argv.length; i += 1) {
-    if (argv[i] !== '--root') continue;
+    if (argv[i] !== '--root' && argv[i] !== '--project-root') continue;
     const value = argv[i + 1];
-    if (value === undefined) throw new Error('--root needs a directory');
-    roots.push({ path: value, why: 'passed with --root', build: null });
+    if (value === undefined) throw new Error(`${argv[i]} needs a directory`);
+    roots.push({ path: value, kind: argv[i] === '--project-root' ? 'project' : 'classic', why: `passed with ${argv[i]}`, build: null });
     i += 1;
   }
   return roots.length > 0 ? roots : DEFAULT_ROOTS;
@@ -498,7 +577,7 @@ function main() {
     }
     const files = scannableFiles(dir);
     scanned += files.length;
-    for (const file of files) violations.push(...checkFile(file));
+    for (const file of files) violations.push(...checkFile(file, root.kind ?? 'classic'));
   }
 
   if (violations.length > 0) {

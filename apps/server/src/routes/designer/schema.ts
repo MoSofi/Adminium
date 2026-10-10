@@ -41,6 +41,8 @@ export const designerStateReply = z.object({
   active: z.object({ sessionId: z.string(), turn: z.number().int() }).nullable(),
   /** Whether the person asking is the owner `design` made, still with no password: the dashboard then offers to set one. */
   ownerNeedsPassword: z.boolean(),
+  /** Names in the project's `.env` or config that were not obeyed, because the host decides them. Empty on a terminal. */
+  ignoredEnv: z.array(z.string()),
 });
 
 export const designerOwnerPasswordBody = z.object({ email: z.string().min(3).max(254), password: z.string().min(1).max(1024) });
@@ -284,6 +286,10 @@ export const designerModelsReply = z.object({
   verdicts: z.array(z.object({ connectionId: z.string(), model: z.string(), canBuild: z.boolean(), message: z.string().nullable() })),
   /** Whether a model can be added here (a project .env to keep it in). */
   canAdd: z.boolean(),
+  /** Inside the desktop app: keys are kept by the app, by the system's key store or (where there is none) in plain text. `null` elsewhere. */
+  kept: z.enum(['key-store', 'plain']).nullable(),
+  /** Inside the desktop app: model names this project's `.env` sets, which are not used there. */
+  ignoredEnv: z.array(z.string()),
 });
 
 export const designerModelCheckBody = z.object({ connectionId: z.string().max(64), model: z.string().min(1).max(200) });

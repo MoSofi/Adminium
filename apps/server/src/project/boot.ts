@@ -11,7 +11,7 @@ import {
   withDefaults,
   type ProjectConfig,
 } from './config.js';
-import { DOTENV_FILE, loadDotEnv } from './dotenv.js';
+import { DOTENV_FILE, KEPT_OUT_OF_THE_ENVIRONMENT, loadDotEnv, readDotEnv } from './dotenv.js';
 import { loadProjectConfig, type LoadBundler, type LoadedProjectConfig } from './build.js';
 import { configFileName, findProject, type ProjectLocation } from './locate.js';
 
@@ -28,6 +28,8 @@ export interface PreparedProject {
   fromDotEnv: string[];
   /** Where each variable the project supplied came from, for error messages. */
   sources: Record<string, string>;
+  /** Names the folder's `.env` or config set that the host does not let a folder decide; each was ignored. */
+  refused: string[];
 }
 
 /**
@@ -61,23 +63,38 @@ export async function prepareProject(opts: {
   loadBundler?: LoadBundler;
   /** Who the build is for (`loadProjectConfig`); left out by a command that only reads the project. */
   dev?: boolean;
+  /**
+   * Names a folder may not decide, whatever its `.env` or its config says: the
+   * host (the desktop app) states them itself, or leaves them unset on purpose.
+   * A terminal passes none: there the folder and the person are one.
+   */
+  refuse?: readonly string[];
 }): Promise<PreparedProject | null> {
   const project = findProject(opts.cwd, opts.env);
   if (project === null) return null;
-  const fromDotEnv = loadDotEnv(project.root, opts.env);
+  const refuse = opts.refuse ?? [];
+  const inFile = refuse.length === 0 ? null : readDotEnv(project.root);
+  const refused = new Set(inFile === null ? [] : refuse.filter((name) => name in inFile));
+  const fromDotEnv = refuse.length === 0 ? loadDotEnv(project.root, opts.env) : loadDotEnv(project.root, opts.env, [...KEPT_OUT_OF_THE_ENVIRONMENT, ...refuse]);
   const loaded = await loadProjectConfig(project, {
     version: opts.version,
     ...(opts.loadBundler === undefined ? {} : { loadBundler: opts.loadBundler }),
     ...(opts.dev === undefined ? {} : { dev: opts.dev }),
   });
+  const fromConfig = projectEnvironment(loaded.config, project.root);
+  for (const name of refuse) {
+    if (name in fromConfig && (opts.env[name] ?? '') === '') refused.add(name);
+    Reflect.deleteProperty(fromConfig, name);
+  }
   return {
     project,
     config: loaded.config,
     from: loaded.from,
     ...(loaded.appsRebuilt === true ? { appsRebuilt: true as const } : {}),
-    env: withDefaults(opts.env, projectEnvironment(loaded.config, project.root)),
+    env: withDefaults(opts.env, fromConfig),
     databases: configuredDatabases(loaded.config),
     fromDotEnv,
     sources: variableSources(project, loaded.config, opts.env, fromDotEnv),
+    refused: [...refused].sort(),
   };
 }

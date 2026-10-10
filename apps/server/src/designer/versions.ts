@@ -36,6 +36,13 @@ export interface Versions {
   commit(session: DesignerSession, label?: string): Promise<{ n: number; name: string } | null>;
   /** The state before the first turn, for "put the files back" when no version exists yet. */
   snapshot(session: DesignerSession): Promise<void>;
+  /**
+   * For a session that was worked in while versions were off (no git on the
+   * machine then, one now): record the folder as it stands as its first
+   * version, named so the person can tell what it is. Does nothing for a
+   * session that has anything recorded already, or when versions are off.
+   */
+  catchUp(session: DesignerSession): Promise<{ n: number; name: string } | null>;
   list(sessionId: string): Promise<Version[]>;
   /**
    * Put the folder back as version `n` was (0: as it was before the session).
@@ -54,19 +61,28 @@ export interface Versions {
 
 const GIT_TIMEOUT_MS = 30_000;
 
+/** The name of the first version of a session that was worked in before versions came on. */
+export const BEFORE_VERSIONS_LABEL = 'Before versions were on';
+
 export class VersionsError extends Error {
   override readonly name = 'VersionsError';
 }
 
-export function createVersions(root: string, opts: { git?: string } = {}): Versions {
-  const gitBinary = opts.git ?? 'git';
+export function createVersions(root: string, opts: { git?: string | null | (() => string | null) } = {}): Versions {
+  // `null`: the host looked and found no git (the desktop app). Versions are off, and NOTHING is started to find
+  // out: on a Mac with no developer tools the `git` on the PATH is Apple's stand-in, and starting it raises the
+  // system's install dialog.
+  // A function: the host may find one LATER (the desktop app fetches git on a person's yes, while the project is
+  // open), so the path is asked for each time and what was learned about one path is not believed of the next.
+  const source = opts.git;
+  const gitPath = (): string | null => (typeof source === 'function' ? source() : source === undefined ? 'git' : source);
   const gitDir = join(root, DESIGNER_DIR, 'versions.git');
-  let known: boolean | null = null;
+  let known: { path: string | null; works: boolean } | null = null;
 
   function git(args: readonly string[], env: Record<string, string> = {}): Promise<string> {
     return new Promise((resolve, reject) => {
       execFile(
-        gitBinary,
+        gitPath() ?? 'git',
         [
           '-c',
           'core.hooksPath=/dev/null',
@@ -114,7 +130,7 @@ export function createVersions(root: string, opts: { git?: string } = {}): Versi
     if (existsSync(join(gitDir, 'HEAD'))) return;
     mkdirSync(join(root, DESIGNER_DIR), { recursive: true });
     await new Promise<void>((resolve, reject) => {
-      execFile(gitBinary, ['init', '--bare', '--quiet', gitDir], { timeout: GIT_TIMEOUT_MS, env: { ...scrubbedEnvironment(), GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_NOSYSTEM: '1' } }, (error) => {
+      execFile(gitPath() ?? 'git', ['init', '--bare', '--quiet', gitDir], { timeout: GIT_TIMEOUT_MS, env: { ...scrubbedEnvironment(), GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_NOSYSTEM: '1' } }, (error) => {
         if (error !== null) reject(new VersionsError(`git init failed: ${error.message}`));
         else resolve();
       });
@@ -167,11 +183,17 @@ export function createVersions(root: string, opts: { git?: string } = {}): Versi
 
   return {
     async available() {
-      if (known !== null) return known;
-      known = await new Promise<boolean>((resolve) => {
-        execFile(gitBinary, ['--version'], { timeout: 5000 }, (error) => resolve(error === null));
+      const path = gitPath();
+      if (known !== null && known.path === path) return known.works;
+      if (path === null) {
+        known = { path, works: false };
+        return false;
+      }
+      const works = await new Promise<boolean>((resolve) => {
+        execFile(path, ['--version'], { timeout: 5000 }, (error) => resolve(error === null));
       });
-      return known;
+      known = { path, works };
+      return works;
     },
     async commit(session, label) {
       if (!(await this.available())) return null;
@@ -185,6 +207,13 @@ export function createVersions(root: string, opts: { git?: string } = {}): Versi
       const tree = await treeOfFolder(session);
       const commit = (await git(['commit-tree', tree, '-m', 'before the session'])).trim();
       await git(['update-ref', base(session.id), commit]);
+    },
+    async catchUp(session) {
+      if (!(await this.available())) return null;
+      await ensure();
+      // Anything recorded (a before-state or a version) means versions were on for this session: nothing to catch up.
+      if ((await revision(base(session.id))) !== null || (await revision(branch(session.id))) !== null) return null;
+      return record(session, (n) => `v${String(n)} · ${BEFORE_VERSIONS_LABEL}`);
     },
     async list(sessionId) {
       if (!(await this.available()) || !existsSync(join(gitDir, 'HEAD'))) return [];

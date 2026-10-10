@@ -256,3 +256,37 @@ describe('an app with a build of its own', () => {
     expect(readAppBuild(root, 'shop')).toMatchObject({ problem: expect.stringContaining('each one line') });
   });
 });
+
+describe('approvals in the desktop app', () => {
+  const PROGRAMS = (kept: string): string => JSON.stringify({ binary: '/app/Adminium', npm: '/app/npm', shims: '/u/bin', git: null, npmUserConfig: '/u/user.npmrc', npmGlobalConfig: '/u/global.npmrc', npmCache: '/u/cache', approvals: kept });
+  const B: AppBuildFile = { install: 'npm ci', command: 'npm run build', output: 'dist' };
+
+  it('are kept in the app’s own folder, so a folder’s own list of approved lines is not believed', async () => {
+    const { mkdtempSync, mkdirSync, writeFileSync, rmSync, existsSync } = await import('node:fs');
+    const { tmpdir } = await import('node:os');
+    const { approvalsFile } = await import('../src/project/apps/own-build.js');
+    const folder = mkdtempSync(join(tmpdir(), 'adminium-approvals-'));
+    const kept = join(folder, 'app-data', 'approved-builds');
+    const project = join(folder, 'project');
+    mkdirSync(join(project, '.adminium'), { recursive: true });
+    // The folder arrived saying its own build is approved.
+    writeFileSync(join(project, '.adminium', 'approved-builds.json'), JSON.stringify({ shop: buildFingerprint(B) }));
+    const before = process.env['ADMINIUM_DESKTOP_PROGRAMS'];
+    try {
+      expect(isBuildApproved(project, 'shop', B)).toBe(true);
+      process.env['ADMINIUM_DESKTOP_PROGRAMS'] = PROGRAMS(kept);
+      expect(isBuildApproved(project, 'shop', B)).toBe(false);
+      // Approved here, by this computer's person: kept by the app, and the folder's file is left as it was.
+      approveBuild(project, 'shop', B);
+      expect(isBuildApproved(project, 'shop', B)).toBe(true);
+      expect(approvalsFile(project).startsWith(kept)).toBe(true);
+      expect(existsSync(approvalsFile(project))).toBe(true);
+      // Another project's approvals are another file.
+      expect(approvalsFile(join(folder, 'other'))).not.toBe(approvalsFile(project));
+    } finally {
+      if (before === undefined) delete process.env['ADMINIUM_DESKTOP_PROGRAMS'];
+      else process.env['ADMINIUM_DESKTOP_PROGRAMS'] = before;
+      rmSync(folder, { recursive: true, force: true });
+    }
+  });
+});

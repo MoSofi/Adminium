@@ -15,7 +15,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import type { AdminiumDesktopApi } from './api.js';
-import { BRIDGE_KEY, IPC_CHANNELS, ipcFail, ipcOk, type BridgeBootstrap } from './channels.js';
+import { BRIDGE_KEY, IPC_CHANNELS, START_CHANNELS, ipcFail, ipcOk, type BridgeBootstrap, VERSIONS_CHANNELS, SHARE_CHANNELS } from './channels.js';
 import {
   createDesktopApi,
   DesktopBridgeError,
@@ -97,6 +97,7 @@ describe('the exposed surface', () => {
     'onUpdateEvent',
     'openFile',
     'platform',
+    'project',
     'quitAndInstall',
     'readBundledText',
     'relaunch',
@@ -113,11 +114,93 @@ describe('the exposed surface', () => {
     'setMenuLabels',
     'showItemInFolder',
     'showLogs',
+    'start',
     'versions',
   ];
 
   it('is exactly — no more, no less', () => {
     expect(Object.keys(build()).sort()).toEqual(SECTION_4_KEYS);
+  });
+
+  it('exposes the first screens as exactly their seventeen calls, each over its own channel', async () => {
+    const ipc = new FakeIpc();
+    const { start } = createDesktopApi({ ipc, bootstrap: BOOTSTRAP });
+    expect(Object.keys(start).sort()).toEqual(['chooseFolder', 'chooseParent', 'connect', 'createProject', 'forgetGuest', 'forgetProject', 'getPackages', 'guests', 'judgeNewFolder', 'locateProject', 'makeProgress', 'openProject', 'resolveKey', 'state', 'updateApp', 'updateProject', 'useClassic']);
+    await start.state();
+    await start.judgeNewFolder({ parent: '/p', name: 'n' });
+    await start.chooseParent({ from: '/p', title: 't' });
+    await start.createProject({ parent: '/p', name: 'n' });
+    await start.makeProgress();
+    await start.chooseFolder({ title: 't' });
+    await start.openProject({ path: '/p' });
+    await start.getPackages({ path: '/p' });
+    await start.resolveKey({ path: '/p', answer: 'new' });
+    await start.updateProject({ path: '/p' });
+    await start.updateApp();
+    await start.connect({ address: 'a.local' });
+    await start.guests();
+    await start.forgetGuest('http://a.local');
+    await start.forgetProject('/p');
+    await start.locateProject({ path: '/p', title: 't' });
+    await start.useClassic();
+    expect(ipc.calls.map((call) => call.channel)).toEqual([...START_CHANNELS]);
+  });
+
+  it('exposes the project’s three calls, and none of them takes a folder', async () => {
+    const ipc = new FakeIpc();
+    const { project } = createDesktopApi({ ipc, bootstrap: BOOTSTRAP });
+    expect(Object.keys(project).sort()).toEqual(['build', 'close', 'export', 'exportResult', 'info', 'openDashboard', 'setStopWords', 'share', 'shareInfo', 'showExport', 'showInFolder', 'showShared', 'versions']);
+    await project.info();
+    await project.showInFolder();
+    await project.close();
+    expect(ipc.calls).toEqual([
+      { channel: IPC_CHANNELS.projectInfo, args: [] },
+      { channel: IPC_CHANNELS.projectShowInFolder, args: [] },
+      { channel: IPC_CHANNELS.projectClose, args: [] },
+    ]);
+  });
+
+  it('hands the quit and close questions’ words over as they are', async () => {
+    const ipc = new FakeIpc();
+    const words = { turn: 'a', start: 'b', save: 'c', restore: 'd', style: 'e', other: 'f', quitDetail: 'g', closeDetail: 'h', quitAnyway: 'i', closeAnyway: 'j', keepWorking: 'k', shareDetail: 'l', shareAnyway: 'm' };
+    await createDesktopApi({ ipc, bootstrap: BOOTSTRAP }).project.setStopWords?.(words);
+    expect(ipc.calls).toEqual([{ channel: IPC_CHANNELS.projectStopWords, args: [words] }]);
+  });
+
+  it('exposes the export: the kind and the dialog’s title go down, never a path', async () => {
+    const ipc = new FakeIpc();
+    const { project } = createDesktopApi({ ipc, bootstrap: BOOTSTRAP });
+    await project.export?.({ kind: 'apps', title: 'Export Shop' });
+    await project.exportResult?.();
+    await project.showExport?.();
+    expect(ipc.calls).toEqual([
+      { channel: IPC_CHANNELS.projectExport, args: [{ kind: 'apps', title: 'Export Shop' }] },
+      { channel: IPC_CHANNELS.projectExportResult, args: [] },
+      { channel: IPC_CHANNELS.projectShowExport, args: [] },
+    ]);
+  });
+
+  it('exposes Build and Share as five calls, none of which takes anything', async () => {
+    const ipc = new FakeIpc();
+    const { project } = createDesktopApi({ ipc, bootstrap: BOOTSTRAP });
+    await project.share?.();
+    await project.build?.();
+    await project.shareInfo?.();
+    await project.showShared?.();
+    await project.openDashboard?.();
+    expect(ipc.calls).toEqual(SHARE_CHANNELS.map((channel) => ({ channel, args: [] })));
+  });
+
+  it('exposes the versions offer’s six calls, none of which takes anything', async () => {
+    const ipc = new FakeIpc();
+    const versions = createDesktopApi({ ipc, bootstrap: BOOTSTRAP }).project.versions;
+    await versions?.state();
+    await versions?.download();
+    await versions?.cancel();
+    await versions?.notNow();
+    await versions?.lookAgain();
+    await versions?.appleTools();
+    expect(ipc.calls).toEqual(VERSIONS_CHANNELS.map((channel) => ({ channel, args: [] })));
   });
 
   it('exposes capabilities as exactly list + invoke', () => {

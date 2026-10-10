@@ -55,3 +55,6 @@ scripts/release/out/
 # locks. Ignore the whole directory. Nothing here is shared today; add a negated
 # `!` line if a specific config ever needs to be committed.
 /.claude/
+
+# Made at release (scripts/release/starter-lockfile.mjs): the lockfile a new project starts with.
+apps/desktop/resources/starter/

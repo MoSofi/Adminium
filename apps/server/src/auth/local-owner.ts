@@ -32,6 +32,17 @@ export async function localOwner(meta: MetaDb): Promise<User | null> {
   return ownerId === null ? null : await usersRepo(meta).findById(ownerId);
 }
 
+/**
+ * The owner a host on the person's own computer signs in: the one `design`
+ * made, with or without a password since. `null` for a project that never had
+ * one (its owner was made at `/setup`, with a password, and signs in with it).
+ */
+export async function ownerOnThisComputer(meta: MetaDb): Promise<User | null> {
+  const settings = settingsRepo(meta);
+  const ownerId = (await settings.get('designer.localOwnerId')) ?? (await settings.get('designer.ownerId'));
+  return ownerId === null ? null : await usersRepo(meta).findById(ownerId);
+}
+
 /** Whether `userId` is the owner `design` made and still has no password. */
 export async function needsPassword(meta: MetaDb, userId: string | null | undefined): Promise<boolean> {
   if (userId === null || userId === undefined) return false;
@@ -61,7 +72,9 @@ export async function setLocalOwnerCredentials(meta: MetaDb, input: { email: str
 
   await users.updateProfile(owner.id, { email });
   await users.updatePassword(owner.id, await hashPassword(input.password));
-  // From here the project is opened by its owner's sign-in, not by the link `design` prints.
+  // From here the project is opened by its owner's sign-in, not by the link `design` prints. Who it was made for
+  // is kept: the desktop app, on this person's own computer, still opens it without asking for the password.
+  await settings.set('designer.ownerId', owner.id, { updatedBy: owner.id });
   await settings.set('designer.localOwnerId', null, { updatedBy: owner.id });
   return (await users.findById(owner.id)) ?? owner;
 }

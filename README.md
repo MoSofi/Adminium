@@ -38,6 +38,10 @@ React in `pages/` and `widgets/`.
 the encryption key for every stored DSN and API key. Generate it once with
 `openssl rand -hex 32`.
 
+**Desktop app** — macOS, Windows and Linux, with no Docker, Node or terminal:
+[adminium.dev/download](https://adminium.dev/download/#desktop)
+([what each installer is](https://docs.adminium.dev/desktop/)).
+
 **Docker Compose** — the reference deployment:
 
 ```sh

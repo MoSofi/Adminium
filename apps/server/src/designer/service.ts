@@ -492,6 +492,11 @@ export function createDesigner(host: DesignerHost): Designer {
 
   const runner = createDesignerRunner({
     store,
+    // A session worked in while versions were off gets its folder recorded as it stands, before this turn touches it.
+    beforeLaterTurn: async (session) => {
+      const caught = (await host.versions?.catchUp(session)) ?? null;
+      if (caught !== null) store.update(session.id, { version: caught.n });
+    },
     sight: async (session, opts) => {
       // Nothing to look at: a copy of a published app is its authors', and a dashboard-only app has no screen of its own.
       if (hasOwnBuild(host.root, session.appKey) || sidesWithScreens(host.root, session.appKey).length === 0) return null;

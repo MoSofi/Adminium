@@ -1285,6 +1285,25 @@ export default {
         "failedBody": "Noget gik galt. Prøv igen.",
         "retry": "Prøv igen"
       }
+    },
+    "stop": {
+      "turn": "Designeren er midt i en omgang.",
+      "start": "En app er ved at blive føjet til dette projekt.",
+      "save": "Dine ændringer bliver gemt.",
+      "restore": "En tidligere version bliver lagt tilbage.",
+      "style": "Stilen bliver ændret.",
+      "other": "Dette projekt bliver ændret.",
+      "quitDetail": "Hvis du afslutter nu, stoppes det, hvor det er. Det, der allerede er skrevet, bliver.",
+      "closeDetail": "Hvis du lukker projektet nu, stoppes det, hvor det er. Det, der allerede er skrevet, bliver.",
+      "quitAnyway": "Afslut alligevel",
+      "closeAnyway": "Luk alligevel",
+      "keepWorking": "Arbejd videre",
+      "shareDetail": "Hvis du deler nu, stoppes det, hvor det er. Det, der allerede er skrevet, bliver.",
+      "shareAnyway": "Stop og del"
+    },
+    "shared": {
+      "banner": "Dette projekt er delt på dit netværk. Designeren er slået fra imens.",
+      "details": "Delingsdetaljer"
     }
   },
   "capabilities": {

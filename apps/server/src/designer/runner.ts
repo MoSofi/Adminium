@@ -125,6 +125,12 @@ export interface RunnerDeps {
   audit?(action: 'designer.turn.started' | 'designer.turn.finished', session: DesignerSession, detail: Record<string, unknown>): Promise<void>;
   /** A card a person answered, for the audit log. */
   auditCard?(sessionId: string, by: Actor, detail: Record<string, unknown>): Promise<void>;
+  /**
+   * Called when a turn starts in a session that already had one, before the
+   * turn changes anything: the place to record the folder as it stands when
+   * the earlier turns left no version (versions were off then).
+   */
+  beforeLaterTurn?(session: DesignerSession): Promise<void>;
   log?: (message: string, error?: unknown) => void;
   now?: () => number;
   /** How long a hold may last before its work is told to stop; `HOLD_CAP_MS` when left out. */
@@ -711,6 +717,7 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
       // The folder was kept for this turn: it has it now.
       input.claim?.release();
       try {
+        if (session.turns > 0) await deps.beforeLaterTurn?.(session).catch((error: unknown) => deps.log?.('could not record the folder before a later turn', error));
         const updated = deps.store.update(sessionId, { turns: turn });
         // What the person saved by hand since the Designer last finished: named, so it reads each again before it writes it.
         const edited = (session.handEdits ?? []).filter(plainPath).slice(0, HAND_EDITS_MAX);

@@ -145,6 +145,10 @@ export interface DesktopAutoBackupConfig {
  * rejection rather than a silent merge.
  */
 export interface DesktopConfigPatch {
+  /** The language of the app's own screens (a locale tag such as `de-DE`), or `null`: the system's. */
+  readonly language?: string | null | undefined;
+  /** Light, dark, or as the system is, for the app's own screens. */
+  readonly theme?: 'system' | 'light' | 'dark' | undefined;
   readonly singleUser?: boolean | undefined;
   readonly lanShare?: DesktopLanShareConfig | undefined;
   readonly updates?: DesktopUpdatesConfig | undefined;
@@ -394,6 +398,371 @@ export interface DesktopBridgeErrorLike extends Error {
   readonly code: DesktopErrorCode;
 }
 
+// ─── The first screens ───────────────────────────────────────────────────────
+
+/** A project in the recent list, as Start draws it. */
+export interface DesktopRecentProject {
+  /** The folder, by its real path: what is handed back to open, locate or remove it. */
+  readonly path: string;
+  /** The same path as a person reads it (`~/Adminium/shop` under the home folder). */
+  readonly displayPath: string;
+  readonly name: string;
+  /** When it was last opened here (ISO 8601). */
+  readonly lastOpened: string;
+  readonly state: 'building' | 'shared';
+  /** The folder is gone, or is no longer a project. */
+  readonly missing: boolean;
+}
+
+export type DesktopThemeChoice = 'system' | 'light' | 'dark';
+
+/** What Start needs to draw itself. */
+export interface DesktopStartState {
+  /** No recent project and no classic workspace: the welcome line is shown. */
+  readonly firstLaunch: boolean;
+  readonly recent: readonly DesktopRecentProject[];
+  /** Where a new project is proposed (`~/Adminium`), real and as a person reads it. */
+  readonly proposedParent: string;
+  /** The same folder as a person reads it. */
+  readonly proposedParentDisplay: string;
+  /** The app's saved language (a locale tag), or `null`: the system's. */
+  readonly language: string | null;
+  readonly theme: DesktopThemeChoice;
+}
+
+/** Why a folder cannot hold a new project. */
+export type DesktopFolderRefusal =
+  | 'no-name'
+  | 'bad-name'
+  | 'home-folder'
+  | 'system-folder'
+  | 'inside-the-app'
+  | 'inside-a-project'
+  | 'exists-with-files'
+  | 'not-absolute';
+
+/** What a person is warned of and may still choose. */
+export type DesktopFolderWarning = 'icloud' | 'onedrive' | 'dropbox' | 'googledrive' | 'no-links';
+
+export interface DesktopNewFolderInput {
+  /** The folder the project's own folder is made IN. */
+  readonly parent: string;
+  /** The project's name as the person typed it. */
+  readonly name: string;
+}
+
+/** Main's judgement of where a new project would go. */
+export type DesktopNewFolderJudgement =
+  | { readonly ok: true; readonly path: string; readonly displayPath: string; readonly warning: DesktopFolderWarning | null }
+  | { readonly ok: false; readonly path: string | null; readonly displayPath: string | null; readonly refused: DesktopFolderRefusal };
+
+export interface DesktopCreateProjectInput extends DesktopNewFolderInput {
+  /** The person read the warning and chose "Use it anyway". */
+  readonly acceptWarning?: boolean | undefined;
+}
+
+export type DesktopCreateProjectResult =
+  | { readonly status: 'created'; readonly path: string }
+  | { readonly status: 'refused'; readonly refused: DesktopFolderRefusal }
+  | { readonly status: 'warned'; readonly warning: DesktopFolderWarning }
+  | { readonly status: 'failed'; readonly detail: string };
+
+/** A screen shown on the way into a folder, which the person has read ("Continue"). */
+export type DesktopOpenStep = 'manager' | 'engine' | 'found' | 'accounts';
+
+/** What was found in a folder, or made for it, one line each. */
+export type DesktopFoundRow = 'data' | 'key' | 'no-data' | 'made-key-and-database' | 'made-database';
+
+/** People, API keys and public keys a folder brought with it: how many, and the first names of each. */
+export interface DesktopFolderAccounts {
+  readonly people: { readonly count: number; readonly names: readonly string[] };
+  readonly apiKeys: { readonly count: number; readonly names: readonly string[] };
+  readonly publicKeys: { readonly count: number; readonly names: readonly string[] };
+}
+
+export interface DesktopOpenProjectInput {
+  readonly path: string;
+  /** The screens already shown and continued from, in this opening. */
+  readonly seen?: readonly DesktopOpenStep[] | undefined;
+  /** The person answered "Open" to the question about running this folder's code. */
+  readonly agreed?: boolean | undefined;
+  /** Where the window lands once the project is up: the Designer (the default), or the project's dashboard. */
+  readonly land?: 'designer' | 'dashboard' | undefined;
+}
+
+export type DesktopOpenProjectResult =
+  | { readonly status: 'opened' }
+  /** Not agreed to yet on this computer, or its code changed since: ask, then call again with `agreed`. */
+  | { readonly status: 'trust-needed'; readonly path: string; readonly displayPath: string; readonly changed: boolean }
+  | { readonly status: 'missing' }
+  | { readonly status: 'not-a-project' }
+  /** Agreed to, and what it is built with is not on this computer: ask, then call `getPackages`. */
+  | { readonly status: 'needs-packages'; readonly path: string; readonly displayPath: string }
+  /** A server already has this folder (a terminal's, or another window's). */
+  | { readonly status: 'running'; readonly path: string; readonly port: number; readonly by: 'cli' | 'desktop' }
+  /** Its data was last changed by a newer Adminium than this one: nothing is started. */
+  | { readonly status: 'needs-newer'; readonly path: string; readonly last: string | null; readonly here: string }
+  /** Its data is there and the key it was written with is not: ask (three answers), then `resolveKey`. */
+  | { readonly status: 'key-missing'; readonly path: string; readonly displayPath: string; readonly name: string; readonly dataBefore: string }
+  /** It was made with another package manager: said once. Call again with `seen: ['manager']`. */
+  | { readonly status: 'other-manager'; readonly path: string; readonly displayPath: string; readonly manager: string }
+  /** Its own code imports an older Adminium than the one that serves it: offer `updateProject`, or go on. */
+  | { readonly status: 'older-engine'; readonly path: string; readonly displayPath: string; readonly was: string; readonly here: string }
+  /** What was found in the folder or made for it. Call again with `seen` including `'found'`. */
+  | { readonly status: 'found'; readonly path: string; readonly displayPath: string; readonly name: string; readonly rows: readonly DesktopFoundRow[] }
+  /** It came with accounts made on another computer. Call again with `seen` including `'accounts'`. */
+  | { readonly status: 'accounts'; readonly path: string; readonly displayPath: string; readonly accounts: DesktopFolderAccounts };
+
+/** The answer to a missing key: the person's `.env` file (picked now), the data moved aside, or a new key over it. */
+export type DesktopResolveKeyResult =
+  | { readonly status: 'done' }
+  | { readonly status: 'cancelled' }
+  /** The picked file holds no key. */
+  | { readonly status: 'not-a-key-file' }
+  | { readonly status: 'trust-needed' }
+  | { readonly status: 'failed'; readonly detail: string };
+
+/** Another Adminium this app was connected to. */
+export interface DesktopGuest {
+  /** `http://office-pc.local:4600` */
+  readonly address: string;
+  readonly version: string;
+}
+
+export type DesktopConnectResult =
+  /** A window of its own is open on it. */
+  | { readonly status: 'opened'; readonly guests: readonly DesktopGuest[] }
+  | { readonly status: 'not-an-address' }
+  /** Plain `http` to an address that is not on the person's own network. */
+  | { readonly status: 'not-private' }
+  /** On their own network and not encrypted: say so, then call again with `anyway`. */
+  | { readonly status: 'not-encrypted'; readonly address: string }
+  | { readonly status: 'no-answer' }
+  | { readonly status: 'not-adminium' };
+
+export type DesktopUpdateProjectResult = { readonly status: 'updated' } | { readonly status: 'trust-needed' } | { readonly status: 'failed'; readonly detail: string };
+
+/** `getPackages`: the packages were fetched and the project is opening, or why not. */
+export type DesktopGetPackagesResult =
+  /** The packages are in place. Nothing is started: the opening is asked for again and goes on from here. */
+  | { readonly status: 'ready' }
+  | { readonly status: 'failed'; readonly detail: string }
+  | { readonly status: 'missing' }
+  | { readonly status: 'not-a-project' }
+  /** Not a folder the person agreed to open, or its code changed since: `openProject` asks first. */
+  | { readonly status: 'trust-needed' };
+
+export type DesktopLocateProjectResult =
+  | { readonly status: 'located'; readonly recent: readonly DesktopRecentProject[] }
+  | { readonly status: 'cancelled' }
+  | { readonly status: 'not-a-project' }
+  | { readonly status: 'already-listed' };
+
+/**
+ * Where the making of a new project is, in the order it goes: the files are
+ * laid, the packages are fetched (the long one), the database is made, and the
+ * project is opened.
+ */
+export type DesktopMakeStep = 'files' | 'packages' | 'database' | 'opening';
+
+/** `step` is `null` when nothing is being made. `since` is when that step began (milliseconds, the app's clock). */
+export interface DesktopMakeProgress {
+  readonly step: DesktopMakeStep | null;
+  readonly since: number;
+}
+
+/**
+ * What the app's own first screens ask of main. Answered ONLY for the app's own
+ * pages: a project's dashboard, which holds the rest of this bridge, is refused
+ * (a page a project's code can draw into must not be able to open another folder).
+ */
+export interface DesktopStartApi {
+  state(): Promise<DesktopStartState>;
+  judgeNewFolder(input: DesktopNewFolderInput): Promise<DesktopNewFolderJudgement>;
+  /** The system's folder picker, for "Change…". `null` on cancel. */
+  chooseParent(input: { readonly from: string; readonly title: string }): Promise<string | null>;
+  createProject(input: DesktopCreateProjectInput): Promise<DesktopCreateProjectResult>;
+  /** Where `createProject` is, asked while it runs: the page shows the step so a long wait is not a silent one. */
+  makeProgress(): Promise<DesktopMakeProgress>;
+  /** The system's folder picker, for "Open a folder". `null` on cancel. */
+  chooseFolder(input: { readonly title: string }): Promise<{ readonly path: string; readonly displayPath: string } | null>;
+  openProject(input: DesktopOpenProjectInput): Promise<DesktopOpenProjectResult>;
+  /** After `needs-packages` and a yes: fetch what the project is built with, then open it. Takes minutes on a slow line. */
+  getPackages(input: { readonly path: string; readonly land?: 'designer' | 'dashboard' | undefined }): Promise<DesktopGetPackagesResult>;
+  /** After `key-missing`. `env` opens the system's file picker (`title` is its title). */
+  resolveKey(input: { readonly path: string; readonly answer: 'env' | 'fresh' | 'new'; readonly title?: string | undefined }): Promise<DesktopResolveKeyResult>;
+  /** After `older-engine` and a yes: the project's own Adminium is set to this app's and its packages fetched again. */
+  updateProject(input: { readonly path: string }): Promise<DesktopUpdateProjectResult>;
+  /** After `needs-newer`: look for a newer Adminium now. `false` in a build that does not update itself. */
+  updateApp(): Promise<boolean>;
+  /** "Connect to another Adminium": judge the address, ask whether an Adminium is there, open it as a guest. */
+  connect(input: { readonly address: string; readonly anyway?: boolean | undefined }): Promise<DesktopConnectResult>;
+  guests(): Promise<readonly DesktopGuest[]>;
+  /** "Forget": the address leaves the list and its cookies are deleted. */
+  forgetGuest(address: string): Promise<readonly DesktopGuest[]>;
+  forgetProject(path: string): Promise<readonly DesktopRecentProject[]>;
+  /** "Locate…": the system's folder picker, then the entry moves there. */
+  locateProject(input: { readonly path: string; readonly title: string }): Promise<DesktopLocateProjectResult>;
+  /** "Use my own database": the classic workspace. */
+  useClassic(): Promise<void>;
+}
+
+// ─── A project the window holds ──────────────────────────────────────────────
+
+/** The project folder this window serves. */
+export interface DesktopProjectInfo {
+  readonly name: string;
+  /** The folder, as a person reads it (`~/Adminium/shop`). */
+  readonly displayPath: string;
+  /** `design`: being built, on this computer only. `serve`: shared. */
+  readonly mode: 'design' | 'serve';
+}
+
+/**
+ * The words of the one question the app asks in a native dialog while a project
+ * is open: "stop what is running?", before a quit or "Close project". The app
+ * has no translations of its own (as with the menu), so the page that has them
+ * hands them over; until it has, the question is asked in English.
+ */
+export interface DesktopStopWords {
+  /** What is running, by the kind the server names. */
+  readonly turn: string;
+  readonly start: string;
+  readonly save: string;
+  readonly restore: string;
+  readonly style: string;
+  /** A kind this page does not know. */
+  readonly other: string;
+  readonly quitDetail: string;
+  readonly closeDetail: string;
+  readonly quitAnyway: string;
+  readonly closeAnyway: string;
+  readonly keepWorking: string;
+  /** Before a project being built is shared instead. */
+  readonly shareDetail: string;
+  readonly shareAnyway: string;
+}
+
+/** How far a download of git is, or why it did not finish. */
+export type DesktopVersionsDownload =
+  | { readonly phase: 'idle' }
+  | { readonly phase: 'downloading'; readonly received: number; readonly total: number }
+  | { readonly phase: 'failed'; readonly reason: 'no-connection' | 'wrong-file' | 'failed' };
+
+/** Versions of a project's work need git. What the app knows of it on this computer. */
+export interface DesktopVersionsState {
+  /** A git that works is known: versions are on. */
+  readonly on: boolean;
+  /** The person said "Not now" to the offer on this computer. */
+  readonly declined: boolean;
+  /** The download's size in megabytes, or `null`: there is none for this kind of computer. */
+  readonly megabytes: number | null;
+  /** A Mac: Apple's own developer tools are the other road. */
+  readonly appleTools: boolean;
+  readonly download: DesktopVersionsDownload;
+}
+
+/**
+ * The offer to keep versions, on a computer with no git. Nothing is fetched
+ * before `download()`, which only the person's own click calls.
+ */
+export interface DesktopVersionsApi {
+  state(): Promise<DesktopVersionsState>;
+  /** Starts the download and answers at once: ask `state()` for how far it is. */
+  download(): Promise<DesktopVersionsState>;
+  cancel(): Promise<DesktopVersionsState>;
+  notNow(): Promise<DesktopVersionsState>;
+  /** A git installed since the project was opened is found without a restart. */
+  lookAgain(): Promise<DesktopVersionsState>;
+  /** macOS: start Apple's own installer of its developer tools. */
+  appleTools(): Promise<DesktopVersionsState>;
+}
+
+/** What an export holds: everything (the apps, the data, the key), or the apps only. */
+export type DesktopExportKind = 'everything' | 'apps';
+
+export type DesktopExportResult =
+  /** Saved. `megabytes` is the file's size, rounded up to one decimal. */
+  | { readonly status: 'saved'; readonly file: string; readonly megabytes: number }
+  | { readonly status: 'cancelled' }
+  /** Something is in the middle of running: export when it is done. */
+  | { readonly status: 'busy' }
+  | { readonly status: 'failed'; readonly detail: string };
+
+/** One address another device can use for a shared project. */
+export interface DesktopShareAddress {
+  readonly url: string;
+  /** The network it is on (`en0`, `Wi-Fi`); `null` for the computer's own name. */
+  readonly via: string | null;
+  /** The one to give out first. */
+  readonly best: boolean;
+}
+
+/** A project that is shared on the network now. */
+export interface DesktopShareInfo {
+  readonly name: string;
+  readonly port: number;
+  /** Empty when this computer is on no network. */
+  readonly addresses: readonly DesktopShareAddress[];
+  /** The port this project was shared on before, when it could not be had again: the address changed. */
+  readonly changedFrom: number | null;
+  /** The app's saved language and theme, for the app's own page that shows this. */
+  readonly language: string | null;
+  readonly theme: DesktopThemeChoice;
+}
+
+export type DesktopShareResult =
+  | { readonly status: 'shared' }
+  /** The owner has no password yet: other devices could not sign in. Set one, then ask again. */
+  | { readonly status: 'needs-password' }
+  /** Something was running and the person chose to keep working. */
+  | { readonly status: 'kept-working' }
+  | { readonly status: 'failed'; readonly detail: string };
+
+/**
+ * What a project's own page asks of the app. Each call names nothing: it acts
+ * on the project this window holds, so a page cannot point it at another folder.
+ */
+export interface DesktopProjectApi {
+  /** `null` in the classic workspace: the window holds no project. */
+  info(): Promise<DesktopProjectInfo | null>;
+  /** "Show in Finder" / "Show in File Explorer": the project's folder. */
+  showInFolder(): Promise<void>;
+  /**
+   * "Close project": back to the app's first screen. `false` when the person
+   * chose to keep working (something was in the middle of running).
+   */
+  close(): Promise<boolean>;
+  /**
+   * "Export this project…": the system's save dialog (`title` is its title),
+   * then one ZIP. The project stops for the moment the file is made, so the
+   * page that asked is gone when it is done: the outcome is read with
+   * `exportResult()` by the page that comes back. Absent in an older app.
+   */
+  export?(input: { readonly kind: DesktopExportKind; readonly title: string; /** The page to come back to (a path of the project's own server). */ readonly from?: string | undefined }): Promise<DesktopExportResult>;
+  /** The outcome of the last export, once: `null` when there is none to tell. */
+  exportResult?(): Promise<DesktopExportResult | null>;
+  /** Show the file the last export saved, in the system's file manager. */
+  showExport?(): Promise<void>;
+  /**
+   * Build → Share: the project is served on the network, with the Designer
+   * off. Absent in an app older than sharing.
+   */
+  share?(): Promise<DesktopShareResult>;
+  /** Share → Build: back to this computer only. `false` when the person kept sharing. */
+  build?(): Promise<boolean>;
+  /** `null` while the project is being built. */
+  shareInfo?(): Promise<DesktopShareInfo | null>;
+  /** While shared: the window shows the sharing details (the app's own page). */
+  showShared?(): Promise<void>;
+  /** While shared, from the sharing details: the window shows the project's dashboard. */
+  openDashboard?(): Promise<void>;
+  /** The quit and close questions in the page's language. Absent in an app older than the call. */
+  setStopWords?(words: DesktopStopWords): Promise<void>;
+  /** Absent in an app older than the offer. */
+  readonly versions?: DesktopVersionsApi | undefined;
+}
+
 // ─── The API ─────────────────────────────────────────────────────────────────
 
 /**
@@ -495,6 +864,12 @@ export interface AdminiumDesktopApi {
 
   relaunch(): Promise<void>;
   showLogs(): Promise<void>;
+
+  // the first screens (the app's own pages only)
+  readonly start: DesktopStartApi;
+
+  // the project this window holds
+  readonly project: DesktopProjectApi;
 }
 
 /**

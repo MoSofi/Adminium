@@ -114,6 +114,10 @@ export interface AiConnections {
   /** Whether a model reads pictures: asked once and kept; null when it could not be asked. */
   readsImages(id: ConnectionId, model: string): Promise<boolean | null>;
   readonly envWritable: boolean;
+  /** Where a host keeps model keys instead of the project's `.env` (the desktop app), or `null`. */
+  keptBy(): 'key-store' | 'plain' | null;
+  /** With a host: names the project's `.env` sets that are not used. */
+  ignoredEnv(): string[];
 }
 
 export interface AiConnectionsDeps {
@@ -415,7 +419,11 @@ export function createAiConnections(deps: AiConnectionsDeps): AiConnections {
       }
       return verdict;
     },
-    envWritable: aiEnv.writable,
+    get envWritable() {
+      return aiEnv.writable;
+    },
+    keptBy: () => aiEnv.keptBy(),
+    ignoredEnv: () => aiEnv.ignored(),
   };
 }
 

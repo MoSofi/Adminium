@@ -32,7 +32,7 @@
  * no way to boot the old image at all (not even to export before restoring).
  */
 
-import { firstRun, settingsRepo, usersRepo } from '@adminium/meta';
+import { createLocalOwner, firstRun, isBootstrapRequired, settingsRepo, usersRepo } from '@adminium/meta';
 
 import {
   describePreMigration,
@@ -40,11 +40,14 @@ import {
   guardPreMigration,
   snapshotFailureRefusal,
 } from '../../backup/pre-migration.js';
+import { ownerOnThisComputer } from '../../auth/local-owner.js';
 import { seedStorageDestination } from '../../config/storage-seed.js';
 import { seedSourceConnection } from '../../connections/seed.js';
 import { storageCryptoFromSecret } from '../../files/crypto.js';
 import { embeddedMetaWarning } from '../../meta/store.js';
 import { prepareProject } from '../../project/boot.js';
+import { findProject } from '../../project/locate.js';
+import { markRunning, refuseIfRunning } from '../../project/running.js';
 import { withDefaults } from '../../project/config.js';
 import { syncProjectDatabases } from '../../project/databases.js';
 import { diskFileStore } from '../../project/file-store.js';
@@ -53,6 +56,7 @@ import { createProjectService, type ProjectServerOptions } from '../../project/s
 import { APP_VERSION } from '../../version.js';
 import { numberFlag, parseFlags, stringFlag } from '../args.js';
 import type { Command, CommandContext } from '../command.js';
+import type { CliIo } from '../io.js';
 import { CliError, EXIT_CONFIG, EXIT_OK, type ExitCode } from '../exit.js';
 import { createRelocationHost } from '../relocation-host.js';
 import { loadCliEnv } from '../runtime.js';
@@ -121,8 +125,11 @@ export const startCommand: Command = {
 
 /** What `adminium design` adds to a start. */
 export interface DesignStart {
-  /** Called once the meta store is migrated, before the server starts: the owner, and the token when there is one. */
-  prepare(meta: import('@adminium/meta').MetaDb): Promise<{ token: string | null }>;
+  /**
+   * Called once the meta store is migrated, before the server starts: the owner, and the token when there is one.
+   * `thisComputer`: the link signs the project's owner in even when they have a password (the desktop app's start).
+   */
+  prepare(meta: import('@adminium/meta').MetaDb): Promise<{ token: string | null; thisComputer?: boolean }>;
   /** Called when the server listens: print the link, open the browser. */
   started(url: string, port: number, token: string | null): Promise<void>;
 }
@@ -133,18 +140,123 @@ export interface DesignStart {
  * copy (as `adminium dev` does), and serves Adminium Designer.
  */
 export async function runStart({ io, deps, argv }: CommandContext, design?: DesignStart): Promise<ExitCode> {
+  const { values } = parseFlags(argv, startCommand.flags, startCommand.name);
+  const started = await startUp(
+    { io, deps },
+    {
+      port: numberFlag(values.port, 'port', startCommand.name),
+      host: stringFlag(values.host),
+      dataDir: stringFlag(values['data-dir']),
+      metaUrl: stringFlag(values['meta-url']),
+      logLevel: stringFlag(values['log-level']),
+      staticRoot: stringFlag(values['static-root']),
+      skipMigrate: values['skip-migrate'] === true,
+    },
+    design,
+  );
+  if (design !== undefined) {
+    await design.started(started.url, started.port, started.token);
+    return EXIT_OK;
+  }
+  io.out(`Adminium is running at ${started.url}`);
+
+  // The local bridge's consent token (`routes/bridge`). Printed HERE as well
+  // as in the wizard because the published Docker image's CMD is `start`, not
+  // `init` — a container started with ADMINIUM_BRIDGE_ORIGINS set would
+  // otherwise have a pairing code nothing on earth could tell you.
+  if (started.bridgePairingCode !== null) {
+    io.out('');
+    io.out(`Pairing code: ${started.bridgePairingCode}`);
+    io.out('Enter it on the site to hand this instance a connection string.');
+  }
+
+  // The process now lives until a signal; `start` never "finishes". The exit
+  // code is only reached in tests, where startServer is a fake.
+  return EXIT_OK;
+}
+
+/** What `adminium start`'s flags say, parsed. */
+export interface StartFlags {
+  port?: number | undefined;
+  host?: string | undefined;
+  dataDir?: string | undefined;
+  metaUrl?: string | undefined;
+  logLevel?: string | undefined;
+  staticRoot?: string | undefined;
+  skipMigrate?: boolean | undefined;
+  /** Names the project's `.env` and config may not set (`prepareProject`'s `refuse`). */
+  refuse?: readonly string[] | undefined;
+  /**
+   * The desktop app shares this project on the network: only this computer's own names and addresses are answered
+   * to, and with `ownerToken` the app's window signs the project's owner in once, on this computer only.
+   */
+  shared?: { ownerToken?: string | undefined } | undefined;
+}
+
+/**
+ * Design mode's owner, as `adminium design` makes it: the first time, the
+ * project's owner with no password. `token` signs that owner in once, and only
+ * while they have no password; `null` mints no link at all.
+ */
+export function localOwnerStart(io: CliIo, token: string | null, started: DesignStart['started'] = async () => undefined, opts: { thisComputer?: boolean } = {}): DesignStart {
+  return {
+    async prepare(meta) {
+      if (await isBootstrapRequired(meta)) {
+        await createLocalOwner(meta);
+        io.out('Made you the owner of this project, with no password yet (`adminium owner set` gives you one).');
+      }
+      // A host on the person's own computer: the owner this project was made for is signed in there, password or
+      // not. The password is what OTHER devices sign in with; whoever holds this folder holds its data and its key.
+      if (opts.thisComputer === true) {
+        const mine = await ownerOnThisComputer(meta);
+        return { token: mine !== null && mine.status === 'active' ? token : null, thisComputer: true };
+      }
+      const ownerId = await settingsRepo(meta).get('designer.localOwnerId');
+      const owner = ownerId === null ? null : await usersRepo(meta).findById(ownerId);
+      // Only the owner `design` made, and only while they have no password, is signed in by the link.
+      return { token: owner !== null && owner.passwordHash === null && owner.status === 'active' ? token : null };
+    },
+    started,
+  };
+}
+
+/** A server that was started: where it answers, and the ways to stop it and to ask what it is doing. */
+export interface StartedUp {
+  url: string;
+  port: number;
+  /** Design mode's one-use token, when one was minted. */
+  token: string | null;
+  bridgePairingCode: string | null;
+  /** Names from the project's `.env` or config that were ignored (`StartFlags.refuse`). */
+  refused: string[];
+  /** Ends the server, then the stores, and resolves when both are gone. */
+  close(): Promise<void>;
+  /** What has the project's folder right now (a turn, a save, a restore…), or `null`. */
+  busy(): StartBusy | null;
+}
+
+/** What {@link StartedUp.busy} answers: the Designer's own word for it. */
+export interface StartBusy {
+  kind: string;
+  sessionId: string | null;
+}
+
+/**
+ * Everything `adminium start` does between reading its flags and waiting for a
+ * signal. `runStart` is its caller on a terminal; the desktop app's server
+ * child is its other caller (`startProject`), which needs the handle this
+ * returns: a terminal's process ends by a signal, the app's child is told to
+ * stop and must be able to say when it has.
+ */
+export async function startUp({ io, deps }: Pick<CommandContext, 'io' | 'deps'>, flags: StartFlags, design?: DesignStart): Promise<StartedUp> {
   {
-    const { values } = parseFlags(argv, startCommand.flags, startCommand.name);
-    const port = numberFlag(values.port, 'port', startCommand.name);
+    const port = flags.port;
     // Design mode is on this machine only, whatever the environment or .env says.
-    const host = design !== undefined ? '127.0.0.1' : stringFlag(values.host);
-    if (design !== undefined && (stringFlag(values.host) ?? deps.env.HOST ?? '') !== '' && (stringFlag(values.host) ?? deps.env.HOST) !== '127.0.0.1') {
+    const host = design !== undefined ? '127.0.0.1' : flags.host;
+    if (design !== undefined && (flags.host ?? deps.env.HOST ?? '') !== '' && (flags.host ?? deps.env.HOST) !== '127.0.0.1') {
       io.err('Adminium Designer listens on this machine only (127.0.0.1): the HOST you set is not used.');
     }
-    const dataDir = stringFlag(values['data-dir']);
-    const metaUrl = stringFlag(values['meta-url']);
-    const logLevel = stringFlag(values['log-level']);
-    const staticRoot = stringFlag(values['static-root']);
+    const { dataDir, metaUrl, logLevel, staticRoot } = flags;
 
     // Inside a project: `.env` and adminium.config.ts fill in whatever the
     // environment leaves unset, and the config's databases are connected below.
@@ -156,7 +268,13 @@ export async function runStart({ io, deps, argv }: CommandContext, design?: Desi
      */
     const projectMode: 'dev' | 'server' = design !== undefined || deps.env.ADMINIUM_PROJECT_MODE === 'dev' ? 'dev' : 'server';
     // The apps' screens are built one way for a developer and another for a server; a build of the other kind is redone.
-    const project = await prepareProject({ cwd: deps.cwd, env: deps.env, version: APP_VERSION, dev: projectMode === 'dev' });
+    // Before the folder's code is built or run: a second server on one folder would write the same database.
+    const located = findProject(deps.cwd, deps.env);
+    if (located !== null) refuseIfRunning(located.root);
+    const project = await prepareProject({ cwd: deps.cwd, env: deps.env, version: APP_VERSION, dev: projectMode === 'dev', ...(flags.refuse === undefined ? {} : { refuse: flags.refuse }) });
+    if (project !== null && project.refused.length > 0) {
+      io.err(`Ignored from this project's .env and config (the app decides these itself): ${project.refused.join(', ')}`);
+    }
     if (project !== null) {
       const built = project.from === 'new-build' ? ' (built it first)' : project.appsRebuilt === true ? ` (built its apps' screens again, for ${projectMode === 'dev' ? 'development' : 'a server'})` : '';
       io.out(`Project: ${project.project.root}${built}`);
@@ -193,7 +311,7 @@ export async function runStart({ io, deps, argv }: CommandContext, design?: Desi
       io.err(embeddedMetaWarning(runtime.metaStore.url));
     }
 
-    if (values['skip-migrate'] !== true) {
+    if (flags.skipMigrate !== true) {
       const guard = await guardPreMigration({
         meta: runtime.metaStore.meta,
         engine: runtime.metaStore.engine,
@@ -349,30 +467,31 @@ export async function runStart({ io, deps, argv }: CommandContext, design?: Desi
       env,
       deps,
       ...(projectServer === undefined ? {} : { project: projectServer }),
-      ...(prepared === null ? {} : { designer: { mode: 'local' as const, token: prepared.token, port: env.PORT } }),
+      ...(design !== undefined || flags.shared === undefined ? {} : { shared: { port: env.PORT, ...(flags.shared.ownerToken === undefined ? {} : { ownerToken: flags.shared.ownerToken }) } }),
+      ...(prepared === null ? {} : { designer: { mode: 'local' as const, token: prepared.token, port: env.PORT, ...(prepared.thisComputer === true ? { thisComputer: true } : {}), ...(project === null || project.refused.length === 0 ? {} : { ignoredEnv: project.refused }) } }),
       log: (message) => {
         io.out(message);
       },
     });
     const server = await relocationHost.start(runtime);
-    if (design !== undefined && prepared !== null) {
-      await design.started(server.url, env.PORT, prepared.token);
-      return EXIT_OK;
-    }
-    io.out(`Adminium is running at ${server.url}`);
-
-    // The local bridge's consent token (`routes/bridge`). Printed HERE as well
-    // as in the wizard because the published Docker image's CMD is `start`, not
-    // `init` — a container started with ADMINIUM_BRIDGE_ORIGINS set would
-    // otherwise have a pairing code nothing on earth could tell you.
-    if (server.bridgePairingCode !== null) {
-      io.out('');
-      io.out(`Pairing code: ${server.bridgePairingCode}`);
-      io.out('Enter it on the site to hand this instance a connection string.');
-    }
-
-    // The process now lives until a signal; `start` never "finishes". The exit
-    // code is only reached in tests, where startServer is a fake.
-    return EXIT_OK;
+    const forget = project === null ? () => undefined : markRunning(project.project.root, { port: env.PORT, mode: design !== undefined ? 'design' : projectMode === 'dev' ? 'dev' : 'start', by: deps.env.ADMINIUM_RUNTIME === 'desktop' ? 'desktop' : 'cli' });
+    return {
+      url: server.url,
+      port: env.PORT,
+      token: prepared?.token ?? null,
+      bridgePairingCode: server.bridgePairingCode,
+      refused: project?.refused ?? [],
+      async close() {
+        try {
+          await relocationHost.close();
+        } finally {
+          forget();
+        }
+      },
+      busy() {
+        const live = relocationHost.current()?.app as unknown as { designerBusy?: () => StartBusy | null } | undefined;
+        return live?.designerBusy?.() ?? null;
+      },
+    };
   }
 }

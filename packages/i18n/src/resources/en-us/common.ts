@@ -848,6 +848,25 @@ export default {
         "failedBody": "Something went wrong. Try again.",
         "retry": "Try again"
       }
+    },
+    "stop": {
+      "turn": "The Designer is in the middle of a turn.",
+      "start": "An app is being added to this project.",
+      "save": "Your changes are being saved.",
+      "restore": "An earlier version is being put back.",
+      "style": "The style is being changed.",
+      "other": "This project is being changed.",
+      "quitDetail": "If you quit now it is stopped where it is. What was already written stays.",
+      "closeDetail": "If you close the project now it is stopped where it is. What was already written stays.",
+      "quitAnyway": "Quit anyway",
+      "closeAnyway": "Close anyway",
+      "keepWorking": "Keep working",
+      "shareDetail": "If you share now it is stopped where it is. What was already written stays.",
+      "shareAnyway": "Stop and share"
+    },
+    "shared": {
+      "banner": "This project is shared on your network. The Designer is off while it is.",
+      "details": "Sharing details"
     }
   },
   "capabilities": {

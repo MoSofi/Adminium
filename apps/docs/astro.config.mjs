@@ -270,6 +270,7 @@ export default defineConfig({
           items: [
             { label: 'Install', link: '/desktop/' },
             { label: 'First run', link: '/desktop/first-run/' },
+            { label: 'Build an app', link: '/desktop/designer/' },
             { label: 'Backups & restore', link: '/desktop/backups/' },
             { label: 'Share it on your network', link: '/desktop/lan-share/' },
           ],

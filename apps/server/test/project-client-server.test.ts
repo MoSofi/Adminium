@@ -3,7 +3,7 @@
  * A project's pages and widgets inside a composed server: the page rows a
  * build gets, the bootstrap payload that lists the files, the route that
  * serves them, Studio's page routes refusing changes, a rebuild in dev, and
- * nothing at all on the desktop app.
+ * the same for a project the desktop app opened.
  *
  * The build is written by hand, as `adminium build` would leave it, so this
  * needs no esbuild (`project-client-build.test.ts` runs the real one).
@@ -387,17 +387,13 @@ describe('a rebuild in dev', () => {
   });
 });
 
+// Plan 66 (P12): a project the desktop app opened is served as a terminal serves it.
 describe('on the desktop app', () => {
-  it('serves no project code, and adds no pages', async () => {
+  it('serves a project it opened: its pages and their code', async () => {
     const served = await serve({ env: { ADMINIUM_RUNTIME: 'desktop' } });
-    expect(await pagesRepo(served.install.meta).findById(projectPageId('revenue'))).toBeNull();
+    expect(await pagesRepo(served.install.meta).findById(projectPageId('revenue'))).not.toBeNull();
     const { project } = await bootstrap(served);
-    expect(project).toEqual({ databases: { main: served.install.mainId }, client: null });
-    const res = await served.app.inject({
-      method: 'GET',
-      url: '/api/v1/project/client/pages/revenue-A1.js',
-      headers: { cookie: served.cookie },
-    });
-    expect(res.statusCode).toBe(404);
+    expect(project?.client).not.toBeNull();
+    expect(project?.client).toBeDefined();
   });
 });

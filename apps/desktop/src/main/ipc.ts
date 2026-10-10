@@ -51,11 +51,17 @@ import type {
   DesktopConfigPatch,
   DesktopDiagnostics,
   DesktopMenuLabels,
+  DesktopProjectInfo,
   DesktopRuntimeInfo,
   DesktopUpdateCheckResult,
   DesktopUpdateEvent,
   SetDataDirOptions,
   SetDataDirResult,
+  DesktopStopWords,
+  DesktopShareInfo,
+  DesktopShareResult,
+  DesktopExportKind,
+  DesktopExportResult,
 } from '../preload/api.js';
 import {
   INVOKE_CHANNELS,
@@ -71,6 +77,8 @@ import {
   CAPABILITY_STUB,
   type CapabilityHost,
 } from './capabilities/host.js';
+import type { StartService } from './start.js';
+import type { VersionsOffer } from './versions-offer.js';
 import {
   autoBackupSchema,
   lanShareSchema,
@@ -142,6 +150,9 @@ const chooseDirectorySchema = z.strictObject({
  * dropped, and both outcomes are worse than a rejection.
  */
 const setConfigSchema = z.strictObject({
+  // What the app's own screens open in: picked in the dashboard, read by Start.
+  language: z.string().min(2).max(35).regex(/^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*$/).nullable().optional(),
+  theme: z.enum(['system', 'light', 'dark']).optional(),
   singleUser: z.boolean().optional(),
   lanShare: lanShareSchema.optional(),
   updates: updatesSchema.optional(),
@@ -199,6 +210,24 @@ const menuLabelsSchema = z.strictObject({
   'help.about': menuLabelSchema,
 });
 
+const stopWordSchema = z.string().min(1).max(300);
+/** `project.setStopWords`: the eleven sentences of the quit and close questions. */
+const stopWordsSchema = z.strictObject({
+  turn: stopWordSchema,
+  start: stopWordSchema,
+  save: stopWordSchema,
+  restore: stopWordSchema,
+  style: stopWordSchema,
+  other: stopWordSchema,
+  quitDetail: stopWordSchema,
+  closeDetail: stopWordSchema,
+  quitAnyway: stopWordSchema,
+  closeAnyway: stopWordSchema,
+  keepWorking: stopWordSchema,
+  shareDetail: stopWordSchema,
+  shareAnyway: stopWordSchema,
+});
+
 /**
  * `readBundledText(kind)`. A closed enum, not a path: the renderer names
  * WHICH document (the AGPL licence or the third-party notices), never a file —
@@ -207,6 +236,24 @@ const menuLabelsSchema = z.strictObject({
  * cannot turn this into an arbitrary-file read.
  */
 const bundledTextSchema = z.enum(['license', 'third-party-notices']);
+
+// The first screens. A path is a string here and judged by `main/start.ts`, which is where the rules are.
+const dialogTitleSchema = z.string().min(1).max(200);
+const projectNameSchema = z.string().max(200);
+const absolutePathSchema = z.string().min(1).max(4096).refine(isAbsolute, { message: 'must be an absolute path' });
+const startNewFolderSchema = z.strictObject({ parent: absolutePathSchema, name: projectNameSchema });
+const startChooseParentSchema = z.strictObject({ from: absolutePathSchema, title: dialogTitleSchema });
+const startCreateProjectSchema = z.strictObject({ parent: absolutePathSchema, name: projectNameSchema, acceptWarning: z.boolean().optional() });
+const startChooseFolderSchema = z.strictObject({ title: dialogTitleSchema });
+const startOpenProjectSchema = z.strictObject({
+  path: absolutePathSchema,
+  agreed: z.boolean().optional(),
+  land: z.enum(['designer', 'dashboard']).optional(),
+  seen: z.array(z.enum(['manager', 'engine', 'found', 'accounts'])).max(8).optional(),
+});
+const startResolveKeySchema = z.strictObject({ path: absolutePathSchema, answer: z.enum(['env', 'fresh', 'new']), title: dialogTitleSchema.optional() });
+const startGetPackagesSchema = z.strictObject({ path: absolutePathSchema, land: z.enum(['designer', 'dashboard']).optional() });
+const startLocateProjectSchema = z.strictObject({ path: absolutePathSchema, title: dialogTitleSchema });
 
 const capabilityInvokeSchema = z.strictObject({
   capabilityId: z.string().min(1).max(120),
@@ -258,11 +305,11 @@ type Assert<T extends true> = T;
  */
 type Settled<T> = { [K in keyof T]-?: Exclude<T[K], undefined> };
 
-/** The five settable keys. */
-type PatchKey = 'singleUser' | 'lanShare' | 'updates' | 'telemetryOptIn' | 'autoBackup';
+/** The seven settable keys. */
+type PatchKey = 'language' | 'theme' | 'singleUser' | 'lanShare' | 'updates' | 'telemetryOptIn' | 'autoBackup';
 
 /**
- * The patch offers exactly five keys, each carrying exactly the value type
+ * The patch offers exactly seven keys, each carrying exactly the value type
  * `config.json` stores under it.
  */
 export type _PatchKeysMatchContract = Assert<Mutual<keyof DesktopConfigPatch, PatchKey>>;
@@ -460,8 +507,30 @@ export interface RegisterIpcHandlersOptions {
   showLogs: () => Promise<void>;
   /** Relaunch the app (e.g. after a data-dir change). */
   relaunch: () => void;
-  /** An override. Defaults to {@link loopbackSenderPolicy}. */
+  /**
+   * The first screens' service (`main/start.ts`), or `null` while there is none
+   * (a build or a moment in which Start is not offered). Read at each call.
+   */
+  start?: (() => StartService | null) | undefined;
+  /** The project the window holds: what it is (`null` in the classic workspace) and the way out of it. */
+  project?:
+    | {
+        info: () => (DesktopProjectInfo & { root: string }) | null;
+        close: () => Promise<boolean>;
+        /** "Export this project…" (`null`: a build that cannot). */
+        exporting?: (() => ProjectExporting | null) | undefined;
+        /** Build and Share, of the project that is open (`null`: a build that cannot share). */
+        sharing?: (() => ProjectSharing | null) | undefined;
+        /** The quit and close questions' words, in the page's language. */
+        setStopWords?: ((words: DesktopStopWords) => void) | undefined;
+        /** The versions offer of the project that is open, or `null`: no project, or a build that cannot look for git. */
+        versions?: (() => VersionsOffer | null) | undefined;
+      }
+    | undefined;
+  /** An override. Defaults to {@link loopbackSenderPolicy}, or to {@link pinnedSenderPolicy} with `pinSender`. */
   senderPolicy?: SenderPolicy | undefined;
+  /** The packaged app: only the origin of the server main started may call. Off in the dev loop. */
+  pinSender?: boolean | undefined;
   /** The main log. Handler failures are recorded, never swallowed. */
   log?: ((line: string) => void) | undefined;
 }
@@ -514,6 +583,34 @@ export const loopbackSenderPolicy: SenderPolicy = (senderUrl) => {
 };
 
 /**
+ * The packaged app's answer: the bundled pages, and the ONE origin this app's
+ * own server answers on (`http://127.0.0.1:<the port main started>`), read
+ * when the call arrives so a restart on a new port is followed at once.
+ *
+ * Why pinned after all (plan 66, critique B2). The app now also shows pages
+ * that are not its own on this machine's loopback: the Designer's preview on
+ * `localhost:<port>` (pages a model wrote), and another Adminium a person
+ * connects to, which may itself be on `localhost` or behind a tunnel that ends
+ * there. "Any loopback host" would hand those the bridge the moment one of
+ * them became a top-level document. The dev loop keeps
+ * {@link loopbackSenderPolicy}: its dashboard is Vite's, on a port of its own.
+ */
+export function pinnedSenderPolicy(serverPort: () => number | null): SenderPolicy {
+  return (senderUrl) => {
+    if (senderUrl === null) return false;
+    if (senderUrl.startsWith('file://')) return true;
+    const port = serverPort();
+    if (port === null) return false;
+    try {
+      const url = new URL(senderUrl);
+      return url.protocol === 'http:' && url.origin === `http://127.0.0.1:${String(port)}`;
+    } catch {
+      return false;
+    }
+  };
+}
+
+/**
  * `senderFrame` is a getter over a live frame: it is `null` once the frame is
  * gone, and reading it can throw outright if the frame was destroyed mid-call.
  * Both mean "no trustworthy sender", not "crash inside the handler".
@@ -526,7 +623,34 @@ function senderUrlOf(event: IpcInvokeEventLike): string | null {
   }
 }
 
+/**
+ * Who may use the first screens' channels: the app's OWN pages, which are the
+ * only `file:` documents a window of this app ever holds. A project's dashboard
+ * (loopback, and trusted for the rest of the bridge) is refused: its preview and
+ * its pages are drawn from a folder's code, and "open that other folder" or
+ * "make a project there" must not be something that code can ask for.
+ */
+export const ownPagePolicy: SenderPolicy = (senderUrl) => senderUrl !== null && senderUrl.startsWith('file://');
+
 // ─── Error mapping ───────────────────────────────────────────────────────────
+
+/** Build and Share of the project a window holds, as main does them (`main/index.ts`). */
+/** "Export this project…", of the project a window holds. */
+export interface ProjectExporting {
+  run(input: { kind: DesktopExportKind; title: string; from?: string | undefined }): Promise<DesktopExportResult>;
+  /** The last outcome, handed over once. */
+  takeResult(): DesktopExportResult | null;
+  show(): Promise<void>;
+}
+
+export interface ProjectSharing {
+  share(): Promise<DesktopShareResult>;
+  build(): Promise<boolean>;
+  /** `null` while the project is being built. */
+  info(): DesktopShareInfo | null;
+  showShared(): Promise<void>;
+  openDashboard(): Promise<void>;
+}
 
 /** `disabled` mode, as seen from the bridge: the port does not exist. */
 class UnavailableError extends Error {}
@@ -593,7 +717,8 @@ export function toErrorPayload(error: unknown): IpcErrorPayload {
  */
 export function registerIpcHandlers(opts: RegisterIpcHandlersOptions): IpcHandlers {
   const { ipc } = opts;
-  const senderPolicy = opts.senderPolicy ?? loopbackSenderPolicy;
+  const senderPolicy =
+    opts.senderPolicy ?? (opts.pinSender === true ? pinnedSenderPolicy(() => opts.runtime()?.serverPort ?? null) : loopbackSenderPolicy);
   const lanShareUrls = opts.lanShareUrls ?? ((): readonly string[] => []);
   const log = opts.log ?? ((): void => {});
 
@@ -618,9 +743,10 @@ export function registerIpcHandlers(opts: RegisterIpcHandlersOptions): IpcHandle
     channel: string,
     schema: S,
     run: (input: z.output<S>) => Promise<T>,
+    allowed: (event: IpcInvokeEventLike, channel: string) => boolean = trusted,
   ): void {
     ipc.handle(channel, async (event, ...args): Promise<IpcResult<T>> => {
-      if (!trusted(event, channel)) return untrusted;
+      if (!allowed(event, channel)) return untrusted;
       const parsed = schema.safeParse(args[0]);
       if (!parsed.success) {
         const detail = formatIssues(parsed.error);
@@ -744,6 +870,130 @@ export function registerIpcHandlers(opts: RegisterIpcHandlersOptions): IpcHandle
     return Promise.resolve();
   });
   register(IPC_CHANNELS.showLogs, noPayloadSchema, () => opts.showLogs());
+
+  // ─── the first screens ─────────────────────────────────────────────────────
+
+  const ownPage = (event: IpcInvokeEventLike, channel: string): boolean => {
+    const url = senderUrlOf(event);
+    if (ownPagePolicy(url)) return true;
+    log(`ipc: refused ${channel} from a page that is not the app's own: ${url ?? '(no frame)'}`);
+    return false;
+  };
+  const start = (): StartService => {
+    const service = opts.start?.() ?? null;
+    if (service === null) throw new UnavailableError('The first screens are not open.');
+    return service;
+  };
+  register(IPC_CHANNELS.startState, noPayloadSchema, () => Promise.resolve(start().state()), ownPage);
+  register(IPC_CHANNELS.startJudgeNewFolder, startNewFolderSchema, (input) => Promise.resolve(start().judgeNewFolder(input)), ownPage);
+  register(IPC_CHANNELS.startChooseParent, startChooseParentSchema, (input) => start().chooseParent(input), ownPage);
+  register(
+    IPC_CHANNELS.startCreateProject,
+    startCreateProjectSchema,
+    (input) => start().createProject({ parent: input.parent, name: input.name, ...(input.acceptWarning === undefined ? {} : { acceptWarning: input.acceptWarning }) }),
+    ownPage,
+  );
+  register(IPC_CHANNELS.startMakeProgress, noPayloadSchema, () => Promise.resolve(start().makeProgress()), ownPage);
+  register(IPC_CHANNELS.startChooseFolder, startChooseFolderSchema, (input) => start().chooseFolder(input), ownPage);
+  register(
+    IPC_CHANNELS.startOpenProject,
+    startOpenProjectSchema,
+    (input) =>
+      start().openProject({
+        path: input.path,
+        ...(input.agreed === undefined ? {} : { agreed: input.agreed }),
+        ...(input.land === undefined ? {} : { land: input.land }),
+        ...(input.seen === undefined ? {} : { seen: input.seen }),
+      }),
+    ownPage,
+  );
+  register(IPC_CHANNELS.startGetPackages, startGetPackagesSchema, (input) => start().getPackages({ path: input.path, ...(input.land === undefined ? {} : { land: input.land }) }), ownPage);
+  register(IPC_CHANNELS.startResolveKey, startResolveKeySchema, (input) => start().resolveKey({ path: input.path, answer: input.answer, ...(input.title === undefined ? {} : { title: input.title }) }), ownPage);
+  register(IPC_CHANNELS.startUpdateProject, z.strictObject({ path: absolutePathSchema }), (input) => start().updateProject(input), ownPage);
+  register(IPC_CHANNELS.startUpdateApp, noPayloadSchema, () => Promise.resolve(start().updateApp()), ownPage);
+  // An address a person typed: a short string, judged by `main/guest.ts` before anything is asked of it.
+  const guestAddressSchema = z.string().min(1).max(300);
+  register(IPC_CHANNELS.startConnect, z.strictObject({ address: guestAddressSchema, anyway: z.boolean().optional() }), (input) => start().connect({ address: input.address, ...(input.anyway === undefined ? {} : { anyway: input.anyway }) }), ownPage);
+  register(IPC_CHANNELS.startGuests, noPayloadSchema, () => Promise.resolve(start().guests()), ownPage);
+  register(IPC_CHANNELS.startForgetGuest, guestAddressSchema, (address) => start().forgetGuest(address), ownPage);
+  register(IPC_CHANNELS.startForgetProject, absolutePathSchema, (path) => start().forgetProject(path), ownPage);
+  register(IPC_CHANNELS.startLocateProject, startLocateProjectSchema, (input) => start().locateProject(input), ownPage);
+  // ─── the project this window holds ─────────────────────────────────────────
+
+  // Answered for the project's own page (the ordinary sender rule). None of the three takes a path: a page
+  // cannot aim them at a folder other than the one it is served from.
+  register(IPC_CHANNELS.projectInfo, noPayloadSchema, () => {
+    const info = opts.project?.info() ?? null;
+    return Promise.resolve<DesktopProjectInfo | null>(info === null ? null : { name: info.name, displayPath: info.displayPath, mode: info.mode });
+  });
+  register(IPC_CHANNELS.projectShowInFolder, noPayloadSchema, async () => {
+    const info = opts.project?.info() ?? null;
+    if (info === null) throw new UnavailableError('This window holds no project.');
+    await opts.dialogs.showItemInFolder(info.root);
+  });
+  register(IPC_CHANNELS.projectClose, noPayloadSchema, () => {
+    if (opts.project === undefined || opts.project.info() === null) throw new UnavailableError('This window holds no project.');
+    return opts.project.close();
+  });
+
+  // Words for a native dialog: bounded like the menu's, and all of them or none.
+  register(IPC_CHANNELS.projectStopWords, stopWordsSchema, (words) => {
+    opts.project?.setStopWords?.(words);
+    return Promise.resolve();
+  });
+
+  // Export. The kind is the page's to say; where the file goes is the person's, in the system's own dialog.
+  const exporting = (): ProjectExporting => {
+    const found = opts.project?.exporting?.() ?? null;
+    if (found === null) throw new UnavailableError('This window holds no project.');
+    return found;
+  };
+  register(IPC_CHANNELS.projectExport, z.strictObject({
+      kind: z.enum(['everything', 'apps']),
+      title: dialogTitleSchema,
+      // A page of the project's own server, by its path: never another origin (`//host`, a scheme), never a fragment.
+      from: z.string().max(400).regex(/^\/(?!\/)[^\\#\s]*$/).optional(),
+    }),
+    (input) => exporting().run({ kind: input.kind, title: input.title, ...(input.from === undefined ? {} : { from: input.from }) }),
+  );
+  register(IPC_CHANNELS.projectExportResult, noPayloadSchema, () => Promise.resolve(opts.project?.exporting?.()?.takeResult() ?? null));
+  register(IPC_CHANNELS.projectShowExport, noPayloadSchema, () => exporting().show());
+
+  // Build and Share. For the project's own page (the Designer's control) and for the app's own (the sharing details).
+  const sharing = (): ProjectSharing => {
+    const found = opts.project?.sharing?.() ?? null;
+    if (found === null) throw new UnavailableError('This window holds no project.');
+    return found;
+  };
+  register(IPC_CHANNELS.projectShare, noPayloadSchema, () => sharing().share());
+  register(IPC_CHANNELS.projectBuild, noPayloadSchema, () => sharing().build());
+  register(IPC_CHANNELS.projectShareInfo, noPayloadSchema, () => Promise.resolve(opts.project?.sharing?.()?.info() ?? null));
+  register(IPC_CHANNELS.projectShowShared, noPayloadSchema, () => sharing().showShared());
+  register(IPC_CHANNELS.projectOpenDashboard, noPayloadSchema, () => sharing().openDashboard());
+
+  // The versions offer. `download` is the one call in this bridge that reaches out to the internet for a
+  // program: it fetches one pinned file from its publisher, and only this project's own page can ask.
+  const versions = (): VersionsOffer => {
+    const offer = opts.project?.versions?.() ?? null;
+    if (offer === null) throw new UnavailableError('This window holds no project.');
+    return offer;
+  };
+  register(IPC_CHANNELS.versionsState, noPayloadSchema, () => Promise.resolve(versions().state()));
+  register(IPC_CHANNELS.versionsDownload, noPayloadSchema, () => Promise.resolve(versions().download()));
+  register(IPC_CHANNELS.versionsCancel, noPayloadSchema, () => Promise.resolve(versions().cancel()));
+  register(IPC_CHANNELS.versionsNotNow, noPayloadSchema, () => versions().notNow());
+  register(IPC_CHANNELS.versionsLookAgain, noPayloadSchema, () => versions().lookAgain());
+  register(IPC_CHANNELS.versionsAppleTools, noPayloadSchema, () => versions().appleTools());
+
+  register(
+    IPC_CHANNELS.startUseClassic,
+    noPayloadSchema,
+    () => {
+      start().useClassic();
+      return Promise.resolve();
+    },
+    ownPage,
+  );
 
   return {
     emitUpdateEvent(event: DesktopUpdateEvent): void {

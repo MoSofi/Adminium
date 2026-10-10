@@ -1,0 +1,255 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+/**
+ * Making a new project from the app: the engine's own `new`, run as the
+ * terminal runs it.
+ *
+ * WHY THE ENGINE'S COMMAND AND NOT A COPY OF ITS STEPS. `adminium new` lays the
+ * template, writes the secret and the database's address into `.env`, and,
+ * told it is inside the app (`ADMINIUM_DESKTOP_PROGRAMS`), lists what the
+ * Designer's screens need, lays in the lockfile this release was tried with and
+ * installs with the npm the app carries. Every one of those steps has its own
+ * tests there. Main starts it with its own program asked to be Node, which is
+ * the one Node the app has, and reads how it ended.
+ *
+ * ELECTRON-FREE: the program, the entry and the runner are handed in.
+ */
+
+import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+
+import type { DesktopMakeStep } from '../preload/api.js';
+import type { MakeProjectResult } from './start.js';
+import { parseFolderFacts, type FolderFacts } from './folder-open.js';
+
+/**
+ * The database a project made for the Designer starts with: a file of its own,
+ * in the project. FROZEN to the engine's `DESIGN_DATABASE`
+ * (`make-project.test.ts` holds the two together): main may not import the
+ * engine at run time.
+ */
+export const NEW_PROJECT_DATABASE = 'sqlite:./data/app.sqlite';
+
+/** A first install on a slow connection; past this something is wrong. */
+export const MAKE_PROJECT_TIMEOUT_MS = 15 * 60_000;
+
+export interface RanProgram {
+  code: number | null;
+  /** The end of what it printed, both streams. */
+  output: string;
+  timedOut: boolean;
+}
+
+export interface MakeProjectDeps {
+  /** Main's own `process.execPath`. */
+  binary: string;
+  /** The engine's command-line entry (`@adminium/server`'s `dist/cli/index.js`). */
+  cliEntry: string;
+  /** Where the app's own programs are, as the JSON the engine reads; `undefined` when this build has none. */
+  programs: () => Promise<string | undefined>;
+  env: Readonly<Record<string, string | undefined>>;
+  run: (
+    command: string,
+    args: readonly string[],
+    opts: { cwd: string; env: Record<string, string>; timeoutMs: number; onOutput?: (text: string) => void },
+  ) => Promise<RanProgram>;
+  log?: ((line: string) => void) | undefined;
+}
+
+/** The last lines of a program's output: what a person can act on, without the wall above it. */
+export function lastLines(output: string, count = 6): string {
+  return output
+    .split('\n')
+    .map((line) => line.trimEnd())
+    .filter((line) => line !== '')
+    .slice(-count)
+    .join('\n');
+}
+
+/**
+ * The line the engine's `new` prints as it hands over to npm (`Installing
+ * dependencies with npm…`). Everything before it is laying the files, which is
+ * quick; everything after is the download, which is not. FROZEN to the engine's
+ * words by `make-project.test.ts`, which reads them from its source.
+ */
+export const INSTALLING_LINE = 'Installing dependencies with';
+
+export function createMakeProject(
+  deps: MakeProjectDeps,
+): (input: { parent: string; folder: string; root: string; onStep?: (step: DesktopMakeStep) => void }) => Promise<MakeProjectResult> {
+  return async ({ parent, folder, root, onStep }) => {
+    onStep?.('files');
+    try {
+      mkdirSync(parent, { recursive: true });
+    } catch (error) {
+      return { ok: false, detail: `Could not make ${parent}: ${error instanceof Error ? error.message : String(error)}` };
+    }
+    // A folder this call makes and cannot finish is taken away again: left behind it is a project with no packages,
+    // which "Create" then refuses as a folder with files in it. One that was there before (empty) is the person's.
+    const madeHere = !existsSync(root);
+    const failed = (detail: string): MakeProjectResult => {
+      if (madeHere) {
+        try {
+          rmSync(root, { recursive: true, force: true });
+        } catch {
+          // Still there (a file held open): the detail below is what matters.
+        }
+      }
+      return { ok: false, detail };
+    };
+    const programs = await deps.programs();
+    const env: Record<string, string> = {};
+    for (const [key, value] of Object.entries(deps.env)) if (value !== undefined) env[key] = value;
+    env.ELECTRON_RUN_AS_NODE = '1';
+    if (programs !== undefined) env.ADMINIUM_DESKTOP_PROGRAMS = programs;
+    // A secret of the classic workspace, or of whatever started the app, is never a new project's.
+    delete env.ADMINIUM_SECRET;
+
+    // Read as it is printed, for one thing only: the moment the files are laid and the download starts.
+    let printed = '';
+    let installing = false;
+    const onOutput = (text: string): void => {
+      if (installing) return;
+      printed = (printed + text).slice(-512);
+      if (printed.includes(INSTALLING_LINE)) {
+        installing = true;
+        onStep?.('packages');
+      }
+    };
+    const ran = await deps.run(deps.binary, [deps.cliEntry, 'new', folder, '--yes', '--database', NEW_PROJECT_DATABASE], {
+      cwd: parent,
+      env,
+      timeoutMs: MAKE_PROJECT_TIMEOUT_MS,
+      onOutput,
+    });
+    deps.log?.(`[new project] ${root}: exit ${String(ran.code)}${ran.timedOut ? ' (timed out)' : ''}\n${lastLines(ran.output, 20)}`);
+    if (ran.timedOut) return failed('Getting the packages took too long and was stopped.');
+    if (ran.code !== 0) return failed(lastLines(ran.output));
+
+    onStep?.('database');
+    // A SQLite connection opens only a file that exists; an empty file is an empty database.
+    const database = resolve(root, NEW_PROJECT_DATABASE.slice('sqlite:'.length));
+    if (!existsSync(database)) {
+      mkdirSync(dirname(database), { recursive: true });
+      writeFileSync(database, '');
+    }
+    return { ok: true };
+  };
+}
+
+/**
+ * Getting the packages of a project that is already there (one copied from
+ * another computer, or whose `node_modules` was deleted): the engine's own
+ * `install`, run in the folder as `new` is run beside it. From the lockfile
+ * when the folder has one, with no install scripts, by the npm the app carries.
+ */
+export function createInstallPackages(deps: MakeProjectDeps): (input: { root: string }) => Promise<MakeProjectResult> {
+  return async ({ root }) => {
+    const programs = await deps.programs();
+    const env: Record<string, string> = {};
+    for (const [key, value] of Object.entries(deps.env)) if (value !== undefined) env[key] = value;
+    env.ELECTRON_RUN_AS_NODE = '1';
+    if (programs !== undefined) env.ADMINIUM_DESKTOP_PROGRAMS = programs;
+    delete env.ADMINIUM_SECRET;
+    const ran = await deps.run(deps.binary, [deps.cliEntry, 'install'], { cwd: root, env, timeoutMs: MAKE_PROJECT_TIMEOUT_MS });
+    deps.log?.(`[project packages] ${root}: exit ${String(ran.code)}${ran.timedOut ? ' (timed out)' : ''}\n${lastLines(ran.output, 20)}`);
+    if (ran.timedOut) return { ok: false, detail: 'Getting the packages took too long and was stopped.' };
+    if (ran.code !== 0) return { ok: false, detail: lastLines(ran.output) };
+    return { ok: true };
+  };
+}
+
+/** The environment the engine's command line is started with for a folder: the app's own program as Node, its programs, no secret of the app's. */
+async function engineEnv(deps: MakeProjectDeps): Promise<Record<string, string>> {
+  const programs = await deps.programs();
+  const env: Record<string, string> = {};
+  for (const [key, value] of Object.entries(deps.env)) if (value !== undefined) env[key] = value;
+  env.ELECTRON_RUN_AS_NODE = '1';
+  if (programs !== undefined) env.ADMINIUM_DESKTOP_PROGRAMS = programs;
+  delete env.ADMINIUM_SECRET;
+  return env;
+}
+
+/** How long reading a folder's facts may take: it opens one file. */
+export const FOLDER_FACTS_TIMEOUT_MS = 30_000;
+
+/**
+ * What the engine says a folder holds (`adminium folder-facts`): it reads the
+ * folder and runs nothing of it. `null` when it could not be asked or did not
+ * answer; the caller then opens the folder as it did before there were facts.
+ */
+export function createFolderFacts(deps: MakeProjectDeps): (root: string) => Promise<FolderFacts | null> {
+  return async (root) => {
+    const ran = await deps.run(deps.binary, [deps.cliEntry, 'folder-facts'], { cwd: root, env: await engineEnv(deps), timeoutMs: FOLDER_FACTS_TIMEOUT_MS });
+    const facts = ran.code === 0 ? parseFolderFacts(ran.output) : null;
+    if (facts === null) deps.log?.(`[folder facts] ${root}: no answer (exit ${String(ran.code)}${ran.timedOut ? ', timed out' : ''})\n${lastLines(ran.output, 6)}`);
+    return facts;
+  };
+}
+
+/** "Update this project": the engine's `install --update` (the project's Adminium set to the app's, then a whole install). */
+export function createUpdateProject(deps: MakeProjectDeps): (input: { root: string }) => Promise<MakeProjectResult> {
+  return async ({ root }) => {
+    const ran = await deps.run(deps.binary, [deps.cliEntry, 'install', '--update'], { cwd: root, env: await engineEnv(deps), timeoutMs: MAKE_PROJECT_TIMEOUT_MS });
+    deps.log?.(`[project update] ${root}: exit ${String(ran.code)}${ran.timedOut ? ' (timed out)' : ''}\n${lastLines(ran.output, 20)}`);
+    if (ran.timedOut) return { ok: false, detail: 'Getting the packages took too long and was stopped.' };
+    if (ran.code !== 0) return { ok: false, detail: lastLines(ran.output) };
+    return { ok: true };
+  };
+}
+
+/** {@link MakeProjectDeps.run} on a real machine. */
+export async function runToEnd(
+  command: string,
+  args: readonly string[],
+  opts: { cwd: string; env: Record<string, string>; timeoutMs: number; onOutput?: (text: string) => void },
+): Promise<RanProgram> {
+  const { spawn, spawnSync } = await import('node:child_process');
+  return new Promise((done) => {
+    let output = '';
+    let timedOut = false;
+    const keep = (chunk: Buffer): void => {
+      // The end is what is read; the start of a long install is not kept.
+      const text = chunk.toString('utf8');
+      output = (output + text).slice(-64 * 1024);
+      opts.onOutput?.(text);
+    };
+    let child: ReturnType<typeof spawn>;
+    try {
+      // A group of its own: the command starts npm, npm starts more, and stopping the first alone leaves the rest
+      // writing into the folder.
+      child = spawn(command, [...args], { cwd: opts.cwd, env: opts.env, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'], detached: process.platform !== 'win32' });
+    } catch (error) {
+      done({ code: null, output: error instanceof Error ? error.message : String(error), timedOut: false });
+      return;
+    }
+    /** The command and everything it started. */
+    const stopAll = (): void => {
+      const pid = child.pid;
+      if (pid === undefined || child.exitCode !== null) return;
+      try {
+        if (process.platform === 'win32') spawnSync('taskkill', ['/pid', String(pid), '/T', '/F'], { windowsHide: true, stdio: 'ignore' });
+        else process.kill(-pid, 'SIGTERM');
+      } catch {
+        child.kill();
+      }
+    };
+    // The app quit under it (the person closed the window during "Create"): nothing is left installing behind it.
+    process.once('exit', stopAll);
+    const timer = setTimeout(() => {
+      timedOut = true;
+      stopAll();
+    }, opts.timeoutMs);
+    child.stdout?.on('data', keep);
+    child.stderr?.on('data', keep);
+    child.once('error', (error) => {
+      clearTimeout(timer);
+      process.removeListener('exit', stopAll);
+      done({ code: null, output: `${output}\n${error.message}`, timedOut });
+    });
+    child.once('close', (code) => {
+      clearTimeout(timer);
+      process.removeListener('exit', stopAll);
+      done({ code, output, timedOut });
+    });
+  });
+}

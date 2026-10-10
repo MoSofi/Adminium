@@ -93,7 +93,7 @@ function withoutVersion(config: DesktopConfig): Record<string, unknown> {
 describe('desktopConfigSchema', () => {
   it('accepts the body verbatim', () => {
     const body = {
-      version: 1,
+      version: 2,
       dataDir: '/Users/ava/Library/Application Support/Adminium/data',
       secretEncrypted: 'base64…',
       secretPlain: null,
@@ -104,9 +104,23 @@ describe('desktopConfigSchema', () => {
       telemetryOptIn: false,
       autoBackup: { enabled: true, keep: 7 },
       window: { x: 0, y: 0, width: 1440, height: 900, maximized: false },
+      projects: [
+        { path: '/Users/ava/Adminium/juniper-kitchen', name: 'Juniper Kitchen', lastOpened: '2026-10-09T18:04:11.000Z', state: 'shared', sharePort: 4712, trusted: 'sha256:9f2c', reviewed: true, engineNoted: '0.3.16' },
+        { path: '/Users/ava/Adminium/repairs', name: 'Repairs', lastOpened: '2026-10-08T09:00:00.000Z', state: 'building', sharePort: null, trusted: null, reviewed: false, engineNoted: null },
+      ],
+      language: 'ar',
+      theme: 'dark',
+      versionsDeclined: true,
+      guests: [{ address: 'http://office-pc.local:4600', version: '0.3.24', lastOpened: '2026-10-10T10:00:00.000Z' }],
     };
 
     expect(desktopConfigSchema.parse(body)).toEqual(body);
+    // A file written before the versions offer has no such key, and is read as "never asked".
+    const { versionsDeclined: _, ...before } = body;
+    expect(desktopConfigSchema.parse(before).versionsDeclined).toBe(false);
+    // And a project entry written before it was looked over, or told of an older Adminium, reads as neither.
+    const old = { ...body, projects: [{ path: '/p', name: 'P', lastOpened: '2026-10-09T18:04:11.000Z', state: 'building', sharePort: null, trusted: null }] };
+    expect(desktopConfigSchema.parse(old).projects[0]).toMatchObject({ reviewed: false, engineNoted: null });
   });
 
   it('accepts the default config, with window position left to the OS', () => {
@@ -120,7 +134,11 @@ describe('desktopConfigSchema', () => {
   });
 
   it.each([
-    ['a wrong version literal', { version: 2 }],
+    ['a wrong version literal', { version: 1 }],
+    ['a project with no path', { projects: [{ path: '', name: 'x', lastOpened: 'x', state: 'building', sharePort: null, trusted: null }] }],
+    ['a project in a state there is none of', { projects: [{ path: '/p', name: 'x', lastOpened: 'x', state: 'paused', sharePort: null, trusted: null }] }],
+    ['a project with a key the schema does not know', { projects: [{ path: '/p', name: 'x', lastOpened: 'x', state: 'building', sharePort: null, trusted: null, secret: 's' }] }],
+    ['a theme there is none of', { theme: 'sepia' }],
     ['an empty dataDir', { dataDir: '' }],
     ['a non-string dataDir', { dataDir: 42 }],
     ['an unknown update mode', { updates: { mode: 'automatic' } }],
@@ -350,13 +368,13 @@ describe('migrateConfig', () => {
         return { ...raw, version: 3, step2: true };
       },
     };
-    // Drive the engine directly at a synthetic head so the test does not depend
-    // on CURRENT_CONFIG_VERSION staying at 1.
+    // Each step hands off to the next, up to this build's version and no further.
     const { raw, fromVersion } = migrateConfig({ version: 0, keep: 'me' }, migrations);
 
     expect(fromVersion).toBe(0);
-    expect(trail).toEqual([0]); // one step, to CURRENT_CONFIG_VERSION (1)
-    expect(raw).toMatchObject({ version: 1, keep: 'me', step0: true });
+    expect(trail).toEqual([0, 1]); // two steps, to CURRENT_CONFIG_VERSION (2); the third is not this build's
+    expect(raw).toMatchObject({ version: 2, keep: 'me', step0: true, step1: true });
+    expect(raw).not.toHaveProperty('step2');
   });
 
   it('refuses a config from a newer build instead of silently downgrading it', () => {
@@ -784,5 +802,36 @@ describe('detectCloudSyncFolder', () => {
     expect(detectCloudSyncFolder('/Users/ava/Work/Dropbox/Adminium/data')?.provider).toBe(
       'dropbox',
     );
+  });
+});
+
+describe('version 1 → 2: the first screens', () => {
+  const V1 = {
+    version: 1,
+    dataDir: '/data',
+    secretEncrypted: 'base64…',
+    secretPlain: null,
+    secretStorage: 'safeStorage',
+    singleUser: false,
+    lanShare: { enabled: true, port: 4611 },
+    updates: { mode: 'manual' },
+    telemetryOptIn: true,
+    autoBackup: { enabled: false, keep: 3 },
+    window: { width: 1200, height: 800, maximized: true },
+  };
+
+  it('adds an empty list of projects, the system’s language and theme, and changes nothing else', () => {
+    const { raw, fromVersion } = migrateConfig(V1);
+    expect(fromVersion).toBe(1);
+    expect(desktopConfigSchema.parse(raw)).toEqual({ ...V1, version: 2, projects: [], language: null, theme: 'system', versionsDeclined: false, guests: [] });
+  });
+
+  it('a version 2 file read by an older build is refused with words a person can act on', () => {
+    // What a 0.2.x app (which understood version 1) says of a file this build wrote.
+    expect(() => migrateConfig({ ...V1, version: 3 })).toThrow(/Update Adminium first/);
+  });
+
+  it('a new install starts at version 2 with nothing opened yet', () => {
+    expect(createDefaultConfig('/data')).toMatchObject({ version: 2, projects: [], language: null, theme: 'system' });
   });
 });

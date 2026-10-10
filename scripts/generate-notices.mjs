@@ -310,6 +310,38 @@ function chromiumNotice() {
   ].join('\n');
 }
 
+/**
+ * git — NOT bundled, and said so. The app can fetch it for a person who has
+ * none (apps/desktop/src/main/git.ts). It is a separate program under its own
+ * licence, so it is named here with where it comes from and where its source
+ * is, rather than left for someone to discover in a folder.
+ */
+function gitNotice() {
+  return [
+    RULE,
+    'git (not part of this application; fetched only when you ask for it)',
+    'License: GPL-2.0-only',
+    'Homepage: https://git-scm.com/',
+    SUBRULE,
+    'Adminium keeps a version of your work after every change, and uses git to do',
+    'it. When this computer has no git, the app offers to download one. Nothing is',
+    'downloaded unless you say yes.',
+    '',
+    'What is downloaded is git as built and published by the GitHub Desktop',
+    'project ("dugite-native"), from that project\'s own releases at',
+    'https://github.com/desktop/dugite-native/releases . Adminium does not ship',
+    'git, does not modify it and does not redistribute it: the file comes from its',
+    'publisher to your computer, is checked against a fingerprint recorded in this',
+    'application, and is run as a separate program.',
+    '',
+    'git is free software under the GNU General Public License, version 2. Its',
+    'licence text is in the downloaded folder (LICENSE), and its complete source',
+    'code is at https://github.com/git/git ; the build scripts for the published',
+    'programs are at https://github.com/desktop/dugite-native .',
+    '',
+  ].join('\n');
+}
+
 /** The whole THIRD-PARTY-NOTICES.txt body. Deterministic given the same inputs. */
 export function renderNotices(notices, opts = {}) {
   const includeChromium = opts.includeChromium !== false;
@@ -338,6 +370,8 @@ export function renderNotices(notices, opts = {}) {
     lines.push('');
   }
   if (includeChromium) lines.push(chromiumNotice());
+  // With the app's own blocks: a test's small fixture has neither.
+  if (includeChromium) lines.push(gitNotice());
   return `${lines.join('\n').replace(/\n{3,}/g, '\n\n')}\n`;
 }
 

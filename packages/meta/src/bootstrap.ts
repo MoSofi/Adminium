@@ -376,6 +376,7 @@ export const LOCAL_OWNER_EMAIL = 'owner@adminium.localhost';
 export async function createLocalOwner(meta: MetaDb, at: number = Date.now()): Promise<User> {
   const user = await createFirstSuperAdmin(meta, { email: LOCAL_OWNER_EMAIL, name: 'Owner', passwordHash: null }, at);
   await settingsRepo(meta).set('designer.localOwnerId', user.id, { updatedBy: null, at });
+  await settingsRepo(meta).set('designer.ownerId', user.id, { updatedBy: null, at });
   return user;
 }
 

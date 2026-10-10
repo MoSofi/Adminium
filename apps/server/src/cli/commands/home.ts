@@ -12,7 +12,8 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 
 import { findProject } from '../../project/locate.js';
-import { detectPackageManager, runScript } from '../../project/package-manager.js';
+import { runScript } from '../../project/package-manager.js';
+import { namedPackageManager } from '../../project/programs.js';
 import type { Command } from '../command.js';
 import { CliError, EXIT_OK } from '../exit.js';
 import { designCommand } from './design.js';
@@ -50,7 +51,7 @@ export const homeCommand: Command = {
     const { io, deps, argv } = ctx;
     const project = findProject(deps.cwd, deps.env);
     if (project !== null) {
-      const pm = detectPackageManager(deps.env);
+      const pm = namedPackageManager(deps.env);
       const scripts = adminiumScripts(project.root);
       const where = relative(deps.cwd, project.root) || '.';
       io.out(`This is an Adminium project (${where}).`);

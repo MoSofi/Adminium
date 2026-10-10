@@ -3,6 +3,11 @@
 The Electron shell: `@adminium/server` in a `utilityProcess`, the
 `@adminium/dashboard` build served over loopback, fully offline.
 
+Two promises, checked at build time by `scripts/check-offline-assets.mjs`: the classic
+workspace makes no request at all; a project folder the app serves reaches a short written
+list (the npm registry once for its packages, the place an app was copied from, a picture
+site the person asked for, and the model they connected).
+
 This package owns the topology and boot path, the layout below, the preload
 bridge, the session, offline behaviour and the menus.
 

@@ -6,7 +6,8 @@
 import { checkApp } from '../../../project/apps/check-app.js';
 import { appPath, type AppSide } from '../../../project/apps/read-app.js';
 import { addSideDependencies, appKeyProblem, nameFromKey, scaffoldApp } from '../../../project/apps/scaffold-app.js';
-import { installCommand, projectPackageManager } from '../../../project/package-manager.js';
+import { refreshInstallStamp } from '../../../project/install-stamp.js';
+import { packageManagerProgram } from '../../../project/programs.js';
 import { APP_VERSION } from '../../../version.js';
 import { parseFlags, type FlagSpecs } from '../../args.js';
 import type { Command } from '../../command.js';
@@ -52,12 +53,18 @@ export const appNewCommand: Command = {
     let installFailed = false;
     if (added.length > 0) {
       io.out(`Added to package.json: ${added.join(', ')}.`);
-      const { command, args } = installCommand(projectPackageManager(project.root, deps.env));
+      const program = packageManagerProgram(project.root, deps.env);
+      const launch = program.launch(['install']);
+      // What is said is the manager's own name, whatever file starts it.
+      const command = program.manager;
+      const args = ['install'];
+      if (program.note !== null) io.out(program.note);
       if (values['no-install'] === true) {
         io.out(`Install them before building:  ${command} ${args.join(' ')}`);
       } else {
         io.out(`Running ${command} ${args.join(' ')} …`);
-        const result = (deps.runProcess ?? defaultRunProcess)(command, args, { cwd: project.root, inherit: true });
+        const result = (deps.runProcess ?? defaultRunProcess)(launch.command, launch.args, { cwd: project.root, inherit: true, ...(Object.keys(launch.env).length === 0 ? {} : { env: launch.env }) });
+        if (result.status === 0) refreshInstallStamp(project.root, APP_VERSION);
         if (result.status !== 0) {
           installFailed = true;
           io.err(`\`${command} ${args.join(' ')}\` failed. The app's files are in place; run it again before building.`);

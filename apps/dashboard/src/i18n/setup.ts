@@ -36,7 +36,10 @@ import { getI18nInstance, setI18nInstance } from './t.js';
  */
 function pushDesktopMenuLabels(): void {
   if (getDesktopApi() === null) return;
-  void import('../desktop/menuLabels.js').then((module) => module.pushDesktopMenuLabels());
+  void import('../desktop/menuLabels.js').then((module) => {
+    module.pushDesktopMenuLabels();
+    module.pushDesktopStopWords();
+  });
 }
 
 /** The locale the pre-hydration script painted with (localStorage cache). */

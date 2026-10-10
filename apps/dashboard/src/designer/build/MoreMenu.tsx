@@ -36,7 +36,8 @@ export function MoreMenu({
   seen: { label: string; tip: string } | null;
   sees: boolean;
   onSees: (on: boolean) => void;
-  onNewTab: () => void;
+  /** Absent where there is nowhere to open it. */
+  onNewTab?: (() => void) | undefined;
 }): ReactNode {
   const label = t('designer:preview.more', 'More');
   return (
@@ -82,7 +83,7 @@ export function MoreMenu({
         >
           {t('designer:preview.sees', 'The Designer looks at the page after it builds')}
         </DropdownMenuItem>
-        {rows ? (
+        {rows && onNewTab !== undefined ? (
           <DropdownMenuItem icon={<ExternalLink className="rtl:-scale-x-100" />} onSelect={onNewTab} className={MENU_ROW}>
             {t('designer:preview.newTab', 'Open in a new tab')}
           </DropdownMenuItem>

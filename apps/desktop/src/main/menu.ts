@@ -158,7 +158,7 @@ export const DOCS_URL = 'https://docs.adminium.dev';
 export interface BuildAppMenuOptions {
   /** `process.platform`. Drives the mac app menu and the mac-only Edit items. */
   platform: NodeJS.Platform;
-  /** "Toggle Developer Tools **in dev builds only**". */
+  /** Toggle Developer Tools has a line of its own in dev builds only; elsewhere it is its shortcut. */
   isDev: boolean;
   /** Label localization. Defaults to {@link EN_US_MENU_LABELS}. */
   t?: MenuTranslate | undefined;
@@ -277,16 +277,19 @@ export function appMenuTemplate(opts: BuildAppMenuOptions): MenuItemConstructorO
   });
 
   // ── View ──
-  // names exactly these: "Reload, Actual Size/Zoom In/Out, Toggle Developer
-  // Tools in dev builds only". `forceReload` is deliberately absent — it drops
-  // the SPA's session-scoped caches for no benefit the user can perceive — and
-  // so is `toggleDevTools` in production, where it is a support-call generator
-  // and a way to run arbitrary script against the loopback origin.
+  // What is SHOWN is zoom and full screen. Reload, Force Reload and Toggle
+  // Developer Tools are here with their shortcuts and no line of their own
+  // (owner, 2026-10-10): they are for someone finding a fault, not for the
+  // person using the app, and a hidden item still answers its accelerator
+  // (`acceleratorWorksWhenHidden` is true by default on macOS; Windows and Linux
+  // register every item's accelerator, shown or not). In a dev build the
+  // developer tools keep their line.
   template.push({
     label: t('view'),
     submenu: [
-      { role: 'reload' },
-      { type: 'separator' },
+      { role: 'reload', visible: false },
+      { role: 'forceReload', visible: false },
+      ...(opts.isDev ? [] : ([{ role: 'toggleDevTools', visible: false }] satisfies MenuItemConstructorOptions[])),
       { role: 'resetZoom' },
       { role: 'zoomIn' },
       { role: 'zoomOut' },

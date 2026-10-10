@@ -1,0 +1,24 @@
+<!doctype html>
+<!--
+  SPDX-License-Identifier: AGPL-3.0-only
+
+  The app's own pages: Start and the screens that come before any server runs.
+  One document; its screens are switched by the hash. Loaded with `loadFile`,
+  like the splash and the crash page, so it holds the bridge and reaches no
+  network: every script and style here is in the build.
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:"
+    />
+    <title>Adminium</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="./main.tsx"></script>
+  </body>
+</html>

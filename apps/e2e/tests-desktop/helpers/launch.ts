@@ -14,7 +14,7 @@
  * survives between evaluate calls in a single main process).
  */
 
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -80,6 +80,20 @@ export async function waitForAppWindow(
 ): Promise<Page> {
   const page = await app.firstWindow({ timeout: 30_000 });
   const timeout = opts.timeout ?? 120_000;
+  // The app opens on its own first screen. These specs are the classic workspace's: they take its card, as a
+  // person does. (A launch that names a project, or hands the app a file, never shows the screen.)
+  const classic = page.locator('[data-choice="db"]');
+  const onStart = await Promise.race([
+    classic.waitFor({ state: 'visible', timeout }).then(
+      () => true,
+      () => false,
+    ),
+    page.waitForURL(/^http:\/\/127\.0\.0\.1:\d+\//, { timeout }).then(
+      () => false,
+      () => false,
+    ),
+  ]);
+  if (onStart) await classic.click();
   try {
     await page.waitForURL(/^http:\/\/127\.0\.0\.1:\d+\//, { timeout });
   } catch (error) {
@@ -266,4 +280,19 @@ export function killDesktop(app: ElectronApplication): void {
 export async function closeDesktop(app: ElectronApplication, userDataDir?: string): Promise<void> {
   await app.close().catch(() => undefined);
   if (userDataDir !== undefined) rmSync(userDataDir, { recursive: true, force: true });
+}
+
+/** A data folder for an app that is not launched yet: for a spec that puts something in it first. */
+export function newUserDataDir(): string {
+  return mkdtempSync(join(tmpdir(), 'adminium-desktop-e2e-'));
+}
+
+/**
+ * The models the app keeps for every project (`models.json` in its own folder),
+ * written before a launch as a person's earlier "Add a model" would have left
+ * them. Plain, which the app reads on any system; what it writes itself is the
+ * key store's wherever there is one.
+ */
+export function keepModels(userDataDir: string, values: Record<string, string>): void {
+  writeFileSync(join(userDataDir, 'models.json'), `${JSON.stringify({ version: 1, storage: 'plain', values }, null, 2)}\n`);
 }

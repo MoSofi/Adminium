@@ -21,20 +21,20 @@ import { existsSync, mkdirSync } from 'node:fs';
 import { createServer } from 'node:net';
 import { dirname, resolve } from 'node:path';
 
-import { createLocalOwner, isBootstrapRequired, settingsRepo, usersRepo } from '@adminium/meta';
 import Database from 'better-sqlite3';
 
 import { runChild } from '../../designer/child.js';
 import { DESIGNER_REACT_VERSION } from '../../designer/tools.js';
 import { PUBLIC_CLIENT_PACKAGE } from '../../project/apps/scaffold-app.js';
 import { findProject } from '../../project/locate.js';
-import { projectPackageManager } from '../../project/package-manager.js';
+import { refreshInstallStamp } from '../../project/install-stamp.js';
+import { addPackagesArgs, packageManagerProgram } from '../../project/programs.js';
 import { APP_VERSION } from '../../version.js';
 import { boolFlag, numberFlag, parseFlags, stringFlag } from '../args.js';
 import type { Command } from '../command.js';
 import { CliUsageError, EXIT_OK } from '../exit.js';
 import { newCommand } from './new.js';
-import { runStart } from './start.js';
+import { localOwnerStart, runStart } from './start.js';
 
 /**
  * What an app's own screens are built with, added to a project the Designer
@@ -44,10 +44,11 @@ import { runStart } from './start.js';
  * for them on one card when a side is first added.
  */
 async function addScreenPackages(root: string, env: NodeJS.ProcessEnv): Promise<void> {
-  const manager = projectPackageManager(root, env);
-  const exact = manager === 'npm' || manager === 'pnpm' ? '--save-exact' : '--exact';
+  const program = packageManagerProgram(root, env);
   const specs = [`react@${DESIGNER_REACT_VERSION}`, `react-dom@${DESIGNER_REACT_VERSION}`, `${PUBLIC_CLIENT_PACKAGE}@${APP_VERSION}`];
-  await runChild(manager, [manager === 'npm' ? 'install' : 'add', ...specs, '--ignore-scripts', exact], { cwd: root, timeoutMs: 180_000, signal: new AbortController().signal }).catch(() => undefined);
+  const launch = program.launch(addPackagesArgs(program.manager, specs));
+  const added = await runChild(launch.command, launch.args, { cwd: root, timeoutMs: 180_000, signal: new AbortController().signal, env: { ...process.env, ...launch.env } }).catch(() => undefined);
+  if (added?.code === 0) refreshInstallStamp(root, APP_VERSION);
 }
 
 /** The ports `design` tries, in order, when none is named. */
@@ -123,27 +124,15 @@ export const designCommand: Command = {
 
     return runStart(
       { io, deps: { ...deps, cwd }, argv: ['--port', String(port), '--log-level', logLevel] },
-      {
-        async prepare(meta) {
-          if (await isBootstrapRequired(meta)) {
-            await createLocalOwner(meta);
-            io.out('Made you the owner of this project, with no password yet (`adminium owner set` gives you one).');
-          }
-          const ownerId = await settingsRepo(meta).get('designer.localOwnerId');
-          const owner = ownerId === null ? null : await usersRepo(meta).findById(ownerId);
-          // Only the owner `design` made, and only while they have no password, is signed in by the link.
-          return { token: owner !== null && owner.passwordHash === null && owner.status === 'active' ? token : null };
-        },
-        async started(_url, listening, minted) {
-          const page = `http://127.0.0.1:${String(listening)}/design`;
-          const link = minted === null ? page : `${page}#designToken=${minted}`;
-          io.out(`Adminium Designer is running at ${page}`);
-          if (minted === null) io.out('Sign in with your account.');
-          const opened = boolFlag(values['no-open']) ? false : await deps.openBrowser(link);
-          if (!opened) io.out(minted === null ? `Open ${page}` : `Open this link once to sign in: ${link}`);
-          io.out('Ctrl-C stops it.');
-        },
-      },
+      localOwnerStart(io, token, async (_url, listening, minted) => {
+        const page = `http://127.0.0.1:${String(listening)}/design`;
+        const link = minted === null ? page : `${page}#designToken=${minted}`;
+        io.out(`Adminium Designer is running at ${page}`);
+        if (minted === null) io.out('Sign in with your account.');
+        const opened = boolFlag(values['no-open']) ? false : await deps.openBrowser(link);
+        if (!opened) io.out(minted === null ? `Open ${page}` : `Open this link once to sign in: ${link}`);
+        io.out('Ctrl-C stops it.');
+      }),
     );
   },
 };

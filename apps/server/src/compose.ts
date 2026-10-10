@@ -119,6 +119,8 @@ import { createRowLoader } from './designer/load-rows.js';
 import { createSkills } from './designer/skills.js';
 import { createPrompt } from './designer/prompt.js';
 import { createVersions } from './designer/versions.js';
+import { hostModels } from './llm/host-models.js';
+import { gitProgram } from './project/programs.js';
 import { createPictureSites } from './designer/picture-sites.js';
 import type { PictureSites } from './designer/tool-types.js';
 import { createDesignerTools } from './designer/tools.js';
@@ -460,7 +462,15 @@ export interface ComposeServerOptions {
    * Adminium Designer, when this server runs it (`adminium design`). Needs a
    * project folder; registers `/api/v1/designer` and nothing else changes.
    */
-  designer?: { mode: 'local'; token: string | null; port: number } | undefined;
+  designer?: { mode: 'local'; token: string | null; port: number; /** Started by a host on the person's own computer: the link signs the owner in with or without a password. */ thisComputer?: boolean; /** Names of the project's `.env` and config a host did not obey: said on the Designer's Home. */ ignoredEnv?: readonly string[] | undefined } | undefined;
+  /**
+   * A project the desktop app shares on the network (`startProject`, `serve`):
+   * the server answers to this computer's own names and addresses only, and
+   * `ownerToken` (this start's, never written anywhere and never in the
+   * environment) lets the app's own window sign the project's owner in once,
+   * from this computer only.
+   */
+  shared?: { port: number; ownerToken?: string } | undefined;
   /** Tests only: whether the project can build screens. Production asks the project for its esbuild. */
   designerBundler?: (() => boolean) | undefined;
   /** For tests: a hand save, a style change or going back calls this as it reaches a step, so one can be held open or made to fail there. */
@@ -580,7 +590,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
    * and its build's, never a package in the store, so every reader of an
    * app's files asks this one object which of the two holds a key.
    */
-  const projectRoot = opts.project === undefined || env.ADMINIUM_RUNTIME === 'desktop' ? null : opts.project.root;
+  // The desktop app's classic workspace passes no project; a project it opens is served as a terminal serves it.
+  const projectRoot = opts.project === undefined ? null : opts.project.root;
   const appsBuild = projectRoot === null ? null : createAppsBuildReader(projectRoot);
   const appFiles = createAppFiles({
     store: appStore,
@@ -631,6 +642,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     ...(opts.logger === undefined ? {} : { logger: opts.logger }),
     ...(opts.openapi === undefined ? {} : { openapi: opts.openapi }),
     ...(opts.designer === undefined ? {} : { design: { port: opts.designer.port } }),
+    ...(opts.shared === undefined ? {} : { sharedHosts: { port: opts.shared.port } }),
   });
   // The live Designer: the operator allowed it, and this is not `adminium design` (which is local) nor the desktop app.
   const liveAllowed = opts.designer === undefined && env.ADMINIUM_DESIGNER === 'live' && env.ADMINIUM_RUNTIME !== 'desktop';
@@ -915,7 +927,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     }
   };
   const projectCode =
-    opts.project === undefined || env.ADMINIUM_RUNTIME === 'desktop'
+    opts.project === undefined
       ? null
       : createProjectCodeRuntime({
           root: opts.project.root,
@@ -1474,10 +1486,27 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
    * The mirror runs first so the route's own policy gate reads THIS boot's
    * answer rather than the last one's.
    */
+  /*
+   * The desktop app's classic workspace, as against a project folder it opened.
+   * The share panel, the local and demo databases, and backup and restore act
+   * on the classic workspace's own data folder and its `config.json`; with a
+   * project open they would act on the wrong instance (a restore would unpack
+   * over a folder nobody is looking at), so a project's server has none of them.
+   * Sharing a project and exporting it are the app's own, in its main process.
+   */
+  const desktopClassic = env.ADMINIUM_RUNTIME === 'desktop' && opts.project === undefined;
+  // A shared project's door takes the token it was handed, and signs in that project's owner; it never reads the
+  // environment, which every program this server starts is given.
   const desktopSession =
-    env.ADMINIUM_RUNTIME === 'desktop' && env.ADMINIUM_BOOT_TOKEN !== undefined
-      ? { bootToken: env.ADMINIUM_BOOT_TOKEN }
-      : null;
+    env.ADMINIUM_RUNTIME !== 'desktop'
+      ? null
+      : opts.shared !== undefined
+        ? opts.shared.ownerToken === undefined
+          ? null
+          : { bootToken: opts.shared.ownerToken, projectOwner: true as const }
+        : env.ADMINIUM_BOOT_TOKEN !== undefined
+          ? { bootToken: env.ADMINIUM_BOOT_TOKEN }
+          : null;
   if (env.ADMINIUM_RUNTIME === 'desktop' && env.ADMINIUM_DESKTOP_SINGLE_USER !== undefined) {
     await mirrorDesktopSingleUser(meta, env.ADMINIUM_DESKTOP_SINGLE_USER);
   }
@@ -1492,7 +1521,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
    * loopback-only one, where the honest answer `active: false` is what tells the
    * panel that a toggle the user flipped has not taken effect.
    */
-  const desktopLan = env.ADMINIUM_RUNTIME === 'desktop';
+  const desktopLan = desktopClassic;
 
   /**
    * The two server-side source cards — "Create a new local database" (card
@@ -1513,7 +1542,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
    * route would be an unreachable surface and the wizard hides the card instead
    * of offering a demo it cannot seed.
    */
-  const desktopLocalDb = env.ADMINIUM_RUNTIME === 'desktop';
+  const desktopLocalDb = desktopClassic;
   // `demoSeedScriptPath` rather than the condition inline: `/system/info`'s
   // `desktopDemo` flag reports whether this route exists, and the wizard gates
   // its fourth source card on that answer. Two spellings of one condition is a
@@ -1537,7 +1566,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
    * meta store", and asking the caller to repeat it would let the two drift —
    * the backup would snapshot a file the server is not using.
    */
-  const desktopBackup = env.ADMINIUM_RUNTIME === 'desktop';
+  const desktopBackup = desktopClassic;
 
   /**
    * The capability grant table, behind gate 1 of
@@ -1640,7 +1669,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   await app.register(
     async (api) => {
       if (desktopSession !== null) {
-        await api.register(desktopSessionRoutes({ meta, bootToken: desktopSession.bootToken }));
+        await api.register(desktopSessionRoutes({ meta, ...desktopSession }));
       }
       // AFTER `rbacPlugin` above, which is what `app.rbac.require` needs to
       // exist at registration time — the reason this lives here and not in
@@ -2127,7 +2156,9 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
         const permissionsOf = (userId: string) => resolvePermissionSet(meta, { kind: 'user', id: userId, label: userId });
         // The skills, read once: the same files a coding agent reads.
         const designerSkills = createSkills();
-        const designerVersions = createVersions(root);
+        // The git this host found: by name on a terminal; in the desktop app the path it looked up, or none at all.
+        // Asked each time: the app may fetch one while this project is open, and says so through the environment.
+        const designerVersions = createVersions(root, { git: () => gitProgram() });
         const designerService = appService;
         /*
          * An add-on from inside a turn: the page's download job and the page's
@@ -2195,15 +2226,19 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
         const designerShelf = createPictureShelf();
         const pictureSource = (): PictureSource | null => {
           if (!addOnCatalog.networkFeaturesAllowed()) return null;
-          const key = (process.env['PEXELS_API_KEY'] ?? readDotEnv(root)?.['PEXELS_API_KEY'] ?? '').trim();
+          // A host that keeps the keys (the desktop app) is the only place they are: the project's file is not read.
+          const host = hostModels();
+          const key = (host !== null ? (host.read().PEXELS_API_KEY ?? '') : (process.env['PEXELS_API_KEY'] ?? readDotEnv(root)?.['PEXELS_API_KEY'] ?? '')).trim();
           return key === '' ? openverse() : pexels(key);
         };
         // Unsplash, with the project's own key: for a page's pictures, shown from Unsplash's own site as its rules ask. Pexels, whose pictures are copied, comes first.
         const shownPictureSource = (): PictureSource | null => {
           if (!addOnCatalog.networkFeaturesAllowed()) return null;
-          const env = readDotEnv(root);
-          if ((process.env['PEXELS_API_KEY'] ?? env?.['PEXELS_API_KEY'] ?? '').trim() !== '') return null;
-          const key = (process.env['UNSPLASH_ACCESS_KEY'] ?? env?.['UNSPLASH_ACCESS_KEY'] ?? '').trim();
+          const host = hostModels();
+          const env = host !== null ? host.read() : readDotEnv(root);
+          const own = host !== null ? {} : process.env;
+          if ((own['PEXELS_API_KEY'] ?? env?.['PEXELS_API_KEY'] ?? '').trim() !== '') return null;
+          const key = (own['UNSPLASH_ACCESS_KEY'] ?? env?.['UNSPLASH_ACCESS_KEY'] ?? '').trim();
           return key === '' ? null : unsplash(key);
         };
         designer = createDesigner({
@@ -2307,6 +2342,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
             versions: designerVersions,
             connections: aiConnections,
             mode: designerOpts.mode,
+            ignoredEnv: opts.designer?.ignoredEnv ?? [],
             attachments: designerAttachments,
             pictures: designerShelf,
             audit: designerAudit,
@@ -2367,7 +2403,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
         );
         // The one-use link, only when `design` made one: a project whose owner has a password signs in as usual.
         if (opts.designer !== undefined && opts.designer.token !== null) {
-          await api.register(designSessionRoutes({ meta, token: opts.designer.token, port: opts.designer.port }));
+          await api.register(designSessionRoutes({ meta, token: opts.designer.token, port: opts.designer.port, ...(opts.designer.thisComputer === true ? { thisComputer: true } : {}) }));
         }
       }
       // The add-on runtime. Registered unconditionally: an instance with no
@@ -2945,6 +2981,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   app.addHook('onClose', async () => {
     await publicStats.flush();
   });
+  // What has the project's folder, for whoever is about to stop this server (the desktop app asks before it does).
+  if (!app.hasDecorator('designerBusy')) app.decorate('designerBusy', () => designer?.runner.busy() ?? null);
   // A Designer turn that runs is stopped, and its end written, before the store closes.
   app.addHook('onClose', async () => {
     await designer?.shutdown();

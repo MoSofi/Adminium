@@ -12,7 +12,9 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { applyLook, missingFonts, readLook, type Look } from '../project/apps/look.js';
-import { projectPackageManager } from '../project/package-manager.js';
+import { refreshInstallStamp } from '../project/install-stamp.js';
+import { APP_VERSION } from '../version.js';
+import { addPackagesArgs, DESKTOP_PROGRAMS_ENV, packageManagerProgram } from '../project/programs.js';
 import { APPS_DIR, type AppSide } from '../project/apps/read-app.js';
 import { PUBLIC_CLIENT_PACKAGE } from '../project/apps/scaffold-app.js';
 import { runChild } from './child.js';
@@ -49,10 +51,15 @@ export type NeedsAsker = (ctx: Pick<ToolContext, 'ask' | 'signal' | 'handle'>, a
 /** Add packages to the project, exact versions, no install scripts. */
 export function installer(root: string): NonNullable<NeedsDeps['install']> {
   return async (specs, signal) => {
-    const manager = projectPackageManager(root, {});
-    const exact = manager === 'npm' || manager === 'pnpm' ? '--save-exact' : '--exact';
-    const args = [manager === 'npm' ? 'install' : 'add', ...specs.map((spec) => `${spec.name}@${spec.version}`), '--ignore-scripts', exact];
-    const result = await runChild(manager, args, { cwd: root, timeoutMs: INSTALL_TIMEOUT_MS, signal });
+    // The folder's own manager by its lockfile, else npm (never the one that happens to run this server: only the
+    // desktop app's own name is read from the environment). In the desktop app, the npm it carries.
+    const program = packageManagerProgram(root, { [DESKTOP_PROGRAMS_ENV]: process.env[DESKTOP_PROGRAMS_ENV] });
+    const manager = program.manager;
+    const args = addPackagesArgs(manager, specs.map((spec) => `${spec.name}@${spec.version}`));
+    const launch = program.launch(args);
+    const result = await runChild(launch.command, launch.args, { cwd: root, timeoutMs: INSTALL_TIMEOUT_MS, signal, env: { ...process.env, ...launch.env } });
+    // The lockfile changed with what was added: an installed project stays marked as installed.
+    if (result.code === 0) refreshInstallStamp(root, APP_VERSION);
     return result.code === 0 ? null : `${manager} ${args.join(' ')} failed:\n${result.output.split('\n').slice(-30).join('\n')}`;
   };
 }

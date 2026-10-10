@@ -149,6 +149,17 @@ describe('generate-notices — the real production graph', () => {
     expect(result.output).toContain('no unlicensed dependency');
   });
 
+  it('names git, which is not bundled: where it comes from, its licence, and where its source is', () => {
+    const body = readFileSync(join(repoRoot, 'apps', 'desktop', 'resources', 'THIRD-PARTY-NOTICES.txt'), 'utf8');
+    expect(body).toContain('git (not part of this application; fetched only when you ask for it)');
+    expect(body).toContain('License: GPL-2.0-only');
+    expect(body).toContain('https://github.com/desktop/dugite-native/releases');
+    expect(body).toContain('https://github.com/git/git');
+    expect(body).toContain('Nothing is\ndownloaded unless you say yes.');
+    // And npm, which IS carried.
+    expect(body).toMatch(/^npm 10\.9\.8$/m);
+  });
+
   it('lists what the dashboard bundles, which is in no dependency list of the desktop app', () => {
     // The dashboard's built files are copied into the package, so its packages are reached
     // only from its own package.json. Before that root was walked the editor and the

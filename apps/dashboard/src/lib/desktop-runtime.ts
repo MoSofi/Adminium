@@ -29,7 +29,7 @@
  * this SPA be ONE artifact that the shell serves unmodified.
  */
 
-import type { AdminiumDesktopApi, DesktopErrorCode } from '@adminium/desktop/api';
+import type { AdminiumDesktopApi, DesktopConfigPatch, DesktopErrorCode } from '@adminium/desktop/api';
 
 /**
  * Every code bridge can reject with, for {@link desktopErrorCode}.
@@ -101,4 +101,20 @@ export function desktopErrorCode(error: unknown): DesktopErrorCode | null {
 
 function isDesktopErrorCode(value: string): value is DesktopErrorCode {
   return Object.hasOwn(DESKTOP_ERROR_CODES, value);
+}
+
+/**
+ * A language or a theme the person just picked, kept by the desktop app too:
+ * its own first screen (shown before any server runs) opens in them. Nothing
+ * outside the app, and nothing for the other axes.
+ */
+export function rememberInDesktopApp(key: string, value: unknown): void {
+  const api = getDesktopApi();
+  if (api === null || typeof value !== 'string') return;
+  const patch: DesktopConfigPatch | null =
+    key === 'locale' ? { language: value.replace('_', '-') } : key === 'theme' && (value === 'system' || value === 'light' || value === 'dark') ? { theme: value } : null;
+  if (patch === null) return;
+  void api.setConfig(patch).catch(() => {
+    // The pick still applied here; the app's first screen keeps what it had.
+  });
 }

@@ -44,10 +44,32 @@ import type {
   DesktopBridgeErrorLike,
   DesktopBundledTextKind,
   DesktopConfigPatch,
+  DesktopCreateProjectInput,
+  DesktopConnectResult,
+  DesktopCreateProjectResult,
+  DesktopGuest,
+  DesktopExportKind,
+  DesktopExportResult,
+  DesktopGetPackagesResult,
+  DesktopMakeProgress,
   DesktopDiagnostics,
   DesktopErrorCode,
+  DesktopLocateProjectResult,
   DesktopMenuLabels,
+  DesktopNewFolderInput,
+  DesktopNewFolderJudgement,
+  DesktopOpenProjectInput,
+  DesktopOpenProjectResult,
+  DesktopProjectInfo,
+  DesktopRecentProject,
+  DesktopResolveKeyResult,
+  DesktopShareInfo,
+  DesktopShareResult,
+  DesktopUpdateProjectResult,
+  DesktopStopWords,
+  DesktopVersionsState,
   DesktopRuntimeInfo,
+  DesktopStartState,
   DesktopUpdateCheckResult,
   DesktopUpdateEvent,
   OpenFileOptions,
@@ -264,6 +286,58 @@ export function createDesktopApi(deps: Pick<PreloadDeps, 'ipc' | 'bootstrap'>): 
     relaunch: (): Promise<void> => unwrap(ipc.invoke(IPC_CHANNELS.relaunch)),
 
     showLogs: (): Promise<void> => unwrap(ipc.invoke(IPC_CHANNELS.showLogs)),
+
+    start: {
+      state: (): Promise<DesktopStartState> => unwrap(ipc.invoke(IPC_CHANNELS.startState)),
+      judgeNewFolder: (input: DesktopNewFolderInput): Promise<DesktopNewFolderJudgement> =>
+        unwrap(ipc.invoke(IPC_CHANNELS.startJudgeNewFolder, input)),
+      chooseParent: (input: { readonly from: string; readonly title: string }): Promise<string | null> =>
+        unwrap(ipc.invoke(IPC_CHANNELS.startChooseParent, input)),
+      createProject: (input: DesktopCreateProjectInput): Promise<DesktopCreateProjectResult> =>
+        unwrap(ipc.invoke(IPC_CHANNELS.startCreateProject, input)),
+      makeProgress: (): Promise<DesktopMakeProgress> => unwrap(ipc.invoke(IPC_CHANNELS.startMakeProgress)),
+      chooseFolder: (input: { readonly title: string }): Promise<{ readonly path: string; readonly displayPath: string } | null> =>
+        unwrap(ipc.invoke(IPC_CHANNELS.startChooseFolder, input)),
+      openProject: (input: DesktopOpenProjectInput): Promise<DesktopOpenProjectResult> =>
+        unwrap(ipc.invoke(IPC_CHANNELS.startOpenProject, input)),
+      getPackages: (input: { readonly path: string; readonly land?: 'designer' | 'dashboard' | undefined }): Promise<DesktopGetPackagesResult> =>
+        unwrap(ipc.invoke(IPC_CHANNELS.startGetPackages, input)),
+      resolveKey: (input: { readonly path: string; readonly answer: 'env' | 'fresh' | 'new'; readonly title?: string | undefined }): Promise<DesktopResolveKeyResult> =>
+        unwrap(ipc.invoke(IPC_CHANNELS.startResolveKey, input)),
+      updateProject: (input: { readonly path: string }): Promise<DesktopUpdateProjectResult> => unwrap(ipc.invoke(IPC_CHANNELS.startUpdateProject, input)),
+      updateApp: (): Promise<boolean> => unwrap(ipc.invoke(IPC_CHANNELS.startUpdateApp)),
+      connect: (input: { readonly address: string; readonly anyway?: boolean | undefined }): Promise<DesktopConnectResult> => unwrap(ipc.invoke(IPC_CHANNELS.startConnect, input)),
+      guests: (): Promise<readonly DesktopGuest[]> => unwrap(ipc.invoke(IPC_CHANNELS.startGuests)),
+      forgetGuest: (address: string): Promise<readonly DesktopGuest[]> => unwrap(ipc.invoke(IPC_CHANNELS.startForgetGuest, address)),
+      forgetProject: (path: string): Promise<readonly DesktopRecentProject[]> =>
+        unwrap(ipc.invoke(IPC_CHANNELS.startForgetProject, path)),
+      locateProject: (input: { readonly path: string; readonly title: string }): Promise<DesktopLocateProjectResult> =>
+        unwrap(ipc.invoke(IPC_CHANNELS.startLocateProject, input)),
+      useClassic: (): Promise<void> => unwrap(ipc.invoke(IPC_CHANNELS.startUseClassic)),
+    },
+
+    project: {
+      info: (): Promise<DesktopProjectInfo | null> => unwrap(ipc.invoke(IPC_CHANNELS.projectInfo)),
+      showInFolder: (): Promise<void> => unwrap(ipc.invoke(IPC_CHANNELS.projectShowInFolder)),
+      close: (): Promise<boolean> => unwrap(ipc.invoke(IPC_CHANNELS.projectClose)),
+      setStopWords: (words: DesktopStopWords): Promise<void> => unwrap(ipc.invoke(IPC_CHANNELS.projectStopWords, words)),
+      export: (input: { readonly kind: DesktopExportKind; readonly title: string; readonly from?: string | undefined }): Promise<DesktopExportResult> => unwrap(ipc.invoke(IPC_CHANNELS.projectExport, input)),
+      exportResult: (): Promise<DesktopExportResult | null> => unwrap(ipc.invoke(IPC_CHANNELS.projectExportResult)),
+      showExport: (): Promise<void> => unwrap(ipc.invoke(IPC_CHANNELS.projectShowExport)),
+      share: (): Promise<DesktopShareResult> => unwrap(ipc.invoke(IPC_CHANNELS.projectShare)),
+      build: (): Promise<boolean> => unwrap(ipc.invoke(IPC_CHANNELS.projectBuild)),
+      shareInfo: (): Promise<DesktopShareInfo | null> => unwrap(ipc.invoke(IPC_CHANNELS.projectShareInfo)),
+      showShared: (): Promise<void> => unwrap(ipc.invoke(IPC_CHANNELS.projectShowShared)),
+      openDashboard: (): Promise<void> => unwrap(ipc.invoke(IPC_CHANNELS.projectOpenDashboard)),
+      versions: {
+        state: (): Promise<DesktopVersionsState> => unwrap(ipc.invoke(IPC_CHANNELS.versionsState)),
+        download: (): Promise<DesktopVersionsState> => unwrap(ipc.invoke(IPC_CHANNELS.versionsDownload)),
+        cancel: (): Promise<DesktopVersionsState> => unwrap(ipc.invoke(IPC_CHANNELS.versionsCancel)),
+        notNow: (): Promise<DesktopVersionsState> => unwrap(ipc.invoke(IPC_CHANNELS.versionsNotNow)),
+        lookAgain: (): Promise<DesktopVersionsState> => unwrap(ipc.invoke(IPC_CHANNELS.versionsLookAgain)),
+        appleTools: (): Promise<DesktopVersionsState> => unwrap(ipc.invoke(IPC_CHANNELS.versionsAppleTools)),
+      },
+    },
   };
 }
 

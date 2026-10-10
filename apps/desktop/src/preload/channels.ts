@@ -55,10 +55,89 @@ export const IPC_CHANNELS = {
   relaunch: 'adminium-desktop:relaunch',
   showLogs: 'adminium-desktop:show-logs',
   /** main → renderer push, `onUpdateEvent`. The only one-way channel. */
+  startState: 'adminium-desktop:start-state',
+  startJudgeNewFolder: 'adminium-desktop:start-judge-new-folder',
+  startChooseParent: 'adminium-desktop:start-choose-parent',
+  startCreateProject: 'adminium-desktop:start-create-project',
+  startMakeProgress: 'adminium-desktop:start-make-progress',
+  startChooseFolder: 'adminium-desktop:start-choose-folder',
+  startOpenProject: 'adminium-desktop:start-open-project',
+  startGetPackages: 'adminium-desktop:start-get-packages',
+  startResolveKey: 'adminium-desktop:start-resolve-key',
+  startUpdateProject: 'adminium-desktop:start-update-project',
+  startUpdateApp: 'adminium-desktop:start-update-app',
+  startConnect: 'adminium-desktop:start-connect',
+  startGuests: 'adminium-desktop:start-guests',
+  startForgetGuest: 'adminium-desktop:start-forget-guest',
+  startForgetProject: 'adminium-desktop:start-forget-project',
+  startLocateProject: 'adminium-desktop:start-locate-project',
+  startUseClassic: 'adminium-desktop:start-use-classic',
+  projectInfo: 'adminium-desktop:project-info',
+  projectShowInFolder: 'adminium-desktop:project-show-in-folder',
+  projectClose: 'adminium-desktop:project-close',
+  projectStopWords: 'adminium-desktop:project-stop-words',
+  projectExport: 'adminium-desktop:project-export',
+  projectExportResult: 'adminium-desktop:project-export-result',
+  projectShowExport: 'adminium-desktop:project-show-export',
+  projectShare: 'adminium-desktop:project-share',
+  projectBuild: 'adminium-desktop:project-build',
+  projectShareInfo: 'adminium-desktop:project-share-info',
+  projectShowShared: 'adminium-desktop:project-show-shared',
+  projectOpenDashboard: 'adminium-desktop:project-open-dashboard',
+  versionsState: 'adminium-desktop:versions-state',
+  versionsDownload: 'adminium-desktop:versions-download',
+  versionsCancel: 'adminium-desktop:versions-cancel',
+  versionsNotNow: 'adminium-desktop:versions-not-now',
+  versionsLookAgain: 'adminium-desktop:versions-look-again',
+  versionsAppleTools: 'adminium-desktop:versions-apple-tools',
   updateEvent: 'adminium-desktop:update-event',
 } as const;
 
 export type IpcChannel = (typeof IPC_CHANNELS)[keyof typeof IPC_CHANNELS];
+
+/**
+ * The first screens' channels. Answered only for the app's own pages (see
+ * `ownPagePolicy` in `main/ipc.ts`): the list is here so both the registration
+ * and the test of who may call are made from one statement.
+ */
+export const START_CHANNELS = [
+  IPC_CHANNELS.startState,
+  IPC_CHANNELS.startJudgeNewFolder,
+  IPC_CHANNELS.startChooseParent,
+  IPC_CHANNELS.startCreateProject,
+  IPC_CHANNELS.startMakeProgress,
+  IPC_CHANNELS.startChooseFolder,
+  IPC_CHANNELS.startOpenProject,
+  IPC_CHANNELS.startGetPackages,
+  IPC_CHANNELS.startResolveKey,
+  IPC_CHANNELS.startUpdateProject,
+  IPC_CHANNELS.startUpdateApp,
+  IPC_CHANNELS.startConnect,
+  IPC_CHANNELS.startGuests,
+  IPC_CHANNELS.startForgetGuest,
+  IPC_CHANNELS.startForgetProject,
+  IPC_CHANNELS.startLocateProject,
+  IPC_CHANNELS.startUseClassic,
+] as const;
+
+/** Build and Share: answered for the project's own page and for the app's own (the sharing details), each naming nothing. */
+export const SHARE_CHANNELS = [
+  IPC_CHANNELS.projectShare,
+  IPC_CHANNELS.projectBuild,
+  IPC_CHANNELS.projectShareInfo,
+  IPC_CHANNELS.projectShowShared,
+  IPC_CHANNELS.projectOpenDashboard,
+] as const;
+
+/** The versions offer's channels: answered for the project's own page, each naming nothing. */
+export const VERSIONS_CHANNELS = [
+  IPC_CHANNELS.versionsState,
+  IPC_CHANNELS.versionsDownload,
+  IPC_CHANNELS.versionsCancel,
+  IPC_CHANNELS.versionsNotNow,
+  IPC_CHANNELS.versionsLookAgain,
+  IPC_CHANNELS.versionsAppleTools,
+] as const;
 
 /** Every channel `registerIpcHandlers` answers with `ipcMain.handle`. */
 export const INVOKE_CHANNELS = [
@@ -79,6 +158,16 @@ export const INVOKE_CHANNELS = [
   IPC_CHANNELS.readBundledText,
   IPC_CHANNELS.relaunch,
   IPC_CHANNELS.showLogs,
+  ...START_CHANNELS,
+  IPC_CHANNELS.projectInfo,
+  IPC_CHANNELS.projectShowInFolder,
+  IPC_CHANNELS.projectClose,
+  IPC_CHANNELS.projectStopWords,
+  IPC_CHANNELS.projectExport,
+  IPC_CHANNELS.projectExportResult,
+  IPC_CHANNELS.projectShowExport,
+  ...SHARE_CHANNELS,
+  ...VERSIONS_CHANNELS,
 ] as const;
 
 /**

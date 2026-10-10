@@ -17,7 +17,8 @@
  * from @adminium/tokens and substitutes it before rasterizing, so the day the
  * brand accent changes in packages/tokens the icons re-derive with one command
  * and cannot drift from the design system. `ADMINIUM_ICON_ACCENT=<name>` overrides
- * the accent read (default: indigo, the tokens default).
+ * the accent read (default: orange, the brand's forge colour, as on adminium.dev;
+ * the product's own default accent, indigo, is a workspace's choice, not the brand's).
  *
  * WHY IT RESOLVES ITS DEPS FROM apps/desktop. `sharp` (rasterize/resize) and
  * `icon-gen` (assemble .icns/.ico) are build-only devDependencies of the
@@ -43,7 +44,7 @@ const masterSvgPath = resolve(iconsDir, 'icon-master.svg');
 
 // The two colours baked into the master, replaced with the resolved tokens
 // values before rasterizing. Must stay in lockstep with icon-master.svg.
-const MASTER_ACCENT = '#4f46e5'; // [data-accent="indigo"] --accent-light
+const MASTER_ACCENT = '#b03e00'; // [data-accent="orange"] --accent-light
 const MASTER_ACCENT_FG = '#ffffff'; // --accent-fg (light; the icon is not themed)
 
 // PNG raster sizes. The superset covers what .icns wants (16→1024, doubling) and
@@ -91,7 +92,7 @@ function extractHex(css, pattern, label, file) {
 }
 
 async function resolveAccent() {
-  const accentName = process.env.ADMINIUM_ICON_ACCENT ?? 'indigo';
+  const accentName = process.env.ADMINIUM_ICON_ACCENT ?? 'orange';
   const accentsCss = await readFile(resolve(tokensDir, 'accents.css'), 'utf8');
   const tokensCss = await readFile(resolve(tokensDir, 'tokens.css'), 'utf8');
   // accents.css declares a PER-THEME PAIR per palette (--accent-light / --accent-dark); the

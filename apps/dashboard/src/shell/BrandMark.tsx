@@ -4,7 +4,7 @@
  * "Adminium" is called and what its logo looks like on any given install.
  *
  * Adminium ships white-label: an operator sets `branding.appName` and uploads
- * a logo, and every surface that used to hardcode the hexagon and the word
+ * a logo, and every surface that used to hardcode the mark and the word
  * follows. Those surfaces are not all signed in — the sign-in screen, the 404
  * and the error heroes render with no session — which is why the underlying
  * query hits the PUBLIC `/branding` route and why this component renders the
@@ -18,8 +18,8 @@
  */
 import { useContext, useEffect } from 'react';
 import { QueryClient, QueryClientContext, useQuery } from '@tanstack/react-query';
-import { Database, Hexagon } from 'lucide-react';
-import { cn } from '@adminium/ui';
+import { Database } from 'lucide-react';
+import { AdminiumMark, cn } from '@adminium/ui';
 
 import { brandingQuery, DEFAULT_BRANDING, type BrandingData } from '../app/branding.js';
 import { setDocumentAppName } from './documentTitle.js';
@@ -82,7 +82,7 @@ export interface BrandMarkProps {
   /**
    * `topbar` — the API explorer's header: a 28 px tile
    * at radius 8 with a 15 px glyph, the name at 15 / 800 / −.02em, 11 px
-   * apart. Its built-in glyph is the comp's `database`, not the hexagon.
+   * apart. Its built-in glyph is the comp's `database`, not the Adminium mark.
    * Accent tone only.
    */
   size?: 'default' | 'topbar';
@@ -103,7 +103,8 @@ const TILE_BG = {
   muted: 'bg-accent text-accent-fg',
 } as const;
 
-const GLYPH_SIZE = { accent: 'size-[17px]', onAccent: 'size-[17px]', muted: 'size-3' } as const;
+// The mark fills less of its 32 grid than a line icon does of its 24, so it is drawn a little larger.
+const GLYPH_SIZE = { accent: 'size-[19px]', onAccent: 'size-[19px]', muted: 'size-[13px]' } as const;
 
 // No text colour on `onAccent`/`muted`: those sit on grounds that already set
 // one (the auth panel is white-on-accent), and forcing `text-fg` there paints
@@ -124,7 +125,7 @@ export function BrandMark({
   const { appName, logoUrl } = useBranding();
   const topbar = size === 'topbar';
   const tile = topbar ? 'size-[28px] rounded-[8px]' : TILE_SIZE[tone];
-  const Glyph = topbar ? Database : Hexagon;
+  const Glyph = topbar ? Database : AdminiumMark;
 
   return (
     <span data-part="brand-mark" className={cn('flex items-center', topbar ? 'gap-[11px]' : 'gap-2.5', className)}>
