@@ -59,6 +59,11 @@ export interface AssistantDockProps {
   visible: boolean;
   /** Whatever lists this person's pages (the bootstrap): read only to find a page's address from its id. */
   pages?: unknown;
+  /**
+   * How it stands, when its place decides that and not the room it measures: in a frame of its own on an
+   * app's staff address it fills the frame, beside a page it does not cover (`staff/panel.tsx`).
+   */
+  layout?: DockLayout | undefined;
 }
 
 /**
@@ -255,14 +260,15 @@ function changesOpenRule(turn: { context: string; result: { basedOn: string | nu
   return (page.host as { documentId?: string | undefined }).documentId === turn.result.basedOn;
 }
 
-export function AssistantDock({ visible, pages }: AssistantDockProps) {
+export function AssistantDock({ visible, pages, layout: fixedLayout }: AssistantDockProps) {
   useAssistantMessages();
   const navigate = useNavigate();
   const { page, shown, view } = usePanelPage();
   const [element, setElement] = useState<HTMLElement | null>(null);
   const panelRef = useRef<HTMLElement | null>(null);
   panelRef.current = element;
-  const layout = useDockLayout(element, visible);
+  const measured = useDockLayout(element, visible);
+  const layout = fixedLayout ?? measured;
   const floating = layout !== 'docked';
 
   // The chip can be put away: the next message is then asked without "these", until the page shows something else.

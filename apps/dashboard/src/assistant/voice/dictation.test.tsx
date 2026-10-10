@@ -49,6 +49,9 @@ describe('the microphone in the composer', () => {
     const mic = screen.getByRole('button', { name: 'Stop listening' });
     expect(mic.getAttribute('aria-pressed')).toBe('true');
     expect(screen.getByTestId('assistant-mic-listening').textContent).toBe('ListeningDeutsch·1:07');
+    // Said once: the running seconds are for the eye, and the field is not typed into while the words are being heard.
+    expect(screen.getByTestId('assistant-mic-listening').querySelectorAll('[aria-hidden="true"]')).toHaveLength(3);
+    expect((screen.getByTestId('assistant-input') as HTMLInputElement).readOnly).toBe(true);
     // Nothing is sent by voice alone: Send is off and Enter waits.
     expect((screen.getByTestId('assistant-send') as HTMLButtonElement).disabled).toBe(true);
     await userEvent.setup().type(screen.getByTestId('assistant-input'), '{Enter}');
@@ -88,6 +91,8 @@ describe('the microphone in the composer', () => {
     expect(screen.getByTestId('assistant-mic-notice').textContent).toContain('What you say is sent to OpenAI to be written down. Nothing is kept.');
     await userEvent.setup().click(screen.getByTestId('assistant-mic-notice-ok'));
     expect(onNoticeRead).toHaveBeenCalledTimes(1);
+    // The focus goes to the microphone, where Escape will stop the listening.
+    expect(document.activeElement).toBe(screen.getByTestId('assistant-mic'));
   });
 });
 
@@ -213,6 +218,50 @@ describe('dictation', () => {
     expect(stopped).toHaveBeenCalled();
     expect(calls).toHaveLength(0);
     expect(onText).not.toHaveBeenCalled();
+  });
+
+  it('lets the microphone go at once when the person left while the browser was still asking', async () => {
+    const stopped = vi.fn();
+    let grant: (stream: unknown) => void = () => undefined;
+    fakeRecorder();
+    vi.stubGlobal('navigator', { ...navigator, mediaDevices: { getUserMedia: () => new Promise((resolve) => (grant = resolve)) } });
+    const calls = answering(200, { text: 'never' });
+    const onText = vi.fn();
+    const { result, unmount } = renderHook(() => useDictation({ way: 'provider', maxSeconds: 120, language: 'en_US', onText }));
+    act(() => result.current.toggle());
+    expect(result.current.state).toBe('asking');
+    // The panel is closed while the permission prompt is up; then the person presses Allow.
+    act(() => result.current.cancel());
+    expect(result.current.state).toBe('idle');
+    await act(async () => {
+      grant({ getTracks: () => [{ stop: stopped }] });
+      await Promise.resolve();
+    });
+    expect(stopped).toHaveBeenCalled();
+    expect(result.current.state).toBe('idle');
+    expect(calls).toHaveLength(0);
+    unmount();
+  });
+
+  it('says it failed, and lets the microphone go, when the browser cannot record after all', async () => {
+    const stopped = vi.fn();
+    vi.stubGlobal(
+      'MediaRecorder',
+      Object.assign(
+        class {
+          constructor() {
+            throw new Error('no encoder');
+          }
+        },
+        { isTypeSupported: () => false },
+      ),
+    );
+    vi.stubGlobal('navigator', { ...navigator, mediaDevices: { getUserMedia: () => Promise.resolve({ getTracks: () => [{ stop: stopped }] }) } });
+    const { result } = renderHook(() => useDictation({ way: 'provider', maxSeconds: 120, language: 'en_US', onText: noop }));
+    act(() => result.current.toggle());
+    await waitFor(() => expect(result.current.note).toBe('failed'));
+    expect(result.current.state).toBe('idle');
+    expect(stopped).toHaveBeenCalled();
   });
 
   it('goes over to the browser\'s own service when the workspace\'s turns out not to transcribe', async () => {

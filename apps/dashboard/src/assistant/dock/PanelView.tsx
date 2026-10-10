@@ -9,7 +9,7 @@
  */
 import { Select, Switch, cn } from '@adminium/ui';
 import { ArrowUp, CircleAlert, Ellipsis, Hourglass, ListFilter, LoaderCircle, MessageSquarePlus, Mic, MicOff, Rows3, Sparkles, Square, SquareCheck, Timer, Volume2, X } from 'lucide-react';
-import { useId, useState, type KeyboardEvent, type ReactNode, type Ref } from 'react';
+import { useId, useRef, useState, type KeyboardEvent, type ReactNode, type Ref } from 'react';
 
 import { t } from '../../i18n/t.js';
 import { ChipList } from '../parts/ChipList.js';
@@ -141,6 +141,7 @@ export function PanelView({
   const ChipIcon = chip === null ? null : chip.icon === 'selection' ? SquareCheck : chip.icon === 'record' ? Rows3 : ListFilter;
   const sendIdle = input.trim() === '';
   const [voiceOpen, setVoiceOpen] = useState(false);
+  const micRef = useRef<HTMLButtonElement>(null);
   const voiceId = useId();
   const listening = mic?.state === 'listening';
   const micBusy = mic !== undefined && mic.state !== 'idle';
@@ -329,7 +330,11 @@ export function PanelView({
             <button
               type="button"
               data-testid="assistant-mic-notice-ok"
-              onClick={mic.onNoticeRead}
+              onClick={() => {
+                mic.onNoticeRead();
+                // This button is about to go: the focus moves to the microphone, where Escape stops the listening.
+                micRef.current?.focus();
+              }}
               className="shrink-0 rounded-[8px] px-2 py-1 text-[11.5px] font-bold text-accent hover:bg-accent/10 focus-visible:outline-2 focus-visible:outline-accent"
             >
               {t('assistant:mic.noticeOk', 'OK')}
@@ -347,6 +352,7 @@ export function PanelView({
           {mic === undefined ? null : (
             <button
               type="button"
+              ref={micRef}
               data-testid="assistant-mic"
               data-state={mic.state}
               onClick={mic.onToggle}
@@ -378,6 +384,8 @@ export function PanelView({
             type="text"
             value={input}
             disabled={blocked || working || mic?.state === 'asking' || mic?.state === 'working'}
+            // While listening the words heard are written here: typed ones would be written over.
+            readOnly={listening}
             placeholder={shownPlaceholder}
             onChange={(event) => onInput(event.target.value)}
             onKeyDown={(event) => {
@@ -392,9 +400,12 @@ export function PanelView({
             // While listening: the language heard and how long, where the eye already is.
             <span role="status" data-testid="assistant-mic-listening" className="flex shrink-0 items-center gap-1.5 whitespace-nowrap pe-1 font-mono text-[10.5px] font-semibold text-accent">
               <span className="sr-only">{t('assistant:mic.listening', 'Listening')}</span>
-              <span className="font-sans">{mic.language}</span>
+              {/* Said once ("Listening"); the language and the running seconds are for the eye, not read out each second. */}
+              <span aria-hidden="true" className="font-sans">
+                {mic.language}
+              </span>
               <span aria-hidden="true">·</span>
-              <span>{`${String(Math.floor(mic.seconds / 60))}:${String(mic.seconds % 60).padStart(2, '0')}`}</span>
+              <span aria-hidden="true">{`${String(Math.floor(mic.seconds / 60))}:${String(mic.seconds % 60).padStart(2, '0')}`}</span>
             </span>
           ) : null}
           {working ? (

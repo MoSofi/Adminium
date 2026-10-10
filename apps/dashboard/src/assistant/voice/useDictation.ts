@@ -106,6 +106,10 @@ export function useDictation(options: DictationOptions): Dictation {
   /** What is under way: torn down by `end`. */
   const live = useRef<{ stop: (discard: boolean) => void } | null>(null);
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
+  /** Counts every start and every cancel: a start that finds the count moved on was cancelled while it waited. */
+  const run = useRef(0);
+  /** The recording being written down: stopped when the person goes. */
+  const sending = useRef<AbortController | null>(null);
 
   const end = useCallback(() => {
     if (timer.current !== null) clearInterval(timer.current);
@@ -183,18 +187,37 @@ export function useDictation(options: DictationOptions): Dictation {
   }, [end, tick]);
 
   const record = useCallback(async () => {
+    const mine = ++run.current;
     setState('asking');
     let stream: MediaStream;
     try {
       stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     } catch (error) {
+      if (run.current !== mine) return;
       setState('idle');
       const name = error instanceof Error ? error.name : '';
       setNote(name === 'NotAllowedError' || name === 'SecurityError' ? 'blocked' : 'failed');
       return;
     }
+    const letGo = (): void => {
+      for (const track of stream.getTracks()) track.stop();
+    };
+    // The person went (closed the panel, pressed Escape) while the browser was asking: the microphone
+    // that has just been granted is let go at once, and nothing is recorded.
+    if (run.current !== mine) {
+      letGo();
+      return;
+    }
     const type = recordingType();
-    const recorder = new MediaRecorder(stream, type === '' ? undefined : { mimeType: type });
+    let recorder: MediaRecorder;
+    try {
+      recorder = new MediaRecorder(stream, type === '' ? undefined : { mimeType: type });
+    } catch {
+      letGo();
+      setState('idle');
+      setNote('failed');
+      return;
+    }
     const chunks: Blob[] = [];
     let discard = false;
     let limit = false;
@@ -213,14 +236,19 @@ export function useDictation(options: DictationOptions): Dictation {
       setState('working');
       const blob = new Blob(chunks, { type: recorder.mimeType || type || 'audio/webm' });
       const query = new URLSearchParams({ language: latest.current.language, seconds: String(seconds) });
+      const gone = new AbortController();
+      sending.current = gone;
       void fetch(`/api/v1/assistant/transcribe?${query.toString()}`, {
         method: 'POST',
         credentials: 'same-origin',
         headers: { 'content-type': blob.type, accept: 'application/json', ...csrfHeaders() },
         body: blob,
+        signal: gone.signal,
       })
         .then(async (answer) => {
           const body = (await answer.json().catch(() => null)) as { text?: unknown; error?: { code?: string; details?: { reason?: string } } } | null;
+          if (gone.signal.aborted) return;
+          sending.current = null;
           setState('idle');
           if (answer.ok && typeof body?.text === 'string') {
             if (body.text !== '') latest.current.onText(body.text, true);
@@ -235,6 +263,9 @@ export function useDictation(options: DictationOptions): Dictation {
           } else setNote('failed');
         })
         .catch(() => {
+          // Stopped by the person going: nothing to say, and nothing is written.
+          if (gone.signal.aborted) return;
+          sending.current = null;
           setState('idle');
           setNote('failed');
         });
@@ -250,7 +281,14 @@ export function useDictation(options: DictationOptions): Dictation {
       limit = true;
       if (recorder.state !== 'inactive') recorder.stop();
     });
-    recorder.start();
+    try {
+      recorder.start();
+    } catch {
+      letGo();
+      end();
+      setState('idle');
+      setNote('failed');
+    }
   }, [end, tick]);
 
   const toggle = useCallback(() => {
@@ -265,11 +303,25 @@ export function useDictation(options: DictationOptions): Dictation {
   }, [state, way, record, listenInBrowser]);
 
   const cancel = useCallback(() => {
+    // Whatever stage it is at: an ask still waiting for the browser, a recording, or one being written down.
+    run.current += 1;
     live.current?.stop(true);
+    if (sending.current !== null) {
+      sending.current.abort();
+      sending.current = null;
+    }
+    setState((held) => (held === 'asking' || held === 'working' ? 'idle' : held));
   }, []);
 
-  // The panel going away while listening: stopped, and what was heard is thrown away.
-  useEffect(() => () => live.current?.stop(true), []);
+  // The panel going away: stopped at whatever stage, and what was heard is thrown away.
+  useEffect(
+    () => () => {
+      run.current += 1;
+      live.current?.stop(true);
+      sending.current?.abort();
+    },
+    [],
+  );
 
   return { way, state, seconds, note, toggle, cancel, clearNote: useCallback(() => setNote(null), []) };
 }

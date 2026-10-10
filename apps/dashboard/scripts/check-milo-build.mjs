@@ -27,14 +27,14 @@ for (const file of ['index.html', 'assets/milo/loader.js', 'assets/milo/panel.ht
 }
 if (problems.length === 0) {
   const loader = readFileSync(join(dist, 'assets/milo/loader.js'), 'utf8');
-  if (/^\s*import\s|\bimport\s*\(|\bfrom\s*["']/m.test(loader)) problems.push('dist/assets/milo/loader.js imports another file: it must stand alone');
+  if (/\bimport\s*["'{*(]|^\s*import\s|\bfrom\s*["']/m.test(loader)) problems.push('dist/assets/milo/loader.js imports another file: it must stand alone');
   const size = gzipSync(loader).length;
   if (size > LOADER_MAX_GZ) problems.push(`dist/assets/milo/loader.js is ${String(size)} bytes gz, over ${String(LOADER_MAX_GZ)}`);
   const panel = readFileSync(join(dist, 'assets/milo/panel.html'), 'utf8');
   if (/<script(?![^>]*\bsrc=)[^>]*>/i.test(panel)) problems.push('dist/assets/milo/panel.html holds an inline script, which the page’s content policy refuses');
   // One copy of each font: the second build names them as the first did.
   const fonts = readdirSync(join(dist, 'assets')).filter((name) => name.endsWith('.woff2') || name.endsWith('.woff'));
-  const families = new Set(fonts.map((name) => name.replace(/-[A-Za-z0-9_]{8}\.woff2?$/, '')));
+  const families = new Set(fonts.map((name) => name.replace(/-[A-Za-z0-9_-]{8}\.woff2?$/, '')));
   if (fonts.length !== families.size) problems.push(`dist/assets holds ${String(fonts.length)} font files for ${String(families.size)} fonts: a second copy was emitted`);
   if (existsSync(join(dist, 'assets', 'milo', 'assets'))) problems.push('dist/assets/milo/assets exists: the second build wrote its own copy of the assets');
   if (problems.length === 0) console.log(`check-milo-build: OK — loader ${(size / 1024).toFixed(1)} KiB gz, panel.html, ${String(fonts.length)} fonts once each`);
