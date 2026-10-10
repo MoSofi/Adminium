@@ -140,6 +140,12 @@ describe('the ZIP', () => {
     expect(made.files).toBe(Object.keys(entries).length - 1);
   });
 
+  it('a project past what one ZIP can hold is refused before anything is written', async () => {
+    const to = join(dir, 'big.zip');
+    await expect(writeProjectZip({ root, kind: 'everything', to, stamp: STAMP, limitBytes: 1000 })).rejects.toThrow('too large for one ZIP file');
+    expect(existsSync(to)).toBe(false);
+  });
+
   it('a file that cannot be finished is not left behind', async () => {
     const control = new AbortController();
     control.abort();

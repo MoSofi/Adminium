@@ -95,6 +95,13 @@ export function exportList(root: string, kind: ExportKind, leave: readonly strin
   return out;
 }
 
+/**
+ * The plain ZIP format's own ceilings (the writer used here makes no ZIP64): 4 GB for the file and anything in it,
+ * 65,535 entries. Counted on what goes in, with room left for the names and the list at the end.
+ */
+const ZIP_LIMIT_BYTES = 0xffff_ffff - 256 * 1024 * 1024;
+const ZIP_LIMIT_FILES = 65_000;
+
 export interface ExportStamp {
   kind: ExportKind;
   system: string;
@@ -113,7 +120,7 @@ export interface ExportResult {
  * own folder; no absolute path and no link is written. A file that cannot be
  * finished is removed: half an export is not an export.
  */
-export async function writeProjectZip(opts: { root: string; kind: ExportKind; to: string; stamp: Omit<ExportStamp, 'kind'>; signal?: AbortSignal; data?: readonly string[] }): Promise<ExportResult> {
+export async function writeProjectZip(opts: { root: string; kind: ExportKind; to: string; stamp: Omit<ExportStamp, 'kind'>; signal?: AbortSignal; data?: readonly string[]; limitBytes?: number }): Promise<ExportResult> {
   const top = basename(opts.root);
   // The file being written is never one of the files read: it would be packed into itself until the disk is full.
   const inside = (file: string): string | null => {
@@ -122,6 +129,12 @@ export async function writeProjectZip(opts: { root: string; kind: ExportKind; to
   };
   const leave = [inside(opts.to), ...(opts.kind === 'apps' ? (opts.data ?? []).map(inside) : [])].filter((path): path is string => path !== null);
   const files = exportList(opts.root, opts.kind, leave);
+  // Said before anything is written: past these sizes the file would be made, called saved, and not open.
+  let size = 0;
+  for (const path of files) size += lstatSync(join(opts.root, path)).size;
+  if (size > (opts.limitBytes ?? ZIP_LIMIT_BYTES) || files.length >= ZIP_LIMIT_FILES) {
+    throw new Error('This project is too large for one ZIP file (over 4 GB, or more than 65,000 files). Export the apps only, or copy the folder itself.');
+  }
   const out = createWriteStream(opts.to);
   let bytes = 0;
   let failed: Error | null = null;
