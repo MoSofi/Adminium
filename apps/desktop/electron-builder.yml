@@ -141,6 +141,10 @@ mac:
   hardenedRuntime: true
   entitlements: build/entitlements.mac.plist
   entitlementsInherit: build/entitlements.mac.plist
+  # What macOS shows the first time the microphone is asked for (speaking to the
+  # assistant). Without this key the system ends the process at the first ask.
+  extendInfo:
+    NSMicrophoneUsageDescription: Adminium uses the microphone when you press the microphone button to speak to the assistant. What you say is written down as text; the recording is not kept.
   notarize: true
 
 win:

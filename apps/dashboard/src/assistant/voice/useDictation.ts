@@ -22,6 +22,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { csrfHeaders } from '../../app/api.js';
+import { isDesktopRuntime } from '../../lib/desktop-runtime.js';
 
 export type VoiceWay = 'provider' | 'browser' | 'none';
 
@@ -44,6 +45,8 @@ interface Recognition {
 }
 
 function recognitionOf(): (new () => Recognition) | null {
+  // The desktop app's browser has the name and no service behind it (it would listen and write nothing).
+  if (isDesktopRuntime()) return null;
   const scope = globalThis as unknown as { SpeechRecognition?: new () => Recognition; webkitSpeechRecognition?: new () => Recognition };
   return scope.SpeechRecognition ?? scope.webkitSpeechRecognition ?? null;
 }

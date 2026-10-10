@@ -105,6 +105,7 @@ import {
   type CrashAction,
   type CrashScreenInfo,
   type DesktopWindows,
+  type MicrophoneReader,
 } from './window.js';
 
 // ─── Pure policy ─────────────────────────────────────────────────────────────
@@ -851,6 +852,11 @@ export function createDesktopApp(deps: DesktopBootDeps): DesktopApp {
       // exist until step 5 (the shell only learns the dataDir and the secret at
       // steps 2–3), which is exactly why passing `onCrashAction` to
       // `createWindowManager` cannot work and left all three buttons inert.
+      // Speaking to the assistant: the one web permission with an exception, decided by the server's own
+      // switch. The origin is read from the live runtime at each ask (the port moves on a restart).
+      windows.setMicrophoneReader(
+        electronMicrophoneReader(() => (runtime === null || runtime.serverPort < 0 ? null : `http://127.0.0.1:${String(runtime.serverPort)}`)),
+      );
       windows.setCrashActionHandler((action: CrashAction) => {
         if (action === 'quit') {
           host.quit();
@@ -1535,6 +1541,33 @@ const backupReplySchema = z.object({
     rotated: z.array(z.string()),
   }),
 });
+
+/**
+ * Whether people may speak to the assistant in this workspace: `GET
+ * /api/v1/assistant/availability`, carrying the WINDOW'S session cookie like
+ * the grant reader below. `false` for everything that is not a clear yes: no
+ * server yet, nobody signed in, a person who may not use the assistant, an
+ * older server that says nothing of voice, a reply that cannot be read.
+ */
+function electronMicrophoneReader(serverOrigin: () => string | null): MicrophoneReader {
+  return async () => {
+    const origin = serverOrigin();
+    if (origin === null) return false;
+    const cookies = await session.defaultSession.cookies.get({ url: origin, name: SESSION_COOKIE_NAME });
+    const cookie = cookies[0];
+    if (cookie === undefined) return false;
+    const response = await fetch(`${origin}/api/v1/assistant/availability`, { method: 'GET', headers: { cookie: `${cookie.name}=${cookie.value}` } });
+    if (!response.ok) return false;
+    const body = (await response.json().catch(() => null)) as { voice?: { input?: unknown } } | null;
+    return microphoneSwitchedOn(body);
+  };
+}
+
+/** The availability reply, read for one thing: is the microphone's way anything but "none". */
+export function microphoneSwitchedOn(body: unknown): boolean {
+  const input = (body as { voice?: { input?: unknown } } | null)?.voice?.input;
+  return input === 'provider' || input === 'browser';
+}
 
 /**
  * The grant reader: `GET /api/v1/desktop/capability-grants`, carrying the

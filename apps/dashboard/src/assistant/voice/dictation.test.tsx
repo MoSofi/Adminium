@@ -148,6 +148,10 @@ describe('dictation', () => {
     expect(usableWay('browser')).toBe('none');
     vi.stubGlobal('webkitSpeechRecognition', class {});
     expect(usableWay('browser')).toBe('browser');
+    // The desktop app's browser has the name and no service behind it: only the provider's way there.
+    vi.stubGlobal('adminiumDesktop', {});
+    expect(usableWay('browser')).toBe('none');
+    expect(usableWay('provider')).toBe('provider');
   });
 
   it('records, sends the recording with its language and length, and hands the words back to be checked', async () => {
