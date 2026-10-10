@@ -144,6 +144,11 @@ Email templates read the same names, so there is one grammar to learn. A token
 Adminium does not recognise is left exactly as you typed it, which is how you
 find a mistake.
 
+A token may say what to write when its value is empty: `{{record.first_name|there}}`
+writes "there" for a record with no first name. In the email step, a template's
+variable that carries its own backup is marked **Has its own backup text** and
+needs nothing from the rule.
+
 For a date column you can also pick **Now** instead of typing a value;
 Adminium writes the timestamp your database expects.
 

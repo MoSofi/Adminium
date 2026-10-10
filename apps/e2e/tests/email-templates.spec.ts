@@ -219,6 +219,75 @@ test.describe('email templates manager', () => {
     }
   });
 
+  test('a value that is missing: a chip gives its backup, a block is tied to a value, and the preview shows the email without them (axe)', async ({ page }, testInfo) => {
+    const created = await page.request.post('/api/v1/email-templates', { data: { kind: 'template', name: 'Missing values', starter: null } });
+    expect(created.status()).toBe(201);
+    const doc = (await created.json()) as { id: string };
+    const blocks = [
+      { id: 'greet', block: 'email.text', data: { paras: ['Thanks, {{first_name}}!'] }, style: {} },
+      { id: 'track', block: 'email.button', data: { label: 'Track your order', url: '{{track_url}}' }, style: {}, showWhen: { var: 'track_url' } },
+      { id: 'city', block: 'email.text', data: { paras: ['See you in {{city|your town}}.'] }, style: {} },
+    ];
+    const blocking = async (scope: string) => {
+      const results = await new AxeBuilder({ page }).include(scope).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze();
+      return results.violations.filter((violation) => violation.impact === 'critical' || violation.impact === 'serious').map((v) => `${String(v.impact)}: ${v.id} — ${v.nodes.slice(0, 3).map((n) => n.target.join(' ')).join(' | ')}`);
+    };
+    try {
+      const put = await page.request.put(`/api/v1/email-templates/${doc.id}`, {
+        data: { name: 'Missing values', category: 'lifecycle', enabled: false, document: { subject: 'For {{first_name|you}}', preheader: '', footer: 'Sent by Adminium', brand: null, attachments: [], blocks } },
+      });
+      expect(put.ok()).toBe(true);
+      await page.goto(`/email-templates/${doc.id}`);
+      const canvas = page.getByTestId('email-canvas');
+      const greet = canvas.locator('[data-block-id="greet"]');
+      await expect(canvas.getByTestId('email-placeholder-chip')).toHaveText(['{{first_name}}', '{{city}}']);
+
+      // The chip, by keyboard: its dialog asks for the backup, shows the sentence, and Escape gives the focus back.
+      const chip = greet.getByTestId('email-placeholder-chip');
+      await chip.focus();
+      await page.keyboard.press('Enter');
+      const dialog = page.getByRole('dialog', { name: 'Backup text for first_name' });
+      await expect(dialog.getByLabel('If there is no first name, write:')).toBeFocused();
+      await page.keyboard.type('there');
+      await expect(dialog.getByTestId('email-backup-preview')).toHaveText('Thanks, there!');
+      expect(await blocking('[data-testid="email-backup-dialog"]')).toEqual([]);
+      expect(await blocking('[data-testid="email-canvas"]')).toEqual([]);
+      await testInfo.attach('backup-dialog', { body: await page.screenshot(), contentType: 'image/png' });
+      await page.keyboard.press('Escape');
+      await expect(dialog).toBeHidden();
+      await expect(chip).toBeFocused();
+
+      // The block tied to a first name, with other words in its place.
+      await greet.click({ position: { x: 4, y: 4 } });
+      await page.getByTestId('email-show-when').selectOption('first_name');
+      await page.getByTestId('email-otherwise').fill('Thanks for ordering!');
+      expect(await blocking('[data-testid="email-visibility"]')).toEqual([]);
+
+      // As a reader with no values is sent it.
+      await page.getByRole('switch', { name: 'Preview with missing values' }).click();
+      await expect(page.getByTestId('email-missing-status')).toHaveText('Showing what a reader is sent when these have no value: first name, city, track url.');
+      await expect(greet).toContainText('Thanks for ordering!');
+      await expect(greet).toContainText('Otherwise text');
+      await expect(canvas.locator('[data-block-id="track"]')).toHaveCount(0);
+      await expect(canvas.locator('[data-block-id="city"]')).toHaveText('See you in your town.');
+      await expect(page.getByTestId('email-subject-text')).toHaveText('For you');
+      expect(await blocking('[data-testid="email-canvas"]')).toEqual([]);
+      await testInfo.attach('preview-with-missing-values', { body: await page.screenshot({ fullPage: true }), contentType: 'image/png' });
+      await page.getByRole('switch', { name: 'Preview with missing values' }).click();
+
+      // Saved: the server holds the backup in the text and the tie on the block.
+      await page.getByTestId('email-save').click();
+      await expect(page.getByTestId('email-save-chip')).toHaveText('All changes saved');
+      const kept = (await (await page.request.get(`/api/v1/email-templates/${doc.id}`)).json()) as { document: { blocks: { id: string; data: { paras?: string[] }; showWhen?: { var: string }; otherwise?: string }[] } };
+      const by = Object.fromEntries(kept.document.blocks.map((block) => [block.id, block]));
+      expect(by['greet']).toMatchObject({ data: { paras: ['Thanks, {{first_name|there}}!'] }, showWhen: { var: 'first_name' }, otherwise: 'Thanks for ordering!' });
+      expect(by['track']).toMatchObject({ showWhen: { var: 'track_url' } });
+      expect(by['city']?.showWhen).toBeUndefined();
+    } finally {
+      await page.request.delete(`/api/v1/email-templates/${doc.id}`);
+    }
+  });
+
   test('Choose image uploads into the block; Send test collects recipients', async ({ page }, testInfo) => {
     // A scratch template with one image block, made and removed through the API; the upload it makes is removed too.
     const created = await page.request.post('/api/v1/email-templates', { data: { kind: 'template', name: 'Overlay scratch', starter: null } });

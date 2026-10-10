@@ -18,6 +18,18 @@ dropped block may stay empty, and the HTML and the plain text drop the same bloc
 that uses either sets `compatibility.minAdminiumVersion` to `0.3.18` or later. A template with
 such a block is sent by the outbox only, never by a rule the manifest [ships](https://docs.adminium.dev/reference/manifest/#automations).
 
+#### A value that is missing
+
+A variable may carry a backup after a bar: `{{recipient.first_name|guest}}` writes "guest" when
+the value is missing or blank, and `{{recipient.first_name|}}` writes nothing. The backup is plain
+text with no braces. A name written with a backup everywhere need not be filled.
+
+A block may be tied to a value beside its `block` and `data`: `"showWhen": { "var": "stay.note" }`
+sends it only when that variable holds something, and on an `email.text` or `email.heading` block
+`"otherwise"` is the text sent in its place when it does not. Unlike `onlyWith`, both are read by
+the renderer itself, so a template that uses them may be sent by a rule too. A manifest that uses
+either sets `compatibility.minAdminiumVersion` to `0.3.22` or later.
+
 #### An add-on's links into an app
 
 An add-on has no customer side of its own. Its outbox may name routes of whichever app it serves:
