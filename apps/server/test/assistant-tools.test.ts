@@ -582,6 +582,30 @@ describe('what each page will accept as a draft', () => {
     expect(JSON.stringify(outcome.errors)).toContain('email.hero');
   });
 
+  it('keeps a block tied to a value with its other words, and sends a misplaced condition back with how it is written', async () => {
+    const email = await setup({ context: 'email', user: 'admin' });
+    const draft = (blocks: unknown[]) => email.adapter.document!.acceptArtefact({ kind: 'template', name: 'Thanks', locale: 'en_US', document: { subject: 'For {{first_name|you}}', blocks } }, email.deps);
+    const tied = { block: 'email.text', showWhen: { var: 'first_name' }, otherwise: 'We saved your favourites.', data: { paras: ['We saved your favourites, {{first_name}}.'] } };
+    const good = await draft([{ block: 'email.heading', data: { text: 'Thanks, {{first_name|there}}!' } }, tied, { block: 'email.button', showWhen: { var: 'track_url' }, data: { label: 'Track', url: '{{track_url}}' } }]);
+    expect(good.ok).toBe(true);
+    if (!good.ok) return;
+    const kept = (good.artefact['document'] as { blocks: Record<string, unknown>[] }).blocks;
+    expect(kept[1]).toMatchObject({ showWhen: { var: 'first_name' }, otherwise: 'We saved your favourites.' });
+    expect(kept[2]).toMatchObject({ showWhen: { var: 'track_url' } });
+
+    // The other words on a block of their own (what a model first writes): refused, with where they go.
+    const alone = await draft([{ block: 'email.text', showWhen: { var: 'first_name' }, data: { paras: ['With a name.'] } }, { block: 'email.text', otherwise: 'Without one.', data: { paras: [] } }]);
+    expect(alone.ok).toBe(false);
+    if (alone.ok) return;
+    expect(alone.errors).toMatchObject([{ path: 'document.blocks.1.otherwise', code: 'OTHERWISE_ALONE' }]);
+    expect(alone.errors[0]?.message).toContain('"showWhen": { "var": "<name>" }');
+
+    const odd = await draft([{ block: 'email.button', showWhen: { var: 'u' }, otherwise: 'x', data: {} }, { block: 'email.text', showWhen: 'first_name', data: { text: 'a' } }, { block: 'email.text', showWhen: { var: 'a' }, otherwise: 3, data: { text: 'a' } }]);
+    expect(odd.ok).toBe(false);
+    if (odd.ok) return;
+    expect(odd.errors.map((error) => error.code)).toEqual(['OTHERWISE_NOT_TEXT', 'SHOW_WHEN_INVALID', 'OTHERWISE_INVALID']);
+  });
+
   it('accepts an email document the page`s own save would accept', async () => {
     const email = await setup({ context: 'email', user: 'admin' });
     const outcome = await email.adapter.document!.acceptArtefact(
