@@ -8,6 +8,7 @@
  */
 
 import { designCommand } from './commands/design.js';
+import { folderFactsCommand } from './commands/folder-facts.js';
 import { installCommand } from './commands/install.js';
 import { ownerCommand } from './commands/owner.js';
 import { APP_VERSION } from '../version.js';
@@ -38,6 +39,7 @@ export const COMMANDS: readonly Command[] = [
   devCommand,
   designCommand,
   installCommand,
+  folderFactsCommand,
   buildCommand,
   startCommand,
   checkCommand,
