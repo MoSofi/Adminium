@@ -18,7 +18,7 @@
  * ELECTRON-FREE.
  */
 import { createReadStream, createWriteStream, lstatSync, readFileSync, readdirSync, rmSync } from 'node:fs';
-import { basename, join } from 'node:path';
+import { basename, join, relative, resolve, sep } from 'node:path';
 
 import { Zip, ZipDeflate, ZipPassThrough } from 'fflate';
 
@@ -43,9 +43,24 @@ export function exported(path: string, kind: ExportKind): boolean {
   if (NEVER_PATHS.some((never) => under(path, never))) return false;
   // A backup archive is a copy of the data, wherever a person put it.
   if (/\.adminium-backup(\.zip)?$/i.test(path)) return false;
-  // The data moved aside by "Start the data fresh" is data.
-  if (kind === 'apps' && (NOT_WITH_APPS_ONLY.some((left) => under(path, left)) || /^data\.before-[^/]+(\/|$)/.test(path) || path === '.env.before')) return false;
+  // A ZIP at the top of the folder is an earlier export or a download, never a part of the project: an export of
+  // "everything" kept there would otherwise travel, key and data, inside one of "the apps only".
+  if (/^[^/]+\.zip$/i.test(path)) return false;
+  if (kind === 'apps') {
+    if (NOT_WITH_APPS_ONLY.some((left) => under(path, left))) return false;
+    // The data moved aside by "Start the data fresh" is data, beside whatever folder it was moved from.
+    if (path.split('/').some((part) => /^data\.before-/.test(part))) return false;
+    // Every file a key was ever kept in (`.env.before`, `.env.local`); the example names no value.
+    if (isEnvFile(path) && path !== '.env.example') return false;
+    // A database kept somewhere other than `data/` (a folder made on a terminal may name any file) is still the data.
+    if (/\.(sqlite3?|db)(-wal|-shm|-journal)?$/i.test(path)) return false;
+  }
   return true;
+}
+
+/** `.env` and its kin at the project's root: `.env.before`, `.env.local`. */
+export function isEnvFile(path: string): boolean {
+  return /^\.env(\.[^/]+)?$/.test(path);
 }
 
 /** A `.env` as it may travel: every model and picture line taken out, the rest as it was. */
@@ -60,13 +75,17 @@ export function envForExport(text: string): string {
     .join('');
 }
 
-/** Every file that goes in, by its path from the root, in a steady order. Links are not followed and not written. */
-export function exportList(root: string, kind: ExportKind): string[] {
+/**
+ * Every file that goes in, by its path from the root, in a steady order. Links are not followed and not written.
+ * `leave` is paths from the root left out whatever the kind says: the file being written, when it is inside the
+ * folder, and for "the apps only" the data wherever this project keeps it.
+ */
+export function exportList(root: string, kind: ExportKind, leave: readonly string[] = []): string[] {
   const out: string[] = [];
   const walk = (relative: string): void => {
     for (const name of readdirSync(relative === '' ? root : join(root, relative)).sort()) {
       const path = relative === '' ? name : `${relative}/${name}`;
-      if (!exported(path, kind)) continue;
+      if (!exported(path, kind) || leave.some((left) => under(path, left))) continue;
       const stat = lstatSync(join(root, path));
       if (stat.isDirectory()) walk(path);
       else if (stat.isFile()) out.push(path);
@@ -94,9 +113,15 @@ export interface ExportResult {
  * own folder; no absolute path and no link is written. A file that cannot be
  * finished is removed: half an export is not an export.
  */
-export async function writeProjectZip(opts: { root: string; kind: ExportKind; to: string; stamp: Omit<ExportStamp, 'kind'>; signal?: AbortSignal }): Promise<ExportResult> {
+export async function writeProjectZip(opts: { root: string; kind: ExportKind; to: string; stamp: Omit<ExportStamp, 'kind'>; signal?: AbortSignal; data?: readonly string[] }): Promise<ExportResult> {
   const top = basename(opts.root);
-  const files = exportList(opts.root, opts.kind);
+  // The file being written is never one of the files read: it would be packed into itself until the disk is full.
+  const inside = (file: string): string | null => {
+    const path = relative(resolve(opts.root), resolve(file));
+    return path === '' || path.startsWith('..') || resolve(path) === path ? null : path.split(sep).join('/');
+  };
+  const leave = [inside(opts.to), ...(opts.kind === 'apps' ? (opts.data ?? []).map(inside) : [])].filter((path): path is string => path !== null);
+  const files = exportList(opts.root, opts.kind, leave);
   const out = createWriteStream(opts.to);
   let bytes = 0;
   let failed: Error | null = null;
@@ -132,7 +157,8 @@ export async function writeProjectZip(opts: { root: string; kind: ExportKind; to
       if (failed !== null) throw failed as Error;
       entry.push(chunk, false);
       // Not faster than the disk takes it: a large database must not sit in memory waiting to be written.
-      if (out.writableNeedDrain) await new Promise<void>((drained) => out.once('drain', drained));
+      // A disk that fills or a drive pulled out never drains: the failure ends the wait.
+      if (out.writableNeedDrain) await Promise.race([new Promise<void>((drained) => out.once('drain', drained)), done]);
     }
     entry.push(new Uint8Array(0), true);
   };
@@ -140,7 +166,7 @@ export async function writeProjectZip(opts: { root: string; kind: ExportKind; to
   try {
     for (const path of files) {
       if (failed !== null) throw failed as Error;
-      if (path === '.env') await add(path, Buffer.from(envForExport(readFileSync(join(opts.root, path), 'utf8'))));
+      if (isEnvFile(path)) await add(path, Buffer.from(envForExport(readFileSync(join(opts.root, path), 'utf8'))));
       else await add(path, createReadStream(join(opts.root, path)));
     }
     // What this folder is, said before anything of it is run where it is opened.
@@ -151,7 +177,12 @@ export async function writeProjectZip(opts: { root: string; kind: ExportKind; to
     return { files: files.length, bytes };
   } catch (error) {
     out.destroy();
-    rmSync(opts.to, { force: true });
+    // On Windows the file may still be held for a moment: the failure that matters is the one already in hand.
+    try {
+      rmSync(opts.to, { force: true, maxRetries: 5, retryDelay: 100 });
+    } catch {
+      // Left where it is; the person is told the export failed.
+    }
     throw error;
   }
 }

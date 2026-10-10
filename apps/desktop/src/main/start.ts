@@ -46,6 +46,7 @@ import { judgeGuestAddress, rememberGuest, type GuestCheck } from './guest.js';
 import {
   cameWithAccounts,
   cleanVersionStore,
+  tidyVersionStore,
   dataBeforeName,
   enginePin,
   olderThan,
@@ -357,7 +358,10 @@ export function createStartService(deps: StartDeps): StartService {
       // The first time here: what the folder holds and who it came with are shown once, and a version store that
       // travelled loses its sender's settings before anything asks git about it.
       const first = known === null || !known.reviewed;
+      // At every opening, not the first alone: the store's settings and hooks are not part of what the question
+      // above is asked about, so files unpacked over a project already agreed to could bring a sender's.
       if (first && (known === null || known.trusted === null)) (deps.cleanVersionStore ?? cleanVersionStore)(root);
+      else tidyVersionStore(root);
       await deps.saveConfig(rememberProject(config, { path: root, name, trusted: code }, now()));
       const seen = new Set(input.seen ?? []);
       const where = { path: root, displayPath: shown(root) };
@@ -414,7 +418,7 @@ export function createStartService(deps: StartDeps): StartService {
       if (known === null || known.trusted === null || known.trusted !== fingerprint(root)) return { status: 'trust-needed' };
       // None at all, or ones another kind of computer installed (a folder copied from a Mac to Windows).
       const need = deps.folderFacts === undefined ? null : ((await deps.folderFacts(root))?.install ?? null);
-      if (!hasPackages(root) || need === 'another-machine') {
+      if (!hasPackages(root) || need === 'another-machine' || need === 'no-packages') {
         if (deps.installPackages === undefined) return { status: 'failed', detail: CANNOT_MAKE_PROJECT };
         if (making) return { status: 'failed', detail: 'Packages are already being fetched.' };
         making = true;
@@ -429,8 +433,9 @@ export function createStartService(deps: StartDeps): StartService {
         const config = deps.readConfig();
         await deps.saveConfig({ ...config, projects: config.projects.map((entry) => (entry.path === root ? { ...entry, trusted: fingerprint(root) } : entry)) });
       }
-      deps.onChoice({ kind: 'project', root, ...(input.land === 'dashboard' ? { land: 'dashboard' as const } : {}) });
-      return { status: 'opened' };
+      // Not started from here: the rest of the opening is still to be asked (a missing key, what was made, the
+      // accounts it came with), and `openProject` is the one place that asks it.
+      return { status: 'ready' };
     },
 
     async resolveKey(input) {

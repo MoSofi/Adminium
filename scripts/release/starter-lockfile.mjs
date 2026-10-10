@@ -41,7 +41,8 @@ const fail = (message) => {
   console.error(`starter-lockfile: ${message}`);
   process.exit(1);
 };
-const run = (command, args, opts = {}) => spawnSync(command, args, { encoding: 'utf8', ...opts });
+// On Windows `npm` is `npm.cmd`, which only a shell can start.
+const run = (command, args, opts = {}) => spawnSync(command, args, { encoding: 'utf8', shell: process.platform === 'win32' && command === 'npm', ...opts });
 
 let starter;
 let version;

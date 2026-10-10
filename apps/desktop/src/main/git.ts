@@ -217,7 +217,9 @@ async function candidates(deps: FindGitDeps): Promise<Array<{ path: string; from
   const env = bareEnvironment(deps.env);
   const found: Array<{ path: string; from: 'shell' | 'system' }> = [];
   if (deps.platform === 'win32') {
-    const where = await deps.run('where.exe', ['git'], { timeoutMs: ASK_MS, env });
+    // `where` looks along the person's PATH, so this one question is asked with it; nothing else here is.
+    const path = deps.env['Path'] ?? deps.env['PATH'];
+    const where = await deps.run('where.exe', ['git'], { timeoutMs: ASK_MS, env: path === undefined || path === '' ? env : { ...env, Path: path } });
     const first = where.ok ? pathIn(where.stdout.split(/\r?\n/)[0] ?? '', 'win32') : null;
     if (first !== null) found.push({ path: first, from: 'shell' });
     for (const base of [deps.env['ProgramFiles'], deps.env['ProgramFiles(x86)'], deps.env['LOCALAPPDATA'] === undefined ? undefined : win32.join(deps.env['LOCALAPPDATA'], 'Programs')]) {
@@ -355,6 +357,16 @@ export async function fetchGit(opts: FetchGitOptions): Promise<string> {
     const hash = createHash('sha256');
     let received = 0;
     const file = createWriteStream(archive);
+    // A full disk or a folder that cannot be written: heard here, so that it ends the download instead of ending
+    // the app (a stream's failure nobody listens to) or leaving a wait for room that never comes.
+    let broken: Error | null = null;
+    const failed = new Promise<never>((_resolve, reject) => {
+      file.once('error', (error) => {
+        broken = error;
+        reject(error);
+      });
+    });
+    failed.catch(() => undefined);
     try {
       for await (const chunk of Readable.fromWeb(response.body as import('node:stream/web').ReadableStream<Uint8Array>)) {
         const bytes = chunk as Buffer;
@@ -362,7 +374,8 @@ export async function fetchGit(opts: FetchGitOptions): Promise<string> {
         // A file that grows past what was promised is not the file.
         if (received > download.bytes) throw new GitFetchError('wrong-file', 'The download is larger than the file it should be.');
         hash.update(bytes);
-        if (!file.write(bytes)) await new Promise<void>((drained) => file.once('drain', drained));
+        if (broken !== null) throw broken as Error;
+        if (!file.write(bytes)) await Promise.race([new Promise<void>((drained) => file.once('drain', drained)), failed]);
         opts.onProgress?.(received, download.bytes);
       }
     } catch (error) {
@@ -370,8 +383,10 @@ export async function fetchGit(opts: FetchGitOptions): Promise<string> {
       if (opts.signal?.aborted === true) throw new GitFetchError('stopped', 'The download was stopped.');
       throw new GitFetchError('no-connection', `The download broke off: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
-      await new Promise<void>((closed) => file.end(closed));
+      if (broken === null) await Promise.race([new Promise<void>((closed) => file.end(closed)), failed]).catch(() => undefined);
+      else file.destroy();
     }
+    if (broken !== null) throw new GitFetchError('no-connection', `The download could not be written: ${(broken as Error).message}`);
     if (hash.digest('hex') !== download.sha256) throw new GitFetchError('wrong-file', 'The file that arrived is not the one this version of Adminium expects. It was deleted.');
 
     let entries: number;

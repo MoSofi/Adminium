@@ -48,7 +48,7 @@ function fakeStart(over: Partial<DesktopStartApi> = {}): DesktopStartApi {
     chooseParent: vi.fn(() => Promise.resolve<string | null>('/Users/sam/Documents')),
     createProject: vi.fn(() => Promise.resolve({ status: 'created' as const, path: '/Users/sam/Adminium/shop' })),
     makeProgress: vi.fn(() => Promise.resolve({ step: null, since: 0 })),
-    getPackages: vi.fn(() => Promise.resolve({ status: 'opened' as const })),
+    getPackages: vi.fn(() => Promise.resolve({ status: 'ready' as const })),
     resolveKey: vi.fn(() => Promise.resolve({ status: 'done' as const })),
     updateProject: vi.fn(() => Promise.resolve({ status: 'updated' as const })),
     updateApp: vi.fn(() => Promise.resolve(true)),
@@ -257,7 +257,7 @@ describe('Start', () => {
   });
 
   it('offers to get the packages of a project that has none, waits with a clock, and says why when they did not come', async () => {
-    let finish: (value: { status: 'failed'; detail: string } | { status: 'opened' }) => void = () => undefined;
+    let finish: (value: { status: 'failed'; detail: string } | { status: 'ready' }) => void = () => undefined;
     const getPackages = vi.fn<DesktopStartApi['getPackages']>(() => new Promise((done) => (finish = done)));
     const start = fakeStart({ openProject: vi.fn(() => Promise.resolve({ status: 'needs-packages' as const, path: '/p/shop', displayPath: '~/shop' })), getPackages });
     show(start, { ...STATE, recent: [recentProject()] });
@@ -278,7 +278,14 @@ describe('Start', () => {
     // And it can be tried again, or left.
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
     expect(getPackages).toHaveBeenCalledTimes(2);
-    finish({ status: 'opened' });
+    // In place: nothing was started from there. The opening is asked for again and goes on (a missing key, the
+    // accounts it came with), keeping what was already continued from.
+    const asked = vi.mocked(start.openProject).mock.calls.length;
+    finish({ status: 'ready' });
+    await waitFor(() => {
+      expect(vi.mocked(start.openProject).mock.calls.length).toBe(asked + 1);
+    });
+    expect(vi.mocked(start.openProject).mock.calls.at(-1)?.[0]).toMatchObject({ path: '/p/shop', land: 'dashboard' });
   });
 
   it('says in a notice why a folder was not opened', async () => {

@@ -48,11 +48,24 @@ export function judgeGuestAddress(typed: string): GuestAddress {
     return { ok: false, reason: 'not-an-address' };
   }
   if (url.hostname === '' || url.username !== '' || url.password !== '') return { ok: false, reason: 'not-an-address' };
-  const privateHost = isPrivateHost(url.hostname);
+  // Read again as a web address, which is how the window will read it: a made-up scheme keeps a host as typed, so
+  // `134744072` would pass for a computer's name here and open as 8.8.8.8, and `Office-PC.local:80` would never
+  // equal the address its own pages come from.
+  const asWeb = (scheme: string): URL | null => {
+    try {
+      return new URL(`${scheme}//${url.host}`);
+    } catch {
+      return null;
+    }
+  };
+  if (hasScheme && url.protocol !== 'http:' && url.protocol !== 'https:') return { ok: false, reason: 'not-an-address' };
+  const read = asWeb('http:');
+  if (read === null || read.hostname === '') return { ok: false, reason: 'not-an-address' };
+  const privateHost = isPrivateHost(read.hostname);
   const scheme = hasScheme ? url.protocol : privateHost ? 'http:' : 'https:';
-  if (scheme !== 'http:' && scheme !== 'https:') return { ok: false, reason: 'not-an-address' };
   if (scheme === 'http:' && !privateHost) return { ok: false, reason: 'not-private' };
-  const origin = `${scheme}//${url.host}`;
+  const origin = asWeb(scheme)?.origin;
+  if (origin === undefined || origin === 'null') return { ok: false, reason: 'not-an-address' };
   return { ok: true, origin, encrypted: scheme === 'https:' };
 }
 

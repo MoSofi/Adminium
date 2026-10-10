@@ -544,7 +544,8 @@ export type DesktopUpdateProjectResult = { readonly status: 'updated' } | { read
 
 /** `getPackages`: the packages were fetched and the project is opening, or why not. */
 export type DesktopGetPackagesResult =
-  | { readonly status: 'opened' }
+  /** The packages are in place. Nothing is started: the opening is asked for again and goes on from here. */
+  | { readonly status: 'ready' }
   | { readonly status: 'failed'; readonly detail: string }
   | { readonly status: 'missing' }
   | { readonly status: 'not-a-project' }

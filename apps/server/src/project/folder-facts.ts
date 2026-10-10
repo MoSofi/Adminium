@@ -11,8 +11,8 @@
  * whose store is elsewhere (Postgres, MySQL) answers `elsewhere`: it is asked
  * nothing here and starts as it would on a terminal.
  */
-import { existsSync, readFileSync } from 'node:fs';
-import { isAbsolute, join, resolve } from 'node:path';
+import { existsSync, readFileSync, realpathSync } from 'node:fs';
+import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:path';
 
 import { ALL_MIGRATIONS } from '@adminium/meta';
 import Database from 'better-sqlite3';
@@ -80,6 +80,22 @@ function outside(root: string): Pick<FolderFacts, 'running' | 'otherManager' | '
   };
 }
 
+/** Whether `path` lies below `root`, by where both really are; a path that is not there yet is judged as written. */
+function insideFolder(root: string, path: string): boolean {
+  // Where it really is, through any link; for what is not there yet, where its nearest folder that is there is.
+  const real = (at: string): string => {
+    const full = resolve(at);
+    try {
+      return realpathSync(full);
+    } catch {
+      const parent = dirname(full);
+      return parent === full ? full : join(real(parent), basename(full));
+    }
+  };
+  const way = relative(real(root), real(path));
+  return way !== '' && !way.startsWith('..') && !isAbsolute(way);
+}
+
 const EMPTY = { count: 0, names: [] as string[] };
 
 export function readFolderFacts(root: string, known: readonly string[] = ALL_MIGRATIONS.map((migration) => migration.name)): FolderFacts {
@@ -91,6 +107,9 @@ export function readFolderFacts(root: string, known: readonly string[] = ALL_MIG
 
   const named = (dotenv['ADMINIUM_DATA_DIR'] ?? '').trim();
   const dataDir = named === '' ? join(root, 'data') : isAbsolute(named) ? named : resolve(root, named);
+  // Only this folder is read: a `.env` that names a place outside it (or the folder itself) is said to keep its data
+  // elsewhere, and nothing there is opened.
+  if (!insideFolder(root, dataDir)) return { ...base, database: 'elsewhere' };
   const file = join(dataDir, 'meta.db');
   if (!existsSync(file)) return { ...base, dataDir };
 

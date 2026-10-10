@@ -1479,7 +1479,8 @@ describe('createDesktopApp opening a project folder', () => {
       },
       subscribe: (l) => {
         stateListener = l;
-        l({ status: 'ready', ...PROJECT_READY });
+        // As the real manager does: the state it is in, which after a start that failed is not `ready`.
+        l(over.startFails === undefined ? { status: 'ready', ...PROJECT_READY } : { status: 'stopped' });
         return () => undefined;
       },
     };
@@ -1816,6 +1817,10 @@ describe('createDesktopApp opening a project folder', () => {
     await createDesktopApp(p.deps).start();
     expect(p.shown).toEqual([]);
     expect(p.h.crashes.at(-1)?.reason).toContain('already running (in a terminal), on port 4711');
+    // Fixed where it was wrong (the terminal closed), then "Try again": the window follows the server that comes up.
+    p.h.fireCrashAction('retry');
+    await settle();
+    expect(p.shown.at(-1)).toMatchObject({ preview: true });
   });
 
   it('a project that stops is not restarted: the crash page’s button is the way on, and it follows the new port', async () => {

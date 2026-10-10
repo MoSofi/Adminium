@@ -260,7 +260,7 @@ export function usePreview(session: DesignerSession, turns: readonly TurnView[])
   );
   // Inside the desktop app there are no tabs: "a new tab" is the person's own browser, and the app hands it the
   // address. It is asked for with the address already in hand, because the app refuses a window and reads only that.
-  const inApp = getDesktopApi() !== undefined;
+  const inApp = getDesktopApi() !== null;
   const canOpenTab = true;
   const openInBrowser = (): void => {
     if (side === 'customer' && origin !== null) {

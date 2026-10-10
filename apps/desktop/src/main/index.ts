@@ -97,6 +97,7 @@ import { carriedNpmDir, provideDesktopPrograms } from './programs.js';
 import { firstFreePort, projectPortRange, seamGit, seamProject, sessionCookieNames, stopBusyWords } from './project.js';
 import { realFolderDeps, rememberProject, type FolderDeps } from './projects.js';
 import { exportFileName, writeProjectZip } from './export.js';
+import { projectDataPaths } from './folder-open.js';
 import { checkGuest } from './guest.js';
 import { shareAddresses, sharePortFor } from './share.js';
 import { createModelsStore, modelsFileFor, type ModelsStore } from './models.js';
@@ -1281,33 +1282,58 @@ export function createDesktopApp(deps: DesktopBootDeps): DesktopApp {
           await deps.config.save(next);
           config = next;
         };
+        // One switch of the project's server at a time: sharing, going back to building and an export each stop it and
+        // start it again, and two of them at once would start two servers for one folder.
+        let switching = false;
         projectSharing =
           sharing === undefined
             ? null
             : {
                 async share() {
                   if (projectManager.project?.mode === 'serve') return { status: 'shared' };
+                  if (switching) return { status: 'failed', detail: 'The project is already being switched.' };
                   // Other devices sign in with a real account: with no owner password there is none to sign in with.
-                  const facts = await deps.startScreen?.folderFacts?.(project.root).catch(() => null);
-                  if (facts?.ownerHasPassword === false) return { status: 'needs-password' };
+                  // A folder that could not be read is not shared on the guess that it has one.
+                  const readFacts = deps.startScreen?.folderFacts;
+                  if (readFacts !== undefined) {
+                    const facts = await readFacts(project.root).catch(() => null);
+                    if (facts === null) return { status: 'failed', detail: 'Adminium could not read this project to check how its owner signs in.' };
+                    if (facts.ownerHasPassword === false) return { status: 'needs-password' };
+                  }
                   const busy = await projectManager.busy().catch(() => null);
                   if (busy !== null && deps.confirmStopBusy !== undefined && !(await deps.confirmStopBusy(busy, 'share', stopWords).catch(() => true))) return { status: 'kept-working' };
+                  if (switching) return { status: 'failed', detail: 'The project is already being switched.' };
+                  switching = true;
                   try {
                     const ready = await projectManager.restart({ mode: 'serve', host: '0.0.0.0' });
                     await remember('shared', ready.port);
                     sharing.keepAwake?.(true);
                     return { status: 'shared' };
                   } catch (error) {
-                    // Not left half-way: back to building, on this computer only.
-                    await projectManager.restart({ mode: 'design', host: LOOPBACK_HOST }).catch(() => undefined);
+                    // Not left half-way: back to building, on this computer only. If that cannot start either, the
+                    // window says so instead of staying on a page whose server is gone.
+                    await projectManager.restart({ mode: 'design', host: LOOPBACK_HOST }).catch((again: unknown) => windows.showCrash(crashFromStartError(again)));
                     return { status: 'failed', detail: error instanceof Error ? error.message : String(error) };
+                  } finally {
+                    switching = false;
                   }
                 },
                 async build() {
                   if (projectManager.project?.mode !== 'serve') return true;
+                  if (switching) return false;
+                  switching = true;
                   sharing.keepAwake?.(false);
                   shareChangedFrom = null;
-                  await projectManager.restart({ mode: 'design', host: LOOPBACK_HOST });
+                  try {
+                    await projectManager.restart({ mode: 'design', host: LOOPBACK_HOST });
+                  } catch (error) {
+                    // The shared server is stopped and the building one did not start: the Shared page would show
+                    // addresses nothing answers at.
+                    await windows.showCrash(crashFromStartError(error));
+                    throw error;
+                  } finally {
+                    switching = false;
+                  }
                   await remember('building');
                   return true;
                 },
@@ -1343,12 +1369,14 @@ export function createDesktopApp(deps: DesktopBootDeps): DesktopApp {
             ? null
             : {
                 async run({ kind, title, from }) {
-                  if (exportingNow) return { status: 'busy' };
+                  if (exportingNow || switching) return { status: 'busy' };
                   // Never under a turn, a save or a restore: the files would be caught half-written.
                   if ((await projectManager.busy().catch(() => null)) !== null) return { status: 'busy' };
                   const to = await exporter.saveAs({ title, defaultName: exportFileName(project.root) });
                   if (to === null) return { status: 'cancelled' };
+                  if (exportingNow || switching) return { status: 'busy' };
                   exportingNow = true;
+                  switching = true;
                   const mode = projectManager.project?.mode ?? 'design';
                   let result: DesktopExportResult;
                   try {
@@ -1356,7 +1384,7 @@ export function createDesktopApp(deps: DesktopBootDeps): DesktopApp {
                     await windows.showBoot();
                     await projectManager.stop();
                     try {
-                      const made = await writeProjectZip({ root: project.root, kind, to, stamp: { ...exporter.stamp(), exportedAt: new Date().toISOString() } });
+                      const made = await writeProjectZip({ root: project.root, kind, to, data: projectDataPaths(project.root), stamp: { ...exporter.stamp(), exportedAt: new Date().toISOString() } });
                       result = { status: 'saved', file: basename(to), megabytes: Math.max(0.1, Math.ceil(made.bytes / 100_000) / 10) };
                     } catch (error) {
                       result = { status: 'failed', detail: error instanceof Error ? error.message : String(error) };
@@ -1372,6 +1400,7 @@ export function createDesktopApp(deps: DesktopBootDeps): DesktopApp {
                     await windows.showCrash(crashFromStartError(error));
                   } finally {
                     exportingNow = false;
+                    switching = false;
                   }
                   return result;
                 },
@@ -1384,34 +1413,42 @@ export function createDesktopApp(deps: DesktopBootDeps): DesktopApp {
                   if (lastExport?.path != null) await exporter.showInFolder(lastExport.path);
                 },
               };
+        let listening = false;
+        /** The project's server heard from here on. Once, whether its first start worked or not. */
+        const listen = (): void => {
+          if (listening) return;
+          listening = true;
+          // Never restarted behind the person's back: the crash page's button is the way on.
+          projectManager.onExit((exit: ServerExit) => {
+            void windows.showCrash({
+              reason: exit.code === null ? 'This project stopped unexpectedly.' : `This project stopped unexpectedly (exit code ${String(exit.code)}).`,
+              logPath: exit.logPath,
+              canRestart: true,
+            });
+          });
+          projectManager.subscribe((state: ServerState) => {
+            if (state.status !== 'ready') return;
+            // The same server as the window already shows: same port, and served the same way. A switch between Build
+            // and Share may land on the port it had, and is still another page.
+            if (runtime !== null && state.port === runtime.serverPort && (projectManager.project?.mode ?? 'design') === shownMode && !showAgain) return;
+            runtime = runtime === null ? runtime : { ...runtime, serverPort: state.port };
+            void show(state);
+          });
+        };
         const started = projectManager.start();
         await windows.showBoot();
         let ready: ServerReadyInfo;
         try {
           ready = await started;
         } catch (error) {
+          // Heard all the same: "Try again" on the crash page starts it, and the window follows it once it is up.
+          listen();
           await windows.showCrash(crashFromStartError(error));
           return;
         }
         runtime = { ...runtime, serverPort: ready.port };
         await show(ready);
-
-        // Never restarted behind the person's back: the crash page's button is the way on.
-        projectManager.onExit((exit: ServerExit) => {
-          void windows.showCrash({
-            reason: exit.code === null ? 'This project stopped unexpectedly.' : `This project stopped unexpectedly (exit code ${String(exit.code)}).`,
-            logPath: exit.logPath,
-            canRestart: true,
-          });
-        });
-        projectManager.subscribe((state: ServerState) => {
-          if (state.status !== 'ready') return;
-          // The same server as the window already shows: same port, and served the same way. A switch between Build
-          // and Share may land on the port it had, and is still another page.
-          if (runtime !== null && state.port === runtime.serverPort && (projectManager.project?.mode ?? 'design') === shownMode && !showAgain) return;
-          runtime = runtime === null ? runtime : { ...runtime, serverPort: state.port };
-          void show(state);
-        });
+        listen();
       };
 
       /*

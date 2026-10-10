@@ -105,6 +105,41 @@ describe('the ZIP', () => {
     expect(all).not.toContain('my card number');
   });
 
+  it('the apps only: data kept under another name, a key kept in another file and an earlier export in the folder do not travel', async () => {
+    const put = (path: string, text: string): void => {
+      mkdirSync(dirname(join(root, path)), { recursive: true });
+      writeFileSync(join(root, path), text);
+    };
+    put('storage/app.sqlite', 'ROWS-ELSEWHERE');
+    put('storage/app.sqlite-wal', 'ROWS-IN-FLIGHT');
+    put('storage/files/receipt.txt', 'A-PERSON-S-FILE');
+    put('storage/data.before-2026-10-01/meta.db', 'OLDER-ROWS');
+    put('other.db', 'ROWS-IN-A-DB');
+    put('.env.local', 'ADMINIUM_SECRET=another-key\n');
+    put('.env.example', 'ADMINIUM_SECRET=\n');
+    // An export of everything, made earlier and kept in the folder.
+    await writeProjectZip({ root, kind: 'everything', to: join(root, 'juniper-kitchen.zip'), stamp: STAMP });
+    const to = join(dir, 'apps.zip');
+    await writeProjectZip({ root, kind: 'apps', to, stamp: STAMP, data: [join(root, 'storage', 'app.sqlite'), join(root, 'storage')] });
+    const names = Object.keys(unzipSync(readFileSync(to)));
+    expect(names.filter((name) => /storage|\.db|\.zip|\.env\.(local|before)/.test(name))).toEqual([]);
+    expect(names).toContain('juniper-kitchen/.env.example');
+    const all = Buffer.from(readFileSync(to)).toString('latin1');
+    for (const secret of ['ROWS-ELSEWHERE', 'ROWS-IN-FLIGHT', 'A-PERSON-S-FILE', 'OLDER-ROWS', 'ROWS-IN-A-DB', 'another-key', 'the-key', 'older']) expect(all, secret).not.toContain(secret);
+  });
+
+  it('everything: every file a key is kept in loses its model lines, and the file being written is not packed into itself', async () => {
+    writeFileSync(join(root, '.env.before'), 'ADMINIUM_SECRET=older\nADMINIUM_AI_ANTHROPIC_API_KEY=sk-ant-older\n');
+    const to = join(root, 'again.zip');
+    writeFileSync(to, 'an earlier file of the same name');
+    const made = await writeProjectZip({ root, kind: 'everything', to, stamp: STAMP });
+    const entries = unzipSync(readFileSync(to));
+    expect(Object.keys(entries).filter((name) => name.endsWith('.zip'))).toEqual([]);
+    expect(strFromU8(entries['juniper-kitchen/.env.before'] as Uint8Array)).toBe('ADMINIUM_SECRET=older\n');
+    expect(Buffer.from(readFileSync(to)).toString('latin1')).not.toContain('sk-ant-');
+    expect(made.files).toBe(Object.keys(entries).length - 1);
+  });
+
   it('a file that cannot be finished is not left behind', async () => {
     const control = new AbortController();
     control.abort();

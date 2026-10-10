@@ -187,6 +187,18 @@ describe('.adminium/running.json', () => {
     expect(existsSync(runningFile(root))).toBe(false);
   });
 
+  it('a mark written before this computer was last started is nobody’s, whoever has its number now', () => {
+    mkdirSync(join(root, '.adminium'), { recursive: true });
+    const mark = (startedAt: string): void => writeFileSync(runningFile(root), JSON.stringify({ pid: 999_999, port: 4700, mode: 'start', by: 'cli', startedAt }));
+    const now = Date.parse('2026-10-10T12:00:00.000Z');
+    // A year ago: this computer has been started since, by any measure.
+    mark('2025-10-10T12:00:00.000Z');
+    expect(readRunning(root, () => true, () => now)).toBeNull();
+    // A moment ago: its server may well be there.
+    mark('2026-10-10T11:59:59.000Z');
+    expect(readRunning(root, () => true, () => now)).toMatchObject({ port: 4700 });
+  });
+
   it('reads nothing from a file that is not a mark', () => {
     mkdirSync(join(root, '.adminium'), { recursive: true });
     for (const text of ['', 'not json', 'null', '{"pid":"1","port":2}', '{"pid":-4,"port":2}', '{"pid":12}']) {

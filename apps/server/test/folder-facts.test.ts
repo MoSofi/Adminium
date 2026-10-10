@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { basename, join } from 'node:path';
 
 import Database from 'better-sqlite3';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -129,6 +129,19 @@ describe('readFolderFacts', () => {
     expect(readFolderFacts(root, KNOWN)).toMatchObject({ database: 'sqlite', dataDir: join(root, 'elsewhere') });
     writeFileSync(join(root, '.env'), `ADMINIUM_DATA_DIR=${join(root, 'elsewhere')}\n`);
     expect(readFolderFacts(root, KNOWN).database).toBe('sqlite');
+  });
+
+  it('a data folder outside the project, or the project itself, is "elsewhere": nothing there is opened', () => {
+    const outside = mkdtempSync(join(tmpdir(), 'adminium-facts-outside-'));
+    try {
+      store(outside).close();
+      for (const named of [outside, join('..', basename(outside)), '.']) {
+        writeFileSync(join(root, '.env'), `ADMINIUM_DATA_DIR=${named}\n`);
+        expect(readFolderFacts(root, KNOWN), named).toMatchObject({ database: 'elsewhere', dataDir: null, people: { count: 0 } });
+      }
+    } finally {
+      rmSync(outside, { recursive: true, force: true });
+    }
   });
 
   it('a store that is not a file here is asked nothing', () => {

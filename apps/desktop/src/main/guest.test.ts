@@ -20,6 +20,14 @@ describe('what a person typed', () => {
     expect(judgeGuestAddress('https://admin.example.com/some/page#x')).toEqual({ ok: true, origin: 'https://admin.example.com', encrypted: true });
     expect(judgeGuestAddress('https://office-pc.local')).toMatchObject({ ok: true, encrypted: true });
   });
+  it('reads the address as the window will: a name in any case, a number that is really an address, a port that says nothing', () => {
+    expect(judgeGuestAddress('Office-PC.local:4600')).toEqual({ ok: true, origin: 'http://office-pc.local:4600', encrypted: false });
+    expect(judgeGuestAddress('office-pc.local:80')).toEqual({ ok: true, origin: 'http://office-pc.local', encrypted: false });
+    // 134744072 is 8.8.8.8 to a browser, not a computer's name on this network.
+    expect(judgeGuestAddress('134744072')).toEqual({ ok: true, origin: 'https://8.8.8.8', encrypted: true });
+    expect(judgeGuestAddress('http://0x8080808')).toEqual({ ok: false, reason: 'not-private' });
+    expect(judgeGuestAddress('3232235797:4600')).toEqual({ ok: true, origin: 'http://192.168.1.21:4600', encrypted: false });
+  });
   it('refuses plain http to anything that is not on their own network', () => {
     expect(judgeGuestAddress('http://admin.example.com')).toEqual({ ok: false, reason: 'not-private' });
     expect(judgeGuestAddress('http://8.8.8.8:4600')).toEqual({ ok: false, reason: 'not-private' });

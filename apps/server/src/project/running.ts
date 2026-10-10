@@ -11,6 +11,7 @@
  * never got to remove it.
  */
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { uptime } from 'node:os';
 import { dirname, join } from 'node:path';
 
 import { CliError, EXIT_CONFIG } from '../cli/exit.js';
@@ -38,7 +39,7 @@ function alive(pid: number): boolean {
 }
 
 /** The mark of a server that is still there, or `null`. Never this process's own. */
-export function readRunning(root: string, isAlive: (pid: number) => boolean = alive): RunningMark | null {
+export function readRunning(root: string, isAlive: (pid: number) => boolean = alive, now: () => number = Date.now): RunningMark | null {
   let parsed: unknown;
   try {
     parsed = JSON.parse(readFileSync(runningFile(root), 'utf8'));
@@ -49,6 +50,10 @@ export function readRunning(root: string, isAlive: (pid: number) => boolean = al
   const mark = parsed as Partial<RunningMark>;
   if (typeof mark.pid !== 'number' || !Number.isInteger(mark.pid) || mark.pid <= 0 || typeof mark.port !== 'number') return null;
   if (mark.pid === process.pid || !isAlive(mark.pid)) return null;
+  // Written before this computer was last started: its server did not live through that, and the number now belongs
+  // to some other program. Without this a power cut leaves a project that says "already running" for ever.
+  const written = typeof mark.startedAt === 'string' ? Date.parse(mark.startedAt) : Number.NaN;
+  if (!Number.isNaN(written) && written < now() - uptime() * 1000 - 60_000) return null;
   return {
     pid: mark.pid,
     port: mark.port,

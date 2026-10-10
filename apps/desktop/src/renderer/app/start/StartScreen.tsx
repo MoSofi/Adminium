@@ -259,15 +259,15 @@ export function StartScreen({ initial, onBuild, onConnect, onMakeIn, say }: { in
     setPackages({ ...asked, since: Date.now(), failure: null });
     try {
       const result = await startApi().getPackages({ path: asked.path, ...(asked.land === 'dashboard' ? { land: asked.land } : {}) });
-      // 'opened': main is already taking the window to the project; the wait stays shown until this page is gone.
-      if (result.status === 'opened') return;
       if (result.status === 'failed') {
         setPackages({ ...asked, since: null, failure: result.detail });
         return;
       }
+      // The packages are in: the opening goes on from where it stopped (a missing key, what was made, the accounts),
+      // with the wait still shown. Anything else: the folder changed under the question, and it is asked again from
+      // the start, which says what is wrong with it now.
       setPackages(null);
-      // The folder changed under the question: asked again from the start, which says what is wrong with it now.
-      await open(asked.path, false, asked.land);
+      await open(asked.path, false, asked.land, result.status !== 'ready');
     } catch (error) {
       setPackages(null);
       say(error instanceof Error ? error.message : String(error), 'error');

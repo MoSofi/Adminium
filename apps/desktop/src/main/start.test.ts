@@ -344,8 +344,12 @@ describe('opening a folder', () => {
     await expect(start.getPackages({ path: shop })).resolves.toEqual({ status: 'trust-needed' });
     expect(installPackages).not.toHaveBeenCalled();
     await start.openProject({ path: shop, agreed: true });
-    await expect(start.getPackages({ path: shop, land: 'dashboard' })).resolves.toEqual({ status: 'opened' });
+    // In place, and nothing started from here: the rest of the opening (a missing key, what was made, the accounts)
+    // is `openProject`'s to ask, and it is what starts the project.
+    await expect(start.getPackages({ path: shop, land: 'dashboard' })).resolves.toEqual({ status: 'ready' });
     expect(installPackages).toHaveBeenCalledWith({ root: shop });
+    expect(chosen).toEqual([]);
+    await expect(start.openProject({ path: shop, land: 'dashboard' })).resolves.toEqual({ status: 'opened' });
     expect(chosen).toEqual([{ kind: 'project', root: shop, land: 'dashboard' }]);
     // What the install wrote is the app's own change: the folder opens next time without the question.
     await expect(start.openProject({ path: shop })).resolves.toEqual({ status: 'opened' });
@@ -564,7 +568,7 @@ describe('opening a folder, with the engine’s facts', () => {
     const installPackages = vi.fn(() => Promise.resolve({ ok: true as const }));
     const o = opening(facts({ install: 'another-machine' }), { installPackages });
     expect(await o.start.openProject({ path: root, agreed: true })).toEqual({ status: 'needs-packages', path: root, displayPath: '~/shop' });
-    expect(await o.start.getPackages({ path: root })).toEqual({ status: 'opened' });
+    expect(await o.start.getPackages({ path: root })).toEqual({ status: 'ready' });
     expect(installPackages).toHaveBeenCalledTimes(1);
 
     const other = project('other');

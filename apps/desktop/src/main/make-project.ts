@@ -203,7 +203,7 @@ export async function runToEnd(
   args: readonly string[],
   opts: { cwd: string; env: Record<string, string>; timeoutMs: number; onOutput?: (text: string) => void },
 ): Promise<RanProgram> {
-  const { spawn } = await import('node:child_process');
+  const { spawn, spawnSync } = await import('node:child_process');
   return new Promise((done) => {
     let output = '';
     let timedOut = false;
@@ -215,23 +215,40 @@ export async function runToEnd(
     };
     let child: ReturnType<typeof spawn>;
     try {
-      child = spawn(command, [...args], { cwd: opts.cwd, env: opts.env, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
+      // A group of its own: the command starts npm, npm starts more, and stopping the first alone leaves the rest
+      // writing into the folder.
+      child = spawn(command, [...args], { cwd: opts.cwd, env: opts.env, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'], detached: process.platform !== 'win32' });
     } catch (error) {
       done({ code: null, output: error instanceof Error ? error.message : String(error), timedOut: false });
       return;
     }
+    /** The command and everything it started. */
+    const stopAll = (): void => {
+      const pid = child.pid;
+      if (pid === undefined || child.exitCode !== null) return;
+      try {
+        if (process.platform === 'win32') spawnSync('taskkill', ['/pid', String(pid), '/T', '/F'], { windowsHide: true, stdio: 'ignore' });
+        else process.kill(-pid, 'SIGTERM');
+      } catch {
+        child.kill();
+      }
+    };
+    // The app quit under it (the person closed the window during "Create"): nothing is left installing behind it.
+    process.once('exit', stopAll);
     const timer = setTimeout(() => {
       timedOut = true;
-      child.kill();
+      stopAll();
     }, opts.timeoutMs);
     child.stdout?.on('data', keep);
     child.stderr?.on('data', keep);
     child.once('error', (error) => {
       clearTimeout(timer);
+      process.removeListener('exit', stopAll);
       done({ code: null, output: `${output}\n${error.message}`, timedOut });
     });
     child.once('close', (code) => {
       clearTimeout(timer);
+      process.removeListener('exit', stopAll);
       done({ code, output, timedOut });
     });
   });

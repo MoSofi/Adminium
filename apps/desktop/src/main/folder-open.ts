@@ -11,8 +11,8 @@
  * only reads its answer and writes the few files the answers call for.
  */
 import { randomBytes } from 'node:crypto';
-import { copyFileSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
-import { dirname, isAbsolute, join, resolve } from 'node:path';
+import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, renameSync, rmSync, writeFileSync } from 'node:fs';
+import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 
 import { z } from 'zod';
 
@@ -115,6 +115,20 @@ const readEnv = (root: string): string => {
   }
 };
 
+/** Whether `path` is a file or folder below `root`, by where both really are (links read through). */
+export function strictlyInside(root: string, path: string): boolean {
+  let from: string;
+  let to: string;
+  try {
+    from = realpathSync(root);
+    to = realpathSync(path);
+  } catch {
+    return false;
+  }
+  const way = relative(from, to);
+  return way !== '' && !way.startsWith('..') && !isAbsolute(way);
+}
+
 /** A new key, as the engine's own `new` makes one. */
 export const newSecret = (): string => randomBytes(32).toString('hex');
 
@@ -126,6 +140,17 @@ export function projectDatabaseFile(root: string, envText: string): string | nul
   const match = /^sqlite:(?:\/\/)?(.+)$/i.exec(url.trim());
   if (match === null || match[1] === undefined || match[1] === ':memory:') return null;
   return isAbsolute(match[1]) ? match[1] : resolve(root, match[1]);
+}
+
+/**
+ * Where this project keeps its data, as its own `.env` says: the database file with the files SQLite keeps beside
+ * it, and the data folder. What "the apps only" must not carry, whatever the folder calls them.
+ */
+export function projectDataPaths(root: string): string[] {
+  const text = readEnv(root);
+  const database = projectDatabaseFile(root, text);
+  const named = (envValue(text, 'ADMINIUM_DATA_DIR') ?? '').trim();
+  return [...(database === null ? [] : [database, `${database}-wal`, `${database}-shm`, `${database}-journal`]), named === '' ? join(root, 'data') : resolve(root, named)];
 }
 
 export interface MadeForFolder {
@@ -191,6 +216,9 @@ export function resolveMissingKey(root: string, facts: Pick<FolderFacts, 'dataDi
     }
     if (answer.kind === 'fresh') {
       const data = facts.dataDir ?? join(root, 'data');
+      // Only a folder of this project's own is moved: a `.env` that names the project itself, or a place outside it
+      // (another program's data, by a folder somebody sent), is never renamed on a click here.
+      if (existsSync(data) && !strictlyInside(root, data)) return { ok: false, reason: 'failed', detail: 'This project keeps its data outside its own folder. Adminium does not move data it did not put there.' };
       if (existsSync(data)) {
         const base = join(dirname(data), dataBeforeName(opts.now ?? new Date()));
         let to = base;
@@ -217,6 +245,39 @@ const PLAIN_STORE_CONFIG = '[core]\n\trepositoryformatversion = 0\n\tfilemode = 
  * run). On the first open here both are replaced with a plain store's.
  * Returns whether there was a store to clean.
  */
+/** The settings git itself writes into a new store. None of them names a program. */
+const PLAIN_SETTINGS = new Set(['repositoryformatversion', 'filemode', 'bare', 'ignorecase', 'symlinks', 'precomposeunicode', 'logallrefupdates']);
+
+/**
+ * At a later opening: the store is cleaned again only when it holds something
+ * git would obey that git did not write (a setting outside the plain ones, a
+ * hook that is not a sample). The store's settings are not part of what the
+ * "open this folder?" question is asked about, so files unpacked over a
+ * project already agreed to could otherwise bring a sender's. A store the
+ * app made is left exactly as git wrote it for this system.
+ */
+export function tidyVersionStore(root: string): boolean {
+  const store = join(root, VERSION_STORE);
+  if (!existsSync(join(store, 'HEAD'))) return false;
+  let plain = true;
+  try {
+    for (const raw of readFileSync(join(store, 'config'), 'utf8').split(/\r?\n/)) {
+      const line = raw.trim();
+      if (line === '' || line.startsWith('#') || line.startsWith(';') || /^\[core\]$/i.test(line)) continue;
+      const name = /^([A-Za-z][A-Za-z0-9-]*)\s*=/.exec(line)?.[1]?.toLowerCase();
+      if (name === undefined || !PLAIN_SETTINGS.has(name)) plain = false;
+    }
+  } catch {
+    plain = false;
+  }
+  try {
+    if (readdirSync(join(store, 'hooks')).some((name) => !name.endsWith('.sample'))) plain = false;
+  } catch {
+    // No hooks folder: nothing to obey.
+  }
+  return plain ? false : cleanVersionStore(root);
+}
+
 export function cleanVersionStore(root: string): boolean {
   const store = join(root, VERSION_STORE);
   if (!existsSync(join(store, 'HEAD'))) return false;

