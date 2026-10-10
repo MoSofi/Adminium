@@ -138,18 +138,26 @@ describe('accelerators', () => {
 // ─── View: dev tools in dev builds only ──────────────────────────────────────
 
 describe('the View menu', () => {
-  it('offers \'s zoom and reload items', () => {
-    // "View (Reload, Actual Size/Zoom In/Out, Toggle Developer Tools …)".
-    const roles = collectRoles(menu(template(), EN_US_MENU_LABELS.view));
-    expect(roles).toEqual(expect.arrayContaining(['reload', 'resetZoom', 'zoomIn', 'zoomOut']));
+  const view = (platform: NodeJS.Platform, isDev: boolean): MenuItemConstructorOptions[] => menu(template({ platform, isDev }), EN_US_MENU_LABELS.view);
+  const shown = (items: readonly MenuItemConstructorOptions[]): string[] => items.filter((item) => item.visible !== false && typeof item.role === 'string').map((item) => String(item.role));
+
+  it.each(PLATFORMS)('shows zoom and full screen, and nothing for finding a fault, on %s', (platform) => {
+    expect(shown(view(platform, false))).toEqual(['resetZoom', 'zoomIn', 'zoomOut', 'togglefullscreen']);
   });
 
-  it.each(PLATFORMS)('hides the dev tools in a production build on %s', (platform) => {
-    // "Toggle Developer Tools **in dev builds only**". In production it is a
-    // support-call generator and a way to run arbitrary script against the
-    // loopback origin — i.e. against a live, authenticated session.
-    expect(collectRoles(template({ platform, isDev: false }))).not.toContain('toggleDevTools');
-    expect(collectRoles(template({ platform, isDev: true }))).toContain('toggleDevTools');
+  it.each(PLATFORMS)('keeps reload, force reload and the developer tools as shortcuts on %s', (platform) => {
+    // A hidden item still answers its accelerator; one that is absent does not.
+    const hidden = view(platform, false).filter((item) => item.visible === false).map((item) => item.role);
+    expect(hidden).toEqual(['reload', 'forceReload', 'toggleDevTools']);
+  });
+
+  it.each(PLATFORMS)('gives the developer tools a line of their own in a dev build on %s', (platform) => {
+    expect(shown(view(platform, true))).toContain('toggleDevTools');
+    expect(view(platform, true).filter((item) => item.role === 'toggleDevTools')).toHaveLength(1);
+  });
+
+  it('does not open on a separator', () => {
+    expect(view('win32', false).find((item) => item.visible !== false)?.type).toBeUndefined();
   });
 });
 

@@ -1182,6 +1182,9 @@ export function createDesktopApp(deps: DesktopBootDeps): DesktopApp {
                 onChoice: choose,
               });
               startOpen = true;
+              // Ours from the first window on: without this, Start sits under Electron's default menu until a
+              // project's step 5. The commands have no handlers yet, so they are shown and cannot be chosen.
+              rebuildMenu();
               void windows.showStart?.();
             });
             startOpen = false;

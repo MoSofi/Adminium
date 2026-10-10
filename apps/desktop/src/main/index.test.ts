@@ -1650,6 +1650,9 @@ describe('createDesktopApp opening on Start', () => {
     void createDesktopApp(s.deps).start();
     await settle();
     expect(s.h.calls).toContain('showStart');
+    // The app's own menu is in place before Start is shown, not Electron's default one.
+    expect(s.h.calls.indexOf('installMenu')).toBeGreaterThanOrEqual(0);
+    expect(s.h.calls.indexOf('installMenu')).toBeLessThan(s.h.calls.indexOf('showStart'));
     for (const never of ['config.resolveSecret', 'server.start', 'showBoot', 'createBackup']) expect(s.h.calls).not.toContain(never);
     // The bridge answers Start's calls only while Start is what the window holds.
     expect(s.h.bridge()?.start?.()).not.toBeNull();
