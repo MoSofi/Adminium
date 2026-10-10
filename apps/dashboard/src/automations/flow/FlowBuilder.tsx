@@ -256,7 +256,10 @@ function NodeCard(props: NodeCardProps): ReactNode {
             {node.title}
           </div>
           {sub === '' ? null : (
-            <div className={`mt-0.5 text-fg-muted ${small ? 'text-[11px]' : 'text-[11.5px]'}`}>{sub}</div>
+            <div className={`mt-0.5 text-fg-muted ${small ? 'text-[11px]' : 'text-[11.5px]'}`}>
+              {/* Read in its own direction: "→ customer_id → email" keeps its order in a right-to-left page. */}
+              <bdi>{sub}</bdi>
+            </div>
           )}
           {tag === null ? null : (
             <span data-testid="flow-node-tag" className="mt-1.5 inline-flex items-center rounded-md bg-accent-soft px-1.5 py-0.5 text-[10.5px] font-bold text-accent">
