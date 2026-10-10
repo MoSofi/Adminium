@@ -69,6 +69,8 @@ export function SendCampaignModal({ documentId, documentName, subject, onSend, o
   });
   const total = preview.data?.total ?? 0;
   const skipped = preview.data?.skipped ?? 0;
+  // The placeholders no recipient's send would fill: while there is one, the server refuses the send.
+  const unfilled = preview.data?.unfilled ?? [];
   const scheduleAt = scheduleAtFromInput(at);
   const scheduleValid = when === 'now' || (Number.isFinite(scheduleAt) && scheduleAt > Date.now());
 
@@ -159,6 +161,13 @@ export function SendCampaignModal({ documentId, documentName, subject, onSend, o
             </div>
           ) : null}
         </div>
+        {unfilled.length === 0 ? null : (
+          <p role="alert" data-testid="email-campaign-unfilled" className="rounded-[11px] bg-danger-soft px-[13px] py-[11px] text-[11.5px] font-semibold leading-[1.5] text-danger">
+            {t('email:campaign.unfilled', 'Nothing fills {names}: every recipient would get it as written. Give it a backup in the editor, or take it out.', {
+              names: unfilled.map((name) => `{{${name}}}`).join(', '),
+            })}
+          </p>
+        )}
         <div className="flex items-start gap-[9px] rounded-[11px] bg-accent-soft px-[13px] py-[11px]">
           <Info className="mt-px size-[15px] shrink-0 text-accent" aria-hidden="true" />
           <span className="text-[11.5px] leading-[1.5] text-fg-muted">
@@ -186,7 +195,7 @@ export function SendCampaignModal({ documentId, documentName, subject, onSend, o
         </Button>
         <Button
           iconLeft={when === 'schedule' ? <CalendarClock /> : <Send />}
-          disabled={!scheduleValid}
+          disabled={!scheduleValid || unfilled.length > 0}
           loading={busy}
           onClick={() => {
             void send();

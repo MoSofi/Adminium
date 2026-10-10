@@ -35,7 +35,16 @@
     "placeholder": "Beschreibe die Regel, die du brauchst …",
     "readPage": "Automatisierungsregeln · {rules, plural, one {# Regel} other {# Regeln}} · {tables, plural, one {# lesbare Tabelle} other {# lesbare Tabellen}}",
     "scopePrimary": "automations",
-    "workTitle": "Neue Regel entworfen"
+    "workTitle": "Neue Regel entworfen",
+    "applied": "Auf diese Regel angewendet. Sie ist noch nicht gespeichert.",
+    "apply": "Auf diese Regel anwenden",
+    "handoff": "Öffnen Sie die E-Mail-Vorlagen, um eine zu entwerfen.",
+    "handoffSub": "Diese Unterhaltung kommt mit.",
+    "handoffOpen": "E-Mail-Vorlagen öffnen",
+    "waiting": "Wartet auf eine Vorlage",
+    "savedOff": "Wird ausgeschaltet gespeichert",
+    "notSaved": "Nichts wird gespeichert, bis Sie die Regel speichern.",
+    "workTitleChange": "Geöffnete Regel geändert"
   },
   "button": "{name} fragen",
   "buttonTitle": "{name} zu dieser Seite fragen",
@@ -129,7 +138,12 @@
     "generic": "Das hat nicht geklappt. Frag es noch einmal.",
     "smtp": "E-Mail ist noch nicht eingerichtet. Öffne die E-Mail-Einstellungen, um ein Relay hinzuzufügen.",
     "tooLong": "Dieses Gespräch ist zu lang für das Modell — starte eine neue Sitzung.",
-    "tryAgain": "Erneut versuchen"
+    "tryAgain": "Erneut versuchen",
+    "modelFormat": "Dieses Modell antwortet nicht so, wie {name} es braucht. Wählen Sie unter Einstellungen → KI ein anderes Modell.",
+    "modelFormatAsk": "Dieses Modell antwortet nicht so, wie {name} es braucht. Bitten Sie einen Administrator, ein anderes Modell zu wählen.",
+    "setup": "Diese Seite konnte gerade nicht gelesen werden. Fragen Sie noch einmal.",
+    "busy": "Ihre letzte Frage wird noch bearbeitet. Warten Sie darauf oder halten Sie sie zuerst an.",
+    "budget": "Das wurde mittendrin angehalten: Das heutige Kontingent ist aufgebraucht."
   },
   "invoiceTemplate": {
     "action1": "Anderes Beispiel ansehen",
@@ -194,11 +208,11 @@
     "workTitle": "Rechnung entworfen"
   },
   "readOnly": {
-    "enable": "Aktionen freigeben",
-    "lockedTitle": "Gib Aktionen frei, damit {name} das tun kann",
     "noWrite": "Deine Rolle darf hier ansehen, entwerfen und vorschauen, aber nicht speichern.",
     "noWriteTitle": "Deine Rolle darf das hier nicht",
-    "note": "{name} ist gerade schreibgeschützt — es kann ansehen, entwerfen und vorschauen, aber nicht speichern, senden oder anlegen."
+    "switchedOff": "Speichern ist für {name} in diesem Arbeitsbereich ausgeschaltet.",
+    "openSettings": "Einstellungen öffnen",
+    "switchedOffTitle": "Speichern ist für {name} in diesem Arbeitsbereich ausgeschaltet"
   },
   "report": {
     "action1": "Vollständige Vorschau ausführen",
@@ -260,11 +274,201 @@
     "value": "{n} Tokens"
   },
   "try": "Ausprobieren",
+  "tryFrom": "Von {addOn}",
   "unavailable": {
     "askAdmin": "Bitte eine Administratorin oder einen Administrator, einen einzurichten.",
     "forbidden": "Du hast keine Berechtigung, {name} zu verwenden.",
     "network": "Ausgehende Netzwerkfunktionen sind auf dieser Instanz deaktiviert.",
     "noProvider": "Es ist noch kein KI-Anbieter konfiguriert.",
     "settings": "Einstellungen → KI öffnen"
+  },
+  "budget": {
+    "usedUp": "Das heutige Kontingent ist aufgebraucht. Es beginnt um {time} neu."
+  },
+  "data": {
+    "page": "Diese Seite",
+    "blurb": "Kennt diese Seite: {table} · {tables, plural, one {# lesbare Tabelle} other {# lesbare Tabellen}}",
+    "blurbNoTable": "Kennt diese Seite · {tables, plural, one {# lesbare Tabelle} other {# lesbare Tabellen}}",
+    "greeting": "Ich kann lesen, was diese Seite zeigt, und die anderen Tabellen, die Ihre Rolle lesen darf.",
+    "greetingSub": "Fragen Sie nach den Zeilen hier. Ich antworte in Worten, mit den Zahlen, und sage, welche Tabellen ich gelesen habe.",
+    "placeholder": "Fragen Sie nach diesen Daten …",
+    "chip1": "Wie viele Zeilen werden hier angezeigt?",
+    "chip2": "Fasse zusammen, was diese Seite zeigt",
+    "chip3": "Was hat sich zuletzt geändert?",
+    "workTitle": "Daten gelesen",
+    "scopePrimary": "diese Seite",
+    "readPage": "{page} · {table} · {tables, plural, one {# lesbare Tabelle} other {# lesbare Tabellen}}",
+    "readPageNoTable": "{tables, plural, one {# lesbare Tabelle} other {# lesbare Tabellen}}",
+    "confirm": {
+      "title": "Hier gibt es nichts zu speichern",
+      "body": "{name} entwirft auf dieser Seite nichts.",
+      "button": "Schließen"
+    }
+  },
+  "general": {
+    "page": "Dieser Arbeitsbereich",
+    "blurb": "Kennt diesen Arbeitsbereich · {tables, plural, one {# lesbare Tabelle} other {# lesbare Tabellen}}",
+    "greeting": "Ich kann die Tabellen lesen, die Ihre Rolle lesen darf, und Ihnen sagen, wo etwas erledigt wird.",
+    "greetingSub": "Fragen Sie nach Ihren Daten oder danach, wo sich etwas ändern lässt. Ich antworte in Worten und verlinke die Stelle.",
+    "placeholder": "Fragen Sie nach diesem Arbeitsbereich …",
+    "chip1": "Wo lade ich eine Kollegin oder einen Kollegen ein?",
+    "chip2": "Was kann ich in diesem Arbeitsbereich sehen?",
+    "chip3": "Welche Tabelle hat die meisten Zeilen?",
+    "workTitle": "Nachgeschlagen",
+    "scopePrimary": "Arbeitsbereich",
+    "readPage": "{tables, plural, one {# lesbare Tabelle} other {# lesbare Tabellen}}"
+  },
+  "answer": {
+    "from": "Aus:",
+    "part": "{returned, number} von {total, number} Zeilen aus {table} gelesen.",
+    "nothingRead": "Für diese Antwort wurde nichts gelesen.",
+    "readAgain": "Erneut lesen",
+    "readAgainAsk": "{question} Lies die Daten, um zu antworten.",
+    "forgot": "{name} hat {count, plural, one {die erste Nachricht} other {die ersten # Nachrichten}} nicht mehr im Blick."
+  },
+  "suggestion": {
+    "open": "Öffnen",
+    "openLabel": "{addOn} unter Add-ons öffnen",
+    "askAdmin": "Bitten Sie eine Administratorin oder einen Administrator, dies zu installieren."
+  },
+  "panel": {
+    "loading": "Unterhaltung wird geladen …",
+    "recordOpen": "{page} · {record} geöffnet",
+    "rowsShown": "{page} · {rows, plural, one {# Zeile angezeigt} other {# Zeilen angezeigt}}",
+    "new": "Neue Unterhaltung",
+    "earlier": "{count, plural, one {# frühere Nachricht wird} other {# frühere Nachrichten werden}} nicht angezeigt.",
+    "onPage": "auf {page}",
+    "closedElsewhere": "Diese Unterhaltung wurde in einem anderen Fenster geschlossen.",
+    "stillWorking": "{name} arbeitet noch an Ihrer letzten Frage.",
+    "stop": "Stopp",
+    "pageDialog": "Schließen Sie, was auf der Seite geöffnet ist, um {name} zu verwenden.",
+    "aged": "Ihre frühere Unterhaltung wurde wegen ihres Alters geschlossen."
+  },
+  "chip": {
+    "selected": "{count, plural, one {# ausgewählt} other {# ausgewählt}}",
+    "record": "Der geöffnete Datensatz",
+    "filtered": "{rows, plural, one {# gefilterte Zeile} other {# gefilterte Zeilen}}",
+    "filteredUnknown": "Gefilterte Zeilen",
+    "remove": "Ohne „{label}“ fragen"
+  },
+  "parked": {
+    "madeOn": "Erstellt auf {page}.",
+    "open": "{page} öffnen, um diesen Entwurf zu verwenden",
+    "deleted": "Das Dokument dieses Entwurfs wurde gelöscht."
+  },
+  "proposal": {
+    "checking": {
+      "title": "Eine Änderung zum Bestätigen",
+      "line": "Es wird geprüft, was sich ändern würde…"
+    },
+    "badge": {
+      "replaced": "Ersetzt",
+      "expired": "Abgelaufen",
+      "cancelled": "Abgebrochen",
+      "parked": "Geparkt"
+    },
+    "replaced": "Danach wurde etwas anderes gefragt. Nichts wurde geändert.",
+    "expired": "Dieser Vorschlag ist 30 Minuten alt. Frag noch einmal.",
+    "overCap": "Das sind {count} Änderungen; höchstens {cap} lassen sich auf einmal bestätigen. Für mehr nutze die Sammelfunktionen der Seite.",
+    "applying": "Wird ausgeführt…",
+    "undone": "Rückgängig gemacht. Alles ist wie zuvor.",
+    "undonePart": "{count, plural, one {# Änderung wurde} other {# Änderungen wurden}} zurückgenommen.",
+    "undoneRest": "Der Rest bleibt geändert.",
+    "interrupted": "Das wurde mittendrin unterbrochen.",
+    "group": {
+      "done": "Erledigt",
+      "check": "Diesen Eintrag prüfen",
+      "checkLine": "Das Speichern wurde abgeschnitten. Es kann geändert sein oder nicht.",
+      "notTried": "Nicht versucht",
+      "shared": "{field} {arrow} {value} in {count, plural, one {# Zeile} other {# Zeilen}}"
+    },
+    "openHome": "{page} öffnen",
+    "notTried": "Nicht versucht: zu viele Anfragen auf einmal. Frag in einer Minute noch einmal.",
+    "again": "Den Rest noch einmal vorschlagen",
+    "againAsk": "Schlage die Änderungen noch einmal vor, die nicht gemacht wurden:\n{rows}",
+    "undo": "Rückgängig",
+    "undoSome": "{count} von {total} rückgängig machen",
+    "undoPassed": "Die Zeit zum Rückgängigmachen ist vorbei.",
+    "noUndo": "Das lässt sich von hier aus nicht rückgängig machen.",
+    "noUndoSome": "{count, plural, one {# Änderung lässt} other {# Änderungen lassen}} sich von hier aus nicht rückgängig machen.",
+    "notChanged": "{count, plural, one {Dieser Eintrag wurde} other {Diese # wurden}} nicht geändert:",
+    "cancelled": "Nichts wurde geändert.",
+    "parked": "Öffne {page}, um das zu nutzen.",
+    "someRefused": "{refused} von {count, plural, one {# Änderung} other {# Änderungen}} können nicht gemacht werden.",
+    "changedSince": "Das hat sich geändert, seit es dir gezeigt wurde. Sieh es dir vor dem Bestätigen noch einmal an.",
+    "fix": "{name} bitten, das zu korrigieren",
+    "fixAsk": "Ein Teil davon geht nicht. Schlage es ohne diese noch einmal vor:\n{reasons}",
+    "send": {
+      "template": "Vorlage",
+      "subject": "Betreff",
+      "to": "An",
+      "roles": "alle mit der Rolle {roles} ({count, plural, one {# Person} other {# Personen}})",
+      "open": "Vorlage öffnen",
+      "skipped": "{count, plural, one {# Person hat sich abgemeldet und bekommt nichts.} other {# Personen haben sich abgemeldet und bekommen nichts.}}"
+    },
+    "more": "{count} weitere. Groß öffnen, um alle zu sehen.",
+    "irreversible": "Das lässt sich nicht rückgängig machen.",
+    "chosen": "{picked} von {count} gewählt",
+    "large": "Groß öffnen",
+    "doc": {
+      "email": "E-Mail-Vorlage",
+      "report": "Bericht",
+      "rule": "Regel",
+      "invoice": "Rechnung",
+      "invoiceTemplate": "Rechnungsvorlage"
+    },
+    "ask": {
+      "change": "{count, plural, one {# Zeile} other {# Zeilen}} ändern",
+      "add": "{count, plural, one {# Zeile} other {# Zeilen}} hinzufügen",
+      "delete": "{count, plural, one {# Zeile} other {# Zeilen}} löschen",
+      "save": "Als neu speichern: {what}",
+      "saveOver": "„{name}“ überschreiben",
+      "deleteDoc": "„{name}“ löschen",
+      "deleteDocs": "{count, plural, one {# Dokument} other {# Dokumente}} löschen",
+      "send": "An {count, plural, one {# Person} other {# Personen}} senden",
+      "mixed": "{count, plural, one {# Änderung} other {# Änderungen}} vornehmen"
+    },
+    "done": {
+      "changePart": "{done} von {count, plural, one {# Zeile} other {# Zeilen}} geändert.",
+      "part": "{done} von {count, plural, one {# Änderung} other {# Änderungen}} gemacht.",
+      "change": "{count, plural, one {# Zeile} other {# Zeilen}} geändert.",
+      "add": "{count, plural, one {# Zeile} other {# Zeilen}} hinzugefügt.",
+      "delete": "{count, plural, one {# Zeile} other {# Zeilen}} gelöscht.",
+      "save": "Gespeichert.",
+      "deleteDoc": "{count, plural, one {# Dokument} other {# Dokumente}} gelöscht.",
+      "send": "Wird an {count, plural, one {# Person} other {# Personen}} gesendet.",
+      "mixed": "{count, plural, one {# Änderung} other {# Änderungen}} gemacht."
+    },
+    "refused": {
+      "generic": "Der Server hat das abgelehnt.",
+      "switchedOff": "Das ist für {name} in diesem Arbeitsbereich ausgeschaltet.",
+      "notThisTable": "Von hier aus lässt sich nur die Tabelle der Seite ändern, auf der gefragt wurde.",
+      "notData": "Das ist keine Tabelle deiner Daten.",
+      "noChange": "Die Zeile enthält diese Werte bereits.",
+      "unsafeKey": "Diese ID kann nicht verwendet werden.",
+      "notFound": "Das gibt es nicht mehr.",
+      "notOffered": "Das geht von hier aus nicht.",
+      "builtIn": "Eine eingebaute Mail wird auf ihrer eigenen Seite geändert.",
+      "notCampaign": "Nur eine Kampagne kann an Personen gesendet werden.",
+      "noRecipients": "Niemand würde diese Mail bekommen.",
+      "notLive": "Ein Entwurf wird von einer Person eingeschaltet, bevor er gesendet werden kann."
+    },
+    "row": {
+      "untitled": "Ohne Titel",
+      "new": "Neue Zeile",
+      "switchesOff": "Wird ausgeschaltet gespeichert: Schalte sie wieder ein, wenn du sie angesehen hast."
+    },
+    "delete": {
+      "reference": "{count} in {table}",
+      "references": "Andere Zeilen verweisen darauf: {list}. Sie werden mit entfernt oder geändert, wie beim Löschen auf der Seite selbst."
+    },
+    "noneAble": "Nichts davon lässt sich machen",
+    "checkAgain": "Erneut prüfen",
+    "undoFailed": "{count, plural, one {# Änderung konnte} other {# Änderungen konnten}} nicht zurückgenommen werden. Versuch es noch einmal.",
+    "parkedNoHome": "Geh zurück zu {page}, wo das gefragt wurde, um es zu nutzen."
+  },
+  "leftOut": {
+    "title": "Was ich ausgelassen habe und warum",
+    "nothing": "Nichts."
   }
 }

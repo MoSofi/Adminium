@@ -60,10 +60,15 @@ export interface TraceText {
   emailNoRecipient(column: string): string;
   /** `names` is the placeholders as written, already listed: `{{a}}, {{b}}`. */
   emailUnfilled(names: string): string;
+  /** A test run's refusal: the same names, and what to do. */
+  emailUnfilledStop(names: string): string;
   notifOk(n: number): string;
   createOk(label: string): string;
   updateOk(pairs: string): string;
   writeWould(pairs: string): string;
+  /** A step an add-on gives: its name, and the row it made. */
+  stepOk(name: string, label: string): string;
+  stepWould(name: string, pairs: string): string;
   hookOk(method: string, path: string, status: number, ms: number): string;
   hookFail(method: string, path: string, status: string): string;
   hookWould(method: string, url: string): string;
@@ -93,10 +98,13 @@ export const TRACE_EN: TraceText = {
   emailNoSmtp: () => 'SMTP is not configured — Settings → Email',
   emailNoRecipient: (column) => `No recipient: ${column} is empty`,
   emailUnfilled: (names) => `nothing filled ${names}`,
+  emailUnfilledStop: (names) => `Nothing fills ${names}. Fill it in this step, or give it a backup in the template. A real run would send it as written.`,
   notifOk: (n) => `notified ${String(n)} ${n === 1 ? 'person' : 'people'}`,
   createOk: (label) => `created ${label}`,
   updateOk: (pairs) => `set ${pairs}`,
   writeWould: (pairs) => `Would set ${pairs}`,
+  stepOk: (name, label) => `${name}: created ${label}`,
+  stepWould: (name, pairs) => `Would run “${name}” with ${pairs}`,
   hookOk: (method, path, status, ms) => `${method} ${path} → ${String(status)} · ${String(ms)}ms`,
   hookFail: (method, path, status) => `${method} ${path} → ${status}`,
   docOk: (number) => `document drawn · ${number}`,

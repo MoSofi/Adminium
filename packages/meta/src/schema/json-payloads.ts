@@ -345,6 +345,8 @@ export const auditChangesSchema = z.object({
   before: z.record(z.string(), z.unknown()).nullish(),
   after: z.record(z.string(), z.unknown()).nullish(),
   _truncated: z.literal(true).optional(),
+  /** The conversation with the assistant a write was confirmed in. */
+  via: z.object({ assistant: z.object({ sessionId: z.string(), turnId: z.string() }) }).optional(),
 });
 export type AuditChanges = z.infer<typeof auditChangesSchema>;
 
@@ -1846,6 +1848,22 @@ export const automationActionSchema = z.discriminatedUnion('kind', [
     /** READ-ONLY: whether a value is stored — what a reply says in its place. */
     headerValueSet: z.boolean().optional(),
   }),
+  z.object({
+    /*
+     * A STEP AN ADD-ON GIVES (its manifest's `addOn.steps`): a named write of
+     * one row of one of the add-on's own tables. The rule keeps only the two
+     * keys and what fills each input; which row is written, and how, is read
+     * from the installed add-on at the save and again at every run, so an
+     * add-on that is updated or taken away is met as it is that day.
+     */
+    kind: z.literal('add-on.step'),
+    addOn: z.string().max(80).default(''),
+    step: z.string().max(80).default(''),
+    /** The add-on's name when the step was added: what the step says of itself once the add-on is gone. Never read to find anything. */
+    addOnName: z.string().max(120).default(''),
+    /** What fills each of the step's inputs: text, which may carry `{{record.<column>}}`. */
+    inputs: z.record(z.string().max(80), z.string().max(2000)).default({}),
+  }),
 ]);
 export type AutomationAction = z.infer<typeof automationActionSchema>;
 
@@ -2029,6 +2047,11 @@ export const automationTriggerEventSchema = z.object({
    */
   values: z.record(z.string(), z.unknown()).nullish(),
   occurredAt: z.number().int(),
+  /**
+   * The conversation with the assistant in which the write that started this
+   * run was confirmed. A row the run then writes says so in its audit entry.
+   */
+  via: z.object({ assistant: z.object({ sessionId: z.string(), turnId: z.string() }) }).optional(),
 });
 export type AutomationTriggerEvent = z.infer<typeof automationTriggerEventSchema>;
 
@@ -2529,7 +2552,7 @@ export const manifestDocSchema = z
  * depend on that package, and the value here is a stored enum whose job is to
  * keep round-tripping whatever an older server wrote.
  */
-export const assistantContextSchema = z.enum(['email', 'invoice-template', 'invoices', 'report', 'automation']);
+export const assistantContextSchema = z.enum(['email', 'invoice-template', 'invoices', 'report', 'automation', 'data', 'general']);
 export type AssistantContextKey = z.infer<typeof assistantContextSchema>;
 
 /** `open` while a modal holds it; `closed` once the operator leaves or the sweep gives up. */
@@ -2602,6 +2625,39 @@ export const assistantHostSchema = z.object({
   documentId: z.string().optional(),
   tab: z.string().optional(),
   connectionIds: z.array(z.string()).default([]),
+  /**
+   * A data page: which page. The table is the PAGE's and is read from it by
+   * the server; nothing here names one.
+   */
+  pageId: z.string().optional(),
+  /**
+   * What that page is showing, in the list route's own spellings (`q`,
+   * `order`, `where` as the JSON text the grid sent, link filters already
+   * resolved into it), the rows the person ticked and the record they have
+   * open. This is what "these" means in a question.
+   */
+  view: z
+    .object({
+      q: z.string().optional(),
+      order: z.string().optional(),
+      where: z.string().optional(),
+      selectedIds: z.array(z.string()).optional(),
+      recordId: z.string().optional(),
+    })
+    .optional(),
+  /**
+   * A screen with no context of its own: the dashboard router's route id
+   * (`/settings/roles`, `/a/$appKey/$`), and over an app's framed staff side
+   * the app's key. Said to the model as where the person is; read by no tool.
+   */
+  route: z.string().optional(),
+  app: z.string().optional(),
+  /**
+   * One of an add-on's own screens: the add-on's key and the screen's ref.
+   * Read to offer that add-on's starter questions there, and for nothing else.
+   */
+  addOn: z.string().optional(),
+  addOnPage: z.string().optional(),
 });
 export type AssistantHost = z.infer<typeof assistantHostSchema>;
 

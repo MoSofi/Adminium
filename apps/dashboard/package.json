@@ -1,13 +1,13 @@
 {
   "name": "@adminium/dashboard",
-  "version": "0.3.21",
+  "version": "0.3.23",
   "private": true,
   "license": "AGPL-3.0-only",
   "type": "module",
   "description": "React SPA: Studio + Generated App (app shell, router, system states)",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -p tsconfig.json --noEmit && vite build && node scripts/check-entry-budget.mjs",
+    "build": "tsc -p tsconfig.json --noEmit && vite build && vite build -c vite.milo.config.ts && node scripts/check-entry-budget.mjs && node scripts/check-milo-build.mjs",
     "preview": "vite preview",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint src",

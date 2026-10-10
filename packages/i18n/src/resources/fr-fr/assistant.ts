@@ -45,7 +45,16 @@ export default {
     "placeholder": "Décrivez la règle dont vous avez besoin…",
     "readPage": "Règles d’automatisation · {rules, plural, one {# règle} other {# règles}} · {tables, plural, one {# table lisible} other {# tables lisibles}}",
     "scopePrimary": "automations",
-    "workTitle": "Nouvelle règle rédigée"
+    "workTitle": "Nouvelle règle rédigée",
+    "applied": "Appliqué à cette règle. Elle n’est pas encore enregistrée.",
+    "apply": "Appliquer à cette règle",
+    "handoff": "Ouvrez les modèles d’e-mail pour en rédiger un.",
+    "handoffSub": "Cette conversation vous suit.",
+    "handoffOpen": "Ouvrir les modèles d’e-mail",
+    "waiting": "En attente d’un modèle",
+    "savedOff": "Sera enregistrée désactivée",
+    "notSaved": "Rien n’est enregistré tant que vous n’enregistrez pas la règle.",
+    "workTitleChange": "Règle ouverte modifiée"
   },
   "button": "Demander à {name}",
   "buttonTitle": "Interroger {name} sur cette page",
@@ -139,7 +148,12 @@ export default {
     "generic": "Cela n’a pas fonctionné. Reposez la question.",
     "smtp": "L’e-mail n’est pas encore configuré. Ouvrez les paramètres d’e-mail pour ajouter un relais.",
     "tooLong": "Cette conversation est trop longue pour le modèle — démarrez une nouvelle session.",
-    "tryAgain": "Réessayer"
+    "tryAgain": "Réessayer",
+    "modelFormat": "Ce modèle ne répond pas de la manière dont {name} a besoin. Choisissez un autre modèle dans Paramètres → IA.",
+    "modelFormatAsk": "Ce modèle ne répond pas de la manière dont {name} a besoin. Demandez à un administrateur de choisir un autre modèle.",
+    "setup": "Cette page n’a pas pu être lue pour l’instant. Reposez votre question.",
+    "busy": "Votre dernière question est encore en cours. Attendez-la ou arrêtez-la d’abord.",
+    "budget": "Cela s’est arrêté en cours de route : le quota du jour est épuisé."
   },
   "invoiceTemplate": {
     "action1": "Voir un autre échantillon",
@@ -204,11 +218,11 @@ export default {
     "workTitle": "Facture rédigée"
   },
   "readOnly": {
-    "enable": "Activer les actions",
-    "lockedTitle": "Activez les actions pour que {name} puisse le faire",
     "noWrite": "Votre rôle peut consulter, rédiger et prévisualiser ici, mais pas enregistrer.",
     "noWriteTitle": "Votre rôle ne peut pas faire cela ici",
-    "note": "{name} est en lecture seule pour l’instant — il peut consulter, rédiger et prévisualiser, mais pas enregistrer, envoyer ni créer."
+    "switchedOff": "L’enregistrement est désactivé pour {name} dans cet espace de travail.",
+    "openSettings": "Ouvrir les réglages",
+    "switchedOffTitle": "L’enregistrement est désactivé pour {name} dans cet espace de travail"
   },
   "report": {
     "action1": "Lancer l’aperçu complet",
@@ -270,11 +284,201 @@ export default {
     "value": "{n} jetons"
   },
   "try": "Essayer",
+  "tryFrom": "De {addOn}",
   "unavailable": {
     "askAdmin": "Demandez à un administrateur d’en configurer un.",
     "forbidden": "Vous n’avez pas la permission d’utiliser {name}.",
     "network": "Les fonctions réseau sortantes sont désactivées sur cette instance.",
     "noProvider": "Aucun fournisseur d’IA n’est encore configuré.",
     "settings": "Ouvrir Paramètres → IA"
+  },
+  "budget": {
+    "usedUp": "Le quota du jour est épuisé. Il repart à {time}."
+  },
+  "data": {
+    "page": "Cette page",
+    "blurb": "Connaît cette page : {table} · {tables, plural, one {# table lisible} other {# tables lisibles}}",
+    "blurbNoTable": "Connaît cette page · {tables, plural, one {# table lisible} other {# tables lisibles}}",
+    "greeting": "Je peux lire ce que cette page affiche, ainsi que les autres tables que votre rôle peut lire.",
+    "greetingSub": "Posez une question sur les lignes affichées. Je réponds en mots, avec les chiffres, et j’indique les tables que j’ai lues.",
+    "placeholder": "Posez une question sur ces données…",
+    "chip1": "Combien de lignes sont affichées ici ?",
+    "chip2": "Résume ce que cette page affiche",
+    "chip3": "Qu’est-ce qui a changé le plus récemment ?",
+    "workTitle": "Données lues",
+    "scopePrimary": "cette page",
+    "readPage": "{page} · {table} · {tables, plural, one {# table lisible} other {# tables lisibles}}",
+    "readPageNoTable": "{tables, plural, one {# table lisible} other {# tables lisibles}}",
+    "confirm": {
+      "title": "Rien à enregistrer ici",
+      "body": "{name} ne rédige rien sur cette page.",
+      "button": "Fermer"
+    }
+  },
+  "general": {
+    "page": "Cet espace de travail",
+    "blurb": "Connaît cet espace de travail · {tables, plural, one {# table lisible} other {# tables lisibles}}",
+    "greeting": "Je peux lire les tables que votre rôle peut lire et vous dire où les choses se font.",
+    "greetingSub": "Posez une question sur vos données ou sur l’endroit où modifier quelque chose. Je réponds en mots, avec un lien vers l’endroit.",
+    "placeholder": "Posez une question sur cet espace de travail…",
+    "chip1": "Où inviter un collègue ?",
+    "chip2": "Que puis-je voir dans cet espace de travail ?",
+    "chip3": "Quelle table contient le plus de lignes ?",
+    "workTitle": "Recherche effectuée",
+    "scopePrimary": "espace de travail",
+    "readPage": "{tables, plural, one {# table lisible} other {# tables lisibles}}"
+  },
+  "answer": {
+    "from": "Source :",
+    "part": "{returned, number} lignes lues sur {total, number} dans {table}.",
+    "nothingRead": "Rien n’a été lu pour cette réponse.",
+    "readAgain": "Relire",
+    "readAgainAsk": "{question} Lis les données pour répondre.",
+    "forgot": "{name} n’a plus {count, plural, one {le premier message} other {les # premiers messages}} en tête."
+  },
+  "suggestion": {
+    "open": "Ouvrir",
+    "openLabel": "Ouvrir {addOn} dans Modules",
+    "askAdmin": "Demandez à un administrateur de l’installer."
+  },
+  "panel": {
+    "loading": "Chargement de la conversation…",
+    "recordOpen": "{page} · {record} ouvert",
+    "rowsShown": "{page} · {rows, plural, one {# ligne affichée} other {# lignes affichées}}",
+    "new": "Nouvelle conversation",
+    "earlier": "{count, plural, one {# message antérieur n’est pas affiché} other {# messages antérieurs ne sont pas affichés}}.",
+    "onPage": "sur {page}",
+    "closedElsewhere": "Cette conversation a été fermée dans une autre fenêtre.",
+    "stillWorking": "{name} travaille encore sur votre dernière question.",
+    "stop": "Arrêter",
+    "pageDialog": "Fermez ce qui est ouvert sur la page pour utiliser {name}.",
+    "aged": "Votre conversation précédente a été fermée en raison de son ancienneté."
+  },
+  "chip": {
+    "selected": "{count, plural, one {# sélectionnée} other {# sélectionnées}}",
+    "record": "L’enregistrement ouvert",
+    "filtered": "{rows, plural, one {# ligne filtrée} other {# lignes filtrées}}",
+    "filteredUnknown": "Lignes filtrées",
+    "remove": "Demander sans « {label} »"
+  },
+  "parked": {
+    "madeOn": "Créé sur {page}.",
+    "open": "Ouvrir {page} pour utiliser ce brouillon",
+    "deleted": "Le document de ce brouillon a été supprimé."
+  },
+  "proposal": {
+    "checking": {
+      "title": "Une modification à confirmer",
+      "line": "Vérification de ce qui changerait…"
+    },
+    "badge": {
+      "replaced": "Remplacée",
+      "expired": "Expirée",
+      "cancelled": "Annulée",
+      "parked": "En attente"
+    },
+    "replaced": "Autre chose a été demandé ensuite. Rien n’a été modifié.",
+    "expired": "Cette proposition date de 30 minutes. Redemandez.",
+    "overCap": "Cela fait {count} modifications ; on peut en confirmer {cap} au plus à la fois. Pour davantage, utilisez les outils groupés de la page.",
+    "applying": "En cours…",
+    "undone": "Annulé. Tout est comme avant.",
+    "undonePart": "{count, plural, one {# modification a été annulée} other {# modifications ont été annulées}}.",
+    "undoneRest": "Le reste demeure modifié.",
+    "interrupted": "Cela s’est arrêté en cours de route.",
+    "group": {
+      "done": "Fait",
+      "check": "À vérifier",
+      "checkLine": "L’enregistrement a été coupé. La ligne a peut-être changé, peut-être pas.",
+      "notTried": "Non tenté",
+      "shared": "{field} {arrow} {value} sur {count, plural, one {# ligne} other {# lignes}}"
+    },
+    "openHome": "Ouvrir {page}",
+    "notTried": "Non tenté : trop de requêtes à la fois. Redemandez dans une minute.",
+    "again": "Proposer le reste à nouveau",
+    "againAsk": "Propose à nouveau les modifications qui n’ont pas été faites :\n{rows}",
+    "undo": "Annuler",
+    "undoSome": "Annuler {count} sur {total}",
+    "undoPassed": "Le délai pour annuler est passé.",
+    "noUndo": "Cela ne peut pas être annulé d’ici.",
+    "noUndoSome": "{count, plural, one {# modification ne peut pas être annulée} other {# modifications ne peuvent pas être annulées}} d’ici.",
+    "notChanged": "{count, plural, one {Celle-ci n’a pas été modifiée} other {Ces # n’ont pas été modifiées}} :",
+    "cancelled": "Rien n’a été modifié.",
+    "parked": "Ouvrez {page} pour l’utiliser.",
+    "someRefused": "{refused} sur {count, plural, one {# modification} other {# modifications}} ne peuvent pas être faites.",
+    "changedSince": "Cela a changé depuis qu’on vous l’a montré. Regardez à nouveau avant de confirmer.",
+    "fix": "Demander à {name} de corriger",
+    "fixAsk": "Une partie ne peut pas être faite. Propose-le à nouveau sans ceci :\n{reasons}",
+    "send": {
+      "template": "Modèle",
+      "subject": "Objet",
+      "to": "À",
+      "roles": "toutes les personnes ayant le rôle {roles} ({count, plural, one {# personne} other {# personnes}})",
+      "open": "Ouvrir le modèle",
+      "skipped": "{count, plural, one {# personne s’est désinscrite et ne reçoit} other {# personnes se sont désinscrites et ne reçoivent}} rien."
+    },
+    "more": "{count} de plus. Ouvrez en grand pour tout voir.",
+    "irreversible": "Cela ne peut pas être annulé.",
+    "chosen": "{picked} sur {count} choisies",
+    "large": "Ouvrir en grand",
+    "doc": {
+      "email": "modèle d’e-mail",
+      "report": "rapport",
+      "rule": "règle",
+      "invoice": "facture",
+      "invoiceTemplate": "modèle de facture"
+    },
+    "ask": {
+      "change": "Modifier {count, plural, one {# ligne} other {# lignes}}",
+      "add": "Ajouter {count, plural, one {# ligne} other {# lignes}}",
+      "delete": "Supprimer {count, plural, one {# ligne} other {# lignes}}",
+      "save": "Enregistrer comme nouveau : {what}",
+      "saveOver": "Enregistrer par-dessus « {name} »",
+      "deleteDoc": "Supprimer « {name} »",
+      "deleteDocs": "Supprimer {count, plural, one {# document} other {# documents}}",
+      "send": "Envoyer à {count, plural, one {# personne} other {# personnes}}",
+      "mixed": "Faire {count, plural, one {# modification} other {# modifications}}"
+    },
+    "done": {
+      "changePart": "{done} sur {count, plural, one {# ligne} other {# lignes}} modifiées.",
+      "part": "{done} sur {count, plural, one {# modification} other {# modifications}} faites.",
+      "change": "{count, plural, one {# ligne modifiée} other {# lignes modifiées}}.",
+      "add": "{count, plural, one {# ligne ajoutée} other {# lignes ajoutées}}.",
+      "delete": "{count, plural, one {# ligne supprimée} other {# lignes supprimées}}.",
+      "save": "Enregistré.",
+      "deleteDoc": "{count, plural, one {# document supprimé} other {# documents supprimés}}.",
+      "send": "Envoi à {count, plural, one {# personne} other {# personnes}}.",
+      "mixed": "{count, plural, one {# modification faite} other {# modifications faites}}."
+    },
+    "refused": {
+      "generic": "Le serveur a refusé.",
+      "switchedOff": "C’est désactivé pour {name} dans cet espace de travail.",
+      "notThisTable": "D’ici, seule la table de la page où la question a été posée peut être modifiée.",
+      "notData": "Ce n’est pas une table de vos données.",
+      "noChange": "La ligne contient déjà ces valeurs.",
+      "unsafeKey": "Cet identifiant ne peut pas être utilisé.",
+      "notFound": "Cela n’existe plus.",
+      "notOffered": "Cela ne peut pas être fait d’ici.",
+      "builtIn": "Un e-mail intégré se modifie sur son propre écran.",
+      "notCampaign": "Seule une campagne peut être envoyée à des personnes.",
+      "noRecipients": "Personne ne recevrait cet e-mail.",
+      "notLive": "Un brouillon est activé par une personne avant de pouvoir être envoyé."
+    },
+    "row": {
+      "untitled": "Sans titre",
+      "new": "Nouvelle ligne",
+      "switchesOff": "Enregistrée désactivée : réactivez-la après l’avoir relue."
+    },
+    "delete": {
+      "reference": "{count} dans {table}",
+      "references": "D’autres lignes y font référence : {list}. Elles partent ou changent avec elle, comme pour la suppression sur la page."
+    },
+    "noneAble": "Rien de cela ne peut être fait",
+    "checkAgain": "Vérifier à nouveau",
+    "undoFailed": "{count, plural, one {# modification n’a pas pu être annulée} other {# modifications n’ont pas pu être annulées}}. Réessayez.",
+    "parkedNoHome": "Revenez à {page}, où cela a été demandé, pour l’utiliser."
+  },
+  "leftOut": {
+    "title": "Ce que j’ai laissé de côté, et pourquoi",
+    "nothing": "Rien."
   }
 } as const;

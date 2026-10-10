@@ -362,6 +362,77 @@ const SCENARIOS = [
         }),
     ],
   },
+  {
+    // A data page: no document. It reads, then answers in words. The chip a data page offers
+    // first is what opens it, so the e2e can press that chip in any language (see below).
+    key: 'data',
+    match: /how many rows are shown here/i,
+    ends: 'answer',
+    replies: [
+      () =>
+        calls('Looking at what you can read.', [
+          { id: 'c1', tool: 'list_connections', args: {}, step: step('database', 'Read the connections', '') },
+        ]),
+      (messages) => {
+        const found = /"readableTables":(\d+)/.exec(lastUser(messages));
+        return { schema_version: SCHEMA, say: `You can read ${found === null ? 'some' : found[1]} tables here.` };
+      },
+    ],
+  },
+  {
+    // A change to a row, on a data page. Where the workspace lets the assistant change rows the
+    // prompt says which table, by its ids, and the reply proposes one change there; where it
+    // does not, the prompt says nothing can be changed and the reply says so in words.
+    key: 'propose',
+    match: /move alfki to hamburg/i,
+    ends: 'propose',
+    replies: [
+      (messages) => {
+        const told = String(messages.find((message) => message?.role === 'system')?.content ?? '');
+        const where = /connectionId ("[^"]+"), table ("[^"]+")/.exec(told);
+        // The self-test has no prompt: it replays the reply a page that offers the move would get.
+        // Offered only where the prompt lists the move: adding rows may be on while changing them is not.
+        if (told !== '' && (where === null || !told.includes('- row.change:'))) return { schema_version: SCHEMA, say: 'I cannot change anything here.' };
+        return {
+          schema_version: SCHEMA,
+          say: 'I can do this for you.',
+          propose: {
+            title: 'Move ALFKI to Hamburg',
+            actions: [
+              {
+                do: 'row.change',
+                connectionId: where === null ? 'conn_1' : JSON.parse(where[1]),
+                table: where === null ? 'main.customers' : JSON.parse(where[2]),
+                id: 'ALFKI',
+                values: { city: 'Hamburg' },
+              },
+            ],
+          },
+        };
+      },
+    ],
+  },
+  {
+    // A screen with no context of its own: it asks where the place is, then answers with a link
+    // to it. Opened by the first chip that screen offers, like the data page's.
+    key: 'general',
+    match: /where do i invite a colleague/i,
+    ends: 'answer',
+    replies: [
+      () =>
+        calls('Looking for the place.', [
+          { id: 'c1', tool: 'where_is', args: { q: 'invite team' }, step: step('compass', 'Looked for the place', '') },
+        ]),
+      (messages) => {
+        // Answered from what the tool gave, as a real model is told to: no place, no link.
+        const found = /"path":"(\/settings\/team)"/.exec(lastUser(messages));
+        return {
+          schema_version: SCHEMA,
+          say: found === null ? 'You do not have access to the screen where people are invited.' : `On [Team](${found[1]}).`,
+        };
+      },
+    ],
+  },
 ];
 
 /**
@@ -379,14 +450,25 @@ const PAGE_SCENARIOS = [
   [/"Email templates"/, 'email'],
   [/"Invoice builder"|"Invoices"/, 'invoice'],
   [/"Report builder"/, 'report'],
+  [/"Data" page/, 'data'],
+  [/"Workspace" page/, 'general'],
 ];
 
-/** The scenario whose `match` any user message satisfies, and where it started. */
+/**
+ * The scenario whose `match` a user message satisfies, and where it started.
+ *
+ * THE NEWEST ONE THAT MATCHES. A conversation goes on across pages, so the
+ * messages hold earlier questions too: the scenario in play is the one the
+ * LATEST question opened. Messages the server writes itself (the outline of
+ * earlier turns, the open document) quote what was asked before and are not
+ * questions.
+ */
 function findScenario(messages) {
-  for (let i = 0; i < messages.length; i += 1) {
+  for (let i = messages.length - 1; i >= 0; i -= 1) {
     const message = messages[i];
     if (message?.role !== 'user') continue;
     const text = String(message.content ?? '');
+    if (/^\{"(earlier_in_this_conversation|open_document)"/.test(text)) continue;
     const scenario = SCENARIOS.find((candidate) => candidate.match.test(text));
     if (scenario !== undefined) return { scenario, at: i };
   }
@@ -572,7 +654,7 @@ async function selfTest() {
   const { parseAssistantTurn, assistantToolResultsMessage } = await import('@adminium/llm');
   /** The results the scripts read back — enough shape for the report scenario. */
   const FAKE_RESULTS = {
-    list_connections: { connections: [{ id: 'conn_1', name: 'northwind', tables: ['main.orders'] }] },
+    list_connections: { connections: [{ id: 'conn_1', name: 'northwind', tables: ['main.orders'], readableTables: 14 }] },
     describe_schema: { tables: [{ id: 'main.orders', columns: [{ name: 'status', type: 'text', personalData: false }] }] },
     list_documents: { documents: [{ id: 'doc_1', kind: 'template', name: 'Standard invoice' }] },
     aggregate: { table: 'main.orders', shape: 'categorical', data: { items: [{ label: 'a', value: 3 }], total: 3 } },
@@ -585,8 +667,13 @@ async function selfTest() {
     let repairs = 0;
     for (let round = 0; round < scenario.replies.length + 2; round += 1) {
       const text = replyFor(messages);
-      const parsed = parseAssistantTurn(text);
+      // A scenario that ends in a proposal is checked against the contract of a page that offers one.
+      const parsed = scenario.ends === 'propose' ? parseAssistantTurn(text, undefined, { document: false, propose: ['row.change'] }) : parseAssistantTurn(text);
       messages.push({ role: 'assistant', content: text });
+      if (parsed.ok && scenario.ends === 'propose' && parsed.turn.propose !== undefined) {
+        console.log(`✓ ${scenario.key}: ${String(round + 1)} replies, ends in a proposal (${parsed.turn.propose.title})`);
+        break;
+      }
       if (!parsed.ok) {
         if (scenario.key === 'repair' && repairs === 0) {
           repairs += 1;
@@ -619,6 +706,11 @@ async function selfTest() {
           ),
         });
         continue;
+      }
+      // A page with no document ends in words, and that is its end.
+      if (scenario.ends === 'answer' && turn.say.trim() !== '') {
+        console.log(`✓ ${scenario.key}: ${String(round + 1)} replies, ends in an answer ("${turn.say}")`);
+        break;
       }
       failures += 1;
       console.error(`✗ ${scenario.key}: reply ${String(round)} made no move and is not a result`);
@@ -659,6 +751,12 @@ function scenarioOpener(scenario) {
       return 'Do a repair round, please';
     case 'refused':
       return 'Use a table I cannot read';
+    case 'propose':
+      return 'Move ALFKI to Hamburg';
+    case 'data':
+      return 'How many rows are shown here?';
+    case 'general':
+      return 'Where do I invite a colleague?';
     default:
       return '';
   }

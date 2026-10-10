@@ -114,6 +114,8 @@ export function Editor({ detail }: EditorProps) {
   const [selection, setSelection] = useState<CanvasSelection>({ kind: 'branding' });
   const [inspectorTab, setInspectorTab] = useState<InspectorTab>('sections');
   const [device, setDevice] = useState<CanvasDevice>('desktop');
+  // *Preview with missing values*: what a reader with no values is sent. A way of looking, not a part of the document.
+  const [missing, setMissing] = useState(false);
   const [picker, setPicker] = useState<{ index: number } | null>(null);
   const [mirror, setMirror] = useState<{ op: EmailMirrorOp; label: string } | null>(null);
   const [activeField, setActiveField] = useState<ActiveField | null>(null);
@@ -425,6 +427,9 @@ export function Editor({ detail }: EditorProps) {
         onRemoveRow={(index) => edits.delBlockRow(selectedBlock.id, rowsField, index)}
         onMoveRow={(from, to) => edits.moveBlockRow(selectedBlock.id, rowsField, from, to)}
         onInsertVar={edits.insertVar}
+        onShowWhen={(name) => edits.setBlockShowWhen(selectedBlock.id, name)}
+        onOtherwise={(text) => edits.setBlockOtherwise(selectedBlock.id, text)}
+        onFocusOtherwise={() => actions.beginEdit()}
         onStyle={(patch) => edits.setBlockStyle(selectedBlock.id, patch)}
         onSaveBlock={async (name) => {
           await saveBlock.mutateAsync({ name, block: selectedBlock }).catch(() => undefined);
@@ -557,6 +562,10 @@ export function Editor({ detail }: EditorProps) {
               files={files}
               selection={selection}
               device={device}
+              missing={missing}
+              onMissingChange={setMissing}
+              onBlockText={edits.setBlockText}
+              onBlockTextEditStart={() => actions.beginEdit()}
               onSelect={selectFor}
               onDeviceChange={setDevice}
               onSubjectFocus={() => {

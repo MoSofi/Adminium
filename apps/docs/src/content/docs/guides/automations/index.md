@@ -131,6 +131,25 @@ branch.
 | **Call webhook** | POST or PUT to a URL, with the default JSON payload or your own text. |
 | **Slack message** | The same thing, with a `{ text }` body and a `hooks.slack.com` URL. |
 
+### Steps from add-ons
+
+An add-on may give steps of its own. They are listed in **Add a step** under **From add-ons**,
+each with its add-on's name ("Offers & gift cards: Issue a voucher"), and the step's card carries
+that name where another says ACTION.
+
+- **Its fields are the add-on's.** Each is filled from a column of the record (its own, or one a
+  link leads to, such as the order's customer's email) or with what you type; some are a choice,
+  some a row of the add-on's own table.
+- **It adds one row for the add-on.** Nothing else of the add-on runs in your rule: the add-on's
+  own rules then do what they always do with such a row (make its code, send its email).
+- **You need the right to add that row.** A step your role may not use says so in its fields.
+- **A personal value stays personal.** A customer's address or name may fill a field only when
+  the add-on keeps that value personal too. The workflow log says such a field was filled in, and
+  never shows it.
+- **If the add-on is removed**, the step stays with its settings and its card says "The add-on …
+  is no longer installed." The rule cannot be switched on until the add-on is back or the step is
+  removed; a run meanwhile fails with that sentence.
+
 ### Values and tokens
 
 Anywhere a step takes text — an address, a webhook body, a column value, a
@@ -143,6 +162,11 @@ notification title — you can pull from the record:
 Email templates read the same names, so there is one grammar to learn. A token
 Adminium does not recognise is left exactly as you typed it, which is how you
 find a mistake.
+
+A token may say what to write when its value is empty: `{{record.first_name|there}}`
+writes "there" for a record with no first name. In the email step, a template's
+variable that carries its own backup is marked **Has its own backup text** and
+needs nothing from the rule.
 
 For a date column you can also pick **Now** instead of typing a value;
 Adminium writes the timestamp your database expects.
@@ -166,6 +190,11 @@ nothing**. Emails are rendered but not sent, writes are prepared but not
 written, webhooks are guarded but not called — and the flow lights up along
 the path the rule would actually take, including which side of a branch it
 would choose.
+
+A test stops at an email step whose template reads a variable that nothing
+fills and that has no backup, and names it: fill it in the step, or give it a
+backup in the template. A real run would still send the email with the variable
+as written.
 
 ## Undo, loops and the things that could go wrong
 

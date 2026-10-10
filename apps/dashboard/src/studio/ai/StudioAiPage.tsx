@@ -42,6 +42,9 @@ import { connectionsQuery } from '../hub/ConnectionsHub.js';
 import { PageActions } from '../../shell/PageActionsProvider.js';
 import { PageSurface } from '../../shell/PageSurface.js';
 import type { ConnectionDto } from '../api.js';
+import { holdsSystemAction, bootstrapQuery } from '../../app/bootstrap.js';
+import { AbilitiesCard } from './AbilitiesCard.js';
+import { AllowanceCard } from './AllowanceCard.js';
 import { AssistantCard } from './AssistantCard.js';
 import { DesignerLiveCard } from './DesignerLiveCard.js';
 import { ProviderConfigForm, aiConfigQuery } from './ProviderConfigForm.js';
@@ -331,8 +334,14 @@ export function StudioAiPage({ onOpenReview }: StudioAiPageProps): ReactNode {
   const { data: info } = useSuspenseQuery(systemInfoQuery());
   const { providerApi, byoFirst } = llmAffordances(info);
 
+  // Cache read only: the shell resolved bootstrap before this page could mount.
+  const boot = useQuery({ ...bootstrapQuery(), enabled: false });
+  const mayManageSettings = boot.data !== undefined && holdsSystemAction(boot.data, 'settings.manage');
+
   const byo = <ByoPanel key="byo" highlighted={byoFirst} />;
-  const provider = <ProviderConfigForm key="provider" config={config} networkAllowed={providerApi.enabled} />;
+  const provider = (
+    <ProviderConfigForm key="provider" config={config} networkAllowed={providerApi.enabled} assistantName={config.assistantName} />
+  );
 
   return (
     <PageSurface width="page" className="flex flex-col gap-6">
@@ -353,6 +362,9 @@ export function StudioAiPage({ onOpenReview }: StudioAiPageProps): ReactNode {
           connect wizard's inline panel, and a field added there would ask
           somebody to name an assistant in the middle of first-run setup. */}
       <AssistantCard config={config} />
+      {/* What the assistant may cost is a workspace setting, with its own permission: shown to who holds it. */}
+      {mayManageSettings ? <AbilitiesCard name={config.assistantName} /> : null}
+      {mayManageSettings ? <AllowanceCard name={config.assistantName} /> : null}
       <DesignerLiveCard />
       <RunHistorySection connections={connections} onOpenReview={onOpenReview} />
     </PageSurface>

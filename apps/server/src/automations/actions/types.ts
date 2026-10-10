@@ -12,6 +12,7 @@
  * would pass a test the product then fails.
  */
 
+import type { StepLookup } from '../add-on-steps.js';
 import type { Kysely } from 'kysely';
 import type { FastifyInstance } from 'fastify';
 import type { Dialect } from '@adminium/engine';
@@ -39,6 +40,12 @@ export interface ActionSource {
   record: RecordRef;
   /** The record, RE-READ at this step and unmasked. */
   row: Row;
+  /**
+   * The rows the record's links point at, for the links this rule names,
+   * read once when the run began and unmasked. A link the schema no longer
+   * holds has no entry: the step that names it fails by name.
+   */
+  related?: ReadonlyMap<string, { table: ResolvedTable; row: Row | null }> | undefined;
 }
 
 export interface ActionContext {
@@ -52,12 +59,16 @@ export interface ActionContext {
   runId: string;
   /** Automation hops so far — a write this run makes carries `hops + 1`. */
   hops: number;
+  /** The conversation with the assistant the run began in, when it did: its writes carry it on. */
+  via?: { assistant: { sessionId: string; turnId: string } } | undefined;
   now: number;
   source: ActionSource | null;
   /** `{{record.x}}`, `{{now}}`, `{{ruleName}}`, `{{recordLabel}}` (D16). */
   tokens: TokenMap;
   text: TraceText;
   /** `ADMINIUM_SECRET` — opens the SMTP password and a webhook's header value. */
+  /** The steps installed add-ons give, as they stand now (`add-on-steps.ts`). Absent: none can be found, and such a step fails saying so. */
+  steps?: StepLookup | undefined;
   secret: string;
   storage?: FileStore | undefined;
   hub?: NotificationPublisher | undefined;

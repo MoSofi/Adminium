@@ -131,6 +131,27 @@ export {
   type SlotCapacityRule,
 } from './capacity.js';
 
+export { assistantIssues, type AssistantTableShape } from './assistant.js';
+export { stepsIssues, type StepTableShape } from './steps.js';
+
+export {
+  OTHERWISE_BLOCKS,
+  blocksShownFor,
+  fillPlaceholders,
+  otherwiseOf,
+  placeholderNames,
+  placeholderPattern,
+  placeholderValue,
+  placeholdersIn,
+  requiredNamesOfEmail,
+  requiredPlaceholderNames,
+  showWhenNames,
+  showWhenOf,
+  writePlaceholder,
+  type Placeholder,
+  type ShowWhen,
+} from './placeholders.js';
+
 export {
   OUTBOX_WRITTEN,
   REPEAT_KEY_LENGTH,

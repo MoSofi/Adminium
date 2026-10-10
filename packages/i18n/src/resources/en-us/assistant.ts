@@ -45,7 +45,16 @@ export default {
     "placeholder": "Describe the rule you need…",
     "readPage": "Automation rules · {rules, plural, one {# rule} other {# rules}} · {tables, plural, one {# readable table} other {# readable tables}}",
     "scopePrimary": "automations",
-    "workTitle": "Drafted a new rule"
+    "workTitle": "Drafted a new rule",
+    "applied": "Applied to this rule. It is not saved yet.",
+    "apply": "Apply to this rule",
+    "handoff": "Open Email templates to draft one.",
+    "handoffSub": "This conversation comes with you.",
+    "handoffOpen": "Open Email templates",
+    "waiting": "Waiting for a template",
+    "savedOff": "Will be saved switched off",
+    "notSaved": "Nothing is saved until you save the rule.",
+    "workTitleChange": "Changed the open rule"
   },
   "button": "Ask {name}",
   "buttonTitle": "Ask {name} about this page",
@@ -139,7 +148,12 @@ export default {
     "generic": "That did not work. Try asking again.",
     "smtp": "Email is not configured yet. Open Email settings to add a relay.",
     "tooLong": "This conversation is too long for the model — start a new session.",
-    "tryAgain": "Try again"
+    "tryAgain": "Try again",
+    "modelFormat": "This model does not answer in the way {name} needs. Choose another model in Settings → AI.",
+    "modelFormatAsk": "This model does not answer in the way {name} needs. Ask an administrator to choose another model.",
+    "setup": "This page could not be read just now. Try asking again.",
+    "busy": "Your last question is still being worked on. Wait for it, or stop it first.",
+    "budget": "This stopped part way: today’s allowance is used up."
   },
   "invoiceTemplate": {
     "action1": "Preview another sample",
@@ -204,11 +218,11 @@ export default {
     "workTitle": "Drafted an invoice"
   },
   "readOnly": {
-    "enable": "Enable actions",
-    "lockedTitle": "Enable actions to let {name} do this",
     "noWrite": "Your role can look, draft and preview here, but not save.",
     "noWriteTitle": "Your role cannot do this here",
-    "note": "{name} is read-only right now — it can look, draft and preview, but not save, send or create."
+    "switchedOff": "Saving is switched off for {name} in this workspace.",
+    "openSettings": "Open settings",
+    "switchedOffTitle": "Saving is switched off for {name} in this workspace"
   },
   "report": {
     "action1": "Run full preview",
@@ -270,11 +284,201 @@ export default {
     "value": "{n} tokens"
   },
   "try": "Try",
+  "tryFrom": "From {addOn}",
   "unavailable": {
     "askAdmin": "Ask an administrator to set one up.",
     "forbidden": "You do not have permission to use {name}.",
     "network": "Outbound network features are off on this instance.",
     "noProvider": "No AI provider is configured yet.",
     "settings": "Open Settings → AI"
+  },
+  "budget": {
+    "usedUp": "Today’s allowance is used up. It starts again at {time}."
+  },
+  "data": {
+    "page": "This page",
+    "blurb": "Knows this page: {table} · {tables, plural, one {# readable table} other {# readable tables}}",
+    "blurbNoTable": "Knows this page · {tables, plural, one {# readable table} other {# readable tables}}",
+    "greeting": "I can read what this page shows, and the other tables your role can read.",
+    "greetingSub": "Ask about the rows here. I answer in words, with the figures, and say which tables I read.",
+    "placeholder": "Ask about this data…",
+    "chip1": "How many rows are shown here?",
+    "chip2": "Summarise what this page shows",
+    "chip3": "What changed most recently?",
+    "workTitle": "Read the data",
+    "scopePrimary": "this page",
+    "readPage": "{page} · {table} · {tables, plural, one {# readable table} other {# readable tables}}",
+    "readPageNoTable": "{tables, plural, one {# readable table} other {# readable tables}}",
+    "confirm": {
+      "title": "Nothing to save here",
+      "body": "{name} drafts nothing on this page.",
+      "button": "Close"
+    }
+  },
+  "general": {
+    "page": "This workspace",
+    "blurb": "Knows this workspace · {tables, plural, one {# readable table} other {# readable tables}}",
+    "greeting": "I can read the tables your role can read, and tell you where things are done.",
+    "greetingSub": "Ask about your data, or where to change something. I answer in words and link to the place.",
+    "placeholder": "Ask about this workspace…",
+    "chip1": "Where do I invite a colleague?",
+    "chip2": "What can I see in this workspace?",
+    "chip3": "Which table has the most rows?",
+    "workTitle": "Looked it up",
+    "scopePrimary": "workspace",
+    "readPage": "{tables, plural, one {# readable table} other {# readable tables}}"
+  },
+  "answer": {
+    "from": "From:",
+    "part": "Read {returned, number} of {total, number} rows of {table}.",
+    "nothingRead": "Nothing was read for this answer.",
+    "readAgain": "Read again",
+    "readAgainAsk": "{question} Read the data to answer.",
+    "forgot": "{name} no longer has the first {count, plural, one {message} other {# messages}} in mind."
+  },
+  "suggestion": {
+    "open": "Open",
+    "openLabel": "Open {addOn} in Add-ons",
+    "askAdmin": "Ask an administrator to install this."
+  },
+  "panel": {
+    "loading": "Loading conversation…",
+    "recordOpen": "{page} · {record} open",
+    "rowsShown": "{page} · {rows, plural, one {# row shown} other {# rows shown}}",
+    "new": "New conversation",
+    "earlier": "{count, plural, one {# earlier message is} other {# earlier messages are}} not shown.",
+    "onPage": "on {page}",
+    "closedElsewhere": "This conversation was closed in another window.",
+    "stillWorking": "{name} is still working on your last question.",
+    "stop": "Stop",
+    "pageDialog": "Close what is open on the page to use {name}.",
+    "aged": "Your earlier conversation was closed because of its age."
+  },
+  "chip": {
+    "selected": "{count, plural, one {# selected} other {# selected}}",
+    "record": "The open record",
+    "filtered": "{rows, plural, one {# filtered row} other {# filtered rows}}",
+    "filteredUnknown": "Filtered rows",
+    "remove": "Ask without “{label}”"
+  },
+  "parked": {
+    "madeOn": "Made on {page}.",
+    "open": "Open {page} to use this draft",
+    "deleted": "This draft’s document was deleted."
+  },
+  "proposal": {
+    "checking": {
+      "title": "A change to confirm",
+      "line": "Checking what would change…"
+    },
+    "badge": {
+      "replaced": "Replaced",
+      "expired": "Expired",
+      "cancelled": "Cancelled",
+      "parked": "Parked"
+    },
+    "replaced": "Something else was asked after this. Nothing was changed.",
+    "expired": "This proposal is 30 minutes old. Ask again.",
+    "overCap": "That is {count} changes; at most {cap} can be confirmed at once. Use the page’s own bulk tools for more.",
+    "applying": "Working…",
+    "undone": "Undone. Everything is as it was.",
+    "undonePart": "{count, plural, one {# change was} other {# changes were}} taken back.",
+    "undoneRest": "The rest stay as changed.",
+    "interrupted": "This stopped part way.",
+    "group": {
+      "done": "Done",
+      "check": "Check this one",
+      "checkLine": "The save was cut off. It may or may not have changed.",
+      "notTried": "Not attempted",
+      "shared": "{field} {arrow} {value} on {count, plural, one {# row} other {# rows}}"
+    },
+    "openHome": "Open {page}",
+    "notTried": "Not attempted: too many requests at once. Ask again in a minute.",
+    "again": "Propose the rest again",
+    "againAsk": "Propose again the changes that were not made:\n{rows}",
+    "undo": "Undo",
+    "undoSome": "Undo {count} of {total}",
+    "undoPassed": "The time to undo has passed.",
+    "noUndo": "This cannot be undone from here.",
+    "noUndoSome": "{count, plural, one {# change} other {# changes}} cannot be undone from here.",
+    "notChanged": "{count, plural, one {This one was} other {These # were}} not changed:",
+    "cancelled": "Nothing was changed.",
+    "parked": "Open {page} to use this.",
+    "someRefused": "{refused} of {count, plural, one {# change} other {# changes}} cannot be made.",
+    "changedSince": "This changed since you were shown it. Look again before confirming.",
+    "fix": "Ask {name} to fix this",
+    "fixAsk": "Some of that cannot be done. Propose it again without these:\n{reasons}",
+    "send": {
+      "template": "Template",
+      "subject": "Subject",
+      "to": "To",
+      "roles": "everyone with the role {roles} ({count, plural, one {# person} other {# people}})",
+      "open": "Open template",
+      "skipped": "{count, plural, one {# person has opted out and gets nothing.} other {# people have opted out and get nothing.}}"
+    },
+    "more": "{count} more. Open large to see them all.",
+    "irreversible": "This cannot be undone.",
+    "chosen": "{picked} of {count} chosen",
+    "large": "Open large",
+    "doc": {
+      "email": "email template",
+      "report": "report",
+      "rule": "rule",
+      "invoice": "invoice",
+      "invoiceTemplate": "invoice template"
+    },
+    "ask": {
+      "change": "Change {count, plural, one {# row} other {# rows}}",
+      "add": "Add {count, plural, one {# row} other {# rows}}",
+      "delete": "Delete {count, plural, one {# row} other {# rows}}",
+      "save": "Save as a new {what}",
+      "saveOver": "Save over “{name}”",
+      "deleteDoc": "Delete “{name}”",
+      "deleteDocs": "Delete {count, plural, one {# document} other {# documents}}",
+      "send": "Send to {count, plural, one {# person} other {# people}}",
+      "mixed": "Make {count, plural, one {# change} other {# changes}}"
+    },
+    "done": {
+      "changePart": "Changed {done} of {count, plural, one {# row} other {# rows}}.",
+      "part": "{done} of {count, plural, one {# change} other {# changes}} made.",
+      "change": "Changed {count, plural, one {# row} other {# rows}}.",
+      "add": "Added {count, plural, one {# row} other {# rows}}.",
+      "delete": "Deleted {count, plural, one {# row} other {# rows}}.",
+      "save": "Saved.",
+      "deleteDoc": "Deleted {count, plural, one {# document} other {# documents}}.",
+      "send": "Sending to {count, plural, one {# person} other {# people}}.",
+      "mixed": "{count, plural, one {# change} other {# changes}} made."
+    },
+    "refused": {
+      "generic": "The server refused this.",
+      "switchedOff": "This is switched off for {name} in this workspace.",
+      "notThisTable": "Only the table of the page this was asked on can be changed from here.",
+      "notData": "That is not a table of your data.",
+      "noChange": "The row already holds these values.",
+      "unsafeKey": "That id cannot be used.",
+      "notFound": "This is no longer there.",
+      "notOffered": "That cannot be done from here.",
+      "builtIn": "A built-in mail is changed on its own screen.",
+      "notCampaign": "Only a campaign can be sent to people.",
+      "noRecipients": "Nobody would get this mail.",
+      "notLive": "A draft is switched on by a person before it can be sent."
+    },
+    "row": {
+      "untitled": "Untitled",
+      "new": "New row",
+      "switchesOff": "Saved switched off: switch it on again when you have looked at it."
+    },
+    "delete": {
+      "reference": "{count} in {table}",
+      "references": "Other rows refer to this: {list}. They go or change with it, as on the page’s own delete."
+    },
+    "noneAble": "None of this can be done",
+    "checkAgain": "Check again",
+    "undoFailed": "{count, plural, one {# change} other {# changes}} could not be taken back. Try again.",
+    "parkedNoHome": "Go back to {page}, where this was asked, to use it."
+  },
+  "leftOut": {
+    "title": "What I left out, and why",
+    "nothing": "Nothing."
   }
 } as const;

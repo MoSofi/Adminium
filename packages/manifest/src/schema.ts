@@ -19,6 +19,7 @@ import {
   type I18nMessage,
   type RecordTabTable,
 } from '@adminium/add-on-contracts';
+import type { AddOnStep } from '@adminium/add-on-contracts';
 import { z } from 'zod';
 
 import { addOnNeedsIssues, addOnsSchema, requiresAddOn, type AddOnNeeds } from './add-ons.js';
@@ -48,6 +49,8 @@ import {
   type TableIndex,
 } from './refs.js';
 import { compareSemver, parseSemverRange } from './semver.js';
+import { assistantIssues, type AssistantTableShape } from './assistant.js';
+import { stepsIssues, type StepTableShape } from './steps.js';
 import { WORD_FLOORS, installFloorWords } from './words.js';
 import { automationIssues, manifestAutomationsSchema, type AutomationTableShape, type ManifestAutomation } from './automations.js';
 import { adjustDecidedColumns, adjustIssues, adjustSchema, adjusterIssues, adjusterSchema, type Adjuster, type AdjustTableShape } from './adjust.js';
@@ -2494,6 +2497,9 @@ export function appReferenceIssues(
     }
   }
   // The rules it ships: about its own tables, roles and templates, and only what a rule can do.
+  // An add-on's rule may use the add-on's own steps, which this manifest can check; another add-on's are checked where the rule is installed.
+  const declared = (m as { addOn?: { steps?: readonly AddOnStep[] | undefined } }).addOn?.steps;
+  const ownSteps = declared === undefined ? undefined : { addOn: m.key, steps: declared };
   if (m.automations !== undefined) {
     out.push(
       ...automationIssues({
@@ -2502,6 +2508,7 @@ export function appReferenceIssues(
         roles: (m.roles ?? []).map((role) => role.key),
         templates: m.emailTemplates ?? [],
         decided: (table) => decided.get(table) ?? new Set<string>(),
+        ...(ownSteps === undefined ? {} : { steps: ownSteps }),
       }),
     );
   }
@@ -3114,7 +3121,7 @@ const ADD_ON_BLOCKS = ['pages', 'roles', 'seeds', 'navGroups', 'optionLists', 'p
 export function installsLikeAnApp(m: Manifest): boolean {
   if (m.kind !== 'add-on') return false;
   if (ADD_ON_BLOCKS.some((block) => m[block] !== undefined)) return true;
-  if (m.requiredSchema?.prefixed === true || m.addOn.settingsTable !== undefined || m.addOn.ledgers !== undefined || m.addOn.adjuster !== undefined || m.addOn.words !== undefined || m.addOn.recordTabs !== undefined) return true;
+  if (m.requiredSchema?.prefixed === true || m.addOn.settingsTable !== undefined || m.addOn.ledgers !== undefined || m.addOn.adjuster !== undefined || m.addOn.words !== undefined || m.addOn.recordTabs !== undefined || m.addOn.steps !== undefined || m.addOn.assistant !== undefined) return true;
   return (m.requiredSchema?.tables ?? []).some(
     (table) =>
       table.states !== undefined ||
@@ -3234,6 +3241,14 @@ function addOnInstallIssues(m: AddOnManifest): { path: (string | number)[]; mess
       out.push(...wordsIssues({ words: parsed.data, ledgers, tables: tables as readonly LedgerTableShape[], settingsTable: m.addOn.settingsTable }));
     }
   }
+
+  // What it tells the assistant: only of its own tables, columns and pages.
+  if (m.addOn.assistant !== undefined) {
+    out.push(...assistantIssues(m.addOn.assistant, tables as unknown as readonly AssistantTableShape[], [...(m.pages ?? []).map((page) => page.ref), ...(m.addOn.pages ?? []).map((page) => page.ref)]));
+  }
+
+  // Steps the add-on gives to Automations: the row each writes is one of its own tables.
+  if (m.addOn.steps !== undefined) out.push(...stepsIssues(m.addOn.steps, tables as unknown as readonly StepTableShape[]));
 
   // Tabs that list the add-on's rows on other tables' record pages: its own tables, columns and words.
   if (m.addOn.recordTabs !== undefined) {

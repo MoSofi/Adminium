@@ -52,7 +52,7 @@ import {
 import { allLocales, dirForLocale, isLocaleId, localeEntry } from '@adminium/i18n';
 
 import { audited, auditExempt } from '../../audit/coverage.js';
-import { resolveCampaignAudience } from '../../email/audience.js';
+import { campaignUnfilled, listedPlaceholders, resolveCampaignAudience } from '../../email/audience.js';
 import { EMAIL_CAMPAIGN_RUN_KIND, EMAIL_CAMPAIGN_RUN_MAX_ATTEMPTS } from '../../jobs/email-campaign-run.js';
 import { resetBuiltinEmailTemplate, translatorForLocale } from '../../email/builtins.js';
 import {
@@ -73,7 +73,7 @@ import {
   resolveGeneratedAttachments,
 } from '../../email/send.js';
 import { isEmailStarterKey, renderStarter, starterCards, starterSampleVars } from '../../email/starters.js';
-import { ConflictError, ForbiddenError, NotFoundError, UnauthorizedError, ValidationFailedError } from '../../errors.js';
+import { AppError, ConflictError, ForbiddenError, NotFoundError, UnauthorizedError, ValidationFailedError } from '../../errors.js';
 import type { FileStore } from '../../files/store.js';
 import { translatorFor } from '../../i18n/server-i18n.js';
 import { PERMISSIONS } from '../../rbac/permissions.js';
@@ -859,6 +859,12 @@ export function emailTemplatesRoutes(deps: EmailTemplatesRoutesDeps): FastifyPlu
 
     // ── campaigns ──────────────────────────────────────────────────────────
 
+    /** The campaign in every language it is sent in: itself, and its siblings that are not waiting for a translation. */
+    const sentVariants = async (row: EmailTemplate): Promise<EmailTemplate[]> => [
+      row,
+      ...(await templates.siblings(row.key)).filter((sibling) => sibling.id !== row.id && sibling.archivedAt === null && !sibling.needsTranslation),
+    ];
+
     app.post(
       '/email-templates/:id/audience/preview',
       {
@@ -869,9 +875,9 @@ export function emailTemplatesRoutes(deps: EmailTemplatesRoutesDeps): FastifyPlu
       async (request) => {
         requireUserId(request);
         await requireSettingsManage(request, 'send campaigns');
-        await mustFind(request.params.id);
+        const row = await mustFind(request.params.id);
         const audience = await resolveCampaignAudience(meta, request.body.audience);
-        return { total: audience.total, skipped: audience.skipped };
+        return { total: audience.total, skipped: audience.skipped, unfilled: campaignUnfilled(await sentVariants(row)) };
       },
     );
 
@@ -899,6 +905,16 @@ export function emailTemplatesRoutes(deps: EmailTemplatesRoutesDeps): FastifyPlu
           throw new ConflictError('No SMTP transport is configured — set one up before sending a campaign.', 'CONFLICT', {
             setting: 'email.smtp',
           });
+        }
+        // A person is here to put it right: a mail that would reach everyone with `{{…}}` in it does not go.
+        const unfilled = campaignUnfilled(await sentVariants(row));
+        if (unfilled.length > 0) {
+          throw new AppError(
+            422,
+            'PLACEHOLDER_UNFILLED',
+            `Nothing fills ${listedPlaceholders(unfilled)} in this campaign. Give it a backup in the editor, or take it out; a campaign fills {{first_name}}, {{name}}, {{email}} and {{appName}}.`,
+            { placeholders: unfilled },
+          );
         }
         const active = await runs.active(row.id);
         if (active !== null) {

@@ -125,7 +125,20 @@ import { linkedRowsOf, withheldColumns, withholdRulesOf, type TableWithholds, ty
 import { withholdsOn } from '../public-api/withholds-on.js';
 import { forgetsOn, type TableForgets } from '../public-api/forgets-on.js';
 import { toForgotten } from './forgotten.js';
-import { GROUPED_FORM, ONLY_WITH, ONLY_WITHOUT, WITH_ATTACHMENT, groupedCode, type AppManifest, type OutboxProducer } from '@adminium/manifest';
+import {
+  GROUPED_FORM,
+  ONLY_WITH,
+  ONLY_WITHOUT,
+  WITH_ATTACHMENT,
+  blocksShownFor,
+  groupedCode,
+  placeholderNames,
+  placeholderPattern,
+  requiredPlaceholderNames,
+  showWhenNames,
+  type AppManifest,
+  type OutboxProducer,
+} from '@adminium/manifest';
 import { CUSTOMER_KEY_PURPOSE, addOnSettingsRepo, appOutboxesRepo, appTablesRepo, connectionTenantConfig, filesRepo, jobsRepo, overridesRepo, settingsRepo, type MetaDb } from '@adminium/meta';
 import { sql, type Kysely } from 'kysely';
 import { z } from 'zod';
@@ -269,9 +282,31 @@ interface Prepared {
 
 type AnyUpdateQuery = Parameters<NonNullable<UpdateRecordInput['refine']>>[0];
 
-/** Every `{{name}}` a template reads, wherever it is written in it. */
+/** Every `{{name}}` a template reads, wherever it is written in it: with a backup (`{{name|backup}}`) or without. */
 export function placeholders(parts: readonly unknown[]): Set<string> {
-  return new Set([...JSON.stringify(parts).matchAll(/\{\{\s*([A-Za-z0-9_.-]+)\s*\}\}/g)].map((match) => match[1]!));
+  return new Set(placeholderNames(parts));
+}
+
+/** The names a template must be given: written somewhere with no backup of their own. */
+export function requiredPlaceholders(parts: readonly unknown[]): Set<string> {
+  return new Set(requiredPlaceholderNames(parts));
+}
+
+/**
+ * A template with each block tied to a value (`showWhen`) settled for this
+ * reader: left out, or saying its other words, when the value is not there —
+ * missing, blank, or held back from this reader. The mark is taken off what
+ * stays, so nothing later settles it a second time against other values.
+ */
+export function withConditionsSettled<T extends { blocks: readonly unknown[] }>(template: T, vars: Readonly<Record<string, string>>, withheld: ReadonlySet<string>): T {
+  if (showWhenNames(template.blocks).length === 0) return template;
+  const seen = Object.fromEntries(Object.entries(vars).filter(([name]) => !withheld.has(name)));
+  const blocks = blocksShownFor(template.blocks, seen).map((block) => {
+    if (typeof block !== 'object' || block === null) return block;
+    const { showWhen: _when, otherwise: _otherwise, ...rest } = block as Record<string, unknown>;
+    return rest;
+  });
+  return { ...template, blocks };
 }
 
 /**
@@ -330,9 +365,14 @@ function sameAddress(stored: string, to: string): boolean {
   return stored === to || (ascii(stored) && ascii(to) && stored.toLowerCase() === to.toLowerCase());
 }
 
-/** A person's wording with every `{{name}}` the template does not read taken out. */
+/**
+ * A person's wording with every placeholder the template does not read taken
+ * out: written plainly or with a backup (`{{name|words}}`), the name is what
+ * is judged. Read with the renderer's own pattern, so there is no spelling
+ * this leaves in and the renderer then fills.
+ */
 export function onlyReads(text: string, reads: ReadonlySet<string>): string {
-  return text.replaceAll(/\{\{\s*([A-Za-z0-9_.-]+)\s*\}\}/g, (whole, name: string) => (reads.has(name) ? whole : ''));
+  return text.replaceAll(placeholderPattern(), (whole, name: string) => (reads.has(name) ? whole : ''));
 }
 
 /**
@@ -1315,7 +1355,7 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     if (template === null) return { status: 'failed', error: 'The email is switched off, or has no text' };
     // A person's wording may read only what the template itself reads: never
     // another column of a linked row, however it is spelled.
-    const reads = placeholders([template.subject, template.preheader, template.blocks, template.footer]);
+    const reads = new Set([...placeholders([template.subject, template.preheader, template.blocks, template.footer]), ...showWhenNames(template.blocks)]);
     // Never a list's row, nor a QR code: those are drawn by the template's own blocks, which the wording replaces.
     const personal = new Set([...reads].filter((name) => !name.startsWith('row.') && !name.endsWith('.qr')));
     const text = (column: string | undefined) => {
@@ -1346,7 +1386,7 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     }
     // Every name the email will print has its value — or it does not go, rather than go with `{{…}}` in it.
     // First, the blocks whose own condition is not met leave: nothing below asks for what only they print.
-    const shown = withoutUnmetBlocks(template, vars, withheld);
+    const shown = withConditionsSettled(withoutUnmetBlocks(template, vars, withheld), vars, withheld);
     const sent = withOverride({ subject: shown.subject, blocks: shown.blocks as readonly Record<string, unknown>[] }, override);
     // The rows each list names (an order's tickets), each row judged the same way: every `{{row.*}}` filled, a code only to its holder.
     const rows: Record<string, Record<string, string>[]> = {};
@@ -1357,7 +1397,7 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
       const data = typeof block['data'] === 'object' && block['data'] !== null ? (block['data'] as Record<string, unknown>) : {};
       const listed = await rowsFor(box, { ...ctx, forms, labels, blankOf }, row, data, holder);
       if (listed === null) return { status: 'failed', error: LIST_UNREADABLE };
-      const names = [...placeholders([data['row'], data['empty']])].filter((name) => name.startsWith('row.'));
+      const names = [...requiredPlaceholders([data['row'], data['empty']])].filter((name) => name.startsWith('row.'));
       for (const one of listed) {
         const missing = names.filter((name) => !Object.hasOwn(one.vars, name));
         const held = missing.filter((name) => one.withheld.has(name));
@@ -1368,7 +1408,7 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
       }
       rows[block['id']] = listed.map((one) => one.vars);
     }
-    const unfilled = [...placeholders([sent.subject, template.preheader, sent.blocks, template.footer])].filter((name) => !name.startsWith('row.') && !Object.hasOwn(vars, name));
+    const unfilled = [...requiredPlaceholders([sent.subject, template.preheader, sent.blocks, template.footer])].filter((name) => !name.startsWith('row.') && !Object.hasOwn(vars, name));
     const codes = unfilled.filter((name) => withheld.has(name));
     if (codes.length > 0) return { status: 'failed', error: codeWithheldSentence(codes) };
     if (unfilled.length > 0) return { status: 'failed', error: unfilledSentence(unfilled) };

@@ -45,7 +45,16 @@ export default {
     "placeholder": "描述你需要的规则…",
     "readPage": "自动化规则 · {rules, plural, other {# 条规则}} · {tables, plural, other {# 张可读表}}",
     "scopePrimary": "automations",
-    "workTitle": "已起草新规则"
+    "workTitle": "已起草新规则",
+    "applied": "已应用到此规则，尚未保存。",
+    "apply": "应用到此规则",
+    "handoff": "打开邮件模板来起草一个。",
+    "handoffSub": "此对话会随你一起过去。",
+    "handoffOpen": "打开邮件模板",
+    "waiting": "等待模板",
+    "savedOff": "将以关闭状态保存",
+    "notSaved": "在你保存规则之前，不会保存任何内容。",
+    "workTitleChange": "已修改打开的规则"
   },
   "button": "询问 {name}",
   "buttonTitle": "就此页面询问 {name}",
@@ -139,7 +148,12 @@ export default {
     "generic": "这次没成功，请再问一次。",
     "smtp": "尚未配置邮件。请在邮件设置中添加一个中继。",
     "tooLong": "这段对话超出了模型的上下文 — 请开始新的会话。",
-    "tryAgain": "重试"
+    "tryAgain": "重试",
+    "modelFormat": "此模型的回答方式不是 {name} 需要的。请在“设置 → AI”中换一个模型。",
+    "modelFormatAsk": "此模型的回答方式不是 {name} 需要的。请让管理员换一个模型。",
+    "setup": "刚才无法读取此页面。请再问一次。",
+    "busy": "你的上一个问题还在处理中。请等待它完成，或先停止它。",
+    "budget": "处理到一半停下了：今天的额度已用完。"
   },
   "invoiceTemplate": {
     "action1": "换一个示例预览",
@@ -204,11 +218,11 @@ export default {
     "workTitle": "已起草发票"
   },
   "readOnly": {
-    "enable": "启用操作",
-    "lockedTitle": "启用操作后 {name} 才能执行",
     "noWrite": "你的角色在这里可以查看、起草和预览，但不能保存。",
     "noWriteTitle": "你的角色在这里无法执行此操作",
-    "note": "{name} 目前是只读的 — 可以查看、起草和预览，但不能保存、发送或创建。"
+    "switchedOff": "此工作区已为 {name} 关闭保存。",
+    "openSettings": "打开设置",
+    "switchedOffTitle": "此工作区已为 {name} 关闭保存"
   },
   "report": {
     "action1": "运行完整预览",
@@ -270,11 +284,201 @@ export default {
     "value": "{n} 令牌"
   },
   "try": "试试",
+  "tryFrom": "来自 {addOn}",
   "unavailable": {
     "askAdmin": "请让管理员配置一个。",
     "forbidden": "你没有使用 {name} 的权限。",
     "network": "本实例已关闭对外网络功能。",
     "noProvider": "尚未配置 AI 服务商。",
     "settings": "打开 设置 → AI"
+  },
+  "budget": {
+    "usedUp": "今天的额度已用完。将于 {time} 重新开始。"
+  },
+  "data": {
+    "page": "此页面",
+    "blurb": "了解此页面：{table} · {tables, plural, other {# 张可读的表}}",
+    "blurbNoTable": "了解此页面 · {tables, plural, other {# 张可读的表}}",
+    "greeting": "我可以读取此页面显示的内容，以及你的角色可以读取的其他表。",
+    "greetingSub": "可以问这里的行。我用文字回答，附上数字，并说明读了哪些表。",
+    "placeholder": "就这些数据提问…",
+    "chip1": "这里显示了多少行？",
+    "chip2": "总结此页面显示的内容",
+    "chip3": "最近有什么变化？",
+    "workTitle": "已读取数据",
+    "scopePrimary": "此页面",
+    "readPage": "{page} · {table} · {tables, plural, other {# 张可读的表}}",
+    "readPageNoTable": "{tables, plural, other {# 张可读的表}}",
+    "confirm": {
+      "title": "这里没有可保存的内容",
+      "body": "{name} 在此页面不起草任何内容。",
+      "button": "关闭"
+    }
+  },
+  "general": {
+    "page": "此工作区",
+    "blurb": "了解此工作区 · {tables, plural, other {# 张可读的表}}",
+    "greeting": "我可以读取您的角色有权读取的表，并告诉您在哪里完成各项操作。",
+    "greetingSub": "可以询问您的数据，或在哪里更改某项内容。我会用文字回答，并附上该位置的链接。",
+    "placeholder": "询问此工作区…",
+    "chip1": "在哪里邀请同事？",
+    "chip2": "我在此工作区能看到什么？",
+    "chip3": "哪个表的行数最多？",
+    "workTitle": "已查找",
+    "scopePrimary": "工作区",
+    "readPage": "{tables, plural, other {# 张可读的表}}"
+  },
+  "answer": {
+    "from": "来源：",
+    "part": "已读取 {table} 的 {total, number} 行中的 {returned, number} 行。",
+    "nothingRead": "此回答未读取任何数据。",
+    "readAgain": "重新读取",
+    "readAgainAsk": "{question} 请读取数据后再回答。",
+    "forgot": "{name} 已不再记得最早的 {count, plural, other {# 条消息}}。"
+  },
+  "suggestion": {
+    "open": "打开",
+    "openLabel": "在 Add-ons 中打开 {addOn}",
+    "askAdmin": "请让管理员安装此项。"
+  },
+  "panel": {
+    "loading": "正在加载对话…",
+    "recordOpen": "{page} · 已打开 {record}",
+    "rowsShown": "{page} · {rows, plural, other {显示 # 行}}",
+    "new": "新对话",
+    "earlier": "{count, plural, other {有 # 条更早的消息未显示}}。",
+    "onPage": "在 {page}",
+    "closedElsewhere": "此对话已在另一个窗口中关闭。",
+    "stillWorking": "{name} 仍在处理您的上一个问题。",
+    "stop": "停止",
+    "pageDialog": "请先关闭页面上打开的内容，再使用 {name}。",
+    "aged": "您之前的对话因时间过久已关闭。"
+  },
+  "chip": {
+    "selected": "{count, plural, other {已选 # 项}}",
+    "record": "已打开的记录",
+    "filtered": "{rows, plural, other {# 行已筛选}}",
+    "filteredUnknown": "已筛选的行",
+    "remove": "不带“{label}”提问"
+  },
+  "parked": {
+    "madeOn": "创建于 {page}。",
+    "open": "打开 {page} 以使用此草稿",
+    "deleted": "此草稿的文档已被删除。"
+  },
+  "proposal": {
+    "checking": {
+      "title": "待确认的更改",
+      "line": "正在检查会更改什么…"
+    },
+    "badge": {
+      "replaced": "已被替换",
+      "expired": "已过期",
+      "cancelled": "已取消",
+      "parked": "已搁置"
+    },
+    "replaced": "之后又问了别的问题。没有任何更改。",
+    "expired": "此提议已过去 30 分钟。请重新提问。",
+    "overCap": "共 {count} 项更改；一次最多可确认 {cap} 项。更多请使用页面自带的批量工具。",
+    "applying": "处理中…",
+    "undone": "已撤销。一切恢复原样。",
+    "undonePart": "已撤回 {count, plural, other {#}} 项更改。",
+    "undoneRest": "其余保持已更改。",
+    "interrupted": "此操作中途停止了。",
+    "group": {
+      "done": "已完成",
+      "check": "请检查此项",
+      "checkLine": "保存被中断。它可能已更改，也可能没有。",
+      "notTried": "未尝试",
+      "shared": "{count, plural, other {#}} 行的 {field} {arrow} {value}"
+    },
+    "openHome": "打开{page}",
+    "notTried": "未尝试：同时请求过多。请一分钟后再问。",
+    "again": "重新提议其余部分",
+    "againAsk": "请重新提议未完成的更改：\n{rows}",
+    "undo": "撤销",
+    "undoSome": "撤销 {total} 项中的 {count} 项",
+    "undoPassed": "撤销时间已过。",
+    "noUndo": "此操作无法在这里撤销。",
+    "noUndoSome": "{count, plural, other {#}} 项更改无法在这里撤销。",
+    "notChanged": "以下 {count, plural, other {#}} 项未更改：",
+    "cancelled": "没有任何更改。",
+    "parked": "打开{page}以使用此项。",
+    "someRefused": "{count, plural, other {#}} 项更改中有 {refused} 项无法执行。",
+    "changedSince": "自向你展示后，此内容已发生变化。确认前请再看一遍。",
+    "fix": "让 {name} 修正",
+    "fixAsk": "其中一部分无法执行。请去掉以下内容后重新提议：\n{reasons}",
+    "send": {
+      "template": "模板",
+      "subject": "主题",
+      "to": "收件人",
+      "roles": "所有拥有 {roles} 角色的人（{count, plural, other {#}} 人）",
+      "open": "打开模板",
+      "skipped": "{count, plural, other {#}} 人已退订，不会收到。"
+    },
+    "more": "还有 {count} 项。放大查看全部。",
+    "irreversible": "此操作无法撤销。",
+    "chosen": "已选 {picked}/{count}",
+    "large": "放大查看",
+    "doc": {
+      "email": "邮件模板",
+      "report": "报告",
+      "rule": "规则",
+      "invoice": "发票",
+      "invoiceTemplate": "发票模板"
+    },
+    "ask": {
+      "change": "更改 {count, plural, other {#}} 行",
+      "add": "添加 {count, plural, other {#}} 行",
+      "delete": "删除 {count, plural, other {#}} 行",
+      "save": "另存为新的{what}",
+      "saveOver": "覆盖保存“{name}”",
+      "deleteDoc": "删除“{name}”",
+      "deleteDocs": "删除 {count, plural, other {#}} 个文档",
+      "send": "发送给 {count, plural, other {#}} 人",
+      "mixed": "执行 {count, plural, other {#}} 项更改"
+    },
+    "done": {
+      "changePart": "已更改 {count, plural, other {#}} 行中的 {done} 行。",
+      "part": "已执行 {count, plural, other {#}} 项更改中的 {done} 项。",
+      "change": "已更改 {count, plural, other {#}} 行。",
+      "add": "已添加 {count, plural, other {#}} 行。",
+      "delete": "已删除 {count, plural, other {#}} 行。",
+      "save": "已保存。",
+      "deleteDoc": "已删除 {count, plural, other {#}} 个文档。",
+      "send": "正在发送给 {count, plural, other {#}} 人。",
+      "mixed": "已执行 {count, plural, other {#}} 项更改。"
+    },
+    "refused": {
+      "generic": "服务器拒绝了此操作。",
+      "switchedOff": "此工作区已为 {name} 关闭此功能。",
+      "notThisTable": "在这里只能更改提问所在页面的表。",
+      "notData": "这不是你的数据表。",
+      "noChange": "该行已是这些值。",
+      "unsafeKey": "无法使用该 ID。",
+      "notFound": "此项已不存在。",
+      "notOffered": "无法在这里执行此操作。",
+      "builtIn": "内置邮件需在其自己的页面上更改。",
+      "notCampaign": "只有营销邮件可以发送给人员。",
+      "noRecipients": "没有人会收到这封邮件。",
+      "notLive": "草稿需由人开启后才能发送。"
+    },
+    "row": {
+      "untitled": "未命名",
+      "new": "新行",
+      "switchesOff": "保存后为关闭状态：查看后再重新开启。"
+    },
+    "delete": {
+      "reference": "{table} 中 {count} 行",
+      "references": "其他行引用了此项：{list}。它们会随之删除或更改，与页面自身的删除相同。"
+    },
+    "noneAble": "这些都无法执行",
+    "checkAgain": "重新检查",
+    "undoFailed": "{count, plural, other {#}} 项更改未能撤回。请重试。",
+    "parkedNoHome": "请回到提出此问题的{page}以使用它。"
+  },
+  "leftOut": {
+    "title": "我省略了什么，以及原因",
+    "nothing": "没有。"
   }
 } as const;

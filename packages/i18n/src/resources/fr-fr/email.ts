@@ -178,6 +178,7 @@ export default {
     "count": "{total, plural, one {# destinataire} other {# destinataires}}",
     "optedOut": "{skipped} désinscrits",
     "note": "Les variables sont remplies par destinataire — {token} devient le nom de chaque personne.",
+    "unfilled": "Rien ne remplit {names} : chaque destinataire le recevrait tel quel. Donnez-lui un texte de secours dans l’éditeur, ou retirez-le.",
     "send": "Envoyer la campagne",
     "scheduleAction": "Programmer la campagne",
     "sending": "Envoi…",
@@ -880,5 +881,26 @@ export default {
     "kept": "Ce que vous avez déjà chez nous reste valable, et les e-mails que vous avez déjà reçus l’ouvrent toujours. Vous n’aurez plus de nouvelles de nous, sauf si vous revenez.",
     "footer": "{appName}",
     "stopped": "Les liens des e-mails que vous avez déjà reçus ne fonctionnent plus. Vous n’aurez plus de nouvelles de nous, sauf si vous revenez."
+  },
+  "missing": {
+    "chip": "{name} : indiquer quoi écrire quand la valeur manque",
+    "chipWith": "{name} : quand la valeur manque, « {backup} » est écrit",
+    "dialog": "Texte de secours pour {name}",
+    "ask": "S’il n’y a pas de « {name} », écrire :",
+    "preview": "Aperçu",
+    "otherwiseTag": "Texte sinon",
+    "nothing": "Rien ne change dans cet e-mail quand une valeur manque. Donnez un texte de secours à une variable, ou liez un bloc à une valeur.",
+    "showingOne": "Voici ce que reçoit un lecteur sans « {name} ».",
+    "showingMany": "Voici ce que reçoit un lecteur quand ces valeurs manquent : {names}.",
+    "switch": "Aperçu avec des valeurs manquantes",
+    "ifMissing": "Si la valeur manque :",
+    "ifMissingNothing": "Si la valeur manque : rien n’est écrit",
+    "visibility": "Visibilité",
+    "showWhen": "Afficher ce bloc seulement quand",
+    "always": "Toujours affiché",
+    "hasValue": "{name} a une valeur",
+    "otherwise": "Sinon afficher",
+    "otherwiseHint": "Ces mots remplacent le bloc entier. Laissez vide pour ne rien envoyer à sa place.",
+    "leftOut": "Quand elle n’en a pas, ce bloc est retiré de l’e-mail."
   }
 } as const;

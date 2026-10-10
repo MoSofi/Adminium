@@ -49,3 +49,4 @@ export * from './project-apps.js';
 export * from './project-files.js';
 export * from './option-lists.js';
 export * from './assistant-sessions.js';
+export * from './assistant-use.js';

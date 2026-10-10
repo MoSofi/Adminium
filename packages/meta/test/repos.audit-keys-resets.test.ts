@@ -115,6 +115,18 @@ for (const dialect of TEST_DIALECTS) {
       expect(entry.changes).toEqual({ _truncated: true });
     });
 
+    it('keeps that a write came through the assistant when its images are cut, and when there are none', async () => {
+      const audit = auditRepo(meta());
+      const via = { assistant: { sessionId: 'ast_1', turnId: 'atn_1' } };
+      const cut = await audit.append(
+        { actorKind: 'system', actorLabel: 'Adminium', category: 'data', action: 'record.update', changes: { before: { blob: 'x'.repeat(AUDIT_CHANGES_MAX_BYTES) }, after: {}, via } },
+        T0,
+      );
+      expect(cut.changes).toEqual({ _truncated: true, via });
+      const bare = await audit.append({ actorKind: 'system', actorLabel: 'Adminium', category: 'data', action: 'record.delete', changes: { via } }, T0);
+      expect(bare.changes).toEqual({ via });
+    });
+
     it('filters by category and orders newest first', async () => {
       const audit = auditRepo(meta());
       await audit.append({ actorKind: 'system', actorLabel: 'A', category: 'auth', action: 'session.create' }, T0);

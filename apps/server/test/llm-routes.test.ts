@@ -268,6 +268,7 @@ describe('llm routes — RBAC (acceptance #13)', () => {
     { method: 'GET', url: '/api/v1/llm/config' },
     { method: 'PUT', url: '/api/v1/llm/config', payload: { provider: 'anthropic' } },
     { method: 'POST', url: '/api/v1/llm/config/test' },
+    { method: 'POST', url: '/api/v1/llm/config/assistant-test' },
     { method: 'GET', url: '/api/v1/llm/models' },
     { method: 'POST', url: '/api/v1/llm/runs', payload: { connectionId: 'c', path: 'byo' } },
     { method: 'POST', url: '/api/v1/llm/runs/r1/execute' },
@@ -411,6 +412,25 @@ describe('llm routes — config (acceptance #10)', () => {
     const res = await t.app.inject({ method: 'POST', url: '/api/v1/llm/config/test', headers: asUser(t.users.admin) });
     expect(res.statusCode).toBe(200);
     expect(res.json()).toMatchObject({ ok: true, model: 'claude-x', latencyMs: 12, error: null });
+  });
+
+  it('POST /config/assistant-test runs the saved model through one small turn, and names why it did not pass', async () => {
+    await t.app.inject({
+      method: 'PUT',
+      url: '/api/v1/llm/config',
+      headers: asUser(t.users.admin),
+      payload: { provider: 'anthropic', model: 'claude-x', apiKey: 'sk-test' },
+    });
+    // This file's stand-in answers `{}` to everything: a model that never answers in the reply format.
+    const res = await t.app.inject({ method: 'POST', url: '/api/v1/llm/config/assistant-test', headers: asUser(t.users.admin) });
+    expect(res.statusCode, res.body).toBe(200);
+    expect(res.json()).toMatchObject({ ok: false, model: 'claude-x', failure: 'format', rounds: 3, message: null });
+    expect(res.body).not.toContain('sk-test');
+  });
+
+  it('POST /config/assistant-test is a 409 when no provider is configured', async () => {
+    const res = await t.app.inject({ method: 'POST', url: '/api/v1/llm/config/assistant-test', headers: asUser(t.users.admin) });
+    expect(res.statusCode).toBe(409);
   });
 
   it('POST /config/test is a 409 when no provider is configured', async () => {

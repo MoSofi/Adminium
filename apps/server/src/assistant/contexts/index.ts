@@ -11,7 +11,9 @@
 import type { AssistantContextKey } from '@adminium/meta';
 
 import { automationContext } from './automation.js';
+import { dataContext } from './data.js';
 import { emailContext } from './email.js';
+import { generalContext } from './general.js';
 import { invoiceTemplateContext, invoicesContext } from './invoice.js';
 import { reportContext } from './report.js';
 import type { AssistantContextAdapter } from '../types.js';
@@ -22,6 +24,8 @@ const ADAPTERS: Readonly<Record<AssistantContextKey, AssistantContextAdapter>> =
   invoices: invoicesContext,
   report: reportContext,
   automation: automationContext,
+  data: dataContext,
+  general: generalContext,
 });
 
 export function contextAdapter(context: AssistantContextKey): AssistantContextAdapter {

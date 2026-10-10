@@ -168,6 +168,7 @@
     "count": "{total, plural, other {# 位收件者}}",
     "optedOut": "{skipped} 位已取消訂閱",
     "note": "變數會依收件者填入 — {token} 會變成每個人的名字。",
+    "unfilled": "沒有內容可填入 {names}：每位收件人都會收到原樣的文字。請在編輯器中為它設定備用文字，或將其移除。",
     "send": "寄送活動",
     "scheduleAction": "排程寄送活動",
     "sending": "寄送中…",
@@ -870,5 +871,26 @@
     "kept": "您在我們這裡已有的內容仍然有效，您已收到的郵件仍可開啟它。除非您再次光臨，否則我們不會再與您聯絡。",
     "footer": "{appName}",
     "stopped": "您已收到的郵件中的連結已失效。除非您再次光臨，否則我們不會再與您聯絡。"
+  },
+  "missing": {
+    "chip": "{name}：設定缺少該值時寫什麼",
+    "chipWith": "{name}：缺少該值時寫「{backup}」",
+    "dialog": "{name} 的備用文字",
+    "ask": "如果沒有「{name}」，就寫：",
+    "preview": "預覽",
+    "otherwiseTag": "否則顯示的文字",
+    "nothing": "缺少值時，這封郵件沒有任何變化。為預留位置加上備用文字，或把某個區塊與一個值關聯。",
+    "showingOne": "正在顯示沒有「{name}」的讀者收到的內容。",
+    "showingMany": "正在顯示缺少以下值時讀者收到的內容：{names}。",
+    "switch": "以缺少值預覽",
+    "ifMissing": "缺少時：",
+    "ifMissingNothing": "缺少時：什麼都不寫",
+    "visibility": "可見性",
+    "showWhen": "僅在以下情況顯示此區塊",
+    "always": "一律顯示",
+    "hasValue": "{name} 有值",
+    "otherwise": "否則顯示",
+    "otherwiseHint": "這些文字會取代整個區塊。留空則不傳送任何內容。",
+    "leftOut": "沒有值時，此區塊不會出現在郵件中。"
   }
 }

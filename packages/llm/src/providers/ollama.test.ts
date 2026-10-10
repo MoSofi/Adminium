@@ -126,3 +126,27 @@ describe('createOllamaClient.listModels', () => {
     await expect(client.listModels()).rejects.toMatchObject({ code: 'server', status: 500, provider: 'ollama' });
   });
 });
+
+describe('a reply with no text', () => {
+  const ask = () => createOllamaClient({ provider: 'ollama' }).complete({ system: '', messages: [], model: 'm', maxTokens: 1, temperature: 0 });
+
+  it('names the tool calls a model made in its own format instead of answering', async () => {
+    // As gpt-oss answers a request for JSON: a call it invented, and no content.
+    stubFetch(
+      jsonResponse({ message: { role: 'assistant', content: '', tool_calls: [{ function: { name: 'repo_browser.open_file', arguments: { path: 'x' } } }] } }),
+    );
+    await expect(ask()).rejects.toMatchObject({ code: 'empty_response', provider: 'ollama', toolCalls: ['repo_browser.open_file'] });
+  });
+
+  it('is a plain empty reply when there was no call either, and never trusts a model`s list to be short or well formed', async () => {
+    stubFetch(jsonResponse({ message: { content: '' } }));
+    const plain = await ask().catch((error: unknown) => error);
+    expect(plain).toMatchObject({ code: 'empty_response' });
+    expect((plain as { toolCalls?: unknown }).toolCalls).toBeUndefined();
+
+    stubFetch(jsonResponse({ message: { content: '', tool_calls: [null, { function: {} }, ...Array.from({ length: 9 }, () => ({ function: { name: 'n'.repeat(500) } }))] } }));
+    const many = (await ask().catch((error: unknown) => error)) as { toolCalls: string[] };
+    expect(many.toolCalls.length).toBeLessThanOrEqual(5);
+    for (const name of many.toolCalls) expect(name.length).toBeLessThanOrEqual(60);
+  });
+});

@@ -67,7 +67,12 @@ export interface AssistantSession {
   createdAt: number;
   updatedAt: number;
   closedAt: number | null;
+  /** One window on one page, or the conversation that stays open across pages. */
+  kind: AssistantSessionKind;
 }
+
+/** How a conversation is held: by one window, or by the panel. */
+export type AssistantSessionKind = 'modal' | 'panel';
 
 export interface AssistantTurn {
   id: string;
@@ -88,6 +93,14 @@ export interface AssistantTurn {
   durationMs: number | null;
   createdAt: number;
   finishedAt: number | null;
+  /** The page this turn was asked on; `null` means the session's. */
+  context: AssistantContextKey | null;
+  /** What that page was showing; `null` means the session's. */
+  host: AssistantHost | null;
+  /** The editor's unsaved document when the question was asked. */
+  draft: unknown | null;
+  /** What the turn ended with besides its words and its draft. */
+  answer: Record<string, unknown> | null;
 }
 
 export interface CreateAssistantSessionInput {
@@ -97,6 +110,7 @@ export interface CreateAssistantSessionInput {
   provider?: string | null;
   model?: string | null;
   createdBy?: string | null;
+  kind?: AssistantSessionKind;
 }
 
 export interface CreateAssistantTurnInput {
@@ -106,6 +120,10 @@ export interface CreateAssistantTurnInput {
   /** The user message this turn starts from; every round appends to it. */
   transcript?: readonly AssistantTranscriptMessage[];
   jobId?: string | null;
+  /** The page the question is asked on, when the client names one. */
+  context?: AssistantContextKey | null;
+  host?: AssistantHost | null;
+  draft?: unknown;
 }
 
 /** Everything a finished (or stopped) turn writes back in one statement. */
@@ -120,8 +138,14 @@ export interface FinishAssistantTurnInput {
   tokensIn?: number | null;
   tokensOut?: number | null;
   durationMs?: number | null;
+  answer?: Record<string, unknown> | null;
   /** Stamped for every terminal status; omit to leave the turn unfinished. */
   finishedAt?: number | null;
+  /**
+   * Write only while the turn is still in this status. The job ends a turn it
+   * holds as `running`; a turn the person stopped meanwhile keeps `cancelled`.
+   */
+  expected?: AssistantTurnStatus;
 }
 
 function decodeSession(row: Selectable<AdminiumAssistantSessionsTable>): AssistantSession {
@@ -139,6 +163,7 @@ function decodeSession(row: Selectable<AdminiumAssistantSessionsTable>): Assista
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
     closedAt: row.closedAt,
+    kind: row.kind === 'panel' ? 'panel' : 'modal',
   };
 }
 
@@ -162,7 +187,19 @@ function decodeTurn(row: Selectable<AdminiumAssistantTurnsTable>): AssistantTurn
     durationMs: row.durationMs,
     createdAt: row.createdAt,
     finishedAt: row.finishedAt,
+    // Read, never trusted to parse: a page a newer server knew is, to this one, the session's.
+    context: assistantContextSchema.nullable().catch(null).parse(row.context ?? null),
+    host: row.host === null || row.host === undefined ? null : assistantHostSchema.nullable().catch(null).parse(readJson(row.host)),
+    draft: readJsonOrNull(row.draft ?? null),
+    answer: readJsonOrNull<Record<string, unknown>>(row.answer ?? null),
   };
+}
+
+/** A context key on the way in, refused by name when it is none this build knows. */
+function contextOf(value: unknown): AssistantContextKey {
+  const context = assistantContextSchema.safeParse(value);
+  if (!context.success) throw new MetaValidationError('invalid assistant context', context.error.issues);
+  return context.data;
 }
 
 /** Validate a json payload on the way in, naming the field a caller got wrong. */
@@ -211,6 +248,7 @@ export function assistantSessionsRepo(meta: MetaDb) {
         createdAt: at,
         updatedAt: at,
         closedAt: null,
+        kind: input.kind ?? ('modal' as const),
       };
       await db.insertInto('adminium_assistant_sessions').values(row).execute();
       return decodeSession(row as unknown as Selectable<AdminiumAssistantSessionsTable>);
@@ -227,6 +265,51 @@ export function assistantSessionsRepo(meta: MetaDb) {
         .limit(limit)
         .execute();
       return rows.map(decodeSession);
+    },
+
+    /**
+     * The person's open PANEL conversation: the one that stays open while they
+     * walk from page to page. The oldest open one, so two windows that opened
+     * one each in the same instant agree on which it is.
+     */
+    async openPanelOf(userId: string): Promise<AssistantSession | null> {
+      const row = await db
+        .selectFrom('adminium_assistant_sessions')
+        .selectAll()
+        .where('createdBy', '=', userId)
+        .where('kind', '=', 'panel')
+        .where('status', '=', 'open')
+        .orderBy('createdAt', 'asc')
+        .orderBy('id', 'asc')
+        .executeTakeFirst();
+      return row === undefined ? null : decodeSession(row);
+    },
+
+    /** The panel conversation of a person that was closed last, or null: read to say why the panel is empty. */
+    async lastClosedPanelOf(userId: string): Promise<AssistantSession | null> {
+      const row = await db
+        .selectFrom('adminium_assistant_sessions')
+        .selectAll()
+        .where('createdBy', '=', userId)
+        .where('kind', '=', 'panel')
+        .where('status', '=', 'closed')
+        .orderBy('closedAt', 'desc')
+        .orderBy('id', 'desc')
+        .executeTakeFirst();
+      return row === undefined ? null : decodeSession(row);
+    },
+
+    /** Close every open panel conversation of a person but one: a person has one. Answers how many were closed. */
+    async closeOtherPanels(userId: string, keepId: string, at: number = Date.now()): Promise<number> {
+      const res = await db
+        .updateTable('adminium_assistant_sessions')
+        .set({ status: 'closed', closedAt: at, updatedAt: at })
+        .where('createdBy', '=', userId)
+        .where('kind', '=', 'panel')
+        .where('status', '=', 'open')
+        .where('id', '!=', keepId)
+        .executeTakeFirst();
+      return Number(res.numUpdatedRows);
     },
 
     /**
@@ -264,7 +347,25 @@ export function assistantSessionsRepo(meta: MetaDb) {
       return Number(res.numUpdatedRows) === 1;
     },
 
-    /** Sessions a browser left open, last touched before `before` — the sweep's first pass. */
+    /**
+     * Open panel conversations started before `before`. A panel conversation is
+     * not abandoned by being left: it is there again on the next page and the
+     * next morning. It is closed by its age instead, whatever its use.
+     */
+    async listOldPanels(before: number, limit = 500): Promise<Array<{ id: string }>> {
+      return db
+        .selectFrom('adminium_assistant_sessions')
+        .select('id')
+        .where('status', '=', 'open')
+        .where('kind', '=', 'panel')
+        .where('createdAt', '<', before)
+        .orderBy('createdAt', 'asc')
+        .orderBy('id', 'asc')
+        .limit(limit)
+        .execute();
+    },
+
+    /** Modal sessions a browser left open, last touched before `before` — the sweep's first pass. */
     async listStaleOpen(before: number, limit = 500): Promise<AssistantSession[]> {
       // Ids first, then the rows: MySQL sorts whole rows in a fixed buffer, and a
       // long transcript is bigger than it ("Out of sort memory").
@@ -273,6 +374,7 @@ export function assistantSessionsRepo(meta: MetaDb) {
           .selectFrom('adminium_assistant_sessions')
           .select('id')
           .where('status', '=', 'open')
+          .where('kind', '=', 'modal')
           .where('updatedAt', '<', before)
           .orderBy('updatedAt', 'asc')
           .orderBy('id', 'asc')
@@ -333,8 +435,16 @@ export function assistantSessionsRepo(meta: MetaDb) {
         durationMs: null,
         createdAt: at,
         finishedAt: null,
+        context: input.context === undefined || input.context === null ? null : contextOf(input.context),
+        host: input.host === undefined || input.host === null ? null : packChecked('host', assistantHostSchema, input.host),
+        draft: input.draft === undefined || input.draft === null ? null : packJson(input.draft),
+        answer: null,
+        proposalClaimedAt: null,
+        proposalDoneAt: null,
       };
       await db.insertInto('adminium_assistant_turns').values(row).execute();
+      // A question is use: the sweep that closes a conversation left alone for a day reads this.
+      await db.updateTable('adminium_assistant_sessions').set({ updatedAt: at }).where('id', '=', input.sessionId).execute();
       return decodeTurn(row as unknown as Selectable<AdminiumAssistantTurnsTable>);
     },
 
@@ -349,6 +459,23 @@ export function assistantSessionsRepo(meta: MetaDb) {
       return rows.map(decodeTurn);
     },
 
+    /**
+     * The LAST `limit` turns of a session up to and including `upToSeq`, in
+     * order, and how many came before them. A conversation that lasts weeks
+     * holds every transcript it ever sent; what the next turn and the panel
+     * need is its end, so the rest is counted and not read.
+     */
+    async listTurnsTail(sessionId: string, limit: number, upToSeq?: number): Promise<{ turns: AssistantTurn[]; earlier: number }> {
+      let ids = db.selectFrom('adminium_assistant_turns').select(['id', 'seq']).where('sessionId', '=', sessionId);
+      if (upToSeq !== undefined) ids = ids.where('seq', '<=', upToSeq);
+      // Ids first, then the rows: MySQL sorts whole rows in a fixed buffer, and a transcript is bigger than it.
+      const all = await ids.orderBy('seq', 'asc').execute();
+      const wanted = all.slice(-Math.max(limit, 1)).map((row) => row.id);
+      if (wanted.length === 0) return { turns: [], earlier: 0 };
+      const rows = await db.selectFrom('adminium_assistant_turns').selectAll().where('id', 'in', wanted).execute();
+      return { turns: inIdOrder(wanted, rows).map(decodeTurn), earlier: all.length - wanted.length };
+    },
+
     /** Is anything in this session still going? A second turn may not start over one. */
     async hasLiveTurn(sessionId: string): Promise<boolean> {
       const row = await db
@@ -358,6 +485,39 @@ export function assistantSessionsRepo(meta: MetaDb) {
         .where('status', 'in', ['queued', 'running'])
         .executeTakeFirst();
       return row !== undefined;
+    },
+
+    /**
+     * The turn a PERSON has under way, in any of their conversations, or
+     * `null`. One at a time a person: what a day's allowance is held against
+     * is counted as it is spent, and several turns opened at once would each
+     * pass the same check.
+     */
+    async liveTurnOf(userId: string): Promise<{ id: string; sessionId: string } | null> {
+      const row = await db
+        .selectFrom('adminium_assistant_turns as turn')
+        .innerJoin('adminium_assistant_sessions as session', 'session.id', 'turn.sessionId')
+        .select(['turn.id as id', 'turn.sessionId as sessionId'])
+        .where('session.createdBy', '=', userId)
+        .where('turn.status', 'in', ['queued', 'running'])
+        .orderBy('turn.createdAt', 'desc')
+        .executeTakeFirst();
+      return row === undefined ? null : { id: row.id, sessionId: row.sessionId };
+    },
+
+    /**
+     * End every turn left `running`: at boot, with one process, nothing is
+     * running them. Without this a person is told "still working" until the
+     * job's stale lock lapses, minutes later. Queued turns are left: their
+     * job is still in the queue and will run them.
+     */
+    async failRunningTurns(error: Record<string, unknown>, at: number = Date.now()): Promise<number> {
+      const res = await db
+        .updateTable('adminium_assistant_turns')
+        .set({ status: 'failed', error: packChecked('error', assistantErrorSchema, error), finishedAt: at })
+        .where('status', '=', 'running')
+        .executeTakeFirst();
+      return Number(res.numUpdatedRows);
     },
 
     /**
@@ -408,6 +568,85 @@ export function assistantSessionsRepo(meta: MetaDb) {
       return Number(res.numUpdatedRows) === 1;
     },
 
+    /**
+     * Replace what a finished turn's answer holds, as its proposal is checked
+     * or let go. Only a turn that is done (one still running writes its own
+     * answer when it ends), and only while NO confirm has taken the proposal:
+     * a check that was still running when a confirm began must not write its
+     * older copy over what the confirm did. `false` when it was not written.
+     */
+    async recordAnswer(id: string, answer: Record<string, unknown>): Promise<boolean> {
+      const res = await db
+        .updateTable('adminium_assistant_turns')
+        .set({ answer: packJson(answer) })
+        .where('id', '=', id)
+        .where('status', '=', 'done')
+        .where('proposalClaimedAt', 'is', null)
+        .executeTakeFirst();
+      return Number(res.numUpdatedRows) === 1;
+    },
+
+    /**
+     * What a confirm has done so far, written while it runs: only by the run
+     * that holds the claim and has not ended. `false` once it was ended (by
+     * itself, or as interrupted).
+     */
+    async recordProposalProgress(id: string, answer: Record<string, unknown>): Promise<boolean> {
+      const res = await db
+        .updateTable('adminium_assistant_turns')
+        .set({ answer: packJson(answer) })
+        .where('id', '=', id)
+        .where('proposalClaimedAt', 'is not', null)
+        .where('proposalDoneAt', 'is', null)
+        .executeTakeFirst();
+      return Number(res.numUpdatedRows) === 1;
+    },
+
+    /**
+     * Take a turn's proposal for the one confirm it gets. `false` when another
+     * request already has: the guard is the statement's own WHERE.
+     */
+    async claimProposal(id: string, at: number = Date.now()): Promise<boolean> {
+      const res = await db
+        .updateTable('adminium_assistant_turns')
+        .set({ proposalClaimedAt: at })
+        .where('id', '=', id)
+        .where('status', '=', 'done')
+        .where('proposalClaimedAt', 'is', null)
+        .executeTakeFirst();
+      return Number(res.numUpdatedRows) === 1;
+    },
+
+    /** Note that a claimed proposal's run has written its outcome. */
+    async finishProposal(id: string, answer: Record<string, unknown>, at: number = Date.now()): Promise<boolean> {
+      const res = await db
+        .updateTable('adminium_assistant_turns')
+        .set({ answer: packJson(answer), proposalDoneAt: at })
+        .where('id', '=', id)
+        .where('proposalClaimedAt', 'is not', null)
+        .where('proposalDoneAt', 'is', null)
+        .executeTakeFirst();
+      return Number(res.numUpdatedRows) === 1;
+    },
+
+    /**
+     * Turns whose proposal was taken, before `claimedBefore`, by a confirm that
+     * never finished. The age is the caller's proof that its process is gone:
+     * a confirm that is still writing is younger than any confirm lasts.
+     */
+    async listUnfinishedProposals(claimedBefore: number, limit = 500): Promise<AssistantTurn[]> {
+      const rows = await db
+        .selectFrom('adminium_assistant_turns')
+        .selectAll()
+        .where('proposalClaimedAt', 'is not', null)
+        .where('proposalClaimedAt', '<', claimedBefore)
+        .where('proposalDoneAt', 'is', null)
+        .orderBy('createdAt', 'asc')
+        .limit(limit)
+        .execute();
+      return rows.map(decodeTurn);
+    },
+
     /** Write everything a turn ended with, in one statement. */
     async finishTurn(id: string, input: FinishAssistantTurnInput): Promise<boolean> {
       const status = assistantTurnStatusSchema.safeParse(input.status);
@@ -430,12 +669,11 @@ export function assistantSessionsRepo(meta: MetaDb) {
       if (input.tokensIn !== undefined) set.tokensIn = input.tokensIn;
       if (input.tokensOut !== undefined) set.tokensOut = input.tokensOut;
       if (input.durationMs !== undefined) set.durationMs = input.durationMs;
+      if (input.answer !== undefined) set.answer = input.answer === null ? null : packJson(input.answer);
       if (input.finishedAt !== undefined) set.finishedAt = input.finishedAt;
-      const res = await db
-        .updateTable('adminium_assistant_turns')
-        .set(set)
-        .where('id', '=', id)
-        .executeTakeFirst();
+      let query = db.updateTable('adminium_assistant_turns').set(set).where('id', '=', id);
+      if (input.expected !== undefined) query = query.where('status', '=', input.expected);
+      const res = await query.executeTakeFirst();
       return Number(res.numUpdatedRows) === 1;
     },
   };

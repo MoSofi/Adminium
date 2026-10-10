@@ -18,7 +18,7 @@
  */
 import { createHash } from 'node:crypto';
 
-import { GROUPED_FORM, clockShaped, emailRowsDataSchema, isCodeColumn, type Manifest, type Outbox } from '@adminium/manifest';
+import { GROUPED_FORM, clockShaped, emailRowsDataSchema, isCodeColumn, placeholderPattern, type Manifest, type Outbox } from '@adminium/manifest';
 import { appOutboxesRepo, emailTemplatesRepo, type EmailTemplate, type MetaDb } from '@adminium/meta';
 
 import { EMAIL_BLOCK_DATA_SCHEMAS } from '../email/document.js';
@@ -141,7 +141,6 @@ const formsOf = (column: Parameters<typeof clockShaped>[0] & { rules?: { code?: 
   return isCodeColumn(column) ? [...own, GROUPED_FORM] : own;
 };
 const orList = (items: string[]): string => (items.length < 2 ? items.join('') : `${items.slice(0, -1).join(', ')} or ${items.at(-1)!}`);
-const PLACEHOLDER = /\{\{\s*([A-Za-z0-9_.-]+)\s*\}\}/g;
 
 /**
  * The variables of one language of a template that name a column's form the
@@ -188,7 +187,7 @@ function unfillableForms(
   const out: { name: string; bare: string; column: string; type: string; allowed: readonly string[] }[] = [];
   const seen = new Set<string>();
   for (const text of texts) {
-    for (const match of text.matchAll(PLACEHOLDER)) {
+    for (const match of text.matchAll(placeholderPattern())) {
       const name = match[1] as string;
       const parts = name.split('.');
       const form = parts.at(-1) as string;

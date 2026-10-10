@@ -106,6 +106,10 @@ export type EmailBlock = {
   block: string;
   data: Record<string, unknown>;
   style: EmailBlockStyle;
+  /** Shown only when this variable has a value (see the manifest package's `placeholders.ts`). */
+  showWhen?: { var: string } | undefined;
+  /** What a text block says in its own place when it has none. */
+  otherwise?: string | undefined;
 };
 
 export interface EmailDocument {

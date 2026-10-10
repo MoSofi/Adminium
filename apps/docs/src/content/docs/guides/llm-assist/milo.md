@@ -24,6 +24,34 @@ does **not** disappear when no AI provider is configured — the window opens an
 tells you what is missing and who can fix it, because a button that vanishes
 teaches nobody anything.
 
+### On an app's own staff address
+
+An installed app's staff screens can be opened by themselves: at
+`/apps/<key>/staff/`, or on a domain attached to that side. There too the
+assistant has a button, in the bottom corner, for a signed-in person whose role
+holds the assistant permission. The first press opens the same panel as in the
+dashboard; a question is asked as the general assistant, with the app named.
+
+- It is the same assistant: the same permission, the same limits on what a role
+  reads, the same switches for what it may do, the same daily allowance, and
+  the same confirmation before anything is written.
+- **The customer side of an app never has it**, whoever is signed in and
+  whatever address it is opened at.
+- Nobody signed out sees it: the side's own sign-in comes first.
+- Inside the dashboard, where an app's staff screens are shown in a frame, the
+  dashboard's own button serves and the app's page gets none.
+- **Settings → AI → What the assistant may do** has a switch, *On your apps'
+  staff addresses*, on by default. Off, the assistant stays in the dashboard
+  and no role needs to change.
+
+A person whose roles are all [screens only](/guides/apps/roles-and-staff-access/#people-who-only-use-the-app)
+(a cashier) gets the button only when an administrator has given their role the
+assistant permission on **Studio → Roles**; no role has it by default, and an
+app cannot give it to its own roles. Such a person can ask about their app's
+data and where things are done. The document pages of the dashboard (email
+templates, invoices, reports, rules) are not their screens, so the assistant
+does not open those conversations for them, and it saves no drafts for them.
+
 ## What it reads
 
 Always:

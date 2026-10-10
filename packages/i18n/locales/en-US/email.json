@@ -168,6 +168,7 @@
     "count": "{total, plural, one {# recipient} other {# recipients}}",
     "optedOut": "{skipped} opted out",
     "note": "Variables are filled per recipient — {token} becomes each person’s name.",
+    "unfilled": "Nothing fills {names}: every recipient would get it as written. Give it a backup in the editor, or take it out.",
     "send": "Send campaign",
     "scheduleAction": "Schedule campaign",
     "sending": "Sending…",
@@ -870,5 +871,26 @@
     "kept": "What you already have with us stays valid, and the emails you already have still open it. You won’t hear from us again unless you come back.",
     "footer": "{appName}",
     "stopped": "The links in the emails you already have no longer work. You won’t hear from us again unless you come back."
+  },
+  "missing": {
+    "chip": "{name}: say what to write when it is missing",
+    "chipWith": "{name}: when it is missing, “{backup}” is written",
+    "dialog": "Backup text for {name}",
+    "ask": "If there is no {name}, write:",
+    "preview": "Preview",
+    "otherwiseTag": "Otherwise text",
+    "nothing": "Nothing in this email changes when a value is missing. Give a placeholder a backup, or tie a block to a value.",
+    "showingOne": "Showing what a reader with no {name} is sent.",
+    "showingMany": "Showing what a reader is sent when these have no value: {names}.",
+    "switch": "Preview with missing values",
+    "ifMissing": "If missing:",
+    "ifMissingNothing": "If missing: nothing is written",
+    "visibility": "Visibility",
+    "showWhen": "Show this block only when",
+    "always": "Always shown",
+    "hasValue": "{name} has a value",
+    "otherwise": "Otherwise show",
+    "otherwiseHint": "These words take the place of the whole block. Leave it empty to send nothing in its place.",
+    "leftOut": "When it has none, this block is left out of the email."
   }
 }

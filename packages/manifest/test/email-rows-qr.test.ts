@@ -92,6 +92,20 @@ describe('an email that lists rows', () => {
     expect(issuesText(m)).toContain("a row's image is a QR code of a code column: {{row.<column>.qr}}");
   });
 
+  it('refuses other words nothing would print: with no value to hang on, or on a block that is not one text', () => {
+    let m = mailing();
+    Object.assign(blocksOf(m)[0]!, { showWhen: { var: 'order.id' }, otherwise: 'Your tickets' });
+    Object.assign(blocksOf(m, 'de-DE')[0]!, { showWhen: { var: 'order.id' }, otherwise: 'Ihre Tickets' });
+    // Only the floor is asked for (this fixture's is older): the words themselves are taken.
+    expect(issuesText(m)).not.toContain('otherwise');
+    m = mailing();
+    Object.assign(blocksOf(m)[0]!, { otherwise: 'Your tickets' });
+    expect(issuesText(m)).toContain('it needs a "showWhen"');
+    m = mailing();
+    Object.assign(blocksOf(m)[2]!, { showWhen: { var: 'order.id' }, otherwise: 'No picture' });
+    expect(issuesText(m)).toContain('only a text or a heading block can say other words');
+  });
+
   it('refuses a link the outbox lacks, a table or link that does not lead from it, and columns the rows lack', () => {
     let m = mailing();
     (rowsData(m)['from'] as Doc)['link'] = 'booking';

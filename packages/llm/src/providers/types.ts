@@ -111,6 +111,13 @@ export interface ProviderErrorInit {
   message: string;
   status?: number;
   cause?: unknown;
+  /**
+   * With `empty_response` only: the names of the tool calls the reply made in
+   * the provider's OWN calling format instead of writing any text. A model
+   * that does this has not failed to answer; it answered in a format nobody
+   * asked for, and a caller that can say so (the assistant) asks again.
+   */
+  toolCalls?: readonly string[];
 }
 
 export class ProviderError extends Error {
@@ -118,12 +125,14 @@ export class ProviderError extends Error {
   readonly provider: ProviderId;
   readonly code: ProviderErrorCode;
   readonly status?: number;
+  readonly toolCalls?: readonly string[];
 
   constructor(init: ProviderErrorInit) {
     super(init.message, init.cause === undefined ? undefined : { cause: init.cause });
     this.provider = init.provider;
     this.code = init.code;
     if (init.status !== undefined) this.status = init.status;
+    if (init.toolCalls !== undefined && init.toolCalls.length > 0) this.toolCalls = [...init.toolCalls];
   }
 }
 
@@ -183,4 +192,19 @@ export function stripTrailingSlash(url: string): string {
   let end = url.length;
   while (end > 0 && url.charCodeAt(end - 1) === 0x2f /* '/' */) end -= 1;
   return end === url.length ? url : url.slice(0, end);
+}
+
+/**
+ * The names of a reply's tool calls made in the provider's own calling format
+ * (`[{ function: { name } }]`, the shape OpenAI and Ollama share). Bounded: a
+ * model's text is never trusted to be short or well-formed.
+ */
+export function nativeToolCallNames(calls: unknown): string[] {
+  if (!Array.isArray(calls)) return [];
+  const names: string[] = [];
+  for (const call of calls.slice(0, 5)) {
+    const name = (call as { function?: { name?: unknown } } | null)?.function?.name;
+    if (typeof name === 'string' && name !== '') names.push(name.slice(0, 60));
+  }
+  return names;
 }

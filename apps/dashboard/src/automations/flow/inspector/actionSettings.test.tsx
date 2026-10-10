@@ -5,7 +5,7 @@
  * which is the TRIGGER's connection and nothing else (`runner.ts`
  * `openSource`).
  */
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
@@ -235,3 +235,73 @@ describe('ActionSettings — an email step’s placeholders', () => {
     expect(onChange).toHaveBeenLastCalledWith({ templateKey: 'ready', vars: {} });
   });
 });
+
+describe('ActionSettings — an email step that reaches the row a link points at', () => {
+  const CUSTOMER = [column('name', { label: 'Name' }), column('email', { label: 'Email', emailLike: true, pii: true }), column('tier', { label: 'Tier' })];
+  const ORDERS = table('main.orders', 'orders', {
+    columns: [column('customer_id', { label: 'Customer' }), column('contact', { label: 'Contact', emailLike: true }), column('total', { label: 'Total' })],
+    links: [{ column: 'customer_id', table: 'main.customers', label: 'customers', columns: CUSTOMER }],
+  });
+  const WITH: Sources = { ...SOURCES, templates: [{ key: 'thanks', name: 'Thanks', placeholders: ['first_name', 'customer_id.tier'], ownedByApp: false }], templatesOff: 2 };
+
+  function renderEmail(action: Extract<Action, { kind: 'email' }>, sources: Sources = WITH) {
+    const onChange = vi.fn();
+    render(<ActionSettings action={action} sources={sources} table={ORDERS} connectionId="cnx_1" onChange={onChange} />);
+    return { onChange, user: userEvent.setup() };
+  }
+
+  const toBox = (): HTMLElement => screen.getByRole('combobox', { name: 'Address columns' });
+
+  it('lists what holds an address first, this table`s and then the linked row`s, and can be searched', async () => {
+    const { user, onChange } = renderEmail({ kind: 'email', templateKey: 'thanks', to: { kind: 'field', column: '' } });
+    await user.click(toBox());
+    const list = await screen.findByRole('listbox');
+    const rows = within(list).getAllByRole('option').map((row) => row.textContent);
+    // The record's own address, then the customer's (never the customer's name or tier), then the table's other columns.
+    expect(rows).toEqual([
+      'contactContact · This table · orders',
+      'customer_id → emailFrom Customer · customers.email',
+      'customer_idCustomer · This table · orders',
+      'totalTotal · This table · orders',
+    ]);
+    await user.keyboard('email');
+    await waitFor(() => {
+      expect(within(list).getAllByRole('option')).toHaveLength(1);
+    });
+    await user.click(within(list).getByRole('option'));
+    expect(onChange).toHaveBeenLastCalledWith({ to: { kind: 'field', column: 'customer_id.email' } });
+  });
+
+  it('says in the comp`s words when the column is not an address, and not when it is, one hop away too', async () => {
+    const { user } = renderEmail({ kind: 'email', templateKey: 'thanks', to: { kind: 'field', column: 'customer_id' } });
+    expect(screen.getByRole('alert').textContent).toBe('customer_id is not an address. Choose a column that holds one.');
+    expect(toBox().getAttribute('aria-invalid')).toBe('true');
+    cleanup();
+    renderEmail({ kind: 'email', templateKey: 'thanks', to: { kind: 'field', column: 'customer_id.email' } });
+    expect(screen.queryByTestId('email-to-not-address')).toBeNull();
+    cleanup();
+    // A step that already names a linked column that is no address keeps it in the list, and is warned.
+    renderEmail({ kind: 'email', templateKey: 'thanks', to: { kind: 'field', column: 'customer_id.name' } });
+    expect(screen.getByTestId('email-to-not-address')).toBeTruthy();
+    await user.click(toBox());
+    expect(within(await screen.findByRole('listbox')).getAllByRole('option').map((row) => row.textContent)).toContain('customer_id → nameFrom Customer · customers.name');
+  });
+
+  it('knows a placeholder the linked row fills, and fills another from it', async () => {
+    const { user, onChange } = renderEmail({ kind: 'email', templateKey: 'thanks', to: null });
+    expect(screen.getByTestId('email-ph-state-customer_id.tier').textContent).toBe('From this record');
+    await user.selectOptions(screen.getByTestId('email-ph-fill-first_name'), 'Customer → Name');
+    expect(onChange).toHaveBeenLastCalledWith({ vars: { first_name: '{{record.customer_id.name}}' } });
+  });
+
+  it('says how many templates are switched off and where they are, and nothing when none is', () => {
+    renderEmail({ kind: 'email', templateKey: null, to: null });
+    const line = screen.getByTestId('email-templates-off');
+    expect(line.textContent).toContain('2 templates are switched off and not shown.');
+    expect(within(line).getByRole('link', { name: 'Open Email templates' }).getAttribute('href')).toBe('/email-templates');
+    cleanup();
+    renderEmail({ kind: 'email', templateKey: null, to: null }, { ...WITH, templatesOff: 0 });
+    expect(screen.queryByTestId('email-templates-off')).toBeNull();
+  });
+});
+

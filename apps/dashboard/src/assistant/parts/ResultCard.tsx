@@ -17,7 +17,7 @@
  * says so.
  */
 import { Tabs, TabsContent, TabsList, TabsTrigger, cn } from '@adminium/ui';
-import { TriangleAlert } from 'lucide-react';
+import { Info, TriangleAlert } from 'lucide-react';
 import type { ReactNode } from 'react';
 
 import { t } from '../../i18n/t.js';
@@ -35,20 +35,43 @@ export interface ResultCardProps {
   tokensOut: number;
   /** The result card's footer — the fixed actions for this page. */
   footer: ReactNode;
+  /**
+   * Draw the row "What I left out, and why" even when nothing was left out
+   * (it then says "Nothing."): on a page where a draft that quietly does less
+   * than was asked would be taken for one that does all of it. Elsewhere the
+   * row is there only when the draft names something.
+   */
+  alwaysLeftOut?: boolean | undefined;
+  /** Under that row: what would give the part left out (an add-on's card). */
+  under?: ReactNode;
+  /** Beside the title: what will become of the draft ("Will be saved switched off"). */
+  badge?: ReactNode;
+  /** One line above the actions: what pressing one does and does not do ("Nothing is saved until you save the rule."). */
+  note?: string | undefined;
+  /**
+   * The title on a row of its own, whole, with the tabs under it: for a draft
+   * whose name is what a person reads first (a rule's), where beside the tabs
+   * a narrow panel would cut it to a word.
+   */
+  stacked?: boolean | undefined;
 }
 
-export function ResultCard({ result, preview, kind, tokensIn, tokensOut, footer }: ResultCardProps) {
+export function ResultCard({ result, preview, kind, tokensIn, tokensOut, footer, alwaysLeftOut, under, badge, note, stacked }: ResultCardProps) {
   return (
     <div data-testid="assistant-result" className="min-w-0 flex-1 overflow-hidden rounded-[16px] border border-border bg-surface shadow-menu">
       <Tabs variant="pill" defaultValue="preview" className="gap-0">
-        <div className="flex items-center gap-3 border-b border-border px-4 py-[13px]">
-          <div className="min-w-0 flex-1">
-            <div className="truncate text-[13.5px] font-extrabold tracking-[-0.01em] text-fg">{result.title}</div>
-            {result.meta === '' ? null : (
-              <div className="mt-0.5 truncate text-caption text-fg-muted">{result.meta}</div>
-            )}
+        <div className={cn('border-b border-border px-4 py-[13px]', stacked === true ? 'flex flex-col gap-3' : 'flex items-center gap-3')}>
+          <div className={cn('min-w-0', stacked === true ? 'flex items-start gap-3' : 'flex-1')}>
+            <div className="min-w-0 flex-1">
+              <div className={cn('text-[13.5px] font-extrabold tracking-[-0.01em] text-fg', stacked === true ? 'text-pretty leading-[1.35]' : 'truncate')}>{result.title}</div>
+              {result.meta === '' ? null : (
+                <div className={cn('mt-0.5 text-caption text-fg-muted', stacked === true ? 'text-pretty' : 'truncate')}>{result.meta}</div>
+              )}
+              {stacked === true || badge === undefined || badge === null ? null : <div className="mt-1.5">{badge}</div>}
+            </div>
+            {stacked === true && badge !== undefined && badge !== null ? <div className="shrink-0">{badge}</div> : null}
           </div>
-          <TabsList className="shrink-0 border border-border">
+          <TabsList className={cn('border border-border', stacked === true ? 'w-full [&>*]:flex-1' : 'shrink-0')}>
             <TabsTrigger data-testid="assistant-tab" data-tab="preview" value="preview">{t('assistant:tabs.preview', 'Preview')}</TabsTrigger>
             <TabsTrigger data-testid="assistant-tab" data-tab="diff" value="diff">{t('assistant:tabs.diff', 'Diff')}</TabsTrigger>
             <TabsTrigger data-testid="assistant-tab" data-tab="details" value="details">{t('assistant:tabs.details', 'Details')}</TabsTrigger>
@@ -66,7 +89,43 @@ export function ResultCard({ result, preview, kind, tokensIn, tokensOut, footer 
           <DetailsView result={result} tokensIn={tokensIn} tokensOut={tokensOut} />
         </TabsContent>
       </Tabs>
+      {alwaysLeftOut === true || result.leftOut.length > 0 ? <LeftOut items={result.leftOut} /> : null}
+      {under === undefined || under === null ? null : <div className="flex flex-col gap-2 px-4 pb-3.5 ps-[42px]">{under}</div>}
+      {note === undefined ? null : (
+        <p data-testid="assistant-result-note" className="border-t border-border px-4 py-2.5 text-caption leading-[1.5] text-fg-muted">
+          {note}
+        </p>
+      )}
       {footer}
+    </div>
+  );
+}
+
+/**
+ * "What I left out, and why" (comp `Milo Automations` 01, 02): the parts of
+ * the request the draft does not do, in the assistant's own words. A row of
+ * the card, not a line of the answer: it stays under the preview while the
+ * answer above scrolls away.
+ */
+function LeftOut({ items }: { items: readonly { what: string; why: string }[] }) {
+  return (
+    <div data-testid="assistant-left-out" className="border-t border-border px-4 py-3.5">
+      <div className="flex items-center gap-2 text-[12.5px] font-extrabold text-fg">
+        <Info className="size-3.5 shrink-0 text-fg-subtle" aria-hidden="true" />
+        {t('assistant:leftOut.title', 'What I left out, and why')}
+      </div>
+      {items.length === 0 ? (
+        <p className="mt-1.5 ps-[22px] text-caption leading-[1.55] text-fg-muted">{t('assistant:leftOut.nothing', 'Nothing.')}</p>
+      ) : (
+        <ul className="mt-1.5 flex list-none flex-col gap-1 p-0 ps-[22px]">
+          {items.map((item, index) => (
+            <li key={index} className="text-caption leading-[1.55] text-pretty text-fg-muted">
+              <span className="font-bold text-fg">{item.what}</span>
+              {item.why === '' ? null : <> {item.why}</>}
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

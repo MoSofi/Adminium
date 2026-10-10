@@ -11,7 +11,7 @@ import { sql, type Kysely, type SelectQueryBuilder } from 'kysely';
 import { STATS_EXACT_COUNT_THRESHOLD, type Dialect } from '@adminium/engine';
 import type { DerivedField } from '@adminium/engine/config';
 
-import { ValidationFailedError } from '../errors.js';
+import { ForbiddenError, ValidationFailedError } from '../errors.js';
 import type { SourceDatabase } from '../connections/manager.js';
 import {
   compileFilter,
@@ -32,8 +32,15 @@ export const LIST_LIMIT_DEFAULT = 50;
 export const MAX_SORT_KEYS = 3;
 
 export interface SortKey {
+  /** A column of the table; or, with {@link SortKey.measure}, the alias of a fold over related rows. */
   column: string;
   dir: 'asc' | 'desc';
+  /**
+   * Set when the key is a MEASURE (a count or a sum over the rows that point
+   * at each listed row), not a column: "customers by number of orders". It is
+   * ordered by its select alias, rows with no value last on every engine.
+   */
+  measure?: true;
 }
 
 export interface ListParams {
@@ -59,6 +66,8 @@ export function parseOrder(
   table: ResolvedTable,
   raw: string | undefined,
   canReadPii: boolean,
+  /** The measures this list selects: a sort key may name one by its alias. */
+  measures: readonly ResolvedMeasure[] = [],
 ): SortKey[] {
   const keys: SortKey[] = [];
   if (raw !== undefined && raw.length > 0) {
@@ -66,6 +75,19 @@ export function parseOrder(
       const [name, dir = 'asc'] = part.split('.', 2);
       if (name === undefined || name.length === 0 || (dir !== 'asc' && dir !== 'desc')) {
         throw new ValidationFailedError('`order` must be `col.asc` / `col.desc` pairs.', { part });
+      }
+      // A fold over related rows, by its alias. Never one the caller was refused (a table they
+      // may not read, a masked column): its values never leave the database, and an order by
+      // them would say which row holds the most of what they may not see.
+      const measure = table.columns.has(name) ? undefined : measures.find((candidate) => candidate.alias === name);
+      if (measure !== undefined) {
+        if (measure.refused) {
+          throw new ForbiddenError(`"${name}" is not shown to your role, so rows cannot be ordered by it.`, 'COLUMN_FORBIDDEN', { measure: name });
+        }
+        // The constant applied to a fold after the fetch does not reach the SQL: a negative one turns the order round.
+        const flipped = measure.factor !== null && measure.factor.trim().startsWith('-');
+        keys.push({ column: measure.alias, dir: flipped ? (dir === 'asc' ? 'desc' : 'asc') : dir, measure: true });
+        continue;
       }
       // Masked columns are rejected in `order`.
       const column = view.readableColumn(table, name, canReadPii);
@@ -114,6 +136,12 @@ type Qb = SelectQueryBuilder<SourceDatabase, string, Record<string, unknown>>;
  * SQL. Returns null when the caller should run the exact count; a failed probe
  * degrades the same way rather than failing the list.
  */
+/**
+ * The most rows a list may be ORDERED BY A FOLD over, by engine: the fold is
+ * worked out for each of them before the first page is cut.
+ */
+export const MEASURE_SORT_MAX_ROWS: Readonly<Record<string, number>> = Object.freeze({ sqlite: 20_000, postgres: 200_000, mysql: 200_000 });
+
 export async function estimatedTotal(
   db: Kysely<SourceDatabase>,
   table: Pick<ResolvedTable, 'schema' | 'name'>,
@@ -169,6 +197,29 @@ export interface RunListOptions {
    */
   mandatory?: RecordFilter | undefined;
   /**
+   * WHO the mandatory rows are decided as, when that is not who the values are
+   * shown as. The assistant reads "the rows on this person's screen": which
+   * rows those are is the PERSON'S own filter and search, decided with their
+   * own right to personal columns, or it is not their screen (a search that
+   * matched through an address found one row fewer for the assistant than the
+   * grid showed). What comes back is still masked by {@link canReadPii}.
+   * `search` is a quick search that is part of the same fixed row set.
+   * Absent: decided as {@link canReadPii}, as it always was.
+   */
+  mandatoryAs?: { canReadPii: boolean; search?: string | undefined } | undefined;
+  /** A tighter cap than {@link MEASURE_SORT_MAX_ROWS} on the rows a list may be ordered by a fold over. */
+  measureSortMaxRows?: number | undefined;
+  /**
+   * Count the rows under {@link mandatory} too. Off unless asked: on the
+   * anonymous surface every list carries a mandatory predicate, and an exact
+   * count there is a free way to make the database work (see the note where
+   * the count is taken). A caller that reads AS A SIGNED-IN PERSON, inside
+   * their rate budget, may ask: the assistant does, because "these are 50 of
+   * 830 rows" is the sentence that keeps a partial read from passing for a
+   * whole one.
+   */
+  countMandatory?: boolean | undefined;
+  /**
    * The COMPLETE column set to return, replacing both `params.select` and the
    * default (a / a′).
    *
@@ -223,7 +274,7 @@ export interface RunListOptions {
 }
 
 export async function runList(opts: RunListOptions): Promise<ListResult> {
-  const { db, view, table, params, canReadPii, dialect, mandatory, exposeColumns, searchColumns } = opts;
+  const { db, view, table, params, canReadPii, dialect, mandatory, mandatoryAs, exposeColumns, searchColumns } = opts;
   const lookups = opts.lookups ?? [];
   const measures = opts.measures ?? [];
   const derivedFields = opts.derivedFields ?? [];
@@ -262,12 +313,19 @@ export async function runList(opts: RunListOptions): Promise<ListResult> {
   }
 
   const filter: RecordFilter | null = params.where === undefined ? null : parseWhereParam(params.where);
-  const sortKeys = parseOrder(view, table, params.order, canReadPii);
+  const sortKeys = parseOrder(view, table, params.order, canReadPii, measures);
 
   const applyFilters = (qb: Qb): Qb => {
     let out = qb;
     // FIRST, and outside every conditional below. Every later clause narrows.
-    if (mandatory !== undefined) out = out.where((eb) => compileFilter(eb as never, ctx, mandatory));
+    const fixed: CompileFilterContext = mandatoryAs === undefined ? ctx : { ...ctx, canReadPii: mandatoryAs.canReadPii };
+    if (mandatory !== undefined) out = out.where((eb) => compileFilter(eb as never, fixed, mandatory));
+    const fixedSearch = mandatoryAs?.search;
+    if (fixedSearch !== undefined && fixedSearch.length > 0) {
+      // Part of the fixed row set, so it narrows whatever else was asked. No searchable column
+      // matches NOTHING: the grid that sent this search showed no row either.
+      out = out.where((eb) => compileQuickSearch(eb as never, fixed, fixedSearch, undefined) ?? eb(eb.val(1), '=', 0));
+    }
     if (filter !== null) out = out.where((eb) => compileFilter(eb as never, ctx, filter));
     if (params.q !== undefined && params.q.length > 0) {
       out = out.where((eb) => {
@@ -297,7 +355,44 @@ export async function runList(opts: RunListOptions): Promise<ListResult> {
     // Same contract: refused measures never reach SQL.
     qb = qb.select((eb) => measureSelections(eb as never, db, table, measures)) as Qb;
   }
-  for (const key of sortKeys) qb = qb.orderBy(dynamic.ref(key.column), key.dir);
+  for (const key of sortKeys) {
+    if (key.measure !== true) {
+      qb = qb.orderBy(dynamic.ref(key.column), key.dir);
+      continue;
+    }
+    // By the select alias (all three engines order by an output column's name), with rows that
+    // have no value LAST whichever way the order runs: left to each engine, a customer with no
+    // orders leads the list on one and trails it on another. PostgreSQL and SQLite spell that
+    // `NULLS LAST`; MySQL has no such words and orders by "is it null" first.
+    if (dialect === 'mysql') {
+      qb = qb.orderBy(sql`${sql.ref(key.column)} is null`).orderBy(sql.ref(key.column), key.dir);
+    } else {
+      qb = qb.orderBy(sql`${sql.ref(key.column)} ${sql.raw(key.dir)} nulls last`);
+    }
+  }
+  // A keyset cursor carries the sort tuple and compares it in a WHERE, where a select alias does
+  // not exist. Paging by offset stays available.
+  if (params.cursor !== undefined && sortKeys.some((key) => key.measure === true)) {
+    throw new ValidationFailedError('Keyset pagination is unavailable when rows are ordered by a computed value; use offset pagination.', {});
+  }
+  // Ordering by a fold computes it for EVERY row the filters leave, before the limit applies:
+  // one correlated subquery a row. Over a whole large table that is a request that can hold the
+  // database for minutes (and on SQLite, one thread, every other request with it). So the rows
+  // under the filters are counted first, which is one scan, and past the cap the list is refused
+  // with the way round it. Narrowing it helps, because what is counted is what would be ranked.
+  if (sortKeys.some((key) => key.measure === true)) {
+    const cap = opts.measureSortMaxRows ?? MEASURE_SORT_MAX_ROWS[dialect] ?? 20_000;
+    const counted = await applyFilters(db.selectFrom(table.id) as unknown as Qb)
+      .select((eb) => eb.fn.countAll().as('total'))
+      .executeTakeFirst();
+    const rows = Number((counted as { total?: unknown } | undefined)?.total ?? 0);
+    if (rows > cap) {
+      throw new ValidationFailedError(
+        `Too many rows to order by a computed value (${String(rows)}; the most is ${String(cap)}). Narrow the list with a filter first.`,
+        { reason: 'too-many-rows-to-rank', rows, max: cap },
+      );
+    }
+  }
 
   const cursorMode = params.cursor !== undefined;
   // Keyset cursors carry the sort tuple — including the primary-key tiebreaker
@@ -378,7 +473,10 @@ export async function runList(opts: RunListOptions): Promise<ListResult> {
     // above the shared threshold; every refusal falls through to the exact
     // count this endpoint always ran.
     const unfiltered =
-      mandatory === undefined && filter === null && (params.q === undefined || params.q.length === 0);
+      mandatory === undefined &&
+      (mandatoryAs?.search ?? '') === '' &&
+      filter === null &&
+      (params.q === undefined || params.q.length === 0);
     if (params.count === 'estimated' && unfiltered) {
       total = await estimatedTotal(db, table, dialect);
     }
@@ -393,7 +491,7 @@ export async function runList(opts: RunListOptions): Promise<ListResult> {
      * cost actually is, so a future caller that does pass one cannot buy the
      * COUNT by asking for an estimate.
      */
-    if (total === null && mandatory !== undefined) {
+    if (total === null && mandatory !== undefined && opts.countMandatory !== true) {
       total = null;
     } else if (total === null) {
       const countRow = await applyFilters(db.selectFrom(table.id) as unknown as Qb)

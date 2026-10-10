@@ -30,10 +30,14 @@
 import { ASSISTANT_MAX_ROWS_PER_CALL } from '@adminium/llm';
 
 import { AppError } from '../../errors.js';
+import { measureSchema, type Measure } from '@adminium/engine/config';
+
 import { runList } from '../../crud/list.js';
+import { resolveMeasures } from '../../crud/measures.js';
 import type { SnapshotView } from '../../crud/identifiers.js';
-import type { Row } from '../../crud/mask.js';
+import { UNMASK_PERMISSION, type Row } from '../../crud/mask.js';
 import type { AssistantTool, AssistantToolDeps, AssistantToolOutcome } from '../types.js';
+import { dataPageOf, SCOPE_ARG, scopeArg, scopeFilter } from '../data-page.js';
 import { tableLabel, viewOrError } from './schema.js';
 
 /** Rows one call may return. The contract's cap, not a second opinion about it. */
@@ -115,6 +119,43 @@ const WHERE_GRAMMAR = [
   ...WHERE_EXAMPLES.map((example) => JSON.stringify(example)),
 ].join('\n');
 
+/** Measures one call may ask for: each is a subquery a listed row. */
+export const MEASURES_PER_CALL = 3;
+
+const MEASURES_ARG = {
+  type: 'array',
+  maxItems: MEASURES_PER_CALL,
+  description: [
+    'Figures over the rows of ANOTHER table that point at each listed row, computed by the database over all of them. Each is `{ "id", "table", "fkColumn", "fn", "of"? }`:',
+    '- `id`: a name for the figure (letters, digits, underscores); it becomes a key of each row, and `sort` may name it (`order_count.desc`).',
+    '- `table`: the related table, e.g. "main.orders"; `fkColumn`: its column that points at the table you are listing, e.g. "customer_id".',
+    '- `fn`: count, sum, avg, min or max. For anything but count, `of` says what is folded: `{ "terms": [{ "sign": "plus", "factors": ["quantity", "unit_price"] }] }` is the sum of quantity × unit_price.',
+    'Example, customers by number of orders: `"measures": [{ "id": "order_count", "table": "main.orders", "fkColumn": "customer_id", "fn": "count" }], "sort": "order_count.desc"`.',
+    'One hop only: the related table must point at the listed table directly.',
+  ].join('\n'),
+} as const;
+
+/** `measures`, read from a tool's arguments and checked by the engine's own schema. */
+function measureSpecs(value: unknown, table: { columns: ReadonlyMap<string, unknown> }): { measures: Measure[] } | { error: { code: string; message: string } } {
+  if (value === undefined || value === null) return { measures: [] };
+  if (!Array.isArray(value) || value.length > MEASURES_PER_CALL) {
+    return { error: { code: 'BAD_ARGS', message: `\`measures\` is a list of at most ${String(MEASURES_PER_CALL)}.` } };
+  }
+  const measures: Measure[] = [];
+  for (const entry of value) {
+    const parsed = measureSchema.safeParse(entry);
+    if (!parsed.success) {
+      return { error: { code: 'BAD_MEASURE', message: parsed.error.issues.slice(0, 4).map((issue) => `${issue.path.join('.') || '(measure)'}: ${issue.message}`).join('; ') } };
+    }
+    // A figure named like a column would stand in for the column in every row.
+    if (table.columns.has(parsed.data.id) || measures.some((measure) => measure.id === parsed.data.id)) {
+      return { error: { code: 'BAD_MEASURE', message: `"${parsed.data.id}" is already a column or a figure of this list. Give the figure another id.` } };
+    }
+    measures.push(parsed.data);
+  }
+  return { measures };
+}
+
 /** The `where` argument, shared by the two row tools. */
 const WHERE_ARG = { type: 'object', description: WHERE_GRAMMAR } as const;
 
@@ -141,6 +182,9 @@ export const readRowsTool: AssistantTool = {
       sort: { type: 'string', description: '`column.asc` or `column.desc`; several are comma-separated, e.g. `created_at.desc,id.asc`.' },
       columns: { type: 'array', items: { type: 'string' } },
       limit: { type: 'integer', minimum: 1, maximum: ROW_LIMIT_MAX },
+      offset: { type: 'integer', minimum: 0, description: 'Rows to skip: read the next part of a list with the same call and a larger offset.' },
+      scope: SCOPE_ARG,
+      measures: MEASURES_ARG,
     },
     required: ['connectionId', 'table'],
     additionalProperties: false,
@@ -162,31 +206,79 @@ export const readRowsTool: AssistantTool = {
       : [];
 
     const table = view.table(tableId);
+    const offset = typeof args.offset === 'number' && Number.isFinite(args.offset) ? Math.max(Math.floor(args.offset), 0) : 0;
+
+    // "These rows", when the call asks for them: the page's own selection, open record or
+    // filters, as a predicate ANDed before anything written here. The server applies it.
+    const wanted = scopeArg(args.scope);
+    if (wanted === 'invalid') return { error: { code: 'BAD_ARGS', message: '`scope` is one of "selection", "record" or "page".' } };
+    const scope = wanted === null ? null : scopeFilter(await dataPageOf(deps), wanted, connectionId, table);
+    if (scope !== null && !scope.ok) return { error: { code: scope.code, message: scope.message } };
+    const ownSort = typeof args.sort === 'string' && args.sort !== '' ? args.sort : undefined;
+    const sort = ownSort ?? scope?.order;
+
     const { db, dialect } = await deps.manager.data(connectionId);
     try {
-      const listed = await runList({
+      // A figure over the rows that POINT AT each listed row ("orders per customer"), computed by
+      // the database over every one of them, and something the list can be ordered by. Resolved
+      // as the person: one over a table they may not read comes back empty and marked.
+      const specs = measureSpecs(args.measures, table);
+      if ('error' in specs) return { error: specs.error };
+      const measures =
+        specs.measures.length === 0
+          ? []
+          : await resolveMeasures({ view, table, specs: specs.measures, canReadPii: false, canReadTable: await deps.canReadTable(connectionId) });
+      // WHICH rows are on the person's screen is decided as the person: their filter and their
+      // search, with their own right to personal columns. What is read of those rows is not.
+      const scopeAs =
+        scope === null || scope === undefined
+          ? null
+          : { canReadPii: (await deps.can(UNMASK_PERMISSION)) || (await deps.can(`table:${connectionId}:${tableId}:read_pii`)), search: scope.q };
+      const read = (order: string | undefined) => runList({
         db,
         view,
         table,
+        ...(measures.length === 0 ? {} : { measures }),
         params: {
           limit,
+          ...(offset > 0 ? { offset } : {}),
           count: 'exact',
           ...(columns.length > 0 ? { select: columns.join(',') } : {}),
           ...whereParam(args.where),
-          ...(typeof args.sort === 'string' && args.sort !== '' ? { order: args.sort } : {}),
+          ...(order === undefined ? {} : { order }),
         },
+        // Counted too: what is read as a signed-in person says how much of it there is.
+        ...(scope?.mandatory === undefined ? {} : { mandatory: scope.mandatory }),
+        ...(scopeAs === null ? {} : { countMandatory: true, mandatoryAs: scopeAs }),
         // Always false. See this file's header.
         canReadPii: false,
         dialect,
       });
+      // The grid's own order comes with "the rows on the page", and the assistant cannot always
+      // use it: the grid may be sorted by a personal column, or by a figure of its own that this
+      // call did not ask for. Order does not change WHICH rows those are, so it is let go, and
+      // the model is not told of a sort it never wrote.
+      let applied = sort;
+      let listed: Awaited<ReturnType<typeof read>>;
+      try {
+        listed = await read(sort);
+      } catch (error) {
+        if (ownSort !== undefined || sort === undefined || !(error instanceof AppError)) throw error;
+        applied = undefined;
+        listed = await read(undefined);
+      }
+      const total = listed.page?.total ?? null;
       return {
         result: {
           table: tableId,
           rows: truncateCells(listed.data),
           returned: listed.data.length,
-          total: listed.page?.total ?? null,
+          total,
+          ...(offset > 0 ? { offset } : {}),
+          ...(wanted === null ? {} : { scope: wanted }),
         },
         tables: [label],
+        read: { table: label, tool: 'read_rows', returned: listed.data.length, total, ...(wanted === null ? {} : { scope: wanted }), ...(applied === undefined ? {} : { sorted: true }) },
       };
     } catch (error) {
       return { error: queryFailure(error) };

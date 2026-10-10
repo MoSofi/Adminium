@@ -15,6 +15,10 @@ is sent to the app instead of the dashboard:
   (`GET /api/v1/words/<add-on>/<words>`: "low", "3 left", the batch about to expire). A document
   still needs every table and column it prints to be one their roles read, and the stock words
   still need a read of the table asked about.
+- the [assistant](https://docs.adminium.dev/guides/llm-assist/milo/#on-an-apps-own-staff-address), when an administrator
+  has given their role the assistant permission: its button is on the app's staff screens, and it
+  answers about their app's data within what their roles read. An app's manifest cannot grant
+  that permission.
 
 Give that person any ordinary role as well, or make them Super Admin, and the dashboard opens for
 them again.

@@ -178,6 +178,7 @@ export default {
     "count": "{total, plural, one {# příjemce} few {# příjemci} many {# příjemce} other {# příjemců}}",
     "optedOut": "{skipped} odhlášeno",
     "note": "Proměnné se vyplní u každého příjemce — z {token} se stane jméno dané osoby.",
+    "unfilled": "Nic nevyplní {names}: každý příjemce by to dostal tak, jak je to napsáno. Dejte tomu v editoru náhradní text, nebo to odstraňte.",
     "send": "Odeslat kampaň",
     "scheduleAction": "Načasovat kampaň",
     "sending": "Odesílá se…",
@@ -880,5 +881,26 @@ export default {
     "kept": "To, co u nás už máte, zůstává platné a e-maily, které už máte, to stále otevřou. Už se vám neozveme, pokud se nevrátíte.",
     "footer": "{appName}",
     "stopped": "Odkazy v e-mailech, které už máte, přestaly fungovat. Už se vám neozveme, pokud se nevrátíte."
+  },
+  "missing": {
+    "chip": "{name}: určete, co se napíše, když chybí",
+    "chipWith": "{name}: když chybí, napíše se „{backup}“",
+    "dialog": "Náhradní text pro {name}",
+    "ask": "Když chybí „{name}“, napsat:",
+    "preview": "Náhled",
+    "otherwiseTag": "Text pro opačný případ",
+    "nothing": "Když hodnota chybí, v tomto e-mailu se nic nezmění. Dejte zástupnému symbolu náhradní text nebo svažte blok s hodnotou.",
+    "showingOne": "Zobrazuje se, co dostane čtenář, kterému chybí „{name}“.",
+    "showingMany": "Zobrazuje se, co čtenář dostane, když tyto hodnoty chybí: {names}.",
+    "switch": "Náhled s chybějícími hodnotami",
+    "ifMissing": "Když chybí:",
+    "ifMissingNothing": "Když chybí: nenapíše se nic",
+    "visibility": "Viditelnost",
+    "showWhen": "Zobrazit tento blok jen tehdy, když",
+    "always": "Vždy zobrazen",
+    "hasValue": "{name} má hodnotu",
+    "otherwise": "Jinak zobrazit",
+    "otherwiseHint": "Tato slova nahradí celý blok. Nechte prázdné, aby se místo něj neodeslalo nic.",
+    "leftOut": "Když hodnotu nemá, tento blok se z e-mailu vynechá."
   }
 } as const;

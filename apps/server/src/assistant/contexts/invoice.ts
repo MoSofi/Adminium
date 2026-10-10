@@ -32,6 +32,7 @@ import { PERMISSIONS } from '../../rbac/permissions.js';
 import type {
   AssistantArtefactCheck,
   AssistantContextAdapter,
+  AssistantDocument,
   AssistantDetailRow,
   AssistantResample,
   AssistantToolDeps,
@@ -253,22 +254,8 @@ function totalLine(body: InvoiceBody): string {
   return formatMoney(totals.total, body.currency, body.cents);
 }
 
-export const invoiceTemplateContext: AssistantContextAdapter = {
-  key: 'invoice-template',
-  pageLabel: 'Invoice builder',
-  toolNames: [
-    'list_documents',
-    'read_document',
-    'list_starters',
-    'workspace_settings',
-    'list_connections',
-    'describe_schema',
-    'read_rows',
-    'sample_record',
-  ],
-
-  pageFacts: async (deps) => invoicePageFacts(deps, '', await deps.can(SETTINGS_MANAGE)),
-
+/** What this page drafts: its format, its worked examples, its own validator and what a diff compares. */
+const invoiceTemplateDocument: AssistantDocument = {
   formatSpec() {
     return invoiceFormatSpec(
       'A document is `{ name, body }`, plus an optional `topic` and `lang`. `name` is what the template is called in the list.',
@@ -351,9 +338,9 @@ export const invoiceTemplateContext: AssistantContextAdapter = {
   },
 };
 
-export const invoicesContext: AssistantContextAdapter = {
-  key: 'invoices',
-  pageLabel: 'Invoices',
+export const invoiceTemplateContext: AssistantContextAdapter = {
+  key: 'invoice-template',
+  pageLabel: 'Invoice builder',
   toolNames: [
     'list_documents',
     'read_document',
@@ -362,12 +349,16 @@ export const invoicesContext: AssistantContextAdapter = {
     'list_connections',
     'describe_schema',
     'read_rows',
-    'aggregate',
     'sample_record',
   ],
 
   pageFacts: async (deps) => invoicePageFacts(deps, '', await deps.can(SETTINGS_MANAGE)),
 
+  document: invoiceTemplateDocument,
+};
+
+/** What this page drafts: its format, its worked examples, its own validator and what a diff compares. */
+const invoicesDocument: AssistantDocument = {
   formatSpec() {
     return invoiceFormatSpec(
       'A document is `{ basedOn, name, body }`. `name` is what the invoice is called in the list.',
@@ -431,4 +422,24 @@ export const invoicesContext: AssistantContextAdapter = {
       { kind: 'notTouched', args: {} },
     ];
   },
+};
+
+export const invoicesContext: AssistantContextAdapter = {
+  key: 'invoices',
+  pageLabel: 'Invoices',
+  toolNames: [
+    'list_documents',
+    'read_document',
+    'list_starters',
+    'workspace_settings',
+    'list_connections',
+    'describe_schema',
+    'read_rows',
+    'aggregate',
+    'sample_record',
+  ],
+
+  pageFacts: async (deps) => invoicePageFacts(deps, '', await deps.can(SETTINGS_MANAGE)),
+
+  document: invoicesDocument,
 };

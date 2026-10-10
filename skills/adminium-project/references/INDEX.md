@@ -82,7 +82,8 @@ file. Every file is 8 KB or less.
 | `references/cli/design.md` | `design` | 1569 |
 | `references/cli/app-approve-build.md` | `app approve-build` | 800 |
 | `references/cli/owner.md` | `owner` | 645 |
-| `references/cli/install.md` | `install` | 891 |
+| `references/cli/install.md` | `install` | 1170 |
+| `references/cli/folder-facts.md` | `folder-facts` | 595 |
 | `references/cli/build.md` | `build` | 1221 |
 | `references/cli/check.md` | `check` | 1558 |
 | `references/cli/app.md` | `app` | 5391 |

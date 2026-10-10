@@ -1590,7 +1590,8 @@ export default {
       "resource": "Ressource",
       "subtitle": "{actor} · {when}",
       "truncated": "Tronqué à 16 Ko",
-      "userAgent": "Agent utilisateur"
+      "userAgent": "Agent utilisateur",
+      "subtitleVia": "{actor}, via {name} · {when}"
     },
     "empty": {
       "body": "Les modifications apportées aux données, au schéma, aux paramètres et aux permissions apparaissent ici au fil de l’eau.",
@@ -1610,7 +1611,8 @@ export default {
     },
     "loadMore": "Charger les entrées plus anciennes",
     "subtitle": "Chaque modification apportée à cet espace de travail, son auteur, et ce qu’elle a changé.",
-    "title": "Journal d’audit"
+    "title": "Journal d’audit",
+    "via": "via {name}"
   },
   "security": {
     "password": {
@@ -1781,6 +1783,14 @@ export default {
     "untitled": {
       "report": "Rapport sans titre",
       "template": "Modèle sans titre"
+    }
+  },
+  "shell": {
+    "assistant": {
+      "open": "Demander à {name}",
+      "working": "{name} travaille",
+      "unread": "1 réponse non lue",
+      "proposal": "Une modification vous attend"
     }
   }
 } as const;

@@ -29,7 +29,7 @@ import {
 import { starterCards } from '../../report-documents/starters.js';
 import { connectionsSection, countLabel, documentNamesSection, readableConnections, tablesSummary } from '../page-facts.js';
 import { aggregateTool } from '../tools/aggregate.js';
-import type { AssistantArtefactCheck, AssistantContextAdapter, AssistantDetailRow, AssistantResample } from '../types.js';
+import type { AssistantArtefactCheck, AssistantContextAdapter, AssistantDetailRow, AssistantDocument, AssistantResample } from '../types.js';
 import { blockVocabulary, clip, jsonSchemaOf } from './format.js';
 
 const BLOCK_MEANINGS: Readonly<Record<string, string>> = {
@@ -177,47 +177,8 @@ function writeFigures(block: Record<string, unknown>, shaped: Record<string, unk
   return false;
 }
 
-export const reportContext: AssistantContextAdapter = {
-  key: 'report',
-  pageLabel: 'Report builder',
-  toolNames: [
-    'list_documents',
-    'read_document',
-    'list_starters',
-    'workspace_settings',
-    'list_connections',
-    'describe_schema',
-    'read_rows',
-    'aggregate',
-  ],
-
-  async pageFacts(deps) {
-    const documents = reportDocumentsRepo(deps.meta);
-    const counts = await documents.counts();
-    const rows = await documents.list({});
-    const connections = await readableConnections(deps);
-    const summary = tablesSummary(connections);
-    // One connection is worth naming; several are not, and the chip says how
-    // many tables instead.
-    const named = summary.connections === 1 ? (connections.find((entry) => entry.tables.length > 0)?.name ?? '') : '';
-    return {
-      values: {
-        templates: counts.template,
-        reports: counts.report,
-        tables: summary.tables,
-        ...(named === '' ? {} : { connection: named }),
-      },
-      scope: { primary: named, extra: summary.tables },
-      prompt: [
-        `This page holds ${countLabel(counts.template, 'template', 'templates')} and ${countLabel(counts.report, 'report', 'reports')}.`,
-        `Documents: ${documentNamesSection(rows.map((row) => row.name))}.`,
-        '',
-        'Connected databases and the tables this person may read:',
-        connectionsSection(connections),
-      ].join('\n'),
-    };
-  },
-
+/** What this page drafts: its format, its worked examples, its own validator and what a diff compares. */
+const reportDocument: AssistantDocument = {
   formatSpec() {
     return [
       'A report is `{ name, body, sources }`. The `body`, as JSON Schema:',
@@ -363,4 +324,48 @@ export const reportContext: AssistantContextAdapter = {
       { kind: 'notPublished', args: {} },
     ];
   },
+};
+
+export const reportContext: AssistantContextAdapter = {
+  key: 'report',
+  pageLabel: 'Report builder',
+  toolNames: [
+    'list_documents',
+    'read_document',
+    'list_starters',
+    'workspace_settings',
+    'list_connections',
+    'describe_schema',
+    'read_rows',
+    'aggregate',
+  ],
+
+  async pageFacts(deps) {
+    const documents = reportDocumentsRepo(deps.meta);
+    const counts = await documents.counts();
+    const rows = await documents.list({});
+    const connections = await readableConnections(deps);
+    const summary = tablesSummary(connections);
+    // One connection is worth naming; several are not, and the chip says how
+    // many tables instead.
+    const named = summary.connections === 1 ? (connections.find((entry) => entry.tables.length > 0)?.name ?? '') : '';
+    return {
+      values: {
+        templates: counts.template,
+        reports: counts.report,
+        tables: summary.tables,
+        ...(named === '' ? {} : { connection: named }),
+      },
+      scope: { primary: named, extra: summary.tables },
+      prompt: [
+        `This page holds ${countLabel(counts.template, 'template', 'templates')} and ${countLabel(counts.report, 'report', 'reports')}.`,
+        `Documents: ${documentNamesSection(rows.map((row) => row.name))}.`,
+        '',
+        'Connected databases and the tables this person may read:',
+        connectionsSection(connections),
+      ].join('\n'),
+    };
+  },
+
+  document: reportDocument,
 };

@@ -20,6 +20,9 @@
  *
  * Meta store only: no source transaction, no lock.
  */
+import type { AddOnStep } from '@adminium/add-on-contracts';
+
+import type { RuleSteps } from '../automations/validate.js';
 import { createHash } from 'node:crypto';
 
 import type { ManifestAutomation, ManifestCondition, ManifestNode, Manifest } from '@adminium/manifest';
@@ -146,6 +149,17 @@ export async function installAutomations(input: InstallAutomationsInput): Promis
   const mine = await repo.listManagedBy(manifest.key, connectionId);
   if (shipped.length === 0 && mine.length === 0) return undefined;
 
+  // The steps this manifest itself gives (an add-on's `addOn.steps`), as they will stand once it is installed:
+  // a rule of its own that uses one is checked against them here, before the add-on is listed as installed.
+  const declared = ((manifest as { addOn?: { steps?: AddOnStep[] } }).addOn?.steps ?? []) as AddOnStep[];
+  const ownSteps: RuleSteps = (addOn, step) => {
+    if (addOn !== manifest.key) return { state: 'no-add-on' };
+    const found = declared.find((candidate) => candidate.key === step);
+    if (found === undefined) return { state: 'no-step', addOnName: manifest.name };
+    const inputTables = Object.fromEntries(found.inputs.filter((one) => one.table !== undefined).map((one) => [one.key, input.realId(one.table as string)]));
+    return { state: 'ok', step: { addOn, addOnName: manifest.name, step: found, table: input.realId(found.writes.table), inputTables } };
+  };
+
   const roles = rolesRepo(meta);
   const roleIds = new Map<string, string>();
   for (const role of (manifest as { roles?: { key: string }[] }).roles ?? []) {
@@ -178,11 +192,12 @@ export async function installAutomations(input: InstallAutomationsInput): Promis
     const bound = bind(rule, binding);
     // Checked whole, as a rule a person saves is: nothing half-written is ever stored for a manifest.
     try {
-      resolveRule(bound.trigger, bound.graph, { view, templateKeys, blockLoopback: true } as never);
+      resolveRule(bound.trigger, bound.graph, { view, templateKeys, blockLoopback: true, steps: ownSteps } as never);
     } catch (error) {
       throw refusal(error instanceof Error ? error.message : String(error));
     }
-    const unfinished = firstIncompleteNode(bound.graph);
+    // A step of the manifest's own is held to its inputs; another add-on's is that add-on's to answer for, on the day it runs.
+    const unfinished = firstIncompleteNode(bound.graph, (addOn, step) => (addOn === manifest.key ? ownSteps(addOn, step) : { state: 'ok', step: { addOn, addOnName: addOn, step: { key: step, inputs: [] } as never, table: '', inputTables: {} } }));
     if (unfinished !== null) throw refusal(`its step "${unfinished.title}" is not finished.`);
 
     const existing = mine.find((candidate) => candidate.templateKey === rule.key);

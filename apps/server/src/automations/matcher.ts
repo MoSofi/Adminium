@@ -347,6 +347,7 @@ export function triggerEventFor(
     // the row is masked here at the boundary. The run itself re-reads the
     // record unmasked — it has to address the email. No code is kept
     // either: the trace's readers may not read the table (`keptRow`).
+    ...(event.via === undefined ? {} : { via: event.via }),
     snapshot: keptRow(image, event.table),
     // A deleted row cannot be read again, so its actions get it as it was;
     // never served, and dropped when the run ends (`values`).

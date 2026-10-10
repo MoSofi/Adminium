@@ -2291,6 +2291,62 @@ export default {
       "switchOn": "Zapnout",
       "open": "Otevřít Designer",
       "failed": "Přepínač se nepodařilo změnit."
+    },
+    "assistantTest": {
+      "button": "Otestovat asistenta {name} s tímto modelem",
+      "running": "Žádáme model, aby použil jeden z nástrojů asistenta {name}…",
+      "ok": "Tento model zvládne asistenta {name}. {rounds, plural, one {# kolo} few {# kola} many {# kola} other {# kol}}, {latency} ms.",
+      "format": "Tento model odpovídá, ale ne tak, jak asistent {name} potřebuje. Vyberte jiný model.",
+      "noTool": "Tento model odpověděl, aniž použil nástroj, který dostal. Asistent {name} by hádal, místo aby četl vaše data. Vyberte jiný model.",
+      "wrongValue": "Tento model nástroj použil a pak ohlásil něco jiného. Vyberte jiný model.",
+      "provider": "Model neodpověděl: {message}",
+      "error": "Test se nepodařilo spustit. Zkuste to znovu."
+    },
+    "allowance": {
+      "title": "Denní příděl",
+      "subtitle": "Kolik smí jeden člověk za den využít asistenta {name}.",
+      "field": "Tokeny, které smí jeden člověk za den využít",
+      "hint": "0 znamená bez omezení. Den se počítá v UTC, takže všem začíná znovu ve stejný okamžik: v {time} vašeho času.",
+      "save": "Uložit",
+      "saved": "Příděl uložen",
+      "saveFailed": "Příděl se nepodařilo uložit. Zkuste to znovu.",
+      "today": "Dnes",
+      "person": "Osoba",
+      "questions": "Otázky",
+      "tokens": "Tokeny",
+      "empty": "Asistenta {name} dnes nikdo nepoužil.",
+      "atLimit": "Na limitu",
+      "roles": "Role, které smějí používat asistenta {name}",
+      "rolesHint": "Nastavuje se v oprávněních každé role.",
+      "rolesNone": "Asistenta {name} smí používat jen Super Admin."
+    },
+    "abilities": {
+      "title": "Co {name} smí dělat",
+      "onlyRead": "{name} může jen číst.",
+      "can": "{name} může: {list}.",
+      "cannot": "Nemůže: {list}.",
+      "verb": {
+        "read": "číst",
+        "create": "vytvářet",
+        "change": "měnit",
+        "send": "odesílat",
+        "delete": "mazat"
+      },
+      "create": "Vytvářet",
+      "createWhat": "Přidat řádek nebo uložit novou šablonu, sestavu či pravidlo. Každou akci potvrzujete.",
+      "change": "Měnit",
+      "changeWhat": "Upravit řádek nebo uložený dokument. Každou akci potvrzujete.",
+      "send": "Odesílat",
+      "sendWhat": "Odeslat existující e-mailovou šablonu lidem v tomto pracovním prostoru. Každé odeslání potvrzujete.",
+      "delete": "Mazat",
+      "deleteWhat": "Odstranit řádek nebo dokument. Každou akci potvrzujete.",
+      "rows": "Řádků v jednom potvrzení",
+      "rowsHint": "1 až {max}",
+      "staffAddresses": "Na adresách vašich aplikací určených personálu",
+      "staffAddressesWhat": "Zobrazí tlačítko {name} na vlastních obrazovkách aplikace určených personálu, a to lidem, jejichž role smí {name} používat. Zákaznická strana je nemá nikdy.",
+      "save": "Uložit",
+      "saveFailed": "Nepodařilo se uložit. Zkuste to znovu.",
+      "never": "{name} nikdy nemění oprávnění, osoby, připojení, strukturu databáze ani tato nastavení."
     }
   },
   "settingsHub": {

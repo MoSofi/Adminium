@@ -60,6 +60,7 @@ import {
   type EnqueueJobInput,
   type InstalledManifest,
   snapshotsRepo,
+  assistantSessionsRepo,
 } from '@adminium/meta';
 
 import { buildServer, type AdminiumServer, type BuildServerOptions } from './app.js';
@@ -76,7 +77,7 @@ import { UndoStore } from './crud/undo.js';
 import { seedBuiltinEmailTemplates } from './email/builtins.js';
 import { emailSecretKey } from './email/config.js';
 import { configureEmailRuntime } from './email/send.js';
-import { createCatalogClient } from './add-ons/catalog.js';
+import { CATALOG_ENABLED_SETTING, createCatalogClient } from './add-ons/catalog.js';
 import { addOnCredentialCryptoFromSecret } from './add-ons/credential-crypto.js';
 import { addOnHttpClientFor } from './add-ons/egress.js';
 import {
@@ -166,6 +167,7 @@ import {
 import { enqueueAppCatalogRefresh, registerAppAcquireHandlers } from './jobs/app-acquire.js';
 import { registerAddOnEventHandlers } from './jobs/add-on-events.js';
 import { registerJobsAndRealtime, type JobsAndRealtime } from './jobs/register.js';
+import { stepLookupOf } from './automations/add-on-steps.js';
 import { registerAutomationRunHandler } from './jobs/automation-run.js';
 import { automationsRoutes } from './routes/automations/index.js';
 import { automationRunsRoutes } from './routes/automations/runs.js';
@@ -197,7 +199,10 @@ import {
 } from './jobs/report-run.js';
 import type { ApplyService } from './llm/apply-service.js';
 import type { CollectRunStats } from './llm/prompt-service.js';
+import { endInterruptedProposals } from './assistant/proposals.js';
 import { sweepAssistantSessions } from './assistant/retention.js';
+import { INTERRUPTED_ERROR } from './jobs/assistant-turn.js';
+import type { AssistantAddOn } from './assistant/types.js';
 import { AI_ENV_NAMES, createAiEnv } from './llm/ai-env.js';
 import { createAiConnections, ProviderNotConfiguredError } from './llm/connections.js';
 import { createProviderResolver } from './llm/provider-resolver.js';
@@ -206,6 +211,7 @@ import type { RunService } from './llm/run-service.js';
 import { rbacPlugin } from './plugins/rbac.js';
 import { NO_SURFACE_SETTINGS } from './surfaces/settings.js';
 import { ADD_ON_DOCUMENT_ROUTE, ADD_ON_LOOK_UP_ROUTE, STAFF_WORDS_ROUTE, allowedForScreensOnly, appAddOns, appConnections, screensOnlyError } from './apps/screens-only.js';
+import { isGranted } from './rbac/permissions.js';
 import { permissionSetAllows, resolvePermissionSet } from './rbac/resolver.js';
 import { API_PREFIX } from './routes/index.js';
 import { apiKeysRoutes } from './routes/api-keys/index.js';
@@ -622,6 +628,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     // Under `adminium dev` an open screen of a folder app asks whether it was rebuilt.
     ...(opts.project?.mode === 'dev' && projectRoot !== null ? { appDevBuild: (key: string) => projectApps?.buildOf(key) ?? null } : {}),
     ...(opts.staticRoot === undefined ? {} : { staticRoot: opts.staticRoot }),
+    // The assistant on an app's own staff address: only where a model can be set up, and while the workspace leaves it on.
+    ...(allowed === null ? {} : { surfaceAssistant: async () => (await settingsRepo(meta).get('assistant.staffAddresses')) === true }),
     ...(opts.surfaces === undefined ? {} : { surfaces: opts.surfaces }),
     ...(opts.logger === undefined ? {} : { logger: opts.logger }),
     ...(opts.openapi === undefined ? {} : { openapi: opts.openapi }),
@@ -652,7 +660,9 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     const connections = await appConnections(meta, settings, set.screensOnly);
     // Their apps' add-ons are read only for the one route that asks an add-on something.
     const addOns = route === STAFF_WORDS_ROUTE || route === ADD_ON_LOOK_UP_ROUTE || route === ADD_ON_DOCUMENT_ROUTE ? await appAddOns(meta, set.screensOnly, connections) : undefined;
-    if (allowedForScreensOnly(request.method, route, request.params, connections, set.screensOnly, addOns)) return;
+    // The assistant's routes, when their role was given the assistant (never by default, and no app's manifest can).
+    const assistant = route.startsWith('/api/v1/assistant/') && isGranted(set.grants, 'system:assistant:use');
+    if (allowedForScreensOnly(request.method, route, request.params, connections, set.screensOnly, addOns, assistant)) return;
     throw screensOnlyError(settings, set.screensOnly, request);
   });
 
@@ -1169,6 +1179,18 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     });
 
   const addOnStore = createAddOnStore({ dataDir: env.ADMINIUM_DATA_DIR });
+  // What the assistant is told of add-ons: installed here, in this server's store, and in the
+  // catalogue as it was last read (never the network, and nothing of the catalogue while its
+  // switch is off). The same list the Designer reads, a line an add-on.
+  const assistantAddOns = async (): Promise<AssistantAddOn[]> =>
+    (
+      await addOnLines({
+        meta,
+        credentialCrypto: addOnCredentialCryptoFromSecret(env.ADMINIUM_SECRET),
+        store: addOnStore,
+        catalogEnabled: async () => env.ADMINIUM_NETWORK_FEATURES && (await settingsRepo(meta).get(CATALOG_ENABLED_SETTING)) === true,
+      })
+    ).map((line) => ({ key: line.key, name: line.name, line: line.line, state: line.state }));
   /*
    * Kept, not voided: the boot-time runtime build waits for it (see
    * `rebuildAddOnRuntime` below), and so does the missing-package report.
@@ -1317,6 +1339,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
                     await resolvePermissionSet(meta, { kind: 'user', id: userId, label: userId }),
                     permission,
                   ),
+            addOns: assistantAddOns,
+            installs: () => addOnInstalls.fresh(),
           },
         }),
   });
@@ -1351,6 +1375,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     manager,
     app,
     writes: recordWrites,
+    // A step an add-on gives is read from the add-on as it is installed when the run walks.
+    steps: stepLookupOf(() => addOnInstalls.fresh()),
     secret: env.ADMINIUM_SECRET,
     storage,
     // The `document.render` step's way to the pipeline (D55). Without it a
@@ -1744,6 +1770,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           enqueue: (input: EnqueueJobInput) => jobs.enqueue(input),
           onRulesChanged: () => automations.matcher.onRulesChanged(),
           runner: { storage, hub: jobs.hub, writes: recordWrites },
+          // The steps installed add-ons give: offered in the builder, judged at the save, read again by a test run.
+          installs: () => addOnInstalls.fresh(),
         }),
       );
       await api.register(automationRunsRoutes({ meta }));
@@ -2404,6 +2432,17 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       await api.register(apiKeysRoutes);
       await api.register(auditRoutes);
       if (llm !== null) {
+        // A turn left `running` by a process that is gone: with one process, nothing is running
+        // it now. Ended here, or its person is told "still working" until the job's lock lapses.
+        // Never a reason not to start: a store that has not been migrated yet has no such table,
+        // and so no turn to end.
+        await assistantSessionsRepo(meta)
+          .failRunningTurns({ ...INTERRUPTED_ERROR }, Date.now())
+          .catch(() => undefined);
+        // The same for a confirm that was writing rows when its process went: what it had
+        // written is kept, and the rest is said to be not done, so nobody is left looking at
+        // "working" for ever.
+        await endInterruptedProposals(assistantSessionsRepo(meta), Date.now()).catch(() => undefined);
         await api.register(
           assistantRoutes({
             meta,
@@ -2414,6 +2453,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
             cancelJob: (jobId) => {
               jobs.worker.requestCancel(jobId);
             },
+            addOns: assistantAddOns,
+            installs: () => addOnInstalls.fresh(),
           }),
         );
       }
@@ -2967,6 +3008,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     // tidy-up over the same store, and a second 03:00 job would only mean two
     // places to look.
     const assistantSessions = await sweepAssistantSessions(meta, at);
+    // A confirm that died with its process is ended here too, so nobody waits for a restart.
+    await endInterruptedProposals(assistantSessionsRepo(meta), at).catch(() => 0);
 
     // Public-surface sessions past their `expires_at` (28). `purgeExpired` was
     // written with the repo and never called, so the table only grew. Last,

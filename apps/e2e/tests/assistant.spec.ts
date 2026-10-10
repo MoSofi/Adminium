@@ -28,20 +28,25 @@ import { clearProvider, configureFakeProvider, signIn } from './helpers.js';
 test.describe.configure({ mode: 'serial' });
 
 /**
- * The assistant's dialog — every handle below is scoped to it.
+ * The assistant's panel — every handle below is scoped to it.
  *
- * Scoped to the DIALOG, not to its body: the header and the read-only bar are
- * siblings of the body inside Radix's content element, and `Modal`'s own
- * props land on Radix's Root, which renders no DOM node. The body's handle is
- * what identifies WHICH dialog, since the confirm is a second one.
+ * It is a panel beside the page (a dialog only where it lies over the page),
+ * so it is found by its own handle and not by a role.
  */
-const modal = (page: Page) =>
-  page.getByRole('dialog').filter({ has: page.getByTestId('assistant-thread') });
+const modal = (page: Page) => page.getByTestId('assistant-dock');
 
-/** Open the assistant from whatever page is on screen. */
+/**
+ * Open the assistant from whatever page is on screen, on a conversation of
+ * this test's own: the conversation is the PERSON'S and outlives a test, so
+ * whatever an earlier one left is ended first.
+ */
 async function openAssistant(page: Page): Promise<void> {
-  await page.getByTestId('ask-assistant').click();
+  if (!(await modal(page).isVisible())) await page.getByTestId('ask-assistant').click();
   await expect(modal(page)).toBeVisible();
+  await expect(modal(page).getByTestId('assistant-looking-at')).not.toHaveText(/…$/, { timeout: 20_000 });
+  const fresh = modal(page).getByTestId('assistant-new');
+  if (await fresh.isEnabled()) await fresh.click();
+  await expect(modal(page).getByTestId('assistant-steps')).toHaveCount(0);
 }
 
 /** Ask by clicking the chip whose label matches, and wait for the turn to settle. */
@@ -82,6 +87,9 @@ test.afterAll(async ({ browser }) => {
 });
 
 test.describe('the page assistant', () => {
+  // The comp's frame, and clear of the width at which the panel changes from beside the page to over it.
+  test.use({ viewport: { width: 1440, height: 940 } });
+
   test('(f) email manager → chip → steps → result → test send → save → the row is there', async ({ page }) => {
     await signIn(page);
     await page.request.delete(`${SINK_URL}/messages`);
@@ -108,10 +116,9 @@ test.describe('the page assistant', () => {
     await result.locator('[data-testid="assistant-tab"][data-tab="details"]').click();
     await expect(result.getByText('Sources read')).toBeVisible();
 
-    // Locked until somebody turns actions on — for this open, not for ever.
-    await expect(modal(page).getByTestId('assistant-readonly')).toBeVisible();
-    await expect(action(page, 'save')).toBeDisabled();
-    await modal(page).getByTestId('assistant-enable').click();
+    // What writes is the workspace's to allow, in Settings: there is no lock in the panel to lift.
+    // (This server is seeded as a workspace that was in use: saving drafts is on.)
+    await expect(modal(page).getByTestId('assistant-readonly')).toHaveCount(0);
     await expect(action(page, 'save')).toBeEnabled();
 
     // A test send goes to the operator's own address and nowhere else.
@@ -153,7 +160,6 @@ test.describe('the page assistant', () => {
     // *Run full preview* writes nothing and needs no grant: it re-runs the
     // descriptors the draft recorded and redraws with today's answers.
     await expect(modal(page).getByTestId('assistant-steps')).toContainText('Read this page');
-    await modal(page).getByTestId('assistant-enable').click();
     await action(page, 'sample').click();
     await expect(modal(page).getByTestId('assistant-echo')).toContainText(/Re-ran the sources/i, { timeout: 30_000 });
 
@@ -170,22 +176,30 @@ test.describe('the page assistant', () => {
     }, { timeout: 20_000 }).toBe('draft');
   });
 
-  test('(f) the window fits both viewports the fidelity walk uses', async ({ page }) => {
+  test('(f) the panel stands beside the page when there is room, and as a sheet on a phone', async ({ page }) => {
     await signIn(page);
+    await page.setViewportSize({ width: 1440, height: 940 });
     await page.goto('/email-templates');
     await openAssistant(page);
 
-    // 1440 × 940 is the comp's frame. The panel is `max-h-[88vh]`, and a
-    // modal taller than its own cap scrolls the PAGE behind it instead of
-    // itself — the failure a walk sees as "the background moved".
-    await page.setViewportSize({ width: 1440, height: 940 });
-    const panel = page.getByRole('dialog').filter({ has: page.getByTestId('assistant-thread') });
-    await expect.poll(async () => (await panel.boundingBox())?.height ?? 0).toBeLessThanOrEqual(940 * 0.88 + 1);
+    // 1440 with the rail open is the comp's frame: the page gives up the panel's width and
+    // nothing is covered.
+    await expect(modal(page)).toHaveAttribute('data-layout', 'docked');
+    const docked = await modal(page).boundingBox();
+    expect(Math.round(docked?.width ?? 0)).toBe(400);
+    expect(Math.round(docked?.height ?? 0)).toBe(940);
+    const manager = await page.getByTestId('email-manager').boundingBox();
+    expect((manager?.x ?? 0) + (manager?.width ?? 0), 'the page ends where the panel begins').toBeLessThanOrEqual((docked?.x ?? 0) + 1);
 
-    // 390 px is where a header full of chips wraps. A group held on one line
-    // made the whole SHELL scroll sideways once before, on another surface —
-    // it is invisible until somebody opens the product on a phone.
+    // Narrower, it lies over the page's end, in front of the top bar.
+    await page.setViewportSize({ width: 1024, height: 768 });
+    await expect(modal(page)).toHaveAttribute('data-layout', 'over');
+    await expect(modal(page).getByTestId('assistant-close')).toBeVisible();
+
+    // 390 px: a sheet. A group held on one line made the whole SHELL scroll sideways once
+    // before, on another surface — invisible until somebody opens the product on a phone.
     await page.setViewportSize({ width: 390, height: 844 });
+    await expect(modal(page)).toHaveAttribute('data-layout', 'sheet');
     await expect(page.getByTestId('assistant-thread')).toBeVisible();
     const overflow = await page.evaluate(() => ({
       doc: document.documentElement.scrollWidth - document.documentElement.clientWidth,
@@ -193,7 +207,120 @@ test.describe('the page assistant', () => {
     }));
     expect(overflow.doc, 'the document scrolls sideways at 390px').toBeLessThanOrEqual(0);
     expect(overflow.body, 'the body scrolls sideways at 390px').toBeLessThanOrEqual(0);
+    // Escape closes a panel that lies over the page, and the bubble is back.
+    await page.keyboard.press('Escape');
+    await expect(modal(page)).toBeHidden();
+    await expect(page.getByTestId('assistant-bubble')).toBeVisible();
     await page.setViewportSize({ width: 1440, height: 940 });
+  });
+
+  test('(f) one conversation across pages: asked on a page of rows, carried to a settings screen, there after a reload', async ({ page }) => {
+    await signIn(page);
+    await page.setViewportSize({ width: 1440, height: 940 });
+    // Nothing of the panel is fetched before the first press.
+    const panelChunks: string[] = [];
+    page.on('request', (request) => {
+      if (/\/assets\/AssistantDock-[^/]+\.js$/.test(request.url())) panelChunks.push(request.url());
+    });
+    await page.goto('/p/customers');
+    await expect(page.getByTestId('ask-assistant')).toBeVisible();
+    await expect(page.getByTestId('assistant-bubble')).toBeVisible();
+    expect(panelChunks, 'the panel was fetched before it was opened').toEqual([]);
+
+    // The page's own Ask button, drawn by the shell: this page of rows said what it is.
+    await openAssistant(page);
+    expect(panelChunks.length).toBeGreaterThan(0);
+    await expect(modal(page).getByTestId('assistant-looking-at')).toContainText('Customers');
+    await modal(page).getByTestId('assistant-chip').first().click();
+    await expect(modal(page).getByText(/You can read \d+ tables here\./)).toBeVisible({ timeout: 30_000 });
+    await expect(modal(page).getByTestId('assistant-asked-on').last()).toContainText('Customers');
+
+    // Walk to a screen with no page of its own for the assistant: the same conversation, now the
+    // general assistant, which says where things are done with a link it was given.
+    await page.goto('/settings/team');
+    await expect(modal(page)).toBeVisible();
+    await expect(modal(page).getByText(/You can read \d+ tables here\./)).toBeVisible({ timeout: 20_000 });
+    await modal(page).getByTestId('assistant-input').fill('Where do I invite a colleague?');
+    await modal(page).getByTestId('assistant-send').click();
+    await expect(modal(page).getByText(/Team|do not have access/).last()).toBeVisible({ timeout: 30_000 });
+    await expect(modal(page).getByTestId('assistant-asked-on')).toHaveCount(2);
+
+    // A reload finds the panel as it was left, and the conversation in it.
+    await page.reload();
+    await expect(modal(page)).toBeVisible({ timeout: 20_000 });
+    await expect(modal(page).getByTestId('assistant-asked-on')).toHaveCount(2, { timeout: 20_000 });
+    await expect(modal(page).getByText(/You can read \d+ tables here\./)).toBeVisible();
+  });
+
+  test('(f) a change: asked on a page of rows, shown before anything is written, confirmed, in the audit log, undone', async ({ page }) => {
+    await signIn(page);
+    await page.setViewportSize({ width: 1440, height: 940 });
+    const settings = async (abilities: Record<string, boolean>) => {
+      const res = await page.request.put('/api/v1/assistant/settings', { data: { abilities } });
+      expect(res.ok(), `the assistant's switches → ${String(res.status())}`).toBeTruthy();
+    };
+    const connections = (await (await page.request.get('/api/v1/connections')).json()) as { data?: { id: string }[]; connections?: { id: string }[] };
+    const connectionId = (connections.data ?? connections.connections ?? [])[0]?.id ?? '';
+    // The table's id is the engine's own (`main.customers`, `public.customers`, `<database>.customers`).
+    const schema = (await (await page.request.get(`/api/v1/connections/${connectionId}/schema`)).json()) as { model: { tables: { id: string; name: string }[] } };
+    const customers = schema.model.tables.find((table) => table.name === 'customers')?.id ?? '';
+    expect(customers, 'the customers table').not.toBe('');
+    const cityOf = async (): Promise<unknown> => {
+      const row = (await (await page.request.get(`/api/v1/data/${connectionId}/${customers}/ALFKI`)).json()) as { data: { city: unknown } };
+      return row.data.city;
+    };
+    const before = await cityOf();
+
+    try {
+      // Off: asked to change a row, it is not offered the move at all, and says so.
+      await settings({ create: true, change: false, send: false, delete: false });
+      await page.goto('/p/customers');
+      await openAssistant(page);
+      await modal(page).getByTestId('assistant-input').fill('Move ALFKI to Hamburg');
+      await modal(page).getByTestId('assistant-send').click();
+      await expect(modal(page).getByText('I cannot change anything here.')).toBeVisible({ timeout: 30_000 });
+      await expect(modal(page).getByTestId('assistant-proposal')).toHaveCount(0);
+
+      // On: the same words now end in a card, checked as this person before it is shown.
+      await settings({ create: true, change: true, send: false, delete: false });
+      await modal(page).getByTestId('assistant-input').fill('Move ALFKI to Hamburg');
+      await modal(page).getByTestId('assistant-send').click();
+      const card = modal(page).getByTestId('assistant-proposal');
+      await expect(card.getByTestId('assistant-proposal-title')).toHaveText('Change 1 row', { timeout: 30_000 });
+      await expect(card.getByTestId('assistant-proposal-row')).toContainText('ALFKI');
+      await expect(card.getByTestId('assistant-proposal-row')).toContainText('Hamburg');
+      // Nothing is written by being shown.
+      expect(await cityOf()).toEqual(before);
+      // The title has focus, not the confirm: Enter does nothing.
+      await page.keyboard.press('Enter');
+      expect(await cityOf()).toEqual(before);
+
+      await card.getByTestId('assistant-proposal-confirm').click();
+      const result = modal(page).getByTestId('assistant-proposal-result');
+      await expect(result).toContainText('Changed 1 row.', { timeout: 30_000 });
+      expect(await cityOf()).toBe('Hamburg');
+
+      // The audit log says who, and that it came through the assistant.
+      const audit = (await (await page.request.get('/api/v1/audit?category=data&limit=5')).json()) as { data?: { action: string; changes: { via?: unknown } | null }[]; entries?: { action: string; changes: { via?: unknown } | null }[] };
+      const entry = (audit.data ?? audit.entries ?? []).find((row) => row.action === 'record.update');
+      expect(entry?.changes?.via, 'the mark on the audit entry').toBeTruthy();
+
+      // The page's own undo, for its minute.
+      await result.getByTestId('assistant-proposal-undo').click();
+      await expect(modal(page).getByText('Undone. Everything is as it was.')).toBeVisible({ timeout: 20_000 });
+      expect(await cityOf()).toEqual(before);
+
+      // After a reload the card is the stored outcome; a confirmed proposal cannot be confirmed again.
+      await page.reload();
+      await expect(modal(page).getByTestId('assistant-proposal-result')).toContainText('Changed 1 row.', { timeout: 20_000 });
+      await expect(modal(page).getByTestId('assistant-proposal-confirm')).toHaveCount(0);
+
+      // The audit page draws the mark.
+      await page.goto('/audit');
+      await expect(page.getByTestId('audit-via-assistant').first()).toBeVisible({ timeout: 20_000 });
+    } finally {
+      await settings({ create: true, change: false, send: false, delete: false });
+    }
   });
 
   test('(f) with no provider the window explains itself instead of failing', async ({ page }) => {

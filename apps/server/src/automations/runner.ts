@@ -60,6 +60,7 @@ import {
   runCreateAction,
   runUpdateAction,
 } from './actions/record-write.js';
+import { dryRunAddOnStepAction, runAddOnStepAction } from './actions/add-on-step.js';
 import { dryRunEmailAction, runEmailAction } from './actions/email.js';
 import { dryRunNotificationAction, runNotificationAction } from './actions/notification.js';
 import { dryRunWebhookAction, runWebhookAction } from './actions/webhook.js';
@@ -71,6 +72,9 @@ import type { RenderDeps } from '../documents/render.js';
 import { ActionFailure, type ActionContext, type ActionSource } from './actions/types.js';
 import { evaluateCondition, type ConditionContext } from './conditions.js';
 import { countRelatedRows } from './related-count.js';
+import { loadRelated, relatedUses } from './related.js';
+import type { StepLookup } from './add-on-steps.js';
+import { flattenNodes } from './validate.js';
 import { tokensFor } from './templating.js';
 import { TRACE_EN, TraceBuilder, triggerSummary, type TraceText } from './trace.js';
 
@@ -94,6 +98,12 @@ export interface RunnerDeps {
    * a sentence rather than throwing from inside the renderer.
    */
   documents?: RenderDeps | undefined;
+  /**
+   * What installed add-ons give as steps, read fresh for a run that uses one
+   * (`add-on-steps.ts`). Absent: no add-on's step can be found, and such a
+   * step fails saying its add-on is not installed.
+   */
+  steps?: (() => Promise<StepLookup>) | undefined;
   progress?: ((pct: number, message: string) => void) | undefined;
 }
 
@@ -202,6 +212,7 @@ export async function walkRule(deps: RunnerDeps, input: WalkInput): Promise<RunO
     rule: input.rule,
     runId: input.runId,
     hops: input.event.hops,
+    ...(input.event.via === undefined ? {} : { via: input.event.via }),
     now,
     source,
     tokens: {},
@@ -213,10 +224,15 @@ export async function walkRule(deps: RunnerDeps, input: WalkInput): Promise<RunO
     ...(deps.createTransport === undefined ? {} : { createTransport: deps.createTransport }),
     ...(deps.fetch === undefined ? {} : { fetch: deps.fetch }),
   };
+  // The add-ons as they are installed now: read once, and only for a rule that uses one of their steps.
+  if (deps.steps !== undefined && flattenNodes(input.rule.graph).some((node) => node.kind === 'action' && node.action.kind === 'add-on.step')) ctx.steps = await deps.steps();
+  // The rows the rule reaches through a link, read once for the whole run.
+  if (source !== null) source.related = await loadRelated(source, relatedUses(input.rule.graph).map((use) => use.link));
   const refreshTokens = (): void => {
     ctx.tokens = tokensFor({
       row: source?.row ?? null,
       table: source?.table ?? null,
+      related: source?.related,
       ruleName: input.rule.name,
       recordLabel: source?.record.label ?? '',
       now,
@@ -425,6 +441,8 @@ async function runAction(node: AutomationNode, ctx: ActionContext) {
       return runWebhookAction(node.action, ctx);
     case 'document.render':
       return runDocumentRenderAction(node.action, ctx);
+    case 'add-on.step':
+      return runAddOnStepAction(node.action, ctx);
   }
 }
 
@@ -443,6 +461,8 @@ async function dryRunAction(node: AutomationNode, ctx: ActionContext) {
       return dryRunWebhookAction(node.action, ctx);
     case 'document.render':
       return dryRunDocumentRenderAction(node.action, ctx);
+    case 'add-on.step':
+      return dryRunAddOnStepAction(node.action, ctx);
   }
 }
 

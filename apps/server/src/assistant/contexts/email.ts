@@ -9,6 +9,7 @@
  * there, and if it does not, the model is told in the page's own words.
  */
 
+import { OTHERWISE_BLOCKS, showWhenOf } from '@adminium/manifest';
 import { emailTemplatesRepo, filesRepo, settingsRepo } from '@adminium/meta';
 import { z } from 'zod';
 
@@ -24,6 +25,7 @@ import { connectionsSection, countLabel, documentNamesSection, readableConnectio
 import type {
   AssistantArtefactCheck,
   AssistantContextAdapter,
+  AssistantDocument,
   AssistantDetailRow,
   AssistantToolDeps,
 } from '../types.js';
@@ -77,6 +79,31 @@ async function configuredSenders(deps: AssistantToolDeps): Promise<string[]> {
   return [...(smtp === null ? [] : [smtp.from]), ...list.map((sender) => sender.address)];
 }
 
+const CONDITION_SHAPE = '{ "block": "email.text", "showWhen": { "var": "<name>" }, "otherwise": "<the other words>", "data": { … } }';
+
+/** What is wrong with the `showWhen` / `otherwise` of a draft's blocks, block by block. */
+function conditionErrors(blocks: readonly unknown[]): { path: string; code: string; message: string }[] {
+  const out: { path: string; code: string; message: string }[] = [];
+  blocks.forEach((block, index) => {
+    if (typeof block !== 'object' || block === null) return;
+    const record = block as Record<string, unknown>;
+    const at = `document.blocks.${String(index)}`;
+    const tied = showWhenOf(record) !== null;
+    if (record['showWhen'] !== undefined && !tied) {
+      out.push({ path: `${at}.showWhen`, code: 'SHOW_WHEN_INVALID', message: `showWhen names one variable: { "var": "<name>" }. Written whole: ${CONDITION_SHAPE}` });
+    }
+    if (record['otherwise'] === undefined) return;
+    if (typeof record['otherwise'] !== 'string') {
+      out.push({ path: `${at}.otherwise`, code: 'OTHERWISE_INVALID', message: 'otherwise is a text: the words sent in the block\'s place.' });
+    } else if (!tied) {
+      out.push({ path: `${at}.otherwise`, code: 'OTHERWISE_ALONE', message: `otherwise belongs on the block that carries showWhen, not on a block of its own. Move it onto that block and remove this one: ${CONDITION_SHAPE}` });
+    } else if (!OTHERWISE_BLOCKS.includes(String(record['block']))) {
+      out.push({ path: `${at}.otherwise`, code: 'OTHERWISE_NOT_TEXT', message: `Only ${OTHERWISE_BLOCKS.join(' and ')} can say other words. A ${String(record['block'])} tied to a value is left out when the value is missing: take otherwise off it, or add a text block for those readers.` });
+    }
+  });
+  return out;
+}
+
 async function acceptArtefact(
   artefact: Record<string, unknown>,
   deps: AssistantToolDeps,
@@ -110,6 +137,12 @@ async function acceptArtefact(
       })),
     };
   }
+
+  // A block's condition is dropped by the page's own save when it is not one
+  // (like a style nobody recognises). From a model that is a paragraph lost
+  // without a word: say what is wrong, where, and how it is written.
+  const misplaced = conditionErrors(parsed.data.document.blocks ?? []);
+  if (misplaced.length > 0) return { ok: false, errors: misplaced };
 
   let document: EmailDocument;
   try {
@@ -187,53 +220,21 @@ function documentOf(artefact: Record<string, unknown>): Record<string, unknown> 
   return asRecord(artefact.document);
 }
 
-export const emailContext: AssistantContextAdapter = {
-  key: 'email',
-  pageLabel: 'Email templates',
-  toolNames: [
-    'list_documents',
-    'read_document',
-    'list_starters',
-    'workspace_settings',
-    'email_variables',
-    'list_connections',
-    'describe_schema',
-    'read_rows',
-    'aggregate',
-  ],
-
-  async pageFacts(deps) {
-    const templates = emailTemplatesRepo(deps.meta);
-    const counts = await templates.counts(false);
-    const rows = await templates.list({});
-    const connections = await readableConnections(deps);
-    const summary = tablesSummary(connections);
-    const locales = [...new Set(rows.map((row) => row.locale))];
-
-    return {
-      values: { templates: counts.template, campaigns: counts.campaign, tables: summary.tables },
-      scope: { primary: '', extra: summary.tables },
-      prompt: [
-        `This page holds ${countLabel(counts.template, 'template', 'templates')} and ${countLabel(counts.campaign, 'campaign', 'campaigns')}.`,
-        `Documents: ${documentNamesSection(rows.map((row) => row.name))}.`,
-        `Languages in use: ${locales.length === 0 ? 'none yet' : locales.join(', ')}.`,
-        '',
-        'Connected databases and the tables this person may read:',
-        connectionsSection(connections),
-      ].join('\n'),
-    };
-  },
-
+/** What this page drafts: its format, its worked examples, its own validator and what a diff compares. */
+const emailDocument: AssistantDocument = {
   formatSpec() {
     return [
       'A document is `{ kind, name, locale, document }`, plus `basedOn` when it is a language variation of an existing document.',
       'The `document` envelope, as JSON Schema:',
       jsonSchemaOf(emailDocumentInputSchema),
       '',
-      'Every block is `{ block: <kind>, data: { … }, style?: { … } }`. The kinds:',
+      'Every block is `{ block: <kind>, data: { … }, style?: { … }, showWhen?: { var: <name> }, otherwise?: <text> }`. The kinds:',
       blockVocabulary(EMAIL_BLOCK_KINDS, BLOCK_MEANINGS),
       '',
       'Variables are written `{{name}}` and must come from `email_variables`. A name outside that list renders as literal text.',
+      'A value may be missing for some readers. Say what to write then: `{{first_name|there}}` writes "there" when there is no first name (`{{first_name|}}` writes nothing).',
+      'When a backup word cannot keep the sentence right, tie the whole block to the value: `showWhen: { var: "first_name" }` sends the block only when the value is there. To send other words to everyone else, put `otherwise` ON THAT SAME BLOCK (email.text and email.heading only); never add a second block for them:',
+      '{ "block": "email.text", "showWhen": { "var": "first_name" }, "otherwise": "We saved your favourites.", "data": { "paras": ["We saved your favourites, {{first_name}}."] } }',
     ].join('\n');
   },
 
@@ -272,4 +273,44 @@ export const emailContext: AssistantContextAdapter = {
       { kind: 'variables', args: { variables: vars.join(', ') } },
     ];
   },
+};
+
+export const emailContext: AssistantContextAdapter = {
+  key: 'email',
+  pageLabel: 'Email templates',
+  toolNames: [
+    'list_documents',
+    'read_document',
+    'list_starters',
+    'workspace_settings',
+    'email_variables',
+    'list_connections',
+    'describe_schema',
+    'read_rows',
+    'aggregate',
+  ],
+
+  async pageFacts(deps) {
+    const templates = emailTemplatesRepo(deps.meta);
+    const counts = await templates.counts(false);
+    const rows = await templates.list({});
+    const connections = await readableConnections(deps);
+    const summary = tablesSummary(connections);
+    const locales = [...new Set(rows.map((row) => row.locale))];
+
+    return {
+      values: { templates: counts.template, campaigns: counts.campaign, tables: summary.tables },
+      scope: { primary: '', extra: summary.tables },
+      prompt: [
+        `This page holds ${countLabel(counts.template, 'template', 'templates')} and ${countLabel(counts.campaign, 'campaign', 'campaigns')}.`,
+        `Documents: ${documentNamesSection(rows.map((row) => row.name))}.`,
+        `Languages in use: ${locales.length === 0 ? 'none yet' : locales.join(', ')}.`,
+        '',
+        'Connected databases and the tables this person may read:',
+        connectionsSection(connections),
+      ].join('\n'),
+    };
+  },
+
+  document: emailDocument,
 };

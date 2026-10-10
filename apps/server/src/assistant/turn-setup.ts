@@ -16,10 +16,12 @@
  * that exist, not with an exception.
  */
 
+import type { AddOnInstalls } from '../apps/table-ref.js';
 import {
   buildAssistantPrompt,
   estimateAssistantInputTokens,
   ASSISTANT_INPUT_TOKEN_LIMIT,
+  type AssistantActionKind,
   type AssistantToolSpec,
   type ProviderId,
 } from '@adminium/llm';
@@ -28,10 +30,11 @@ import { settingsRepo, type AssistantContextKey, type AssistantHost, type MetaDb
 import { canReadTableFor } from '../rbac/table-grants.js';
 import { recipientLocale, translatorFor } from '../i18n/server-i18n.js';
 import type { ConnectionManager } from '../connections/manager.js';
+import { proposableKindsFor } from './abilities.js';
 import { contextAdapter } from './contexts/index.js';
 import { appNameOf } from './page-facts.js';
 import { ROWS_UNAVAILABLE_NOTE, toolsFor } from './tools/catalogue.js';
-import type { AssistantContextAdapter, AssistantFactValues, AssistantToolDeps, AssistantToolOutcome, CanReadTable } from './types.js';
+import type { AssistantAddOn, AssistantContextAdapter, AssistantFactValues, AssistantToolDeps, AssistantToolOutcome, CanReadTable } from './types.js';
 
 export interface TurnSetupInput {
   meta: MetaDb;
@@ -42,6 +45,10 @@ export interface TurnSetupInput {
   userId: string | null;
   /** Answers a system permission for that person. */
   can: (permission: string) => Promise<boolean>;
+  /** The add-ons this server has and could have; see {@link AssistantToolDeps.addOns}. */
+  addOns?: (() => Promise<AssistantAddOn[]>) | undefined;
+  /** What is installed where; see {@link AssistantToolDeps.installs}. */
+  installs?: (() => Promise<AddOnInstalls>) | undefined;
 }
 
 export interface TurnSetup {
@@ -57,6 +64,8 @@ export interface TurnSetup {
    * watching sees what the model was told before it was asked anything.
    */
   facts: AssistantFactValues;
+  /** The actions a reply may propose on this page, for this person: what the prompt offered. */
+  proposable: AssistantActionKind[];
   execute: (call: { id: string; tool: string; args: Record<string, unknown> }) => Promise<AssistantToolOutcome>;
 }
 
@@ -100,6 +109,8 @@ export async function toolDepsFor(input: TurnSetupInput): Promise<AssistantToolD
     t,
     context: input.context,
     host: input.host,
+    ...(input.addOns === undefined ? {} : { addOns: input.addOns }),
+    ...(input.installs === undefined ? {} : { installs: input.installs }),
   };
 }
 
@@ -122,16 +133,17 @@ export async function setUpTurn(input: TurnSetupInput): Promise<TurnSetup> {
   const byName = new Map(tools.map((tool) => [tool.name, tool]));
 
   const facts = await adapter.pageFacts(deps);
+  const proposable = await proposableKindsFor(deps);
   const system = buildAssistantPrompt({
     name,
     appName,
     pageLabel: adapter.pageLabel,
     localeName: localeName(locale),
     pageFacts: facts.prompt,
-    formatSpec: adapter.formatSpec(),
-    examples: adapter.examples(deps),
+    document: adapter.document === undefined ? null : { formatSpec: adapter.document.formatSpec(), examples: adapter.document.examples(deps) },
     tools: specs,
     rowsUnavailable: rowData ? null : ROWS_UNAVAILABLE_NOTE,
+    propose: proposable,
   });
 
   const execute = async (call: {
@@ -163,7 +175,7 @@ export async function setUpTurn(input: TurnSetupInput): Promise<TurnSetup> {
     }
   };
 
-  return { adapter, deps, specs, system, facts: facts.values, execute };
+  return { adapter, deps, specs, system, facts: facts.values, proposable: proposable.kinds, execute };
 }
 
 /** `de_DE` → `German` — what the prompt asks the model to answer in. */

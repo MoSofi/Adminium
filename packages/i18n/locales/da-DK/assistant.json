@@ -35,7 +35,16 @@
     "placeholder": "Beskriv den regel, du har brug for …",
     "readPage": "Automatiseringsregler · {rules, plural, one {# regel} other {# regler}} · {tables, plural, one {# læsbar tabel} other {# læsbare tabeller}}",
     "scopePrimary": "automations",
-    "workTitle": "Udkast til ny regel"
+    "workTitle": "Udkast til ny regel",
+    "applied": "Anvendt på denne regel. Den er ikke gemt endnu.",
+    "apply": "Anvend på denne regel",
+    "handoff": "Åbn E-mailskabeloner for at lave et udkast.",
+    "handoffSub": "Samtalen følger med dig.",
+    "handoffOpen": "Åbn E-mailskabeloner",
+    "waiting": "Venter på en skabelon",
+    "savedOff": "Gemmes slået fra",
+    "notSaved": "Intet gemmes, før du gemmer reglen.",
+    "workTitleChange": "Ændrede den åbne regel"
   },
   "button": "Spørg {name}",
   "buttonTitle": "Spørg {name} om denne side",
@@ -129,7 +138,12 @@
     "generic": "Det virkede ikke. Spørg igen.",
     "smtp": "E-mail er ikke konfigureret endnu. Åbn e-mailindstillingerne for at tilføje et relay.",
     "tooLong": "Denne samtale er for lang til modellen — start en ny session.",
-    "tryAgain": "Prøv igen"
+    "tryAgain": "Prøv igen",
+    "modelFormat": "Denne model svarer ikke på den måde, {name} har brug for. Vælg en anden model under Indstillinger → AI.",
+    "modelFormatAsk": "Denne model svarer ikke på den måde, {name} har brug for. Bed en administrator om at vælge en anden model.",
+    "setup": "Denne side kunne ikke læses lige nu. Prøv at spørge igen.",
+    "busy": "Dit seneste spørgsmål er stadig i gang. Vent på det, eller stop det først.",
+    "budget": "Dette stoppede undervejs: dagens kvote er brugt op."
   },
   "invoiceTemplate": {
     "action1": "Se en anden prøve",
@@ -194,11 +208,11 @@
     "workTitle": "Faktura skrevet"
   },
   "readOnly": {
-    "enable": "Aktivér handlinger",
-    "lockedTitle": "Aktivér handlinger, så {name} kan gøre det",
     "noWrite": "Din rolle kan se, skrive udkast og forhåndsvise her, men ikke gemme.",
     "noWriteTitle": "Din rolle kan ikke det her",
-    "note": "{name} er skrivebeskyttet lige nu — den kan se, skrive udkast og forhåndsvise, men ikke gemme, sende eller oprette."
+    "switchedOff": "Gemning er slået fra for {name} i dette arbejdsområde.",
+    "openSettings": "Åbn indstillinger",
+    "switchedOffTitle": "Gemning er slået fra for {name} i dette arbejdsområde"
   },
   "report": {
     "action1": "Kør fuld forhåndsvisning",
@@ -260,11 +274,201 @@
     "value": "{n} tokens"
   },
   "try": "Prøv",
+  "tryFrom": "Fra {addOn}",
   "unavailable": {
     "askAdmin": "Bed en administrator om at sætte en op.",
     "forbidden": "Du har ikke tilladelse til at bruge {name}.",
     "network": "Udgående netværksfunktioner er slået fra på denne instans.",
     "noProvider": "Der er endnu ikke konfigureret en AI-udbyder.",
     "settings": "Åbn Indstillinger → AI"
+  },
+  "budget": {
+    "usedUp": "Dagens kvote er brugt op. Den starter igen kl. {time}."
+  },
+  "data": {
+    "page": "Denne side",
+    "blurb": "Kender denne side: {table} · {tables, plural, one {# læsbar tabel} other {# læsbare tabeller}}",
+    "blurbNoTable": "Kender denne side · {tables, plural, one {# læsbar tabel} other {# læsbare tabeller}}",
+    "greeting": "Jeg kan læse, hvad denne side viser, og de andre tabeller, din rolle må læse.",
+    "greetingSub": "Spørg om rækkerne her. Jeg svarer i ord, med tallene, og siger, hvilke tabeller jeg har læst.",
+    "placeholder": "Spørg om disse data…",
+    "chip1": "Hvor mange rækker vises her?",
+    "chip2": "Opsummer, hvad denne side viser",
+    "chip3": "Hvad er ændret senest?",
+    "workTitle": "Data læst",
+    "scopePrimary": "denne side",
+    "readPage": "{page} · {table} · {tables, plural, one {# læsbar tabel} other {# læsbare tabeller}}",
+    "readPageNoTable": "{tables, plural, one {# læsbar tabel} other {# læsbare tabeller}}",
+    "confirm": {
+      "title": "Intet at gemme her",
+      "body": "{name} udarbejder ikke noget på denne side.",
+      "button": "Luk"
+    }
+  },
+  "general": {
+    "page": "Dette arbejdsområde",
+    "blurb": "Kender dette arbejdsområde · {tables, plural, one {# læsbar tabel} other {# læsbare tabeller}}",
+    "greeting": "Jeg kan læse de tabeller, din rolle må læse, og fortælle dig, hvor tingene gøres.",
+    "greetingSub": "Spørg om dine data, eller hvor noget ændres. Jeg svarer med ord og linker til stedet.",
+    "placeholder": "Spørg om dette arbejdsområde…",
+    "chip1": "Hvor inviterer jeg en kollega?",
+    "chip2": "Hvad kan jeg se i dette arbejdsområde?",
+    "chip3": "Hvilken tabel har flest rækker?",
+    "workTitle": "Slået op",
+    "scopePrimary": "arbejdsområde",
+    "readPage": "{tables, plural, one {# læsbar tabel} other {# læsbare tabeller}}"
+  },
+  "answer": {
+    "from": "Fra:",
+    "part": "Læste {returned, number} af {total, number} rækker i {table}.",
+    "nothingRead": "Intet blev læst til dette svar.",
+    "readAgain": "Læs igen",
+    "readAgainAsk": "{question} Læs dataene for at svare.",
+    "forgot": "{name} har ikke længere {count, plural, one {den første besked} other {de første # beskeder}} i tankerne."
+  },
+  "suggestion": {
+    "open": "Åbn",
+    "openLabel": "Åbn {addOn} under Add-ons",
+    "askAdmin": "Bed en administrator om at installere dette."
+  },
+  "panel": {
+    "loading": "Indlæser samtale…",
+    "recordOpen": "{page} · {record} åben",
+    "rowsShown": "{page} · {rows, plural, one {# række vist} other {# rækker vist}}",
+    "new": "Ny samtale",
+    "earlier": "{count, plural, one {# tidligere besked vises} other {# tidligere beskeder vises}} ikke.",
+    "onPage": "på {page}",
+    "closedElsewhere": "Denne samtale blev lukket i et andet vindue.",
+    "stillWorking": "{name} arbejder stadig på dit seneste spørgsmål.",
+    "stop": "Stop",
+    "pageDialog": "Luk det, der er åbent på siden, for at bruge {name}.",
+    "aged": "Din tidligere samtale blev lukket på grund af dens alder."
+  },
+  "chip": {
+    "selected": "{count, plural, one {# valgt} other {# valgt}}",
+    "record": "Den åbne post",
+    "filtered": "{rows, plural, one {# filtreret række} other {# filtrerede rækker}}",
+    "filteredUnknown": "Filtrerede rækker",
+    "remove": "Spørg uden “{label}”"
+  },
+  "parked": {
+    "madeOn": "Lavet på {page}.",
+    "open": "Åbn {page} for at bruge denne kladde",
+    "deleted": "Denne kladdes dokument blev slettet."
+  },
+  "proposal": {
+    "checking": {
+      "title": "En ændring til bekræftelse",
+      "line": "Tjekker, hvad der ville ændre sig…"
+    },
+    "badge": {
+      "replaced": "Erstattet",
+      "expired": "Udløbet",
+      "cancelled": "Annulleret",
+      "parked": "Parkeret"
+    },
+    "replaced": "Der blev spurgt om noget andet bagefter. Intet blev ændret.",
+    "expired": "Dette forslag er 30 minutter gammelt. Spørg igen.",
+    "overCap": "Det er {count} ændringer; højst {cap} kan bekræftes ad gangen. Brug sidens egne masseværktøjer til flere.",
+    "applying": "Arbejder…",
+    "undone": "Fortrudt. Alt er, som det var.",
+    "undonePart": "{count, plural, one {# ændring blev} other {# ændringer blev}} taget tilbage.",
+    "undoneRest": "Resten forbliver ændret.",
+    "interrupted": "Dette stoppede undervejs.",
+    "group": {
+      "done": "Udført",
+      "check": "Tjek denne",
+      "checkLine": "Gemningen blev afbrudt. Den er måske ændret, måske ikke.",
+      "notTried": "Ikke forsøgt",
+      "shared": "{field} {arrow} {value} på {count, plural, one {# række} other {# rækker}}"
+    },
+    "openHome": "Åbn {page}",
+    "notTried": "Ikke forsøgt: for mange forespørgsler på én gang. Spørg igen om et minut.",
+    "again": "Foreslå resten igen",
+    "againAsk": "Foreslå igen de ændringer, der ikke blev lavet:\n{rows}",
+    "undo": "Fortryd",
+    "undoSome": "Fortryd {count} af {total}",
+    "undoPassed": "Tiden til at fortryde er gået.",
+    "noUndo": "Dette kan ikke fortrydes herfra.",
+    "noUndoSome": "{count, plural, one {# ændring} other {# ændringer}} kan ikke fortrydes herfra.",
+    "notChanged": "{count, plural, one {Denne blev} other {Disse # blev}} ikke ændret:",
+    "cancelled": "Intet blev ændret.",
+    "parked": "Åbn {page} for at bruge dette.",
+    "someRefused": "{refused} af {count, plural, one {# ændring} other {# ændringer}} kan ikke laves.",
+    "changedSince": "Dette har ændret sig, siden du fik det vist. Se igen, før du bekræfter.",
+    "fix": "Bed {name} om at rette dette",
+    "fixAsk": "Noget af det kan ikke lade sig gøre. Foreslå det igen uden disse:\n{reasons}",
+    "send": {
+      "template": "Skabelon",
+      "subject": "Emne",
+      "to": "Til",
+      "roles": "alle med rollen {roles} ({count, plural, one {# person} other {# personer}})",
+      "open": "Åbn skabelon",
+      "skipped": "{count, plural, one {# person har} other {# personer har}} frameldt sig og får intet."
+    },
+    "more": "{count} mere. Åbn stort for at se dem alle.",
+    "irreversible": "Dette kan ikke fortrydes.",
+    "chosen": "{picked} af {count} valgt",
+    "large": "Åbn stort",
+    "doc": {
+      "email": "e-mailskabelon",
+      "report": "rapport",
+      "rule": "regel",
+      "invoice": "faktura",
+      "invoiceTemplate": "fakturaskabelon"
+    },
+    "ask": {
+      "change": "Ændr {count, plural, one {# række} other {# rækker}}",
+      "add": "Tilføj {count, plural, one {# række} other {# rækker}}",
+      "delete": "Slet {count, plural, one {# række} other {# rækker}}",
+      "save": "Gem som ny {what}",
+      "saveOver": "Gem oven i “{name}”",
+      "deleteDoc": "Slet “{name}”",
+      "deleteDocs": "Slet {count, plural, one {# dokument} other {# dokumenter}}",
+      "send": "Send til {count, plural, one {# person} other {# personer}}",
+      "mixed": "Lav {count, plural, one {# ændring} other {# ændringer}}"
+    },
+    "done": {
+      "changePart": "Ændrede {done} af {count, plural, one {# række} other {# rækker}}.",
+      "part": "{done} af {count, plural, one {# ændring} other {# ændringer}} lavet.",
+      "change": "Ændrede {count, plural, one {# række} other {# rækker}}.",
+      "add": "Tilføjede {count, plural, one {# række} other {# rækker}}.",
+      "delete": "Slettede {count, plural, one {# række} other {# rækker}}.",
+      "save": "Gemt.",
+      "deleteDoc": "Slettede {count, plural, one {# dokument} other {# dokumenter}}.",
+      "send": "Sender til {count, plural, one {# person} other {# personer}}.",
+      "mixed": "{count, plural, one {# ændring} other {# ændringer}} lavet."
+    },
+    "refused": {
+      "generic": "Serveren afviste dette.",
+      "switchedOff": "Dette er slået fra for {name} i dette arbejdsområde.",
+      "notThisTable": "Herfra kan kun tabellen på den side, der blev spurgt på, ændres.",
+      "notData": "Det er ikke en tabel med dine data.",
+      "noChange": "Rækken har allerede disse værdier.",
+      "unsafeKey": "Det id kan ikke bruges.",
+      "notFound": "Dette findes ikke længere.",
+      "notOffered": "Det kan ikke gøres herfra.",
+      "builtIn": "En indbygget mail ændres på sin egen skærm.",
+      "notCampaign": "Kun en kampagne kan sendes til personer.",
+      "noRecipients": "Ingen ville få denne mail.",
+      "notLive": "Et udkast slås til af en person, før det kan sendes."
+    },
+    "row": {
+      "untitled": "Uden titel",
+      "new": "Ny række",
+      "switchesOff": "Gemmes slået fra: slå den til igen, når du har set på den."
+    },
+    "delete": {
+      "reference": "{count} i {table}",
+      "references": "Andre rækker henviser til denne: {list}. De forsvinder eller ændres med den, som ved sidens egen sletning."
+    },
+    "noneAble": "Intet af dette kan lade sig gøre",
+    "checkAgain": "Tjek igen",
+    "undoFailed": "{count, plural, one {# ændring} other {# ændringer}} kunne ikke tages tilbage. Prøv igen.",
+    "parkedNoHome": "Gå tilbage til {page}, hvor dette blev spurgt, for at bruge det."
+  },
+  "leftOut": {
+    "title": "Hvad jeg udelod, og hvorfor",
+    "nothing": "Intet."
   }
 }

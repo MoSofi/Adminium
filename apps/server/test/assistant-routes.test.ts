@@ -18,8 +18,8 @@
  */
 
 import BetterSqlite3 from 'better-sqlite3';
-import { SqliteDialect } from 'kysely';
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { SqliteDialect, sql } from 'kysely';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   AdapterRegistry,
@@ -32,13 +32,21 @@ import {
 import { ASSISTANT_SCHEMA_VERSION } from '@adminium/llm';
 import {
   assistantSessionsRepo,
+  auditRepo,
+  assistantUseDay,
+  assistantUseRepo,
+  assistantUseResetsAt,
   emailTemplatesRepo,
+  pagesRepo,
   permissionsRepo,
   rolesRepo,
   settingsRepo,
+  usersRepo,
 } from '@adminium/meta';
 
+import { documentColumns, isBuiltinEmailKey, normalizeDocument } from '../src/email/document.js';
 import { executeAssistantTurn, INTERRUPTED_ERROR } from '../src/jobs/assistant-turn.js';
+import { permissionSetAllows, resolvePermissionSet } from '../src/rbac/resolver.js';
 import { sweepAssistantSessions } from '../src/assistant/retention.js';
 import { assistantRoutes } from '../src/routes/assistant/index.js';
 import { readLlmConfig, writeLlmConfig } from '../src/routes/llm/config-service.js';
@@ -171,6 +179,8 @@ beforeAll(async () => {
           manager: ctx.manager,
           networkFeatures: true,
           secret: null,
+          // What this server has and could have, as the tests set it.
+          addOns: () => Promise.resolve(ADD_ONS),
         }) as never,
       );
     },
@@ -182,11 +192,33 @@ beforeAll(async () => {
 }, 60_000);
 
 beforeEach(async () => {
+  // A workspace that was in use before the switches: its assistant saves drafts, and nothing more.
+  await settingsRepo(t.meta).set('assistant.abilities', { create: true, change: false, send: false, delete: false });
   await settingsRepo(t.meta).set('llm.provider', 'anthropic');
 });
 
 afterAll(async () => {
   await t.app.close();
+});
+
+/** The add-ons the test server lists; a test changes it to change what the server knows. */
+let ADD_ONS: { key: string; name: string; line: string; state: 'installed' | 'available' | 'listed' }[] = [];
+
+// Each test stands alone: a question one of them left unanswered is not "still under way" for the
+// next (a person asks one question at a time, in whichever conversation), and a day's use is its own.
+beforeEach(async () => {
+  await t.meta.db.updateTable('adminium_assistant_turns').set({ status: 'cancelled' }).where('status', 'in', ['queued', 'running']).execute();
+  await t.meta.db.deleteFrom('adminium_assistant_use').execute();
+  // …and a minute's worth of questions is each test's own: every test here asks as the same
+  // two people, and together they ask more than one person may in a minute. The limiter reads
+  // the wall clock, so the wall clock is what moves (only `Date`; timers are left real).
+  vi.setSystemTime(Date.now() + 61_000);
+});
+beforeAll(() => {
+  vi.useFakeTimers({ toFake: ['Date'], now: Date.now() });
+});
+afterAll(() => {
+  vi.useRealTimers();
 });
 
 describe('who may knock', () => {
@@ -391,9 +423,28 @@ describe('a session and its turns', () => {
       url: `/api/v1/assistant/sessions/${sessionId}/turns/${turnId}`,
       headers: asUser(t.users.admin),
     });
-    const view = read.json() as { status: string; error: { kind: string } | null };
+    const view = read.json() as { status: string; error: { kind: string; provider?: string; model?: string } | null };
     expect(view.status).toBe('failed');
-    expect(view.error?.kind).toBe('validation');
+    // Three replies nobody could read: it is the model that cannot do this, and the card can say which.
+    expect(view.error).toMatchObject({ kind: 'model-format', provider: 'anthropic', model: 'm' });
+  });
+
+  it('records a draft the page kept refusing as that, not as the model`s format', async () => {
+    const opened = await openSession();
+    const sessionId = (opened.json() as { session: { id: string } }).session.id;
+    const asked = await t.app.inject({
+      method: 'POST',
+      url: `/api/v1/assistant/sessions/${sessionId}/turns`,
+      headers: asUser(t.users.admin),
+      payload: { text: 'Draft something' },
+    });
+    const turnId = (asked.json() as { turn: { id: string } }).turn.id;
+    // Readable every time, and never a document the email page accepts.
+    const bad = reply({ result: { title: 'T', meta: '', artefact: { kind: 'template', name: 'x', locale: 'en_US', document: { blocks: [{ block: 'email.nonsense', data: {} }] } } } });
+    await runTurn(turnId, [{ text: bad }], t.users.admin.id);
+    const turn = await assistantSessionsRepo(t.meta).findTurn(turnId);
+    expect(turn?.status).toBe('failed');
+    expect(turn?.error).toMatchObject({ kind: 'validation' });
   });
 
   it('claims a turn once — a second worker leaves it alone', async () => {
@@ -554,6 +605,22 @@ describe('a button on the result card', () => {
     return { sessionId, turnId };
   }
 
+  it('saves nothing, and adds no language, while Create is switched off; a test mail and a re-run are not held by it', async () => {
+    await settingsRepo(t.meta).set('assistant.abilities', { create: false, change: true, send: true, delete: true });
+    const { sessionId, turnId } = await draftedTurn('admin');
+    const act = (payload: Record<string, unknown>) =>
+      t.app.inject({ method: 'POST', url: `/api/v1/assistant/sessions/${sessionId}/turns/${turnId}/actions`, headers: asUser(t.users.admin), payload });
+    for (const payload of [{ action: 'save' }, { action: 'language.add', locale: 'de_DE' }]) {
+      const res = await act(payload);
+      expect(res.statusCode, res.body).toBe(403);
+      expect(res.json()).toMatchObject({ error: { details: { reason: 'assistant-switched-off', ability: 'create' } } });
+    }
+    expect((await emailTemplatesRepo(t.meta).list()).some((row) => row.name === 'Route welcome')).toBe(false);
+    // Not the switch's: whatever it answers, it is not refused for being switched off.
+    const mail = await act({ action: 'test-send' });
+    expect(mail.body).not.toContain('assistant-switched-off');
+  });
+
   it('saves the draft through the page`s own create, and says what it made', async () => {
     const { sessionId, turnId } = await draftedTurn('admin');
     const res = await t.app.inject({
@@ -708,6 +775,56 @@ describe('closing and sweeping', () => {
     expect(swept.closed).toBeGreaterThanOrEqual(1);
     expect((await repo.findSession(abandoned.id))?.status).toBe('closed');
   });
+
+  it('leaves the panel conversation open when it is only left for days, and closes it by its age', async () => {
+    const repo = assistantSessionsRepo(t.meta);
+    const panel = await repo.create({ context: 'data', host: { connectionIds: [] }, kind: 'panel', createdBy: t.users.admin.id }, AT);
+    await sweepAssistantSessions(t.meta, AT + 5 * 86_400_000);
+    expect((await repo.findSession(panel.id))?.status).toBe('open');
+
+    // Used the day before the window ends: its use does not keep it.
+    const turn = await repo.createTurn({ sessionId: panel.id, askText: 'still using it' }, AT + 30 * 86_400_000);
+    await repo.finishTurn(turn.id, { status: 'done', transcript: [], finishedAt: AT + 30 * 86_400_000 + 1 });
+    await sweepAssistantSessions(t.meta, AT + 31 * 86_400_000);
+    expect((await repo.findSession(panel.id))?.status).toBe('closed');
+  });
+
+  it('says, for a few days, that the last conversation was closed for its age, and never for one the person ended', async () => {
+    const repo = assistantSessionsRepo(t.meta);
+    const current = async () =>
+      (await t.app.inject({ method: 'GET', url: '/api/v1/assistant/sessions/current', headers: asUser(t.users.admin) })).json() as { session: unknown; aged: boolean };
+    const now = Date.now();
+    // Whatever earlier tests left open for this person is not this test's.
+    await repo.closeOtherPanels(t.users.admin.id, 'none', now - 40 * 86_400_000);
+    // Ended by the person an hour after it began, two days ago: nothing to explain.
+    const ended = await repo.create({ context: 'data', host: { connectionIds: [] }, kind: 'panel', createdBy: t.users.admin.id }, now - 2 * 86_400_000 - 3_600_000);
+    await repo.close(ended.id, now - 2 * 86_400_000);
+    expect(await current()).toMatchObject({ session: null, aged: false });
+
+    // Thirty-one days old and closed by the sweep yesterday.
+    const old = await repo.create({ context: 'data', host: { connectionIds: [] }, kind: 'panel', createdBy: t.users.admin.id }, now - 32 * 86_400_000);
+    await sweepAssistantSessions(t.meta, now - 86_400_000);
+    expect((await repo.findSession(old.id))?.status).toBe('closed');
+    expect(await current()).toMatchObject({ session: null, aged: true });
+
+    // An open conversation: nothing is said about an older one.
+    await repo.create({ context: 'data', host: { connectionIds: [] }, kind: 'panel', createdBy: t.users.admin.id }, now);
+    expect((await current()).aged).toBe(false);
+  });
+
+  it('never closes a session whose turn is still waiting or running', async () => {
+    const repo = assistantSessionsRepo(t.meta);
+    const modal = await repo.create({ context: 'email', host: { connectionIds: [] }, createdBy: t.users.admin.id }, AT);
+    await repo.createTurn({ sessionId: modal.id, askText: 'queued behind a long job' }, AT);
+    const panel = await repo.create({ context: 'data', host: { connectionIds: [] }, kind: 'panel', createdBy: t.users.editor.id }, AT);
+    // A turn's start touches its session; put the clock back so only the live turn protects it.
+    await t.meta.db.updateTable('adminium_assistant_sessions').set({ updatedAt: AT }).where('id', '=', modal.id).execute();
+    await repo.createTurn({ sessionId: panel.id, askText: 'asked on day 31' }, AT + 31 * 86_400_000 - 1);
+
+    await sweepAssistantSessions(t.meta, AT + 31 * 86_400_000);
+    expect((await repo.findSession(modal.id))?.status).toBe('open');
+    expect((await repo.findSession(panel.id))?.status).toBe('open');
+  });
 });
 
 describe('the two assistant fields on the LLM config', () => {
@@ -739,5 +856,992 @@ describe('the two assistant fields on the LLM config', () => {
       { provider: 'anthropic', assistantName: 'Milo', assistantRowData: true },
       { updatedBy: null, at: AT },
     );
+  });
+});
+
+describe('a screen with no context of its own', () => {
+  const reply = (body: Record<string, unknown>) => JSON.stringify({ schema_version: ASSISTANT_SCHEMA_VERSION, ...body });
+
+  it('answers where something is done from where_is, drafts nothing, and has nothing to save', async () => {
+    const host = { connectionIds: [], route: '/settings/roles' };
+    const opened = await t.app.inject({ method: 'POST', url: '/api/v1/assistant/sessions', headers: asUser(t.users.admin), payload: { context: 'general', host } });
+    expect(opened.statusCode, opened.body).toBe(201);
+    const session = opened.json() as { session: { id: string; context: string }; facts: { values: Record<string, unknown> } };
+    expect(session.session.context).toBe('general');
+
+    const asked = await t.app.inject({
+      method: 'POST',
+      url: `/api/v1/assistant/sessions/${session.session.id}/turns`,
+      headers: asUser(t.users.admin),
+      payload: { text: 'Where do I invite a colleague?', context: 'general', host },
+    });
+    expect(asked.statusCode, asked.body).toBe(202);
+    const turnId = (asked.json() as { turn: { id: string } }).turn.id;
+    const scripted = await runTurn(
+      turnId,
+      [
+        { text: reply({ say: '', calls: [{ id: 'c1', tool: 'where_is', args: { q: 'invite team' }, step: { icon: 'compass', label: 'Looking for the place', detail: '' } }] }) },
+        { text: reply({ say: 'On [Team](/settings/team).' }) },
+      ],
+      t.users.admin.id,
+    );
+    // The prompt is the general one: where the person is, and no document to draft.
+    expect(scripted.calls[0]!.system).toContain('route is /settings/roles');
+    expect(scripted.calls[0]!.system).not.toContain('open_document');
+    // What the tool answered went back to the model: the place, by its path.
+    expect(scripted.calls[1]!.messages.at(-1)!.content).toContain('/settings/team');
+
+    const turn = await assistantSessionsRepo(t.meta).findTurn(turnId);
+    expect(turn).toMatchObject({ status: 'done', say: 'On [Team](/settings/team).', result: null, context: 'general' });
+
+    // Served with where it was asked: here no data page and no document.
+    const read = await t.app.inject({ method: 'GET', url: `/api/v1/assistant/sessions/${session.session.id}/turns/${turnId}`, headers: asUser(t.users.admin) });
+    expect((read.json() as { on: unknown }).on).toEqual({ pageId: null, documentId: null, title: null, scope: null, gone: false });
+
+    const save = await t.app.inject({
+      method: 'POST',
+      url: `/api/v1/assistant/sessions/${session.session.id}/turns/${turnId}/actions`,
+      headers: asUser(t.users.admin),
+      payload: { action: 'save' },
+    });
+    expect(save.statusCode).toBeGreaterThanOrEqual(400);
+    expect(save.statusCode).toBeLessThan(500);
+  });
+
+  it('serves a turn with the data page it was asked on, by the name the page has now', async () => {
+    const pages = pagesRepo(t.meta);
+    const page = await pages.create({ connectionId: null, slug: 'asked-here', type: 'page-crud', title: 'Customers', config: {} });
+    // The reader may open the page: its name is theirs to be told.
+    await permissionsRepo(t.meta).grant(t.roles.admin.id, 'page', page.id, { view: true, edit: false } as never);
+    const host = { connectionIds: [], pageId: page.id };
+    const opened = await t.app.inject({ method: 'POST', url: '/api/v1/assistant/sessions', headers: asUser(t.users.admin), payload: { context: 'data', host } });
+    const sessionId = (opened.json() as { session: { id: string } }).session.id;
+    const asked = await t.app.inject({ method: 'POST', url: `/api/v1/assistant/sessions/${sessionId}/turns`, headers: asUser(t.users.admin), payload: { text: 'How many?', context: 'data', host } });
+    expect(asked.statusCode, asked.body).toBe(202);
+    const turnId = (asked.json() as { turn: { id: string; on: unknown } }).turn.id;
+    expect((asked.json() as { turn: { on: unknown } }).turn.on).toEqual({ pageId: page.id, documentId: null, title: 'Customers', scope: null, gone: false });
+
+    // Renamed since: the thread says where it was asked by today's name. Deleted: by no name.
+    await pages.updateMeta(page.id, { title: 'Clients' });
+    const read = async () =>
+      ((await t.app.inject({ method: 'GET', url: `/api/v1/assistant/sessions/${sessionId}/turns/${turnId}`, headers: asUser(t.users.admin) })).json() as { on: { title: string | null } }).on.title;
+    expect(await read()).toBe('Clients');
+    await pages.delete(page.id);
+    expect(await read()).toBeNull();
+  });
+
+  it('says when the document a draft was made for has been deleted since', async () => {
+    const templates = emailTemplatesRepo(t.meta);
+    const template = await templates.create({ kind: 'template', key: 'autumn-menu', locale: 'en-US', name: 'Autumn', subject: 'Autumn', blocks: [] });
+    const host = { connectionIds: [], documentId: template.id };
+    const opened = await t.app.inject({ method: 'POST', url: '/api/v1/assistant/sessions', headers: asUser(t.users.admin), payload: { context: 'email', host } });
+    const sessionId = (opened.json() as { session: { id: string } }).session.id;
+    const repo = assistantSessionsRepo(t.meta);
+    const turn = await repo.createTurn({ sessionId, askText: 'Make it warmer', context: 'email', host }, AT);
+    await repo.finishTurn(turn.id, { status: 'done', say: 'Here.', result: { title: 'Autumn, warmer', artefact: {} }, finishedAt: AT });
+    const gone = async () =>
+      ((await t.app.inject({ method: 'GET', url: `/api/v1/assistant/sessions/${sessionId}/turns/${turn.id}`, headers: asUser(t.users.admin) })).json() as { on: { gone: boolean; documentId: string } }).on;
+    expect(await gone()).toMatchObject({ documentId: template.id, gone: false });
+    await templates.removeById(template.id);
+    expect((await gone()).gone).toBe(true);
+  });
+
+  it('names the page only to a reader who may open it: the page id is the browser`s', async () => {
+    const pages = pagesRepo(t.meta);
+    const page = await pages.create({ connectionId: null, slug: 'payroll-private', type: 'page-crud', title: 'Payroll', config: {} });
+    // May use the assistant, and holds nothing on that page.
+    const roles = rolesRepo(t.meta);
+    const role = await roles.create({ slug: 'asker', name: 'Asker' });
+    await permissionsRepo(t.meta).grant(role.id, 'system', 'assistant.use', { allowed: true });
+    const asker = await usersRepo(t.meta).create({ email: 'asker@adminium.test', name: 'Asker', passwordHash: 'x', status: 'active' });
+    await roles.assignToUser(asker.id, role.id);
+
+    const host = { connectionIds: [], pageId: page.id };
+    const opened = await t.app.inject({ method: 'POST', url: '/api/v1/assistant/sessions', headers: asUser(asker), payload: { context: 'data', host } });
+    expect(opened.statusCode, opened.body).toBe(201);
+    const sessionId = (opened.json() as { session: { id: string } }).session.id;
+    const asked = await t.app.inject({ method: 'POST', url: `/api/v1/assistant/sessions/${sessionId}/turns`, headers: asUser(asker), payload: { text: 'What is this?', context: 'data', host } });
+    expect(asked.statusCode, asked.body).toBe(202);
+    const turn = (asked.json() as { turn: { id: string; on: { pageId: string; title: string | null } } }).turn;
+    expect(turn.on).toMatchObject({ pageId: page.id, title: null });
+    expect(asked.body).not.toContain('Payroll');
+    const current = await t.app.inject({ method: 'GET', url: `/api/v1/assistant/sessions/${sessionId}/turns/${turn.id}`, headers: asUser(asker) });
+    expect(current.body).not.toContain('Payroll');
+    // Given the page, the same turn is named.
+    await permissionsRepo(t.meta).grant(role.id, 'page', page.id, { view: true, edit: false } as never);
+    const named = await t.app.inject({ method: 'GET', url: `/api/v1/assistant/sessions/${sessionId}/turns/${turn.id}`, headers: asUser(asker) });
+    expect((named.json() as { on: { title: string } }).on.title).toBe('Payroll');
+  });
+
+  it('serves with a turn what "these" meant when it was asked: ticked rows, an open record, or a part of the grid', async () => {
+    const opened = await t.app.inject({ method: 'POST', url: '/api/v1/assistant/sessions', headers: asUser(t.users.admin), payload: { context: 'data', host: { connectionIds: [] } } });
+    const sessionId = (opened.json() as { session: { id: string } }).session.id;
+    const scopeOf = async (view: Record<string, unknown> | undefined) => {
+      const asked = await t.app.inject({
+        method: 'POST',
+        url: `/api/v1/assistant/sessions/${sessionId}/turns`,
+        headers: asUser(t.users.admin),
+        payload: { text: 'These?', context: 'data', host: { connectionIds: [], ...(view === undefined ? {} : { view }) } },
+      });
+      expect(asked.statusCode, asked.body).toBe(202);
+      const turn = (asked.json() as { turn: { id: string; on: { scope: unknown } } }).turn;
+      await runTurn(turn.id, [{ text: JSON.stringify({ schema_version: ASSISTANT_SCHEMA_VERSION, say: 'ok' }) }], t.users.admin.id);
+      return turn.on.scope;
+    };
+    expect(await scopeOf({ selectedIds: ['1', '2', '3'], q: 'ada' })).toEqual({ kind: 'selection', count: 3 });
+    expect(await scopeOf({ recordId: '42', q: 'ada' })).toEqual({ kind: 'record', count: 1 });
+    expect(await scopeOf({ where: '{"column":"a","op":"eq","value":1}' })).toEqual({ kind: 'page', count: null });
+    expect(await scopeOf({ order: 'name.asc' })).toBeNull();
+    expect(await scopeOf(undefined)).toBeNull();
+  });
+
+  it('keeps beside an answer in words what the person might ask next', async () => {
+    const host = { connectionIds: [] };
+    const opened = await t.app.inject({ method: 'POST', url: '/api/v1/assistant/sessions', headers: asUser(t.users.admin), payload: { context: 'general', host } });
+    const sessionId = (opened.json() as { session: { id: string } }).session.id;
+    const asked = await t.app.inject({ method: 'POST', url: `/api/v1/assistant/sessions/${sessionId}/turns`, headers: asUser(t.users.admin), payload: { text: 'How many?' } });
+    const turnId = (asked.json() as { turn: { id: string } }).turn.id;
+    await runTurn(turnId, [{ text: reply({ say: 'Twelve.', followups: ['Who comes next?', 'And last year?'] }) }], t.users.admin.id);
+    const read = await t.app.inject({ method: 'GET', url: `/api/v1/assistant/sessions/${sessionId}/turns/${turnId}`, headers: asUser(t.users.admin) });
+    expect((read.json() as { answer: { followups: string[] } }).answer.followups).toEqual(['Who comes next?', 'And last year?']);
+
+    // More than three is not a reply: the model is told, and its next one is taken.
+    const again = await t.app.inject({ method: 'POST', url: `/api/v1/assistant/sessions/${sessionId}/turns`, headers: asUser(t.users.admin), payload: { text: 'And now?' } });
+    const secondId = (again.json() as { turn: { id: string } }).turn.id;
+    await runTurn(secondId, [{ text: reply({ say: 'x', followups: ['a', 'b', 'c', 'd'] }) }, { text: reply({ say: 'Thirteen.' }) }], t.users.admin.id);
+    const second = await assistantSessionsRepo(t.meta).findTurn(secondId);
+    expect(second).toMatchObject({ status: 'done', say: 'Thirteen.' });
+    expect((second!.answer as { followups?: unknown }).followups).toBeUndefined();
+  });
+
+  it('refuses a draft the model sends anyway', async () => {
+    const host = { connectionIds: [] };
+    const opened = await t.app.inject({ method: 'POST', url: '/api/v1/assistant/sessions', headers: asUser(t.users.admin), payload: { context: 'general', host } });
+    const sessionId = (opened.json() as { session: { id: string } }).session.id;
+    const asked = await t.app.inject({ method: 'POST', url: `/api/v1/assistant/sessions/${sessionId}/turns`, headers: asUser(t.users.admin), payload: { text: 'Write me a welcome email' } });
+    const turnId = (asked.json() as { turn: { id: string } }).turn.id;
+    const drafted = reply({ say: 'Here.', result: { title: 'Welcome', artefact: { subject: 'Hi' } } });
+    await runTurn(turnId, [{ text: drafted }, { text: drafted }, { text: drafted }, { text: drafted }], t.users.admin.id);
+    const turn = await assistantSessionsRepo(t.meta).findTurn(turnId);
+    expect(turn?.result).toBeNull();
+    expect(turn?.status).toBe('failed');
+  });
+});
+
+describe('what the model is sent of a conversation that goes on', () => {
+  const plain = (say: string) => JSON.stringify({ schema_version: ASSISTANT_SCHEMA_VERSION, say });
+
+  /** Ask one question in a session and run its turn; hands back what the provider was sent. */
+  async function ask(sessionId: string, text: string, reply: string) {
+    const asked = await t.app.inject({
+      method: 'POST',
+      url: `/api/v1/assistant/sessions/${sessionId}/turns`,
+      headers: asUser(t.users.admin),
+      payload: { text },
+    });
+    expect(asked.statusCode, asked.body).toBe(202);
+    const turnId = (asked.json() as { turn: { id: string } }).turn.id;
+    const scripted = await runTurn(turnId, [{ text: plain(reply) }], t.users.admin.id);
+    return { turnId, sent: scripted.calls[0]!.messages.map((message) => message.content) };
+  }
+
+  it('says each earlier message once, however long the conversation', async () => {
+    const opened = await openSession();
+    const sessionId = (opened.json() as { session: { id: string } }).session.id;
+    await ask(sessionId, 'first question', 'first answer');
+    await ask(sessionId, 'second question', 'second answer');
+    await ask(sessionId, 'third question', 'third answer');
+    const fourth = await ask(sessionId, 'fourth question', 'fourth answer');
+
+    // The turn just before is whole; the ones before it are told once, in outline.
+    expect(fourth.sent.slice(1)).toEqual(['third question', plain('third answer'), 'fourth question']);
+    const outline = JSON.parse(fourth.sent[0]!) as { earlier_in_this_conversation: Array<{ asked: string; answered: string; on: string }> };
+    expect(outline.earlier_in_this_conversation).toEqual([
+      { asked: 'first question', on: 'email', answered: 'first answer' },
+      { asked: 'second question', on: 'email', answered: 'second answer' },
+    ]);
+    expect(fourth.sent).toHaveLength(4);
+    // And a turn stores its own messages, not the conversation before it.
+    const stored = (await assistantSessionsRepo(t.meta).findTurn(fourth.turnId))!.transcript;
+    expect(stored.filter((message) => message.role !== 'meta').map((message) => message.content)).toEqual([
+      'fourth question',
+      plain('fourth answer'),
+    ]);
+  });
+
+  it('reads the rows an earlier release wrote, which hold the whole conversation each', async () => {
+    const repo = assistantSessionsRepo(t.meta);
+    const session = await repo.create(
+      { context: 'email', host: { connectionIds: [] }, draft: { subject: 'On screen' }, provider: 'anthropic', model: 'm', createdBy: t.users.admin.id },
+      AT,
+    );
+    const draft = (content: string) => content.includes('open_document');
+    // Written as 0.3.20 wrote them: the replay before the turn, then the turn.
+    const one = await repo.createTurn({ sessionId: session.id, askText: 'same question' }, AT);
+    const D = { role: 'user', content: JSON.stringify({ open_document: { subject: 'On screen' }, note: 'This is the document currently open in the editor; it is unsaved.' }) };
+    const t1 = [D, { role: 'user', content: 'same question' }, { role: 'assistant', content: plain('a1') }];
+    await repo.finishTurn(one.id, { status: 'done', transcript: t1, finishedAt: AT + 1 });
+    // A failed turn between two that happened: it holds its prefix and is never replayed.
+    const bad = await repo.createTurn({ sessionId: session.id, askText: 'broken' }, AT + 2);
+    await repo.finishTurn(bad.id, { status: 'failed', transcript: [D, ...t1, { role: 'user', content: 'broken' }, { role: 'assistant', content: 'not json' }], finishedAt: AT + 3 });
+    // The same words again (a follow-up button does this).
+    const two = await repo.createTurn({ sessionId: session.id, askText: 'same question' }, AT + 4);
+    const t2 = [D, ...t1, { role: 'user', content: 'same question' }, { role: 'assistant', content: plain('a2') }];
+    await repo.finishTurn(two.id, { status: 'done', transcript: t2, finishedAt: AT + 5 });
+
+    const next = await ask(session.id, 'and now', 'a3');
+    expect(next.sent.filter(draft)).toHaveLength(1);
+    const rest = next.sent.filter((content) => !draft(content));
+    // Each legacy row gives its own part only: the first in outline, the newest whole.
+    expect((JSON.parse(rest[0]!) as { earlier_in_this_conversation: Array<{ asked: string }> }).earlier_in_this_conversation.map((turn) => turn.asked)).toEqual([
+      'same question',
+    ]);
+    expect(rest.slice(1)).toEqual(['same question', plain('a2'), 'and now']);
+  });
+});
+
+describe('a question that could not be started', () => {
+  it('answers busy, not a server error, when two are posted to one conversation in the same instant', async () => {
+    const opened = await openSession();
+    const sessionId = (opened.json() as { session: { id: string } }).session.id;
+    // The second passes the same checks the first did, and then finds its number taken.
+    const post = () => t.app.inject({ method: 'POST', url: `/api/v1/assistant/sessions/${sessionId}/turns`, headers: asUser(t.users.admin), payload: { text: 'At once' } });
+    const [one, two] = await Promise.all([post(), post()]);
+    const codes = [one.statusCode, two.statusCode].sort();
+    expect(codes[0]).toBe(202);
+    expect([202, 409]).toContain(codes[1]);
+    expect(codes).not.toContain(500);
+    const refused = [one, two].find((reply) => reply.statusCode === 409);
+    if (refused !== undefined) expect((refused.json() as { error: { details: { reason: string } } }).error.details.reason).toBe('busy');
+  });
+
+  it('ends a turn whose job could not be queued, so the person is not refused everything after it', async () => {
+    const opened = await openSession();
+    const sessionId = (opened.json() as { session: { id: string } }).session.id;
+    // The queue refuses the job (this store is SQLite: a trigger stands in for a queue that is down).
+    await sql.raw(`CREATE TRIGGER queue_down BEFORE INSERT ON adminium_jobs BEGIN SELECT RAISE(ABORT, 'the queue is down'); END`).execute(t.meta.db);
+    const failed = await t.app.inject({ method: 'POST', url: `/api/v1/assistant/sessions/${sessionId}/turns`, headers: asUser(t.users.admin), payload: { text: 'Lost' } });
+    await sql.raw('DROP TRIGGER queue_down').execute(t.meta.db);
+    expect(failed.statusCode).toBe(500);
+    const turns = await assistantSessionsRepo(t.meta).listTurns(sessionId);
+    expect(turns.at(-1)).toMatchObject({ status: 'failed', askText: 'Lost' });
+    // The next question is taken.
+    const next = await t.app.inject({ method: 'POST', url: `/api/v1/assistant/sessions/${sessionId}/turns`, headers: asUser(t.users.admin), payload: { text: 'Again' } });
+    expect(next.statusCode, next.body).toBe(202);
+  });
+});
+
+describe('what a turn ends as when something else got there first', () => {
+  const plain = (say: string) => JSON.stringify({ schema_version: ASSISTANT_SCHEMA_VERSION, say });
+
+  async function asked(text: string) {
+    const opened = await openSession();
+    const sessionId = (opened.json() as { session: { id: string } }).session.id;
+    const res = await t.app.inject({
+      method: 'POST',
+      url: `/api/v1/assistant/sessions/${sessionId}/turns`,
+      headers: asUser(t.users.admin),
+      payload: { text },
+    });
+    return { sessionId, turnId: (res.json() as { turn: { id: string } }).turn.id };
+  }
+
+  it('keeps a turn stopped when the person stopped it while the model was answering', async () => {
+    const { sessionId, turnId } = await asked('Draft something long');
+    const repo = assistantSessionsRepo(t.meta);
+    const scripted = makeScriptedClient([{ text: plain('Here it is.') }], {
+      // The person presses Stop while the provider is still answering.
+      beforeReply: async () => {
+        const res = await t.app.inject({
+          method: 'POST',
+          url: `/api/v1/assistant/sessions/${sessionId}/turns/${turnId}/cancel`,
+          headers: asUser(t.users.admin),
+        });
+        expect(res.statusCode).toBe(204);
+      },
+    });
+    await executeAssistantTurn({ turnId, userId: t.users.admin.id }, jobContext(), {
+      meta: t.meta,
+      manager: t.manager,
+      resolveClient: () => Promise.resolve({ client: scripted.client, provider: 'anthropic', model: 'm', baseUrl: null }),
+      can: () => Promise.resolve(true),
+      now: () => AT,
+    });
+    const turn = await repo.findTurn(turnId);
+    expect(turn?.status).toBe('cancelled');
+    expect(turn?.say).toBeNull();
+  });
+
+  it('leaves a turn that has ended as it ended when Stop arrives late', async () => {
+    const { sessionId, turnId } = await asked('What is a campaign?');
+    await runTurn(turnId, [{ text: plain('A campaign goes to a list.') }], t.users.admin.id);
+    const res = await t.app.inject({
+      method: 'POST',
+      url: `/api/v1/assistant/sessions/${sessionId}/turns/${turnId}/cancel`,
+      headers: asUser(t.users.admin),
+    });
+    expect(res.statusCode).toBe(204);
+    const turn = await assistantSessionsRepo(t.meta).findTurn(turnId);
+    expect(turn).toMatchObject({ status: 'done', say: 'A campaign goes to a list.' });
+  });
+
+  it('says at once that the page could not be read, instead of trying the job again', async () => {
+    const { turnId } = await asked('Draft a welcome email');
+    const list = t.manager.connections.list.bind(t.manager.connections);
+    t.manager.connections.list = () => Promise.reject(new Error('the meta store went away'));
+    try {
+      // Thrown, this would be retried and end as "the server restarted" half a minute later.
+      await runTurn(turnId, [{ text: plain('unused') }], t.users.admin.id);
+    } finally {
+      t.manager.connections.list = list;
+    }
+    const turn = await assistantSessionsRepo(t.meta).findTurn(turnId);
+    expect(turn?.status).toBe('failed');
+    expect(turn?.error).toMatchObject({ kind: 'setup', message: 'the meta store went away' });
+  });
+
+  it('counts a question as use, so a conversation is not swept a day after it was opened', async () => {
+    const repo = assistantSessionsRepo(t.meta);
+    const session = await repo.create(
+      { context: 'email', host: { connectionIds: [] }, provider: 'anthropic', model: 'm', createdBy: t.users.admin.id },
+      AT - 30 * 3_600_000,
+    );
+    // Asked an hour ago, on a provider that reports no usage (nothing else moves the session's clock).
+    await repo.createTurn({ sessionId: session.id, askText: 'still here' }, AT - 3_600_000);
+    await sweepAssistantSessions(t.meta, AT);
+    expect((await repo.findSession(session.id))?.status).toBe('open');
+  });
+});
+
+describe('a question asked on another page than the one the conversation began on', () => {
+  const plain = (say: string) => JSON.stringify({ schema_version: ASSISTANT_SCHEMA_VERSION, say });
+
+  async function askOn(sessionId: string, body: Record<string, unknown>, script: readonly ScriptStep[]) {
+    const asked = await t.app.inject({
+      method: 'POST',
+      url: `/api/v1/assistant/sessions/${sessionId}/turns`,
+      headers: asUser(t.users.admin),
+      payload: body,
+    });
+    expect(asked.statusCode, asked.body).toBe(202);
+    const turn = (asked.json() as { turn: { id: string; context: string } }).turn;
+    const scripted = await runTurn(turn.id, script, t.users.admin.id);
+    return { turn, scripted };
+  }
+
+  it('is answered as that page: its prompt, its tools, its open document', async () => {
+    // Opened on Email templates, with an email on the editor's screen.
+    const opened = await t.app.inject({
+      method: 'POST',
+      url: '/api/v1/assistant/sessions',
+      headers: asUser(t.users.admin),
+      payload: { context: 'email', host: { connectionIds: [] }, draft: { subject: 'THE EMAIL ON SCREEN' } },
+    });
+    const sessionId = (opened.json() as { session: { id: string } }).session.id;
+    const first = await askOn(sessionId, { text: 'Make it shorter' }, [{ text: plain('Shorter.') }]);
+    expect(first.turn.context).toBe('email');
+    expect(first.scripted.calls[0]!.system).toContain('"Email templates" page');
+    expect(first.scripted.calls[0]!.messages[0]!.content).toContain('THE EMAIL ON SCREEN');
+
+    // The person walks to the report builder and asks there, with a report open.
+    const second = await askOn(
+      sessionId,
+      { text: 'Add a chart', context: 'report', host: { connectionIds: [] }, draft: { name: 'THE REPORT ON SCREEN' } },
+      [{ text: plain('Added.') }],
+    );
+    expect(second.turn.context).toBe('report');
+    const call = second.scripted.calls[0]!;
+    expect(call.system).toContain('"Report builder" page');
+    expect(call.system).not.toContain('"Email templates" page');
+    const sent = call.messages.map((message) => message.content);
+    // The document open NOW is the report; the email is a page the person has left.
+    expect(sent[0]).toContain('THE REPORT ON SCREEN');
+    expect(sent.join('\n')).not.toContain('THE EMAIL ON SCREEN');
+    // And the conversation came along.
+    expect(sent).toContain('Make it shorter');
+    expect(sent.at(-1)).toBe('Add a chart');
+
+    // Read back, each turn says where it was asked.
+    const stored = await t.app.inject({ method: 'GET', url: `/api/v1/assistant/sessions/${sessionId}/turns/${second.turn.id}`, headers: asUser(t.users.admin) });
+    // …and what it read to answer: here, nothing.
+    expect(stored.json()).toMatchObject({ context: 'report', answer: { sources: [], reads: [], truncated: false } });
+
+    // A page that is not an editor shows no document at all.
+    const third = await askOn(sessionId, { text: 'How many rules are there?', context: 'automation', host: { connectionIds: [] } }, [{ text: plain('None.') }]);
+    expect(third.scripted.calls[0]!.messages.map((message) => message.content).join('\n')).not.toContain('open_document');
+  });
+
+  it('saves a draft through the page it was made on, not the page the conversation began on', async () => {
+    // Opened on the report builder; the draft is made on Email templates.
+    const opened = await t.app.inject({
+      method: 'POST',
+      url: '/api/v1/assistant/sessions',
+      headers: asUser(t.users.admin),
+      payload: { context: 'report', host: { connectionIds: [] } },
+    });
+    const sessionId = (opened.json() as { session: { id: string } }).session.id;
+    const drafted = await askOn(
+      sessionId,
+      { text: 'Draft a welcome email', context: 'email', host: { connectionIds: [] } },
+      [
+        {
+          text: reply({
+            result: {
+              title: 'Welcome',
+              meta: 'template',
+              artefact: { kind: 'template', name: 'Walked welcome', locale: 'en_US', document: { subject: 'Welcome', preheader: '', blocks: [{ block: 'email.text', data: { paras: ['Hello'] } }], footer: '' } },
+            },
+          }),
+        },
+      ],
+    );
+    const stored = await assistantSessionsRepo(t.meta).findTurn(drafted.turn.id);
+    expect(stored?.status, JSON.stringify(stored?.error)).toBe('done');
+    const res = await t.app.inject({
+      method: 'POST',
+      url: `/api/v1/assistant/sessions/${sessionId}/turns/${drafted.turn.id}/actions`,
+      headers: asUser(t.users.admin),
+      payload: { action: 'save' },
+    });
+    expect(res.statusCode, res.body).toBe(200);
+    const created = (res.json() as { created: { id: string; kind: string } }).created;
+    // An email template, on the page that drafts emails. The report builder would have made a report of it.
+    expect(created.kind).toBe('template');
+    expect((await emailTemplatesRepo(t.meta).findById(created.id))?.name).toBe('Walked welcome');
+  });
+});
+
+describe('the daily allowance', () => {
+  const plain = (say: string) => JSON.stringify({ schema_version: ASSISTANT_SCHEMA_VERSION, say });
+  const DAY = assistantUseDay(AT);
+  let who: string;
+
+  beforeEach(async () => {
+    who = t.users.admin.id;
+    await settingsRepo(t.meta).set('assistant.dailyTokens', 500_000, { updatedBy: null });
+    await t.meta.db.deleteFrom('adminium_assistant_use').execute();
+    // No turn of an earlier test may still be "under way" for this person.
+    await t.meta.db.updateTable('adminium_assistant_turns').set({ status: 'cancelled' }).where('status', 'in', ['queued', 'running']).execute();
+  });
+
+  async function ask(text = 'How many?') {
+    const opened = await openSession();
+    const sessionId = (opened.json() as { session: { id: string } }).session.id;
+    const res = await t.app.inject({ method: 'POST', url: `/api/v1/assistant/sessions/${sessionId}/turns`, headers: asUser(t.users.admin), payload: { text } });
+    return { sessionId, res, turnId: res.statusCode === 202 ? (res.json() as { turn: { id: string } }).turn.id : '' };
+  }
+  const call = (id: string) => ({ id, tool: 'list_documents', args: {}, step: { icon: 'search', label: 'Look', detail: '' } });
+
+  it('counts every round as it returns, by what the provider reports', async () => {
+    const { turnId } = await ask();
+    await runTurn(
+      turnId,
+      [
+        { text: reply({ calls: [call('c1')] }), usage: { inputTokens: 1000, outputTokens: 100 } },
+        { text: reply({ calls: [call('c2')] }), usage: { inputTokens: 2000, outputTokens: 200 } },
+        { text: plain('Twelve.'), usage: { inputTokens: 3000, outputTokens: 300 } },
+      ],
+      who,
+    );
+    expect(await assistantUseRepo(t.meta).get(who, DAY)).toMatchObject({ tokens: 6600, turns: 1 });
+  });
+
+  it('estimates what a provider does not report, so an unmetered model still spends', async () => {
+    const { turnId } = await ask();
+    await runTurn(turnId, [{ text: plain('Twelve.') }], who);
+    const use = await assistantUseRepo(t.meta).get(who, DAY);
+    // The whole prompt went out: thousands of tokens, not zero.
+    expect(use.tokens).toBeGreaterThan(1000);
+    // The turn's own row still says what the provider said, which is nothing.
+    expect((await assistantSessionsRepo(t.meta).findTurn(turnId))?.tokensIn ?? 0).toBe(0);
+  });
+
+  it('asks for no further round once the day is used, and says when it starts again', async () => {
+    await settingsRepo(t.meta).set('assistant.dailyTokens', 5000, { updatedBy: null });
+    const { turnId } = await ask();
+    const scripted = await runTurn(
+      turnId,
+      [
+        { text: reply({ calls: [call('c1')] }), usage: { inputTokens: 6000, outputTokens: 100 } },
+        { text: plain('never reached') },
+      ],
+      who,
+    );
+    // The round that crossed the line was the last one asked for.
+    expect(scripted.calls).toHaveLength(1);
+    const turn = await assistantSessionsRepo(t.meta).findTurn(turnId);
+    expect(turn?.status).toBe('failed');
+    expect(turn?.error).toMatchObject({ kind: 'budget', limit: 5000, used: 6100, resetsAt: assistantUseResetsAt(AT) });
+  });
+
+  it('lets the answer that used the last of the day through, and marks it', async () => {
+    await settingsRepo(t.meta).set('assistant.dailyTokens', 5000, { updatedBy: null });
+    const { turnId } = await ask();
+    await runTurn(turnId, [{ text: plain('Twelve.'), usage: { inputTokens: 6000, outputTokens: 10 } }], who);
+    const turn = await assistantSessionsRepo(t.meta).findTurn(turnId);
+    expect(turn).toMatchObject({ status: 'done', say: 'Twelve.' });
+    expect(turn?.answer).toMatchObject({ budget: { limit: 5000, used: 6010 } });
+  });
+
+  it('refuses a new question on a used-up day, tells the page so, and takes the next day`s', async () => {
+    // The routes read the server's own clock (the job in these tests is handed a fixed one).
+    const today = assistantUseDay(Date.now());
+    const resetsAt = assistantUseResetsAt(Date.now());
+    await settingsRepo(t.meta).set('assistant.dailyTokens', 5000, { updatedBy: null });
+    await assistantUseRepo(t.meta).add(who, today, { tokens: 5000 });
+    const { res } = await ask();
+    expect(res.statusCode).toBe(409);
+    expect(res.json().error.details).toMatchObject({ reason: 'budget', limit: 5000, used: 5000, resetsAt });
+    const state = await t.app.inject({ method: 'GET', url: '/api/v1/assistant/availability', headers: asUser(t.users.admin) });
+    expect(state.json().budget).toEqual({ limit: 5000, used: 5000, resetsAt, left: false });
+    // Yesterday's use is yesterday's.
+    await t.meta.db.deleteFrom('adminium_assistant_use').execute();
+    await assistantUseRepo(t.meta).add(who, assistantUseDay(Date.now() - 86_400_000), { tokens: 999_999 });
+    expect((await ask()).res.statusCode).toBe(202);
+  });
+
+  it('has no limit at 0', async () => {
+    await settingsRepo(t.meta).set('assistant.dailyTokens', 0, { updatedBy: null });
+    await assistantUseRepo(t.meta).add(who, assistantUseDay(Date.now()), { tokens: 900_000_000 });
+    const { res } = await ask();
+    expect(res.statusCode).toBe(202);
+    const state = await t.app.inject({ method: 'GET', url: '/api/v1/assistant/availability', headers: asUser(t.users.admin) });
+    expect(state.json().budget).toMatchObject({ limit: 0, left: true });
+  });
+
+  it('takes one question at a time from a person, whichever conversation it is asked in', async () => {
+    const first = await ask('first');
+    expect(first.res.statusCode).toBe(202);
+    // A second window, a second conversation, while the first question is still queued.
+    const second = await ask('second');
+    expect(second.res.statusCode).toBe(409);
+    expect(second.res.json().error.details).toMatchObject({ reason: 'busy', turnId: first.turnId, sessionId: first.sessionId });
+    // Somebody else is not held up by it.
+    const editorRole = await rolesRepo(t.meta).findBySlug('editor');
+    await permissionsRepo(t.meta).grant(editorRole!.id, 'system', 'assistant.use', { allowed: true });
+    const theirs = await t.app.inject({ method: 'POST', url: '/api/v1/assistant/sessions', headers: asUser(t.users.editor), payload: { context: 'email', host: { connectionIds: [] } } });
+    const asked = await t.app.inject({
+      method: 'POST',
+      url: `/api/v1/assistant/sessions/${(theirs.json() as { session: { id: string } }).session.id}/turns`,
+      headers: asUser(t.users.editor),
+      payload: { text: 'mine' },
+    });
+    expect(asked.statusCode, asked.body).toBe(202);
+    // And when the first has ended, the person may ask again.
+    await runTurn(first.turnId, [{ text: plain('Done.') }], who);
+    expect((await ask('third')).res.statusCode).toBe(202);
+  });
+
+  it('takes thirty questions a minute from a person, on a budget of its own', async () => {
+    const opened = await openSession();
+    const sessionId = (opened.json() as { session: { id: string } }).session.id;
+    const post = () => t.app.inject({ method: 'POST', url: `/api/v1/assistant/sessions/${sessionId}/turns`, headers: asUser(t.users.admin), payload: { text: 'again' } });
+    // Opening the conversation was the first of the minute.
+    for (let asked = 1; asked < 30; asked += 1) {
+      const res = await post();
+      expect(res.statusCode, `question ${String(asked)}: ${res.body}`).toBe(202);
+      await t.meta.db.updateTable('adminium_assistant_turns').set({ status: 'cancelled' }).where('status', '=', 'queued').execute();
+    }
+    const over = await post();
+    expect(over.statusCode, over.body).toBe(429);
+    expect(over.json().error.details).toMatchObject({ bucket: 'assistant', limit: 30 });
+    // The grid's own budget is untouched by it.
+    const elsewhere = await t.app.inject({ method: 'GET', url: '/api/v1/assistant/availability', headers: asUser(t.users.admin) });
+    expect(elsewhere.statusCode).toBe(200);
+  });
+
+  it('ends what a gone process left running, and leaves what is still queued to its job', async () => {
+    const repo = assistantSessionsRepo(t.meta);
+    const queued = await ask('queued');
+    const session = await repo.create({ context: 'email', host: { connectionIds: [] }, createdBy: t.users.editor.id }, AT);
+    const running = await repo.createTurn({ sessionId: session.id, askText: 'running' }, AT);
+    await repo.setTurnStatus(running.id, 'running');
+    expect(await repo.failRunningTurns({ ...INTERRUPTED_ERROR }, AT)).toBe(1);
+    expect(await repo.findTurn(running.id)).toMatchObject({ status: 'failed', error: { kind: 'interrupted' } });
+    expect((await repo.findTurn(queued.turnId))?.status).toBe('queued');
+  });
+});
+
+describe('what an owner sets, and what was used today', () => {
+  it('needs the settings permission, not the assistant`s', async () => {
+    // Someone may use the assistant without deciding what it may cost.
+    const editorRole = await rolesRepo(t.meta).findBySlug('editor');
+    await permissionsRepo(t.meta).grant(editorRole!.id, 'system', 'assistant.use', { allowed: true });
+    for (const [method, payload] of [['GET', undefined], ['PUT', { dailyTokens: 1 }]] as const) {
+      const res = await t.app.inject({ method, url: '/api/v1/assistant/settings', headers: asUser(t.users.editor), ...(payload === undefined ? {} : { payload }) });
+      expect(res.statusCode, `${method}: ${res.body}`).toBe(403);
+    }
+  });
+
+  it('answers the day`s number, who used the assistant today, and which roles may', async () => {
+    await settingsRepo(t.meta).set('assistant.dailyTokens', 500_000, { updatedBy: null });
+    const today = assistantUseDay(Date.now());
+    await assistantUseRepo(t.meta).add(t.users.admin.id, today, { tokens: 1200, turns: 2 });
+    await assistantUseRepo(t.meta).add(t.users.editor.id, today, { tokens: 90_000, turns: 7 });
+    await assistantUseRepo(t.meta).add(t.users.editor.id, assistantUseDay(Date.now() - 86_400_000), { tokens: 5 });
+
+    const res = await t.app.inject({ method: 'GET', url: '/api/v1/assistant/settings', headers: asUser(t.users.admin) });
+    expect(res.statusCode, res.body).toBe(200);
+    const body = res.json() as { dailyTokens: number; today: { day: string; resetsAt: number; people: { name: string; tokens: number; turns: number }[] }; roles: { name: string }[] };
+    expect(body.dailyTokens).toBe(500_000);
+    expect(body.today).toMatchObject({ day: today, resetsAt: assistantUseResetsAt(Date.now()) });
+    // Most first, by name, today only.
+    expect(body.today.people.map((row) => [row.name, row.tokens, row.turns])).toEqual([
+      [t.users.editor.name, 90_000, 7],
+      [t.users.admin.name, 1200, 2],
+    ]);
+    // The editor role was given the permission above; the role matrix is where that is set.
+    expect(body.roles.map((role) => role.name)).toContain('Editor');
+  });
+
+  it('changes the number, holds it against the next question, and leaves a line in the audit', async () => {
+    const put = await t.app.inject({ method: 'PUT', url: '/api/v1/assistant/settings', headers: asUser(t.users.admin), payload: { dailyTokens: 1000 } });
+    expect(put.statusCode, put.body).toBe(200);
+    expect(put.json().dailyTokens).toBe(1000);
+    expect(await settingsRepo(t.meta).get('assistant.dailyTokens')).toBe(1000);
+
+    await assistantUseRepo(t.meta).add(t.users.admin.id, assistantUseDay(Date.now()), { tokens: 1000 });
+    const opened = await openSession();
+    const asked = await t.app.inject({
+      method: 'POST',
+      url: `/api/v1/assistant/sessions/${(opened.json() as { session: { id: string } }).session.id}/turns`,
+      headers: asUser(t.users.admin),
+      payload: { text: 'One more?' },
+    });
+    expect(asked.statusCode).toBe(409);
+    expect(asked.json().error.details.reason).toBe('budget');
+
+    const entries = await auditRepo(t.meta).list({ category: 'settings', limit: 5 });
+    expect(entries[0]).toMatchObject({ action: 'assistant.settings.update', changes: { before: { dailyTokens: 500_000 }, after: { dailyTokens: 1000 } } });
+
+    // A number nobody could mean is refused.
+    for (const dailyTokens of [-1, 1.5, 2_000_000_000]) {
+      const bad = await t.app.inject({ method: 'PUT', url: '/api/v1/assistant/settings', headers: asUser(t.users.admin), payload: { dailyTokens } });
+      expect(bad.statusCode, String(dailyTokens)).toBe(422);
+    }
+    await settingsRepo(t.meta).set('assistant.dailyTokens', 500_000, { updatedBy: null });
+  });
+
+  it('starts with the assistant only reading, and switches one thing on at a time, on record', async () => {
+    await t.meta.db.deleteFrom('adminium_settings').where('key', '=', 'assistant.abilities').execute();
+    const OFF = { create: false, change: false, send: false, delete: false };
+    const put = (payload: unknown, as = t.users.admin) => t.app.inject({ method: 'PUT', url: '/api/v1/assistant/settings', headers: asUser(as), payload: payload as never });
+    const get = await t.app.inject({ method: 'GET', url: '/api/v1/assistant/settings', headers: asUser(t.users.admin) });
+    // On an app's own staff address too, until an owner keeps it to the dashboard.
+    expect(get.json()).toMatchObject({ abilities: OFF, maxRows: 50, maxRowsCeiling: 50, staffAddresses: true });
+    const kept = await put({ staffAddresses: false });
+    expect(kept.json()).toMatchObject({ staffAddresses: false, abilities: OFF });
+    expect(await settingsRepo(t.meta).get('assistant.staffAddresses')).toBe(false);
+    expect((await auditRepo(t.meta).list({ category: 'settings', limit: 1 }))[0]).toMatchObject({ action: 'assistant.settings.update', changes: { before: { staffAddresses: true }, after: { staffAddresses: false } } });
+    expect((await put({ staffAddresses: true })).json().staffAddresses).toBe(true);
+
+    // One switch named: the other three stay as they were.
+    const created = await put({ abilities: { create: true } });
+    expect(created.statusCode, created.body).toBe(200);
+    expect(created.json().abilities).toEqual({ ...OFF, create: true });
+    const changed = await put({ abilities: { change: true }, maxRows: 20 });
+    expect(changed.json()).toMatchObject({ abilities: { ...OFF, create: true, change: true }, maxRows: 20 });
+    expect(await settingsRepo(t.meta).get('assistant.abilities')).toEqual({ ...OFF, create: true, change: true });
+
+    // Who let the assistant write, and what it could do before, is in the audit.
+    const entries = await auditRepo(t.meta).list({ category: 'settings', limit: 5 });
+    expect(entries[0]).toMatchObject({
+      action: 'assistant.settings.update',
+      changes: { before: { abilities: { ...OFF, create: true }, maxRows: 50 }, after: { abilities: { ...OFF, create: true, change: true }, maxRows: 20 } },
+    });
+    // Saying what is already so writes nothing.
+    const count = (await auditRepo(t.meta).list({ category: 'settings', limit: 50 })).length;
+    await put({ abilities: { change: true }, maxRows: 20 });
+    expect((await auditRepo(t.meta).list({ category: 'settings', limit: 50 })).length).toBe(count);
+
+    // Everyone who may ask is told what is switched on; it is not a grant.
+    const availability = await t.app.inject({ method: 'GET', url: '/api/v1/assistant/availability?context=email', headers: asUser(t.users.admin) });
+    expect(availability.json()).toMatchObject({ abilities: { ...OFF, create: true, change: true }, maxRows: 20 });
+
+    // Not a switch, more rows than has been measured, a switch that is not one, and someone without the settings permission.
+    for (const bad of [{ abilities: { create: 'yes' } }, { maxRows: 51 }, { maxRows: 0 }, { abilities: { publish: true } }, { other: 1 }]) {
+      expect((await put(bad)).statusCode, JSON.stringify(bad)).toBe(422);
+    }
+    expect((await put({ abilities: { delete: true } }, t.users.editor)).statusCode).toBe(403);
+    expect((await settingsRepo(t.meta).get('assistant.abilities')).delete).toBe(false);
+
+    await settingsRepo(t.meta).set('assistant.abilities', OFF, { updatedBy: null });
+    await settingsRepo(t.meta).set('assistant.maxRows', 50, { updatedBy: null });
+  });
+});
+
+describe('a suggestion, as a turn is read', () => {
+  it('is drawn from this server`s list as it is now, and goes when the add-on is installed or no longer listed', async () => {
+    const repo = assistantSessionsRepo(t.meta);
+    const opened = await openSession();
+    const sessionId = (opened.json() as { session: { id: string } }).session.id;
+    const turn = await repo.createTurn({ sessionId, askText: 'Can I give customers a discount code?' }, AT);
+    // As the job left it: a key, and nothing of the model's wording.
+    await repo.finishTurn(turn.id, { status: 'done', say: 'Not here yet.', answer: { sources: [], reads: [], truncated: false, suggest: [{ key: 'offers' }, { key: 'gone' }] }, finishedAt: AT });
+    const read = async () =>
+      (await t.app.inject({ method: 'GET', url: `/api/v1/assistant/sessions/${sessionId}/turns/${turn.id}`, headers: asUser(t.users.admin) })).json() as { answer: { suggest?: unknown; reads: unknown[] } };
+
+    ADD_ONS = [{ key: 'offers', name: 'Offers & gift cards', line: 'Discounts, codes, vouchers, packs and gift cards.', state: 'listed' }];
+    // The name and the line are the list`s; the key that is not listed is not shown.
+    const card = { key: 'offers', name: 'Offers & gift cards', line: 'Discounts, codes, vouchers, packs and gift cards.' };
+    // Whether the way in is offered is this person`s own: not while their role may not install…
+    expect((await read()).answer.suggest).toEqual([{ ...card, mayInstall: false }]);
+    // …and once it may.
+    await permissionsRepo(t.meta).grant(t.roles.admin.id, 'system', 'manifests.manage', { allowed: true });
+    expect((await read()).answer.suggest).toEqual([{ ...card, mayInstall: true }]);
+
+    // Installed since: nothing to suggest any more, and the rest of the answer is untouched.
+    ADD_ONS = [{ key: 'offers', name: 'Offers & gift cards', line: 'x', state: 'installed' }];
+    const after = await read();
+    expect(after.answer).not.toHaveProperty('suggest');
+    expect(after.answer.reads).toEqual([]);
+    ADD_ONS = [];
+  });
+});
+
+describe('the conversation that stays open across pages', () => {
+  const plain = (say: string) => JSON.stringify({ schema_version: ASSISTANT_SCHEMA_VERSION, say });
+  const openPanel = (user: 'admin' | 'editor' = 'admin', context = 'email') =>
+    t.app.inject({ method: 'POST', url: '/api/v1/assistant/sessions', headers: asUser(t.users[user]), payload: { context, host: { connectionIds: [] }, kind: 'panel' } });
+  const current = async (user: 'admin' | 'editor' = 'admin') =>
+    (await t.app.inject({ method: 'GET', url: '/api/v1/assistant/sessions/current', headers: asUser(t.users[user]) })).json() as {
+      session: { id: string; kind: string } | null;
+      turns: { id: string; say: string | null; context: string; result: Record<string, unknown> | null }[];
+      earlier: number;
+    };
+
+  beforeEach(async () => {
+    // Each test starts with nobody holding a conversation.
+    await t.meta.db.updateTable('adminium_assistant_sessions').set({ status: 'closed' }).where('status', '=', 'open').execute();
+  });
+
+  it('is one a person: asked for again it is the same one, on whatever page, and it is found after a reload', async () => {
+    expect((await current()).session).toBeNull();
+    const first = await openPanel();
+    expect(first.statusCode, first.body).toBe(201);
+    const id = (first.json() as { session: { id: string; kind: string } }).session.id;
+    expect((first.json() as { session: { kind: string } }).session.kind).toBe('panel');
+
+    // Asked for again from another page: the same conversation, and that page's own facts.
+    const again = await openPanel('admin', 'report');
+    expect(again.statusCode).toBe(200);
+    expect((again.json() as { session: { id: string } }).session.id).toBe(id);
+    expect((again.json() as { facts: { values: Record<string, unknown> } }).facts.values).toHaveProperty('reports');
+
+    // A question on each of two pages, then "a reload": the conversation and both turns are there.
+    for (const [text, context] of [['first', 'email'], ['second', 'report']] as const) {
+      const asked = await t.app.inject({ method: 'POST', url: `/api/v1/assistant/sessions/${id}/turns`, headers: asUser(t.users.admin), payload: { text, context, host: { connectionIds: [] } } });
+      await runTurn((asked.json() as { turn: { id: string } }).turn.id, [{ text: plain(`answer to ${text}`) }], t.users.admin.id);
+    }
+    const found = await current();
+    expect(found.session).toMatchObject({ id, kind: 'panel' });
+    expect(found.turns.map((turn) => [turn.say, turn.context])).toEqual([
+      ['answer to first', 'email'],
+      ['answer to second', 'report'],
+    ]);
+    expect(found.earlier).toBe(0);
+
+    // Somebody else has none of it, and a window of the old kind is its own session still.
+    expect((await current('editor')).session).toBeNull();
+    const modal = await openSession();
+    expect((modal.json() as { session: { id: string; kind: string } }).session).toMatchObject({ kind: 'modal' });
+    expect((modal.json() as { session: { id: string } }).session.id).not.toBe(id);
+    expect((await current()).session?.id).toBe(id);
+  });
+
+  it('stays one when two windows ask for it in the same instant', async () => {
+    const [a, b, c] = await Promise.all([openPanel(), openPanel(), openPanel()]);
+    const ids = [a, b, c].map((res) => (res.json() as { session: { id: string } }).session.id);
+    const open = await t.meta.db.selectFrom('adminium_assistant_sessions').select('id').where('status', '=', 'open').where('kind', '=', 'panel').where('createdBy', '=', t.users.admin.id).execute();
+    expect(open).toHaveLength(1);
+    // Whatever each window was answered, asking now gives every one of them the one that stayed.
+    expect((await current()).session?.id).toBe(open[0]!.id);
+    expect(ids).toContain(open[0]!.id);
+  });
+
+  it('starts anew when the person asks for a new conversation, and only then', async () => {
+    const id = ((await openPanel()).json() as { session: { id: string } }).session.id;
+    const closed = await t.app.inject({ method: 'POST', url: `/api/v1/assistant/sessions/${id}/close`, headers: asUser(t.users.admin) });
+    expect(closed.statusCode).toBe(204);
+    expect((await current()).session).toBeNull();
+    const next = ((await openPanel()).json() as { session: { id: string } }).session.id;
+    expect(next).not.toBe(id);
+  });
+
+  it('answers the newest turns whole and older drafts by their cards` words, and counts what is further back', async () => {
+    const repo = assistantSessionsRepo(t.meta);
+    const id = ((await openPanel()).json() as { session: { id: string } }).session.id;
+    for (let index = 1; index <= 33; index += 1) {
+      const turn = await repo.createTurn({ sessionId: id, askText: `q${String(index)}` }, AT + index);
+      await repo.finishTurn(turn.id, {
+        status: 'done',
+        say: `a${String(index)}`,
+        result: { title: `Draft ${String(index)}`, meta: 'template', artefact: { name: 'x', document: { blocks: [] } }, diff: { lines: [] } },
+        finishedAt: AT + index,
+      });
+    }
+    const found = await current();
+    expect(found.turns).toHaveLength(30);
+    expect(found.earlier).toBe(3);
+    expect(found.turns[0]!.say).toBe('a4');
+    // The last five carry their documents; the ones before carry the card's words and a mark.
+    expect(found.turns.at(-1)!.result).toHaveProperty('artefact');
+    expect(found.turns.at(-5)!.result).toHaveProperty('artefact');
+    const older = found.turns.at(-6)!.result!;
+    expect(older).toMatchObject({ title: 'Draft 28', light: true });
+    expect(older).not.toHaveProperty('artefact');
+    // …and the whole of one is still a read away.
+    const whole = await t.app.inject({ method: 'GET', url: `/api/v1/assistant/sessions/${id}/turns/${found.turns.at(-6)!.id}`, headers: asUser(t.users.admin) });
+    expect((whole.json() as { result: Record<string, unknown> }).result).toHaveProperty('artefact');
+  });
+
+  it('answers what a page`s header says, for a conversation that has walked to it', async () => {
+    const res = await t.app.inject({ method: 'POST', url: '/api/v1/assistant/facts', headers: asUser(t.users.admin), payload: { context: 'report', host: { connectionIds: [] } } });
+    expect(res.statusCode, res.body).toBe(200);
+    expect((res.json() as { facts: { values: Record<string, unknown>; scope: unknown } }).facts.values).toHaveProperty('reports');
+    const refused = await t.app.inject({ method: 'POST', url: '/api/v1/assistant/facts', headers: asUser(t.users.viewer), payload: { context: 'report', host: { connectionIds: [] } } });
+    expect(refused.statusCode).toBe(403);
+  });
+});
+
+describe('a document the assistant proposes to save, to save over, or to delete', () => {
+  const ALL = { create: true, change: true, send: false, delete: true };
+  const artefact = (subject: string) => ({ kind: 'template', name: 'Proposed welcome', locale: 'en_US', document: { subject, blocks: [{ block: 'email.heading', data: { text: 'Hi' } }] } });
+  const draft = (subject: string) => ({ title: 'Welcome email', meta: '', artefact: artefact(subject) });
+
+  /** A turn on the email page, run through the real job with the model's reply scripted. */
+  async function turnWith(user: 'admin' | 'editor', move: Record<string, unknown>, documentId?: string) {
+    const host = { connectionIds: [], ...(documentId === undefined ? {} : { documentId }) };
+    const opened = await t.app.inject({ method: 'POST', url: '/api/v1/assistant/sessions', headers: asUser(t.users[user]), payload: { context: 'email', host } });
+    const sessionId = (opened.json() as { session: { id: string } }).session.id;
+    const asked = await t.app.inject({ method: 'POST', url: `/api/v1/assistant/sessions/${sessionId}/turns`, headers: asUser(t.users[user]), payload: { text: 'Do it', context: 'email', host } });
+    expect(asked.statusCode, asked.body).toBe(202);
+    const turnId = (asked.json() as { turn: { id: string } }).turn.id;
+    const scripted = makeScriptedClient([{ text: reply(move) }]);
+    await executeAssistantTurn({ turnId, userId: t.users[user].id }, jobContext(), {
+      meta: t.meta,
+      manager: t.manager,
+      resolveClient: () => Promise.resolve({ client: scripted.client, provider: 'anthropic', model: 'm', baseUrl: null }),
+      can: async (userId, permission) => (userId === null ? false : permissionSetAllows(await resolvePermissionSet(t.meta, { kind: 'user', id: userId, label: userId }), permission)),
+      now: () => Date.now(),
+    });
+    const stored = await assistantSessionsRepo(t.meta).findTurn(turnId);
+    return { sessionId, turnId, status: stored?.status, system: scripted.calls[0]?.system ?? '' };
+  }
+  type Shown = { state: string; hash?: string; actions?: { do: string; id?: string; preview?: Record<string, unknown>; refused?: { code: string } }[]; outcome?: { done: { index: number; id: string | null }[]; failed: { index: number; code: string }[] } };
+  const act = async (user: 'admin' | 'editor', made: { sessionId: string; turnId: string }, payload: Record<string, unknown>) => {
+    const res = await t.app.inject({ method: 'POST', url: `/api/v1/assistant/sessions/${made.sessionId}/turns/${made.turnId}/actions`, headers: asUser(t.users[user]), payload });
+    const json = res.json() as { proposal?: Shown; error?: { details?: { proposal?: Shown; reason?: string } } };
+    return { status: res.statusCode, body: res.body, proposal: (json.proposal ?? json.error?.details?.proposal) as Shown };
+  };
+  const template = (name: string) =>
+    emailTemplatesRepo(t.meta).create({ kind: 'template', key: `proposed-${name.toLowerCase()}-${String(Date.now())}`, locale: 'en_US', name, category: 'lifecycle', starter: null, enabled: true, createdBy: t.users.admin.id, ...documentColumns(normalizeDocument({ subject: 'Old subject', blocks: [] } as never)) });
+
+  it('saves the draft as a new document when the person confirms, once', async () => {
+    await settingsRepo(t.meta).set('assistant.abilities', ALL);
+    const made = await turnWith('admin', { result: draft('Welcome aboard'), propose: { title: 'Save it', actions: [{ do: 'doc.save' }] } });
+    expect(made.status).toBe('done');
+    expect(made.system).toContain('- doc.save: save the draft in "result" of this same reply as a new document.');
+    const shown = await act('admin', made, { action: 'check' });
+    expect(shown.proposal, shown.body).toMatchObject({ state: 'open', actions: [{ do: 'doc.save', preview: { kind: 'doc.save', what: 'email', name: 'Proposed welcome' } }] });
+    const before = (await emailTemplatesRepo(t.meta).list()).filter((row) => row.name === 'Proposed welcome').length;
+    const done = await act('admin', made, { action: 'apply', hash: shown.proposal.hash });
+    expect(done.status, done.body).toBe(200);
+    const id = done.proposal.outcome!.done[0]!.id!;
+    expect((await emailTemplatesRepo(t.meta).findById(id))?.name).toBe('Proposed welcome');
+    expect((await act('admin', made, { action: 'apply', hash: shown.proposal.hash })).status).toBe(409);
+    expect((await emailTemplatesRepo(t.meta).list()).filter((row) => row.name === 'Proposed welcome').length).toBe(before + 1);
+  });
+
+  it('offers nothing to someone who may not save on the page, and nothing while the switches are off', async () => {
+    await settingsRepo(t.meta).set('assistant.abilities', ALL);
+    const editor = await turnWith('editor', { result: draft('x'), propose: { title: 'Save it', actions: [{ do: 'doc.save' }] } });
+    expect(editor.system).toContain('You cannot change anything here; say so if asked.');
+    expect(editor.status).toBe('failed');
+    await settingsRepo(t.meta).set('assistant.abilities', { create: false, change: false, send: false, delete: false });
+    const off = await turnWith('admin', { result: draft('x'), propose: { title: 'Save it', actions: [{ do: 'doc.save' }] } });
+    expect(off.system).toContain('You cannot change anything here; say so if asked.');
+    expect(off.status).toBe('failed');
+  });
+
+  it('saves the draft over the document that is open, and over no other', async () => {
+    await settingsRepo(t.meta).set('assistant.abilities', ALL);
+    const open = await template('Open');
+    const other = await template('Other');
+    // The model names another document: there is nowhere in the action to say so.
+    const made = await turnWith('admin', { result: draft('New subject'), propose: { title: 'Save over it', actions: [{ do: 'doc.change', id: other.id }] } }, open.id);
+    expect(made.status).toBe('done');
+    const shown = await act('admin', made, { action: 'check' });
+    expect(shown.proposal.actions![0], shown.body).toMatchObject({ do: 'doc.change', preview: { kind: 'doc.change', what: 'email', id: open.id, name: 'Open' } });
+    expect(shown.proposal.actions![0]).not.toHaveProperty('id');
+    // The save itself goes through the page's own route as the signed-in person: tried on a whole server elsewhere.
+    expect((await emailTemplatesRepo(t.meta).findById(other.id))?.subject).toBe('Old subject');
+
+    // With no document open there is nothing to save over, and it is not offered.
+    const none = await turnWith('admin', { result: draft('x'), propose: { title: 'Save over it', actions: [{ do: 'doc.change' }] } });
+    expect(none.system).not.toContain('- doc.change:');
+    expect(none.status).toBe('failed');
+  });
+
+  it('shows a document`s name before it is deleted, by the id the server finds, and refuses another kind or one that is not there', async () => {
+    await settingsRepo(t.meta).set('assistant.abilities', ALL);
+    const gone = await template('Goes');
+    const made = await turnWith('admin', { propose: { title: 'Tidy up', actions: [{ do: 'doc.delete', kind: 'email', id: gone.id }, { do: 'doc.delete', kind: 'report', id: gone.id }, { do: 'doc.delete', kind: 'email', id: 'emt_nothing' }, { do: 'doc.delete', kind: 'email', id: '../../roles' }] } });
+    expect(made.status).toBe('done');
+    const shown = await act('admin', made, { action: 'check' });
+    expect(shown.proposal.actions!.map((action) => action.refused?.code ?? action.preview?.name), shown.body).toEqual(['Goes', 'NOT_OFFERED', 'NOT_FOUND', 'NOT_FOUND']);
+    expect(await emailTemplatesRepo(t.meta).findById(gone.id)).not.toBeNull();
+  });
+
+  it('refuses to save over a built-in mail', async () => {
+    await settingsRepo(t.meta).set('assistant.abilities', ALL);
+    const builtIn = (await emailTemplatesRepo(t.meta).list()).find((row) => isBuiltinEmailKey(row.key));
+    if (builtIn === undefined) return;
+    const made = await turnWith('admin', { result: draft('Hijacked'), propose: { title: 'Save over it', actions: [{ do: 'doc.change' }] } }, builtIn.id);
+    const shown = await act('admin', made, { action: 'check' });
+    expect(shown.proposal.actions![0]!.refused, shown.body).toMatchObject({ code: 'BUILT_IN' });
+    expect((await act('admin', made, { action: 'apply', hash: shown.proposal.hash })).status).toBe(422);
+  });
+});
+
+describe('a draft belongs to the page and the document it was made for', () => {
+  const draft = reply({
+    result: {
+      title: 'Welcome',
+      meta: 'template',
+      artefact: { kind: 'template', name: 'Page-bound welcome', locale: 'en_US', document: { subject: 'Welcome', preheader: '', blocks: [{ block: 'email.text', data: { paras: ['Hello'] } }], footer: '' } },
+    },
+  });
+
+  async function drafted(host: Record<string, unknown>) {
+    const opened = await openSession();
+    const sessionId = (opened.json() as { session: { id: string } }).session.id;
+    const asked = await t.app.inject({ method: 'POST', url: `/api/v1/assistant/sessions/${sessionId}/turns`, headers: asUser(t.users.admin), payload: { text: 'Draft a welcome', context: 'email', host: { connectionIds: [], ...host } } });
+    const turnId = (asked.json() as { turn: { id: string } }).turn.id;
+    await runTurn(turnId, [{ text: draft }], t.users.admin.id);
+    const press = (on: Record<string, unknown> | undefined) =>
+      t.app.inject({ method: 'POST', url: `/api/v1/assistant/sessions/${sessionId}/turns/${turnId}/actions`, headers: asUser(t.users.admin), payload: { action: 'sample', ...(on === undefined ? {} : { on }) } });
+    return press;
+  }
+
+  it('is used on the page it was made on, and refused on another', async () => {
+    const press = await drafted({});
+    expect((await press({ context: 'email' })).statusCode).toBe(200);
+    const elsewhere = await press({ context: 'report' });
+    expect(elsewhere.statusCode).toBe(409);
+    expect(elsewhere.json().error.details).toMatchObject({ reason: 'draft-elsewhere', context: 'email', documentId: null });
+    // A window that is one page`s by construction says nothing, and is taken at its word as before.
+    expect((await press(undefined)).statusCode).toBe(200);
+  });
+
+  it('is refused on another document of the same page: a list`s draft is not some editor`s, and an editor`s is not another`s', async () => {
+    // Made on the list (no document open).
+    const fromList = await drafted({});
+    expect((await fromList({ context: 'email', documentId: 'tpl_other' })).statusCode).toBe(409);
+    // Made in one template`s editor.
+    const fromEditor = await drafted({ documentId: 'tpl_mine' });
+    expect((await fromEditor({ context: 'email', documentId: 'tpl_mine' })).statusCode).toBe(200);
+    expect((await fromEditor({ context: 'email', documentId: 'tpl_other' })).statusCode).toBe(409);
+    expect((await fromEditor({ context: 'email' })).statusCode).toBe(409);
   });
 });

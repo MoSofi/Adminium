@@ -113,7 +113,9 @@ function stubFetch(current: () => EmailDocumentDetail) {
       if (url === '/api/v1/roles') return Promise.resolve(jsonResponse(200, { roles: [role('r_admin', 'Admins'), role('r_editor', 'Editors')] }));
       if (url === '/api/v1/email-templates/et_c/audience/preview' && method === 'POST') {
         const input = body as { audience: { roleIds?: string[] } };
-        return Promise.resolve(jsonResponse(200, input.audience.roleIds === undefined ? { total: 5, skipped: 1 } : { total: 2, skipped: 0 }));
+        // To the admins the campaign reads a name nothing fills (the server says which).
+        if (input.audience.roleIds?.includes('r_admin') === true) return Promise.resolve(jsonResponse(200, { total: 1, skipped: 0, unfilled: ['frist_name'] }));
+        return Promise.resolve(jsonResponse(200, input.audience.roleIds === undefined ? { total: 5, skipped: 1, unfilled: [] } : { total: 2, skipped: 0, unfilled: [] }));
       }
       if (url === '/api/v1/email-templates/et_c/send' && method === 'POST') {
         const input = body as { scheduleAt?: number };
@@ -160,6 +162,21 @@ afterEach(() => {
 });
 
 describe('Campaigns', () => {
+  it('a placeholder nothing fills is named in the dialog, and the campaign cannot be sent', async () => {
+    const { user, calls } = await renderEditor(() => detail());
+    await user.click(screen.getByTestId('email-send'));
+    const dialog = await screen.findByRole('dialog');
+    await waitFor(() => expect(within(dialog).getByTestId('email-campaign-count').textContent).toBe('5 recipients · 1 opted out'));
+    expect(within(dialog).queryByTestId('email-campaign-unfilled')).toBeNull();
+    await user.click(within(dialog).getByRole('button', { name: 'Admins' }));
+    const notice = await within(dialog).findByTestId('email-campaign-unfilled');
+    expect(notice.getAttribute('role')).toBe('alert');
+    expect(notice.textContent).toBe('Nothing fills {{frist_name}}: every recipient would get it as written. Give it a backup in the editor, or take it out.');
+    expect((within(dialog).getByTestId('email-campaign-send') as HTMLButtonElement).disabled).toBe(true);
+    await user.click(within(dialog).getByTestId('email-campaign-send'));
+    expect(calls.filter((c) => c.method === 'POST' && c.url.endsWith('/send'))).toHaveLength(0);
+  });
+
   it('Send campaign saves first, POSTs the audience with the picked roles, and reads Campaign sent!', async () => {
     const { user, calls } = await renderEditor(() => detail());
     const heading = screen.getByTestId('email-heading-input');

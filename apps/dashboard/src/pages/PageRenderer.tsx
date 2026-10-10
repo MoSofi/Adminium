@@ -38,6 +38,8 @@ import { bootstrapQuery, findPageBySlug, isDisabledAppPage, slugForTable } from 
 import { hrefForPage, hrefForRecord } from '../app/links.js';
 import { requestIdForError, stateIdForError } from '../app/query.js';
 import { t } from '../i18n/t.js';
+import { PageActions } from '../shell/PageActionsProvider.js';
+import { rememberedListView } from './listView.js';
 import {
   PageSurface,
   resolvePagePadding,
@@ -257,6 +259,9 @@ export function TemplateMount({
   const currency =
     navBootstrap === undefined ? null : (findPageBySlug(navBootstrap, slug)?.currency ?? null);
 
+  const assistantTitle =
+    (navBootstrap === undefined ? undefined : findPageBySlug(navBootstrap, slug)?.fallback) ?? page.title.fallback;
+
   // The ONE gutter for `/p/<slug>`: the template's default from
   // `surfaceDefaults`, overridden by the page's stored `padding` when an admin
   // set one. Applied here rather than in each of the fifteen bindings so the
@@ -314,6 +319,21 @@ export function TemplateMount({
         />
       )}
     >
+      {/* Which page this is, for the assistant. The frame says it once for every template bound
+          to data; the template says what it is showing (a grid its filters, here the open record
+          with the list it was opened from). */}
+      {ASSISTANT_GENERAL_TEMPLATES.has(effectiveTemplate) ? null : (
+        <PageActions
+          assistant={{ context: 'data', host: { connectionIds: page.source.connectionId === null ? [] : [page.source.connectionId], pageId: page.id } }}
+          {...(recordId === undefined ? {} : { assistantView: { ...rememberedListView(page.id), recordId } })}
+          // For the person, not the model: what the panel's header and its chip call this page and
+          // the record open on it. The key is the one thing every record has to be called by.
+          assistantShown={{
+            title: assistantTitle,
+            ...(recordId === undefined ? {} : { record: `${tableLabelSingular ?? assistantTitle} #${recordId}` }),
+          }}
+        />
+      )}
       <PageSurface padding={padding} width={width} fill={surface.fill}>
         <PageHostContext.Provider value={PAGE_HOST}>
           <Template
@@ -342,6 +362,19 @@ export function TemplateMount({
     </WidgetErrorBoundary>
   );
 }
+
+/**
+ * Templates that are not a view of a table's rows (a file browser, a settings
+ * form, a document builder, a hand-written page, a log stream): the assistant
+ * there is the general one, and the header has no Ask button.
+ */
+export const ASSISTANT_GENERAL_TEMPLATES: ReadonlySet<string> = new Set([
+  'page-files',
+  'page-settings',
+  'page-builder',
+  'project-page',
+  'page-log-viewer',
+]);
 
 /** A page without page-level params: one stable object, so its query key never churns. */
 const NO_PARAMS = {};

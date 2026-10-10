@@ -81,6 +81,36 @@ Variables such as `{{name}}`, `{{first_name}}`, `{{email}}` and `{{appName}}`
 are filled per recipient when the email goes out. Click a field, then a
 variable chip, to insert it. Test sends fill them with sample values.
 
+### When a value is missing
+
+Not every reader has every value: a customer with no first name on file still
+gets the email. A template says itself what to write then, in two ways.
+
+**A backup word.** In a text block a variable is a chip. Click it (or focus it
+and press Enter) and type what to write when there is no value: with "there",
+`Thanks, {{first_name}}!` reads "Thanks, there!" for a customer with no first
+name. The text keeps it after a bar, `{{first_name|there}}`, and you can type
+that form yourself in any field, the subject included. `{{first_name|}}`
+writes nothing.
+
+**A block tied to a value.** When no backup word keeps the sentence right, tie
+the whole block to the value: select the block and, under **Visibility**,
+choose **Show this block only when** *first_name has a value*. A reader
+without one is not sent the block. A text or heading block can say other words
+in its place: type them under **Otherwise show**.
+
+Switch on **Preview with missing values** above the canvas to see the email as
+a reader with none of those values is sent it: every backup in its sentence,
+every tied block gone or saying its other words.
+
+A variable with no backup that nothing fills is stopped where a person is
+there to put it right: a [campaign](/guides/email/campaigns/#sending) cannot be
+sent, and a rule's **Test** fails at the email step, each naming the variable.
+A rule that runs on its own still sends the email, with the variable as written
+(`{{first_name}}`), and the line under the step in Workflow Logs says which one
+it was: an order's email with one variable in it is a smaller fault than an
+order nobody was told about.
+
 ## Languages
 
 A template can exist in several languages at once. **Add language** in the

@@ -20,7 +20,10 @@
  *   {{ruleName}}          the rule's name
  *   {{recordLabel}}       the record's display label
  *
- * And nothing else. An unknown token is left VERBATIM rather than blanked:
+ * A token may say its backup after a bar: `{{record.first_name|there}}` writes
+ * "there" when the column is empty or the token is unknown.
+ *
+ * And nothing else. An unknown token with no backup is left VERBATIM rather than blanked:
  * a webhook body that arrives with `{{customer.name}}` still in it tells an
  * operator exactly what they typed wrong, where an empty string tells them
  * the field was empty.
@@ -35,13 +38,13 @@
  * see `actions/email.ts`.
  */
 
+import { fillPlaceholders, placeholderPattern } from '@adminium/manifest';
+
 import type { ResolvedTable } from '../crud/identifiers.js';
 import type { Row } from '../crud/mask.js';
 
 /** The same shape `renderEmail` takes for its `vars`. */
 export type TokenMap = Record<string, string>;
-
-const TOKEN_RE = /\{\{\s*([A-Za-z0-9_.-]+)\s*\}\}/g;
 
 /**
  * A column's value as a person would write it, the same on every database:
@@ -75,6 +78,12 @@ export interface TokenContext {
    * this, and only for the column it is addressing.
    */
   includeMasked?: boolean | undefined;
+  /**
+   * The rows the record's links point at, for the ones the rule names:
+   * `{{customer_id.name}}` reads the customer's name. A link whose row is
+   * missing fills its placeholders with nothing.
+   */
+  related?: ReadonlyMap<string, { table: ResolvedTable; row: Row | null }> | undefined;
 }
 
 /**
@@ -96,19 +105,24 @@ export function tokensFor(ctx: TokenContext): TokenMap {
     tokens[`record.${name}`] = value;
     tokens[name] = value;
   }
+  for (const [link, far] of ctx.related ?? []) {
+    for (const [name, column] of far.table.columns) {
+      // A secret is never a placeholder; a masked column is one exactly where the record's own are (a mail's values).
+      if (column.secret || (column.masked && !(ctx.includeMasked ?? false))) continue;
+      const value = far.row === null ? '' : asText(far.row[name], column.logicalType);
+      tokens[`record.${link}.${name}`] = value;
+      tokens[`${link}.${name}`] = value;
+    }
+  }
   return tokens;
 }
 
 /** Substitute known tokens; leave unknown ones exactly as written. */
 export function substitute(text: string, tokens: TokenMap): string {
-  return text.replace(TOKEN_RE, (whole, name: string) => {
-    const value = tokens[name];
-    return value === undefined ? whole : value;
-  });
+  return fillPlaceholders(text, tokens);
 }
 
 /** True when the text carries at least one token. */
 export function hasTokens(text: string): boolean {
-  TOKEN_RE.lastIndex = 0;
-  return TOKEN_RE.test(text);
+  return placeholderPattern().test(text);
 }

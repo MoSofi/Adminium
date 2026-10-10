@@ -29,12 +29,21 @@
  * prefix is deliberately not one the project sync watches.
  */
 
+import { startersFor } from '../../assistant/add-on-notes.js';
+import type { AddOnInstalls } from '../../apps/table-ref.js';
 import type { AiConnections } from '../../llm/connections.js';
 import { estimateTokens } from '@adminium/llm';
 import {
   assistantSessionsRepo,
+  assistantUseDay,
+  assistantUseRepo,
+  assistantUseResetsAt,
   jobsRepo,
+  pagesRepo,
+  permissionsRepo,
+  rolesRepo,
   settingsRepo,
+  usersRepo,
   type AssistantSession,
   type AssistantTurn,
   type MetaDb,
@@ -43,21 +52,34 @@ import type { FastifyRequest } from 'fastify';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 
-import { runAssistantAction, type AssistantActionKind } from '../../assistant/actions.js';
+import { assistantDocumentExists, runAssistantAction } from '../../assistant/actions.js';
+import { dataPageOf } from '../../assistant/data-page.js';
+import { applyProposal, checkProposal, proposalView, storedProposalOf } from '../../assistant/proposals.js';
+import { viewOrError } from '../../assistant/tools/schema.js';
+import { readAllowance } from '../../assistant/allowance.js';
+import { listedAddOns } from '../../assistant/tools/add-ons.js';
+import type { AssistantAddOn, AssistantToolDeps } from '../../assistant/types.js';
 import { setUpTurn, toolDepsFor } from '../../assistant/turn-setup.js';
 import { audited, auditExempt } from '../../audit/coverage.js';
-import { ConflictError, NotFoundError, UnauthorizedError, ValidationFailedError } from '../../errors.js';
+import { ConflictError, ForbiddenError, NotFoundError, UnauthorizedError, ValidationFailedError } from '../../errors.js';
 import { ASSISTANT_TURN_KIND } from '../../jobs/assistant-turn.js';
 import type { ConnectionManager } from '../../connections/manager.js';
+import { isUniqueViolation } from '../../crud/decided-columns.js';
 import { PERMISSIONS } from '../../rbac/permissions.js';
 import {
   assistantActionBody,
   assistantActionReply,
   assistantAvailabilityQuery,
   assistantAvailabilityReply,
+  assistantCurrentReply,
+  assistantFactsBody,
+  assistantFactsReply,
   assistantSessionCreateBody,
   assistantSessionCreateReply,
   assistantSessionParams,
+  ASSISTANT_MAX_ROWS_CEILING,
+  assistantSettingsPutBody,
+  assistantSettingsReply,
   assistantTurnCreateBody,
   assistantTurnCreateReply,
   assistantTurnParams,
@@ -81,18 +103,46 @@ export interface AssistantRoutesDeps {
    * whole of it.
    */
   cancelJob?: ((jobId: string) => void) | undefined;
+  /** The add-ons this server has and could have: the tool's list, and where a suggestion's card is drawn from. */
+  addOns?: (() => Promise<AssistantAddOn[]>) | undefined;
+  /** What is installed where: a draft rule is checked against the steps add-ons give. */
+  installs?: (() => Promise<AddOnInstalls>) | undefined;
 }
 
 const USE_PERMISSION = 'system:assistant:use';
 
+/**
+ * The signed-in person. An API key is refused by name: a turn runs as a
+ * person, and a key's id looked up as one holds no role, so its tools would
+ * read no table and the conversation would answer about nothing.
+ */
 function requireUserId(request: FastifyRequest): string {
-  const user = (request as unknown as { user?: { id?: string } }).user;
-  const id = user?.id ?? request.apiKeyPrincipal?.id ?? null;
+  if (request.apiKeyPrincipal != null) {
+    throw new ForbiddenError('The assistant works for a signed-in person, not for an API key.', 'FORBIDDEN', {
+      reason: 'api-key',
+    });
+  }
+  const id = (request as unknown as { user?: { id?: string } }).user?.id ?? null;
   if (id === null) throw new UnauthorizedError();
   return id;
 }
 
 /** A record, or `null` — what a stored JSON column is allowed to come back as. */
+/** How long after a conversation was closed for its age the panel still says so. */
+const AGED_NOTE_MS = 7 * 24 * 3_600_000;
+const DAY_MS = 24 * 3_600_000;
+
+/** Turns `GET /assistant/sessions/current` answers, newest last. */
+const CURRENT_TURNS = 30;
+/** How many of them carry their drafts' documents. */
+const CURRENT_WHOLE_TURNS = 5;
+
+/** A result card's words without its document: enough to draw the card, parked or not. */
+function lightResult(result: Record<string, unknown>): Record<string, unknown> {
+  const { artefact: _artefact, diff: _diff, ...rest } = result;
+  return { ...rest, light: true };
+}
+
 function asRecord(value: unknown): Record<string, unknown> | null {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
     ? (value as Record<string, unknown>)
@@ -107,7 +157,7 @@ function asRecord(value: unknown): Record<string, unknown> | null {
  * job is to explain what happened — so a field that no longer fits comes back
  * as null and the rest of the turn still renders.
  */
-function turnView(turn: AssistantTurn): AssistantTurnView {
+function turnView(turn: AssistantTurn, session: AssistantSession): AssistantTurnView {
   const steps = assistantTurnView.shape.steps.safeParse(turn.steps);
   return {
     id: turn.id,
@@ -125,7 +175,55 @@ function turnView(turn: AssistantTurn): AssistantTurnView {
     tokensOut: turn.tokensOut,
     createdAt: turn.createdAt,
     finishedAt: turn.finishedAt,
+    context: turn.context ?? session.context,
+    answer: answerView(turn.answer),
+    on: whereAsked(turn, session),
   };
+}
+
+/**
+ * A turn's answer as a reader is given it. A proposal that has not been
+ * checked is the model's own text: only the fact of it is told.
+ */
+function answerView(answer: unknown): Record<string, unknown> | null {
+  const record = asRecord(answer);
+  if (record === null || record.proposal === undefined) return record;
+  const stored = storedProposalOf(record);
+  const { proposal: _stored, ...rest } = record;
+  return stored === null ? rest : { ...rest, proposal: proposalView(stored) };
+}
+
+/** The one key column of the table a turn's page shows, to name a row a confirm made; absent when there is not exactly one. */
+async function keyColumnOf(deps: AssistantToolDeps): Promise<string | undefined> {
+  const page = await dataPageOf(deps);
+  if (page === null || page.connectionId === null || page.table === null) return undefined;
+  const found = await viewOrError(deps, page.connectionId);
+  if ('error' in found) return undefined;
+  try {
+    const key = found.view.table(page.table).primaryKey;
+    return key.length === 1 ? key[0] : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/** The page or document a turn was asked on. The title is filled as the turn is served. */
+function whereAsked(turn: AssistantTurn, session: AssistantSession): AssistantTurnView['on'] {
+  const host = turn.host ?? session.host;
+  const text = (value: unknown): string | null => (typeof value === 'string' && value !== '' ? value : null);
+  const view = host.view;
+  const ticked = view?.selectedIds?.length ?? 0;
+  const scope: AssistantTurnView['on']['scope'] =
+    view === undefined
+      ? null
+      : ticked > 0
+        ? { kind: 'selection', count: ticked }
+        : text(view.recordId) !== null
+          ? { kind: 'record', count: 1 }
+          : text(view.q) !== null || text(view.where) !== null
+            ? { kind: 'page', count: null }
+            : null;
+  return { pageId: text(host.pageId), documentId: text(host.documentId), title: null, scope, gone: false };
 }
 
 function sessionView(session: AssistantSession) {
@@ -138,6 +236,7 @@ function sessionView(session: AssistantSession) {
     tokensIn: session.tokensIn,
     tokensOut: session.tokensOut,
     createdAt: session.createdAt,
+    kind: session.kind,
   };
 }
 
@@ -149,6 +248,33 @@ export function assistantRoutes(deps: AssistantRoutesDeps): FastifyPluginAsyncZo
   return async (app) => {
     const guard = app.rbac.require(USE_PERMISSION);
 
+    /*
+     * A SCREENS-ONLY PERSON (a till's cashier, given the assistant) has two
+     * kinds of conversation: the general one and the one about data. The
+     * document pages (emails, invoices, reports, rules) are not theirs to
+     * open, so neither are those contexts; and the three actions that are not
+     * a replay of a route they could call themselves (saving a draft, adding
+     * a language, a test send) are refused here, because nothing else would:
+     * those never pass the screens-only gate as a request of their own.
+     */
+    const SCREENS_ONLY_CONTEXTS: readonly string[] = ['general', 'data'];
+    const NOT_FOR_SCREENS_ONLY: readonly string[] = ['save', 'language.add', 'test-send'];
+    app.addHook('preHandler', async (request) => {
+      if (request.user == null) return;
+      const set = await app.rbac.resolve(request);
+      if (set.screensOnly === null) return;
+      const body = (request.body ?? {}) as { context?: unknown; on?: { context?: unknown }; action?: unknown };
+      const query = (request.query ?? {}) as { context?: unknown };
+      const asked = [body.context, body.on?.context, query.context].filter((context): context is string => typeof context === 'string');
+      const refused = asked.find((context) => !SCREENS_ONLY_CONTEXTS.includes(context));
+      if (refused !== undefined) {
+        throw new ForbiddenError('The assistant answers questions about your app’s data here. That page is not one of your screens.', 'FORBIDDEN', { reason: 'screens-only', context: refused });
+      }
+      if (typeof body.action === 'string' && NOT_FOR_SCREENS_ONLY.includes(body.action)) {
+        throw new ForbiddenError('That is done from the dashboard, which is not one of your screens.', 'FORBIDDEN', { reason: 'screens-only', action: body.action });
+      }
+    });
+
     /** The session this person opened, or a 404 — never somebody else's. */
     async function mine(request: FastifyRequest, sessionId: string): Promise<AssistantSession> {
       const userId = requireUserId(request);
@@ -157,6 +283,47 @@ export function assistantRoutes(deps: AssistantRoutesDeps): FastifyPluginAsyncZo
         throw new NotFoundError('That assistant session does not exist.', { sessionId });
       }
       return session;
+    }
+
+    /**
+     * A turn as it is answered, with its suggestions drawn from THIS SERVER'S list as it is now:
+     * each add-on's name and one line come from the list, never from the model, and one that has
+     * been installed since, or is no longer listed, is not suggested any more.
+     */
+    /**
+     * The title of the data page a turn was asked on, as the page is called NOW. A page that is
+     * gone leaves no title, and the thread then names the turn by its context alone. Not checked
+     * against the reader's grants: the turn is their own, asked while they were on that page.
+     */
+    async function titled(view: AssistantTurnView, request: { can: (permission: string) => Promise<boolean> }): Promise<AssistantTurnView> {
+      // A draft made for a document (an editor's) whose document has since been deleted.
+      if (view.result !== null && view.on.documentId !== null && !(await assistantDocumentExists(deps.meta, view.context, view.on.documentId))) {
+        view = { ...view, on: { ...view.on, gone: true } };
+      }
+      if (view.on.pageId === null) return view;
+      // The page id is what the browser said: its name is told only to a reader who may open
+      // that page, by the page's own view check. Anyone else is told the turn's context alone.
+      const pageId = view.on.pageId;
+      if (!(await request.can(`page:${pageId}:view`)) && !(await request.can('system:pages:manage'))) return view;
+      const page = await pagesRepo(deps.meta).findById(pageId);
+      return page === null ? view : { ...view, on: { ...view.on, title: page.title } };
+    }
+
+    async function served(turn: AssistantTurn, session: AssistantSession, request: { can: (permission: string) => Promise<boolean> }): Promise<AssistantTurnView> {
+      const view = await titled(turnView(turn, session), request);
+      const suggest = view.answer === null ? undefined : view.answer.suggest;
+      if (!Array.isArray(suggest) || suggest.length === 0) return view;
+      const known = (await listedAddOns(deps.addOns)) ?? [];
+      // Whether THIS person may install one: the card offers the way in only to them.
+      const mayInstall = await request.can(PERMISSIONS.manifestsManage);
+      const cards: { key: string; name: string; line: string; mayInstall: boolean }[] = [];
+      for (const entry of suggest) {
+        const key = (entry as { key?: unknown } | null)?.key;
+        const found = typeof key === 'string' ? known.find((item) => item.key === key && item.state !== 'installed') : undefined;
+        if (found !== undefined) cards.push({ key: found.key, name: found.name, line: found.line, mayInstall });
+      }
+      const { suggest: _stored, ...rest } = view.answer as Record<string, unknown>;
+      return { ...view, answer: cards.length === 0 ? rest : { ...rest, suggest: cards } };
     }
 
     async function providerState(): Promise<{
@@ -204,6 +371,9 @@ export function assistantRoutes(deps: AssistantRoutesDeps): FastifyPluginAsyncZo
           canConfigure: await request.can(PERMISSIONS.llmRun),
           provider: state.provider,
           model: state.model,
+          abilities: await settings.get('assistant.abilities'),
+          maxRows: await settings.get('assistant.maxRows'),
+          budget: await readAllowance(meta, requireUserId(request), app.rbac.now()),
         };
       },
     );
@@ -212,8 +382,8 @@ export function assistantRoutes(deps: AssistantRoutesDeps): FastifyPluginAsyncZo
       '/assistant/sessions',
       {
         preHandler: guard,
-        config: { audit: auditExempt('opening a modal changes nothing; the session row IS the record') },
-        schema: { body: assistantSessionCreateBody, response: { 201: assistantSessionCreateReply } },
+        config: { audit: auditExempt('opening a modal changes nothing; the session row IS the record'), rateLimitBucket: 'assistant' },
+        schema: { body: assistantSessionCreateBody, response: { 200: assistantSessionCreateReply, 201: assistantSessionCreateReply } },
       },
       async (request, reply) => {
         const userId = requireUserId(request);
@@ -235,7 +405,20 @@ export function assistantRoutes(deps: AssistantRoutesDeps): FastifyPluginAsyncZo
         });
         const facts = await setup.adapter.pageFacts(setup.deps);
 
-        const session = await sessions.create(
+        // The panel's conversation: a person has ONE, open across pages. Asked for again (a
+        // reload, a second window), the one they have is answered.
+        if (request.body.kind === 'panel') {
+          const open = await sessions.openPanelOf(userId);
+          if (open !== null) {
+            return await reply.status(200).send({
+              session: sessionView(open),
+              facts: { values: facts.values as never, scope: facts.scope },
+              nextTurnTokens: estimateTokens(setup.system),
+            });
+          }
+        }
+
+        const made = await sessions.create(
           {
             context,
             host,
@@ -243,14 +426,78 @@ export function assistantRoutes(deps: AssistantRoutesDeps): FastifyPluginAsyncZo
             provider: state.provider,
             model: state.model,
             createdBy: userId,
+            ...(request.body.kind === undefined ? {} : { kind: request.body.kind }),
           },
           app.rbac.now(),
         );
-        return await reply.status(201).send({
+        // Two windows that asked in the same instant each made one. The oldest is THE one, for
+        // both: the other is closed, and whoever made it is answered the one that stays.
+        let session = made;
+        if (made.kind === 'panel') {
+          const first = (await sessions.openPanelOf(userId)) ?? made;
+          await sessions.closeOtherPanels(userId, first.id, app.rbac.now());
+          session = first;
+        }
+        return await reply.status(session.id === made.id ? 201 : 200).send({
           session: sessionView(session),
           facts: { values: facts.values, scope: facts.scope },
           nextTurnTokens: estimateTokens(setup.system),
         });
+      },
+    );
+
+    app.get(
+      '/assistant/sessions/current',
+      { preHandler: guard, schema: { response: { 200: assistantCurrentReply } } },
+      async (request) => {
+        const userId = requireUserId(request);
+        const session = await sessions.openPanelOf(userId);
+        if (session === null) {
+          // Closed by the sweep for its age, lately: the one way a conversation ends without the person ending it.
+          const last = await sessions.lastClosedPanelOf(userId);
+          const days = await settingsRepo(deps.meta).get('retention.assistantSessionsDays');
+          const now = Date.now();
+          const aged =
+            last !== null &&
+            last.closedAt !== null &&
+            now - last.closedAt < AGED_NOTE_MS &&
+            last.closedAt - last.createdAt >= days * DAY_MS;
+          return { session: null, turns: [], earlier: 0, aged };
+        }
+        const tail = await sessions.listTurnsTail(session.id, CURRENT_TURNS);
+        const shown = tail.turns;
+        const turns: AssistantTurnView[] = [];
+        for (const [index, turn] of shown.entries()) {
+          const view = await served(turn, session, request);
+          // The newest come whole. An older draft comes as its card's words; its document is the
+          // heavy part and is read with the turn when the person opens it.
+          const light = index < shown.length - CURRENT_WHOLE_TURNS && view.result !== null;
+          turns.push(light ? { ...view, result: lightResult(view.result as Record<string, unknown>) } : view);
+        }
+        return { session: sessionView(session), turns, earlier: tail.earlier, aged: false };
+      },
+    );
+
+    app.post(
+      '/assistant/facts',
+      {
+        preHandler: guard,
+        config: { audit: auditExempt('reads what a page holds, for the header of a conversation that walked to it; writes nothing') },
+        schema: { body: assistantFactsBody, response: { 200: assistantFactsReply } },
+      },
+      async (request) => {
+        const setup = await setUpTurn({
+          meta,
+          manager,
+          context: request.body.context,
+          host: request.body.host,
+          userId: requireUserId(request),
+          can: (permission) => request.can(permission),
+          ...(deps.addOns === undefined ? {} : { addOns: deps.addOns }),
+          ...(deps.installs === undefined ? {} : { installs: deps.installs }),
+        });
+        // The questions an installed add-on offers on this page of its own: text for the panel, never for the prompt.
+        return { facts: { values: setup.facts as never, scope: (await setup.adapter.pageFacts(setup.deps)).scope }, nextTurnTokens: estimateTokens(setup.system), starters: await startersFor(setup.deps) };
       },
     );
 
@@ -260,6 +507,7 @@ export function assistantRoutes(deps: AssistantRoutesDeps): FastifyPluginAsyncZo
         preHandler: guard,
         config: {
           audit: auditExempt('a transcript row is the record; a turn reads and changes no state'),
+          rateLimitBucket: 'assistant',
         },
         schema: {
           params: assistantSessionParams,
@@ -271,39 +519,86 @@ export function assistantRoutes(deps: AssistantRoutesDeps): FastifyPluginAsyncZo
         const userId = requireUserId(request);
         const session = await mine(request, request.params.id);
         if (session.status !== 'open') {
-          throw new ConflictError('That assistant session is closed.', 'CONFLICT', { sessionId: session.id });
+          throw new ConflictError('That assistant session is closed.', 'CONFLICT', { sessionId: session.id, reason: 'closed' });
         }
         // One turn at a time: a second question over a running one would
         // replay a transcript that is still being written.
         if (await sessions.hasLiveTurn(session.id)) {
           throw new ConflictError('The assistant is still working on the last question.', 'CONFLICT', {
             sessionId: session.id,
+            reason: 'busy',
+          });
+        }
+        // …and one at a time a PERSON, whichever conversation it is in: what the day's
+        // allowance is held against is counted as it is spent, and turns opened at once
+        // in several windows would each pass the same check.
+        const live = await sessions.liveTurnOf(userId);
+        if (live !== null) {
+          throw new ConflictError('The assistant is still working on your last question.', 'CONFLICT', {
+            sessionId: live.sessionId,
+            turnId: live.id,
+            reason: 'busy',
+          });
+        }
+        const allowance = await readAllowance(meta, userId, app.rbac.now());
+        if (!allowance.left) {
+          throw new ConflictError('Today\'s allowance for the assistant is used up.', 'CONFLICT', {
+            reason: 'budget',
+            limit: allowance.limit,
+            used: allowance.used,
+            resetsAt: allowance.resetsAt,
           });
         }
 
         const at = app.rbac.now();
-        const turn = await sessions.createTurn(
+        // The checks above are made before the row: two questions posted in the same instant
+        // both pass them. In one conversation the second then clashes on the turn's number, and
+        // that is the same answer as arriving a moment later: busy.
+        const turn = await sessions
+          .createTurn(
           {
             sessionId: session.id,
             askText: request.body.text ?? null,
             picks: request.body.picks ?? null,
+            // The page the question is asked on. Without one it is the session's, and the turn says nothing.
+            ...(request.body.context === undefined
+              ? {}
+              : {
+                  context: request.body.context,
+                  host: request.body.host ?? { connectionIds: [] },
+                  ...(request.body.draft === undefined ? {} : { draft: request.body.draft }),
+                }),
           },
           at,
-        );
-        const job = await jobsRepo(meta).enqueue(
-          {
-            kind: ASSISTANT_TURN_KIND,
-            // The owner convention: the acting user may follow `jobs:<id>`
-            // without holding the read-everyone's-jobs key.
-            payload: { turnId: turn.id, userId },
-          },
-          at,
-        );
-        await sessions.setTurnStatus(turn.id, 'queued', { jobId: job.id });
+          )
+          .catch((error: unknown) => {
+            if (!isUniqueViolation(error)) throw error;
+            throw new ConflictError('The assistant is still working on the last question.', 'CONFLICT', { sessionId: session.id, reason: 'busy' });
+          });
+        const job = await jobsRepo(meta)
+          .enqueue(
+            {
+              kind: ASSISTANT_TURN_KIND,
+              // The owner convention: the acting user may follow `jobs:<id>`
+              // without holding the read-everyone's-jobs key.
+              payload: { turnId: turn.id, userId },
+            },
+            at,
+          )
+          .catch(async (error: unknown) => {
+            // A turn with no job behind it would wait for ever, and "one question at a time"
+            // would then refuse this person everything: it ends here, as a failure.
+            await sessions
+              .finishTurn(turn.id, { status: 'failed', error: { kind: 'setup', message: 'The question could not be queued.' }, finishedAt: at, expected: 'queued' })
+              .catch(() => undefined);
+            throw error;
+          });
+        // Only while it is still waiting: a worker that has already taken it is not put back.
+        await sessions.setTurnStatus(turn.id, 'queued', { jobId: job.id, expected: 'queued' });
 
         const stored = (await sessions.findTurn(turn.id)) ?? turn;
         return await reply.status(202).send({
-          turn: turnView(stored),
+          turn: await served(stored, session, request),
           jobId: job.id,
           nextTurnTokens: estimateTokens(request.body.text ?? ''),
         });
@@ -319,7 +614,7 @@ export function assistantRoutes(deps: AssistantRoutesDeps): FastifyPluginAsyncZo
         if (turn === null || turn.sessionId !== session.id) {
           throw new NotFoundError('That turn does not exist.', { turnId: request.params.turnId });
         }
-        return turnView(turn);
+        return await served(turn, session, request);
       },
     );
 
@@ -336,8 +631,11 @@ export function assistantRoutes(deps: AssistantRoutesDeps): FastifyPluginAsyncZo
         if (turn === null || turn.sessionId !== session.id) {
           throw new NotFoundError('That turn does not exist.', { turnId: request.params.turnId });
         }
-        if (turn.jobId !== null) deps.cancelJob?.(turn.jobId);
-        await sessions.finishTurn(turn.id, { status: 'cancelled', finishedAt: app.rbac.now() });
+        // Only a turn that is still being worked on: one that has ended keeps what it ended as.
+        if (turn.status === 'queued' || turn.status === 'running') {
+          if (turn.jobId !== null) deps.cancelJob?.(turn.jobId);
+          await sessions.finishTurn(turn.id, { status: 'cancelled', finishedAt: app.rbac.now(), expected: turn.status });
+        }
         return await reply.status(204).send(null);
       },
     );
@@ -360,12 +658,100 @@ export function assistantRoutes(deps: AssistantRoutesDeps): FastifyPluginAsyncZo
         if (turn === null || turn.sessionId !== session.id) {
           throw new NotFoundError('That turn does not exist.', { turnId: request.params.turnId });
         }
+        if (request.body.action === 'check' || request.body.action === 'apply') {
+          const stored = storedProposalOf(turn.answer);
+          if (turn.status !== 'done' || stored === null) {
+            throw new ValidationFailedError('That turn proposed nothing.', { turnId: turn.id });
+          }
+          const tail = await sessions.listTurnsTail(session.id, 1);
+          // The page the proposal was made on, and the person asking now.
+          const toolDeps = await toolDepsFor({
+            meta,
+            manager: deps.manager,
+            context: turn.context ?? session.context,
+            host: turn.host ?? session.host,
+            userId,
+            can: (permission) => request.can(permission),
+          });
+          const checking = {
+            request,
+            door: app.assistantDoor,
+            meta,
+            deps: toolDeps,
+            sessionId: session.id,
+            turnId: turn.id,
+            proposal: stored,
+            newest: tail.turns.at(-1)?.id === turn.id,
+            now: app.rbac.now(),
+            artefact: asRecord(asRecord(turn.result)?.artefact),
+          };
+          const answer = asRecord(turn.answer) ?? {};
+          if (request.body.action === 'check') {
+            const checked = await checkProposal(checking);
+            // Not written when a confirm took it meanwhile: the stored copy is then the confirm's.
+            if (checked.changed) await sessions.recordAnswer(turn.id, { ...answer, proposal: checked.proposal });
+            return { proposal: proposalView(checked.proposal) };
+          }
+          if (request.body.hash === undefined) {
+            throw new ValidationFailedError('A confirm names the proposal it confirms.', { fields: { hash: { code: 'required' } } });
+          }
+          const applied = await applyProposal({
+            ...checking,
+            store: sessions,
+            answer,
+            hash: request.body.hash,
+            pick: request.body.pick,
+            keyColumn: await keyColumnOf(toolDeps),
+            // The same save the draft card's button runs, by the page the draft was made on.
+            saveDraft: async () => {
+              const artefact = asRecord(asRecord(turn.result)?.artefact);
+              if (artefact === null) return null;
+              const principal = (request as unknown as { user?: { name?: string; email?: string } }).user;
+              const saved = await runAssistantAction({
+                meta,
+                action: 'save',
+                context: turn.context ?? session.context,
+                artefact,
+                sessionId: session.id,
+                turnId: turn.id,
+                actor: { kind: 'user', id: userId, label: principal?.name ?? principal?.email ?? userId },
+                can: (permission) => request.can(permission),
+                ...(deps.secret === undefined ? {} : { secret: deps.secret }),
+                ...(deps.installs === undefined ? {} : { installs: deps.installs }),
+                logger: request.log,
+                now: () => app.rbac.now(),
+              });
+              return saved.created === undefined ? null : { id: saved.created.id };
+            },
+          });
+          return { proposal: proposalView(applied.proposal), undo: applied.handOver.undo, once: applied.handOver.once };
+        }
         const result = asRecord(turn.result);
         const artefact = result === null ? null : asRecord(result.artefact);
         if (artefact === null) {
           throw new ValidationFailedError('That turn produced no draft to act on.', { turnId: turn.id });
         }
+        // A draft belongs to the page and the document it was made for. Pressed on another page,
+        // or on another document of the same page (a new-template draft on some other template's
+        // editor), it is refused: the page it belongs to is where it is used.
+        const on = request.body.on;
+        if (on !== undefined) {
+          const madeOn = turn.context ?? session.context;
+          const madeFor = (turn.context === null ? session.host : (turn.host ?? session.host)).documentId ?? null;
+          if (on.context !== madeOn || (on.documentId ?? null) !== madeFor) {
+            throw new ConflictError('That draft was made on another page.', 'CONFLICT', { reason: 'draft-elsewhere', context: madeOn, documentId: madeFor });
+          }
+        }
 
+        // Saving a draft as a document, and adding a language of one, are the assistant creating
+        // something: both stand under the workspace's Create switch. A test mail to oneself and a
+        // re-run of the sample write nothing and stay outside it.
+        if (request.body.action === 'save' || request.body.action === 'language.add') {
+          const abilities = await settingsRepo(meta).get('assistant.abilities');
+          if (!abilities.create) {
+            throw new ForbiddenError('Saving is switched off for the assistant in this workspace.', 'FORBIDDEN', { reason: 'assistant-switched-off', ability: 'create' });
+          }
+        }
         const principal = (request as unknown as { user?: { id?: string; name?: string; email?: string } }).user;
         // A RE-RUN reads the database, so it needs the same dependency bundle
         // a turn's tools read through — the acting person's grants, resolved
@@ -376,16 +762,18 @@ export function assistantRoutes(deps: AssistantRoutesDeps): FastifyPluginAsyncZo
             ? await toolDepsFor({
                 meta,
                 manager: deps.manager,
-                context: session.context,
-                host: session.host,
+                context: turn.context ?? session.context,
+                host: turn.host ?? session.host,
                 userId,
                 can: (permission) => request.can(permission),
               })
             : undefined;
         const outcome = await runAssistantAction({
           meta,
-          action: request.body.action as AssistantActionKind,
-          context: session.context,
+          action: request.body.action,
+          // The page the DRAFT was made on. A conversation opened on one page and asked on
+          // another would otherwise be saved by the first page's code.
+          context: turn.context ?? session.context,
           artefact,
           sessionId: session.id,
           turnId: turn.id,
@@ -399,6 +787,7 @@ export function assistantRoutes(deps: AssistantRoutesDeps): FastifyPluginAsyncZo
           // else: there is no recipient field on this surface to abuse.
           ...(principal?.email === undefined ? {} : { to: principal.email }),
           ...(deps.secret === undefined ? {} : { secret: deps.secret }),
+          ...(deps.installs === undefined ? {} : { installs: deps.installs }),
           logger: request.log,
           now: () => app.rbac.now(),
         });
@@ -407,6 +796,95 @@ export function assistantRoutes(deps: AssistantRoutesDeps): FastifyPluginAsyncZo
           created: outcome.created ?? null,
           sample: outcome.sample ?? null,
         };
+      },
+    );
+
+    // ── what an owner sets ───────────────────────────────────────────────────
+
+    const manage = app.rbac.require(PERMISSIONS.settingsManage);
+
+    async function settingsReply() {
+      const at = app.rbac.now();
+      const day = assistantUseDay(at);
+      const people = [];
+      for (const row of await assistantUseRepo(meta).listDay(day)) {
+        const user = await usersRepo(meta).findById(row.userId);
+        people.push({ userId: row.userId, name: user?.name ?? user?.email ?? row.userId, tokens: row.tokens, turns: row.turns });
+      }
+      const roles = [];
+      for (const grant of await permissionsRepo(meta).listForResource('system', 'assistant.use')) {
+        if ((grant.actions as { allowed?: boolean }).allowed !== true) continue;
+        const role = await rolesRepo(meta).findById(grant.roleId);
+        if (role !== null) roles.push({ id: role.id, name: role.name });
+      }
+      return {
+        dailyTokens: await settings.get('assistant.dailyTokens'),
+        abilities: await settings.get('assistant.abilities'),
+        maxRows: await settings.get('assistant.maxRows'),
+        maxRowsCeiling: ASSISTANT_MAX_ROWS_CEILING,
+        staffAddresses: await settings.get('assistant.staffAddresses'),
+        today: { day, resetsAt: assistantUseResetsAt(at), people },
+        roles,
+      };
+    }
+
+    app.get(
+      '/assistant/settings',
+      { preHandler: manage, schema: { response: { 200: assistantSettingsReply } } },
+      async () => settingsReply(),
+    );
+
+    app.put(
+      '/assistant/settings',
+      {
+        preHandler: manage,
+        config: { audit: audited('rbac') },
+        schema: { body: assistantSettingsPutBody, response: { 200: assistantSettingsReply } },
+      },
+      async (request) => {
+        const by = { updatedBy: requireUserId(request), at: app.rbac.now() };
+        const before: Record<string, unknown> = {};
+        const after: Record<string, unknown> = {};
+        const body = request.body;
+        if (body.dailyTokens !== undefined) {
+          const held = await settings.get('assistant.dailyTokens');
+          if (held !== body.dailyTokens) {
+            await settings.set('assistant.dailyTokens', body.dailyTokens, by);
+            before.dailyTokens = held;
+            after.dailyTokens = body.dailyTokens;
+          }
+        }
+        if (body.abilities !== undefined) {
+          // A switch that is not named keeps its state: turning one on never moves another.
+          const held = await settings.get('assistant.abilities');
+          const next = { ...held, ...Object.fromEntries(Object.entries(body.abilities).filter(([, value]) => value !== undefined)) };
+          if (JSON.stringify(held) !== JSON.stringify(next)) {
+            await settings.set('assistant.abilities', next, by);
+            before.abilities = held;
+            after.abilities = next;
+          }
+        }
+        if (body.maxRows !== undefined) {
+          const held = await settings.get('assistant.maxRows');
+          if (held !== body.maxRows) {
+            await settings.set('assistant.maxRows', body.maxRows, by);
+            before.maxRows = held;
+            after.maxRows = body.maxRows;
+          }
+        }
+        if (body.staffAddresses !== undefined) {
+          const held = await settings.get('assistant.staffAddresses');
+          if (held !== body.staffAddresses) {
+            await settings.set('assistant.staffAddresses', body.staffAddresses, by);
+            before.staffAddresses = held;
+            after.staffAddresses = body.staffAddresses;
+          }
+        }
+        // One entry for what really changed, with what it was: who let the assistant write is on record.
+        if (Object.keys(after).length > 0) {
+          await app.rbac.audit(request, { category: 'settings', action: 'assistant.settings.update', changes: { before, after } });
+        }
+        return settingsReply();
       },
     );
 

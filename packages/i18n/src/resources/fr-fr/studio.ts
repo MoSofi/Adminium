@@ -2291,6 +2291,62 @@ export default {
       "switchOn": "L’activer",
       "open": "Ouvrir le Designer",
       "failed": "L’interrupteur n’a pas pu être modifié."
+    },
+    "assistantTest": {
+      "button": "Tester {name} avec ce modèle",
+      "running": "On demande au modèle d’utiliser l’un des outils de {name}…",
+      "ok": "Ce modèle peut faire fonctionner {name}. {rounds, plural, one {# tour} other {# tours}}, {latency} ms.",
+      "format": "Ce modèle répond, mais pas de la manière dont {name} a besoin. Choisissez un autre modèle.",
+      "noTool": "Ce modèle a répondu sans utiliser l’outil fourni. {name} devinerait au lieu de lire vos données. Choisissez un autre modèle.",
+      "wrongValue": "Ce modèle a utilisé l’outil puis a rapporté autre chose. Choisissez un autre modèle.",
+      "provider": "Le modèle n’a pas répondu : {message}",
+      "error": "Le test n’a pas pu être exécuté. Réessayez."
+    },
+    "allowance": {
+      "title": "Quota quotidien",
+      "subtitle": "Ce qu’une personne peut utiliser de {name} en une journée.",
+      "field": "Jetons qu’une personne peut utiliser par jour",
+      "hint": "0 signifie aucune limite. La journée est comptée en UTC : elle repart donc pour tout le monde au même instant, à {time} chez vous.",
+      "save": "Enregistrer",
+      "saved": "Quota enregistré",
+      "saveFailed": "Impossible d’enregistrer le quota. Réessayez.",
+      "today": "Aujourd’hui",
+      "person": "Personne",
+      "questions": "Questions",
+      "tokens": "Jetons",
+      "empty": "Personne n’a utilisé {name} aujourd’hui.",
+      "atLimit": "À la limite",
+      "roles": "Rôles pouvant utiliser {name}",
+      "rolesHint": "Défini dans les autorisations de chaque rôle.",
+      "rolesNone": "Seul le Super Admin peut utiliser {name}."
+    },
+    "abilities": {
+      "title": "Ce que {name} peut faire",
+      "onlyRead": "{name} peut seulement lire.",
+      "can": "{name} peut : {list}.",
+      "cannot": "Impossible : {list}.",
+      "verb": {
+        "read": "lire",
+        "create": "créer",
+        "change": "modifier",
+        "send": "envoyer",
+        "delete": "supprimer"
+      },
+      "create": "Créer",
+      "createWhat": "Ajouter une ligne, ou enregistrer un nouveau modèle, rapport ou une nouvelle règle. Vous confirmez chaque action.",
+      "change": "Modifier",
+      "changeWhat": "Modifier une ligne ou un document enregistré. Vous confirmez chaque action.",
+      "send": "Envoyer",
+      "sendWhat": "Envoyer un modèle d’e-mail existant à des personnes de cet espace de travail. Vous confirmez chaque envoi.",
+      "delete": "Supprimer",
+      "deleteWhat": "Supprimer une ligne ou un document. Vous confirmez chaque action.",
+      "rows": "Lignes par confirmation",
+      "rowsHint": "1 à {max}",
+      "staffAddresses": "Sur les adresses du personnel de vos apps",
+      "staffAddressesWhat": "Affiche le bouton de {name} sur les écrans du personnel d’une app, pour les personnes dont le rôle peut utiliser {name}. Un côté client ne l’a jamais.",
+      "save": "Enregistrer",
+      "saveFailed": "Impossible d’enregistrer. Réessayez.",
+      "never": "{name} ne modifie jamais les autorisations, les personnes, les connexions, la structure de la base de données ni ces paramètres."
     }
   },
   "settingsHub": {

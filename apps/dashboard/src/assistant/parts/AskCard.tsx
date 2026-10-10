@@ -39,7 +39,8 @@ export function AskCard({ say, ask, picks, onPick, onGo, answered }: AskCardProp
   const locked = answered === true;
   return (
     <AssistantBubble testId="assistant-ask">
-      {say === '' ? null : <p className="mb-3.5 text-[13.5px] leading-[1.6] text-pretty text-fg">{say}</p>}
+      {/* The space under the words is for the options: an answer with none ends where its words end. */}
+      {say === '' ? null : <p className={cn('text-[13.5px] leading-[1.6] text-pretty text-fg', groups.length > 0 && 'mb-3.5')}>{say}</p>}
       {groups.map((group) => (
         <div key={group.key} className="mb-[15px]">
           <div className="mb-2 text-micro uppercase text-fg-muted">{group.title}</div>

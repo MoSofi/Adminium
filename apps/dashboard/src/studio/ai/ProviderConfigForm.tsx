@@ -54,6 +54,7 @@ import { useAppToasts } from '../../pages/toasts.js';
 import {
   aiApi,
   type LlmConfig,
+  type LlmAssistantTestResult,
   type LlmConfigTestResult,
   type LlmModelInfo,
 } from './api.js';
@@ -149,12 +150,20 @@ export interface ProviderConfigFormProps {
    * per-provider card below follows one level down.
    */
   headingLevel?: 2 | 3;
+  /**
+   * The assistant's name, where this form may offer to test the saved model
+   * with it (Settings). Left out in the connect wizard: there the question is
+   * whether enrichment can reach a model at all, and the assistant has not
+   * been met yet.
+   */
+  assistantName?: string;
 }
 
 export function ProviderConfigForm({
   config,
   networkAllowed,
   headingLevel = 2,
+  assistantName,
 }: ProviderConfigFormProps): ReactNode {
   const SectionHeading = headingLevel === 3 ? 'h3' : 'h2';
   const CardHeading = headingLevel === 3 ? 'h4' : 'h3';
@@ -215,15 +224,18 @@ export function ProviderConfigForm({
   });
 
   const testMutation = useMutation({ mutationFn: () => aiApi.testConfig() });
+  const assistantTest = useMutation({ mutationFn: () => aiApi.testAssistant() });
 
   function selectProvider(provider: ConfigurableProvider): void {
     setDraft(initialDraft(provider, config));
     testMutation.reset();
+    assistantTest.reset();
   }
 
   function patch(partial: Partial<DraftState>): void {
     setDraft((prev) => (prev === null ? prev : { ...prev, ...partial }));
     testMutation.reset();
+    assistantTest.reset();
   }
 
   // Derived validity + dirtiness.
@@ -392,6 +404,17 @@ export function ProviderConfigForm({
               >
                 {t('studio:settingsAi.test', 'Test connection')}
               </Button>
+              {assistantName === undefined ? null : (
+                <Button
+                  variant="secondary"
+                  data-testid="assistant-model-test"
+                  disabled={!canTest || assistantTest.isPending}
+                  loading={assistantTest.isPending}
+                  onClick={() => assistantTest.mutate()}
+                >
+                  {t('studio:settingsAi.assistantTest.button', 'Test {name} with this model', { name: assistantName })}
+                </Button>
+              )}
               {!canTest && draft.provider === config.provider ? (
                 <span className="text-caption text-fg-subtle">
                   {t('studio:settingsAi.testHintDirty', 'Save your changes before testing.')}
@@ -400,6 +423,7 @@ export function ProviderConfigForm({
             </div>
 
             <TestResult mutation={testMutation} />
+            {assistantName === undefined ? null : <AssistantTestResult mutation={assistantTest} name={assistantName} />}
           </CardBody>
         </Card>
       ) : null}
@@ -539,6 +563,70 @@ function KeyField({
 }
 
 // ── Test-connection result ──────────────────────────────────────────────────────
+
+/**
+ * What the assistant's own test found. A model can pass the connection test
+ * above and fail this one: it answers, but not in the format the assistant
+ * reads, or without using a tool it was given.
+ */
+function AssistantTestResult({
+  mutation,
+  name,
+}: {
+  mutation: UseMutationResult<LlmAssistantTestResult, unknown, void>;
+  name: string;
+}): ReactNode {
+  if (mutation.isPending) {
+    return (
+      <div className="flex items-center gap-2 text-body-sm text-fg-muted" role="status">
+        <Spinner size="sm" />
+        {t('studio:settingsAi.assistantTest.running', 'Asking the model to use one of {name}’s tools…', { name })}
+      </div>
+    );
+  }
+  if (mutation.isError) {
+    return <Alert tone="danger" role="alert" title={t('studio:settingsAi.assistantTest.error', 'The test could not be run. Try again.')} />;
+  }
+  const result = mutation.data;
+  if (result === undefined) return null;
+  if (result.ok) {
+    return (
+      <div
+        role="status"
+        data-testid="assistant-model-test-ok"
+        className="flex items-center gap-2 rounded-lg border border-pos/30 bg-pos-soft px-3 py-2 text-body-sm text-fg"
+      >
+        <CheckCircle2 className="size-4 shrink-0 text-pos" aria-hidden="true" />
+        <span>
+          {t('studio:settingsAi.assistantTest.ok', 'This model can run {name}. {rounds, plural, one {# round} other {# rounds}}, {latency} ms.', {
+            name,
+            rounds: result.rounds,
+            latency: fmt().number(result.latencyMs),
+          })}
+        </span>
+      </div>
+    );
+  }
+  return <Alert tone="warn" role="alert" data-testid="assistant-model-test-failed" title={assistantTestFailure(result, name)} />;
+}
+
+/** One literal key a kind, so each sentence is in the catalogue and none is built from parts. */
+function assistantTestFailure(result: LlmAssistantTestResult, name: string): string {
+  switch (result.failure) {
+    case 'no-tool':
+      return t(
+        'studio:settingsAi.assistantTest.noTool',
+        'This model answered without using the tool it was given. {name} would guess instead of reading your data. Choose another model.',
+        { name },
+      );
+    case 'wrong-value':
+      return t('studio:settingsAi.assistantTest.wrongValue', 'This model used the tool and then reported something else. Choose another model.');
+    case 'provider':
+      return t('studio:settingsAi.assistantTest.provider', 'The model did not answer: {message}', { message: result.message ?? '' });
+    default:
+      return t('studio:settingsAi.assistantTest.format', 'This model answers, but not in the way {name} needs. Choose another model.', { name });
+  }
+}
 
 function TestResult({
   mutation,

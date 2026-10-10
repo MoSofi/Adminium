@@ -2291,6 +2291,62 @@ export default {
       "switchOn": "開啟",
       "open": "開啟 Designer",
       "failed": "無法變更此開關。"
+    },
+    "assistantTest": {
+      "button": "用此模型測試 {name}",
+      "running": "正在請模型使用 {name} 的一個工具…",
+      "ok": "此模型可以執行 {name}。{rounds, plural, other {# 輪}}，{latency} 毫秒。",
+      "format": "此模型會回答，但不是 {name} 需要的方式。請換一個模型。",
+      "noTool": "此模型沒有使用給它的工具就回答了。{name} 會用猜的，而不是讀取你的資料。請換一個模型。",
+      "wrongValue": "此模型用了工具，卻回報了別的內容。請換一個模型。",
+      "provider": "模型沒有回答：{message}",
+      "error": "測試無法執行。請再試一次。"
+    },
+    "allowance": {
+      "title": "每日額度",
+      "subtitle": "每個人一天可以使用多少 {name}。",
+      "field": "每人每天可用的權杖數",
+      "hint": "0 表示不限。一天以 UTC 計算，所以對所有人在同一時刻重新開始：你當地時間 {time}。",
+      "save": "儲存",
+      "saved": "額度已儲存",
+      "saveFailed": "無法儲存額度。請再試一次。",
+      "today": "今天",
+      "person": "人員",
+      "questions": "提問",
+      "tokens": "權杖",
+      "empty": "今天還沒有人使用 {name}。",
+      "atLimit": "已達上限",
+      "roles": "可以使用 {name} 的角色",
+      "rolesHint": "在每個角色的權限中設定。",
+      "rolesNone": "只有超級管理員可以使用 {name}。"
+    },
+    "abilities": {
+      "title": "{name} 可以做什麼",
+      "onlyRead": "{name} 只能讀取。",
+      "can": "{name} 可以{list}。",
+      "cannot": "不能{list}。",
+      "verb": {
+        "read": "讀取",
+        "create": "建立",
+        "change": "變更",
+        "send": "傳送",
+        "delete": "刪除"
+      },
+      "create": "建立",
+      "createWhat": "新增一列，或儲存新的範本、報表或規則。每一項都由您確認。",
+      "change": "變更",
+      "changeWhat": "編輯一列或已儲存的文件。每一項都由您確認。",
+      "send": "傳送",
+      "sendWhat": "將現有的電子郵件範本傳送給此工作區中的人員。每一次都由您確認。",
+      "delete": "刪除",
+      "deleteWhat": "移除一列或一份文件。每一項都由您確認。",
+      "rows": "一次確認的列數",
+      "rowsHint": "1 到 {max}",
+      "staffAddresses": "在您應用程式的員工網址上",
+      "staffAddressesWhat": "在應用程式自己的員工畫面上顯示 {name} 的按鈕，僅對角色可以使用 {name} 的人顯示。客戶端永遠不會有。",
+      "save": "儲存",
+      "saveFailed": "無法儲存。請再試一次。",
+      "never": "{name} 絕不會變更權限、人員、連線、資料庫結構或這些設定。"
     }
   },
   "settingsHub": {

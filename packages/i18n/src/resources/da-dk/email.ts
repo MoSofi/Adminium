@@ -178,6 +178,7 @@ export default {
     "count": "{total, plural, one {# modtager} other {# modtagere}}",
     "optedOut": "{skipped} har frameldt sig",
     "note": "Variabler udfyldes pr. modtager — {token} bliver til hver persons navn.",
+    "unfilled": "Intet udfylder {names}: alle modtagere ville få det, som det står. Giv det en reservetekst i editoren, eller fjern det.",
     "send": "Send kampagne",
     "scheduleAction": "Tidsindstil kampagne",
     "sending": "Sender…",
@@ -880,5 +881,26 @@ export default {
     "kept": "Det, du allerede har hos os, gælder stadig, og de e-mails, du allerede har, åbner det stadig. Du hører ikke fra os igen, medmindre du kommer tilbage.",
     "footer": "{appName}",
     "stopped": "Linkene i de e-mails, du allerede har, virker ikke længere. Du hører ikke fra os igen, medmindre du kommer tilbage."
+  },
+  "missing": {
+    "chip": "{name}: angiv, hvad der skrives, når den mangler",
+    "chipWith": "{name}: når den mangler, skrives “{backup}”",
+    "dialog": "Reservetekst for {name}",
+    "ask": "Hvis “{name}” mangler, skriv:",
+    "preview": "Forhåndsvisning",
+    "otherwiseTag": "Ellers-tekst",
+    "nothing": "Intet i denne e-mail ændrer sig, når en værdi mangler. Giv en pladsholder en reservetekst, eller bind en blok til en værdi.",
+    "showingOne": "Viser, hvad en læser uden “{name}” får tilsendt.",
+    "showingMany": "Viser, hvad en læser får tilsendt, når disse mangler en værdi: {names}.",
+    "switch": "Forhåndsvis med manglende værdier",
+    "ifMissing": "Hvis den mangler:",
+    "ifMissingNothing": "Hvis den mangler: der skrives intet",
+    "visibility": "Synlighed",
+    "showWhen": "Vis kun denne blok, når",
+    "always": "Vises altid",
+    "hasValue": "{name} har en værdi",
+    "otherwise": "Ellers vis",
+    "otherwiseHint": "Disse ord erstatter hele blokken. Lad feltet stå tomt for ikke at sende noget i stedet.",
+    "leftOut": "Når den ikke har nogen, udelades denne blok fra e-mailen."
   }
 } as const;

@@ -1,5 +1,74 @@
 # @adminium/server
 
+## 0.3.23
+
+### Patch Changes
+
+- 4c34d59: The add-ons that ship with Adminium are now 1.0.12. Offers & gift cards gives Automations a step, "Issue a voucher": a rule can issue a voucher to the customer of the record it is about, and Offers mails it with its code. Offers and Inventory tell the assistant what their tables are, and offer questions on their own pages.
+- 9c6280a: A variable that nothing fills, and that has no backup, now stops an email where a person is there to put it right. A campaign that reads one cannot be sent: the send form names it, and so does the assistant's card. A rule's Test fails at the email step and names it. A rule that runs on its own still sends the email with the variable as written and says which one under the step, as before.
+  
+  A campaign made from a starter that reads its own variables (an order number, a tracking link) is refused until those have a backup or are taken out: such a campaign used to reach every recipient with `{{order_number}}` in it.
+- Updated dependencies [9c6280a]
+  - @adminium/i18n@0.3.23
+  - @adminium/engine@0.3.23
+  - @adminium/llm@0.3.23
+  - @adminium/adapter-mysql@0.3.23
+  - @adminium/adapter-postgres@0.3.23
+  - @adminium/adapter-sqlite@0.3.23
+  - @adminium/schema-import@0.3.23
+  - @adminium/add-on-contracts@0.3.23
+  - @adminium/manifest@0.3.23
+  - @adminium/meta@0.3.23
+
+## 0.3.22
+
+### Patch Changes
+
+- 1ae61f2: The assistant is on every page of the dashboard, as a panel docked at the end edge. It opens from a bubble in the corner, from the Ask button in a page's header, or with Ctrl/⌘ + . and stays open from page to page and after a reload. A person has one conversation; every question is asked on the page they are on and the thread says which.
+  
+  On a page that shows a table's rows (a grid, a record, a board, a calendar, a dashboard) it answers questions about the data in words, with the figures. It knows what the page is showing: the search, the sort, the filters, the ticked rows, the open record, so "these" means what is on screen. Under an answer stand the tables it read, a line when only a part of a table was read, and a line when nothing was read. It reads as the signed-in person: a table, a column or a page their role cannot open is not read for them, and personal columns never reach the model. It only reads; it changes no row and no page.
+  
+  On any other screen it answers about the workspace and says where things are done, with a link, naming only places that person can open. When what was asked for needs an add-on that is not installed, it shows the add-on's card from the catalogue, with the way to it for someone who may install and "ask an administrator" for anyone else.
+  
+  On the pages that draft documents (email templates, reports, automation rules) the draft is in the panel with the page's own preview and the same locks and confirmation as before. A draft is usable on the page, and for an editor the document, it was made for; anywhere else it is a small card with the way back. The window that opened over those pages is gone.
+  
+  Settings → AI gains "Test" for the assistant (it checks that the model can follow the assistant's replies, which a connection test does not) and a daily allowance of tokens per person, with today's use. A person over it is told when it starts again. One question at a time per person.
+  
+  A list can be ordered by a count or a sum over related rows (`order=<alias>` of an `agg=` or `compute=` figure), with rows that have no value last on every engine, up to 20,000 rows under the filters on SQLite and 200,000 on PostgreSQL and MySQL.
+  
+  Fixes on the way: a conversation's history was sent to the model again with every turn, growing quadratically; a model that answers with its own tool calls gets a second chance instead of a provider error; an automation rule drafted by the assistant is checked against what its author may read.
+- e27992a: The assistant can now do things, when the workspace lets it and a person says yes. Settings → AI has four switches: Create, Change, Send, Delete. All four are off on a new install; a workspace that was already in use keeps Create on, so its assistant goes on saving drafts as it did. A new field sets how many changes one confirmation may make (1 to 50).
+  
+  With a switch on, and only for something the signed-in person could do by hand, the assistant proposes: add, change or delete rows of the page they are on (from a screen with no page of its own, of a table they name), save a draft as a new document, save it over the open one, delete a document, send a campaign to roles. Nothing is written by a proposal. The server first tries it as that person, through the same routes the screens use, and the panel shows a card with exactly what would happen as they read the data: old and new values, what refers to a row that would be deleted, who would get a mail, and what cannot be done and why. One click confirms what is ticked; the page's own undo is offered for its minute. A proposal is confirmed once, is let go when something else is asked or after thirty minutes, and is checked again at the confirm: if a row moved or a switch was turned off meanwhile, nothing is written and the card shows what changed.
+  
+  The audit log marks an entry that was confirmed through the assistant ("through Milo"), on the row and in its details, and a rule set off by such a change carries the mark on what it writes.
+  
+  The "Enable actions" switch in the panel is gone: what the assistant may do is the workspace's setting, not a button per visit. Saving a draft and adding a language of one now need Create.
+  
+  A campaign that is switched off cannot be sent by the assistant, and a send is always a proposal of its own. Personal columns still never reach the model; a change to one is shown to the person as the value they gave.
+- d339d27: Automations reach one row further, and say what to write when a value is missing. A rule can name a column of the row its record links to (`customer_id.email`): as an email's recipient, and as a placeholder. A placeholder can carry a backup (`{{first_name|there}}`), written when the value is not there; an email block can be tied to a value (shown only when it is there, with other words in its place for a text or a heading). The email editor draws each placeholder as a chip that asks for its backup, has a Visibility section on every block, and previews the email as a reader with no values is sent it.
+  
+  An installed add-on can give Automations a step. The add-on's manifest says what the step is called, what a person fills in, and the one row of its own table the step makes (`addOn.steps`); the builder offers it under "From add-ons", and a rule runs it through the same write as "create a record", so the add-on's own rules, mails and events follow. A rule keeps a step whose add-on was removed and says which add-on it lost. A personal column of the record may be read only for an input the add-on itself keeps personal, and is never written to a run's log. A rule that holds such a step is checked again when it is switched on.
+  
+  An add-on can also say what its tables are, in one line each, and offer questions for its own pages (`addOn.assistant`). The assistant reads the lines when it describes a table and shows the questions on the add-on's pages. An add-on cannot give the assistant a tool, switch anything on, or widen what a person reads.
+  
+  On Automations the assistant drafts a whole rule: it looks up the live templates, the address columns, the roles and the steps add-ons give before it drafts, and says what it left out. The draft's card is drawn by the builder itself. With a rule open, a change is put into that rule's unsaved draft ("Apply to this rule"), marked, and undone with one click; nothing is saved until the person saves.
+  
+  Manifests that use the new words need Adminium 0.3.22 or later.
+- Updated dependencies [1ae61f2]
+- Updated dependencies [e27992a]
+- Updated dependencies [d339d27]
+  - @adminium/meta@0.3.22
+  - @adminium/llm@0.3.22
+  - @adminium/i18n@0.3.22
+  - @adminium/manifest@0.3.22
+  - @adminium/add-on-contracts@0.3.22
+  - @adminium/engine@0.3.22
+  - @adminium/adapter-mysql@0.3.22
+  - @adminium/adapter-postgres@0.3.22
+  - @adminium/adapter-sqlite@0.3.22
+  - @adminium/schema-import@0.3.22
+
 ## 0.3.21
 
 ### Patch Changes

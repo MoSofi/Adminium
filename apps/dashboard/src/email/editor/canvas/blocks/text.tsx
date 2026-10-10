@@ -8,6 +8,7 @@
 import { useEffect, useRef } from 'react';
 import { cn } from '@adminium/ui';
 
+import { Filled } from '../PlaceholderText.js';
 import { KICKER, str, strings } from '../styles.js';
 import type { BlockPreviewProps } from './types.js';
 
@@ -28,7 +29,7 @@ export function HeadingPreview({ block, label, onHeadingChange, onHeadingFocus }
   if (onHeadingChange === undefined) {
     return (
       <div aria-label={label} className="block w-full text-[1.42em] font-extrabold leading-[1.3] tracking-[-.01em] text-inherit">
-        {text}
+        <Filled text={text} path={['text']} />
       </div>
     );
   }
@@ -51,12 +52,13 @@ export function HeadingPreview({ block, label, onHeadingChange, onHeadingFocus }
 }
 
 export function BodyPreview({ block }: BlockPreviewProps) {
-  const paras = Array.isArray(block.data['paras']) ? strings(block.data['paras']) : [str(block.data['text'])];
+  const listed = Array.isArray(block.data['paras']);
+  const paras = listed ? strings(block.data['paras']) : [str(block.data['text'])];
   return (
     <>
       {paras.map((para, index) => (
         <div key={index} className={cn('whitespace-pre-wrap leading-[1.65]', index > 0 && 'mt-3')}>
-          {para}
+          <Filled text={para} path={listed ? ['paras', index] : ['text']} />
         </div>
       ))}
     </>
@@ -66,8 +68,8 @@ export function BodyPreview({ block }: BlockPreviewProps) {
 export function TwoColPreview({ block }: BlockPreviewProps) {
   return (
     <div className="grid grid-cols-2 gap-[18px]">
-      <div className="whitespace-pre-wrap text-[1em] leading-[1.65]">{str(block.data['a'])}</div>
-      <div className="whitespace-pre-wrap text-[1em] leading-[1.65]">{str(block.data['b'])}</div>
+      <div className="whitespace-pre-wrap text-[1em] leading-[1.65]"><Filled text={str(block.data['a'])} path={['a']} /></div>
+      <div className="whitespace-pre-wrap text-[1em] leading-[1.65]"><Filled text={str(block.data['b'])} path={['b']} /></div>
     </div>
   );
 }
@@ -78,7 +80,7 @@ export function ListPreview({ block }: BlockPreviewProps) {
       {strings(block.data['items']).map((item, index) => (
         <li key={index} className="flex items-start gap-[9px]">
           <span className="mt-[.6em] size-[5px] shrink-0 rounded-full bg-[var(--adm-email-accent)]" aria-hidden="true" />
-          <span className="text-[1em] leading-[1.6]">{item}</span>
+          <span className="text-[1em] leading-[1.6]"><Filled text={item} path={['items', index]} /></span>
         </li>
       ))}
     </ul>
@@ -88,8 +90,8 @@ export function ListPreview({ block }: BlockPreviewProps) {
 export function QuotePreview({ block }: BlockPreviewProps) {
   return (
     <>
-      <div className="border-s-[3px] border-[var(--adm-email-accent)] ps-3.5 text-[1.05em] italic leading-[1.6]">{str(block.data['text'])}</div>
-      <div className="mt-2 ps-[17px] text-[.82em] font-bold text-[#6b6b76]">{str(block.data['author'])}</div>
+      <div className="border-s-[3px] border-[var(--adm-email-accent)] ps-3.5 text-[1.05em] italic leading-[1.6]"><Filled text={str(block.data['text'])} path={['text']} /></div>
+      <div className="mt-2 ps-[17px] text-[.82em] font-bold text-[#6b6b76]"><Filled text={str(block.data['author'])} path={['author']} /></div>
     </>
   );
 }
@@ -100,12 +102,12 @@ export function TitledTextPreview({ block, def }: BlockPreviewProps) {
     <>
       {kicker === '' ? null : <div className={cn(KICKER, 'mb-2')}>{kicker}</div>}
       <div className={cn('whitespace-pre-wrap leading-[1.65]', def.fine ? 'text-[.76em] text-[#6b6b76]' : 'text-[.9em]')}>
-        {str(block.data['text'])}
+        <Filled text={str(block.data['text'])} path={['text']} />
       </div>
     </>
   );
 }
 
 export function FooterBlockPreview({ block }: BlockPreviewProps) {
-  return <div className="whitespace-pre-wrap text-[11px] leading-[1.6] text-[#6b6b76]">{str(block.data['text'])}</div>;
+  return <div className="whitespace-pre-wrap text-[11px] leading-[1.6] text-[#6b6b76]"><Filled text={str(block.data['text'])} path={['text']} /></div>;
 }

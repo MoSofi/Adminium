@@ -2291,6 +2291,62 @@ export default {
       "switchOn": "开启",
       "open": "打开 Designer",
       "failed": "无法更改此开关。"
+    },
+    "assistantTest": {
+      "button": "用此模型测试 {name}",
+      "running": "正在让模型使用 {name} 的一个工具…",
+      "ok": "此模型可以运行 {name}。{rounds, plural, other {# 轮}}，{latency} 毫秒。",
+      "format": "此模型能回答，但不是 {name} 需要的方式。请换一个模型。",
+      "noTool": "此模型没有使用给它的工具就回答了。{name} 会靠猜，而不是读取你的数据。请换一个模型。",
+      "wrongValue": "此模型用了工具，却报告了别的内容。请换一个模型。",
+      "provider": "模型没有回答：{message}",
+      "error": "测试无法运行。请重试。"
+    },
+    "allowance": {
+      "title": "每日额度",
+      "subtitle": "每个人一天可以使用多少 {name}。",
+      "field": "每人每天可用的令牌数",
+      "hint": "0 表示不限。一天按 UTC 计算，所以对所有人在同一时刻重新开始：你当地时间 {time}。",
+      "save": "保存",
+      "saved": "额度已保存",
+      "saveFailed": "无法保存额度。请重试。",
+      "today": "今天",
+      "person": "人员",
+      "questions": "提问",
+      "tokens": "令牌",
+      "empty": "今天还没有人使用 {name}。",
+      "atLimit": "已达上限",
+      "roles": "可以使用 {name} 的角色",
+      "rolesHint": "在每个角色的权限中设置。",
+      "rolesNone": "只有超级管理员可以使用 {name}。"
+    },
+    "abilities": {
+      "title": "{name} 可以做什么",
+      "onlyRead": "{name} 只能读取。",
+      "can": "{name} 可以{list}。",
+      "cannot": "不能{list}。",
+      "verb": {
+        "read": "读取",
+        "create": "创建",
+        "change": "更改",
+        "send": "发送",
+        "delete": "删除"
+      },
+      "create": "创建",
+      "createWhat": "添加一行，或保存新的模板、报表或规则。每一项都由您确认。",
+      "change": "更改",
+      "changeWhat": "编辑一行或已保存的文档。每一项都由您确认。",
+      "send": "发送",
+      "sendWhat": "将现有的电子邮件模板发送给此工作区中的人员。每一次都由您确认。",
+      "delete": "删除",
+      "deleteWhat": "移除一行或一个文档。每一项都由您确认。",
+      "rows": "一次确认的行数",
+      "rowsHint": "1 到 {max}",
+      "staffAddresses": "在您应用的员工地址上",
+      "staffAddressesWhat": "在应用自己的员工界面上显示 {name} 的按钮，仅对角色可以使用 {name} 的人显示。客户端永远不会有。",
+      "save": "保存",
+      "saveFailed": "无法保存。请重试。",
+      "never": "{name} 绝不会更改权限、人员、连接、数据库结构或这些设置。"
     }
   },
   "settingsHub": {

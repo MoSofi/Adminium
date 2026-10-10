@@ -65,6 +65,9 @@ const ADMIN_PASSWORD = process.env.E2E_ADMIN_PASSWORD ?? 'adminium-e2e-password'
  * A second super admin for the files specs — they get their own `api` rate
  * budget, which is keyed by principal (tests/constants.ts explains why).
  */
+/** A person with a narrow role, seeded only when a password is given: for walking the product as one. */
+const LIMITED_EMAIL = process.env.E2E_LIMITED_EMAIL ?? 'e2e-reader@adminium.local';
+const LIMITED_PASSWORD = process.env.E2E_LIMITED_PASSWORD ?? '';
 const FILES_ADMIN_EMAIL = process.env.E2E_FILES_ADMIN_EMAIL ?? 'e2e-files@adminium.local';
 const FILES_ADMIN_NAME = 'E2E Files Admin';
 const FILES_ADMIN_PASSWORD = process.env.E2E_FILES_ADMIN_PASSWORD ?? 'adminium-e2e-password';
@@ -130,7 +133,7 @@ if (!existsSync(join(dashboardDist, 'index.html'))) {
 
 const distUrl = (rel) => pathToFileURL(join(serverRoot, 'dist', rel)).href;
 
-const [{ loadCliEnv, openRuntime, composeServer }, { hashPassword }, { firstRun, createFirstSuperAdmin, rolesRepo, settingsRepo, usersRepo }, { default: BetterSqlite3 }] =
+const [{ loadCliEnv, openRuntime, composeServer }, { hashPassword }, { firstRun, createFirstSuperAdmin, pagesRepo, permissionsRepo, rolesRepo, settingsRepo, usersRepo }, { default: BetterSqlite3 }] =
   await Promise.all([
     import('@adminium/server'),
     import(distUrl('auth/passwords.js')),
@@ -327,6 +330,15 @@ try {
     await settingsRepo(runtime.metaStore.meta).set(key, false, { updatedBy: null, at: Date.now() });
   }
 
+  // The assistant as on a workspace that was in use before its switches: it saves its drafts as
+  // new documents and does nothing else. A new install starts with all four off; the specs that
+  // try the other three switch them on themselves.
+  await settingsRepo(runtime.metaStore.meta).set(
+    'assistant.abilities',
+    { create: true, change: false, send: false, delete: false },
+    { updatedBy: null, at: Date.now() },
+  );
+
   // LOCAL SANDBOX ONLY: an AI provider from the environment, so a restart (which
   // reseeds) does not lose it. Unset in every test run — the specs configure
   // and clear the scripted provider themselves.
@@ -517,6 +529,36 @@ try {
   expectStatus('bootstrap', bootstrap, 200);
   const groups = bootstrap.json.data.nav.groups;
   if (groups.length === 0) throw new Error('bootstrap nav is empty after generation');
+
+  // A person who is NOT an administrator, for a walk as one (off unless a password is given: no
+  // spec signs in as them, and the sign-in budget of a run is counted). They may use the
+  // assistant, open the Customers page, and read three columns of its table: what a limited role
+  // sees of the product, the assistant included.
+  if (LIMITED_PASSWORD !== '') {
+    const meta = runtime.metaStore.meta;
+    const role = await rolesRepo(meta).create({ slug: 'e2e-reader', name: 'Reader' });
+    const permissions = permissionsRepo(meta);
+    await permissions.grant(role.id, 'system', 'assistant.use', { allowed: true });
+    const customers = (await pagesRepo(meta).listAll()).find((page) => page.slug === 'customers');
+    if (customers === undefined) throw new Error('the limited reader needs the generated Customers page');
+    await permissions.grant(role.id, 'page', customers.id, { view: true, edit: false });
+    // With E2E_LIMITED_WRITES they may also change ONE of those columns (the city) and nothing
+    // else: a role that writes in part, for a walk of what the assistant may propose as them.
+    const writes = process.env.E2E_LIMITED_WRITES === '1';
+    await permissions.grant(role.id, 'table', `${connectionId}/main.customers`, {
+      read: true,
+      create: false,
+      update: writes,
+      delete: false,
+      export: false,
+      import: false,
+      readLimit: { readable: ['company_name', 'city', 'country'] },
+      ...(writes ? { updateLimit: { writable: ['city'] } } : {}),
+    });
+    const reader = await usersRepo(meta).create({ email: LIMITED_EMAIL, name: 'E2E Reader', passwordHash: await hashPassword(LIMITED_PASSWORD), status: 'active' });
+    await rolesRepo(meta).assignToUser(reader.id, role.id);
+    log(`limited reader: ${LIMITED_EMAIL} (Customers: company_name, city, country)`);
+  }
 
   // Ready: listen — Playwright's /api/v1/healthz probe now turns green.
   await app.listen({ port: PORT, host: HOST });

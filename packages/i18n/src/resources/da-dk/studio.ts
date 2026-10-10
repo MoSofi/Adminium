@@ -2291,6 +2291,62 @@ export default {
       "switchOn": "Slå den til",
       "open": "Åbn Designeren",
       "failed": "Kontakten kunne ikke ændres."
+    },
+    "assistantTest": {
+      "button": "Test {name} med denne model",
+      "running": "Beder modellen om at bruge et af {name}s værktøjer…",
+      "ok": "Denne model kan køre {name}. {rounds, plural, one {# runde} other {# runder}}, {latency} ms.",
+      "format": "Denne model svarer, men ikke på den måde, {name} har brug for. Vælg en anden model.",
+      "noTool": "Denne model svarede uden at bruge det værktøj, den fik. {name} ville gætte i stedet for at læse dine data. Vælg en anden model.",
+      "wrongValue": "Denne model brugte værktøjet og meldte så noget andet. Vælg en anden model.",
+      "provider": "Modellen svarede ikke: {message}",
+      "error": "Testen kunne ikke køres. Prøv igen."
+    },
+    "allowance": {
+      "title": "Daglig kvote",
+      "subtitle": "Hvor meget én person må bruge af {name} på en dag.",
+      "field": "Tokens, en person må bruge på en dag",
+      "hint": "0 betyder ingen grænse. En dag tælles i UTC, så den starter igen for alle i samme øjeblik: kl. {time} din tid.",
+      "save": "Gem",
+      "saved": "Kvoten er gemt",
+      "saveFailed": "Kvoten kunne ikke gemmes. Prøv igen.",
+      "today": "I dag",
+      "person": "Person",
+      "questions": "Spørgsmål",
+      "tokens": "Tokens",
+      "empty": "Ingen har brugt {name} i dag.",
+      "atLimit": "Ved grænsen",
+      "roles": "Roller, der må bruge {name}",
+      "rolesHint": "Angives i hver rolles tilladelser.",
+      "rolesNone": "Kun Super Admin må bruge {name}."
+    },
+    "abilities": {
+      "title": "Hvad {name} må gøre",
+      "onlyRead": "{name} kan kun læse.",
+      "can": "{name} kan {list}.",
+      "cannot": "Ikke muligt: {list}.",
+      "verb": {
+        "read": "læse",
+        "create": "oprette",
+        "change": "ændre",
+        "send": "sende",
+        "delete": "slette"
+      },
+      "create": "Opret",
+      "createWhat": "Tilføj en række, eller gem en ny skabelon, rapport eller regel. Du bekræfter hver enkelt.",
+      "change": "Ændr",
+      "changeWhat": "Rediger en række eller et gemt dokument. Du bekræfter hver enkelt.",
+      "send": "Send",
+      "sendWhat": "Send en eksisterende e-mailskabelon til personer i dette arbejdsområde. Du bekræfter hver enkelt.",
+      "delete": "Slet",
+      "deleteWhat": "Fjern en række eller et dokument. Du bekræfter hver enkelt.",
+      "rows": "Rækker i én bekræftelse",
+      "rowsHint": "1 til {max}",
+      "staffAddresses": "På dine apps’ personaleadresser",
+      "staffAddressesWhat": "Vis knappen til {name} på en apps egne personaleskærme for de personer, hvis rolle må bruge {name}. En kundeside har den aldrig.",
+      "save": "Gem",
+      "saveFailed": "Det kunne ikke gemmes. Prøv igen.",
+      "never": "{name} ændrer aldrig tilladelser, personer, forbindelser, databasens struktur eller disse indstillinger."
     }
   },
   "settingsHub": {

@@ -96,7 +96,9 @@
     "inBranch": "Inside branch · {label}",
     "actions": "Actions",
     "logic": "Logic",
-    "close": "Close"
+    "close": "Close",
+    "addOns": "From add-ons",
+    "addOnStep": "{addOn}: {step}"
   },
   "pick": {
     "email": "Send email",
@@ -264,11 +266,20 @@
       "record": "From this record",
       "rule": "Filled by the rule",
       "mapped": "Filled by this step",
+      "backup": "Has its own backup text",
       "unfilled": "Not filled",
       "fillWith": "Fill {token} with",
       "text": "A text",
       "textFor": "Text for {token}"
-    }
+    },
+    "notAddress": "{column} is not an address. Choose a column that holds one.",
+    "templatesOff": "{count, plural, one {# template is} other {# templates are}} switched off and not shown.",
+    "templatesOffLink": "Open Email templates",
+    "findColumn": "Find a column…",
+    "noColumn": "No column matches.",
+    "addressColumns": "Address columns",
+    "thisTable": "This table · {table}",
+    "fromLink": "From {link} · {table}.{column}"
   },
   "notif": {
     "to": "Send to",
@@ -428,5 +439,24 @@
     "edited": "Changed by you",
     "copy": "Edit a copy",
     "readOnly": "This rule came with {name}. Switch it on or off here; to change what it does, edit a copy."
+  },
+  "addOn": {
+    "gone": "The add-on {name} is no longer installed.",
+    "goneNote": "The step keeps its settings. If the add-on comes back, the step works again; until then the rule cannot be switched on.",
+    "noRight": "Your role may not add rows for {name}, so a rule of yours cannot use this step.",
+    "optional": "{label} (optional)",
+    "choose": "Choose…",
+    "fillWith": "Fill {label} with",
+    "fromColumn": "A column of the record",
+    "typedAddress": "A typed address",
+    "typedNumber": "A typed number",
+    "noRows": "The add-on’s table is not there to choose from.",
+    "findRow": "Find one…",
+    "noRow": "Nothing matches."
+  },
+  "assistant": {
+    "changed": "{name} changed this rule.",
+    "undo": "Undo {name}’s change",
+    "addedBy": "Added by {name}"
   }
 }

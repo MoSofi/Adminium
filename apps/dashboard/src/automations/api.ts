@@ -37,6 +37,8 @@ export interface RuleView {
   /** Complete enough to switch on (D12). */
   valid: boolean;
   incompleteNodeId: string | null;
+  /** What a person should look at that does not stop the rule. Absent from a server before it said so. */
+  warnings?: { nodeId: string; code: 'recipient-not-address'; column: string }[];
   stats: RuleStats;
   /**
    * What shipped the rule, for one an app or an add-on brought with it; null
@@ -89,6 +91,12 @@ export interface SourceTable {
   watch: { created: string | null; updated: string | null };
   columns: SourceColumn[];
   /**
+   * Where this table's links lead, one hop: what a step may name as
+   * `<link>.<column>` (the order's customer's email). Absent from a server
+   * before rules could reach a related row.
+   */
+  links?: SourceLink[];
+  /**
    * Tables whose rows point at this one — collection picker.
    *
    * Already filtered by the server to edges a document mapping can store; see
@@ -97,6 +105,14 @@ export interface SourceTable {
    */
   children: SourceChildTable[];
   pageSlug: string | null;
+}
+
+/** One link of a table: the column that holds it, the table it points at, and that table's columns. */
+export interface SourceLink {
+  column: string;
+  table: string;
+  label: string;
+  columns: SourceColumn[];
 }
 
 export interface SourceChildTable {
@@ -112,6 +128,35 @@ export interface SourceConnection {
   dialect: string;
   timezone: string;
   tables: SourceTable[];
+  /** The steps installed add-ons give here. Absent from a server that offers none. */
+  steps?: SourceStep[] | undefined;
+}
+
+/** A text in each of the product's languages, as an add-on's manifest carries it. */
+export type EveryLanguage = Readonly<Record<string, string>>;
+
+export interface SourceStepInput {
+  key: string;
+  label: EveryLanguage;
+  kind: 'text' | 'email' | 'number' | 'choice' | 'record';
+  required: boolean;
+  options?: { value: string; label: EveryLanguage }[] | undefined;
+  /** For `record`: the table a row is picked from, and its key column. */
+  table?: string | null | undefined;
+  tableKey?: string | null | undefined;
+}
+
+/** A step an installed add-on gives to a rule on one database. */
+export interface SourceStep {
+  addOn: string;
+  addOnName: string;
+  key: string;
+  name: EveryLanguage;
+  does: EveryLanguage;
+  table: string | null;
+  /** Whether the person may create rows in the step's table: only then can a rule of theirs use it. */
+  canCreate: boolean;
+  inputs: SourceStepInput[];
 }
 
 export interface SourceTemplate {
@@ -119,6 +164,8 @@ export interface SourceTemplate {
   name: string;
   /** Every `{{name}}` the template reads, in reading order. */
   placeholders: string[];
+  /** Those of them nothing has to fill: the template says itself what to write when they are missing. */
+  backed?: string[] | undefined;
   /** An app shipped it, and that app's own sender is what fills it. */
   ownedByApp: boolean;
 }
@@ -126,6 +173,8 @@ export interface SourceTemplate {
 export interface Sources {
   connections: SourceConnection[];
   templates: SourceTemplate[];
+  /** Template keys that exist and are switched off in every language: not in `templates`. */
+  templatesOff?: number;
   roles: { id: string; name: string }[];
 }
 
