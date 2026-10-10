@@ -2342,6 +2342,8 @@ export default {
       "deleteWhat": "移除一列或一份文件。每一項都由您確認。",
       "rows": "一次確認的列數",
       "rowsHint": "1 到 {max}",
+      "staffAddresses": "在您應用程式的員工網址上",
+      "staffAddressesWhat": "在應用程式自己的員工畫面上顯示 {name} 的按鈕，僅對角色可以使用 {name} 的人顯示。客戶端永遠不會有。",
       "save": "儲存",
       "saveFailed": "無法儲存。請再試一次。",
       "never": "{name} 絕不會變更權限、人員、連線、資料庫結構或這些設定。"

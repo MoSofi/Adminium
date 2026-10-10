@@ -2342,6 +2342,8 @@ export default {
       "deleteWhat": "Odstranit řádek nebo dokument. Každou akci potvrzujete.",
       "rows": "Řádků v jednom potvrzení",
       "rowsHint": "1 až {max}",
+      "staffAddresses": "Na adresách vašich aplikací určených personálu",
+      "staffAddressesWhat": "Zobrazí tlačítko {name} na vlastních obrazovkách aplikace určených personálu, a to lidem, jejichž role smí {name} používat. Zákaznická strana je nemá nikdy.",
       "save": "Uložit",
       "saveFailed": "Nepodařilo se uložit. Zkuste to znovu.",
       "never": "{name} nikdy nemění oprávnění, osoby, připojení, strukturu databáze ani tato nastavení."

@@ -2332,6 +2332,8 @@
       "deleteWhat": "移除一行或一个文档。每一项都由您确认。",
       "rows": "一次确认的行数",
       "rowsHint": "1 到 {max}",
+      "staffAddresses": "在您应用的员工地址上",
+      "staffAddressesWhat": "在应用自己的员工界面上显示 {name} 的按钮，仅对角色可以使用 {name} 的人显示。客户端永远不会有。",
       "save": "保存",
       "saveFailed": "无法保存。请重试。",
       "never": "{name} 绝不会更改权限、人员、连接、数据库结构或这些设置。"

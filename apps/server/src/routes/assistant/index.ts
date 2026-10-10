@@ -822,6 +822,7 @@ export function assistantRoutes(deps: AssistantRoutesDeps): FastifyPluginAsyncZo
         abilities: await settings.get('assistant.abilities'),
         maxRows: await settings.get('assistant.maxRows'),
         maxRowsCeiling: ASSISTANT_MAX_ROWS_CEILING,
+        staffAddresses: await settings.get('assistant.staffAddresses'),
         today: { day, resetsAt: assistantUseResetsAt(at), people },
         roles,
       };
@@ -869,6 +870,14 @@ export function assistantRoutes(deps: AssistantRoutesDeps): FastifyPluginAsyncZo
             await settings.set('assistant.maxRows', body.maxRows, by);
             before.maxRows = held;
             after.maxRows = body.maxRows;
+          }
+        }
+        if (body.staffAddresses !== undefined) {
+          const held = await settings.get('assistant.staffAddresses');
+          if (held !== body.staffAddresses) {
+            await settings.set('assistant.staffAddresses', body.staffAddresses, by);
+            before.staffAddresses = held;
+            after.staffAddresses = body.staffAddresses;
           }
         }
         // One entry for what really changed, with what it was: who let the assistant write is on record.

@@ -111787,6 +111787,9 @@
                     "maxRowsCeiling": {
                       "type": "number"
                     },
+                    "staffAddresses": {
+                      "type": "boolean"
+                    },
                     "today": {
                       "type": "object",
                       "properties": {
@@ -111856,6 +111859,7 @@
                     "abilities",
                     "maxRows",
                     "maxRowsCeiling",
+                    "staffAddresses",
                     "today",
                     "roles"
                   ],
@@ -111901,6 +111905,9 @@
                     "type": "integer",
                     "minimum": 1,
                     "maximum": 50
+                  },
+                  "staffAddresses": {
+                    "type": "boolean"
                   }
                 },
                 "additionalProperties": false
@@ -111949,6 +111956,9 @@
                     "maxRowsCeiling": {
                       "type": "number"
                     },
+                    "staffAddresses": {
+                      "type": "boolean"
+                    },
                     "today": {
                       "type": "object",
                       "properties": {
@@ -112018,6 +112028,7 @@
                     "abilities",
                     "maxRows",
                     "maxRowsCeiling",
+                    "staffAddresses",
                     "today",
                     "roles"
                   ],

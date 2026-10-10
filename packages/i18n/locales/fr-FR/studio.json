@@ -2332,6 +2332,8 @@
       "deleteWhat": "Supprimer une ligne ou un document. Vous confirmez chaque action.",
       "rows": "Lignes par confirmation",
       "rowsHint": "1 à {max}",
+      "staffAddresses": "Sur les adresses du personnel de vos apps",
+      "staffAddressesWhat": "Affiche le bouton de {name} sur les écrans du personnel d’une app, pour les personnes dont le rôle peut utiliser {name}. Un côté client ne l’a jamais.",
       "save": "Enregistrer",
       "saveFailed": "Impossible d’enregistrer. Réessayez.",
       "never": "{name} ne modifie jamais les autorisations, les personnes, les connexions, la structure de la base de données ni ces paramètres."

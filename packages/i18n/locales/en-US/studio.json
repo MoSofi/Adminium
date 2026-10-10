@@ -2332,6 +2332,8 @@
       "deleteWhat": "Remove a row or a document. You confirm each one.",
       "rows": "Rows in one confirmation",
       "rowsHint": "1 to {max}",
+      "staffAddresses": "On your apps’ staff addresses",
+      "staffAddressesWhat": "Show {name}’s button on an app’s own staff screens, to the people whose role may use {name}. A customer side never has it.",
       "save": "Save",
       "saveFailed": "Could not save that. Try again.",
       "never": "{name} never changes permissions, people, connections, the database’s structure, or these settings."
