@@ -22,6 +22,26 @@ export interface ProviderClient {
     temperature: number; // always 0 for enrichment runs
   }): Promise<{ text: string; usage?: { inputTokens: number; outputTokens: number } }>;
   test(): Promise<{ ok: true; model: string; latencyMs: number }>; // 1-token ping
+  /**
+   * NOT in the doc's interface: added for speaking to the assistant. Turns
+   * one short recording into text. Present only on a client whose service
+   * transcribes (OpenAI, and OpenAI-compatible servers that offer the same
+   * route); absent on the others, which is how a caller knows.
+   */
+  transcribe?(req: TranscribeRequest): Promise<{ text: string }>;
+}
+
+/** One recording to turn into text. */
+export interface TranscribeRequest {
+  audio: Uint8Array;
+  /** The recording's type as the browser made it: `audio/webm` or `audio/mp4`. */
+  mime: string;
+  /** The language spoken, as two letters (`de`), when known: it makes short recordings far more accurate. */
+  language?: string;
+  /** The provider's transcription model; each client has its own default. */
+  model?: string;
+  /** Stops the call when the person's own request has gone away. */
+  signal?: AbortSignal;
 }
 
 // ─── Config + convenience aliases ────────────────────────────────────────────
