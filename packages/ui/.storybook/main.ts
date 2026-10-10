@@ -19,6 +19,8 @@ const config: StorybookConfig = {
     '../../../apps/dashboard/src/designer/**/*.stories.tsx',
     // The assistant's panel: a view fed by props, in the states the comp draws.
     '../../../apps/dashboard/src/assistant/**/*.stories.tsx',
+    // What the assistant drafts on Automations: its card is the builder's own preview.
+    '../../../apps/dashboard/src/automations/**/*.stories.tsx',
   ],
   addons: ['@storybook/addon-a11y'],
   async viteFinal(viteConfig) {

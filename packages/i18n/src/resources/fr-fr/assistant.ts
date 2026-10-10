@@ -45,7 +45,16 @@ export default {
     "placeholder": "Décrivez la règle dont vous avez besoin…",
     "readPage": "Règles d’automatisation · {rules, plural, one {# règle} other {# règles}} · {tables, plural, one {# table lisible} other {# tables lisibles}}",
     "scopePrimary": "automations",
-    "workTitle": "Nouvelle règle rédigée"
+    "workTitle": "Nouvelle règle rédigée",
+    "applied": "Appliqué à cette règle. Elle n’est pas encore enregistrée.",
+    "apply": "Appliquer à cette règle",
+    "handoff": "Ouvrez les modèles d’e-mail pour en rédiger un.",
+    "handoffSub": "Cette conversation vous suit.",
+    "handoffOpen": "Ouvrir les modèles d’e-mail",
+    "waiting": "En attente d’un modèle",
+    "savedOff": "Sera enregistrée désactivée",
+    "notSaved": "Rien n’est enregistré tant que vous n’enregistrez pas la règle.",
+    "workTitleChange": "Règle ouverte modifiée"
   },
   "button": "Demander à {name}",
   "buttonTitle": "Interroger {name} sur cette page",
@@ -275,6 +284,7 @@ export default {
     "value": "{n} jetons"
   },
   "try": "Essayer",
+  "tryFrom": "De {addOn}",
   "unavailable": {
     "askAdmin": "Demandez à un administrateur d’en configurer un.",
     "forbidden": "Vous n’avez pas la permission d’utiliser {name}.",
@@ -466,5 +476,9 @@ export default {
     "checkAgain": "Vérifier à nouveau",
     "undoFailed": "{count, plural, one {# modification n’a pas pu être annulée} other {# modifications n’ont pas pu être annulées}}. Réessayez.",
     "parkedNoHome": "Revenez à {page}, où cela a été demandé, pour l’utiliser."
+  },
+  "leftOut": {
+    "title": "Ce que j’ai laissé de côté, et pourquoi",
+    "nothing": "Rien."
   }
 } as const;

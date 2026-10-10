@@ -20,6 +20,7 @@
  * — which is the honest answer, not a degradation.
  */
 
+import type { AddOnInstalls } from '../apps/table-ref.js';
 import { assistantSessionsRepo, type MetaDb } from '@adminium/meta';
 import { ASSISTANT_INPUT_TOKEN_LIMIT, assistantStepEventMessage } from '@adminium/llm';
 import { z } from 'zod';
@@ -53,6 +54,8 @@ export interface AssistantTurnDeps {
   can: (userId: string | null, permission: string) => Promise<boolean>;
   /** The add-ons this server has and could have, for the tool that lists them and for checking a suggestion. */
   addOns?: (() => Promise<AssistantAddOn[]>) | undefined;
+  /** What is installed where: the steps add-ons give to a rule the assistant drafts. */
+  installs?: (() => Promise<AddOnInstalls>) | undefined;
   /** The output budget one provider reply may use. */
   maxTokens?: number | undefined;
   now?: (() => number) | undefined;
@@ -166,6 +169,7 @@ export async function executeAssistantTurn(
       userId: userId ?? null,
       can: (permission) => deps.can(userId ?? null, permission),
       ...(deps.addOns === undefined ? {} : { addOns: deps.addOns }),
+      ...(deps.installs === undefined ? {} : { installs: deps.installs }),
     });
   } catch (error) {
     await finish({

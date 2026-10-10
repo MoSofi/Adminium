@@ -208,6 +208,8 @@ export interface TurnResult {
   /** What the model added, in its own words. */
   modelDetails: { label: string; value: string }[];
   checks: string[];
+  /** What was asked and the draft does not do, each with why: the model's words, drawn as their own row. */
+  leftOut: { what: string; why: string }[];
   followups: string[];
   /** `connection.table` names this turn read. */
   sources: string[];
@@ -475,6 +477,7 @@ export async function runAssistantTurn(input: TurnRunInput): Promise<TurnOutcome
           details: input.document?.details(artefact) ?? [],
           modelDetails: [...(result.details ?? [])],
           checks: [...(result.checks ?? [])],
+          leftOut: [...(result.leftOut ?? [])],
           followups: [...(result.followups ?? [])],
           sources: [...sources],
           diff: {

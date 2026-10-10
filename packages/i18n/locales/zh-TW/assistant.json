@@ -35,7 +35,16 @@
     "placeholder": "描述你需要的規則…",
     "readPage": "自動化規則 · {rules, plural, other {# 條規則}} · {tables, plural, other {# 個可讀資料表}}",
     "scopePrimary": "automations",
-    "workTitle": "已起草新規則"
+    "workTitle": "已起草新規則",
+    "applied": "已套用到此規則，尚未儲存。",
+    "apply": "套用到此規則",
+    "handoff": "開啟郵件範本來草擬一個。",
+    "handoffSub": "此對話會隨你一起過去。",
+    "handoffOpen": "開啟郵件範本",
+    "waiting": "等待範本",
+    "savedOff": "將以關閉狀態儲存",
+    "notSaved": "在你儲存規則之前，不會儲存任何內容。",
+    "workTitleChange": "已修改開啟的規則"
   },
   "button": "詢問 {name}",
   "buttonTitle": "就此頁面詢問 {name}",
@@ -265,6 +274,7 @@
     "value": "{n} 權杖"
   },
   "try": "試試",
+  "tryFrom": "來自 {addOn}",
   "unavailable": {
     "askAdmin": "請請管理員設定一個。",
     "forbidden": "你沒有使用 {name} 的權限。",
@@ -456,5 +466,9 @@
     "checkAgain": "重新檢查",
     "undoFailed": "{count, plural, other {#}} 項變更未能收回。請重試。",
     "parkedNoHome": "請回到提出此問題的{page}以使用它。"
+  },
+  "leftOut": {
+    "title": "我省略了什麼，以及原因",
+    "nothing": "沒有。"
   }
 }

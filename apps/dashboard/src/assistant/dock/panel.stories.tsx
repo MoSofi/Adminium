@@ -195,6 +195,7 @@ const DRAFT = {
   details: [],
   modelDetails: [],
   checks: [],
+  leftOut: [],
   followups: [],
   sources: [],
   saved: null,

@@ -125,6 +125,44 @@ export function useDocumentEdits(actions: EditorActions, activeField: ActiveFiel
     [patchBlock],
   );
 
+  /** One text of a block, by where it is kept (`['paras', 1]`, `['text']`): a placeholder's backup, typed in its chip. */
+  const setBlockText = useCallback(
+    (id: string, path: readonly (string | number)[], value: string) =>
+      patchBlock(id, (block) => {
+        const [key, index] = path;
+        if (typeof key !== 'string') return block;
+        if (typeof index !== 'number') return { ...block, data: { ...block.data, [key]: value } };
+        const rows = [...rowsOf(block, key)];
+        if (index < 0 || index >= rows.length) return block;
+        rows[index] = value;
+        return withRows(block, key, rows);
+      }),
+    [patchBlock],
+  );
+
+  /** Ties a block to a variable (shown only when it has a value), or with `null` shows it always; its other words leave with the tie. */
+  const setBlockShowWhen = useCallback(
+    (id: string, name: string | null) =>
+      patchBlock(
+        id,
+        (block) => {
+          const { showWhen: _when, otherwise, ...rest } = block;
+          return name === null ? rest : { ...rest, showWhen: { var: name }, ...(otherwise === undefined ? {} : { otherwise }) };
+        },
+        true,
+      ),
+    [patchBlock],
+  );
+
+  const setBlockOtherwise = useCallback(
+    (id: string, text: string) =>
+      patchBlock(id, (block) => {
+        const { otherwise: _otherwise, ...rest } = block;
+        return text === '' ? rest : { ...rest, otherwise: text };
+      }),
+    [patchBlock],
+  );
+
   const setBlockStyle = useCallback(
     (id: string, patch: Partial<EmailBlockStyle>) => patchBlock(id, (block) => ({ ...block, style: { ...block.style, ...patch } }), true),
     [patchBlock],
@@ -228,6 +266,9 @@ export function useDocumentEdits(actions: EditorActions, activeField: ActiveFiel
     delBlockRow,
     moveBlockRow,
     setBlockStyle,
+    setBlockText,
+    setBlockShowWhen,
+    setBlockOtherwise,
     setSubject,
     setPreheader,
     setFooter,

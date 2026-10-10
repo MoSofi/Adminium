@@ -96,7 +96,9 @@
     "inBranch": "在分支 {label} 内",
     "actions": "动作",
     "logic": "逻辑",
-    "close": "关闭"
+    "close": "关闭",
+    "addOns": "来自附加组件",
+    "addOnStep": "{addOn}：{step}"
   },
   "pick": {
     "email": "发送邮件",
@@ -264,11 +266,20 @@
       "record": "来自此记录",
       "rule": "由规则填充",
       "mapped": "由此步骤填充",
+      "backup": "自带备用文字",
       "unfilled": "未填充",
       "fillWith": "{token} 的填充内容",
       "text": "一段文字",
       "textFor": "{token} 的文字"
-    }
+    },
+    "notAddress": "{column} 不是地址。请选择包含地址的列。",
+    "templatesOff": "{count, plural, other {#}} 个模板已关闭，未在此显示。",
+    "templatesOffLink": "打开邮件模板",
+    "findColumn": "查找列…",
+    "noColumn": "没有匹配的列。",
+    "addressColumns": "地址列",
+    "thisTable": "此表 · {table}",
+    "fromLink": "来自 {link} · {table}.{column}"
   },
   "notif": {
     "to": "发送给",
@@ -428,5 +439,24 @@
     "edited": "已由您更改",
     "copy": "编辑副本",
     "readOnly": "此规则随 {name} 提供。可在此处开启或关闭；要更改其行为，请编辑副本。"
+  },
+  "addOn": {
+    "gone": "附加组件 {name} 已不再安装。",
+    "goneNote": "此步骤会保留其设置。附加组件恢复后，步骤即可再次运行；在此之前无法开启该规则。",
+    "noRight": "你的角色不能为 {name} 添加行，因此你的规则无法使用此步骤。",
+    "optional": "{label}（可选）",
+    "choose": "请选择…",
+    "fillWith": "用以下内容填写“{label}”",
+    "fromColumn": "记录中的某一列",
+    "typedAddress": "手动输入的地址",
+    "typedNumber": "手动输入的数字",
+    "noRows": "附加组件的表不存在，无可选择。",
+    "findRow": "查找…",
+    "noRow": "没有匹配项。"
+  },
+  "assistant": {
+    "changed": "{name} 修改了此规则。",
+    "undo": "撤销 {name} 的修改",
+    "addedBy": "由 {name} 添加"
   }
 }

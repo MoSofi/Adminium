@@ -54,6 +54,8 @@ export interface StepDefinition {
   sub: string;
   desc: string;
   action?: Action | undefined;
+  /** For a step an add-on gives: the add-on's name, said before the step's. */
+  addOnName?: string | undefined;
 }
 
 export const EMPTY_CONDITION: Condition = { left: { field: '' }, op: 'is', right: '' };

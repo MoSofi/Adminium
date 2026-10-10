@@ -15,6 +15,8 @@
  * which `automations-routes.test.ts` pins from the other side.
  */
 
+import type { SourceStep } from '../api.js';
+import { isStepReady } from './addOnSteps.js';
 import { flatten, type Action, type Condition, type FlowNode, type Graph } from './graph.js';
 
 export function isConditionComplete(condition: Condition): boolean {
@@ -44,13 +46,19 @@ export function isActionComplete(action: Action): boolean {
       return action.url !== null && action.url.trim() !== '';
     case 'document.render':
       return action.profileId !== '';
+    case 'add-on.step':
+      // Which inputs it needs is the add-on's to say: `isNodeComplete` asks when it can.
+      return action.addOn !== '' && action.step !== '';
     default:
       // A step this build does not know is the server's to judge.
       return true;
   }
 }
 
-export function isNodeComplete(node: FlowNode): boolean {
+/** One step of an installed add-on, or null when it is not there: what `stepOf` answers. */
+export type StepFinder = (action: Extract<Action, { kind: 'add-on.step' }>) => SourceStep | null;
+
+export function isNodeComplete(node: FlowNode, findStep?: StepFinder): boolean {
   switch (node.kind) {
     case 'trigger':
     case 'stop':
@@ -60,11 +68,12 @@ export function isNodeComplete(node: FlowNode): boolean {
     case 'branch':
       return isConditionComplete(node.condition);
     case 'action':
+      if (node.action.kind === 'add-on.step' && findStep !== undefined) return isActionComplete(node.action) && isStepReady(node.action, findStep(node.action));
       return isActionComplete(node.action);
   }
 }
 
 /** The first step that is not finished, or null when the rule may run. */
-export function firstIncompleteNode(graph: Graph): FlowNode | null {
-  return flatten(graph).find((node) => !isNodeComplete(node)) ?? null;
+export function firstIncompleteNode(graph: Graph, findStep?: StepFinder): FlowNode | null {
+  return flatten(graph).find((node) => !isNodeComplete(node, findStep)) ?? null;
 }

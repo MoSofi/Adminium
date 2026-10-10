@@ -45,7 +45,16 @@ export default {
     "placeholder": "Beskriv den regel, du har brug for …",
     "readPage": "Automatiseringsregler · {rules, plural, one {# regel} other {# regler}} · {tables, plural, one {# læsbar tabel} other {# læsbare tabeller}}",
     "scopePrimary": "automations",
-    "workTitle": "Udkast til ny regel"
+    "workTitle": "Udkast til ny regel",
+    "applied": "Anvendt på denne regel. Den er ikke gemt endnu.",
+    "apply": "Anvend på denne regel",
+    "handoff": "Åbn E-mailskabeloner for at lave et udkast.",
+    "handoffSub": "Samtalen følger med dig.",
+    "handoffOpen": "Åbn E-mailskabeloner",
+    "waiting": "Venter på en skabelon",
+    "savedOff": "Gemmes slået fra",
+    "notSaved": "Intet gemmes, før du gemmer reglen.",
+    "workTitleChange": "Ændrede den åbne regel"
   },
   "button": "Spørg {name}",
   "buttonTitle": "Spørg {name} om denne side",
@@ -275,6 +284,7 @@ export default {
     "value": "{n} tokens"
   },
   "try": "Prøv",
+  "tryFrom": "Fra {addOn}",
   "unavailable": {
     "askAdmin": "Bed en administrator om at sætte en op.",
     "forbidden": "Du har ikke tilladelse til at bruge {name}.",
@@ -466,5 +476,9 @@ export default {
     "checkAgain": "Tjek igen",
     "undoFailed": "{count, plural, one {# ændring} other {# ændringer}} kunne ikke tages tilbage. Prøv igen.",
     "parkedNoHome": "Gå tilbage til {page}, hvor dette blev spurgt, for at bruge det."
+  },
+  "leftOut": {
+    "title": "Hvad jeg udelod, og hvorfor",
+    "nothing": "Intet."
   }
 } as const;

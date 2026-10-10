@@ -8,13 +8,15 @@
  * hidden until focused — so a keyboard selects a block the way a click does;
  * the *Add* pill is a real button that reveals on hover and on focus.
  */
-import { Plus } from 'lucide-react';
+import { EyeOff, Plus } from 'lucide-react';
+import { useMemo } from 'react';
 
 import { t } from '../../../i18n/t.js';
 import type { EmailBlockRecord } from '../../api.js';
 import type { EmailBlockDef } from '../../model/blocks.js';
 import { BlockPreview } from './blocks/index.js';
 import type { FileDto } from '../../../files/api.js';
+import { CanvasText, type TextPath } from './PlaceholderText.js';
 import { blockWrapperClasses } from './styles.js';
 
 export interface SectionSlotProps {
@@ -30,6 +32,11 @@ export interface SectionSlotProps {
   onInsertAbove: () => void;
   onHeadingChange: (text: string) => void;
   onHeadingFocus: () => void;
+  /** Drawn as a reader with no values meets it; with `otherwise`, these are the block's other words. */
+  missing?: 'as-written' | 'otherwise' | undefined;
+  /** Writes one text of the block back (a placeholder's backup). */
+  onText?: ((path: TextPath, value: string) => void) | undefined;
+  onTextEditStart?: (() => void) | undefined;
 }
 
 /** The comp's `.nb-sec` ring: faint on hover, the 13 % ring when selected. */
@@ -52,7 +59,37 @@ export function SelectButton({ label, onSelect }: { label: string; onSelect: () 
   );
 }
 
-export function SectionSlot({ block, def, label, index, selected, files, readOnly, onSelect, onInsertAbove, onHeadingChange, onHeadingFocus }: SectionSlotProps) {
+export function SectionSlot({ block, def, label, index, selected, files, readOnly, onSelect, onInsertAbove, onHeadingChange, onHeadingFocus, missing, onText, onTextEditStart }: SectionSlotProps) {
+  const scope = useMemo(() => ({ missing: missing !== undefined, onText, onEditStart: onTextEditStart }), [missing, onText, onTextEditStart]);
+  if (missing !== undefined) {
+    // What a reader with no values is sent: nothing here is operated, and a block saying its other words is marked as that.
+    return (
+      <div
+        role="group"
+        aria-label={label}
+        data-testid="email-block"
+        data-block-id={block.id}
+        data-kind={block.block}
+        data-otherwise={missing === 'otherwise' ? '' : undefined}
+        className="relative"
+      >
+        {/* The block keeps its own place; the mark is drawn inside it, round the words alone. */}
+        <div className={blockWrapperClasses(block.style, index === 0)}>
+          <div className={missing === 'otherwise' ? '-mx-3 rounded-[9px] px-3 py-2.5 outline-dashed outline-[1.5px] outline-[#e0a458]' : undefined}>
+            <CanvasText.Provider value={scope}>
+              <BlockPreview block={block} def={def} label={label} files={files} />
+            </CanvasText.Provider>
+            {missing === 'otherwise' ? (
+              <span className="mt-1.5 inline-flex items-center gap-[5px] rounded-md bg-[#fbf0e2] px-2 py-0.5 text-[10.5px] font-bold text-[#8a4806]">
+                <EyeOff className="size-[11px]" aria-hidden="true" />
+                {t('email:missing.otherwiseTag', 'Otherwise text')}
+              </span>
+            ) : null}
+          </div>
+        </div>
+      </div>
+    );
+  }
   if (readOnly === true) {
     return (
       <div role="group" aria-label={label} data-testid="email-block" data-block-id={block.id} data-kind={block.block} className="relative">
@@ -92,7 +129,9 @@ export function SectionSlot({ block, def, label, index, selected, files, readOnl
       >
         <SelectButton label={label} onSelect={onSelect} />
         <div className={blockWrapperClasses(block.style, index === 0)}>
-          <BlockPreview block={block} def={def} label={label} files={files} onHeadingChange={onHeadingChange} onHeadingFocus={onHeadingFocus} />
+          <CanvasText.Provider value={scope}>
+            <BlockPreview block={block} def={def} label={label} files={files} onHeadingChange={onHeadingChange} onHeadingFocus={onHeadingFocus} />
+          </CanvasText.Provider>
         </div>
       </div>
     </div>

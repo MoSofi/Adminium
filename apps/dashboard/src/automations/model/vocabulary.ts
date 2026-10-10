@@ -95,6 +95,8 @@ export function iconForNode(kind: NodeKind, action: Action | null): string {
       return action.bodyKind === 'slack' ? 'hash' : 'webhook';
     case 'document.render':
       return 'file-text';
+    case 'add-on.step':
+      return 'puzzle';
     default:
       // A step a newer server wrote: its kind's own icon, never a crash.
       return KIND_META[kind].icon;

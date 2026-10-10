@@ -106,7 +106,9 @@ export default {
     "inBranch": "داخل الفرع · {label}",
     "actions": "الإجراءات",
     "logic": "المنطق",
-    "close": "إغلاق"
+    "close": "إغلاق",
+    "addOns": "من الإضافات",
+    "addOnStep": "{addOn}: {step}"
   },
   "pick": {
     "email": "إرسال بريد إلكتروني",
@@ -274,11 +276,20 @@ export default {
       "record": "من هذا السجل",
       "rule": "تملؤه القاعدة",
       "mapped": "تملؤه هذه الخطوة",
+      "backup": "له نص بديل خاص به",
       "unfilled": "غير مملوء",
       "fillWith": "املأ {token} بـ",
       "text": "نص",
       "textFor": "نص {token}"
-    }
+    },
+    "notAddress": "{column} ليس عنوانًا. اختر عمودًا يحتوي عنوانًا.",
+    "templatesOff": "{count, plural, zero {لا قوالب متوقفة} one {قالب واحد متوقف وغير معروض} two {قالبان متوقفان وغير معروضين} few {# قوالب متوقفة وغير معروضة} many {# قالبًا متوقفًا وغير معروض} other {# قالب متوقف وغير معروض}}.",
+    "templatesOffLink": "افتح قوالب البريد",
+    "findColumn": "ابحث عن عمود…",
+    "noColumn": "لا عمود مطابق.",
+    "addressColumns": "أعمدة العناوين",
+    "thisTable": "هذا الجدول · {table}",
+    "fromLink": "عبر {link} · {table}.{column}"
   },
   "notif": {
     "to": "إرسال إلى",
@@ -438,5 +449,24 @@ export default {
     "edited": "غيّرتها أنت",
     "copy": "تعديل نسخة",
     "readOnly": "جاءت هذه القاعدة مع {name}. شغّلها أو أوقفها من هنا؛ ولتغيير ما تفعله، عدّل نسخة منها."
+  },
+  "addOn": {
+    "gone": "الإضافة {name} لم تعد مثبّتة.",
+    "goneNote": "تحتفظ الخطوة بإعداداتها. إذا عادت الإضافة عملت الخطوة من جديد؛ وحتى ذلك الحين لا يمكن تشغيل القاعدة.",
+    "noRight": "دورك لا يسمح بإضافة صفوف في {name}، لذا لا يمكن لقاعدة تخصّك استخدام هذه الخطوة.",
+    "optional": "{label} (اختياري)",
+    "choose": "اختر…",
+    "fillWith": "املأ «{label}» بـ",
+    "fromColumn": "عمود من السجل",
+    "typedAddress": "عنوان مكتوب",
+    "typedNumber": "رقم مكتوب",
+    "noRows": "جدول الإضافة غير موجود للاختيار منه.",
+    "findRow": "ابحث عن واحد…",
+    "noRow": "لا شيء مطابق."
+  },
+  "assistant": {
+    "changed": "{name} غيّر هذه القاعدة.",
+    "undo": "التراجع عن تغيير {name}",
+    "addedBy": "أضافه {name}"
   }
 } as const;

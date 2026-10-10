@@ -40,7 +40,6 @@ import {
   type MetaDb,
 } from '@adminium/meta';
 
-import { resolveEmailTemplate } from '../../email/builtins.js';
 import { createSmtpTransport, emailSecretKey, resolveSmtpConfig } from '../../email/config.js';
 import { deliverPrepared } from '../../email/deliver.js';
 import { renderEmail } from '../../email/render.js';
@@ -48,7 +47,9 @@ import { inlineRefs, prepareEmail } from '../../email/send.js';
 import { formatTag } from '../../i18n/bcp47.js';
 import { recipientLocale } from '../../i18n/server-i18n.js';
 import { resolveEmailParts } from '../../jobs/email-send.js';
-import { placeholders, valueForms } from '../../outbox/sender.js';
+import { valueForms } from '../../outbox/sender.js';
+import { parseRelated } from '../related.js';
+import { resolveRuleTemplate, templateRequiredPlaceholders } from '../templates.js';
 import { substitute, tokensFor, type TokenMap } from '../templating.js';
 import { ActionFailure, type ActionContext, type ActionResult } from './types.js';
 
@@ -62,6 +63,14 @@ export function recipientsFor(action: EmailAction, ctx: ActionContext): string[]
     return to.addresses.map((address) => address.trim()).filter((address) => address.length > 0);
   }
   if (ctx.source === null) return [];
+  // The address of a related row: the order's customer's, `customer_id.email`.
+  const related = parseRelated(to.column);
+  if (related !== null) {
+    const far = ctx.source.related?.get(related.link);
+    if (far === undefined) throw new ActionFailure(`${ctx.source.table.id} no longer links ${related.link} to another table, so this step has nobody to write to.`);
+    const address = far.row?.[related.column];
+    return address === null || address === undefined || String(address).trim() === '' ? [] : [String(address).trim()];
+  }
   // The address may live in a masked column — see the header.
   const value = ctx.source.row[to.column];
   const address = value === null || value === undefined ? '' : String(value).trim();
@@ -73,7 +82,7 @@ async function resolve(action: EmailAction, ctx: ActionContext) {
     throw new ActionFailure('This step has no template.');
   }
   const locale = await recipientLocale(ctx.meta, null);
-  const template = await resolveEmailTemplate(ctx.meta, action.templateKey, locale);
+  const template = await resolveRuleTemplate(ctx.meta, action.templateKey, locale);
   if (template === null) {
     // Present but archived or switched off is an operator decision, and
     // falling back to another template would send the wrong mail.
@@ -98,18 +107,8 @@ async function existsInAnyLocale(meta: MetaDb, key: string, locale: string): Pro
   return (await repo.findByKeyLocale(key, 'en_US')) !== null;
 }
 
-/**
- * Every placeholder a template reads, in the order it reads them. A
- * `{{row.*}}` is left out: it belongs to the rows a list block draws, and a
- * rule's email draws none.
- */
-export function templatePlaceholders(
-  template: Pick<EmailTemplate, 'subject' | 'preheader' | 'blocks' | 'footer'>,
-): string[] {
-  return [...placeholders([template.subject, template.preheader, template.blocks, template.footer])].filter(
-    (name) => !name.startsWith('row.'),
-  );
-}
+// Where a template's placeholders are read: beside what a template key means, which this step also asks.
+export { templatePlaceholders } from '../templates.js';
 
 /** What every rule's email can read whatever its record is. */
 export const RULE_EMAIL_VARS = ['now', 'ruleName', 'recordLabel', 'appName'] as const;
@@ -176,6 +175,7 @@ async function varsFor(action: EmailAction, ctx: ActionContext, locale: string):
           recordLabel: ctx.source.record.label,
           now: ctx.now,
           includeMasked: true,
+          related: ctx.source.related,
         });
   const read: Record<string, string> = { ...ctx.tokens, ...unmasked, ...(await formattedValues(ctx, locale)), appName };
   const mapped: Record<string, string> = {};
@@ -185,7 +185,7 @@ async function varsFor(action: EmailAction, ctx: ActionContext, locale: string):
 
 /** The placeholders of the template that this send leaves as written. */
 function unfilledIn(template: EmailTemplate, vars: Record<string, string>): string[] {
-  return templatePlaceholders(template).filter((name) => !Object.hasOwn(vars, name));
+  return templateRequiredPlaceholders(template, vars).filter((name) => !Object.hasOwn(vars, name));
 }
 
 /** `{{a}}, {{b}}` — at most five named, the rest counted. */

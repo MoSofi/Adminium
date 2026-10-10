@@ -4,16 +4,17 @@
  * for image kinds, the schema's fields, the rows editor, *Insert variable*,
  * the eight style axes, *Save as reusable block*, Duplicate / Remove.
  */
-import { Bookmark, Copy, ImagePlus, Trash2 } from 'lucide-react';
+import { Bookmark, Copy, CornerDownRight, ImagePlus, Trash2 } from 'lucide-react';
 import { useState } from 'react';
-import { Button, FormField, Input, Textarea } from '@adminium/ui';
+import { Button, FormField, Input, Select, Textarea } from '@adminium/ui';
 
 import { t } from '../../../../i18n/t.js';
 import type { EmailBlockRecord, EmailBlockStyle } from '../../../api.js';
 import type { EmailBlockDef } from '../../../model/blocks.js';
+import { OTHERWISE_BLOCKS, placeholderNames, placeholdersIn } from '../../../model/placeholders.js';
 import { blockLabel } from '../../blockText.js';
 import { fieldLabel } from '../fieldText.js';
-import { Divider } from '../parts.js';
+import { Divider, PanelLabel } from '../parts.js';
 import { RowsEditor, type RowValue } from '../RowsEditor.js';
 import { StyleOptions } from '../StyleOptions.js';
 import { VariablesBox } from '../VariablesBox.js';
@@ -31,6 +32,10 @@ export interface BlockPanelProps {
   onRemoveRow: (index: number) => void;
   onMoveRow: (from: number, to: number) => void;
   onInsertVar: (token: string) => void;
+  /** Ties the block to a variable, or with `null` shows it always. */
+  onShowWhen: (name: string | null) => void;
+  onOtherwise: (text: string) => void;
+  onFocusOtherwise: () => void;
   onStyle: (patch: Partial<EmailBlockStyle>) => void;
   onSaveBlock: (name: string) => Promise<void>;
   onDuplicate: () => void;
@@ -38,6 +43,32 @@ export interface BlockPanelProps {
   onChooseImage: () => void;
   /** The image picker is not built yet; until then the button is disabled. */
   imagePickerAvailable: boolean;
+}
+
+/**
+ * Under a field: what each of its placeholders writes when its value is
+ * missing (comp `Milo Automations` 7a, "If missing: there"). Said only of the
+ * ones that carry a backup; the chip on the canvas is where one is given.
+ */
+function backupLines(text: string): React.ReactNode | undefined {
+  const backed = placeholdersIn(text).filter((placeholder) => placeholder.backup !== undefined);
+  if (backed.length === 0) return undefined;
+  return (
+    <div data-testid="email-backup-lines" className="flex flex-col gap-1">
+      {backed.map((placeholder, index) => (
+        <div key={`${String(index)}:${placeholder.name}`} className="flex items-center gap-1.5 text-[11.5px] text-fg-muted">
+          <CornerDownRight className="size-3 shrink-0 text-fg-subtle rtl:-scale-x-100" aria-hidden="true" />
+          <span>
+            {backed.length > 1 ? <span className="me-1 font-mono text-[11px]">{placeholder.name}</span> : null}
+            {placeholder.backup === ''
+              ? t('email:missing.ifMissingNothing', 'If missing: nothing is written')
+              : t('email:missing.ifMissing', 'If missing:')}{' '}
+            {placeholder.backup === '' ? null : <span className="font-bold text-fg">{placeholder.backup}</span>}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 function fieldValue(data: Record<string, unknown>, key: string): string {
@@ -58,6 +89,9 @@ export function BlockPanel({
   onRemoveRow,
   onMoveRow,
   onInsertVar,
+  onShowWhen,
+  onOtherwise,
+  onFocusOtherwise,
   onStyle,
   onSaveBlock,
   onDuplicate,
@@ -68,6 +102,10 @@ export function BlockPanel({
   const [saving, setSaving] = useState<{ name: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const rows: readonly RowValue[] = def.rows === undefined ? [] : ((block.data[def.rows.field] as RowValue[] | undefined) ?? []);
+  // What the block can be tied to: the document's variables, what the block itself reads, and what it is tied to now.
+  const tiedTo = block.showWhen?.var ?? '';
+  const tieable = [...new Set([...vars, ...placeholderNames(block.data), ...(tiedTo === '' ? [] : [tiedTo])])];
+  const saysOtherwise = OTHERWISE_BLOCKS.includes(block.block);
 
   return (
     <div data-testid="email-block-panel" data-kind={block.block} className="flex flex-col gap-3.5">
@@ -77,7 +115,7 @@ export function BlockPanel({
         </Button>
       ) : null}
       {def.fields.map((field) => (
-        <FormField key={field.key} label={fieldLabel(field.label)}>
+        <FormField key={field.key} label={fieldLabel(field.label)} helper={backupLines(fieldValue(block.data, field.key))}>
           {field.kind === 'area' ? (
             <Textarea
               rows={4}
@@ -113,7 +151,33 @@ export function BlockPanel({
           onMove={onMoveRow}
         />
       )}
+      {def.rows?.plain === true ? backupLines(rows.filter((row): row is string => typeof row === 'string').join('\n')) : null}
       {def.vars ? <VariablesBox vars={vars} onInsert={onInsertVar} /> : null}
+      {tieable.length === 0 ? null : (
+        <>
+          <Divider />
+          <div data-testid="email-visibility" className="flex flex-col gap-3">
+            <PanelLabel className="mb-0">{t('email:missing.visibility', 'Visibility')}</PanelLabel>
+            <FormField label={t('email:missing.showWhen', 'Show this block only when')}>
+              <Select data-testid="email-show-when" value={tiedTo} onChange={(event) => onShowWhen(event.target.value === '' ? null : event.target.value)}>
+                <option value="">{t('email:missing.always', 'Always shown')}</option>
+                {tieable.map((name) => (
+                  <option key={name} value={name}>
+                    {t('email:missing.hasValue', '{name} has a value', { name })}
+                  </option>
+                ))}
+              </Select>
+            </FormField>
+            {tiedTo === '' ? null : saysOtherwise ? (
+              <FormField label={t('email:missing.otherwise', 'Otherwise show')} helper={t('email:missing.otherwiseHint', 'These words take the place of the whole block. Leave it empty to send nothing in its place.')}>
+                <Input data-testid="email-otherwise" value={block.otherwise ?? ''} onFocus={onFocusOtherwise} onChange={(event) => onOtherwise(event.target.value)} />
+              </FormField>
+            ) : (
+              <span className="text-[11.5px] text-fg-muted">{t('email:missing.leftOut', 'When it has none, this block is left out of the email.')}</span>
+            )}
+          </div>
+        </>
+      )}
       <Divider />
       <StyleOptions blockStyle={block.style} sized={def.sized} onChange={onStyle} />
       <Divider />

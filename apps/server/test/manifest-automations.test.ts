@@ -99,6 +99,41 @@ describe('the rules an add-on ships', () => {
     for (const rule of [low!, evening!]) expect(rule.contentHash).toBe(automationHashOf(rule));
   });
 
+  it('a rule may use a step the add-on itself gives: stored as written, by the add-on\'s key and the step\'s', async () => {
+    const LOCALES = ['ar-EG', 'cs-CZ', 'da-DK', 'de-DE', 'en-US', 'fr-FR', 'zh-CN', 'zh-TW'];
+    const words = (text: string): Doc => Object.fromEntries(LOCALES.map((locale) => [locale, text]));
+    const base = stockKitManifest() as Doc;
+    const doc: Doc = {
+      ...base,
+      compatibility: { ...(base['compatibility'] as Doc), minAdminiumVersion: '0.3.22' },
+      addOn: {
+        ...(base['addOn'] as Doc),
+        steps: [{ key: 'take', name: words('Take from stock'), does: words('Records a take of an item'), inputs: [{ key: 'item', label: words('Item'), kind: 'record', table: 'items', required: true }, { key: 'qty', label: words('How many'), kind: 'number', required: true }], writes: { table: 'takes', values: { item_id: { input: 'item' }, qty: { input: 'qty' } } } }],
+      },
+      automations: [
+        {
+          key: 'take-one',
+          name: 'Take one when the zone changes',
+          enabled: false,
+          trigger: { kind: 'record', event: 'updated', table: 'items', changedColumn: 'zone' },
+          graph: { version: 1, nodes: [node('t', 'trigger'), node('s', 'action', { action: { kind: 'add-on.step', addOn: 'stock-kit', step: 'take', inputs: { item: '{{record.id}}', qty: '1' } } })] },
+        },
+      ],
+    };
+    const reply = await installed(doc);
+    expect(reply.statusCode, reply.body).toBe(200);
+    const [rule] = await rulesOf();
+    expect((rule!.graph.nodes as Doc[])[1]!['action']).toMatchObject({ kind: 'add-on.step', addOn: 'stock-kit', step: 'take', inputs: { item: '{{record.id}}', qty: '1' } });
+    // A step it does not give is refused before anything is installed.
+    await h!.close();
+    h = null;
+    const wrong = structuredClone(doc) as Doc & { automations: { graph: { nodes: { action?: Doc }[] } }[] };
+    wrong.automations[0]!.graph.nodes[1]!.action!['step'] = 'give';
+    const refused = await installed(wrong);
+    expect(refused.statusCode).not.toBe(200);
+    expect(refused.body).toContain('is not one of this add-on');
+  });
+
   it('the install tells whoever keeps rules in memory that there are new ones', async () => {
     let told = 0;
     const reply = await installed(kit(), async (harness) => onMappingRulesChanged(harness.meta, () => void (told += 1)));

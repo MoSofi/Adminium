@@ -29,6 +29,8 @@
  * prefix is deliberately not one the project sync watches.
  */
 
+import { startersFor } from '../../assistant/add-on-notes.js';
+import type { AddOnInstalls } from '../../apps/table-ref.js';
 import type { AiConnections } from '../../llm/connections.js';
 import { estimateTokens } from '@adminium/llm';
 import {
@@ -103,6 +105,8 @@ export interface AssistantRoutesDeps {
   cancelJob?: ((jobId: string) => void) | undefined;
   /** The add-ons this server has and could have: the tool's list, and where a suggestion's card is drawn from. */
   addOns?: (() => Promise<AssistantAddOn[]>) | undefined;
+  /** What is installed where: a draft rule is checked against the steps add-ons give. */
+  installs?: (() => Promise<AddOnInstalls>) | undefined;
 }
 
 const USE_PERMISSION = 'system:assistant:use';
@@ -463,8 +467,10 @@ export function assistantRoutes(deps: AssistantRoutesDeps): FastifyPluginAsyncZo
           userId: requireUserId(request),
           can: (permission) => request.can(permission),
           ...(deps.addOns === undefined ? {} : { addOns: deps.addOns }),
+          ...(deps.installs === undefined ? {} : { installs: deps.installs }),
         });
-        return { facts: { values: setup.facts as never, scope: (await setup.adapter.pageFacts(setup.deps)).scope }, nextTurnTokens: estimateTokens(setup.system) };
+        // The questions an installed add-on offers on this page of its own: text for the panel, never for the prompt.
+        return { facts: { values: setup.facts as never, scope: (await setup.adapter.pageFacts(setup.deps)).scope }, nextTurnTokens: estimateTokens(setup.system), starters: await startersFor(setup.deps) };
       },
     );
 
@@ -684,6 +690,7 @@ export function assistantRoutes(deps: AssistantRoutesDeps): FastifyPluginAsyncZo
                 actor: { kind: 'user', id: userId, label: principal?.name ?? principal?.email ?? userId },
                 can: (permission) => request.can(permission),
                 ...(deps.secret === undefined ? {} : { secret: deps.secret }),
+                ...(deps.installs === undefined ? {} : { installs: deps.installs }),
                 logger: request.log,
                 now: () => app.rbac.now(),
               });
@@ -753,6 +760,7 @@ export function assistantRoutes(deps: AssistantRoutesDeps): FastifyPluginAsyncZo
           // else: there is no recipient field on this surface to abuse.
           ...(principal?.email === undefined ? {} : { to: principal.email }),
           ...(deps.secret === undefined ? {} : { secret: deps.secret }),
+          ...(deps.installs === undefined ? {} : { installs: deps.installs }),
           logger: request.log,
           now: () => app.rbac.now(),
         });

@@ -11,6 +11,14 @@ message is **failed**, and its error names the variable, so the template or the 
 `recipient.name` and `recipient.first_name` are always there, empty when the client has no name on
 file.
 
+A variable may say its own backup after a bar: `Dear {{recipient.first_name|guest}}` writes
+"guest" when the value is empty or nothing fills the name, and `{{…|}}` writes nothing. A name
+that carries a backup everywhere it is written is asked of nobody, so a message that reads only
+such names is never failed for them. A whole block can be tied to a value instead: beside
+`block` and `data` it takes `"showWhen": { "var": "stay.note" }`, and is sent only when that
+variable holds something; a text or heading block may add `"otherwise": "…"`, the words sent in
+its place. A value held back from this reader counts as missing for both.
+
 The code a shared link opens a row with, such as a handover link's, goes only to the person it
 belongs to: the message goes to the address their own row keeps (looked up, or typed exactly as it
 is stored), and the row with the code is theirs or links to them by the link that names them (a

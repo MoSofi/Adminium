@@ -45,7 +45,16 @@ export default {
     "placeholder": "Popiš pravidlo, které potřebuješ…",
     "readPage": "Pravidla automatizace · {rules, plural, one {# pravidlo} few {# pravidla} other {# pravidel}} · {tables, plural, one {# čitelná tabulka} few {# čitelné tabulky} other {# čitelných tabulek}}",
     "scopePrimary": "automations",
-    "workTitle": "Navrženo nové pravidlo"
+    "workTitle": "Navrženo nové pravidlo",
+    "applied": "Použito na toto pravidlo. Zatím není uloženo.",
+    "apply": "Použít na toto pravidlo",
+    "handoff": "Otevřete Šablony e-mailů a jednu navrhněte.",
+    "handoffSub": "Tato konverzace půjde s vámi.",
+    "handoffOpen": "Otevřít Šablony e-mailů",
+    "waiting": "Čeká na šablonu",
+    "savedOff": "Uloží se vypnuté",
+    "notSaved": "Nic se neuloží, dokud pravidlo neuložíte.",
+    "workTitleChange": "Změnil otevřené pravidlo"
   },
   "button": "Zeptat se {name}",
   "buttonTitle": "Zeptat se {name} na tuto stránku",
@@ -275,6 +284,7 @@ export default {
     "value": "{n} tokenů"
   },
   "try": "Vyzkoušej",
+  "tryFrom": "Z doplňku {addOn}",
   "unavailable": {
     "askAdmin": "Požádej správce, ať nějakého nastaví.",
     "forbidden": "Nemáš oprávnění používat {name}.",
@@ -466,5 +476,9 @@ export default {
     "checkAgain": "Zkontrolovat znovu",
     "undoFailed": "{count, plural, one {# změnu} few {# změny} other {# změn}} se nepodařilo vzít zpět. Zkuste to znovu.",
     "parkedNoHome": "Chcete-li to použít, vraťte se na {page}, kde byl dotaz položen."
+  },
+  "leftOut": {
+    "title": "Co jsem vynechal a proč",
+    "nothing": "Nic."
   }
 } as const;

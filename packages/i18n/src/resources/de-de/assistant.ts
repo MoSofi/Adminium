@@ -45,7 +45,16 @@ export default {
     "placeholder": "Beschreibe die Regel, die du brauchst …",
     "readPage": "Automatisierungsregeln · {rules, plural, one {# Regel} other {# Regeln}} · {tables, plural, one {# lesbare Tabelle} other {# lesbare Tabellen}}",
     "scopePrimary": "automations",
-    "workTitle": "Neue Regel entworfen"
+    "workTitle": "Neue Regel entworfen",
+    "applied": "Auf diese Regel angewendet. Sie ist noch nicht gespeichert.",
+    "apply": "Auf diese Regel anwenden",
+    "handoff": "Öffnen Sie die E-Mail-Vorlagen, um eine zu entwerfen.",
+    "handoffSub": "Diese Unterhaltung kommt mit.",
+    "handoffOpen": "E-Mail-Vorlagen öffnen",
+    "waiting": "Wartet auf eine Vorlage",
+    "savedOff": "Wird ausgeschaltet gespeichert",
+    "notSaved": "Nichts wird gespeichert, bis Sie die Regel speichern.",
+    "workTitleChange": "Geöffnete Regel geändert"
   },
   "button": "{name} fragen",
   "buttonTitle": "{name} zu dieser Seite fragen",
@@ -275,6 +284,7 @@ export default {
     "value": "{n} Tokens"
   },
   "try": "Ausprobieren",
+  "tryFrom": "Von {addOn}",
   "unavailable": {
     "askAdmin": "Bitte eine Administratorin oder einen Administrator, einen einzurichten.",
     "forbidden": "Du hast keine Berechtigung, {name} zu verwenden.",
@@ -466,5 +476,9 @@ export default {
     "checkAgain": "Erneut prüfen",
     "undoFailed": "{count, plural, one {# Änderung konnte} other {# Änderungen konnten}} nicht zurückgenommen werden. Versuch es noch einmal.",
     "parkedNoHome": "Geh zurück zu {page}, wo das gefragt wurde, um es zu nutzen."
+  },
+  "leftOut": {
+    "title": "Was ich ausgelassen habe und warum",
+    "nothing": "Nichts."
   }
 } as const;

@@ -880,5 +880,26 @@ export default {
     "kept": "Was Sie bereits bei uns haben, bleibt gültig, und die E-Mails, die Sie bereits haben, öffnen es weiterhin. Sie hören nicht mehr von uns, außer Sie kommen wieder.",
     "footer": "{appName}",
     "stopped": "Die Links in den E-Mails, die Sie bereits haben, funktionieren nicht mehr. Sie hören nicht mehr von uns, außer Sie kommen wieder."
+  },
+  "missing": {
+    "chip": "{name}: festlegen, was geschrieben wird, wenn der Wert fehlt",
+    "chipWith": "{name}: fehlt der Wert, wird „{backup}“ geschrieben",
+    "dialog": "Ersatztext für {name}",
+    "ask": "Wenn „{name}“ fehlt, schreiben:",
+    "preview": "Vorschau",
+    "otherwiseTag": "Andernfalls-Text",
+    "nothing": "In dieser E-Mail ändert sich nichts, wenn ein Wert fehlt. Geben Sie einem Platzhalter einen Ersatztext oder binden Sie einen Block an einen Wert.",
+    "showingOne": "So sieht die E-Mail für Empfänger ohne „{name}“ aus.",
+    "showingMany": "So sieht die E-Mail aus, wenn diese Werte fehlen: {names}.",
+    "switch": "Vorschau mit fehlenden Werten",
+    "ifMissing": "Wenn der Wert fehlt:",
+    "ifMissingNothing": "Wenn der Wert fehlt: es wird nichts geschrieben",
+    "visibility": "Sichtbarkeit",
+    "showWhen": "Diesen Block nur zeigen, wenn",
+    "always": "Immer sichtbar",
+    "hasValue": "{name} hat einen Wert",
+    "otherwise": "Andernfalls zeigen",
+    "otherwiseHint": "Diese Worte ersetzen den ganzen Block. Leer lassen, damit an seiner Stelle nichts gesendet wird.",
+    "leftOut": "Fehlt der Wert, wird dieser Block aus der E-Mail weggelassen."
   }
 } as const;

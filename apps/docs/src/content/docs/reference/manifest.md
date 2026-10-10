@@ -2620,6 +2620,18 @@ dropped block may stay empty, and the HTML and the plain text drop the same bloc
 that uses either sets `compatibility.minAdminiumVersion` to `0.3.18` or later. A template with
 such a block is sent by the outbox only, never by a rule the manifest [ships](#automations).
 
+#### A value that is missing
+
+A variable may carry a backup after a bar: `{{recipient.first_name|guest}}` writes "guest" when
+the value is missing or blank, and `{{recipient.first_name|}}` writes nothing. The backup is plain
+text with no braces. A name written with a backup everywhere need not be filled.
+
+A block may be tied to a value beside its `block` and `data`: `"showWhen": { "var": "stay.note" }`
+sends it only when that variable holds something, and on an `email.text` or `email.heading` block
+`"otherwise"` is the text sent in its place when it does not. Unlike `onlyWith`, both are read by
+the renderer itself, so a template that uses them may be sent by a rule too. A manifest that uses
+either sets `compatibility.minAdminiumVersion` to `0.3.22` or later.
+
 #### An add-on's links into an app
 
 An add-on has no customer side of its own. Its outbox may name routes of whichever app it serves:
@@ -3387,7 +3399,7 @@ that uses it sets `compatibility.minAdminiumVersion` to `0.3.18` or later.
 | `trigger` | `{ "kind": "record", "event", "table", "changedColumn"?, "when"? }` with `event` one of `created`, `updated`, `deleted`; or `{ "kind": "schedule", "schedule", "forEach"? }`. A schedule is `{ "kind": "interval", "everyMinutes" }` (`"5"`, `"10"`, `"15"`, `"30"`, `"60"`) or `daily`, `weekly` (with `dayOfWeek`, 0 = Sunday) or `monthly` (with `dayOfMonth`, 1–28) at a `time` such as `"17:00"`. `forEach` is `{ "table", "where", "once" }`: the rows a run visits. |
 | `graph` | `{ "version": 1, "nodes" }`: up to 40 steps with unique ids, the trigger first and only once. A step is a `trigger`, an `action`, a `condition`, a `wait` (up to 30 days), a `stop`, or a `branch` with two branches of up to 20 steps. |
 
-A step's action is one of four:
+A step's action is one of five:
 
 | `kind` | Keys | What it does |
 |---|---|---|
@@ -3395,6 +3407,7 @@ A step's action is one of four:
 | `email` | `templateKey`, `to: { "kind": "field", "column" }`, `vars`? | Sends one of the manifest's own templates to the address a column of the record holds. |
 | `record.create` | `table`, `values` | Adds a row of one of the manifest's tables. |
 | `record.update` | `values` | Writes columns of the record. |
+| `add-on.step` | `addOn`, `step`, `inputs` | Runs a [step an add-on gives](#steps-for-automations): the add-on's key, the step's key, and a text for each input. An add-on's own step is checked here; another add-on's is checked where the rule is installed, and fails by name while that add-on is not there. Needs `minAdminiumVersion` `0.3.22`. |
 
 A value is a text, which may carry `{{record.<column>}}`, or `{ "now": true }`.
 
@@ -3734,6 +3747,75 @@ that prices the same table, with `inAdjust`: `{ "excludes": "<column>" }` (a row
 column takes no reduction, as a gift-card load) or `{ "paidBy": "<column>" }` (a row that fills it
 is something sold that pays later, as a voucher). The column is one of the part's. The app's price
 rule then names it on its line (`excludes`, `paidBy`); a tool that adds the shape writes it there.
+
+### Steps for Automations
+
+`addOn.steps` gives the owner's rules up to 8 steps of the add-on's own. A step is a **named
+write of one row** of one of the add-on's tables: Adminium writes the row through the same door
+as a rule's own "create a record", so the table's column rules, its ledgers and the add-on's
+outbox do the rest. No code of the add-on runs in a rule.
+
+```json
+"steps": [{
+  "key": "issue-voucher",
+  "name": { "en-US": "Issue a voucher", "…": "…" },
+  "does": { "en-US": "Sends a voucher to one person", "…": "…" },
+  "inputs": [
+    { "key": "to", "kind": "email", "required": true, "label": { "en-US": "Send to", "…": "…" } },
+    { "key": "worth", "kind": "choice", "required": true, "label": { "…": "…" },
+      "options": [{ "value": "percent", "label": { "…": "…" } }] }
+  ],
+  "writes": { "table": "vouchers", "values": {
+    "holder_email": { "input": "to" }, "worth": { "input": "worth" },
+    "note": { "text": "From a rule" }, "issued_note_at": { "token": "now" } } }
+}]
+```
+
+| Field | Rule |
+|---|---|
+| `key` | Kebab-case, unique among the add-on's steps. A rule names the step by it. |
+| `name`, `does`, each `label` | A text in every one of the eight languages (60, 160 and 60 characters). |
+| `inputs` | Up to 8. `kind` is `text`, `email`, `number`, `choice` (with `options`) or `record` (with `table`: a row of one of the add-on's tables is picked, and its key is the value). `required` makes the rule unfinished until it is filled. |
+| `writes.table` | One of the add-on's own tables. |
+| `writes.values` | A column → `{ "input": key }`, `{ "text": "…" }` (plain text, no braces) or `{ "token": "now" \| "ruleName" \| "recordLabel" }`. |
+
+The validator refuses a step that could not run: a table or column that is not the add-on's, a
+column Adminium decides (its key, a `code`, `stamp`, `rollup`, `formula`… rule), an input no
+value reads, a column that must hold a value and that nothing fills, and such a column filled
+from an input that is not `required`. An input the rule leaves empty is left out of the row, so
+the column's own default or rule stands.
+
+What an owner fills an input with is text that may carry `{{record.<column>}}`. A personal column
+of the rule's record is read only for an input whose value goes **only** into columns the add-on
+marks `personal` itself; such a value is never written to a run's log.
+
+A manifest that gives steps sets `compatibility.minAdminiumVersion` to `0.3.22` or later.
+
+### What an add-on tells the assistant
+
+`addOn.assistant` is text, in two parts, and either may be left out:
+
+```json
+"assistant": {
+  "tables": {
+    "vouchers": { "is": "A single-use code issued to one person.", "columns": { "uses_left": "How many times it can still be used." } }
+  },
+  "questions": [
+    { "key": "unused", "text": { "en-US": "Which vouchers were never used?", "…": "…" } },
+    { "key": "batch", "page": "offers-voucher-batches", "text": { "…": "…" } }
+  ]
+}
+```
+
+| Part | Rule |
+|---|---|
+| `tables` | One of the add-on's own tables → `is`, one English line (200 characters) on what a row of it is, and `columns`, a line (160) for a column that needs one. The assistant is given them with the schema, as the add-on's words about its table, wherever it looks at that table. |
+| `questions` | Up to 8 questions a person might ask, in every one of the eight languages (120 characters). Shown as starters in the assistant's panel on the add-on's pages, under the add-on's name. With `page` (one of the add-on's page refs, generated or its own) a question is shown on that page only. |
+
+It names no tool, grants no read and switches nothing on. A reader who may not read a table is
+told nothing of it; the lines travel as data inside the schema tool's answer, never as
+instructions; and no other key is accepted. A manifest that uses it sets
+`compatibility.minAdminiumVersion` to `0.3.22` or later.
 
 ### Stock words
 

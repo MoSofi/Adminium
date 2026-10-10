@@ -468,8 +468,8 @@ for (const [dialect, available] of legs) {
       // A check that was still running when the confirm began cannot write its older copy over it.
       expect(await repo.recordAnswer(made.stored.id, { ...turnRow.answer, proposal: open })).toBe(false);
       expect(storedProposalOf((await repo.findTurn(made.stored.id))!.answer)).toMatchObject({ state: 'applying' });
-      // Old enough, it is ended.
-      expect(await endInterruptedProposals(repo, Date.now(), 0)).toBeGreaterThanOrEqual(1);
+      // Old enough, it is ended (a tick later: claimed and judged in one millisecond, it is not yet older).
+      expect(await endInterruptedProposals(repo, Date.now() + 1, 0)).toBeGreaterThanOrEqual(1);
       const ended = storedProposalOf((await repo.findTurn(made.stored.id))!.answer)!;
       expect(ended).toMatchObject({ state: 'interrupted', outcome: { done: [{ index: 0 }], unsure: [1], notTried: [2] } });
       // Ended once: a second start finds nothing left of it.

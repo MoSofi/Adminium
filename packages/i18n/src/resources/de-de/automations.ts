@@ -106,7 +106,9 @@ export default {
     "inBranch": "Im Zweig · {label}",
     "actions": "Aktionen",
     "logic": "Logik",
-    "close": "Schließen"
+    "close": "Schließen",
+    "addOns": "Aus Add-ons",
+    "addOnStep": "{addOn}: {step}"
   },
   "pick": {
     "email": "E-Mail senden",
@@ -274,11 +276,20 @@ export default {
       "record": "Aus diesem Datensatz",
       "rule": "Von der Regel gefüllt",
       "mapped": "Von diesem Schritt gefüllt",
+      "backup": "Hat eigenen Ersatztext",
       "unfilled": "Nicht gefüllt",
       "fillWith": "{token} füllen mit",
       "text": "Ein Text",
       "textFor": "Text für {token}"
-    }
+    },
+    "notAddress": "{column} ist keine Adresse. Wähle eine Spalte, die eine enthält.",
+    "templatesOff": "{count, plural, one {# Vorlage ist} other {# Vorlagen sind}} ausgeschaltet und wird hier nicht gezeigt.",
+    "templatesOffLink": "E-Mail-Vorlagen öffnen",
+    "findColumn": "Spalte suchen…",
+    "noColumn": "Keine Spalte passt.",
+    "addressColumns": "Adressspalten",
+    "thisTable": "Diese Tabelle · {table}",
+    "fromLink": "Über {link} · {table}.{column}"
   },
   "notif": {
     "to": "Senden an",
@@ -438,5 +449,24 @@ export default {
     "edited": "Von Ihnen geändert",
     "copy": "Kopie bearbeiten",
     "readOnly": "Diese Regel kam mit {name}. Schalten Sie sie hier ein oder aus; um zu ändern, was sie tut, bearbeiten Sie eine Kopie."
+  },
+  "addOn": {
+    "gone": "Das Add-on {name} ist nicht mehr installiert.",
+    "goneNote": "Der Schritt behält seine Einstellungen. Kommt das Add-on zurück, funktioniert der Schritt wieder; bis dahin lässt sich die Regel nicht einschalten.",
+    "noRight": "Ihre Rolle darf für {name} keine Zeilen anlegen, daher kann eine Ihrer Regeln diesen Schritt nicht verwenden.",
+    "optional": "{label} (optional)",
+    "choose": "Auswählen…",
+    "fillWith": "„{label}“ füllen mit",
+    "fromColumn": "Eine Spalte des Datensatzes",
+    "typedAddress": "Eine eingegebene Adresse",
+    "typedNumber": "Eine eingegebene Zahl",
+    "noRows": "Die Tabelle des Add-ons ist nicht vorhanden, es gibt nichts auszuwählen.",
+    "findRow": "Suchen…",
+    "noRow": "Keine Treffer."
+  },
+  "assistant": {
+    "changed": "{name} hat diese Regel geändert.",
+    "undo": "Änderung von {name} rückgängig machen",
+    "addedBy": "Von {name} hinzugefügt"
   }
 } as const;

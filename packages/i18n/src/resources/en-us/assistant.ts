@@ -45,7 +45,16 @@ export default {
     "placeholder": "Describe the rule you need…",
     "readPage": "Automation rules · {rules, plural, one {# rule} other {# rules}} · {tables, plural, one {# readable table} other {# readable tables}}",
     "scopePrimary": "automations",
-    "workTitle": "Drafted a new rule"
+    "workTitle": "Drafted a new rule",
+    "applied": "Applied to this rule. It is not saved yet.",
+    "apply": "Apply to this rule",
+    "handoff": "Open Email templates to draft one.",
+    "handoffSub": "This conversation comes with you.",
+    "handoffOpen": "Open Email templates",
+    "waiting": "Waiting for a template",
+    "savedOff": "Will be saved switched off",
+    "notSaved": "Nothing is saved until you save the rule.",
+    "workTitleChange": "Changed the open rule"
   },
   "button": "Ask {name}",
   "buttonTitle": "Ask {name} about this page",
@@ -275,6 +284,7 @@ export default {
     "value": "{n} tokens"
   },
   "try": "Try",
+  "tryFrom": "From {addOn}",
   "unavailable": {
     "askAdmin": "Ask an administrator to set one up.",
     "forbidden": "You do not have permission to use {name}.",
@@ -466,5 +476,9 @@ export default {
     "checkAgain": "Check again",
     "undoFailed": "{count, plural, one {# change} other {# changes}} could not be taken back. Try again.",
     "parkedNoHome": "Go back to {page}, where this was asked, to use it."
+  },
+  "leftOut": {
+    "title": "What I left out, and why",
+    "nothing": "Nothing."
   }
 } as const;

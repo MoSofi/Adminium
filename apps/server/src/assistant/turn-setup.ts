@@ -16,6 +16,7 @@
  * that exist, not with an exception.
  */
 
+import type { AddOnInstalls } from '../apps/table-ref.js';
 import {
   buildAssistantPrompt,
   estimateAssistantInputTokens,
@@ -46,6 +47,8 @@ export interface TurnSetupInput {
   can: (permission: string) => Promise<boolean>;
   /** The add-ons this server has and could have; see {@link AssistantToolDeps.addOns}. */
   addOns?: (() => Promise<AssistantAddOn[]>) | undefined;
+  /** What is installed where; see {@link AssistantToolDeps.installs}. */
+  installs?: (() => Promise<AddOnInstalls>) | undefined;
 }
 
 export interface TurnSetup {
@@ -107,6 +110,7 @@ export async function toolDepsFor(input: TurnSetupInput): Promise<AssistantToolD
     context: input.context,
     host: input.host,
     ...(input.addOns === undefined ? {} : { addOns: input.addOns }),
+    ...(input.installs === undefined ? {} : { installs: input.installs }),
   };
 }
 

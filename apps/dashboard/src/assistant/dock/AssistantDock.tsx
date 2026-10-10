@@ -105,8 +105,10 @@ function usePanelPage(): { page: PanelPage; shown: PageAssistantShown; view: Pag
   const route = useRouterState({
     select: (state) => {
       const match = state.matches.at(-1);
-      const appKey = (match?.params as { appKey?: unknown } | undefined)?.appKey;
-      return `${match?.routeId ?? ''}\n${typeof appKey === 'string' ? appKey : ''}`;
+      const params = (match?.params ?? {}) as { appKey?: unknown; key?: unknown; _splat?: unknown };
+      // One of an add-on's own screens (`/add-ons/<key>/<ref>`): which add-on, and which screen of it.
+      const addOn = match?.routeId === '/add-ons/$key/$' && typeof params.key === 'string' ? `${params.key}\n${typeof params._splat === 'string' ? params._splat : ''}` : '\n';
+      return `${match?.routeId ?? ''}\n${typeof params.appKey === 'string' ? params.appKey : ''}\n${addOn}`;
     },
   });
   return useMemo(() => {
@@ -117,8 +119,8 @@ function usePanelPage(): { page: PanelPage; shown: PageAssistantShown; view: Pag
         view: published.host.view,
       };
     }
-    const [routeId = '', app = ''] = route.split('\n');
-    const host: AssistantHostRef = { connectionIds: [], ...(routeId === '' ? {} : { route: routeId }), ...(app === '' ? {} : { app }) };
+    const [routeId = '', app = '', addOn = '', addOnPage = ''] = route.split('\n');
+    const host: AssistantHostRef = { connectionIds: [], ...(routeId === '' ? {} : { route: routeId }), ...(app === '' ? {} : { app }), ...(addOn === '' ? {} : { addOn, addOnPage }) };
     return { page: { context: 'general', host }, shown: {}, view: undefined };
   }, [published, route]);
 }
@@ -225,6 +227,12 @@ function proposalHome(turn: ThreadTurn, pages: unknown): DraftHome | null {
   }
   if (turn.context === 'general') return null;
   return draftHome(turn.context, turn.on.documentId);
+}
+
+/** Whether a turn's draft is a change to the rule that is open on the rules page: it names that rule as what it was built from. */
+function changesOpenRule(turn: { context: string; result: { basedOn: string | null } | null }, page: AssistantHostContext | null): boolean {
+  if (turn.context !== 'automation' || turn.result === null || turn.result.basedOn === null || page === null) return false;
+  return (page.host as { documentId?: string | undefined }).documentId === turn.result.basedOn;
 }
 
 export function AssistantDock({ visible, pages }: AssistantDockProps) {
@@ -500,6 +508,7 @@ export function AssistantDock({ visible, pages }: AssistantDockProps) {
               greeting={copy.greeting}
               greetingSub={copy.greetingSub}
               suggestions={copy.suggestions}
+              starters={conversation.starters}
               onPick={submit}
               disabled={blocked || working}
             />
@@ -512,7 +521,7 @@ export function AssistantDock({ visible, pages }: AssistantDockProps) {
               live={turn.id === turns.at(-1)?.id}
               liveSteps={conversation.liveSteps}
               answered={index < turns.length - 1}
-              workTitle={contextCopy(turn.context, {}, name).workTitle}
+              workTitle={changesOpenRule(turn, pageHost()) ? t('assistant:automation.workTitleChange', 'Changed the open rule') : contextCopy(turn.context, {}, name).workTitle}
               context={turn.context}
               name={name}
               canConfigure={canConfigure}
@@ -532,6 +541,9 @@ export function AssistantDock({ visible, pages }: AssistantDockProps) {
               onGo={() => conversation.answer(turn.id, picks[turn.id] ?? {}, askedPage)}
               onRetry={turn.askText === null ? null : () => submit(turn.askText ?? '')}
               renderProposal={(proposal, indent) => {
+                // A change to the rule that is open goes into the builder (the card's own "Apply to this rule").
+                // Offered beside it, "save as a new rule" would make a second rule of the same thing: not drawn.
+                if (changesOpenRule(turn, pageHost()) && proposal.actions.every((action) => action.do === 'doc.save')) return null;
                 const home = proposalHome(turn, pages);
                 const open = (): void => {
                   if (home === null) return;
@@ -579,6 +591,14 @@ export function AssistantDock({ visible, pages }: AssistantDockProps) {
                     loadWhole={conversation.loadWhole}
                     onOwnDialog={onOwnDialog}
                     onLeave={leave}
+                    onOpenAddOn={() => {
+                      if (floating) close();
+                      void navigate({ to: '/studio/add-ons' });
+                    }}
+                    // The panel stays open: the conversation goes to Email templates with the person.
+                    onOpenEmailTemplates={() => {
+                      void navigate({ to: '/email-templates' });
+                    }}
                   />
                 ) : (
                   <ParkedDraft

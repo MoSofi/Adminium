@@ -106,7 +106,9 @@ export default {
     "inBranch": "Do větve · {label}",
     "actions": "Akce",
     "logic": "Logika",
-    "close": "Zavřít"
+    "close": "Zavřít",
+    "addOns": "Z doplňků",
+    "addOnStep": "{addOn}: {step}"
   },
   "pick": {
     "email": "Odeslat e-mail",
@@ -274,11 +276,20 @@ export default {
       "record": "Z tohoto záznamu",
       "rule": "Vyplní pravidlo",
       "mapped": "Vyplní tento krok",
+      "backup": "Má vlastní náhradní text",
       "unfilled": "Nevyplněno",
       "fillWith": "Vyplnit {token} hodnotou",
       "text": "Text",
       "textFor": "Text pro {token}"
-    }
+    },
+    "notAddress": "{column} není adresa. Vyberte sloupec, který ji obsahuje.",
+    "templatesOff": "{count, plural, one {# šablona je vypnutá a není zobrazena} few {# šablony jsou vypnuté a nejsou zobrazeny} other {# šablon je vypnutých a není zobrazeno}}.",
+    "templatesOffLink": "Otevřít e-mailové šablony",
+    "findColumn": "Najít sloupec…",
+    "noColumn": "Žádný sloupec neodpovídá.",
+    "addressColumns": "Sloupce s adresami",
+    "thisTable": "Tato tabulka · {table}",
+    "fromLink": "Přes {link} · {table}.{column}"
   },
   "notif": {
     "to": "Odeslat komu",
@@ -438,5 +449,24 @@ export default {
     "edited": "Změněno vámi",
     "copy": "Upravit kopii",
     "readOnly": "Toto pravidlo přišlo s {name}. Zde jej zapnete nebo vypnete; chcete-li změnit, co dělá, upravte kopii."
+  },
+  "addOn": {
+    "gone": "Doplněk {name} už není nainstalován.",
+    "goneNote": "Krok si ponechá své nastavení. Když se doplněk vrátí, krok bude znovu fungovat; do té doby pravidlo nelze zapnout.",
+    "noRight": "Vaše role nesmí přidávat řádky pro {name}, takže vaše pravidlo tento krok použít nemůže.",
+    "optional": "{label} (volitelné)",
+    "choose": "Vyberte…",
+    "fillWith": "Vyplnit „{label}“ čím",
+    "fromColumn": "Sloupec záznamu",
+    "typedAddress": "Zadaná adresa",
+    "typedNumber": "Zadané číslo",
+    "noRows": "Tabulka doplňku tu není, není z čeho vybírat.",
+    "findRow": "Najít…",
+    "noRow": "Nic neodpovídá."
+  },
+  "assistant": {
+    "changed": "{name} změnil toto pravidlo.",
+    "undo": "Vrátit změnu, kterou provedl {name}",
+    "addedBy": "Přidal {name}"
   }
 } as const;

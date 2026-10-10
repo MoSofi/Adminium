@@ -106,7 +106,9 @@ export default {
     "inBranch": "Dans la branche · {label}",
     "actions": "Actions",
     "logic": "Logique",
-    "close": "Fermer"
+    "close": "Fermer",
+    "addOns": "Des modules",
+    "addOnStep": "{addOn} : {step}"
   },
   "pick": {
     "email": "Envoyer un e-mail",
@@ -274,11 +276,20 @@ export default {
       "record": "Depuis cet enregistrement",
       "rule": "Remplie par la règle",
       "mapped": "Remplie par cette étape",
+      "backup": "A son propre texte de secours",
       "unfilled": "Non remplie",
       "fillWith": "Remplir {token} avec",
       "text": "Un texte",
       "textFor": "Texte pour {token}"
-    }
+    },
+    "notAddress": "{column} n’est pas une adresse. Choisissez une colonne qui en contient une.",
+    "templatesOff": "{count, plural, one {# modèle est désactivé et n’est pas affiché} other {# modèles sont désactivés et ne sont pas affichés}}.",
+    "templatesOffLink": "Ouvrir les modèles d’e-mail",
+    "findColumn": "Rechercher une colonne…",
+    "noColumn": "Aucune colonne ne correspond.",
+    "addressColumns": "Colonnes d’adresse",
+    "thisTable": "Cette table · {table}",
+    "fromLink": "Via {link} · {table}.{column}"
   },
   "notif": {
     "to": "Envoyer à",
@@ -438,5 +449,24 @@ export default {
     "edited": "Modifiée par vous",
     "copy": "Modifier une copie",
     "readOnly": "Cette règle est fournie avec {name}. Activez-la ou désactivez-la ici ; pour changer ce qu'elle fait, modifiez une copie."
+  },
+  "addOn": {
+    "gone": "Le module {name} n’est plus installé.",
+    "goneNote": "L’étape garde ses réglages. Si le module revient, l’étape fonctionne à nouveau ; d’ici là, la règle ne peut pas être activée.",
+    "noRight": "Votre rôle ne peut pas ajouter de lignes pour {name} : une règle que vous créez ne peut donc pas utiliser cette étape.",
+    "optional": "{label} (facultatif)",
+    "choose": "Choisir…",
+    "fillWith": "Remplir « {label} » avec",
+    "fromColumn": "Une colonne de l’enregistrement",
+    "typedAddress": "Une adresse saisie",
+    "typedNumber": "Un nombre saisi",
+    "noRows": "La table du module n’est pas là : rien à choisir.",
+    "findRow": "Rechercher…",
+    "noRow": "Aucun résultat."
+  },
+  "assistant": {
+    "changed": "{name} a modifié cette règle.",
+    "undo": "Annuler la modification de {name}",
+    "addedBy": "Ajouté par {name}"
   }
 } as const;

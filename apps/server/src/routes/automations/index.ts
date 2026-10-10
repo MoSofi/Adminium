@@ -32,7 +32,6 @@ import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import {
   automationRunsRepo,
   automationsRepo,
-  emailTemplatesRepo,
   pagesRepo,
   rolesRepo,
   type Automation,
@@ -46,14 +45,18 @@ import type { ConnectionManager } from '../../connections/manager.js';
 import { AppError, ForbiddenError, NotFoundError, ValidationFailedError } from '../../errors.js';
 import { addressableTables, childTablesFor } from '../../connections/child-tables.js';
 import { loadSnapshotView } from '../../data-io/snapshot-view.js';
-import type { ResolvedTable } from '../../crud/identifiers.js';
+import type { ResolvedColumn, ResolvedTable, SnapshotView } from '../../crud/identifiers.js';
 import { pkLabel } from '../../crud/records.js';
 import type { Row } from '../../crud/mask.js';
 import { PERMISSIONS } from '../../rbac/permissions.js';
-import { templatePlaceholders } from '../../automations/actions/email.js';
 import { nextTickFor } from '../../automations/schedule.js';
 import { walkRule, type RunnerDeps } from '../../automations/runner.js';
-import { firstIncompleteNode, requiredGrants, resolveRule } from '../../automations/validate.js';
+import { isAddressColumn, relatedTargets } from '../../automations/related.js';
+import { readViewForUser } from '../../crud/read-view.js';
+import { liveTemplateKeySet, templateFamilies } from '../../automations/templates.js';
+import { findStep, stepLookupOf, stepsOn } from '../../automations/add-on-steps.js';
+import { firstIncompleteNode, holdsAddOnStep, isOwnTable, requiredGrants, resolveRule, ruleWarnings, type RuleSteps } from '../../automations/validate.js';
+import type { AddOnInstalls } from '../../apps/table-ref.js';
 import { automationHashOf } from '../../apps/manifest-automations.js';
 import { redactWebhookSecrets, sealWebhookSecrets } from '../../automations/webhook-secrets.js';
 import { watchColumnFor } from '../../automations/watch-columns.js';
@@ -86,6 +89,8 @@ export interface AutomationsRoutesDeps {
   blockLoopback?: boolean | undefined;
   /** Test seam for the dry run's transport and outbound HTTP. */
   runner?: Partial<RunnerDeps> | undefined;
+  /** What is installed where, read fresh: the steps add-ons give to a rule. Absent: none is offered or judged. */
+  installs?: (() => Promise<AddOnInstalls>) | undefined;
 }
 
 const THIRTY_DAYS = 30 * DAY_MS;
@@ -97,10 +102,43 @@ export function automationsRoutes(deps: AutomationsRoutesDeps): FastifyPluginAsy
   const rules = automationsRepo(meta);
   const runs = automationRunsRepo(meta);
 
-  /** Live template keys — an archived one may not be named by a step. */
-  async function liveTemplateKeys(): Promise<Set<string>> {
-    const rows = await emailTemplatesRepo(meta).list({ kind: 'template', archived: false });
-    return new Set(rows.filter((row) => row.enabled).map((row) => row.key));
+  /** The steps installed add-ons give on one database, as they stand now; undefined where nothing can be asked. */
+  async function stepsFor(connectionId: string | null): Promise<RuleSteps | undefined> {
+    if (deps.installs === undefined) return undefined;
+    if (connectionId === null) return () => ({ state: 'no-add-on' });
+    const installs = await deps.installs();
+    return (addOn, step) => findStep(installs, connectionId, addOn, step);
+  }
+
+  /** The one column a table's rows are told apart by, or null when it has none or several. */
+  function keyColumnOf(view: SnapshotView, tableId: string | null): string | null {
+    if (tableId === null) return null;
+    try {
+      const key = view.table(tableId).primaryKey;
+      return key.length === 1 ? (key[0] as string) : null;
+    } catch {
+      return null;
+    }
+  }
+
+  /** The view a rule is checked in when a person saves it: their own read of the schema, column limits included. */
+  async function authorViewFor(request: FastifyRequest, connectionId: string | null) {
+    const whole = await viewFor(connectionId);
+    const userId = request.user?.id;
+    return whole === null || userId === undefined ? whole : readViewForUser(meta, userId, whole);
+  }
+
+  /** The schema a rule's warnings are read from: never a reason to fail a read of the rule. */
+  function quietViews(): (connectionId: string | null) => Promise<Awaited<ReturnType<typeof viewFor>>> {
+    const seen = new Map<string, Promise<Awaited<ReturnType<typeof viewFor>>>>();
+    return (connectionId) => {
+      if (connectionId === null) return Promise.resolve(null);
+      const held = seen.get(connectionId);
+      if (held !== undefined) return held;
+      const loading = viewFor(connectionId).catch(() => null);
+      seen.set(connectionId, loading);
+      return loading;
+    };
   }
 
   async function viewFor(connectionId: string | null) {
@@ -127,9 +165,13 @@ export function automationsRoutes(deps: AutomationsRoutesDeps): FastifyPluginAsy
     return { name: typeof name === 'string' && name !== '' ? name : key, kind: row.kind === 'app' ? 'app' : 'add-on' };
   }
 
-  async function toView(rule: Automation, stats: Map<string, { runs: number; succeeded: number; failed: number }>): Promise<RuleView> {
+  async function toView(
+    rule: Automation,
+    stats: Map<string, { runs: number; succeeded: number; failed: number }>,
+    views: ReturnType<typeof quietViews> = quietViews(),
+  ): Promise<RuleView> {
     const owner = rule.managedBy === null || rule.templateKey === null ? null : await ownerOf(rule.managedBy);
-    const incomplete = firstIncompleteNode(rule.graph);
+    const incomplete = firstIncompleteNode(rule.graph, await stepsFor(rule.connectionId));
     const period = stats.get(rule.id) ?? { runs: 0, succeeded: 0, failed: 0 };
     const finished = period.succeeded + period.failed;
     return ruleViewSchema.parse({
@@ -145,6 +187,7 @@ export function automationsRoutes(deps: AutomationsRoutesDeps): FastifyPluginAsy
       nextRunAt: rule.nextRunAt,
       valid: incomplete === null,
       incompleteNodeId: incomplete?.id ?? null,
+      warnings: ruleWarnings(rule.trigger, rule.graph, await views(rule.connectionId)),
       stats: {
         runs30d: period.runs,
         successRate30d: finished === 0 ? null : period.succeeded / finished,
@@ -159,12 +202,42 @@ export function automationsRoutes(deps: AutomationsRoutesDeps): FastifyPluginAsy
     });
   }
 
+  /** One column as the builder is told of it. */
+  function columnOf(table: ResolvedTable, column: ResolvedColumn) {
+    return {
+      name: column.name,
+      label: table.table.columns.find((c) => c.name === column.name)?.label ?? column.name,
+      logicalType: column.logicalType,
+      isPk: column.isPrimaryKey,
+      pii: column.masked || column.secret,
+      emailLike: isAddressColumn(table, column.name),
+      dateLike: isDateColumn(column),
+    };
+  }
+
+  /** Where a table's links lead, for a step that reaches one hop: only tables the asker may read. */
+  async function linksOf(view: SnapshotView, table: ResolvedTable, connectionId: string, request: FastifyRequest) {
+    const out = [];
+    for (const { link, target } of relatedTargets(view, table)) {
+      if (isOwnTable(target.table) || !(await request.can(`table:${connectionId}:${target.table.id}:read`))) continue;
+      out.push({
+        column: link,
+        table: target.table.id,
+        label: target.table.table.label ?? target.table.name,
+        columns: [...target.table.columns.values()].filter((column) => !column.secret && column.unreadable !== true).map((column) => columnOf(target.table, column)),
+      });
+    }
+    return out;
+  }
+
   /** D2 — the SAVING USER must already hold every grant the rule will use. */
   async function assertAuthorGrants(
     request: FastifyRequest,
     rule: { trigger: Automation['trigger']; graph: Automation['graph']; connectionId: string | null },
   ): Promise<void> {
-    for (const { permission, table } of requiredGrants(rule.trigger, rule.graph, rule.connectionId)) {
+    // With the schema, so a table reached through a link counts: reading a related row is reading its table.
+    const view = await viewFor(rule.connectionId).catch(() => null);
+    for (const { permission, table } of requiredGrants(rule.trigger, rule.graph, rule.connectionId, view, await stepsFor(rule.connectionId))) {
       if (await request.can(permission)) continue;
       throw new ForbiddenError(
         `You do not have access to ${table}, so this rule cannot use it.`,
@@ -174,15 +247,20 @@ export function automationsRoutes(deps: AutomationsRoutesDeps): FastifyPluginAsy
     }
   }
 
-  async function validateOrThrow(input: {
-    trigger: Automation['trigger'];
-    graph: Automation['graph'];
-    connectionId: string | null;
-  }): Promise<void> {
+  async function validateOrThrow(
+    request: FastifyRequest,
+    input: {
+      trigger: Automation['trigger'];
+      graph: Automation['graph'];
+      connectionId: string | null;
+    },
+  ): Promise<void> {
     resolveRule(input.trigger, input.graph, {
-      view: await viewFor(input.connectionId),
-      templateKeys: await liveTemplateKeys(),
+      // As its author reads the schema: a rule names no column their role is not shown, its own or one a link leads to.
+      view: await authorViewFor(request, input.connectionId),
+      templateKeys: await liveTemplateKeySet(meta),
       blockLoopback: deps.blockLoopback ?? process.env['NODE_ENV'] === 'production',
+      steps: await stepsFor(input.connectionId),
     });
   }
 
@@ -210,7 +288,8 @@ export function automationsRoutes(deps: AutomationsRoutesDeps): FastifyPluginAsy
           request.query.connectionId === undefined ? {} : { connectionId: request.query.connectionId },
         );
         const stats = await runs.perRule(now() - THIRTY_DAYS);
-        return { rules: await Promise.all(rows.map((row) => toView(row, stats))) };
+        const views = quietViews();
+        return { rules: await Promise.all(rows.map((row) => toView(row, stats, views))) };
       },
     );
 
@@ -260,21 +339,31 @@ export function automationsRoutes(deps: AutomationsRoutesDeps): FastifyPluginAsy
                 created: watchColumnFor(resolved, 'created')?.column ?? null,
                 updated: watchColumnFor(resolved, 'updated')?.column ?? null,
               },
-              columns: [...resolved.columns.values()].map((column) => ({
-                name: column.name,
-                label:
-                  resolved.table.columns.find((c) => c.name === column.name)?.label ?? column.name,
-                logicalType: column.logicalType,
-                isPk: column.isPrimaryKey,
-                pii: column.masked || column.secret,
-                emailLike:
-                  resolved.table.columns.find((c) => c.name === column.name)?.semantics?.flags
-                    .pii === 'email',
-                dateLike: isDateColumn(column),
-              })),
+              columns: [...resolved.columns.values()].map((column) => columnOf(resolved, column)),
+              links: await linksOf(view, resolved, connection.id, request),
               // The picker seed — only edges a mapping can store.
               children: childTablesFor(view.model, resolved.id, offered),
               pageSlug: page?.slug ?? null,
+            });
+          }
+          const steps = [];
+          for (const installed of deps.installs === undefined ? [] : stepsOn(await deps.installs(), connection.id)) {
+            steps.push({
+              addOn: installed.addOn,
+              addOnName: installed.addOnName,
+              key: installed.step.key,
+              name: installed.step.name,
+              does: installed.step.does,
+              table: installed.table,
+              canCreate: installed.table !== null && (await request.can(`table:${connection.id}:${installed.table}:create`)),
+              inputs: installed.step.inputs.map((input) => ({
+                key: input.key,
+                label: input.label,
+                kind: input.kind,
+                required: input.required === true,
+                ...(input.options === undefined ? {} : { options: input.options }),
+                ...(input.table === undefined ? {} : { table: installed.inputTables[input.key] ?? null, tableKey: keyColumnOf(view, installed.inputTables[input.key] ?? null) }),
+              })),
             });
           }
           out.push({
@@ -283,20 +372,15 @@ export function automationsRoutes(deps: AutomationsRoutesDeps): FastifyPluginAsy
             dialect: connection.engine,
             timezone: connection.timezone ?? 'UTC',
             tables,
+            steps,
           });
         }
-        const templates = await emailTemplatesRepo(meta).list({ kind: 'template', archived: false });
+        const families = await templateFamilies(meta);
         const roles = await rolesRepo(meta).list();
         return {
           connections: out,
-          templates: templates
-            .filter((row) => row.enabled && row.locale === 'en_US')
-            .map((row) => ({
-              key: row.key,
-              name: row.name,
-              placeholders: templatePlaceholders(row),
-              ownedByApp: row.managedBy !== null,
-            })),
+          templates: families.live,
+          templatesOff: families.off,
           roles: roles.map((role) => ({ id: role.id, name: role.name })),
         };
       },
@@ -371,13 +455,13 @@ export function automationsRoutes(deps: AutomationsRoutesDeps): FastifyPluginAsy
       },
       async (request, reply) => {
         const body = request.body;
-        await validateOrThrow(body);
+        await validateOrThrow(request, body);
         await assertAuthorGrants(request, body);
         const at = now();
         // D12 — "Enable immediately" is honoured only when the rule is
         // complete; a rule whose action still needs a template is stored
         // paused, and the modal's success copy tells the truth.
-        const complete = firstIncompleteNode(body.graph) === null;
+        const complete = firstIncompleteNode(body.graph, await stepsFor(body.connectionId)) === null;
         const rule = await rules.create(
           {
             connectionId: body.connectionId,
@@ -423,12 +507,15 @@ export function automationsRoutes(deps: AutomationsRoutesDeps): FastifyPluginAsy
           graph: body.graph ?? rule.graph,
           connectionId: rule.connectionId,
         };
-        if (body.trigger !== undefined || body.graph !== undefined) {
-          await validateOrThrow(next);
+        // A step an add-on gives is judged only while its add-on is installed: a rule saved without it is
+        // judged when it is switched on, by whoever switches it on.
+        const switchedOn = body.enabled === true && !rule.enabled && holdsAddOnStep(next.graph);
+        if (body.trigger !== undefined || body.graph !== undefined || switchedOn) {
+          await validateOrThrow(request, next);
           await assertAuthorGrants(request, next);
         }
 
-        const incomplete = firstIncompleteNode(next.graph);
+        const incomplete = firstIncompleteNode(next.graph, await stepsFor(next.connectionId));
         if (body.enabled === true && incomplete !== null) {
           throw new AppError(
             422,
@@ -558,7 +645,7 @@ export function automationsRoutes(deps: AutomationsRoutesDeps): FastifyPluginAsy
         // the person is looking at, which is why it needs no save first.
         const trigger = request.body.trigger;
         const graph = request.body.graph;
-        await validateOrThrow({ trigger, graph, connectionId: rule.connectionId });
+        await validateOrThrow(request, { trigger, graph, connectionId: rule.connectionId });
         await assertAuthorGrants(request, { trigger, graph, connectionId: rule.connectionId });
 
         const at = now();
@@ -569,6 +656,7 @@ export function automationsRoutes(deps: AutomationsRoutesDeps): FastifyPluginAsy
             manager,
             secret: deps.secret,
             now,
+            ...(deps.installs === undefined ? {} : { steps: stepLookupOf(deps.installs) }),
             ...deps.runner,
             // No `app`: a dry run must not reach `afterRecordWrite` at all.
             app: undefined,

@@ -300,6 +300,8 @@ describe('the glyphs', () => {
     // code path can reach is weight a lazy chunk pays for nothing — and a
     // name a page CAN pass with no entry renders a hole. Both directions.
     const reachable = new Set<string>(ASSISTANT_STEP_ICONS);
+    // The questions an installed add-on offers on its pages (`Idle`).
+    reachable.add('puzzle');
     for (const context of ['email', 'invoice-template', 'invoices', 'report'] as const) {
       const copy = contextCopy(context, {}, 'Milo');
       reachable.add(copy.pageIcon);

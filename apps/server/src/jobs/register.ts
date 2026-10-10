@@ -146,6 +146,7 @@ export interface JobsAndRealtimeOptions {
         can: AssistantTurnDeps['can'];
         /** The add-ons this server has and could have: what `list_add_ons` answers and a suggestion is checked against. */
         addOns?: AssistantTurnDeps['addOns'];
+        installs?: AssistantTurnDeps['installs'];
       }
     | undefined;
   /** Worker tuning knobs. */
@@ -236,6 +237,7 @@ export async function registerJobsAndRealtime(
       // Not passed, the tool that lists add-ons would say "not available" for ever and no
       // suggestion would survive its check: a feature switched off by a missing argument.
       ...(opts.assistant.addOns === undefined ? {} : { addOns: opts.assistant.addOns }),
+      ...(opts.assistant.installs === undefined ? {} : { installs: opts.assistant.installs }),
     });
   }
   if (opts.dataIo !== undefined) {

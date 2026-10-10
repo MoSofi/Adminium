@@ -11,7 +11,7 @@
  *   pnpm --filter @adminium/i18n gen:a11y-keys
  */
 
-/** `namespace:key` — 2822 entries. */
+/** `namespace:key` — 2835 entries. */
 export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'addOns:failed.title',
   'addOns:noBundle.title',
@@ -38,6 +38,7 @@ export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'assistant:ask.picked',
   'assistant:automation.action1',
   'assistant:automation.action2',
+  'assistant:automation.apply',
   'assistant:automation.chip1',
   'assistant:automation.chip2',
   'assistant:automation.chip3',
@@ -136,14 +137,19 @@ export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'assistant:steps.readPage',
   'assistant:steps.working',
   'assistant:suggestion.openLabel',
+  'automations:addOn.fillWith',
+  'automations:addOn.findRow',
+  'automations:addOn.optional',
   'automations:canvas.insert',
   'automations:canvas.remove',
   'automations:card.toggle',
   'automations:delete.cancel',
   'automations:delete.confirm',
   'automations:delete.title',
+  'automations:email.addressColumns',
   'automations:email.addresses',
   'automations:email.column',
+  'automations:email.findColumn',
   'automations:email.ph.fillWith',
   'automations:email.ph.textFor',
   'automations:email.template',
@@ -213,6 +219,8 @@ export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'automations:pick.update',
   'automations:pick.webhook',
   'automations:picker.actions',
+  'automations:picker.addOnStep',
+  'automations:picker.addOns',
   'automations:picker.close',
   'automations:picker.logic',
   'automations:picker.title',
@@ -1087,6 +1095,11 @@ export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'email:loadFailed',
   'email:mirror.queued',
   'email:mirror.title',
+  'email:missing.chip',
+  'email:missing.chipWith',
+  'email:missing.dialog',
+  'email:missing.otherwise',
+  'email:missing.showWhen',
   'email:needsTranslation',
   'email:new.campaign',
   'email:new.failed',

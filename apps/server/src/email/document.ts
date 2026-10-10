@@ -26,6 +26,7 @@
  * holds the canvas and the renderer together reads it there.
  */
 
+import { OTHERWISE_BLOCKS, otherwiseOf, showWhenOf } from '@adminium/manifest';
 import { z } from 'zod';
 import {
   emailAttachmentsSchema,
@@ -74,6 +75,8 @@ export const emailDocumentSchema = z.object({
       block: z.string(),
       data: z.record(z.string(), z.unknown()),
       style: emailBlockStyleSchema,
+      showWhen: z.object({ var: z.string() }).optional(),
+      otherwise: z.string().optional(),
     }),
   ),
   footer: z.string(),
@@ -98,7 +101,23 @@ export function normalizeBlock(raw: Record<string, unknown>): EmailBlock {
     block: typeof raw['block'] === 'string' ? raw['block'] : '',
     data: isRecord(raw['data']) ? raw['data'] : {},
     style: style.success ? style.data : {},
+    ...condition(raw),
   };
+}
+
+/** The longest text a block shows in place of its own. */
+const OTHERWISE_MAX = 4000;
+
+/**
+ * A block's own condition, as stored: the variable it is shown for, and — on a
+ * block that is one text — the words it says otherwise. Anything else under
+ * those two names is dropped, like a style nobody recognises.
+ */
+function condition(raw: Record<string, unknown>): Pick<EmailBlock, 'showWhen' | 'otherwise'> {
+  const when = showWhenOf(raw);
+  if (when === null) return {};
+  const otherwise = OTHERWISE_BLOCKS.includes(String(raw['block'])) ? otherwiseOf(raw) : null;
+  return { showWhen: when, ...(otherwise === null ? {} : { otherwise: otherwise.slice(0, OTHERWISE_MAX) }) };
 }
 
 /** A row or a wire body → the one envelope shape (the read side). */
@@ -128,7 +147,7 @@ export function documentColumns(doc: EmailDocument): {
   return {
     subject: doc.subject,
     preheader: doc.preheader,
-    blocks: doc.blocks.map((b) => ({ id: b.id, block: b.block, data: b.data, style: b.style })),
+    blocks: doc.blocks.map((b) => ({ id: b.id, block: b.block, data: b.data, style: b.style, ...(b.showWhen === undefined ? {} : { showWhen: b.showWhen }), ...(b.otherwise === undefined ? {} : { otherwise: b.otherwise }) })),
     footer: doc.footer,
     brand: doc.brand,
     attachments: doc.attachments,

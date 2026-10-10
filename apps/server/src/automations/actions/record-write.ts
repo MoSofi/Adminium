@@ -58,7 +58,7 @@ type CreateAction = Extract<AutomationAction, { kind: 'record.create' }>;
 type UpdateAction = Extract<AutomationAction, { kind: 'record.update' }>;
 
 /** Adminium's own tables are never a rule's target (the existing guard). */
-function assertWritable(table: ResolvedTable): void {
+export function assertWritable(table: ResolvedTable): void {
   if (isOwnTable(table)) {
     throw new ActionFailure(`${table.id} is one of Adminium's own tables and cannot be written.`);
   }
@@ -71,7 +71,7 @@ function assertWritable(table: ResolvedTable): void {
  * `timestamp` takes the server-local wall clock, which is what the read side
  * hands back and therefore what an echo must write.
  */
-function nowValueFor(table: ResolvedTable, column: string, at: number): unknown {
+export function nowValueFor(table: ResolvedTable, column: string, at: number): unknown {
   const resolved = table.columns.get(column);
   const instant = new Date(at);
   if (resolved === undefined) return instant.toISOString();
@@ -134,7 +134,7 @@ async function asStep<T>(write: () => Promise<T>): Promise<T> {
   }
 }
 
-function sourceOf(ctx: ActionContext) {
+export function sourceOf(ctx: ActionContext) {
   if (ctx.source === null) {
     throw new ActionFailure('This step needs a record, and this run has none.');
   }
@@ -157,9 +157,19 @@ export async function runCreateAction(
   action: CreateAction,
   ctx: ActionContext,
 ): Promise<ActionResult> {
-  const source = sourceOf(ctx);
   const table = createTargetOf(action, ctx);
-  const values = resolveValues(action.values, table, ctx);
+  const created = await createRow(ctx, table, resolveValues(action.values, table, ctx));
+  return { log: ctx.text.createOk(created.label) };
+}
+
+/**
+ * One row, made the way a rule makes one: through the write service, as the
+ * rule, one hop deeper, announced so another rule may react. `values` are
+ * already what the columns take. The door of "create a record" and of a step
+ * an add-on gives: neither writes around it.
+ */
+export async function createRow(ctx: ActionContext, table: ResolvedTable, values: Row): Promise<RecordRef> {
+  const source = sourceOf(ctx);
   const target: WriteTarget = { ...source, table };
   const entityOf = (inserted: Row): RecordRef => {
     const pk = Object.fromEntries(table.primaryKey.map((c) => [c, inserted[c]]));
@@ -176,7 +186,7 @@ export async function runCreateAction(
         announce(ctx, { table, action: 'create', entity: entityOf(row), before: null, after: row }),
     }),
   );
-  return { log: ctx.text.createOk(entityOf(inserted).label) };
+  return entityOf(inserted);
 }
 
 export function dryRunCreateAction(action: CreateAction, ctx: ActionContext): ActionResult {

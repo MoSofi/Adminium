@@ -21,6 +21,7 @@ import {
   Bell,
   Check,
   ChevronDown,
+  CircleAlert,
   CircleCheckBig,
   CircleStop,
   CircleX,
@@ -38,6 +39,7 @@ import {
   Pencil,
   Play,
   Plus,
+  Puzzle,
   RefreshCw,
   SquarePlus,
   Timer,
@@ -67,6 +69,9 @@ export const AUTOMATION_ICONS: Readonly<Record<string, LucideIcon>> = {
   webhook: Webhook,
   hash: Hash,
   'file-text': FileText,
+  // a step an add-on gives, and the mark on one whose add-on is gone
+  puzzle: Puzzle,
+  'circle-alert': CircleAlert,
   // the two KPI strips (comp 199-200; Workflow Logs 189-195)
   workflow: Workflow,
   'circle-check-big': CircleCheckBig,

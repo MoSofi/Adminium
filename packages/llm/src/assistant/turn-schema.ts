@@ -58,6 +58,8 @@ export const ASSISTANT_MAX_ROUNDS = ASSISTANT_MAX_CALLS_PER_TURN + 2;
 export const ASSISTANT_MAX_CALLS_PER_REPLY = 8;
 /** Add-ons one reply may point the person at. */
 export const ASSISTANT_MAX_SUGGESTIONS = 3;
+/** The most parts of a request a draft may say it left out. */
+export const ASSISTANT_MAX_LEFT_OUT = 4;
 /** The longest add-on key a reply may name. */
 export const ASSISTANT_SUGGEST_KEY_MAX = 80;
 /** Rows one `read_rows` / `aggregate` call may return. */
@@ -155,6 +157,16 @@ export const assistantResultSchema = z.object({
   details: z.array(assistantDetailSchema).max(6).optional(),
   /** Checks the model says it made. Shown labelled as the model's own. */
   checks: z.array(z.string().max(120)).max(4).optional(),
+  /**
+   * What the person asked for that the draft does NOT do, each with why. A
+   * fixed part of the result, drawn as its own row: a draft that quietly does
+   * less than was asked reads as one that does all of it.
+   */
+  leftOut: z
+    .array(z.object({ what: z.string().min(1).max(120), why: z.string().min(1).max(200) }))
+    .max(ASSISTANT_MAX_LEFT_OUT)
+    .optional()
+    .describe('Every part of the request this draft does NOT do, each with why ("what": "The discount code", "why": "Nothing installed here can issue one."). Say it here, not only in "say". Leave it out when the draft does everything asked.'),
   /**
    * Shown as buttons; a click sends the text back AS THE PERSON'S NEXT
    * MESSAGE. So each one is written the way they would ask for it — the

@@ -31,7 +31,7 @@ that uses it sets `compatibility.minAdminiumVersion` to `0.3.18` or later.
 | `trigger` | `{ "kind": "record", "event", "table", "changedColumn"?, "when"? }` with `event` one of `created`, `updated`, `deleted`; or `{ "kind": "schedule", "schedule", "forEach"? }`. A schedule is `{ "kind": "interval", "everyMinutes" }` (`"5"`, `"10"`, `"15"`, `"30"`, `"60"`) or `daily`, `weekly` (with `dayOfWeek`, 0 = Sunday) or `monthly` (with `dayOfMonth`, 1–28) at a `time` such as `"17:00"`. `forEach` is `{ "table", "where", "once" }`: the rows a run visits. |
 | `graph` | `{ "version": 1, "nodes" }`: up to 40 steps with unique ids, the trigger first and only once. A step is a `trigger`, an `action`, a `condition`, a `wait` (up to 30 days), a `stop`, or a `branch` with two branches of up to 20 steps. |
 
-A step's action is one of four:
+A step's action is one of five:
 
 | `kind` | Keys | What it does |
 |---|---|---|
@@ -39,6 +39,7 @@ A step's action is one of four:
 | `email` | `templateKey`, `to: { "kind": "field", "column" }`, `vars`? | Sends one of the manifest's own templates to the address a column of the record holds. |
 | `record.create` | `table`, `values` | Adds a row of one of the manifest's tables. |
 | `record.update` | `values` | Writes columns of the record. |
+| `add-on.step` | `addOn`, `step`, `inputs` | Runs a [step an add-on gives](https://docs.adminium.dev/reference/manifest/#steps-for-automations): the add-on's key, the step's key, and a text for each input. An add-on's own step is checked here; another add-on's is checked where the rule is installed, and fails by name while that add-on is not there. Needs `minAdminiumVersion` `0.3.22`. |
 
 A value is a text, which may carry `{{record.<column>}}`, or `{ "now": true }`.
 

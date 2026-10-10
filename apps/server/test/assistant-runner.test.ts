@@ -92,6 +92,7 @@ describe('the turn loop', () => {
                 meta: 'template · 4 blocks',
                 artefact: { name: 'Welcome', body: 'hello' },
                 followups: ['Make it shorter'],
+                leftOut: [{ what: 'The coupon.', why: 'Nothing here can issue one.' }],
               },
             },
             'Here is a draft.',
@@ -139,6 +140,8 @@ describe('the turn loop', () => {
     expect(result?.details[0]).toEqual({ kind: 'formatEmail', args: { blocks: 4 } });
     expect(result?.modelDetails).toEqual([]);
     expect(result?.followups).toEqual(['Make it shorter']);
+    // What the draft does not do, in the model's words, as a part of the result of its own.
+    expect(result?.leftOut).toEqual([{ what: 'The coupon.', why: 'Nothing here can issue one.' }]);
     expect(result?.sources).toEqual(['conn_1.main.customers']);
 
     // Step events reach the channel as they happen: started, then done.

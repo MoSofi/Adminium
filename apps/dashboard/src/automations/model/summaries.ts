@@ -15,6 +15,8 @@
  * something generated.
  */
 
+import { columnOfInput } from './addOnSteps.js';
+import { holdsAddresses, knowsColumn } from './placeholders.js';
 import { t } from '../../i18n/t.js';
 import type { SourceTable } from '../api.js';
 import type { Action, Condition, FlowNode, Trigger } from './graph.js';
@@ -140,6 +142,11 @@ function actionSentence(action: Action, table: SourceTable | null): string {
     }
     case 'document.render':
       return t('automations:node.document.summary', 'Draws a document');
+    case 'add-on.step': {
+      // Where it goes, when the step is given a column of the record to send to: "→ customer_id → email".
+      const to = Object.values(action.inputs).map((value) => columnOfInput(value)).find((column) => column !== null && knowsColumn(table, column) && holdsAddresses(table, column) === true);
+      return to === undefined || to === null ? '' : `→ ${to.replace('.', ' → ')}`;
+    }
     default:
       // A step a newer server wrote: no sentence beats a crash.
       return '';

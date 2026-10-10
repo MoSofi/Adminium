@@ -1848,6 +1848,22 @@ export const automationActionSchema = z.discriminatedUnion('kind', [
     /** READ-ONLY: whether a value is stored — what a reply says in its place. */
     headerValueSet: z.boolean().optional(),
   }),
+  z.object({
+    /*
+     * A STEP AN ADD-ON GIVES (its manifest's `addOn.steps`): a named write of
+     * one row of one of the add-on's own tables. The rule keeps only the two
+     * keys and what fills each input; which row is written, and how, is read
+     * from the installed add-on at the save and again at every run, so an
+     * add-on that is updated or taken away is met as it is that day.
+     */
+    kind: z.literal('add-on.step'),
+    addOn: z.string().max(80).default(''),
+    step: z.string().max(80).default(''),
+    /** The add-on's name when the step was added: what the step says of itself once the add-on is gone. Never read to find anything. */
+    addOnName: z.string().max(120).default(''),
+    /** What fills each of the step's inputs: text, which may carry `{{record.<column>}}`. */
+    inputs: z.record(z.string().max(80), z.string().max(2000)).default({}),
+  }),
 ]);
 export type AutomationAction = z.infer<typeof automationActionSchema>;
 
@@ -2636,6 +2652,12 @@ export const assistantHostSchema = z.object({
    */
   route: z.string().optional(),
   app: z.string().optional(),
+  /**
+   * One of an add-on's own screens: the add-on's key and the screen's ref.
+   * Read to offer that add-on's starter questions there, and for nothing else.
+   */
+  addOn: z.string().optional(),
+  addOnPage: z.string().optional(),
 });
 export type AssistantHost = z.infer<typeof assistantHostSchema>;
 

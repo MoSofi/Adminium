@@ -33,7 +33,7 @@ import {
   type AssistantTurnVariant,
 } from './turn-schema.js';
 
-export const ASSISTANT_PROMPT_VERSION = 'adminium.assistant-prompt/v1.2';
+export const ASSISTANT_PROMPT_VERSION = 'adminium.assistant-prompt/v1.3';
 
 /** One read tool as the model is told about it. */
 export interface AssistantToolSpec {

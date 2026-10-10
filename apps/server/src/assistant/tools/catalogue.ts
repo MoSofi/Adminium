@@ -16,6 +16,7 @@ import { listAddOnsTool } from './add-ons.js';
 import { aggregateTool } from './aggregate.js';
 import { listDocumentsTool, listStartersTool, readDocumentTool } from './documents.js';
 import { readRowsTool, sampleRecordTool } from './rows.js';
+import { rulePartsTool } from './rule-parts.js';
 import { describeSchemaTool, listConnectionsTool } from './schema.js';
 import { emailVariablesTool, workspaceSettingsTool } from './settings.js';
 import { whereIsTool } from './where.js';
@@ -37,6 +38,7 @@ export const ASSISTANT_TOOLS: Readonly<Record<string, AssistantTool>> = Object.f
       sampleRecordTool,
       listAddOnsTool,
       whereIsTool,
+      rulePartsTool,
     ].map((tool) => [tool.name, tool]),
   ),
 );

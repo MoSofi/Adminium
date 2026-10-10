@@ -24,9 +24,10 @@ export const RULE_EMAIL_VARS: readonly string[] = ['now', 'ruleName', 'recordLab
 
 /**
  * `mapped` — the step says what fills it. `record` — a column of the record.
- * `rule` — one of {@link RULE_EMAIL_VARS}. `unfilled` — sent as written.
+ * `rule` — one of {@link RULE_EMAIL_VARS}. `backup` — nothing fills it, and
+ * the template says itself what to write then. `unfilled` — sent as written.
  */
-export type PlaceholderState = 'mapped' | 'record' | 'rule' | 'unfilled';
+export type PlaceholderState = 'mapped' | 'record' | 'rule' | 'backup' | 'unfilled';
 
 export interface PlaceholderRow {
   name: string;
@@ -35,12 +36,56 @@ export interface PlaceholderRow {
 
 const RECORD_PREFIX = 'record.';
 
-export function placeholderState(name: string, action: EmailAction, table: SourceTable | null): PlaceholderState {
+/** A column of the row a link points at, as a rule spells it and as a person reads it. */
+export interface LinkedColumn {
+  /** `customer_id.email` */
+  name: string;
+  /** The link's own label and the far column's: "Customer → Email". */
+  label: string;
+  emailLike: boolean;
+}
+
+/** Every column one hop away from a table, link by link, in the links' own order. */
+export function linkedColumns(table: SourceTable | null): { link: string; label: string; columns: LinkedColumn[] }[] {
+  return (table?.links ?? []).map((link) => {
+    const own = table?.columns.find((column) => column.name === link.column)?.label ?? link.column;
+    return {
+      link: link.column,
+      label: `${own} (${link.label})`,
+      columns: link.columns.map((column) => ({ name: `${link.column}.${column.name}`, label: `${own} → ${column.label}`, emailLike: column.emailLike })),
+    };
+  });
+}
+
+/** Whether a name is a column of the table, its own or one a link leads to. */
+export function knowsColumn(table: SourceTable | null, name: string): boolean {
+  if (table === null) return false;
+  if (table.columns.some((candidate) => candidate.name === name)) return true;
+  return linkedColumns(table).some((group) => group.columns.some((candidate) => candidate.name === name));
+}
+
+/**
+ * Whether a recipient column holds email addresses, by the schema's own
+ * reading. `null` when the name is not a column this table knows (nothing to
+ * say of it here: the save says so).
+ */
+export function holdsAddresses(table: SourceTable | null, name: string): boolean | null {
+  if (table === null || name === '') return null;
+  const own = table.columns.find((candidate) => candidate.name === name);
+  if (own !== undefined) return own.emailLike;
+  for (const group of linkedColumns(table)) {
+    const far = group.columns.find((candidate) => candidate.name === name);
+    if (far !== undefined) return far.emailLike;
+  }
+  return null;
+}
+
+export function placeholderState(name: string, action: EmailAction, table: SourceTable | null, backed: readonly string[] = []): PlaceholderState {
   if (action.vars !== undefined && Object.hasOwn(action.vars, name)) return 'mapped';
   if (RULE_EMAIL_VARS.includes(name)) return 'rule';
   const column = name.startsWith(RECORD_PREFIX) ? name.slice(RECORD_PREFIX.length) : name;
-  if (table?.columns.some((candidate) => candidate.name === column) === true) return 'record';
-  return 'unfilled';
+  if (knowsColumn(table, column)) return 'record';
+  return backed.includes(name) ? 'backup' : 'unfilled';
 }
 
 export function templateOf(sources: Sources | null, action: EmailAction): SourceTemplate | null {
@@ -54,7 +99,7 @@ export function placeholderRows(
   template: SourceTemplate | null,
   table: SourceTable | null,
 ): PlaceholderRow[] {
-  return (template?.placeholders ?? []).map((name) => ({ name, state: placeholderState(name, action, table) }));
+  return (template?.placeholders ?? []).map((name) => ({ name, state: placeholderState(name, action, table, template?.backed) }));
 }
 
 /** `{{record.status}}` → `status` when that is exactly a column of the table; else null. */
@@ -62,7 +107,7 @@ export function columnOfValue(value: string, table: SourceTable | null): string 
   const match = /^\{\{record\.([A-Za-z0-9_.-]+)\}\}$/.exec(value);
   const name = match?.[1];
   if (name === undefined) return null;
-  return table?.columns.some((candidate) => candidate.name === name) === true ? name : null;
+  return knowsColumn(table, name) ? name : null;
 }
 
 /** The step's `vars` without the entries a newly picked template does not read. */
