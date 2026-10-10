@@ -1,6 +1,6 @@
 <!doctype html>
 <!--
-  The splash page: the bundled logo, a spinner and the tokens from
+  The splash page: the bundled logo (it moves), a line of text and the tokens from
   @adminium/tokens, working with zero network.
 
   ─── THE OFFLINE CONTRACT ─────────────────────────────────────────────────
@@ -102,59 +102,83 @@
       }
 
       /*
-        The logo, as CSS. A mark drawn from a div and a pseudo-element cannot
+        The logo, inline: the Adminium mark (table rows stacked into a capital
+        A) on its forge tile, as the app's icon draws it. Inline markup cannot
         404, needs no img-src at load time, and adds no file that a packaging
-        change could drop — which for the page that proves the app launched is
-        worth more than fidelity to the full lockup.
+        change could drop. The tile's colour is the brand's, not a token: this
+        page is the app's own, shown before any workspace and its accent exist.
+
+        IT MOVES, and it is the only thing that does. The rows are laid from the
+        ground up, hold as the whole mark, and are laid again: a still square
+        read as "paused" (owner, Windows walk, 2026-10-10), and a mark being
+        built says both whose app this is and that it is working.
       */
       .mark {
-        width: 44px;
-        height: 44px;
-        border-radius: 12px;
-        background: var(--surface);
-        border: 1px solid var(--border);
+        width: 56px;
+        height: 56px;
+        border-radius: 14px;
+        background: #b03e00;
         display: grid;
         place-items: center;
         box-shadow: var(--shadow);
       }
 
-      .mark::after {
-        content: '';
-        width: 14px;
-        height: 14px;
-        border-radius: 4px;
-        background: var(--info);
+      .mark svg {
+        width: 36px;
+        height: 36px;
+        fill: #fff;
       }
 
-      .spinner {
-        width: 18px;
-        height: 18px;
-        border-radius: 50%;
-        border: 2px solid var(--border);
-        border-top-color: var(--fg-muted);
-        animation: spin 0.7s linear infinite;
+      .mark rect {
+        animation: lay 2s cubic-bezier(0.2, 0.7, 0.2, 1) infinite both;
       }
 
-      @keyframes spin {
-        to {
-          transform: rotate(360deg);
+      /* From the ground up: the two feet, the bar, the cap. */
+      .mark .row-1 {
+        animation-delay: 0s;
+      }
+      .mark .row-2 {
+        animation-delay: 0.12s;
+      }
+      .mark .row-3 {
+        animation-delay: 0.3s;
+      }
+      .mark .row-4 {
+        animation-delay: 0.48s;
+      }
+
+      @keyframes lay {
+        0% {
+          opacity: 0;
+          transform: translateY(5px);
+        }
+        22%,
+        72% {
+          opacity: 1;
+          transform: translateY(0);
+        }
+        92%,
+        100% {
+          opacity: 0;
+          transform: translateY(0);
         }
       }
 
       /*
         Vestibular safety, and not decorative here: this is the first thing the
         app ever renders, so it is the first chance it has to get this wrong. The
-        spinner still signals "working" — it pulses instead of rotating.
+        mark still signals "working": its rows stay where they are and breathe.
       */
       @media (prefers-reduced-motion: reduce) {
-        .spinner {
-          animation: pulse 1.4s ease-in-out infinite;
+        .mark rect {
+          animation: pulse 1.6s ease-in-out infinite;
+          animation-delay: 0s;
         }
       }
 
       @keyframes pulse {
         50% {
-          opacity: 0.35;
+          opacity: 0.4;
         }
       }
 
@@ -166,13 +190,19 @@
   </head>
   <body>
     <!--
-      role="status" on the text, aria-hidden on the spinner: a screen reader
+      role="status" on the text, aria-hidden on the drawing: a screen reader
       announces "Starting Adminium" once rather than describing an animation.
       There is nothing to focus and nothing to do, which is the whole message.
     -->
     <main aria-busy="true">
-      <div class="mark" role="img" aria-label="Adminium"></div>
-      <div class="spinner" aria-hidden="true"></div>
+      <div class="mark" aria-hidden="true">
+        <svg viewBox="0 0 32 32">
+          <rect class="row-1" x="3.5" y="21.4" width="10.5" height="5.6" rx="2.2" />
+          <rect class="row-2" x="18" y="21.4" width="10.5" height="5.6" rx="2.2" />
+          <rect class="row-3" x="7.5" y="13.2" width="17" height="5.6" rx="2.2" />
+          <rect class="row-4" x="11.5" y="5" width="9" height="5.6" rx="2.2" />
+        </svg>
+      </div>
       <p class="status" role="status">Starting Adminium…</p>
     </main>
   </body>
