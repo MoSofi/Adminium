@@ -113,6 +113,8 @@ export interface RelatedUse extends RelatedRef {
   as: 'recipient' | 'token';
   /** The kind of step it is in: a mail's values may read what other steps may not. */
   step: string;
+  /** For a step an add-on gives: the input the placeholder is written in. */
+  input?: string | undefined;
 }
 
 /**
@@ -130,11 +132,15 @@ export function relatedUses(graph: AutomationGraph): RelatedUse[] {
       const ref = parseRelated(action.to.column);
       if (ref !== null) out.push({ ...ref, nodeId: node.id, title: node.title, as: 'recipient', step: action.kind });
     }
-    const names = new Set<string>();
-    tokenNames(action, names);
-    for (const name of names) {
-      const ref = parseRelated(name.startsWith('record.') ? name.slice('record.'.length) : name);
-      if (ref !== null) out.push({ ...ref, nodeId: node.id, title: node.title, as: 'token', step: action.kind });
+    // A step an add-on gives is read input by input: what an input may read depends on what it is.
+    const parts: [string | undefined, unknown][] = action.kind === 'add-on.step' ? Object.entries(action.inputs) : [[undefined, action]];
+    for (const [input, part] of parts) {
+      const names = new Set<string>();
+      tokenNames(part, names);
+      for (const name of names) {
+        const ref = parseRelated(name.startsWith('record.') ? name.slice('record.'.length) : name);
+        if (ref !== null) out.push({ ...ref, nodeId: node.id, title: node.title, as: 'token', step: action.kind, ...(input === undefined ? {} : { input }) });
+      }
     }
   }
   return out;

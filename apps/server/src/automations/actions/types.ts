@@ -12,6 +12,7 @@
  * would pass a test the product then fails.
  */
 
+import type { StepLookup } from '../add-on-steps.js';
 import type { Kysely } from 'kysely';
 import type { FastifyInstance } from 'fastify';
 import type { Dialect } from '@adminium/engine';
@@ -66,6 +67,8 @@ export interface ActionContext {
   tokens: TokenMap;
   text: TraceText;
   /** `ADMINIUM_SECRET` — opens the SMTP password and a webhook's header value. */
+  /** The steps installed add-ons give, as they stand now (`add-on-steps.ts`). Absent: none can be found, and such a step fails saying so. */
+  steps?: StepLookup | undefined;
   secret: string;
   storage?: FileStore | undefined;
   hub?: NotificationPublisher | undefined;

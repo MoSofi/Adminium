@@ -21,6 +21,7 @@
  * can explain before it asks. This is the authority; that is the courtesy.
  */
 
+import { placeholdersIn } from '@adminium/manifest';
 import type {
   AutomationAction,
   AutomationCondition,
@@ -37,6 +38,7 @@ import { guardOutboundUrl } from '../connections/dsn.js';
 import { isConditionComplete } from './conditions.js';
 import { isDateColumn } from './relative-time.js';
 import { isSlackWebhookUrl } from './actions/webhook.js';
+import { personalInputs, type StepAnswer } from './add-on-steps.js';
 import { isAddressColumn, parseRelated, relatedTarget, relatedUses, type RelatedRef } from './related.js';
 
 /** Every node, branch children included, in walk order. */
@@ -51,8 +53,29 @@ export function flattenNodes(graph: AutomationGraph): AutomationNode[] {
   return out;
 }
 
-/** The first step that is not finished, or null when the rule may run (D12). */
-export function firstIncompleteNode(graph: AutomationGraph): AutomationNode | null {
+/** One step of an installed add-on, asked of the rule's own database (`add-on-steps.ts`). */
+export type RuleSteps = (addOn: string, step: string) => StepAnswer;
+
+/**
+ * Whether a step an add-on gives can run as it is set: its add-on is
+ * installed and on, it still gives the step, and every input the step needs
+ * is filled. With no way to ask (`steps` absent) only the two keys are judged.
+ */
+export function isAddOnStepReady(action: Extract<AutomationAction, { kind: 'add-on.step' }>, steps?: RuleSteps): boolean {
+  if (action.addOn === '' || action.step === '') return false;
+  if (steps === undefined) return true;
+  const answer = steps(action.addOn, action.step);
+  if (answer.state !== 'ok' || answer.step.table === null) return false;
+  return answer.step.step.inputs.every((input) => input.required !== true || (action.inputs[input.key] ?? '').trim() !== '');
+}
+
+/**
+ * The first step that is not finished, or null when the rule may run (D12).
+ * With `steps`, a step whose add-on is gone or off counts as unfinished: the
+ * rule keeps it and its settings, and cannot be switched on until the add-on
+ * is back or the step is taken out.
+ */
+export function firstIncompleteNode(graph: AutomationGraph, steps?: RuleSteps): AutomationNode | null {
   for (const node of flattenNodes(graph)) {
     switch (node.kind) {
       case 'trigger':
@@ -65,6 +88,7 @@ export function firstIncompleteNode(graph: AutomationGraph): AutomationNode | nu
         break;
       case 'action':
         if (!isActionComplete(node.action)) return node;
+        if (node.action.kind === 'add-on.step' && !isAddOnStepReady(node.action, steps)) return node;
         break;
     }
   }
@@ -86,6 +110,9 @@ export function isActionComplete(action: AutomationAction): boolean {
       return Object.keys(action.values).length > 0;
     case 'webhook':
       return action.url !== null && action.url.trim() !== '';
+    case 'add-on.step':
+      // Which inputs it needs is the add-on's to say: see `isAddOnStepReady`, which can ask.
+      return action.addOn !== '' && action.step !== '';
     case 'document.render':
       /*
        * The ONE field. Everything else about the document — the mapping, the
@@ -109,6 +136,8 @@ export interface ResolveContext {
   /** Live template keys — an archived one is not offerable. */
   templateKeys: ReadonlySet<string>;
   blockLoopback: boolean;
+  /** The steps installed add-ons give on the rule's database. Absent: a step of an add-on is judged by its keys alone. */
+  steps?: RuleSteps | undefined;
 }
 
 /**
@@ -319,6 +348,40 @@ function checkAction(
     }
     case 'notification':
       return;
+    case 'add-on.step': {
+      // Unfinished is allowed to be saved, and so is a step whose add-on is gone or off: the
+      // step keeps its settings, the rule cannot be switched on (`firstIncompleteNode`), and
+      // a run fails by name. What IS judged is a step that is there: what the rule gives it.
+      if (action.addOn === '' || action.step === '' || ctx.steps === undefined) return;
+      const answer = ctx.steps(action.addOn, action.step);
+      if (answer.state !== 'ok') return;
+      const { step, addOnName } = answer.step;
+      const name = step.name['en-US'];
+      if (table === null) {
+        throw new ValidationFailedError(`${where}: a schedule with no table to scan has no connection to write through. ${NO_RECORD_REMEDY}`, {});
+      }
+      for (const key of Object.keys(action.inputs)) {
+        if (!step.inputs.some((input) => input.key === key)) {
+          throw new ValidationFailedError(`${where}: “${name}” (${addOnName}) has no input ${key}. Its inputs are: ${step.inputs.map((input) => input.key).join(', ') || 'none'}.`, { addOn: action.addOn, step: action.step, input: key });
+        }
+      }
+      for (const input of step.inputs) {
+        const given = (action.inputs[input.key] ?? '').trim();
+        // With a placeholder in it, the value is this record's: the run judges it.
+        if (given === '' || placeholdersIn(given).length > 0) continue;
+        const label = input.label['en-US'];
+        if (input.kind === 'email' && !ADDRESS.test(given)) {
+          throw new ValidationFailedError(`${where}: “${given}” is not an email address (${label}).`, { input: input.key, reason: 'not-an-address' });
+        }
+        if (input.kind === 'number' && !Number.isFinite(Number(given))) {
+          throw new ValidationFailedError(`${where}: ${label} takes a number, and “${given}” is not one.`, { input: input.key });
+        }
+        if (input.kind === 'choice' && !(input.options ?? []).some((option) => option.value === given)) {
+          throw new ValidationFailedError(`${where}: ${label} is one of ${(input.options ?? []).map((option) => option.value).join(', ')}, and “${given}” is none of them.`, { input: input.key });
+        }
+      }
+      return;
+    }
   }
 }
 
@@ -425,12 +488,34 @@ export function resolveRule(
       const { column } = relatedColumn(table, use, ctx, where);
       // As for the record's own columns: a mail's values may carry a personal column (the mail
       // goes to that person), no other step may, and a secret is carried by nothing.
-      if (column.secret || (column.masked && use.step !== 'email')) {
+      if (column.secret || (column.masked && use.step !== 'email' && !mayReadPersonal(graph, use, ctx))) {
         throw new ValidationFailedError(`${where}: ${use.link}.${use.column} is a protected column and cannot be a placeholder.`, { column: `${use.link}.${use.column}` });
       }
     }
   }
   return table;
+}
+
+/**
+ * Whether a placeholder in a step an add-on gives may read a personal column:
+ * it sits in an input whose value goes only into columns the add-on itself
+ * keeps personal (`personalInputs`). A step that cannot be found is not judged
+ * here at all: it keeps its settings, cannot be switched on, and cannot run.
+ */
+function mayReadPersonal(graph: AutomationGraph, use: { nodeId: string; step: string; input?: string | undefined }, ctx: ResolveContext): boolean {
+  if (use.step !== 'add-on.step' || use.input === undefined) return false;
+  const node = flattenNodes(graph).find((candidate) => candidate.id === use.nodeId);
+  if (node?.kind !== 'action' || node.action.kind !== 'add-on.step') return false;
+  if (ctx.steps === undefined) return false;
+  const answer = ctx.steps(node.action.addOn, node.action.step);
+  if (answer.state !== 'ok' || answer.step.table === null) return true;
+  let table: ResolvedTable;
+  try {
+    table = tableOrThrow(ctx, answer.step.table, '');
+  } catch {
+    return true;
+  }
+  return personalInputs(answer.step.step, (column) => table.columns.get(column)?.masked === true).has(use.input);
 }
 
 /** Something a person should look at that does not stop the rule: drawn on the step, said at the save. */
@@ -475,6 +560,8 @@ export function requiredGrants(
   connectionId: string | null,
   /** The schema, to know which table a link leads to: reading a related row is reading its table. */
   view: SnapshotView | null = null,
+  /** The steps installed add-ons give: a step writes a row of its add-on's table, which its author must be allowed to. */
+  steps?: RuleSteps,
 ): { permission: string; table: string }[] {
   if (connectionId === null) return [];
   const wanted: { permission: string; table: string }[] = [];
@@ -499,6 +586,10 @@ export function requiredGrants(
       add(node.action.table, 'create');
     }
     if (node.action.kind === 'record.update' && subject !== null) add(subject, 'update');
+    if (node.action.kind === 'add-on.step' && steps !== undefined && node.action.addOn !== '' && node.action.step !== '') {
+      const answer = steps(node.action.addOn, node.action.step);
+      if (answer.state === 'ok' && answer.step.table !== null) add(answer.step.table, 'create');
+    }
   }
   if (view !== null && subject !== null) {
     let table: ResolvedTable | null = null;

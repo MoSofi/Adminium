@@ -165,6 +165,33 @@ const sourceTableSchema = z.object({
   pageSlug: z.string().nullable(),
 });
 
+/** A text in each of the product's languages, as an add-on's manifest carries it; the screen picks its own. */
+const everyLanguage = z.record(z.string(), z.string());
+
+/** A step an installed add-on gives to a rule on this database (`addOn.steps`). */
+const sourceStepSchema = z.object({
+  addOn: z.string(),
+  addOnName: z.string(),
+  key: z.string(),
+  name: everyLanguage,
+  does: everyLanguage,
+  /** The table its row is written to; null while the add-on's table is not there. */
+  table: z.string().nullable(),
+  /** Whether the person asking may create rows there: a rule of theirs can use the step only then. */
+  canCreate: z.boolean(),
+  inputs: z.array(
+    z.object({
+      key: z.string(),
+      label: everyLanguage,
+      kind: z.enum(['text', 'email', 'number', 'choice', 'record']),
+      required: z.boolean(),
+      options: z.array(z.object({ value: z.string(), label: everyLanguage })).optional(),
+      /** For `record`: the table a row is picked from; null while it is not there. */
+      table: z.string().nullable().optional(),
+    }),
+  ),
+});
+
 export const automationSourcesReply = z.object({
   connections: z.array(
     z.object({
@@ -173,6 +200,8 @@ export const automationSourcesReply = z.object({
       dialect: z.string(),
       timezone: z.string(),
       tables: z.array(sourceTableSchema),
+      /** The steps installed add-ons give here, add-on by add-on. */
+      steps: z.array(sourceStepSchema),
     }),
   ),
   /**

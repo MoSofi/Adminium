@@ -165,6 +165,7 @@ import {
 import { enqueueAppCatalogRefresh, registerAppAcquireHandlers } from './jobs/app-acquire.js';
 import { registerAddOnEventHandlers } from './jobs/add-on-events.js';
 import { registerJobsAndRealtime, type JobsAndRealtime } from './jobs/register.js';
+import { stepLookupOf } from './automations/add-on-steps.js';
 import { registerAutomationRunHandler } from './jobs/automation-run.js';
 import { automationsRoutes } from './routes/automations/index.js';
 import { automationRunsRoutes } from './routes/automations/runs.js';
@@ -1365,6 +1366,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     manager,
     app,
     writes: recordWrites,
+    // A step an add-on gives is read from the add-on as it is installed when the run walks.
+    steps: stepLookupOf(() => addOnInstalls.fresh()),
     secret: env.ADMINIUM_SECRET,
     storage,
     // The `document.render` step's way to the pipeline (D55). Without it a
@@ -1749,6 +1752,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           enqueue: (input: EnqueueJobInput) => jobs.enqueue(input),
           onRulesChanged: () => automations.matcher.onRulesChanged(),
           runner: { storage, hub: jobs.hub, writes: recordWrites },
+          // The steps installed add-ons give: offered in the builder, judged at the save, read again by a test run.
+          installs: () => addOnInstalls.fresh(),
         }),
       );
       await api.register(automationRunsRoutes({ meta }));

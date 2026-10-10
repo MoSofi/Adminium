@@ -64,6 +64,9 @@ export interface TraceText {
   createOk(label: string): string;
   updateOk(pairs: string): string;
   writeWould(pairs: string): string;
+  /** A step an add-on gives: its name, and the row it made. */
+  stepOk(name: string, label: string): string;
+  stepWould(name: string, pairs: string): string;
   hookOk(method: string, path: string, status: number, ms: number): string;
   hookFail(method: string, path: string, status: string): string;
   hookWould(method: string, url: string): string;
@@ -97,6 +100,8 @@ export const TRACE_EN: TraceText = {
   createOk: (label) => `created ${label}`,
   updateOk: (pairs) => `set ${pairs}`,
   writeWould: (pairs) => `Would set ${pairs}`,
+  stepOk: (name, label) => `${name}: created ${label}`,
+  stepWould: (name, pairs) => `Would run “${name}” with ${pairs}`,
   hookOk: (method, path, status, ms) => `${method} ${path} → ${String(status)} · ${String(ms)}ms`,
   hookFail: (method, path, status) => `${method} ${path} → ${status}`,
   docOk: (number) => `document drawn · ${number}`,

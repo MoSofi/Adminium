@@ -54,7 +54,9 @@ import { walkRule, type RunnerDeps } from '../../automations/runner.js';
 import { isAddressColumn, relatedTargets } from '../../automations/related.js';
 import { readViewForUser } from '../../crud/read-view.js';
 import { liveTemplateKeySet, templateFamilies } from '../../automations/templates.js';
-import { firstIncompleteNode, isOwnTable, requiredGrants, resolveRule, ruleWarnings } from '../../automations/validate.js';
+import { findStep, stepLookupOf, stepsOn } from '../../automations/add-on-steps.js';
+import { firstIncompleteNode, isOwnTable, requiredGrants, resolveRule, ruleWarnings, type RuleSteps } from '../../automations/validate.js';
+import type { AddOnInstalls } from '../../apps/table-ref.js';
 import { automationHashOf } from '../../apps/manifest-automations.js';
 import { redactWebhookSecrets, sealWebhookSecrets } from '../../automations/webhook-secrets.js';
 import { watchColumnFor } from '../../automations/watch-columns.js';
@@ -87,6 +89,8 @@ export interface AutomationsRoutesDeps {
   blockLoopback?: boolean | undefined;
   /** Test seam for the dry run's transport and outbound HTTP. */
   runner?: Partial<RunnerDeps> | undefined;
+  /** What is installed where, read fresh: the steps add-ons give to a rule. Absent: none is offered or judged. */
+  installs?: (() => Promise<AddOnInstalls>) | undefined;
 }
 
 const THIRTY_DAYS = 30 * DAY_MS;
@@ -97,6 +101,14 @@ export function automationsRoutes(deps: AutomationsRoutesDeps): FastifyPluginAsy
   const now = deps.now ?? Date.now;
   const rules = automationsRepo(meta);
   const runs = automationRunsRepo(meta);
+
+  /** The steps installed add-ons give on one database, as they stand now; undefined where nothing can be asked. */
+  async function stepsFor(connectionId: string | null): Promise<RuleSteps | undefined> {
+    if (deps.installs === undefined) return undefined;
+    if (connectionId === null) return () => ({ state: 'no-add-on' });
+    const installs = await deps.installs();
+    return (addOn, step) => findStep(installs, connectionId, addOn, step);
+  }
 
   /** The view a rule is checked in when a person saves it: their own read of the schema, column limits included. */
   async function authorViewFor(request: FastifyRequest, connectionId: string | null) {
@@ -148,7 +160,7 @@ export function automationsRoutes(deps: AutomationsRoutesDeps): FastifyPluginAsy
     views: ReturnType<typeof quietViews> = quietViews(),
   ): Promise<RuleView> {
     const owner = rule.managedBy === null || rule.templateKey === null ? null : await ownerOf(rule.managedBy);
-    const incomplete = firstIncompleteNode(rule.graph);
+    const incomplete = firstIncompleteNode(rule.graph, await stepsFor(rule.connectionId));
     const period = stats.get(rule.id) ?? { runs: 0, succeeded: 0, failed: 0 };
     const finished = period.succeeded + period.failed;
     return ruleViewSchema.parse({
@@ -214,7 +226,7 @@ export function automationsRoutes(deps: AutomationsRoutesDeps): FastifyPluginAsy
   ): Promise<void> {
     // With the schema, so a table reached through a link counts: reading a related row is reading its table.
     const view = await viewFor(rule.connectionId).catch(() => null);
-    for (const { permission, table } of requiredGrants(rule.trigger, rule.graph, rule.connectionId, view)) {
+    for (const { permission, table } of requiredGrants(rule.trigger, rule.graph, rule.connectionId, view, await stepsFor(rule.connectionId))) {
       if (await request.can(permission)) continue;
       throw new ForbiddenError(
         `You do not have access to ${table}, so this rule cannot use it.`,
@@ -237,6 +249,7 @@ export function automationsRoutes(deps: AutomationsRoutesDeps): FastifyPluginAsy
       view: await authorViewFor(request, input.connectionId),
       templateKeys: await liveTemplateKeySet(meta),
       blockLoopback: deps.blockLoopback ?? process.env['NODE_ENV'] === 'production',
+      steps: await stepsFor(input.connectionId),
     });
   }
 
@@ -322,12 +335,33 @@ export function automationsRoutes(deps: AutomationsRoutesDeps): FastifyPluginAsy
               pageSlug: page?.slug ?? null,
             });
           }
+          const steps = [];
+          for (const installed of deps.installs === undefined ? [] : stepsOn(await deps.installs(), connection.id)) {
+            steps.push({
+              addOn: installed.addOn,
+              addOnName: installed.addOnName,
+              key: installed.step.key,
+              name: installed.step.name,
+              does: installed.step.does,
+              table: installed.table,
+              canCreate: installed.table !== null && (await request.can(`table:${connection.id}:${installed.table}:create`)),
+              inputs: installed.step.inputs.map((input) => ({
+                key: input.key,
+                label: input.label,
+                kind: input.kind,
+                required: input.required === true,
+                ...(input.options === undefined ? {} : { options: input.options }),
+                ...(input.table === undefined ? {} : { table: installed.inputTables[input.key] ?? null }),
+              })),
+            });
+          }
           out.push({
             id: connection.id,
             name: connection.name,
             dialect: connection.engine,
             timezone: connection.timezone ?? 'UTC',
             tables,
+            steps,
           });
         }
         const families = await templateFamilies(meta);
@@ -416,7 +450,7 @@ export function automationsRoutes(deps: AutomationsRoutesDeps): FastifyPluginAsy
         // D12 — "Enable immediately" is honoured only when the rule is
         // complete; a rule whose action still needs a template is stored
         // paused, and the modal's success copy tells the truth.
-        const complete = firstIncompleteNode(body.graph) === null;
+        const complete = firstIncompleteNode(body.graph, await stepsFor(body.connectionId)) === null;
         const rule = await rules.create(
           {
             connectionId: body.connectionId,
@@ -467,7 +501,7 @@ export function automationsRoutes(deps: AutomationsRoutesDeps): FastifyPluginAsy
           await assertAuthorGrants(request, next);
         }
 
-        const incomplete = firstIncompleteNode(next.graph);
+        const incomplete = firstIncompleteNode(next.graph, await stepsFor(next.connectionId));
         if (body.enabled === true && incomplete !== null) {
           throw new AppError(
             422,
@@ -608,6 +642,7 @@ export function automationsRoutes(deps: AutomationsRoutesDeps): FastifyPluginAsy
             manager,
             secret: deps.secret,
             now,
+            ...(deps.installs === undefined ? {} : { steps: stepLookupOf(deps.installs) }),
             ...deps.runner,
             // No `app`: a dry run must not reach `afterRecordWrite` at all.
             app: undefined,
