@@ -81,7 +81,9 @@ export interface RbacPluginOptions {
 export const rbacPlugin = fp<RbacPluginOptions>(
   async (app, opts) => {
     const { meta } = opts;
-    const now = opts.now ?? Date.now;
+    // Read through `Date` each time, not held as the function it is at start-up: a test that
+    // walks the clock must walk the server's too, or the two disagree about what day it is.
+    const now = opts.now ?? ((): number => Date.now());
     const audit = auditRepo(meta);
     const apiKeys = apiKeysRepo(meta);
 
