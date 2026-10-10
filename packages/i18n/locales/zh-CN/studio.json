@@ -2337,6 +2337,18 @@
       "save": "保存",
       "saveFailed": "无法保存。请重试。",
       "never": "{name} 绝不会更改权限、人员、连接、数据库结构或这些设置。"
+    },
+    "voice": {
+      "title": "语音",
+      "speak": "对 {name} 说话",
+      "speakProvider": "一个人说的话会发送给您的 AI 提供商进行记录。不会保留任何内容。",
+      "speakBrowser": "您的 AI 提供商不记录语音，因此在可行时由每个人自己的浏览器来记录。不会保留任何内容。",
+      "minutes": "每人每天可口述的分钟数",
+      "minutesHint": "0 表示不限",
+      "save": "保存",
+      "saveFailed": "无法保存。请重试。",
+      "aloud": "{name} 朗读回复",
+      "aloudWhat": "使用浏览器自带的语音。每个人自行开启。"
     }
   },
   "settingsHub": {

@@ -2337,6 +2337,18 @@
       "save": "儲存",
       "saveFailed": "無法儲存。請再試一次。",
       "never": "{name} 絕不會變更權限、人員、連線、資料庫結構或這些設定。"
+    },
+    "voice": {
+      "title": "語音",
+      "speak": "對 {name} 說話",
+      "speakProvider": "一個人說的話會傳送給您的 AI 供應商進行記錄。不會保留任何內容。",
+      "speakBrowser": "您的 AI 供應商不記錄語音，因此在可行時由每個人自己的瀏覽器來記錄。不會保留任何內容。",
+      "minutes": "每人每天可口述的分鐘數",
+      "minutesHint": "0 表示不限",
+      "save": "儲存",
+      "saveFailed": "無法儲存。請再試一次。",
+      "aloud": "{name} 朗讀回覆",
+      "aloudWhat": "使用瀏覽器內建的語音。每個人自行開啟。"
     }
   },
   "settingsHub": {

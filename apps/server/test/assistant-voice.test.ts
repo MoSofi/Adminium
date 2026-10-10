@@ -109,10 +109,13 @@ describe('the workspace\'s choices', () => {
     const admin = await rolesRepo(t.meta).findBySlug('admin');
     await permissionsRepo(t.meta).grant(admin!.id, 'system', 'settings.manage', { allowed: true });
     const get = await t.app.inject({ method: 'GET', url: '/api/v1/assistant/settings', headers: asUser(t.users.admin) });
-    expect(get.json().voice).toEqual({ input: false, dailyMinutes: 30, output: true });
+    expect(get.json().voice).toEqual({ input: false, dailyMinutes: 30, output: true, writtenBy: 'provider' });
     const put = (voice: Record<string, unknown>) => t.app.inject({ method: 'PUT', url: '/api/v1/assistant/settings', headers: asUser(t.users.admin), payload: { voice } });
-    expect((await put({ input: true })).json().voice).toEqual({ input: true, dailyMinutes: 30, output: true });
-    expect((await put({ dailyMinutes: 5, output: false })).json().voice).toEqual({ input: true, dailyMinutes: 5, output: false });
+    expect((await put({ input: true })).json().voice).toMatchObject({ input: true, dailyMinutes: 30, output: true });
+    expect((await put({ dailyMinutes: 5, output: false })).json().voice).toMatchObject({ input: true, dailyMinutes: 5, output: false });
+    provider = 'anthropic';
+    expect((await t.app.inject({ method: 'GET', url: '/api/v1/assistant/settings', headers: asUser(t.users.admin) })).json().voice.writtenBy).toBe('browser');
+    provider = 'openai';
     const [entry] = await auditRepo(t.meta).list({ category: 'settings', limit: 1 });
     expect(entry).toMatchObject({ action: 'assistant.settings.update', changes: { before: { 'voice.dailyMinutes': 30, 'voice.output': true }, after: { 'voice.dailyMinutes': 5, 'voice.output': false } } });
     expect((await put({ dailyMinutes: 2_000 })).statusCode).toBe(422);

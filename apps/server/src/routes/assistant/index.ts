@@ -907,7 +907,15 @@ export function assistantRoutes(deps: AssistantRoutesDeps): FastifyPluginAsyncZo
         maxRows: await settings.get('assistant.maxRows'),
         maxRowsCeiling: ASSISTANT_MAX_ROWS_CEILING,
         staffAddresses: await settings.get('assistant.staffAddresses'),
-        voice: { input: await settings.get('assistant.voice.input'), dailyMinutes: await settings.get('assistant.voice.dailyMinutes'), output: await settings.get('assistant.voice.output') },
+        voice: {
+          input: await settings.get('assistant.voice.input'),
+          dailyMinutes: await settings.get('assistant.voice.dailyMinutes'),
+          output: await settings.get('assistant.voice.output'),
+          writtenBy: await (async () => {
+            const state = await providerState();
+            return voiceWay({ on: true, provider: state.provider, enabled: state.enabled }) === 'provider' ? ('provider' as const) : ('browser' as const);
+          })(),
+        },
         today: { day, resetsAt: assistantUseResetsAt(at), people },
         roles,
       };

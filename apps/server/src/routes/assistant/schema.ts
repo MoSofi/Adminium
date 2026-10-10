@@ -304,7 +304,13 @@ export const assistantSettingsReply = z.object({
   /** Whether the assistant's button is put on an app's own staff address, for people who may use the assistant. */
   staffAddresses: z.boolean(),
   /** Voice: whether people may speak to the assistant, the minutes a person may in a UTC day (0 = no limit), and whether replies may be read aloud. */
-  voice: z.object({ input: z.boolean(), dailyMinutes: z.number(), output: z.boolean() }),
+  voice: z.object({
+    input: z.boolean(),
+    dailyMinutes: z.number(),
+    output: z.boolean(),
+    /** Who would write a recording down here: the workspace's model service, or each person's own browser. */
+    writtenBy: z.enum(['provider', 'browser']),
+  }),
   today: z.object({
     /** The UTC day, `YYYY-MM-DD`. */
     day: z.string(),

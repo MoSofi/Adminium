@@ -2347,6 +2347,18 @@ export default {
       "save": "Speichern",
       "saveFailed": "Das konnte nicht gespeichert werden. Versuchen Sie es erneut.",
       "never": "{name} ändert niemals Berechtigungen, Personen, Verbindungen, die Struktur der Datenbank oder diese Einstellungen."
+    },
+    "voice": {
+      "title": "Stimme",
+      "speak": "Mit {name} sprechen",
+      "speakProvider": "Was eine Person sagt, wird zum Aufschreiben an Ihren KI-Anbieter gesendet. Nichts wird aufbewahrt.",
+      "speakBrowser": "Ihr KI-Anbieter schreibt keine Sprache auf, deshalb übernimmt das der Browser der jeweiligen Person, wo er es kann. Nichts wird aufbewahrt.",
+      "minutes": "Minuten, die eine Person pro Tag diktieren darf",
+      "minutesHint": "0 bedeutet keine Grenze",
+      "save": "Speichern",
+      "saveFailed": "Das konnte nicht gespeichert werden. Versuchen Sie es erneut.",
+      "aloud": "{name} liest Antworten vor",
+      "aloudWhat": "Verwendet die Stimmen des Browsers. Jede Person schaltet es für sich selbst ein."
     }
   },
   "settingsHub": {

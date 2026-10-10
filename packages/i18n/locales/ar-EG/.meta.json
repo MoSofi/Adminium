@@ -25967,6 +25967,46 @@
     "srcHash": "f2869a21b90e",
     "status": "mt"
   },
+  "studio.settingsAi.voice.aloud": {
+    "status": "mt",
+    "srcHash": "f56dc296648f"
+  },
+  "studio.settingsAi.voice.aloudWhat": {
+    "status": "mt",
+    "srcHash": "1e83a95d1946"
+  },
+  "studio.settingsAi.voice.minutes": {
+    "status": "mt",
+    "srcHash": "ae1a13e36b86"
+  },
+  "studio.settingsAi.voice.minutesHint": {
+    "status": "mt",
+    "srcHash": "53c715fcaa6c"
+  },
+  "studio.settingsAi.voice.save": {
+    "status": "mt",
+    "srcHash": "efc007a393f6"
+  },
+  "studio.settingsAi.voice.saveFailed": {
+    "status": "mt",
+    "srcHash": "848e72d4e660"
+  },
+  "studio.settingsAi.voice.speak": {
+    "status": "mt",
+    "srcHash": "ccc7fab294ff"
+  },
+  "studio.settingsAi.voice.speakBrowser": {
+    "status": "mt",
+    "srcHash": "41b38c8ec0f5"
+  },
+  "studio.settingsAi.voice.speakProvider": {
+    "status": "mt",
+    "srcHash": "fdc5cb5a9192"
+  },
+  "studio.settingsAi.voice.title": {
+    "status": "mt",
+    "srcHash": "3091c8446f8d"
+  },
   "studio.settingsHub.addOnsCard.body": {
     "status": "mt",
     "srcHash": "82617748538f"

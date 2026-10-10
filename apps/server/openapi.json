@@ -111910,12 +111910,20 @@
                         },
                         "output": {
                           "type": "boolean"
+                        },
+                        "writtenBy": {
+                          "type": "string",
+                          "enum": [
+                            "provider",
+                            "browser"
+                          ]
                         }
                       },
                       "required": [
                         "input",
                         "dailyMinutes",
-                        "output"
+                        "output",
+                        "writtenBy"
                       ],
                       "additionalProperties": false
                     },
@@ -112117,12 +112125,20 @@
                         },
                         "output": {
                           "type": "boolean"
+                        },
+                        "writtenBy": {
+                          "type": "string",
+                          "enum": [
+                            "provider",
+                            "browser"
+                          ]
                         }
                       },
                       "required": [
                         "input",
                         "dailyMinutes",
-                        "output"
+                        "output",
+                        "writtenBy"
                       ],
                       "additionalProperties": false
                     },
