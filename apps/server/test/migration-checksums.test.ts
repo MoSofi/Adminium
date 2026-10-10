@@ -50,6 +50,10 @@
  * read the same out of that tarball); cross-check it against the published
  * `@adminiumjs/adminium@0.3.18` once that is on npm.
  *
+ * 0052 to 0055 ship in 0.3.22. All four were read the same way: out of the
+ * built `dist` of the tree that was released (the file the tarball carries),
+ * hashed under plain node; 0050 and 0051 read the same out of it.
+ *
  * WHERE THE NEXT ROW COMES FROM. That package stops being published once the
  * CLI bundles its internal packages, so 0033 onwards cannot be pinned by the
  * command above — it will simply 404. The successor source is the flagship
@@ -225,6 +229,10 @@ const SHIPPED_CHECKSUMS: Readonly<Record<string, string>> = Object.freeze({
   '0049_project_apps': '14d25789b679c533d552234cf792903a7f34aaea0851b1c4c5327fb36f011194',
   '0050_catalog_default': 'b93ccceac71bff5e193600102cc81e94d32011edda02cfa4e2c48d6eb329729b',
   '0051_automation_ownership': 'ec5ebf0737187623e01b560151fbfa523860a04f1e843b0fe2a16acd04eedbea',
+  '0052_assistant_turn_page': 'ac8944175d772a4ba0c2cf5e194ad244a42580fb541bba359cd268055c0a115a',
+  '0053_assistant_use': 'c52380d7db579cf02afc2c5f985729e36db631912bd299dd9931eba82b31f0a4',
+  '0054_assistant_abilities': 'ae3cd6e5f7019491012a572bdb7e924a12d3099ce43e641951c7e34972568266',
+  '0055_assistant_proposal_claim': '3a040dd38610b5cc9cc88bf238b04d46fe4611a403f48b0e223980df7de2232b',
 });
 
 describe('shipped migration checksums', () => {
