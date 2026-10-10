@@ -131,6 +131,8 @@ export {
   type SlotCapacityRule,
 } from './capacity.js';
 
+export { stepsIssues, type StepTableShape } from './steps.js';
+
 export {
   OTHERWISE_BLOCKS,
   blocksShownFor,

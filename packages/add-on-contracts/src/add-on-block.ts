@@ -15,6 +15,7 @@ import { i18nMessageSchema, wordsByLanguageSchema } from './common.js';
 import { contractIdSchema, hasContractVersion } from './contracts.js';
 import { recordTabsSchema } from './record-tabs.js';
 import { slotIdSchema } from './slots.js';
+import { addOnStepsSchema } from './steps.js';
 import { BUILTIN_NAV_GROUP_KEYS, type BuiltinNavGroupKey } from './nav-groups.js';
 
 /**
@@ -323,6 +324,12 @@ export const addOnBlockSchema = z
      * manifest's own tables, so `@adminium/manifest` checks the whole of it.
      */
     lookUp: z.record(z.string(), z.unknown()).optional(),
+    /**
+     * Steps the add-on gives to Automations: each a named write of one row of
+     * one of its own tables (see `steps.ts`). Which table and columns they are
+     * is `@adminium/manifest`'s to check.
+     */
+    steps: addOnStepsSchema.optional(),
   })
   .strict()
   // A ref is a URL segment, so two pages sharing one is two screens at one

@@ -136,6 +136,18 @@ export const manifestActionSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('notification'), to: z.object({ roles: z.array(roleKey).min(1).max(20) }).strict(), title: localized(200), body: localized(2000).optional() }).strict(),
   z.object({ kind: z.literal('record.create'), table: refSchema, values }).strict(),
   z.object({ kind: z.literal('record.update'), values }).strict(),
+  /**
+   * A step an add-on gives (its `addOn.steps`): which add-on, which step, and
+   * what fills each of the step's inputs: text, which may carry `{{record.<column>}}`.
+   */
+  z
+    .object({
+      kind: z.literal('add-on.step'),
+      addOn: z.string().regex(/^[a-z][a-z0-9-]{1,39}$/, 'an add-on key'),
+      step: z.string().regex(/^[a-z][a-z0-9-]{0,39}$/, 'a step key'),
+      inputs: z.record(z.string().regex(/^[a-z][a-z0-9-]{0,39}$/), z.string().max(2000)).refine((value) => Object.keys(value).length <= 8, 'at most 8 inputs'),
+    })
+    .strict(),
 ]);
 export type ManifestAction = z.infer<typeof manifestActionSchema>;
 
@@ -263,6 +275,8 @@ export function automationIssues(m: {
   templates: readonly AutomationTemplateShape[];
   /** The columns Adminium decides beyond a column's own rule (a balance, what a posting fills), by table. */
   decided?: (table: string) => ReadonlySet<string>;
+  /** An add-on's own steps, when the manifest is one that gives any: a rule of its own that names one is checked against them. */
+  steps?: { addOn: string; steps: readonly { key: string; inputs: readonly { key: string; required?: boolean | undefined }[] }[] } | undefined;
 }): ReferenceIssue[] {
   const out: ReferenceIssue[] = [];
   const tables = new Map(m.tables.map((table) => [table.ref, table]));
@@ -386,6 +400,23 @@ export function automationIssues(m: {
             if (found !== undefined && (rule2 !== undefined || decided.has(ref))) {
               out.push({ path: here('values', ref), message: `"${record?.ref ?? ''}.${ref}" is decided by Adminium${rule2 === undefined ? '' : ` (its ${rule2} rule)`}: a rule cannot write it` });
             }
+          }
+          return;
+        }
+        if (action.kind === 'add-on.step') {
+          for (const [name, value] of Object.entries(action.inputs)) tokens(value, here('inputs', name));
+          // Another add-on's step is checked where the rule is installed: this manifest cannot see it.
+          if (m.steps === undefined || m.steps.addOn !== action.addOn) return;
+          const step = m.steps.steps.find((candidate) => candidate.key === action.step);
+          if (step === undefined) {
+            out.push({ path: here('step'), message: `"${action.step}" is not one of this add-on's steps` });
+            return;
+          }
+          for (const name of Object.keys(action.inputs)) {
+            if (!step.inputs.some((input) => input.key === name)) out.push({ path: here('inputs', name), message: `the step "${step.key}" has no input "${name}"` });
+          }
+          for (const input of step.inputs) {
+            if (input.required === true && (action.inputs[input.key] ?? '').trim() === '') out.push({ path: here('inputs'), message: `the step "${step.key}" needs its input "${input.key}"` });
           }
           return;
         }
