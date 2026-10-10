@@ -467,8 +467,23 @@ export type DesktopCreateProjectResult =
   | { readonly status: 'warned'; readonly warning: DesktopFolderWarning }
   | { readonly status: 'failed'; readonly detail: string };
 
+/** A screen shown on the way into a folder, which the person has read ("Continue"). */
+export type DesktopOpenStep = 'manager' | 'engine' | 'found' | 'accounts';
+
+/** What was found in a folder, or made for it, one line each. */
+export type DesktopFoundRow = 'data' | 'key' | 'no-data' | 'made-key-and-database' | 'made-database';
+
+/** People, API keys and public keys a folder brought with it: how many, and the first names of each. */
+export interface DesktopFolderAccounts {
+  readonly people: { readonly count: number; readonly names: readonly string[] };
+  readonly apiKeys: { readonly count: number; readonly names: readonly string[] };
+  readonly publicKeys: { readonly count: number; readonly names: readonly string[] };
+}
+
 export interface DesktopOpenProjectInput {
   readonly path: string;
+  /** The screens already shown and continued from, in this opening. */
+  readonly seen?: readonly DesktopOpenStep[] | undefined;
   /** The person answered "Open" to the question about running this folder's code. */
   readonly agreed?: boolean | undefined;
   /** Where the window lands once the project is up: the Designer (the default), or the project's dashboard. */
@@ -482,7 +497,32 @@ export type DesktopOpenProjectResult =
   | { readonly status: 'missing' }
   | { readonly status: 'not-a-project' }
   /** Agreed to, and what it is built with is not on this computer: ask, then call `getPackages`. */
-  | { readonly status: 'needs-packages'; readonly path: string; readonly displayPath: string };
+  | { readonly status: 'needs-packages'; readonly path: string; readonly displayPath: string }
+  /** A server already has this folder (a terminal's, or another window's). */
+  | { readonly status: 'running'; readonly path: string; readonly port: number; readonly by: 'cli' | 'desktop' }
+  /** Its data was last changed by a newer Adminium than this one: nothing is started. */
+  | { readonly status: 'needs-newer'; readonly path: string; readonly last: string | null; readonly here: string }
+  /** Its data is there and the key it was written with is not: ask (three answers), then `resolveKey`. */
+  | { readonly status: 'key-missing'; readonly path: string; readonly displayPath: string; readonly name: string; readonly dataBefore: string }
+  /** It was made with another package manager: said once. Call again with `seen: ['manager']`. */
+  | { readonly status: 'other-manager'; readonly path: string; readonly displayPath: string; readonly manager: string }
+  /** Its own code imports an older Adminium than the one that serves it: offer `updateProject`, or go on. */
+  | { readonly status: 'older-engine'; readonly path: string; readonly displayPath: string; readonly was: string; readonly here: string }
+  /** What was found in the folder or made for it. Call again with `seen` including `'found'`. */
+  | { readonly status: 'found'; readonly path: string; readonly displayPath: string; readonly name: string; readonly rows: readonly DesktopFoundRow[] }
+  /** It came with accounts made on another computer. Call again with `seen` including `'accounts'`. */
+  | { readonly status: 'accounts'; readonly path: string; readonly displayPath: string; readonly accounts: DesktopFolderAccounts };
+
+/** The answer to a missing key: the person's `.env` file (picked now), the data moved aside, or a new key over it. */
+export type DesktopResolveKeyResult =
+  | { readonly status: 'done' }
+  | { readonly status: 'cancelled' }
+  /** The picked file holds no key. */
+  | { readonly status: 'not-a-key-file' }
+  | { readonly status: 'trust-needed' }
+  | { readonly status: 'failed'; readonly detail: string };
+
+export type DesktopUpdateProjectResult = { readonly status: 'updated' } | { readonly status: 'trust-needed' } | { readonly status: 'failed'; readonly detail: string };
 
 /** `getPackages`: the packages were fetched and the project is opening, or why not. */
 export type DesktopGetPackagesResult =
@@ -530,6 +570,12 @@ export interface DesktopStartApi {
   openProject(input: DesktopOpenProjectInput): Promise<DesktopOpenProjectResult>;
   /** After `needs-packages` and a yes: fetch what the project is built with, then open it. Takes minutes on a slow line. */
   getPackages(input: { readonly path: string; readonly land?: 'designer' | 'dashboard' | undefined }): Promise<DesktopGetPackagesResult>;
+  /** After `key-missing`. `env` opens the system's file picker (`title` is its title). */
+  resolveKey(input: { readonly path: string; readonly answer: 'env' | 'fresh' | 'new'; readonly title?: string | undefined }): Promise<DesktopResolveKeyResult>;
+  /** After `older-engine` and a yes: the project's own Adminium is set to this app's and its packages fetched again. */
+  updateProject(input: { readonly path: string }): Promise<DesktopUpdateProjectResult>;
+  /** After `needs-newer`: look for a newer Adminium now. `false` in a build that does not update itself. */
+  updateApp(): Promise<boolean>;
   forgetProject(path: string): Promise<readonly DesktopRecentProject[]>;
   /** "Locate…": the system's folder picker, then the entry moves there. */
   locateProject(input: { readonly path: string; readonly title: string }): Promise<DesktopLocateProjectResult>;

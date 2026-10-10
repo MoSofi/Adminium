@@ -108,5 +108,88 @@ export default {
     "changed": "Kód této složky se od posledního otevření změnil.",
     "open": "Otevřít",
     "title": "Otevřít tuto složku?"
+  },
+  "found": {
+    "data": "Data tohoto projektu byla nalezena.",
+    "key": "Jeho klíč byl nalezen.",
+    "noData": "Tato složka obsahuje projekt, ale žádná data.",
+    "madeBoth": "Adminium vytvořilo nový klíč a prázdnou databázi.",
+    "madeDatabase": "Adminium vytvořilo prázdnou databázi.",
+    "rowsLost": "Vlastní tabulky aplikací se vytvoří znovu. Řádky ze starých dat zde nejsou."
+  },
+  "opening": {
+    "continue": "Pokračovat",
+    "close": "Zavřít",
+    "notAProject": {
+      "line": "Nový projekt můžete vytvořit ve složce uvnitř ní.",
+      "another": "Vybrat jinou složku",
+      "make": "Vytvořit zde nový projekt"
+    }
+  },
+  "key": {
+    "heading": "Data tohoto projektu jsou zde, ale jeho klíč chybí.",
+    "body": "Klíč je řádek v souboru s názvem ‹.env› ve složce projektu. Váš počítač skrývá soubory, jejichž název začíná tečkou.",
+    "body2": "Bez klíče nelze přečíst uložená připojení k databázím ani klíče API v datech tohoto projektu.",
+    "hidden": {
+      "mac": "Ve Finderu je zobrazíte stisknutím ⌘ ⇧ .",
+      "windows": "V Průzkumníku souborů zvolte Zobrazit › Zobrazit › Skryté položky.",
+      "linux": "Ve správci souborů stiskněte Ctrl H."
+    },
+    "env": {
+      "title": "Mám soubor .env",
+      "line": "Vyberte jej a Adminium jej zkopíruje.",
+      "pick": "Vyberte soubor .env tohoto projektu",
+      "notAKey": "Tento soubor neobsahuje žádný klíč. Vyberte soubor .env, který patří k datům tohoto projektu."
+    },
+    "fresh": {
+      "title": "Začít s daty znovu, aplikace ponechat",
+      "line": "Vaše stará data se přesunou do složky s názvem ‹{folder}›. Nic se nesmaže."
+    },
+    "new": {
+      "title": "Pokračovat s novým klíčem",
+      "line": "Data zůstanou. Uložená připojení a klíče v nich přestanou fungovat a je třeba je zadat znovu."
+    },
+    "failed": "To se nepodařilo provést."
+  },
+  "accounts": {
+    "heading": "Tento projekt přišel s účty",
+    "people": "{count, plural, one {# osoba} few {# osoby} many {# osoby} other {# osob}}",
+    "peopleLabel": "Lidé",
+    "apiKeys": "{count, plural, one {# klíč API} few {# klíče API} many {# klíče API} other {# klíčů API}}",
+    "apiKeysLabel": "Klíče API",
+    "publicKeys": "{count, plural, one {# klíč otevřený veřejnosti} few {# klíče otevřené veřejnosti} many {# klíče otevřeného veřejnosti} other {# klíčů otevřených veřejnosti}}",
+    "publicKeysLabel": "Otevřeno veřejnosti",
+    "body": "Na tomto počítači budete pracovat jako jeho vlastník. Než jej nasdílíte ve své síti, zvolíte nové heslo vlastníka a staré relace a klíče API přestanou fungovat.",
+    "show": "Zobrazit je",
+    "hide": "Skrýt je",
+    "more": "a dalších {count}"
+  },
+  "notice": {
+    "manager": {
+      "title": "Tento projekt používá {manager}.",
+      "line": "Adminium místo toho instaluje pomocí npm. Váš soubor {manager} zůstane tak, jak je."
+    },
+    "older": {
+      "title": "Tento projekt byl vytvořen ve starším Adminiu (‹{was}›).",
+      "line": "Aktualizujte jej na ‹{here}›, aby vše odpovídalo. Změní se jeden řádek v projektu a jeho stavební bloky se stáhnou znovu.",
+      "update": "Aktualizovat tento projekt",
+      "notNow": "Teď ne",
+      "working": "Projekt se aktualizuje…",
+      "failed": "Tento projekt se nepodařilo aktualizovat. Stále se otevře tak, jak je."
+    },
+    "newer": {
+      "title": "Tento projekt potřebuje novější Adminium.",
+      "line": "Naposledy byl otevřen v Adminiu ‹{last}›. Tento počítač má ‹{here}›.",
+      "lineUnknown": "Naposledy byl otevřen v novějším Adminiu. Tento počítač má ‹{here}›.",
+      "update": "Aktualizovat Adminium",
+      "looking": "Hledá se novější Adminium. Až se najde, nabídne se zde.",
+      "cannot": "Tato kopie Adminia se sama neaktualizuje. Nejnovější získáte na adminium.dev."
+    },
+    "running": {
+      "title": "Tento projekt už běží",
+      "cli": "Je otevřený v terminálu, na portu ‹{port}›. Nejprve jej tam zavřete.",
+      "app": "Je otevřený v jiném okně Adminia, na portu ‹{port}›. Nejprve jej tam zavřete.",
+      "again": "Zkontrolovat znovu"
+    }
   }
 } as const;

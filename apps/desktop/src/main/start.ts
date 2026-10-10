@@ -25,6 +25,7 @@ import { join, sep } from 'node:path';
 import type {
   DesktopCreateProjectInput,
   DesktopCreateProjectResult,
+  DesktopFoundRow,
   DesktopGetPackagesResult,
   DesktopLocateProjectResult,
   DesktopMakeProgress,
@@ -34,9 +35,22 @@ import type {
   DesktopOpenProjectInput,
   DesktopOpenProjectResult,
   DesktopRecentProject,
+  DesktopResolveKeyResult,
+  DesktopUpdateProjectResult,
   DesktopStartState,
 } from '../preload/api.js';
 import type { DesktopConfig } from './config.js';
+import {
+  cameWithAccounts,
+  cleanVersionStore,
+  dataBeforeName,
+  enginePin,
+  olderThan,
+  prepareNewData,
+  resolveMissingKey,
+  type FolderFacts,
+  type MissingKeyAnswer,
+} from './folder-open.js';
 import {
   PROJECT_CONFIG_FILES,
   folderNameFor,
@@ -145,6 +159,22 @@ export interface StartDeps {
   installPackages?: ((input: { root: string }) => Promise<MakeProjectResult>) | undefined;
   /** Whether the folder has what it is built with (a `node_modules`). */
   hasPackages?: ((root: string) => boolean) | undefined;
+  /**
+   * What the engine says the folder holds, read without running anything of it
+   * (`make-project.ts`). Absent, or `null` for a folder: the folder is opened
+   * as it was before there were facts (trust, packages, start).
+   */
+  folderFacts?: ((root: string) => Promise<FolderFacts | null>) | undefined;
+  /** "Update this project": its own Adminium set to this app's, its packages fetched again. */
+  updateProject?: ((input: { root: string }) => Promise<MakeProjectResult>) | undefined;
+  /** Look for a newer Adminium now. `false`: this build does not update itself. */
+  updateApp?: (() => boolean) | undefined;
+  /** The system's file picker, for the `.env` a person still has. `null` on cancel. */
+  chooseFile?: ((opts: { title: string; defaultPath?: string | undefined }) => Promise<string | null>) | undefined;
+  /** The three writes below, for tests. */
+  prepareNewData?: typeof prepareNewData | undefined;
+  resolveMissingKey?: typeof resolveMissingKey | undefined;
+  cleanVersionStore?: typeof cleanVersionStore | undefined;
   /** The real path of a folder that exists. */
   real?: ((path: string) => string) | undefined;
   now?: (() => Date) | undefined;
@@ -160,6 +190,9 @@ export interface StartService {
   chooseFolder(input: { title: string }): Promise<{ path: string; displayPath: string } | null>;
   openProject(input: DesktopOpenProjectInput): Promise<DesktopOpenProjectResult>;
   getPackages(input: { path: string; land?: 'designer' | 'dashboard' | undefined }): Promise<DesktopGetPackagesResult>;
+  resolveKey(input: { path: string; answer: 'env' | 'fresh' | 'new'; title?: string | undefined }): Promise<DesktopResolveKeyResult>;
+  updateProject(input: { path: string }): Promise<DesktopUpdateProjectResult>;
+  updateApp(): boolean;
   forgetProject(path: string): Promise<DesktopRecentProject[]>;
   locateProject(input: { path: string; title: string }): Promise<DesktopLocateProjectResult>;
   useClassic(): void;
@@ -192,6 +225,36 @@ export function createStartService(deps: StartDeps): StartService {
     return judged.ok
       ? { ok: true, path: judged.path, displayPath: shown(judged.path), warning: judged.warning }
       : { ok: false, path: judged.path, displayPath: judged.path === null ? null : shown(judged.path), refused: judged.refused };
+  };
+
+  /** The real path of a project folder the person agreed to open, as its code is now; `null` otherwise. */
+  const agreedRoot = (path: string): string | null => {
+    let root: string;
+    try {
+      root = real(path);
+    } catch {
+      return null;
+    }
+    if (!isProjectFolder(root, deps.folder.exists)) return null;
+    const known = deps.readConfig().projects.find((entry) => entry.path === root) ?? null;
+    return known === null || known.trusted === null || known.trusted !== fingerprint(root) ? null : root;
+  };
+
+  /**
+   * The engine's facts for a folder. Asking costs a second or two (a program is started), and one opening may ask
+   * several times (a screen, "Continue", the next screen): within an opening the answer is kept. A new opening
+   * (`fresh`) asks again, and so does anything that changed the folder (see `forgetFacts`).
+   */
+  let kept: { root: string; facts: FolderFacts | null } | null = null;
+  const factsOf = async (root: string, fresh: boolean): Promise<FolderFacts | null> => {
+    if (deps.folderFacts === undefined) return null;
+    if (!fresh && kept !== null && kept.root === root) return kept.facts;
+    const facts = await deps.folderFacts(root);
+    kept = { root, facts };
+    return facts;
+  };
+  const forgetFacts = (): void => {
+    kept = null;
   };
 
   // One "make" at a time: a second click while npm runs must not start a second project.
@@ -234,7 +297,7 @@ export function createStartService(deps: StartDeps): StartService {
         // By its real path now that it exists: that is how it is found again.
         const root = real(judged.path);
         // Made here, by the person, a moment ago: agreed to by making it.
-        await deps.saveConfig(rememberProject(deps.readConfig(), { path: root, name: input.name.trim(), state: 'building', trusted: fingerprint(root) }, now()));
+        await deps.saveConfig(rememberProject(deps.readConfig(), { path: root, name: input.name.trim(), state: 'building', trusted: fingerprint(root), reviewed: true }, now()));
         deps.onChoice({ kind: 'project', root });
         return { status: 'created', path: root };
       } finally {
@@ -276,8 +339,49 @@ export function createStartService(deps: StartDeps): StartService {
         return { status: 'trust-needed', path: root, displayPath: shown(root), changed: known !== null && known.trusted !== null };
       }
       // Agreed to (now, or before and unchanged). Nothing of the folder has been started up to this line.
-      await deps.saveConfig(rememberProject(config, { path: root, name: known?.name ?? nameFromFolder(root), trusted: code }, now()));
-      if (!hasPackages(root)) return { status: 'needs-packages', path: root, displayPath: shown(root) };
+      const name = known?.name ?? nameFromFolder(root);
+      // The first time here: what the folder holds and who it came with are shown once, and a version store that
+      // travelled loses its sender's settings before anything asks git about it.
+      const first = known === null || !known.reviewed;
+      if (first && (known === null || known.trusted === null)) (deps.cleanVersionStore ?? cleanVersionStore)(root);
+      await deps.saveConfig(rememberProject(config, { path: root, name, trusted: code }, now()));
+      const seen = new Set(input.seen ?? []);
+      const where = { path: root, displayPath: shown(root) };
+
+      // Read, not run: the engine opens the folder's files and starts nothing of it.
+      const facts = await factsOf(root, seen.size === 0);
+      let pinNoted: string | null | undefined;
+      if (facts !== null) {
+        if (facts.running !== null) return { status: 'running', path: root, port: facts.running.port, by: facts.running.by };
+        // Before anything is started: a store from a newer Adminium is not one this one may touch.
+        if (facts.newer.length > 0) return { status: 'needs-newer', path: root, last: facts.lastEngine ?? facts.newer.at(-1)?.appliedBy ?? null, here: facts.engine.here };
+        if (first && facts.otherManager !== null && !seen.has('manager')) return { status: 'other-manager', ...where, manager: facts.otherManager.manager };
+        const pin = enginePin(facts);
+        if (pin !== null && olderThan(pin, facts.engine.here)) {
+          // Offered once per pin: declined, the project still opens, and is not asked again until the pin changes.
+          if (known?.engineNoted !== pin && !seen.has('engine')) return { status: 'older-engine', ...where, was: pin, here: facts.engine.here };
+          pinNoted = pin;
+        } else pinNoted = null;
+      }
+      // Packages for THIS computer: none, or ones another kind of computer installed.
+      if (facts === null ? !hasPackages(root) : facts.install === 'no-packages' || facts.install === 'another-machine') return { status: 'needs-packages', ...where };
+      if (facts !== null) {
+        if (facts.database === 'sqlite' && !facts.secret) {
+          return { status: 'key-missing', ...where, name, dataBefore: dataBeforeName(now()) };
+        }
+        if (!seen.has('found') && facts.database !== 'elsewhere') {
+          const made = (deps.prepareNewData ?? prepareNewData)(root, facts);
+          if (made.key || made.database) forgetFacts();
+          const rows: DesktopFoundRow[] = facts.database === 'sqlite' ? ['data', 'key'] : made.key ? ['no-data', 'made-key-and-database'] : made.database ? ['no-data', 'made-database'] : [];
+          // Said the first time, and whenever something was made: never a key or a database made in silence.
+          if (rows.length > 0 && (first || made.key || made.database)) return { status: 'found', ...where, name, rows };
+        }
+        if (first && cameWithAccounts(facts) && !seen.has('accounts')) {
+          return { status: 'accounts', ...where, accounts: { people: facts.people, apiKeys: facts.apiKeys, publicKeys: facts.publicKeys } };
+        }
+      }
+      const latest = deps.readConfig();
+      await deps.saveConfig(rememberProject(latest, { path: root, name, reviewed: true, ...(pinNoted === undefined ? {} : { engineNoted: pinNoted }) }, now()));
       deps.onChoice({ kind: 'project', root, ...(input.land === 'dashboard' ? { land: 'dashboard' as const } : {}) });
       return { status: 'opened' };
     },
@@ -294,12 +398,15 @@ export function createStartService(deps: StartDeps): StartService {
       // Only into a folder the person agreed to open, as its code is now: `openProject` is where that is asked.
       const known = deps.readConfig().projects.find((entry) => entry.path === root) ?? null;
       if (known === null || known.trusted === null || known.trusted !== fingerprint(root)) return { status: 'trust-needed' };
-      if (!hasPackages(root)) {
+      // None at all, or ones another kind of computer installed (a folder copied from a Mac to Windows).
+      const need = deps.folderFacts === undefined ? null : ((await deps.folderFacts(root))?.install ?? null);
+      if (!hasPackages(root) || need === 'another-machine') {
         if (deps.installPackages === undefined) return { status: 'failed', detail: CANNOT_MAKE_PROJECT };
         if (making) return { status: 'failed', detail: 'Packages are already being fetched.' };
         making = true;
         try {
           const got = await deps.installPackages({ root });
+          forgetFacts();
           if (!got.ok) return { status: 'failed', detail: got.detail };
         } finally {
           making = false;
@@ -311,6 +418,45 @@ export function createStartService(deps: StartDeps): StartService {
       deps.onChoice({ kind: 'project', root, ...(input.land === 'dashboard' ? { land: 'dashboard' as const } : {}) });
       return { status: 'opened' };
     },
+
+    async resolveKey(input) {
+      const root = agreedRoot(input.path);
+      if (root === null) return { status: 'trust-needed' };
+      const facts = deps.folderFacts === undefined ? null : await deps.folderFacts(root);
+      // Asked only of a folder that really has data and no key: nothing here is ever a way to write a key over one.
+      if (facts === null || facts.database !== 'sqlite' || facts.secret) return { status: 'failed', detail: 'This project is not missing its key.' };
+      let answer: MissingKeyAnswer;
+      if (input.answer === 'env') {
+        const file = deps.chooseFile === undefined ? null : await deps.chooseFile({ title: input.title ?? '.env', defaultPath: deps.folder.home });
+        if (file === null) return { status: 'cancelled' };
+        answer = { kind: 'env', file };
+      } else answer = { kind: input.answer };
+      const outcome = (deps.resolveMissingKey ?? resolveMissingKey)(root, facts, answer, { now: now() });
+      forgetFacts();
+      if (outcome.ok) return { status: 'done' };
+      return outcome.reason === 'not-a-key-file' ? { status: 'not-a-key-file' } : { status: 'failed', detail: outcome.detail ?? '' };
+    },
+
+    async updateProject(input) {
+      const root = agreedRoot(input.path);
+      if (root === null) return { status: 'trust-needed' };
+      if (deps.updateProject === undefined) return { status: 'failed', detail: CANNOT_MAKE_PROJECT };
+      if (making) return { status: 'failed', detail: 'Packages are already being fetched.' };
+      making = true;
+      try {
+        const updated = await deps.updateProject({ root });
+        forgetFacts();
+        if (!updated.ok) return { status: 'failed', detail: updated.detail };
+      } finally {
+        making = false;
+      }
+      // The new pin is the project's own change (the person asked for it), not one to ask about at the next opening.
+      const config = deps.readConfig();
+      await deps.saveConfig({ ...config, projects: config.projects.map((entry) => (entry.path === root ? { ...entry, trusted: fingerprint(root) } : entry)) });
+      return { status: 'updated' };
+    },
+
+    updateApp: () => deps.updateApp?.() ?? false,
 
     async forgetProject(path) {
       await deps.saveConfig(forgetProject(deps.readConfig(), path));

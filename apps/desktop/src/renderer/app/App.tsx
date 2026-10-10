@@ -22,6 +22,8 @@ export function App({ initial }: { initial: DesktopStartState }): ReactNode {
   const t = useT();
   const [screen, setScreen] = useState<Screen>(() => screenFromHash(window.location.hash));
   const toasts = useToastQueue();
+  /** "Make a new project here", from a folder that was not a project: where New app proposes to keep it. */
+  const [makeIn, setMakeIn] = useState<string | null>(null);
 
   useEffect(() => {
     const onHash = (): void => {
@@ -48,9 +50,10 @@ export function App({ initial }: { initial: DesktopStartState }): ReactNode {
     <PlainShell>
       {screen === 'new' ? (
         <NewProjectScreen
-          proposedParent={initial.proposedParent}
-          proposedParentDisplay={initial.proposedParentDisplay}
+          proposedParent={makeIn ?? initial.proposedParent}
+          proposedParentDisplay={makeIn ?? initial.proposedParentDisplay}
           onBack={() => {
+            setMakeIn(null);
             go('start');
           }}
           say={say}
@@ -59,6 +62,11 @@ export function App({ initial }: { initial: DesktopStartState }): ReactNode {
         <StartScreen
           initial={initial}
           onBuild={() => {
+            setMakeIn(null);
+            go('new');
+          }}
+          onMakeIn={(parent) => {
+            setMakeIn(parent);
             go('new');
           }}
           say={say}

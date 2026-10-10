@@ -7,10 +7,11 @@ import { I18nProvider } from '@adminium/i18n/react';
 import type { ReactNode } from 'react';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { AdminiumDesktopApi, DesktopRecentProject, DesktopStartApi, DesktopStartState } from '../../preload/api.js';
+import type { AdminiumDesktopApi, DesktopOpenProjectResult, DesktopRecentProject, DesktopStartApi, DesktopStartState } from '../../preload/api.js';
 import { App, screenFromHash } from './App.js';
 import { desktopApi } from './bridge.js';
 import { refusalWords, warningWords } from './new/NewProjectScreen.js';
+import { hiddenFilesWords } from './start/Opening.js';
 import { openedWhen } from './start/StartScreen.js';
 import { PAGE_LANGUAGES, initWords, loadWords, localeFor } from './words.js';
 
@@ -47,6 +48,9 @@ function fakeStart(over: Partial<DesktopStartApi> = {}): DesktopStartApi {
     createProject: vi.fn(() => Promise.resolve({ status: 'created' as const, path: '/Users/sam/Adminium/shop' })),
     makeProgress: vi.fn(() => Promise.resolve({ step: null, since: 0 })),
     getPackages: vi.fn(() => Promise.resolve({ status: 'opened' as const })),
+    resolveKey: vi.fn(() => Promise.resolve({ status: 'done' as const })),
+    updateProject: vi.fn(() => Promise.resolve({ status: 'updated' as const })),
+    updateApp: vi.fn(() => Promise.resolve(true)),
     chooseFolder: vi.fn(() => Promise.resolve<{ path: string; displayPath: string } | null>({ path: '/Users/sam/Downloads/shop', displayPath: '~/Downloads/shop' })),
     openProject: vi.fn(() => Promise.resolve({ status: 'opened' as const })),
     forgetProject: vi.fn(() => Promise.resolve([recentProject()])),
@@ -274,17 +278,12 @@ describe('Start', () => {
   });
 
   it('says in a notice why a folder was not opened', async () => {
-    for (const [status, words] of [
-      ['missing', 'This folder was moved or deleted'],
-      ['not-a-project', 'This folder is not an Adminium project.'],
-    ] as const) {
-      show(fakeStart({ openProject: vi.fn(() => Promise.resolve({ status })) }), { ...STATE, recent: [recentProject()] });
-      fireEvent.click(screen.getByRole('button', { name: 'Open Juniper Kitchen' }));
-      await waitFor(() => {
-        expect(screen.getByRole('region', { name: 'Notices' }).textContent).toContain(words);
-      });
-      cleanup();
-    }
+    show(fakeStart({ openProject: vi.fn(() => Promise.resolve({ status: 'missing' as const })) }), { ...STATE, recent: [recentProject()] });
+    fireEvent.click(screen.getByRole('button', { name: 'Open Juniper Kitchen' }));
+    await waitFor(() => {
+      expect(screen.getByRole('region', { name: 'Notices' }).textContent).toContain('This folder was moved or deleted');
+    });
+    cleanup();
     show(fakeStart({ openProject: vi.fn(() => Promise.reject(new Error('INTERNAL: the disk said no'))) }), { ...STATE, recent: [recentProject()] });
     fireEvent.click(screen.getByRole('button', { name: 'Open Juniper Kitchen' }));
     await waitFor(() => {
@@ -499,5 +498,191 @@ describe('New app', () => {
     for (const sentence of sentences) expect(sentence).not.toBeNull();
     // An empty name needs no box: the field says it.
     expect(refusalWords(t, 'no-name')).toBeNull();
+  });
+});
+
+describe('the screens on the way into a folder', () => {
+  const WHERE = { path: '/Users/sam/Downloads/shop', displayPath: '~/Downloads/shop' };
+  /** Start with a folder picked, and `openProject` answering in the order given. */
+  const pick = (answers: DesktopOpenProjectResult[], over: Partial<DesktopStartApi> = {}) => {
+    const openProject = vi.fn<DesktopStartApi['openProject']>();
+    for (const answer of answers) openProject.mockResolvedValueOnce(answer);
+    openProject.mockResolvedValue({ status: 'opened' });
+    const start = fakeStart({ openProject, ...over });
+    show(start);
+    fireEvent.click(screen.getByRole('button', { name: /Open a folder/ }));
+    return { start, openProject };
+  };
+
+  it('a folder that is not a project says so on a screen of its own, with the two ways on', async () => {
+    const { start } = pick([{ status: 'not-a-project' }]);
+    expect(await screen.findByText('This folder is not an Adminium project.')).toBeTruthy();
+    expect(screen.getByText('~/Downloads/shop')).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'shop' })).toBeTruthy();
+    // "Make a new project here": New app, with that folder as where to keep it.
+    fireEvent.click(screen.getByRole('button', { name: 'Make a new project here' }));
+    expect(await screen.findByRole('heading', { name: 'Build an app' })).toBeTruthy();
+    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Bakery' } });
+    await waitFor(() => {
+      expect(start.judgeNewFolder).toHaveBeenLastCalledWith({ parent: '/Users/sam/Downloads/shop', name: 'Bakery' });
+    });
+  });
+
+  it('"Choose another folder" opens the picker again', async () => {
+    const { start } = pick([{ status: 'not-a-project' }]);
+    fireEvent.click(await screen.findByRole('button', { name: 'Choose another folder' }));
+    await waitFor(() => {
+      expect(start.chooseFolder).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  it('shows what was found, then who it came with, and each "Continue" names the screen as seen', async () => {
+    const { openProject } = pick([
+      { status: 'found', ...WHERE, name: 'Shop', rows: ['data', 'key'] },
+      { status: 'accounts', ...WHERE, accounts: { people: { count: 3, names: ['Rosa Pérez', 'Theo Lind'] }, apiKeys: { count: 1, names: ['Booking widget'] }, publicKeys: { count: 0, names: [] } } },
+    ]);
+    expect(await screen.findByRole('heading', { name: 'Shop' })).toBeTruthy();
+    expect(screen.getByText('Found this project’s data.')).toBeTruthy();
+    expect(screen.getByText('Found its key.')).toBeTruthy();
+    // Nothing was made: nothing is said about rows.
+    expect(screen.queryByText(/Rows that were in the old data/)).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+
+    expect(await screen.findByRole('heading', { name: 'This project came with accounts' })).toBeTruthy();
+    expect(openProject).toHaveBeenLastCalledWith({ path: WHERE.path, seen: ['found'] });
+    expect(screen.getByText('3 people')).toBeTruthy();
+    expect(screen.getByText('1 API key')).toBeTruthy();
+    // A kind there is none of has no row.
+    expect(screen.queryByText(/open to the public/)).toBeNull();
+    const toggle = screen.getByRole('button', { name: 'Show them' });
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+    fireEvent.click(toggle);
+    expect(screen.getByText('Rosa Pérez, Theo Lind and 1 more')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Hide them' }).getAttribute('aria-expanded')).toBe('true');
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    await waitFor(() => {
+      expect(openProject).toHaveBeenLastCalledWith({ path: WHERE.path, seen: ['found', 'accounts'] });
+    });
+  });
+
+  it('says what was made for a folder with no data, and what that cannot bring back', async () => {
+    pick([{ status: 'found', ...WHERE, name: 'Shop', rows: ['no-data', 'made-key-and-database'] }]);
+    expect(await screen.findByText('This folder has the project but no data.')).toBeTruthy();
+    expect(screen.getByText('Adminium made a new key and an empty database.')).toBeTruthy();
+    expect(screen.getByText('The apps’ own tables are made again. Rows that were in the old data are not here.')).toBeTruthy();
+    cleanup();
+    pick([{ status: 'found', ...WHERE, name: 'Shop', rows: ['no-data', 'made-database'] }]);
+    expect(await screen.findByText('Adminium made an empty database.')).toBeTruthy();
+  });
+
+  it('asks about a missing key with three answers, none chosen for the person', async () => {
+    const resolveKey = vi.fn<DesktopStartApi['resolveKey']>().mockResolvedValueOnce({ status: 'not-a-key-file' }).mockResolvedValueOnce({ status: 'cancelled' }).mockResolvedValueOnce({ status: 'failed', detail: '' }).mockResolvedValue({ status: 'done' });
+    const { openProject } = pick([{ status: 'key-missing', ...WHERE, name: 'Shop', dataBefore: 'data.before-2026-10-10' }], { resolveKey });
+    expect(await screen.findByRole('heading', { name: 'This project’s data is here, but its key is missing.' })).toBeTruthy();
+    // The Mac's own words for showing hidden files (the page's platform here).
+    expect(screen.getByText(/In Finder, press ⌘ ⇧ \. to show them\./)).toBeTruthy();
+    expect(screen.getByText('data.before-2026-10-10')).toBeTruthy();
+    const group = screen.getByRole('radiogroup');
+    const radios = screen.getAllByRole('radio');
+    expect(radios.map((radio) => radio.getAttribute('aria-checked'))).toEqual(['false', 'false', 'false']);
+    const go = screen.getByRole('button', { name: 'Continue' });
+    expect((go as HTMLButtonElement).disabled).toBe(true);
+
+    // The arrow keys move the choice, round the ends.
+    fireEvent.keyDown(group, { key: 'ArrowUp' });
+    expect(screen.getByRole('radio', { name: /Go on with a new key/ }).getAttribute('aria-checked')).toBe('true');
+    fireEvent.keyDown(group, { key: 'ArrowDown' });
+    expect(screen.getByRole('radio', { name: /I have the \.env file/ }).getAttribute('aria-checked')).toBe('true');
+    fireEvent.keyDown(group, { key: 'ArrowRight' });
+    fireEvent.keyDown(group, { key: 'ArrowLeft' });
+    expect(screen.getByRole('radio', { name: /I have the \.env file/ }).getAttribute('aria-checked')).toBe('true');
+    fireEvent.keyDown(group, { key: 'Tab' });
+
+    fireEvent.click(go);
+    expect(await screen.findByRole('alert')).toHaveProperty('textContent', 'That file holds no key. Choose the .env file that came with this project’s data.');
+    expect(resolveKey).toHaveBeenLastCalledWith({ path: WHERE.path, answer: 'env', title: 'Choose the .env file of this project' });
+    // Cancelled in the picker: nothing is said, nothing moves.
+    fireEvent.click(go);
+    await waitFor(() => {
+      expect(screen.queryByRole('alert')).toBeNull();
+    });
+    fireEvent.click(screen.getByRole('radio', { name: /Start the data fresh/ }));
+    fireEvent.click(go);
+    expect(await screen.findByRole('alert')).toHaveProperty('textContent', 'That could not be done.');
+    fireEvent.click(screen.getByRole('radio', { name: /Go on with a new key/ }));
+    fireEvent.click(go);
+    await waitFor(() => {
+      expect(resolveKey).toHaveBeenLastCalledWith({ path: WHERE.path, answer: 'new' });
+      expect(openProject).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  it('"Close" on a question goes back to Start with nothing opened', async () => {
+    const { openProject } = pick([{ status: 'key-missing', ...WHERE, name: 'Shop', dataBefore: 'data.before-2026-10-10' }]);
+    fireEvent.click(await screen.findByRole('button', { name: 'Close' }));
+    expect(screen.getByRole('heading', { name: 'What would you like to do?' })).toBeTruthy();
+    expect(openProject).toHaveBeenCalledTimes(1);
+  });
+
+  it('says a project was made with another manager, once, and goes on', async () => {
+    const { openProject } = pick([{ status: 'other-manager', ...WHERE, manager: 'pnpm' }]);
+    expect(await screen.findByRole('heading', { name: 'This project uses pnpm.' })).toBeTruthy();
+    expect(screen.getByText('Adminium installs with npm instead. Your pnpm file is left as it is.')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    await waitFor(() => {
+      expect(openProject).toHaveBeenLastCalledWith({ path: WHERE.path, seen: ['manager'] });
+    });
+  });
+
+  it('offers to update a project made with an older Adminium; "Not now" opens it as it is', async () => {
+    let finish: (result: Awaited<ReturnType<DesktopStartApi['updateProject']>>) => void = () => undefined;
+    const updateProject = vi.fn<DesktopStartApi['updateProject']>(() => new Promise((done) => (finish = done)));
+    const { openProject } = pick([{ status: 'older-engine', ...WHERE, was: '0.3.16', here: '0.3.22' }, { status: 'older-engine', ...WHERE, was: '0.3.16', here: '0.3.22' }], { updateProject });
+    expect((await screen.findByRole('heading', { name: /made with an older Adminium/ })).textContent).toBe('This project was made with an older Adminium (0.3.16).');
+    fireEvent.click(screen.getByRole('button', { name: 'Update this project' }));
+    expect(await screen.findByRole('status')).toHaveProperty('textContent', 'Updating this project…');
+    expect((screen.getByRole('button', { name: 'Not now' }) as HTMLButtonElement).disabled).toBe(true);
+    finish({ status: 'failed', detail: 'npm error code ENOTFOUND' });
+    expect(await screen.findByText('This project could not be updated. It still opens as it is.')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Not now' }));
+    await waitFor(() => {
+      expect(openProject).toHaveBeenLastCalledWith({ path: WHERE.path, seen: ['engine'] });
+    });
+    // Updated: asked again from the start, with nothing taken as read.
+    fireEvent.click(await screen.findByRole('button', { name: 'Update this project' }));
+    finish({ status: 'updated' });
+    await waitFor(() => {
+      expect(openProject).toHaveBeenLastCalledWith({ path: WHERE.path });
+    });
+  });
+
+  it('starts nothing of a folder a newer Adminium wrote: it offers the app’s own update, or Close', async () => {
+    const updateApp = vi.fn<DesktopStartApi['updateApp']>().mockResolvedValueOnce(true).mockResolvedValueOnce(false);
+    const { openProject } = pick([{ status: 'needs-newer', path: WHERE.path, last: '0.4.0', here: '0.3.22' }], { updateApp });
+    expect(await screen.findByRole('heading', { name: 'This project needs a newer Adminium.' })).toBeTruthy();
+    expect(screen.getByText(/It was last opened with Adminium/).textContent).toBe('It was last opened with Adminium 0.4.0. This computer has 0.3.22.');
+    fireEvent.click(screen.getByRole('button', { name: 'Update Adminium' }));
+    expect(await screen.findByText('Looking for a newer Adminium. It is offered here when it is found.')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Update Adminium' }));
+    expect(await screen.findByText('This copy of Adminium does not update itself. Get the newest one from adminium.dev.')).toBeTruthy();
+    expect(openProject).toHaveBeenCalledTimes(1);
+    cleanup();
+    pick([{ status: 'needs-newer', path: WHERE.path, last: null, here: '0.3.22' }]);
+    expect(await screen.findByText(/It was last opened with a newer Adminium/)).toBeTruthy();
+  });
+
+  it('a project a terminal has says where, and "Look again" asks anew', async () => {
+    const { openProject } = pick([{ status: 'running', path: WHERE.path, port: 4712, by: 'cli' }, { status: 'running', path: WHERE.path, port: 4712, by: 'desktop' }]);
+    expect(await screen.findByRole('heading', { name: 'This project is already running' })).toBeTruthy();
+    expect(screen.getByText(/It is open in a terminal/).textContent).toBe('It is open in a terminal, on port 4712. Close it there first.');
+    fireEvent.click(screen.getByRole('button', { name: 'Look again' }));
+    expect(await screen.findByText(/It is open in another Adminium window/)).toBeTruthy();
+    expect(openProject).toHaveBeenCalledTimes(2);
+  });
+
+  it('words the hidden-file sentence for the system it runs on', () => {
+    const t = ((_key: string, fallback: string) => fallback) as never;
+    expect(hiddenFilesWords(t, 'win32')).toBe('In File Explorer, choose View › Show › Hidden items.');
+    expect(hiddenFilesWords(t, 'linux')).toBe('In your file manager, press Ctrl H.');
   });
 });

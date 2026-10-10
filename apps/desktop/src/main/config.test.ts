@@ -105,8 +105,8 @@ describe('desktopConfigSchema', () => {
       autoBackup: { enabled: true, keep: 7 },
       window: { x: 0, y: 0, width: 1440, height: 900, maximized: false },
       projects: [
-        { path: '/Users/ava/Adminium/juniper-kitchen', name: 'Juniper Kitchen', lastOpened: '2026-10-09T18:04:11.000Z', state: 'shared', sharePort: 4712, trusted: 'sha256:9f2c' },
-        { path: '/Users/ava/Adminium/repairs', name: 'Repairs', lastOpened: '2026-10-08T09:00:00.000Z', state: 'building', sharePort: null, trusted: null },
+        { path: '/Users/ava/Adminium/juniper-kitchen', name: 'Juniper Kitchen', lastOpened: '2026-10-09T18:04:11.000Z', state: 'shared', sharePort: 4712, trusted: 'sha256:9f2c', reviewed: true, engineNoted: '0.3.16' },
+        { path: '/Users/ava/Adminium/repairs', name: 'Repairs', lastOpened: '2026-10-08T09:00:00.000Z', state: 'building', sharePort: null, trusted: null, reviewed: false, engineNoted: null },
       ],
       language: 'ar',
       theme: 'dark',
@@ -117,6 +117,9 @@ describe('desktopConfigSchema', () => {
     // A file written before the versions offer has no such key, and is read as "never asked".
     const { versionsDeclined: _, ...before } = body;
     expect(desktopConfigSchema.parse(before).versionsDeclined).toBe(false);
+    // And a project entry written before it was looked over, or told of an older Adminium, reads as neither.
+    const old = { ...body, projects: [{ path: '/p', name: 'P', lastOpened: '2026-10-09T18:04:11.000Z', state: 'building', sharePort: null, trusted: null }] };
+    expect(desktopConfigSchema.parse(old).projects[0]).toMatchObject({ reviewed: false, engineNoted: null });
   });
 
   it('accepts the default config, with window position left to the OS', () => {

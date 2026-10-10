@@ -16,7 +16,7 @@ describe('the recent list', () => {
     const one = rememberProject(config(), { path: '/p/juniper', name: 'Juniper Kitchen' }, at('2026-10-09T10:00:00Z'));
     const two = rememberProject(one, { path: '/p/repairs', name: 'Repairs' }, at('2026-10-09T11:00:00Z'));
     expect(two.projects.map((project) => project.name)).toEqual(['Repairs', 'Juniper Kitchen']);
-    expect(two.projects[0]).toEqual({ path: '/p/repairs', name: 'Repairs', lastOpened: '2026-10-09T11:00:00.000Z', state: 'building', sharePort: null, trusted: null });
+    expect(two.projects[0]).toEqual({ path: '/p/repairs', name: 'Repairs', lastOpened: '2026-10-09T11:00:00.000Z', state: 'building', sharePort: null, trusted: null, reviewed: false, engineNoted: null });
   });
 
   it('opening a listed project again keeps its share port and its trust, and moves it up', () => {

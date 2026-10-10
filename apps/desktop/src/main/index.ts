@@ -87,7 +87,7 @@ import { EPHEMERAL_PORT, generateBootToken, LOOPBACK_HOST } from '../server/env.
 import { LAN_PORT_IN_USE, registerIpcHandlers, type DesktopRuntimeSnapshot } from './ipc.js';
 import { fetchGit, findGit, gitDownloadFor, removeUnfinishedGit, runProgram } from './git.js';
 import { createDesktopLogging } from './logging.js';
-import { createInstallPackages, createMakeProject, runToEnd, type MakeProjectDeps } from './make-project.js';
+import { createFolderFacts, createInstallPackages, createMakeProject, createUpdateProject, runToEnd, type MakeProjectDeps } from './make-project.js';
 import { carriedNpmDir, provideDesktopPrograms } from './programs.js';
 import { firstFreePort, projectPortRange, seamGit, seamProject, sessionCookieNames, stopBusyWords } from './project.js';
 import { realFolderDeps, type FolderDeps } from './projects.js';
@@ -584,6 +584,9 @@ export interface DesktopBootDeps {
         readonly chooseDirectory: StartDeps['chooseDirectory'];
         readonly makeProject?: StartDeps['makeProject'];
         readonly installPackages?: StartDeps['installPackages'];
+        readonly folderFacts?: StartDeps['folderFacts'];
+        readonly updateProject?: StartDeps['updateProject'];
+        readonly chooseFile?: StartDeps['chooseFile'];
         /** Whether the classic workspace was ever set up in this data folder. */
         readonly classicUsed: (config: DesktopConfig) => boolean;
       }
@@ -1172,6 +1175,8 @@ export function createDesktopApp(deps: DesktopBootDeps): DesktopApp {
                 ...(git.installAppleTools === undefined ? {} : { installAppleTools: git.installAppleTools }),
                 ...(git.log === undefined ? {} : { log: git.log }),
               });
+        // One made on Start ("Update Adminium") gives way to this boot's.
+        updateManager?.dispose();
         updateManager = deps.createUpdateManager({ mode: loadedConfig.updates.mode });
         menuHandlers = {
           showLogs: () => void deps.showLogs(),
@@ -1248,6 +1253,17 @@ export function createDesktopApp(deps: DesktopBootDeps): DesktopApp {
                 chooseDirectory: screen.chooseDirectory,
                 ...(screen.makeProject === undefined ? {} : { makeProject: screen.makeProject }),
                 ...(screen.installPackages === undefined ? {} : { installPackages: screen.installPackages }),
+                ...(screen.folderFacts === undefined ? {} : { folderFacts: screen.folderFacts }),
+                ...(screen.updateProject === undefined ? {} : { updateProject: screen.updateProject }),
+                ...(screen.chooseFile === undefined ? {} : { chooseFile: screen.chooseFile }),
+                // "Update Adminium", asked from a folder a newer one wrote: the app's own updater, made now if no
+                // boot has made one yet (Start has no server, and so had none).
+                updateApp: () => {
+                  updateManager ??= deps.createUpdateManager({ mode: (config ?? loaded.config).updates.mode });
+                  if (updateManager === null) return false;
+                  void updateManager.checkForUpdates();
+                  return true;
+                },
                 onChoice: choose,
               });
               startOpen = true;
@@ -1370,6 +1386,8 @@ export function createDesktopApp(deps: DesktopBootDeps): DesktopApp {
         // resolves): the correctness rule — nothing is constructed, so an
         // air-gapped install makes zero non-loopback requests. `notify` mode
         // schedules its own launch + daily checks; nothing here drives them.
+        // One made on Start ("Update Adminium") gives way to this boot's.
+        updateManager?.dispose();
         updateManager = deps.createUpdateManager({ mode: loadedConfig.updates.mode });
 
         // Assemble the menu's command handlers ONCE, here at step 5 — File's
@@ -2348,6 +2366,13 @@ export function electronBootDeps(): DesktopBootDeps {
       chooseDirectory: (opts) => dialogs.chooseDirectory(opts),
       makeProject: createMakeProject(engineCli),
       installPackages: createInstallPackages(engineCli),
+      folderFacts: createFolderFacts(engineCli),
+      updateProject: createUpdateProject(engineCli),
+      // A `.env` is a hidden file: the picker is asked to show those.
+      chooseFile: async (opts) => {
+        const result = await dialog.showOpenDialog({ title: opts.title, ...(opts.defaultPath === undefined ? {} : { defaultPath: opts.defaultPath }), properties: ['openFile', 'showHiddenFiles'] });
+        return result.canceled ? null : (result.filePaths[0] ?? null);
+      },
       classicUsed: (loaded) => existsSync(join(loaded.dataDir, 'meta.db')),
     },
     projectEnv: process.env,

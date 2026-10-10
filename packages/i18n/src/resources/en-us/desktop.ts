@@ -108,5 +108,88 @@ export default {
     "changed": "This folder’s code changed since you last opened it.",
     "open": "Open",
     "title": "Open this folder?"
+  },
+  "found": {
+    "data": "Found this project’s data.",
+    "key": "Found its key.",
+    "noData": "This folder has the project but no data.",
+    "madeBoth": "Adminium made a new key and an empty database.",
+    "madeDatabase": "Adminium made an empty database.",
+    "rowsLost": "The apps’ own tables are made again. Rows that were in the old data are not here."
+  },
+  "opening": {
+    "continue": "Continue",
+    "close": "Close",
+    "notAProject": {
+      "line": "You can make a new project in a folder inside it.",
+      "another": "Choose another folder",
+      "make": "Make a new project here"
+    }
+  },
+  "key": {
+    "heading": "This project’s data is here, but its key is missing.",
+    "body": "The key is a line in a file named ‹.env› in the project’s folder. Your computer hides files whose names start with a dot.",
+    "body2": "Without the key, the saved database connections and API keys in this project’s data cannot be read.",
+    "hidden": {
+      "mac": "In Finder, press ⌘ ⇧ . to show them.",
+      "windows": "In File Explorer, choose View › Show › Hidden items.",
+      "linux": "In your file manager, press Ctrl H."
+    },
+    "env": {
+      "title": "I have the .env file",
+      "line": "Pick it, and Adminium copies it in.",
+      "pick": "Choose the .env file of this project",
+      "notAKey": "That file holds no key. Choose the .env file that came with this project’s data."
+    },
+    "fresh": {
+      "title": "Start the data fresh, keep my apps",
+      "line": "Your old data is moved to a folder named ‹{folder}›. Nothing is deleted."
+    },
+    "new": {
+      "title": "Go on with a new key",
+      "line": "The data is kept. Saved connections and keys in it stop working and must be entered again."
+    },
+    "failed": "That could not be done."
+  },
+  "accounts": {
+    "heading": "This project came with accounts",
+    "people": "{count, plural, one {# person} other {# people}}",
+    "peopleLabel": "People",
+    "apiKeys": "{count, plural, one {# API key} other {# API keys}}",
+    "apiKeysLabel": "API keys",
+    "publicKeys": "{count, plural, one {# key open to the public} other {# keys open to the public}}",
+    "publicKeysLabel": "Open to the public",
+    "body": "You will work as its owner on this computer. Before you share it on your network you will choose a new owner password, and the old sessions and API keys will stop working.",
+    "show": "Show them",
+    "hide": "Hide them",
+    "more": "and {count} more"
+  },
+  "notice": {
+    "manager": {
+      "title": "This project uses {manager}.",
+      "line": "Adminium installs with npm instead. Your {manager} file is left as it is."
+    },
+    "older": {
+      "title": "This project was made with an older Adminium (‹{was}›).",
+      "line": "Update it to ‹{here}› so everything matches. This changes one line in the project and downloads its building blocks again.",
+      "update": "Update this project",
+      "notNow": "Not now",
+      "working": "Updating this project…",
+      "failed": "This project could not be updated. It still opens as it is."
+    },
+    "newer": {
+      "title": "This project needs a newer Adminium.",
+      "line": "It was last opened with Adminium ‹{last}›. This computer has ‹{here}›.",
+      "lineUnknown": "It was last opened with a newer Adminium. This computer has ‹{here}›.",
+      "update": "Update Adminium",
+      "looking": "Looking for a newer Adminium. It is offered here when it is found.",
+      "cannot": "This copy of Adminium does not update itself. Get the newest one from adminium.dev."
+    },
+    "running": {
+      "title": "This project is already running",
+      "cli": "It is open in a terminal, on port ‹{port}›. Close it there first.",
+      "app": "It is open in another Adminium window, on port ‹{port}›. Close it there first.",
+      "again": "Look again"
+    }
   }
 } as const;

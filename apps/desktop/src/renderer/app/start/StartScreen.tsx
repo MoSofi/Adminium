@@ -8,8 +8,9 @@ import { tagForLocale } from '@adminium/i18n';
 import { Database, Folder, FolderOpen, Hammer, MonitorSmartphone, RadioTower, Sparkles, type LucideIcon } from 'lucide-react';
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 
-import type { DesktopRecentProject, DesktopStartState } from '../../../preload/api.js';
-import { startApi } from '../bridge.js';
+import type { DesktopOpenStep, DesktopRecentProject, DesktopStartState } from '../../../preload/api.js';
+import { desktopApi, startApi } from '../bridge.js';
+import { OpeningScreen, type OpeningActions, type OpeningStep } from './Opening.js';
 import { PackagesDialog, type PackagesQuestion } from './PackagesDialog.js';
 import { TrustDialog, type TrustQuestion } from './TrustDialog.js';
 
@@ -191,7 +192,10 @@ function RecentRow({
   );
 }
 
-export function StartScreen({ initial, onBuild, say }: { initial: DesktopStartState; onBuild: () => void; say: Say }): ReactNode {
+/** The system the app runs on, for the words that differ by it. */
+const platformName = (): string => desktopApi().platform;
+
+export function StartScreen({ initial, onBuild, onMakeIn, say }: { initial: DesktopStartState; onBuild: () => void; /** "Make a new project here": New app, with that folder as where to keep it. */ onMakeIn?: ((parent: string) => void) | undefined; say: Say }): ReactNode {
   const t = useT();
   const tag = tagForLocale(useLocale());
   const recentHead = useId();
@@ -202,20 +206,33 @@ export function StartScreen({ initial, onBuild, say }: { initial: DesktopStartSt
 
   // Where the project asked about is to land, kept across the question about its code.
   const landing = useRef<'designer' | 'dashboard'>('designer');
-  const open = async (path: string, agreed: boolean, land: 'designer' | 'dashboard' = agreed ? landing.current : 'designer'): Promise<void> => {
+  // A screen on the way into a folder (what was found, a notice, the missing key), and the ones already continued from.
+  const [step, setStep] = useState<OpeningStep | null>(null);
+  const [stepBusy, setStepBusy] = useState(false);
+  const [stepProblem, setStepProblem] = useState<string | null>(null);
+  const seen = useRef<DesktopOpenStep[]>([]);
+  const open = async (path: string, agreed: boolean, land: 'designer' | 'dashboard' = agreed ? landing.current : 'designer', fresh = true): Promise<void> => {
     landing.current = land;
+    // A new opening starts with nothing read; "Continue" on one of its screens keeps what was.
+    if (fresh && !agreed) seen.current = [];
     setOpening(true);
+    setStepProblem(null);
     try {
-      const result = await startApi().openProject({ path, ...(agreed ? { agreed: true } : {}), ...(land === 'dashboard' ? { land } : {}) });
+      const result = await startApi().openProject({ path, ...(agreed ? { agreed: true } : {}), ...(land === 'dashboard' ? { land } : {}), ...(seen.current.length === 0 ? {} : { seen: seen.current }) });
       if (result.status === 'trust-needed') {
         setQuestion({ path: result.path, displayPath: result.displayPath, changed: result.changed });
         return;
       }
       setQuestion(null);
-      if (result.status === 'missing') say(t('desktop:start.recent.gone', 'This folder was moved or deleted'), 'error');
-      else if (result.status === 'not-a-project') say(t('desktop:start.open.notAProject', 'This folder is not an Adminium project.'), 'error');
-      else if (result.status === 'needs-packages') setPackages({ path: result.path, displayPath: result.displayPath, land, since: null, failure: null });
-      // 'opened': main is already taking the window to the project.
+      if (result.status === 'missing') {
+        setStep(null);
+        say(t('desktop:start.recent.gone', 'This folder was moved or deleted'), 'error');
+      } else if (result.status === 'not-a-project') setStep({ status: 'not-a-project', path, displayPath: shownPaths.current.get(path) ?? path });
+      else if (result.status === 'needs-packages') {
+        setStep(null);
+        setPackages({ path: result.path, displayPath: result.displayPath, land, since: null, failure: null });
+      } else if (result.status !== 'opened') setStep(result);
+      // 'opened': main is already taking the window to the project; the screen stays as it is until this page is gone.
     } catch (error) {
       setQuestion(null);
       say(error instanceof Error ? error.message : String(error), 'error');
@@ -223,6 +240,8 @@ export function StartScreen({ initial, onBuild, say }: { initial: DesktopStartSt
       setOpening(false);
     }
   };
+  /** A folder's path as a person reads it, kept from the picker for the one answer that does not bring it back. */
+  const shownPaths = useRef(new Map<string, string>());
 
   // The packages of a project that is there without them: asked for, fetched with a clock on the wait, then it opens.
   const [packages, setPackages] = useState<PackagesQuestion | null>(null);
@@ -266,7 +285,10 @@ export function StartScreen({ initial, onBuild, say }: { initial: DesktopStartSt
     }
     if (key === 'open') {
       const picked = await startApi().chooseFolder({ title: t('desktop:start.choice.open.title', 'Open a folder') });
-      if (picked !== null) await open(picked.path, false);
+      if (picked !== null) {
+        shownPaths.current.set(picked.path, picked.displayPath);
+        await open(picked.path, false);
+      }
     }
   };
 
@@ -282,12 +304,100 @@ export function StartScreen({ initial, onBuild, say }: { initial: DesktopStartSt
     say(t('desktop:start.recent.removed', 'Removed from the recent projects'), 'success');
   };
 
+  const stepPath = step?.path ?? null;
+  const stepActions: OpeningActions = {
+    onContinue: () => {
+      if (step === null) return;
+      const read: Partial<Record<OpeningStep['status'], DesktopOpenStep>> = { 'other-manager': 'manager', 'older-engine': 'engine', found: 'found', accounts: 'accounts' };
+      const name = read[step.status];
+      if (name !== undefined && !seen.current.includes(name)) seen.current = [...seen.current, name];
+      void open(step.path, false, landing.current, false);
+    },
+    onClose: () => {
+      setStep(null);
+      setStepProblem(null);
+    },
+    onLookAgain: () => {
+      if (stepPath !== null) void open(stepPath, false, landing.current);
+    },
+    onUpdateProject: () => {
+      if (stepPath === null) return;
+      setStepBusy(true);
+      setStepProblem(null);
+      void startApi()
+        .updateProject({ path: stepPath })
+        .then((result) => {
+          if (result.status === 'failed') {
+            setStepProblem(t('desktop:notice.older.failed', 'This project could not be updated. It still opens as it is.'));
+            return;
+          }
+          // Updated (or the folder changed under the question): asked again from the start.
+          void open(stepPath, false, landing.current);
+        })
+        .catch((error: unknown) => say(error instanceof Error ? error.message : String(error), 'error'))
+        .finally(() => setStepBusy(false));
+    },
+    onUpdateApp: () => {
+      void startApi()
+        .updateApp()
+        .then((looking) => setStepProblem(looking ? t('desktop:notice.newer.looking', 'Looking for a newer Adminium. It is offered here when it is found.') : t('desktop:notice.newer.cannot', 'This copy of Adminium does not update itself. Get the newest one from adminium.dev.')))
+        .catch((error: unknown) => say(error instanceof Error ? error.message : String(error), 'error'));
+    },
+    onKeyAnswer: (answer) => {
+      if (stepPath === null) return;
+      setStepBusy(true);
+      setStepProblem(null);
+      void startApi()
+        .resolveKey({ path: stepPath, answer, ...(answer === 'env' ? { title: t('desktop:key.env.pick', 'Choose the .env file of this project') } : {}) })
+        .then((result) => {
+          if (result.status === 'cancelled') return;
+          if (result.status === 'not-a-key-file') {
+            setStepProblem(t('desktop:key.env.notAKey', 'That file holds no key. Choose the .env file that came with this project’s data.'));
+            return;
+          }
+          if (result.status === 'failed') {
+            setStepProblem(result.detail === '' ? t('desktop:key.failed', 'That could not be done.') : result.detail);
+            return;
+          }
+          void open(stepPath, false, landing.current, false);
+        })
+        .catch((error: unknown) => say(error instanceof Error ? error.message : String(error), 'error'))
+        .finally(() => setStepBusy(false));
+    },
+    onChooseAnother: () => {
+      setStep(null);
+      void choose('open');
+    },
+    onMakeHere: () => {
+      if (stepPath !== null) onMakeIn?.(stepPath);
+    },
+  };
+
   const words: Record<Choice['key'], [string, string]> = {
     build: [t('desktop:start.choice.build.title', 'Build an app'), t('desktop:start.choice.build.line', 'Describe it, and the Designer builds it on this computer.')],
     open: [t('desktop:start.choice.open.title', 'Open a folder'), t('desktop:start.choice.open.line', 'Go on with an app that is already in a folder, or one someone sent you.')],
     connect: [t('desktop:start.choice.connect.title', 'Connect to another Adminium'), t('desktop:start.choice.connect.line', 'Use an Adminium that runs on another computer.')],
     db: [t('desktop:start.choice.db.title', 'Use my own database'), t('desktop:start.choice.db.line', 'Make screens for a database you already have.')],
   };
+
+  // One screen at a time: a step on the way into a folder stands in Start's place, with the questions still over it.
+  if (step !== null) {
+    return (
+      <>
+        <OpeningScreen step={step} platform={platformName()} busy={stepBusy || opening} problem={stepProblem} actions={stepActions} />
+        <TrustDialog
+          question={question}
+          busy={opening}
+          onCancel={() => {
+            setQuestion(null);
+          }}
+          onOpen={() => {
+            if (question !== null) void open(question.path, true);
+          }}
+        />
+      </>
+    );
+  }
 
   return (
     <div className="flex w-full flex-col pt-1 @[1144px]:pt-10">

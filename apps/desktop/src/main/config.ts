@@ -182,6 +182,10 @@ export const projectEntrySchema = z.strictObject({
   sharePort: portSchema.nullable(),
   /** The fingerprint of the code the person agreed to run, or `null`: never agreed. */
   trusted: z.string().min(1).nullable(),
+  /** Opened here before: what was found in it and who it came with have been shown once. */
+  reviewed: z.boolean().default(false),
+  /** The older Adminium pin the person was last told of and chose to keep, so it is not asked at every opening. */
+  engineNoted: z.string().min(1).nullable().default(null),
 });
 
 export type ProjectEntry = z.infer<typeof projectEntrySchema>;

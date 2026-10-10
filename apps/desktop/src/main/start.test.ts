@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-import { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createDefaultConfig, type DesktopConfig } from './config.js';
+import type { FolderFacts } from './folder-open.js';
 import { realFolderDeps, rememberProject } from './projects.js';
 import { CANNOT_MAKE_PROJECT, createStartService, displayPathOf, nameFromFolder, projectFingerprint, type StartChoice, type StartDeps } from './start.js';
 
@@ -190,7 +191,7 @@ describe('a new project', () => {
     const root = join(parent, 'juniper-kitchen');
     await expect(start.createProject({ parent, name: ' Juniper Kitchen ' })).resolves.toEqual({ status: 'created', path: root });
     expect(makeProject).toHaveBeenCalledWith({ parent, folder: 'juniper-kitchen', root, onStep: expect.any(Function) as unknown });
-    expect(config.projects).toEqual([{ path: root, name: 'Juniper Kitchen', lastOpened: '2026-10-10T08:00:00.000Z', state: 'building', sharePort: null, trusted: projectFingerprint(root) }]);
+    expect(config.projects).toMatchObject([{ path: root, name: 'Juniper Kitchen', lastOpened: '2026-10-10T08:00:00.000Z', state: 'building', sharePort: null, trusted: projectFingerprint(root) }]);
     expect(config.projects[0]?.trusted).not.toBeNull();
     expect(chosen).toEqual([{ kind: 'project', root }]);
   });
@@ -278,7 +279,7 @@ describe('opening a folder', () => {
     const shop = project('juniper-kitchen');
     const { start } = service();
     await expect(start.openProject({ path: shop, agreed: true })).resolves.toEqual({ status: 'opened' });
-    expect(config.projects).toEqual([{ path: shop, name: 'Juniper Kitchen', lastOpened: '2026-10-10T08:00:00.000Z', state: 'building', sharePort: null, trusted: projectFingerprint(shop) }]);
+    expect(config.projects).toMatchObject([{ path: shop, name: 'Juniper Kitchen', lastOpened: '2026-10-10T08:00:00.000Z', state: 'building', sharePort: null, trusted: projectFingerprint(shop) }]);
     expect(chosen).toEqual([{ kind: 'project', root: shop }]);
   });
 
@@ -380,7 +381,7 @@ describe('the recent list’s buttons', () => {
     const shop = project('shop');
     config = rememberProject(config, { path: shop, name: 'Shop' });
     await expect(service().start.forgetProject(shop)).resolves.toEqual([]);
-    expect(config.projects).toEqual([]);
+    expect(config.projects).toMatchObject([]);
   });
 
   it('locates a moved project: the entry moves, the trust does not', async () => {
@@ -448,5 +449,300 @@ describe('letting go of a project', () => {
     const { start, saved } = service();
     await start.trustNow(shop);
     expect(saved).toEqual([]);
+  });
+});
+
+// ─── opening a folder: the order of what is asked (spec 08 §3) ────────────────
+
+describe('opening a folder, with the engine’s facts', () => {
+  const NONE = { count: 0, names: [] as string[] };
+  const facts = (over: Partial<FolderFacts> = {}): FolderFacts => ({
+    secret: true,
+    database: 'sqlite',
+    dataDir: null,
+    lastEngine: '0.3.21',
+    newer: [],
+    people: { count: 1, names: ['Owner'] },
+    apiKeys: NONE,
+    publicKeys: NONE,
+    ownerHasPassword: false,
+    running: null,
+    otherManager: null,
+    engine: { installed: '0.3.21', declared: '0.3.21', here: '0.3.21' },
+    install: null,
+    ...over,
+  });
+  /** A service whose facts the test sets, and a record of what was done to the folder. */
+  function opening(first: FolderFacts, over: Partial<StartDeps> = {}) {
+    let now = first;
+    const cleaned: string[] = [];
+    const asked: string[] = [];
+    const made = { key: false, database: false };
+    const { start, saved } = service({
+      folderFacts: (root) => {
+        asked.push(root);
+        return Promise.resolve(now);
+      },
+      cleanVersionStore: (root) => {
+        cleaned.push(root);
+        return true;
+      },
+      prepareNewData: () => made,
+      ...over,
+    });
+    return { start, saved, cleaned, asked, made, set: (next: FolderFacts) => void (now = next) };
+  }
+  const entry = (root: string) => config.projects.find((project) => project.path === root);
+
+  it('asks about the folder’s code before anything is read of it', async () => {
+    const root = project('shop');
+    const o = opening(facts());
+    expect((await o.start.openProject({ path: root })).status).toBe('trust-needed');
+    expect(o.asked).toEqual([]);
+    expect(o.cleaned).toEqual([]);
+  });
+
+  it('the first time: the version store is cleaned, what was found is shown once, then it opens and is remembered as looked over', async () => {
+    const root = project('shop');
+    const o = opening(facts());
+    expect(await o.start.openProject({ path: root, agreed: true })).toEqual({ status: 'found', path: root, displayPath: '~/shop', name: 'Shop', rows: ['data', 'key'] });
+    expect(o.cleaned).toEqual([root]);
+    expect(chosen).toEqual([]);
+    expect(entry(root)?.reviewed).toBe(false);
+
+    expect(await o.start.openProject({ path: root, seen: ['found'] })).toEqual({ status: 'opened' });
+    expect(chosen).toEqual([{ kind: 'project', root }]);
+    expect(entry(root)).toMatchObject({ reviewed: true, engineNoted: null });
+    // A second opening: straight in, nothing shown, the store not touched again.
+    expect(await o.start.openProject({ path: root })).toEqual({ status: 'opened' });
+    expect(o.cleaned).toEqual([root]);
+  });
+
+  it('a server that has the folder stops everything, and says where', async () => {
+    const root = project('shop');
+    const o = opening(facts({ running: { port: 4712, by: 'cli' } }));
+    expect(await o.start.openProject({ path: root, agreed: true })).toEqual({ status: 'running', path: root, port: 4712, by: 'cli' });
+    expect(chosen).toEqual([]);
+  });
+
+  it('a store a newer Adminium wrote is never started, before any other question', async () => {
+    const root = project('shop', { packages: false });
+    const o = opening(facts({ newer: [{ name: '0099_future', appliedBy: '0.4.0' }], lastEngine: '0.4.0', otherManager: { manager: 'pnpm', file: 'pnpm-lock.yaml' }, install: 'no-packages' }));
+    expect(await o.start.openProject({ path: root, agreed: true })).toEqual({ status: 'needs-newer', path: root, last: '0.4.0', here: '0.3.21' });
+    // Whatever is said to have been seen: there is no way past it.
+    expect((await o.start.openProject({ path: root, seen: ['manager', 'engine', 'found', 'accounts'] })).status).toBe('needs-newer');
+    expect(chosen).toEqual([]);
+  });
+
+  it('another manager’s lockfile is said the first time only', async () => {
+    const root = project('shop');
+    const o = opening(facts({ otherManager: { manager: 'pnpm', file: 'pnpm-lock.yaml' } }));
+    expect(await o.start.openProject({ path: root, agreed: true })).toMatchObject({ status: 'other-manager', manager: 'pnpm' });
+    expect((await o.start.openProject({ path: root, seen: ['manager'] })).status).toBe('found');
+    expect((await o.start.openProject({ path: root, seen: ['manager', 'found'] })).status).toBe('opened');
+    expect((await o.start.openProject({ path: root })).status).toBe('opened');
+  });
+
+  it('an older pin is offered once per pin: declined, it opens and is not asked again until the pin changes', async () => {
+    const root = project('shop');
+    const o = opening(facts({ engine: { installed: '0.3.16', declared: '0.3.16', here: '0.3.21' } }));
+    expect(await o.start.openProject({ path: root, agreed: true })).toEqual({ status: 'older-engine', path: root, displayPath: '~/shop', was: '0.3.16', here: '0.3.21' });
+    expect((await o.start.openProject({ path: root, seen: ['engine', 'found'] })).status).toBe('opened');
+    expect(entry(root)?.engineNoted).toBe('0.3.16');
+    expect((await o.start.openProject({ path: root })).status).toBe('opened');
+    // Another older pin (a folder copied over this one): asked again.
+    o.set(facts({ engine: { installed: '0.3.18', declared: '0.3.18', here: '0.3.21' } }));
+    expect(await o.start.openProject({ path: root })).toMatchObject({ status: 'older-engine', was: '0.3.18' });
+    // Updated: nothing to say, and nothing kept.
+    o.set(facts());
+    expect((await o.start.openProject({ path: root })).status).toBe('opened');
+    expect(entry(root)?.engineNoted).toBeNull();
+  });
+
+  it('packages installed on another kind of computer are fetched again, and none are fetched for a folder that is merely unmarked', async () => {
+    const root = project('shop');
+    const installPackages = vi.fn(() => Promise.resolve({ ok: true as const }));
+    const o = opening(facts({ install: 'another-machine' }), { installPackages });
+    expect(await o.start.openProject({ path: root, agreed: true })).toEqual({ status: 'needs-packages', path: root, displayPath: '~/shop' });
+    expect(await o.start.getPackages({ path: root })).toEqual({ status: 'opened' });
+    expect(installPackages).toHaveBeenCalledTimes(1);
+
+    const other = project('other');
+    const p = opening(facts({ install: 'not-finished' }), { installPackages });
+    expect((await p.start.openProject({ path: other, agreed: true })).status).toBe('found');
+    p.set(facts({ install: 'changed' }));
+    expect((await p.start.openProject({ path: other, seen: ['found'] })).status).toBe('opened');
+  });
+
+  it('data with no key is asked about, and nothing is made for it', async () => {
+    const root = project('shop');
+    const prepare = vi.fn(() => ({ key: true, database: true }));
+    const o = opening(facts({ secret: false }), { prepareNewData: prepare });
+    expect(await o.start.openProject({ path: root, agreed: true })).toEqual({ status: 'key-missing', path: root, displayPath: '~/shop', name: 'Shop', dataBefore: 'data.before-2026-10-10' });
+    expect((await o.start.openProject({ path: root, seen: ['found', 'accounts'] })).status).toBe('key-missing');
+    expect(prepare).not.toHaveBeenCalled();
+    expect(chosen).toEqual([]);
+  });
+
+  it('a folder with no data: what was made is said, even at a later opening', async () => {
+    const root = project('shop');
+    const o = opening(facts({ database: 'none', secret: false }));
+    o.made.key = true;
+    o.made.database = true;
+    expect(await o.start.openProject({ path: root, agreed: true })).toMatchObject({ status: 'found', rows: ['no-data', 'made-key-and-database'] });
+    expect((await o.start.openProject({ path: root, seen: ['found'] })).status).toBe('opened');
+    // Its data folder deleted later, the key still there: a database is made again, and said.
+    o.set(facts({ database: 'none' }));
+    o.made.key = false;
+    expect(await o.start.openProject({ path: root })).toMatchObject({ status: 'found', rows: ['no-data', 'made-database'] });
+    // Nothing made, nothing to say (a project made a moment ago that has not been started yet).
+    o.made.database = false;
+    expect((await o.start.openProject({ path: root })).status).toBe('opened');
+  });
+
+  it('accounts a folder brought are named once, after what was found', async () => {
+    const root = project('shop');
+    const people = { count: 3, names: ['Rosa', 'Theo', 'Mia'] };
+    const o = opening(facts({ people, apiKeys: { count: 1, names: ['Widget'] } }));
+    expect((await o.start.openProject({ path: root, agreed: true })).status).toBe('found');
+    expect(await o.start.openProject({ path: root, seen: ['found'] })).toEqual({ status: 'accounts', path: root, displayPath: '~/shop', accounts: { people, apiKeys: { count: 1, names: ['Widget'] }, publicKeys: NONE } });
+    expect((await o.start.openProject({ path: root, seen: ['found', 'accounts'] })).status).toBe('opened');
+    expect((await o.start.openProject({ path: root })).status).toBe('opened');
+  });
+
+  it('a store that is elsewhere is asked nothing and made nothing', async () => {
+    const root = project('shop');
+    const prepare = vi.fn(() => ({ key: true, database: true }));
+    const o = opening(facts({ database: 'elsewhere', secret: false }), { prepareNewData: prepare });
+    expect((await o.start.openProject({ path: root, agreed: true })).status).toBe('opened');
+    expect(prepare).not.toHaveBeenCalled();
+  });
+
+  it('with no facts to be had, a folder opens as it did before there were any', async () => {
+    const root = project('shop');
+    const { start } = service({ folderFacts: () => Promise.resolve(null), cleanVersionStore: () => false });
+    expect((await start.openProject({ path: root, agreed: true })).status).toBe('opened');
+    const bare = project('bare', { packages: false });
+    expect((await start.openProject({ path: bare, agreed: true })).status).toBe('needs-packages');
+  });
+
+  it('a project made here is looked over by making it: its first opening shows nothing', async () => {
+    const o = opening(facts(), { makeProject: ({ root }) => {
+      mkdirSync(root, { recursive: true });
+      writeFileSync(join(root, 'adminium.config.ts'), 'export default {};\n');
+      mkdirSync(join(root, 'node_modules'));
+      return Promise.resolve({ ok: true as const });
+    } });
+    const made = await o.start.createProject({ parent: join(home, 'Adminium'), name: 'Juniper' });
+    expect(made.status).toBe('created');
+    const root = made.status === 'created' ? made.path : '';
+    expect(entry(root)?.reviewed).toBe(true);
+    expect((await o.start.openProject({ path: root })).status).toBe('opened');
+    expect(o.cleaned).toEqual([]);
+  });
+
+  describe('the answer to a missing key', () => {
+    const agreed = async (o: ReturnType<typeof opening>, root: string): Promise<void> => {
+      await o.start.openProject({ path: root, agreed: true });
+    };
+
+    it('is taken only for a folder agreed to, that really has data and no key', async () => {
+      const root = project('shop');
+      const resolve = vi.fn(() => ({ ok: true as const }));
+      const o = opening(facts({ secret: false }), { resolveMissingKey: resolve });
+      expect(await o.start.resolveKey({ path: root, answer: 'new' })).toEqual({ status: 'trust-needed' });
+      expect(await o.start.resolveKey({ path: join(home, 'nowhere'), answer: 'new' })).toEqual({ status: 'trust-needed' });
+      await agreed(o, root);
+      o.set(facts());
+      expect(await o.start.resolveKey({ path: root, answer: 'new' })).toMatchObject({ status: 'failed' });
+      o.set(facts({ database: 'none', secret: false }));
+      expect(await o.start.resolveKey({ path: root, answer: 'fresh' })).toMatchObject({ status: 'failed' });
+      expect(resolve).not.toHaveBeenCalled();
+    });
+
+    it('"new" and "fresh" are done as asked; "env" asks the system for the file first', async () => {
+      const root = project('shop');
+      const resolve = vi.fn<NonNullable<StartDeps['resolveMissingKey']>>(() => ({ ok: true }));
+      const chooseFile = vi.fn<NonNullable<StartDeps['chooseFile']>>().mockResolvedValueOnce(null).mockResolvedValue('/Users/sam/Desktop/.env');
+      const o = opening(facts({ secret: false, dataDir: join(root, 'data') }), { resolveMissingKey: resolve, chooseFile });
+      await agreed(o, root);
+      expect(await o.start.resolveKey({ path: root, answer: 'new' })).toEqual({ status: 'done' });
+      expect(resolve).toHaveBeenLastCalledWith(root, expect.objectContaining({ dataDir: join(root, 'data') }), { kind: 'new' }, { now: new Date('2026-10-10T08:00:00.000Z') });
+      expect(await o.start.resolveKey({ path: root, answer: 'fresh' })).toEqual({ status: 'done' });
+      expect(resolve).toHaveBeenLastCalledWith(root, expect.anything(), { kind: 'fresh' }, expect.anything());
+
+      expect(await o.start.resolveKey({ path: root, answer: 'env', title: 'Choose the .env file' })).toEqual({ status: 'cancelled' });
+      expect(chooseFile).toHaveBeenLastCalledWith({ title: 'Choose the .env file', defaultPath: home });
+      expect(resolve).toHaveBeenCalledTimes(2);
+      expect(await o.start.resolveKey({ path: root, answer: 'env' })).toEqual({ status: 'done' });
+      expect(resolve).toHaveBeenLastCalledWith(root, expect.anything(), { kind: 'env', file: '/Users/sam/Desktop/.env' }, expect.anything());
+    });
+
+    it('says when the picked file holds no key, and why a write failed; a build with no picker cancels', async () => {
+      const root = project('shop');
+      const resolve = vi.fn<NonNullable<StartDeps['resolveMissingKey']>>().mockReturnValueOnce({ ok: false, reason: 'not-a-key-file' }).mockReturnValueOnce({ ok: false, reason: 'failed', detail: 'EACCES' }).mockReturnValue({ ok: false, reason: 'failed' });
+      const o = opening(facts({ secret: false }), { resolveMissingKey: resolve, chooseFile: () => Promise.resolve('/x/.env') });
+      await agreed(o, root);
+      expect(await o.start.resolveKey({ path: root, answer: 'env' })).toEqual({ status: 'not-a-key-file' });
+      expect(await o.start.resolveKey({ path: root, answer: 'new' })).toEqual({ status: 'failed', detail: 'EACCES' });
+      expect(await o.start.resolveKey({ path: root, answer: 'new' })).toEqual({ status: 'failed', detail: '' });
+      const none = opening(facts({ secret: false }));
+      const other = project('other');
+      await agreed(none, other);
+      expect(await none.start.resolveKey({ path: other, answer: 'env' })).toEqual({ status: 'cancelled' });
+    });
+
+    it('with the real writes: "fresh" moves the data aside and the folder then opens with new data', async () => {
+      const root = project('shop');
+      mkdirSync(join(root, 'data'));
+      writeFileSync(join(root, 'data', 'meta.db'), 'rows');
+      writeFileSync(join(root, '.env'), 'DATABASE_URL=sqlite:./data/app.sqlite\n');
+      let now = facts({ secret: false, dataDir: join(root, 'data') });
+      const { start } = service({ folderFacts: () => Promise.resolve(now), cleanVersionStore: () => false });
+      expect((await start.openProject({ path: root, agreed: true })).status).toBe('key-missing');
+      expect(await start.resolveKey({ path: root, answer: 'fresh' })).toEqual({ status: 'done' });
+      expect(readFileSync(join(root, 'data.before-2026-10-10', 'meta.db'), 'utf8')).toBe('rows');
+      expect(readFileSync(join(root, '.env'), 'utf8')).toMatch(/ADMINIUM_SECRET=[0-9a-f]{64}\n$/);
+      // What the engine would now say of the folder.
+      now = facts({ database: 'none', dataDir: join(root, 'data') });
+      expect(await start.openProject({ path: root })).toMatchObject({ status: 'found', rows: ['no-data', 'made-database'] });
+      expect(existsSync(join(root, 'data', 'app.sqlite'))).toBe(true);
+    });
+  });
+
+  describe('"Update this project"', () => {
+    it('runs the update for a folder agreed to, and takes its new pin as the person’s own change', async () => {
+      const root = project('shop');
+      const updateProject = vi.fn(({ root: at }: { root: string }) => {
+        writeFileSync(join(at, 'package.json'), '{"name":"x","dependencies":{"@adminiumjs/adminium":"0.3.21"}}\n');
+        return Promise.resolve({ ok: true as const });
+      });
+      const o = opening(facts({ engine: { installed: '0.3.16', declared: '0.3.16', here: '0.3.21' } }), { updateProject });
+      expect(await o.start.updateProject({ path: root })).toEqual({ status: 'trust-needed' });
+      await o.start.openProject({ path: root, agreed: true });
+      expect(await o.start.updateProject({ path: root })).toEqual({ status: 'updated' });
+      expect(updateProject).toHaveBeenCalledWith({ root });
+      // package.json changed, and the next opening does not ask about the folder's code.
+      o.set(facts());
+      expect((await o.start.openProject({ path: root })).status).toBe('found');
+    });
+
+    it('says why it failed, and that a build cannot', async () => {
+      const root = project('shop');
+      const o = opening(facts(), { updateProject: () => Promise.resolve({ ok: false as const, detail: 'npm error code ENOTFOUND' }) });
+      await o.start.openProject({ path: root, agreed: true });
+      expect(await o.start.updateProject({ path: root })).toEqual({ status: 'failed', detail: 'npm error code ENOTFOUND' });
+      const bare = opening(facts());
+      const other = project('other');
+      await bare.start.openProject({ path: other, agreed: true });
+      expect(await bare.start.updateProject({ path: other })).toEqual({ status: 'failed', detail: CANNOT_MAKE_PROJECT });
+    });
+  });
+
+  it('"Update Adminium" asks the app’s own updater, and says when there is none', () => {
+    const updateApp = vi.fn(() => true);
+    expect(service({ updateApp }).start.updateApp()).toBe(true);
+    expect(updateApp).toHaveBeenCalledTimes(1);
+    expect(service().start.updateApp()).toBe(false);
   });
 });

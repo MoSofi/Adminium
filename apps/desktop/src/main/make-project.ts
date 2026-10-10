@@ -19,6 +19,7 @@ import { dirname, resolve } from 'node:path';
 
 import type { DesktopMakeStep } from '../preload/api.js';
 import type { MakeProjectResult } from './start.js';
+import { parseFolderFacts, type FolderFacts } from './folder-open.js';
 
 /**
  * The database a project made for the Designer starts with: a file of its own,
@@ -151,6 +152,45 @@ export function createInstallPackages(deps: MakeProjectDeps): (input: { root: st
     delete env.ADMINIUM_SECRET;
     const ran = await deps.run(deps.binary, [deps.cliEntry, 'install'], { cwd: root, env, timeoutMs: MAKE_PROJECT_TIMEOUT_MS });
     deps.log?.(`[project packages] ${root}: exit ${String(ran.code)}${ran.timedOut ? ' (timed out)' : ''}\n${lastLines(ran.output, 20)}`);
+    if (ran.timedOut) return { ok: false, detail: 'Getting the packages took too long and was stopped.' };
+    if (ran.code !== 0) return { ok: false, detail: lastLines(ran.output) };
+    return { ok: true };
+  };
+}
+
+/** The environment the engine's command line is started with for a folder: the app's own program as Node, its programs, no secret of the app's. */
+async function engineEnv(deps: MakeProjectDeps): Promise<Record<string, string>> {
+  const programs = await deps.programs();
+  const env: Record<string, string> = {};
+  for (const [key, value] of Object.entries(deps.env)) if (value !== undefined) env[key] = value;
+  env.ELECTRON_RUN_AS_NODE = '1';
+  if (programs !== undefined) env.ADMINIUM_DESKTOP_PROGRAMS = programs;
+  delete env.ADMINIUM_SECRET;
+  return env;
+}
+
+/** How long reading a folder's facts may take: it opens one file. */
+export const FOLDER_FACTS_TIMEOUT_MS = 30_000;
+
+/**
+ * What the engine says a folder holds (`adminium folder-facts`): it reads the
+ * folder and runs nothing of it. `null` when it could not be asked or did not
+ * answer; the caller then opens the folder as it did before there were facts.
+ */
+export function createFolderFacts(deps: MakeProjectDeps): (root: string) => Promise<FolderFacts | null> {
+  return async (root) => {
+    const ran = await deps.run(deps.binary, [deps.cliEntry, 'folder-facts'], { cwd: root, env: await engineEnv(deps), timeoutMs: FOLDER_FACTS_TIMEOUT_MS });
+    const facts = ran.code === 0 ? parseFolderFacts(ran.output) : null;
+    if (facts === null) deps.log?.(`[folder facts] ${root}: no answer (exit ${String(ran.code)}${ran.timedOut ? ', timed out' : ''})\n${lastLines(ran.output, 6)}`);
+    return facts;
+  };
+}
+
+/** "Update this project": the engine's `install --update` (the project's Adminium set to the app's, then a whole install). */
+export function createUpdateProject(deps: MakeProjectDeps): (input: { root: string }) => Promise<MakeProjectResult> {
+  return async ({ root }) => {
+    const ran = await deps.run(deps.binary, [deps.cliEntry, 'install', '--update'], { cwd: root, env: await engineEnv(deps), timeoutMs: MAKE_PROJECT_TIMEOUT_MS });
+    deps.log?.(`[project update] ${root}: exit ${String(ran.code)}${ran.timedOut ? ' (timed out)' : ''}\n${lastLines(ran.output, 20)}`);
     if (ran.timedOut) return { ok: false, detail: 'Getting the packages took too long and was stopped.' };
     if (ran.code !== 0) return { ok: false, detail: lastLines(ran.output) };
     return { ok: true };

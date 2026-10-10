@@ -239,7 +239,13 @@ const startNewFolderSchema = z.strictObject({ parent: absolutePathSchema, name: 
 const startChooseParentSchema = z.strictObject({ from: absolutePathSchema, title: dialogTitleSchema });
 const startCreateProjectSchema = z.strictObject({ parent: absolutePathSchema, name: projectNameSchema, acceptWarning: z.boolean().optional() });
 const startChooseFolderSchema = z.strictObject({ title: dialogTitleSchema });
-const startOpenProjectSchema = z.strictObject({ path: absolutePathSchema, agreed: z.boolean().optional(), land: z.enum(['designer', 'dashboard']).optional() });
+const startOpenProjectSchema = z.strictObject({
+  path: absolutePathSchema,
+  agreed: z.boolean().optional(),
+  land: z.enum(['designer', 'dashboard']).optional(),
+  seen: z.array(z.enum(['manager', 'engine', 'found', 'accounts'])).max(8).optional(),
+});
+const startResolveKeySchema = z.strictObject({ path: absolutePathSchema, answer: z.enum(['env', 'fresh', 'new']), title: dialogTitleSchema.optional() });
 const startGetPackagesSchema = z.strictObject({ path: absolutePathSchema, land: z.enum(['designer', 'dashboard']).optional() });
 const startLocateProjectSchema = z.strictObject({ path: absolutePathSchema, title: dialogTitleSchema });
 
@@ -864,10 +870,19 @@ export function registerIpcHandlers(opts: RegisterIpcHandlersOptions): IpcHandle
   register(
     IPC_CHANNELS.startOpenProject,
     startOpenProjectSchema,
-    (input) => start().openProject({ path: input.path, ...(input.agreed === undefined ? {} : { agreed: input.agreed }), ...(input.land === undefined ? {} : { land: input.land }) }),
+    (input) =>
+      start().openProject({
+        path: input.path,
+        ...(input.agreed === undefined ? {} : { agreed: input.agreed }),
+        ...(input.land === undefined ? {} : { land: input.land }),
+        ...(input.seen === undefined ? {} : { seen: input.seen }),
+      }),
     ownPage,
   );
   register(IPC_CHANNELS.startGetPackages, startGetPackagesSchema, (input) => start().getPackages({ path: input.path, ...(input.land === undefined ? {} : { land: input.land }) }), ownPage);
+  register(IPC_CHANNELS.startResolveKey, startResolveKeySchema, (input) => start().resolveKey({ path: input.path, answer: input.answer, ...(input.title === undefined ? {} : { title: input.title }) }), ownPage);
+  register(IPC_CHANNELS.startUpdateProject, z.strictObject({ path: absolutePathSchema }), (input) => start().updateProject(input), ownPage);
+  register(IPC_CHANNELS.startUpdateApp, noPayloadSchema, () => Promise.resolve(start().updateApp()), ownPage);
   register(IPC_CHANNELS.startForgetProject, absolutePathSchema, (path) => start().forgetProject(path), ownPage);
   register(IPC_CHANNELS.startLocateProject, startLocateProjectSchema, (input) => start().locateProject(input), ownPage);
   // ─── the project this window holds ─────────────────────────────────────────

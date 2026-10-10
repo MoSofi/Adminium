@@ -108,5 +108,88 @@ export default {
     "changed": "自你上次開啟以來，此資料夾的程式碼已變更。",
     "open": "開啟",
     "title": "要開啟此資料夾嗎？"
+  },
+  "found": {
+    "data": "已找到此專案的資料。",
+    "key": "已找到它的金鑰。",
+    "noData": "此資料夾中有專案，但沒有資料。",
+    "madeBoth": "Adminium 建立了新的金鑰和一個空的資料庫。",
+    "madeDatabase": "Adminium 建立了一個空的資料庫。",
+    "rowsLost": "應用程式自己的資料表會重新建立。舊資料中的資料列不在這裡。"
+  },
+  "opening": {
+    "continue": "繼續",
+    "close": "關閉",
+    "notAProject": {
+      "line": "你可以在其中的資料夾裡建立新專案。",
+      "another": "選擇其他資料夾",
+      "make": "在此處建立新專案"
+    }
+  },
+  "key": {
+    "heading": "此專案的資料在這裡，但缺少金鑰。",
+    "body": "金鑰是專案資料夾中名為 ‹.env› 的檔案裡的一行。你的電腦會隱藏名稱以點開頭的檔案。",
+    "body2": "沒有金鑰，就無法讀取此專案資料中儲存的資料庫連線和 API 金鑰。",
+    "hidden": {
+      "mac": "在 Finder 中按 ⌘ ⇧ . 可顯示它們。",
+      "windows": "在檔案總管中，選擇 檢視 › 顯示 › 隱藏的項目。",
+      "linux": "在檔案管理員中按 Ctrl H。"
+    },
+    "env": {
+      "title": "我有 .env 檔案",
+      "line": "選擇它，Adminium 會把它複製進來。",
+      "pick": "選擇此專案的 .env 檔案",
+      "notAKey": "該檔案中沒有金鑰。請選擇隨此專案資料一起提供的 .env 檔案。"
+    },
+    "fresh": {
+      "title": "重新開始資料，保留我的應用程式",
+      "line": "你的舊資料會移到名為 ‹{folder}› 的資料夾中。不會刪除任何內容。"
+    },
+    "new": {
+      "title": "使用新金鑰繼續",
+      "line": "資料會保留。其中儲存的連線和金鑰將失效，需要重新輸入。"
+    },
+    "failed": "無法完成該操作。"
+  },
+  "accounts": {
+    "heading": "此專案附帶了帳戶",
+    "people": "{count, plural, other {# 個人}}",
+    "peopleLabel": "人員",
+    "apiKeys": "{count, plural, other {# 個 API 金鑰}}",
+    "apiKeysLabel": "API 金鑰",
+    "publicKeys": "{count, plural, other {# 個對公眾開放的金鑰}}",
+    "publicKeysLabel": "對公眾開放",
+    "body": "你將在這台電腦上以其擁有者身分工作。在網路上分享它之前，你需要設定新的擁有者密碼，舊的工作階段和 API 金鑰將失效。",
+    "show": "顯示",
+    "hide": "隱藏",
+    "more": "另有 {count} 個"
+  },
+  "notice": {
+    "manager": {
+      "title": "此專案使用 {manager}。",
+      "line": "Adminium 改用 npm 安裝。你的 {manager} 檔案保持原樣。"
+    },
+    "older": {
+      "title": "此專案由較舊的 Adminium（‹{was}›）建立。",
+      "line": "將它更新到 ‹{here}›，使一切保持一致。這會變更專案中的一行，並重新下載它的建置模組。",
+      "update": "更新此專案",
+      "notNow": "暫時不要",
+      "working": "正在更新此專案…",
+      "failed": "無法更新此專案。它仍可依原樣開啟。"
+    },
+    "newer": {
+      "title": "此專案需要較新版本的 Adminium。",
+      "line": "它上次是用 Adminium ‹{last}› 開啟的。這台電腦上是 ‹{here}›。",
+      "lineUnknown": "它上次是用較新版本的 Adminium 開啟的。這台電腦上是 ‹{here}›。",
+      "update": "更新 Adminium",
+      "looking": "正在尋找較新版本的 Adminium。找到後會在此處提供。",
+      "cannot": "此 Adminium 副本不會自行更新。請從 adminium.dev 取得最新版本。"
+    },
+    "running": {
+      "title": "此專案已在執行",
+      "cli": "它已在終端機中開啟，連接埠為 ‹{port}›。請先在那裡關閉它。",
+      "app": "它已在另一個 Adminium 視窗中開啟，連接埠為 ‹{port}›。請先在那裡關閉它。",
+      "again": "重新檢查"
+    }
   }
 } as const;

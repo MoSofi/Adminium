@@ -98,5 +98,88 @@
     "changed": "Le code de ce dossier a changé depuis votre dernière ouverture.",
     "open": "Ouvrir",
     "title": "Ouvrir ce dossier ?"
+  },
+  "found": {
+    "data": "Les données de ce projet ont été trouvées.",
+    "key": "Sa clé a été trouvée.",
+    "noData": "Ce dossier contient le projet, mais pas de données.",
+    "madeBoth": "Adminium a créé une nouvelle clé et une base de données vide.",
+    "madeDatabase": "Adminium a créé une base de données vide.",
+    "rowsLost": "Les tables propres aux applications sont recréées. Les lignes des anciennes données ne sont pas ici."
+  },
+  "opening": {
+    "continue": "Continuer",
+    "close": "Fermer",
+    "notAProject": {
+      "line": "Vous pouvez créer un nouveau projet dans un dossier à l’intérieur.",
+      "another": "Choisir un autre dossier",
+      "make": "Créer un nouveau projet ici"
+    }
+  },
+  "key": {
+    "heading": "Les données de ce projet sont ici, mais sa clé est absente.",
+    "body": "La clé est une ligne d’un fichier nommé ‹.env› dans le dossier du projet. Votre ordinateur masque les fichiers dont le nom commence par un point.",
+    "body2": "Sans la clé, les connexions aux bases de données et les clés d’API enregistrées dans les données de ce projet ne peuvent pas être lues.",
+    "hidden": {
+      "mac": "Dans le Finder, appuyez sur ⌘ ⇧ . pour les afficher.",
+      "windows": "Dans l’Explorateur de fichiers, choisissez Affichage › Afficher › Éléments masqués.",
+      "linux": "Dans votre gestionnaire de fichiers, appuyez sur Ctrl H."
+    },
+    "env": {
+      "title": "J’ai le fichier .env",
+      "line": "Choisissez-le, et Adminium le copie.",
+      "pick": "Choisir le fichier .env de ce projet",
+      "notAKey": "Ce fichier ne contient pas de clé. Choisissez le fichier .env fourni avec les données de ce projet."
+    },
+    "fresh": {
+      "title": "Repartir de données vides, garder mes applications",
+      "line": "Vos anciennes données sont déplacées dans un dossier nommé ‹{folder}›. Rien n’est supprimé."
+    },
+    "new": {
+      "title": "Continuer avec une nouvelle clé",
+      "line": "Les données sont conservées. Les connexions et les clés qui y sont enregistrées cessent de fonctionner et doivent être saisies à nouveau."
+    },
+    "failed": "Cela n’a pas pu être fait."
+  },
+  "accounts": {
+    "heading": "Ce projet est arrivé avec des comptes",
+    "people": "{count, plural, one {# personne} other {# personnes}}",
+    "peopleLabel": "Personnes",
+    "apiKeys": "{count, plural, one {# clé d’API} other {# clés d’API}}",
+    "apiKeysLabel": "Clés d’API",
+    "publicKeys": "{count, plural, one {# clé ouverte au public} other {# clés ouvertes au public}}",
+    "publicKeysLabel": "Ouvert au public",
+    "body": "Vous travaillerez comme son propriétaire sur cet ordinateur. Avant de le partager sur votre réseau, vous choisirez un nouveau mot de passe de propriétaire, et les anciennes sessions et clés d’API cesseront de fonctionner.",
+    "show": "Les afficher",
+    "hide": "Les masquer",
+    "more": "et {count} de plus"
+  },
+  "notice": {
+    "manager": {
+      "title": "Ce projet utilise {manager}.",
+      "line": "Adminium installe avec npm à la place. Votre fichier {manager} est laissé tel quel."
+    },
+    "older": {
+      "title": "Ce projet a été créé avec une version plus ancienne d’Adminium (‹{was}›).",
+      "line": "Mettez-le à jour vers ‹{here}› pour que tout corresponde. Cela modifie une ligne du projet et télécharge à nouveau ses composants.",
+      "update": "Mettre ce projet à jour",
+      "notNow": "Pas maintenant",
+      "working": "Mise à jour de ce projet…",
+      "failed": "Ce projet n’a pas pu être mis à jour. Il s’ouvre toujours tel qu’il est."
+    },
+    "newer": {
+      "title": "Ce projet a besoin d’une version plus récente d’Adminium.",
+      "line": "Il a été ouvert pour la dernière fois avec Adminium ‹{last}›. Cet ordinateur a ‹{here}›.",
+      "lineUnknown": "Il a été ouvert pour la dernière fois avec une version plus récente d’Adminium. Cet ordinateur a ‹{here}›.",
+      "update": "Mettre Adminium à jour",
+      "looking": "Recherche d’une version plus récente d’Adminium. Elle sera proposée ici une fois trouvée.",
+      "cannot": "Cette copie d’Adminium ne se met pas à jour elle-même. Téléchargez la plus récente sur adminium.dev."
+    },
+    "running": {
+      "title": "Ce projet est déjà en cours d’exécution",
+      "cli": "Il est ouvert dans un terminal, sur le port ‹{port}›. Fermez-le d’abord là-bas.",
+      "app": "Il est ouvert dans une autre fenêtre d’Adminium, sur le port ‹{port}›. Fermez-le d’abord là-bas.",
+      "again": "Vérifier à nouveau"
+    }
   }
 }

@@ -7,7 +7,7 @@ import { join } from 'node:path';
 import { DESIGN_DATABASE } from '@adminium/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { INSTALLING_LINE, MAKE_PROJECT_TIMEOUT_MS, NEW_PROJECT_DATABASE, createInstallPackages, createMakeProject, lastLines, runToEnd, type MakeProjectDeps, type RanProgram } from './make-project.js';
+import { FOLDER_FACTS_TIMEOUT_MS, INSTALLING_LINE, MAKE_PROJECT_TIMEOUT_MS, NEW_PROJECT_DATABASE, createFolderFacts, createInstallPackages, createMakeProject, createUpdateProject, lastLines, runToEnd, type MakeProjectDeps, type RanProgram } from './make-project.js';
 
 let home: string;
 beforeEach(() => {
@@ -180,5 +180,38 @@ describe('running a program to its end', () => {
     const result = await runToEnd(join(home, 'no-such-program'), [], { cwd: home, env, timeoutMs: 5_000 });
     expect(result.code).toBeNull();
     expect(result.output).not.toBe('');
+  });
+});
+
+describe('what the engine says a folder holds', () => {
+  const FACTS = { secret: true, database: 'sqlite', dataDir: '/p/data', lastEngine: '0.3.21', newer: [], people: { count: 1, names: ['Owner'] }, apiKeys: { count: 0, names: [] }, publicKeys: { count: 0, names: [] }, ownerHasPassword: false, running: null, otherManager: null, engine: { installed: '0.3.21', declared: '0.3.21', here: '0.3.21' }, install: null };
+
+  it('is asked of the engine’s own `folder-facts`, in the folder, as Node, and read from its JSON', async () => {
+    const run = vi.fn<MakeProjectDeps['run']>(() => Promise.resolve(ran({ output: `${JSON.stringify(FACTS)}\n` })));
+    await expect(createFolderFacts(deps(run))(home)).resolves.toEqual(FACTS);
+    expect(run).toHaveBeenCalledWith('/Applications/Adminium.app/Contents/MacOS/Adminium', ['/app/node_modules/@adminium/server/dist/cli/index.js', 'folder-facts'], {
+      cwd: home,
+      env: { PATH: '/usr/bin', ELECTRON_RUN_AS_NODE: '1', ADMINIUM_DESKTOP_PROGRAMS: '{"binary":"x"}' },
+      timeoutMs: FOLDER_FACTS_TIMEOUT_MS,
+    });
+  });
+
+  it('is nothing when the command failed, took too long, or said something else: the folder then opens as before', async () => {
+    const log = vi.fn();
+    for (const end of [{ code: 78, output: 'There is no project in this folder' }, { code: null, timedOut: true }, { code: 0, output: 'not json' }]) {
+      await expect(createFolderFacts({ ...deps(() => Promise.resolve(ran(end))), log })(home)).resolves.toBeNull();
+    }
+    expect(log).toHaveBeenCalledTimes(3);
+    expect(String(log.mock.calls[1]?.[0])).toContain('timed out');
+  });
+});
+
+describe('"Update this project"', () => {
+  it('runs the engine’s `install --update` in the folder, and says why when it fails', async () => {
+    const run = vi.fn<MakeProjectDeps['run']>(() => Promise.resolve(ran()));
+    await expect(createUpdateProject(deps(run))({ root: home })).resolves.toEqual({ ok: true });
+    expect(run).toHaveBeenCalledWith('/Applications/Adminium.app/Contents/MacOS/Adminium', ['/app/node_modules/@adminium/server/dist/cli/index.js', 'install', '--update'], expect.objectContaining({ cwd: home, timeoutMs: MAKE_PROJECT_TIMEOUT_MS }));
+    await expect(createUpdateProject(deps(() => Promise.resolve(ran({ code: 1, output: 'npm error code E404' }))))({ root: home })).resolves.toEqual({ ok: false, detail: 'npm error code E404' });
+    await expect(createUpdateProject(deps(() => Promise.resolve(ran({ code: null, timedOut: true }))))({ root: home })).resolves.toEqual({ ok: false, detail: 'Getting the packages took too long and was stopped.' });
   });
 });

@@ -41,7 +41,7 @@ export function recentProjects(config: DesktopConfig, exists: (path: string) => 
  */
 export function rememberProject(
   config: DesktopConfig,
-  project: { path: string; name: string } & Partial<Pick<ProjectEntry, 'state' | 'sharePort' | 'trusted'>>,
+  project: { path: string; name: string } & Partial<Pick<ProjectEntry, 'state' | 'sharePort' | 'trusted' | 'reviewed' | 'engineNoted'>>,
   now: Date = new Date(),
 ): DesktopConfig {
   const known = config.projects.find((entry) => entry.path === project.path);
@@ -52,6 +52,8 @@ export function rememberProject(
     state: project.state ?? known?.state ?? 'building',
     sharePort: project.sharePort === undefined ? (known?.sharePort ?? null) : project.sharePort,
     trusted: project.trusted === undefined ? (known?.trusted ?? null) : project.trusted,
+    reviewed: project.reviewed ?? known?.reviewed ?? false,
+    engineNoted: project.engineNoted === undefined ? (known?.engineNoted ?? null) : project.engineNoted,
   };
   const rest = config.projects.filter((other) => other.path !== project.path);
   return { ...config, projects: [entry, ...rest].slice(0, MAX_RECENT_PROJECTS) };

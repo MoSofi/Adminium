@@ -684,6 +684,9 @@ describe('the first screens’ channels', () => {
     chooseFolder: vi.fn(() => Promise.resolve({ path: '/p', displayPath: '/p' })),
     openProject: vi.fn(() => Promise.resolve({ status: 'opened' as const })),
     getPackages: vi.fn(() => Promise.resolve({ status: 'opened' as const })),
+    resolveKey: vi.fn(() => Promise.resolve({ status: 'done' as const })),
+    updateProject: vi.fn(() => Promise.resolve({ status: 'updated' as const })),
+    updateApp: vi.fn(() => true),
     forgetProject: vi.fn(() => Promise.resolve([])),
     locateProject: vi.fn(() => Promise.resolve({ status: 'cancelled' as const })),
     useClassic: vi.fn(),
@@ -697,7 +700,10 @@ describe('the first screens’ channels', () => {
     [IPC_CHANNELS.startCreateProject]: { parent: '/home/ava/Adminium', name: 'Shop', acceptWarning: true },
     [IPC_CHANNELS.startMakeProgress]: undefined,
     [IPC_CHANNELS.startChooseFolder]: { title: 'Open a folder' },
-    [IPC_CHANNELS.startOpenProject]: { path: '/home/ava/Adminium/shop', agreed: true },
+    [IPC_CHANNELS.startOpenProject]: { path: '/home/ava/Adminium/shop', agreed: true, seen: ['found', 'accounts'] },
+    [IPC_CHANNELS.startResolveKey]: { path: '/home/ava/Adminium/shop', answer: 'env', title: 'Choose the .env file' },
+    [IPC_CHANNELS.startUpdateProject]: { path: '/home/ava/Adminium/shop' },
+    [IPC_CHANNELS.startUpdateApp]: undefined,
     [IPC_CHANNELS.startGetPackages]: { path: '/home/ava/Adminium/shop', land: 'dashboard' },
     [IPC_CHANNELS.startForgetProject]: '/home/ava/Adminium/shop',
     [IPC_CHANNELS.startLocateProject]: { path: '/home/ava/Adminium/shop', title: 'Where is Shop now?' },
@@ -712,7 +718,10 @@ describe('the first screens’ channels', () => {
     expect(start.chooseParent).toHaveBeenCalledWith({ from: '/home/ava/Adminium', title: 'Where to keep it' });
     expect(start.createProject).toHaveBeenCalledWith({ parent: '/home/ava/Adminium', name: 'Shop', acceptWarning: true });
     expect(start.chooseFolder).toHaveBeenCalledWith({ title: 'Open a folder' });
-    expect(start.openProject).toHaveBeenCalledWith({ path: '/home/ava/Adminium/shop', agreed: true });
+    expect(start.openProject).toHaveBeenCalledWith({ path: '/home/ava/Adminium/shop', agreed: true, seen: ['found', 'accounts'] });
+    expect(start.resolveKey).toHaveBeenCalledWith({ path: '/home/ava/Adminium/shop', answer: 'env', title: 'Choose the .env file' });
+    expect(start.updateProject).toHaveBeenCalledWith({ path: '/home/ava/Adminium/shop' });
+    expect(start.updateApp).toHaveBeenCalledTimes(1);
     expect(start.forgetProject).toHaveBeenCalledWith('/home/ava/Adminium/shop');
     expect(start.locateProject).toHaveBeenCalledWith({ path: '/home/ava/Adminium/shop', title: 'Where is Shop now?' });
     expect(start.useClassic).toHaveBeenCalledTimes(1);

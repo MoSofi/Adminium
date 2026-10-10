@@ -108,5 +108,88 @@ export default {
     "changed": "Koden i denne mappe er ændret, siden du sidst åbnede den.",
     "open": "Åbn",
     "title": "Vil du åbne denne mappe?"
+  },
+  "found": {
+    "data": "Fandt dette projekts data.",
+    "key": "Fandt dets nøgle.",
+    "noData": "Denne mappe har projektet, men ingen data.",
+    "madeBoth": "Adminium lavede en ny nøgle og en tom database.",
+    "madeDatabase": "Adminium lavede en tom database.",
+    "rowsLost": "Appenes egne tabeller laves igen. Rækker fra de gamle data er her ikke."
+  },
+  "opening": {
+    "continue": "Fortsæt",
+    "close": "Luk",
+    "notAProject": {
+      "line": "Du kan lave et nyt projekt i en mappe inde i den.",
+      "another": "Vælg en anden mappe",
+      "make": "Lav et nyt projekt her"
+    }
+  },
+  "key": {
+    "heading": "Dette projekts data er her, men dets nøgle mangler.",
+    "body": "Nøglen er en linje i en fil med navnet ‹.env› i projektets mappe. Din computer skjuler filer, hvis navn begynder med et punktum.",
+    "body2": "Uden nøglen kan de gemte databaseforbindelser og API-nøgler i projektets data ikke læses.",
+    "hidden": {
+      "mac": "Tryk ⌘ ⇧ . i Finder for at vise dem.",
+      "windows": "Vælg Vis › Vis › Skjulte elementer i Stifinder.",
+      "linux": "Tryk Ctrl H i din filhåndtering."
+    },
+    "env": {
+      "title": "Jeg har .env-filen",
+      "line": "Vælg den, så kopierer Adminium den ind.",
+      "pick": "Vælg dette projekts .env-fil",
+      "notAKey": "Den fil indeholder ingen nøgle. Vælg den .env-fil, der fulgte med projektets data."
+    },
+    "fresh": {
+      "title": "Start forfra med data, behold mine apps",
+      "line": "Dine gamle data flyttes til en mappe med navnet ‹{folder}›. Intet slettes."
+    },
+    "new": {
+      "title": "Fortsæt med en ny nøgle",
+      "line": "Dataene beholdes. Gemte forbindelser og nøgler i dem holder op med at virke og skal indtastes igen."
+    },
+    "failed": "Det kunne ikke lade sig gøre."
+  },
+  "accounts": {
+    "heading": "Dette projekt kom med konti",
+    "people": "{count, plural, one {# person} other {# personer}}",
+    "peopleLabel": "Personer",
+    "apiKeys": "{count, plural, one {# API-nøgle} other {# API-nøgler}}",
+    "apiKeysLabel": "API-nøgler",
+    "publicKeys": "{count, plural, one {# nøgle åben for offentligheden} other {# nøgler åbne for offentligheden}}",
+    "publicKeysLabel": "Åben for offentligheden",
+    "body": "Du arbejder som dets ejer på denne computer. Før du deler det på dit netværk, vælger du en ny ejeradgangskode, og de gamle sessioner og API-nøgler holder op med at virke.",
+    "show": "Vis dem",
+    "hide": "Skjul dem",
+    "more": "og {count} mere"
+  },
+  "notice": {
+    "manager": {
+      "title": "Dette projekt bruger {manager}.",
+      "line": "Adminium installerer med npm i stedet. Din {manager}-fil efterlades, som den er."
+    },
+    "older": {
+      "title": "Dette projekt blev lavet med en ældre Adminium (‹{was}›).",
+      "line": "Opdater det til ‹{here}›, så alt passer sammen. Det ændrer én linje i projektet og henter dets byggesten igen.",
+      "update": "Opdater dette projekt",
+      "notNow": "Ikke nu",
+      "working": "Opdaterer dette projekt…",
+      "failed": "Dette projekt kunne ikke opdateres. Det åbner stadig, som det er."
+    },
+    "newer": {
+      "title": "Dette projekt kræver en nyere Adminium.",
+      "line": "Det blev sidst åbnet med Adminium ‹{last}›. Denne computer har ‹{here}›.",
+      "lineUnknown": "Det blev sidst åbnet med en nyere Adminium. Denne computer har ‹{here}›.",
+      "update": "Opdater Adminium",
+      "looking": "Leder efter en nyere Adminium. Den tilbydes her, når den er fundet.",
+      "cannot": "Denne kopi af Adminium opdaterer ikke sig selv. Hent den nyeste på adminium.dev."
+    },
+    "running": {
+      "title": "Dette projekt kører allerede",
+      "cli": "Det er åbent i en terminal, på port ‹{port}›. Luk det der først.",
+      "app": "Det er åbent i et andet Adminium-vindue, på port ‹{port}›. Luk det der først.",
+      "again": "Kig igen"
+    }
   }
 } as const;

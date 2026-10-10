@@ -11051,6 +11051,134 @@
     "status": "mt",
     "srcHash": "f1fbb2b43dca"
   },
+  "desktop.accounts.apiKeys": {
+    "status": "mt",
+    "srcHash": "157226361a59"
+  },
+  "desktop.accounts.apiKeysLabel": {
+    "status": "mt",
+    "srcHash": "94fcf3c2dc0d"
+  },
+  "desktop.accounts.body": {
+    "status": "mt",
+    "srcHash": "3962864f74d0"
+  },
+  "desktop.accounts.heading": {
+    "status": "mt",
+    "srcHash": "5a2efd61d209"
+  },
+  "desktop.accounts.hide": {
+    "status": "mt",
+    "srcHash": "43645eb6c713"
+  },
+  "desktop.accounts.more": {
+    "status": "mt",
+    "srcHash": "0aa2abb24fd4"
+  },
+  "desktop.accounts.people": {
+    "status": "mt",
+    "srcHash": "82b265c87785"
+  },
+  "desktop.accounts.peopleLabel": {
+    "status": "mt",
+    "srcHash": "b37554f695b1"
+  },
+  "desktop.accounts.publicKeys": {
+    "status": "mt",
+    "srcHash": "f7ee058fb78c"
+  },
+  "desktop.accounts.publicKeysLabel": {
+    "status": "mt",
+    "srcHash": "4bec01d86a0c"
+  },
+  "desktop.accounts.show": {
+    "status": "mt",
+    "srcHash": "baa5b3ad9a28"
+  },
+  "desktop.found.data": {
+    "status": "mt",
+    "srcHash": "cd0b9a72894c"
+  },
+  "desktop.found.key": {
+    "status": "mt",
+    "srcHash": "923a09ef1654"
+  },
+  "desktop.found.madeBoth": {
+    "status": "mt",
+    "srcHash": "26aa938e6ed9"
+  },
+  "desktop.found.madeDatabase": {
+    "status": "mt",
+    "srcHash": "edefd99a057d"
+  },
+  "desktop.found.noData": {
+    "status": "mt",
+    "srcHash": "93e78e07703a"
+  },
+  "desktop.found.rowsLost": {
+    "status": "mt",
+    "srcHash": "411cc73d2a4a"
+  },
+  "desktop.key.body": {
+    "status": "mt",
+    "srcHash": "a12a7e653a6b"
+  },
+  "desktop.key.body2": {
+    "status": "mt",
+    "srcHash": "c3bead619baf"
+  },
+  "desktop.key.env.line": {
+    "status": "mt",
+    "srcHash": "d557e591cf82"
+  },
+  "desktop.key.env.notAKey": {
+    "status": "mt",
+    "srcHash": "663bc9578c5a"
+  },
+  "desktop.key.env.pick": {
+    "status": "mt",
+    "srcHash": "10a972569d5b"
+  },
+  "desktop.key.env.title": {
+    "status": "mt",
+    "srcHash": "5266fba94ccf"
+  },
+  "desktop.key.failed": {
+    "status": "mt",
+    "srcHash": "cda30d9f9291"
+  },
+  "desktop.key.fresh.line": {
+    "status": "mt",
+    "srcHash": "1f61e2d02486"
+  },
+  "desktop.key.fresh.title": {
+    "status": "mt",
+    "srcHash": "01c24d19b804"
+  },
+  "desktop.key.heading": {
+    "status": "mt",
+    "srcHash": "a73e4a8fc546"
+  },
+  "desktop.key.hidden.linux": {
+    "status": "mt",
+    "srcHash": "4885c0e8de76"
+  },
+  "desktop.key.hidden.mac": {
+    "status": "mt",
+    "srcHash": "6d807cbf8c66"
+  },
+  "desktop.key.hidden.windows": {
+    "status": "mt",
+    "srcHash": "486881a49b71"
+  },
+  "desktop.key.new.line": {
+    "status": "mt",
+    "srcHash": "f823b5a877fc"
+  },
+  "desktop.key.new.title": {
+    "status": "mt",
+    "srcHash": "0ce5263db9f4"
+  },
   "desktop.new.back": {
     "status": "mt",
     "srcHash": "b52b36b7269f"
@@ -11166,6 +11294,98 @@
   "desktop.new.where": {
     "status": "mt",
     "srcHash": "dac1b475bad4"
+  },
+  "desktop.notice.manager.line": {
+    "status": "mt",
+    "srcHash": "c4accbc98d77"
+  },
+  "desktop.notice.manager.title": {
+    "status": "mt",
+    "srcHash": "7e8cb6a9c1f4"
+  },
+  "desktop.notice.newer.cannot": {
+    "status": "mt",
+    "srcHash": "e2b45bb2bcb1"
+  },
+  "desktop.notice.newer.line": {
+    "status": "mt",
+    "srcHash": "8c642abaee29"
+  },
+  "desktop.notice.newer.lineUnknown": {
+    "status": "mt",
+    "srcHash": "6433ae058881"
+  },
+  "desktop.notice.newer.looking": {
+    "status": "mt",
+    "srcHash": "7afa668189e0"
+  },
+  "desktop.notice.newer.title": {
+    "status": "mt",
+    "srcHash": "edbbccaed36d"
+  },
+  "desktop.notice.newer.update": {
+    "status": "mt",
+    "srcHash": "ab698df9c05b"
+  },
+  "desktop.notice.older.failed": {
+    "status": "mt",
+    "srcHash": "756676ff5e7c"
+  },
+  "desktop.notice.older.line": {
+    "status": "mt",
+    "srcHash": "cd3940f5716b"
+  },
+  "desktop.notice.older.notNow": {
+    "status": "mt",
+    "srcHash": "e45714907316"
+  },
+  "desktop.notice.older.title": {
+    "status": "mt",
+    "srcHash": "7a81f42fd518"
+  },
+  "desktop.notice.older.update": {
+    "status": "mt",
+    "srcHash": "d927cc81a905"
+  },
+  "desktop.notice.older.working": {
+    "status": "mt",
+    "srcHash": "8fbcf12730c0"
+  },
+  "desktop.notice.running.again": {
+    "status": "mt",
+    "srcHash": "c394e963c144"
+  },
+  "desktop.notice.running.app": {
+    "status": "mt",
+    "srcHash": "bbce1b38dd8a"
+  },
+  "desktop.notice.running.cli": {
+    "status": "mt",
+    "srcHash": "dc8591c9a160"
+  },
+  "desktop.notice.running.title": {
+    "status": "mt",
+    "srcHash": "68354cdbf823"
+  },
+  "desktop.opening.close": {
+    "status": "mt",
+    "srcHash": "bbfa773e5a63"
+  },
+  "desktop.opening.continue": {
+    "status": "mt",
+    "srcHash": "2e02623966f9"
+  },
+  "desktop.opening.notAProject.another": {
+    "status": "mt",
+    "srcHash": "af3575d7895a"
+  },
+  "desktop.opening.notAProject.line": {
+    "status": "mt",
+    "srcHash": "3f23605c9e4a"
+  },
+  "desktop.opening.notAProject.make": {
+    "status": "mt",
+    "srcHash": "8f14691f4a7e"
   },
   "desktop.packages.again": {
     "status": "mt",

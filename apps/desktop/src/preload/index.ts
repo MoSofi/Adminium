@@ -58,6 +58,8 @@ import type {
   DesktopOpenProjectResult,
   DesktopProjectInfo,
   DesktopRecentProject,
+  DesktopResolveKeyResult,
+  DesktopUpdateProjectResult,
   DesktopStopWords,
   DesktopVersionsState,
   DesktopRuntimeInfo,
@@ -294,6 +296,10 @@ export function createDesktopApi(deps: Pick<PreloadDeps, 'ipc' | 'bootstrap'>): 
         unwrap(ipc.invoke(IPC_CHANNELS.startOpenProject, input)),
       getPackages: (input: { readonly path: string; readonly land?: 'designer' | 'dashboard' | undefined }): Promise<DesktopGetPackagesResult> =>
         unwrap(ipc.invoke(IPC_CHANNELS.startGetPackages, input)),
+      resolveKey: (input: { readonly path: string; readonly answer: 'env' | 'fresh' | 'new'; readonly title?: string | undefined }): Promise<DesktopResolveKeyResult> =>
+        unwrap(ipc.invoke(IPC_CHANNELS.startResolveKey, input)),
+      updateProject: (input: { readonly path: string }): Promise<DesktopUpdateProjectResult> => unwrap(ipc.invoke(IPC_CHANNELS.startUpdateProject, input)),
+      updateApp: (): Promise<boolean> => unwrap(ipc.invoke(IPC_CHANNELS.startUpdateApp)),
       forgetProject: (path: string): Promise<readonly DesktopRecentProject[]> =>
         unwrap(ipc.invoke(IPC_CHANNELS.startForgetProject, path)),
       locateProject: (input: { readonly path: string; readonly title: string }): Promise<DesktopLocateProjectResult> =>

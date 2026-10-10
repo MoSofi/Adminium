@@ -98,5 +98,88 @@
     "changed": "Der Code dieses Ordners hat sich geändert, seit Sie ihn zuletzt geöffnet haben.",
     "open": "Öffnen",
     "title": "Diesen Ordner öffnen?"
+  },
+  "found": {
+    "data": "Die Daten dieses Projekts wurden gefunden.",
+    "key": "Sein Schlüssel wurde gefunden.",
+    "noData": "Dieser Ordner enthält das Projekt, aber keine Daten.",
+    "madeBoth": "Adminium hat einen neuen Schlüssel und eine leere Datenbank angelegt.",
+    "madeDatabase": "Adminium hat eine leere Datenbank angelegt.",
+    "rowsLost": "Die eigenen Tabellen der Apps werden neu angelegt. Zeilen aus den alten Daten sind nicht hier."
+  },
+  "opening": {
+    "continue": "Weiter",
+    "close": "Schließen",
+    "notAProject": {
+      "line": "Sie können in einem Ordner darin ein neues Projekt anlegen.",
+      "another": "Anderen Ordner wählen",
+      "make": "Hier ein neues Projekt anlegen"
+    }
+  },
+  "key": {
+    "heading": "Die Daten dieses Projekts sind hier, aber sein Schlüssel fehlt.",
+    "body": "Der Schlüssel ist eine Zeile in einer Datei namens ‹.env› im Ordner des Projekts. Ihr Computer blendet Dateien aus, deren Name mit einem Punkt beginnt.",
+    "body2": "Ohne den Schlüssel können die gespeicherten Datenbankverbindungen und API-Schlüssel in den Daten dieses Projekts nicht gelesen werden.",
+    "hidden": {
+      "mac": "Drücken Sie im Finder ⌘ ⇧ ., um sie anzuzeigen.",
+      "windows": "Wählen Sie im Datei-Explorer Ansicht › Einblenden › Ausgeblendete Elemente.",
+      "linux": "Drücken Sie in Ihrem Dateimanager Strg H."
+    },
+    "env": {
+      "title": "Ich habe die .env-Datei",
+      "line": "Wählen Sie sie aus, und Adminium kopiert sie hinein.",
+      "pick": "Die .env-Datei dieses Projekts wählen",
+      "notAKey": "Diese Datei enthält keinen Schlüssel. Wählen Sie die .env-Datei, die zu den Daten dieses Projekts gehört."
+    },
+    "fresh": {
+      "title": "Daten neu beginnen, meine Apps behalten",
+      "line": "Ihre alten Daten werden in einen Ordner namens ‹{folder}› verschoben. Nichts wird gelöscht."
+    },
+    "new": {
+      "title": "Mit einem neuen Schlüssel fortfahren",
+      "line": "Die Daten bleiben erhalten. Darin gespeicherte Verbindungen und Schlüssel funktionieren nicht mehr und müssen neu eingegeben werden."
+    },
+    "failed": "Das konnte nicht ausgeführt werden."
+  },
+  "accounts": {
+    "heading": "Dieses Projekt kam mit Konten",
+    "people": "{count, plural, one {# Person} other {# Personen}}",
+    "peopleLabel": "Personen",
+    "apiKeys": "{count, plural, one {# API-Schlüssel} other {# API-Schlüssel}}",
+    "apiKeysLabel": "API-Schlüssel",
+    "publicKeys": "{count, plural, one {# öffentlich zugänglicher Schlüssel} other {# öffentlich zugängliche Schlüssel}}",
+    "publicKeysLabel": "Öffentlich zugänglich",
+    "body": "Sie arbeiten auf diesem Computer als sein Eigentümer. Bevor Sie es in Ihrem Netzwerk teilen, wählen Sie ein neues Eigentümerpasswort, und die alten Sitzungen und API-Schlüssel funktionieren nicht mehr.",
+    "show": "Anzeigen",
+    "hide": "Ausblenden",
+    "more": "und {count} weitere"
+  },
+  "notice": {
+    "manager": {
+      "title": "Dieses Projekt verwendet {manager}.",
+      "line": "Adminium installiert stattdessen mit npm. Ihre {manager}-Datei bleibt, wie sie ist."
+    },
+    "older": {
+      "title": "Dieses Projekt wurde mit einem älteren Adminium erstellt (‹{was}›).",
+      "line": "Aktualisieren Sie es auf ‹{here}›, damit alles zusammenpasst. Das ändert eine Zeile im Projekt und lädt seine Bausteine erneut herunter.",
+      "update": "Dieses Projekt aktualisieren",
+      "notNow": "Nicht jetzt",
+      "working": "Dieses Projekt wird aktualisiert…",
+      "failed": "Dieses Projekt konnte nicht aktualisiert werden. Es lässt sich weiterhin so öffnen, wie es ist."
+    },
+    "newer": {
+      "title": "Dieses Projekt braucht ein neueres Adminium.",
+      "line": "Es wurde zuletzt mit Adminium ‹{last}› geöffnet. Dieser Computer hat ‹{here}›.",
+      "lineUnknown": "Es wurde zuletzt mit einem neueren Adminium geöffnet. Dieser Computer hat ‹{here}›.",
+      "update": "Adminium aktualisieren",
+      "looking": "Es wird nach einem neueren Adminium gesucht. Es wird hier angeboten, sobald es gefunden ist.",
+      "cannot": "Diese Kopie von Adminium aktualisiert sich nicht selbst. Holen Sie die neueste von adminium.dev."
+    },
+    "running": {
+      "title": "Dieses Projekt läuft bereits",
+      "cli": "Es ist in einem Terminal geöffnet, auf Port ‹{port}›. Schließen Sie es zuerst dort.",
+      "app": "Es ist in einem anderen Adminium-Fenster geöffnet, auf Port ‹{port}›. Schließen Sie es zuerst dort.",
+      "again": "Erneut prüfen"
+    }
   }
 }
