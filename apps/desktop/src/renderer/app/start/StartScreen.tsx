@@ -6,7 +6,7 @@
 import { useLocale, useT } from '@adminium/i18n/react';
 import { tagForLocale } from '@adminium/i18n';
 import { Database, Folder, FolderOpen, Hammer, MonitorSmartphone, RadioTower, Sparkles, type LucideIcon } from 'lucide-react';
-import { useId, useState, type ReactNode } from 'react';
+import { useId, useRef, useState, type ReactNode } from 'react';
 
 import type { DesktopRecentProject, DesktopStartState } from '../../../preload/api.js';
 import { startApi } from '../bridge.js';
@@ -79,6 +79,7 @@ function RecentRow({
   first,
   when,
   onOpen,
+  onDashboard,
   onLocate,
   onRemove,
 }: {
@@ -86,6 +87,7 @@ function RecentRow({
   first: boolean;
   when: string;
   onOpen: () => void;
+  onDashboard: () => void;
   onLocate: () => void;
   onRemove: () => void;
 }): ReactNode {
@@ -93,7 +95,13 @@ function RecentRow({
   const shared = project.state === 'shared';
   const ChipIcon = shared ? RadioTower : Hammer;
   return (
-    <div data-recent={project.path} className={`flex items-center gap-3.5 px-[18px] py-3.5 ${first ? '' : 'border-t border-border'}`}>
+    <div
+      data-recent={project.path}
+      // The whole row opens the project, for a pointer: the name is the same thing for a keyboard, and the two buttons
+      // at its end say where it opens. A row whose folder is gone opens nothing.
+      onClick={project.missing ? undefined : onOpen}
+      className={`flex flex-wrap items-center gap-x-3.5 gap-y-2.5 px-[18px] py-3.5 ${first ? '' : 'border-t border-border'} ${project.missing ? '' : 'cursor-pointer hover:bg-surface-2'}`}
+    >
       <span
         aria-hidden="true"
         className={`flex size-9 shrink-0 items-center justify-center rounded-[10px] ${project.missing ? 'bg-surface-3 text-fg-subtle' : 'bg-accent-soft text-accent'}`}
@@ -106,7 +114,10 @@ function RecentRow({
         ) : (
           <button
             type="button"
-            onClick={onOpen}
+            onClick={(event) => {
+              event.stopPropagation();
+              onOpen();
+            }}
             aria-label={t('desktop:start.recent.open', 'Open {name}', { name: project.name })}
             className="cursor-pointer self-start border-0 bg-transparent p-0 text-start text-[14px] font-bold text-fg hover:text-accent"
           >
@@ -142,12 +153,36 @@ function RecentRow({
           </button>
         </div>
       ) : (
-        <span
-          className={`inline-flex shrink-0 items-center gap-[5px] whitespace-nowrap rounded-[20px] px-2.5 py-1 text-[11px] font-bold ${shared ? 'bg-pos-soft text-pos' : 'bg-accent-soft text-accent'}`}
-        >
-          <ChipIcon className="size-3" aria-hidden="true" />
-          {shared ? t('desktop:start.recent.shared', 'Shared') : t('desktop:start.recent.building', 'Building')}
-        </span>
+        <div className="flex shrink-0 flex-wrap items-center gap-1.5">
+          <span
+            className={`inline-flex shrink-0 items-center gap-[5px] whitespace-nowrap rounded-[20px] px-2.5 py-1 text-[11px] font-bold ${shared ? 'bg-pos-soft text-pos' : 'bg-accent-soft text-accent'}`}
+          >
+            <ChipIcon className="size-3" aria-hidden="true" />
+            {shared ? t('desktop:start.recent.shared', 'Shared') : t('desktop:start.recent.building', 'Building')}
+          </span>
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              onOpen();
+            }}
+            aria-label={t('desktop:start.recent.openDesignerOf', 'Open {name} in the Designer', { name: project.name })}
+            className="ms-1.5 cursor-pointer whitespace-nowrap rounded-[9px] border-0 bg-accent px-[11px] py-[7px] text-[12.5px] font-bold text-accent-fg hover:brightness-105"
+          >
+            {t('desktop:start.recent.openDesigner', 'Open in Designer')}
+          </button>
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              onDashboard();
+            }}
+            aria-label={t('desktop:start.recent.openDashboardOf', 'Open the dashboard of {name}', { name: project.name })}
+            className="cursor-pointer whitespace-nowrap rounded-[9px] border border-border bg-surface px-[11px] py-[7px] text-[12.5px] font-bold text-fg hover:border-border-strong"
+          >
+            {t('desktop:start.recent.openDashboard', 'Open dashboard')}
+          </button>
+        </div>
       )}
     </div>
   );
@@ -162,10 +197,13 @@ export function StartScreen({ initial, onBuild, say }: { initial: DesktopStartSt
   const [opening, setOpening] = useState(false);
   const now = new Date();
 
-  const open = async (path: string, agreed: boolean): Promise<void> => {
+  // Where the project asked about is to land, kept across the question about its code.
+  const landing = useRef<'designer' | 'dashboard'>('designer');
+  const open = async (path: string, agreed: boolean, land: 'designer' | 'dashboard' = agreed ? landing.current : 'designer'): Promise<void> => {
+    landing.current = land;
     setOpening(true);
     try {
-      const result = await startApi().openProject(agreed ? { path, agreed: true } : { path });
+      const result = await startApi().openProject({ path, ...(agreed ? { agreed: true } : {}), ...(land === 'dashboard' ? { land } : {}) });
       if (result.status === 'trust-needed') {
         setQuestion({ path: result.path, displayPath: result.displayPath, changed: result.changed });
         return;
@@ -251,6 +289,9 @@ export function StartScreen({ initial, onBuild, say }: { initial: DesktopStartSt
                 when={t('desktop:start.recent.opened', 'Opened {when}', { when: openedWhen(project.lastOpened, now, tag) })}
                 onOpen={() => {
                   void open(project.path, false);
+                }}
+                onDashboard={() => {
+                  void open(project.path, false, 'dashboard');
                 }}
                 onLocate={() => {
                   void locate(project);

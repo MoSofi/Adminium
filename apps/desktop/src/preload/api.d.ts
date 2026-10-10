@@ -467,6 +467,8 @@ export interface DesktopOpenProjectInput {
   readonly path: string;
   /** The person answered "Open" to the question about running this folder's code. */
   readonly agreed?: boolean | undefined;
+  /** Where the window lands once the project is up: the Designer (the default), or the project's dashboard. */
+  readonly land?: 'designer' | 'dashboard' | undefined;
 }
 
 export type DesktopOpenProjectResult =

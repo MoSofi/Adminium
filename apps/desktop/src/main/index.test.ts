@@ -1606,6 +1606,9 @@ describe('projectUrl', () => {
     expect(projectUrl({ port: 4700, mode: 'design', token: 'ab' })).toBe('http://127.0.0.1:4700/design#designToken=ab');
     expect(projectUrl({ port: 4700, mode: 'design', token: null })).toBe('http://127.0.0.1:4700/design');
     expect(projectUrl({ port: 4712, mode: 'serve', token: 'ab' })).toBe('http://127.0.0.1:4712/');
+    // "Open dashboard" on Start: the same one-use token, taken on the dashboard's front door.
+    expect(projectUrl({ port: 4700, mode: 'design', token: 'ab', land: 'dashboard' })).toBe('http://127.0.0.1:4700/#designToken=ab');
+    expect(projectUrl({ port: 4700, mode: 'design', token: null, land: 'dashboard' })).toBe('http://127.0.0.1:4700/');
   });
 });
 

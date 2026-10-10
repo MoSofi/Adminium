@@ -188,10 +188,12 @@ export const CLASSIC_ONLY_SETTING = 'This setting belongs to the classic workspa
  * while that owner has no password: the same door `adminium design` opens in a
  * browser. Shared: the dashboard's front door.
  */
-export function projectUrl(opts: { port: number; mode: 'design' | 'serve'; token: string | null }): string {
+export function projectUrl(opts: { port: number; mode: 'design' | 'serve'; token: string | null; land?: 'dashboard' | undefined }): string {
   const origin = `http://127.0.0.1:${String(opts.port)}`;
   if (opts.mode === 'serve') return `${origin}/`;
-  return opts.token === null ? `${origin}/design` : `${origin}/design#designToken=${opts.token}`;
+  // The token is taken on whatever page it arrives at: "Open dashboard" on Start lands on the dashboard's front door.
+  const page = opts.land === 'dashboard' ? '/' : '/design';
+  return opts.token === null ? `${origin}${page}` : `${origin}${page}#designToken=${opts.token}`;
 }
 
 export function appUrl(opts: AppUrlOptions): string {
@@ -1079,7 +1081,9 @@ export function createDesktopApp(deps: DesktopBootDeps): DesktopApp {
        * mid-turn. The network switch and the data-folder setting are refused in
        * the bridge above for the same reason.
        */
-      const bootProject = async (loadedConfig: DesktopConfig, project: { readonly root: string }): Promise<void> => {
+      const bootProject = async (loadedConfig: DesktopConfig, project: { readonly root: string; readonly land?: 'dashboard' | undefined }): Promise<void> => {
+        // Where Start asked to land, for the first page only: a restart after a crash comes back to the Designer.
+        let land = project.land;
         const pickPort = deps.pickProjectPort;
         if (pickPort === undefined) {
           await windows.showCrash({ reason: 'This build cannot open a project folder.', canRestart: false });
@@ -1115,7 +1119,9 @@ export function createDesktopApp(deps: DesktopBootDeps): DesktopApp {
 
         const show = (ready: { host: string; port: number }): Promise<void> => {
           const mode = projectManager.project?.mode ?? 'design';
-          return windows.loadApp(projectUrl({ port: ready.port, mode, token: projectManager.bootToken }), { preview: mode === 'design' });
+          const url = projectUrl({ port: ready.port, mode, token: projectManager.bootToken, land });
+          land = undefined;
+          return windows.loadApp(url, { preview: mode === 'design' });
         };
         const started = projectManager.start();
         await windows.showBoot();
@@ -1189,7 +1195,7 @@ export function createDesktopApp(deps: DesktopBootDeps): DesktopApp {
             });
             startOpen = false;
             if (choice.kind === 'project') {
-              await bootProject(config ?? loaded.config, { root: choice.root });
+              await bootProject(config ?? loaded.config, { root: choice.root, land: choice.land });
               return;
             }
             // "Use my own database". Writing the recent list made `config.json`, so its absence no longer says

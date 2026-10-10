@@ -121,7 +121,7 @@ export function projectFingerprint(root: string, fs: FingerprintFs = realFingerp
 // ─── The service ─────────────────────────────────────────────────────────────
 
 /** What the person chose on the first screens: main boots it. */
-export type StartChoice = { readonly kind: 'classic' } | { readonly kind: 'project'; readonly root: string };
+export type StartChoice = { readonly kind: 'classic' } | { readonly kind: 'project'; readonly root: string; /** Asked for from Start: the project's dashboard, not the Designer. */ readonly land?: 'dashboard' };
 
 export type MakeProjectResult = { readonly ok: true } | { readonly ok: false; readonly detail: string };
 
@@ -274,7 +274,7 @@ export function createStartService(deps: StartDeps): StartService {
       // Agreed to (now, or before and unchanged). Nothing of the folder has been started up to this line.
       await deps.saveConfig(rememberProject(config, { path: root, name: known?.name ?? nameFromFolder(root), trusted: code }, now()));
       if (!hasPackages(root)) return { status: 'needs-packages' };
-      deps.onChoice({ kind: 'project', root });
+      deps.onChoice({ kind: 'project', root, ...(input.land === 'dashboard' ? { land: 'dashboard' as const } : {}) });
       return { status: 'opened' };
     },
 

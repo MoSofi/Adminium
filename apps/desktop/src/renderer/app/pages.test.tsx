@@ -196,6 +196,37 @@ describe('Start', () => {
     });
   });
 
+  it('opens a recent project from its whole row and its two buttons: the Designer, or its dashboard', async () => {
+    const start = fakeStart();
+    show(start);
+    const row = document.querySelector('[data-recent]') as HTMLElement;
+    const path = row.dataset.recent ?? '';
+    fireEvent.click(row);
+    fireEvent.click(screen.getByRole('button', { name: 'Open Juniper Kitchen in the Designer' }));
+    await waitFor(() => {
+      expect(start.openProject).toHaveBeenCalledTimes(2);
+    });
+    expect(start.openProject).toHaveBeenNthCalledWith(1, { path });
+    expect(start.openProject).toHaveBeenNthCalledWith(2, { path });
+    // One click, one opening: a button inside the row does not also open the row.
+    fireEvent.click(screen.getByRole('button', { name: 'Open the dashboard of Juniper Kitchen' }));
+    await waitFor(() => {
+      expect(start.openProject).toHaveBeenCalledTimes(3);
+    });
+    expect(start.openProject).toHaveBeenLastCalledWith({ path, land: 'dashboard' });
+  });
+
+  it('keeps where it was to land across the question about the folder’s code', async () => {
+    const openProject = vi.fn<DesktopStartApi['openProject']>().mockResolvedValue({ status: 'trust-needed', path: '/p', displayPath: '/p', changed: false });
+    show(fakeStart({ openProject }));
+    fireEvent.click(screen.getByRole('button', { name: 'Open the dashboard of Juniper Kitchen' }));
+    await screen.findByRole('dialog');
+    fireEvent.click(screen.getByRole('button', { name: 'Open' }));
+    await waitFor(() => {
+      expect(openProject).toHaveBeenLastCalledWith({ path: '/p', agreed: true, land: 'dashboard' });
+    });
+  });
+
   it('opens nothing when the question is cancelled or no folder was picked', async () => {
     const openProject = vi.fn<DesktopStartApi['openProject']>().mockResolvedValue({ status: 'trust-needed', path: '/p', displayPath: '/p', changed: false });
     const start = fakeStart({ openProject });

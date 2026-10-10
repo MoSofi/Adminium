@@ -218,7 +218,7 @@ const startNewFolderSchema = z.strictObject({ parent: absolutePathSchema, name: 
 const startChooseParentSchema = z.strictObject({ from: absolutePathSchema, title: dialogTitleSchema });
 const startCreateProjectSchema = z.strictObject({ parent: absolutePathSchema, name: projectNameSchema, acceptWarning: z.boolean().optional() });
 const startChooseFolderSchema = z.strictObject({ title: dialogTitleSchema });
-const startOpenProjectSchema = z.strictObject({ path: absolutePathSchema, agreed: z.boolean().optional() });
+const startOpenProjectSchema = z.strictObject({ path: absolutePathSchema, agreed: z.boolean().optional(), land: z.enum(['designer', 'dashboard']).optional() });
 const startLocateProjectSchema = z.strictObject({ path: absolutePathSchema, title: dialogTitleSchema });
 
 const capabilityInvokeSchema = z.strictObject({
@@ -833,7 +833,7 @@ export function registerIpcHandlers(opts: RegisterIpcHandlersOptions): IpcHandle
   register(
     IPC_CHANNELS.startOpenProject,
     startOpenProjectSchema,
-    (input) => start().openProject({ path: input.path, ...(input.agreed === undefined ? {} : { agreed: input.agreed }) }),
+    (input) => start().openProject({ path: input.path, ...(input.agreed === undefined ? {} : { agreed: input.agreed }), ...(input.land === undefined ? {} : { land: input.land }) }),
     ownPage,
   );
   register(IPC_CHANNELS.startForgetProject, absolutePathSchema, (path) => start().forgetProject(path), ownPage);

@@ -11107,6 +11107,22 @@
     "status": "mt",
     "srcHash": "7bac7999cae0"
   },
+  "desktop.start.recent.openDashboard": {
+    "status": "mt",
+    "srcHash": "7ad1caed59ac"
+  },
+  "desktop.start.recent.openDashboardOf": {
+    "status": "mt",
+    "srcHash": "2df859514a3a"
+  },
+  "desktop.start.recent.openDesigner": {
+    "status": "mt",
+    "srcHash": "b7f9c2dcf50d"
+  },
+  "desktop.start.recent.openDesignerOf": {
+    "status": "mt",
+    "srcHash": "e7470692c2b2"
+  },
   "desktop.start.recent.opened": {
     "status": "mt",
     "srcHash": "a94c51ab08c7"

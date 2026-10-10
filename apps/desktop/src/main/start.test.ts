@@ -289,6 +289,16 @@ describe('opening a folder', () => {
     expect(config.projects[0]?.name).toBe('My Shop');
   });
 
+  it('opens it on its dashboard when Start asked for that, and on the Designer otherwise', async () => {
+    const shop = project('shop');
+    config = rememberProject(config, { path: shop, name: 'My Shop', trusted: projectFingerprint(shop) });
+    const { start } = service();
+    await start.openProject({ path: shop, land: 'dashboard' });
+    await start.openProject({ path: shop, land: 'designer' });
+    await start.openProject({ path: shop });
+    expect(chosen).toEqual([{ kind: 'project', root: shop, land: 'dashboard' }, { kind: 'project', root: shop }, { kind: 'project', root: shop }]);
+  });
+
   it('asks again when the code is no longer the code agreed to', async () => {
     const shop = project('shop');
     config = rememberProject(config, { path: shop, name: 'Shop', trusted: projectFingerprint(shop) });
