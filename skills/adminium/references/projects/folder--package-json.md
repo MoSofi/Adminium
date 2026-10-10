@@ -11,7 +11,7 @@
     "check": "adminium check",
     "pull": "adminium pull"
   },
-  "dependencies": { "@adminiumjs/adminium": "0.3.24" },
+  "dependencies": { "@adminiumjs/adminium": "0.3.25" },
   "devDependencies": { "esbuild": "^0.28.0", "@types/react": "^19.2.0" }
 }
 ```
