@@ -2,7 +2,7 @@
 /**
  * "Connect to another Adminium": an address a person typed, judged before
  * anything is asked of it, then asked one thing (is an Adminium there, and
- * which), then opened as a guest (plan 66, spec 10 §3).
+ * which), then opened as a guest.
  *
  * A guest is somebody else's pages. It gets a window of its own with none of
  * the app's bridge, a cookie jar of its own per address, and it is held to the

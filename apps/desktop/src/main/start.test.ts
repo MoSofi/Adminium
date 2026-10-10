@@ -452,7 +452,7 @@ describe('letting go of a project', () => {
   });
 });
 
-// ─── opening a folder: the order of what is asked (spec 08 §3) ────────────────
+// ─── opening a folder: the order of what is asked ────────────────────────────
 
 describe('opening a folder, with the engine’s facts', () => {
   const NONE = { count: 0, names: [] as string[] };

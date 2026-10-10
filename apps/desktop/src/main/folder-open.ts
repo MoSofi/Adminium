@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * What main does to a project folder between "the person agreed to open it"
- * and "its server is started" (plan 66, spec 08 §3–§7): read what the engine
+ * and "its server is started": read what the engine
  * says the folder holds, make what a folder with no data needs, answer the
  * question of a missing key, and take the sender's settings out of a version
  * store that travelled.

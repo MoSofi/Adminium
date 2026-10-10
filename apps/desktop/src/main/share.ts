@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * A project that is shared on the network instead of being built (plan 66,
- * spec 10 §2): the addresses another device uses, and the port a project keeps
+ * A project that is shared on the network instead of being built:
+ * the addresses another device uses, and the port a project keeps
  * so that a phone's bookmark survives the next time it is shared.
  *
  * ELECTRON-FREE. The switch itself (stop, start on the network, the window) is

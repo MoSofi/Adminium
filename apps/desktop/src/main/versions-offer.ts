@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The offer to keep versions, for a project opened on a computer with no git
- * (plan 66, spec 07 §3): what the page is told, and what its buttons do.
+ * what the page is told, and what its buttons do.
  *
  * Nothing here downloads or looks for anything by itself. A download starts on
  * the person's yes and on nothing else; "Not now" is remembered for this

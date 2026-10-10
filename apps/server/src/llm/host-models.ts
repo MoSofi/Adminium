@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Model and picture-source keys that a HOST keeps, instead of the project's
- * `.env` (plan 66, spec 09). The desktop app keeps a person's keys in its own
+ * `.env`. The desktop app keeps a person's keys in its own
  * folder, encrypted by the system's key store, one set for every project; it
  * hands them to the project's server after the server is up, over the message
  * channel the two already have, and takes back what the model screen saves.

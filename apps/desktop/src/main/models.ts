@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The model keys a person gave the app, kept with the app and not with any
- * project (plan 66, spec 09 §2): `<userData>/models.json`, each value
+ * project: `<userData>/models.json`, each value
  * encrypted by the system's key store, one set for every project on this
  * computer. Never in `config.json` (a backup or a support bundle of that file
  * must not carry them), never in a project folder (a folder that is zipped or

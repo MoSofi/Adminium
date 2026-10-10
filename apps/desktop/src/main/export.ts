@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * "Export this project…": one ZIP of a project folder, made by the app, with
- * the choice of what goes in it (plan 66, spec 08 §6).
+ * the choice of what goes in it.
  *
  *  - `everything`: the apps, the data and the key. Whoever opens it can read
  *    all of it, saved database connections included.
