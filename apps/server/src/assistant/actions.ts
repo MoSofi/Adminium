@@ -26,6 +26,9 @@
  * created".
  */
 
+import { findStep } from '../automations/add-on-steps.js';
+import type { RuleSteps } from '../automations/validate.js';
+import type { AddOnInstalls } from '../apps/table-ref.js';
 import {
   assistantSessionsRepo,
   auditRepo,
@@ -107,6 +110,8 @@ export interface AssistantActionInput {
   to?: string | undefined;
   /** The master secret, for the mail transport. */
   secret?: string | null | undefined;
+  /** What is installed where: a rule that uses a step an add-on gives is checked against the add-on, as the page's own save checks it. */
+  installs?: (() => Promise<AddOnInstalls>) | undefined;
   logger?: EmailLogger | undefined;
   now?: (() => number) | undefined;
 }
@@ -327,12 +332,17 @@ async function createDraft(input: AssistantActionInput, at: number): Promise<Ass
     const connectionId = trigger.connectionId;
     // As its author reads the table, like the draft's own check: a rule saved here names no column they are not shown.
     const whole = connectionId === null ? null : await loadSnapshotView(input.meta, connectionId);
+    // The steps installed add-ons give, as the page's own save reads them: without them a step's
+    // input could not read the address it is for, and its author would not be asked for the right to add its row.
+    const installs = input.installs === undefined ? null : await input.installs();
+    const steps: RuleSteps | undefined = installs === null ? undefined : (addOn, step) => (connectionId === null ? { state: 'no-add-on' } : findStep(installs, connectionId, addOn, step));
     resolveRule(trigger, graph, {
       view: whole === null || input.actor.id === null ? whole : await readViewForUser(input.meta, input.actor.id, whole),
       templateKeys: new Set((await liveTemplateKeys({ meta: input.meta })).map((row) => row.key)),
       blockLoopback: process.env['NODE_ENV'] === 'production',
+      steps,
     });
-    for (const { permission, table } of requiredGrants(trigger, graph, connectionId, whole)) {
+    for (const { permission, table } of requiredGrants(trigger, graph, connectionId, whole, steps)) {
       if (await input.can(permission)) continue;
       throw new ForbiddenError(`You do not have access to ${table}, so this rule cannot use it.`, 'TABLE_FORBIDDEN', { permission, table });
     }

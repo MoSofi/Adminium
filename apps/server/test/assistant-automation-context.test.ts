@@ -13,6 +13,7 @@ import { automationsRepo, emailTemplatesRepo, usersRepo, type AutomationGraph } 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { ACTION_NOTES, NOT_FOR_A_DRAFT, actionKinds, ruleFormat, schemaFieldNames } from '../src/assistant/contexts/automation-format.js';
+import { runAssistantAction } from '../src/assistant/actions.js';
 import { automationContext } from '../src/assistant/contexts/automation.js';
 import { ASSISTANT_TOOLS } from '../src/assistant/tools/catalogue.js';
 import type { TurnSetup } from '../src/assistant/turn-setup.js';
@@ -223,6 +224,25 @@ for (const [dialect, available] of legs) {
       // What the step does not take is the save's own refusal, handed back.
       const odd = await accept(step({ to: 'a@b.example', name: 'x', tier: 'silver' }));
       expect(!odd.ok && odd.errors[0]).toMatchObject({ code: 'RULE_INVALID' });
+    });
+
+    it('the card\'s own Save holds a draft with an add-on\'s step to the same installed steps as the draft\'s check did', async () => {
+      installed = kit();
+      const owner = (await usersRepo(s.meta).findByEmail('owner@lodge.dev'))!;
+      // The guest's address is a personal column: only the step's own personal input may be given it.
+      const checked = await accept(step({ to: '{{record.guest_id.email}}', name: '{{record.guest_name}}' }));
+      expect(checked.ok, JSON.stringify(checked)).toBe(true);
+      if (!checked.ok) return;
+      const save = (installs: (() => Promise<AddOnInstalls>) | undefined) =>
+        runAssistantAction({ meta: s.meta, action: 'save', context: 'automation', artefact: checked.artefact, sessionId: 'ast_test', turnId: 'atn_test', actor: { kind: 'user', id: owner.id, label: 'Owner' } as never, can: setup.deps.can, ...(installs === undefined ? {} : { installs }) });
+      const saved = await save(async () => installed as AddOnInstalls);
+      expect(saved.created).toMatchObject({ kind: 'rule' });
+      const rule = await automationsRepo(s.meta).findById(saved.created!.id);
+      expect(rule).toMatchObject({ enabled: false });
+      expect(JSON.stringify(rule!.graph)).toContain('"add-on.step"');
+      await automationsRepo(s.meta).remove(saved.created!.id);
+      // A save that cannot ask what is installed refuses the address rather than read it for an input it cannot judge.
+      await expect(save(undefined)).rejects.toThrow('guest_id.email is a protected column and cannot be a placeholder.');
     });
 
     it('a rule with no step is no draft: the assistant is told to answer in words instead', async () => {

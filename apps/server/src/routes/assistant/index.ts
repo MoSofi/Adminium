@@ -690,6 +690,7 @@ export function assistantRoutes(deps: AssistantRoutesDeps): FastifyPluginAsyncZo
                 actor: { kind: 'user', id: userId, label: principal?.name ?? principal?.email ?? userId },
                 can: (permission) => request.can(permission),
                 ...(deps.secret === undefined ? {} : { secret: deps.secret }),
+                ...(deps.installs === undefined ? {} : { installs: deps.installs }),
                 logger: request.log,
                 now: () => app.rbac.now(),
               });
@@ -759,6 +760,7 @@ export function assistantRoutes(deps: AssistantRoutesDeps): FastifyPluginAsyncZo
           // else: there is no recipient field on this surface to abuse.
           ...(principal?.email === undefined ? {} : { to: principal.email }),
           ...(deps.secret === undefined ? {} : { secret: deps.secret }),
+          ...(deps.installs === undefined ? {} : { installs: deps.installs }),
           logger: request.log,
           now: () => app.rbac.now(),
         });
