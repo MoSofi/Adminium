@@ -178,6 +178,7 @@ export default {
     "count": "{total, plural, one {# recipient} other {# recipients}}",
     "optedOut": "{skipped} opted out",
     "note": "Variables are filled per recipient — {token} becomes each person’s name.",
+    "unfilled": "Nothing fills {names}: every recipient would get it as written. Give it a backup in the editor, or take it out.",
     "send": "Send campaign",
     "scheduleAction": "Schedule campaign",
     "sending": "Sending…",

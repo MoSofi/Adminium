@@ -37,6 +37,13 @@ count of what was already delivered.
 A campaign with a scheduled or running send cannot be sent again until that
 run has finished or been cancelled.
 
+A campaign fills four variables for each recipient: `{{name}}`,
+`{{first_name}}`, `{{email}}` and `{{appName}}`. If the campaign reads any
+other variable and gives it no [backup](/guides/email/#when-a-value-is-missing),
+every recipient would get it as written. The form names it (*Nothing fills
+`{{order_number}}`*) and the campaign cannot be sent until the variable has a
+backup or is taken out.
+
 ## The run
 
 A send is one background job. It resolves the audience when it starts (not

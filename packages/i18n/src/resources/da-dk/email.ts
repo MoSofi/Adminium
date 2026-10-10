@@ -178,6 +178,7 @@ export default {
     "count": "{total, plural, one {# modtager} other {# modtagere}}",
     "optedOut": "{skipped} har frameldt sig",
     "note": "Variabler udfyldes pr. modtager — {token} bliver til hver persons navn.",
+    "unfilled": "Intet udfylder {names}: alle modtagere ville få det, som det står. Giv det en reservetekst i editoren, eller fjern det.",
     "send": "Send kampagne",
     "scheduleAction": "Tidsindstil kampagne",
     "sending": "Sender…",

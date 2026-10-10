@@ -241,6 +241,10 @@ export async function dryRunEmailAction(
   const vars = await varsFor(action, ctx, template.locale);
   const rendered = renderEmail({ ...prepared.render, locale: template.locale, vars, dir: 'ltr' });
   const would = ctx.text.emailWould(rendered.subject, recipients.join(', '));
+  // A person is watching a test run: a placeholder nothing fills stops it here, by name, where it can be
+  // put right. A real run still sends, and says which one under the step (an order's mail with one
+  // `{{…}}` in it is a smaller fault than an order nobody was told about).
   const unfilled = unfilledIn(template, vars);
-  return { log: unfilled.length === 0 ? would : `${would} · ${ctx.text.emailUnfilled(listed(unfilled))}` };
+  if (unfilled.length > 0) throw new ActionFailure(ctx.text.emailUnfilledStop(listed(unfilled)));
+  return { log: would };
 }

@@ -191,6 +191,11 @@ written, webhooks are guarded but not called — and the flow lights up along
 the path the rule would actually take, including which side of a branch it
 would choose.
 
+A test stops at an email step whose template reads a variable that nothing
+fills and that has no backup, and names it: fill it in the step, or give it a
+backup in the template. A real run would still send the email with the variable
+as written.
+
 ## Undo, loops and the things that could go wrong
 
 - **Undo.** A record you create in the dashboard can be undone for 60 seconds,

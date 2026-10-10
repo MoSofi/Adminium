@@ -168,6 +168,7 @@
     "count": "{total, plural, other {# 位收件者}}",
     "optedOut": "{skipped} 位已取消訂閱",
     "note": "變數會依收件者填入 — {token} 會變成每個人的名字。",
+    "unfilled": "沒有內容可填入 {names}：每位收件人都會收到原樣的文字。請在編輯器中為它設定備用文字，或將其移除。",
     "send": "寄送活動",
     "scheduleAction": "排程寄送活動",
     "sending": "寄送中…",

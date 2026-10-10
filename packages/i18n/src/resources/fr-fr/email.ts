@@ -178,6 +178,7 @@ export default {
     "count": "{total, plural, one {# destinataire} other {# destinataires}}",
     "optedOut": "{skipped} désinscrits",
     "note": "Les variables sont remplies par destinataire — {token} devient le nom de chaque personne.",
+    "unfilled": "Rien ne remplit {names} : chaque destinataire le recevrait tel quel. Donnez-lui un texte de secours dans l’éditeur, ou retirez-le.",
     "send": "Envoyer la campagne",
     "scheduleAction": "Programmer la campagne",
     "sending": "Envoi…",
