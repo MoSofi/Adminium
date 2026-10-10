@@ -462,7 +462,7 @@ export interface ComposeServerOptions {
    * Adminium Designer, when this server runs it (`adminium design`). Needs a
    * project folder; registers `/api/v1/designer` and nothing else changes.
    */
-  designer?: { mode: 'local'; token: string | null; port: number; /** Names of the project's `.env` and config a host did not obey: said on the Designer's Home. */ ignoredEnv?: readonly string[] | undefined } | undefined;
+  designer?: { mode: 'local'; token: string | null; port: number; /** Started by a host on the person's own computer: the link signs the owner in with or without a password. */ thisComputer?: boolean; /** Names of the project's `.env` and config a host did not obey: said on the Designer's Home. */ ignoredEnv?: readonly string[] | undefined } | undefined;
   /** Tests only: whether the project can build screens. Production asks the project for its esbuild. */
   designerBundler?: (() => boolean) | undefined;
   /** For tests: a hand save, a style change or going back calls this as it reaches a step, so one can be held open or made to fail there. */
@@ -2386,7 +2386,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
         );
         // The one-use link, only when `design` made one: a project whose owner has a password signs in as usual.
         if (opts.designer !== undefined && opts.designer.token !== null) {
-          await api.register(designSessionRoutes({ meta, token: opts.designer.token, port: opts.designer.port }));
+          await api.register(designSessionRoutes({ meta, token: opts.designer.token, port: opts.designer.port, ...(opts.designer.thisComputer === true ? { thisComputer: true } : {}) }));
         }
       }
       // The add-on runtime. Registered unconditionally: an instance with no

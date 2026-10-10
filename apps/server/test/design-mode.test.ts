@@ -32,6 +32,7 @@ import { createRunService } from '../src/llm/run-service.js';
 import type { MetaStoreHandle } from '../src/meta/store.js';
 import { previewUser, safeTarget } from '../src/designer/preview.js';
 import { createSessionStore } from '../src/designer/session-store.js';
+import { ownerOnThisComputer, setLocalOwnerCredentials } from '../src/auth/local-owner.js';
 import { hashPassword } from '../src/auth/passwords.js';
 import { makeInstall, type Install } from './project-fixtures.js';
 import { asProject } from './app-project-helpers.js';
@@ -55,7 +56,7 @@ function memoryStore(meta: MetaDb): MetaStoreHandle {
   return { meta, url: 'sqlite::memory:', engine: 'sqlite', source: 'embedded', close: async () => Promise.resolve() };
 }
 
-async function server(opts: { designer?: boolean; owner?: 'local' | 'password' | 'none' } = {}): Promise<{ meta: MetaDb; app: ComposedServer['app'] }> {
+async function server(opts: { designer?: boolean; owner?: 'local' | 'password' | 'none'; thisComputer?: boolean } = {}): Promise<{ meta: MetaDb; app: ComposedServer['app'] }> {
   install = await makeInstall();
   const root = asProject(install.dir);
   mkdirSync(join(root, '.adminium', 'build'), { recursive: true });
@@ -75,7 +76,7 @@ async function server(opts: { designer?: boolean; owner?: 'local' | 'password' |
     telemetry: false,
     onMetaRelocated: () => undefined,
     project: { root, mode: 'dev', log: () => undefined, warn: () => undefined, databases: ['main'] },
-    ...(opts.designer === false ? {} : { designer: { mode: 'local' as const, token: opts.owner === 'password' ? null : TOKEN, port: PORT } }),
+    ...(opts.designer === false ? {} : { designer: { mode: 'local' as const, token: opts.owner === 'password' ? null : TOKEN, port: PORT, ...(opts.thisComputer === true ? { thisComputer: true } : {}) } }),
   });
   await composed.app.ready();
   return { meta, app: composed.app };
@@ -191,6 +192,41 @@ describe('a server running adminium design', () => {
     const { app, meta } = await server();
     const ownerId = (await settingsRepo(meta).get('designer.localOwnerId')) as string;
     await usersRepo(meta).updatePassword(ownerId, await hashPassword('a-long-enough-test-password-1!'));
+    const res = await exchange(app);
+    expect(res.statusCode).toBe(409);
+    expect(res.json()).toMatchObject({ error: { details: { reason: 'OWNER_HAS_PASSWORD' } } });
+  });
+
+  it('started by a host on the person’s own computer: the owner is signed in there even after they chose a password', async () => {
+    const { app, meta } = await server({ thisComputer: true });
+    const made = (await settingsRepo(meta).get('designer.localOwnerId')) as string;
+    // What "Share" does first: an address and a password, for other devices.
+    await setLocalOwnerCredentials(meta, { email: 'ava@example.test', password: 'a-long-enough-test-password-1!' });
+    expect(await settingsRepo(meta).get('designer.localOwnerId')).toBeNull();
+    expect(await settingsRepo(meta).get('designer.ownerId')).toBe(made);
+    expect((await ownerOnThisComputer(meta))?.id).toBe(made);
+
+    const res = await exchange(app);
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toMatchObject({ data: { user: { id: made, email: 'ava@example.test' } } });
+    // Every other gate stands: once, on the Designer's own name, from this machine.
+    expect((await exchange(app)).statusCode).toBe(401);
+    // And the signed-in owner can ask for one more link, for the system's browser.
+    const cookie = String(res.headers['set-cookie']).split(';')[0] ?? '';
+    const csrf = ((await app.inject({ method: 'GET', url: '/api/v1/bootstrap', headers: { host: DESIGNER, cookie } })).json() as { data: { csrfToken: string } }).data.csrfToken;
+    const link = await app.inject({ method: 'POST', url: '/api/v1/auth/design-link', headers: { host: DESIGNER, origin: `http://${DESIGNER}`, cookie, 'x-adminium-csrf': csrf }, payload: { to: '/' } });
+    expect(link.statusCode, link.body).toBe(200);
+  });
+
+  it('on that host a project whose owner was never made by design still signs in with its password', async () => {
+    const { app, meta } = await server({ owner: 'password', thisComputer: true });
+    expect(await ownerOnThisComputer(meta)).toBeNull();
+    expect((await exchange(app)).statusCode).toBe(404);
+  });
+
+  it('a terminal’s design mode is as strict as before for an owner with a password', async () => {
+    const { app, meta } = await server();
+    await setLocalOwnerCredentials(meta, { email: 'ava@example.test', password: 'a-long-enough-test-password-1!' });
     const res = await exchange(app);
     expect(res.statusCode).toBe(409);
     expect(res.json()).toMatchObject({ error: { details: { reason: 'OWNER_HAS_PASSWORD' } } });

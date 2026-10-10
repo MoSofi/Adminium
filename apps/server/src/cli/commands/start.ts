@@ -40,6 +40,7 @@ import {
   guardPreMigration,
   snapshotFailureRefusal,
 } from '../../backup/pre-migration.js';
+import { ownerOnThisComputer } from '../../auth/local-owner.js';
 import { seedStorageDestination } from '../../config/storage-seed.js';
 import { seedSourceConnection } from '../../connections/seed.js';
 import { storageCryptoFromSecret } from '../../files/crypto.js';
@@ -124,8 +125,11 @@ export const startCommand: Command = {
 
 /** What `adminium design` adds to a start. */
 export interface DesignStart {
-  /** Called once the meta store is migrated, before the server starts: the owner, and the token when there is one. */
-  prepare(meta: import('@adminium/meta').MetaDb): Promise<{ token: string | null }>;
+  /**
+   * Called once the meta store is migrated, before the server starts: the owner, and the token when there is one.
+   * `thisComputer`: the link signs the project's owner in even when they have a password (the desktop app's start).
+   */
+  prepare(meta: import('@adminium/meta').MetaDb): Promise<{ token: string | null; thisComputer?: boolean }>;
   /** Called when the server listens: print the link, open the browser. */
   started(url: string, port: number, token: string | null): Promise<void>;
 }
@@ -189,12 +193,18 @@ export interface StartFlags {
  * project's owner with no password. `token` signs that owner in once, and only
  * while they have no password; `null` mints no link at all.
  */
-export function localOwnerStart(io: CliIo, token: string | null, started: DesignStart['started'] = async () => undefined): DesignStart {
+export function localOwnerStart(io: CliIo, token: string | null, started: DesignStart['started'] = async () => undefined, opts: { thisComputer?: boolean } = {}): DesignStart {
   return {
     async prepare(meta) {
       if (await isBootstrapRequired(meta)) {
         await createLocalOwner(meta);
         io.out('Made you the owner of this project, with no password yet (`adminium owner set` gives you one).');
+      }
+      // A host on the person's own computer: the owner this project was made for is signed in there, password or
+      // not. The password is what OTHER devices sign in with; whoever holds this folder holds its data and its key.
+      if (opts.thisComputer === true) {
+        const mine = await ownerOnThisComputer(meta);
+        return { token: mine !== null && mine.status === 'active' ? token : null, thisComputer: true };
       }
       const ownerId = await settingsRepo(meta).get('designer.localOwnerId');
       const owner = ownerId === null ? null : await usersRepo(meta).findById(ownerId);
@@ -452,7 +462,7 @@ export async function startUp({ io, deps }: Pick<CommandContext, 'io' | 'deps'>,
       env,
       deps,
       ...(projectServer === undefined ? {} : { project: projectServer }),
-      ...(prepared === null ? {} : { designer: { mode: 'local' as const, token: prepared.token, port: env.PORT, ...(project === null || project.refused.length === 0 ? {} : { ignoredEnv: project.refused }) } }),
+      ...(prepared === null ? {} : { designer: { mode: 'local' as const, token: prepared.token, port: env.PORT, ...(prepared.thisComputer === true ? { thisComputer: true } : {}), ...(project === null || project.refused.length === 0 ? {} : { ignoredEnv: project.refused }) } }),
       log: (message) => {
         io.out(message);
       },

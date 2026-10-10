@@ -28,12 +28,13 @@
  * the link has no session yet, and a stale cookie from another project on
  * this machine must not turn the exchange into a 403.
  */
-import { settingsRepo, usersRepo, type MetaDb } from '@adminium/meta';
+import { settingsRepo, usersRepo, type MetaDb, type User } from '@adminium/meta';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 
 import { auditAuth } from '../../auth/audit.js';
 import { createBootTokenGuard, isLoopbackPeer } from '../../auth/desktop-session.js';
+import { ownerOnThisComputer } from '../../auth/local-owner.js';
 import { createSession, setSessionCookie } from '../../auth/sessions.js';
 import { createDesignLinks, type DesignLinks } from '../../designer/design-links.js';
 import { hostRole } from '../../designer/design-mode.js';
@@ -50,6 +51,12 @@ export interface DesignSessionRoutesDeps {
   port: number;
   /** The links the owner asked for after the run's own was spent; its own when omitted. */
   links?: DesignLinks;
+  /**
+   * The server was started by a host on the person's own computer (the desktop
+   * app): gate 5 takes the owner this project was made for whether or not they
+   * have a password. Every other gate stands.
+   */
+  thisComputer?: boolean;
 }
 
 /** A design session lasts a working day. */
@@ -73,6 +80,12 @@ export function designSessionRoutes(deps: DesignSessionRoutesDeps): FastifyPlugi
     const links = deps.links ?? createDesignLinks(deps.now === undefined ? {} : { now: deps.now });
     // A link nobody opened does not stay good for as long as the server runs: the command's arguments are readable by other users of the machine.
     const goodUntil = (deps.now ?? Date.now)() + DESIGN_LINK_MS;
+    /** The one account a link signs in: the owner `design` made; on the person's own computer, also once they have a password. */
+    const signedInOwner = async (): Promise<User | null> => {
+      if (deps.thisComputer === true) return ownerOnThisComputer(meta);
+      const ownerId = await settingsRepo(meta).get('designer.localOwnerId');
+      return ownerId === null ? null : await usersRepo(meta).findById(ownerId);
+    };
 
     app.post(
       '/auth/design-session',
@@ -97,9 +110,8 @@ export function designSessionRoutes(deps: DesignSessionRoutesDeps): FastifyPlugi
           await auditAuth(meta, request, { action: 'design_session_failed', actorId: null, actorLabel: 'design-link' });
           throw spent();
         }
-        const ownerId = await settingsRepo(meta).get('designer.localOwnerId');
-        const owner = ownerId === null ? null : await usersRepo(meta).findById(ownerId);
-        if (owner === null || owner.passwordHash !== null || owner.status !== 'active') {
+        const owner = await signedInOwner();
+        if (owner === null || (owner.passwordHash !== null && deps.thisComputer !== true) || owner.status !== 'active') {
           throw new AppError(409, 'CONFLICT', 'This project’s owner signs in with their password.', { reason: 'OWNER_HAS_PASSWORD' });
         }
 
@@ -131,12 +143,11 @@ export function designSessionRoutes(deps: DesignSessionRoutesDeps): FastifyPlugi
           throw new AppError(403, 'FORBIDDEN', 'The Designer is signed into from its own address on this machine only.');
         }
         // Only the owner the link would sign in may ask for it, and only while the link is how that owner signs in.
-        const ownerId = await settingsRepo(meta).get('designer.localOwnerId');
-        const owner = ownerId === null ? null : await usersRepo(meta).findById(ownerId);
+        const owner = await signedInOwner();
         if (owner === null || request.user === null || request.user.id !== owner.id) {
           throw new AppError(403, 'FORBIDDEN', 'Only this project’s local owner can ask for a sign-in link.');
         }
-        if (owner.passwordHash !== null || owner.status !== 'active') {
+        if ((owner.passwordHash !== null && deps.thisComputer !== true) || owner.status !== 'active') {
           throw new AppError(409, 'CONFLICT', 'This project’s owner signs in with their password.', { reason: 'OWNER_HAS_PASSWORD' });
         }
         await auditAuth(meta, request, { action: 'design_link_issued', actorId: owner.id, actorLabel: owner.name });

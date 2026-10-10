@@ -406,7 +406,8 @@ export async function runProjectEntry(opts: RunProjectEntryOptions): Promise<Sta
         env,
         refuse: HOST_DECIDED_ENV,
         logLevel: project.logLevel ?? 'warn',
-        ...(project.mode === 'design' ? { token: project.bootToken } : {}),
+        // This IS the person's own computer: the owner is signed in here whether or not Share gave them a password.
+        ...(project.mode === 'design' ? { token: project.bootToken, ownerOnThisComputer: true } : {}),
       });
     });
   } catch (error) {

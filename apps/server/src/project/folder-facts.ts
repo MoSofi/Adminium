@@ -140,7 +140,7 @@ export function readFolderFacts(root: string, known: readonly string[] = ALL_MIG
     if (tables.has('adminium_api_keys')) facts.apiKeys = list('SELECT name FROM adminium_api_keys WHERE revoked_at IS NULL ORDER BY created_at');
     if (tables.has('adminium_public_keys')) facts.publicKeys = list('SELECT name FROM adminium_public_keys WHERE revoked_at IS NULL ORDER BY created_at');
     if (tables.has('adminium_settings') && tables.has('adminium_users')) {
-      const owner = db.prepare("SELECT u.password_hash AS hash FROM adminium_settings s JOIN adminium_users u ON u.id = json_extract(s.value, '$') WHERE s.key = 'designer.localOwnerId'").get() as { hash: string | null } | undefined;
+      const owner = db.prepare("SELECT u.password_hash AS hash FROM adminium_settings s JOIN adminium_users u ON u.id = json_extract(s.value, '$') WHERE s.key IN ('designer.localOwnerId', 'designer.ownerId') AND json_extract(s.value, '$') IS NOT NULL ORDER BY s.key = 'designer.localOwnerId' DESC LIMIT 1").get() as { hash: string | null } | undefined;
       facts.ownerHasPassword = owner === undefined ? null : owner.hash !== null;
     }
     return facts;

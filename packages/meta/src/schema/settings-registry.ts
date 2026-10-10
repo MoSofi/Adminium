@@ -486,6 +486,9 @@ export const SETTINGS_REGISTRY = {
   'designer.live': def(z.boolean(), false, 'Adminium Designer is switched on for this server'),
   'designer.liveId': def<string | null>(z.string().max(80).nullable(), null, 'The id the live Designer wrote into the project folder'),
   'designer.localOwnerId': def<string | null>(z.string().nullable(), null, 'The owner adminium design made, until they have a password'),
+  // Kept when the one above is cleared: who the project was made for. A host on the person's own computer (the
+  // desktop app) signs this owner in there whether or not they have a password; nothing else reads it to sign in.
+  'designer.ownerId': def<string | null>(z.string().nullable(), null, 'The owner adminium design made, kept once they have a password'),
   // ── files & storage ───────────────────────────────────────────────────────
   //
   // `files.maxBytes` default is 200 MiB figure, which is also the number the

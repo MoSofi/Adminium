@@ -116,6 +116,15 @@ describe('readFolderFacts', () => {
     expect(readFolderFacts(root, KNOWN).ownerHasPassword).toBe(false);
   });
 
+  it('says so once that owner has a password: who the project was made for is kept when the link’s setting is cleared', () => {
+    const db = store();
+    db.prepare("INSERT INTO adminium_users (id, email, name, password_hash, created_at) VALUES ('u1', 'ava@example.test', 'Owner', 'a-hash', 1)").run();
+    db.prepare("INSERT INTO adminium_settings VALUES ('designer.localOwnerId', 'null', 1)").run();
+    db.prepare("INSERT INTO adminium_settings VALUES ('designer.ownerId', '\"u1\"', 1)").run();
+    db.close();
+    expect(readFolderFacts(root, KNOWN).ownerHasPassword).toBe(true);
+  });
+
   it('a store a newer Adminium changed is named so, and read no further', () => {
     const db = store(undefined, [['0001_core_auth', '0.3.21'], ['0002_rbac', '0.3.21'], ['0003_from_the_future', '0.4.0']]);
     db.prepare("INSERT INTO adminium_users (id, email, name, created_at) VALUES ('u1', 'a@b.c', 'A', 1)").run();

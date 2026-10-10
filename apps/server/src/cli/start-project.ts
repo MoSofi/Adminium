@@ -49,6 +49,13 @@ export interface StartProjectOptions {
   /** Design mode's owner and link. Default: make the project's owner when it has none; no link. */
   design?: DesignStart;
   /**
+   * Design mode, for a host that IS the person's own computer (the desktop
+   * app): `token` signs the owner this project was made for in even when they
+   * have a password. The password is for other devices. Default: off, and the
+   * link is only for an owner with no password, as `adminium design`'s is.
+   */
+  ownerOnThisComputer?: boolean;
+  /**
    * Names the folder's `.env` and config may not set. A host that opens other
    * people's folders passes {@link HOST_DECIDED_ENV}; the default is none.
    */
@@ -114,6 +121,6 @@ export async function startProject(opts: StartProjectOptions): Promise<StartedPr
   return startUp(
     { io, deps },
     { port: opts.port, host: opts.mode === 'serve' ? (opts.host ?? '127.0.0.1') : undefined, logLevel: opts.logLevel ?? 'warn', refuse: opts.refuse },
-    opts.mode === 'design' ? (opts.design ?? localOwnerStart(io, opts.token ?? null)) : undefined,
+    opts.mode === 'design' ? (opts.design ?? localOwnerStart(io, opts.token ?? null, undefined, { thisComputer: opts.ownerOnThisComputer === true })) : undefined,
   );
 }
