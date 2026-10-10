@@ -16,6 +16,7 @@ import { parseDatabaseModel } from '@adminium/engine';
 import { overridesRepo, snapshotsRepo, type Automation, type AutomationGraph, type AutomationTriggerEvent } from '@adminium/meta';
 import { afterEach, describe, expect, it } from 'vitest';
 
+import { startersOf, tableNotesOn } from '../src/assistant/add-on-notes.js';
 import { findStep, stepsOn, type StepLookup } from '../src/automations/add-on-steps.js';
 import { walkRule } from '../src/automations/runner.js';
 import { firstIncompleteNode, requiredGrants, resolveRule, type RuleSteps } from '../src/automations/validate.js';
@@ -47,6 +48,8 @@ function kitWithSteps(): Doc {
     ...base,
     addOn: {
       ...(base['addOn'] as Doc),
+      // The second block of the same floor: what its tables are, and a question for its pages.
+      assistant: { tables: { cards: { is: 'A gift card: a code that holds a balance.', columns: { balance: 'What is left on it.' } } }, questions: [{ key: 'left', text: words('Which cards still hold a balance?') }] },
       steps: [
         {
           key: 'send-card',
@@ -142,6 +145,9 @@ describe.each(LEGS)('a step an add-on gives to a rule — %s', (dialect, availab
       [CARDS_KIT, 'Cards kit', 'note-card', notes],
     ]);
     expect(offered[1]!.inputTables).toEqual({ card: cards });
+    // Installed with both blocks of the floor: what it says of its table is read from the install, by the table's id here.
+    expect(tableNotesOn(installs, h.connectionId).get(cards)).toEqual({ addOn: 'Cards kit', is: 'A gift card: a code that holds a balance.', columns: { balance: 'What is left on it.' } });
+    expect(startersOf(installs, [h.connectionId], CARDS_KIT, 'any-page', 'en_US')).toEqual([{ key: `${CARDS_KIT}:left`, text: 'Which cards still hold a balance?', addOn: 'Cards kit' }]);
     expect(cards).not.toBe('');
     // The rule's author must be allowed to make the row the step makes, and to read the row the placeholders reach.
     const grants = requiredGrants(trigger(), send(whole), h.connectionId, view, steps()).map((grant) => grant.permission);
@@ -238,6 +244,9 @@ describe.each(LEGS)('a step an add-on gives to a rule — %s', (dialect, availab
     await read();
     expect(findStep(installs, h.connectionId, CARDS_KIT, 'send-card')).toEqual({ state: 'no-add-on' });
     expect(stepsOn(installs, h.connectionId)).toEqual([]);
+    // What it said of its tables, and its questions, went with it.
+    expect(tableNotesOn(installs, h.connectionId).size).toBe(0);
+    expect(startersOf(installs, [h.connectionId], CARDS_KIT, 'any-page', 'en_US')).toEqual([]);
     // The save still stands (the step keeps its settings); it is the switch that is refused.
     expect(() => check(graph)).not.toThrow();
     expect(firstIncompleteNode(graph, steps())?.id).toBe('n2');
