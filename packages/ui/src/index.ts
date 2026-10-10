@@ -4,6 +4,7 @@
 // Add exports via a local index.ts in your component directory instead.
 export * from './lib/index.js';
 export * from './theme/index.js';
+export * from './components/adminium-mark/index.js';
 export * from './components/alert/index.js';
 export * from './components/auth-layout/index.js';
 export * from './components/auth-screens/index.js';

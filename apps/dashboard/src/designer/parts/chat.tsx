@@ -28,7 +28,6 @@ import {
   CircleX,
   Gauge,
   GitCommitHorizontal,
-  Hexagon,
   ListChecks,
   LoaderCircle,
   MessageCircleQuestion,
@@ -39,6 +38,7 @@ import {
   RotateCw,
   TriangleAlert,
 } from 'lucide-react';
+import { AdminiumMark } from '@adminium/ui';
 
 import { getI18nInstance, t } from '../../i18n/t.js';
 import { designerApi, LOOK_DIRECTIONS, type DesignerCard, type LimitKind, type NeedItem, type SpendMark, type StyleChoice } from '../api.js';
@@ -145,7 +145,7 @@ export function DesignerMessage({ text, streaming, children }: { text: string; s
     <div className="flex flex-col gap-2.5">
       <div className="flex items-center gap-2 text-xs font-extrabold text-fg-muted">
         <span aria-hidden="true" className="flex size-5 items-center justify-center rounded-md bg-accent text-accent-fg">
-          <Hexagon className="size-3" />
+          <AdminiumMark className="size-[13px]" />
         </span>
         {t('designer:brand', 'Adminium Designer')}
       </div>

@@ -4,7 +4,8 @@
  * name, then one centred column. No theme or language control (they follow the
  * app's saved choice).
  */
-import { ArrowLeft, Hexagon } from 'lucide-react';
+import { AdminiumMark } from '@adminium/ui';
+import { ArrowLeft } from 'lucide-react';
 import type { ReactNode } from 'react';
 
 export function PlainShell({ children }: { children: ReactNode }): ReactNode {
@@ -15,7 +16,7 @@ export function PlainShell({ children }: { children: ReactNode }): ReactNode {
           aria-hidden="true"
           className="flex size-7 items-center justify-center rounded-[8px] bg-accent text-accent-fg shadow-[0_2px_8px_color-mix(in_srgb,var(--accent)_40%,transparent)]"
         >
-          <Hexagon className="size-4" />
+          <AdminiumMark className="size-[18px]" />
         </span>
         <span className="text-[15px] font-extrabold tracking-[-0.02em]">Adminium</span>
       </div>

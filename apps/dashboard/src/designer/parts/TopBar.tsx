@@ -11,9 +11,10 @@
  */
 import type { ReactNode } from 'react';
 import { Link } from '@tanstack/react-router';
-import { Check, ChevronDown, Hexagon, Languages, LayoutDashboard, Moon, Sun } from 'lucide-react';
+import { Check, ChevronDown, Languages, LayoutDashboard, Moon, Sun } from 'lucide-react';
 import { allLocales } from '@adminium/i18n';
 import {
+  AdminiumMark,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -49,7 +50,7 @@ export function TopBar({ middle, end, dashboardLink = false, build = false }: { 
       <div className="flex min-w-0 items-center gap-2.5">
         <Link to="/design" aria-label={t('designer:topbar.home', 'Adminium Designer home')} className="flex min-w-0 shrink-0 items-center gap-2.5 text-fg hover:text-fg">
           <span aria-hidden="true" className={`flex shrink-0 items-center justify-center bg-accent text-accent-fg shadow-sm ${build ? 'size-7 rounded-[8px]' : 'size-[30px] rounded-[9px]'}`}>
-            <Hexagon className={build ? 'size-4' : 'size-[17px]'} />
+            <AdminiumMark className={build ? 'size-[18px]' : 'size-[19px]'} />
           </span>
           <span className={`hidden whitespace-nowrap font-extrabold tracking-tight ${build ? `text-[15px] ${project === null ? 'min-[900px]:inline' : 'min-[1280px]:inline'}` : `text-[15.5px] ${project === null ? 'sm:inline' : 'min-[1200px]:inline'}`}`}>{t('designer:brand', 'Adminium Designer')}</span>
         </Link>
