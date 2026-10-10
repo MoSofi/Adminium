@@ -1,5 +1,25 @@
 # @adminium/server
 
+## 0.3.23
+
+### Patch Changes
+
+- 4c34d59: The add-ons that ship with Adminium are now 1.0.12. Offers & gift cards gives Automations a step, "Issue a voucher": a rule can issue a voucher to the customer of the record it is about, and Offers mails it with its code. Offers and Inventory tell the assistant what their tables are, and offer questions on their own pages.
+- 9c6280a: A variable that nothing fills, and that has no backup, now stops an email where a person is there to put it right. A campaign that reads one cannot be sent: the send form names it, and so does the assistant's card. A rule's Test fails at the email step and names it. A rule that runs on its own still sends the email with the variable as written and says which one under the step, as before.
+  
+  A campaign made from a starter that reads its own variables (an order number, a tracking link) is refused until those have a backup or are taken out: such a campaign used to reach every recipient with `{{order_number}}` in it.
+- Updated dependencies [9c6280a]
+  - @adminium/i18n@0.3.23
+  - @adminium/engine@0.3.23
+  - @adminium/llm@0.3.23
+  - @adminium/adapter-mysql@0.3.23
+  - @adminium/adapter-postgres@0.3.23
+  - @adminium/adapter-sqlite@0.3.23
+  - @adminium/schema-import@0.3.23
+  - @adminium/add-on-contracts@0.3.23
+  - @adminium/manifest@0.3.23
+  - @adminium/meta@0.3.23
+
 ## 0.3.22
 
 ### Patch Changes

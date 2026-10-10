@@ -1,5 +1,11 @@
 # @adminium/ui
 
+## 0.3.23
+
+### Patch Changes
+
+- @adminium/tokens@0.3.23
+
 ## 0.3.22
 
 ### Patch Changes
