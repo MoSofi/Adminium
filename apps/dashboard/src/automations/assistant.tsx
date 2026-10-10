@@ -120,7 +120,8 @@ export function useAutomationAssistant(input: {
   /** Puts a change to the open rule into the page's own unsaved draft. */
   onApply: (rule: { trigger: Trigger; graph: Graph }) => void;
   /** After a save that asked to open the rule: the page selects it and opens the unfinished step. */
-  onOpen: (id: string, incompleteNodeId: string | null) => void;
+  /** Opens a rule that was just made. False when the page keeps the one it has (unsaved work on it). */
+  onOpen: (id: string, incompleteNodeId: string | null) => boolean;
 }): AssistantHostContext {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -146,8 +147,8 @@ export function useAutomationAssistant(input: {
   const onCreated = useCallback(
     (created: { id: string; kind: string; name: string }) => {
       void invalidateRules(queryClient).then(() => {
-        // Selected either way: a rule that was just made is the one to look at.
-        onOpen.current(created.id, null);
+        // A rule that was just made is the one to look at, unless the open one holds unsaved work.
+        if (!onOpen.current(created.id, null)) return;
         void navigate({ to: '.', search: (prev: Record<string, unknown>) => ({ ...prev, rule: created.id }) });
       });
     },

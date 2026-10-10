@@ -202,6 +202,8 @@ export function StepInspector(props: StepInspectorProps): ReactNode {
 
         {node.kind === 'action' ? (
           <ActionSettings
+            // Per step: what a person chose for one step's field (a column, or typed) is not the next step's.
+            key={node.id}
             action={node.action}
             sources={props.sources}
             table={props.table}

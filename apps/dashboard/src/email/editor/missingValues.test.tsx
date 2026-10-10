@@ -139,15 +139,15 @@ describe('a value that is missing, in the editor', () => {
     await user.click(chips[0] as HTMLElement);
     const dialog = await screen.findByRole('dialog', { name: 'Backup text for first_name' });
     expect(within(dialog).getByLabelText('If there is no first name, write:')).toBeDefined();
-    await user.type(within(dialog).getByTestId('email-backup-input'), 'there');
-    expect(within(dialog).getByTestId('email-backup-preview').textContent).toBe('Thanks, there!');
+    await user.type(within(dialog).getByTestId('email-backup-input'), 'dear friend');
+    expect(within(dialog).getByTestId('email-backup-preview').textContent).toBe('Thanks, dear friend!');
     await user.keyboard('{Escape}');
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Backup text for first_name' })).toBeNull());
     const chip = within(block('greet')).getAllByTestId('email-placeholder-chip')[0] as HTMLElement;
     expect(document.activeElement).toBe(chip);
-    expect(chip.getAttribute('aria-label')).toBe('first_name: when it is missing, “there” is written');
+    expect(chip.getAttribute('aria-label')).toBe('first_name: when it is missing, “dear friend” is written');
     // The chip selected its block, and the inspector says the same under the text.
-    expect(within(screen.getByTestId('email-block-panel')).getByTestId('email-backup-lines').textContent).toContain('there');
+    expect(within(screen.getByTestId('email-block-panel')).getByTestId('email-backup-lines').textContent).toContain('dear friend');
     expect(within(screen.getByTestId('email-block-panel')).getByTestId('email-backup-lines').textContent).toContain('your town');
   });
 

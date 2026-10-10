@@ -34,6 +34,7 @@ import { useCallback, useMemo, useState, type ReactNode } from 'react';
 import { Button, ConfirmModal } from '@adminium/ui';
 
 import { AskAssistant } from '../assistant/AskAssistant.js';
+import { afterApply, type AssistantChange } from './model/assistantChange.js';
 import { t } from '../i18n/t.js';
 import { PageActions } from '../shell/PageActionsProvider.js';
 import { PageSurface } from '../shell/PageSurface.js';
@@ -126,7 +127,7 @@ export function AutomationRulesPage(): ReactNode {
   const test = useTestRun();
   // What the assistant put into the open rule's unsaved draft, until the next edit, save or undo:
   // the draft as it was before, and the steps that are new (comp `Milo Automations` 4b).
-  const [byAssistant, setByAssistant] = useState<{ ruleId: string; before: { id: string; graph: Graph; trigger: Trigger } | null; added: string[] } | null>(null);
+  const [byAssistant, setByAssistant] = useState<AssistantChange<{ id: string; graph: Graph; trigger: Trigger }> | null>(null);
   const boot = useQuery({ ...bootstrapQuery(), enabled: false });
   const assistant = boot.data === undefined ? 'Milo' : assistantName(boot.data);
 
@@ -173,14 +174,18 @@ export function AutomationRulesPage(): ReactNode {
     onApply: (rule) => {
       if (!editable || selected === null || graph === null) return;
       const had = new Set(flatten(graph).map((node) => node.id));
-      setByAssistant({ ruleId: selected.id, before: dirty ? draft : null, added: flatten(rule.graph).filter((node) => !had.has(node.id)).map((node) => node.id) });
+      const added = flatten(rule.graph).filter((node) => !had.has(node.id)).map((node) => node.id);
+      setByAssistant((current) => afterApply(current, { ruleId: selected.id, dirty, draft, added }));
       setDraft({ id: selected.id, graph: rule.graph, trigger: rule.trigger });
       setInspectId(null);
     },
     onOpen: (id, incompleteNodeId) => {
+      // Unsaved work on the open rule stays where it is: the new rule is in the list, and is opened by the person.
+      if (dirty) return false;
       setDraft(null);
       setByAssistant(null);
       setInspectId(incompleteNodeId);
+      return true;
     },
   });
   const changedByAssistant = byAssistant !== null && selected !== null && byAssistant.ruleId === selected.id && dirty ? byAssistant : null;

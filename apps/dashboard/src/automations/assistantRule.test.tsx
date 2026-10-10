@@ -53,7 +53,7 @@ function mount(result: AssistantResult, open: OpenRule | null) {
   const onOpenEmailTemplates = vi.fn();
   const runAction = vi.fn().mockResolvedValue(null);
   function Page() {
-    const host: AssistantHostContext = useAutomationAssistant({ sources: SOURCES, name: 'Milo', open, onApply, onOpen: () => undefined });
+    const host: AssistantHostContext = useAutomationAssistant({ sources: SOURCES, name: 'Milo', open, onApply, onOpen: () => true });
     return (
       <LiveDraft
         turn={turn(result, open?.id ?? null)}

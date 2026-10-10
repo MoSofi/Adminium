@@ -32,6 +32,9 @@ export const CanvasText = createContext<CanvasTextScope>({ missing: false });
 function Chip({ text, index, path, scope }: { text: string; index: number; path: TextPath; scope: CanvasTextScope }) {
   const placeholder = placeholdersIn(text)[index];
   const [open, setOpen] = useState(false);
+  // What is being typed, as typed: the document keeps a backup without the spaces around it, so a
+  // field fed from the document would lose the space between two words as it is typed.
+  const [typed, setTyped] = useState<string | null>(null);
   const field = useId();
   if (placeholder === undefined) return null;
   const spoken = spokenName(placeholder.name);
@@ -39,7 +42,7 @@ function Chip({ text, index, path, scope }: { text: string; index: number; path:
     <Popover
       open={open}
       onOpenChange={(next) => {
-        if (next) scope.onEditStart?.();
+        setTyped(null);
         setOpen(next);
       }}
     >
@@ -77,8 +80,13 @@ function Chip({ text, index, path, scope }: { text: string; index: number; path:
           id={field}
           autoFocus
           data-testid="email-backup-input"
-          value={placeholder.backup ?? ''}
-          onChange={(event) => scope.onText?.(path, withBackup(text, index, event.target.value))}
+          value={typed ?? placeholder.backup ?? ''}
+          onChange={(event) => {
+            // One undo step for the whole of what is typed here, begun at the first key and not at a look.
+            if (typed === null) scope.onEditStart?.();
+            setTyped(event.target.value);
+            scope.onText?.(path, withBackup(text, index, event.target.value));
+          }}
           onKeyDown={(event) => {
             if (event.key === 'Enter') setOpen(false);
           }}
