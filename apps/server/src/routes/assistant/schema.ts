@@ -81,6 +81,15 @@ export const assistantAvailabilityReply = z.object({
   abilities: assistantAbilities,
   /** The most rows one confirmation may write. */
   maxRows: z.number(),
+  /**
+   * Voice. `input`: how a recording becomes text here: by the workspace's own
+   * model service (`provider`: the recording goes there, through this
+   * server), by the browser's own speech service (`browser`: this server never
+   * sees it; the page checks whether its browser has one), or not at all.
+   * `to` names the service for the one-time notice. `output`: whether replies
+   * may be read aloud (by the browser's own voice).
+   */
+  voice: z.object({ input: z.enum(['provider', 'browser', 'none']), to: z.string().nullable(), output: z.boolean(), maxSeconds: z.number() }),
   /** The asking person's allowance for the UTC day. `limit` 0 means there is none. */
   budget: z.object({
     limit: z.number(),
@@ -294,6 +303,8 @@ export const assistantSettingsReply = z.object({
   maxRowsCeiling: z.number(),
   /** Whether the assistant's button is put on an app's own staff address, for people who may use the assistant. */
   staffAddresses: z.boolean(),
+  /** Voice: whether people may speak to the assistant, the minutes a person may in a UTC day (0 = no limit), and whether replies may be read aloud. */
+  voice: z.object({ input: z.boolean(), dailyMinutes: z.number(), output: z.boolean() }),
   today: z.object({
     /** The UTC day, `YYYY-MM-DD`. */
     day: z.string(),
@@ -313,6 +324,7 @@ export const assistantSettingsPutBody = z
     abilities: assistantAbilities.partial().optional(),
     maxRows: z.number().int().min(1).max(ASSISTANT_MAX_ROWS_CEILING).optional(),
     staffAddresses: z.boolean().optional(),
+    voice: z.object({ input: z.boolean(), dailyMinutes: z.number().int().min(0).max(1_440), output: z.boolean() }).partial().strict().optional(),
   })
   .strict();
 
@@ -341,3 +353,17 @@ export const assistantFactsBody = z.object({ context: assistantContextSchema, ho
 export const assistantStarterView = z.object({ key: z.string(), text: z.string(), addOn: z.string() });
 
 export const assistantFactsReply = z.object({ facts: assistantFactsView, nextTurnTokens: z.number(), starters: z.array(assistantStarterView) });
+
+/** `POST /assistant/transcribe?language=de&seconds=14` — the recording is the body. */
+export const assistantTranscribeQuery = z.object({
+  /** The language spoken, as the person's locale (`de_DE`) or two letters. */
+  language: z.string().min(2).max(10).optional(),
+  /** How long the browser says the recording lasted; counted, never trusted alone. */
+  seconds: z.coerce.number().min(0).max(600).optional(),
+});
+export const assistantTranscribeReply = z.object({
+  text: z.string(),
+  /** What the recording was counted as, and what is left of the day. */
+  seconds: z.number(),
+  allowance: z.object({ limitSeconds: z.number(), usedSeconds: z.number(), resetsAt: z.number() }),
+});
