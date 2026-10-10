@@ -69,6 +69,11 @@ export function isAddOnStepReady(action: Extract<AutomationAction, { kind: 'add-
   return answer.step.step.inputs.every((input) => input.required !== true || (action.inputs[input.key] ?? '').trim() !== '');
 }
 
+/** Whether any step of a rule is one an add-on gives. */
+export function holdsAddOnStep(graph: AutomationGraph): boolean {
+  return flattenNodes(graph).some((node) => node.kind === 'action' && node.action.kind === 'add-on.step');
+}
+
 /**
  * The first step that is not finished, or null when the rule may run (D12).
  * With `steps`, a step whose add-on is gone or off counts as unfinished: the

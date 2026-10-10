@@ -55,7 +55,7 @@ import { isAddressColumn, relatedTargets } from '../../automations/related.js';
 import { readViewForUser } from '../../crud/read-view.js';
 import { liveTemplateKeySet, templateFamilies } from '../../automations/templates.js';
 import { findStep, stepLookupOf, stepsOn } from '../../automations/add-on-steps.js';
-import { firstIncompleteNode, isOwnTable, requiredGrants, resolveRule, ruleWarnings, type RuleSteps } from '../../automations/validate.js';
+import { firstIncompleteNode, holdsAddOnStep, isOwnTable, requiredGrants, resolveRule, ruleWarnings, type RuleSteps } from '../../automations/validate.js';
 import type { AddOnInstalls } from '../../apps/table-ref.js';
 import { automationHashOf } from '../../apps/manifest-automations.js';
 import { redactWebhookSecrets, sealWebhookSecrets } from '../../automations/webhook-secrets.js';
@@ -507,7 +507,10 @@ export function automationsRoutes(deps: AutomationsRoutesDeps): FastifyPluginAsy
           graph: body.graph ?? rule.graph,
           connectionId: rule.connectionId,
         };
-        if (body.trigger !== undefined || body.graph !== undefined) {
+        // A step an add-on gives is judged only while its add-on is installed: a rule saved without it is
+        // judged when it is switched on, by whoever switches it on.
+        const switchedOn = body.enabled === true && !rule.enabled && holdsAddOnStep(next.graph);
+        if (body.trigger !== undefined || body.graph !== undefined || switchedOn) {
           await validateOrThrow(request, next);
           await assertAuthorGrants(request, next);
         }

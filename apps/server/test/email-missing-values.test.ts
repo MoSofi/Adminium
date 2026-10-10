@@ -102,6 +102,13 @@ describe('a value that is missing', () => {
     expect(templateRequiredPlaceholders(template, { order_no: 'A-7' })).toEqual(['order_no', 'unknown']);
   });
 
+  it('a block that is shown asks for nothing its other words read', () => {
+    const tied = { subject: 'Hello', preheader: '', footer: '', blocks: [{ id: 'a', block: 'email.text', data: { text: 'Hi {{first_name}}' }, showWhen: { var: 'first_name' }, otherwise: 'Hi {{nickname}}' }] };
+    expect(templateRequiredPlaceholders(tied, { first_name: 'Lena' })).toEqual(['first_name']);
+    // Left out for this reader, its other words are what is printed, and they are asked for.
+    expect(templateRequiredPlaceholders(tied, {})).toEqual(['nickname']);
+  });
+
   it('a person\'s own wording still reads only what the template reads, however a name is spelled', () => {
     const reads = new Set(['client.name']);
     // With a backup, a name the template does not read is taken out like any other: the renderer never meets it.

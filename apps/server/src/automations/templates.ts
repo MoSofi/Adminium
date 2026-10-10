@@ -44,7 +44,14 @@ export function templateRequiredPlaceholders(
   template: Pick<EmailTemplate, 'subject' | 'preheader' | 'blocks' | 'footer'>,
   vars: Readonly<Record<string, string>> | null = null,
 ): string[] {
-  const required = vars === null ? requiredNamesOfEmail(template) : [...requiredPlaceholders([template.subject, template.preheader, blocksShownFor(template.blocks, vars), template.footer])];
+  // A block that is shown says its own words: what it would say otherwise is not printed, so asks for nothing.
+  const shown = (): unknown[] =>
+    blocksShownFor(template.blocks, vars ?? {}).map((block) => {
+      if (typeof block !== 'object' || block === null) return block;
+      const { otherwise: _otherwise, ...rest } = block as Record<string, unknown>;
+      return rest;
+    });
+  const required = vars === null ? requiredNamesOfEmail(template) : [...requiredPlaceholders([template.subject, template.preheader, shown(), template.footer])];
   return required.filter((name) => !name.startsWith('row.'));
 }
 

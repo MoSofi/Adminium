@@ -17,6 +17,7 @@ import { overridesRepo, snapshotsRepo, type Automation, type AutomationGraph, ty
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { startersOf, tableNotesOn } from '../src/assistant/add-on-notes.js';
+import { withoutPersonal } from '../src/automations/actions/add-on-step.js';
 import { findStep, stepsOn, type StepLookup } from '../src/automations/add-on-steps.js';
 import { walkRule } from '../src/automations/runner.js';
 import { firstIncompleteNode, requiredGrants, resolveRule, type RuleSteps } from '../src/automations/validate.js';
@@ -209,6 +210,24 @@ describe.each(LEGS)('a step an add-on gives to a rule — %s', (dialect, availab
       expect(lineOf(outcome)).toContain(says);
     }
     expect(await h.rows('SELECT id FROM cards_kit_cards')).toHaveLength(1);
+  });
+
+  it.skipIf(!available)('a value that holds braces of its own is written as it is, and a number is one every engine reads alike', async () => {
+    await setUp();
+    await h.rows(`UPDATE shop_orders SET note = '{{x}} and {{y|z}}' WHERE id = 10`);
+    const outcome = await walk(send({ to: 'a@b.example', tag: '{{record.note}}' }), 10);
+    expect(outcome.kind === 'finished' && outcome.status, lineOf(outcome)).toBe('succeeded');
+    expect(await h.rows('SELECT label FROM cards_kit_cards')).toEqual([{ label: '{{x}} and {{y|z}}' }]);
+    for (const worth of ['0x10', '1e3', ' ']) {
+      await h.rows(`UPDATE shop_orders SET note = '${worth}' WHERE id = 10`);
+      const odd = await walk(send({ to: 'a@b.example', worth: 'x{{record.note}}'.slice(worth === ' ' ? 0 : 1) }), 10);
+      expect(lineOf(odd)).toContain('“Worth” is not a number for this record.');
+    }
+  });
+
+  it('what a failed write says is kept without the personal values it was given', () => {
+    const said = withoutPersonal("Duplicate entry 'lena@client.studio.dev' for key 'cards.email' (Lena)", new Set(['to', 'name', 'none']), { to: 'lena@client.studio.dev', name: 'Lena', tag: 'cards' });
+    expect(said).toBe("Duplicate entry '…' for key 'cards.email' (…)");
   });
 
   it.skipIf(!available)('a row of the add-on is picked for a record input, and the note is written on it', async () => {

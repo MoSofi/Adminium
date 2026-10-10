@@ -14,7 +14,7 @@
  * described, and a step whose row they may not add says so.
  */
 import { RULE_EMAIL_VARS } from '../../automations/actions/email.js';
-import { personalInputs, stepsOn } from '../../automations/add-on-steps.js';
+import { inputLabel, personalInputs, stepDoes, stepName, stepsOn } from '../../automations/add-on-steps.js';
 import { isAddressColumn, relatedTargets } from '../../automations/related.js';
 import { templateFamilies } from '../../automations/templates.js';
 import { rolesRepo } from '@adminium/meta';
@@ -108,13 +108,13 @@ export const rulePartsTool: AssistantTool = {
         addOn: installed.addOn,
         addOnName: installed.addOnName,
         step: installed.step.key,
-        name: installed.step.name['en-US'],
-        does: installed.step.does['en-US'],
+        name: stepName(installed.step),
+        does: stepDoes(installed.step),
         // A rule's author must be allowed to add the row the step adds.
         youMayUseIt: installed.table !== null && (await deps.can(`table:${connectionId}:${installed.table}:create`)),
         inputs: installed.step.inputs.map((input) => ({
           key: input.key,
-          label: input.label['en-US'],
+          label: inputLabel(input),
           kind: input.kind,
           required: input.required === true,
           ...(input.options === undefined ? {} : { oneOf: input.options.map((option) => option.value) }),

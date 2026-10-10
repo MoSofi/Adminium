@@ -40,6 +40,9 @@ type StepAction = Extract<AutomationAction, { kind: 'add-on.step' }>;
 /** A typed or read address, as a mail server would take it. */
 const ADDRESS = /^[^\s@,;<>]+@[^\s@,;<>]+\.[^\s@,;<>]+$/;
 
+/** A number as every engine reads it the same way: digits, with a decimal part or without. */
+const NUMBER = /^-?\d+(\.\d+)?$/;
+
 /** The step as installed on the run's own database, or the failure that says why it cannot run. */
 function installedOf(action: StepAction, ctx: ActionContext): { step: InstalledStep; table: ResolvedTable } {
   const source = sourceOf(ctx);
@@ -74,15 +77,18 @@ function filledInputs(action: StepAction, installed: InstalledStep, table: Resol
   const out: Record<string, string> = {};
   for (const input of installed.step.inputs) {
     const label = inputLabel(input);
-    const value = substitute(action.inputs[input.key] ?? '', personal.has(input.key) ? personalTokens(ctx) : ctx.tokens).trim();
-    const unfilled = placeholdersIn(value)[0];
+    // Judged as the rule wrote it, before anything is filled in: a value that happens to hold braces is not a placeholder, and is never quoted.
+    const written = action.inputs[input.key] ?? '';
+    const tokens = personal.has(input.key) ? personalTokens(ctx) : ctx.tokens;
+    const unfilled = placeholdersIn(written).find((placeholder) => placeholder.backup === undefined && !Object.hasOwn(tokens, placeholder.name));
     if (unfilled !== undefined) throw new ActionFailure(`${name}: “${label}” reads ${unfilled.whole}, which nothing fills.`);
+    const value = substitute(written, tokens).trim();
     if (value === '') {
       if (input.required === true) throw new ActionFailure(`${name}: “${label}” has no value for this record.`);
       continue;
     }
     if (input.kind === 'email' && !ADDRESS.test(value)) throw new ActionFailure(`${name}: “${label}” does not hold an email address for this record.`);
-    if (input.kind === 'number' && !Number.isFinite(Number(value))) throw new ActionFailure(`${name}: “${label}” is not a number for this record.`);
+    if (input.kind === 'number' && !NUMBER.test(value)) throw new ActionFailure(`${name}: “${label}” is not a number for this record.`);
     if (input.kind === 'choice' && !(input.options ?? []).some((option) => option.value === value)) {
       throw new ActionFailure(`${name}: “${label}” is none of its choices (${(input.options ?? []).map((option) => option.value).join(', ')}).`);
     }
@@ -107,9 +113,28 @@ function rowOf(installed: InstalledStep, table: ResolvedTable, inputs: Readonly<
   return row;
 }
 
+/**
+ * What a failed write says, without the personal values it was given: a
+ * database quotes the value it refused ("Duplicate entry '…'"), and a step's
+ * failure is kept in the run's log.
+ */
+export function withoutPersonal(message: string, personal: ReadonlySet<string>, inputs: Readonly<Record<string, string>>): string {
+  let out = message;
+  for (const key of personal) {
+    const value = inputs[key];
+    if (value !== undefined && value !== '') out = out.replaceAll(value, '…');
+  }
+  return out;
+}
+
 export async function runAddOnStepAction(action: StepAction, ctx: ActionContext): Promise<ActionResult> {
   const { step, table } = installedOf(action, ctx);
-  const created = await createRow(ctx, table, rowOf(step, table, filledInputs(action, step, table, ctx), ctx));
+  const inputs = filledInputs(action, step, table, ctx);
+  const row = rowOf(step, table, inputs, ctx);
+  const created = await createRow(ctx, table, row).catch((error: unknown) => {
+    if (error instanceof ActionFailure) throw new ActionFailure(withoutPersonal(error.message, personalOf(step, table), inputs));
+    throw error;
+  });
   return { log: ctx.text.stepOk(stepName(step.step), created.label) };
 }
 

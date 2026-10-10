@@ -593,6 +593,20 @@ describe('42 — the automations routes', () => {
       expect(sqlite.prepare('SELECT COUNT(*) AS n FROM users').get()).toEqual({ n: 1 });
     });
 
+    it('a rule saved while its add-on was away is judged when it is switched on, as whoever switches it on', async () => {
+      // With no add-on there is no step to judge: the editor's rule is kept, switched off.
+      const kept = await rule({ to: '{{record.email}}' }, false, asUser(t.users.editor));
+      expect(kept.statusCode, kept.body).toBe(201);
+      const id = (kept.json() as { id: string }).id;
+      installed = kitInstalled(connectionId);
+      // The step adds a user, which the editor may not: switching it on is refused like saving it would be.
+      const on = await patch(`/automations/${id}`, { enabled: true }, asUser(t.users.editor));
+      expect(on.statusCode, on.body).toBe(403);
+      expect(on.json()).toMatchObject({ error: { code: 'TABLE_FORBIDDEN', details: { table: 'main.users' } } });
+      const byAdmin = await patch(`/automations/${id}`, { enabled: true });
+      expect(byAdmin.statusCode, byAdmin.body).toBe(200);
+    });
+
     it('once its add-on is gone the rule is kept, reads as unfinished, cannot be switched on, and its test run says which add-on it lost', async () => {
       installed = kitInstalled(connectionId);
       const made = await rule({ to: '{{record.email}}' });

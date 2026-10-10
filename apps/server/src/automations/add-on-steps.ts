@@ -119,14 +119,24 @@ export function personalInputs(step: AddOnStep, masked: (column: string) => bool
   return new Set([...into].filter(([, columns]) => columns.every(masked)).map(([input]) => input));
 }
 
-/** An input's English label: what a refusal calls it. */
+/** An add-on's own words as a log or a model is given them: one line, bounded, whatever the stored manifest holds. */
+function oneLine(text: string | undefined): string {
+  return (text ?? '').replace(/\s+/g, ' ').trim().slice(0, 160);
+}
+
+/** An input's English label: what a refusal and a run's log call it. */
 export function inputLabel(input: AddOnStepInput): string {
-  return input.label['en-US'];
+  return oneLine(input.label['en-US']);
 }
 
 /** The step's English name: what a run's log calls it. */
 export function stepName(step: AddOnStep): string {
-  return step.name['en-US'];
+  return oneLine(step.name['en-US']);
+}
+
+/** What the step does, in English, in one line. */
+export function stepDoes(step: AddOnStep): string {
+  return oneLine(step.does['en-US']);
 }
 
 /**

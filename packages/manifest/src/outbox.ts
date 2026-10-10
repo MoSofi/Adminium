@@ -28,7 +28,7 @@ import { z } from 'zod';
 
 import type { AddOnNeeds } from './add-ons.js';
 import { formulaColumns, type FormulaExpr } from './formula.js';
-import { placeholderPattern } from './placeholders.js';
+import { OTHERWISE_BLOCKS, placeholderPattern } from './placeholders.js';
 import { personalColumn, unlistedColumn } from './public-access.js';
 import { reachedOnlyByUndo, type StateMove } from './states.js';
 import {
@@ -380,7 +380,10 @@ const emailBlockSchema = z
     /** What a text block says in its own place when that variable has none. */
     otherwise: z.string().min(1).max(4000).optional(),
   })
-  .strict();
+  .strict()
+  // Words nothing would ever print are a mistake, said at the install and not found in a sent mail.
+  .refine((block) => block.otherwise === undefined || block.showWhen !== undefined, { message: '"otherwise" is what a block says when its "showWhen" value is missing: it needs a "showWhen"', path: ['otherwise'] })
+  .refine((block) => block.otherwise === undefined || OTHERWISE_BLOCKS.includes(block.block), { message: 'only a text or a heading block can say other words ("otherwise")', path: ['otherwise'] });
 
 const emailContentSchema = z
   .object({
