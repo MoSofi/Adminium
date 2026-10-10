@@ -76,7 +76,7 @@
 | `references/manifest/public-access--availability.md` | Public access — Availability | 1991 |
 | `references/manifest/public-access--limits-on-a-stranger-s-create.md` | Public access — Limits on a stranger's create | 3390 |
 | `references/manifest/public-access--publickeys.md` | Public access — publicKeys | 3463 |
-| `references/manifest/automations.md` | Automations | 4645 |
+| `references/manifest/automations.md` | Automations | 5036 |
 | `references/manifest/sample-data.md` | Sample data | 7741 |
 | `references/manifest/seeds-and-widgets.md` | seeds and widgets | 440 |
 | `references/manifest/add-on-manifests.md` | Add-on manifests | 4354 |
@@ -84,6 +84,7 @@
 | `references/manifest/add-on-manifests--ledgers.md` | Add-on manifests — Ledgers | 5372 |
 | `references/manifest/add-on-manifests--the-price-question.md` | Add-on manifests — The price question | 2004 |
 | `references/manifest/add-on-manifests--shapes.md` | Add-on manifests — Shapes | 2541 |
+| `references/manifest/add-on-manifests--steps-for-automations.md` | Add-on manifests — Steps for Automations | 2669 |
 | `references/manifest/add-on-manifests--stock-words.md` | Add-on manifests — Stock words | 2389 |
 | `references/manifest/add-on-manifests--a-tab-on-another-table-s-record.md` | Add-on manifests — A tab on another table's record | 2828 |
 

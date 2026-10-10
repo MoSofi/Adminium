@@ -44,6 +44,7 @@ import { automationIcon } from '../icons.js';
 import { connectionForTrigger } from '../api.js';
 import type { SourceColumn, SourceTable, Sources } from '../api.js';
 import type { Action, Condition, FlowNode } from '../model/graph.js';
+import { addOnNameOf, stepOf } from '../model/addOnSteps.js';
 import { KIND_META, iconForNode } from '../model/vocabulary.js';
 import { Card, Field } from './inspector/primitives.js';
 import { ConditionCard } from './inspector/ConditionCard.js';
@@ -92,7 +93,8 @@ export function StepInspector(props: StepInspectorProps): ReactNode {
       <DrawerHeader
         icon={<Icon aria-hidden />}
         title={node.title}
-        subtitle={t(meta.labelKey, meta.fallback)}
+        // A step an add-on gives says whose it is where another says ACTION (comp `Milo Automations` 5a).
+        subtitle={node.kind === 'action' && node.action.kind === 'add-on.step' ? addOnNameOf(stepOf(props.sources, props.trigger.connectionId, node.action), node.action) : t(meta.labelKey, meta.fallback)}
         closeLabel={t('automations:insp.close', 'Close')}
       />
       <DrawerBody className="flex flex-col gap-[15px]">
