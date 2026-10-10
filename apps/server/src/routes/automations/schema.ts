@@ -187,6 +187,7 @@ export const automationSourcesReply = z.object({
       name: z.string(),
       /** Every `{{name}}` the template reads, in reading order. */
       placeholders: z.array(z.string()),
+      backed: z.array(z.string()),
       /** An app shipped it, and that app's own sender is what fills it. */
       ownedByApp: z.boolean(),
     }),

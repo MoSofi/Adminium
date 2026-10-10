@@ -196,10 +196,12 @@ const emailDocument: AssistantDocument = {
       'The `document` envelope, as JSON Schema:',
       jsonSchemaOf(emailDocumentInputSchema),
       '',
-      'Every block is `{ block: <kind>, data: { … }, style?: { … } }`. The kinds:',
+      'Every block is `{ block: <kind>, data: { … }, style?: { … }, showWhen?: { var: <name> }, otherwise?: <text> }`. The kinds:',
       blockVocabulary(EMAIL_BLOCK_KINDS, BLOCK_MEANINGS),
       '',
       'Variables are written `{{name}}` and must come from `email_variables`. A name outside that list renders as literal text.',
+      'A value may be missing for some readers. Say what to write then: `{{first_name|there}}` writes "there" when there is no first name (`{{first_name|}}` writes nothing).',
+      'When a backup word cannot keep the sentence right, tie the whole block to the value: `showWhen: { var: "first_name" }` sends the block only when the value is there, and on a text or heading block `otherwise` is the text sent in its place.',
     ].join('\n');
   },
 

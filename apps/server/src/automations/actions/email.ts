@@ -49,7 +49,7 @@ import { recipientLocale } from '../../i18n/server-i18n.js';
 import { resolveEmailParts } from '../../jobs/email-send.js';
 import { valueForms } from '../../outbox/sender.js';
 import { parseRelated } from '../related.js';
-import { resolveRuleTemplate, templatePlaceholders } from '../templates.js';
+import { resolveRuleTemplate, templateRequiredPlaceholders } from '../templates.js';
 import { substitute, tokensFor, type TokenMap } from '../templating.js';
 import { ActionFailure, type ActionContext, type ActionResult } from './types.js';
 
@@ -185,7 +185,7 @@ async function varsFor(action: EmailAction, ctx: ActionContext, locale: string):
 
 /** The placeholders of the template that this send leaves as written. */
 function unfilledIn(template: EmailTemplate, vars: Record<string, string>): string[] {
-  return templatePlaceholders(template).filter((name) => !Object.hasOwn(vars, name));
+  return templateRequiredPlaceholders(template, vars).filter((name) => !Object.hasOwn(vars, name));
 }
 
 /** `{{a}}, {{b}}` — at most five named, the rest counted. */

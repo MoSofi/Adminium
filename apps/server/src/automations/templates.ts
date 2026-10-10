@@ -14,10 +14,11 @@
  * live. The run picks the recipient's language, then English, then whichever
  * language of the family is on.
  */
+import { blocksShownFor, requiredNamesOfEmail, showWhenNames } from '@adminium/manifest';
 import { emailTemplatesRepo, type EmailTemplate, type MetaDb } from '@adminium/meta';
 
 import { resolveEmailTemplate } from '../email/builtins.js';
-import { placeholders } from '../outbox/sender.js';
+import { placeholders, requiredPlaceholders } from '../outbox/sender.js';
 
 /**
  * Every placeholder a template reads, in the order it reads them. A
@@ -27,9 +28,24 @@ import { placeholders } from '../outbox/sender.js';
 export function templatePlaceholders(
   template: Pick<EmailTemplate, 'subject' | 'preheader' | 'blocks' | 'footer'>,
 ): string[] {
-  return [...placeholders([template.subject, template.preheader, template.blocks, template.footer])].filter(
+  return [...new Set([...placeholders([template.subject, template.preheader, template.blocks, template.footer]), ...showWhenNames(template.blocks)])].filter(
     (name) => !name.startsWith('row.'),
   );
+}
+
+/**
+ * The placeholders a send must fill, for these values: written with no backup
+ * of their own, in a block that is shown. `{{first_name|there}}` asks for
+ * nothing, and neither does a block left out because its value is not there.
+ * With no values given: whoever the reader is (a name read only inside the
+ * block tied to it is never met unfilled).
+ */
+export function templateRequiredPlaceholders(
+  template: Pick<EmailTemplate, 'subject' | 'preheader' | 'blocks' | 'footer'>,
+  vars: Readonly<Record<string, string>> | null = null,
+): string[] {
+  const required = vars === null ? requiredNamesOfEmail(template) : [...requiredPlaceholders([template.subject, template.preheader, blocksShownFor(template.blocks, vars), template.footer])];
+  return required.filter((name) => !name.startsWith('row.'));
 }
 
 /** One live key, as a person or a model picks it. */
@@ -39,6 +55,8 @@ export interface TemplateFamily {
   name: string;
   /** Every `{{name}}` it reads, in reading order. */
   placeholders: string[];
+  /** Those of them nothing has to fill: each says its own backup, or only decides whether a block is shown. */
+  backed: string[];
   /** An app shipped it, and that app's own sender is what fills it. */
   ownedByApp: boolean;
 }
@@ -69,7 +87,9 @@ export async function templateFamilies(meta: MetaDb): Promise<{ live: TemplateFa
     }
     // The family's English name where it has one, even when English itself is off.
     const named = family.find((row) => row.locale === 'en_US') ?? shown;
-    live.push({ key, name: named.name, placeholders: templatePlaceholders(shown), ownedByApp: shown.managedBy !== null });
+    const needed = new Set(templateRequiredPlaceholders(shown));
+    const reads = templatePlaceholders(shown);
+    live.push({ key, name: named.name, placeholders: reads, backed: reads.filter((name) => !needed.has(name)), ownedByApp: shown.managedBy !== null });
   }
   return { live, off };
 }

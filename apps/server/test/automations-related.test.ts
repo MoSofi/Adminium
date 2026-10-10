@@ -280,11 +280,12 @@ for (const [dialect, available] of legs) {
       const doc = (subject: string, enabled: boolean) => ({ name: subject, subject, enabled, blocks: [] }) as never;
       // English off, German on: still a live key, shown once, and the run sends the German.
       await templates.upsert('p64-de-only', 'en_US', doc('English, off', false));
-      await templates.upsert('p64-de-only', 'de_DE', doc('Deutsch, an', true));
+      await templates.upsert('p64-de-only', 'de_DE', { ...(doc('Deutsch, an', true) as object), blocks: [{ block: 'email.text', data: { text: 'Hallo {{name|du}}, {{order}}' } }, { block: 'email.text', showWhen: { var: 'city' }, data: { text: 'In {{city}}' } }] } as never);
       // Every language off: not live, counted as switched off.
       await templates.upsert('p64-all-off', 'en_US', doc('Off', false));
       const families = await templateFamilies(s.meta);
-      expect(families.live.filter((family) => family.key === 'p64-de-only')).toEqual([{ key: 'p64-de-only', name: 'English, off', placeholders: [], ownedByApp: false }]);
+      // What it reads, and which of those nothing has to fill: a name with its own backup, a name that only decides whether a block is shown.
+      expect(families.live.filter((family) => family.key === 'p64-de-only')).toEqual([{ key: 'p64-de-only', name: 'English, off', placeholders: ['name', 'order', 'city'], backed: ['name', 'city'], ownedByApp: false }]);
       expect(families.live.some((family) => family.key === 'p64-all-off')).toBe(false);
       expect(families.off).toBeGreaterThanOrEqual(1);
       expect((await resolveRuleTemplate(s.meta, 'p64-de-only', 'en_US'))?.subject).toBe('Deutsch, an');

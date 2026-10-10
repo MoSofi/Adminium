@@ -18,6 +18,7 @@
  * name the validator refuses, so no rule is stored that the runner would have
  * to guess at.
  */
+import { placeholderNames } from '@adminium/manifest';
 import type { AutomationGraph, AutomationNode } from '@adminium/meta';
 import type { Kysely } from 'kysely';
 
@@ -90,21 +91,9 @@ export function isAddressColumn(table: ResolvedTable, name: string): boolean {
   return semantics?.primary === 'email' || semantics?.flags.pii === 'email';
 }
 
-const TOKEN = /\{\{\s*([A-Za-z0-9_.-]+)\s*\}\}/g;
-
 /** Every `{{…}}` name in every text a value holds, however deep. */
 function tokenNames(value: unknown, into: Set<string>): void {
-  if (typeof value === 'string') {
-    for (const match of value.matchAll(TOKEN)) into.add(match[1] as string);
-    return;
-  }
-  if (Array.isArray(value)) {
-    for (const entry of value) tokenNames(entry, into);
-    return;
-  }
-  if (typeof value === 'object' && value !== null) {
-    for (const entry of Object.values(value)) tokenNames(entry, into);
-  }
+  for (const name of placeholderNames(value)) into.add(name);
 }
 
 function nodesOf(graph: AutomationGraph): AutomationNode[] {

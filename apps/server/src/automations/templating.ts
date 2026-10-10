@@ -20,7 +20,10 @@
  *   {{ruleName}}          the rule's name
  *   {{recordLabel}}       the record's display label
  *
- * And nothing else. An unknown token is left VERBATIM rather than blanked:
+ * A token may say its backup after a bar: `{{record.first_name|there}}` writes
+ * "there" when the column is empty or the token is unknown.
+ *
+ * And nothing else. An unknown token with no backup is left VERBATIM rather than blanked:
  * a webhook body that arrives with `{{customer.name}}` still in it tells an
  * operator exactly what they typed wrong, where an empty string tells them
  * the field was empty.
@@ -35,13 +38,13 @@
  * see `actions/email.ts`.
  */
 
+import { fillPlaceholders, placeholderPattern } from '@adminium/manifest';
+
 import type { ResolvedTable } from '../crud/identifiers.js';
 import type { Row } from '../crud/mask.js';
 
 /** The same shape `renderEmail` takes for its `vars`. */
 export type TokenMap = Record<string, string>;
-
-const TOKEN_RE = /\{\{\s*([A-Za-z0-9_.-]+)\s*\}\}/g;
 
 /**
  * A column's value as a person would write it, the same on every database:
@@ -116,14 +119,10 @@ export function tokensFor(ctx: TokenContext): TokenMap {
 
 /** Substitute known tokens; leave unknown ones exactly as written. */
 export function substitute(text: string, tokens: TokenMap): string {
-  return text.replace(TOKEN_RE, (whole, name: string) => {
-    const value = tokens[name];
-    return value === undefined ? whole : value;
-  });
+  return fillPlaceholders(text, tokens);
 }
 
 /** True when the text carries at least one token. */
 export function hasTokens(text: string): boolean {
-  TOKEN_RE.lastIndex = 0;
-  return TOKEN_RE.test(text);
+  return placeholderPattern().test(text);
 }

@@ -9,6 +9,7 @@
  * format the save no longer accepts.
  */
 
+import { placeholderNames } from '@adminium/manifest';
 import { z } from 'zod';
 
 /** One page's envelope as JSON Schema, rendered for the prompt. */
@@ -26,12 +27,7 @@ export function blockVocabulary(
 
 /** `{{name}}` occurrences in a rendered document, de-duplicated, in first-seen order. */
 export function varsUsedIn(text: string): string[] {
-  const found = new Set<string>();
-  for (const match of text.matchAll(/\{\{\s*([\w.]+)\s*\}\}/g)) {
-    const name = match[1];
-    if (name !== undefined) found.add(name);
-  }
-  return [...found];
+  return placeholderNames(text);
 }
 
 /** Cut a long line for a diff or a detail row without losing that it was cut. */

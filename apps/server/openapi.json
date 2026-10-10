@@ -33792,6 +33792,12 @@
                               "type": "string"
                             }
                           },
+                          "backed": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
                           "ownedByApp": {
                             "type": "boolean"
                           }
@@ -33800,6 +33806,7 @@
                           "key",
                           "name",
                           "placeholders",
+                          "backed",
                           "ownedByApp"
                         ],
                         "additionalProperties": false
@@ -51972,6 +51979,21 @@
                                   }
                                 },
                                 "additionalProperties": false
+                              },
+                              "showWhen": {
+                                "type": "object",
+                                "properties": {
+                                  "var": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "var"
+                                ],
+                                "additionalProperties": false
+                              },
+                              "otherwise": {
+                                "type": "string"
                               }
                             },
                             "required": [
@@ -53079,6 +53101,21 @@
                                   }
                                 },
                                 "additionalProperties": false
+                              },
+                              "showWhen": {
+                                "type": "object",
+                                "properties": {
+                                  "var": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "var"
+                                ],
+                                "additionalProperties": false
+                              },
+                              "otherwise": {
+                                "type": "string"
                               }
                             },
                             "required": [
@@ -53668,6 +53705,21 @@
                                   }
                                 },
                                 "additionalProperties": false
+                              },
+                              "showWhen": {
+                                "type": "object",
+                                "properties": {
+                                  "var": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "var"
+                                ],
+                                "additionalProperties": false
+                              },
+                              "otherwise": {
+                                "type": "string"
                               }
                             },
                             "required": [
@@ -54520,6 +54572,21 @@
                                   }
                                 },
                                 "additionalProperties": false
+                              },
+                              "showWhen": {
+                                "type": "object",
+                                "properties": {
+                                  "var": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "var"
+                                ],
+                                "additionalProperties": false
+                              },
+                              "otherwise": {
+                                "type": "string"
                               }
                             },
                             "required": [
@@ -55408,6 +55475,21 @@
                                   }
                                 },
                                 "additionalProperties": false
+                              },
+                              "showWhen": {
+                                "type": "object",
+                                "properties": {
+                                  "var": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "var"
+                                ],
+                                "additionalProperties": false
+                              },
+                              "otherwise": {
+                                "type": "string"
                               }
                             },
                             "required": [
@@ -56000,6 +56082,21 @@
                                   }
                                 },
                                 "additionalProperties": false
+                              },
+                              "showWhen": {
+                                "type": "object",
+                                "properties": {
+                                  "var": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "var"
+                                ],
+                                "additionalProperties": false
+                              },
+                              "otherwise": {
+                                "type": "string"
                               }
                             },
                             "required": [
@@ -56609,6 +56706,21 @@
                                   }
                                 },
                                 "additionalProperties": false
+                              },
+                              "showWhen": {
+                                "type": "object",
+                                "properties": {
+                                  "var": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "var"
+                                ],
+                                "additionalProperties": false
+                              },
+                              "otherwise": {
+                                "type": "string"
                               }
                             },
                             "required": [
@@ -57215,6 +57327,21 @@
                                   }
                                 },
                                 "additionalProperties": false
+                              },
+                              "showWhen": {
+                                "type": "object",
+                                "properties": {
+                                  "var": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "var"
+                                ],
+                                "additionalProperties": false
+                              },
+                              "otherwise": {
+                                "type": "string"
                               }
                             },
                             "required": [

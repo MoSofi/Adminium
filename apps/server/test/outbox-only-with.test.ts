@@ -62,6 +62,11 @@ function mailingKit(): Doc {
               { block: 'email.text', data: { text: 'Open it: {{card.link_token}}', onlyWith: 'card.link_token' } },
               { block: 'email.text', data: { text: 'See your balance: {{app_url.balance}}', onlyWith: 'app_url.balance' } },
               { block: 'email.text', data: { text: 'Ask in the shop for your balance.', onlyWithout: 'app_url.balance' } },
+              // The renderer's own two (every sender has them): a backup word, and a block tied to a value with other words.
+              { block: 'email.text', data: { text: 'Wrapped by {{card.sender_name|a friend}} for {{card.nickname|you}}.' } },
+              { block: 'email.text', showWhen: { var: 'card.sender_name' }, otherwise: 'Sent with care.', data: { text: 'Sent with care by {{card.sender_name}}.' } },
+              { block: 'email.text', showWhen: { var: 'card.link_token' }, data: { text: 'Your link once more: {{card.link_token}}' } },
+              { block: 'email.text', showWhen: { var: 'card.nickname' }, data: { text: 'Known as {{card.nickname}} {{card.no_such_thing}}.' } },
             ],
           },
         },
@@ -175,6 +180,34 @@ describe.each(LEGS)("an add-on's mail: blocks by a value, and a link into an app
     expect(other.text).not.toContain('7K2M9QXA41TR8PZC');
     expect(other.text).not.toContain('Open it');
     expect(other.text).toContain('It holds');
+  });
+
+  it.skipIf(!available)('a backup word is written for a value that is empty or that nothing fills, and a block tied to a value says its other words or is left out', async () => {
+    await setUp();
+    const named = await send(1);
+    expect(named.text).toContain('Wrapped by Ada for you.');
+    expect(named.text).toContain('Sent with care by Ada.');
+    expect(named.text).toContain('Your link once more: 7K2M9QXA41TR8PZC');
+    // Leo's card names no sender: the backup in the sentence, the other words in the block's place. The mail still goes.
+    const plain = await send(2);
+    expect(plain.text).toContain('Wrapped by a friend for you.');
+    expect(plain.text).toContain('Sent with care.');
+    expect(plain.text).not.toContain('Sent with care by');
+    for (const one of [named, plain]) {
+      // A block tied to a name nothing fills is left out, and what only it reads is asked of nobody.
+      expect(one.text).not.toContain('Known as');
+      expect(one.text).not.toContain('{{');
+      for (const sentence of ['Wrapped by', 'Sent with care.', 'Sent with care by Ada.', 'Your link once more']) expect(one.html.includes(sentence), sentence).toBe(one.text.includes(sentence));
+    }
+    // Addressed to somebody else, the card's link is held back: a block tied to it is left out like one that prints it.
+    await h.rows(`INSERT INTO cards_kit_messages (kind, status, card_id, to_address) VALUES ('card-sent', 'queued', 1, 'somebody.else@client.studio.dev')`);
+    await sender.sendApp(CARDS_KIT, now + 3_600_000);
+    const [row] = await h.rows('SELECT status, error FROM cards_kit_messages ORDER BY id DESC');
+    expect(row, JSON.stringify(row)).toMatchObject({ status: 'sent', error: null });
+    const other = (await mail()).at(-1)!;
+    expect(other.text).not.toContain('7K2M9QXA41TR8PZC');
+    expect(other.text).not.toContain('Your link once more');
+    expect(other.text).toContain('Wrapped by Ada for you.');
   });
 
   it.skipIf(!available)('no app: the link is empty, and the block written for that is the one sent', async () => {

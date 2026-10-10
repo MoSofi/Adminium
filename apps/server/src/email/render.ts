@@ -59,6 +59,7 @@
  */
 
 import { tagFromLocaleId } from '@adminium/i18n';
+import { blocksShownFor, fillPlaceholders } from '@adminium/manifest';
 import type { EmailBlockStyle, EmailBrand } from '@adminium/meta';
 
 /**
@@ -190,15 +191,6 @@ export function imageCid(fileId: string): string {
   return `img-${fileId}`;
 }
 
-/**
- * `{{name}}` — double braces, deliberately NOT ICU. The stored row is data an
- * admin edits in a WYSIWYG editor; ICU's single-brace grammar would make a
- * stray `{` in prose a parse error, and the built-in copy is produced by
- * running ICU messages through `t()` at seed time (see builtins.ts), so by the
- * time a template reaches this module every ICU construct is already gone.
- */
-const PLACEHOLDER_RE = /\{\{\s*([A-Za-z0-9_.-]+)\s*\}\}/g;
-
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
@@ -242,6 +234,15 @@ function identity(value: string): string {
  * Substitute `{{var}}` from `vars`, escaping LITERAL segments and SUBSTITUTED
  * values with the same function so nothing is escaped twice.
  *
+ * `{{name}}` — double braces, deliberately NOT ICU. The stored row is data an
+ * admin edits in a WYSIWYG editor; ICU's single-brace grammar would make a
+ * stray `{` in prose a parse error, and the built-in copy is produced by
+ * running ICU messages through `t()` at seed time (see builtins.ts), so by the
+ * time a template reaches this module every ICU construct is already gone.
+ * The grammar itself — the name, and the backup after a bar
+ * (`{{first_name|there}}`) — is the manifest package's `placeholders.ts`,
+ * shared with every other reader of it.
+ *
  * The escaping is the security-relevant half: a display name, an inviter's
  * name, and a workspace label are all attacker-influenced, and an unescaped
  * `<img onerror=…>` in an HTML mail body is a live payload in the clients
@@ -249,23 +250,14 @@ function identity(value: string): string {
  * has no markup to break out of, and `&amp;` in a URL a user has to paste by
  * hand is a broken URL.
  *
- * An UNRESOLVED placeholder is re-emitted verbatim rather than blanked. A
- * reset mail that says "use the link below" followed by nothing is a silent
- * failure; one that shows `{{url}}` is a loud one, and loud is what gets
- * fixed.
+ * An UNRESOLVED placeholder with no backup is re-emitted verbatim rather than
+ * blanked. A reset mail that says "use the link below" followed by nothing is
+ * a silent failure; one that shows `{{url}}` is a loud one, and loud is what
+ * gets fixed. One that says its backup writes that: the author answered the
+ * question already.
  */
 function fill(source: string, vars: Record<string, string>, escape: (s: string) => string): string {
-  let out = '';
-  let cursor = 0;
-  for (const match of source.matchAll(PLACEHOLDER_RE)) {
-    const at = match.index ?? cursor;
-    out += escape(source.slice(cursor, at));
-    const name = match[1] ?? '';
-    const value = Object.hasOwn(vars, name) ? vars[name] : undefined;
-    out += escape(value ?? match[0]);
-    cursor = at + match[0].length;
-  }
-  return out + escape(source.slice(cursor));
+  return fillPlaceholders(source, vars, escape);
 }
 
 /**
@@ -1122,7 +1114,8 @@ export function renderEmail(input: RenderEmailInput): RenderedEmail {
   const rows: string[] = [];
   const texts: string[] = [];
   let first = true;
-  for (const entry of document.blocks) {
+  // A block tied to a value that is not there is left out, or says its other words: decided before anything is drawn.
+  for (const entry of blocksShownFor(document.blocks, input.vars)) {
     if (!isRecord(entry)) continue;
     const kind = entry['block'];
     if (!isEmailBlockKind(kind)) continue; // forward-compatible: skip, never throw
