@@ -29,6 +29,7 @@
  * prefix is deliberately not one the project sync watches.
  */
 
+import type { AddOnInstalls } from '../../apps/table-ref.js';
 import type { AiConnections } from '../../llm/connections.js';
 import { estimateTokens } from '@adminium/llm';
 import {
@@ -103,6 +104,8 @@ export interface AssistantRoutesDeps {
   cancelJob?: ((jobId: string) => void) | undefined;
   /** The add-ons this server has and could have: the tool's list, and where a suggestion's card is drawn from. */
   addOns?: (() => Promise<AssistantAddOn[]>) | undefined;
+  /** What is installed where: a draft rule is checked against the steps add-ons give. */
+  installs?: (() => Promise<AddOnInstalls>) | undefined;
 }
 
 const USE_PERMISSION = 'system:assistant:use';
@@ -463,6 +466,7 @@ export function assistantRoutes(deps: AssistantRoutesDeps): FastifyPluginAsyncZo
           userId: requireUserId(request),
           can: (permission) => request.can(permission),
           ...(deps.addOns === undefined ? {} : { addOns: deps.addOns }),
+          ...(deps.installs === undefined ? {} : { installs: deps.installs }),
         });
         return { facts: { values: setup.facts as never, scope: (await setup.adapter.pageFacts(setup.deps)).scope }, nextTurnTokens: estimateTokens(setup.system) };
       },

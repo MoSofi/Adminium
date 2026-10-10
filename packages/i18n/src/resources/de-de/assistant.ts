@@ -466,5 +466,9 @@ export default {
     "checkAgain": "Erneut prüfen",
     "undoFailed": "{count, plural, one {# Änderung konnte} other {# Änderungen konnten}} nicht zurückgenommen werden. Versuch es noch einmal.",
     "parkedNoHome": "Geh zurück zu {page}, wo das gefragt wurde, um es zu nutzen."
+  },
+  "leftOut": {
+    "title": "Was ich ausgelassen habe und warum",
+    "nothing": "Nichts."
   }
 } as const;

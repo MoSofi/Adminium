@@ -1015,6 +1015,14 @@
     "status": "mt",
     "srcHash": "e5021a523d0c"
   },
+  "assistant.leftOut.nothing": {
+    "status": "mt",
+    "srcHash": "1b3f141ab871"
+  },
+  "assistant.leftOut.title": {
+    "status": "mt",
+    "srcHash": "263ac6470e15"
+  },
   "assistant.panel.aged": {
     "status": "mt",
     "srcHash": "0dc491cf5e3e"

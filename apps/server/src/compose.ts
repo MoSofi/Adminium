@@ -1332,6 +1332,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
                     permission,
                   ),
             addOns: assistantAddOns,
+            installs: () => addOnInstalls.fresh(),
           },
         }),
   });
@@ -2429,6 +2430,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
               jobs.worker.requestCancel(jobId);
             },
             addOns: assistantAddOns,
+            installs: () => addOnInstalls.fresh(),
           }),
         );
       }

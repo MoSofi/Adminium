@@ -466,5 +466,9 @@ export default {
     "checkAgain": "Zkontrolovat znovu",
     "undoFailed": "{count, plural, one {# změnu} few {# změny} other {# změn}} se nepodařilo vzít zpět. Zkuste to znovu.",
     "parkedNoHome": "Chcete-li to použít, vraťte se na {page}, kde byl dotaz položen."
+  },
+  "leftOut": {
+    "title": "Co jsem vynechal a proč",
+    "nothing": "Nic."
   }
 } as const;

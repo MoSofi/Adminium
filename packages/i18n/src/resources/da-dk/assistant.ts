@@ -466,5 +466,9 @@ export default {
     "checkAgain": "Tjek igen",
     "undoFailed": "{count, plural, one {# ændring} other {# ændringer}} kunne ikke tages tilbage. Prøv igen.",
     "parkedNoHome": "Gå tilbage til {page}, hvor dette blev spurgt, for at bruge det."
+  },
+  "leftOut": {
+    "title": "Hvad jeg udelod, og hvorfor",
+    "nothing": "Intet."
   }
 } as const;

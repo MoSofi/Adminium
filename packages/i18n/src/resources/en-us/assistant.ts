@@ -466,5 +466,9 @@ export default {
     "checkAgain": "Check again",
     "undoFailed": "{count, plural, one {# change} other {# changes}} could not be taken back. Try again.",
     "parkedNoHome": "Go back to {page}, where this was asked, to use it."
+  },
+  "leftOut": {
+    "title": "What I left out, and why",
+    "nothing": "Nothing."
   }
 } as const;

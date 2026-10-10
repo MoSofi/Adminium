@@ -24,6 +24,7 @@ import { ActionsRow } from '../parts/ActionsRow.js';
 import { ConfirmDialog } from '../parts/ConfirmDialog.js';
 import { Echo } from '../parts/Echo.js';
 import { ResultCard } from '../parts/ResultCard.js';
+import { SuggestionCard } from '../parts/SuggestionCard.js';
 import type { ActionOutcome, ThreadTurn } from '../thread.js';
 
 export interface LiveDraftProps {
@@ -48,9 +49,11 @@ export interface LiveDraftProps {
   onOwnDialog: (open: boolean) => void;
   /** After an action that takes the person to the document: a panel lying over the page gets out of the way. */
   onLeave: () => void;
+  /** Opens the add-on a suggestion under the draft names. */
+  onOpenAddOn?: ((key: string) => void) | undefined;
 }
 
-export function LiveDraft({ turn, result, host, copy, name, enabled, canWrite, onOpenSettings, tokensIn, tokensOut, runAction, loadWhole, onOwnDialog, onLeave }: LiveDraftProps) {
+export function LiveDraft({ turn, result, host, copy, name, enabled, canWrite, onOpenSettings, tokensIn, tokensOut, runAction, loadWhole, onOwnDialog, onLeave, onOpenAddOn }: LiveDraftProps) {
   const [echo, setEcho] = useState<string | null>(null);
   const [sample, setSample] = useState<{ artefact: Record<string, unknown>; label: string } | null>(null);
   const [pending, setPending] = useState<{ action: AssistantActionSpec; open: boolean } | null>(null);
@@ -132,6 +135,8 @@ export function LiveDraft({ turn, result, host, copy, name, enabled, canWrite, o
   }, [pending, runAction, turnId, context, on, result.title, host, onLeave]);
 
   const page = host();
+  // What would give the part left out: the add-ons the server checked and listed for this turn.
+  const suggestions = turn.answer?.suggest ?? [];
   return (
     <div className="flex min-w-0 flex-1 flex-col gap-3">
       <ResultCard
@@ -140,6 +145,13 @@ export function LiveDraft({ turn, result, host, copy, name, enabled, canWrite, o
         tokensIn={tokensIn}
         tokensOut={tokensOut}
         preview={light || page === null ? null : page.renderPreview(sample?.artefact ?? result.artefact, { basedOn: result.basedOn })}
+        // A rule that does less than was asked must say so where the rule is shown.
+        alwaysLeftOut={context === 'automation'}
+        under={
+          suggestions.length === 0 || onOpenAddOn === undefined
+            ? null
+            : suggestions.map((suggestion) => <SuggestionCard key={suggestion.key} suggestion={suggestion} onOpen={onOpenAddOn} />)
+        }
         footer={
           <ActionsRow
             actions={copy.actions}

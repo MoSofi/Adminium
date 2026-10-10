@@ -456,5 +456,9 @@
     "checkAgain": "重新檢查",
     "undoFailed": "{count, plural, other {#}} 項變更未能收回。請重試。",
     "parkedNoHome": "請回到提出此問題的{page}以使用它。"
+  },
+  "leftOut": {
+    "title": "我省略了什麼，以及原因",
+    "nothing": "沒有。"
   }
 }

@@ -17,6 +17,7 @@
  * would end the turn over something the model can simply do differently.
  */
 
+import type { AddOnInstalls } from '../apps/table-ref.js';
 import type { AssistantContextKey, AssistantHost, MetaDb } from '@adminium/meta';
 import type { AssistantToolSpec } from '@adminium/llm';
 import type { I18nInstance } from '@adminium/i18n/server';
@@ -49,6 +50,12 @@ export interface AssistantToolDeps {
    * list is not available, and nothing is suggested.
    */
   addOns?: (() => Promise<AssistantAddOn[]>) | undefined;
+  /**
+   * What is installed where, read fresh: the steps add-ons give to a rule.
+   * Absent in a harness with no add-ons: no step is listed, and a draft that
+   * names one is told its add-on is not installed.
+   */
+  installs?: (() => Promise<AddOnInstalls>) | undefined;
 }
 
 /** One add-on as the assistant is told of it. */

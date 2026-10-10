@@ -466,5 +466,9 @@ export default {
     "checkAgain": "重新检查",
     "undoFailed": "{count, plural, other {#}} 项更改未能撤回。请重试。",
     "parkedNoHome": "请回到提出此问题的{page}以使用它。"
+  },
+  "leftOut": {
+    "title": "我省略了什么，以及原因",
+    "nothing": "没有。"
   }
 } as const;

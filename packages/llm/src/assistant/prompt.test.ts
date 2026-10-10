@@ -40,21 +40,21 @@ describe('the prompt, pinned', () => {
   // If one of these fails, a template or a contract the model is shown changed.
   // Update the digests ONLY together with an ASSISTANT_PROMPT_VERSION bump.
   it('pins the template of a page that has a document', () => {
-    expect(digest(ASSISTANT_PROMPT_V1)).toBe('cbe3d92388f82a9d12488170737f89b6c5fc84092dd1fb2ca057e8a1debf3aef');
+    expect(digest(ASSISTANT_PROMPT_V1)).toBe('c3e6dce65e82f8c4d168788e21d27d4ad894f5e08dbdd6faab3d196cead2e115');
   });
 
   it('pins the template of a page that drafts nothing', () => {
-    expect(digest(ASSISTANT_PROMPT_PLAIN_V1)).toBe('555f05ba3ceaa891586bfb955d71f819aefac72f5c2444eacb4054ea7903c0c4');
+    expect(digest(ASSISTANT_PROMPT_PLAIN_V1)).toBe('d4a4bdeec488ffa5127a49382f511909c182aa166bacd1f029e7e2ad58e704ad');
   });
 
   it('pins the reply contract each of them shows', () => {
     // The contract is rendered when a prompt is built, so the templates' digests do not see it move.
-    expect(digest(JSON.stringify(assistantTurnJsonSchema({ document: true })))).toBe('6d5fefc11ebb675e5c81d61f8013d376404c7577f27671246e2ce5f750412ecc');
-    expect(digest(JSON.stringify(assistantTurnJsonSchema({ document: false })))).toBe('af52186e5d05dbb1e94ae23cb5d288af3958ed3d2bf3059b1093818f0daa2d43');
+    expect(digest(JSON.stringify(assistantTurnJsonSchema({ document: true })))).toBe('5cfdbbe8e711794667afb412a53376280523220a7875c92b923c1a6467843da9');
+    expect(digest(JSON.stringify(assistantTurnJsonSchema({ document: false })))).toBe('363c050d44d808a4b51a8b1cceae344d78402697b51bc1d7435f21dea4be0aea');
   });
 
-  it('the pinned version is v1.2', () => {
-    expect(ASSISTANT_PROMPT_VERSION).toBe('adminium.assistant-prompt/v1.2');
+  it('the pinned version is v1.3', () => {
+    expect(ASSISTANT_PROMPT_VERSION).toBe('adminium.assistant-prompt/v1.3');
   });
 
   it('says the three things that keep the assistant inside its lane', () => {
@@ -228,7 +228,7 @@ describe('what may be proposed', () => {
 
   it('pins the contract with everything offered', () => {
     const all = ['row.create', 'row.change', 'row.delete', 'doc.save', 'doc.change', 'doc.delete', 'send.document', 'send.template'] as const;
-    expect(digest(JSON.stringify(assistantTurnJsonSchema({ document: true, propose: all })))).toBe('c8efa066c8da663dcf755f724dba51f7dac0fc5902303ba5c865aa5c934f4261');
-    expect(digest(JSON.stringify(assistantTurnJsonSchema({ document: false, propose: all })))).toBe('0b4984a8416e08cd0250413caf68b0ebdc8450b342c07d9e541dadaee005e6d5');
+    expect(digest(JSON.stringify(assistantTurnJsonSchema({ document: true, propose: all })))).toBe('dc203629071e8ea0c53df14a61530368b4e4a86ca0a92767ab3699f8334652c7');
+    expect(digest(JSON.stringify(assistantTurnJsonSchema({ document: false, propose: all })))).toBe('2cc003892aea49abfdb183fb1249dfb0a26ffa066aa47c6d54a3d8e5409d286c');
   });
 });

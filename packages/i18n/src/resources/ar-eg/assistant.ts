@@ -466,5 +466,9 @@ export default {
     "checkAgain": "تحقّق من جديد",
     "undoFailed": "تعذّر التراجع عن {count, plural, zero {لا تغييرات} one {تغيير واحد} two {تغييرين} few {# تغييرات} many {# تغييرًا} other {# تغيير}}. حاول مرة أخرى.",
     "parkedNoHome": "عُد إلى {page} حيث طُرح هذا لاستخدامه."
+  },
+  "leftOut": {
+    "title": "ما الذي تركته، ولماذا",
+    "nothing": "لا شيء."
   }
 } as const;

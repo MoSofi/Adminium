@@ -456,5 +456,9 @@
     "checkAgain": "Vérifier à nouveau",
     "undoFailed": "{count, plural, one {# modification n’a pas pu être annulée} other {# modifications n’ont pas pu être annulées}}. Réessayez.",
     "parkedNoHome": "Revenez à {page}, où cela a été demandé, pour l’utiliser."
+  },
+  "leftOut": {
+    "title": "Ce que j’ai laissé de côté, et pourquoi",
+    "nothing": "Rien."
   }
 }

@@ -579,6 +579,10 @@ export function AssistantDock({ visible, pages }: AssistantDockProps) {
                     loadWhole={conversation.loadWhole}
                     onOwnDialog={onOwnDialog}
                     onLeave={leave}
+                    onOpenAddOn={() => {
+                      if (floating) close();
+                      void navigate({ to: '/studio/add-ons' });
+                    }}
                   />
                 ) : (
                   <ParkedDraft

@@ -315,7 +315,8 @@ for (const [dialect, available] of legs) {
         expect(wrong.errors[0]).toMatchObject({ code: 'RECIPIENT_NOT_ADDRESS' });
         expect(wrong.errors[0]!.message).toContain('"guest_id" does not hold email addresses. The columns that do: guest_id.email.');
       }
-      const right = await accept(mail({ kind: 'field', column: 'guest_id.email' }, { first: '{{guest_id.name}}' }));
+      // A draft is also held to its template: every placeholder it reads is filled (here, both through the link).
+      const right = await accept(mail({ kind: 'field', column: 'guest_id.email' }, { first: '{{guest_id.name}}', tier: '{{guest_id.tier}}' }));
       expect(right.ok, JSON.stringify(right)).toBe(true);
     });
 

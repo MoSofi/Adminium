@@ -451,6 +451,8 @@ export interface AssistantResult {
   /** What the model added, in its own words. */
   modelDetails: { label: string; value: string }[];
   checks: string[];
+  /** What was asked and the draft does not do, each with why. */
+  leftOut: { what: string; why: string }[];
   followups: string[];
   /** `connection.table` names the turn read. */
   sources: string[];
@@ -493,6 +495,11 @@ export function readResult(raw: Record<string, unknown> | null): AssistantResult
       .filter((entry): entry is Record<string, unknown> => entry !== null)
       .map((entry) => ({ label: str(entry.label), value: str(entry.value) })),
     checks: (Array.isArray(raw.checks) ? raw.checks : []).filter((entry): entry is string => typeof entry === 'string'),
+    leftOut: (Array.isArray(raw.leftOut) ? raw.leftOut : [])
+      .map((entry) => record(entry))
+      .filter((entry): entry is Record<string, unknown> => entry !== null)
+      .map((entry) => ({ what: str(entry.what), why: str(entry.why) }))
+      .filter((entry) => entry.what !== ''),
     followups: (Array.isArray(raw.followups) ? raw.followups : []).filter(
       (entry): entry is string => typeof entry === 'string',
     ),
