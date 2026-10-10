@@ -173,7 +173,7 @@ describe('runProjectEntry', () => {
     // `ownerOnThisComputer`: this is the person's own computer, so the owner is signed in here with or without a password.
     expect(given).toMatchObject({ root: ROOT, port: 4700, mode: 'design', host: '127.0.0.1', token: TOKEN, ownerOnThisComputer: true, refuse: HOST_DECIDED_ENV });
     expect(given).not.toHaveProperty('shared');
-    // While a project is built the token opens design mode's one door and no other.
+    // The token is an argument, never in the environment every program the server starts is given.
     expect(given.env).not.toHaveProperty('ADMINIUM_BOOT_TOKEN');
     expect(given.env).toMatchObject({ ADMINIUM_RUNTIME: 'desktop', LANG: 'C' });
     // The same object the child was started with: the project's .env fills it, and its config reads it from there.
@@ -181,15 +181,13 @@ describe('runProjectEntry', () => {
     expect(posted).toEqual([{ type: 'ready', port: 4700, host: '127.0.0.1', migrations: { applied: 0, version: expect.any(String) as string } }]);
   });
 
-  it('shared: no design link, the host main chose, the boot token kept for its own door', async () => {
+  it('shared: the host main chose, this computer’s names only, and the token handed over for the owner’s door', async () => {
     const { port } = fakePort();
     const start = vi.fn(async () => started({ token: null }));
     await runProjectEntry({ parentPort: port, env: block({ mode: 'serve', host: '0.0.0.0' }), start, chdir: vi.fn(), exit: vi.fn(), onLog: vi.fn() });
     const given = (start.mock.calls[0] as unknown as [Record<string, unknown>])[0];
-    // Shared: only this computer's own names are answered to, and the app's window signs the owner in here.
-    expect(given).toMatchObject({ mode: 'serve', host: '0.0.0.0', shared: true, ownerOnThisComputer: true });
-    expect(given).not.toHaveProperty('token');
-    expect(given.env).toHaveProperty('ADMINIUM_BOOT_TOKEN', TOKEN);
+    expect(given).toMatchObject({ mode: 'serve', host: '0.0.0.0', shared: true, ownerOnThisComputer: true, token: TOKEN });
+    expect(given.env).not.toHaveProperty('ADMINIUM_BOOT_TOKEN');
   });
 
   it('answers busy? with the Designer’s word, and stops once, saying so by its exit', async () => {

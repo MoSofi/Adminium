@@ -1373,7 +1373,7 @@ export function createDesktopApp(deps: DesktopBootDeps): DesktopApp {
                   const token = projectManager.bootToken;
                   const first = token !== null && token !== dashboardToken;
                   if (first) dashboardToken = token;
-                  await windows.loadApp(projectUrl({ port: state.port, mode: 'serve', token: first ? token : null }), { preview: false });
+                  await windows.loadApp(projectUrl({ port: state.port, mode: 'serve', token: first ? token : null }), { preview: false, again: projectUrl({ port: state.port, mode: 'serve', token: null }) });
                 },
               };
         // Opened to be built, whatever it was when the app last let go of it (a quit while shared).

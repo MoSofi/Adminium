@@ -582,7 +582,7 @@ export interface DesktopWindows {
    * built: a subframe may then also load the Designer's preview origin
    * ({@link decideFrameNavigation}).
    */
-  loadApp(url: string, opts?: { readonly preview?: boolean }): Promise<void>;
+  loadApp(url: string, opts?: { readonly preview?: boolean; /** What a reopened window loads instead of `url`. */ readonly again?: string }): Promise<void>;
   /**
    * Give the window a cookie jar of this project's own (a session partition
    * named by the folder's path), or `null` for the default one. A window that
@@ -1005,7 +1005,7 @@ export function createWindowManager(opts: CreateWindowManagerOptions): DesktopWi
       if (!target.isVisible()) target.show();
     },
 
-    async loadApp(url: string, opts?: { readonly preview?: boolean }): Promise<void> {
+    async loadApp(url: string, opts?: { readonly preview?: boolean; readonly again?: string }): Promise<void> {
       const target = await create();
       appOrigin = originOf(url);
       lastAppPreview = opts?.preview === true;
@@ -1013,7 +1013,9 @@ export function createWindowManager(opts: CreateWindowManagerOptions): DesktopWi
       showingCrash = false;
       showingStart = false;
       showingShared = false;
-      lastAppUrl = url;
+      // What a reopened window loads: the same address, or the one the caller says (an address whose one-use
+      // sign-in token is spent by this load is remembered without it).
+      lastAppUrl = opts?.again ?? url;
       await target.loadURL(url);
     },
 

@@ -8,6 +8,9 @@
  * other:
  *
  *   <computer>.local:<port>      the computer's own name on the network
+ *   <computer>:<port>            the same name as a router or a Windows network
+ *                                gives it out, bare, and as the system itself
+ *                                has it (`office-mac.lan`)
  *   <address>:<port>             each address this computer has, on any network
  *   127.0.0.1 / localhost / [::1] this computer itself
  *
@@ -48,7 +51,14 @@ export function sharedHosts(port: number, hostname: string, interfaces: ReturnTy
   const at = `:${String(port)}`;
   const hosts = new Set([`127.0.0.1${at}`, `localhost${at}`, `[::1]${at}`]);
   const name = localName(hostname);
-  if (name !== null) hosts.add(`${name}${at}`);
+  if (name !== null) {
+    hosts.add(`${name}${at}`);
+    // The bare name, which a router's own DNS and a Windows network answer for: no public name can be a single label.
+    hosts.add(`${name.slice(0, -'.local'.length)}${at}`);
+    // And the name the system itself has (`office-mac.lan`, `office-mac.fritz.box`): this computer's, nobody else's.
+    const full = hostname.trim().toLowerCase().replace(/\.$/, '');
+    if (/^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*$/.test(full)) hosts.add(`${full}${at}`);
+  }
   for (const list of Object.values(interfaces)) {
     for (const entry of list ?? []) {
       // Node 18.0 to 18.3 said `4` and `6`; every other release says the words.

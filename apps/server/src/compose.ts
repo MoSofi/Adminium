@@ -466,10 +466,11 @@ export interface ComposeServerOptions {
   /**
    * A project the desktop app shares on the network (`startProject`, `serve`):
    * the server answers to this computer's own names and addresses only, and
-   * `ownerOnThisComputer` lets the app's own window sign the project's owner
-   * in with this boot's token, from this computer only.
+   * `ownerToken` (this start's, never written anywhere and never in the
+   * environment) lets the app's own window sign the project's owner in once,
+   * from this computer only.
    */
-  shared?: { port: number; ownerOnThisComputer?: boolean } | undefined;
+  shared?: { port: number; ownerToken?: string } | undefined;
   /** Tests only: whether the project can build screens. Production asks the project for its esbuild. */
   designerBundler?: (() => boolean) | undefined;
   /** For tests: a hand save, a style change or going back calls this as it reaches a step, so one can be held open or made to fail there. */
@@ -1494,10 +1495,18 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
    * Sharing a project and exporting it are the app's own, in its main process.
    */
   const desktopClassic = env.ADMINIUM_RUNTIME === 'desktop' && opts.project === undefined;
+  // A shared project's door takes the token it was handed, and signs in that project's owner; it never reads the
+  // environment, which every program this server starts is given.
   const desktopSession =
-    env.ADMINIUM_RUNTIME === 'desktop' && env.ADMINIUM_BOOT_TOKEN !== undefined
-      ? { bootToken: env.ADMINIUM_BOOT_TOKEN }
-      : null;
+    env.ADMINIUM_RUNTIME !== 'desktop'
+      ? null
+      : opts.shared !== undefined
+        ? opts.shared.ownerToken === undefined
+          ? null
+          : { bootToken: opts.shared.ownerToken, projectOwner: true as const }
+        : env.ADMINIUM_BOOT_TOKEN !== undefined
+          ? { bootToken: env.ADMINIUM_BOOT_TOKEN }
+          : null;
   if (env.ADMINIUM_RUNTIME === 'desktop' && env.ADMINIUM_DESKTOP_SINGLE_USER !== undefined) {
     await mirrorDesktopSingleUser(meta, env.ADMINIUM_DESKTOP_SINGLE_USER);
   }
@@ -1660,7 +1669,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   await app.register(
     async (api) => {
       if (desktopSession !== null) {
-        await api.register(desktopSessionRoutes({ meta, bootToken: desktopSession.bootToken, ...(opts.shared?.ownerOnThisComputer === true ? { projectOwner: true } : {}) }));
+        await api.register(desktopSessionRoutes({ meta, ...desktopSession }));
       }
       // AFTER `rbacPlugin` above, which is what `app.rbac.require` needs to
       // exist at registration time — the reason this lives here and not in

@@ -15,7 +15,7 @@
  * Driven through the real composition root, as `desktop-session.test.ts` is.
  */
 import BetterSqlite3 from 'better-sqlite3';
-import { createFirstSuperAdmin, createLocalOwner, createSqliteMetaDb, firstRun, usersRepo, type MetaDb } from '@adminium/meta';
+import { createFirstSuperAdmin, createLocalOwner, createSqliteMetaDb, firstRun, settingsRepo, usersRepo, type MetaDb } from '@adminium/meta';
 import Fastify from 'fastify';
 import { afterEach, describe, expect, it } from 'vitest';
 
@@ -49,18 +49,22 @@ afterEach(async () => {
   t = null;
 });
 
-async function harness(opts: { owner?: 'local' | 'with-password' | 'setup'; shared?: { ownerOnThisComputer?: boolean } | null } = {}): Promise<Harness> {
+async function harness(opts: { owner?: 'local' | 'with-password' | 'setup'; olderAdmin?: boolean; shared?: { ownerToken?: string } | null; env?: Record<string, string> } = {}): Promise<Harness> {
   const meta = createSqliteMetaDb({ database: new BetterSqlite3(':memory:') });
   await firstRun(meta);
+  // A super admin older than the project's owner: the account the classic door would pick.
+  if (opts.olderAdmin === true) await createFirstSuperAdmin(meta, { email: 'first@adminium.test', name: 'First', passwordHash: await hashPassword('correct-horse-battery') }, Date.now() - 86_400_000);
   if (opts.owner === 'setup') {
     await createFirstSuperAdmin(meta, { email: 'ava@adminium.test', name: 'Ava', passwordHash: await hashPassword('correct-horse-battery') });
   } else {
-    await createLocalOwner(meta);
+    if (opts.olderAdmin === true) await makeOwnerBeside(meta);
+    else await createLocalOwner(meta);
     if (opts.owner === 'with-password') await setLocalOwnerCredentials(meta, { email: 'ava@example.test', password: 'a-long-enough-test-password-1!' });
   }
   const runService = createRunService({ meta });
   const { app } = await composeServer({
-    env: makeEnv({ ADMINIUM_RUNTIME: 'desktop', ADMINIUM_BOOT_TOKEN: BOOT_TOKEN, PORT: String(PORT) }),
+    // No token in the environment: a shared project's door takes the one it is handed.
+    env: makeEnv({ ADMINIUM_RUNTIME: 'desktop', PORT: String(PORT), ...opts.env }),
     metaStore: { meta, url: 'sqlite::memory:', engine: 'sqlite', source: 'embedded', close: async () => Promise.resolve() },
     manager: new ConnectionManager({ meta, crypto: dsnCryptoFromSecret(TEST_SECRET), metaDsn: null }),
     runService,
@@ -68,11 +72,23 @@ async function harness(opts: { owner?: 'local' | 'with-password' | 'setup'; shar
     allowed: null,
     logger: false,
     telemetry: false,
-    ...(opts.shared === null ? {} : { shared: { port: PORT, ...(opts.shared ?? { ownerOnThisComputer: true }) } }),
+    ...(opts.shared === null ? {} : { shared: { port: PORT, ...(opts.shared ?? { ownerToken: BOOT_TOKEN }) } }),
   });
   await app.ready();
   t = { app, meta };
   return t;
+}
+
+/** The project's owner, made as `design` makes it, in a store that already has a super admin. */
+async function makeOwnerBeside(meta: MetaDb): Promise<void> {
+  const users = usersRepo(meta);
+  const first = await users.findByEmail('first@adminium.test');
+  if (first === null) throw new Error('no first admin');
+  const role = await meta.db.selectFrom('adminium_user_roles').select('roleId').where('userId', '=', first.id).executeTakeFirstOrThrow();
+  const owner = await users.create({ email: 'owner@adminium.localhost', name: 'Owner', passwordHash: null, status: 'active' });
+  await meta.db.insertInto('adminium_user_roles').values({ userId: owner.id, roleId: role.roleId, createdAt: Date.now() }).execute();
+  await settingsRepo(meta).set('designer.localOwnerId', owner.id, { updatedBy: null });
+  await settingsRepo(meta).set('designer.ownerId', owner.id, { updatedBy: null });
 }
 
 const exchange = (h: Harness, opts: { remoteAddress?: string; token?: string; host?: string } = {}) =>
@@ -92,10 +108,14 @@ describe('the names a shared project answers to', () => {
 
   it('are the computer’s own: its .local name, each address it has, and loopback, on its port', () => {
     expect([...sharedHosts(4712, 'Office-Mac.lan', interfaces)].sort()).toEqual(
-      ['127.0.0.1:4712', '192.168.1.20:4712', '[::1]:4712', '[fe80::1c2]:4712', 'localhost:4712', 'office-mac.local:4712'].sort(),
+      ['127.0.0.1:4712', '192.168.1.20:4712', '[::1]:4712', '[fe80::1c2]:4712', 'localhost:4712', 'office-mac.local:4712', 'office-mac:4712', 'office-mac.lan:4712'].sort(),
     );
     // A name that cannot be asked for on a network adds nothing.
     expect(sharedHosts(4712, 'localhost', {}).has('localhost.local:4712')).toBe(false);
+    // The same computer as a router's DNS or a Windows network names it: bare, and as the system has it.
+    expect(sharedHosts(4712, 'Office-Mac.lan', {}).has('office-mac:4712')).toBe(true);
+    expect(sharedHosts(4712, 'Office-Mac.lan', {}).has('office-mac.lan:4712')).toBe(true);
+    expect([...sharedHosts(4712, 'bad_name.lan', {})].sort()).toEqual(['127.0.0.1:4712', '[::1]:4712', 'localhost:4712']);
     expect(localName('My_Mac')).toBeNull();
   });
 
@@ -162,10 +182,12 @@ describe('the owner, signed in on this computer while the project is shared', ()
   });
 
   it('it is the owner the project was made for, not whoever is the oldest super admin', async () => {
-    const h = await harness({ owner: 'with-password' });
+    const h = await harness({ owner: 'with-password', olderAdmin: true });
     const owner = (await usersRepo(h.meta).findByEmail('ava@example.test'))?.id;
+    expect(owner).toBeDefined();
     const res = await exchange(h);
-    expect((res.json() as { data: { user: { id: string } } }).data.user.id).toBe(owner);
+    expect(res.statusCode, res.body).toBe(200);
+    expect((res.json() as { data: { user: { id: string; email: string } } }).data.user).toMatchObject({ id: owner, email: 'ava@example.test' });
   });
 
   it('another device is refused before the token is looked at, and does not spend it', async () => {
@@ -184,6 +206,10 @@ describe('the owner, signed in on this computer while the project is shared', ()
     const res = await exchange(h);
     expect(res.statusCode).toBe(403);
     expect((res.json() as { error: { code: string } }).error.code).toBe('DESKTOP_AUTOLOGIN_DISABLED');
+    // Not spent: the day the project has such an owner, the same token still opens the door.
+    const admin = await usersRepo(h.meta).findByEmail('ava@adminium.test');
+    await settingsRepo(h.meta).set('designer.ownerId', admin?.id ?? '', { updatedBy: null });
+    expect((await exchange(h)).statusCode).toBe(200);
   });
 
   it('an owner who was suspended is not signed in', async () => {
@@ -193,10 +219,14 @@ describe('the owner, signed in on this computer while the project is shared', ()
     expect((await exchange(h)).statusCode).toBe(403);
   });
 
-  it('shared without that word: the door keeps the classic rule, which a project never meets', async () => {
-    const h = await harness({ owner: 'with-password', shared: {} });
-    const res = await exchange(h);
-    expect(res.statusCode).toBe(403);
-    expect((res.json() as { error: { code: string } }).error.code).toBe('DESKTOP_AUTOLOGIN_DISABLED');
+  it('shared with no token handed over: there is no door at all, whatever the environment holds', async () => {
+    const h = await harness({ owner: 'with-password', shared: {}, env: { ADMINIUM_BOOT_TOKEN: BOOT_TOKEN, ADMINIUM_DESKTOP_SINGLE_USER: 'on' } });
+    expect((await exchange(h)).statusCode).toBe(404);
+  });
+
+  it('a token in the environment is not the shared door’s: only the one handed over opens it', async () => {
+    const h = await harness({ owner: 'with-password', env: { ADMINIUM_BOOT_TOKEN: 'd'.repeat(64) } });
+    expect((await exchange(h, { token: 'd'.repeat(64) })).statusCode).toBe(401);
+    expect((await exchange(h)).statusCode).toBe(200);
   });
 });

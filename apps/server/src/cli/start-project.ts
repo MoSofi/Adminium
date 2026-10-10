@@ -31,7 +31,8 @@ export interface StartProjectOptions {
   /**
    * Design mode: 64 hex characters that sign the project's owner in once, at
    * `/design#designToken=…`, while that owner has no password. The host mints
-   * it and opens that address itself. Left out: no such link.
+   * it and opens that address itself. Left out: no such link. With `shared`
+   * and `ownerOnThisComputer` it is the token of the host's own sign-in door.
    */
   token?: string;
   /**
@@ -53,8 +54,8 @@ export interface StartProjectOptions {
    * mode: `token` signs the owner this project was made for in even when they
    * have a password. The password is for other devices. Default: off, and the
    * link is only for an owner with no password, as `adminium design`'s is.
-   * With `shared`: the host's own window signs that owner in with this boot's
-   * token (`ADMINIUM_BOOT_TOKEN`), from this computer only.
+   * With `shared`: the host's own window signs that owner in with `token`,
+   * once, from this computer only (`POST /auth/desktop-session`).
    */
   ownerOnThisComputer?: boolean;
   /**
@@ -128,7 +129,7 @@ export async function startProject(opts: StartProjectOptions): Promise<StartedPr
   const io = opts.io ?? nodeIo();
   return startUp(
     { io, deps },
-    { port: opts.port, host: opts.mode === 'serve' ? (opts.host ?? '127.0.0.1') : undefined, logLevel: opts.logLevel ?? 'warn', refuse: opts.refuse, ...(opts.mode === 'serve' && opts.shared === true ? { shared: { ownerOnThisComputer: opts.ownerOnThisComputer === true } } : {}) },
+    { port: opts.port, host: opts.mode === 'serve' ? (opts.host ?? '127.0.0.1') : undefined, logLevel: opts.logLevel ?? 'warn', refuse: opts.refuse, ...(opts.mode === 'serve' && opts.shared === true ? { shared: opts.ownerOnThisComputer === true && opts.token !== undefined ? { ownerToken: opts.token } : {} } : {}) },
     opts.mode === 'design' ? (opts.design ?? localOwnerStart(io, opts.token ?? null, undefined, { thisComputer: opts.ownerOnThisComputer === true })) : undefined,
   );
 }

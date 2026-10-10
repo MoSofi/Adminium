@@ -34,6 +34,7 @@ import { previewUser, safeTarget } from '../src/designer/preview.js';
 import { createSessionStore } from '../src/designer/session-store.js';
 import { ownerOnThisComputer, setLocalOwnerCredentials } from '../src/auth/local-owner.js';
 import { hashPassword } from '../src/auth/passwords.js';
+import { localOwnerStart } from '../src/cli/commands/start.js';
 import { makeInstall, type Install } from './project-fixtures.js';
 import { asProject } from './app-project-helpers.js';
 import { makeEnv } from './helpers.js';
@@ -56,7 +57,7 @@ function memoryStore(meta: MetaDb): MetaStoreHandle {
   return { meta, url: 'sqlite::memory:', engine: 'sqlite', source: 'embedded', close: async () => Promise.resolve() };
 }
 
-async function server(opts: { designer?: boolean; owner?: 'local' | 'password' | 'none'; thisComputer?: boolean } = {}): Promise<{ meta: MetaDb; app: ComposedServer['app'] }> {
+async function server(opts: { designer?: boolean; owner?: 'local' | 'password' | 'none'; thisComputer?: boolean; token?: string } = {}): Promise<{ meta: MetaDb; app: ComposedServer['app'] }> {
   install = await makeInstall();
   const root = asProject(install.dir);
   mkdirSync(join(root, '.adminium', 'build'), { recursive: true });
@@ -76,7 +77,7 @@ async function server(opts: { designer?: boolean; owner?: 'local' | 'password' |
     telemetry: false,
     onMetaRelocated: () => undefined,
     project: { root, mode: 'dev', log: () => undefined, warn: () => undefined, databases: ['main'] },
-    ...(opts.designer === false ? {} : { designer: { mode: 'local' as const, token: opts.owner === 'password' ? null : TOKEN, port: PORT, ...(opts.thisComputer === true ? { thisComputer: true } : {}) } }),
+    ...(opts.designer === false ? {} : { designer: { mode: 'local' as const, token: opts.token ?? (opts.owner === 'password' ? null : TOKEN), port: PORT, ...(opts.thisComputer === true ? { thisComputer: true } : {}) } }),
   });
   await composed.app.ready();
   return { meta, app: composed.app };
@@ -219,9 +220,14 @@ describe('a server running adminium design', () => {
   });
 
   it('on that host a project whose owner was never made by design still signs in with its password', async () => {
-    const { app, meta } = await server({ owner: 'password', thisComputer: true });
+    // With a token, as the app always hands one: the door is there, and it has no one to sign in.
+    const { app, meta } = await server({ owner: 'password', thisComputer: true, token: TOKEN });
     expect(await ownerOnThisComputer(meta)).toBeNull();
-    expect((await exchange(app)).statusCode).toBe(404);
+    const res = await exchange(app);
+    expect(res.statusCode).toBe(409);
+    expect(res.json()).toMatchObject({ error: { details: { reason: 'OWNER_HAS_PASSWORD' } } });
+    // And the start a host really runs mints no link for such a project.
+    expect(await localOwnerStart({ out: () => undefined, err: () => undefined } as never, TOKEN, undefined, { thisComputer: true }).prepare(meta)).toEqual({ token: null, thisComputer: true });
   });
 
   it('a terminal’s design mode is as strict as before for an owner with a password', async () => {

@@ -396,8 +396,9 @@ export async function runProjectEntry(opts: RunProjectEntryOptions): Promise<Sta
       chdir(project.root);
       // The environment itself, not a copy: the project's `.env` fills it in place, and its config reads it from there.
       const env = processEnv;
-      // While a project is built the token is design mode's one-use link, and no other door takes it.
-      if (project.mode === 'design') delete env.ADMINIUM_BOOT_TOKEN;
+      // The token is handed over as an argument and is never in the environment: that is given to every program the
+      // server starts, and the token opens one door (design mode's link, or a shared project's dashboard for its owner).
+      delete env.ADMINIUM_BOOT_TOKEN;
       return start({
         root: project.root,
         port: project.port,
@@ -409,7 +410,9 @@ export async function runProjectEntry(opts: RunProjectEntryOptions): Promise<Sta
         // This IS the person's own computer: the owner is signed in here whether or not Share gave them a password.
         // Shared: the same owner is signed in by the app's own window (this boot's token, this computer only), and the
         // server answers to this computer's own names and addresses, never to a name a web page made up.
-        ...(project.mode === 'design' ? { token: project.bootToken, ownerOnThisComputer: true } : { shared: true, ownerOnThisComputer: true }),
+        token: project.bootToken,
+        ownerOnThisComputer: true,
+        ...(project.mode === 'serve' ? { shared: true } : {}),
       });
     });
   } catch (error) {

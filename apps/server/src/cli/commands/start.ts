@@ -188,9 +188,9 @@ export interface StartFlags {
   refuse?: readonly string[] | undefined;
   /**
    * The desktop app shares this project on the network: only this computer's own names and addresses are answered
-   * to, and (`ownerOnThisComputer`) the app's window signs the project's owner in, on this computer only.
+   * to, and with `ownerToken` the app's window signs the project's owner in once, on this computer only.
    */
-  shared?: { ownerOnThisComputer?: boolean } | undefined;
+  shared?: { ownerToken?: string | undefined } | undefined;
 }
 
 /**
@@ -467,7 +467,7 @@ export async function startUp({ io, deps }: Pick<CommandContext, 'io' | 'deps'>,
       env,
       deps,
       ...(projectServer === undefined ? {} : { project: projectServer }),
-      ...(design !== undefined || flags.shared === undefined ? {} : { shared: { port: env.PORT, ...(flags.shared.ownerOnThisComputer === true ? { ownerOnThisComputer: true } : {}) } }),
+      ...(design !== undefined || flags.shared === undefined ? {} : { shared: { port: env.PORT, ...(flags.shared.ownerToken === undefined ? {} : { ownerToken: flags.shared.ownerToken }) } }),
       ...(prepared === null ? {} : { designer: { mode: 'local' as const, token: prepared.token, port: env.PORT, ...(prepared.thisComputer === true ? { thisComputer: true } : {}), ...(project === null || project.refused.length === 0 ? {} : { ignoredEnv: project.refused }) } }),
       log: (message) => {
         io.out(message);

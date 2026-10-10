@@ -98,7 +98,7 @@ describe('startProject', () => {
     await live.close();
     const port = await anyPort();
     const token = 'e'.repeat(64);
-    live = await startProject({ root, port, mode: 'serve', io: fakeIo(), env: { ...env(), ADMINIUM_RUNTIME: 'desktop', ADMINIUM_BOOT_TOKEN: token }, shared: true, ownerOnThisComputer: true });
+    live = await startProject({ root, port, mode: 'serve', io: fakeIo(), env: { ...env(), ADMINIUM_RUNTIME: 'desktop' }, shared: true, ownerOnThisComputer: true, token });
     const asHost = (host: string): Promise<number> =>
       new Promise((done, failed) => {
         const asked = httpRequest({ host: '127.0.0.1', port, path: '/api/v1/healthz', headers: { host }, agent: false }, (res) => {
@@ -118,11 +118,52 @@ describe('startProject', () => {
     await live.close();
     live = null;
 
-    // Served without that word (a terminal's `adminium start`, or a host that did not ask): any name, and no such door.
+    // Served without that word (a terminal's `adminium start`, or a host that did not ask): any name is answered,
+    // and the token signs no project owner in (the door there is the classic workspace's, which a project never opens).
     const plain = await anyPort();
-    live = await startProject({ root, port: plain, mode: 'serve', io: fakeIo(), env: { ...env(), ADMINIUM_RUNTIME: 'desktop', ADMINIUM_BOOT_TOKEN: token } });
+    live = await startProject({ root, port: plain, mode: 'serve', io: fakeIo(), env: { ...env(), ADMINIUM_RUNTIME: 'desktop', ADMINIUM_BOOT_TOKEN: token }, token });
+    const named = (host: string): Promise<number> =>
+      new Promise((done, failed) => {
+        const asked = httpRequest({ host: '127.0.0.1', port: plain, path: '/api/v1/healthz', headers: { host }, agent: false }, (res) => {
+          res.resume();
+          done(res.statusCode ?? 0);
+        });
+        asked.on('error', failed);
+        asked.end();
+      });
+    expect(await named(`evil.example:${String(plain)}`)).toBe(200);
     const other = await fetch(`${live.url}/api/v1/auth/desktop-session`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ bootToken: token }) });
     expect(other.status).toBe(403);
+  });
+
+  it('built by the desktop app: the owner is signed in by the link after choosing a password; a terminal’s is not', { timeout: 120_000 }, async () => {
+    const token = 'f'.repeat(64);
+    const sign = async (url: string, port: number): Promise<number> =>
+      (await fetch(`${url}/api/v1/auth/design-session`, { method: 'POST', headers: { 'content-type': 'application/json', origin: `http://127.0.0.1:${String(port)}` }, body: JSON.stringify({ designToken: token }) })).status;
+    // The owner is made, and given a password as Share's first step gives one.
+    let port = await anyPort();
+    live = await startProject({ root, port, mode: 'design', io: fakeIo(), env: env(), token, ownerOnThisComputer: true });
+    expect(live.token).toBe(token);
+    const first = await fetch(`${live.url}/api/v1/auth/design-session`, { method: 'POST', headers: { 'content-type': 'application/json', origin: live.url }, body: JSON.stringify({ designToken: token }) });
+    expect(first.status).toBe(200);
+    const cookie = (first.headers.get('set-cookie') ?? '').split(';')[0] ?? '';
+    const csrf = ((await (await fetch(`${live.url}/api/v1/bootstrap`, { headers: { cookie } })).json()) as { data: { csrfToken: string } }).data.csrfToken;
+    const set = await fetch(`${live.url}/api/v1/designer/owner-password`, { method: 'POST', headers: { 'content-type': 'application/json', origin: live.url, cookie, 'x-adminium-csrf': csrf }, body: JSON.stringify({ email: 'ava@example.test', password: 'a-long-enough-test-password-1!' }) });
+    expect(set.status, await set.text()).toBe(200);
+    await live.close();
+
+    // The app, again: a link is minted and it signs that owner in.
+    port = await anyPort();
+    live = await startProject({ root, port, mode: 'design', io: fakeIo(), env: env(), token, ownerOnThisComputer: true });
+    expect(live.token).toBe(token);
+    expect(await sign(live.url, port)).toBe(200);
+    await live.close();
+
+    // A terminal's `adminium design` on the same folder: no link at all.
+    port = await anyPort();
+    live = await startProject({ root, port, mode: 'design', io: fakeIo(), env: env(), token });
+    expect(live.token).toBeNull();
+    expect(await sign(live.url, port)).toBe(404);
   });
 
   it('design mode: this machine only, the owner made, the Designer answering, nothing busy', { timeout: 120_000 }, async () => {
