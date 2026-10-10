@@ -1287,7 +1287,13 @@
       "closeDetail": "Si vous fermez le projet maintenant, il est arrêté là où il en est. Ce qui a déjà été écrit reste.",
       "quitAnyway": "Quitter quand même",
       "closeAnyway": "Fermer quand même",
-      "keepWorking": "Continuer à travailler"
+      "keepWorking": "Continuer à travailler",
+      "shareDetail": "Si vous partagez maintenant, il est arrêté là où il en est. Ce qui a déjà été écrit reste.",
+      "shareAnyway": "Arrêter et partager"
+    },
+    "shared": {
+      "banner": "Ce projet est partagé sur votre réseau. Le Designer est désactivé pendant ce temps.",
+      "details": "Détails du partage"
     }
   },
   "capabilities": {

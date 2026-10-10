@@ -15,6 +15,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 
 import { t } from '../../i18n/t.js';
 import { getDesktopApi } from '../../lib/desktop-runtime.js';
+import { ShareDialog } from './DesktopShare.js';
 
 /** Asked once per page load: the project a window holds does not change under a page. */
 let asked: Promise<DesktopProjectInfo | null> | null = null;
@@ -92,20 +93,26 @@ const segment = (on: boolean): string =>
     'disabled:cursor-not-allowed disabled:opacity-45',
   ].join(' ');
 
-/** Build | Share. Build is where the project is; sharing it is not built yet, so its side cannot be chosen. */
+/** Build | Share. Build is where a project is while the Designer is on; choosing Share opens the steps before it is put on the network. */
 export function BuildShare({ project }: { project: DesktopProjectInfo }): ReactNode {
   const shared = project.mode === 'serve';
+  const [sharing, setSharing] = useState(false);
+  // An app older than sharing has no call for it: its side cannot be chosen.
+  const canShare = getDesktopApi()?.project?.share !== undefined;
   return (
+    <>
     <div role="radiogroup" aria-label={t('designer:mode.label', 'Build or share')} className="inline-flex shrink-0 gap-0.5 rounded-[11px] border border-border bg-surface-3 p-[3px]">
       <button type="button" role="radio" aria-checked={!shared} tabIndex={shared ? -1 : 0} className={segment(!shared)}>
         <Hammer aria-hidden="true" className="size-[15px]" />
         {t('designer:mode.build', 'Build')}
       </button>
-      <button type="button" role="radio" aria-checked={shared} tabIndex={shared ? 0 : -1} disabled={!shared} className={segment(shared)}>
+      <button type="button" role="radio" aria-checked={shared} tabIndex={shared ? 0 : -1} disabled={!shared && !canShare} onClick={() => (shared ? undefined : setSharing(true))} className={segment(shared)}>
         <RadioTower aria-hidden="true" className="size-[15px]" />
         {t('designer:mode.share', 'Share')}
       </button>
     </div>
+    {sharing ? <ShareDialog open onOpenChange={setSharing} /> : null}
+    </>
   );
 }
 

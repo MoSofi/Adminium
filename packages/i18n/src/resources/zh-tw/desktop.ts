@@ -197,5 +197,23 @@ export default {
     "proxy": "你的網路代理伺服器拒絕了下載。請檢查這台電腦的代理設定後重試。",
     "disk": "此磁碟已滿。請釋放一些空間後重試。",
     "registry": "套件登錄庫傳回了錯誤。請稍後重試。"
+  },
+  "shared": {
+    "copyFailed": "無法複製該位址。",
+    "best": "建議",
+    "copy": "複製 {address}",
+    "portChanged": "連接埠 {was} 已被占用，因此位址改為 {now}。",
+    "heading": "{name} 正在分享",
+    "noNetwork": "這台電腦未連上任何網路，因此其他裝置暫時無法存取它。請加入 Wi-Fi 或插上網路線：位址會顯示在這裡。",
+    "open": "在另一台裝置上開啟",
+    "qr": "用於掃描 {address} 的 QR 碼",
+    "notEncrypted": "區域網路上的流量未加密。請只在你信任的網路上分享。",
+    "awake": "專案分享期間你的電腦會保持喚醒。闔上上蓋會停止分享。",
+    "dashboard": "開啟儀表板",
+    "build": "返回建置",
+    "designerOff": "專案分享期間 Designer 處於關閉狀態。返回建置即可變更你的應用程式。",
+    "keep": "繼續分享",
+    "buildAsk": "返回建置？",
+    "buildAskBody": "在其他裝置上使用它的人將被中斷連線。"
   }
 } as const;

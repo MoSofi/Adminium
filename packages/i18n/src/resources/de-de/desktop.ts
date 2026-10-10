@@ -197,5 +197,23 @@ export default {
     "proxy": "Der Proxy Ihres Netzwerks hat den Download abgelehnt. Prüfen Sie die Proxy-Einstellungen dieses Computers und versuchen Sie es erneut.",
     "disk": "Dieser Datenträger ist voll. Geben Sie Speicherplatz frei und versuchen Sie es erneut.",
     "registry": "Die Paket-Registry hat mit einem Fehler geantwortet. Versuchen Sie es gleich noch einmal."
+  },
+  "shared": {
+    "copyFailed": "Die Adresse konnte nicht kopiert werden.",
+    "best": "Beste",
+    "copy": "{address} kopieren",
+    "portChanged": "Port {was} war belegt, daher hat sich die Adresse auf {now} geändert.",
+    "heading": "{name} wird geteilt",
+    "noNetwork": "Dieser Computer ist in keinem Netzwerk, daher kann ihn noch kein anderes Gerät erreichen. Verbinden Sie sich mit einem WLAN oder stecken Sie ein Kabel ein: Die Adresse erscheint hier.",
+    "open": "Auf einem anderen Gerät öffnen",
+    "qr": "Ein Code zum Scannen für {address}",
+    "notEncrypted": "Der Datenverkehr in Ihrem lokalen Netzwerk ist nicht verschlüsselt. Teilen Sie nur in einem Netzwerk, dem Sie vertrauen.",
+    "awake": "Ihr Computer bleibt wach, solange das Projekt geteilt wird. Das Schließen des Deckels beendet es.",
+    "dashboard": "Dashboard öffnen",
+    "build": "Zurück zum Bauen",
+    "designerOff": "Der Designer ist aus, solange das Projekt geteilt wird. Gehen Sie zurück zum Bauen, um Ihre Apps zu ändern.",
+    "keep": "Weiter teilen",
+    "buildAsk": "Zurück zum Bauen?",
+    "buildAskBody": "Personen, die es auf anderen Geräten verwenden, werden getrennt."
   }
 } as const;

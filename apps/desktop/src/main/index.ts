@@ -24,6 +24,9 @@
 import { constants, existsSync } from 'node:fs';
 import { access, mkdir, readFile, readdir, stat } from 'node:fs/promises';
 import { createRequire } from 'node:module';
+// The whole module, not its `hostname`: a named import takes that name in the bundle, and an address template that
+// reads `${hostname}` elsewhere in this file is then renamed under the offline gate's eyes.
+import os from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -34,6 +37,7 @@ import {
   ipcMain,
   net,
   powerMonitor,
+  powerSaveBlocker,
   safeStorage,
   session,
   shell,
@@ -84,13 +88,14 @@ import {
 } from './lan.js';
 import { buildAppMenu, menuTranslator, type MenuHandlers, type MenuTranslate } from './menu.js';
 import { EPHEMERAL_PORT, generateBootToken, LOOPBACK_HOST } from '../server/env.js';
-import { LAN_PORT_IN_USE, registerIpcHandlers, type DesktopRuntimeSnapshot } from './ipc.js';
+import { LAN_PORT_IN_USE, registerIpcHandlers, type DesktopRuntimeSnapshot, type ProjectSharing } from './ipc.js';
 import { fetchGit, findGit, gitDownloadFor, removeUnfinishedGit, runProgram } from './git.js';
 import { createDesktopLogging } from './logging.js';
 import { createFolderFacts, createInstallPackages, createMakeProject, createUpdateProject, runToEnd, type MakeProjectDeps } from './make-project.js';
 import { carriedNpmDir, provideDesktopPrograms } from './programs.js';
 import { firstFreePort, projectPortRange, seamGit, seamProject, sessionCookieNames, stopBusyWords } from './project.js';
-import { realFolderDeps, type FolderDeps } from './projects.js';
+import { realFolderDeps, rememberProject, type FolderDeps } from './projects.js';
+import { shareAddresses, sharePortFor } from './share.js';
 import { createModelsStore, modelsFileFor, type ModelsStore } from './models.js';
 import { createVersionsOffer, type VersionsOffer, type VersionsOfferDeps } from './versions-offer.js';
 import { createStartService, displayPathOf, nameFromFolder, type StartChoice, type StartDeps, type StartService } from './start.js';
@@ -409,6 +414,7 @@ export interface DesktopBridgeContext {
         info: () => { root: string; displayPath: string; name: string; mode: 'design' | 'serve' } | null;
         close: () => Promise<boolean>;
         setStopWords?: ((words: DesktopStopWords) => void) | undefined;
+        sharing?: (() => ProjectSharing | null) | undefined;
         /** The offer to keep versions, of the project that is open. */
         versions?: (() => VersionsOffer | null) | undefined;
       }
@@ -635,7 +641,20 @@ export interface DesktopBootDeps {
    * something. Resolves `true` to go on, `false` to leave it running. Left
    * out: nobody to ask, and the app goes on.
    */
-  confirmStopBusy?: ((busy: ServerBusy, why: 'quit' | 'close', words: DesktopStopWords | null) => Promise<boolean>) | undefined;
+  confirmStopBusy?: ((busy: ServerBusy, why: 'quit' | 'close' | 'share', words: DesktopStopWords | null) => Promise<boolean>) | undefined;
+  /**
+   * What sharing a project on the network needs of the machine: its name, a
+   * port's being free, and keeping it awake while others use it. Left out: a
+   * project cannot be shared from this build.
+   */
+  sharing?:
+    | {
+        readonly hostname: () => string;
+        readonly isFree: (port: number) => Promise<boolean>;
+        /** Ask the system not to sleep while shared (`true`), or let it again. */
+        readonly keepAwake?: ((on: boolean) => void) | undefined;
+      }
+    | undefined;
 }
 
 /** What {@link DesktopBootDeps.createBackup} needs from the boot sequence. */
@@ -709,6 +728,8 @@ export function createDesktopApp(deps: DesktopBootDeps): DesktopApp {
   let stopWords: DesktopStopWords | null = null;
   /** The offer to keep versions, of the project that is open. */
   let versionsOffer: VersionsOffer | null = null;
+  /** Build and Share, of the project that is open. */
+  let projectSharing: ProjectSharing | null = null;
   /**
    * The updater, `null` until step 5 and `null` forever in `disabled` mode.
    * Held here — rather than a step-5 const — for the quit hook below, which
@@ -995,6 +1016,7 @@ export function createDesktopApp(deps: DesktopBootDeps): DesktopApp {
             stopWords = words;
           },
           versions: () => (manager?.project == null ? null : versionsOffer),
+          sharing: () => (manager?.project == null ? null : projectSharing),
         },
       });
 
@@ -1129,6 +1151,10 @@ export function createDesktopApp(deps: DesktopBootDeps): DesktopApp {
       const bootProject = async (loadedConfig: DesktopConfig, project: { readonly root: string; readonly land?: 'dashboard' | undefined }): Promise<void> => {
         // Where Start asked to land, for the first page only: a restart after a crash comes back to the Designer.
         let land = project.land;
+        /** How the project was being served when the window was last pointed at it. */
+        let shownMode: 'design' | 'serve' = 'design';
+        /** Set when a shared project could not have the port it had before. */
+        let shareChangedFrom: number | null = null;
         const pickPort = deps.pickProjectPort;
         if (pickPort === undefined) {
           await windows.showCrash({ reason: 'This build cannot open a project folder.', canRestart: false });
@@ -1149,7 +1175,14 @@ export function createDesktopApp(deps: DesktopBootDeps): DesktopApp {
           project: {
             root: project.root,
             mode: 'design',
-            pickPort,
+            // Being built: a free port each time. Shared: the port this project keeps, while it can be had.
+            pickPort: async (mode) => {
+              if (mode !== 'serve' || deps.sharing === undefined) return pickPort(mode);
+              const kept = (config ?? loadedConfig).projects.find((entry) => entry.path === project.root)?.sharePort ?? null;
+              const picked = await sharePortFor(kept, deps.sharing.isFree, () => pickPort(mode));
+              shareChangedFrom = picked.changedFrom;
+              return picked.port;
+            },
             ...(deps.bundledAppsDir === undefined ? {} : { bundledAppsDir: deps.bundledAppsDir }),
             ...(programs === undefined ? {} : { programs }),
           },
@@ -1206,10 +1239,76 @@ export function createDesktopApp(deps: DesktopBootDeps): DesktopApp {
 
         const show = (ready: { host: string; port: number }): Promise<void> => {
           const mode = projectManager.project?.mode ?? 'design';
+          shownMode = mode;
+          // Shared: the Designer is off, and what the window holds is the app's own page with the addresses.
+          if (mode === 'serve' && windows.showShared !== undefined) return windows.showShared();
           const url = projectUrl({ port: ready.port, mode, token: projectManager.bootToken, land });
           land = undefined;
           return windows.loadApp(url, { preview: mode === 'design' });
         };
+        const sharing = deps.sharing;
+        const remember = async (state: 'building' | 'shared', sharePort?: number): Promise<void> => {
+          const current = config ?? loadedConfig;
+          const known = current.projects.find((entry) => entry.path === project.root);
+          // Listed if it was not (a project opened by a road that does not list it): its port has to be kept somewhere.
+          const next: DesktopConfig = rememberProject(current, { path: project.root, name: known?.name ?? nameFromFolder(project.root), state, ...(sharePort === undefined ? {} : { sharePort }) });
+          await deps.config.save(next);
+          config = next;
+        };
+        projectSharing =
+          sharing === undefined
+            ? null
+            : {
+                async share() {
+                  if (projectManager.project?.mode === 'serve') return { status: 'shared' };
+                  // Other devices sign in with a real account: with no owner password there is none to sign in with.
+                  const facts = await deps.startScreen?.folderFacts?.(project.root).catch(() => null);
+                  if (facts?.ownerHasPassword === false) return { status: 'needs-password' };
+                  const busy = await projectManager.busy().catch(() => null);
+                  if (busy !== null && deps.confirmStopBusy !== undefined && !(await deps.confirmStopBusy(busy, 'share', stopWords).catch(() => true))) return { status: 'kept-working' };
+                  try {
+                    const ready = await projectManager.restart({ mode: 'serve', host: '0.0.0.0' });
+                    await remember('shared', ready.port);
+                    sharing.keepAwake?.(true);
+                    return { status: 'shared' };
+                  } catch (error) {
+                    // Not left half-way: back to building, on this computer only.
+                    await projectManager.restart({ mode: 'design', host: LOOPBACK_HOST }).catch(() => undefined);
+                    return { status: 'failed', detail: error instanceof Error ? error.message : String(error) };
+                  }
+                },
+                async build() {
+                  if (projectManager.project?.mode !== 'serve') return true;
+                  sharing.keepAwake?.(false);
+                  shareChangedFrom = null;
+                  await projectManager.restart({ mode: 'design', host: LOOPBACK_HOST });
+                  await remember('building');
+                  return true;
+                },
+                info() {
+                  const state = projectManager.state;
+                  if (projectManager.project?.mode !== 'serve' || state.status !== 'ready') return null;
+                  const current = config ?? loadedConfig;
+                  return {
+                    name: current.projects.find((entry) => entry.path === project.root)?.name ?? nameFromFolder(project.root),
+                    port: state.port,
+                    addresses: shareAddresses(state.port, sharing.hostname()),
+                    changedFrom: shareChangedFrom,
+                    language: current.language,
+                    theme: current.theme,
+                  };
+                },
+                async showShared() {
+                  if (projectManager.project?.mode === 'serve') await windows.showShared?.();
+                },
+                async openDashboard() {
+                  const state = projectManager.state;
+                  if (projectManager.project?.mode !== 'serve' || state.status !== 'ready') return;
+                  await windows.loadApp(projectUrl({ port: state.port, mode: 'serve', token: null }), { preview: false });
+                },
+              };
+        // Opened to be built, whatever it was when the app last let go of it (a quit while shared).
+        if ((config ?? loadedConfig).projects.some((entry) => entry.path === project.root && entry.state === 'shared')) await remember('building').catch(() => undefined);
         const started = projectManager.start();
         await windows.showBoot();
         let ready: ServerReadyInfo;
@@ -1232,7 +1331,9 @@ export function createDesktopApp(deps: DesktopBootDeps): DesktopApp {
         });
         projectManager.subscribe((state: ServerState) => {
           if (state.status !== 'ready') return;
-          if (runtime !== null && state.port === runtime.serverPort) return;
+          // The same server as the window already shows: same port, and served the same way. A switch between Build
+          // and Share may land on the port it had, and is still another page.
+          if (runtime !== null && state.port === runtime.serverPort && (projectManager.project?.mode ?? 'design') === shownMode) return;
           runtime = runtime === null ? runtime : { ...runtime, serverPort: state.port };
           void show(state);
         });
@@ -1575,6 +1676,16 @@ export function createDesktopApp(deps: DesktopBootDeps): DesktopApp {
         await startService?.trustNow(root).catch(() => undefined);
         versionsOffer?.dispose();
         versionsOffer = null;
+        if (target.project.mode === 'serve') {
+          deps.sharing?.keepAwake?.(false);
+          // Closed: it is shared with nobody now, and the list on Start says so.
+          if (config !== null) {
+            const next: DesktopConfig = { ...config, projects: config.projects.map((entry) => (entry.path === root ? { ...entry, state: 'building' as const } : entry)) };
+            await deps.config.save(next).catch(() => undefined);
+            config = next;
+          }
+        }
+        projectSharing = null;
         updateManager?.dispose();
         updateManager = null;
         manager = null;
@@ -2120,6 +2231,8 @@ export function electronBootDeps(): DesktopBootDeps {
   // THIS launch's path; and a git that really works here, or none (versions are then off, and never Apple's
   // stand-in started "to see").
   // The test seam (see `project.ts`): a computer with no git but the app's own, and a stand-in for the download.
+  /** The system's own token for "do not sleep", while a project is shared. */
+  let awake: number | null = null;
   const gitSeam = seamGit(process.env, app.isPackaged);
   let gitFound = false;
   let gitFetching = false;
@@ -2396,6 +2509,19 @@ export function electronBootDeps(): DesktopBootDeps {
       classicUsed: (loaded) => existsSync(join(loaded.dataDir, 'meta.db')),
     },
     projectEnv: process.env,
+    sharing: {
+      hostname: () => os.hostname(),
+      // Free on every network this computer is on: that is where a shared project listens.
+      isFree: async (port) => (await probeBindable('0.0.0.0', port)).ok,
+      // The computer may not sleep while others use the project; its display may.
+      keepAwake: (on) => {
+        if (awake !== null) {
+          powerSaveBlocker.stop(awake);
+          awake = null;
+        }
+        if (on) awake = powerSaveBlocker.start('prevent-app-suspension');
+      },
+    },
     models: createModelsStore({ file: modelsFileFor(userDataDir), keyStore: safeStorage, log: mainLog }),
     projectPrograms,
     projectGit: {

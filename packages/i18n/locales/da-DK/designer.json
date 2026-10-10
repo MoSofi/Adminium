@@ -775,5 +775,23 @@
       "noConnection": "Kunne ikke nå internettet. Tjek din forbindelse, og prøv igen.",
       "other": "git kunne ikke sættes op på denne computer."
     }
+  },
+  "share": {
+    "passwordTitle": "Vælg, hvordan du logger ind fra andre enheder",
+    "beforeTitle": "Før du deler",
+    "step": "Del · {step} af {steps}",
+    "email": "Din e-mail",
+    "password": "Adgangskode",
+    "again": "Den samme adgangskode igen",
+    "passwordNote": "På denne computer har du aldrig brug for dem. Du skriver dem på en telefon eller en anden computer.",
+    "next": "Næste",
+    "reach": "Personer på dette netværk kan nå dette projekt, mens det er delt. Hver af dem logger ind.",
+    "dataStays": "Dit projekts data bliver på denne computer.",
+    "firewall": "Din computer spørger måske, om Adminium må modtage forbindelser. Vælg Tillad.",
+    "notEncrypted": "Trafikken på dit lokale netværk er ikke krypteret. Del kun på et netværk, du stoler på. En app, du har åbnet for offentligheden, kan bruges der uden login.",
+    "designerOff": "Designeren er slået fra, mens projektet er delt. Du kommer tilbage til den med “Gå tilbage til at bygge”.",
+    "cancel": "Annuller",
+    "sharing": "Deler…",
+    "now": "Del nu"
   }
 }

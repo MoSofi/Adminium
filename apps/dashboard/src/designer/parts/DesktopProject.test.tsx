@@ -105,7 +105,7 @@ describe('the project’s button', () => {
 });
 
 describe('Build | Share', () => {
-  it('is a choice of two with Build chosen while the project is being built; Share cannot be chosen yet', () => {
+  it('is a choice of two with Build chosen while the project is being built; in an app older than sharing, Share cannot be chosen', () => {
     render(<BuildShare project={INFO} />);
     const group = screen.getByRole('radiogroup', { name: 'Build or share' });
     const [build, share] = screen.getAllByRole('radio') as [HTMLButtonElement, HTMLButtonElement];

@@ -84,7 +84,8 @@ describe('the quit and close questions’ words', () => {
 
   it('are resolved through the translator, every one', () => {
     const words = resolveStopWords((key) => `<${key}>`);
-    expect(Object.keys(words)).toHaveLength(11);
+    expect(Object.keys(words)).toHaveLength(13);
+    expect(words.shareAnyway).toBe('<desktop.stop.shareAnyway>');
     expect(words.turn).toBe('<desktop.stop.turn>');
     expect(words.keepWorking).toBe('<desktop.stop.keepWorking>');
     expect(resolveStopWords((_key, fallback) => fallback).closeAnyway).toBe('Close anyway');

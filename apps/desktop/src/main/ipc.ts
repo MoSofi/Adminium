@@ -58,6 +58,8 @@ import type {
   SetDataDirOptions,
   SetDataDirResult,
   DesktopStopWords,
+  DesktopShareInfo,
+  DesktopShareResult,
 } from '../preload/api.js';
 import {
   INVOKE_CHANNELS,
@@ -220,6 +222,8 @@ const stopWordsSchema = z.strictObject({
   quitAnyway: stopWordSchema,
   closeAnyway: stopWordSchema,
   keepWorking: stopWordSchema,
+  shareDetail: stopWordSchema,
+  shareAnyway: stopWordSchema,
 });
 
 /**
@@ -511,6 +515,8 @@ export interface RegisterIpcHandlersOptions {
     | {
         info: () => (DesktopProjectInfo & { root: string }) | null;
         close: () => Promise<boolean>;
+        /** Build and Share, of the project that is open (`null`: a build that cannot share). */
+        sharing?: (() => ProjectSharing | null) | undefined;
         /** The quit and close questions' words, in the page's language. */
         setStopWords?: ((words: DesktopStopWords) => void) | undefined;
         /** The versions offer of the project that is open, or `null`: no project, or a build that cannot look for git. */
@@ -623,6 +629,16 @@ function senderUrlOf(event: IpcInvokeEventLike): string | null {
 export const ownPagePolicy: SenderPolicy = (senderUrl) => senderUrl !== null && senderUrl.startsWith('file://');
 
 // ─── Error mapping ───────────────────────────────────────────────────────────
+
+/** Build and Share of the project a window holds, as main does them (`main/index.ts`). */
+export interface ProjectSharing {
+  share(): Promise<DesktopShareResult>;
+  build(): Promise<boolean>;
+  /** `null` while the project is being built. */
+  info(): DesktopShareInfo | null;
+  showShared(): Promise<void>;
+  openDashboard(): Promise<void>;
+}
 
 /** `disabled` mode, as seen from the bridge: the port does not exist. */
 class UnavailableError extends Error {}
@@ -908,6 +924,18 @@ export function registerIpcHandlers(opts: RegisterIpcHandlersOptions): IpcHandle
     opts.project?.setStopWords?.(words);
     return Promise.resolve();
   });
+
+  // Build and Share. For the project's own page (the Designer's control) and for the app's own (the sharing details).
+  const sharing = (): ProjectSharing => {
+    const found = opts.project?.sharing?.() ?? null;
+    if (found === null) throw new UnavailableError('This window holds no project.');
+    return found;
+  };
+  register(IPC_CHANNELS.projectShare, noPayloadSchema, () => sharing().share());
+  register(IPC_CHANNELS.projectBuild, noPayloadSchema, () => sharing().build());
+  register(IPC_CHANNELS.projectShareInfo, noPayloadSchema, () => Promise.resolve(opts.project?.sharing?.()?.info() ?? null));
+  register(IPC_CHANNELS.projectShowShared, noPayloadSchema, () => sharing().showShared());
+  register(IPC_CHANNELS.projectOpenDashboard, noPayloadSchema, () => sharing().openDashboard());
 
   // The versions offer. `download` is the one call in this bridge that reaches out to the internet for a
   // program: it fetches one pinned file from its publisher, and only this project's own page can ask.

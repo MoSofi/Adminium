@@ -1297,7 +1297,13 @@ export default {
       "closeDetail": "Pokud teď projekt zavřete, zastaví se tam, kde je. Co už bylo zapsáno, zůstane.",
       "quitAnyway": "Přesto ukončit",
       "closeAnyway": "Přesto zavřít",
-      "keepWorking": "Pokračovat v práci"
+      "keepWorking": "Pokračovat v práci",
+      "shareDetail": "Pokud teď začnete sdílet, zastaví se tam, kde je. Co už bylo zapsáno, zůstane.",
+      "shareAnyway": "Zastavit a sdílet"
+    },
+    "shared": {
+      "banner": "Tento projekt je sdílen ve vaší síti. Designer je po tu dobu vypnutý.",
+      "details": "Podrobnosti sdílení"
     }
   },
   "capabilities": {

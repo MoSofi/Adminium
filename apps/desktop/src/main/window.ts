@@ -517,6 +517,8 @@ export interface DesktopWindows {
   showBoot(): Promise<void>;
   /** The app's own first screens (Start). Absent from a fake that predates them. */
   showStart?(): Promise<void>;
+  /** The app's own page with a shared project's addresses (the same document as Start, on its own screen). */
+  showShared?(): Promise<void>;
   /**
    * Navigate to the loopback app URL. `preview: true` while a project is being
    * built: a subframe may then also load the Designer's preview origin
@@ -597,6 +599,9 @@ export interface CreateWindowManagerOptions {
 const PERSIST_DEBOUNCE_MS = 400;
 
 const rendererDir = (): string => resolve(dirname(fileURLToPath(import.meta.url)), '..', 'renderer');
+/** The screen of the app's own document that shows a shared project's addresses. */
+export const SHARED_HASH = '/shared';
+
 const preloadEntry = (): string =>
   resolve(dirname(fileURLToPath(import.meta.url)), '..', 'preload', 'index.cjs');
 
@@ -616,6 +621,8 @@ export function createWindowManager(opts: CreateWindowManagerOptions): DesktopWi
   let lastAppPreview = false;
   /** The app's own pages are what the window holds: what `reopen` returns to. */
   let showingStart = false;
+  /** The sharing details are what the window holds: what `reopen` returns to. */
+  let showingShared = false;
   /** A window on the previous session partition, kept until its replacement stands (see `useProjectSession`). */
   let retiring: BrowserWindow | null = null;
   /** The session partition new windows are made on; `undefined` is Electron's default session. */
@@ -824,6 +831,7 @@ export function createWindowManager(opts: CreateWindowManagerOptions): DesktopWi
       previewOrigin = null;
       showingCrash = false;
       showingStart = false;
+      showingShared = false;
       await target.loadFile(bootPage);
     },
 
@@ -833,8 +841,22 @@ export function createWindowManager(opts: CreateWindowManagerOptions): DesktopWi
       previewOrigin = null;
       showingCrash = false;
       showingStart = true;
+      showingShared = false;
       lastAppUrl = null;
       await target.loadFile(startPage);
+      if (!target.isVisible()) target.show();
+    },
+
+    async showShared(): Promise<void> {
+      const target = await create();
+      // The app's own page: no server page is what the window holds, so no origin is allowed to navigate it.
+      appOrigin = null;
+      previewOrigin = null;
+      showingCrash = false;
+      showingStart = false;
+      lastAppUrl = null;
+      showingShared = true;
+      await target.loadFile(startPage, { hash: SHARED_HASH });
       if (!target.isVisible()) target.show();
     },
 
@@ -845,6 +867,7 @@ export function createWindowManager(opts: CreateWindowManagerOptions): DesktopWi
       previewOrigin = lastAppPreview ? previewOriginOf(url) : null;
       showingCrash = false;
       showingStart = false;
+      showingShared = false;
       lastAppUrl = url;
       await target.loadURL(url);
     },
@@ -868,7 +891,8 @@ export function createWindowManager(opts: CreateWindowManagerOptions): DesktopWi
       // boot got — the app if it ever came up, the splash if it did not.
       showingCrash = false;
       if (lastAppUrl === null) {
-        await target.loadFile(showingStart ? startPage : bootPage);
+        if (showingShared) await target.loadFile(startPage, { hash: SHARED_HASH });
+        else await target.loadFile(showingStart ? startPage : bootPage);
         return;
       }
       appOrigin = originOf(lastAppUrl);

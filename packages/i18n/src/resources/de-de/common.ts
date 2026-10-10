@@ -1297,7 +1297,13 @@ export default {
       "closeDetail": "Wenn Sie das Projekt jetzt schließen, wird es an dieser Stelle angehalten. Was bereits geschrieben wurde, bleibt.",
       "quitAnyway": "Trotzdem beenden",
       "closeAnyway": "Trotzdem schließen",
-      "keepWorking": "Weiterarbeiten"
+      "keepWorking": "Weiterarbeiten",
+      "shareDetail": "Wenn Sie jetzt teilen, wird es an dieser Stelle angehalten. Was bereits geschrieben wurde, bleibt.",
+      "shareAnyway": "Anhalten und teilen"
+    },
+    "shared": {
+      "banner": "Dieses Projekt wird in Ihrem Netzwerk geteilt. Der Designer ist währenddessen aus.",
+      "details": "Details zum Teilen"
     }
   },
   "capabilities": {

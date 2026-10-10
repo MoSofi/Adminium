@@ -31,7 +31,10 @@ function sources(dir: string): string[] {
 const files = sources(pages);
 const code = files.filter((file) => !file.endsWith('.css') && !/\.test\.tsx?$/.test(file));
 
-const ALLOWED = [/^react$/, /^react\/jsx-runtime$/, /^react-dom\/client$/, /^lucide-react$/, /^@adminium\/ui$/, /^@adminium\/tokens(\/.*)?$/, /^@adminium\/i18n(\/react|\/resources\/[a-z-]+\/(desktop|ui))?$/, /^tailwindcss$/];
+const ALLOWED = [/^react$/, /^react\/jsx-runtime$/, /^react-dom\/client$/, /^lucide-react$/, /^@adminium\/ui$/, /^@adminium\/tokens(\/.*)?$/, /^@adminium\/i18n(\/react|\/resources\/[a-z-]+\/(desktop|ui))?$/, /^tailwindcss$/,
+  // The code a phone scans for a shared project's address: drawn on the page, from a small package with no dependencies.
+  /^qr$/,
+];
 
 describe('the app’s own pages', () => {
   it('exist where the build looks for them', () => {

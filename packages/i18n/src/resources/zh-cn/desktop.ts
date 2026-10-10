@@ -197,5 +197,23 @@ export default {
     "proxy": "你的网络代理拒绝了下载。请检查这台电脑的代理设置后重试。",
     "disk": "此磁盘已满。请释放一些空间后重试。",
     "registry": "软件包注册表返回了错误。请稍后重试。"
+  },
+  "shared": {
+    "copyFailed": "无法复制该地址。",
+    "best": "推荐",
+    "copy": "复制 {address}",
+    "portChanged": "端口 {was} 已被占用，因此地址改为 {now}。",
+    "heading": "{name} 正在共享",
+    "noNetwork": "这台电脑未连接任何网络，因此其他设备暂时无法访问它。请加入 Wi-Fi 或插上网线：地址会显示在这里。",
+    "open": "在另一台设备上打开",
+    "qr": "用于扫描 {address} 的二维码",
+    "notEncrypted": "本地网络上的流量未加密。请只在你信任的网络上共享。",
+    "awake": "项目共享期间你的电脑会保持唤醒。合上盖子会停止共享。",
+    "dashboard": "打开仪表板",
+    "build": "返回构建",
+    "designerOff": "项目共享期间 Designer 处于关闭状态。返回构建即可更改你的应用。",
+    "keep": "继续共享",
+    "buildAsk": "返回构建？",
+    "buildAskBody": "在其他设备上使用它的人将被断开连接。"
   }
 } as const;

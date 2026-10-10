@@ -4,14 +4,16 @@ import { createRoot } from 'react-dom/client';
 import { I18nProvider } from '@adminium/i18n/react';
 import { ThemeProvider } from '@adminium/ui';
 
-import { App } from './App.js';
-import { startApi } from './bridge.js';
+import { App, SharedApp } from './App.js';
+import { desktopApi, startApi } from './bridge.js';
 import { initWords, localeFor } from './words.js';
 import './styles.css';
 
 async function start(): Promise<void> {
-  const state = await startApi().state();
-  const locale = localeFor(state.language, navigator.language);
+  // The sharing details of a project: there is no Start to ask (it is answered only while Start is the screen).
+  const shared = window.location.hash === '#/shared' ? await desktopApi().project.shareInfo?.() : null;
+  const state = shared == null ? await startApi().state() : null;
+  const locale = localeFor((shared ?? state)?.language ?? null, navigator.language);
   const i18n = await initWords(locale);
 
   const container = document.getElementById('root');
@@ -20,9 +22,7 @@ async function start(): Promise<void> {
     <StrictMode>
       <I18nProvider i18n={i18n}>
         {/* No control for either on these pages: they follow the app's saved choice, set in the window's menu. */}
-        <ThemeProvider userPrefs={{ theme: state.theme, locale }}>
-          <App initial={state} />
-        </ThemeProvider>
+        <ThemeProvider userPrefs={{ theme: (shared ?? state)?.theme ?? 'system', locale }}>{shared != null ? <SharedApp initial={shared} /> : state === null ? null : <App initial={state} />}</ThemeProvider>
       </I18nProvider>
     </StrictMode>,
   );

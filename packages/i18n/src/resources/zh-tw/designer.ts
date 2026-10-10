@@ -785,5 +785,23 @@ export default {
       "noConnection": "無法連線到網際網路。請檢查網路連線後重試。",
       "other": "無法在這台電腦上設定 git。"
     }
+  },
+  "share": {
+    "passwordTitle": "選擇從其他裝置登入的方式",
+    "beforeTitle": "分享之前",
+    "step": "分享 · 第 {step} 步，共 {steps} 步",
+    "email": "你的電子郵件",
+    "password": "密碼",
+    "again": "再次輸入相同的密碼",
+    "passwordNote": "在這台電腦上你永遠不需要它們。你會在手機或另一台電腦上輸入它們。",
+    "next": "下一步",
+    "reach": "分享期間，此網路上的人可以存取此專案。每個人都需要登入。",
+    "dataStays": "專案的資料保留在這台電腦上。",
+    "firewall": "你的電腦可能會詢問是否允許 Adminium 接受連線。請選擇允許。",
+    "notEncrypted": "區域網路上的流量未加密。請只在你信任的網路上分享。你向公眾開放的應用程式在那裡無需登入即可使用。",
+    "designerOff": "專案分享期間 Designer 處於關閉狀態。使用「返回建置」即可回到它。",
+    "cancel": "取消",
+    "sharing": "正在分享…",
+    "now": "立即分享"
   }
 } as const;

@@ -126,6 +126,8 @@ export const EN_US_STOP_WORDS: DesktopStopWords = Object.freeze({
   quitAnyway: 'Quit anyway',
   closeAnyway: 'Close anyway',
   keepWorking: 'Keep working',
+  shareDetail: 'If you share now it is stopped where it is. What was already written stays.',
+  shareAnyway: 'Stop and share',
 });
 
 /** A native question's words. */
@@ -137,12 +139,12 @@ export interface StopBusyWords {
 }
 
 /** What is said before the app ends a project's server that is in the middle of something. */
-export function stopBusyWords(busy: ServerBusy, why: 'quit' | 'close' = 'quit', words: DesktopStopWords = EN_US_STOP_WORDS): StopBusyWords {
+export function stopBusyWords(busy: ServerBusy, why: 'quit' | 'close' | 'share' = 'quit', words: DesktopStopWords = EN_US_STOP_WORDS): StopBusyWords {
   const what: Record<string, string> = { turn: words.turn, start: words.start, save: words.save, restore: words.restore, style: words.style };
   return {
     title: what[busy.kind] ?? words.other,
-    detail: why === 'close' ? words.closeDetail : words.quitDetail,
-    goOn: why === 'close' ? words.closeAnyway : words.quitAnyway,
+    detail: why === 'close' ? words.closeDetail : why === 'share' ? words.shareDetail : words.quitDetail,
+    goOn: why === 'close' ? words.closeAnyway : why === 'share' ? words.shareAnyway : words.quitAnyway,
     stay: words.keepWorking,
   };
 }

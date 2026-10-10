@@ -775,5 +775,23 @@
       "noConnection": "Impossible de joindre Internet. Vérifiez votre connexion et réessayez.",
       "other": "git n’a pas pu être installé sur cet ordinateur."
     }
+  },
+  "share": {
+    "passwordTitle": "Choisissez comment vous vous connectez depuis d’autres appareils",
+    "beforeTitle": "Avant de partager",
+    "step": "Partager · {step} sur {steps}",
+    "email": "Votre e-mail",
+    "password": "Mot de passe",
+    "again": "Le même mot de passe à nouveau",
+    "passwordNote": "Sur cet ordinateur, vous n’en avez jamais besoin. Vous les saisirez sur un téléphone ou un autre ordinateur.",
+    "next": "Suivant",
+    "reach": "Les personnes sur ce réseau peuvent accéder à ce projet tant qu’il est partagé. Chacune se connecte.",
+    "dataStays": "Les données de votre projet restent sur cet ordinateur.",
+    "firewall": "Votre ordinateur peut demander si Adminium peut accepter des connexions. Choisissez Autoriser.",
+    "notEncrypted": "Le trafic sur votre réseau local n’est pas chiffré. Ne partagez que sur un réseau de confiance. Une application que vous avez ouverte au public peut y être utilisée sans connexion.",
+    "designerOff": "Le Designer est désactivé tant que le projet est partagé. Vous y revenez avec « Revenir à la construction ».",
+    "cancel": "Annuler",
+    "sharing": "Partage…",
+    "now": "Partager maintenant"
   }
 }

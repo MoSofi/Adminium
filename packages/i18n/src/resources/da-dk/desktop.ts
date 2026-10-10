@@ -197,5 +197,23 @@ export default {
     "proxy": "Dit netværks proxy afviste hentningen. Tjek denne computers proxyindstillinger, og prøv igen.",
     "disk": "Denne disk er fuld. Frigør plads, og prøv igen.",
     "registry": "Pakkeregistret svarede med en fejl. Prøv igen om lidt."
+  },
+  "shared": {
+    "copyFailed": "Adressen kunne ikke kopieres.",
+    "best": "Bedst",
+    "copy": "Kopiér {address}",
+    "portChanged": "Port {was} var optaget, så adressen blev ændret til {now}.",
+    "heading": "{name} er delt",
+    "noNetwork": "Denne computer er ikke på et netværk, så ingen anden enhed kan nå den endnu. Gå på et Wi-Fi, eller sæt et kabel i: adressen vises her.",
+    "open": "Åbn dette på en anden enhed",
+    "qr": "En kode til at scanne for {address}",
+    "notEncrypted": "Trafikken på dit lokale netværk er ikke krypteret. Del kun på et netværk, du stoler på.",
+    "awake": "Din computer holder sig vågen, mens projektet er delt. Hvis du lukker låget, stopper det.",
+    "dashboard": "Åbn dashboardet",
+    "build": "Gå tilbage til at bygge",
+    "designerOff": "Designeren er slået fra, mens projektet er delt. Gå tilbage til at bygge for at ændre dine apps.",
+    "keep": "Bliv ved med at dele",
+    "buildAsk": "Gå tilbage til at bygge?",
+    "buildAskBody": "Personer, der bruger det på andre enheder, bliver afbrudt."
   }
 } as const;

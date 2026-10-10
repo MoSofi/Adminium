@@ -197,5 +197,23 @@ export default {
     "proxy": "Your network’s proxy refused the download. Check the proxy settings of this computer and try again.",
     "disk": "This disk is full. Free some space and try again.",
     "registry": "The package registry answered with an error. Try again in a moment."
+  },
+  "shared": {
+    "copyFailed": "The address could not be copied.",
+    "best": "Best",
+    "copy": "Copy {address}",
+    "portChanged": "Port {was} was taken, so the address changed to {now}.",
+    "heading": "{name} is shared",
+    "noNetwork": "This computer is not on a network, so no other device can reach it yet. Join a Wi-Fi or plug in a cable: the address appears here.",
+    "open": "Open this on another device",
+    "qr": "A code to scan for {address}",
+    "notEncrypted": "Traffic on your local network is not encrypted. Share only on a network you trust.",
+    "awake": "Your computer stays awake while the project is shared. Closing the lid stops it.",
+    "dashboard": "Open the dashboard",
+    "build": "Go back to building",
+    "designerOff": "The Designer is off while the project is shared. Go back to building to change your apps.",
+    "keep": "Keep sharing",
+    "buildAsk": "Go back to building?",
+    "buildAskBody": "People using it on other devices will be disconnected."
   }
 } as const;

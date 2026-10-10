@@ -785,5 +785,23 @@ export default {
       "noConnection": "无法连接互联网。请检查网络连接后重试。",
       "other": "无法在这台电脑上设置 git。"
     }
+  },
+  "share": {
+    "passwordTitle": "选择从其他设备登录的方式",
+    "beforeTitle": "共享之前",
+    "step": "共享 · 第 {step} 步，共 {steps} 步",
+    "email": "你的邮箱",
+    "password": "密码",
+    "again": "再次输入相同的密码",
+    "passwordNote": "在这台电脑上你永远不需要它们。你会在手机或另一台电脑上输入它们。",
+    "next": "下一步",
+    "reach": "共享期间，此网络上的人可以访问此项目。每个人都需要登录。",
+    "dataStays": "项目的数据保留在这台电脑上。",
+    "firewall": "你的电脑可能会询问是否允许 Adminium 接受连接。请选择允许。",
+    "notEncrypted": "本地网络上的流量未加密。请只在你信任的网络上共享。你向公众开放的应用在那里无需登录即可使用。",
+    "designerOff": "项目共享期间 Designer 处于关闭状态。使用“返回构建”即可回到它。",
+    "cancel": "取消",
+    "sharing": "正在共享…",
+    "now": "立即共享"
   }
 } as const;

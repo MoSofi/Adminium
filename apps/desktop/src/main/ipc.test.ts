@@ -18,7 +18,7 @@ import {
   START_CHANNELS,
   IPC_CHANNELS,
   type BridgeBootstrap,
-  type IpcResult, VERSIONS_CHANNELS } from '../preload/channels.js';
+  type IpcResult, VERSIONS_CHANNELS, SHARE_CHANNELS } from '../preload/channels.js';
 import { CAPABILITY_NOT_GRANTED, CAPABILITY_STUB, type CapabilityHost } from './capabilities/host.js';
 import { createDefaultConfig, type DesktopConfig } from './config.js';
 import {
@@ -820,7 +820,7 @@ describe('the project’s channels', () => {
   it('take the quit and close questions’ words whole, bounded, and never from a stranger', async () => {
     const setStopWords = vi.fn();
     const h = harness({ project: { info: () => INFO, close: () => Promise.resolve(true), setStopWords } });
-    const words = { turn: 'a', start: 'b', save: 'c', restore: 'd', style: 'e', other: 'f', quitDetail: 'g', closeDetail: 'h', quitAnyway: 'i', closeAnyway: 'j', keepWorking: 'k' };
+    const words = { turn: 'a', start: 'b', save: 'c', restore: 'd', style: 'e', other: 'f', quitDetail: 'g', closeDetail: 'h', quitAnyway: 'i', closeAnyway: 'j', keepWorking: 'k', shareDetail: 'l', shareAnyway: 'm' };
     expectOk(await h.ipc.invoke(IPC_CHANNELS.projectStopWords, words));
     expect(setStopWords).toHaveBeenCalledWith(words);
     // A native dialog's words: all of them, each of a sentence's length, and nothing else.
@@ -831,6 +831,36 @@ describe('the project’s channels', () => {
     expect(setStopWords).toHaveBeenCalledTimes(1);
     // A build with nowhere to keep them answers all the same.
     expectOk(await harness().ipc.invoke(IPC_CHANNELS.projectStopWords, words));
+  });
+
+  it('carry Build and Share for the project’s page and for the app’s own, and nothing when there is no project', async () => {
+    const INFO_SHARED = { name: 'Shop', port: 4712, addresses: [{ url: 'http://office.local:4712', via: null, best: true }], changedFrom: null, language: null, theme: 'system' as const };
+    const sharing = {
+      share: vi.fn(() => Promise.resolve({ status: 'shared' as const })),
+      build: vi.fn(() => Promise.resolve(true)),
+      info: vi.fn(() => INFO_SHARED),
+      showShared: vi.fn(() => Promise.resolve()),
+      openDashboard: vi.fn(() => Promise.resolve()),
+    };
+    const h = harness({ project: { info: () => INFO, close: () => Promise.resolve(true), sharing: () => sharing } });
+    expect(expectOk(await h.ipc.invoke(IPC_CHANNELS.projectShare))).toEqual({ status: 'shared' });
+    expect(expectOk(await h.ipc.invoke(IPC_CHANNELS.projectBuild))).toBe(true);
+    expect(expectOk(await h.ipc.invoke(IPC_CHANNELS.projectShareInfo))).toEqual(INFO_SHARED);
+    expectOk(await h.ipc.invoke(IPC_CHANNELS.projectShowShared));
+    expectOk(await h.ipc.invoke(IPC_CHANNELS.projectOpenDashboard));
+    for (const call of Object.values(sharing)) expect(call).toHaveBeenCalledTimes(1);
+    // The app's own page (the sharing details) may ask too.
+    const own: IpcInvokeEventLike = { senderFrame: { url: 'file:///Applications/Adminium.app/Contents/Resources/app.asar/out/renderer/app/index.html#/shared' } };
+    expect(expectOk(await h.ipc.invoke(IPC_CHANNELS.projectBuild, undefined, own))).toBe(true);
+    // No call takes anything: a page cannot say what is shared, or where.
+    expect(expectFail(await h.ipc.invoke(IPC_CHANNELS.projectShare, { host: '0.0.0.0' })).code).toBe('INVALID_PAYLOAD');
+    const stranger: IpcInvokeEventLike = { senderFrame: { url: 'https://example.com/' } };
+    for (const channel of SHARE_CHANNELS) expect(expectFail(await h.ipc.invoke(channel, undefined, stranger)).code).toBe('UNTRUSTED_SENDER');
+    // No project, or a build that cannot share: "is it shared?" answers no, the rest are unavailable.
+    for (const none of [harness(), harness({ project: { info: () => INFO, close: () => Promise.resolve(true), sharing: () => null } })]) {
+      expect(expectOk(await none.ipc.invoke(IPC_CHANNELS.projectShareInfo))).toBeNull();
+      for (const channel of [IPC_CHANNELS.projectShare, IPC_CHANNELS.projectBuild, IPC_CHANNELS.projectShowShared, IPC_CHANNELS.projectOpenDashboard]) expect(expectFail(await none.ipc.invoke(channel)).code).toBe('UNAVAILABLE');
+    }
   });
 
   it('carry the versions offer of the project that is open, and nothing when there is none', async () => {

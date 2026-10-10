@@ -73,6 +73,11 @@ export const IPC_CHANNELS = {
   projectShowInFolder: 'adminium-desktop:project-show-in-folder',
   projectClose: 'adminium-desktop:project-close',
   projectStopWords: 'adminium-desktop:project-stop-words',
+  projectShare: 'adminium-desktop:project-share',
+  projectBuild: 'adminium-desktop:project-build',
+  projectShareInfo: 'adminium-desktop:project-share-info',
+  projectShowShared: 'adminium-desktop:project-show-shared',
+  projectOpenDashboard: 'adminium-desktop:project-open-dashboard',
   versionsState: 'adminium-desktop:versions-state',
   versionsDownload: 'adminium-desktop:versions-download',
   versionsCancel: 'adminium-desktop:versions-cancel',
@@ -104,6 +109,15 @@ export const START_CHANNELS = [
   IPC_CHANNELS.startForgetProject,
   IPC_CHANNELS.startLocateProject,
   IPC_CHANNELS.startUseClassic,
+] as const;
+
+/** Build and Share: answered for the project's own page and for the app's own (the sharing details), each naming nothing. */
+export const SHARE_CHANNELS = [
+  IPC_CHANNELS.projectShare,
+  IPC_CHANNELS.projectBuild,
+  IPC_CHANNELS.projectShareInfo,
+  IPC_CHANNELS.projectShowShared,
+  IPC_CHANNELS.projectOpenDashboard,
 ] as const;
 
 /** The versions offer's channels: answered for the project's own page, each naming nothing. */
@@ -140,6 +154,7 @@ export const INVOKE_CHANNELS = [
   IPC_CHANNELS.projectShowInFolder,
   IPC_CHANNELS.projectClose,
   IPC_CHANNELS.projectStopWords,
+  ...SHARE_CHANNELS,
   ...VERSIONS_CHANNELS,
 ] as const;
 

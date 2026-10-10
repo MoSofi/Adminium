@@ -1297,7 +1297,13 @@ export default {
       "closeDetail": "如果现在关闭项目，它会停在当前位置。已写入的内容会保留。",
       "quitAnyway": "仍然退出",
       "closeAnyway": "仍然关闭",
-      "keepWorking": "继续工作"
+      "keepWorking": "继续工作",
+      "shareDetail": "如果现在共享，它会停在当前位置。已写入的内容会保留。",
+      "shareAnyway": "停止并共享"
+    },
+    "shared": {
+      "banner": "此项目正在你的网络上共享。共享期间 Designer 处于关闭状态。",
+      "details": "共享详情"
     }
   },
   "capabilities": {

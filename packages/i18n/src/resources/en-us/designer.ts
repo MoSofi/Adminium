@@ -785,5 +785,23 @@ export default {
       "noConnection": "Could not reach the internet. Check your connection and try again.",
       "other": "git could not be set up on this computer."
     }
+  },
+  "share": {
+    "passwordTitle": "Choose how you sign in from other devices",
+    "beforeTitle": "Before you share",
+    "step": "Share · {step} of {steps}",
+    "email": "Your email",
+    "password": "Password",
+    "again": "The same password again",
+    "passwordNote": "On this computer you never need them. You will type them on a phone or another computer.",
+    "next": "Next",
+    "reach": "People on this network can reach this project while it is shared. Each of them signs in.",
+    "dataStays": "Your project’s data stays on this computer.",
+    "firewall": "Your computer may ask whether Adminium may accept connections. Choose Allow.",
+    "notEncrypted": "Traffic on your local network is not encrypted. Share only on a network you trust. An app you opened to the public can be used there without a sign-in.",
+    "designerOff": "The Designer is off while the project is shared. You come back to it with “Go back to building”.",
+    "cancel": "Cancel",
+    "sharing": "Sharing…",
+    "now": "Share now"
   }
 } as const;

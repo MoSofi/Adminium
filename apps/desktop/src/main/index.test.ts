@@ -1416,12 +1416,15 @@ describe('createDesktopApp opening a project folder', () => {
   const ROOT = '/Users/someone/Adminium/juniper';
   const PROJECT_READY = { ...READY, port: 4700, url: 'http://127.0.0.1:4700' };
 
-  function projectHarness(over: { busy?: { kind: string; sessionId: string | null } | null; confirm?: boolean; startFails?: Error } = {}) {
+  function projectHarness(over: { busy?: { kind: string; sessionId: string | null } | null; confirm?: boolean; startFails?: Error; restartFails?: Error; ownerHasPassword?: boolean | null; keptPortFree?: boolean } = {}) {
     const h = harness();
     const opts: CreateServerManagerOptions[] = [];
     const shown: Array<{ url: string; preview: boolean }> = [];
     const sessions: Array<string | null> = [];
     const confirmed: string[] = [];
+    const restarts: Array<{ host?: string; port?: number; mode?: 'design' | 'serve' }> = [];
+    const awake: boolean[] = [];
+    let sharedShown = 0;
     /** The words each question was asked with: the page's, or none yet. */
     const said: Array<string | null> = [];
     /** What the running server was told of the app's programs. */
@@ -1435,8 +1438,11 @@ describe('createDesktopApp opening a project folder', () => {
     let stateListener: (s: ServerState) => void = () => undefined;
     let exitListener: (e: ServerExit) => void = () => undefined;
     let mode: 'design' | 'serve' = 'design';
+    let managerState: ServerState = { status: 'ready', ...PROJECT_READY };
     const manager: ServerManager = {
-      state: { status: 'ready', ...PROJECT_READY },
+      get state() {
+        return managerState;
+      },
       bootToken: 'c'.repeat(64),
       get project() {
         return { root: ROOT, mode };
@@ -1454,11 +1460,16 @@ describe('createDesktopApp opening a project folder', () => {
         h.calls.push('server.stop');
         return Promise.resolve();
       },
-      restart: (changes) => {
+      restart: async (changes) => {
+        restarts.push(changes ?? {});
+        if (over.restartFails !== undefined && changes?.mode === 'serve') throw over.restartFails;
         if (changes?.mode !== undefined) mode = changes.mode;
-        const next = { ...PROJECT_READY, port: 4701, url: 'http://127.0.0.1:4701' };
+        // The port is asked for as a real fork asks: by the mode it is about to start in.
+        const port = changes?.mode === undefined ? 4701 : await (opts[0]?.project?.pickPort(changes.mode) ?? Promise.resolve(4701));
+        const next = { ...PROJECT_READY, port, url: `http://127.0.0.1:${String(port)}` };
+        managerState = { status: 'ready', ...next };
         stateListener({ status: 'ready', ...next });
-        return Promise.resolve(next);
+        return next;
       },
       onExit: (l) => {
         exitListener = l;
@@ -1479,6 +1490,10 @@ describe('createDesktopApp opening a project folder', () => {
           return Promise.resolve();
         },
         useProjectSession: (root) => void sessions.push(root),
+        showShared: () => {
+          sharedShown += 1;
+          return Promise.resolve();
+        },
       },
       createServerManager: (o) => {
         opts.push(o);
@@ -1503,13 +1518,20 @@ describe('createDesktopApp opening a project folder', () => {
           return Promise.resolve('/data/git/bin/git');
         },
       },
-      confirmStopBusy: (busy, _why, words) => {
-        confirmed.push(busy.kind);
+      sharing: { hostname: () => 'Office-Mac.local', isFree: () => Promise.resolve(over.keptPortFree ?? true), keepAwake: (on) => void awake.push(on) },
+      startScreen: {
+        folder: { home: '/Users/someone', platform: 'darwin', exists: () => true, list: () => [], isInsideApp: () => false, real: (path: string) => path } as never,
+        chooseDirectory: () => Promise.resolve(null),
+        classicUsed: () => false,
+        folderFacts: () => Promise.resolve({ ownerHasPassword: over.ownerHasPassword === undefined ? true : over.ownerHasPassword } as never),
+      },
+      confirmStopBusy: (busy, why, words) => {
+        confirmed.push(why === 'share' ? `share:${busy.kind}` : busy.kind);
         said.push(words?.keepWorking ?? null);
         return Promise.resolve(over.confirm ?? true);
       },
     };
-    return { h, deps, opts, shown, sessions, confirmed, said, told, modelsTold, saveModel: (values: Partial<Record<string, string | null>>) => keepModel(values), git, stops: () => stops, manager, fireExit: (e: ServerExit) => exitListener(e), emit: (state: ServerState) => stateListener(state) };
+    return { h, deps, opts, shown, sessions, confirmed, restarts, awake, sharedShown: () => sharedShown, said, told, modelsTold, saveModel: (values: Partial<Record<string, string | null>>) => keepModel(values), git, stops: () => stops, manager, fireExit: (e: ServerExit) => exitListener(e), emit: (state: ServerState) => stateListener(state) };
   }
   const settle = async (): Promise<void> => {
     for (let i = 0; i < 10; i += 1) await Promise.resolve();
@@ -1585,6 +1607,91 @@ describe('createDesktopApp opening a project folder', () => {
     error.mockRestore();
   });
 
+  describe('Build and Share', () => {
+    const shareOf = (p: ReturnType<typeof projectHarness>) => p.h.bridge()?.project?.sharing?.() ?? null;
+
+    it('Share serves the project on the network with the Designer off, keeps its port, and shows the addresses', async () => {
+      const p = projectHarness();
+      await createDesktopApp(p.deps).start();
+      const sharing = shareOf(p);
+      expect(sharing?.info()).toBeNull();
+      await expect(sharing?.share()).resolves.toEqual({ status: 'shared' });
+      expect(p.restarts).toEqual([{ mode: 'serve', host: '0.0.0.0' }]);
+      // The window holds the app's own page, not the project's (its Designer is off).
+      expect(p.sharedShown()).toBe(1);
+      expect(p.shown).toHaveLength(1);
+      expect(p.awake).toEqual([true]);
+      expect(sharing?.info()).toMatchObject({ name: 'Juniper', port: 4700, changedFrom: null, language: null, theme: 'system' });
+      expect(p.h.bridge()?.project?.info()).toMatchObject({ mode: 'serve' });
+      // A second "Share" while shared changes nothing.
+      await expect(sharing?.share()).resolves.toEqual({ status: 'shared' });
+      expect(p.restarts).toHaveLength(1);
+    });
+
+    it('never shares a project whose owner has no password: other devices could not sign in', async () => {
+      const p = projectHarness({ ownerHasPassword: false });
+      await createDesktopApp(p.deps).start();
+      await expect(shareOf(p)?.share()).resolves.toEqual({ status: 'needs-password' });
+      expect(p.restarts).toEqual([]);
+      expect(p.awake).toEqual([]);
+    });
+
+    it('asks before it stops a turn to share, in its own words, and "keep working" shares nothing', async () => {
+      const p = projectHarness({ busy: { kind: 'turn', sessionId: 'ds_1' }, confirm: false });
+      await createDesktopApp(p.deps).start();
+      await expect(shareOf(p)?.share()).resolves.toEqual({ status: 'kept-working' });
+      expect(p.confirmed).toEqual(['share:turn']);
+      expect(p.restarts).toEqual([]);
+    });
+
+    it('a share that cannot start goes back to building on this computer only, and says why', async () => {
+      const p = projectHarness({ restartFails: new Error('EADDRINUSE') });
+      await createDesktopApp(p.deps).start();
+      await expect(shareOf(p)?.share()).resolves.toEqual({ status: 'failed', detail: 'EADDRINUSE' });
+      expect(p.restarts).toEqual([{ mode: 'serve', host: '0.0.0.0' }, { mode: 'design', host: '127.0.0.1' }]);
+      expect(p.awake).toEqual([]);
+      expect(shareOf(p)?.info()).toBeNull();
+    });
+
+    it('"Go back to building" is this computer only again, lets it sleep, and opens the Designer', async () => {
+      const p = projectHarness();
+      await createDesktopApp(p.deps).start();
+      const sharing = shareOf(p);
+      // Building already: nothing to do.
+      await expect(sharing?.build()).resolves.toBe(true);
+      expect(p.restarts).toEqual([]);
+      await sharing?.share();
+      await expect(sharing?.build()).resolves.toBe(true);
+      expect(p.restarts.at(-1)).toEqual({ mode: 'design', host: '127.0.0.1' });
+      expect(p.awake).toEqual([true, false]);
+      expect(p.shown.at(-1)).toMatchObject({ preview: true });
+      expect(sharing?.info()).toBeNull();
+    });
+
+    it('from the addresses: the project’s dashboard, in the window, and back to the addresses', async () => {
+      const p = projectHarness();
+      await createDesktopApp(p.deps).start();
+      const sharing = shareOf(p);
+      // Not shared: neither does anything.
+      await sharing?.openDashboard();
+      await sharing?.showShared();
+      expect(p.shown).toHaveLength(1);
+      expect(p.sharedShown()).toBe(0);
+      await sharing?.share();
+      await sharing?.openDashboard();
+      expect(p.shown.at(-1)).toEqual({ url: 'http://127.0.0.1:4700/', preview: false });
+      await sharing?.showShared();
+      expect(p.sharedShown()).toBe(2);
+    });
+
+    it('a build that cannot share has no sharing to offer', async () => {
+      const p = projectHarness();
+      Reflect.deleteProperty(p.deps, 'sharing');
+      await createDesktopApp(p.deps).start();
+      expect(shareOf(p)).toBeNull();
+    });
+  });
+
   it('opens the Designer with the one-use token after #, on a cookie jar of the project’s own, the preview allowed', async () => {
     const p = projectHarness();
     await createDesktopApp(p.deps).start();
@@ -1625,7 +1732,7 @@ describe('createDesktopApp opening a project folder', () => {
     expect(p.h.updateDisposed()).toBe(0);
     // Asked in English until the project's page hands over its own language's words, then in those.
     expect(p.said).toEqual([null]);
-    p.h.bridge()?.project?.setStopWords?.({ turn: 't', start: 's', save: 'v', restore: 'r', style: 'y', other: 'o', quitDetail: 'q', closeDetail: 'c', quitAnyway: 'qa', closeAnyway: 'ca', keepWorking: 'Weiterarbeiten' });
+    p.h.bridge()?.project?.setStopWords?.({ turn: 't', start: 's', save: 'v', restore: 'r', style: 'y', other: 'o', quitDetail: 'q', closeDetail: 'c', quitAnyway: 'qa', closeAnyway: 'ca', keepWorking: 'Weiterarbeiten', shareDetail: 'sd', shareAnyway: 'sa' });
     // Asked again the next time, not remembered as a no.
     p.h.fireBeforeQuit();
     await settle();

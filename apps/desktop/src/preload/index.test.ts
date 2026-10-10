@@ -15,7 +15,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import type { AdminiumDesktopApi } from './api.js';
-import { BRIDGE_KEY, IPC_CHANNELS, START_CHANNELS, ipcFail, ipcOk, type BridgeBootstrap, VERSIONS_CHANNELS } from './channels.js';
+import { BRIDGE_KEY, IPC_CHANNELS, START_CHANNELS, ipcFail, ipcOk, type BridgeBootstrap, VERSIONS_CHANNELS, SHARE_CHANNELS } from './channels.js';
 import {
   createDesktopApi,
   DesktopBridgeError,
@@ -146,7 +146,7 @@ describe('the exposed surface', () => {
   it('exposes the project’s three calls, and none of them takes a folder', async () => {
     const ipc = new FakeIpc();
     const { project } = createDesktopApi({ ipc, bootstrap: BOOTSTRAP });
-    expect(Object.keys(project).sort()).toEqual(['close', 'info', 'setStopWords', 'showInFolder', 'versions']);
+    expect(Object.keys(project).sort()).toEqual(['build', 'close', 'info', 'openDashboard', 'setStopWords', 'share', 'shareInfo', 'showInFolder', 'showShared', 'versions']);
     await project.info();
     await project.showInFolder();
     await project.close();
@@ -159,9 +159,20 @@ describe('the exposed surface', () => {
 
   it('hands the quit and close questions’ words over as they are', async () => {
     const ipc = new FakeIpc();
-    const words = { turn: 'a', start: 'b', save: 'c', restore: 'd', style: 'e', other: 'f', quitDetail: 'g', closeDetail: 'h', quitAnyway: 'i', closeAnyway: 'j', keepWorking: 'k' };
+    const words = { turn: 'a', start: 'b', save: 'c', restore: 'd', style: 'e', other: 'f', quitDetail: 'g', closeDetail: 'h', quitAnyway: 'i', closeAnyway: 'j', keepWorking: 'k', shareDetail: 'l', shareAnyway: 'm' };
     await createDesktopApi({ ipc, bootstrap: BOOTSTRAP }).project.setStopWords?.(words);
     expect(ipc.calls).toEqual([{ channel: IPC_CHANNELS.projectStopWords, args: [words] }]);
+  });
+
+  it('exposes Build and Share as five calls, none of which takes anything', async () => {
+    const ipc = new FakeIpc();
+    const { project } = createDesktopApi({ ipc, bootstrap: BOOTSTRAP });
+    await project.share?.();
+    await project.build?.();
+    await project.shareInfo?.();
+    await project.showShared?.();
+    await project.openDashboard?.();
+    expect(ipc.calls).toEqual(SHARE_CHANNELS.map((channel) => ({ channel, args: [] })));
   });
 
   it('exposes the versions offer’s six calls, none of which takes anything', async () => {

@@ -860,7 +860,13 @@ export default {
       "closeDetail": "If you close the project now it is stopped where it is. What was already written stays.",
       "quitAnyway": "Quit anyway",
       "closeAnyway": "Close anyway",
-      "keepWorking": "Keep working"
+      "keepWorking": "Keep working",
+      "shareDetail": "If you share now it is stopped where it is. What was already written stays.",
+      "shareAnyway": "Stop and share"
+    },
+    "shared": {
+      "banner": "This project is shared on your network. The Designer is off while it is.",
+      "details": "Sharing details"
     }
   },
   "capabilities": {

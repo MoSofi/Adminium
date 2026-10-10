@@ -4719,6 +4719,14 @@
     "srcHash": "d4b1a6d5c80c",
     "status": "mt"
   },
+  "common.desktop.shared.banner": {
+    "status": "mt",
+    "srcHash": "47186bf89658"
+  },
+  "common.desktop.shared.details": {
+    "status": "mt",
+    "srcHash": "64b02b7cda49"
+  },
   "common.desktop.stop.closeAnyway": {
     "status": "mt",
     "srcHash": "19bb748c5862"
@@ -4750,6 +4758,14 @@
   "common.desktop.stop.save": {
     "status": "mt",
     "srcHash": "17017e2527da"
+  },
+  "common.desktop.stop.shareAnyway": {
+    "status": "mt",
+    "srcHash": "ec407672eb62"
+  },
+  "common.desktop.stop.shareDetail": {
+    "status": "mt",
+    "srcHash": "ad34971d4af2"
   },
   "common.desktop.stop.start": {
     "status": "mt",
@@ -10079,6 +10095,70 @@
     "status": "mt",
     "srcHash": "65e430cc3082"
   },
+  "designer.share.again": {
+    "status": "mt",
+    "srcHash": "e2fefcf49a07"
+  },
+  "designer.share.beforeTitle": {
+    "status": "mt",
+    "srcHash": "71ab3d2f1d71"
+  },
+  "designer.share.cancel": {
+    "status": "mt",
+    "srcHash": "77dfd2135f4d"
+  },
+  "designer.share.dataStays": {
+    "status": "mt",
+    "srcHash": "45fe5fa4453e"
+  },
+  "designer.share.designerOff": {
+    "status": "mt",
+    "srcHash": "4321afd6e239"
+  },
+  "designer.share.email": {
+    "status": "mt",
+    "srcHash": "3fa6f5fb505a"
+  },
+  "designer.share.firewall": {
+    "status": "mt",
+    "srcHash": "a3b911fb24eb"
+  },
+  "designer.share.next": {
+    "status": "mt",
+    "srcHash": "bc981983e7f5"
+  },
+  "designer.share.notEncrypted": {
+    "status": "mt",
+    "srcHash": "daa565b83759"
+  },
+  "designer.share.now": {
+    "status": "mt",
+    "srcHash": "06a46793c325"
+  },
+  "designer.share.password": {
+    "status": "mt",
+    "srcHash": "8be3c943b160"
+  },
+  "designer.share.passwordNote": {
+    "status": "mt",
+    "srcHash": "a049bee12032"
+  },
+  "designer.share.passwordTitle": {
+    "status": "mt",
+    "srcHash": "7fe15b0bc741"
+  },
+  "designer.share.reach": {
+    "status": "mt",
+    "srcHash": "512ebed1e2ff"
+  },
+  "designer.share.sharing": {
+    "status": "mt",
+    "srcHash": "ad0059099675"
+  },
+  "designer.share.step": {
+    "status": "mt",
+    "srcHash": "ced4f9931463"
+  },
   "designer.sheet.approve": {
     "status": "mt",
     "srcHash": "a102cc2a6fa8"
@@ -11450,6 +11530,70 @@
   "desktop.packages.working": {
     "status": "mt",
     "srcHash": "1b076bbe5b0b"
+  },
+  "desktop.shared.awake": {
+    "status": "mt",
+    "srcHash": "652a83d19487"
+  },
+  "desktop.shared.best": {
+    "status": "mt",
+    "srcHash": "77003d07271f"
+  },
+  "desktop.shared.build": {
+    "status": "mt",
+    "srcHash": "e16400e4089e"
+  },
+  "desktop.shared.buildAsk": {
+    "status": "mt",
+    "srcHash": "767c6719347f"
+  },
+  "desktop.shared.buildAskBody": {
+    "status": "mt",
+    "srcHash": "2b197054192a"
+  },
+  "desktop.shared.copy": {
+    "status": "mt",
+    "srcHash": "eb0a9117138c"
+  },
+  "desktop.shared.copyFailed": {
+    "status": "mt",
+    "srcHash": "90e810095cfd"
+  },
+  "desktop.shared.dashboard": {
+    "status": "mt",
+    "srcHash": "9088df9d25c3"
+  },
+  "desktop.shared.designerOff": {
+    "status": "mt",
+    "srcHash": "75d875916c23"
+  },
+  "desktop.shared.heading": {
+    "status": "mt",
+    "srcHash": "ac94649a3740"
+  },
+  "desktop.shared.keep": {
+    "status": "mt",
+    "srcHash": "d8065c482ddb"
+  },
+  "desktop.shared.noNetwork": {
+    "status": "mt",
+    "srcHash": "a5ace59ba113"
+  },
+  "desktop.shared.notEncrypted": {
+    "status": "mt",
+    "srcHash": "c81bbaa5ac4c"
+  },
+  "desktop.shared.open": {
+    "status": "mt",
+    "srcHash": "25ec16e04f43"
+  },
+  "desktop.shared.portChanged": {
+    "status": "mt",
+    "srcHash": "6aafbdd8f21e"
+  },
+  "desktop.shared.qr": {
+    "status": "mt",
+    "srcHash": "65b0a84ed36a"
   },
   "desktop.start.choice.build.line": {
     "status": "mt",

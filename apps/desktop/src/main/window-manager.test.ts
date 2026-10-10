@@ -54,8 +54,8 @@ vi.mock('electron', () => {
     once(event: string, listener: () => void): void {
       this.on(event, listener);
     }
-    loadFile(path: string): Promise<void> {
-      this.record.loaded.push(`file:${path.split('/renderer/')[1] ?? path}`);
+    loadFile(path: string, options?: { hash?: string }): Promise<void> {
+      this.record.loaded.push(`file:${path.split('/renderer/')[1] ?? path}${options?.hash === undefined ? '' : `#${options.hash}`}`);
       return Promise.resolve();
     }
     loadURL(url: string): Promise<void> {
@@ -123,6 +123,22 @@ describe('the window manager', () => {
     await windows.showStart?.();
     expect(made).toHaveLength(1);
     expect(made[0]?.loaded).toEqual(['file:app/index.html', 'file:crash.html', 'file:app/index.html']);
+  });
+
+  it('shows a shared project’s addresses as a screen of the app’s own document, and reopens on it', async () => {
+    const windows = createWindowManager({ userDataDir: dir });
+    await windows.loadApp(APP, { preview: true });
+    await windows.showShared?.();
+    expect(made[0]?.loaded).toEqual([APP, 'file:app/index.html#/shared']);
+    expect(made[0]?.visible).toBe(true);
+    made[0]?.emit('closed');
+    await windows.reopen();
+    expect(made[1]?.loaded).toEqual(['file:app/index.html#/shared']);
+    // Back on the project's page (the dashboard, or the Designer again): that is what a reopen returns to.
+    await windows.loadApp(APP);
+    made[1]?.emit('closed');
+    await windows.reopen();
+    expect(made[2]?.loaded).toEqual([APP]);
   });
 
   it('two callers at once share one window', async () => {

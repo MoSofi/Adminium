@@ -775,5 +775,23 @@
       "noConnection": "Nepodařilo se připojit k internetu. Zkontrolujte připojení a zkuste to znovu.",
       "other": "git se na tomto počítači nepodařilo nastavit."
     }
+  },
+  "share": {
+    "passwordTitle": "Zvolte, jak se budete přihlašovat z jiných zařízení",
+    "beforeTitle": "Než začnete sdílet",
+    "step": "Sdílení · {step} z {steps}",
+    "email": "Váš e-mail",
+    "password": "Heslo",
+    "again": "Stejné heslo znovu",
+    "passwordNote": "Na tomto počítači je nikdy nepotřebujete. Zadáte je na telefonu nebo jiném počítači.",
+    "next": "Další",
+    "reach": "Lidé v této síti se k tomuto projektu dostanou, dokud je sdílený. Každý z nich se přihlásí.",
+    "dataStays": "Data vašeho projektu zůstávají na tomto počítači.",
+    "firewall": "Váš počítač se může zeptat, zda smí Adminium přijímat připojení. Zvolte Povolit.",
+    "notEncrypted": "Provoz ve vaší místní síti není šifrovaný. Sdílejte jen v síti, které důvěřujete. Aplikaci, kterou jste otevřeli veřejnosti, tam lze používat bez přihlášení.",
+    "designerOff": "Designer je po dobu sdílení projektu vypnutý. Vrátíte se k němu volbou „Zpět ke stavění“.",
+    "cancel": "Zrušit",
+    "sharing": "Sdílí se…",
+    "now": "Sdílet nyní"
   }
 }

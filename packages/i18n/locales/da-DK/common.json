@@ -1287,7 +1287,13 @@
       "closeDetail": "Hvis du lukker projektet nu, stoppes det, hvor det er. Det, der allerede er skrevet, bliver.",
       "quitAnyway": "Afslut alligevel",
       "closeAnyway": "Luk alligevel",
-      "keepWorking": "Arbejd videre"
+      "keepWorking": "Arbejd videre",
+      "shareDetail": "Hvis du deler nu, stoppes det, hvor det er. Det, der allerede er skrevet, bliver.",
+      "shareAnyway": "Stop og del"
+    },
+    "shared": {
+      "banner": "Dette projekt er delt på dit netværk. Designeren er slået fra imens.",
+      "details": "Delingsdetaljer"
     }
   },
   "capabilities": {

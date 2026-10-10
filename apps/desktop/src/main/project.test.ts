@@ -119,6 +119,10 @@ describe('stopBusyWords', () => {
     expect(stopBusyWords({ kind: 'something-new', sessionId: null }).title).toBe('This project is being changed.');
   });
 
+  it('sharing asks the same thing in its own words', () => {
+    expect(stopBusyWords({ kind: 'turn', sessionId: 'ds_1' }, 'share')).toMatchObject({ goOn: 'Stop and share', detail: 'If you share now it is stopped where it is. What was already written stays.', stay: 'Keep working' });
+  });
+
   it('asks in the language the project’s page handed over', () => {
     const de = { ...EN_US_STOP_WORDS, turn: 'Der Designer ist mitten in einem Durchgang.', other: 'Dieses Projekt wird gerade geändert.', closeDetail: 'Wenn Sie das Projekt jetzt schließen…', closeAnyway: 'Trotzdem schließen', keepWorking: 'Weiterarbeiten' };
     expect(stopBusyWords({ kind: 'turn', sessionId: 'ds_1' }, 'close', de)).toEqual({ title: 'Der Designer ist mitten in einem Durchgang.', detail: 'Wenn Sie das Projekt jetzt schließen…', goOn: 'Trotzdem schließen', stay: 'Weiterarbeiten' });

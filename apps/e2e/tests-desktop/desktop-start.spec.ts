@@ -137,7 +137,7 @@ test('"Open" serves the folder in the Designer and remembers what was agreed to'
   // The Designer's bar says which project this is, and that it is being built.
   await expect(page.getByRole('button', { name: 'Project: Demo' })).toBeVisible();
   await expect(page.getByRole('radio', { name: 'Build' })).toHaveAttribute('aria-checked', 'true');
-  await expect(page.getByRole('radio', { name: 'Share' })).toBeDisabled();
+  await expect(page.getByRole('radio', { name: 'Share' })).toHaveAttribute('aria-checked', 'false');
   // The first screens' calls are the app's own pages': a project's page is refused them.
   const refused = await page.evaluate(async () => {
     try {

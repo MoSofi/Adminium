@@ -7,9 +7,10 @@ import { useT } from '@adminium/i18n/react';
 import { ToastStack, useToastQueue } from '@adminium/ui';
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
 
-import type { DesktopStartState } from '../../preload/api.js';
+import type { DesktopShareInfo, DesktopStartState } from '../../preload/api.js';
 import { NewProjectScreen } from './new/NewProjectScreen.js';
 import { PlainShell } from './shell/PlainShell.js';
+import { SharedScreen } from './shared/SharedScreen.js';
 import { StartScreen } from './start/StartScreen.js';
 
 export type Screen = 'start' | 'new';
@@ -79,6 +80,24 @@ export function App({ initial }: { initial: DesktopStartState }): ReactNode {
         label={t('desktop:toast.region', 'Notices')}
         className="inset-x-0 bottom-6 end-auto mx-auto"
       />
+    </PlainShell>
+  );
+}
+
+/** The app's own page while a project is shared: the same shell, one screen. */
+export function SharedApp({ initial }: { initial: DesktopShareInfo }): ReactNode {
+  const t = useT();
+  const toasts = useToastQueue();
+  const say = useCallback(
+    (title: string, variant: 'success' | 'error' | 'info' = 'info'): void => {
+      toasts.push({ title, variant });
+    },
+    [toasts],
+  );
+  return (
+    <PlainShell>
+      <SharedScreen initial={initial} say={say} />
+      <ToastStack toasts={toasts.toasts} onDismissToast={toasts.dismiss} dismissLabel={t('desktop:toast.dismiss', 'Dismiss')} label={t('desktop:toast.region', 'Notices')} className="inset-x-0 bottom-6 end-auto mx-auto" />
     </PlainShell>
   );
 }

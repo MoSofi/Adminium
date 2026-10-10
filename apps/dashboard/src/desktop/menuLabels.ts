@@ -94,6 +94,8 @@ export function resolveStopWords(translate: (key: string, fallback: string) => s
     quitAnyway: translate('desktop.stop.quitAnyway', 'Quit anyway'),
     closeAnyway: translate('desktop.stop.closeAnyway', 'Close anyway'),
     keepWorking: translate('desktop.stop.keepWorking', 'Keep working'),
+    shareDetail: translate('desktop.stop.shareDetail', 'If you share now it is stopped where it is. What was already written stays.'),
+    shareAnyway: translate('desktop.stop.shareAnyway', 'Stop and share'),
   };
 }
 

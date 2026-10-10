@@ -1297,7 +1297,13 @@ export default {
       "closeDetail": "如果現在關閉專案，它會停在目前的位置。已寫入的內容會保留。",
       "quitAnyway": "仍要結束",
       "closeAnyway": "仍要關閉",
-      "keepWorking": "繼續工作"
+      "keepWorking": "繼續工作",
+      "shareDetail": "如果現在分享，它會停在目前的位置。已寫入的內容會保留。",
+      "shareAnyway": "停止並分享"
+    },
+    "shared": {
+      "banner": "此專案正在你的網路上分享。分享期間 Designer 處於關閉狀態。",
+      "details": "分享詳情"
     }
   },
   "capabilities": {

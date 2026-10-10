@@ -785,5 +785,23 @@ export default {
       "noConnection": "Das Internet war nicht erreichbar. Prüfen Sie Ihre Verbindung und versuchen Sie es erneut.",
       "other": "git konnte auf diesem Computer nicht eingerichtet werden."
     }
+  },
+  "share": {
+    "passwordTitle": "Wählen Sie, wie Sie sich von anderen Geräten anmelden",
+    "beforeTitle": "Bevor Sie teilen",
+    "step": "Teilen · {step} von {steps}",
+    "email": "Ihre E-Mail-Adresse",
+    "password": "Passwort",
+    "again": "Dasselbe Passwort noch einmal",
+    "passwordNote": "Auf diesem Computer brauchen Sie sie nie. Sie geben sie auf einem Telefon oder einem anderen Computer ein.",
+    "next": "Weiter",
+    "reach": "Personen in diesem Netzwerk können dieses Projekt erreichen, solange es geteilt wird. Jede von ihnen meldet sich an.",
+    "dataStays": "Die Daten Ihres Projekts bleiben auf diesem Computer.",
+    "firewall": "Ihr Computer fragt möglicherweise, ob Adminium Verbindungen annehmen darf. Wählen Sie Erlauben.",
+    "notEncrypted": "Der Datenverkehr in Ihrem lokalen Netzwerk ist nicht verschlüsselt. Teilen Sie nur in einem Netzwerk, dem Sie vertrauen. Eine App, die Sie öffentlich gemacht haben, kann dort ohne Anmeldung verwendet werden.",
+    "designerOff": "Der Designer ist aus, solange das Projekt geteilt wird. Mit „Zurück zum Bauen“ kehren Sie zu ihm zurück.",
+    "cancel": "Abbrechen",
+    "sharing": "Wird geteilt…",
+    "now": "Jetzt teilen"
   }
 } as const;

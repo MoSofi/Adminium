@@ -197,5 +197,23 @@ export default {
     "proxy": "Le proxy de votre réseau a refusé le téléchargement. Vérifiez les réglages de proxy de cet ordinateur et réessayez.",
     "disk": "Ce disque est plein. Libérez de l’espace et réessayez.",
     "registry": "Le registre de paquets a répondu par une erreur. Réessayez dans un instant."
+  },
+  "shared": {
+    "copyFailed": "L’adresse n’a pas pu être copiée.",
+    "best": "Recommandée",
+    "copy": "Copier {address}",
+    "portChanged": "Le port {was} était pris ; l’adresse est donc passée à {now}.",
+    "heading": "{name} est partagé",
+    "noNetwork": "Cet ordinateur n’est sur aucun réseau ; aucun autre appareil ne peut donc l’atteindre pour l’instant. Rejoignez un Wi-Fi ou branchez un câble : l’adresse apparaîtra ici.",
+    "open": "Ouvrir ceci sur un autre appareil",
+    "qr": "Un code à scanner pour {address}",
+    "notEncrypted": "Le trafic sur votre réseau local n’est pas chiffré. Ne partagez que sur un réseau de confiance.",
+    "awake": "Votre ordinateur reste éveillé tant que le projet est partagé. Fermer le capot l’arrête.",
+    "dashboard": "Ouvrir le tableau de bord",
+    "build": "Revenir à la construction",
+    "designerOff": "Le Designer est désactivé tant que le projet est partagé. Revenez à la construction pour modifier vos applications.",
+    "keep": "Continuer à partager",
+    "buildAsk": "Revenir à la construction ?",
+    "buildAskBody": "Les personnes qui l’utilisent sur d’autres appareils seront déconnectées."
   }
 } as const;

@@ -614,6 +614,9 @@ export interface DesktopStopWords {
   readonly quitAnyway: string;
   readonly closeAnyway: string;
   readonly keepWorking: string;
+  /** Before a project being built is shared instead. */
+  readonly shareDetail: string;
+  readonly shareAnyway: string;
 }
 
 /** How far a download of git is, or why it did not finish. */
@@ -651,6 +654,36 @@ export interface DesktopVersionsApi {
   appleTools(): Promise<DesktopVersionsState>;
 }
 
+/** One address another device can use for a shared project. */
+export interface DesktopShareAddress {
+  readonly url: string;
+  /** The network it is on (`en0`, `Wi-Fi`); `null` for the computer's own name. */
+  readonly via: string | null;
+  /** The one to give out first. */
+  readonly best: boolean;
+}
+
+/** A project that is shared on the network now. */
+export interface DesktopShareInfo {
+  readonly name: string;
+  readonly port: number;
+  /** Empty when this computer is on no network. */
+  readonly addresses: readonly DesktopShareAddress[];
+  /** The port this project was shared on before, when it could not be had again: the address changed. */
+  readonly changedFrom: number | null;
+  /** The app's saved language and theme, for the app's own page that shows this. */
+  readonly language: string | null;
+  readonly theme: DesktopThemeChoice;
+}
+
+export type DesktopShareResult =
+  | { readonly status: 'shared' }
+  /** The owner has no password yet: other devices could not sign in. Set one, then ask again. */
+  | { readonly status: 'needs-password' }
+  /** Something was running and the person chose to keep working. */
+  | { readonly status: 'kept-working' }
+  | { readonly status: 'failed'; readonly detail: string };
+
 /**
  * What a project's own page asks of the app. Each call names nothing: it acts
  * on the project this window holds, so a page cannot point it at another folder.
@@ -665,6 +698,19 @@ export interface DesktopProjectApi {
    * chose to keep working (something was in the middle of running).
    */
   close(): Promise<boolean>;
+  /**
+   * Build → Share: the project is served on the network, with the Designer
+   * off. Absent in an app older than sharing.
+   */
+  share?(): Promise<DesktopShareResult>;
+  /** Share → Build: back to this computer only. `false` when the person kept sharing. */
+  build?(): Promise<boolean>;
+  /** `null` while the project is being built. */
+  shareInfo?(): Promise<DesktopShareInfo | null>;
+  /** While shared: the window shows the sharing details (the app's own page). */
+  showShared?(): Promise<void>;
+  /** While shared, from the sharing details: the window shows the project's dashboard. */
+  openDashboard?(): Promise<void>;
   /** The quit and close questions in the page's language. Absent in an app older than the call. */
   setStopWords?(words: DesktopStopWords): Promise<void>;
   /** Absent in an app older than the offer. */

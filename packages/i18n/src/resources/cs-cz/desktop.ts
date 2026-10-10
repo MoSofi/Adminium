@@ -197,5 +197,23 @@ export default {
     "proxy": "Proxy vaší sítě stahování odmítla. Zkontrolujte nastavení proxy tohoto počítače a zkuste to znovu.",
     "disk": "Tento disk je plný. Uvolněte místo a zkuste to znovu.",
     "registry": "Registr balíčků odpověděl chybou. Zkuste to za chvíli znovu."
+  },
+  "shared": {
+    "copyFailed": "Adresu se nepodařilo zkopírovat.",
+    "best": "Nejlepší",
+    "copy": "Kopírovat {address}",
+    "portChanged": "Port {was} byl obsazený, takže se adresa změnila na {now}.",
+    "heading": "{name} je sdílen",
+    "noNetwork": "Tento počítač není v žádné síti, takže se k němu zatím žádné jiné zařízení nedostane. Připojte se k Wi-Fi nebo zapojte kabel: adresa se objeví zde.",
+    "open": "Otevřete to na jiném zařízení",
+    "qr": "Kód k naskenování pro {address}",
+    "notEncrypted": "Provoz ve vaší místní síti není šifrovaný. Sdílejte jen v síti, které důvěřujete.",
+    "awake": "Počítač zůstává vzhůru, dokud je projekt sdílený. Zavřením víka sdílení skončí.",
+    "dashboard": "Otevřít dashboard",
+    "build": "Zpět ke stavění",
+    "designerOff": "Designer je po dobu sdílení projektu vypnutý. Chcete-li změnit své aplikace, vraťte se ke stavění.",
+    "keep": "Sdílet dál",
+    "buildAsk": "Vrátit se ke stavění?",
+    "buildAskBody": "Lidé, kteří jej používají na jiných zařízeních, budou odpojeni."
   }
 } as const;

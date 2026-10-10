@@ -7,8 +7,8 @@ import { I18nProvider } from '@adminium/i18n/react';
 import type { ReactNode } from 'react';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { AdminiumDesktopApi, DesktopOpenProjectResult, DesktopRecentProject, DesktopStartApi, DesktopStartState } from '../../preload/api.js';
-import { App, screenFromHash } from './App.js';
+import type { AdminiumDesktopApi, DesktopOpenProjectResult, DesktopShareInfo, DesktopRecentProject, DesktopStartApi, DesktopStartState } from '../../preload/api.js';
+import { App, SharedApp, screenFromHash } from './App.js';
 import { desktopApi } from './bridge.js';
 import { refusalWords, warningWords } from './new/NewProjectScreen.js';
 import { installFailureKind, installFailureWords } from './shell/installFailure.js';
@@ -703,5 +703,95 @@ describe('why an install failed', () => {
   it('has a sentence for each, and none for the rest', () => {
     for (const kind of ['offline', 'proxy', 'disk', 'registry'] as const) expect(installFailureWords(t, kind)).toMatch(/try again/i);
     expect(installFailureWords(t, null)).toBeNull();
+  });
+});
+
+describe('a shared project’s addresses', () => {
+  const INFO: DesktopShareInfo = {
+    name: 'Juniper Kitchen',
+    port: 4712,
+    addresses: [
+      { url: 'http://office-mac.local:4712', via: null, best: true },
+      { url: 'http://192.168.1.20:4712', via: 'en0', best: false },
+    ],
+    changedFrom: null,
+    language: null,
+    theme: 'light',
+  };
+  const mount = (info: DesktopShareInfo, project: Record<string, unknown> = {}) => {
+    const api = { shareInfo: vi.fn(() => Promise.resolve(info)), build: vi.fn(() => Promise.resolve(true)), openDashboard: vi.fn(() => Promise.resolve()), ...project };
+    Object.defineProperty(window, 'adminiumDesktop', { value: { platform: 'darwin', project: api } as unknown as AdminiumDesktopApi, configurable: true });
+    render(
+      <I18nProvider i18n={i18n}>
+        <SharedApp initial={info} />
+      </I18nProvider>,
+    );
+    return api;
+  };
+
+  it('says the project is shared, lists the addresses with the one to give out, and draws its code', () => {
+    mount(INFO);
+    expect(screen.getByRole('heading', { name: 'Juniper Kitchen is shared' })).toBeTruthy();
+    expect(screen.getByText('http://office-mac.local:4712').getAttribute('dir')).toBe('ltr');
+    expect(screen.getByText('Best')).toBeTruthy();
+    expect(screen.getByText('en0')).toBeTruthy();
+    // The code is of the best address, drawn on the page: nothing is fetched for it.
+    const code = screen.getByRole('img', { name: 'A code to scan for http://office-mac.local:4712' });
+    expect(code.querySelectorAll('rect').length).toBeGreaterThan(100);
+    expect(screen.getByText(/Traffic on your local network is not encrypted/)).toBeTruthy();
+    expect(screen.getByText(/stays awake while the project is shared/)).toBeTruthy();
+    expect(screen.queryByRole('status')).toBeNull();
+  });
+
+  it('says the address changed when the port it had was taken', () => {
+    mount({ ...INFO, port: 4713, changedFrom: 4712 });
+    expect(screen.getByRole('status').textContent).toBe('Port 4712 was taken, so the address changed to 4713.');
+  });
+
+  it('on no network it says so instead of an address nobody could reach', () => {
+    mount({ ...INFO, addresses: [] });
+    expect(screen.getByRole('alert').textContent).toContain('This computer is not on a network');
+    expect(screen.queryByRole('img')).toBeNull();
+  });
+
+  it('copies an address, and says so when it could not', async () => {
+    const writeText = vi.fn<(text: string) => Promise<void>>().mockResolvedValueOnce(undefined).mockRejectedValueOnce(new Error('denied'));
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+    mount(INFO);
+    fireEvent.click(screen.getByRole('button', { name: 'Copy http://192.168.1.20:4712' }));
+    expect(writeText).toHaveBeenCalledWith('http://192.168.1.20:4712');
+    fireEvent.click(screen.getByRole('button', { name: 'Copy http://office-mac.local:4712' }));
+    await waitFor(() => {
+      expect(screen.getByRole('region', { name: 'Notices' }).textContent).toContain('The address could not be copied.');
+    });
+  });
+
+  it('opens the project’s dashboard, and goes back to building only after a yes', async () => {
+    const api = mount(INFO);
+    fireEvent.click(screen.getByRole('button', { name: 'Open the dashboard' }));
+    expect(api.openDashboard).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByRole('button', { name: 'Go back to building' }));
+    const dialog = await screen.findByRole('dialog');
+    expect(dialog.textContent).toContain('People using it on other devices will be disconnected.');
+    fireEvent.click(screen.getByRole('button', { name: 'Keep sharing' }));
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+    expect(api.build).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Go back to building' }));
+    const again = await screen.findByRole('dialog');
+    fireEvent.click(Array.from(again.querySelectorAll('button')).find((button) => button.textContent === 'Go back to building') as HTMLButtonElement);
+    expect(api.build).toHaveBeenCalledTimes(1);
+  });
+
+  it('says why when going back failed, and stays where it is', async () => {
+    mount(INFO, { build: vi.fn(() => Promise.reject(new Error('INTERNAL: could not start'))) });
+    fireEvent.click(screen.getByRole('button', { name: 'Go back to building' }));
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.click(Array.from(dialog.querySelectorAll('button')).find((button) => button.textContent === 'Go back to building') as HTMLButtonElement);
+    await waitFor(() => {
+      expect(screen.getByRole('region', { name: 'Notices' }).textContent).toContain('could not start');
+    });
+    expect(screen.getByRole('heading', { name: 'Juniper Kitchen is shared' })).toBeTruthy();
   });
 });

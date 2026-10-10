@@ -11,7 +11,7 @@
  *   pnpm --filter @adminium/i18n gen:a11y-keys
  */
 
-/** `namespace:key` — 2816 entries. */
+/** `namespace:key` — 2827 entries. */
 export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'addOns:failed.title',
   'addOns:noBundle.title',
@@ -873,6 +873,12 @@ export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'designer:provider.compatible',
   'designer:provider.ollama',
   'designer:provider.openai',
+  'designer:share.again',
+  'designer:share.beforeTitle',
+  'designer:share.email',
+  'designer:share.password',
+  'designer:share.passwordTitle',
+  'designer:share.step',
   'designer:sheet.asIs',
   'designer:sheet.close',
   'designer:sheet.how',
@@ -942,6 +948,11 @@ export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'desktop:packages.failed',
   'desktop:packages.title',
   'desktop:packages.working',
+  'desktop:shared.buildAsk',
+  'desktop:shared.buildAskBody',
+  'desktop:shared.copy',
+  'desktop:shared.keep',
+  'desktop:shared.qr',
   'desktop:start.choice.open.title',
   'desktop:start.recent.locateTitle',
   'desktop:start.recent.open',
