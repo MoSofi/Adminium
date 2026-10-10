@@ -17,6 +17,8 @@ import { RULE_EMAIL_VARS } from '../../automations/actions/email.js';
 import { personalInputs, stepsOn } from '../../automations/add-on-steps.js';
 import { isAddressColumn, relatedTargets } from '../../automations/related.js';
 import { templateFamilies } from '../../automations/templates.js';
+import { rolesRepo } from '@adminium/meta';
+
 import type { ResolvedTable, SnapshotView } from '../../crud/identifiers.js';
 import type { AssistantTool } from '../types.js';
 import { tableLabel, viewOrError } from './schema.js';
@@ -37,7 +39,7 @@ export function addressColumnsOf(view: SnapshotView, table: ResolvedTable): stri
 export const rulePartsTool: AssistantTool = {
   name: 'rule_parts',
   description:
-    `What a rule about ONE table can name, read from this workspace: the live email templates (at most ${String(RULE_PARTS_TEMPLATES_MAX)}; each with the placeholders it reads and which of them the rule's step must fill through "vars"), the steps installed add-ons give (each with its add-on's key, its own key and its inputs), and the columns that hold email addresses (the table's own, and a linked row's as "<link>.<column>"). Call it before you draft a rule that sends an email or needs something a plain step cannot do. Name nothing in a rule that it does not list.`,
+    `What a rule about ONE table can name, read from this workspace: the live email templates (at most ${String(RULE_PARTS_TEMPLATES_MAX)}; each with the placeholders it reads and which of them the rule's step must fill through "vars"), the steps installed add-ons give (each with its add-on's key, its own key and its inputs), the columns that hold email addresses (the table's own, and a linked row's as "<link>.<column>"), and the roles a notification can go to. Call it before you draft a rule that sends an email or needs something a plain step cannot do. Name nothing in a rule that it does not list.`,
   args: {
     type: 'object',
     properties: {
@@ -129,10 +131,12 @@ export const rulePartsTool: AssistantTool = {
         templatesOmitted: Math.max(matching.length - templates.length, 0),
         templatesSwitchedOff: families.off,
         steps,
+        // Who an in-app notification can be addressed to: `to: { "roles": [<id>] }`.
+        roles: (await rolesRepo(deps.meta).list()).slice(0, 30).map((role) => ({ id: role.id, name: role.name })),
         notes: [
           reachable.length === 0 ? 'No column of this table, or of a row it links to, holds email addresses: an email step needs typed addresses, or cannot be made.' : 'An email step\'s `to` column is one of addressColumns, exactly as written.',
           templates.length === 0 ? (words.length === 0 ? 'No live email template exists: an email step cannot be completed. Say so, and offer to draft one on Email templates.' : 'No live template matches those words. Call again without `find`, or say that none fits and offer to draft one on Email templates.') : 'Name a template by its key. Fill every name in its mustFill through the step\'s "vars".',
-          steps.length === 0 ? 'No installed add-on gives a step. What only an add-on could do, leave out and say so in "leftOut"; list_add_ons says which add-on would give it.' : 'An add-on\'s step is named by its addOn and step keys, with a text for each input.',
+          steps.length === 0 ? 'No installed add-on gives a step. What only an add-on could do, leave out and say so in "leftOut"; then call list_add_ons and put in "suggest" the key of one that would give it.' : 'An add-on\'s step is named by its addOn and step keys, with a text for each input.',
         ],
       },
       tables: [tableLabel(resolved.name, table.id)],

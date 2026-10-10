@@ -239,7 +239,10 @@ const automationDocument: AssistantDocument = {
       '- There is no "delivered" or "paid" event. A rule fires on a record being created, updated or deleted, or on a schedule. "When an order is delivered" is `updated` with `changedColumn` on the column that records it, plus a `when` condition on the value it must hold.',
       '- A mail to "the customer of an order" goes to the address column of the LINKED row (`customer_id.email`), never to the link itself.',
       '- Text values may carry `{{record.<column>}}`, a linked row\'s `{{record.<link>.<column>}}`, `{{recordLabel}}`, `{{ruleName}}` and `{{now}}`. `{{record.first_name|there}}` writes "there" when the value is empty.',
-      '- When no step can do a part of what was asked, draft the rest and put that part in "leftOut" with why. Never invent a step, a template or a column to cover it. When an add-on that is not installed would give it, name its key in "suggest".',
+      '- When no step can do a part of what was asked, draft the rest and put that part in "leftOut" with why. Never invent a step, a template or a column to cover it.',
+      '- BEFORE you draft such a rule, call `list_add_ons`: when an add-on that is not installed would give the part you leave out, put its key in "suggest" of the reply that carries the draft. A draft ends your turn: never say you will look something up after it.',
+      '- A notification goes to roles by their ids from `rule_parts`. A step you cannot finish (an email with no template that fits) may stay unfinished: say which step, and why, in "say".',
+      '- When NO part of it can be built (the rule would have no step), draft nothing: answer in "say" what is missing.',
       '- When no live template fits the email, say so in "say" and offer to draft one on Email templates; do not name a template that does not fit.',
       '- A rule you draft is saved SWITCHED OFF. Say so, and say what it will do once somebody switches it on.',
     ].join('\n');
@@ -267,6 +270,12 @@ const automationDocument: AssistantDocument = {
     const installs = deps.installs === undefined ? null : await deps.installs().catch(() => null);
     const steps: RuleSteps = (addOn, step) => (installs === null || connectionId === null ? { state: 'no-add-on' } : findStep(installs, connectionId, addOn, step));
     const graph = withStepNames(withoutSealedSecrets(parsed.data.graph), steps);
+
+    // A rule with a trigger and nothing after it does nothing. A person may save one while they
+    // build it; from the assistant it would be a draft of nothing, presented as a rule.
+    if (!flattenNodes(graph).some((node) => node.kind !== 'trigger')) {
+      return { ok: false, errors: [{ path: 'graph.nodes', code: 'RULE_DOES_NOTHING', message: 'This rule has no step, so it would do nothing. When no part of what was asked can be built, do not draft a rule: answer in "say" what is missing and what would make it possible, with no "result".' }] };
+    }
 
     // A step of an add-on: a person may keep one whose add-on is gone; a DRAFT may not name one
     // that is not there, nor leave empty an input it needs. Said with what there is instead.

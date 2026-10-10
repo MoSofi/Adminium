@@ -162,6 +162,8 @@ for (const [dialect, available] of legs) {
           ],
         },
       ]);
+      // Who a notification can go to, by id.
+      expect((result!['roles'] as { id: string; name: string }[]).length).toBeGreaterThan(0);
       // Narrowed by a word; a word nothing matches says so.
       expect(((await parts({ find: 'thank' })).result!['templates'] as unknown[]).length).toBe(1);
       const none = (await parts({ find: 'refund' })).result!;
@@ -207,6 +209,12 @@ for (const [dialect, available] of legs) {
       // What the step does not take is the save's own refusal, handed back.
       const odd = await accept(step({ to: 'a@b.example', name: 'x', tier: 'silver' }));
       expect(!odd.ok && odd.errors[0]).toMatchObject({ code: 'RULE_INVALID' });
+    });
+
+    it('a rule with no step is no draft: the assistant is told to answer in words instead', async () => {
+      const empty = await automationContext.document!.acceptArtefact({ name: 'Nothing', trigger: trigger(), graph: { version: 1, nodes: [{ id: 'n1', kind: 'trigger', title: 'A stay changes' }] } } as never, setup.deps);
+      expect(empty.ok).toBe(false);
+      if (!empty.ok) expect(empty.errors[0]).toMatchObject({ code: 'RULE_DOES_NOTHING', path: 'graph.nodes' });
     });
 
     it('a draft fills every placeholder its template needs, or is sent back with which and how', async () => {
