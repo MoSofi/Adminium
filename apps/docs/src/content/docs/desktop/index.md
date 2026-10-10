@@ -10,7 +10,9 @@ over loopback, and nothing leaves your machine. No Docker, no Node, no terminal.
 It is also where you can [build an app by describing it](/desktop/designer/),
 with Adminium Designer, on your own computer.
 
-Download it from the
+Download it from [adminium.dev/download](https://adminium.dev/download/#desktop):
+one button per system, each leading to the file of the newest desktop release.
+The same files, with their checksums, are on the
 [Releases page](https://github.com/MoSofi/Adminium/releases) — desktop builds
 are tagged `desktop-vX.Y.Z`, separately from the server's `vX.Y.Z` tags.
 
@@ -32,9 +34,10 @@ You do not need to download them by hand.
 and the notarization ticket is stapled to the disk image, so it opens without a
 Gatekeeper prompt and without a network round-trip to Apple.
 
-**Windows** — SmartScreen will warn you that the publisher is unknown, because
-the installer is not code-signed. This is a recorded decision for v1, not an
-oversight: choose **More info → Run anyway**. Check the file against
+**Windows** — the installer is the same app as on macOS and Linux, with
+[Build an app](/desktop/designer/) in it. It is not code-signed, so SmartScreen
+will warn you that the publisher is unknown. This is a recorded decision for
+v1, not an oversight: choose **More info → Run anyway**. Check the file against
 `SHA256SUMS.txt` first if you want the assurance a signature would have given
 you.
 
