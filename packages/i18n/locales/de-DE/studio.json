@@ -2332,6 +2332,8 @@
       "deleteWhat": "Eine Zeile oder ein Dokument entfernen. Sie bestätigen jeden Vorgang.",
       "rows": "Zeilen pro Bestätigung",
       "rowsHint": "1 bis {max}",
+      "staffAddresses": "Auf den Mitarbeiteradressen Ihrer Apps",
+      "staffAddressesWhat": "Zeigt die Schaltfläche von {name} auf den eigenen Mitarbeiterseiten einer App, für Personen, deren Rolle {name} nutzen darf. Eine Kundenseite hat sie nie.",
       "save": "Speichern",
       "saveFailed": "Das konnte nicht gespeichert werden. Versuchen Sie es erneut.",
       "never": "{name} ändert niemals Berechtigungen, Personen, Verbindungen, die Struktur der Datenbank oder diese Einstellungen."

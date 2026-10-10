@@ -25379,6 +25379,14 @@
     "status": "mt",
     "srcHash": "f9d10e670cde"
   },
+  "studio.settingsAi.abilities.staffAddresses": {
+    "status": "mt",
+    "srcHash": "389f6c0be6da"
+  },
+  "studio.settingsAi.abilities.staffAddressesWhat": {
+    "status": "mt",
+    "srcHash": "a231738e31dc"
+  },
   "studio.settingsAi.abilities.title": {
     "status": "mt",
     "srcHash": "605ae2c2de20"

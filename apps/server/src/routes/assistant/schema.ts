@@ -292,6 +292,8 @@ export const assistantSettingsReply = z.object({
   /** The most rows one confirmation may write, and the most this field may be set to. */
   maxRows: z.number(),
   maxRowsCeiling: z.number(),
+  /** Whether the assistant's button is put on an app's own staff address, for people who may use the assistant. */
+  staffAddresses: z.boolean(),
   today: z.object({
     /** The UTC day, `YYYY-MM-DD`. */
     day: z.string(),
@@ -310,6 +312,7 @@ export const assistantSettingsPutBody = z
     dailyTokens: z.number().int().min(0).max(1_000_000_000).optional(),
     abilities: assistantAbilities.partial().optional(),
     maxRows: z.number().int().min(1).max(ASSISTANT_MAX_ROWS_CEILING).optional(),
+    staffAddresses: z.boolean().optional(),
   })
   .strict();
 

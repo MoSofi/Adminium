@@ -25,6 +25,7 @@ function settings(overrides: Partial<AssistantSettings> = {}): AssistantSettings
     abilities: OFF,
     maxRows: 50,
     maxRowsCeiling: 50,
+    staffAddresses: true,
     today: { day: '2026-10-09', resetsAt: Date.now() + 3_600_000, people: [] },
     roles: [],
     ...overrides,
@@ -41,10 +42,10 @@ function stub(initial: AssistantSettings, fail = false) {
       const method = init?.method ?? 'GET';
       if (url !== '/api/v1/assistant/settings') return Promise.resolve(jsonResponse(404, { error: { code: 'NOT_FOUND', message: url } }));
       if (method === 'PUT') {
-        const body = JSON.parse(String(init?.body)) as { abilities?: Partial<AssistantAbilities>; maxRows?: number };
+        const body = JSON.parse(String(init?.body)) as { abilities?: Partial<AssistantAbilities>; maxRows?: number; staffAddresses?: boolean };
         puts.push(body);
         if (fail) return Promise.resolve(jsonResponse(500, { error: { code: 'INTERNAL', message: 'no' } }));
-        stored = { ...stored, abilities: { ...stored.abilities, ...body.abilities }, ...(body.maxRows === undefined ? {} : { maxRows: body.maxRows }) };
+        stored = { ...stored, abilities: { ...stored.abilities, ...body.abilities }, ...(body.maxRows === undefined ? {} : { maxRows: body.maxRows }), ...(body.staffAddresses === undefined ? {} : { staffAddresses: body.staffAddresses }) };
       }
       return Promise.resolve(jsonResponse(200, stored));
     }),
@@ -127,6 +128,18 @@ describe('the card', () => {
     await user.type(field, '20');
     await user.click(save);
     await waitFor(() => expect(puts).toEqual([{ maxRows: 20 }]));
+  });
+
+  it('keeps the assistant to the dashboard when the staff addresses are switched off, and touches nothing else', async () => {
+    const puts = stub(settings());
+    renderCard();
+    const toggle = await screen.findByTestId('assistant-staff-addresses');
+    expect(toggle.getAttribute('aria-checked')).toBe('true');
+    expect(screen.getByText('On your apps’ staff addresses')).toBeDefined();
+    expect(screen.getByText('Show Milo’s button on an app’s own staff screens, to the people whose role may use Milo. A customer side never has it.')).toBeDefined();
+    await userEvent.setup().click(toggle);
+    await waitFor(() => expect(screen.getByTestId('assistant-staff-addresses').getAttribute('aria-checked')).toBe('false'));
+    expect(puts).toEqual([{ staffAddresses: false }]);
   });
 
   it('says so when a switch could not be saved, and shows it as it still is', async () => {

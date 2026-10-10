@@ -1527,7 +1527,13 @@ describe('what an owner sets, and what was used today', () => {
     const OFF = { create: false, change: false, send: false, delete: false };
     const put = (payload: unknown, as = t.users.admin) => t.app.inject({ method: 'PUT', url: '/api/v1/assistant/settings', headers: asUser(as), payload: payload as never });
     const get = await t.app.inject({ method: 'GET', url: '/api/v1/assistant/settings', headers: asUser(t.users.admin) });
-    expect(get.json()).toMatchObject({ abilities: OFF, maxRows: 50, maxRowsCeiling: 50 });
+    // On an app's own staff address too, until an owner keeps it to the dashboard.
+    expect(get.json()).toMatchObject({ abilities: OFF, maxRows: 50, maxRowsCeiling: 50, staffAddresses: true });
+    const kept = await put({ staffAddresses: false });
+    expect(kept.json()).toMatchObject({ staffAddresses: false, abilities: OFF });
+    expect(await settingsRepo(t.meta).get('assistant.staffAddresses')).toBe(false);
+    expect((await auditRepo(t.meta).list({ category: 'settings', limit: 1 }))[0]).toMatchObject({ action: 'assistant.settings.update', changes: { before: { staffAddresses: true }, after: { staffAddresses: false } } });
+    expect((await put({ staffAddresses: true })).json().staffAddresses).toBe(true);
 
     // One switch named: the other three stay as they were.
     const created = await put({ abilities: { create: true } });

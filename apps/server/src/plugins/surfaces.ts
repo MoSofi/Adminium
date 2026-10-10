@@ -94,6 +94,7 @@ import {
   NO_SURFACE_SETTINGS,
 } from '../surfaces/settings.js';
 import { renderNotFoundPage, renderUnavailablePage } from '../surfaces/unavailable-page.js';
+import { sendSurfaceIndex, type SurfaceAssistant } from './surface-index.js';
 
 /** Where the script-free "not available" page's Sign out posts. */
 export const SURFACE_SIGN_OUT_PATH = '/surface-sign-out';
@@ -142,6 +143,8 @@ declare module 'fastify' {
      * keeps unmapped hosts byte-identical to the pre-domain behaviour.
      */
     surfaceForHost: (request: FastifyRequest) => Promise<HostedSurface | null>;
+    /** Send a surface's page: the one door it leaves by (`surface-index.ts`). */
+    sendSurfaceIndex: (request: FastifyRequest, reply: FastifyReply, surface: HostedSurface) => Promise<FastifyReply>;
     /**
      * Apply a surface's access rule. Resolves `true` when it has ANSWERED the
      * request (redirected or refused) and the caller must stop.
@@ -193,6 +196,12 @@ export interface SurfacesPluginOptions {
   devBuild?: ((appKey: string) => string | null) | undefined;
   /** Absent ⇒ no placement settings; every surface stays where it is mounted. */
   metaDb?: MetaDb | undefined;
+  /**
+   * What the page's one door asks of the assistant before it sends its loader
+   * with a staff side's page (`surface-index.ts`). Absent ⇒ no page ever
+   * carries it.
+   */
+  assistant?: SurfaceAssistant | undefined;
   /**
    * Opens `token_encrypted` for the `surface-config.json` route. Absent ⇒
    * the route is not registered and a hosted customer surface can only be
@@ -516,6 +525,8 @@ export const surfacesPlugin = fp<SurfacesPluginOptions>(
         );
       },
     );
+
+    app.decorate('sendSurfaceIndex', (request: FastifyRequest, reply: FastifyReply, surface: HostedSurface) => sendSurfaceIndex(request, reply, surface, opts.assistant));
 
     app.decorate(
       'surfaceGate',
@@ -1031,7 +1042,7 @@ export const surfacesPlugin = fp<SurfacesPluginOptions>(
       }
       const file = surfaceFileFor(surface.root, path);
       if (file !== null) return reply.sendFile(file, surface.root);
-      return reply.sendFile('index.html', surface.root);
+      return app.sendSurfaceIndex(request, reply, surface);
     });
 
     /*
@@ -1079,7 +1090,7 @@ export const surfacesPlugin = fp<SurfacesPluginOptions>(
       }
       const file = surfaceFileFor(surface.root, `/${parsed.rest}`);
       if (file !== null) return reply.sendFile(file, surface.root);
-      return reply.sendFile('index.html', surface.root);
+      return app.sendSurfaceIndex(request, reply, surface);
     });
 
     /*
@@ -1161,7 +1172,7 @@ export const surfacesPlugin = fp<SurfacesPluginOptions>(
 
         const file = surfaceFileFor(surface.root, `/${parsed.rest}`);
         if (file !== null) return reply.sendFile(file, surface.root);
-        return reply.sendFile('index.html', surface.root);
+        return app.sendSurfaceIndex(request, reply, surface);
       });
     }
 
@@ -1216,6 +1227,11 @@ export const surfacesPlugin = fp<SurfacesPluginOptions>(
             void reply.header('cache-control', 'no-store');
             return doc;
           });
+        }
+
+        // The page itself, ahead of the static wildcard: it leaves by the one door like every other way to it.
+        for (const path of [`${surface.prefix}/`, `${surface.prefix}/index.html`]) {
+          scope.route({ method: ['GET', 'HEAD'], url: path, handler: (request, reply) => app.sendSurfaceIndex(request, reply, surface) });
         }
 
         await scope.register(fastifyStatic, {

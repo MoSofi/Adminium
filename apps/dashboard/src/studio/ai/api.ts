@@ -126,6 +126,8 @@ export interface AssistantSettings {
   /** The most rows one confirmation may write, and the most that may be set to. */
   maxRows: number;
   maxRowsCeiling: number;
+  /** Whether the assistant's button is put on an app's own staff address. */
+  staffAddresses: boolean;
   today: {
     day: string;
     /** The instant the day's use starts again (epoch ms). */
@@ -330,7 +332,7 @@ export const aiApi = {
   /** The assistant's allowance and today's use. Needs the settings permission, not the model's. */
   getAssistantSettings: () => api.get<AssistantSettings>('/api/v1/assistant/settings'),
   /** Each field is its own decision: what is left out is left as it is. */
-  putAssistantSettings: (body: { dailyTokens?: number; abilities?: Partial<AssistantAbilities>; maxRows?: number }) =>
+  putAssistantSettings: (body: { dailyTokens?: number; abilities?: Partial<AssistantAbilities>; maxRows?: number; staffAddresses?: boolean }) =>
     api.put<AssistantSettings>('/api/v1/assistant/settings', body),
 
   /** One small turn in the assistant's reply format, with one tool: can the saved model run it? */

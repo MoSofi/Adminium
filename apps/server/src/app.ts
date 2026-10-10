@@ -8,8 +8,10 @@
  * with it).
  */
 import { randomBytes } from 'node:crypto';
+import { existsSync } from 'node:fs';
 import type { IncomingMessage } from 'node:http';
 import { createRequire } from 'node:module';
+import { join, resolve } from 'node:path';
 
 import { fastify, LogController, type FastifyBaseLogger, type FastifyError, type FastifyRequest } from 'fastify';
 import { pino, type DestinationStream, type Logger, type LoggerOptions } from 'pino';
@@ -40,6 +42,7 @@ import { corePlugin } from './plugins/core.js';
 import { publicOriginPlugin } from './plugins/public-origin.js';
 import { staticPlugin } from './plugins/static.js';
 import { designSessionCookie, registerDesignMode, type DesignModeOptions } from './designer/design-mode.js';
+import { MILO_LOADER_PATH } from './plugins/surface-index.js';
 import { DEV_BUILD_ADDRESS, isHostReservedPath, surfacesPlugin } from './plugins/surfaces.js';
 import {
   compileProxyTrust,
@@ -230,6 +233,12 @@ export interface BuildServerOptions {
    * fallback when present; cleanly skipped when absent (dashboard ships M4).
    */
   staticRoot?: string | undefined;
+  /**
+   * Whether the assistant goes onto an app's own staff address: a model is set
+   * up, and the workspace has not switched that off. Absent ⇒ no staff page is
+   * ever sent the assistant's loader (`plugins/surface-index.ts`).
+   */
+  surfaceAssistant?: (() => Promise<boolean>) | undefined;
   /**
    * Hosted app surfaces (`plugins/surfaces.ts`) — an app's own `frontends[]`
    * builds, served at this origin under `/apps/<key>/<side>/`. Omitted or empty
@@ -552,11 +561,15 @@ export async function buildServer(opts: BuildServerOptions = {}) {
   // Surfaces before the dashboard: `/apps/<key>/<side>/*` is more specific than
   // the dashboard's root wildcard either way, but registering in this order
   // makes the precedence a property of the file rather than of find-my-way.
+  // Asked once: a static root without the assistant's loader (an older or a partial build) sends no page a
+  // tag for a script that is not there.
+  const loaderPresent = opts.staticRoot !== undefined && opts.staticRoot !== '' && existsSync(join(resolve(opts.staticRoot), MILO_LOADER_PATH));
   await app.register(surfacesPlugin, {
     ...(opts.surfaces === undefined ? {} : { surfaces: opts.surfaces }),
     ...(opts.installedApps === undefined ? {} : { installed: opts.installedApps }),
     ...(opts.appDevBuild === undefined ? {} : { devBuild: opts.appDevBuild }),
     ...(opts.metaDb === undefined ? {} : { metaDb: opts.metaDb }),
+    ...(opts.surfaceAssistant === undefined ? {} : { assistant: { on: opts.surfaceAssistant, loaderPresent: () => loaderPresent } }),
     // For the `surface-config.json` route — the same envelope connection DSNs
     // use, so the publishable key is re-readable here exactly as it is on the
     // Studio reveal path.
@@ -580,7 +593,7 @@ export async function buildServer(opts: BuildServerOptions = {}) {
     const mapped = isApi || !isDocument ? null : await app.surfaceForHost(request);
     if (mapped !== null && !isHostReservedPath(request.url.split('?')[0] ?? request.url, mapped.side)) {
       if (await app.surfaceGate(mapped, request, reply)) return reply;
-      return reply.sendFile('index.html', mapped.root);
+      return app.sendSurfaceIndex(request, reply, mapped);
     }
 
     // A deep link INTO a hosted surface falls back to that surface's own
@@ -592,7 +605,7 @@ export async function buildServer(opts: BuildServerOptions = {}) {
     const surface = isApi ? null : app.surfaceForUrl(request.url);
     if (surface !== null && isDocument) {
       if (await app.surfaceGate(surface, request, reply)) return reply;
-      return reply.sendFile('index.html', surface.root);
+      return app.sendSurfaceIndex(request, reply, surface);
     }
 
     // NOTE: this handler is `async` (the surface gate awaits), so every branch
@@ -600,7 +613,10 @@ export async function buildServer(opts: BuildServerOptions = {}) {
     // stood here works only in a sync handler — under async, Fastify resolves
     // the handler's undefined before the file stream attaches and answers 200
     // with an empty body. Caught by the pre-existing fallback tests.
-    if (!isApi && app.spaRoot !== null && isDocument) {
+    // A file of the build that is not there is not there: the dashboard's page is never the answer to a
+    // script or a stylesheet (a stale build would otherwise hand a browser HTML where it asked for a module).
+    const missingAsset = (request.url.split('?')[0] ?? '').startsWith('/assets/');
+    if (!isApi && app.spaRoot !== null && isDocument && !missingAsset) {
       return reply.sendFile('index.html');
     }
     return reply

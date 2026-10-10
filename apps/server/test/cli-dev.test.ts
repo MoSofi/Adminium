@@ -113,6 +113,13 @@ function startDev(argv: string[] = []) {
 
 const count = (io: FakeIo, pattern: RegExp): number => io.stdout().split('\n').filter((line) => pattern.test(line)).length;
 
+/*
+ * How long a change to a watched file is waited for. The watcher is the operating system's, and in a
+ * full run of the suite its events arrive seconds late: at 10 s this test failed three whole-suite runs
+ * in one day and passed every time it ran alone. The test still fails when the event never comes.
+ */
+const WATCH_WAIT = 30_000;
+
 describe('adminium dev', () => {
   it('runs only inside a project', async () => {
     const io = fakeIo({ interactive: false });
@@ -182,7 +189,7 @@ describe.skipIf(esbuild === null)('adminium dev and build with esbuild', () => {
       () => {
         expect(dev.io.stdout()).toContain('Rebuilt 1 hook and action file(s).');
       },
-      { timeout: 10_000, interval: 100 },
+      { timeout: WATCH_WAIT, interval: 100 },
     );
     expect(count(dev.io, /^Rebuilt \d+ page\(s\)/)).toBe(0);
 
@@ -191,7 +198,7 @@ describe.skipIf(esbuild === null)('adminium dev and build with esbuild', () => {
       () => {
         expect(dev.io.stdout()).toContain('Rebuilt 1 page(s) and 0 widget(s); open dashboards reload them.');
       },
-      { timeout: 10_000, interval: 100 },
+      { timeout: WATCH_WAIT, interval: 100 },
     );
 
     // Studio writes page files into pages/ all the time; they are the sync's business.
@@ -202,7 +209,7 @@ describe.skipIf(esbuild === null)('adminium dev and build with esbuild', () => {
       () => {
         expect(dev.io.stdout()).toContain('Rebuilt 1 page(s) and 1 widget(s); open dashboards reload them.');
       },
-      { timeout: 10_000, interval: 100 },
+      { timeout: WATCH_WAIT, interval: 100 },
     );
     expect(count(dev.io, /^Rebuilt \d+ page\(s\)/)).toBe(2);
     expect(dev.spawned).toHaveLength(1);
@@ -212,12 +219,12 @@ describe.skipIf(esbuild === null)('adminium dev and build with esbuild', () => {
       () => {
         expect(dev.spawned).toHaveLength(2);
       },
-      { timeout: 10_000, interval: 100 },
+      { timeout: WATCH_WAIT, interval: 100 },
     );
     expect(dev.io.stdout()).toContain('adminium.config.ts changed, restarting Adminium…');
     expect(dev.spawned[0]?.signals).toEqual(['SIGTERM']);
 
     await expect(dev.stop()).resolves.toBe(0);
     expect(dev.spawned[1]?.signals).toEqual(['SIGTERM']);
-  });
+  }, 4 * WATCH_WAIT + 30_000);
 });

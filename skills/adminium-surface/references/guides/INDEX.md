@@ -64,7 +64,7 @@
 | `references/guides/roles-and-staff-access--personal-data.md` | Personal data | 1375 |
 | `references/guides/roles-and-staff-access--edits-limited-to-some-columns.md` | Edits limited to some columns | 2384 |
 | `references/guides/roles-and-staff-access--reads-limited-to-some-columns.md` | Reads limited to some columns | 1696 |
-| `references/guides/roles-and-staff-access--people-who-only-use-the-app.md` | People who only use the app | 1310 |
+| `references/guides/roles-and-staff-access--people-who-only-use-the-app.md` | People who only use the app | 1642 |
 | `references/guides/roles-and-staff-access--someone-without-access.md` | Someone without access | 902 |
 | `references/guides/roles-and-staff-access--signing-in-on-the-app-s-own-address.md` | Signing in on the app's own address | 1762 |
 | `references/guides/orders-with-lines--overview.md` | An order with its lines | 1439 |

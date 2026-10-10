@@ -432,6 +432,13 @@ export const SETTINGS_REGISTRY = {
    */
   'assistant.dailyTokens': def(z.number().int().min(0).max(1_000_000_000), 500_000, 'Tokens a person may use with the page assistant in a UTC day (0 = no limit)', P),
   /**
+   * Whether the assistant's button is put on an app's own staff address (a
+   * staff side opened by itself, or on a mapped host), for the people who may
+   * use the assistant. Off keeps it to the dashboard without touching roles.
+   * Portable: it is a choice an operator made.
+   */
+  'assistant.staffAddresses': def(z.boolean(), true, 'Show the page assistant on an app’s own staff addresses', P),
+  /**
    * What the assistant may DO, beyond reading: four switches, each off until
    * somebody with the settings permission turns it on. Off, the assistant is
    * not offered the action at all, and a confirm of one is refused whatever a

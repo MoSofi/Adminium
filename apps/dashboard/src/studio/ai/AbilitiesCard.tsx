@@ -100,7 +100,7 @@ export function AbilitiesCard({ name }: AbilitiesCardProps) {
   const ids = useId();
   const settings = useQuery({ queryKey: ASSISTANT_SETTINGS_QUERY_KEY, queryFn: () => aiApi.getAssistantSettings() });
   const save = useMutation({
-    mutationFn: (body: { abilities?: Partial<AssistantAbilities>; maxRows?: number }) => aiApi.putAssistantSettings(body),
+    mutationFn: (body: { abilities?: Partial<AssistantAbilities>; maxRows?: number; staffAddresses?: boolean }) => aiApi.putAssistantSettings(body),
     onSuccess: (next) => queryClient.setQueryData(ASSISTANT_SETTINGS_QUERY_KEY, next),
     onError: () => {
       toasts.push({ variant: 'error', title: t('studio:settingsAi.abilities.saveFailed', 'Could not save that. Try again.') });
@@ -183,6 +183,30 @@ export function AbilitiesCard({ name }: AbilitiesCardProps) {
               >
                 {t('studio:settingsAi.abilities.save', 'Save')}
               </Button>
+            </div>
+
+            {/* Where it is, not what it may do: the same switches hold on an app's own address. */}
+            <div className="flex items-start gap-3 border-t border-border pt-4">
+              <div className="flex min-w-0 flex-1 flex-col gap-[3px] pt-px">
+                <span id={`${ids}-staff`} className="text-[13.5px] font-bold text-fg">
+                  {t('studio:settingsAi.abilities.staffAddresses', 'On your apps’ staff addresses')}
+                </span>
+                <span id={`${ids}-staff-what`} className="text-pretty text-[12.5px] leading-[1.5] text-fg-muted">
+                  {t(
+                    'studio:settingsAi.abilities.staffAddressesWhat',
+                    'Show {name}’s button on an app’s own staff screens, to the people whose role may use {name}. A customer side never has it.',
+                    { name },
+                  )}
+                </span>
+              </div>
+              <Switch
+                data-testid="assistant-staff-addresses"
+                aria-labelledby={`${ids}-staff`}
+                aria-describedby={`${ids}-staff-what`}
+                checked={settings.data.staffAddresses}
+                disabled={save.isPending}
+                onCheckedChange={(checked) => save.mutate({ staffAddresses: checked })}
+              />
             </div>
 
             <p className="text-pretty text-[12.5px] leading-[1.55] text-fg-muted">

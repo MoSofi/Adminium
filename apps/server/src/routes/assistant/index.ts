@@ -248,6 +248,33 @@ export function assistantRoutes(deps: AssistantRoutesDeps): FastifyPluginAsyncZo
   return async (app) => {
     const guard = app.rbac.require(USE_PERMISSION);
 
+    /*
+     * A SCREENS-ONLY PERSON (a till's cashier, given the assistant) has two
+     * kinds of conversation: the general one and the one about data. The
+     * document pages (emails, invoices, reports, rules) are not theirs to
+     * open, so neither are those contexts; and the three actions that are not
+     * a replay of a route they could call themselves (saving a draft, adding
+     * a language, a test send) are refused here, because nothing else would:
+     * those never pass the screens-only gate as a request of their own.
+     */
+    const SCREENS_ONLY_CONTEXTS: readonly string[] = ['general', 'data'];
+    const NOT_FOR_SCREENS_ONLY: readonly string[] = ['save', 'language.add', 'test-send'];
+    app.addHook('preHandler', async (request) => {
+      if (request.user == null) return;
+      const set = await app.rbac.resolve(request);
+      if (set.screensOnly === null) return;
+      const body = (request.body ?? {}) as { context?: unknown; on?: { context?: unknown }; action?: unknown };
+      const query = (request.query ?? {}) as { context?: unknown };
+      const asked = [body.context, body.on?.context, query.context].filter((context): context is string => typeof context === 'string');
+      const refused = asked.find((context) => !SCREENS_ONLY_CONTEXTS.includes(context));
+      if (refused !== undefined) {
+        throw new ForbiddenError('The assistant answers questions about your app’s data here. That page is not one of your screens.', 'FORBIDDEN', { reason: 'screens-only', context: refused });
+      }
+      if (typeof body.action === 'string' && NOT_FOR_SCREENS_ONLY.includes(body.action)) {
+        throw new ForbiddenError('That is done from the dashboard, which is not one of your screens.', 'FORBIDDEN', { reason: 'screens-only', action: body.action });
+      }
+    });
+
     /** The session this person opened, or a 404 — never somebody else's. */
     async function mine(request: FastifyRequest, sessionId: string): Promise<AssistantSession> {
       const userId = requireUserId(request);
@@ -795,6 +822,7 @@ export function assistantRoutes(deps: AssistantRoutesDeps): FastifyPluginAsyncZo
         abilities: await settings.get('assistant.abilities'),
         maxRows: await settings.get('assistant.maxRows'),
         maxRowsCeiling: ASSISTANT_MAX_ROWS_CEILING,
+        staffAddresses: await settings.get('assistant.staffAddresses'),
         today: { day, resetsAt: assistantUseResetsAt(at), people },
         roles,
       };
@@ -842,6 +870,14 @@ export function assistantRoutes(deps: AssistantRoutesDeps): FastifyPluginAsyncZo
             await settings.set('assistant.maxRows', body.maxRows, by);
             before.maxRows = held;
             after.maxRows = body.maxRows;
+          }
+        }
+        if (body.staffAddresses !== undefined) {
+          const held = await settings.get('assistant.staffAddresses');
+          if (held !== body.staffAddresses) {
+            await settings.set('assistant.staffAddresses', body.staffAddresses, by);
+            before.staffAddresses = held;
+            after.staffAddresses = body.staffAddresses;
           }
         }
         // One entry for what really changed, with what it was: who let the assistant write is on record.

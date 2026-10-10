@@ -25,6 +25,7 @@ function settings(overrides: Partial<AssistantSettings> = {}): AssistantSettings
     abilities: { create: false, change: false, send: false, delete: false },
     maxRows: 50,
     maxRowsCeiling: 50,
+    staffAddresses: true,
     today: {
       day: '2026-10-09',
       resetsAt: RESETS_AT,
