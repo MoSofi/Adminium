@@ -430,7 +430,8 @@ export function PanelView({
               className={cn(
                 'nb-press flex size-[34px] shrink-0 items-center justify-center rounded-full',
                 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:pointer-events-none',
-                sendIdle ? 'bg-surface-3 text-fg-subtle' : 'bg-accent text-accent-fg',
+                // Drawn as it is: nothing can be sent while the microphone is at work.
+                sendIdle || micBusy ? 'bg-surface-3 text-fg-subtle' : 'bg-accent text-accent-fg',
               )}
             >
               <ArrowUp className="size-[15px]" aria-hidden="true" />
