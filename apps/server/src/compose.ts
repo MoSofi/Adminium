@@ -49,6 +49,7 @@ import {
   jobsRepo,
   manifestsRepo,
   pagesRepo,
+  publicKeysRepo,
   passwordResetsRepo,
   publicApiStateRepo,
   publicRequestStatsRepo,
@@ -69,6 +70,7 @@ import type { Env } from './config/env.js';
 import { decryptSecret, deriveKey, encryptSecret } from './config/secrets.js';
 import { seedStorageDestination } from './config/storage-seed.js';
 import { dsnCryptoFromSecret } from './connections/crypto.js';
+import { openPublishableKey, storedPhoneKey } from './public-api/keys.js';
 import { createBridgeStore, createPairingCode } from './bridge/store.js';
 import { registerIntrospectJob } from './connections/introspect.js';
 import type { ConnectionManager } from './connections/manager.js';
@@ -137,6 +139,8 @@ import { designerRoutes } from './routes/designer/index.js';
 import { designSessionRoutes } from './routes/auth/design-session.js';
 import { registerPreview } from './designer/preview.js';
 import { registerPhonePreview } from './plugins/phone-preview.js';
+import { createPhoneDoor, type PhoneDoor } from './designer/phone-door.js';
+import { createPhoneService } from './designer/phone-service.js';
 import { architectureOf } from './designer/architecture.js';
 import { designerChannel } from './realtime/hub.js';
 import { createProjectApps, type ProjectApps } from './project/apps/project-apps.js';
@@ -615,6 +619,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   /** The project folder's apps, kept in step with this server; set where the app routes are built. */
   let projectApps: ProjectApps | null = null;
   let designer: Designer | null = null;
+  // The door a real phone comes through, while an app is designed on this computer: closed with the server.
+  let phoneDoor: PhoneDoor | null = null;
   const installedApps = createInstalledApps({
     store: appStore,
     files: appFiles,
@@ -2132,10 +2138,20 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
             app.log.warn({ err: error }, 'the Designer switching off was not recorded in the audit log');
           });
       }
-      // A build command still running when the server stops is ended with it.
+      // A build command still running when the server stops is ended with it; so is the phone preview's door and its bundler.
       app.addHook('onClose', async () => {
         stopOwnBuilds();
+        phoneDoor?.stop();
       });
+      /** The phone app's key of an app, and its tables' names as its customer side reads them. */
+      const phoneAccessOf = async (key: string): Promise<{ token: string; tables: Record<string, string> } | null> => {
+        const at = Date.now();
+        const row = (await publicKeysRepo(meta).listManagedBy(key)).find((candidate) => storedPhoneKey(candidate.kind) && candidate.revokedAt === null && (candidate.expiresAt === null || candidate.expiresAt > at));
+        if (row === undefined || opts.designer === undefined) return null;
+        const config = await app.inject({ method: 'GET', url: `/apps/${key}/mobile/surface-config.json`, headers: { host: `localhost:${String(opts.designer.port)}` }, remoteAddress: '127.0.0.1' });
+        const tables = config.statusCode === 200 ? ((config.json() as { tables?: Record<string, string> }).tables ?? {}) : {};
+        return { token: openPublishableKey(dsnCryptoFromSecret(env.ADMINIUM_SECRET), row.tokenEncrypted), tables };
+      };
       await api.register(
         designerLiveRoutes({
           meta,
@@ -2369,6 +2385,25 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
                       return owner.email;
                     },
                   },
+                }
+              : {}),
+            // A phone side is built, and a phone let in, only where the app is designed on this computer.
+            ...(designerOpts.mode === 'local' && opts.designer !== undefined
+              ? {
+                  phone: createPhoneService({
+                    root,
+                    version: APP_VERSION,
+                    door: (phoneDoor = createPhoneDoor({
+                      root,
+                      app,
+                      previewHost: `localhost:${String(opts.designer.port)}`,
+                      access: (key) => phoneAccessOf(key),
+                    })),
+                    hold: () => (designer as Designer).runner.hold('start'),
+                    buildAndApply: (key, signal) => (designer as Designer).buildAndApply(key, signal),
+                    audit: (action, by, detail) => designerAudit(action, by, detail),
+                    log: (message, error) => app.log.warn({ err: error }, message),
+                  }),
                 }
               : {}),
             starter: createStarter({

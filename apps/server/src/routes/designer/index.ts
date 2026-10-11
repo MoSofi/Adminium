@@ -16,6 +16,7 @@ import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 
 import type { Designer } from '../../designer/service.js';
 import type { Starter } from '../../designer/start-with-app.js';
+import type { PhoneService } from '../../designer/phone-service.js';
 import { sourceArchiveUrl } from '../../project/apps/source-archive.js';
 import type { Actor } from '../../designer/runner.js';
 import { ConflictError, ForbiddenError, NotFoundError, ValidationFailedError } from '../../errors.js';
@@ -92,11 +93,15 @@ import {
   designerFilesReply,
   designerFilesSaveBody,
   designerFilesSaveReply,
+  designerPhoneOpenBody,
+  designerPhoneReply,
 } from './schema.js';
 import { FILES_SAVE_BODY_BYTES } from '../../designer/files.js';
 
 export interface DesignerRoutesDeps {
   designer: Designer;
+  /** The phone side's service: only where an app is designed on this computer (`adminium design`, the desktop app). */
+  phone?: PhoneService;
   versions: Versions | null;
   connections: AiConnections;
   mode: 'local' | 'live';
@@ -587,6 +592,54 @@ export function designerRoutes(deps: DesignerRoutesDeps): FastifyPluginAsyncZod 
         const ticket = deps.preview.tickets.issue(session.appKey);
         const url = `${deps.preview.origin}/designer-preview/enter?ticket=${ticket}&to=${encodeURIComponent(to)}`;
         return { url, origin: deps.preview.origin, seenAs: (await deps.previewRoles?.(session.appKey)) ?? [] };
+      },
+    );
+
+    // The phone side: how it stands, a person's yes to adding it (Expo's install and build), and the door a phone comes through.
+    const phoneOf = (sessionId: string): { service: NonNullable<DesignerRoutesDeps['phone']>; appKey: string } => {
+      const session = store.read(sessionId);
+      if (deps.phone === undefined) throw new NotFoundError('This server builds no phone app: that is done where an app is being designed on this computer.', { reason: 'NO_PHONE' });
+      return { service: deps.phone, appKey: session.appKey };
+    };
+    app.get(
+      '/designer/sessions/:id/phone',
+      { preHandler: guard, config: RATE, schema: { params: designerSessionParams, response: { 200: designerPhoneReply } } },
+      async (request, reply) => {
+        const { service, appKey } = phoneOf(request.params.id);
+        return reply.header('cache-control', 'no-store').send(service.status(appKey));
+      },
+    );
+    app.post(
+      '/designer/sessions/:id/phone/add',
+      {
+        preHandler: guard,
+        config: { ...RATE, audit: auditExempt('the Designer audits a phone side’s approval itself') },
+        schema: { params: designerSessionParams, response: { 202: designerPhoneReply } },
+      },
+      async (request, reply) => {
+        const { service, appKey } = phoneOf(request.params.id);
+        return reply.code(202).send(service.add(appKey, actorOf(request)));
+      },
+    );
+    app.post(
+      '/designer/sessions/:id/phone/open',
+      {
+        preHandler: guard,
+        config: { ...RATE, audit: auditExempt('the Designer audits an opened phone preview itself') },
+        schema: { params: designerSessionParams, body: designerPhoneOpenBody, response: { 200: designerPhoneReply } },
+      },
+      async (request) => {
+        const { service, appKey } = phoneOf(request.params.id);
+        return service.open(appKey, request.body.address, actorOf(request));
+      },
+    );
+    app.post(
+      '/designer/sessions/:id/phone/stop',
+      { preHandler: guard, config: { ...RATE, audit: auditExempt('closing the phone preview changes nothing that is kept') }, schema: { params: designerSessionParams, response: { 200: designerPhoneReply } } },
+      async (request) => {
+        const { service, appKey } = phoneOf(request.params.id);
+        service.stop();
+        return service.status(appKey);
       },
     );
 
