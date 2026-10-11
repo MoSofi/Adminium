@@ -44,14 +44,59 @@ export const SERVER_KEY_PREFIX = 'adm_srv_';
 /** `token_encrypted` for a server key: there is nothing to reveal (NOT NULL column). */
 export const SERVER_KEY_SEALED_SENTINEL = '';
 
-export type PublicKeyKind = 'browser' | 'server';
+/**
+ * An APP key: for a phone app, which is a program and sends no `Origin`. It
+ * reaches what a browser key reaches (a visitor's reach, a visitor's limits,
+ * the human check), is re-readable like one (it ships in a bundle), and is
+ * refused from a browser like a server key, so a key lifted from a phone
+ * bundle is useless in a web page. Made only for an app with a phone side.
+ */
+export const APP_KEY_PREFIX = 'adm_app_';
+
+export const PUBLIC_KEY_KINDS = ['browser', 'server', 'app'] as const;
+export type PublicKeyKind = (typeof PUBLIC_KEY_KINDS)[number];
 
 /** The kind a token's prefix claims, or null for anything else. */
 export function keyKindOf(token: string): PublicKeyKind | null {
   if (token.startsWith(PUBLISHABLE_KEY_PREFIX)) return 'browser';
   if (token.startsWith(SERVER_KEY_PREFIX)) return 'server';
+  if (token.startsWith(APP_KEY_PREFIX)) return 'app';
   return null;
 }
+
+/** The kind a stored row says, or null for a word this server does not know: such a key answers nothing. */
+export function storedKeyKind(kind: string | null | undefined): PublicKeyKind | null {
+  return (PUBLIC_KEY_KINDS as readonly string[]).includes(kind ?? '') ? (kind as PublicKeyKind) : null;
+}
+
+/**
+ * A stored kind as the code that MANAGES keys reads it (lists, grants, rotation): a word this
+ * server does not know is treated as a browser key, the narrowest of the three there. The
+ * resolver does not use this: to a request, such a key answers nothing.
+ */
+export const managedKeyKind = (kind: string | null | undefined): PublicKeyKind => storedKeyKind(kind) ?? 'browser';
+
+/**
+ * The two questions a key's kind answers. Nothing outside this file compares
+ * a kind with a word (a source test holds that): a third kind met a dozen
+ * `=== 'browser'` tests that were each false for it.
+ *
+ * `hasVisitorReach`: the key stands for a visitor (a browser key, an app key).
+ * It gets the customer's reach and never a `service_role` endpoint, owes the
+ * human check, is counted per visitor and against the whole key's ceilings,
+ * has its widening reviewed, may read pictures, and its secret can be shown
+ * again. A server key is the opposite on each count.
+ */
+export const hasVisitorReach = (kind: PublicKeyKind): boolean => kind !== 'server';
+
+/** The key must never arrive from a browser (a server key, an app key): any `Origin` or `Sec-Fetch-*` header refuses it. */
+export const refusesBrowserHeaders = (kind: PublicKeyKind): boolean => kind !== 'browser';
+
+/** A phone app's key: made and taken back with the app's phone side. */
+export const isPhoneAppKey = (kind: PublicKeyKind): boolean => kind === 'app';
+
+/** The key is served to a page by `surface-config.json` and bound by the origin rule: a browser key only. */
+export const servedToPages = (kind: PublicKeyKind): boolean => kind === 'browser';
 
 /** Secret length after the prefix; matches `adm_sk_` (≈238 bits of base62). */
 export const PUBLISHABLE_KEY_SECRET_LENGTH = 40;
@@ -91,7 +136,7 @@ export interface GeneratedPublishableKey {
 }
 
 export function generatePublishableKey(kind: PublicKeyKind = 'browser'): GeneratedPublishableKey {
-  const head = kind === 'server' ? SERVER_KEY_PREFIX : PUBLISHABLE_KEY_PREFIX;
+  const head = kind === 'server' ? SERVER_KEY_PREFIX : kind === 'app' ? APP_KEY_PREFIX : PUBLISHABLE_KEY_PREFIX;
   const token = `${head}${secret(PUBLISHABLE_KEY_SECRET_LENGTH)}`;
   return {
     token,

@@ -97,8 +97,8 @@ export const publicKeyDto = z.object({
   scopeId: z.string(),
   /** The connection the key's scope reads. */
   connectionId: z.string().nullable(),
-  /** `browser` | `server`. */
-  kind: z.enum(['browser', 'server']),
+  /** `browser` | `server` | `app` (a phone app's key, made by an app's install; never by this API). */
+  kind: z.enum(['browser', 'server', 'app']),
   access: z.array(publicKeyAccessDto),
   /**
    * The key's stored document compiled against the schema as it is now.

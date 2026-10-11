@@ -80,7 +80,7 @@ import { resolveLabel, type HostedSurface, type SurfaceSide } from '../cli/surfa
 import { AppError, AppUnavailableError, ForbiddenError, NotFoundError } from '../errors.js';
 import { bcp47 } from '../i18n/bcp47.js';
 import { loadOverrideMap, recipientLocale } from '../i18n/server-i18n.js';
-import { openPublishableKey } from '../public-api/keys.js';
+import { managedKeyKind, openPublishableKey, servedToPages } from '../public-api/keys.js';
 import { CSRF_FORM_FIELD, normalizeHost } from '../security/csrf.js';
 import {
   appNameOf,
@@ -922,7 +922,7 @@ export const surfacesPlugin = fp<SurfacesPluginOptions>(
       const out: Record<string, string> = {};
       for (const key of await keys.listManagedBy(addOnKey)) {
         if (key.revokedAt !== null || (key.expiresAt !== null && key.expiresAt <= at) || !here.has(key.id)) continue;
-        if (key.kind !== 'browser' || key.purpose === CUSTOMER_KEY_PURPOSE || keyStaffBinding(key) !== null || key.tokenEncrypted === null) continue;
+        if (!servedToPages(managedKeyKind(key.kind)) || key.purpose === CUSTOMER_KEY_PURPOSE || keyStaffBinding(key) !== null || key.tokenEncrypted === null) continue;
         out[key.purpose] = openPublishableKey(crypto, key.tokenEncrypted);
       }
       return out;

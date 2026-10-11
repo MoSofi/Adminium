@@ -44,6 +44,7 @@ import {
   type PublicEndpoint,
   type PublicKey,
 } from '@adminium/meta';
+import { hasVisitorReach, managedKeyKind, refusesBrowserHeaders } from './keys.js';
 import { createHash } from 'node:crypto';
 
 import type { SnapshotView } from '../crud/identifiers.js';
@@ -303,7 +304,7 @@ export function createEndpointService(deps: EndpointServiceDeps) {
       if (!grants && !documentMentions(storedDocument, ref)) continue;
       out.push({
         ref: { id: row.id, name: row.name, prefix: row.prefix, scopeId: row.scopeId },
-        kind: row.kind === 'server' ? 'server' : 'browser',
+        kind: managedKeyKind(row.kind),
         appKey: row.appKey,
         managedBy: row.managedBy,
         access,
@@ -324,7 +325,7 @@ export function createEndpointService(deps: EndpointServiceDeps) {
     for (const scope of await scopes.listByConnection(connectionId)) {
       const document = parseJson(scope.document);
       for (const key of await keys.listByScope(scope.id)) {
-        if (key.kind === 'server' || key.revokedAt !== null || (key.expiresAt !== null && key.expiresAt <= at)) continue;
+        if (!hasVisitorReach(managedKeyKind(key.kind)) || key.revokedAt !== null || (key.expiresAt !== null && key.expiresAt <= at)) continue;
         out.push({ id: key.id, scopeId: scope.id, name: key.name, document });
       }
     }
@@ -447,7 +448,7 @@ export function createEndpointService(deps: EndpointServiceDeps) {
         continue;
       }
       if (newIssues.length > 0) stillBroken.push(key.ref);
-      const gains = key.kind === 'browser' ? wideningOf(key.storedDocument, next.document) : [];
+      const gains = hasVisitorReach(key.kind) ? wideningOf(key.storedDocument, next.document) : [];
       if (gains.length > 0) widened.push({ ...key.ref, gains });
       if (managed.includes(key)) {
         const held = (key.access[endpointId] ?? []).filter((m) => definition.methods.includes(m));
@@ -474,7 +475,7 @@ export function createEndpointService(deps: EndpointServiceDeps) {
       const rewritten = new Map(writes.map((w) => [w.key.ref.id, w.document]));
       const afterSave = held.map((k) => (rewritten.has(k.id) ? { ...k, document: rewritten.get(k.id) } : k));
       for (const w of [...writes]) {
-        if (w.key.kind === 'server') continue;
+        if (!hasVisitorReach(w.key.kind)) continue;
         const self = { id: w.key.ref.id, scopeId: w.key.ref.scopeId };
         const added = newlyRaised(linkIssuesAcross(w.key.storedDocument, self, held), linkIssuesAcross(w.document, self, afterSave));
         if (added.length === 0) continue;
@@ -672,11 +673,11 @@ export function createEndpointService(deps: EndpointServiceDeps) {
       }
       if (total === 0) issues.push({ code: 'KEY_NO_METHOD', message: 'grant at least one method' });
       // A hosted surface is a browser, so its key is a browser key.
-      if (kind === 'server' && input.appKey !== undefined && input.appKey !== null) {
+      if (!hasVisitorReach(kind) && input.appKey !== undefined && input.appKey !== null) {
         issues.push({ code: 'KEY_SERVER_APP_BOUND', message: 'a server key cannot be bound to a hosted app' });
       }
-      if (kind === 'server' && input.origins !== undefined && input.origins.length > 0) {
-        issues.push({ code: 'KEY_SERVER_ORIGINS', message: 'a server key is refused from every browser; it takes no origins' });
+      if (refusesBrowserHeaders(kind) && input.origins !== undefined && input.origins.length > 0) {
+        issues.push({ code: 'KEY_SERVER_ORIGINS', message: `${kind === 'app' ? 'an app' : 'a server'} key is refused from every browser; it takes no origins` });
       }
       if (changed.length > 0) throw new EndpointChanged(changed);
 
@@ -696,7 +697,7 @@ export function createEndpointService(deps: EndpointServiceDeps) {
       if (issues.length === 0) {
         issues.push(...forDerived(derivedDocumentIssues(derivation.document, view, inherited)));
       }
-      if (kind !== 'server') {
+      if (hasVisitorReach(kind)) {
         issues.push(...linkIssuesAcross(derivation.document, { id: null, scopeId: null }, await heldKeys(connectionId, now())));
       }
       if (issues.length > 0) throw new KeyCreateRefused(dedupeIssues(issues));
@@ -795,7 +796,7 @@ export function createEndpointService(deps: EndpointServiceDeps) {
       if (key === undefined || key.managedBy === null) {
         throw new KeyCreateRefused([{ code: 'KEY_REF_UNKNOWN', message: `"${input.keyId}" is not a live key an app made` }]);
       }
-      const kind: PublicKeyKind = key.kind === 'server' ? 'server' : 'browser';
+      const kind: PublicKeyKind = managedKeyKind(key.kind);
       const view = await deps.viewFor(connectionId);
       const inherited = await deps.tenantConfigOf(connectionId);
       const stored = await endpoints.listByConnection(connectionId);
@@ -828,7 +829,7 @@ export function createEndpointService(deps: EndpointServiceDeps) {
         const stored = parseJson(key.scopeDocument);
         issues.push(...forDerived(introducedIssues(derivedDocumentIssues(stored, view, inherited), derivedDocumentIssues(derivation.document, view, inherited))));
       }
-      if (kind !== 'server') {
+      if (hasVisitorReach(kind)) {
         const self = { id: key.id, scopeId: key.scopeId };
         const held = await heldKeys(connectionId, at);
         issues.push(
@@ -874,7 +875,7 @@ export function createEndpointService(deps: EndpointServiceDeps) {
       const key = (await keys.listLiveDerived(connectionId, at)).find((k) => k.id === input.keyId);
       // Only a live key an app made; a hand-made key's access is its owner's.
       if (key === undefined || key.managedBy === null) return { lost: [] };
-      const kind: PublicKeyKind = key.kind === 'server' ? 'server' : 'browser';
+      const kind: PublicKeyKind = managedKeyKind(key.kind);
       const map = endpointMap(await endpoints.listByConnection(connectionId));
       const refOf = new Map([...map.values()].map((e) => [e.id, e.ref]));
       const before = parseAccess(key.access);
@@ -926,7 +927,7 @@ export function createEndpointService(deps: EndpointServiceDeps) {
         const before = parseAccess(key.access);
         if (!Object.keys(before).some((id) => going.has(id))) continue;
         const access = Object.fromEntries(Object.entries(before).filter(([id]) => !going.has(id)));
-        const kind: PublicKeyKind = key.kind === 'server' ? 'server' : 'browser';
+        const kind: PublicKeyKind = managedKeyKind(key.kind);
         changed.push({ id: key.id, scopeId: key.scopeId, access, document: JSON.stringify(deriveScopeDocument({ kind, access }, map, view).document) });
       }
       if (changed.length === 0) return { keys: [] };

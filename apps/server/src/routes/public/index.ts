@@ -115,7 +115,7 @@ import {
   typedDigest,
   type PublicSessionContext,
 } from '../../public-api/claim.js';
-import { generatePublicSessionToken, hashPublishableKey, keyKindOf, openPublishableKey } from '../../public-api/keys.js';
+import { generatePublicSessionToken, hashPublishableKey, hasVisitorReach, keyKindOf, openPublishableKey, refusesBrowserHeaders, servedToPages } from '../../public-api/keys.js';
 import type { RequestStats } from '../../public-api/stats.js';
 import { fetchByPk, parseRecordId, pkLabel } from '../../crud/records.js';
 import { tableRulesFor, unstorableText } from '../../crud/column-rules.js';
@@ -415,7 +415,7 @@ function proofOwed(
   ref: unknown,
 ): ProofPurpose | null {
   // A staff-bound key is a signed-in staff member's screen: no proof asked.
-  if (kind === undefined || key.kind !== 'browser' || key.requiresStaff !== null) return null;
+  if (kind === undefined || !hasVisitorReach(key.kind) || key.requiresStaff !== null) return null;
   if (kind === 'claim') return key.scope.claim?.humanCheck === true ? 'claim' : null;
   const resource = typeof ref === 'string' ? key.scope.byRef.get(ref) : undefined;
   return resource?.humanCheck === true && !proofExcused(resource, session) ? 'write' : null;
@@ -1151,7 +1151,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
       fail(reply, 503, 'PUBLIC_API_DISABLED', 'The public API is turned off for this instance.');
       return null;
     }
-    if (tokenKind === 'server') {
+    if (tokenKind !== null && refusesBrowserHeaders(tokenKind)) {
       /*
        * A server key presented with ANY browser provenance is refused, even
        * from a listed origin. A server key in a page bundle is a server key
@@ -1160,8 +1160,8 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
        * signal `plugins/csrf.ts` reads) or an `Origin` on a cross-origin call.
        */
       const h = request.headers;
-      if (h.origin !== undefined || h['sec-fetch-site'] !== undefined || h['sec-fetch-mode'] !== undefined) {
-        fail(reply, 403, 'PUBLIC_ORIGIN_REFUSED', 'A server key cannot be used from a browser.');
+      if (h.origin !== undefined || h['sec-fetch-site'] !== undefined || h['sec-fetch-mode'] !== undefined || h['sec-fetch-dest'] !== undefined) {
+        fail(reply, 403, 'PUBLIC_ORIGIN_REFUSED', tokenKind === 'app' ? 'An app key cannot be used from a browser.' : 'A server key cannot be used from a browser.');
         return null;
       }
     } else if (!originAllowed) {
@@ -1218,7 +1218,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
      * would mean teaching the mint schema and Studio to accept a non-URL, and
      * that belongs with the binding work, not here.
      */
-    if (key.kind === 'browser' && key.origins.length > 0) {
+    if (servedToPages(key.kind) && key.origins.length > 0) {
       const origin = request.headers.origin;
       if (typeof origin !== 'string' || !key.origins.includes(origin)) {
         fail(reply, 403, 'PUBLIC_ORIGIN_REFUSED', 'This origin is not allowed to use this key.');
@@ -1366,7 +1366,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
       return null;
     }
     const rung = opts.keyWide === false ? null : KEY_RUNGS[limit] ?? null;
-    if (key.kind === 'browser' && (rung === 'read' || rung === 'write')) {
+    if (hasVisitorReach(key.kind) && (rung === 'read' || rung === 'write')) {
       // Reads and writes: within the visitor's share of the key (a signed-in person's own, behind any address), and handed back when the request is refused (`keyHolds`).
       const held = limiter.holdKey(
         key.keyId,
@@ -1383,7 +1383,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         return null;
       }
       keyHolds.set(request, held.ticket);
-    } else if (key.kind === 'browser' && rung !== null && !admit(reply, limiter.hitKey(key.keyId, rung))) {
+    } else if (hasVisitorReach(key.kind) && rung !== null && !admit(reply, limiter.hitKey(key.keyId, rung))) {
       return null;
     }
     // Replies with a session carry that person's rows: never kept by a browser or a cache.
@@ -3987,7 +3987,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           fail(reply, 400, 'PUBLIC_WRITE_REFUSED', message, { index, ...(named ?? {}) });
         // A proved resource takes its creates one at a time, each with its proof:
         // one proof must not buy a batch of rows.
-        if (resource.humanCheck && ok.key.kind === 'browser' && !proofExcused(resource, ok.session) && rows.some((raw) => table.primaryKey.every((c) => !Object.prototype.hasOwnProperty.call(raw, c)))) {
+        if (resource.humanCheck && hasVisitorReach(ok.key.kind) && !proofExcused(resource, ok.session) && rows.some((raw) => table.primaryKey.every((c) => !Object.prototype.hasOwnProperty.call(raw, c)))) {
           return fail(reply, 403, 'PUBLIC_PROOF_REQUIRED', 'Rows here are created one at a time.');
         }
         const keyColumns = table.primaryKey;
@@ -5030,7 +5030,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
     ): boolean => {
       const visitor = { keyId: ok.key.keyId, ip: request.ip, sessionId: ok.session?.id, ref: DOCUMENT_RENDER_REF, kind: ok.key.kind };
       if (!admit(reply, limiter.hitEndpoint(visitor, DOCUMENT_RENDER_LIMITS.visitor))) return false;
-      if (ok.key.kind !== 'browser') return true;
+      if (!hasVisitorReach(ok.key.kind)) return true;
       return admit(reply, limiter.hitEndpoint({ keyId: ok.key.keyId, ip: request.ip, ref: DOCUMENT_RENDER_REF, kind: 'server' }, DOCUMENT_RENDER_LIMITS.key));
     };
 

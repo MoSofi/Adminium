@@ -117,6 +117,7 @@
  */
 
 import { createHmac, randomBytes } from 'node:crypto';
+import { hasVisitorReach, type PublicKeyKind } from './keys.js';
 import { isIPv4, isIPv6 } from 'node:net';
 
 /** Fixed-window counters. */
@@ -404,13 +405,13 @@ export interface RateIdentity {
 
 export interface EndpointRateIdentity extends RateIdentity {
   ref: string;
-  /** `browser` counts per visitor; `server` counts key-wide. */
-  kind: 'browser' | 'server';
+  /** A key with a visitor's reach (`browser`, `app`) counts per visitor; `server` counts key-wide. */
+  kind: PublicKeyKind;
 }
 
 /** The counter identity for an endpoint's own limit. See the header. */
 export function endpointRateKeyFor(id: EndpointRateIdentity): string {
-  if (id.kind === 'server') return `ep|${id.keyId}:${id.ref}`;
+  if (!hasVisitorReach(id.kind)) return `ep|${id.keyId}:${id.ref}`;
   if (id.sessionId !== undefined) return `ep|${id.keyId}:${id.ref}:s:${id.sessionId}`;
   return `ep|${id.keyId}:${id.ref}:ip:${rateAddress(id.ip)}`;
 }
