@@ -5,10 +5,8 @@
  * none to show (not added, packages missing, did not build); and "Open on a
  * phone", the code a real phone scans.
  *
- * There is no design comp for this side. It is built from the build page's
- * own parts: the preview's dotted ground and device, the failed-build card,
- * the kit's Modal. Each place a comp would have decided is numbered in the
- * plan's log (66-T33, M1…).
+ * This side is built from the build page's own parts: the preview's dotted
+ * ground and device, the failed-build card, the kit's Modal.
  */
 import { useId, useState, type ReactNode } from 'react';
 import { Check, Copy, LoaderCircle, QrCode, Smartphone, WandSparkles } from 'lucide-react';
