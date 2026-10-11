@@ -12,13 +12,15 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { applyOverrides } from '../src/connections/effective-schema.js';
 import { rowLimitFor } from '../src/crud/row-limit.js';
+import { loadSnapshotView } from '../src/data-io/snapshot-view.js';
+import { createPublicViews } from '../src/public-api/runtime.js';
 import { resolvePermissionSet } from '../src/rbac/resolver.js';
 import { ENGINES, installHarness, type Harness } from './app-install-harness.js';
 
 const id = { ref: 'id', type: 'int', role: 'pk' };
 const staff = (ref: string, nullable = true) => ({ ref, type: 'text', maxLength: 36, nullable, rules: { staff: true } });
 
-function manifest(version: string, over: { limits?: Record<string, unknown>; belongs?: boolean } = {}): Record<string, unknown> {
+function manifest(version: string, over: { limits?: Record<string, unknown>; belongs?: boolean; notes?: boolean } = {}): Record<string, unknown> {
   return {
     kind: 'app',
     manifestVersion: 1,
@@ -40,6 +42,8 @@ function manifest(version: string, over: { limits?: Record<string, unknown>; bel
         },
         { ref: 'covers', columns: [id, staff('owner_id', false), staff('cover_id', false), { ref: 'starts_on', type: 'date' }, { ref: 'ends_on', type: 'date', nullable: true }] },
         { ref: 'quotes', columns: [id, { ref: 'deal_id', type: 'fk', references: 'deals' }, { ref: 'total', type: 'int' }], ...(over.belongs === false ? {} : { belongs: [{ via: 'deal_id' }] }) },
+        // A manager's note about a rep: private to the two of them.
+        ...(over.notes === true ? [{ ref: 'notes', columns: [id, staff('manager_id', false), staff('rep_id', false), { ref: 'note', type: 'text', maxLength: 200 }], belongs: [{ column: 'manager_id' }, { column: 'rep_id', set: 'team' }], private: true }] : []),
       ],
     },
     pages: [{ ref: 'crm-deals', template: 'page-crud', title: { key: 't', fallback: 'Deals' }, nav: { group: 'library', icon: 'list', order: 1 }, bindings: { rows: 'deals' } }],
@@ -52,6 +56,7 @@ function manifest(version: string, over: { limits?: Record<string, unknown>; bel
       },
       { key: 'manager', name: 'Sales manager', permissions: ['table:@deals:read', 'table:@deals:update', 'table:@deals:delete'], ...(over.belongs === false ? {} : { limits: { deals: { rows: { read: { reach: 'team' }, update: { reach: 'team' }, delete: { reach: 'team', while: { column: 'state', in: ['lost'] } } } } } }) },
       { key: 'junior', name: 'Junior', cloneFrom: 'rep' },
+      ...(over.notes === true ? [{ key: 'lead', name: 'Team lead', permissions: ['table:@notes:read', 'table:@notes:create', 'table:@notes:update'], limits: { notes: { rows: { read: { reach: 'own' }, update: { reach: 'own' } } } } }] : []),
     ],
     frontends: [{ side: 'staff', kind: 'spa', entry: 'index.html' }],
   };
@@ -138,6 +143,25 @@ for (const [dialect, available] of ENGINES) {
       expect((await actionsOf('crm-manager', 'crm_deals'))!.rowLimit).toBeUndefined();
       // The column still holds a staff member: that is the column's own word.
       expect(found.tables.find((table) => table.name === 'crm_deals')!.columns.find((column) => column.name === 'owner_id')!.staff).toBe(true);
+    });
+
+    it('installs a private table: marked, its role held to its own rows, and in no view that reads for somebody else', async () => {
+      const installed = await h.install(manifest('1.3.0', { limits: {}, belongs: false, notes: true }));
+      expect(installed.statusCode, installed.body).toBe(200);
+      const found = await model();
+      const notes = found.tables.find((table) => table.name === 'crm_notes')!;
+      expect(notes.private).toBe(true);
+      expect(notes.belongs).toEqual([{ column: 'manager_id' }, { column: 'rep_id', set: 'team' }]);
+      expect((await actionsOf('crm-lead', 'crm_notes'))!.rowLimit).toEqual({ read: { reach: 'own' }, update: { reach: 'own' } });
+      // The Super Admin, whom nothing else limits, is held to their own rows of it.
+      const owner = await resolvePermissionSet(h.meta, { kind: 'user', id: (await usersRepo(h.meta).list())[0]!.id, label: 'owner' });
+      expect(rowLimitFor({ set: owner, connectionId: h.connectionId, model: found, today: '2026-10-11' }, notes.id, 'read')).not.toBeNull();
+      // A rule, an owner's code, a public door: the table is not in what they read through.
+      const forOthers = await loadSnapshotView(h.meta, h.connectionId, { forOthers: true });
+      expect(() => forOthers.table(notes.id)).toThrow();
+      expect(forOthers.linkTable(notes.id)).toBeNull();
+      expect((await createPublicViews(h.meta).viewFor(h.connectionId))!.linkTable(notes.id)).toBeNull();
+      expect((await loadSnapshotView(h.meta, h.connectionId)).table(notes.id).id).toBe(notes.id);
     });
   });
 }

@@ -27,6 +27,7 @@
  * toast are built on.
  */
 
+import { assertNotPrivate } from '../../crud/row-limit.js';
 import { reachOfRequest, requestReadsWhole } from '../../crud/row-reach-request.js';
 import type { FastifyRequest } from 'fastify';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
@@ -271,7 +272,10 @@ export function automationsRoutes(deps: AutomationsRoutesDeps): FastifyPluginAsy
     for (const { permission, table } of requiredGrants(rule.trigger, rule.graph, rule.connectionId, view, await stepsFor(rule.connectionId))) {
       // What the rule reads, and the row it changes: each of a table its author reaches every row of, for that.
       const action = permission.endsWith(':read') ? 'read' : permission.endsWith(':update') ? 'update' : null;
-      if (action === null || (await requestReadsWhole(meta, request, rule.connectionId, table, action))) continue;
+      if (action === null) continue;
+      // A private table: for everybody, and said as what it is.
+      assertNotPrivate(view?.linkTable(table) ?? null, 'no rule reads or changes it');
+      if (await requestReadsWhole(meta, request, rule.connectionId, table, action)) continue;
       throw new ForbiddenError(`Your role reaches only some rows of ${table}, so this rule cannot use it.`, 'TABLE_FORBIDDEN', { permission, table, reason: 'row-limit' });
     }
   }

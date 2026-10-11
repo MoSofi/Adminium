@@ -124,7 +124,8 @@ export function createProjectDb(deps: ProjectDbDeps, scope: ProjectDbScope): Pro
   function viewFor(connectionId: string): Promise<SnapshotView> {
     let found = views.get(connectionId);
     if (found === undefined) {
-      found = loadSnapshotView(deps.meta, connectionId);
+      // An owner's code acts for the business, not for the person a private row belongs to: private tables are not offered to it.
+      found = loadSnapshotView(deps.meta, connectionId, { forOthers: true });
       views.set(connectionId, found);
     }
     return found;

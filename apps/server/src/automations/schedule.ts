@@ -148,9 +148,15 @@ async function runOneSchedule(input: {
 
   const connectionId = rule.trigger.connectionId;
   if (connectionId === null) return { runsStarted: 0, capped: false };
-  const view = await loadSnapshotView(deps.meta, connectionId);
+  // As a rule reads: a private table is not in its view, and a rule over one starts nothing.
+  const view = await loadSnapshotView(deps.meta, connectionId, { forOthers: true });
   const { db, dialect } = await deps.manager.data(connectionId);
-  const table = view.table(forEach.table);
+  let table: ResolvedTable;
+  try {
+    table = view.table(forEach.table);
+  } catch {
+    return { runsStarted: 0, capped: false };
+  }
 
   const filter = toRecordFilterAll(forEach.where, { table, dialect, now });
   const page = deps.page ?? AUTOMATION_SCAN_PAGE;

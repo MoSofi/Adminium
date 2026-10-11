@@ -16,6 +16,8 @@
  * `format` stores the `pdf | png` intent and the SPA labels delivery "Data
  * snapshot (PDF/PNG rendering arrives in a later release)".
  */
+import type { ResolvedTable } from '../../crud/identifiers.js';
+import { assertNotPrivate } from '../../crud/row-limit.js';
 import type { FastifyRequest } from 'fastify';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import {
@@ -113,12 +115,16 @@ export function scheduledReportsRoutes(deps: ScheduledReportsRoutesDeps): Fastif
     const source = parsed.success ? parsed.data.source : null;
     if (source === null || source.connectionId === null || source.table === null) return;
     let permission: string | null = null;
+    let table: ResolvedTable;
     try {
       const view = await loadSnapshotView(meta, source.connectionId);
-      permission = `table:${source.connectionId}:${view.table(source.table).id}:export`;
+      table = view.table(source.table);
+      permission = `table:${source.connectionId}:${table.id}:export`;
     } catch {
       return; // no snapshot / table gone — the run-time check owns this case
     }
+    // A report is a file of its table sent on a schedule: of a private table, never.
+    assertNotPrivate(table, 'no report of it is scheduled');
     if (!(await request.can(permission))) {
       throw new ForbiddenError(
         'You do not have export access to this report’s table.',

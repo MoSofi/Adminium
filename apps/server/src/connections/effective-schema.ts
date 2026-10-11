@@ -1318,6 +1318,24 @@ function settleSecrets(
   }
 }
 
+/**
+ * The model as whatever reads rows FOR SOMEBODY OTHER than the person signed
+ * in is given it — a rule, a public door, a kiosk's key, an owner's code:
+ * without the private tables, and without the links that touch one. A
+ * private table's rows are read by the people they belong to and by nothing
+ * that acts for anyone else; taken out here, no door of that kind can name
+ * one, whatever it was configured with before the table was marked.
+ */
+export function withoutPrivateTables<M extends Pick<EffectiveModel, 'tables' | 'relations'>>(model: M): M {
+  const held = new Set(model.tables.filter((table) => table.private === true).map((table) => table.id));
+  if (held.size === 0) return model;
+  return {
+    ...model,
+    tables: model.tables.filter((table) => !held.has(table.id)),
+    relations: model.relations.filter((relation) => !held.has(relation.from.tableId) && !held.has(relation.to.tableId) && (relation.through === null || !held.has(relation.through.tableId))),
+  };
+}
+
 /** Apply active override rows (already in created_at order) onto a snapshot model. */
 export function applyOverrides(
   model: DatabaseModel,

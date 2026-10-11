@@ -51,7 +51,7 @@ export function createAutomations(deps: AutomationsRegistration): AutomationsHan
     spec: RelatedCountSpec,
     now: number,
   ): Promise<number> {
-    const view = await loadSnapshotView(deps.meta, connectionId);
+    const view = await loadSnapshotView(deps.meta, connectionId, { forOthers: true });
     const { db, dialect } = await deps.manager.data(connectionId);
     return countRelatedRows({
       db,

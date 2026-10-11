@@ -16,6 +16,7 @@
  *   {@link IMPORTS_MANAGE_PERMISSION}, fail-closed until the key lands).
  * - `GET  /imports/:id/error-report` — the failure-rows CSV.
  */
+import { assertNotPrivate } from '../../crud/row-limit.js';
 import type { FastifyRequest } from 'fastify';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import {
@@ -267,6 +268,7 @@ export function importsRoutes(deps: ImportsRoutesDeps): FastifyPluginAsyncZod {
         const view = await loadSnapshotView(meta, connectionId);
         // Identifier resolution FIRST, then RBAC on the resolved name.
         const table = view.table(tableParam);
+        assertNotPrivate(table, 'no file is brought in to it');
         const permission = `table:${connectionId}:${table.id}:import`;
         if (!(await request.can(permission))) {
           throw new ForbiddenError('You do not have import access to this table.', 'TABLE_FORBIDDEN', {

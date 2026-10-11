@@ -72,7 +72,7 @@ import { documentReads, outboundKey, readsBeyondOwnRow } from '../../documents/c
 import type { ResolvedTable, SnapshotView } from '../../crud/identifiers.js';
 import type { ConnectionManager } from '../../connections/manager.js';
 import type { Row } from '../../crud/mask.js';
-import type { RowAction } from '../../crud/row-limit.js';
+import { assertNotPrivate, type RowAction } from '../../crud/row-limit.js';
 import { bodyReadInPart, documentRowsReached } from '../../documents/row-reach.js';
 import { reachOfRequest, rowsForRequest } from '../../crud/row-reach-request.js';
 import { readsHidden, readViewFor } from '../../crud/read-view.js';
@@ -305,6 +305,18 @@ export function documentRoutes(deps: DocumentRoutesDeps): FastifyPluginAsyncZod 
     return { ok: true };
   }
 
+  /**
+   * A mapping that draws from a private table — as the record it is about,
+   * or as rows it lists — is refused where it is written: no page is drawn
+   * of one (`documents/compose.ts`), so the mapping could never draw.
+   */
+  async function assertReadsNoPrivateTable(profile: Pick<DocumentProfile, 'connectionId' | 'table' | 'mapping' | 'options'>): Promise<void> {
+    const whole = await viewOf(profile.connectionId)();
+    if (whole === null) return;
+    const drawn = { ...profile, mapping: profile.mapping ?? {}, options: profile.options ?? {} } as DocumentProfile;
+    for (const table of await documentReads(drawn, async () => whole)) assertNotPrivate(whole.linkTable(table), 'no document is drawn from it');
+  }
+
   /** A document of rows out of the caller's reach answers as a document that is not there. */
   const hiddenAs = (row: DocumentRow): never => {
     throw new NotFoundError(`Document ${row.id} not found.`);
@@ -501,6 +513,7 @@ export function documentRoutes(deps: DocumentRoutesDeps): FastifyPluginAsyncZod 
         schema: { body: documentProfileCreateBody, response: { 200: documentProfileReply } },
       },
       async (request) => {
+        await assertReadsNoPrivateTable(request.body as unknown as DocumentProfile);
         const profile = await profiles.create({
           ...request.body,
           createdBy: request.user?.id ?? null,
@@ -525,6 +538,7 @@ export function documentRoutes(deps: DocumentRoutesDeps): FastifyPluginAsyncZod 
         // trigger leaves no `automationId` behind to find the rule by, so the
         // reconcile needs the state it is replacing.
         const previous = await profiles.findById(request.params.id);
+        if (previous !== null) await assertReadsNoPrivateTable({ ...previous, ...(request.body as Partial<DocumentProfile>) });
         const profile = await profiles.patch(request.params.id, request.body);
         if (profile === null) throw new NotFoundError(`Profile ${request.params.id} not found.`);
         return toProfileReply(await reconcile(request, profile, previous, request.user?.id ?? null));

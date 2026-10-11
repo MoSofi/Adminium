@@ -161,16 +161,14 @@ describe('a renamed column', () => {
 });
 
 describe('the four words', () => {
-  it('a staff column, the ways and a role\'s rows are run; a private table is read and refused until 0.3.27', () => {
-    for (const word of ['column.staff', 'table.belongs', 'roles.rows'] as const) expect(MANIFEST_WORDS_RUN).toContain(word);
-    expect(UNBUILT_MANIFEST_WORDS).toEqual({ 'table.private': '0.3.27' });
+  it('are all run: a staff column, the ways, a role\'s rows and a private table', () => {
+    for (const word of ['column.staff', 'table.belongs', 'roles.rows', 'table.private'] as const) expect(MANIFEST_WORDS_RUN).toContain(word);
+    expect(UNBUILT_MANIFEST_WORDS).toEqual({});
     const app = {
       kind: 'app',
       requiredSchema: { tables: [{ ref: 'deals', columns: [{ ref: 'owner_id', type: 'text', rules: { staff: true } }], belongs: [{ column: 'owner_id' }], private: true }] },
       roles: [{ key: 'rep', limits: { deals: { rows: { read: { reach: 'own' } } } } }],
     };
-    expect(unbuiltInManifest(app)).toEqual([{ word: 'table.private', path: 'requiredSchema.tables.0.private', release: '0.3.27' }]);
-    const { private: _private, ...open } = app.requiredSchema.tables[0]!;
-    expect(unbuiltInManifest({ ...app, requiredSchema: { tables: [open] } })).toEqual([]);
+    expect(unbuiltInManifest(app)).toEqual([]);
   });
 });

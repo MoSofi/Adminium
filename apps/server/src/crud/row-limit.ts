@@ -33,6 +33,7 @@
  * It imports nothing from `public-api/`: a customer's rows are that layer's
  * business, decided by a key's scope, and never meet this test.
  */
+import { ForbiddenError } from '../errors.js';
 import { BELONGS_VIA_MAX_STEPS } from '@adminium/manifest';
 import { sql, type Expression, type Kysely, type RawBuilder, type SqlBool } from 'kysely';
 
@@ -391,4 +392,19 @@ export function rowRefinement(ctx: RowLimitContext | null, db: Db, table: Resolv
   const condition = test(db, table.name, reads);
   if (ctx.model.dialect === 'mysql' && reads.has(table.id)) return undefined;
   return (query) => query.where(condition);
+}
+
+/**
+ * A PRIVATE table is kept out of everything that is made from a table's rows
+ * and handed on: a file of it, a file brought in to it, a report sent on a
+ * schedule, a printed page, a rule. Each of those outlives the request that
+ * made it or acts for somebody else, and a row of a private table is read by
+ * the people it belongs to, on the screen, and nowhere else. Refused by name
+ * — that the table is private is no secret, it is how the app is written —
+ * and for everybody, its own people and the Super Admin included.
+ */
+export function assertNotPrivate(table: { id: string; name?: string | undefined; table?: { private?: true | undefined } | undefined; private?: true | undefined } | null | undefined, what: string): void {
+  if (table === null || table === undefined) return;
+  if (table.private !== true && table.table?.private !== true) return;
+  throw new ForbiddenError(`${table.name ?? table.id} is private: only the people its rows belong to read it, and ${what}.`, 'TABLE_FORBIDDEN', { table: table.id, reason: 'private' });
 }

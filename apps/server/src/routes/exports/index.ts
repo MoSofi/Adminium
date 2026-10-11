@@ -16,6 +16,7 @@
  * dependency — it is rejected here with a clear 422 (documented
  * deviation).
  */
+import { assertNotPrivate } from '../../crud/row-limit.js';
 import type { FastifyRequest } from 'fastify';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import {
@@ -154,6 +155,7 @@ export function exportsRoutes(deps: ExportsRoutesDeps): FastifyPluginAsyncZod {
         const view = await readViewFor(request, await loadSnapshotView(meta, connectionId));
         // Identifier resolution FIRST, then RBAC on the resolved name.
         const table = view.table(resolved.table);
+        assertNotPrivate(table, 'it is not exported');
         const permission = `table:${connectionId}:${table.id}:export`;
         if (!(await request.can(permission))) {
           throw new ForbiddenError('You do not have export access to this table.', 'TABLE_FORBIDDEN', {

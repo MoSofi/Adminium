@@ -56,11 +56,7 @@ export const UNBUILT_ENTRY_RULES: readonly UnbuiltEntryRule[] = [];
  * to {@link MANIFEST_WORDS_RUN}: every word the manifest package can name is
  * in one of the two, and a test says so.
  */
-export const UNBUILT_MANIFEST_WORDS: Readonly<Partial<Record<ManifestWordName, string>>> = {
-  // Rows read by the people they belong to and nothing else: held until the refusals that keep a rule, a public entry,
-  // a document and an export out of such a table are all in place. A private table that a rule could read would be private in name.
-  'table.private': '0.3.27',
-};
+export const UNBUILT_MANIFEST_WORDS: Readonly<Partial<Record<ManifestWordName, string>>> = {};
 
 /** The newer words of a manifest this server runs: nothing is refused for using one. */
 export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
@@ -161,6 +157,9 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   'roles.rows',
   // A record's button that hands its row to anybody a role could not otherwise name.
   'states.handOver',
+  // Rows read by the people they belong to and by nothing else: not in the view a rule, a public door, a kiosk's key or an owner's
+  // code reads through, and refused by name as a file out, a file in, a scheduled report and a document.
+  'table.private',
 ];
 
 export interface UnbuiltWord {

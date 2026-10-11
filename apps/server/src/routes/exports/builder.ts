@@ -32,7 +32,7 @@ import { pagesRepo, viewsRepo, type MetaDb, type Page } from '@adminium/meta';
 
 import type { ConnectionManager, SourceDatabase } from '../../connections/manager.js';
 import { countWithin } from '../../crud/count-within.js';
-import type { RowLimitContext } from '../../crud/row-limit.js';
+import { assertNotPrivate, type RowLimitContext } from '../../crud/row-limit.js';
 import { limitProjections, rowLimitContextOf, rowTestOf } from '../../crud/row-limit-context.js';
 import { LIST_LIMIT_MAX, runList } from '../../crud/list.js';
 import { canReadPii, piiCheckFor } from '../../crud/mask.js';
@@ -104,6 +104,7 @@ export async function registerBuilderRoutes(
     rowLimitContextOf(meta, await app.rbac.resolve(request), connectionId, view.model);
 
   async function exportGrant(request: FastifyRequest, connectionId: string, table: ResolvedTable): Promise<void> {
+    assertNotPrivate(table, 'it is not exported');
     const permission = `table:${connectionId}:${table.id}:export`;
     if (!(await request.can(permission))) {
       throw new ForbiddenError('You do not have export access to this table.', 'TABLE_FORBIDDEN', { permission });
@@ -161,6 +162,8 @@ export async function registerBuilderRoutes(
         // sample ledger is one), and resolving it would refuse the whole list.
         if (modelTable.system || modelTable.excluded === true) continue;
         const table = view.table(modelTable.id);
+        // A private table is not exported, so it is not offered.
+        if (modelTable.private === true) continue;
         const canExport = await request.can(`table:${connectionId}:${table.id}:export`);
         let rowCountEstimate = modelTable.rowCountEstimate ?? null;
         // A table this person reads in part: how many rows it holds in all is not theirs to be told; what they would export is counted.

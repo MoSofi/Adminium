@@ -726,7 +726,14 @@ interface PublicAccessContext {
   /** The table's limits, as it declares them (absent: the caller does not say). */
   capacityOf?: (table: string) => Capacity | undefined;
   publicKeys: Readonly<Record<string, PublicKey>> | undefined;
-  roles: readonly { key: string; screensOnly?: boolean | undefined; cloneFrom?: string | undefined; permissions?: readonly string[] | undefined }[];
+  roles: readonly {
+    key: string;
+    screensOnly?: boolean | undefined;
+    cloneFrom?: string | undefined;
+    permissions?: readonly string[] | undefined;
+    /** What the role is limited to, by table: read here only for whether its rows are (`rows`). */
+    limits?: Readonly<Record<string, { rows?: unknown } | undefined>> | undefined;
+  }[];
   /** The app's outbox, for a new link it emails (absent: the app has none). */
   outbox?:
     | { table: string; kinds: Readonly<Record<string, string>>; columns: { repeatKey?: string | undefined }; links?: Readonly<Record<string, string>> | undefined; recipient?: ResendOutbox['recipient'] | undefined; producers?: ResendOutbox['producers'] }
@@ -857,6 +864,23 @@ export function publicAccessIssues(entries: readonly PublicAccess[], ctx: Public
       out.push({
         path: [...at, 'requiresStaff', 'role'],
         message: `"${role.key}" signs in a screen anyone can walk up to, so it opens only the app's screens: screensOnly, and no grant but app:@:staff`,
+      });
+    }
+    /*
+     * A SCREEN'S KEY IS NOT HELD TO A PERSON'S ROWS: its entries show what
+     * they declare to everybody who signs the screen in. A role that reaches
+     * only some rows of a table says the opposite of the same people, so the
+     * two are never written together: the table is either shown on the
+     * screen to all of them, or limited by rows and kept off it.
+     */
+    if (role !== undefined) {
+      entries.forEach((entry, i) => {
+        if (entry.key === name && role.limits?.[entry.table]?.rows !== undefined) {
+          out.push({
+            path: ['publicAccess', i, 'table'],
+            message: `"${name}" shows "${entry.table}" to everybody signed in as "${role.key}", and that role reaches only some of its rows: a screen's key is not held to a person's rows, so give the table one or the other`,
+          });
+        }
       });
     }
     if (key.enabledBy !== undefined) {

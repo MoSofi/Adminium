@@ -102,7 +102,8 @@ export async function pollWatchedTables(deps: WatchPollDeps): Promise<WatchTickR
     try {
       let view = views.get(connectionId);
       if (view === undefined) {
-        view = await loadSnapshotView(deps.meta, connectionId);
+        // As a rule reads: a private table is not in its view (the lookup below then fails, and the rule is passed over).
+        view = await loadSnapshotView(deps.meta, connectionId, { forOthers: true });
         views.set(connectionId, view);
       }
       let handle = handles.get(connectionId);

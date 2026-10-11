@@ -18,6 +18,7 @@
  * Every skipped row lands in the error-report CSV (`error_report_file_id`).
  * The invariant holds either way: total = inserted + updated + skipped.
  */
+import { tableFrameReach } from '../widget-data/stream-publisher.js';
 import {
   auditRepo,
   filesRepo,
@@ -33,7 +34,7 @@ import type { ConnectionManager, SourceDatabase } from '../connections/manager.j
 import type { ResolvedColumn, ResolvedTable, SnapshotView } from '../crud/identifiers.js';
 import { tableRulesFor, type FieldIssues } from '../crud/column-rules.js';
 import type { Row } from '../crud/mask.js';
-import { rowRefinement, writerReaches, type RowLimitContext } from '../crud/row-limit.js';
+import { assertNotPrivate, rowRefinement, writerReaches, type RowLimitContext } from '../crud/row-limit.js';
 import { rowLimitContextForUser, rowLimitContextOf, rowTestOf } from '../crud/row-limit-context.js';
 import { assertLinksReached, assertStaffColumns } from '../crud/row-writes.js';
 import {
@@ -182,6 +183,7 @@ async function runImport(
   const view = await loadSnapshotView(deps.meta, row.connectionId);
   const table = view.table(row.tableName);
   if (table.readOnly) throw new Error(`Table ${table.id} is read-only.`);
+  assertNotPrivate(table, 'no file is brought in to it');
 
   const upload = await files.findById(row.fileId);
   if (upload === null) throw new Error(`import-run: upload file row missing: ${row.fileId}`);
@@ -586,9 +588,7 @@ async function runImport(
     // subscribable widget-data channel — parseChannel (realtime/hub.ts) knows
     // no `table:` prefix, so only the second one ever reaches a client.
     deps.hub.publish(`table:${row.connectionId}:${table.id}`, 'record.bulk-create', { count: inserted });
-    deps.hub.publish(widgetDataChannel(row.connectionId, table.id), 'record.bulk-create', {
-      count: inserted,
-    });
+    deps.hub.publish(widgetDataChannel(row.connectionId, table.id), 'record.bulk-create', { count: inserted }, undefined, tableFrameReach(table));
   }
   ctx.progress(100, { step: 'done', message: `${inserted + updated} of ${total} rows imported` });
   ctx.log('import-run: succeeded', { importId: row.id, ...stats });

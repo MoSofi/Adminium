@@ -50,7 +50,7 @@ import {
 } from '@adminium/meta';
 
 import type { ConnectionManager, SourceDatabase } from '../connections/manager.js';
-import type { SnapshotView } from '../crud/identifiers.js';
+import type { ResolvedTable, SnapshotView } from '../crud/identifiers.js';
 import type { Row } from '../crud/mask.js';
 import { fetchByPk } from '../crud/records.js';
 import { loadSnapshotView } from '../data-io/snapshot-view.js';
@@ -476,9 +476,15 @@ async function openSource(
 ): Promise<ActionSource | null | 'gone'> {
   const record = event.record;
   if (record === null) return null;
-  const view: SnapshotView = await loadSnapshotView(deps.meta, record.connectionId);
+  // As a rule reads: a private table is not in its view. A run set off by a row of one (a rule older than the mark) finds no record.
+  const view: SnapshotView = await loadSnapshotView(deps.meta, record.connectionId, { forOthers: true });
   const { db, dialect } = await deps.manager.data(record.connectionId);
-  const table = view.table(record.table);
+  let table: ResolvedTable;
+  try {
+    table = view.table(record.table);
+  } catch {
+    return 'gone';
+  }
   // A `deleted` trigger is about a row that is SUPPOSED to be gone, so the row
   // as it was is the run's record — there is nothing to re-read. Its values,
   // not the trace's masked `snapshot` (a code there reads `[code]`); a run

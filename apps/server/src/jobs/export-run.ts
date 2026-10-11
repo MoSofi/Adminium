@@ -16,6 +16,7 @@
  * `json` is JSON-lines (one object per line). `xlsx` is rejected at the
  * route; a row that reaches here anyway fails cleanly.
  */
+import { assertNotPrivate } from '../crud/row-limit.js';
 import { permissionSetAllows, resolvePermissionSet } from '../rbac/resolver.js';
 import {
   auditRepo,
@@ -160,6 +161,8 @@ async function runExport(
   const whole = await loadSnapshotView(deps.meta, row.connectionId);
   const view = payload.userId === undefined ? whole : await readViewForUser(deps.meta, payload.userId, whole);
   const table = view.table(row.source.table);
+  // A table marked private since the file was asked for (or a report scheduled): not written.
+  assertNotPrivate(table, 'it is not exported');
   // …and only while they may still export the table at all: a grant taken away since they asked is not outlived by the queue.
   if (payload.userId !== undefined && !permissionSetAllows(await resolvePermissionSet(deps.meta, { kind: 'user', id: payload.userId, label: payload.userId }), `table:${row.connectionId}:${table.id}:export`)) {
     throw new Error('You no longer have export access to this table.');

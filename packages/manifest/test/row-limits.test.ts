@@ -208,6 +208,23 @@ describe('a role’s rows', () => {
   });
 });
 
+describe('a screen anyone can walk up to (a staff-bound key)', () => {
+  const floor = { key: 'floor', name: 'Shop floor', screensOnly: true, permissions: ['app:@:staff'] };
+  const screen = (limits?: Doc) => manifest({
+    roles: [rep, manager, accounts, limits === undefined ? floor : { ...floor, limits }],
+    extra: { publicKeys: { kiosk: { requiresStaff: { role: 'floor' } } }, publicAccess: [{ key: 'kiosk', table: 'deliveries', methods: ['GET'], select: ['id'] }] },
+  });
+  const said = 'publicAccess.0.table: "kiosk" shows "deliveries" to everybody signed in as "floor", and that role reaches only some of its rows: a screen\'s key is not held to a person\'s rows, so give the table one or the other';
+
+  it('is not bound to a role that reaches only some rows of a table it shows', () => {
+    expect(messages(screen({ deliveries: { rows: { read: own } } })).join(' || ')).toContain(said);
+  });
+
+  it('shows a table its role does not limit by rows, whatever other roles do', () => {
+    expect(messages(screen()).filter((message) => message.includes('a screen\'s key is not held'))).toEqual([]);
+  });
+});
+
 describe('a private table', () => {
   it('says whose its rows are, by its own staff columns', () => {
     expect(messages(manifest({ tables: withTable('one_to_ones', ({ belongs: _gone, ...table }) => table) }))).toContain('requiredSchema.tables.10.private: a private table says whose its rows are: give it "belongs"');

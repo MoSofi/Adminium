@@ -583,6 +583,9 @@ export function createDocumentPipeline(deps: DocumentPipelineDeps): RenderDeps {
     readSource: async ({ profile, pk, period, locale, at, readFilters, withhold, reader }): Promise<SourceRead | null> => {
       const view = await loadSnapshotView(deps.meta, profile.connectionId);
       const { db, dialect } = await deps.manager.data(profile.connectionId);
+      // No page is drawn of a private table, or one that lists its rows, for anybody: a page outlives the screen it was asked from.
+      const reads = await documentReads(profile, async () => view);
+      if (reads.some((table) => view.linkTable(table)?.table.private === true)) return null;
       /*
        * WHOSE ROWS. Drawn for a staff member who asked for it, the document is
        * of a record they reach, and of other tables they read whole (`row-
@@ -591,7 +594,7 @@ export function createDocumentPipeline(deps: DocumentPipelineDeps): RenderDeps {
        */
       if (reader !== undefined) {
         const rows = await rowLimitContextForUser(deps.meta, reader, profile.connectionId, view.model);
-        const reached = await documentRowsReached({ rows, view, db: async () => db as Kysely<SourceDatabase>, head: profile.table, pk: pk as Row, reads: await documentReads(profile, async () => view), beyondRow: readsBeyondOwnRow(profile, view), action: 'read' });
+        const reached = await documentRowsReached({ rows, view, db: async () => db as Kysely<SourceDatabase>, head: profile.table, pk: pk as Row, reads, beyondRow: readsBeyondOwnRow(profile, view), action: 'read' });
         if (!reached) return null;
       }
       return await readProfileSource({
