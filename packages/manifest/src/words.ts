@@ -113,6 +113,8 @@ export const WORD_FLOORS: Readonly<Partial<Record<ManifestWordName, string>>> = 
   // What a template writes when a value is missing: a block tied to a value, a backup after a bar.
   'email.showWhen': '0.3.22',
   'placeholder.backup': '0.3.22',
+  // An app with a phone side: the side `mobile`, kind `expo`.
+  'frontend.mobile': '0.3.26',
 };
 
 /** Every word of `document` that needs the install floor, in document order. */

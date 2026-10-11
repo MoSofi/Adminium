@@ -1,5 +1,28 @@
 # @adminium/dashboard
 
+## 0.3.26
+
+### Patch Changes
+
+- 4f48542: OpenAI's current models work again. The Designer's requests with tools were refused by every OpenAI model that reasons (`gpt-6-luna` and its family); it now asks with the model's reasoning off, which is how OpenAI's Chat Completions address takes tools from such a model. The assistant and schema enrichment were refused too (`max_tokens`, then temperature 0): they now send `max_completion_tokens`, and keep temperature 0 by switching the reasoning off where a model asks for that. OpenAI-compatible servers are sent what they were sent before.
+  
+  The model lists shown before a provider answers are the current ones (Claude Sonnet 5.5, Haiku 5.5, Opus 5.5, Fable 5.1; GPT-6.1 Sol, GPT-6 Luna, GPT-6 Astra), and OpenAI's list no longer offers its models that do not chat (speech, live audio, pictures, search). Both were tried through the Designer on real requests: see "Models tried" in the Designer's guide.
+- c211312: An app can have a phone app for its customers: a third side, `mobile`, an Expo (React Native) project in `apps/<key>/mobile/`. `adminium app new <key> --mobile` writes one, and the Designer's "what to build" menu has **Mobile**. Adding one installs Expo's packages (about 350 MB), and a person is asked first; `adminium app approve-build` gives that yes for a phone side that came from elsewhere.
+  
+  In the Designer the preview has a **Phone app** side: the app in a phone's frame, built for the web by Expo. **Open on a phone** shows a code that a phone with Expo Go, on the same network, scans to run the real app against this computer's data. Nothing is sent to anyone else, and the Designer itself stays on this computer. A phone side is a preview of a project being designed or developed: `adminium start`, a packed app and an installed app never serve it.
+  
+  An app with a phone side gets an **app key** (`adm_app_…`) beside its customer key when it is installed. It reaches what the customer key reaches, needs no `Origin`, and is refused from a browser. Studio's API keys page lists it as "PHONE APP"; an update that adds a phone side asks before making it. A server key is now also refused when a request carries `Sec-Fetch-Dest`.
+  
+  New skill for coding agents: `adminium-mobile`.
+- Updated dependencies [c211312]
+  - @adminium/i18n@0.3.26
+  - @adminium/charts@0.3.26
+  - @adminium/widgets@0.3.26
+  - @adminium/engine@0.3.26
+  - @adminium/add-on-contracts@0.3.26
+  - @adminium/tokens@0.3.26
+  - @adminium/ui@0.3.26
+
 ## 0.3.25
 
 ### Patch Changes
