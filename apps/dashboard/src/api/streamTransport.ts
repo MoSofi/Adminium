@@ -180,6 +180,8 @@ export function createStreamTransport(options: StreamTransportOptions = {}): Das
       connected = false;
       listeners.clear();
       statusListeners.clear();
+      for (const timer of held.values()) clearTimeout(timer);
+      held.clear();
     },
   };
 }

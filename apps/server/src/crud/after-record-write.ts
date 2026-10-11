@@ -202,7 +202,7 @@ export async function emitRecordEvent(app: FastifyInstance, event: RecordWriteEv
  */
 export function publishChildWrite(
   app: FastifyInstance,
-  input: { connectionId: string; table: ResolvedTable; action: RecordWriteAction; pk: Row; row: Row | null },
+  input: { connectionId: string; table: ResolvedTable; action: RecordWriteAction; pk: Row; row: Row | null; /** The row as it was before an update, when the caller has it. */ before?: Row | null | undefined },
 ): void {
   invalidateWidgetData(app, input.connectionId, input.table.id);
   if (!app.hasDecorator('realtime')) return;
@@ -212,6 +212,7 @@ export function publishChildWrite(
     type: `record.${input.action}`,
     pk: input.pk,
     row: input.row,
+    ...(input.before === undefined || input.action !== 'update' ? {} : { before: input.before }),
   });
 }
 

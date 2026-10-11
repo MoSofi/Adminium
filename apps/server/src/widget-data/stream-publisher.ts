@@ -51,14 +51,28 @@ export interface WidgetStreamMutation {
  * stored, before anything is masked for the wire.
  */
 function reachOf(mutation: WidgetStreamMutation): FrameReach {
-  const table = mutation.table.table as { belongs?: readonly ({ column: string; person?: string } | { through: unknown } | { via: string })[]; private?: true } | undefined;
+  const table = mutation.table.table as { columns?: readonly { name: string; staff?: true | undefined }[]; belongs?: readonly ({ column: string; person?: string } | { through: unknown } | { via: string })[]; private?: true } | undefined;
   const ways = table?.belongs ?? [];
-  const plain = ways.every((way) => 'column' in way && way.person === undefined);
-  const columns = plain ? ways.map((way) => (way as { column: string }).column) : null;
-  const image = (row: Row | null | undefined): Record<string, unknown> | null => (columns === null || row === null || row === undefined ? null : Object.fromEntries(columns.map((column) => [column, row[column]])));
+  /*
+   * As the test a query carries reads a way (`crud/row-limit.ts`), and no
+   * looser: a plain way counts only while its column is there and is marked
+   * as holding a staff member. A way that goes anywhere else, or that cannot
+   * be read as written (a column dropped or unmarked since), leaves nothing
+   * here to tell whose the row is — and then nobody is told a row at all.
+   */
+  const readable = ways.every((way) => 'column' in way && way.person === undefined && table?.columns?.some((column) => column.name === way.column && column.staff === true) === true);
+  const columns = readable ? ways.map((way) => (way as { column: string }).column) : null;
+  // An image that lacks one of the columns (a caller that handed over part of a row) is no image to judge by.
+  const image = (row: Row | null | undefined): Record<string, unknown> | null =>
+    columns === null || row === null || row === undefined || columns.some((column) => !(column in row)) ? null : Object.fromEntries(columns.map((column) => [column, row[column]]));
   const row = image(mutation.row);
   // A deleted row's frame carries the row as it was: that is both of its images.
   return { private: table?.private === true, columns, before: mutation.before === undefined ? (mutation.type === 'record.delete' ? row : null) : image(mutation.before), after: row };
+}
+
+/** What a frame that names no row says of its table, for a publisher with nothing but the table in hand (a file brought in). */
+export function tableFrameReach(table: ResolvedTable): FrameReach {
+  return { private: (table.table as { private?: true } | undefined)?.private === true, columns: null, before: null, after: null };
 }
 
 /**

@@ -68,30 +68,43 @@ const bare = (event: RealtimeEvent): RealtimeEvent => ({ ...event, data: { type:
  *  - It is not theirs and was not: NOTHING. Not a key, not a "something
  *    changed": a colleague's work is not announced to them.
  *  - Whose it is cannot be told from the row alone — the table's people are
- *    found through a person's row, a listing or a parent, or the limit holds
- *    only while a column has some value, or the frame names no row (an undo,
- *    a file brought in): a bare "this table changed", for the screen to ask
- *    again through the door that does know.
+ *    found through a person's row, a listing or a parent, or a way of it can
+ *    no longer be read, or the frame names no row (an undo, a file brought
+ *    in): a bare "this table changed", for the screen to ask again through
+ *    the door that does know.
+ *  - It is theirs by its people, and the role reaches it only while a column
+ *    holds some value: the same bare frame, and never one for a row that is
+ *    not theirs by its people.
  */
 function forRowsReached(event: RealtimeEvent, permissions: PermissionSet, user: RealtimeUser, connectionId: string, table: string): RealtimeEvent | null {
   const reach = frameReachOf(event);
+  const data = event.data as { pk?: unknown; row?: unknown } | null;
+  const named = data !== null && typeof data === 'object' && ((data.pk !== null && data.pk !== undefined) || (data.row !== null && data.row !== undefined));
+  // A frame that names a row and came with nothing said of whose it is: no publisher sends one, and one that did is told to nobody as a row.
+  if (reach === undefined && named) return bare(event);
   // Private: their own rows, for everybody. Else what their roles say, which for nearly everyone is nothing.
   const reaches: readonly RowReach[] | null = reach?.private === true ? [{ reach: 'own' }] : rowReachesOf(permissions, connectionId, table, 'read');
   if (reaches === null) return event;
-  const data = event.data as { pk?: unknown; row?: unknown } | null;
-  const named = data !== null && typeof data === 'object' && ((data.pk !== null && data.pk !== undefined) || (data.row !== null && data.row !== undefined));
-  if (reach === undefined || reach.columns === null || !named || reaches.some((one) => one.while !== undefined || one.reach === 'all')) return bare(event);
+  if (reach === undefined || reach.columns === null || !named) return bare(event);
   // A frame about a row that came with no image of it (a file hung on a record): nothing to judge by.
   if (reach.after === null && reach.before === null) return bare(event);
   const columns = reach.columns;
   const led = permissions.reach?.ledIds ?? [];
-  const holds = (image: Readonly<Record<string, unknown>> | null): boolean => {
-    if (image === null || columns.length === 0) return false;
-    const people = columns.map((column) => image[column]).filter((value): value is string => typeof value === 'string' && value !== '');
-    return reaches.some((one) => (one.unowned === true && people.length === 0) || people.includes(user.id) || (one.reach === 'team' && people.some((person) => led.includes(person))));
+  /** Whether a role's reach holds an image of the row: by who is in its staff columns, whatever else the reach asks. */
+  const holds = (one: RowReach, image: Readonly<Record<string, unknown>> | null): boolean => {
+    if (image === null) return false;
+    if (one.reach === 'all') return true;
+    if (columns.length === 0) return false;
+    // Somebody is in a column that holds anything but nothing, as the query's own test reads it.
+    const people = columns.map((column) => image[column]).filter((value) => value !== null && value !== undefined && value !== '').map((value) => String(value));
+    return (one.unowned === true && people.length === 0) || people.includes(user.id) || (one.reach === 'team' && people.some((person) => led.includes(person)));
   };
-  if (holds(reach.after)) return event;
-  if (holds(reach.before)) return { ...event, data: { type: event.type, pk: (data as { pk?: unknown }).pk ?? null, row: null } };
+  // The whole frame: a reach that asks nothing more of the row holds it as it is now.
+  if (reaches.some((one) => one.while === undefined && holds(one, reach.after))) return event;
+  // It was theirs and is a colleague's now: its key, and no row.
+  if (reaches.some((one) => one.while === undefined && holds(one, reach.before))) return { ...event, data: { type: event.type, pk: (data as { pk?: unknown }).pk ?? null, row: null } };
+  // Theirs by its people, and whether it also holds the value the reach asks for is not told here: the screen asks again.
+  if (reaches.some((one) => holds(one, reach.after) || holds(one, reach.before))) return bare(event);
   return null;
 }
 

@@ -146,6 +146,48 @@ for (const [dialect, available] of ENGINES) {
       expect(JSON.stringify([got['omar'], got['owner']])).not.toContain('September');
     });
 
+    it('a role that reaches its own rows only while a column holds a value is told of none of a colleague\'s', async () => {
+      await w.role('opener', { deals: { actions: ['read'] }, followups: { actions: ['read'], rows: { read: { reach: 'own', while: { column: 'note', in: ['Open'] } } } } });
+      await w.give('kim', 'opener');
+      await w.run(`INSERT INTO followups (id, deal_id, owner_id, note) VALUES (60, 1, '${w.people.kim}', 'Open')`);
+      const stop = await watch('followups', ['kim']);
+      // Omar's follow-up 2: not hers by its people, whatever its note.
+      await call('lena', 'PATCH', `${table('followups')}/2`, { values: { note: 'Open' } });
+      // Her own: hers by its people, and whether the note still fits is for the screen to ask.
+      await call('lena', 'PATCH', `${table('followups')}/60`, { values: { note: 'Closed' } });
+      const got = await stop();
+      expect(got['kim']).toEqual([{ type: 'record.update', pk: null, row: null, changed: true }]);
+      await w.run('DELETE FROM followups WHERE id = 60');
+    });
+
+    it('a way that can no longer be read tells nobody a row, where "nobody owns it" would have told everybody', async () => {
+      await w.role('inbox', { followups: { actions: ['read'], rows: { read: { reach: 'own', unowned: true } } } });
+      await w.give('sam', 'inbox');
+      // The owner column loses its mark: no row is anybody's by it any more, and none is "nobody's" either.
+      await w.meta.db.deleteFrom('adminium_schema_overrides').where('connectionId', '=', w.connectionId).where('op', '=', 'column.staff' as never).where('tableName', '=', w.id('followups')).execute();
+      try {
+        const stop = await watch('followups', ['sam', 'lena']);
+        await call('lena', 'PATCH', `${table('followups')}/2`, { values: { note: 'Unmarked' } });
+        const got = await stop();
+        expect(got['sam']).toEqual([{ type: 'record.update', pk: null, row: null, changed: true }]);
+        expect(JSON.stringify(got['sam'])).not.toContain('Unmarked');
+        expect(got['lena']).toHaveLength(1);
+        // …as a list answers her nothing of that table.
+        const listed = await w.app.inject({ method: 'GET', url: `/api/v1/data/${w.connectionId}/${table('followups')}`, headers: { cookie: await as('sam') } });
+        expect((JSON.parse(listed.body) as { data: unknown[] }).data).toEqual([]);
+      } finally {
+        const { overridesRepo } = await import('@adminium/meta');
+        await overridesRepo(w.meta).create({ connectionId: w.connectionId, op: 'column.staff', tableName: w.id('followups'), columnName: 'owner_id', value: { staff: true }, origin: 'user' });
+      }
+    });
+
+    it('a frame that names a row and says nothing of whose it is goes to nobody as a row', async () => {
+      const stop = await watch('followups', ['lena', 'dana']);
+      w.app.realtime.publish(widgetDataChannel(w.connectionId, w.id('followups')), 'record.update', { type: 'record.update', pk: { id: 2 }, row: { id: 2, note: 'From nowhere' } });
+      const got = await stop();
+      for (const who of ['lena', 'dana']) expect(got[who], who).toEqual([{ type: 'record.update', pk: null, row: null, changed: true }]);
+    });
+
     it('a team change holds from the next frame on', async () => {
       const { teamsRepo } = await import('@adminium/meta');
       const teams = teamsRepo(w.meta);

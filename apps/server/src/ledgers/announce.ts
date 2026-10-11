@@ -78,7 +78,7 @@ export async function announcePostings(app: FastifyInstance, input: PostingsAnno
       await safely('telling its rows', async () => {
         const pk = Object.fromEntries(written.table.primaryKey.map((column) => [column, written.row[column]]));
         const action = written.before === null ? 'create' : 'update';
-        publishChildWrite(app, { connectionId, table: written.table, action, pk, row: written.row });
+        publishChildWrite(app, { connectionId, table: written.table, action, pk, row: written.row, ...(written.before === null ? {} : { before: written.before }) });
         if (await heard(written.table.id)) {
           await emitRecordEvent(app, { ...event, table: written.table, action, entity: { connectionId, table: written.table.id, pk, label: pkLabel(written.table, pk) }, before: written.before, after: written.row });
         }
