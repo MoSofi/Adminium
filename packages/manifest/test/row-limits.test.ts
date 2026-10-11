@@ -138,7 +138,7 @@ describe('belongs', () => {
     expect(messages(manifest({ tables: through({ user: 'deal_id' }) }))).toContain(
       'requiredSchema.tables.0.belongs.0.through.user: "deal_members.deal_id" does not hold a staff member: mark it (rules.staff), or say which column of the row it links to does (person)',
     );
-    expect(messages(manifest({ tables: through({ from: 'deal_id' }) }))).toContain('requiredSchema.tables.0.belongs.0.through.from: "deal_members.deal_id" is not a date or a time');
+    expect(messages(manifest({ tables: through({ from: 'deal_id' }) }))).toContain('requiredSchema.tables.0.belongs.0.through.from: "deal_members.deal_id" is not a date');
     expect(messages(manifest({ tables: through({ to: 'until' }) }))).toContain('requiredSchema.tables.0.belongs.0.through.to: "deal_members" has no column "until"');
     expect(messages(manifest({ tables: withTable('deals', (table) => ({ ...table, belongs: [{ through: { table: 'deals', link: 'id', on: 'id', user: 'owner_id' } }] })) }))).toContain(
       'requiredSchema.tables.0.belongs.0.through.table: a table does not list the people of its own rows: use a column',

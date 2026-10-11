@@ -1389,7 +1389,11 @@ export function belongsRuleIssue(raw: unknown, table: TableModel, model: Databas
       const issue = person(list, through['user'], through['person']);
       if (issue !== null) return issue;
       for (const key of ['from', 'to'] as const) {
-        if (through[key] !== undefined && !has(list, through[key])) return `${JSON.stringify(through[key])} is not a column of ${list.name}.`;
+        if (through[key] === undefined) continue;
+        const dated = list.columns.find((c) => c.name === through[key]);
+        if (dated === undefined) return `${JSON.stringify(through[key])} is not a column of ${list.name}.`;
+        // A day, never a time of day: the listing counts on the business's calendar day.
+        if (dated.logicalType !== 'date') return `A listing counts from one day to another; ${JSON.stringify(through[key])} of ${list.name} is ${dated.logicalType}.`;
       }
     }
   }

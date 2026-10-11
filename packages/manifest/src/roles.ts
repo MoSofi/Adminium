@@ -95,7 +95,7 @@ export const STAFF_SET_RULES = ['self', 'team', 'anyone'] as const;
  *  - `through`: a table that lists people against the row — its `link` holds
  *    this row's key (or this row's `on` column), its `user` the staff member
  *    (or, with `person`, a link to the row that holds one), and `from` / `to`
- *    the days the listing counts on (cover for a colleague on leave);
+ *    the days the listing counts on, both `date` columns (cover for a colleague on leave);
  *  - `via`: whoever belongs to the row this link points at (a quote's deal).
  */
 export const belongsWaySchema = z.union([
@@ -295,7 +295,8 @@ export function rowTablesOf(tables: readonly BelongsTableShape[]): RowTables {
 export function belongsIssues<C extends ColumnShape>(tables: readonly BelongsTableShape[], index: TableIndex<C>, isStaff: (table: string, column: string) => boolean): ReferenceIssue[] {
   const out: ReferenceIssue[] = [];
   const byRef = new Map(tables.map((table) => [table.ref, table]));
-  const DATES: readonly string[] = ['date', 'timestamptz'];
+  // A listing counts by the day: a time of day would make "today" a question of whose clock.
+  const DATES: readonly string[] = ['date'];
   /** The staff column `column` of `table`, or — with `person` — the link `column` and the staff column of the row it points at. */
   const person = (table: string, column: string, personRef: string | undefined, at: (string | number)[], key: string): void => {
     const found = index.column(table, column);
@@ -355,7 +356,7 @@ export function belongsIssues<C extends ColumnShape>(tables: readonly BelongsTab
           if (ref === undefined) continue;
           const found = index.column(through.table, ref);
           if (found === undefined) out.push({ path: [...at, 'through', key], message: `"${through.table}" has no column "${ref}"` });
-          else if (!DATES.includes(found.type)) out.push({ path: [...at, 'through', key], message: `"${through.table}.${ref}" is not a date or a time` });
+          else if (!DATES.includes(found.type)) out.push({ path: [...at, 'through', key], message: `"${through.table}.${ref}" is not a date` });
         }
         return;
       }

@@ -142,6 +142,7 @@ describe('what is refused against the live tables', () => {
     expect(issue([{ through: { table: 'public.crm_covers', link: 'deal', user: 'cover_id' } }])).toBe('"deal" is not a column of crm_covers.');
     expect(issue([{ through: { table: 'public.crm_covers', link: 'owner_id', on: 'owner', user: 'cover_id' } }])).toBe('"owner" is not a column of crm_deals.');
     expect(issue([{ through: { table: 'public.crm_covers', link: 'owner_id', on: 'owner_id', user: 'cover_id', to: 'until' } }])).toBe('"until" is not a column of crm_covers.');
+    expect(issue([{ through: { table: 'public.crm_covers', link: 'owner_id', on: 'owner_id', user: 'cover_id', from: 'cover_id' } }])).toBe('A listing counts from one day to another; "cover_id" of crm_covers is text.');
     expect(belongsRuleIssue({ ways: [] }, deals, MODEL)).toBe('Whose a row of crm_deals is, is not spelled as Adminium stores it.');
     expect(belongsRuleIssue(null, deals, MODEL)).toBe('Whose a row of crm_deals is, is not spelled as Adminium stores it.');
   });
