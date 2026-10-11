@@ -31,11 +31,13 @@ export function sideName(side: PreviewSide): string {
       return t('designer:preview.staff', 'Staff');
     case 'customer':
       return t('designer:preview.customer', 'Customer');
+    case 'mobile':
+      return t('designer:preview.mobile', 'Phone app');
   }
 }
 
 function sideIcon(side: PreviewSide, size = 'size-3.5'): ReactNode {
-  const Icon = side === 'dashboard' ? LayoutDashboard : side === 'staff' ? IdCard : UserRound;
+  const Icon = side === 'dashboard' ? LayoutDashboard : side === 'staff' ? IdCard : side === 'mobile' ? Smartphone : UserRound;
   return <Icon aria-hidden="true" className={size} />;
 }
 
@@ -65,7 +67,8 @@ function widthName(width: PreviewWidth): string {
 export function seenAs(side: PreviewSide, roles: readonly string[] | null): { label: string; tip: string; said: string } {
   const both = (label: string, tip: string): { label: string; tip: string; said: string } => ({ label, tip, said: `${label}. ${tip}` });
   if (side === 'dashboard') return both(t('designer:preview.seenOwner', 'Seen as: owner'), t('designer:preview.seenOwnerTip', 'You, the owner.'));
-  if (side === 'customer') return both(t('designer:preview.seenVisitor', 'Seen as: visitor'), t('designer:preview.seenVisitorTip', 'A visitor, not signed in.'));
+  // A phone app is a customer's: nobody is signed in there either.
+  if (side === 'customer' || side === 'mobile') return both(t('designer:preview.seenVisitor', 'Seen as: visitor'), t('designer:preview.seenVisitorTip', 'A visitor, not signed in.'));
   if (roles === null) return both(t('designer:preview.seenStaff', 'Seen as: staff'), t('designer:preview.seenStaffTip', 'Staff. A preview, not your own sign-in.'));
   if (roles.length === 0) return both(t('designer:preview.seenNoRole', 'Seen as: no role'), t('designer:preview.seenNoRoleTip', 'A person with no role yet. A preview.'));
   // The chip cuts a long list of roles short: its sentence says them all.
@@ -206,7 +209,9 @@ export function WorkBar({
 
   const SizeIcon = WIDTHS.find(([id]) => id === width)?.[1] ?? Monitor;
   const sizeIs = t('designer:preview.sizeIs', 'Size: {size}', { size: widthName(width) });
-  const sizeControl = rows ? null : level <= 1 ? (
+  // A phone app is one size, and has no addresses and nothing for the Designer to look at.
+  const phone = side === 'mobile';
+  const sizeControl = rows || phone ? null : level <= 1 ? (
     <Segments
       label={name(t('designer:preview.size', 'Size'))}
       value={width}
@@ -293,8 +298,8 @@ export function WorkBar({
               <RotateCw aria-hidden="true" className="size-3.5" />
             </button>,
           )}
-          {address}
-          {level === 0
+          {phone ? <span className="min-w-0 flex-1" /> : address}
+          {level === 0 && !phone
             ? tip(
                 t('designer:preview.sees', 'The Designer looks at the page after it builds'),
                 <button

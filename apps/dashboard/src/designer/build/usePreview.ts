@@ -24,12 +24,13 @@ import { systemInfoQuery } from '../../app/capabilities.js';
 import { getDesktopApi } from '../../lib/desktop-runtime.js';
 import { createRealtimeClient } from '../../app/ws.js';
 import type { InstalledApp } from '../../studio/apps/appsApi.js';
-import { designerApi, type DesignerSession } from '../api.js';
+import { designerApi, type DesignerSession, type PhoneStatus } from '../api.js';
 import { isDesignerPath, locationFrom, tidyPagePath, visit, type VisitedPage } from './pagePath.js';
 import { previewShows, seesPage, setSeesPage } from './sight.js';
 import type { TurnView } from './turns.js';
 
-export type PreviewSide = 'dashboard' | 'staff' | 'customer';
+/** `mobile` is the app's phone side: its preview is Expo's export for the web, in a phone's frame. */
+export type PreviewSide = 'dashboard' | 'staff' | 'customer' | 'mobile';
 export type PreviewWidth = 'desktop' | 'tablet' | 'phone';
 
 const installedKey = ['designer', 'installed'] as const;
@@ -74,6 +75,14 @@ export interface PreviewModel {
   ticketError: string | null;
   /** Whether the last turn is still running: only then is anybody waiting to see the page. */
   running: boolean;
+  /** The app's phone side, where this server builds one: how it stands, the door a phone comes through. Null where there is none to speak of. */
+  phone: PhoneStatus | null;
+  /** A person's yes to the phone app: add it, or get its packages. */
+  addPhone: () => void;
+  openPhoneDoor: (address: string) => void;
+  stopPhoneDoor: () => void;
+  /** What the last of those three was refused with, in the server's words. */
+  phoneError: string | null;
   openTab: () => void;
   /** False where there is nowhere to open it. */
   canOpenTab: boolean;
@@ -85,10 +94,43 @@ export function usePreview(session: DesignerSession, turns: readonly TurnView[])
   const noPreview = info.data?.designer?.mode === 'live';
   const installed = useQuery({ queryKey: installedKey, queryFn: () => api.get<{ apps: InstalledApp[] }>('/api/v1/apps') });
   const app = installed.data?.apps.find((entry) => entry.key === session.appKey) ?? null;
+  // The phone side: asked of the server that builds it (`adminium design`, the desktop app); a live server has none.
+  const phoneKey = ['designer', 'phone', session.id] as const;
+  const phoneQuery = useQuery({
+    queryKey: phoneKey,
+    queryFn: async () => {
+      try {
+        return await designerApi.phone(session.id);
+      } catch (error) {
+        if (error instanceof ApiError && error.status === 404) return null;
+        throw error;
+      }
+    },
+    enabled: !info.isPending && !noPreview,
+    // While something is under way it is watched closely; an open door is looked at now and then (a phone connects, it closes).
+    refetchInterval: (query) => {
+      const now = query.state.data ?? null;
+      if (now === null) return false;
+      if (now.phone.state === 'working' || now.door.state === 'starting') return 1500;
+      return now.door.state === 'open' ? 4000 : false;
+    },
+    retry: false,
+  });
+  const phone = phoneQuery.data ?? null;
+  const [phoneError, setPhoneError] = useState<string | null>(null);
+  const phoneDid = (work: Promise<PhoneStatus>): void => {
+    setPhoneError(null);
+    void work.then(
+      (status) => queryClient.setQueryData(phoneKey, status),
+      (error: unknown) => setPhoneError(error instanceof Error ? error.message : String(error)),
+    );
+  };
+  // The Phone side is there once the app has a phone app, and from the start in a session that asked for one.
+  const hasPhone = phone !== null && (phone.phone.state !== 'none' || session.target === 'mobile');
   const sides = useMemo<PreviewSide[]>(() => {
     const own = (app?.sides ?? []).map((side) => side.side as PreviewSide).filter((side) => side === 'staff' || side === 'customer');
-    return ['dashboard', ...(['staff', 'customer'] as const).filter((side) => own.includes(side))];
-  }, [app]);
+    return ['dashboard', ...(['staff', 'customer'] as const).filter((side) => own.includes(side)), ...(hasPhone ? (['mobile'] as const) : [])];
+  }, [app, hasPhone]);
   const [chosen, setChosen] = useState<PreviewSide | null>(null);
   const side: PreviewSide = chosen !== null && sides.includes(chosen) ? chosen : (sides.find((entry) => entry !== 'dashboard') ?? 'dashboard');
   const [width, setWidth] = useState<PreviewWidth>('desktop');
@@ -98,7 +140,7 @@ export function usePreview(session: DesignerSession, turns: readonly TurnView[])
   const prefix = side === 'dashboard' ? '' : (app?.sides.find((entry) => entry.side === side)?.prefix ?? `/apps/${session.appKey}/${side}`);
   // The page each side is on. A ref beside the state: a ticket is asked for with the page as it is at that moment,
   // and a move inside the frame must not be a reason to ask for another.
-  const [paths, setPaths] = useState<Record<PreviewSide, string>>({ dashboard: '/', staff: '/', customer: '/' });
+  const [paths, setPaths] = useState<Record<PreviewSide, string>>({ dashboard: '/', staff: '/', customer: '/', mobile: '/' });
   const pathsNow = useRef(paths);
   const setPath = useCallback((which: PreviewSide, path: string): void => {
     if (pathsNow.current[which] === path) return;
@@ -119,7 +161,8 @@ export function usePreview(session: DesignerSession, turns: readonly TurnView[])
   const frame = useRef<HTMLIFrameElement | null>(null);
 
   const ticket = useQuery({
-    queryKey: ['designer', 'preview', session.id, side, round] as const,
+    // (A phone app built again is another page to open: its stamp is part of what is asked for.)
+    queryKey: ['designer', 'preview', session.id, side, round, side === 'mobile' && phone?.phone.state === 'built' ? phone.phone.build : ''] as const,
     queryFn: async () => {
       const page = pathsNow.current[side];
       try {
@@ -131,8 +174,8 @@ export function usePreview(session: DesignerSession, turns: readonly TurnView[])
         return designerApi.previewTicket(session.id, `${prefix}/`);
       }
     },
-    // The dashboard is the person's own, on the Designer's name: it needs no ticket.
-    enabled: app !== null && !info.isPending && !noPreview && side !== 'dashboard',
+    // The dashboard is the person's own, on the Designer's name: it needs no ticket. A phone app is shown once it is built.
+    enabled: app !== null && !info.isPending && !noPreview && side !== 'dashboard' && (side !== 'mobile' || phone?.phone.state === 'built'),
     staleTime: Number.POSITIVE_INFINITY,
     gcTime: 0,
     retry: false,
@@ -147,6 +190,7 @@ export function usePreview(session: DesignerSession, turns: readonly TurnView[])
         const data = event.data as { key?: unknown } | null;
         if (data?.key !== session.appKey) return;
         void queryClient.invalidateQueries({ queryKey: installedKey });
+        void queryClient.invalidateQueries({ queryKey: ['designer', 'phone', session.id] });
         setRound((value) => value + 1);
       },
     });
@@ -176,7 +220,8 @@ export function usePreview(session: DesignerSession, turns: readonly TurnView[])
 
   // A side of the app's own says where it is, from inside its frame (a screen built for development only).
   useEffect(() => {
-    if (origin === null || side === 'dashboard') return;
+    // (A phone app has no addresses to say.)
+    if (origin === null || side === 'dashboard' || side === 'mobile') return;
     const heard = (event: MessageEvent): void => {
       if (event.origin !== origin) return;
       // From a frame of this page, not from any window that happens to share the preview's address.
@@ -300,8 +345,8 @@ export function usePreview(session: DesignerSession, turns: readonly TurnView[])
       tab.location.href = path;
       return;
     }
-    // A customer page is public: it opens as it is, with nobody signed in, and makes no preview session in the tab.
-    if (side === 'customer' && origin !== null) {
+    // A customer page is public: it opens as it is, with nobody signed in, and makes no preview session in the tab. A phone app's preview is the same.
+    if ((side === 'customer' || side === 'mobile') && origin !== null) {
       tab.location.href = `${origin}${to}`;
       return;
     }
@@ -342,6 +387,11 @@ export function usePreview(session: DesignerSession, turns: readonly TurnView[])
     ticket: ticket.data === undefined ? null : { url: ticket.data.url, origin: ticket.data.origin, seenAs: ticket.data.seenAs ?? null },
     ticketError: ticket.isError && side !== 'dashboard' ? ticket.error.message : null,
     running,
+    phone,
+    addPhone: () => phoneDid(designerApi.phoneAdd(session.id)),
+    openPhoneDoor: (address) => phoneDid(designerApi.phoneOpen(session.id, address)),
+    stopPhoneDoor: () => phoneDid(designerApi.phoneStop(session.id)),
+    phoneError,
     openTab,
     canOpenTab,
   };

@@ -3000,7 +3000,8 @@ export default {
       "hide": "Skjul nøgle",
       "kind": {
         "browser": "BROWSER",
-        "server": "SERVER"
+        "server": "SERVER",
+        "app": "TELEFONAPP"
       },
       "never": "Aldrig",
       "reveal": "Vis nøgle",
@@ -3295,7 +3296,8 @@ export default {
       "noPublicAddress": "Denne app har ingen offentlig adresse, så der kan ikke sendes et loginlink. Knyt et domæne til dens kundeside, eller angiv serverens offentlige adresse.",
       "currency": "Denne database har ingen valuta, så appens beløb vises i amerikanske dollar på dashboardet og uden valuta i dens e-mails. Vælg en under Studio › Forbindelser › Regionale indstillinger."
     },
-    "createConfirmed": "Tilføje til {table} og få en bekræftelsesmail"
+    "createConfirmed": "Tilføje til {table} og få en bekræftelsesmail",
+    "phoneKey": "Giv appens telefonapp sin egen nøgle til det, gæster allerede må nå. Den virker fra en telefonapp, aldrig fra en webside."
   },
   "addOnNeeded": {
     "appDisabled": "Slået fra – den har stadig brug for den",

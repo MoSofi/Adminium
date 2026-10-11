@@ -21,6 +21,7 @@ import { Hammer, LoaderCircle, WandSparkles } from 'lucide-react';
 import { AppFrame } from '../../apps/AppFrame.js';
 import { t } from '../../i18n/t.js';
 import { designerApi, type DesignerSession } from '../api.js';
+import { PhonePanel } from './PhonePanel.js';
 import { seesPage, sightFrom } from './sight.js';
 import type { TurnView } from './turns.js';
 import type { PreviewModel, PreviewSide } from './usePreview.js';
@@ -36,6 +37,8 @@ function building(side: PreviewSide): string {
       return t('designer:preview.buildingStaff', 'Building the staff side…');
     case 'customer':
       return t('designer:preview.buildingCustomer', 'Building the customer side…');
+    case 'mobile':
+      return t('designer:preview.buildingMobile', 'Building the phone app…');
   }
 }
 
@@ -47,20 +50,26 @@ function failedTitle(side: PreviewSide): string {
       return t('designer:preview.failedStaff', 'The staff side did not build.');
     case 'customer':
       return t('designer:preview.failedCustomer', 'The customer side did not build.');
+    case 'mobile':
+      return t('designer:preview.failedMobile', 'The phone app did not build.');
   }
 }
 
 function crashedTitle(side: PreviewSide): string {
   return side === 'staff'
     ? t('designer:preview.crashedStaff', 'The staff screen stopped with an error.')
-    : t('designer:preview.crashedCustomer', 'The customer screen stopped with an error.');
+    : side === 'mobile'
+      ? t('designer:preview.crashedMobile', 'The phone app stopped with an error.')
+      : t('designer:preview.crashedCustomer', 'The customer screen stopped with an error.');
 }
 
 /** The screen went on, and something in it threw: a part of it is empty or wrong, and says nothing. */
 function wentOnTitle(side: PreviewSide): string {
   return side === 'staff'
     ? t('designer:preview.wentOnStaff', 'The staff screen hit an error and went on. A part of it may be empty.')
-    : t('designer:preview.wentOnCustomer', 'The customer screen hit an error and went on. A part of it may be empty.');
+    : side === 'mobile'
+      ? t('designer:preview.wentOnMobile', 'The phone app hit an error and went on. A part of it may be empty.')
+      : t('designer:preview.wentOnCustomer', 'The customer screen hit an error and went on. A part of it may be empty.');
 }
 
 function refusedTitle(side: PreviewSide): string {
@@ -130,7 +139,7 @@ export function Preview({ preview, session, turns, onFix, compact }: { preview: 
         return;
       }
       if (data?.type !== 'adminium:side-error' || data.app !== session.appKey) return;
-      if (data.side !== 'staff' && data.side !== 'customer') return;
+      if (data.side !== 'staff' && data.side !== 'customer' && data.side !== 'mobile') return;
       setCrashed({ side: data.side, message: typeof data.message === 'string' ? data.message.slice(0, 600) : '', round, refused: data.refused === true, went: data.went === true });
     };
     window.addEventListener('message', heard);
@@ -158,6 +167,9 @@ export function Preview({ preview, session, turns, onFix, compact }: { preview: 
         allow=""
       />
     );
+
+  // A phone app has a frame only once it is built: until then its panel says how it stands, and nothing is "opening".
+  const phoneShows = side !== 'mobile' || preview.phone?.phone.state === 'built';
 
   // One element tree for every size, so a size change restyles the frame and never reloads it
   // (a reload would spend a new ticket, and the old one is already used).
@@ -201,11 +213,14 @@ export function Preview({ preview, session, turns, onFix, compact }: { preview: 
           <p role="alert" className="m-auto max-w-[360px] px-6 text-center text-[13px] text-fg-muted">
             {t('designer:preview.unavailable', 'The preview could not be opened: {message}', { message: preview.ticketError })}
           </p>
+        ) : side === 'mobile' ? (
+          // The phone app: its own frame and its own states (not added, packages missing, did not build), and the code a phone scans.
+          <PhonePanel preview={preview} frame={frame} over={null} onFix={onFix} compact={compact} />
         ) : (
           sized
         )}
 
-        {app !== null && side !== 'staff' && !state.building && state.failed === null && (frameMark === null || loadedFor !== frameMark) && preview.ticketError === null ? (
+        {app !== null && side !== 'staff' && phoneShows && !state.building && state.failed === null && (frameMark === null || loadedFor !== frameMark) && preview.ticketError === null ? (
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
             <LoaderCircle aria-label={t('designer:preview.loading', 'Opening the preview')} className="size-5 animate-spin text-fg-subtle" />
           </div>

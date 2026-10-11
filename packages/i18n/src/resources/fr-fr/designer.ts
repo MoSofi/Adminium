@@ -50,7 +50,9 @@ export default {
     "dashboard": "Tableau de bord seul",
     "dashboardLine": "tables et pages d’administration",
     "web": "Web",
-    "webLine": "un côté équipe ou client"
+    "webLine": "un côté équipe ou client",
+    "mobile": "Mobile",
+    "mobileLine": "une application pour téléphone"
   },
   "examples": {
     "label": "Exemples",
@@ -460,7 +462,12 @@ export default {
     "pages": "Pages de ce côté",
     "pagesOpened": "Pages que vous avez ouvertes",
     "addressEnter": "Appuyez sur {key} pour aller à ce que vous avez saisi.",
-    "addressQuiet": "Les pages de cette application n’ont pas encore d’adresse. Demandez au Designer de donner à chaque page sa propre adresse."
+    "addressQuiet": "Les pages de cette application n’ont pas encore d’adresse. Demandez au Designer de donner à chaque page sa propre adresse.",
+    "mobile": "Application mobile",
+    "buildingMobile": "Construction de l’application mobile…",
+    "failedMobile": "L’application mobile n’a pas pu être construite.",
+    "crashedMobile": "L’application mobile s’est arrêtée sur une erreur.",
+    "wentOnMobile": "L’application mobile a rencontré une erreur et a continué. Une partie est peut-être vide."
   },
   "arch": {
     "access": "Accès client",
@@ -743,7 +750,8 @@ export default {
     "leaveGo": "Quitter",
     "composerUnsaved": "Vous avez des modifications non enregistrées dans {count, plural, one {# fichier} other {# fichiers}}. Le Designer ne les verra pas.",
     "saveFirst": "Enregistrer d’abord",
-    "sendAnyway": "Envoyer quand même"
+    "sendAnyway": "Envoyer quand même",
+    "groupMobile": "Application mobile"
   },
   "chat": {
     "copy": "Copier ce message",
@@ -820,5 +828,44 @@ export default {
     "go": "Exporter…",
     "saved": "{file} enregistré, {size} Mo",
     "failed": "L’export n’a pas pu être créé"
+  },
+  "phone": {
+    "adding": "Ajout de l’application mobile…",
+    "installing": "Installation des paquets d’Expo (environ 350 Mo)…",
+    "building": "Construction de l’application mobile…",
+    "addTitle": "Ajouter une application mobile ?",
+    "approveTitle": "Cette application a une application mobile. La construire sur cet ordinateur ?",
+    "packagesTitle": "Les paquets de l’application mobile ne sont pas installés.",
+    "shapeTitle": "Le dossier de l’application mobile ne peut pas être construit tel quel.",
+    "failedTitle": "L’application mobile n’a pas pu être construite.",
+    "addLine": "Cela installe les paquets d’Expo (environ 350 Mo, environ une minute) et construit avec Expo sur cet ordinateur. Il faut le réseau.",
+    "add": "Ajouter l’application mobile",
+    "approve": "La construire ici",
+    "getPackages": "Récupérer ses paquets",
+    "tryAgain": "Réessayer",
+    "fixMessage": "L’application mobile n’a pas pu être construite : {error} Corrige cela, s’il te plaît.",
+    "waitTurn": "Le Designer travaille. Cela attend qu’il ait fini.",
+    "doorTitle": "Ouvrir sur un téléphone",
+    "code": "Un code à scanner avec le téléphone",
+    "stepGo": "Installez Expo Go sur le téléphone.",
+    "stepGoSdk": "Installez Expo Go sur le téléphone (celui du SDK {sdk}).",
+    "stepNetwork": "Mettez le téléphone sur le même réseau que cet ordinateur.",
+    "stepScan": "Scannez le code avec l’appareil photo du téléphone, ou dans Expo Go.",
+    "copy": "Copier l’adresse",
+    "copied": "Copié",
+    "connected": "Un téléphone est connecté.",
+    "waiting": "Aucun téléphone ne s’est encore connecté.",
+    "sdkMismatch": "L’Expo Go de ce téléphone est pour le SDK {phone}, et cette application est écrite pour le SDK {app}. Installez l’Expo Go du SDK {app}.",
+    "doorNote": "Tant que c’est ouvert, le téléphone qui scanne le code peut ouvrir l’aperçu mobile de cette application et atteindre ce que l’application rend public, et rien d’autre sur cet ordinateur. Seul le premier téléphone à le scanner est admis. Cela se ferme quand vous l’arrêtez, et après une demi-heure sans téléphone. S’il ne se passe rien sur le téléphone, vérifiez que les deux sont sur le même réseau et que le pare-feu de cet ordinateur le laisse passer.",
+    "starting": "Démarrage du bundler d’Expo…",
+    "doorLead": "Ceci affiche un code. Un téléphone avec Expo Go, sur le même réseau que cet ordinateur, le scanne et exécute la vraie application avec les données de cet ordinateur. Rien n’est envoyé ailleurs.",
+    "closedIdle": "Cela s’est fermé après une demi-heure sans téléphone.",
+    "closedNetwork": "Le réseau de cet ordinateur a changé, le code ne menait donc nulle part. Affichez-en un nouveau.",
+    "noNetwork": "Cet ordinateur n’est sur aucun réseau qu’un téléphone pourrait atteindre. Connectez-le d’abord au Wi-Fi.",
+    "address": "L’adresse de cet ordinateur sur le réseau du téléphone",
+    "stop": "Arrêter",
+    "show": "Afficher le code",
+    "open": "Ouvrir sur un téléphone",
+    "webNote": "Dessiné par le navigateur : proche du téléphone, mais pas le téléphone. Le Designer ne regarde pas ce côté."
   }
 } as const;

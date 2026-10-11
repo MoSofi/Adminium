@@ -50,7 +50,9 @@ export default {
     "dashboard": "Nur Dashboard",
     "dashboardLine": "Tabellen und Verwaltungsseiten",
     "web": "Web",
-    "webLine": "eine Mitarbeiter- oder Kundenseite"
+    "webLine": "eine Mitarbeiter- oder Kundenseite",
+    "mobile": "Mobil",
+    "mobileLine": "eine Handy-App"
   },
   "examples": {
     "label": "Beispiele",
@@ -460,7 +462,12 @@ export default {
     "pages": "Seiten auf dieser Seite der App",
     "pagesOpened": "Seiten, die Sie geöffnet haben",
     "addressEnter": "Mit {key} gelangen Sie zu dem, was Sie eingegeben haben.",
-    "addressQuiet": "Die Seiten dieser App haben noch keine Adressen. Bitten Sie den Designer, jeder Seite eine eigene Adresse zu geben."
+    "addressQuiet": "Die Seiten dieser App haben noch keine Adressen. Bitten Sie den Designer, jeder Seite eine eigene Adresse zu geben.",
+    "mobile": "Handy-App",
+    "buildingMobile": "Die Handy-App wird gebaut…",
+    "failedMobile": "Die Handy-App wurde nicht gebaut.",
+    "crashedMobile": "Die Handy-App ist mit einem Fehler stehen geblieben.",
+    "wentOnMobile": "In der Handy-App ist ein Fehler aufgetreten, und sie lief weiter. Ein Teil davon ist vielleicht leer."
   },
   "arch": {
     "access": "Kundenzugriff",
@@ -743,7 +750,8 @@ export default {
     "leaveGo": "Verlassen",
     "composerUnsaved": "Sie haben nicht gespeicherte Änderungen in {count, plural, one {# Datei} other {# Dateien}}. Der Designer sieht sie nicht.",
     "saveFirst": "Zuerst speichern",
-    "sendAnyway": "Trotzdem senden"
+    "sendAnyway": "Trotzdem senden",
+    "groupMobile": "Handy-App"
   },
   "chat": {
     "copy": "Diese Nachricht kopieren",
@@ -820,5 +828,44 @@ export default {
     "go": "Exportieren…",
     "saved": "{file} gespeichert, {size} MB",
     "failed": "Der Export konnte nicht erstellt werden"
+  },
+  "phone": {
+    "adding": "Die Handy-App wird hinzugefügt…",
+    "installing": "Expos Pakete werden installiert (etwa 350 MB)…",
+    "building": "Die Handy-App wird gebaut…",
+    "addTitle": "Eine Handy-App hinzufügen?",
+    "approveTitle": "Diese App hat eine Handy-App. Auf diesem Computer bauen?",
+    "packagesTitle": "Die Pakete der Handy-App sind nicht installiert.",
+    "shapeTitle": "Der Ordner der Handy-App lässt sich so nicht bauen.",
+    "failedTitle": "Die Handy-App wurde nicht gebaut.",
+    "addLine": "Dabei werden Expos Pakete installiert (etwa 350 MB, etwa eine Minute), und die App wird mit Expo auf diesem Computer gebaut. Dafür ist das Netz nötig.",
+    "add": "Handy-App hinzufügen",
+    "approve": "Hier bauen",
+    "getPackages": "Pakete holen",
+    "tryAgain": "Noch einmal versuchen",
+    "fixMessage": "Die Handy-App wurde nicht gebaut: {error} Bitte behebe das.",
+    "waitTurn": "Der Designer arbeitet gerade. Das wartet, bis er fertig ist.",
+    "doorTitle": "Auf einem Handy öffnen",
+    "code": "Ein Code zum Scannen mit dem Handy",
+    "stepGo": "Installiere Expo Go auf dem Handy.",
+    "stepGoSdk": "Installiere Expo Go auf dem Handy (die Version für SDK {sdk}).",
+    "stepNetwork": "Bring das Handy in dasselbe Netz wie diesen Computer.",
+    "stepScan": "Scanne den Code mit der Kamera des Handys oder in Expo Go.",
+    "copy": "Adresse kopieren",
+    "copied": "Kopiert",
+    "connected": "Ein Handy ist verbunden.",
+    "waiting": "Noch hat sich kein Handy verbunden.",
+    "sdkMismatch": "Expo Go auf diesem Handy ist für SDK {phone}, und diese App ist für SDK {app} geschrieben. Installiere Expo Go für SDK {app}.",
+    "doorNote": "Solange das offen ist, kann das Handy, das den Code scannt, die Handy-Vorschau dieser App öffnen und erreichen, was die App öffentlich macht, und sonst nichts auf diesem Computer. Nur das erste Handy, das den Code scannt, wird eingelassen. Es schließt, wenn du es anhältst, und nach einer halben Stunde ohne Handy. Wenn auf dem Handy nichts geschieht, prüfe, ob beide im selben Netz sind und ob die Firewall dieses Computers es durchlässt.",
+    "starting": "Expos Bundler wird gestartet…",
+    "doorLead": "Hier erscheint ein Code. Ein Handy mit Expo Go, im selben Netz wie dieser Computer, scannt ihn und führt die echte App mit den Daten dieses Computers aus. Nichts wird woandershin gesendet.",
+    "closedIdle": "Es wurde nach einer halben Stunde ohne Handy geschlossen.",
+    "closedNetwork": "Das Netz dieses Computers hat sich geändert, also führte der Code nirgendwohin. Zeig einen neuen an.",
+    "noNetwork": "Dieser Computer ist in keinem Netz, das ein Handy erreichen könnte. Verbinde ihn zuerst mit dem WLAN.",
+    "address": "Die Adresse dieses Computers im Netz des Handys",
+    "stop": "Anhalten",
+    "show": "Code anzeigen",
+    "open": "Auf einem Handy öffnen",
+    "webNote": "Vom Browser gezeichnet: nah am Handy, aber nicht das Handy. Der Designer sieht sich diese Seite nicht an."
   }
 } as const;

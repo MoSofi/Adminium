@@ -14,7 +14,7 @@ import { AttachButton, attachHandlers, AttachTray, useAttach, useReadsImages } f
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent, type ReactNode } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { AlertTriangle, ArrowUp, ChevronDown, Globe, LayoutDashboard, RefreshCw, Sparkles, type LucideIcon } from 'lucide-react';
+import { AlertTriangle, ArrowUp, ChevronDown, Globe, LayoutDashboard, RefreshCw, Smartphone, Sparkles, type LucideIcon } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -49,6 +49,7 @@ function targets(): { id: DesignerTarget; label: string; line: string; icon: Luc
     { id: 'auto', label: t('designer:target.auto', 'Auto'), line: t('designer:target.autoLine', 'Adminium decides'), icon: Sparkles },
     { id: 'dashboard', label: t('designer:target.dashboard', 'Dashboard only'), line: t('designer:target.dashboardLine', 'tables and admin pages'), icon: LayoutDashboard },
     { id: 'web', label: t('designer:target.web', 'Web'), line: t('designer:target.webLine', 'a staff or customer side'), icon: Globe },
+    { id: 'mobile', label: t('designer:target.mobile', 'Mobile'), line: t('designer:target.mobileLine', 'a phone app'), icon: Smartphone },
   ];
 }
 
@@ -96,7 +97,7 @@ export function DesignerHome(): ReactNode {
   const start = useMutation({
     mutationFn: async () => {
       if (model.picked === null) throw new Error('no model');
-      const base = { title: nameFromRequest(text), ...(style === null ? {} : { style }), target, connectionId: model.picked.connectionId, model: model.picked.model };
+      const base = { title: nameFromRequest(text), ...(style === null || target === 'dashboard' || target === 'mobile' ? {} : { style }), target, connectionId: model.picked.connectionId, model: model.picked.model };
       if (attach.files.length === 0 && made.current === null) return designerApi.createSession({ ...base, text: text.trim(), ...(seesPage() ? { sees: true } : {}) });
       // With files: the session first (they are kept in it), then the files, then the message that names them.
       // A file the server refuses, or a turn that does not start, stops here with its words: the message and the files stay
@@ -192,7 +193,8 @@ export function DesignerHome(): ReactNode {
                     </DropdownMenuRadioGroup>
                   </DropdownMenuContent>
                 </DropdownMenu>
-                {target === 'dashboard' ? null : <StylePicker value={style} disabled={noModel} onChange={setStyle} />}
+                {/* A style is the look of the app's web screens: a dashboard-only app and a phone app have none to pick. */}
+                {target === 'dashboard' || target === 'mobile' ? null : <StylePicker value={style} disabled={noModel} onChange={setStyle} />}
                 <button
                   type="submit"
                   disabled={!canSend || start.isPending}

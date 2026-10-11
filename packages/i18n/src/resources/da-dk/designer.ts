@@ -50,7 +50,9 @@ export default {
     "dashboard": "Kun dashboard",
     "dashboardLine": "tabeller og administrationssider",
     "web": "Web",
-    "webLine": "en medarbejder- eller kundeside"
+    "webLine": "en medarbejder- eller kundeside",
+    "mobile": "Mobil",
+    "mobileLine": "en app til telefonen"
   },
   "examples": {
     "label": "Eksempler",
@@ -460,7 +462,12 @@ export default {
     "pages": "Sider på denne side af appen",
     "pagesOpened": "Sider, du har åbnet",
     "addressEnter": "Tryk på {key} for at gå til det, du har skrevet.",
-    "addressQuiet": "Appens sider har endnu ingen adresser. Bed Designer om at give hver side sin egen adresse."
+    "addressQuiet": "Appens sider har endnu ingen adresser. Bed Designer om at give hver side sin egen adresse.",
+    "mobile": "Telefonapp",
+    "buildingMobile": "Bygger telefonappen…",
+    "failedMobile": "Telefonappen blev ikke bygget.",
+    "crashedMobile": "Telefonappen stoppede med en fejl.",
+    "wentOnMobile": "Telefonappen ramte en fejl og fortsatte. En del af den kan være tom."
   },
   "arch": {
     "access": "Kundeadgang",
@@ -743,7 +750,8 @@ export default {
     "leaveGo": "Forlad",
     "composerUnsaved": "Du har ændringer, der ikke er gemt, i {count, plural, one {# fil} other {# filer}}. Designeren kan ikke se dem.",
     "saveFirst": "Gem først",
-    "sendAnyway": "Send alligevel"
+    "sendAnyway": "Send alligevel",
+    "groupMobile": "Telefonapp"
   },
   "chat": {
     "copy": "Kopiér denne besked",
@@ -820,5 +828,44 @@ export default {
     "go": "Eksportér…",
     "saved": "Gemte {file}, {size} MB",
     "failed": "Eksporten kunne ikke laves"
+  },
+  "phone": {
+    "adding": "Tilføjer telefonappen…",
+    "installing": "Installerer Expos pakker (cirka 350 MB)…",
+    "building": "Bygger telefonappen…",
+    "addTitle": "Tilføj en telefonapp?",
+    "approveTitle": "Denne app har en telefonapp. Skal den bygges på denne computer?",
+    "packagesTitle": "Telefonappens pakker er ikke installeret.",
+    "shapeTitle": "Telefonappens mappe kan ikke bygges, som den er.",
+    "failedTitle": "Telefonappen blev ikke bygget.",
+    "addLine": "Det installerer Expos pakker (cirka 350 MB, cirka et minut) og bygger med Expo på denne computer. Det kræver netværk.",
+    "add": "Tilføj telefonappen",
+    "approve": "Byg den her",
+    "getPackages": "Hent dens pakker",
+    "tryAgain": "Prøv igen",
+    "fixMessage": "Telefonappen blev ikke bygget: {error} Ret det venligst.",
+    "waitTurn": "Designer arbejder. Dette venter, til den er færdig.",
+    "doorTitle": "Åbn på en telefon",
+    "code": "En kode til at scanne med telefonen",
+    "stepGo": "Installer Expo Go på telefonen.",
+    "stepGoSdk": "Installer Expo Go på telefonen (den til SDK {sdk}).",
+    "stepNetwork": "Sæt telefonen på samme netværk som denne computer.",
+    "stepScan": "Scan koden med telefonens kamera eller i Expo Go.",
+    "copy": "Kopiér adressen",
+    "copied": "Kopieret",
+    "connected": "En telefon er forbundet.",
+    "waiting": "Ingen telefon har forbundet endnu.",
+    "sdkMismatch": "Expo Go på den telefon er til SDK {phone}, og denne app er skrevet til SDK {app}. Installer Expo Go til SDK {app}.",
+    "doorNote": "Mens dette er åbent, kan den telefon, der scanner koden, åbne appens telefonvisning og nå det, appen gør offentligt, og intet andet på denne computer. Kun den første telefon, der scanner den, bliver lukket ind. Det lukker, når du stopper det, og efter en halv time uden en telefon. Sker der ikke noget på telefonen, så tjek, at begge er på samme netværk, og at computerens firewall lader den komme ind.",
+    "starting": "Starter Expos bundler…",
+    "doorLead": "Dette viser en kode. En telefon med Expo Go, på samme netværk som denne computer, scanner den og kører den rigtige app med denne computers data. Intet sendes andre steder hen.",
+    "closedIdle": "Det lukkede efter en halv time uden en telefon.",
+    "closedNetwork": "Computerens netværk ændrede sig, så koden førte ingen steder hen. Vis en ny.",
+    "noNetwork": "Denne computer er ikke på et netværk, en telefon kan nå. Forbind den til wi-fi først.",
+    "address": "Denne computers adresse på telefonens netværk",
+    "stop": "Stop",
+    "show": "Vis koden",
+    "open": "Åbn på en telefon",
+    "webNote": "Tegnet af browseren: tæt på telefonen, men ikke telefonen. Designer ser ikke på denne side."
   }
 } as const;

@@ -3000,7 +3000,8 @@ export default {
       "hide": "隐藏密钥",
       "kind": {
         "browser": "浏览器",
-        "server": "服务器"
+        "server": "服务器",
+        "app": "手机应用"
       },
       "never": "从未",
       "reveal": "显示密钥",
@@ -3295,7 +3296,8 @@ export default {
       "noPublicAddress": "此应用没有公开地址，因此无法发送登录链接。请将域名映射到其客户界面，或设置服务器的公开地址。",
       "currency": "此数据库未设置货币，因此应用的金额在仪表盘上以美元显示，在其邮件中不带货币。请在 Studio › 连接 › 区域设置中设置。"
     },
-    "createConfirmed": "添加到 {table}，并收到确认邮件"
+    "createConfirmed": "添加到 {table}，并收到确认邮件",
+    "phoneKey": "为该应用的手机应用提供一个专属密钥，用于访客本来就可以访问的内容。它只能在手机应用中使用，不能在网页中使用。"
   },
   "addOnNeeded": {
     "appDisabled": "已关闭——仍然需要它",

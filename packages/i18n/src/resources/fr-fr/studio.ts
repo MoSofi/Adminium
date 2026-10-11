@@ -3000,7 +3000,8 @@ export default {
       "hide": "Masquer la clé",
       "kind": {
         "browser": "NAVIGATEUR",
-        "server": "SERVEUR"
+        "server": "SERVEUR",
+        "app": "APP MOBILE"
       },
       "never": "Jamais",
       "reveal": "Afficher la clé",
@@ -3295,7 +3296,8 @@ export default {
       "noPublicAddress": "Cette application n’a pas d’adresse publique : aucun lien de connexion ne peut être envoyé. Associez un domaine à son côté client, ou définissez l’adresse publique du serveur.",
       "currency": "Aucune devise n’est définie pour cette base de données : les montants de l’application s’affichent en dollars américains dans le tableau de bord et sans devise dans ses e-mails. Définissez-en une dans Studio › Connexions › Paramètres régionaux."
     },
-    "createConfirmed": "Ajouter à {table} et recevoir un e-mail de confirmation"
+    "createConfirmed": "Ajouter à {table} et recevoir un e-mail de confirmation",
+    "phoneKey": "Donner à l’application mobile de l’app une clé à elle, pour ce que les invités peuvent déjà atteindre. Elle fonctionne depuis une application mobile, jamais depuis une page web."
   },
   "addOnNeeded": {
     "appDisabled": "Désactivée — elle en a toujours besoin",

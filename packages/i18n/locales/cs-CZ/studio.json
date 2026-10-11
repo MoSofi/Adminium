@@ -2990,7 +2990,8 @@
       "hide": "Skrýt klíč",
       "kind": {
         "browser": "PROHLÍŽEČ",
-        "server": "SERVER"
+        "server": "SERVER",
+        "app": "APLIKACE PRO TELEFON"
       },
       "never": "Nikdy",
       "reveal": "Zobrazit klíč",
@@ -3285,7 +3286,8 @@
       "noPublicAddress": "Tato aplikace nemá veřejnou adresu, takže nelze poslat přihlašovací odkaz. Přiřaďte doménu její zákaznické části, nebo nastavte veřejnou adresu serveru.",
       "currency": "Tato databáze nemá nastavenou měnu, takže částky aplikace se v přehledu zobrazují v amerických dolarech a v jejích e-mailech bez měny. Nastavte ji ve Studiu › Připojení › Regionální nastavení."
     },
-    "createConfirmed": "Přidávat do {table} a dostat potvrzovací e-mail"
+    "createConfirmed": "Přidávat do {table} a dostat potvrzovací e-mail",
+    "phoneKey": "Dát aplikaci pro telefon vlastní klíč k tomu, k čemu už hosté smějí. Funguje z aplikace v telefonu, nikdy z webové stránky."
   },
   "addOnNeeded": {
     "appDisabled": "Vypnutá – stále ho potřebuje",

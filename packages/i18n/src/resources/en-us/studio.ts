@@ -3000,7 +3000,8 @@ export default {
       "hide": "Hide key",
       "kind": {
         "browser": "BROWSER",
-        "server": "SERVER"
+        "server": "SERVER",
+        "app": "PHONE APP"
       },
       "never": "Never",
       "reveal": "Reveal key",
@@ -3295,7 +3296,8 @@ export default {
       "noPublicAddress": "This app has no public address, so no sign-in link can be sent. Map a domain to its customer side, or set the server’s public address.",
       "currency": "This database has no currency set, so the app’s money shows in US dollars on the dashboard and with no currency in its emails. Set one under Studio › Connections › Regional settings."
     },
-    "createConfirmed": "Add to {table}, and get a confirmation email"
+    "createConfirmed": "Add to {table}, and get a confirmation email",
+    "phoneKey": "Give the app’s phone app a key of its own, for what guests may already reach. It works from a phone app, never from a web page."
   },
   "addOnNeeded": {
     "appDisabled": "Switched off — it still needs it",

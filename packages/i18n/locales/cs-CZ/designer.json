@@ -40,7 +40,9 @@
     "dashboard": "Jen nástěnka",
     "dashboardLine": "tabulky a správcovské stránky",
     "web": "Web",
-    "webLine": "strana pro personál nebo zákazníky"
+    "webLine": "strana pro personál nebo zákazníky",
+    "mobile": "Mobil",
+    "mobileLine": "aplikace pro telefon"
   },
   "examples": {
     "label": "Příklady",
@@ -450,7 +452,12 @@
     "pages": "Stránky na této straně",
     "pagesOpened": "Stránky, které jste otevřeli",
     "addressEnter": "Stisknutím {key} přejdete na to, co jste napsali.",
-    "addressQuiet": "Stránky této aplikace zatím nemají adresy. Požádejte Designer, aby každé stránce dal vlastní adresu."
+    "addressQuiet": "Stránky této aplikace zatím nemají adresy. Požádejte Designer, aby každé stránce dal vlastní adresu.",
+    "mobile": "Aplikace pro telefon",
+    "buildingMobile": "Sestavuje se aplikace pro telefon…",
+    "failedMobile": "Aplikaci pro telefon se nepodařilo sestavit.",
+    "crashedMobile": "Aplikace pro telefon se zastavila s chybou.",
+    "wentOnMobile": "V aplikaci pro telefon nastala chyba a aplikace běžela dál. Její část může být prázdná."
   },
   "arch": {
     "access": "Přístup zákazníků",
@@ -733,7 +740,8 @@
     "leaveGo": "Odejít",
     "composerUnsaved": "Máte neuložené změny v {count, plural, one {# souboru} few {# souborech} many {# souboru} other {# souborech}}. Designer je neuvidí.",
     "saveFirst": "Nejdřív uložit",
-    "sendAnyway": "Přesto odeslat"
+    "sendAnyway": "Přesto odeslat",
+    "groupMobile": "Aplikace pro telefon"
   },
   "chat": {
     "copy": "Zkopírovat tuto zprávu",
@@ -810,5 +818,44 @@
     "go": "Exportovat…",
     "saved": "Uloženo {file}, {size} MB",
     "failed": "Export se nepodařilo vytvořit"
+  },
+  "phone": {
+    "adding": "Přidává se aplikace pro telefon…",
+    "installing": "Instalují se balíčky Expo (asi 350 MB)…",
+    "building": "Sestavuje se aplikace pro telefon…",
+    "addTitle": "Přidat aplikaci pro telefon?",
+    "approveTitle": "Tato aplikace má aplikaci pro telefon. Sestavit ji na tomto počítači?",
+    "packagesTitle": "Balíčky aplikace pro telefon nejsou nainstalované.",
+    "shapeTitle": "Složku aplikace pro telefon nelze v této podobě sestavit.",
+    "failedTitle": "Aplikaci pro telefon se nepodařilo sestavit.",
+    "addLine": "Nainstalují se balíčky Expo (asi 350 MB, asi minuta) a aplikace se sestaví pomocí Expo na tomto počítači. Je k tomu potřeba síť.",
+    "add": "Přidat aplikaci pro telefon",
+    "approve": "Sestavit zde",
+    "getPackages": "Získat balíčky",
+    "tryAgain": "Zkusit znovu",
+    "fixMessage": "Aplikaci pro telefon se nepodařilo sestavit: {error} Oprav to, prosím.",
+    "waitTurn": "Designer pracuje. Toto počká, až skončí.",
+    "doorTitle": "Otevřít na telefonu",
+    "code": "Kód k naskenování telefonem",
+    "stepGo": "Nainstalujte do telefonu Expo Go.",
+    "stepGoSdk": "Nainstalujte do telefonu Expo Go (verzi pro SDK {sdk}).",
+    "stepNetwork": "Připojte telefon ke stejné síti jako tento počítač.",
+    "stepScan": "Naskenujte kód fotoaparátem telefonu nebo v Expo Go.",
+    "copy": "Zkopírovat adresu",
+    "copied": "Zkopírováno",
+    "connected": "Telefon je připojen.",
+    "waiting": "Zatím se nepřipojil žádný telefon.",
+    "sdkMismatch": "Expo Go v tomto telefonu je pro SDK {phone} a tato aplikace je napsaná pro SDK {app}. Nainstalujte Expo Go pro SDK {app}.",
+    "doorNote": "Dokud je toto otevřené, může telefon, který kód naskenuje, otevřít náhled této aplikace pro telefon a dostat se k tomu, co aplikace zveřejňuje, a k ničemu jinému na tomto počítači. Vpuštěn je jen první telefon, který kód naskenuje. Zavře se, když to zastavíte, a po půl hodině bez telefonu. Pokud se na telefonu nic neděje, zkontrolujte, že jsou oba ve stejné síti a že je firewall tohoto počítače pustí dovnitř.",
+    "starting": "Spouští se bundler Expo…",
+    "doorLead": "Zobrazí se kód. Telefon s Expo Go ve stejné síti jako tento počítač ho naskenuje a spustí skutečnou aplikaci s daty tohoto počítače. Nic se neposílá jinam.",
+    "closedIdle": "Zavřelo se to po půl hodině bez telefonu.",
+    "closedNetwork": "Síť tohoto počítače se změnila, takže kód nikam nevedl. Zobrazte nový.",
+    "noNetwork": "Tento počítač není v žádné síti, na kterou by se telefon dostal. Nejdřív ho připojte k Wi-Fi.",
+    "address": "Adresa tohoto počítače v síti telefonu",
+    "stop": "Zastavit",
+    "show": "Zobrazit kód",
+    "open": "Otevřít na telefonu",
+    "webNote": "Vykresleno prohlížečem: blízko telefonu, ale není to telefon. Designer se na tuto stranu nedívá."
   }
 }

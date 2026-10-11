@@ -2990,7 +2990,8 @@
       "hide": "Schlüssel verbergen",
       "kind": {
         "browser": "BROWSER",
-        "server": "SERVER"
+        "server": "SERVER",
+        "app": "HANDY-APP"
       },
       "never": "Nie",
       "reveal": "Schlüssel anzeigen",
@@ -3285,7 +3286,8 @@
       "noPublicAddress": "Diese App hat keine öffentliche Adresse, daher kann kein Anmeldelink gesendet werden. Ordnen Sie ihrer Kundenseite eine Domain zu oder legen Sie die öffentliche Adresse des Servers fest.",
       "currency": "Für diese Datenbank ist keine Währung festgelegt. Beträge der App erscheinen daher im Dashboard in US-Dollar und in ihren E-Mails ohne Währung. Legen Sie eine unter Studio › Verbindungen › Regionale Einstellungen fest."
     },
-    "createConfirmed": "Zu {table} hinzufügen und eine Bestätigungs-E-Mail erhalten"
+    "createConfirmed": "Zu {table} hinzufügen und eine Bestätigungs-E-Mail erhalten",
+    "phoneKey": "Der Handy-App der App einen eigenen Schlüssel geben, für das, was Gäste schon erreichen dürfen. Er funktioniert aus einer Handy-App, nie von einer Webseite aus."
   },
   "addOnNeeded": {
     "appDisabled": "Ausgeschaltet – braucht es trotzdem",

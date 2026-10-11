@@ -50,7 +50,9 @@ export default {
     "dashboard": "僅儀表板",
     "dashboardLine": "資料表和管理頁面",
     "web": "網頁",
-    "webLine": "員工端或客戶端"
+    "webLine": "員工端或客戶端",
+    "mobile": "行動裝置",
+    "mobileLine": "手機應用程式"
   },
   "examples": {
     "label": "範例",
@@ -460,7 +462,12 @@ export default {
     "pages": "此端的頁面",
     "pagesOpened": "您開啟過的頁面",
     "addressEnter": "按 {key} 前往您輸入的位址。",
-    "addressQuiet": "此應用程式的頁面還沒有位址。請讓 Designer 為每個頁面設定自己的位址。"
+    "addressQuiet": "此應用程式的頁面還沒有位址。請讓 Designer 為每個頁面設定自己的位址。",
+    "mobile": "手機應用程式",
+    "buildingMobile": "正在建置手機應用程式…",
+    "failedMobile": "手機應用程式未能建置。",
+    "crashedMobile": "手機應用程式因錯誤而停止。",
+    "wentOnMobile": "手機應用程式發生錯誤後繼續執行，其中一部分可能是空的。"
   },
   "arch": {
     "access": "客戶存取",
@@ -743,7 +750,8 @@ export default {
     "leaveGo": "離開",
     "composerUnsaved": "你在 {count, plural, other {# 個檔案}}中有未儲存的變更。Designer 不會看到它們。",
     "saveFirst": "先儲存",
-    "sendAnyway": "仍然傳送"
+    "sendAnyway": "仍然傳送",
+    "groupMobile": "手機應用程式"
   },
   "chat": {
     "copy": "複製這則訊息",
@@ -820,5 +828,44 @@ export default {
     "go": "匯出…",
     "saved": "已儲存 {file}，{size} MB",
     "failed": "無法產生匯出檔案"
+  },
+  "phone": {
+    "adding": "正在新增手機應用程式…",
+    "installing": "正在安裝 Expo 的套件（約 350 MB）…",
+    "building": "正在建置手機應用程式…",
+    "addTitle": "要新增手機應用程式嗎？",
+    "approveTitle": "此應用程式附有手機應用程式。要在這台電腦上建置它嗎？",
+    "packagesTitle": "手機應用程式的套件尚未安裝。",
+    "shapeTitle": "手機應用程式的資料夾依現況無法建置。",
+    "failedTitle": "手機應用程式未能建置。",
+    "addLine": "這會安裝 Expo 的套件（約 350 MB，約一分鐘），並在這台電腦上用 Expo 建置。需要網路。",
+    "add": "新增手機應用程式",
+    "approve": "在這裡建置",
+    "getPackages": "取得套件",
+    "tryAgain": "再試一次",
+    "fixMessage": "手機應用程式未能建置：{error} 請修正。",
+    "waitTurn": "Designer 正在工作。此動作會等它完成。",
+    "doorTitle": "在手機上開啟",
+    "code": "用手機掃描的 QR 碼",
+    "stepGo": "在手機上安裝 Expo Go。",
+    "stepGoSdk": "在手機上安裝 Expo Go（適用於 SDK {sdk} 的版本）。",
+    "stepNetwork": "讓手機與這台電腦連上同一個網路。",
+    "stepScan": "用手機相機或在 Expo Go 中掃描 QR 碼。",
+    "copy": "複製位址",
+    "copied": "已複製",
+    "connected": "已有手機連線。",
+    "waiting": "還沒有手機連線。",
+    "sdkMismatch": "那支手機上的 Expo Go 適用於 SDK {phone}，而此應用程式是為 SDK {app} 撰寫的。請安裝適用於 SDK {app} 的 Expo Go。",
+    "doorNote": "在此開啟期間，掃描 QR 碼的手機可以開啟此應用程式的手機預覽，並存取應用程式公開的內容，除此之外無法存取這台電腦上的任何東西。只有第一支掃描的手機會被放行。你停止時它會關閉，半小時沒有手機使用也會關閉。如果手機上沒有反應，請確認兩者在同一個網路，且這台電腦的防火牆有放行。",
+    "starting": "正在啟動 Expo 的打包工具…",
+    "doorLead": "這裡會顯示一個 QR 碼。與這台電腦在同一網路、裝有 Expo Go 的手機掃描它，就會用這台電腦的資料執行真正的應用程式。不會傳送到其他任何地方。",
+    "closedIdle": "半小時沒有手機使用，已關閉。",
+    "closedNetwork": "這台電腦的網路變了，QR 碼已失效。請顯示新的 QR 碼。",
+    "noNetwork": "這台電腦不在手機可以連到的任何網路上。請先連上 Wi-Fi。",
+    "address": "這台電腦在手機所在網路上的位址",
+    "stop": "停止",
+    "show": "顯示 QR 碼",
+    "open": "在手機上開啟",
+    "webNote": "由瀏覽器繪製：接近手機，但不是手機。Designer 不會查看這一側。"
   }
 } as const;

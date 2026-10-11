@@ -33,8 +33,8 @@ export function setSeesPage(on: boolean): void {
 export type PageFault = Record<string, string | number>;
 
 /** Which side the preview on this page shows now; null when no preview is open. Set by the preview itself. */
-let shown: 'dashboard' | 'staff' | 'customer' | null = null;
-export function previewShows(side: 'dashboard' | 'staff' | 'customer' | null): void {
+let shown: 'dashboard' | 'staff' | 'customer' | 'mobile' | null = null;
+export function previewShows(side: 'dashboard' | 'staff' | 'customer' | 'mobile' | null): void {
   shown = side;
 }
 

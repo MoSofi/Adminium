@@ -27,6 +27,9 @@ export function addressLabel(side: PreviewSide): string {
       return t('designer:preview.addressStaff', 'Address on the staff side');
     case 'customer':
       return t('designer:preview.addressCustomer', 'Address on the customer side');
+    // A phone app has no addresses: its bar is not drawn, and this is never read.
+    case 'mobile':
+      return '';
   }
 }
 
