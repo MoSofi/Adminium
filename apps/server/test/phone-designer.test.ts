@@ -17,7 +17,7 @@ import { groupFiles, listEditable } from '../src/designer/files.js';
 import type { PhoneDoor, PhoneDoorState } from '../src/designer/phone-door.js';
 import { createPhoneService, type PhoneService } from '../src/designer/phone-service.js';
 import { noCardRefusal, phoneFileRefusal } from '../src/designer/write-guard.js';
-import { phoneInstalled } from '../src/project/apps/phone-build.js';
+import { buildPhone, phoneInstalled } from '../src/project/apps/phone-build.js';
 import { isPhoneApproved, phoneBuildDir, phoneShapeProblems } from '../src/project/apps/phone.js';
 import { scaffoldApp } from '../src/project/apps/scaffold-app.js';
 import { APP_VERSION } from '../src/version.js';
@@ -34,7 +34,21 @@ afterEach(() => {
 });
 
 describe('which of a phone side’s files are written from the Designer', () => {
-  it.each(['mobile/app.tsx', 'mobile/src/x.tsx', 'mobile/src/x.ts', 'mobile/src/screens/menu.tsx', 'mobile/src/data/menu.json', 'mobile/assets/logo.png', 'mobile/assets/icons/cart.svg'])('%s may be written', (inside) => {
+  it('the first screen is App.tsx, by that spelling alone: a caller folds the path and says how it was spelled', () => {
+    expect(phoneFileRefusal(root, 'shop', 'mobile/app.tsx', 'apps/shop/mobile/App.tsx')).toBeNull();
+    expect(phoneFileRefusal(root, 'shop', 'mobile/app.tsx', 'apps/shop/mobile/app.tsx')).toContain('spelled exactly so');
+    expect(phoneFileRefusal(root, 'shop', 'mobile/app.tsx', 'apps/shop/mobile/APP.TSX')).toContain('spelled exactly so');
+    expect(noCardRefusal(root, 'shop', 'apps/shop/mobile/App.tsx', null)).toBeNull();
+    expect(noCardRefusal(root, 'shop', 'apps/shop/mobile/app.tsx', null)).toBe('phone-file');
+  });
+
+  it('nothing is written into a phone side that is not there yet', () => {
+    for (const inside of ['mobile/App.tsx', 'mobile/src/x.tsx', 'mobile/assets/logo.png']) {
+      expect(phoneFileRefusal(root, 'plain', inside), inside).toContain('Call add_side with "mobile" first');
+    }
+  });
+
+  it.each(['mobile/src/x.tsx', 'mobile/src/x.ts', 'mobile/src/screens/menu.tsx', 'mobile/src/data/menu.json', 'mobile/assets/logo.png', 'mobile/assets/icons/cart.svg'])('%s may be written', (inside) => {
     expect(phoneFileRefusal(root, 'shop', inside)).toBeNull();
     expect(noCardRefusal(root, 'shop', `apps/shop/${inside}`, null)).toBeNull();
   });
@@ -309,6 +323,28 @@ describe('the Phone tab’s button', () => {
     await settled('plain');
     expect(service.status('plain').phone).toEqual({ state: 'failed', words: expect.stringContaining('SyntaxError: App.tsx: Unexpected token') });
     expect(released).toBe(1);
+  });
+
+  it('a failure is said only while it is still so: a phone app built since has the last word', async () => {
+    fake.exportCode = 1;
+    fake.output = 'SyntaxError: App.tsx: Unexpected token\n';
+    service.add('plain', BY);
+    await settled('plain');
+    expect(service.status('plain').phone.state).toBe('failed');
+    // A turn fixes the file and builds it (build_sides), with no word to this service.
+    fake.exportCode = 0;
+    writeFileSync(join(root, 'apps/plain/mobile/App.tsx'), 'export function App() { return null; }\n');
+    expect((await buildPhone(root, 'plain', { run: fake.run })).state).toBe('built');
+    expect(service.status('plain').phone.state).toBe('built');
+  });
+
+  it('a copy of a published app is given no phone side: nothing is held, written or installed', () => {
+    writeFileSync(join(root, 'apps/plain/build.json'), JSON.stringify({ sides: {} }));
+    const answered = service.add('plain', BY).phone;
+    expect(answered).toEqual({ state: 'failed', words: expect.stringContaining('copy of a published one') });
+    expect(existsSync(join(root, 'apps/plain/mobile'))).toBe(false);
+    expect(fake.started).toEqual([]);
+    expect(held).toBe(0);
   });
 
   it('while a turn has the folder, the refusal is the caller’s to say and nothing changes', () => {

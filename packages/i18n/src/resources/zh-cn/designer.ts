@@ -835,6 +835,7 @@ export default {
     "building": "正在构建手机应用…",
     "addTitle": "要添加手机应用吗？",
     "approveTitle": "此应用带有手机应用。要在这台电脑上构建它吗？",
+    "packages": "它需要这些软件包：",
     "packagesTitle": "手机应用的软件包尚未安装。",
     "shapeTitle": "手机应用的文件夹按现状无法构建。",
     "failedTitle": "手机应用未能构建。",

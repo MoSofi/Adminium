@@ -14,6 +14,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { buildPhone, installPhone, phoneInstalled, phoneNow, type PhoneBuild, type PhoneRunner } from '../project/apps/phone-build.js';
+import { hasOwnBuild } from '../project/apps/own-build.js';
 import { approvePhone, hasPhoneCode, isPhoneApproved, phoneDir, phoneShapeProblems } from '../project/apps/phone.js';
 import { appDir } from '../project/apps/read-app.js';
 import { addPhoneSide, nameFromKey } from '../project/apps/scaffold-app.js';
@@ -63,8 +64,11 @@ export function createPhoneService(opts: PhoneServiceOptions): PhoneService {
 
   const status = (key: string): PhoneStatus => {
     const step = working.get(key);
+    const disk = phoneNow(opts.root, key);
+    // What the last "add" ended on is said only while it is still so: a turn that built the phone app since has the last word.
+    if (disk.state === 'built') failed.delete(key);
     const said = failed.get(key);
-    const now: PhoneStanding = step !== undefined ? { state: 'working', step } : said !== undefined ? { state: 'failed', words: said } : phoneNow(opts.root, key);
+    const now: PhoneStanding = step !== undefined ? { state: 'working', step } : said !== undefined ? { state: 'failed', words: said } : disk;
     const door = opts.door.state();
     // The door is one for the whole project: another app's is not this app's to show.
     return { phone: now, door: door.state !== 'off' && door.app !== key ? { state: 'off' } : door, addresses: opts.door.addresses() };
@@ -84,6 +88,11 @@ export function createPhoneService(opts: PhoneServiceOptions): PhoneService {
     status,
     add(key, by) {
       if (working.has(key)) return status(key);
+      // A copy of a published app builds its own screens: a phone side is not added to it here.
+      if (hasOwnBuild(opts.root, key)) {
+        failed.set(key, 'This app is a copy of a published one and builds its own screens: a phone app is not added to it here.');
+        return status(key);
+      }
       // 409 while a turn runs or something else has the folder: said by the route as it is.
       const hold = opts.hold();
       failed.delete(key);

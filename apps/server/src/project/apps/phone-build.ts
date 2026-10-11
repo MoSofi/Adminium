@@ -26,7 +26,7 @@ import { dirname, join } from 'node:path';
 import { runChild, type ChildResult } from '../../designer/child.js';
 import { DESKTOP_PROGRAMS_ENV, nodeProgram, packageManagerProgram, type Launch } from '../programs.js';
 import { guardEnvironment } from './own-build.js';
-import { PHONE_LOCK, PHONE_SIDE, approvePhone, hasPhoneCode, isPhoneApproved, phoneBuildDir, phoneDir, phoneShapeProblems, phoneUnapprovedWords } from './phone.js';
+import { PHONE_LOCK, PHONE_SIDE, approvePhone, hasPhoneCode, isPhoneApproved, phoneBuildDir, phoneDir, phonePackages, phoneSettingsHash, phoneShapeProblems, phoneUnapprovedWords } from './phone.js';
 import { APPS_DIR } from './read-app.js';
 
 /** How long an install may take: Expo's packages are about 350 MB. */
@@ -65,8 +65,8 @@ export type PhoneBuild =
   | { state: 'none' }
   /** Its folder holds something Expo would run unasked, or lacks what a phone side has. */
   | { state: 'shape'; words: string }
-  /** Nobody said yes to installing and building it on this computer. */
-  | { state: 'unapproved'; words: string }
+  /** Nobody said yes to installing and building it on this computer. `packages` is what its install would bring, by name. */
+  | { state: 'unapproved'; words: string; packages: string[] }
   /** Approved; its packages are not installed (or its package list changed since). */
   | { state: 'no-packages'; words: string }
   /** Expo's build stopped. */
@@ -160,6 +160,9 @@ function readStamp(root: string, key: string): { sources: string; build: string 
   }
 }
 
+/** Where the last failed build of a phone side is remembered: beside its preview, never inside it. */
+const failedFile = (root: string, key: string): string => `${phoneBuildDir(root, key)}.failed.json`;
+
 /** The build of the phone side that is on disk now, or null. Starts nothing. */
 export function builtPhone(root: string, key: string): { build: string } | null {
   const stamp = readStamp(root, key);
@@ -195,6 +198,8 @@ export function installPhone(root: string, key: string, opts: PhoneOptions = {})
   return inTurn(root, key, async () => {
     const dir = phoneDir(root, key);
     if (!isPhoneApproved(root, key)) return { ok: false, words: phoneUnapprovedWords(key) };
+    // What the person approved, apart from the lock an install writes: it must read the same when the install ends.
+    const approved = phoneSettingsHash(root, key);
     const program = packageManagerProgram(dir, { [DESKTOP_PROGRAMS_ENV]: process.env[DESKTOP_PROGRAMS_ENV] }, 'npm');
     const args = [existsSync(join(dir, PHONE_LOCK)) ? 'ci' : 'install', '--ignore-scripts', '--no-audit', '--no-fund'];
     const result = await (opts.run ?? run)(program.launch(args), { cwd: dir, timeoutMs: PHONE_INSTALL_TIMEOUT_MS, signal: opts.signal, env: phoneEnvironment() });
@@ -204,8 +209,9 @@ export function installPhone(root: string, key: string, opts: PhoneOptions = {})
     }
     mkdirSync(dirname(join(dir, INSTALL_STAMP)), { recursive: true });
     writeFileSync(join(dir, INSTALL_STAMP), installHash(dir));
-    // The lock is new or moved: the yes was to this package list, and stays.
-    approvePhone(root, key);
+    // The lock is new or moved: the yes was to this package list, and stays. A package list or a setting that
+    // changed while the install ran is not what was approved: the person is asked again.
+    if (phoneSettingsHash(root, key) === approved) approvePhone(root, key);
     return { ok: true };
   });
 }
@@ -216,12 +222,12 @@ export function installPhone(root: string, key: string, opts: PhoneOptions = {})
  * command they ran) installs them.
  */
 export function buildPhone(root: string, key: string, opts: PhoneOptions = {}): Promise<PhoneBuild> {
-  if (!hasPhoneCode(root, key) && !existsSync(phoneDir(root, key))) return Promise.resolve({ state: 'none' });
+  if (!hasPhoneCode(root, key)) return Promise.resolve({ state: 'none' });
   return inTurn(root, key, async (): Promise<PhoneBuild> => {
     const dir = phoneDir(root, key);
     const shape = phoneShapeProblems(root, key);
     if (shape.length > 0) return { state: 'shape', words: shape.map((problem) => `${problem.file} ${problem.message}`).join('\n') };
-    if (!isPhoneApproved(root, key)) return { state: 'unapproved', words: phoneUnapprovedWords(key) };
+    if (!isPhoneApproved(root, key)) return { state: 'unapproved', words: phoneUnapprovedWords(key), packages: phonePackages(root, key) };
     if (!phoneInstalled(root, key)) {
       return { state: 'no-packages', words: `${APPS_DIR}/${key}/${PHONE_SIDE} — its packages are not installed, so its phone preview was not built. Install them with:  adminium app approve-build ${key}` };
     }
@@ -254,30 +260,45 @@ export function buildPhone(root: string, key: string, opts: PhoneOptions = {}): 
     if (result.code !== 0 || !existsSync(join(staging, 'index.html'))) {
       rmSync(staging, { recursive: true, force: true });
       const why = result.stopped ? 'It was stopped.' : result.timedOut ? 'It took more than five minutes.' : tail(result.output);
-      return { state: 'failed', words: `${APPS_DIR}/${key}/${PHONE_SIDE} — the phone app did not build:\n${why}` };
+      const words = `${APPS_DIR}/${key}/${PHONE_SIDE} — the phone app did not build:\n${why}`;
+      // Kept, so whoever asks how the phone side stands is told it did not build, though an older preview is still there.
+      if (!result.stopped) {
+        mkdirSync(dirname(failedFile(root, key)), { recursive: true });
+        writeFileSync(failedFile(root, key), `${JSON.stringify({ sources, words })}\n`);
+      }
+      return { state: 'failed', words };
     }
     // Swapped in whole: a half-written preview is never served.
     const build = sha256(`${sources}\n${String(Date.now())}`).slice(0, 16);
     writeFileSync(join(staging, BUILD_STAMP), `${JSON.stringify({ sources, build })}\n`);
     rmSync(to, { recursive: true, force: true });
     renameSync(staging, to);
+    rmSync(failedFile(root, key), { force: true });
     return { state: 'built', build };
   });
 }
 
 /** Take the phone side's preview away (the app has none any more, or is going). */
 export function removePhoneBuild(root: string, key: string): void {
+  rmSync(failedFile(root, key), { force: true });
   rmSync(phoneBuildDir(root, key), { recursive: true, force: true });
   rmSync(`${phoneBuildDir(root, key)}.staging`, { recursive: true, force: true });
 }
 
 /** What the phone side is now, read from the disk: starts nothing. */
 export function phoneNow(root: string, key: string): PhoneBuild {
-  if (!hasPhoneCode(root, key) && !existsSync(phoneDir(root, key))) return { state: 'none' };
+  if (!hasPhoneCode(root, key)) return { state: 'none' };
   const shape = phoneShapeProblems(root, key);
   if (shape.length > 0) return { state: 'shape', words: shape.map((problem) => `${problem.file} ${problem.message}`).join('\n') };
-  if (!isPhoneApproved(root, key)) return { state: 'unapproved', words: phoneUnapprovedWords(key) };
+  if (!isPhoneApproved(root, key)) return { state: 'unapproved', words: phoneUnapprovedWords(key), packages: phonePackages(root, key) };
   if (!phoneInstalled(root, key)) return { state: 'no-packages', words: `${APPS_DIR}/${key}/${PHONE_SIDE} — its packages are not installed.` };
+  // The files as they are now did not build: said, though the preview of an earlier build is still served.
+  try {
+    const failed = JSON.parse(readFileSync(failedFile(root, key), 'utf8')) as { sources?: unknown; words?: unknown };
+    if (typeof failed.words === 'string' && failed.sources === sourcesHash(phoneDir(root, key))) return { state: 'failed', words: failed.words };
+  } catch {
+    // No build of these files failed.
+  }
   const built = builtPhone(root, key);
   return built === null ? { state: 'failed', words: `${APPS_DIR}/${key}/${PHONE_SIDE} — it is not built yet.` } : { state: 'built', build: built.build };
 }

@@ -91259,7 +91259,8 @@
                             "type": "string",
                             "enum": [
                               "browser",
-                              "server"
+                              "server",
+                              "app"
                             ]
                           },
                           "access": {
@@ -91636,7 +91637,8 @@
                           "type": "string",
                           "enum": [
                             "browser",
-                            "server"
+                            "server",
+                            "app"
                           ]
                         },
                         "access": {
@@ -91967,7 +91969,8 @@
                           "type": "string",
                           "enum": [
                             "browser",
-                            "server"
+                            "server",
+                            "app"
                           ]
                         },
                         "access": {
@@ -94246,6 +94249,12 @@
                               "additionalProperties": false
                             }
                           },
+                          "phone": {
+                            "type": "boolean",
+                            "enum": [
+                              true
+                            ]
+                          },
                           "publisher": {
                             "type": "object",
                             "properties": {
@@ -96086,6 +96095,14 @@
                                 "type": "string"
                               }
                             },
+                            "phoneKey": {
+                              "type": "string",
+                              "enum": [
+                                "held",
+                                "made",
+                                "withheld"
+                              ]
+                            },
                             "warnings": {
                               "type": "array",
                               "items": {
@@ -96881,6 +96898,12 @@
                         "additionalProperties": false
                       }
                     },
+                    "phone": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
                     "publisher": {
                       "type": "object",
                       "properties": {
@@ -97652,6 +97675,12 @@
                             ],
                             "additionalProperties": false
                           }
+                        },
+                        "phone": {
+                          "type": "boolean",
+                          "enum": [
+                            true
+                          ]
                         },
                         "publisher": {
                           "type": "object",

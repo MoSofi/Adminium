@@ -83,7 +83,8 @@ describe('what the door passes of a phone’s request', () => {
     expect(doorRoute('GET', '/', '')).toBe('manifest');
     expect(doorRoute('HEAD', '/', '?code=x')).toBe('manifest');
     expect(doorRoute('GET', '/index.ts.bundle', '?platform=ios')).toBe('bundle');
-    expect(doorRoute('GET', '/index.bundle', '')).toBe('bundle');
+    // (One entry, one bundle: no other name is passed.)
+    expect(doorRoute('GET', '/index.bundle', '')).toBeNull();
     expect(doorRoute('GET', '/assets/x.png', '')).toBe('asset');
     expect(doorRoute('GET', '/assets/src/img/x.png', '?platform=ios&hash=abc')).toBe('asset');
     for (const method of ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS']) expect(doorRoute(method, '/api/v1/public/records/x', ''), method).toBe('api');
@@ -93,6 +94,10 @@ describe('what the door passes of a phone’s request', () => {
     ['GET', '/assets/', '?unstable_path=..%2F..%2Fpackage.json'],
     ['GET', '/assets/x.png', '?platform=ios&unstable_path=.%2Fsecret'],
     ['GET', '/assets/x.png', '?UNSTABLE_PATH=x'],
+    ['GET', '/assets/x.png', '?unstable%5Fpath=..%2Fpackage.json'],
+    ['GET', '/assets/x.png', '?platform=ios&%75nstable_path=x'],
+    ['GET', '/assets', ''],
+    ['GET', '/assets/', ''],
     ['GET', '/package.json.bundle', ''],
     ['GET', '/src/adminium.ts.bundle', ''],
     ['GET', '/status', ''],
@@ -407,6 +412,16 @@ describe('the phone door', () => {
   });
 
   describe('who comes through', () => {
+    it('a code of the right length in other letters is a wrong code, and the door stands', async () => {
+      const { port, code } = await opened();
+      // The same count of letters, more bytes: comparing them byte for byte once ended the server.
+      for (const wrong of ['é'.repeat(code.length), '%C3%A9'.repeat(code.length), '\u{1F600}'.repeat(code.length), `${code.slice(0, -1)}é`, '%', '%E0%A4%A']) {
+        expect((await ask(port, `/?code=${wrong.startsWith('%') ? wrong : encodeURIComponent(wrong)}`)).status, wrong).toBe(404);
+      }
+      expect(door.state()).toMatchObject({ state: 'open', connected: false });
+      expect((await ask(port, `/?code=${code}`)).status).toBe(200);
+    });
+
     it('a request by a name, or to another address, is told it is not here', async () => {
       const { port, code } = await opened();
       for (const host of [`localhost:${String(port)}`, `127.0.0.1:${String(port)}`, 'evil.example', `${ADDRESS}`, `${ADDRESS}:${String(port + 1)}`, `my-mac.local:${String(port)}`, '']) {
@@ -439,6 +454,9 @@ describe('the phone door', () => {
       ['Sec-Fetch-Site', { 'sec-fetch-site': 'cross-site' }],
       ['Sec-Fetch-Mode', { 'sec-fetch-mode': 'no-cors' }],
       ['Sec-Fetch-Dest', { 'sec-fetch-dest': 'script' }],
+      ['a Referer', { referer: 'http://evil.example/page' }],
+      // Over plain http a page may send none of the above: what it cannot change is that its browser says it is one.
+      ['a browser’s name', { 'user-agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 26_3 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.3 Mobile/15E148 Safari/604.1' }],
     ])('a web page is never let in, though it has the code: a request with %s', async (_what, headers) => {
       const { port, code } = await opened();
       expect((await ask(port, `/?code=${code}`, { headers })).status).toBe(404);

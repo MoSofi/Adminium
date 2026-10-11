@@ -24,6 +24,7 @@ import {
 } from '@adminium/ui';
 
 import { ApiError } from '../../app/api.js';
+import { systemInfoQuery } from '../../app/capabilities.js';
 import { useAppToasts } from '../../pages/toasts.js';
 import { t } from '../../i18n/t.js';
 import { designerApi, yourAppsQuery, type DesignerTarget, type CatalogApp } from '../api.js';
@@ -44,13 +45,15 @@ export const SHOW_START_WITH_AN_APP = true;
 
 const MAX_LINES_PX = 216;
 
-function targets(): { id: DesignerTarget; label: string; line: string; icon: LucideIcon }[] {
-  return [
+/** A phone app is built where an app is designed on a person's own computer: a live server offers none. */
+function targets(live: boolean): { id: DesignerTarget; label: string; line: string; icon: LucideIcon }[] {
+  const all: { id: DesignerTarget; label: string; line: string; icon: LucideIcon }[] = [
     { id: 'auto', label: t('designer:target.auto', 'Auto'), line: t('designer:target.autoLine', 'Adminium decides'), icon: Sparkles },
     { id: 'dashboard', label: t('designer:target.dashboard', 'Dashboard only'), line: t('designer:target.dashboardLine', 'tables and admin pages'), icon: LayoutDashboard },
     { id: 'web', label: t('designer:target.web', 'Web'), line: t('designer:target.webLine', 'a staff or customer side'), icon: Globe },
     { id: 'mobile', label: t('designer:target.mobile', 'Mobile'), line: t('designer:target.mobileLine', 'a phone app'), icon: Smartphone },
   ];
+  return live ? all.filter((entry) => entry.id !== 'mobile') : all;
 }
 
 export function DesignerHome(): ReactNode {
@@ -59,6 +62,7 @@ export function DesignerHome(): ReactNode {
   const model = useDesignerModel();
   const control = useModelControl(model);
   const yourApps = useQuery(yourAppsQuery());
+  const info = useQuery(systemInfoQuery());
   const [text, setText] = useState('');
   const [target, setTarget] = useState<DesignerTarget>('auto');
   // The style of the app's own screens: null leaves it to the Designer.
@@ -131,7 +135,7 @@ export function DesignerHome(): ReactNode {
       send();
     }
   };
-  const options = targets();
+  const options = targets(info.data?.designer?.mode === 'live');
   const chosen = options.find((entry) => entry.id === target) ?? (options[0] as (typeof options)[number]);
   const noteId = 'designer-home-note';
 

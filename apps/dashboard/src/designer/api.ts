@@ -16,7 +16,9 @@ export type DesignerTarget = 'auto' | 'dashboard' | 'web' | 'mobile';
 /** How an app's phone side stands (mirrors the server's `designerPhoneReply`). */
 export type PhoneStanding =
   | { state: 'none' }
-  | { state: 'shape' | 'unapproved' | 'no-packages' | 'failed'; words: string }
+  | { state: 'shape' | 'no-packages' | 'failed'; words: string }
+  /** `packages` are what its package.json asks for, by name: what the yes installs. */
+  | { state: 'unapproved'; words: string; packages: string[] }
   | { state: 'built'; build: string }
   | { state: 'working'; step: 'adding' | 'installing' | 'building' };
 

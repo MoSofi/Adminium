@@ -49,8 +49,8 @@ await connection.client.create(tableName(connection, 'requests'), { message });
 - An error is a `PublicApiError` with a `code`. Say your own sentence to the customer; never
   show `error.message`.
 - Wrap every word a customer reads in `en('…')`.
-- A person seeing their own rows signs in with a **claim**: `await client.claim({ email, code })`
-  answers `true` when the details match, then list the `…_claimed` table. For a mailed code:
+- A person seeing their own rows signs in with a **claim**: `await client.claim({ email, pin })`
+  (the columns the app's access file names) answers `true` when the details match, then list the `…_claimed` table. For a mailed code:
   `client.requestCode({ purpose: 'verify' })`, then `client.verifyCode({ code })`. A sign-in
   **link** opens in a web page and is refused for a phone app. The session is kept in the
   phone's secure store by `adminium.ts`; `client.signOut()` ends it.

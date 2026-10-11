@@ -633,7 +633,7 @@ describe.skipIf(!canBuildSides)('Adminium Designer’s routes', { timeout: 120_0
   it('refuse a model that cannot build, and a connection that is not there', async () => {
     const client = await server({ designer: true });
     expect((await client.call('POST', '/api/v1/designer/sessions', createBody({ connectionId: 'env:anthropic' }))).status).toBe(404);
-    expect((await client.call('POST', '/api/v1/designer/sessions', createBody({ target: 'mobile' }))).status).toBe(422);
+    expect((await client.call('POST', '/api/v1/designer/sessions', createBody({ target: 'tablet' }))).status).toBe(422);
     expect((await client.call('GET', '/api/v1/designer/sessions/ds_000000000000000000000000')).status).toBe(404);
     expect((await client.call('GET', '/api/v1/designer/sessions/..%2F..%2Fetc')).status).toBe(422);
   });

@@ -16,6 +16,7 @@
  * is built on, not undone.
  */
 import { existsSync } from 'node:fs';
+import { join } from 'node:path';
 
 import { buildCodeStems, codeStem, hasOwnBuild } from '../project/apps/own-build.js';
 import { PHONE_SIDE, phoneDir } from '../project/apps/phone.js';
@@ -89,7 +90,7 @@ const PHONE_CONFIG_NAME = /^(metro\.config|babel\.config|app\.config|react-nativ
  * here. What is written here is the phone app's screens: `mobile/App.tsx`,
  * and code and data under `mobile/src/` and `mobile/assets/`.
  */
-export function phoneFileRefusal(root: string, appKey: string, inside: string): string | null {
+export function phoneFileRefusal(root: string, appKey: string, inside: string, spelled: string = inside): string | null {
   const name = inside.slice(inside.lastIndexOf('/') + 1);
   const underPhone = inside === PHONE_SIDE || inside.startsWith(`${PHONE_SIDE}/`);
   if (!underPhone) {
@@ -102,7 +103,14 @@ export function phoneFileRefusal(root: string, appKey: string, inside: string): 
   if (PHONE_CONFIG_NAME.test(name) || name.startsWith('.') || name === 'package.json' || name === 'package-lock.json') {
     return `${inside} decides what Expo's build of the phone app runs, and the person approved that as it is. Write the phone app's screens in ${PHONE_SIDE}/App.tsx and under ${PHONE_SIDE}/src/.`;
   }
-  if (within === 'app.tsx') return null;
+  // Before the phone side exists there is nothing to write into: its files are made by add_side, with a person's yes.
+  if (!existsSync(join(phoneDir(root, appKey), 'package.json'))) {
+    return `The app has no phone app yet. Call add_side with "mobile" first: it asks the person, writes the phone app's files and installs what it needs. Then write ${PHONE_SIDE}/App.tsx.`;
+  }
+  if (within === 'app.tsx') {
+    // One file, by its one name: on a disk that tells letters' case apart, `app.tsx` would be a second file nothing reads.
+    return spelled.endsWith(`${PHONE_SIDE}/App.tsx`) ? null : `The phone app's first screen is ${PHONE_SIDE}/App.tsx, spelled exactly so.`;
+  }
   if (within === 'src/adminium.ts' || within === 'app.json' || within === 'index.ts' || within === 'tsconfig.json') {
     return `${inside} is written by Adminium with the phone app and is the same in every app. Write the screens in ${PHONE_SIDE}/App.tsx and under ${PHONE_SIDE}/src/.`;
   }
@@ -131,7 +139,7 @@ export function noCardRefusal(root: string, appKey: string, normal: string, cont
   const inside = folded.startsWith(`apps/${appKey}/`) ? folded.slice(`apps/${appKey}/`.length) : null;
   if (inside === 'build.json') return 'build-json';
   if (inside !== null && hasOwnBuild(root, appKey) && isBuildFile(inside)) return 'build-file';
-  if (inside !== null && phoneFileRefusal(root, appKey, inside) !== null) return 'phone-file';
+  if (inside !== null && phoneFileRefusal(root, appKey, inside, normal.normalize('NFC')) !== null) return 'phone-file';
   const card = needsCard(root, appKey, normal);
   if (card !== null) return card;
   return content !== null && addsBuildCommand(normal, content, appKey) ? 'build-command' : null;

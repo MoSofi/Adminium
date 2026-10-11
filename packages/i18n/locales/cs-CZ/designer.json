@@ -825,6 +825,7 @@
     "building": "Sestavuje se aplikace pro telefon…",
     "addTitle": "Přidat aplikaci pro telefon?",
     "approveTitle": "Tato aplikace má aplikaci pro telefon. Sestavit ji na tomto počítači?",
+    "packages": "Žádá o tyto balíčky:",
     "packagesTitle": "Balíčky aplikace pro telefon nejsou nainstalované.",
     "shapeTitle": "Složku aplikace pro telefon nelze v této podobě sestavit.",
     "failedTitle": "Aplikaci pro telefon se nepodařilo sestavit.",

@@ -20,8 +20,11 @@
  *
  *  - a request to the door's own address and port by number (a name that
  *    points here is refused: 421);
- *  - with no `Origin` and no `Sec-Fetch-*` header (a phone app sends none; a
- *    web page always does);
+ *  - with no `Origin`, no `Sec-Fetch-*` and no `Referer` header, and not
+ *    saying it is a browser (every browser says `Mozilla/…` and a page cannot
+ *    change that; over plain http a page may send none of the first three.
+ *    A phone app says what its platform's network code says: `Expo…` on iOS,
+ *    `okhttp/…` on Android);
  *  - from the one device that showed the code. The code is in the address a
  *    phone scans; the first device to show it is the one admitted, by its
  *    address, until the door closes. A second phone: stop, and open again.
@@ -29,7 +32,7 @@
  * It closes when asked, when the server stops, when this machine's address
  * goes, and after half an hour in which nothing came through it.
  */
-import { randomBytes, timingSafeEqual } from 'node:crypto';
+import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import { createServer, request as httpRequest, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import { connect, createServer as createNetServer, type Socket } from 'node:net';
@@ -180,9 +183,18 @@ export function doorRoute(method: string, pathname: string, search: string): 'ma
   if (method !== 'GET' && method !== 'HEAD') return null;
   if (pathname === '/') return 'manifest';
   // The app's one bundle, by the name Expo's manifest gives it.
-  if (pathname === '/index.ts.bundle' || pathname === '/index.bundle') return 'bundle';
-  // An asset of the app by its place, never by a path given in the question (`unstable_path` reads any file).
-  if (pathname.startsWith('/assets/') && !/[?&]unstable_path=/i.test(search)) return 'asset';
+  if (pathname === '/index.ts.bundle') return 'bundle';
+  // An asset of the app by its place, never by a path given in the question (`unstable_path` reads a file by
+  // its path; the question is read as the bundler reads it, so `unstable%5Fpath` is the same word).
+  if (pathname.startsWith('/assets/') && pathname.length > '/assets/'.length) {
+    let asked: URLSearchParams;
+    try {
+      asked = new URLSearchParams(search);
+    } catch {
+      return null;
+    }
+    return [...asked.keys()].some((name) => name.toLowerCase() === 'unstable_path') ? null : 'asset';
+  }
   return null;
 }
 
@@ -197,7 +209,8 @@ function passed(headers: IncomingMessage['headers']): Record<string, string> {
   return out;
 }
 
-const same = (a: string, b: string): boolean => a.length === b.length && timingSafeEqual(Buffer.from(a), Buffer.from(b));
+/** Whether two texts are the same, in the same time whatever they are: by their digests, so a text of any length or letters compares. */
+const same = (a: string, b: string): boolean => timingSafeEqual(createHash('sha256').update(a, 'utf8').digest(), createHash('sha256').update(b, 'utf8').digest());
 
 /** The SDK the phone side is written for: the major of its `expo`. */
 function sdkOf(root: string, key: string): string | null {
@@ -217,9 +230,12 @@ export function createPhoneDoor(opts: PhoneDoorOptions): PhoneDoor {
   let server: Server | null = null;
   let bundler: LongChild | null = null;
   let watch: NodeJS.Timeout | null = null;
+  /** Moves at every open and every close: an open that was overtaken while it waited stops what it started. */
+  let generation = 0;
   const sockets = new Set<Socket>();
 
   const close = (why: 'stopped' | 'idle' | 'network' | 'failed', words: string): void => {
+    generation += 1;
     const app = current.state === 'off' ? '' : current.app;
     if (watch !== null) clearInterval(watch);
     watch = null;
@@ -314,14 +330,18 @@ export function createPhoneDoor(opts: PhoneDoorOptions): PhoneDoor {
       if (current.state === 'starting') return current;
       close('stopped', '');
       current = { state: 'starting', app: key };
+      const mine = generation;
+      /** Whether this open is still the one wanted: a stop, or another open, since it began means it is not. */
+      const overtaken = (): boolean => generation !== mine;
       const fail = (words: string): PhoneDoorState => {
-        close('failed', words);
+        if (!overtaken()) close('failed', words);
         return current;
       };
       if (!phoneAddresses(interfaces()).some((entry) => entry.address === address)) return fail('That is not an address of this computer on a network. Choose another.');
       const phone = phoneNow(opts.root, key);
       if (phone.state !== 'built') return fail(phone.state === 'none' ? 'This app has no phone app.' : phone.words);
       const access = await opts.access(key);
+      if (overtaken()) return current;
       if (access === null) return fail('The phone app has no key yet. Give the app public access (manifest/access.json), and it is made when the app is applied.');
 
       const dir = phoneDir(opts.root, key);
@@ -334,6 +354,7 @@ export function createPhoneDoor(opts: PhoneDoorOptions): PhoneDoor {
       } catch {
         return fail('This computer gave the phone preview no port to listen on.');
       }
+      if (overtaken()) return current;
       // The door's own address, as an origin: this machine's address on its network, by number.
       const at = new URL('http://127.0.0.1');
       at.hostname = address;
@@ -379,7 +400,11 @@ export function createPhoneDoor(opts: PhoneDoorOptions): PhoneDoor {
         });
         if (!ready) await new Promise((resolve) => setTimeout(resolve, 400));
       }
-      if (bundler !== child) return current;
+      if (bundler !== child || overtaken()) {
+        // Stopped, or opened again, while the bundler was starting: this one is nobody's now.
+        child.stop();
+        return current;
+      }
       if (!ready) {
         const said = child
           .output()
@@ -401,7 +426,9 @@ export function createPhoneDoor(opts: PhoneDoorOptions): PhoneDoor {
       const allowed = (req: IncomingMessage, route: string | null, search: string): boolean => {
         const h = req.headers;
         if ((h.host ?? '').toLowerCase() !== host) return false;
-        if (h.origin !== undefined || Object.keys(h).some((name) => name.startsWith('sec-fetch-'))) return false;
+        if (h.origin !== undefined || h.referer !== undefined || Object.keys(h).some((name) => name.startsWith('sec-fetch-'))) return false;
+        // A browser always says it is one, and a page in it cannot say otherwise: a phone app never does.
+        if (/^\s*Mozilla\//i.test(String(h['user-agent'] ?? ''))) return false;
         const remote = req.socket.remoteAddress ?? '';
         if (admitted === null) {
           if (route !== 'manifest') return false;
@@ -416,6 +443,15 @@ export function createPhoneDoor(opts: PhoneDoorOptions): PhoneDoor {
       };
 
       const door = createServer((req, res) => {
+        try {
+          answer(req, res);
+        } catch {
+          // Whatever a stranger sent that this could not read: not found, and the server goes on.
+          if (!res.headersSent) res.writeHead(404, { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store' });
+          res.end('Not found.');
+        }
+      });
+      const answer = (req: IncomingMessage, res: ServerResponse): void => {
         const parsed = doorPath(req.url);
         const route = parsed === null ? null : doorRoute(req.method ?? 'GET', parsed.pathname, parsed.search);
         if ((req.headers.host ?? '').toLowerCase() !== host) {
@@ -431,11 +467,18 @@ export function createPhoneDoor(opts: PhoneDoorOptions): PhoneDoor {
         const path = route === 'manifest' ? '/' : `${parsed.pathname}${parsed.search}`;
         if (route === 'api') toApi(req, res, path, req.socket.remoteAddress ?? '');
         else toBundler(bundlerPort, req, res, path);
-      });
+      };
       // The refresh socket, to the bundler: what makes the phone show the app as it was last written.
       door.on('upgrade', (req, socket: Socket, head) => {
-        const parsed = doorPath(req.url);
-        if (parsed === null || parsed.pathname !== '/hot' || !allowed(req, 'hot', parsed.search)) {
+        let parsed: ReturnType<typeof doorPath> = null;
+        let may = false;
+        try {
+          parsed = doorPath(req.url);
+          may = parsed !== null && parsed.pathname === '/hot' && allowed(req, 'hot', parsed.search);
+        } catch {
+          may = false;
+        }
+        if (parsed === null || !may) {
           socket.destroy();
           return;
         }
@@ -469,8 +512,9 @@ export function createPhoneDoor(opts: PhoneDoorOptions): PhoneDoor {
       } catch {
         return fail('This computer would not let the phone preview listen on that address.');
       }
-      if (bundler !== child) {
+      if (bundler !== child || overtaken()) {
         door.close();
+        child.stop();
         return current;
       }
       server = door;

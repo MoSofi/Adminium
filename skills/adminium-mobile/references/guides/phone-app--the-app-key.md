@@ -7,8 +7,9 @@ key of its own kind beside its customer key, an **app key** (`adm_app_…`):
 
 - It is accepted with no `Origin`, and **refused from a browser** (any `Origin` or `Sec-Fetch-*`
   header). A key taken out of a phone app is useless in a web page.
-- It reaches exactly what the customer key reaches, with a visitor's limits and the human check.
-  It is never a server key.
+- It reaches the tables the customer key reaches, with a visitor's limits and the human check.
+  It is never a server key. Two things a page can do it cannot: a sign-in **link** (it opens in a
+  web page) is refused for it, and it is not handed to a page that asks for the app's settings.
 - It is made when the app is installed or applied, and only when the app grants public access. An
   update that adds a phone side asks for it like any new access. Revoke it in Studio → API keys
   and no update makes it again. It is a second key: revoking the website's key does not revoke it.

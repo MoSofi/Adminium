@@ -41,7 +41,9 @@ you are asked again. For a phone side that came from somewhere else (a folder so
 npx @adminiumjs/adminium app approve-build orders
 ```
 
-It shows what will run, asks, and installs the packages. On a terminal the yes is kept in the
+It shows what will run, asks, and installs the packages. The packages are named by a version
+from the npm registry and nothing else: a package given as an address, a git repository or a
+file is refused, and so is a lock file that fetches from anywhere else. On a terminal the yes is kept in the
 project (`.adminium/approved-builds.json`); in the desktop app it is kept per computer, so a
 folder never arrives approved.
 
@@ -133,7 +135,9 @@ app against your computer's data.
 - A network that keeps its devices apart (many guest networks) cannot work.
 
 `adminium dev` builds the same preview at `/apps/<key>/mobile/`, on your computer's own names
-only (`localhost`). The code for a phone is in the Designer.
+only (`localhost`). When the phone app is not built (nobody said yes yet, its packages are
+missing, or its code does not build), `adminium dev` says why on its own line, and the rest of
+the app is served as it is. The code for a phone is in the Designer.
 
 ## The app key
 
@@ -142,8 +146,9 @@ key of its own kind beside its customer key, an **app key** (`adm_app_…`):
 
 - It is accepted with no `Origin`, and **refused from a browser** (any `Origin` or `Sec-Fetch-*`
   header). A key taken out of a phone app is useless in a web page.
-- It reaches exactly what the customer key reaches, with a visitor's limits and the human check.
-  It is never a server key.
+- It reaches the tables the customer key reaches, with a visitor's limits and the human check.
+  It is never a server key. Two things a page can do it cannot: a sign-in **link** (it opens in a
+  web page) is refused for it, and it is not handed to a page that asks for the app's settings.
 - It is made when the app is installed or applied, and only when the app grants public access. An
   update that adds a phone side asks for it like any new access. Revoke it in Studio → API keys
   and no update makes it again. It is a second key: revoking the website's key does not revoke it.

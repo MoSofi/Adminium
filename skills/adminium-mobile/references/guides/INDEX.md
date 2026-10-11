@@ -5,11 +5,11 @@
 | File | What it covers | Bytes |
 |---|---|---|
 | `references/guides/phone-app--overview.md` | A phone app for an app | 1191 |
-| `references/guides/phone-app--add-one.md` | Add one | 1196 |
+| `references/guides/phone-app--add-one.md` | Add one | 1397 |
 | `references/guides/phone-app--the-folder.md` | The folder | 1371 |
 | `references/guides/phone-app--write-a-screen.md` | Write a screen | 2108 |
-| `references/guides/phone-app--see-it.md` | See it | 1549 |
-| `references/guides/phone-app--the-app-key.md` | The app key | 1868 |
+| `references/guides/phone-app--see-it.md` | See it | 1743 |
+| `references/guides/phone-app--the-app-key.md` | The app key | 2032 |
 | `references/guides/phone-app--what-it-does-not-do-yet.md` | What it does not do yet | 646 |
 | `references/guides/public-access--overview.md` | An app's public access | 539 |
 | `references/guides/public-access--what-the-install-shows-first.md` | What the install shows first | 1593 |

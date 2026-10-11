@@ -23,4 +23,6 @@ app against your computer's data.
 - A network that keeps its devices apart (many guest networks) cannot work.
 
 `adminium dev` builds the same preview at `/apps/<key>/mobile/`, on your computer's own names
-only (`localhost`). The code for a phone is in the Designer.
+only (`localhost`). When the phone app is not built (nobody said yes yet, its packages are
+missing, or its code does not build), `adminium dev` says why on its own line, and the rest of
+the app is served as it is. The code for a phone is in the Designer.

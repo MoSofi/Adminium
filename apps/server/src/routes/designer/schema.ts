@@ -395,7 +395,7 @@ export const designerArchitectureReply = z.object({
 const designerPhoneStanding = z.discriminatedUnion('state', [
   z.object({ state: z.literal('none') }),
   z.object({ state: z.literal('shape'), words: z.string() }),
-  z.object({ state: z.literal('unapproved'), words: z.string() }),
+  z.object({ state: z.literal('unapproved'), words: z.string(), packages: z.array(z.string()) }),
   z.object({ state: z.literal('no-packages'), words: z.string() }),
   z.object({ state: z.literal('failed'), words: z.string() }),
   z.object({ state: z.literal('built'), build: z.string() }),

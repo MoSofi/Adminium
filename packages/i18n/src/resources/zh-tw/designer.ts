@@ -835,6 +835,7 @@ export default {
     "building": "正在建置手機應用程式…",
     "addTitle": "要新增手機應用程式嗎？",
     "approveTitle": "此應用程式附有手機應用程式。要在這台電腦上建置它嗎？",
+    "packages": "它需要這些套件：",
     "packagesTitle": "手機應用程式的套件尚未安裝。",
     "shapeTitle": "手機應用程式的資料夾依現況無法建置。",
     "failedTitle": "手機應用程式未能建置。",

@@ -835,6 +835,7 @@ export default {
     "building": "Die Handy-App wird gebaut…",
     "addTitle": "Eine Handy-App hinzufügen?",
     "approveTitle": "Diese App hat eine Handy-App. Auf diesem Computer bauen?",
+    "packages": "Sie verlangt diese Pakete:",
     "packagesTitle": "Die Pakete der Handy-App sind nicht installiert.",
     "shapeTitle": "Der Ordner der Handy-App lässt sich so nicht bauen.",
     "failedTitle": "Die Handy-App wurde nicht gebaut.",

@@ -835,6 +835,7 @@ export default {
     "building": "Building the phone app…",
     "addTitle": "Add a phone app?",
     "approveTitle": "This app has a phone app. Build it on this computer?",
+    "packages": "It asks for these packages:",
     "packagesTitle": "The phone app’s packages are not installed.",
     "shapeTitle": "The phone app’s folder cannot be built as it is.",
     "failedTitle": "The phone app did not build.",

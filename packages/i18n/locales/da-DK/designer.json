@@ -825,6 +825,7 @@
     "building": "Bygger telefonappen…",
     "addTitle": "Tilføj en telefonapp?",
     "approveTitle": "Denne app har en telefonapp. Skal den bygges på denne computer?",
+    "packages": "Den beder om disse pakker:",
     "packagesTitle": "Telefonappens pakker er ikke installeret.",
     "shapeTitle": "Telefonappens mappe kan ikke bygges, som den er.",
     "failedTitle": "Telefonappen blev ikke bygget.",

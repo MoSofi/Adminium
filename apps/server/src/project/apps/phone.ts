@@ -23,6 +23,7 @@ import { dirname, join } from 'node:path';
 import { PHONE_SIDE } from '@adminium/manifest';
 
 import { BUILD_DIR } from '../build-shared.js';
+import { NPM_REGISTRY } from '../programs.js';
 import { approvalsFile } from './own-build.js';
 import { APPS_DIR, appDir } from './read-app.js';
 
@@ -36,9 +37,7 @@ export const PHONE_BUILD_DIR = 'phone';
 export const phoneBuildDir = (root: string, key: string): string => join(root, BUILD_DIR, PHONE_BUILD_DIR, key);
 
 /** The screen a phone side starts from. */
-export const PHONE_ENTRY = 'App.tsx';
-/** The files of a phone side that are the engine's: written by the scaffold, never by the Designer. */
-export const PHONE_ENGINE_FILES = ['package.json', 'app.json', 'index.ts', 'tsconfig.json', 'src/adminium.ts'] as const;
+const PHONE_ENTRY = 'App.tsx';
 /** The lock a phone side's install writes. */
 export const PHONE_LOCK = 'package-lock.json';
 
@@ -51,6 +50,9 @@ export const hasPhoneCode = (root: string, key: string): boolean => existsSync(j
  * its own upward from the project it bundles).
  */
 const CONFIG_NAME = /^(metro\.config|babel\.config|app\.config|react-native\.config|postcss\.config)\.[a-z]+$|^\.babelrc(\.[a-z]+)?$/i;
+
+/** A version or a range of versions, as the registry reads one: `57.0.27`, `~57.0.3`, `^0.3.25`, `0.3.26-rc.0`. */
+const PLAIN_VERSION = /^[~^]?\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$/;
 
 /** The fields of `package.json` that name code to run, or a configuration. */
 const PACKAGE_FIELDS = ['scripts', 'babel', 'metro', 'expo', 'workspaces', 'overrides', 'resolutions'] as const;
@@ -138,6 +140,21 @@ export function phoneShapeProblems(root: string, key: string): PhoneProblem[] {
     if (deps === null || typeof deps !== 'object' || (deps as Record<string, unknown>)['expo'] === undefined) {
       problems.push({ file: where(key, 'package.json'), message: 'does not list "expo". A phone side is an Expo project.' });
     }
+    // A package is named by a version of the registry's: an address, a git or a file is code from somewhere nobody was shown.
+    for (const [name, spec] of Object.entries({ ...(pkg['dependencies'] as Record<string, unknown> | undefined), ...(pkg['devDependencies'] as Record<string, unknown> | undefined) })) {
+      if (typeof spec !== 'string' || !PLAIN_VERSION.test(spec)) {
+        problems.push({ file: where(key, 'package.json'), message: `lists "${name.slice(0, 60)}" by something other than a version (${typeof spec === 'string' ? spec.slice(0, 60) : 'not text'}). A phone side's packages come from the registry, by version.` });
+      }
+    }
+    for (const field of ['optionalDependencies', 'peerDependencies', 'bundleDependencies', 'bundledDependencies'] as const) {
+      if (pkg[field] !== undefined) problems.push({ file: where(key, 'package.json'), message: `has "${field}". A phone side lists its packages under "dependencies" and "devDependencies".` });
+    }
+    // The lock says where each package is fetched from: the registry, and nowhere else.
+    const lock = json(join(dir, PHONE_LOCK));
+    const elsewhere = lock === null ? [] : Object.entries((lock['packages'] ?? {}) as Record<string, { resolved?: unknown } | null>).filter(([, entry]) => typeof entry?.resolved === 'string' && !entry.resolved.startsWith(NPM_REGISTRY)).map(([name]) => name);
+    if (elsewhere.length > 0) {
+      problems.push({ file: where(key, PHONE_LOCK), message: `fetches ${String(elsewhere.length)} package(s) from somewhere other than the npm registry (${elsewhere.slice(0, 3).map((name) => name.replace(/^node_modules\//, '').slice(0, 40)).join(', ')}). Remove the lock file, or the packages.` });
+    }
   }
 
   const app = json(join(dir, 'app.json'));
@@ -221,6 +238,30 @@ export function approvePhone(root: string, key: string): void {
   const file = approvalsFile(root);
   mkdirSync(dirname(file), { recursive: true });
   writeFileSync(file, `${JSON.stringify({ ...approvals(root), [approvalName(key)]: phoneFingerprint(root, key) }, null, 2)}\n`, { mode: 0o600 });
+}
+
+/** The packages a phone side lists, by name: what its install brings, said to the person who is asked. */
+export function phonePackages(root: string, key: string): string[] {
+  const pkg = json(join(phoneDir(root, key), 'package.json'));
+  if (pkg === null) return [];
+  return Object.keys({ ...(pkg['dependencies'] as Record<string, unknown> | undefined), ...(pkg['devDependencies'] as Record<string, unknown> | undefined) })
+    .filter((name) => /^(@[a-z0-9][a-z0-9._-]*\/)?[a-z0-9][a-z0-9._-]*$/.test(name))
+    .sort()
+    .slice(0, 60);
+}
+
+/** The files an approval covers but an install does not write, each as its hash: the same before and after an install means nothing of them changed meanwhile. */
+export function phoneSettingsHash(root: string, key: string): string {
+  const dir = phoneDir(root, key);
+  return ['package.json', 'app.json', 'index.ts', 'tsconfig.json']
+    .map((file) => {
+      try {
+        return `${file}:${sha256(readFileSync(join(dir, file)))}`;
+      } catch {
+        return `${file}:-`;
+      }
+    })
+    .join('\n');
 }
 
 /** The sentence an unapproved phone side is noted with: what a person is asked to approve. */

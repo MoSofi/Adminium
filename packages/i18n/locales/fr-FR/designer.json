@@ -825,6 +825,7 @@
     "building": "Construction de l’application mobile…",
     "addTitle": "Ajouter une application mobile ?",
     "approveTitle": "Cette application a une application mobile. La construire sur cet ordinateur ?",
+    "packages": "Elle demande ces paquets :",
     "packagesTitle": "Les paquets de l’application mobile ne sont pas installés.",
     "shapeTitle": "Le dossier de l’application mobile ne peut pas être construit tel quel.",
     "failedTitle": "L’application mobile n’a pas pu être construite.",

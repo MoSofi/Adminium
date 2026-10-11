@@ -118,7 +118,7 @@ export function skillsFor(session: DesignerSession, opts: { hasSides: boolean; m
   const names = ['adminium/SKILL.md', 'adminium-app/SKILL.md', 'adminium-app/references/INDEX.md'];
   const phone = session.target === 'mobile' || opts.hasPhone === true || (opts.mentionsPhoneApp === true && session.target !== 'dashboard');
   // A phone app is asked for in words a website is asked for in ("customers can", "phone"): with the Mobile target, those words are about the phone app.
-  if (session.target === 'web' || opts.hasSides || (opts.mentionsScreens === true && session.target !== 'dashboard' && session.target !== 'mobile')) names.push('adminium-surface/SKILL.md', 'adminium-surface/references/INDEX.md');
+  if (session.target === 'web' || opts.hasSides || (opts.mentionsScreens === true && session.target !== 'dashboard' && session.target !== 'mobile' && opts.mentionsPhoneApp !== true)) names.push('adminium-surface/SKILL.md', 'adminium-surface/references/INDEX.md');
   if (phone) names.push('adminium-mobile/SKILL.md');
   if (opts.mentionsAddOn || opts.namesAddOn === true) names.push('adminium-add-ons/SKILL.md', 'adminium-add-ons/references/INDEX.md');
   return names;
@@ -473,7 +473,7 @@ export function createPrompt(deps: PromptDeps) {
     const ownRow = MENTIONS_OWN_ROW.test(opts.said ?? firstText(lastSaid)) ? skill(deps.skills, OWN_ROW_GUIDE) : '';
     // Design is for an app with screens of its own, or one about to have them; a dashboard-only app is told none of it.
     // A phone app has no theme file and no made parts: the design checklist is for the web sides.
-    const designs = session.target !== 'dashboard' && (app.hasSides || session.target === 'web' || (session.target !== 'mobile' && MENTIONS_SCREENS.test(said)));
+    const designs = session.target !== 'dashboard' && (app.hasSides || session.target === 'web' || (session.target !== 'mobile' && !MENTIONS_PHONE_APP.test(said) && MENTIONS_SCREENS.test(said)));
     const design = designs ? designSection(deps.root, session.appKey, deps.skills, stylesDir) : '';
     const system = `${PREAMBLE.replace('{{addresses}}', names.includes('adminium-surface/SKILL.md') ? '' : ` ${ADDRESSES}`)}\n\n${VERBS}\n\n${target}${names.map((name) => skill(deps.skills, name)).join('')}${design === '' ? '' : `\n\n${design}`}${ownRow === '' ? '' : `\n\nThis request is about a person seeing their own row. Do it exactly as this page says, and no other way:${ownRow}`}\n\n${taskGuides(deps.skills)}\n\n===== The app now =====\n${app.text}${app.empty ? `\n\n${partExamples(session.appKey, deps.version)}` : ''}`;
 

@@ -134,6 +134,8 @@ export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
     void queryClient.invalidateQueries({ queryKey: designerKeys.apps });
     void queryClient.invalidateQueries({ queryKey: designerKeys.architecture(sessionId) });
     void queryClient.invalidateQueries({ queryKey: designerKeys.files(sessionId) });
+    // A turn may have added the phone app, or built it again.
+    void queryClient.invalidateQueries({ queryKey: ['designer', 'phone', sessionId] });
     // The preview's list of installed apps: a live `app-changed` can be missed, a turn's end cannot.
     void queryClient.invalidateQueries({ queryKey: ['designer', 'installed'] });
   };

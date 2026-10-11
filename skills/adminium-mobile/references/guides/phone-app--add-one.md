@@ -22,6 +22,8 @@ you are asked again. For a phone side that came from somewhere else (a folder so
 npx @adminiumjs/adminium app approve-build orders
 ```
 
-It shows what will run, asks, and installs the packages. On a terminal the yes is kept in the
+It shows what will run, asks, and installs the packages. The packages are named by a version
+from the npm registry and nothing else: a package given as an address, a git repository or a
+file is refused, and so is a lock file that fetches from anywhere else. On a terminal the yes is kept in the
 project (`.adminium/approved-builds.json`); in the desktop app it is kept per computer, so a
 folder never arrives approved.

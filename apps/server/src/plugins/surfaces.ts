@@ -381,8 +381,7 @@ export function parseInstancePath(
   if (parts.length < 4 || parts[0] !== 'apps') return null;
   const [, appKey, slug, side, ...rest] = parts;
   if (appKey === undefined || slug === undefined || side === undefined) return null;
-  // `mobile` is the phone side's own word: never an instance's name.
-  if (slug === 'staff' || slug === 'customer' || slug === 'mobile') return null;
+  if (slug === 'staff' || slug === 'customer') return null;
   if (side !== 'staff' && side !== 'customer') return null;
   return { appKey, slug, side, rest: rest.join('/') };
 }

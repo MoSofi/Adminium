@@ -126,7 +126,8 @@ export function usePreview(session: DesignerSession, turns: readonly TurnView[])
     );
   };
   // The Phone side is there once the app has a phone app, and from the start in a session that asked for one.
-  const hasPhone = phone !== null && (phone.phone.state !== 'none' || session.target === 'mobile');
+  // (Not before the app is there: a session that has built nothing has no app to add a phone app to.)
+  const hasPhone = phone !== null && (phone.phone.state !== 'none' || (session.target === 'mobile' && app !== null));
   const sides = useMemo<PreviewSide[]>(() => {
     const own = (app?.sides ?? []).map((side) => side.side as PreviewSide).filter((side) => side === 'staff' || side === 'customer');
     return ['dashboard', ...(['staff', 'customer'] as const).filter((side) => own.includes(side)), ...(hasPhone ? (['mobile'] as const) : [])];

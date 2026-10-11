@@ -72,7 +72,9 @@ let apps: YourApp[];
 /** The styles the server offers; null is a server asked for none (the route answers 404, as before styles were tested here). */
 let styles: DesignerStyle[] | null;
 
+let designerMode: 'local' | 'live' = 'local';
 beforeEach(() => {
+  designerMode = 'local';
   calls = [];
   models = WITH_MODEL;
   apps = [];
@@ -90,8 +92,9 @@ function stubFetch(): void {
       calls.push({ method, url, ...(body === undefined ? {} : { body }) });
       if (url.startsWith('/api/v1/bootstrap')) return Promise.resolve(jsonResponse(200, { data: makeBootstrap({ nav: { groups: [] }, roles: ['super-admin'] }) }));
       if (url === '/api/v1/system/info') {
-        return Promise.resolve(jsonResponse(200, { runtime: 'self-host', smtpConfigured: false, networkFeaturesAllowed: true, lanShare: false, desktopDemo: false, designer: { mode: 'local', link: true } }));
+        return Promise.resolve(jsonResponse(200, { runtime: 'self-host', smtpConfigured: false, networkFeaturesAllowed: true, lanShare: false, desktopDemo: false, designer: { mode: designerMode, link: true } }));
       }
+      if (url === '/api/v1/designer/live') return Promise.resolve(jsonResponse(200, { on: true }));
       if (url === '/api/v1/designer/models') return Promise.resolve(jsonResponse(200, models));
       if (url === '/api/v1/designer/sessions' && method === 'GET') return Promise.resolve(jsonResponse(200, { apps }));
       if (url === '/api/v1/designer/sessions' && method === 'POST') {
@@ -208,6 +211,15 @@ describe('a phone app, picked in "What to build"', () => {
     await userEvent.click(screen.getByRole('button', { name: /^What to build: / }));
     await userEvent.click(await screen.findByRole('menuitemradio', { name }));
   }
+
+  it('is not offered on a live server, where nothing builds a phone app', async () => {
+    designerMode = 'live';
+    await renderHome();
+    await waitFor(() => expect(box().disabled).toBe(false));
+    await userEvent.click(screen.getByRole('button', { name: /^What to build: / }));
+    expect(await screen.findByRole('menuitemradio', { name: /Web/ })).toBeTruthy();
+    expect(screen.queryByRole('menuitemradio', { name: /Mobile/ })).toBeNull();
+  });
 
   it('is the fourth choice, and is sent as what to build for, with no style', async () => {
     await renderHome();

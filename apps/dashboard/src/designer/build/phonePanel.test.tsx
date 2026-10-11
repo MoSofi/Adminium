@@ -116,10 +116,13 @@ describe('the phone panel, with no phone app to show', () => {
   });
 
   it('asks before building a phone app that came with the app, and builds it on a yes', async () => {
-    const { preview } = panel({ phone: status({ state: 'unapproved', words: 'engine words nobody reads here' }) });
+    const { preview } = panel({ phone: status({ state: 'unapproved', words: 'engine words nobody reads here', packages: ['expo', 'react-native'] }) });
     expect(screen.getByText('This app has a phone app. Build it on this computer?')).toBeTruthy();
     expect(screen.queryByRole('alert')).toBeNull();
     expect(screen.queryByText('engine words nobody reads here')).toBeNull();
+    // What the yes installs is read before it is given.
+    expect(screen.getByText('It asks for these packages:')).toBeTruthy();
+    expect(screen.getByText(/expo\s+react-native/)).toBeTruthy();
     await userEvent.click(screen.getByRole('button', { name: 'Build it here' }));
     expect(preview.addPhone).toHaveBeenCalledTimes(1);
   });

@@ -64,6 +64,14 @@ function Standing({ phone, onAdd, onFix, error, running }: { phone: PhoneStandin
           {t('designer:phone.addLine', 'It installs Expo’s packages (about 350 MB, about a minute) and builds with Expo on this computer. This needs the network.')}
         </p>
       ) : null}
+      {phone.state === 'unapproved' && phone.packages.length > 0 ? (
+        <div className="flex flex-col gap-1.5">
+          <p className="text-[12.5px] font-bold text-fg">{t('designer:phone.packages', 'It asks for these packages:')}</p>
+          <code dir="ltr" className="block max-h-[160px] overflow-auto whitespace-pre-wrap break-words rounded-[10px] border border-border bg-bg px-3 py-2.5 text-start font-mono text-xs leading-normal text-fg-muted">
+            {phone.packages.join('\n')}
+          </code>
+        </div>
+      ) : null}
       {words === null ? null : (
         <code dir="ltr" className="adm-always-dark block max-h-[220px] overflow-auto whitespace-pre-wrap break-words rounded-[10px] bg-bg px-3 py-2.5 text-start font-mono text-xs leading-normal text-danger">
           {words}

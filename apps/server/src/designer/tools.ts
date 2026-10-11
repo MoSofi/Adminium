@@ -437,6 +437,8 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
     const steps =
       `Now write the phone app for THIS app: ${where}/App.tsx (and more screens under ${where}/src/), with React Native's parts, as adminium-mobile/SKILL.md says. ` +
       `It reaches only what manifest/access.json grants: write that file too. Never write ${where}/package.json, app.json, index.ts, tsconfig.json or src/adminium.ts: they are Adminium's. Then build_sides, check_app and apply_app.`;
+    // On a server people reach there is no phone preview, and Expo is not installed or run there on a model's word.
+    if (deps.mode === 'live') return refused('A phone app is built where the app is designed on a person’s own computer (adminium design, or the desktop app), not on this server. Tell the person so, and build the rest.', 'Added no phone app');
     if (hasOwnBuild(deps.root, appKey)) return refused('This app is a copy of a published one and builds its own screens: a phone app is not added to it here.', 'Added no phone app');
     if (hasPhoneCode(deps.root, appKey) && isPhoneApproved(deps.root, appKey) && phoneInstalled(deps.root, appKey)) {
       return text(`The phone app is already there: edit ${where}/App.tsx.\n${steps}`, 'The phone app is there');
@@ -496,7 +498,7 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
     // A build of its own is a person's to give an app: no app gets one from a model.
     if (inside === 'build.json') return refused('build.json names a command this machine runs, and only a person writes it. Build the screens in src/<side>/ as the skill says.', 'Not yours to change');
     // A phone side: what Expo's build runs is a person's, and the engine's own files stay the engine's.
-    const phone = phoneFileRefusal(deps.root, appKey, inside);
+    const phone = phoneFileRefusal(deps.root, appKey, inside, jail.normalise(path).normalize('NFC'));
     if (phone !== null) return refused(phone, 'Not yours to change');
     if (!hasOwnBuild(deps.root, appKey)) return null;
     return isBuildFile(inside)
@@ -2078,6 +2080,10 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
           ...list('picture_sites').flatMap((entry): Wanted[] => (typeof entry['host'] === 'string' ? [{ kind: 'picture-site', host: entry['host'], ...(typeof entry['why'] === 'string' ? { why: entry['why'] } : {}) }] : [])),
         ];
         if (wanted.length === 0) return { ...refused('Give "packages", "fonts" or "picture_sites": what the app needs, each with a short "why".', 'Asked for nothing'), facts: { outcome: 'refused' } };
+        // A phone app uses the packages it came with: one added here would go to the project, where the phone app's build never looks.
+        if (wanted.some((entry) => entry.kind === 'package') && hasPhoneCode(deps.root, appKey) && sidesWithScreens(deps.root, appKey).length === 0) {
+          return { ...refused('This app’s only screens are its phone app, which uses the packages it came with: none is added to it here. Do without, and tell the person what was left out.', 'No package for a phone app'), facts: { outcome: 'refused' } };
+        }
         const done = await askNeeds(ctx, appKey, wanted);
         if (!done.asked) return text(done.said, 'Nothing to ask for', { facts: { outcome: done.said.startsWith('Already') ? 'added' : 'refused' } });
         if (done.failed !== null) return { ...refused(done.said, 'Could not add what was asked'), facts: { outcome: 'failed' } };

@@ -182,6 +182,10 @@ export const devCommand: Command = {
             io.err(`✗ apps/${app.key} was not built; the server keeps what it has of it:`);
             for (const problem of app.problems ?? []) io.err(`    ${problem}`);
           }
+          // A phone side that could not be built stops nothing, and is said: its preview is then the last one that did build, or none.
+          for (const app of built.apps) {
+            if (app.phone !== undefined && app.phone.state !== 'built' && app.phone.state !== 'none') io.err(`! ${app.phone.words}`);
+          }
           const ok = built.apps.length - broken.length;
           if (ok > 0) io.out(`Rebuilt ${String(ok)} app(s); the server applies what changed.`);
         },

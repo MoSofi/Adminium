@@ -119,7 +119,8 @@ export function checkApp(root: string, key: string, opts: { version: string; add
   // An app with a build of its own keeps its screens where its build wants them: the manifest says which sides it has.
   const ownBuild = hasOwnBuild(root, key);
   let sides = SIDES.filter((side) => sideEntry(root, key, side) !== null);
-  const phone = hasPhoneCode(root, key);
+  // A copied app builds its own screens from wherever its build reads them: a `mobile/` folder there is its own business.
+  const phone = hasPhoneCode(root, key) && !ownBuild;
   const result = (manifest: AppManifest | null, access: string[] = []): AppCheck => ({ key, folder, manifest, findings, access, sides, phone });
   if (folder.document === null) return result(null);
 

@@ -23,6 +23,7 @@ import {
   isAddOnManifest,
   hasPhoneSide,
   isManifestOnly,
+  PHONE_KIND,
   LOCAL_PUBLISHER_ID,
   planInstall,
   namedAddOns,
@@ -546,7 +547,8 @@ export function createAppInstallService(deps: AppRoutesDeps) {
       publisherIdOf(document) === LOCAL_PUBLISHER_ID &&
       Array.isArray(frontends) &&
       frontends.length > 0 &&
-      frontends.every((frontend) => (frontend as { kind?: unknown } | null)?.kind === 'none')
+      // (A phone side is no part of a package either.)
+      frontends.every((frontend) => ['none', PHONE_KIND].includes(String((frontend as { kind?: unknown } | null)?.kind)))
     );
   }
 
@@ -1208,7 +1210,10 @@ export function createAppInstallService(deps: AppRoutesDeps) {
       const own = await publicKeysRepo(deps.meta).listManagedBy(manifest.key);
       if (hasPhoneSide(manifest) && planned.length > 0) {
         const phones = own.filter((k) => phoneKey(k.kind));
-        phoneKeyOnUpdate = phones.some((k) => here.has(k.id)) ? 'held' : phones.some((k) => k.revokedAt !== null) ? 'withheld' : 'made';
+        // One is made from the customer key: with that key taken back by the operator, none is.
+        const customers = own.filter((k) => k.purpose === CUSTOMER_KEY_PURPOSE && pageKey(k.kind));
+        const customerWithheld = customers.length > 0 && !customers.some((k) => here.has(k.id));
+        phoneKeyOnUpdate = phones.some((k) => here.has(k.id)) ? 'held' : phones.some((k) => k.revokedAt !== null) || customerWithheld ? 'withheld' : 'made';
       }
       const stored = new Set((await publicEndpointsRepo(deps.meta).listByConnection(connectionId)).map((e) => e.ref));
       for (const entry of planned) {

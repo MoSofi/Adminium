@@ -287,10 +287,19 @@ describe('building the phone preview', () => {
     expect(readFileSync(preview('index.html'), 'utf8')).toBe(page);
     expect(builtPhone(root, 'shop')).toEqual({ build: (first as { build: string }).build });
     expect(existsSync(`${preview()}.staging`)).toBe(false);
+    // The failure is what the phone side is now, for whoever asks later (a save by hand, `adminium dev`, the page), until its files change.
+    expect(phoneNow(root, 'shop')).toEqual({ state: 'failed', words: expect.stringContaining('SyntaxError: App.tsx: Unexpected token (1:40)') });
+    writeFileSync(mobile('App.tsx'), 'export function App() { return null; }\n');
+    expect(phoneNow(root, 'shop')).toEqual({ state: 'built', build: (first as { build: string }).build });
+    writeFileSync(mobile('App.tsx'), 'export function App() { return <View>; }\n');
+    expect(phoneNow(root, 'shop').state).toBe('failed');
     // And the next build tries again: a failure is not remembered as a build.
     fake.exportCode = 0;
     expect((await build()).state).toBe('built');
     expect(fake.exports()).toHaveLength(3);
+    // A build that ended well forgets the failure.
+    expect(existsSync(`${preview()}.failed.json`)).toBe(false);
+    expect(phoneNow(root, 'shop').state).toBe('built');
   });
 
   it('a build that ends well and leaves no index.html is a failed build', async () => {

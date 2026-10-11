@@ -16,7 +16,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { checkApp } from '../src/project/apps/check-app.js';
 import { approvalsFile } from '../src/project/apps/own-build.js';
-import { approvePhone, hasPhoneCode, isPhoneApproved, phoneBuildDir, phoneDir, phoneFingerprint, phoneShapeProblems } from '../src/project/apps/phone.js';
+import { approvePhone, hasPhoneCode, isPhoneApproved, phoneBuildDir, phoneDir, phoneFingerprint, phonePackages, phoneShapeProblems } from '../src/project/apps/phone.js';
 import { addPhoneSide, scaffoldApp } from '../src/project/apps/scaffold-app.js';
 import { APP_VERSION } from '../src/version.js';
 import { tempProject } from './app-project-helpers.js';
@@ -60,6 +60,18 @@ describe('where a phone side is', () => {
     rmSync(mobile('App.tsx'));
     expect(hasPhoneCode(root, 'shop')).toBe(false);
     expect(hasPhoneCode(root, 'nobody')).toBe(false);
+  });
+
+  it('a folder that is merely called mobile is not a phone side: nothing is said of it, built from it or asked about it', () => {
+    const plain = tempProject('adminium-phone-plain-');
+    scaffoldApp({ root: plain, key: 'shop', name: 'Shop', sides: [], version: APP_VERSION });
+    mkdirSync(join(plain, 'apps/shop/mobile/notes'), { recursive: true });
+    writeFileSync(join(plain, 'apps/shop/mobile/notes/todo.txt'), 'call the printer\n');
+    expect(hasPhoneCode(plain, 'shop')).toBe(false);
+    const checked = checkApp(plain, 'shop', { version: APP_VERSION });
+    expect(checked.phone).toBe(false);
+    expect(checked.findings.filter((finding) => finding.level === 'error')).toEqual([]);
+    rmSync(plain, { recursive: true, force: true });
   });
 });
 
@@ -147,6 +159,48 @@ describe('the shape of a phone side’s folder', () => {
       delete (pkg['dependencies'] as Record<string, unknown>)['expo'];
     });
     expect(problems()).toEqual(['apps/shop/mobile/package.json does not list "expo". A phone side is an Expo project.']);
+  });
+
+  it.each(['https://evil.example/x.tgz', 'git+https://github.com/a/b.git', 'github:a/b', 'file:../x', 'npm:other@1.0.0', 'latest', '*', '>=1.0.0', '1.x', 'workspace:*', 'link:../x'])('refuses a package named by %s: only a version of the registry’s', (spec) => {
+    change('package.json', (pkg) => {
+      (pkg['dependencies'] as Record<string, unknown>)['left-pad'] = spec;
+    });
+    expect(problems()).toEqual([expect.stringContaining('apps/shop/mobile/package.json lists "left-pad" by something other than a version')]);
+  });
+
+  it('takes a version, with ~ or ^ before it, among the packages and the development packages', () => {
+    change('package.json', (pkg) => {
+      (pkg['dependencies'] as Record<string, unknown>)['left-pad'] = '^1.3.0';
+      pkg['devDependencies'] = { ...(pkg['devDependencies'] as Record<string, unknown> | undefined), 'right-pad': '~1.0.1', beta: '2.0.0-beta.1' };
+    });
+    expect(problems()).toEqual([]);
+  });
+
+  it.each(['optionalDependencies', 'peerDependencies', 'bundleDependencies', 'bundledDependencies'])('refuses "%s": packages are listed where a person is shown them', (field) => {
+    change('package.json', (pkg) => {
+      pkg[field] = { 'left-pad': '1.3.0' };
+    });
+    expect(problems()).toEqual([expect.stringContaining(`apps/shop/mobile/package.json has "${field}"`)]);
+  });
+
+  it('refuses a lock that fetches a package from anywhere but the npm registry', () => {
+    writeFileSync(mobile('package-lock.json'), JSON.stringify({ lockfileVersion: 3, packages: { '': {}, 'node_modules/expo': { resolved: 'https://registry.npmjs.org/expo/-/expo-57.0.27.tgz' }, 'node_modules/linked': { link: true } } }));
+    expect(problems()).toEqual([]);
+    writeFileSync(mobile('package-lock.json'), JSON.stringify({ lockfileVersion: 3, packages: { 'node_modules/expo': { resolved: 'https://registry.npmjs.org.evil.example/expo.tgz' }, 'node_modules/b': { resolved: 'git+ssh://git@github.com/a/b.git#abc' } } }));
+    expect(problems()).toEqual([expect.stringContaining('apps/shop/mobile/package-lock.json fetches 2 package(s) from somewhere other than the npm registry (expo, b)')]);
+  });
+
+  it('says what a phone side’s package.json asks for, by name, in order', () => {
+    const listed = phonePackages(root, 'shop');
+    expect(listed).toContain('expo');
+    expect(listed).toContain('@adminiumjs/public-client');
+    expect(listed).toEqual([...listed].sort());
+    // A name that is not a package's name is not said to anybody.
+    change('package.json', (pkg) => {
+      (pkg['dependencies'] as Record<string, unknown>)['<img src=x>'] = '1.0.0';
+    });
+    expect(phonePackages(root, 'shop')).toEqual(listed);
+    expect(phonePackages(root, 'nobody')).toEqual([]);
   });
 
   it('says a package.json that is missing or does not read', () => {

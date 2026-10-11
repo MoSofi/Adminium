@@ -56,6 +56,8 @@ let phoneCalls: { what: string; body?: unknown }[];
 /** What the server answers a yes, an opening or a stop with; by default, how the phone side stands. */
 let phoneAnswer: ((what: string) => Response | null) | null;
 let mode: 'local' | 'live';
+/** Whether the session's app is installed yet (it is not before its first turn). */
+let appThere: boolean;
 let fixes: string[];
 
 function Harness(): null | React.ReactElement {
@@ -70,6 +72,7 @@ beforeEach(() => {
   phoneStatus = null;
   phoneCalls = [];
   phoneAnswer = null;
+  appThere = true;
   mode = 'local';
   fixes = [];
   vi.stubGlobal('WebSocket', FakeSocket);
@@ -88,7 +91,7 @@ beforeEach(() => {
       if (url === '/api/v1/apps') {
         return Promise.resolve(
           jsonResponse(200, {
-            apps: [
+            apps: !appThere ? [] : [
               {
                 key: 'shop',
                 version: '0.1.0',
@@ -362,6 +365,15 @@ describe('the phone side of the preview', () => {
     expect(model.side).toBe('mobile');
   }
 
+  it('has no Phone side before the session has made its app, even in a session that asked for a phone app', async () => {
+    session = { ...SESSION, target: 'mobile' };
+    phoneStatus = stands({ state: 'none' });
+    appThere = false;
+    mount();
+    await waitFor(() => expect(model.phone).not.toBeNull());
+    expect(model.sides).toEqual(['dashboard']);
+  });
+
   it('has no Phone side on a server that builds no phone app (it answers 404), even in a session that asked for one', async () => {
     session = { ...SESSION, target: 'mobile' };
     await ready();
@@ -384,7 +396,7 @@ describe('the phone side of the preview', () => {
 
   it.each([
     ['is built', { state: 'built', build: 'b1' }],
-    ['waits for a yes', { state: 'unapproved', words: 'w' }],
+    ['waits for a yes', { state: 'unapproved', words: 'w', packages: [] as string[] }],
     ['has no packages', { state: 'no-packages', words: 'w' }],
     ['did not build', { state: 'failed', words: 'w' }],
     ['cannot be built', { state: 'shape', words: 'w' }],
@@ -485,7 +497,7 @@ describe('the phone side of the preview', () => {
     expect(screen.getByRole('alert').textContent).toBe('The Designer is working. Try again when it is done.');
     // What stood before still stands.
     expect(model.phone?.phone).toEqual({ state: 'none' });
-    phoneAnswer = (what) => (what === 'add' ? jsonResponse(200, stands({ state: 'unapproved', words: 'w' })) : null);
+    phoneAnswer = (what) => (what === 'add' ? jsonResponse(200, stands({ state: 'unapproved', words: 'w', packages: [] })) : null);
     await userEvent.click(screen.getByRole('button', { name: 'Add the phone app' }));
     await waitFor(() => expect(model.phone?.phone.state).toBe('unapproved'));
     expect(model.phoneError).toBeNull();

@@ -290,7 +290,7 @@ export async function buildProjectApps(root: string, opts: BuildAppsOptions): Pr
   const phoneRoot = join(root, BUILD_DIR, PHONE_BUILD_DIR);
   if (existsSync(phoneRoot)) {
     for (const entry of readdirSync(phoneRoot, { withFileTypes: true })) {
-      const key = entry.name.replace(/\.staging$/, '');
+      const key = entry.name.replace(/\.(staging|failed\.json)$/, '');
       if (opts.dev !== true || !keys.includes(key)) rmSync(join(phoneRoot, entry.name), { recursive: true, force: true });
     }
   }
