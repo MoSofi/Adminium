@@ -93,6 +93,10 @@ export const INSTALL_FLOOR_WORD_NAMES = [
   'email.showWhen',
   'placeholder.backup',
   'frontend.mobile',
+  'column.staff',
+  'table.belongs',
+  'table.private',
+  'roles.rows',
 ] as const;
 export type ManifestWordName = (typeof INSTALL_FLOOR_WORD_NAMES)[number];
 
@@ -115,6 +119,12 @@ export const WORD_FLOORS: Readonly<Partial<Record<ManifestWordName, string>>> = 
   'placeholder.backup': '0.3.22',
   // An app with a phone side: the side `mobile`, kind `expo`.
   'frontend.mobile': '0.3.26',
+  // Whose a row is: a column that holds a staff member, the ways people belong to a table's rows,
+  // a table read by those people alone, and a role whose read, update or delete reaches only some rows.
+  'column.staff': '0.3.27',
+  'table.belongs': '0.3.27',
+  'table.private': '0.3.27',
+  'roles.rows': '0.3.27',
 };
 
 /** Every word of `document` that needs the install floor, in document order. */
@@ -162,6 +172,8 @@ export function installFloorWords(document: unknown): ManifestWord[] {
     if (table['indexes'] !== undefined) out.push({ word: 'table.indexes', path: `${at}.indexes` });
     if (table['postings'] !== undefined) out.push({ word: 'table.postings', path: `${at}.postings` });
     if (table['adjust'] !== undefined) out.push({ word: 'table.adjust', path: `${at}.adjust` });
+    if (table['belongs'] !== undefined) out.push({ word: 'table.belongs', path: `${at}.belongs` });
+    if (table['private'] !== undefined) out.push({ word: 'table.private', path: `${at}.private` });
     if (isDoc(table['states']) && table['states']['actions'] !== undefined) out.push({ word: 'states.actions', path: `${at}.states.actions` });
     if (isDoc(table['states'])) {
       for (const [from, moves] of Object.entries(isDoc(table['states']['moves']) ? table['states']['moves'] : {})) {
@@ -178,6 +190,7 @@ export function installFloorWords(document: unknown): ManifestWord[] {
       // A link filled from the settings row when nobody chooses one.
       if (rules['addOnLink'] !== undefined && rules['default'] !== undefined) out.push({ word: 'column.addOnLink.default', path: `${here}.default` });
       if (rules['tableRef'] !== undefined) out.push({ word: 'column.tableRef', path: `${here}.tableRef` });
+      if (rules['staff'] !== undefined) out.push({ word: 'column.staff', path: `${here}.staff` });
       for (const key of ['announce', 'plainText', 'customerKey', 'codeLast4'] as const) {
         if (rules[key] !== undefined) out.push({ word: `column.${key}`, path: `${here}.${key}` });
       }
@@ -193,10 +206,15 @@ export function installFloorWords(document: unknown): ManifestWord[] {
     // An update that reaches a row only while one of its columns holds some value.
     for (const [ref, limit] of Object.entries(isDoc(role['limits']) ? role['limits'] : {})) {
       if (isDoc(limit) && limit['writableFrom'] !== undefined) out.push({ word: 'roles.writableFrom', path: `roles.${String(r)}.limits.${ref}.writableFrom` });
+      // A read, an update or a delete that reaches only some rows.
+      if (isDoc(limit) && limit['rows'] !== undefined) out.push({ word: 'roles.rows', path: `roles.${String(r)}.limits.${ref}.rows` });
     }
     list(role['tables']).forEach((grant, g) => {
       if (isDoc(grant) && isDoc(grant['limit']) && grant['limit']['writableFrom'] !== undefined) {
         out.push({ word: 'roles.writableFrom', path: `roles.${String(r)}.tables.${String(g)}.limit.writableFrom` });
+      }
+      if (isDoc(grant) && isDoc(grant['limit']) && grant['limit']['rows'] !== undefined) {
+        out.push({ word: 'roles.rows', path: `roles.${String(r)}.tables.${String(g)}.limit.rows` });
       }
     });
   });

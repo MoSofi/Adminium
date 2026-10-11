@@ -564,6 +564,8 @@ export interface EffectiveColumn extends ColumnModel {
   addOnLink?: ColumnAddOnLink;
   /** `column.tableRef`: the column holds a table's stored name. */
   tableRef?: true;
+  /** `column.staff`: the column holds a staff member's id — the one kind a table's `belongs` reads a person from. */
+  staff?: true;
   /** `column.announce`: a change of this formula column is told after the save. */
   announce?: true;
   /** `column.codeLast4`: the last four characters of the code in `of`. */
@@ -623,7 +625,24 @@ export interface EffectiveTable extends Omit<TableModel, 'columns'> {
   /** The links this table's states read through, resolved; a link the snapshot cannot follow is in `unresolvedStateLinks`. */
   stateLinks?: StateLink[];
   unresolvedStateLinks?: string[];
+  /** How a person belongs to a row (`table.belongs`): what a role's row limit is judged by. Absent: its rows are nobody's. */
+  belongs?: BelongsWay[];
+  /** Rows read by the people they belong to, and by nobody and nothing else (`table.private`). */
+  private?: true;
 }
+
+/**
+ * One way a person belongs to a row, as the table stores it (`table.belongs`):
+ * the staff member a column holds (with `person`, the column is a link and
+ * `person` the staff column of the row it points at); a table that lists
+ * people against the row (its `link` holds this row's key or its `on`
+ * column, between `from` and `to` when it names them); or whoever belongs to
+ * the row a link points at (`via`). `through.table` is a table's id.
+ */
+export type BelongsWay =
+  | { column: string; person?: string; set?: 'self' | 'team' | 'anyone' }
+  | { through: { table: string; link: string; on?: string; user: string; person?: string; from?: string; to?: string } }
+  | { via: string };
 
 export interface EffectiveRelation extends Relation {
   label?: string;
@@ -1405,6 +1424,20 @@ export function applyOverrides(
       case 'column.addOnLink': {
         const column = columnOf(table, row.columnName);
         if (column !== undefined) column.addOnLink = { addOn: String(value.addOn), table: String(value.table), tableId: null, key: null };
+        break;
+      }
+      case 'column.staff': {
+        const column = columnOf(table, row.columnName);
+        if (column !== undefined) column.staff = true;
+        break;
+      }
+      case 'table.belongs': {
+        // One rule a table. Where an app's and an owner's are both stored, the app's stands: an update keeps it current.
+        if (table !== undefined && (table.belongs === undefined || row.origin === 'app')) table.belongs = structuredClone((value as unknown as { ways: BelongsWay[] }).ways);
+        break;
+      }
+      case 'table.private': {
+        if (table !== undefined) table.private = true;
         break;
       }
       case 'column.tableRef': {

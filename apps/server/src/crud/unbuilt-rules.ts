@@ -56,7 +56,14 @@ export const UNBUILT_ENTRY_RULES: readonly UnbuiltEntryRule[] = [];
  * to {@link MANIFEST_WORDS_RUN}: every word the manifest package can name is
  * in one of the two, and a test says so.
  */
-export const UNBUILT_MANIFEST_WORDS: Readonly<Partial<Record<ManifestWordName, string>>> = {};
+export const UNBUILT_MANIFEST_WORDS: Readonly<Partial<Record<ManifestWordName, string>>> = {
+  // Whose a row is, and a role that reaches only some rows: read and stored, and refused until every way to a row keeps it.
+  // A limit that held on a list and not on a search would be worse than none.
+  'table.belongs': '0.3.27',
+  'roles.rows': '0.3.27',
+  // Rows read by the people they belong to and nothing else: with the limit above, and the refusals that keep a rule or an export out.
+  'table.private': '0.3.27',
+};
 
 /** The newer words of a manifest this server runs: nothing is refused for using one. */
 export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
@@ -150,6 +157,8 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   'column.addOnLink.default',
   'column.plainText',
   'column.customerKey',
+  // A column that holds a staff member: marked on the column, and what a row's people will be read from.
+  'column.staff',
 ];
 
 export interface UnbuiltWord {

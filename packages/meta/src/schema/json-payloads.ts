@@ -128,6 +128,25 @@ export const readLimitSchema = z.object({
 });
 export type ReadLimit = z.infer<typeof readLimitSchema>;
 
+/**
+ * How far one action on a table reaches, when it does not reach every row:
+ * the person's own rows, those of the teams they lead, or every row — and,
+ * on top, the rows nobody owns, and only while a column holds some value.
+ * Whose a row is, is the table's to say (`table.belongs`).
+ */
+export const rowReachSchema = z
+  .object({
+    reach: z.enum(['own', 'team', 'all']),
+    unowned: z.literal(true).optional(),
+    while: z.object({ column: z.string().min(1), in: z.array(z.union([z.string(), z.number(), z.boolean()])).min(1).max(32) }).strict().optional(),
+  })
+  .strict();
+export type RowReach = z.infer<typeof rowReachSchema>;
+
+/** Which rows a grant's read, update and delete reach, each on its own; an action left out reaches every row. */
+export const rowLimitSchema = z.object({ read: rowReachSchema.optional(), update: rowReachSchema.optional(), delete: rowReachSchema.optional() }).strict();
+export type RowLimit = z.infer<typeof rowLimitSchema>;
+
 export const tableActionsSchema = z.object({
   read: z.boolean(),
   create: z.boolean(),
@@ -146,6 +165,8 @@ export const tableActionsSchema = z.object({
   createLimit: updateLimitSchema.optional(),
   /** Narrows `read` on this row; absent, the grant reads every column. */
   readLimit: readLimitSchema.optional(),
+  /** Narrows which ROWS `read`, `update` and `delete` reach; absent, every row. */
+  rowLimit: rowLimitSchema.optional(),
 });
 export type TableActions = z.infer<typeof tableActionsSchema>;
 
@@ -893,6 +914,25 @@ export const storedAdjust = z
   .strict();
 export type StoredAdjust = z.infer<typeof storedAdjust>;
 
+/**
+ * One way a person belongs to a row, as it is stored: the manifest's shape
+ * (`@adminium/manifest` `belongsWaySchema`) with every table a real table's
+ * id. `through.table` is the only table a way names; a `via` and a `person`
+ * are found through the link column they name.
+ */
+const storedBelongsWay = z.union([
+  z.object({ column: ruleColumn, person: ruleColumn.optional(), set: z.enum(['self', 'team', 'anyone']).optional() }).strict(),
+  z
+    .object({
+      through: z
+        .object({ table: z.string().min(1), link: ruleColumn, on: ruleColumn.optional(), user: ruleColumn, person: ruleColumn.optional(), from: ruleColumn.optional(), to: ruleColumn.optional() })
+        .strict(),
+    })
+    .strict(),
+  z.object({ via: ruleColumn }).strict(),
+]);
+export type StoredBelongsWay = z.infer<typeof storedBelongsWay>;
+
 export const overridePatchSchema = z.discriminatedUnion('op', [
   // Labels are min(1): the engine's `TableModel.label` forbids '' and an empty
   // rename is meaningless (the remap UI drops the op instead of staging '').
@@ -1411,6 +1451,12 @@ export const overridePatchSchema = z.discriminatedUnion('op', [
   }),
   /* A keyed hash of the address in `of`, written by Adminium. */
   z.object({ op: z.literal('column.customerKey'), value: z.object({ of: ruleColumn }).strict() }),
+  /* A text column that holds a staff member's id: the only kind a table's `belongs` reads a person from. */
+  z.object({ op: z.literal('column.staff'), value: z.object({ staff: z.literal(true) }).strict() }),
+  /* How a person belongs to a row of the table, each way with its table names as the real tables' ids. */
+  z.object({ op: z.literal('table.belongs'), value: z.object({ ways: z.array(storedBelongsWay).min(1).max(6) }).strict() }),
+  /* Rows read by the people they belong to, and by nobody and nothing else. */
+  z.object({ op: z.literal('table.private'), value: z.object({ private: z.literal(true) }).strict() }),
   z.object({
     op: z.literal('relation.add'),
     value: z.object({

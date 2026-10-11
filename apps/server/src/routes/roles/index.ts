@@ -14,7 +14,7 @@
  * `rbac`-category audit entry (dotted verb + resource — anatomy).
  */
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
-import { permissionsRepo, rolesRepo, usersRepo, type Role, type TableActions, type ReadLimit, type UpdateLimit } from '@adminium/meta';
+import { permissionsRepo, rolesRepo, usersRepo, type Role, type TableActions, type ReadLimit, type RowLimit, type UpdateLimit } from '@adminium/meta';
 
 import { ConflictError, ForbiddenError, NotFoundError, ValidationFailedError } from '../../errors.js';
 import {
@@ -268,7 +268,11 @@ export const rolesRoutes: FastifyPluginAsyncZod = async (app) => {
       const reads = new Map<string, ReadLimit>();
       // …and a limit on a create (a kitchen tablet never picks an order's channel or its link code).
       const creates = new Map<string, UpdateLimit>();
+      // …and which rows a read, an update or a delete reaches (a rep reads their own deals): dropped, the role would reach every row.
+      const rowLimits = new Map<string, RowLimit>();
       for (const row of held) {
+        const rows = row.resourceKind === 'table' ? (row.actions as TableActions).rowLimit : undefined;
+        if (rows !== undefined) rowLimits.set(row.resourceRef, rows);
         const limit = row.resourceKind === 'table' ? (row.actions as TableActions).updateLimit : undefined;
         if (limit !== undefined) limits.set(row.resourceRef, limit);
         const read = row.resourceKind === 'table' ? (row.actions as TableActions).readLimit : undefined;
@@ -281,14 +285,16 @@ export const rolesRoutes: FastifyPluginAsyncZod = async (app) => {
         const limit = row.resourceKind === 'table' ? limits.get(row.resourceRef) : undefined;
         const read = row.resourceKind === 'table' ? reads.get(row.resourceRef) : undefined;
         const create = row.resourceKind === 'table' ? creates.get(row.resourceRef) : undefined;
+        const rowLimit = row.resourceKind === 'table' ? rowLimits.get(row.resourceRef) : undefined;
         const actions =
-          limit === undefined && read === undefined && create === undefined
+          limit === undefined && read === undefined && create === undefined && rowLimit === undefined
             ? row.actions
             : {
                 ...(row.actions as TableActions),
                 ...(limit === undefined ? {} : { updateLimit: limit }),
                 ...(read === undefined ? {} : { readLimit: read }),
                 ...(create === undefined ? {} : { createLimit: create }),
+                ...(rowLimit === undefined ? {} : { rowLimit }),
               };
         await permissions.grant(role.id, row.resourceKind, row.resourceRef, actions);
       }

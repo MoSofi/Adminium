@@ -1422,6 +1422,24 @@ export interface AdminiumAssistantUseTable {
   voiceSeconds: ColumnType<number, number | undefined, number>;
 }
 
+/** A named set of people (0056): a role's rows can reach "those of the teams this person leads". */
+export interface AdminiumTeamsTable {
+  id: Id;
+  /** Unique. */
+  name: string;
+  createdAt: Ts;
+  updatedAt: Ts;
+}
+
+/** composite PK (team_id, user_id); both cascade. */
+export interface AdminiumTeamMembersTable {
+  teamId: Id;
+  userId: Id;
+  /** Leads the team: reaches the rows of its other members. */
+  lead: BoolColumn;
+  createdAt: Ts;
+}
+
 export interface AdminiumAssistantTurnsTable {
   id: Id;
   sessionId: Id;
@@ -1523,6 +1541,8 @@ export interface MetaDB {
   adminium_assistant_sessions: AdminiumAssistantSessionsTable;
   adminium_assistant_turns: AdminiumAssistantTurnsTable;
   adminium_assistant_use: AdminiumAssistantUseTable;
+  adminium_teams: AdminiumTeamsTable;
+  adminium_team_members: AdminiumTeamMembersTable;
 }
 
 /** Every physical table name, in dependency-safe creation order. */
@@ -1589,4 +1609,6 @@ export const META_TABLE_NAMES = [
   'adminium_assistant_sessions',
   'adminium_assistant_turns',
   'adminium_assistant_use',
+  'adminium_teams',
+  'adminium_team_members',
 ] as const satisfies readonly (keyof MetaDB)[];

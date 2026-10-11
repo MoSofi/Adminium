@@ -166,7 +166,8 @@ export function columnRuleIssue(
     | 'column.addOnLink'
     | 'column.codeLast4'
     | 'column.plainText'
-    | 'column.customerKey',
+    | 'column.customerKey'
+    | 'column.staff',
   raw: unknown,
   column: ColumnModel,
   model: DatabaseModel,
@@ -490,6 +491,12 @@ export function columnRuleIssue(
 
     case 'column.tableRef': {
       return TEXTUAL_TYPES.has(column.logicalType) ? null : `A table's name is kept in text; ${name} is ${column.logicalType}.`;
+    }
+
+    case 'column.staff': {
+      // A person's id is text on every database: a number or a uuid column would compare with nothing.
+      if (column.isGenerated || column.isPrimaryKey) return `${name} cannot hold a staff member.`;
+      return TEXTUAL_TYPES.has(column.logicalType) ? null : `A staff member is kept in text; ${name} is ${column.logicalType}.`;
     }
 
     case 'column.addOnLink': {
@@ -1341,6 +1348,54 @@ export function viaPostingClash(rows: readonly { tableName: string; value: unkno
  * Whether the rule fits the add-on that answers it is judged with that
  * add-on's manifest at hand; this is what the database alone can say.
  */
+/**
+ * What is wrong with a table's `belongs` as it would be stored, against the
+ * live tables: a column that is not there, a listing table that is not in
+ * the database, a link that links nothing. Whether a column holds a staff
+ * member is the column's own rule (`column.staff`), checked where the two are
+ * written together.
+ */
+export function belongsRuleIssue(raw: unknown, table: TableModel, model: DatabaseModel): string | null {
+  const ways = (raw as { ways?: unknown } | null)?.ways;
+  if (!Array.isArray(ways) || ways.length === 0) return `Whose a row of ${table.name} is, is not spelled as Adminium stores it.`;
+  const has = (of: TableModel, column: unknown): boolean => typeof column === 'string' && of.columns.some((c) => c.name === column);
+  /** The table a single-column link of `of` points at. */
+  const linked = (of: TableModel, column: string): TableModel | undefined => {
+    const relation = model.relations.find((r) => r.through === null && r.from.tableId === of.id && r.from.columns.length === 1 && r.from.columns[0] === column);
+    return relation === undefined ? undefined : model.tables.find((candidate) => candidate.id === relation.to.tableId);
+  };
+  const person = (of: TableModel, column: unknown, personColumn: unknown): string | null => {
+    if (!has(of, column)) return `${JSON.stringify(column)} is not a column of ${of.name}.`;
+    if (personColumn === undefined) return null;
+    const target = linked(of, column as string);
+    if (target === undefined) return `${JSON.stringify(column)} of ${of.name} links to no table, so there is no row to read a person from.`;
+    return has(target, personColumn) ? null : `${JSON.stringify(personColumn)} is not a column of ${target.name}.`;
+  };
+  for (const way of ways as Record<string, unknown>[]) {
+    if (typeof way['column'] === 'string') {
+      const issue = person(table, way['column'], way['person']);
+      if (issue !== null) return issue;
+    } else if (typeof way['via'] === 'string') {
+      if (!has(table, way['via'])) return `${JSON.stringify(way['via'])} is not a column of ${table.name}.`;
+      if (linked(table, way['via']) === undefined) return `${JSON.stringify(way['via'])} of ${table.name} links to no table.`;
+    } else {
+      const through = (way['through'] ?? {}) as Record<string, unknown>;
+      const list = model.tables.find((candidate) => candidate.id === through['table']);
+      if (list === undefined) return `The table ${JSON.stringify(through['table'])} is not in this database.`;
+      if (!has(list, through['link'])) return `${JSON.stringify(through['link'])} is not a column of ${list.name}.`;
+      if (through['on'] === undefined ? table.primaryKey.length !== 1 : !has(table, through['on'])) {
+        return through['on'] === undefined ? `${table.name} has no single-column key for ${list.name} to hold.` : `${JSON.stringify(through['on'])} is not a column of ${table.name}.`;
+      }
+      const issue = person(list, through['user'], through['person']);
+      if (issue !== null) return issue;
+      for (const key of ['from', 'to'] as const) {
+        if (through[key] !== undefined && !has(list, through[key])) return `${JSON.stringify(through[key])} is not a column of ${list.name}.`;
+      }
+    }
+  }
+  return null;
+}
+
 export function adjustRuleIssue(raw: unknown, table: TableModel, model: DatabaseModel): string | null {
   const parsed = storedAdjust.safeParse(raw);
   if (!parsed.success) return `The price rule of ${table.name} is not spelled as Adminium stores it: ${parsed.error.issues[0]?.message ?? 'invalid'}.`;

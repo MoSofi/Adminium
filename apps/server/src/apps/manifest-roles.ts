@@ -34,7 +34,7 @@
  */
 import { parseDatabaseModel } from '@adminium/engine';
 import type { Manifest } from '@adminium/manifest';
-import { pagesRepo, permissionsRepo, rolesRepo, settingsRepo, snapshotsRepo, type MetaDb, type ReadLimit, type TableActions, type UpdateLimit } from '@adminium/meta';
+import { pagesRepo, permissionsRepo, rolesRepo, settingsRepo, snapshotsRepo, type MetaDb, type ReadLimit, type RowLimit, type TableActions, type UpdateLimit } from '@adminium/meta';
 
 import { matrixRowsFromGrants } from '../rbac/permissions.js';
 import { ownsBlocks } from './owns-blocks.js';
@@ -74,6 +74,21 @@ type RoleLimit = NonNullable<ManifestRole['limits']>[string];
 function limitsOf(role: ManifestRole, roles: readonly ManifestRole[]): Record<string, RoleLimit> {
   const from = role.cloneFrom === undefined ? undefined : roles.find((other) => other.key === role.cloneFrom);
   return { ...(from?.limits ?? {}), ...(role.limits ?? {}) };
+}
+
+/** A manifest's `rows` as a grant keeps it: each action's reach, copied whole (a column keeps its name through an install). */
+export function storedRowLimit(rows: NonNullable<RoleLimit['rows']>): RowLimit {
+  const out: RowLimit = {};
+  for (const action of ['read', 'update', 'delete'] as const) {
+    const reach = rows[action];
+    if (reach === undefined) continue;
+    out[action] = {
+      reach: reach.reach,
+      ...(reach.unowned === true ? { unowned: true as const } : {}),
+      ...(reach.while === undefined ? {} : { while: { column: reach.while.column, in: [...reach.while.in] } }),
+    };
+  }
+  return out;
 }
 
 /** The refs of the screens an add-on draws from its own bundle (`addOn.pages`); none for an app. */
@@ -243,8 +258,8 @@ export async function writeManifestRoles(input: {
       const limit = wanted.get(row.resourceRef);
       // Only the manifest's own tables: a limit on a row of an add-on's table is another writer's, written with its grant.
       if (!own.has(row.resourceRef)) continue;
-      if (limit === undefined && actions.updateLimit === undefined && actions.readLimit === undefined && actions.createLimit === undefined) continue;
-      const { updateLimit: _previous, readLimit: _read, createLimit: _create, ...rest } = actions;
+      if (limit === undefined && actions.updateLimit === undefined && actions.readLimit === undefined && actions.createLimit === undefined && actions.rowLimit === undefined) continue;
+      const { updateLimit: _previous, readLimit: _read, createLimit: _create, rowLimit: _rows, ...rest } = actions;
       const update: UpdateLimit | undefined =
         limit?.writable === undefined
           ? undefined
@@ -257,11 +272,14 @@ export async function writeManifestRoles(input: {
       const read: ReadLimit | undefined = limit?.readable === undefined ? undefined : { readable: [...limit.readable] };
       const create: UpdateLimit | undefined =
         limit?.creatable === undefined ? undefined : { writable: [...limit.creatable], ...(limit.creatableValues === undefined ? {} : { writableValues: limit.creatableValues }) };
+      // Which rows its read, update and delete reach: dropped here, the role would reach every row.
+      const rows: RowLimit | undefined = limit?.rows === undefined ? undefined : storedRowLimit(limit.rows);
       await permissions.grant(roleId, 'table', row.resourceRef, {
         ...rest,
         ...(update === undefined ? {} : { updateLimit: update }),
         ...(read === undefined ? {} : { readLimit: read }),
         ...(create === undefined ? {} : { createLimit: create }),
+        ...(rows === undefined ? {} : { rowLimit: rows }),
       });
     }
   };

@@ -26,7 +26,7 @@ import { parseDatabaseModel } from '@adminium/engine';
 import { ledgersOf, type AddOnManifest, type Manifest } from '@adminium/manifest';
 import { appTablesRepo, permissionsRepo, rolesRepo, settingsRepo, snapshotsRepo, type MetaDb, type ReadLimit, type TableActions, type UpdateLimit } from '@adminium/meta';
 
-import { roleSlugFor, SEEDED_APP_ROLE_GRANTS_KEY } from './manifest-roles.js';
+import { roleSlugFor, SEEDED_APP_ROLE_GRANTS_KEY, storedRowLimit } from './manifest-roles.js';
 
 type AppRole = NonNullable<Extract<Manifest, { kind: 'app' }>['roles']>[number];
 type RoleTable = NonNullable<AppRole['tables']>[number];
@@ -126,6 +126,12 @@ export async function settleRoleTables(input: { meta: MetaDb; app: Manifest; con
         if (actions.includes('read')) delete held['readLimit'];
         if (actions.includes('update')) delete held['updateLimit'];
         if (actions.includes('create')) delete held['createLimit'];
+        // Which rows an action reaches goes with the action too.
+        if (held['rowLimit'] !== undefined) {
+          const rows = Object.fromEntries(Object.entries(held['rowLimit'] as Record<string, unknown>).filter(([action]) => !(actions as readonly string[]).includes(action)));
+          if (Object.keys(rows).length === 0) delete held['rowLimit'];
+          else held['rowLimit'] = rows;
+        }
         const anyLeft = Object.entries(held).some(([name_, value]) => !name_.endsWith('Limit') && value === true);
         if (anyLeft) await permissions.grant(role.id, 'table', ref, held as never);
         else await permissions.revoke(role.id, 'table', ref);
@@ -162,7 +168,7 @@ export async function settleRoleTables(input: { meta: MetaDb; app: Manifest; con
       const written = ledgers.some((ledger) => Object.prototype.hasOwnProperty.call(ledger.writes ?? {}, entry.table));
       const actions = [...new Set(entry.actions)].filter((action) => !written || action === 'read');
       const limit = entry.limit;
-      const named = [...(limit?.readable ?? []), ...(limit?.writable ?? []), ...(limit?.creatable ?? []), ...Object.keys(limit?.writableValues ?? {}), ...Object.keys(limit?.writableFrom ?? {}), ...Object.keys(limit?.creatableValues ?? {})];
+      const named = [...(limit?.readable ?? []), ...(limit?.writable ?? []), ...(limit?.creatable ?? []), ...Object.keys(limit?.writableValues ?? {}), ...Object.keys(limit?.writableFrom ?? {}), ...Object.keys(limit?.creatableValues ?? {}), ...Object.values(limit?.rows ?? {}).flatMap((reach) => (reach?.while === undefined ? [] : [reach.while.column]))];
       const columns = new Set(shape.columns.map((column) => column.ref));
       // A grant is never written without its limit: a limit that names a column the table has not skips the whole entry.
       if (named.some((column) => !columns.has(column))) {
@@ -177,7 +183,7 @@ export async function settleRoleTables(input: { meta: MetaDb; app: Manifest; con
 
       const ref = `${connectionId}/${id}`;
       const existing = await permissions.find(role.id, 'table', ref);
-      const { updateLimit: _update, readLimit: _read, createLimit: _create, ...held } = { read: false, create: false, update: false, delete: false, export: false, import: false, ...(existing?.actions as TableActions | undefined) };
+      const { updateLimit: _update, readLimit: _read, createLimit: _create, rowLimit: _rows, ...held } = { read: false, create: false, update: false, delete: false, export: false, import: false, ...(existing?.actions as TableActions | undefined) };
       const next: Record<string, unknown> = { ...held };
       const giving: string[] = [];
       for (const action of actions) {
@@ -199,10 +205,14 @@ export async function settleRoleTables(input: { meta: MetaDb; app: Manifest; con
       const update: UpdateLimit | undefined = limit?.writable === undefined || !asks('update') ? undefined : { writable: [...limit.writable], ...(limit.writableValues === undefined ? {} : { writableValues: limit.writableValues }), ...(limit.writableFrom === undefined ? {} : { writableFrom: limit.writableFrom }) };
       const read: ReadLimit | undefined = limit?.readable === undefined || !asks('read') ? undefined : { readable: [...limit.readable] };
       const create: UpdateLimit | undefined = limit?.creatable === undefined || !asks('create') ? undefined : { writable: [...limit.creatable], ...(limit.creatableValues === undefined ? {} : { writableValues: limit.creatableValues }) };
+      // Which rows the read and the update reach: kept for the actions the entry asks for, as the limits above are.
+      const wholeRows = limit?.rows === undefined ? {} : storedRowLimit(limit.rows);
+      const rows = Object.fromEntries(Object.entries(wholeRows).filter(([action]) => asks(action as Action)));
+      const rowLimit = Object.keys(rows).length === 0 ? undefined : rows;
       const anyLeft = Object.values(next).some((value) => value === true);
       // The actions and their limits, one row, one statement.
-      if (anyLeft || (existing !== null && (update !== undefined || read !== undefined || create !== undefined))) {
-        await permissions.grant(role.id, 'table', ref, { ...next, ...(update === undefined ? {} : { updateLimit: update }), ...(read === undefined ? {} : { readLimit: read }), ...(create === undefined ? {} : { createLimit: create }) } as never);
+      if (anyLeft || (existing !== null && (update !== undefined || read !== undefined || create !== undefined || rowLimit !== undefined))) {
+        await permissions.grant(role.id, 'table', ref, { ...next, ...(update === undefined ? {} : { updateLimit: update }), ...(read === undefined ? {} : { readLimit: read }), ...(create === undefined ? {} : { createLimit: create }), ...(rowLimit === undefined ? {} : { rowLimit }) } as never);
       } else if (existing !== null) await permissions.revoke(role.id, 'table', ref);
       // The ledger says what the row now holds — written down only once the row does.
       for (const pair of giving) seeded.add(pair);

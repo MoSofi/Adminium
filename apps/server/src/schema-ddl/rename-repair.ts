@@ -186,6 +186,20 @@ export function renamedInRule(op: string, value: unknown, from: string, to: stri
       const lift = rule['capUnless'] as Record<string, unknown> | undefined;
       return lift !== undefined && same(lift['column']) ? { ...rule, capUnless: { ...lift, column: to } } : value;
     }
+    case 'table.belongs': {
+      // What a way reads of the table's own row: the column a person or a parent is read from, and the one a listing matches.
+      // A listing's own columns, and a person's on the row a link points at, are those tables' to rename.
+      const next = {
+        ...rule,
+        ways: ((rule['ways'] ?? []) as Record<string, unknown>[]).map((way) => {
+          if (same(way['column'])) return { ...way, column: to };
+          if (same(way['via'])) return { ...way, via: to };
+          const through = way['through'] as Record<string, unknown> | undefined;
+          return through !== undefined && same(through['on']) ? { ...way, through: { ...through, on: to } } : way;
+        }),
+      };
+      return JSON.stringify(next) === JSON.stringify(rule) ? value : next;
+    }
     case 'table.adjust': {
       // What a price rule reads of the order's own table. A column of a child table is that table's to rename.
       const swap = (name: unknown): unknown => (same(name) ? to : name);

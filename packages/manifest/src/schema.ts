@@ -32,7 +32,7 @@ import { pageCalendarIssues } from './page-calendar.js';
 import { pageConfigIssues } from './page-config.js';
 import { emailTemplateSchema, outboxIssues, outboxProducerSchema, outboxSchema } from './outbox.js';
 import { codeWhereSchema, personalColumn, publicAccessIssues, publicAccessSchema, publicKeysSchema, shareCodeColumns, unlistedColumn, type PublicAccess } from './public-access.js';
-import { roleAddOnTableIssues, roleAddOnTablesSchema, roleLimitIssues, roleLimitsSchema, type RoleShape } from './roles.js';
+import { belongsIssues, belongsSchema, privateTableIssues, roleAddOnTableIssues, roleAddOnTablesSchema, roleLimitIssues, roleLimitsSchema, rowTablesOf, type RoleShape } from './roles.js';
 import { conditionIssues, stateConditionSchema, statesIssues, statesSchema, type States } from './states.js';
 import { MOMENT_LIMITS, clockTimeSchema, momentIssues, momentSchema, settingRefSchema } from './refs.js';
 import {
@@ -713,6 +713,13 @@ export const columnRulesSchema = z
      */
     tableRef: z.literal(true).optional(),
     /**
+     * A text column that holds a staff member: the id of a person who signs
+     * in to Adminium, or nothing. The only kind of column a table's `belongs`
+     * reads a person from, so a role's rows can be "the ones this person
+     * owns". A sample row names a sample person, never an id.
+     */
+    staff: z.literal(true).optional(),
+    /**
      * A formula column over a total of its own row whose change is told
      * after the save commits (a stock level going low), so a rule or a
      * screen may act on it. Up to four on a table.
@@ -932,6 +939,10 @@ export const requiredTableSchema = z
     postings: postingsSchema.optional(),
     /** Where an add-on's offers and codes lower this order's price (see `adjust.ts`). */
     adjust: adjustSchema.optional(),
+    /** How a person belongs to a row, so a role's rows can be limited to their own or their team's (see `roles.ts`). */
+    belongs: belongsSchema.optional(),
+    /** Rows read by the people they belong to and by nobody and nothing else: no rule, public entry, document or export. */
+    private: z.literal(true).optional(),
   })
   .strict()
   .refine(
@@ -2342,6 +2353,10 @@ export function appReferenceIssues(
       if (rules.tableRef !== undefined && (column.type !== 'text' || column.maxLength === undefined)) {
         out.push({ path: here('tableRef'), message: 'a table name is kept in a text column with maxLength' });
       }
+      // A person's id is text on every database: a number or a uuid column would compare with nothing.
+      if (rules.staff !== undefined && column.type !== 'text') {
+        out.push({ path: here('staff'), message: 'a staff member is kept in a text column' });
+      }
       if (rules.plainText !== undefined && column.type !== 'text') {
         out.push({ path: here('plainText'), message: 'plain text is a rule of a text column' });
       }
@@ -2514,7 +2529,21 @@ export function appReferenceIssues(
   out.push(...settingTableIssues(m));
   out.push(...slotPartyIssues(m));
   out.push(...outboxIssues(m, index));
-  out.push(...roleLimitIssues(m.roles ?? [], index));
+  const staffColumn = (table: string, column: string): boolean => tables.get(table)?.columns.find((c) => c.ref === column)?.rules?.staff === true;
+  out.push(...belongsIssues(m.requiredSchema.tables, index, staffColumn));
+  out.push(...roleLimitIssues(m.roles ?? [], index, rowTablesOf(m.requiredSchema.tables)));
+  out.push(...privateTableIssues(m as unknown as Record<string, unknown>, m.requiredSchema.tables.filter((table) => table.private === true).map((table) => table.ref)));
+  // Whose a row is, is an app's to say for now: an add-on's tables are shared by every app that names it.
+  if (m.kind === 'add-on') {
+    m.requiredSchema.tables.forEach((table, t) => {
+      for (const key of ['belongs', 'private'] as const) {
+        if (table[key] !== undefined) out.push({ path: ['requiredSchema', 'tables', t, key], message: `"${key}" is not read on an add-on's table yet` });
+      }
+      table.columns.forEach((column, c) => {
+        if (column.rules?.staff !== undefined) out.push({ path: ['requiredSchema', 'tables', t, 'columns', c, 'rules', 'staff'], message: 'a staff column is not read on an add-on\'s table yet' });
+      });
+    });
+  }
   // A role's grants on an add-on's tables: an app's to give, on the add-ons it names.
   if ((m.roles ?? []).some((role) => (role as { tables?: unknown }).tables !== undefined)) {
     const roles = (m.roles ?? []) as readonly { key: string; tables?: z.infer<typeof roleAddOnTablesSchema> }[];
@@ -2943,6 +2972,8 @@ export interface RequiredTableShape {
   builtOn?: string | undefined;
   postings?: z.infer<typeof postingsSchema> | undefined;
   adjust?: z.infer<typeof adjustSchema> | undefined;
+  belongs?: z.infer<typeof belongsSchema> | undefined;
+  private?: true | undefined;
 }
 
 /**

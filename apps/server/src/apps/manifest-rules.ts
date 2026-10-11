@@ -74,7 +74,7 @@ import { installedShapes } from '../documents/app-profiles.js';
 import { ownsBlocks } from './owns-blocks.js';
 import { canonicalJson } from './sample-data.js';
 import { mapTableRefs } from './real-refs.js';
-import { adjustRuleIssue, bookingRuleIssue, capacityRuleIssue, columnRuleIssue, keptColumnIssue, postingsRuleIssue, statesRuleIssue } from '../connections/column-rules-validation.js';
+import { adjustRuleIssue, belongsRuleIssue, bookingRuleIssue, capacityRuleIssue, columnRuleIssue, keptColumnIssue, postingsRuleIssue, statesRuleIssue } from '../connections/column-rules-validation.js';
 import { applyOverrides, columnsShown } from '../connections/effective-schema.js';
 import { shareCodesOn, type ShareCodes } from '../public-api/share-codes.js';
 import { roleSlugFor } from './manifest-roles.js';
@@ -110,6 +110,9 @@ export type RuleOp =
   | 'column.codeLast4'
   | 'column.plainText'
   | 'column.customerKey'
+  | 'column.staff'
+  | 'table.belongs'
+  | 'table.private'
   | 'table.capacity'
   | 'table.booking'
   | 'table.states'
@@ -121,7 +124,7 @@ export type RuleOp =
 /** Ops that name things rather than rule a write: no column-rule check applies. */
 const NAMING_OPS: ReadonlySet<RuleOp> = new Set(['column.label', 'column.yesNo', 'table.label', 'table.keyField']);
 /** Ops that belong to the table, not one of its columns. */
-const TABLE_OPS: ReadonlySet<RuleOp> = new Set(['table.capacity', 'table.booking', 'table.states', 'table.postings', 'table.adjust', 'table.label', 'table.keyField']);
+const TABLE_OPS: ReadonlySet<RuleOp> = new Set(['table.capacity', 'table.booking', 'table.states', 'table.postings', 'table.adjust', 'table.belongs', 'table.private', 'table.label', 'table.keyField']);
 
 interface DesiredRule {
   /** Written only on a table this app created, and silently left out elsewhere (Adminium asks it, not the manifest). */
@@ -243,6 +246,7 @@ export function opsForRules(appKey: string, rules: ColumnRules): { op: RuleOp; v
   if (rules.codeLast4 !== undefined) out.push({ op: 'column.codeLast4', value: { ...rules.codeLast4 } });
   if (rules.plainText !== undefined) out.push({ op: 'column.plainText', value: { plainText: rules.plainText === true ? true : { ...rules.plainText } } });
   if (rules.customerKey !== undefined) out.push({ op: 'column.customerKey', value: { ...rules.customerKey } });
+  if (rules.staff === true) out.push({ op: 'column.staff', value: { staff: true } });
   return out;
 }
 
@@ -258,7 +262,9 @@ export function tableOpsFor(table: {
   states?: unknown;
   postings?: readonly object[] | undefined;
   adjust?: unknown;
-}): { op: 'table.capacity' | 'table.booking' | 'table.states' | 'table.postings' | 'table.adjust'; value: Record<string, unknown> }[] {
+  belongs?: readonly object[] | undefined;
+  private?: true | undefined;
+}): { op: 'table.capacity' | 'table.booking' | 'table.states' | 'table.postings' | 'table.adjust' | 'table.belongs' | 'table.private'; value: Record<string, unknown> }[] {
   const out: ReturnType<typeof tableOpsFor> = [];
   for (const [op, value] of [
     ['table.capacity', table.capacity],
@@ -267,6 +273,9 @@ export function tableOpsFor(table: {
     // The table's postings are one rule: `{postings}`, each kept as the manifest spells it.
     ['table.postings', table.postings === undefined ? undefined : { postings: table.postings.map((posting) => ({ ...posting })) }],
     ['table.adjust', table.adjust],
+    // Whose a row is: the ways are one rule, `{ways}`; a listing's table is named by its short ref and made real with the rest.
+    ['table.belongs', table.belongs === undefined ? undefined : { ways: table.belongs.map((way) => structuredClone(way)) }],
+    ['table.private', table.private === true ? { private: true } : undefined],
   ] as const) {
     if (value === undefined) continue;
     // Several limits are stored as `{rules}`; one stays the object a released app has always written.
@@ -704,7 +713,15 @@ export async function writeManifestRules(input: {
       skip(`"${table.name}" has no column "${String(rule.value['column'])}".`);
       return;
     }
-    if (rule.op === 'table.capacity' || rule.op === 'table.booking' || rule.op === 'table.states' || rule.op === 'table.postings' || rule.op === 'table.adjust') {
+    if (rule.op === 'table.private') {
+      // Says nothing a table could contradict: whose its rows are is `table.belongs`, written beside it.
+    } else if (rule.op === 'table.belongs') {
+      const issue = belongsRuleIssue(rule.value, table, model);
+      if (issue !== null) {
+        skip(issue);
+        return;
+      }
+    } else if (rule.op === 'table.capacity' || rule.op === 'table.booking' || rule.op === 'table.states' || rule.op === 'table.postings' || rule.op === 'table.adjust') {
       const check =
         rule.op === 'table.capacity'
           ? capacityRuleIssue
@@ -722,7 +739,7 @@ export async function writeManifestRules(input: {
       }
     } else if (!NAMING_OPS.has(rule.op) && rule.op !== 'column.enumLabels' && rule.op !== 'column.pii' && rule.op !== 'column.secret' && column !== undefined) {
       const issue = columnRuleIssue(
-        rule.op as Exclude<RuleOp, 'column.enumLabels' | 'column.pii' | 'column.secret' | 'column.label' | 'column.yesNo' | 'table.capacity' | 'table.booking' | 'table.states' | 'table.postings' | 'table.adjust' | 'table.label' | 'table.keyField'>,
+        rule.op as Exclude<RuleOp, 'column.enumLabels' | 'column.pii' | 'column.secret' | 'column.label' | 'column.yesNo' | 'table.capacity' | 'table.booking' | 'table.states' | 'table.postings' | 'table.adjust' | 'table.belongs' | 'table.private' | 'table.label' | 'table.keyField'>,
         rule.value,
         column,
         model,
