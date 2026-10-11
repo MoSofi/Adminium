@@ -143,6 +143,8 @@ declare module 'fastify' {
      * keeps unmapped hosts byte-identical to the pre-domain behaviour.
      */
     surfaceForHost: (request: FastifyRequest) => Promise<HostedSurface | null>;
+    /** The config document an app's customer side reads (its browser key, its tables' names), by the app's key. Throws `NotFoundError` with no live key. */
+    customerSurfaceConfig: (appKey: string, request: FastifyRequest) => Promise<Record<string, unknown> | null>;
     /** Send a surface's page: the one door it leaves by (`surface-index.ts`). */
     sendSurfaceIndex: (request: FastifyRequest, reply: FastifyReply, surface: HostedSurface) => Promise<FastifyReply>;
     /**
@@ -379,7 +381,8 @@ export function parseInstancePath(
   if (parts.length < 4 || parts[0] !== 'apps') return null;
   const [, appKey, slug, side, ...rest] = parts;
   if (appKey === undefined || slug === undefined || side === undefined) return null;
-  if (slug === 'staff' || slug === 'customer') return null;
+  // `mobile` is the phone side's own word: never an instance's name.
+  if (slug === 'staff' || slug === 'customer' || slug === 'mobile') return null;
   if (side !== 'staff' && side !== 'customer') return null;
   return { appKey, slug, side, rest: rest.join('/') };
 }
@@ -410,7 +413,7 @@ export function parseSurfacePath(
  * runs before `sendFile`, and a check that trusts the later layer to catch
  * what this one passed is two half-checks.
  */
-function surfaceFileFor(root: string, path: string): string | null {
+export function surfaceFileFor(root: string, path: string): string | null {
   let decoded: string;
   try {
     decoded = decodeURIComponent(path);
@@ -524,6 +527,11 @@ export const surfacesPlugin = fp<SurfacesPluginOptions>(
           ) ?? null
         );
       },
+    );
+
+    // The customer side's config document for an app, as its own mount gets it: what a phone side's preview reads too.
+    app.decorate('customerSurfaceConfig', async (appKey: string, request: FastifyRequest) =>
+      configFor((await app.surfaceSettings?.read()) ?? NO_SURFACE_SETTINGS, appKey, 'customer', null, request),
     );
 
     app.decorate('sendSurfaceIndex', (request: FastifyRequest, reply: FastifyReply, surface: HostedSurface) => sendSurfaceIndex(request, reply, surface, opts.assistant));

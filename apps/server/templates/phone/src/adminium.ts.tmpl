@@ -1,0 +1,188 @@
+/*
+ * How the phone app reaches Adminium. This file is Adminium's: it is written
+ * with the phone side and is the same in every app. Write screens in App.tsx
+ * and beside this file.
+ *
+ * The phone app is a customer of the app: it talks to the public API with a
+ * key, and reaches ONLY what manifest/access.json grants. Nobody is signed in
+ * as staff here, and no table that is not listed there can be read from this
+ * code, whatever it tries.
+ */
+import { useEffect, useState } from 'react';
+import { Platform } from 'react-native';
+import * as ExpoCrypto from 'expo-crypto';
+import * as SecureStore from 'expo-secure-store';
+import { createPublicClient, type HeldSession, type PublicClient } from '@adminiumjs/public-client';
+
+/** The app's key, as its folder is named. */
+export const APP_KEY = '__KEY__';
+/** The app's name as its manifest says it. */
+export const APP_NAME = '__NAME__';
+
+const ON_WEB = Platform.OS === 'web';
+const SESSION_NAME = `adminium.${APP_KEY}.session`;
+
+/**
+ * The words on the screen. Today it gives the text back; it marks every
+ * sentence a person reads, so a translation can be added without a hunt.
+ */
+export function en(text: string): string {
+  return text;
+}
+
+export interface Connection {
+  /** The public client: `list`, `get`, `create`, `update`, `claim`… */
+  client: PublicClient;
+  /** The app's tables: short name → the name its public endpoints go by. */
+  tables: Record<string, string>;
+  /** What the operator named the app, else its own name. */
+  appName: string;
+}
+
+export type Loaded<T> = { state: 'loading' } | { state: 'ready'; value: T } | { state: 'error'; message: string };
+
+/** Where the web preview is served from: `/apps/<key>/mobile/`. */
+function webBase(): string {
+  const path = globalThis.location?.pathname ?? '/';
+  const mark = `/apps/${APP_KEY}/mobile/`;
+  return path.startsWith(mark) ? mark : '/';
+}
+
+function text(value: unknown): string | null {
+  return typeof value === 'string' && value.trim() !== '' ? value : null;
+}
+
+function strings(value: unknown): Record<string, string> {
+  const out: Record<string, string> = {};
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) return out;
+  for (const [name, to] of Object.entries(value as Record<string, unknown>)) if (typeof to === 'string') out[name] = to;
+  return out;
+}
+
+/** The address, the key and the tables' names: from Adminium on the web, from the build on a phone. */
+async function settings(): Promise<{ baseUrl: string; key: string; tables: Record<string, string>; appName: string | null }> {
+  if (ON_WEB) {
+    // In the Designer's preview, Adminium serves the page and this document beside it.
+    const response = await fetch(`${webBase()}surface-config.json`, { cache: 'no-store', credentials: 'same-origin' });
+    const doc = response.ok ? ((await response.json()) as Record<string, unknown>) : null;
+    const key = text(doc?.['publishableKey']);
+    if (doc === null || key === null) throw new Error(en('This app is not open to customers yet. Give it public access in manifest/access.json.'));
+    return { baseUrl: text(doc['baseUrl']) ?? globalThis.location?.origin ?? '', key, tables: strings(doc['tables']), appName: text(doc['appName']) };
+  }
+  // On a phone: given to the build. "Open on a phone" sets them; a build for a store sets them itself.
+  const baseUrl = text(process.env.EXPO_PUBLIC_ADMINIUM_URL);
+  const key = text(process.env.EXPO_PUBLIC_ADMINIUM_KEY);
+  if (baseUrl === null || key === null) {
+    throw new Error(en('This phone app does not know its Adminium yet: it needs EXPO_PUBLIC_ADMINIUM_URL and EXPO_PUBLIC_ADMINIUM_KEY.'));
+  }
+  let tables: Record<string, string> = {};
+  try {
+    tables = strings(JSON.parse(process.env.EXPO_PUBLIC_ADMINIUM_TABLES ?? '{}'));
+  } catch {
+    tables = {};
+  }
+  return { baseUrl: baseUrl.replace(/\/+$/, ''), key, tables, appName: null };
+}
+
+/** The session a customer opened before, kept where the device keeps secrets. */
+async function keptSession(): Promise<HeldSession | null> {
+  try {
+    const raw = ON_WEB ? (globalThis.sessionStorage?.getItem(SESSION_NAME) ?? null) : await SecureStore.getItemAsync(SESSION_NAME);
+    return raw === null ? null : (JSON.parse(raw) as HeldSession);
+  } catch {
+    return null;
+  }
+}
+
+function keepSession(session: HeldSession | null): void {
+  try {
+    if (ON_WEB) {
+      if (session === null) globalThis.sessionStorage?.removeItem(SESSION_NAME);
+      else globalThis.sessionStorage?.setItem(SESSION_NAME, JSON.stringify(session));
+    } else if (session === null) void SecureStore.deleteItemAsync(SESSION_NAME);
+    else void SecureStore.setItemAsync(SESSION_NAME, JSON.stringify(session));
+  } catch {
+    // A device that keeps nothing: the customer signs in again next time.
+  }
+}
+
+/** Connect once: the client, with the customer's session kept across a restart of the app. */
+export async function connect(): Promise<Connection> {
+  const found = await settings();
+  const session = await keptSession();
+  const client = createPublicClient({
+    baseUrl: found.baseUrl,
+    publishableKey: found.key,
+    ...(session === null ? {} : { session }),
+    onSessionChange: keepSession,
+  });
+  if (client === null) throw new Error(en('This app is not connected to its Adminium yet.'));
+  return { client, tables: found.tables, appName: found.appName ?? APP_NAME };
+}
+
+/** `connect()` for a screen: loading, ready with the connection, or an error to show. */
+export function useAdminium(): Loaded<Connection> {
+  const [loaded, setLoaded] = useState<Loaded<Connection>>({ state: 'loading' });
+  useEffect(() => {
+    let live = true;
+    connect().then(
+      (value) => {
+        if (live) setLoaded({ state: 'ready', value });
+      },
+      (error: unknown) => {
+        if (live) setLoaded({ state: 'error', message: error instanceof Error ? error.message : String(error) });
+      },
+    );
+    return () => {
+      live = false;
+    };
+  }, []);
+  return loaded;
+}
+
+/** The name a table's public endpoint goes by on this install. */
+export function tableName(connection: Connection, short: string): string {
+  return connection.tables[short] ?? `${APP_KEY.split('-').join('_')}_${short}`;
+}
+
+/**
+ * Called once by index.ts, before the first screen.
+ *
+ * A phone has no `crypto` for random bytes: Expo's stands in, so the public
+ * client can make its keys. And in the Designer's preview (the web, inside a
+ * frame) an error is said to the Designer, and the page reloads when the app
+ * was built again. A phone does neither.
+ */
+export function startAdminium(): void {
+  const g = globalThis as { crypto?: { getRandomValues?: unknown } };
+  if (g.crypto === undefined) g.crypto = {};
+  if (typeof g.crypto.getRandomValues !== 'function') g.crypto.getRandomValues = ExpoCrypto.getRandomValues;
+  if (!ON_WEB || typeof window === 'undefined' || window.parent === window) return;
+
+  const say = (message: unknown): void => {
+    const first = (message instanceof Error ? message.message : typeof message === 'string' ? message : 'The screen stopped with an error.').split('\n')[0] ?? '';
+    setTimeout(() => {
+      const blank = (document.body?.innerText ?? '').trim() === '';
+      // The message alone, to the page that frames this one: no row, no key, nothing of the session.
+      window.parent.postMessage({ type: 'adminium:side-error', app: APP_KEY, side: 'mobile', message: first.slice(0, 400), ...(blank ? {} : { went: true }) }, '*');
+    }, 150);
+  };
+  window.addEventListener('error', (event) => say(event.error ?? event.message));
+  window.addEventListener('unhandledrejection', (event) => say(event.reason));
+
+  // Reload when the Designer built the app again: a small stamp, asked for once a second.
+  let seen: string | null = null;
+  let unanswered = 0;
+  const timer = setInterval(() => {
+    void fetch(`${webBase()}dev-build.json`, { cache: 'no-store', credentials: 'same-origin' })
+      .then(async (response) => (response.ok ? ((await response.json()) as { build?: unknown }).build : undefined))
+      .catch(() => undefined)
+      .then((build) => {
+        if (typeof build !== 'string') {
+          // A server that gives no stamp is not the Designer's: stop asking.
+          if (seen === null && ++unanswered >= 5) clearInterval(timer);
+        } else if (seen === null) seen = build;
+        else if (build !== seen) globalThis.location?.reload();
+      });
+  }, 1000);
+}

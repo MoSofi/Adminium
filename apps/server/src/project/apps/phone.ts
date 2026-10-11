@@ -145,8 +145,17 @@ export function phoneShapeProblems(root: string, key: string): PhoneProblem[] {
   if (expo === null || typeof expo !== 'object' || Array.isArray(expo)) {
     problems.push({ file: where(key, 'app.json'), message: 'is missing or has no "expo" block.' });
   } else {
-    for (const field of ['plugins', 'hooks', 'extra', 'updates'] as const) {
+    for (const field of ['hooks', 'updates'] as const) {
       if ((expo as Record<string, unknown>)[field] !== undefined) problems.push({ file: where(key, 'app.json'), message: `has "${field}", which runs code in Expo's build or sends the app elsewhere. Take it out.` });
+    }
+    // A plugin is code Expo runs. One that is a package the phone side lists is part of what a person approved; a file is not.
+    const listed = pkg === null ? {} : { ...(pkg['dependencies'] as Record<string, unknown> | undefined), ...(pkg['devDependencies'] as Record<string, unknown> | undefined) };
+    const plugins = (expo as Record<string, unknown>)['plugins'];
+    for (const plugin of Array.isArray(plugins) ? (plugins as unknown[]) : plugins === undefined ? [] : [plugins]) {
+      const name = Array.isArray(plugin) ? plugin[0] : plugin;
+      if (typeof name !== 'string' || !/^(@[a-z0-9][a-z0-9._-]*\/)?[a-z0-9][a-z0-9._-]*$/.test(name) || listed[name] === undefined) {
+        problems.push({ file: where(key, 'app.json'), message: `has a plugin (${typeof name === 'string' ? name.slice(0, 60) : 'not a name'}) that is not a package the phone side lists. A plugin is a package by its name, never a file.` });
+      }
     }
   }
 

@@ -16,7 +16,7 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { LOCAL_PUBLISHER_ID, RESERVED_KEYS } from '@adminium/manifest';
+import { LOCAL_PUBLISHER_ID, PHONE_KIND, PHONE_SIDE, RESERVED_KEYS, compareSemver } from '@adminium/manifest';
 
 import { CliError } from '../../cli/exit.js';
 import { DESIGN_CSS_START, lookInUse, sideLookFiles, type Look } from './look.js';
@@ -45,6 +45,8 @@ export interface ScaffoldAppOptions {
    * model asked for a bike shop would spend its first steps deleting `items`.
    */
   bare?: boolean;
+  /** Also a phone side (`mobile/`, an Expo project): the manifest declares it, and the app gets public access for it. */
+  phone?: boolean;
 }
 
 /** Why a key cannot be an app's, or null. */
@@ -61,8 +63,9 @@ export function nameFromKey(key: string): string {
 }
 
 /** The manifest's parts, as the files' contents. */
-export function starterParts(opts: Pick<ScaffoldAppOptions, 'key' | 'name' | 'sides' | 'version'>): Record<string, unknown> {
+export function starterParts(opts: Pick<ScaffoldAppOptions, 'key' | 'name' | 'sides' | 'version' | 'phone'>): Record<string, unknown> {
   const { key, name, sides } = opts;
+  const phone = opts.phone === true ? [{ side: PHONE_SIDE, kind: PHONE_KIND }] : [];
   const parts: Record<string, unknown> = {
     'manifest/app.json': {
       manifestVersion: 1,
@@ -77,7 +80,7 @@ export function starterParts(opts: Pick<ScaffoldAppOptions, 'key' | 'name' | 'si
       // The release's own number: an app made on a release candidate runs on the release.
       compatibility: { minAdminiumVersion: opts.version.replace(/[-+].*$/, '') },
       // One entry per side with code in this folder. With none, the app is its tables and pages alone.
-      frontends: sides.length === 0 ? [{ side: 'staff', kind: 'none' }] : sides.map((side) => ({ side, kind: 'spa' })),
+      frontends: sides.length === 0 && phone.length === 0 ? [{ side: 'staff', kind: 'none' }] : [...sides.map((side) => ({ side, kind: 'spa' })), ...phone],
       navGroups: [{ key: 'main', label: { 'en-US': name }, order: 1 }],
       // Its tables are named `<key>_<table>` in the database, so they cannot collide with another app's.
       prefixed: true,
@@ -161,8 +164,8 @@ export function starterParts(opts: Pick<ScaffoldAppOptions, 'key' | 'name' | 'si
       ],
     },
   };
-  if (sides.includes('customer')) {
-    // The ONLY thing the customer side can reach. A table not listed here is out of its reach.
+  if (sides.includes('customer') || opts.phone === true) {
+    // The ONLY thing the customer side (and a phone app, which is a customer's) can reach. A table not listed here is out of its reach.
     parts['manifest/access.json'] = {
       publicAccess: [
         // Anyone may read the list: three columns of it, and nothing else.
@@ -176,7 +179,7 @@ export function starterParts(opts: Pick<ScaffoldAppOptions, 'key' | 'name' | 'si
 }
 
 /** The parts of an app with nothing in it yet: the starter's `app.json`, and its role with no grants. */
-export function bareParts(opts: Pick<ScaffoldAppOptions, 'key' | 'name' | 'sides' | 'version'>): Record<string, unknown> {
+export function bareParts(opts: Pick<ScaffoldAppOptions, 'key' | 'name' | 'sides' | 'version' | 'phone'>): Record<string, unknown> {
   const starter = starterParts(opts);
   return {
     'manifest/app.json': starter['manifest/app.json'],
@@ -184,7 +187,7 @@ export function bareParts(opts: Pick<ScaffoldAppOptions, 'key' | 'name' | 'sides
   };
 }
 
-function readme(opts: Pick<ScaffoldAppOptions, 'key' | 'name' | 'sides'>): string {
+function readme(opts: Pick<ScaffoldAppOptions, 'key' | 'name' | 'sides' | 'phone'>): string {
   const { key, name, sides } = opts;
   const run = (command: string): string => `npx @adminiumjs/adminium app ${command} ${key}`;
   return [
@@ -200,10 +203,11 @@ function readme(opts: Pick<ScaffoldAppOptions, 'key' | 'name' | 'sides'>): strin
     '| `manifest/tables/*.json` | One file per table. The file is named after the table\'s `ref` |',
     '| `manifest/pages/*.json` | One file per dashboard page |',
     '| `manifest/roles.json` | The roles the app adds, and what each may do |',
-    ...(sides.includes('customer') ? ['| `manifest/access.json` | What the customer side may read and write. Nothing else is in its reach |'] : []),
+    ...(sides.includes('customer') || opts.phone === true ? ['| `manifest/access.json` | What customers may read and write, from the customer side or the phone app. Nothing else is in their reach |'] : []),
     '| `manifest/sample.json`, `seeds/sample.json` | Sample data: `adminium dev` adds it once; an install from a file adds it only when asked |',
     ...(sides.includes('staff') ? ['| `staff/src/` | The staff screens: a React app that reads and writes as the signed-in person |'] : []),
     ...(sides.includes('customer') ? ['| `customer/src/` | The customer screens: a public React app that uses the public API |'] : []),
+    ...(opts.phone === true ? ['| `mobile/` | The phone app: an Expo (React Native) project for customers. `App.tsx` and `src/` are yours; the rest is written by Adminium |'] : []),
     '| `tests/app.test.mjs` | Checks that need only Node: `node --test ' + `${APPS_DIR}/${key}/tests/app.test.mjs` + '` |',
     '',
     '## Commands',
@@ -308,6 +312,63 @@ export function scaffoldApp(opts: ScaffoldAppOptions): string[] {
   }
   for (const side of opts.sides) for (const [file, text] of Object.entries(sideStyles(opts.root, templates, DEFAULT_LOOK))) write(`${side}/${file}`, text);
   write('README.md', readme(opts));
+  if (opts.phone === true) created.push(...writePhoneSide({ root: opts.root, key: opts.key, name: opts.name, clientSpec: opts.version.replace(/[-+].*$/, '') }));
+  return created.sort();
+}
+
+/** Where the phone side's starter is: beside the app's own templates, never among them. */
+export function phoneTemplateDir(moduleUrl: string = import.meta.url): string {
+  return resolve(dirname(fileURLToPath(moduleUrl)), '..', '..', '..', 'templates', 'phone');
+}
+
+/** The files of the phone starter, as the paths they are written at. */
+function writePhoneSide(opts: { root: string; key: string; name: string; clientSpec: string; templates?: string }): string[] {
+  const templates = opts.templates ?? phoneTemplateDir();
+  if (!existsSync(templates)) throw new CliError(`The phone app's template is missing from this Adminium install (${templates}).`);
+  const dir = join(appDir(opts.root, opts.key), PHONE_SIDE);
+  // In JSON files a name is a JSON string's content: a quote in it must not end the string.
+  const inJson = (text: string): string => JSON.stringify(text).slice(1, -1);
+  const created: string[] = [];
+  for (const file of templateFiles(templates)) {
+    const json = file.endsWith('.json.tmpl');
+    const name = json ? inJson(opts.name) : opts.name.replace(/[\\'`$]/g, '');
+    const text = readFileSync(join(templates, file), 'utf8').split('__KEY__').join(opts.key).split('__NAME__').join(name).split('__CLIENT__').join(opts.clientSpec);
+    // `_gitignore` and `lock.json` travel under those names: a package manager drops the real ones from a package.
+    const target = file.replace(/\.tmpl$/, '').replace(/^_gitignore$/, '.gitignore').replace(/^lock\.json$/, 'package-lock.json');
+    mkdirSync(dirname(join(dir, target)), { recursive: true });
+    writeFileSync(join(dir, target), text);
+    created.push(appPath(opts.key, PHONE_SIDE, target));
+  }
+  return created;
+}
+
+/**
+ * Give an app a phone side: the starter under `mobile/`, the side declared in
+ * `app.json`, and the oldest Adminium the app runs on raised to this one (a
+ * server that does not know the side refuses the whole manifest). Returns the
+ * files written, relative to the project; none when the side is there.
+ */
+export function addPhoneSide(opts: { root: string; key: string; name: string; version: string; templates?: string }): string[] {
+  const dir = appDir(opts.root, opts.key);
+  const manifestFile = join(dir, 'manifest', 'app.json');
+  if (!existsSync(manifestFile)) throw new CliError(`${appPath(opts.key, 'manifest', 'app.json')} is not there: a side is added to an app whose manifest is written as part files.`);
+  let app: { frontends?: { side: string; kind: string }[]; compatibility?: { minAdminiumVersion?: string } };
+  try {
+    app = JSON.parse(readFileSync(manifestFile, 'utf8')) as typeof app;
+  } catch (error) {
+    throw new CliError(`${appPath(opts.key, 'manifest', 'app.json')} is not valid JSON: ${error instanceof Error ? error.message : String(error)}`);
+  }
+  const release = opts.version.replace(/[-+].*$/, '');
+  const created = existsSync(join(dir, PHONE_SIDE)) ? [] : writePhoneSide({ root: opts.root, key: opts.key, name: opts.name, clientSpec: release, ...(opts.templates === undefined ? {} : { templates: opts.templates }) });
+  const declared = (app.frontends ?? []).some((entry) => entry.side === PHONE_SIDE);
+  const floor = app.compatibility?.minAdminiumVersion;
+  const raise = floor === undefined || compareSemver(floor, release) < 0;
+  if (!declared || raise) {
+    if (!declared) app.frontends = [...(app.frontends ?? []).filter((entry) => entry.kind !== 'none'), { side: PHONE_SIDE, kind: PHONE_KIND }];
+    if (raise) app.compatibility = { ...app.compatibility, minAdminiumVersion: release };
+    writeFileSync(manifestFile, `${JSON.stringify(app, null, 2)}\n`);
+    created.push(appPath(opts.key, 'manifest', 'app.json'));
+  }
   return created.sort();
 }
 

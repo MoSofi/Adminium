@@ -18,6 +18,8 @@
  * rewritten: what the last good build left stays on disk and keeps serving.
  */
 
+import { PHONE_BUILD_DIR, PHONE_SIDE } from './phone.js';
+import { buildPhone, removePhoneBuild, type PhoneBuild, type PhoneRunner } from './phone-build.js';
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -47,6 +49,13 @@ export interface BuiltProjectApp {
   sidesHash: string;
   /** Why this app was not built, one line each. Absent when it was. */
   problems?: string[];
+  /**
+   * The phone side's preview, for an app that has a phone side, in a build
+   * made for a developer. Never a problem: an app whose phone side is not
+   * approved, not installed or did not build is built and applied as before,
+   * and this says how its phone preview stands.
+   */
+  phone?: PhoneBuild;
 }
 
 export interface AppsBuild {
@@ -91,7 +100,8 @@ function builtFrom(root: string, key: string): string[] {
   const dir = appDir(root, key);
   const files: string[] = [];
   if (existsSync(join(dir, MANIFEST_FILE))) files.push(MANIFEST_FILE);
-  for (const folder of [MANIFEST_PARTS_DIR, ...SIDES]) {
+  // The phone side's files too: its preview is built from them.
+  for (const folder of [MANIFEST_PARTS_DIR, ...SIDES, PHONE_SIDE]) {
     files.push(...filesUnder(join(dir, folder)).map((file) => `${folder}/${file}`));
   }
   // An app with a build of its own is built from its whole source, wherever its build reads it.
@@ -184,6 +194,8 @@ export interface BuildAppsOptions {
   runBuild?: StepRunner;
   /** Ends an app's own build command that is running: the Designer's Stop. */
   signal?: AbortSignal;
+  /** How the phone side's programs are started; tests pass their own. */
+  runPhone?: PhoneRunner;
 }
 
 /** Build one app, or say why not. Never throws for what is in the app's files. */
@@ -243,8 +255,15 @@ async function buildOne(root: string, key: string, opts: BuildAppsOptions): Prom
   // One document, with `kind` said outright, exactly as a package carries it.
   const text = `${JSON.stringify({ kind: 'app', ...check.folder.document }, null, 2)}\n`;
   writeAtomically(join(out, APP_BUILD_FILE), text);
+  // The phone side's preview: built for a developer only, and never kept by a build made for a server.
+  let phone: PhoneBuild | undefined;
+  if (opts.dev === true) {
+    const built = await buildPhone(root, key, { ...(opts.signal === undefined ? {} : { signal: opts.signal }), ...(opts.runPhone === undefined ? {} : { run: opts.runPhone }) });
+    if (built.state !== 'none') phone = built;
+    else removePhoneBuild(root, key);
+  } else removePhoneBuild(root, key);
   return {
-    app: { key, version: check.manifest.version, hash: sha256(text), sides: [...check.sides], sidesHash: sidesHashOf(root, key, check.sides) },
+    app: { key, version: check.manifest.version, hash: sha256(text), sides: [...check.sides], sidesHash: sidesHashOf(root, key, check.sides), ...(phone === undefined ? {} : { phone }) },
     inputs,
   };
 }
@@ -267,9 +286,17 @@ export async function buildProjectApps(root: string, opts: BuildAppsOptions): Pr
       if (entry.isDirectory() && !keys.includes(entry.name)) rmSync(join(buildRoot, entry.name), { recursive: true, force: true });
     }
   }
+  // The same for a phone preview whose app is gone, and for every one of them in a build made for a server.
+  const phoneRoot = join(root, BUILD_DIR, PHONE_BUILD_DIR);
+  if (existsSync(phoneRoot)) {
+    for (const entry of readdirSync(phoneRoot, { withFileTypes: true })) {
+      const key = entry.name.replace(/\.staging$/, '');
+      if (opts.dev !== true || !keys.includes(key)) rmSync(join(phoneRoot, entry.name), { recursive: true, force: true });
+    }
+  }
 
   const digest =
-    apps.length === 0 ? '' : sha256(JSON.stringify(apps.map((app) => [app.key, app.hash, app.sidesHash, app.problems ?? null])));
+    apps.length === 0 ? '' : sha256(JSON.stringify(apps.map((app) => [app.key, app.hash, app.sidesHash, app.problems ?? null, ...(app.phone === undefined ? [] : [app.phone])])));
   return { digest, apps, sources, inputs, ...(opts.dev === true ? { dev: true } : {}) };
 }
 

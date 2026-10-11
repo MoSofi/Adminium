@@ -56,7 +56,7 @@ const DESIGNER_ONLY = /^\/api\/v1\/(designer|auth\/design-session|auth\/login|au
  * run beside the owner's session, with everything the owner may do; they are
  * served on the preview's name only, where the session is the preview user's.
  */
-const APP_SCREENS = /^\/apps\/[^/]+\/(staff|customer)(\/|$|\?)/i;
+const APP_SCREENS = /^\/apps\/[^/]+\/(staff|customer|mobile)(\/|$|\?)/i;
 
 /** The path as the router will read it: decoded once, so `%64esigner` is `designer`. */
 function pathsOf(url: string): string[] {

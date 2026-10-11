@@ -136,6 +136,7 @@ import { pickLocalized } from './add-ons/catalog.js';
 import { designerRoutes } from './routes/designer/index.js';
 import { designSessionRoutes } from './routes/auth/design-session.js';
 import { registerPreview } from './designer/preview.js';
+import { registerPhonePreview } from './plugins/phone-preview.js';
 import { architectureOf } from './designer/architecture.js';
 import { designerChannel } from './realtime/hub.js';
 import { createProjectApps, type ProjectApps } from './project/apps/project-apps.js';
@@ -644,6 +645,10 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     ...(opts.designer === undefined ? {} : { design: { port: opts.designer.port } }),
     ...(opts.shared === undefined ? {} : { sharedHosts: { port: opts.shared.port } }),
   });
+  // A phone side's preview: a route of its own, in a project being designed or developed, and nowhere else.
+  if (opts.project?.mode === 'dev' && projectRoot !== null) {
+    registerPhonePreview(app, { root: projectRoot, appBuild: (key) => projectApps?.buildOf(key) ?? null });
+  }
   // The live Designer: the operator allowed it, and this is not `adminium design` (which is local) nor the desktop app.
   const liveAllowed = opts.designer === undefined && env.ADMINIUM_DESIGNER === 'live' && env.ADMINIUM_RUNTIME !== 'desktop';
   if (!app.hasDecorator('designerMode')) app.decorate('designerMode', opts.designer !== undefined ? opts.designer.mode : liveAllowed ? 'live' : 'off');
