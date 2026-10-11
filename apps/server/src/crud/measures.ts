@@ -60,6 +60,7 @@ import { ValidationFailedError } from '../errors.js';
 import type { SourceDatabase } from '../connections/manager.js';
 import type { ResolvedTable, SnapshotView } from './identifiers.js';
 import { piiAllows, type PiiAccess, type Row } from './mask.js';
+import type { RowTest } from './row-limit.js';
 
 /** One resolved term of a fold body: snapshot-owned column names only. */
 export interface ResolvedTerm {
@@ -83,6 +84,13 @@ export interface ResolvedMeasure {
   emptyAs: MeasureEmpty;
   /** Caller-specific refusal (permission / masking) → `null` + `_masked`. */
   refused: boolean;
+  /**
+   * The rows of the referencing table the READER reaches
+   * (`crud/row-limit.ts`), when a role of theirs limits them there: a count or
+   * a sum is then over the rows they could list, never over a colleague's.
+   * Set by the caller that resolved the measure for a person.
+   */
+  rowTest?: RowTest | null | undefined;
 }
 
 /**
@@ -272,7 +280,7 @@ export function measureSelections(
     .filter((measure) => !measure.refused)
     .map((measure, index) => {
       const alias = tableAlias(base, index);
-      return eb
+      const folded = eb
         .selectFrom(`${measure.refTable.id} as ${alias}`)
         .select((inner) =>
           measure.fn === 'count'
@@ -284,8 +292,8 @@ export function measureSelections(
           dynamic.ref(`${alias}.${measure.fkColumn}`),
           '=',
           dynamic.ref(`${base.name}.${measure.toColumn}`),
-        )
-        .as(measure.alias);
+        );
+      return (measure.rowTest == null ? folded : folded.where(measure.rowTest(db, alias))).as(measure.alias);
     });
 }
 

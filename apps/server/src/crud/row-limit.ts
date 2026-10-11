@@ -312,6 +312,20 @@ function heldTo(ctx: RowLimitContext, table: EffectiveTable, action: RowAction):
 }
 
 /**
+ * What holds a person who WRITES a row of a table: the reaches of their
+ * update there — or, for someone whose update nothing limits, of their read
+ * (a person who reads only their own rows does not make one for somebody
+ * else). Null when neither is limited: they write as they always did.
+ */
+export function writerReaches(ctx: RowLimitContext, tableId: string): readonly RowReach[] | null {
+  const table = ctx.model.tables.find((candidate) => candidate.id === tableId);
+  if (table === undefined) return null;
+  if (table.private === true) return [{ reach: 'own' }];
+  if (ctx.set.superAdmin === true) return null;
+  return rowReachesOf(ctx.set, ctx.connectionId, tableId, 'update') ?? rowReachesOf(ctx.set, ctx.connectionId, tableId, 'read');
+}
+
+/**
  * The test a row of `tableId` must pass for this person's `action` to reach
  * it, or null when every row is reached.
  */

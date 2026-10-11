@@ -116,4 +116,15 @@ describe('what the store keeps of a row limit', () => {
     expect(overridePatchSchema.safeParse({ op: 'table.private', value: { private: true } }).success).toBe(true);
     expect(overridePatchSchema.safeParse({ op: 'table.private', value: { private: false } }).success).toBe(false);
   });
+
+  it('a record\'s button keeps its hand-over mark, on the two buttons that write a row', () => {
+    const states = (action: Record<string, unknown>) => overridePatchSchema.safeParse({ op: 'table.states', value: { column: 'state', initial: 'open', moves: { open: ['won'] }, actions: [action] } });
+    const give = { id: 'give', label: 'Hand over', set: {}, in: ['open'], ask: ['owner_id'], handOver: true };
+    const kept = states(give);
+    expect(kept.success).toBe(true);
+    expect(((kept.data as { value: { actions: Record<string, unknown>[] } }).value.actions[0]!)['handOver']).toBe(true);
+    expect(states({ id: 'win', label: 'Won', move: { to: 'won' }, ask: ['owner_id'], handOver: true }).success).toBe(true);
+    expect(states({ ...give, handOver: false }).success).toBe(false);
+    expect(states({ id: 'open', label: 'Open', link: { page: 'deals', param: 'deal' }, in: ['open'], handOver: true }).success).toBe(false);
+  });
 });

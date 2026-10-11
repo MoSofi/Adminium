@@ -11,6 +11,7 @@ import { ValidationFailedError } from '../errors.js';
 import type { SourceDatabase } from '../connections/manager.js';
 import type { ResolvedTable, SnapshotView } from './identifiers.js';
 import type { Row } from './mask.js';
+import { rowLimitFor, type RowLimitContext } from './row-limit.js';
 
 /** Coerce a path-segment string to the column's JS type for binding. */
 function coerce(value: unknown, logicalType: string): unknown {
@@ -119,9 +120,18 @@ export async function referenceCounts(
   view: SnapshotView,
   table: ResolvedTable,
   pk: Row,
+  /**
+   * Whose question it is, when a role of theirs reaches only some rows
+   * (`crud/row-limit.ts`): a table they may not read is then left out, and a
+   * table they read in part is counted over the rows they reach. Absent — as
+   * for everybody nothing limits — every referencing table is counted whole,
+   * as it always was.
+   */
+  reader?: { rows: RowLimitContext; canRead: (tableId: string) => Promise<boolean> } | undefined,
 ): Promise<ReferenceCount[]> {
   const out: ReferenceCount[] = [];
   for (const relation of view.inboundRelations(table)) {
+    if (reader !== undefined && !(await reader.canRead(relation.fromTable))) continue;
     // Only count single-column FKs whose target is part of this PK (v1).
     const toColumn = relation.toColumns[0];
     const fromColumn = relation.fromColumns[0];
@@ -129,11 +139,13 @@ export async function referenceCounts(
     const value = pk[toColumn] ?? (await fetchByPk(db, table, pk))?.[toColumn];
     if (value === undefined) continue;
     // Both identifiers come from the snapshot's relation graph, never the client.
-    const row = await db
+    const test = reader === undefined ? null : rowLimitFor(reader.rows, relation.fromTable, 'read');
+    let counted = db
       .selectFrom(relation.fromTable)
       .select((eb) => eb.fn.countAll().as('count'))
-      .where((eb) => eb(db.dynamic.ref(fromColumn), '=', value))
-      .executeTakeFirst();
+      .where((eb) => eb(db.dynamic.ref(fromColumn), '=', value));
+    if (test !== null) counted = counted.where(test(db, relation.fromTable.slice(relation.fromTable.lastIndexOf('.') + 1)));
+    const row = await counted.executeTakeFirst();
     // Named as the app or the operator named the table: a panel's tab read "ordering_order_items".
     const from = view.model.tables.find((candidate) => candidate.id === relation.fromTable);
     const label = from?.labelPlural ?? from?.label;

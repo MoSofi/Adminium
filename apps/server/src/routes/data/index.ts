@@ -48,7 +48,8 @@ import { applyDerivedFields } from '../../crud/derive.js';
 import { applyMeasureMask, fetchMeasureValues } from '../../crud/measures.js';
 import { runList } from '../../crud/list.js';
 import { fetchVisible, rowRefinement, type RowAction, type RowLimitContext } from '../../crud/row-limit.js';
-import { rowLimitContextOf, rowTestOf } from '../../crud/row-limit-context.js';
+import { limitProjections, rowLimitContextOf, rowTestOf } from '../../crud/row-limit-context.js';
+import { assertLinksReached, assertNoUnreachedChildren, assertStaffColumns, linkRefused, reachedKeys, type StaffWriteOptions } from '../../crud/row-writes.js';
 import { applyLookupMask, fetchLookupValues } from '../../crud/lookups.js';
 import {
   resolveProjections,
@@ -469,6 +470,40 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         Object.defineProperty(error, 'message', { value: (scrubbed as AppError).message, configurable: true, writable: true });
       }
     });
+    /*
+     * A REQUEST OF SOMEBODY WHO REACHES ONLY SOME ROWS (`crud/row-limit.ts`).
+     *
+     * Two things such a person is told differently. A foreign key the
+     * database refused is told without the database's own sentence, which
+     * names the key and the table: "is not present" and "is still
+     * referenced" would each tell whether a row out of their reach exists.
+     * And a row their own write left out of their reach — given to a
+     * colleague — is answered by its key alone: the save happened, and the
+     * row is no longer theirs to read.
+     */
+    const limitedOf = new WeakMap<FastifyRequest, DataContext>();
+    app.addHook('onError', async (request, _reply, error) => {
+      if (!limitedOf.has(request) || !(error instanceof AppError) || error.code !== 'FK_VIOLATION') return;
+      Object.defineProperty(error, 'details', { value: { constraint: null, detail: null }, configurable: true });
+    });
+    /** A row a write made or changed, as its writer may be told it: whole while they reach it, else its key. */
+    const toldRow = async (ctx: DataContext, data: Row): Promise<Row> => {
+      if (ctx.rows === null) return data;
+      const pk = Object.fromEntries(ctx.table.primaryKey.map((column) => [column, data[column]]));
+      // A reply with no key in it cannot be asked about: told as a row out of reach, never shown on trust.
+      if (Object.values(pk).some((value) => value === undefined || value === null)) return { _handedOver: true };
+      return (await fetchVisible(ctx.rows, ctx.db, ctx.table, pk, 'read')) === undefined ? { ...pk, _handedOver: true } : data;
+    };
+    /** The requests whose reply is one written row: a create, a change, a record's button. */
+    const answersRow = new WeakSet<FastifyRequest>();
+    app.addHook('preSerialization', async (request, _reply, payload) => {
+      const ctx = limitedOf.get(request);
+      const data = (payload as { data?: unknown } | null)?.data;
+      if (ctx === undefined || !answersRow.has(request) || typeof data !== 'object' || data === null || Array.isArray(data)) return payload;
+      const told = await toldRow(ctx, data as Row);
+      return told === data ? payload : { ...(payload as object), data: told };
+    });
+
     function principalId(request: FastifyRequest): string | null {
       const user = (request as unknown as { user?: { id?: string } }).user;
       return user?.id ?? request.apiKeyPrincipal?.id ?? null;
@@ -482,6 +517,22 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
      */
     const startRow = (ctx: DataContext, pk: Row, action: RowAction, db: Kysely<SourceDatabase> = ctx.db): Promise<Row | undefined> =>
       ctx.rows === null ? fetchByPk(db, ctx.table, pk) : fetchVisible(ctx.rows, db, ctx.table, pk, action);
+
+    /** Whose question a count of other tables' rows is, when the caller reaches only some rows: nothing for everybody else. */
+    const readerOf = (request: FastifyRequest, ctx: DataContext): { rows: RowLimitContext; canRead: (tableId: string) => Promise<boolean> } | undefined =>
+      ctx.rows === null ? undefined : { rows: ctx.rows, canRead: (tableId) => request.can(`table:${ctx.connectionId}:${tableId}:read`) };
+
+    /**
+     * What a write names, judged for a writer who reaches only some rows: a
+     * link to a table they read in part names a row they reach, and each
+     * staff column follows what its table lets them put there
+     * (`crud/row-writes.ts`). `values` are what the caller sent; `before` the
+     * stored row, or null for a new one.
+     */
+    const judgeWrite = async (ctx: DataContext, tableId: string, values: Row, before: Row | null, opts?: StaffWriteOptions, db: Kysely<SourceDatabase> = ctx.db): Promise<void> => {
+      await assertLinksReached(ctx.rows, db, tableId, values, before);
+      await assertStaffColumns(ctx.rows, meta, db, ctx.view.model, tableId, values, before, opts);
+    };
 
     /**
      * The same test, in the UPDATE or the DELETE itself: a row handed to
@@ -576,6 +627,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
       };
       // A refusal of this request is told as the caller reads the table (see the error hook below).
       if (readView.readLimited) readersOf.set(request, ctx);
+      if (ctx.rows !== null) limitedOf.set(request, ctx);
       return ctx;
     }
 
@@ -849,6 +901,8 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
       ctx: DataContext,
       context: WriteContext,
       raw: Record<string, { key?: Row | undefined; values: Row }[]> | undefined,
+      /** Under a NEW record: every row sent is a new row, whatever key it carries (a tree writes them all). */
+      fresh = false,
     ): Promise<RequestedChildren[]> {
       if (raw === undefined) return [];
       const out: RequestedChildren[] = [];
@@ -863,7 +917,9 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         const { child } = resolution;
         const id = child.child.id;
         // A row the form adds (no key) is a create of the child table, held to that create's limit.
-        for (const row of rows) if (row.key === undefined) await assertCreatable(request, ctx.connectionId, child.child, row.values);
+        for (const row of rows) if (row.key === undefined || fresh) await assertCreatable(request, ctx.connectionId, child.child, row.values);
+        // …and names only rows and people its writer may: its link to this parent is the parent's own, never sent.
+        for (const row of rows) if (row.key === undefined || fresh) await judgeWrite(ctx, id, allowlistChild(ctx, child, row.values), null);
         out.push({
           child,
           rows: rows.map((row) => ({
@@ -905,14 +961,21 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
       db: Kysely<SourceDatabase>,
       child: ResolvedChild,
       parentKey: unknown,
+      /**
+       * Whose question it is: a person who reads the child table only in
+       * part gets the rows they reach. A row out of their reach is then not
+       * shown, and — a form sends back the rows it was shown — not taken for
+       * one the form removed.
+       */
+      rows: RowLimitContext | null = null,
     ): Promise<Row[]> {
-      const rows = await db
+      const test = rowTestOf(rows, child.child.id, 'read');
+      let query = db
         .selectFrom(child.child.id)
         .selectAll()
-        .where((eb) => eb(db.dynamic.ref(child.foreignColumn), '=', parentKey))
-        .limit(MAX_CHILD_ROWS)
-        .execute();
-      return rows as Row[];
+        .where((eb) => eb(db.dynamic.ref(child.foreignColumn), '=', parentKey));
+      if (test !== null) query = query.where(test(db, child.child.name));
+      return (await query.limit(MAX_CHILD_ROWS).execute()) as Row[];
     }
 
     /**
@@ -951,8 +1014,10 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
       // What the children moved: a parent's total over them is settled inside
       // the same transaction, as a child written on its own would be.
       const settled: { action: 'create' | 'update' | 'delete'; record: Row; before: Row | null }[] = [];
-      const existing = options.existing ?? (await currentChildren(db, child, parentKey));
+      const existing = options.existing ?? (await currentChildren(db, child, parentKey, ctx.rows));
       const diff: ChildDiff = diffChildRows(child.child.primaryKey, existing, requested.rows);
+      /** A child row the caller reads may still be one their update, or their delete, does not reach. */
+      const within = async (row: Row, action: 'update' | 'delete'): Promise<boolean> => ctx.rows === null || (await fetchVisible(ctx.rows, db, child.child, keyOf(row), action)) !== undefined;
 
       const refuse = (action: string): never => {
         throw new ForbiddenError(
@@ -972,7 +1037,9 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         changed: [],
       };
 
+      for (const removed of diff.removed) if (!(await within(removed, 'delete'))) refuse('delete');
       for (const values of diff.added) {
+        await judgeWrite(ctx, child.child.id, values, null, undefined, db);
         const row = { ...values, [child.foreignColumn]: parentKey };
         const [prepared] = await writes.beforeEach('create', target, context, [{ values: row }], limits);
         if (prepared === undefined) throw new AppError(500, 'INTERNAL', 'The write could not be prepared.');
@@ -1003,6 +1070,11 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         assertWithinLimit(requested.updateLimit, child.child.id, change.values, before ?? null);
         // …and a row that does move is one the caller's update reaches, by what it holds now.
         if (changesRow(change.values, before)) assertMovedFrom(requested.updateLimit, child.child.id, before ?? null, change.values);
+        // …and by whose it is: theirs to change, and naming nobody and no row they may not.
+        if (changesRow(change.values, before)) {
+          if (before !== undefined && !(await within(before, 'update'))) refuse('update');
+          await judgeWrite(ctx, child.child.id, change.values, before ?? null, undefined, db);
+        }
         const [prepared] = await writes.beforeEach('update', target, context, [
           // The state a row sent back whole already holds is no move.
           { match: change.key, values: withoutRepeatedState(child.child, change.values, before) },
@@ -1113,6 +1185,9 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
             if (rows.length > 0 && !(await request.can(`table:${ctx.connectionId}:${grandchild.child.id}:create`))) forbidden(grandchild);
             relations.set(relationId, grandchild);
             for (const [j, grandRow] of rows.entries()) {
+              // A row two levels down is a new row of its own table: held to that table's create, and to whom and what it may name.
+              await assertCreatable(request, ctx.connectionId, grandchild.child, grandRow.values);
+              await judgeWrite(ctx, grandchild.child.id, allowlistChild(ctx, grandchild, grandRow.values), null);
               below.push({
                 name: relationId,
                 target: childTargetOf(ctx, grandchild, ctx.db),
@@ -1255,7 +1330,13 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
       if (!pricedBy(adjusted)) return {};
       // An order's reductions are told to somebody who may read the order: a role that only writes its lines is told nothing of them.
       const readable: AdjustedOrder[] = [];
-      for (const one of adjusted ?? []) if (await request.can(`table:${ctx.connectionId}:${one.table}:read`)) readable.push(one);
+      for (const one of adjusted ?? []) {
+        if (!(await request.can(`table:${ctx.connectionId}:${one.table}:read`))) continue;
+        // …and who reaches that order: a line written under one out of the caller's reach tells them nothing of its price.
+        const order = ctx.rows === null ? null : ctx.view.linkTable(one.table);
+        if (order !== null && order.primaryKey.length === 1 && (await fetchVisible(ctx.rows!, ctx.db, order, { [order.primaryKey[0]!]: one.key }, 'read')) === undefined) continue;
+        readable.push(one);
+      }
       if (readable.length === 0) return {};
       // In the language the user reads the dashboard in.
       return priceAnswer(readable, { locale: await recipientLocale(meta, principalId(request)), nameOf: (id) => ctx.view.table(id).name, tree });
@@ -1267,7 +1348,12 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
      */
     async function paidAs(request: FastifyRequest, ctx: DataContext, rows: readonly PaidRow[], outcomes: readonly PostedOutcome[] | undefined, dry = false): Promise<{ payment?: PaymentAnswer }> {
       if (outcomes === undefined || !outcomes.some((outcome) => outcome.decided.length > 0)) return {};
-      const found = await paymentOf({ view: ctx.view, rows, outcomes, dry, parentOf: async (table, key) => (await fetchByPk(ctx.db, table, { [table.primaryKey[0]!]: key })) ?? null });
+      // The row a payment is against, read as the caller reads it: one out of their reach tells no balance.
+      const parentOf = async (table: ResolvedTable, key: unknown): Promise<Row | null> => {
+        const pk = { [table.primaryKey[0]!]: key };
+        return (ctx.rows === null ? await fetchByPk(ctx.db, table, pk) : await fetchVisible(ctx.rows, ctx.db, table, pk, 'read')) ?? null;
+      };
+      const found = await paymentOf({ view: ctx.view, rows, outcomes, dry, parentOf });
       if (found === undefined) return {};
       let reads = found.balanceAfter !== undefined && found.wrote.length > 0;
       for (const table of reads ? found.wrote : []) if (!(await request.can(`table:${ctx.connectionId}:${table.id}:read`))) reads = false;
@@ -1342,8 +1428,13 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
       opts: { existing?: string[] | undefined } = {},
     ): Promise<{ relationId: string; before: string[]; after: string[] }> {
       const { link } = requested;
-      const before = opts.existing ?? (await currentLinks(db, link, ownKey));
+      // Among the targets the writer reaches: a link to a row out of their reach is neither listed nor taken for one they removed.
+      const all = opts.existing ?? (await currentLinks(db, link, ownKey));
+      const reached = ctx.rows === null ? null : await reachedKeys(ctx.rows, db, link.target.id, link.targetKeyColumn, all);
+      const before = reached === null ? all : all.filter((key) => reached.has(key));
       const { add, remove } = diffLinks(before, requested.wanted);
+      // …and a link they add names a row they reach, or a row that is not there.
+      if (ctx.rows !== null && add.length > 0 && (await reachedKeys(ctx.rows, db, link.target.id, link.targetKeyColumn, add)).size < new Set(add).size) throw linkRefused();
       if (add.length > 0 && !requested.canAdd) {
         throw new ForbiddenError(`You cannot add rows to ${link.linkTable.name}.`, 'TABLE_FORBIDDEN', {
           permission: `table:${ctx.connectionId}:${link.linkTable.id}:create`,
@@ -1564,6 +1655,8 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         compute: query.compute,
       });
       await auditRefusedProjections(request, ctx, projections.refusals);
+      // A value looked up, a count or a sum: over the rows this reader reaches of the table it comes from.
+      limitProjections(ctx.rows, projections.lookups, projections.measures);
       return projections;
     }
 
@@ -1699,7 +1792,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         const prepared = await writes.beforeEach(hookAction, target, context, undoRows(entry), {
           rules: false,
         });
-        const { restored: restoredIds, written, changed } = await executeUndo(target, entry, prepared, context);
+        const { restored: restoredIds, written, changed } = await executeUndo(target, entry, prepared, context, undone.rows);
         invalidateWidgetData(app, entry.connectionId, entry.tableId);
         /*
          * A change taken back is a change of those columns again: an app's
@@ -1760,12 +1853,15 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
      */
     async function undoByMove(request: FastifyRequest, ctx: DataContext, entry: UndoEntry, back: NonNullable<UndoEntry['moveBack']>) {
       const pk = Object.fromEntries(entry.pkColumns.map((column) => [column, entry.after[0]?.[column]]));
+      // A move taken back is a move: of a row the person reaches now, like any other.
+      if ((await startRow(ctx, pk, 'update')) === undefined) throw new ConflictError('Rows changed since the mutation — undo aborted.', 'CONFLICT', { code: 'UNDO_CONFLICT' });
       const outcome = await writes.update({
         target: ctx.target,
         pk,
         values: withSeenState(ctx.table, { [back.column]: back.to }, back.from),
         context: requestWriteContext(request, 'dashboard'),
         mapError: (error) => mapDbError(error, ctx.table),
+        ...withinReach(ctx, 'update'),
         announce: async (result) => {
           await afterMutation(request, ctx, 'update', recordRef(ctx, pk), result.before ?? entry.after[0]!, result.after ?? entry.before[0]!);
           await announceEffects(app, { connectionId: ctx.connectionId, view: ctx.view, effects: result.effects, origin: 'dashboard', request });
@@ -1818,6 +1914,8 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
       entry: UndoEntry,
       record: Row,
       conflict: () => never,
+      /** Whose undo it is: the links are read among the targets they reach, as the write that is undone read them. */
+      rows: RowLimitContext | null = null,
     ): Promise<void> {
       for (const links of entry.links) {
         const resolution = resolveLink(target.view, target.table, links.relationId);
@@ -1826,7 +1924,9 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         if (!resolution.ok) continue;
         const { link } = resolution;
         const ownKey = record[link.ownKeyColumn];
-        const now = await currentLinks(db, link, ownKey);
+        const linked = await currentLinks(db, link, ownKey);
+        const reached = rows === null ? null : await reachedKeys(rows, db, link.target.id, link.targetKeyColumn, linked);
+        const now = reached === null ? linked : linked.filter((key) => reached.has(key));
         const wanted = entry.action === 'create' ? [] : links.before;
         if (!sameKeys(now, links.after)) conflict();
         const { add, remove } = diffLinks(now, wanted);
@@ -1937,6 +2037,14 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
       entry: UndoEntry,
       prepared: PreparedRow[],
       context: WriteContext,
+      /**
+       * Whose undo it is. An undo is judged by what it LEAVES: inside the
+       * transaction, the row it put back or changed back must be one the
+       * person reaches, or all of it is rolled back. So a hand-over made by
+       * mistake can be taken back (the row is theirs again once it is), and a
+       * row somebody else was given since is not written by the one who had it.
+       */
+      rows: RowLimitContext | null = null,
     ): Promise<{ restored: unknown[]; written: WrittenRow[]; changed: { pk: Row; before: Row | null; record: Row | null }[] }> {
       const { table } = target;
       const pkOf = (row: Row): Row => Object.fromEntries(entry.pkColumns.map((c) => [c, row[c]]));
@@ -1950,12 +2058,16 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         const restored: unknown[] = [];
         const written: { pk: Row; before: Row | null; record: Row | null }[] = [];
         const moved: UndoneRows[] = [];
+        const theirs = async (pk: Row, action: RowAction): Promise<void> => {
+          if (rows !== null && (await fetchVisible(rows, tdb, table, pk, action)) === undefined) conflict();
+        };
         if (entry.action === 'delete') {
           // Restore rows with their ORIGINAL PKs.
           for (const [i, before] of entry.before.entries()) {
             const existing = await fetchByPk(tdb, table, pkOf(before));
             if (existing !== undefined) conflict();
             await insertRows(tdb, target.dialect, table, [prepared[i]?.values ?? uncheckedForUndo([before])[0]!]);
+            await theirs(pkOf(before), 'update');
             restored.push(pkLabel(table, pkOf(before)));
             written.push({ pk: pkOf(before), before: null, record: null });
           }
@@ -1975,8 +2087,9 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
             // A change of hands taken back makes its code again: the one handed on stops working with it.
             const renewed = renewForUndo(await writes.codeRules(target), restoreValues, current!, { table, rights: target.rights });
             await withRenewRetry(tdb, target.dialect, renewed, (values) => updateRows(tdb, target.dialect, table, values as typeof restoreValues, pk));
-            await undoLinks(tdb, target, entry, before, conflict);
+            await undoLinks(tdb, target, entry, before, conflict, rows);
             await undoChildren(tdb, target, entry, context, conflict, moved);
+            await theirs(pk, 'update');
             restored.push(pkLabel(table, pk));
             written.push({ pk, before: current ?? null, record: null });
           }
@@ -1989,12 +2102,14 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
           const current = await fetchByPk(tdb, table, pk);
           if (current === undefined) continue; // already gone
           if (!rowsEqual(current, after, Object.keys(after))) conflict();
+          // The row they made, still theirs to change: one given to somebody else since is that person's to keep.
+          await theirs(pk, 'update');
           /*
            * The link rows FIRST, in the same transaction: a parent deleted with
            * its links still pointing at it is either an orphan or a foreign-key
            * failure, and both are worse than the mistake being undone.
            */
-          await undoLinks(tdb, target, entry, after, conflict);
+          await undoLinks(tdb, target, entry, after, conflict, rows);
           // …and the child rows for the same reason, before the parent they
           // point at is gone.
           await undoChildren(tdb, target, entry, context, conflict, moved);
@@ -2050,7 +2165,9 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
           await hideLedgerFigures(caught, (permission) => request.can(permission));
           const error = scrubRefusal(caught, ctx.readView, ctx.readTable) as AppError;
           const reason = (error.details as { reason?: unknown } | undefined)?.reason;
-          return { code: error.code, message: error.message, ...(typeof reason === 'string' ? { reason } : {}), ...(error.details === undefined ? {} : { details: error.details }) };
+          // A foreign key the database refused, to somebody who reaches only some rows: without the database's own sentence, as the error hook tells it.
+          const details = ctx.rows !== null && error.code === 'FK_VIOLATION' ? { constraint: null, detail: null } : error.details;
+          return { code: error.code, message: error.message, ...(typeof reason === 'string' ? { reason } : {}), ...(details === undefined ? {} : { details }) };
         };
         if (creates !== undefined) {
           for (const [index, sent] of creates.entries()) {
@@ -2063,6 +2180,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
               await assertFileColumns(ctx, values);
               // Each new row is held to the caller's create limit, as a row made on its own is.
               await assertCreatable(request, ctx.connectionId, ctx.table, values);
+              await judgeWrite(ctx, ctx.table.id, values, null);
               let told: PostingAnswer[] | undefined;
               const inserted = await writes.create({
                 target: ctx.target,
@@ -2078,7 +2196,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
               });
               const key = ctx.table.primaryKey.length === 1 ? inserted[ctx.table.primaryKey[0]!] : Object.fromEntries(ctx.table.primaryKey.map((c) => [c, inserted[c]]));
               const once = onceFor(ctx.connectionId, request.user?.id ?? null, [{ table: ctx.table, row: inserted }]);
-              results.push({ index, id: key, ok: true, data: staffRow(ctx.dialect, inserted, ctx.readTable, ctx.unmasked), ...(told === undefined ? {} : { postings: told }), ...(once === undefined ? {} : { once }) });
+              results.push({ index, id: key, ok: true, data: await toldRow(ctx, staffRow(ctx.dialect, inserted, ctx.readTable, ctx.unmasked)), ...(told === undefined ? {} : { postings: told }), ...(once === undefined ? {} : { once }) });
             } catch (error) {
               results.push({ index, ok: false, error: await refusedAs(error) });
             }
@@ -2095,10 +2213,11 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
             }
             try {
               const pk = pkFromLoose(ctx.table, id);
-              const before = await fetchByPk(ctx.db, ctx.table, pk);
+              const before = await startRow(ctx, pk, 'update');
               if (before === undefined) throw new NotFoundError('Record not found.', { pk });
               assertWithinLimit(limit, ctx.table.id, values, before);
               assertMovedFrom(limit, ctx.table.id, before, values);
+              await judgeWrite(ctx, ctx.table.id, values, before);
               const held = movedFromSeen(limit, before);
               const outcome = await writes.update({
                 target: ctx.target,
@@ -2109,12 +2228,14 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
                 context,
                 recheck: (final) => assertFileColumns(ctx, final),
                 mapError: (error) => mapDbError(error, ctx.table),
+                ...withinReach(ctx, 'update'),
                 announce: async (result) => {
                   await afterMutation(request, ctx, 'update', recordRef(ctx, pk), before, result.after ?? before);
                   await announceEffects(app, { connectionId: ctx.connectionId, view: ctx.view, effects: result.effects, origin: 'dashboard', request });
                   await tellPostings(app, { connectionId: ctx.connectionId, view: ctx.view, postings: result.postings, origin: 'dashboard', request });
                 },
               });
+              stillThere(ctx, outcome.count, pk);
               const told = postingAnswers(outcome.postings);
               results.push({ id, ok: true, ...(told === undefined ? {} : { postings: told }) });
             } catch (error) {
@@ -2152,25 +2273,53 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         const context = requestWriteContext(request, 'bulk');
         const pks = request.body.ids.map((id) => pkFromLoose(ctx.table, id));
         /*
+         * The rows out of the caller's reach leave the batch HERE, before a
+         * hook runs for them, a refusal names them or a count is taken: each
+         * answers `NOT_FOUND`, as a key that names no row does. Judged again
+         * inside the transaction, where a row given away meanwhile joins them.
+         */
+        const out = new Set<number>();
+        if (ctx.rows !== null) {
+          for (const [i, pk] of pks.entries()) {
+            const stored = await startRow(ctx, pk, action);
+            if (stored === undefined) {
+              out.add(i);
+              continue;
+            }
+            // What the batch names, judged for each row before a hook reads anything through it; named by the row it was refused for.
+            try {
+              if (values !== null) await judgeWrite(ctx, ctx.table.id, values, stored);
+              else await assertNoUnreachedChildren(ctx.rows, ctx.db, ctx.table.id, stored);
+            } catch (error) {
+              if (!(error instanceof AppError)) throw error;
+              throw new AppError(error.statusCode, error.code, error.message, { ...(error.details as object), id: request.body.ids[i] });
+            }
+          }
+        }
+        /*
          * A delete the table's states refuse (a numbered invoice, a sent one's
          * lines) is refused straight away, naming the row, before any hook
          * runs or any row goes. The transaction below judges again.
          */
         if (action === 'delete' && tiedToStates(ctx.table)) {
           for (const [i, pk] of pks.entries()) {
-            const row = await fetchByPk(ctx.db, ctx.table, pk);
+            const row = out.has(i) ? undefined : await fetchByPk(ctx.db, ctx.table, pk);
             if (row === undefined) continue;
             const refused = await writes.deleteRefusal(ctx.target, context, [row]);
             if (refused !== null) throw new AppError(refused.statusCode, refused.code, refused.message, { ...(refused.details as object), id: request.body.ids[i] });
           }
         }
-        // Before hooks for every row, before the transaction opens.
-        const prepared = await writes.beforeEach(
+        // Before hooks for every row the caller reaches, before the transaction opens.
+        const live = pks.map((pk, i) => ({ pk, i })).filter(({ i }) => !out.has(i));
+        const readied = await writes.beforeEach(
           action,
           ctx.target,
           context,
-          pks.map((pk) => ({ match: pk, values: values ?? {} })),
+          live.map(({ pk }) => ({ match: pk, values: values ?? {} })),
         );
+        // By each id's own place in the request, as everything below names a row.
+        const prepared: (typeof readied)[number][] = [];
+        for (const [at, { i }] of live.entries()) prepared[i] = readied[at]!;
         /*
          * A bulk update sends ONE `values` object for every id, so a refused
          * value is a property of the request, not of a row: the whole thing
@@ -2178,7 +2327,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
          * may still have changed one row's values, so the row is named.)
          */
         for (const [i, row] of prepared.entries()) {
-          if (row.issues === null) continue;
+          if (row === undefined || row.issues === null) continue;
           throw new ValidationFailedError('Some values were refused.', {
             fields: row.issues,
             row: i,
@@ -2204,7 +2353,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
           const tdb = trx as unknown as Kysely<SourceDatabase>;
           for (const [i, id] of request.body.ids.entries()) {
             const pk = pks[i] as Row;
-            const before = await fetchByPk(tdb, ctx.table, pk);
+            const before = out.has(i) ? undefined : await startRow(ctx, pk, action, tdb);
             if (before === undefined) {
               results.push({ id, ok: false, error: 'NOT_FOUND' });
               continue;
@@ -2212,6 +2361,9 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
             // A row the caller's update does not reach, by what it holds now: named, and nothing of the batch is kept.
             try {
               if (action === 'update') assertMovedFrom(limit, ctx.table.id, before, values ?? undefined);
+              // …nor a person or a row it may not name, nor a delete that would take rows out of the caller's sight with it.
+              if (action === 'update') await judgeWrite(ctx, ctx.table.id, values ?? {}, before, undefined, tdb);
+              else await assertNoUnreachedChildren(ctx.rows, tdb, ctx.table.id, before);
             } catch (error) {
               throw new AppError((error as AppError).statusCode, (error as AppError).code, (error as AppError).message, { ...((error as AppError).details as object), id });
             }
@@ -2250,7 +2402,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
                 action,
                 beforeImages,
                 afterImages,
-                action === 'update' && values !== null ? changedColumns(values, prepared) : [],
+                action === 'update' && values !== null ? changedColumns(values, readied) : [],
                 [],
                 [],
                 [],
@@ -2315,7 +2467,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         const pk = parseRecordId(ctx.table, request.params.recordId);
         const row = await startRow(ctx, pk, 'read');
         if (row === undefined) throw new NotFoundError('Record not found.', { pk });
-        return { references: await referenceCounts(ctx.db, ctx.view, ctx.table, pk) };
+        return { references: await referenceCounts(ctx.db, ctx.view, ctx.table, pk, readerOf(request, ctx)) };
       },
     );
 
@@ -2430,6 +2582,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         }
         const fill = Object.keys(asked).length === 0 ? {} : allowlistValues(ctx, asked);
         await assertCreatable(request, ctx.connectionId, ctx.table, fill);
+        await judgeWrite(ctx, ctx.table.id, fill, null);
         const context = requestWriteContext(request, 'dashboard');
         const rights = privilegesOf(await manager.tablePrivilegesById(ctx.connectionId), ctx.table.id);
         // On MySQL the address's lock is taken before the transaction, as a guest's create takes it.
@@ -2457,6 +2610,16 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
           await afterMutation(request, ctx, 'create', recordRef(ctx, pk), null, person.made);
         }
         if (person.link === null) throw new ValidationFailedError('That address only looks like one on file: pick the person instead.', { fields: { [email]: { code: 'look-alike' } } });
+        /*
+         * The match is made over every row: a search held to the caller's own
+         * rows would make a second person with an address somebody already
+         * has. But a person the caller does not reach is not handed to them:
+         * the answer is the one for an address that only looks like one on
+         * file — nothing made, no key.
+         */
+        if (person.made === null && ctx.rows !== null && (await startRow(ctx, { [ctx.table.primaryKey[0]!]: person.link }, 'read')) === undefined) {
+          throw new ValidationFailedError('That address only looks like one on file: pick the person instead.', { fields: { [email]: { code: 'look-alike' } } });
+        }
         return { data: { key: person.link, found: person.made === null } };
       },
     );
@@ -2619,7 +2782,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         // the same markers for the same row.
         data = applyDerivedFields([data], fields)[0] as Row;
         if (request.query.include === 'inboundCounts') {
-          return { data, inboundCounts: await referenceCounts(ctx.db, ctx.view, ctx.table, pk) };
+          return { data, inboundCounts: await referenceCounts(ctx.db, ctx.view, ctx.table, pk, readerOf(request, ctx)) };
         }
         return { data };
       },
@@ -2878,9 +3041,16 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         // What the caller chose for the new row, before a rule or the retry key adds to it; each value of a repeat too.
         await assertCreatable(request, ctx.connectionId, ctx.table, values);
         for (const value of request.body.repeat?.values ?? []) await assertCreatable(request, ctx.connectionId, ctx.table, { [request.body.repeat!.column]: value });
+        // …and names only rows and people the caller may: before anything is copied from a row a link points at.
+        await judgeWrite(ctx, ctx.table.id, values, null);
+        for (const value of request.body.repeat?.values ?? []) {
+          const repeated = ctx.view.column(ctx.table, request.body.repeat!.column);
+          await judgeWrite(ctx, ctx.table.id, { [repeated.name]: normalizeWriteValue(repeated, value) }, null);
+        }
+        answersRow.add(request);
         const context = withOccurredAt(requestWriteContext(request, 'dashboard'), request.body.occurredAt);
         const links = await requestedLinks(request, ctx, context, request.body.links);
-        const children = await requestedChildren(request, ctx, context, request.body.children);
+        const children = await requestedChildren(request, ctx, context, request.body.children, true);
         const repeat = request.body.repeat;
         let undoToken: string | null = null;
         // The price the desk showed and the key a retry finds this save by: the tree's own checks.
@@ -3173,8 +3343,10 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         const values = allowlistValues(ctx, request.body.values);
         await assertFileColumns(ctx, values);
         await assertCreatable(request, ctx.connectionId, ctx.table, values);
+        // A quote copies from the rows it names as a save would: judged first, as a save is.
+        await judgeWrite(ctx, ctx.table.id, values, null);
         const context = requestWriteContext(request, 'dashboard');
-        const children = await requestedChildren(request, ctx, context, request.body.children);
+        const children = await requestedChildren(request, ctx, context, request.body.children, true);
         const tree = await staffTree(request, ctx, context, values, [], children, request.body.children ?? {}, 'dry');
         const shown: Record<string, { data: Row; children?: Record<string, { data: Row }[]> }[]> = {};
         const byPlace = new Map<string, { data: Row; children?: Record<string, { data: Row }[]> }>();
@@ -3225,6 +3397,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         const limit = await updateLimitFor(request, ctx.connectionId, ctx.table.id);
         assertWithinLimit(limit, ctx.table.id, values, before);
         assertMovedFrom(limit, ctx.table.id, before, values);
+        await judgeWrite(ctx, ctx.table.id, values, before);
         const context = requestWriteContext(request, 'dashboard');
         const children = await requestedChildren(request, ctx, context, request.body.children);
         if (Object.values(request.body.children ?? {}).some((rows) => rows.some((row) => Object.keys(row.children ?? {}).length > 0))) {
@@ -3257,7 +3430,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
           inside: async (db, after) => {
             if (agrees !== null) await agrees(db, after);
             for (const requested of children) {
-              const rows = await currentChildren(db, requested.child, after[requested.child.parentKeyColumn]);
+              const rows = await currentChildren(db, requested.child, after[requested.child.parentKeyColumn], ctx.rows);
               const read = ctx.readView.linkTable(requested.child.child.id) ?? requested.child.child;
               shown[requested.child.relationId] = rows.map((row) => ({ data: staffRow(ctx.dialect, row, read, false) }));
             }
@@ -3302,7 +3475,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
      * few its form asked for, already read (`values`), and the role's limit is
      * asked about `judged` — what the caller chose, not what a move sets for itself.
      */
-    async function changeRecord(request: FastifyRequest, ctx: DataContext, recordId: string, body: RecordChange, own?: { values: Row; judged: Row }) {
+    async function changeRecord(request: FastifyRequest, ctx: DataContext, recordId: string, body: RecordChange, own?: { values: Row; judged: Row; handOver?: true }) {
       const pk = parseRecordId(ctx.table, recordId);
       // An edit form sends only what changed, so an edit of links or line
       // items alone — or of nothing — arrives with no values at all.
@@ -3316,6 +3489,9 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
       assertWithinLimit(limit, ctx.table.id, own?.judged ?? sent, before);
       // The rows their update reaches at all, by what this one holds now — whatever the change is: of a column, of a link, of a line under it.
       assertMovedFrom(limit, ctx.table.id, before, own?.judged ?? sent);
+      // The rows and the people the change names: what the caller typed, never what a rule sets beside it.
+      await judgeWrite(ctx, ctx.table.id, own?.judged ?? sent, before, own?.handOver === true ? { handOver: true } : undefined);
+      answersRow.add(request);
       const held = movedFromSeen(limit, before);
       // The plain columns the writer saw, as conditions of the change: refused now if the row already moved, and in the statement if it moves meanwhile.
       // What the row was judged by is such a condition too.
@@ -3413,7 +3589,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
                 const rows: LockNameRow[] = [];
                 for (const requested of children) {
                   const target = { ...childTargetOf(ctx, requested.child, ctx.db), timezone };
-                  const existing = await currentChildren(ctx.db, requested.child, before[requested.child.parentKeyColumn]);
+                  const existing = await currentChildren(ctx.db, requested.child, before[requested.child.parentKeyColumn], ctx.rows);
                   for (const row of requested.rows) {
                     const stored = row.key === undefined ? undefined : existing.find((one) => requested.child.child.primaryKey.every((name) => String(one[name]) === String(row.key![name])));
                     rows.push({ target, row: { ...(stored ?? {}), ...row.values, [requested.child.foreignColumn]: before[requested.child.parentKeyColumn] }, before: stored ?? null, prepared: false });
@@ -3581,7 +3757,10 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
          */
         const refused = await writes.deleteRefusal(ctx.target, context, [before]);
         if (refused !== null) throw refused;
-        const references: ReferenceCount[] = await referenceCounts(ctx.db, ctx.view, ctx.table, pk);
+        // Rows the caller cannot see still hang off it: not theirs to carry away, and not counted for them either — asked before
+        // anything is counted, so a try and a delete answer alike.
+        await assertNoUnreachedChildren(ctx.rows, ctx.db, ctx.table.id, before);
+        const references: ReferenceCount[] = await referenceCounts(ctx.db, ctx.view, ctx.table, pk, readerOf(request, ctx));
         const inbound = references.reduce((sum, r) => sum + r.count, 0);
         if (request.query.dryRun === true) {
           // No write happens — cascade-modal payload.

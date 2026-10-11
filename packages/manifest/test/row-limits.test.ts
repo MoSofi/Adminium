@@ -104,6 +104,19 @@ describe('whose a row is', () => {
     expect(installFloorWords(manifest({ roles: [grant] }))).toContainEqual({ word: 'roles.rows', path: 'roles.0.tables.0.limit.rows' });
   });
 
+  it('a record\'s button may be marked as a hand-over: a fifth word, on a button that writes', () => {
+    const states = (actions: unknown[]) => ({ column: 'state', initial: 'open', moves: { open: ['won', 'lost'] }, actions });
+    const give = { id: 'give', label: 'Hand over', set: {}, in: ['open'], ask: ['owner_id'], handOver: true };
+    const withActions = (actions: unknown[]) => manifest({ tables: withTable('deals', (table) => ({ ...table, states: states(actions) })) });
+    expect(messages(withActions([give]))).toEqual([]);
+    expect(messages(withActions([{ id: 'win', label: 'Won', move: { to: 'won' }, ask: ['owner_id'], handOver: true }]))).toEqual([]);
+    expect(installFloorWords(withActions([{ id: 'win', label: 'Won', move: { to: 'won' } }, give]))).toContainEqual({ word: 'states.handOver', path: 'requiredSchema.tables.0.states.actions.1.handOver' });
+    expect(WORD_FLOORS['states.handOver']).toBe('0.3.27');
+    // Only `true`, and only on a button that writes the row: a link to a page hands nothing over.
+    expect(messages(withActions([{ ...give, handOver: false }]))).not.toEqual([]);
+    expect(messages(withActions([{ id: 'open', label: 'Open', link: { page: 'crm-deals', param: 'deal' }, in: ['open'], handOver: true }]))).not.toEqual([]);
+  });
+
   it('keeps a staff member in a text column only', () => {
     const broken = withTable('agents', (table) => ({ ...table, columns: [id, { ref: 'user_id', type: 'int', nullable: true, rules: { staff: true } }] }));
     expect(messages(manifest({ tables: broken }))).toContain('requiredSchema.tables.8.columns.1.rules.staff: a staff member is kept in a text column');

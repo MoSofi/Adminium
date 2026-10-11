@@ -429,6 +429,8 @@ const storedStateAction = () =>
         confirm: actionWords().optional(),
         set: actionSet.optional(),
         ask: z.array(z.string().min(1)).min(1).max(4).optional(),
+        /* Hands the row over: a staff column it asks for may name any person. */
+        handOver: z.literal(true).optional(),
       })
       .strict(),
     z
@@ -440,6 +442,7 @@ const storedStateAction = () =>
         tone: actionTone.optional(),
         confirm: actionWords().optional(),
         ask: z.array(z.string().min(1)).min(1).max(4).optional(),
+        handOver: z.literal(true).optional(),
       })
       .strict(),
     z

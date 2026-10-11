@@ -48,7 +48,7 @@ export interface RecordActionDeps<Context extends ActionContext, Changed> {
     ctx: Context,
     recordId: string,
     body: { values: Row; from?: string | undefined; seen?: Record<string, string | number | boolean | null> | undefined },
-    own: { values: Row; judged: Row },
+    own: { values: Row; judged: Row; handOver?: true },
   ): Promise<Changed>;
   /** The values a form typed, as a PATCH reads them: unknown, secret and unreadable columns refused. */
   asked(ctx: Context, values: Row): Row;
@@ -86,6 +86,9 @@ export function recordActionRoutes<Context extends ActionContext, Changed>(insta
         set[column] = deps.fixed(ctx, column, value !== null && typeof value === 'object' ? now : value);
       }
 
+      // A hand-over: the person it asks for may be anybody, whatever the role may otherwise put there.
+      const handOver = (action as { handOver?: true }).handOver === true ? { handOver: true as const } : {};
+
       if ('move' in action) {
         const to = action.move.to;
         // A move from the state it leads to moves nothing: the roles, what it waits for and the role's limit are all
@@ -95,14 +98,14 @@ export function recordActionRoutes<Context extends ActionContext, Changed>(insta
         }
         const moved = { [states.column]: to };
         // A move's own columns are the move's, as a timed move's are: the role's limit is asked about the state and what was typed.
-        return deps.changeRecord(request, ctx, request.params.recordId, { values: {}, from: request.body.from }, { values: { ...asked, ...set, ...moved }, judged: { ...moved, ...asked } }) as Promise<never>;
+        return deps.changeRecord(request, ctx, request.params.recordId, { values: {}, from: request.body.from }, { values: { ...asked, ...set, ...moved }, judged: { ...moved, ...asked }, ...handOver }) as Promise<never>;
       }
       if (!action.in.includes(request.body.from)) {
         throw new StateMoveRefused(`This is not done while a ${ctx.table.name} row is ${request.body.from}.`, { column: states.column, from: request.body.from });
       }
       // Nothing moves, so the state the page saw is a plain condition of the change; and every column it writes is the role's to answer for.
       const values = { ...asked, ...set };
-      return deps.changeRecord(request, ctx, request.params.recordId, { values: {}, seen: { [states.column]: request.body.from } }, { values, judged: values }) as Promise<never>;
+      return deps.changeRecord(request, ctx, request.params.recordId, { values: {}, seen: { [states.column]: request.body.from } }, { values, judged: values, ...handOver }) as Promise<never>;
     },
   );
 }

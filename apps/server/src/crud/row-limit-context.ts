@@ -30,3 +30,19 @@ export async function rowLimitContextOf(
 export function rowTestOf(rows: RowLimitContext | null, tableId: string, action: RowAction): RowTest | null {
   return rows === null ? null : rowLimitFor(rows, tableId, action);
 }
+
+/**
+ * Hold a read's lookups and measures to the rows their reader reaches: each
+ * table a lookup hops through, and each table a measure folds, gets that
+ * table's own test inside its subquery. Without it a list of a person's own
+ * deals would still add up every colleague's quotes beside them.
+ */
+export function limitProjections<L extends { hops: { refTable: { id: string }; rowTest?: RowTest | null | undefined }[] }, M extends { refTable: { id: string }; rowTest?: RowTest | null | undefined }>(
+  rows: RowLimitContext | null,
+  lookups: readonly L[],
+  measures: readonly M[],
+): void {
+  if (rows === null) return;
+  for (const lookup of lookups) for (const hop of lookup.hops) hop.rowTest = rowLimitFor(rows, hop.refTable.id, 'read');
+  for (const measure of measures) measure.rowTest = rowLimitFor(rows, measure.refTable.id, 'read');
+}

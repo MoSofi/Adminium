@@ -97,6 +97,7 @@ export const INSTALL_FLOOR_WORD_NAMES = [
   'table.belongs',
   'table.private',
   'roles.rows',
+  'states.handOver',
 ] as const;
 export type ManifestWordName = (typeof INSTALL_FLOOR_WORD_NAMES)[number];
 
@@ -125,6 +126,8 @@ export const WORD_FLOORS: Readonly<Partial<Record<ManifestWordName, string>>> = 
   'table.belongs': '0.3.27',
   'table.private': '0.3.27',
   'roles.rows': '0.3.27',
+  // A record's button that hands the row to anybody: the one write a role limited to its own rows names a colleague in.
+  'states.handOver': '0.3.27',
 };
 
 /** Every word of `document` that needs the install floor, in document order. */
@@ -175,6 +178,9 @@ export function installFloorWords(document: unknown): ManifestWord[] {
     if (table['belongs'] !== undefined) out.push({ word: 'table.belongs', path: `${at}.belongs` });
     if (table['private'] !== undefined) out.push({ word: 'table.private', path: `${at}.private` });
     if (isDoc(table['states']) && table['states']['actions'] !== undefined) out.push({ word: 'states.actions', path: `${at}.states.actions` });
+    list(isDoc(table['states']) ? table['states']['actions'] : undefined).forEach((action, a) => {
+      if (isDoc(action) && action['handOver'] !== undefined) out.push({ word: 'states.handOver', path: `${at}.states.actions.${String(a)}.handOver` });
+    });
     if (isDoc(table['states'])) {
       for (const [from, moves] of Object.entries(isDoc(table['states']['moves']) ? table['states']['moves'] : {})) {
         list(moves).forEach((move, m) => {

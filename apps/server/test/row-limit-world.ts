@@ -20,6 +20,8 @@
  *   tickets     1→agent 1 (Dana) 2→agent 2 (Omar) 3 nobody   4→agent 3 (no person)
  *   one-to-ones 1 Mara+Dana   2 Lena+Sam   3 Mara+Omar        (private)
  *   tags        deal 1: Hot, Key   deal 3: Hot   deal 5: Key
+ *   follow-ups  1 Dana's and 2 Omar's, both under deal 1   3 Omar's, under deal 3
+ *   deal↔ticket deal 1 is linked to tickets 1 (Dana's) and 2 (Omar's)
  *
  * A deal has a code Adminium makes (`ref_code`) and a button, "win", that
  * moves it from open to won: the two things a record's own routes do to it.
@@ -59,7 +61,7 @@ export const ENGINES: [Dialect, boolean][] = [
   ['mysql', MYSQL_URL !== undefined],
 ];
 
-export const TABLES = ['deals', 'deal_members', 'covers', 'quotes', 'quote_lines', 'crews', 'crew_members', 'deliveries', 'agents', 'tickets', 'one_to_ones', 'companies', 'tags', 'deal_tags'] as const;
+export const TABLES = ['deals', 'deal_members', 'covers', 'quotes', 'quote_lines', 'crews', 'crew_members', 'deliveries', 'agents', 'tickets', 'one_to_ones', 'companies', 'tags', 'deal_tags', 'followups', 'deal_tickets'] as const;
 export type TableName = (typeof TABLES)[number];
 
 /** The tables in SQL every engine takes: explicit keys, table-level foreign keys (MySQL reads no other kind). */
@@ -78,6 +80,8 @@ const DDL: readonly string[] = [
   `CREATE TABLE agents (id INTEGER PRIMARY KEY, name VARCHAR(40) NOT NULL, user_id VARCHAR(36))`,
   `CREATE TABLE tickets (id INTEGER PRIMARY KEY, subject VARCHAR(80) NOT NULL, assignee_id INTEGER, FOREIGN KEY (assignee_id) REFERENCES agents(id))`,
   `CREATE TABLE one_to_ones (id INTEGER PRIMARY KEY, manager_id VARCHAR(36) NOT NULL, rep_id VARCHAR(36) NOT NULL, note VARCHAR(200) NOT NULL)`,
+  `CREATE TABLE followups (id INTEGER PRIMARY KEY, deal_id INTEGER NOT NULL, owner_id VARCHAR(36), note VARCHAR(200) NOT NULL, FOREIGN KEY (deal_id) REFERENCES deals(id))`,
+  `CREATE TABLE deal_tickets (deal_id INTEGER NOT NULL, ticket_id INTEGER NOT NULL, PRIMARY KEY (deal_id, ticket_id), FOREIGN KEY (deal_id) REFERENCES deals(id), FOREIGN KEY (ticket_id) REFERENCES tickets(id))`,
 ];
 
 export const PEOPLE = ['mara', 'dana', 'omar', 'lena', 'sam', 'kim'] as const;
@@ -95,6 +99,8 @@ export const BELONGS: Partial<Record<TableName, BelongsWay[]>> = {
   deliveries: [{ through: { table: 'crew_members', link: 'crew_id', on: 'crew_id', user: 'user_id' } }],
   tickets: [{ column: 'assignee_id', person: 'user_id', set: 'anyone' }],
   one_to_ones: [{ column: 'manager_id' }, { column: 'rep_id', set: 'team' }],
+  // A follow-up is its own person's, whoever owns the deal it is under.
+  followups: [{ column: 'owner_id' }],
 };
 export const STAFF_COLUMNS: [TableName, string][] = [
   ['deals', 'owner_id'],
@@ -105,6 +111,7 @@ export const STAFF_COLUMNS: [TableName, string][] = [
   ['agents', 'user_id'],
   ['one_to_ones', 'manager_id'],
   ['one_to_ones', 'rep_id'],
+  ['followups', 'owner_id'],
 ];
 
 /** A day inside Omar's cover for Sam, and before Dana's for Lena. */
@@ -253,6 +260,8 @@ export async function world(dialect: Dialect): Promise<World> {
   await run(`INSERT INTO deliveries (id, crew_id, place) VALUES (1, 1, 'Harbour'), (2, 2, 'Northfield'), (3, NULL, 'Unplanned'), (4, 3, 'Nobody on it')`);
   await run(`INSERT INTO agents (id, name, user_id) VALUES (1, 'Dana', '${people.dana}'), (2, 'Omar', '${people.omar}'), (3, 'A bot', NULL)`);
   await run(`INSERT INTO tickets (id, subject, assignee_id) VALUES (1, 'One', 1), (2, 'Two', 2), (3, 'Three', NULL), (4, 'Four', 3)`);
+  await run(`INSERT INTO followups (id, deal_id, owner_id, note) VALUES (1, 1, '${people.dana}', 'Ring Harbour'), (2, 1, '${people.omar}', 'Send the samples'), (3, 3, '${people.omar}', 'Chase the PO')`);
+  await run(`INSERT INTO deal_tickets (deal_id, ticket_id) VALUES (1, 1), (1, 2)`);
   await run(`INSERT INTO one_to_ones (id, manager_id, rep_id, note) VALUES (1, '${people.mara}', '${people.dana}', 'Dana, August'), (2, '${people.lena}', '${people.sam}', 'Sam, August'), (3, '${people.mara}', '${people.omar}', 'Omar, August')`);
 
   await runIntrospection({ manager, meta, connectionId: connection.id });
@@ -276,7 +285,13 @@ export async function world(dialect: Dialect): Promise<World> {
     connectionId: connection.id,
     op: 'table.states',
     tableName: id('deals'),
-    value: { column: 'state', initial: 'open', moves: { open: ['won', 'lost'], won: ['open', 'lost'], lost: ['open'] }, actions: [{ id: 'win', label: 'Mark won', move: { to: 'won' } }] },
+    value: { column: 'state', initial: 'open', moves: { open: ['won', 'lost'], won: ['open', 'lost'], lost: ['open'] }, actions: [
+        { id: 'win', label: 'Mark won', move: { to: 'won' } },
+        // Two buttons that ask for a person: one hands the deal over, one does not say so.
+        { id: 'give', label: 'Hand over', set: {}, in: ['open', 'won'], ask: ['owner_id'], handOver: true },
+        { id: 'pass', label: 'Pass on', set: {}, in: ['open', 'won'], ask: ['owner_id'] },
+      ],
+    },
     origin: 'user',
   });
 

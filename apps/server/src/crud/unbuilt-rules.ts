@@ -159,6 +159,8 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   // Whose a row is, and a role whose read, update or delete reaches only some rows: the test every read and write of a row carries.
   'table.belongs',
   'roles.rows',
+  // A record's button that hands its row to anybody a role could not otherwise name.
+  'states.handOver',
 ];
 
 export interface UnbuiltWord {
