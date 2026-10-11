@@ -408,7 +408,7 @@ export function createPhoneDoor(opts: PhoneDoorOptions): PhoneDoor {
           const shown = new URLSearchParams(search).get('code') ?? '';
           if (!same(shown, code)) return false;
           admitted = remote;
-          const said = /Expon?ent?\/(\d+)\./i.exec(String(h['user-agent'] ?? ''))?.[1] ?? null;
+          const said = /Expo(?:nent)?\/(\d+)\./i.exec(String(h['user-agent'] ?? ''))?.[1] ?? null;
           if (current.state === 'open') current = { ...current, connected: true, phoneSdk: said !== null && said !== current.sdk ? said : null };
           return true;
         }

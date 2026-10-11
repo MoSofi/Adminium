@@ -72,10 +72,10 @@ export function registerPhonePreview(app: FastifyInstance, opts: PhonePreviewOpt
     const file = surfaceFileFor(root, `/${rest}`);
     // Never kept: the next build must be what the next look shows.
     void reply.header('cache-control', 'no-store');
-    if (file !== null && !file.split('/').some((part) => part.startsWith('.')) && file !== 'adminium-phone.json') return reply.sendFile(file, root);
+    if (file !== null && !file.split('/').some((part) => part.startsWith('.')) && file !== 'adminium-phone.json') return reply.sendFile(file, root, { cacheControl: false });
     // A file asked for by name that is not there is not the page.
     if (/\.[a-z0-9]{1,8}$/i.test(rest) && rest !== 'index.html') return none(reply);
-    return reply.type('text/html; charset=utf-8').sendFile('index.html', join(root));
+    return reply.type('text/html; charset=utf-8').sendFile('index.html', join(root), { cacheControl: false });
   };
 
   app.get(`/apps/:key/${PHONE_SIDE}`, async (request: FastifyRequest<{ Params: { key: string } }>, reply) => {

@@ -391,7 +391,7 @@ function PhoneAppCard() {
           'A phone app built for a store needs two things from this server: its address as a phone reaches it, and the app’s “phone app” key.',
         )}
       </p>
-      <Link to="/studio/api-keys" className="mt-2.5 inline-block text-[13px] font-bold text-accent hover:underline">
+      <Link to="/studio/public-api" className="mt-2.5 inline-block text-[13px] font-bold text-accent hover:underline">
         {t('studio:appSettings.phoneKeys', 'Open API keys')}
       </Link>
     </section>
