@@ -33,7 +33,7 @@ import { pagesRepo, viewsRepo, type MetaDb, type Page } from '@adminium/meta';
 import type { ConnectionManager, SourceDatabase } from '../../connections/manager.js';
 import { countWithin } from '../../crud/count-within.js';
 import { assertNotPrivate, type RowLimitContext } from '../../crud/row-limit.js';
-import { limitProjections, rowLimitContextOf, rowTestOf } from '../../crud/row-limit-context.js';
+import { assertNoPrivateProjection, limitProjections, rowLimitContextOf, rowTestOf } from '../../crud/row-limit-context.js';
 import { LIST_LIMIT_MAX, runList } from '../../crud/list.js';
 import { canReadPii, piiCheckFor } from '../../crud/mask.js';
 import type { ResolvedTable, SnapshotView } from '../../crud/identifiers.js';
@@ -293,6 +293,7 @@ export async function registerBuilderRoutes(
       // The sample and its count are of the rows the file would hold: this person's.
       const reach = await rowsOf(request, connectionId, view);
       const rowTest = rowTestOf(reach, table.id, 'read');
+      assertNoPrivateProjection(definition.lookups, definition.measures);
       limitProjections(reach, definition.lookups, definition.measures);
       const page = await runList({
         db,

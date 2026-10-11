@@ -37,7 +37,7 @@ import type { ConnectionManager } from '../connections/manager.js';
 import { LIST_LIMIT_MAX, runList, type ListResult } from '../crud/list.js';
 import { loadSnapshotView } from '../data-io/snapshot-view.js';
 import { readViewForUser } from '../crud/read-view.js';
-import { limitProjections, rowLimitContextForUser, rowTestOf } from '../crud/row-limit-context.js';
+import { assertNoPrivateProjection, limitProjections, rowLimitContextForUser, rowTestOf } from '../crud/row-limit-context.js';
 import { filtersToWhere, resolveExportDefinition, sanitizeFileName } from '../export/definition.js';
 import { createRowWriter, type WriterColumn } from '../export/writer.js';
 import type { FileStore } from '../files/store.js';
@@ -233,6 +233,7 @@ async function runExport(
         fields: definition.fields,
       };
   // A looked-up value and a figure in the file: over the rows of its table the requester reaches.
+  assertNoPrivateProjection(projection.lookups, projection.measures);
   limitProjections(reach, projection.lookups, projection.measures);
   const rowWriter = createRowWriter(row.format === 'csv' ? 'csv' : 'json', columns, {
     legacy: definition.legacy,

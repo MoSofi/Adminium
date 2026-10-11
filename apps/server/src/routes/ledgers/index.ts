@@ -23,6 +23,7 @@
  *
  * After changing this file: build, then `pnpm openapi`.
  */
+import { assertNotPrivate } from '../../crud/row-limit.js';
 import { isDeepStrictEqual } from 'node:util';
 
 import type { Ledger, Posting } from '@adminium/manifest';
@@ -116,11 +117,15 @@ export function ledgerRoutes(deps: LedgerRoutesDeps): FastifyPluginAsyncZod {
     }
 
     const tableOf = (view: SnapshotView, id: string): ResolvedTable => {
+      let found: ResolvedTable;
       try {
-        return view.table(id);
+        found = view.table(id);
       } catch {
         throw new NotFoundError('There is no such table on this connection.', { table: id });
       }
+      // A ledger's rules read and copy a table's rows for everybody who reads the ledger: never a private table's.
+      assertNotPrivate(found, 'no ledger or price rule takes its rows');
+      return found;
     };
 
     const receiptsOf = (view: SnapshotView, table: EffectiveTable, posting: Pick<TablePosting, 'id' | 'via' | 'into'>): RuleReceipts => ({

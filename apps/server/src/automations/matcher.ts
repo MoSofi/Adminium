@@ -176,6 +176,8 @@ export class AutomationMatcher {
 
   async #offer(rule: Automation, event: RecordWriteEvent, hops: number): Promise<void> {
     if (rule.trigger.kind !== 'record') return;
+    // A private table's row sets off no rule, and no run keeps a copy of it (a rule older than the mark).
+    if ((event.table.table as { private?: true } | undefined)?.private === true) return;
     // A rule never re-enters on its own write.
     if (event.origin === 'automation' && event.ruleId === rule.id) return;
 

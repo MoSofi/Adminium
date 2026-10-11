@@ -93,7 +93,8 @@ export function createActionRunner(deps: ActionRunnerDeps) {
     let view: SnapshotView;
     let table: ResolvedTable;
     try {
-      view = await loadSnapshotView(deps.meta, connection.id);
+      // An action is the owner's code, handed the rows it is run on: none is offered on a private table.
+      view = await loadSnapshotView(deps.meta, connection.id, { forOthers: true });
       table = view.table(action.definition.table);
     } catch {
       return null;

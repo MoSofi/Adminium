@@ -482,8 +482,10 @@ async function openSource(
   let table: ResolvedTable;
   try {
     table = view.table(record.table);
-  } catch {
-    return 'gone';
+  } catch (error) {
+    // Only a private table is passed over; a table that is not there at all fails the run, as it always did.
+    if ((await loadSnapshotView(deps.meta, record.connectionId)).linkTable(record.table)?.table.private === true) return 'gone';
+    throw error;
   }
   // A `deleted` trigger is about a row that is SUPPOSED to be gone, so the row
   // as it was is the run's record — there is nothing to re-read. Its values,

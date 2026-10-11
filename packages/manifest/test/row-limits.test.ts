@@ -210,18 +210,56 @@ describe('a role’s rows', () => {
 
 describe('a screen anyone can walk up to (a staff-bound key)', () => {
   const floor = { key: 'floor', name: 'Shop floor', screensOnly: true, permissions: ['app:@:staff'] };
-  const screen = (limits?: Doc) => manifest({
-    roles: [rep, manager, accounts, limits === undefined ? floor : { ...floor, limits }],
-    extra: { publicKeys: { kiosk: { requiresStaff: { role: 'floor' } } }, publicAccess: [{ key: 'kiosk', table: 'deliveries', methods: ['GET'], select: ['id'] }] },
+  const screen = (table: string) => manifest({
+    roles: [rep, manager, accounts, floor],
+    extra: { publicKeys: { kiosk: { requiresStaff: { role: 'floor' } } }, publicAccess: [{ key: 'kiosk', table, methods: ['GET'], select: ['id'] }] },
   });
-  const said = 'publicAccess.0.table: "kiosk" shows "deliveries" to everybody signed in as "floor", and that role reaches only some of its rows: a screen\'s key is not held to a person\'s rows, so give the table one or the other';
+  const said = (document: Doc) => messages(document).filter((message) => message.includes('a screen\'s key is not held'));
 
-  it('is not bound to a role that reaches only some rows of a table it shows', () => {
-    expect(messages(screen({ deliveries: { rows: { read: own } } })).join(' || ')).toContain(said);
+  it('shows no table that any role of the app reaches only some rows of: the person signing it in may hold that role too', () => {
+    expect(said(screen('deals'))).toEqual(['publicAccess.0.table: "kiosk" shows "deals" to everybody who signs the screen in, and "rep" reaches only some of its rows: a screen\'s key is not held to a person\'s rows, so give the table one or the other']);
   });
 
-  it('shows a table its role does not limit by rows, whatever other roles do', () => {
-    expect(messages(screen()).filter((message) => message.includes('a screen\'s key is not held'))).toEqual([]);
+  it('shows a table no role limits by rows', () => {
+    expect(said(screen('crews'))).toEqual([]);
+  });
+});
+
+describe('what would carry a private table\'s rows out, or lean on it', () => {
+  const notes = (over: Doc = {}) => withTable('one_to_ones', (table) => ({ ...table, ...over }));
+  const beside = (table: Doc) => manifest({ tables: [...tables(), table] });
+  const privately = (document: Doc) => messages(document).filter((message) => message.includes('"one_to_ones" is private'));
+
+  it('is refused on another table: a kept total, a copy, and rows reached through it', () => {
+    expect(privately(beside({ ref: 'pairs', columns: [id, { ref: 'sessions', type: 'int', nullable: true, rules: { rollup: { from: 'one_to_ones', via: 'pair_id', count: true } } }] })).some((message) => message.endsWith('no total of its rows is kept on another table'))).toBe(true);
+    expect(privately(beside({ ref: 'summaries', columns: [id, fk('note_id', 'one_to_ones'), { ref: 'note', type: 'text', maxLength: 400, nullable: true, rules: { copy: { via: 'note_id', from: 'note' } } }] })).some((message) => message.endsWith('nothing is copied out of it'))).toBe(true);
+    expect(privately(beside({ ref: 'reviews', columns: [id, fk('note_id', 'one_to_ones')], belongs: [{ column: 'note_id', person: 'rep_id' }] })).some((message) => message.endsWith('no other table\'s rows are reached through it'))).toBe(true);
+  });
+
+  it('is refused on the table itself: nothing Adminium does by itself runs on its rows', () => {
+    const timed = { column: 'state', initial: 'open', moves: { open: ['closed'] }, timed: [{ from: 'open', to: 'closed', at: { column: 'due' } }] };
+    const withState = notes({ columns: [id, staff('manager_id', false), staff('rep_id', false), { ref: 'note', type: 'text', maxLength: 400 }, { ref: 'state', type: 'enum', enum: ['open', 'closed'] }, { ref: 'due', type: 'timestamptz', nullable: true }], states: timed });
+    expect(messages(manifest({ tables: withState })).filter((message) => message.endsWith('nothing moves its rows by itself'))).toHaveLength(1);
+  });
+});
+
+describe('a stored total of rows a role reaches only in part', () => {
+  const counted = (over: { via?: boolean; readable?: boolean } = {}): Doc => {
+    const base = tables();
+    const withCompany = base.map((table) => (table['ref'] === 'deals' ? { ...table, columns: [...(table['columns'] as Doc[]), fk('company_id', 'companies', true)], ...(over.via === true ? { belongs: [{ via: 'company_id' }] } : {}) } : table));
+    const companies = { ref: 'companies', columns: [id, { ref: 'name', type: 'text', maxLength: 80 }, { ref: 'deal_count', type: 'int', nullable: true, rules: { rollup: { from: 'deals', via: 'company_id', count: true } } }], ...(over.via === true ? { belongs: [{ column: 'owner_id' }], columns: [id, { ref: 'name', type: 'text', maxLength: 80 }, staff('owner_id'), { ref: 'deal_count', type: 'int', nullable: true, rules: { rollup: { from: 'deals', via: 'company_id', count: true } } }] } : {}) };
+    const reader = { ...rep, permissions: [...rep.permissions, 'table:@companies:read'], limits: { ...rep.limits, ...(over.readable === true ? { companies: { readable: ['id', 'name'] } } : {}) } };
+    return manifest({ tables: [...withCompany, companies], roles: [reader] });
+  };
+  const said = (document: Doc) => messages(document).filter((message) => message.includes('a stored total is every row'));
+
+  it('is refused: a rep who reads every company and their own deals is not shown how many deals a company has in all', () => {
+    expect(said(counted())).toEqual(['requiredSchema.tables.11.columns.2.rules.rollup: "companies.deal_count" is a stored total of "deals", of which "rep" reaches only some rows: a stored total is every row\'s. Work it out when it is read (a measure), or keep the column from that role (limits.companies.readable)']);
+  });
+
+  it('stands when the column is kept from that role, or when the rows are reached exactly as their parent is', () => {
+    expect(said(counted({ readable: true }))).toEqual([]);
+    expect(said(counted({ via: true }))).toEqual([]);
   });
 });
 

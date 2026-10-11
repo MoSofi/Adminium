@@ -427,8 +427,17 @@ export async function documentReads(profile: DocumentProfile, viewOf: () => Prom
    * key points at, found in the schema — loaded only when such a mapping
    * exists. A key the schema cannot resolve reads nothing, so asks nothing.
    */
-  const unnamed = Object.values(mapping).filter((mapped) => 'ref' in mapped && mapped.table === undefined);
-  if (unnamed.length > 0) {
+  /*
+   * A linked row's column is read through the row's own foreign key, whatever
+   * table the mapping says it is of: the table the key really points at is
+   * what the document reads, so that is the one asked about. (A mapping that
+   * named another table would otherwise be judged by the name it gave.) So is
+   * the table a balance adds up from. A key the schema cannot resolve reads
+   * nothing, so asks nothing.
+   */
+  const linked = Object.values(mapping).filter((mapped) => 'ref' in mapped);
+  const balance = (profile.options as { balanceAfter?: { via?: string } }).balanceAfter;
+  if (linked.length > 0 || balance?.via !== undefined) {
     const view = await viewOf();
     let base = null;
     try {
@@ -437,8 +446,8 @@ export async function documentReads(profile: DocumentProfile, viewOf: () => Prom
       base = null;
     }
     if (view !== null && base !== null) {
-      for (const mapped of unnamed) {
-        const target = 'ref' in mapped ? outboundKey(view, base, mapped.ref)?.tableId : undefined;
+      for (const via of [...linked.map((mapped) => ('ref' in mapped ? mapped.ref : undefined)), balance?.via]) {
+        const target = via === undefined ? undefined : outboundKey(view, base, via)?.tableId;
         if (target !== undefined) reads.add(target);
       }
     }

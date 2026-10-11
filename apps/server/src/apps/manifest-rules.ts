@@ -915,6 +915,9 @@ export async function ownRules(meta: MetaDb, records: readonly AppTableRecord[],
  * instead: its labels and choices stay, and are taken back when the last app
  * using the table leaves.
  */
+/** The rules that say whose a table's rows are: kept on a private table that outlives its app. */
+const WHOSE_ROWS_OPS: ReadonlySet<string> = new Set(['table.private', 'table.belongs', 'column.staff']);
+
 export async function removeManifestRules(meta: MetaDb, records: readonly AppTableRecord[], connectionId: string): Promise<number> {
   const all = await overridesRepo(meta).listForConnection(connectionId);
   const active = all.filter((o) => o.status === 'active');
@@ -937,8 +940,17 @@ export async function removeManifestRules(meta: MetaDb, records: readonly AppTab
       const handed = ours.filter((rule) => !held.has(rule.overrideId)).map((rule) => ({ ...rule, handedFrom: rule.handedFrom ?? record.appKey }));
       if (handed.length > 0) await repo.setRules(holder.id, [...holder.rules, ...handed]);
     } else {
-      for (const rule of ours) await overrides.delete(rule.overrideId);
-      removed += ours.length;
+      /*
+       * A table that stays behind when its app leaves stays private: its
+       * mark, the ways people belong to its rows and the columns that hold
+       * them are left where they are (they are nobody's rules to manage from
+       * then on, and read as before). Dropped with its table, they name
+       * nothing and do nothing.
+       */
+      const keepsPrivate = active.some((o) => o.op === 'table.private' && o.tableName === record.tableName);
+      const gone = ours.filter((rule) => !(keepsPrivate && WHOSE_ROWS_OPS.has(byId.get(rule.overrideId)?.op ?? '')));
+      for (const rule of gone) await overrides.delete(rule.overrideId);
+      removed += gone.length;
     }
     await repo.setRules(record.id, []);
   }

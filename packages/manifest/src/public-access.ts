@@ -868,21 +868,24 @@ export function publicAccessIssues(entries: readonly PublicAccess[], ctx: Public
     }
     /*
      * A SCREEN'S KEY IS NOT HELD TO A PERSON'S ROWS: its entries show what
-     * they declare to everybody who signs the screen in. A role that reaches
-     * only some rows of a table says the opposite of the same people, so the
-     * two are never written together: the table is either shown on the
-     * screen to all of them, or limited by rows and kept off it.
+     * they declare to everybody who signs the screen in. The screen's own role
+     * holds no table at all, so the person in front of it is somebody who
+     * also holds another role of the app — and where that role reaches only
+     * some rows of a table, the screen would show them the rest. So a table
+     * any role of the app limits by rows is not served through a screen's
+     * key: it is either shown on the screen to everybody, or limited by rows
+     * and kept off it.
      */
-    if (role !== undefined) {
-      entries.forEach((entry, i) => {
-        if (entry.key === name && role.limits?.[entry.table]?.rows !== undefined) {
-          out.push({
-            path: ['publicAccess', i, 'table'],
-            message: `"${name}" shows "${entry.table}" to everybody signed in as "${role.key}", and that role reaches only some of its rows: a screen's key is not held to a person's rows, so give the table one or the other`,
-          });
-        }
-      });
-    }
+    entries.forEach((entry, i) => {
+      if (entry.key !== name) return;
+      const limiting = ctx.roles.find((candidate) => candidate.limits?.[entry.table]?.rows !== undefined);
+      if (limiting !== undefined) {
+        out.push({
+          path: ['publicAccess', i, 'table'],
+          message: `"${name}" shows "${entry.table}" to everybody who signs the screen in, and "${limiting.key}" reaches only some of its rows: a screen's key is not held to a person's rows, so give the table one or the other`,
+        });
+      }
+    });
     if (key.enabledBy !== undefined) {
       const column = index.column(key.enabledBy.table, key.enabledBy.column);
       if (column?.type !== 'bool') {

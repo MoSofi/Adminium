@@ -32,7 +32,7 @@ import { pageCalendarIssues } from './page-calendar.js';
 import { pageConfigIssues } from './page-config.js';
 import { emailTemplateSchema, outboxIssues, outboxProducerSchema, outboxSchema } from './outbox.js';
 import { codeWhereSchema, personalColumn, publicAccessIssues, publicAccessSchema, publicKeysSchema, shareCodeColumns, unlistedColumn, type PublicAccess } from './public-access.js';
-import { belongsIssues, belongsSchema, privateTableIssues, roleAddOnTableIssues, roleAddOnTablesSchema, roleLimitIssues, roleLimitsSchema, rowTablesOf, type RoleShape } from './roles.js';
+import { belongsIssues, belongsSchema, privateTableIssues, roleAddOnTableIssues, roleAddOnTablesSchema, roleLimitIssues, roleLimitsSchema, rowTablesOf, type RoleShape, privateShapeIssues, storedTotalIssues } from './roles.js';
 import { conditionIssues, stateConditionSchema, statesIssues, statesSchema, type States } from './states.js';
 import { MOMENT_LIMITS, clockTimeSchema, momentIssues, momentSchema, settingRefSchema } from './refs.js';
 import {
@@ -2533,6 +2533,8 @@ export function appReferenceIssues(
   out.push(...belongsIssues(m.requiredSchema.tables, index, staffColumn));
   out.push(...roleLimitIssues(m.roles ?? [], index, rowTablesOf(m.requiredSchema.tables)));
   out.push(...privateTableIssues(m as unknown as Record<string, unknown>, m.requiredSchema.tables.filter((table) => table.private === true).map((table) => table.ref)));
+  out.push(...storedTotalIssues(m.requiredSchema.tables as never, (m.roles ?? []) as never));
+  out.push(...privateShapeIssues(m.requiredSchema.tables as never));
   // Whose a row is, is an app's to say for now: an add-on's tables are shared by every app that names it.
   if (m.kind === 'add-on') {
     m.requiredSchema.tables.forEach((table, t) => {

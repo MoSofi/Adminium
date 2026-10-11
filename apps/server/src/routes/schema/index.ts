@@ -519,6 +519,30 @@ export function schemaRoutes(deps: SchemaRoutesDeps): FastifyPluginAsyncZod {
         if (kept && keptColumnIssue(item.op, item.value, at, beforeSave, codes) !== null) continue;
         throw new ValidationFailedError(issue, { table: item.tableName, column: item.columnName, op: item.op });
       }
+      /*
+       * A PRIVATE TABLE STAYS PRIVATE. This save replaces every rule, so
+       * leaving one out is taking it away: a private table's mark, the ways
+       * people belong to its rows and the columns that hold them are as they
+       * were after the save, for everybody — the right to shape the schema is
+       * not a right to open the notes two people wrote for each other. (An
+       * app's own update is the one thing that changes them.)
+       */
+      const whoseRows = (rows: readonly SchemaOverride[]) =>
+        new Map(
+          applyOverrides(model, rows.filter((row) => row.status === 'active')).tables.map((table) => [
+            table.id,
+            { private: table.private === true, belongs: table.belongs ?? null, staff: table.columns.filter((column) => column.staff === true).map((column) => column.name).sort() },
+          ]),
+        );
+      const whoseAfter = whoseRows(proposed);
+      for (const [tableId, was] of whoseRows(before)) {
+        if (!was.private) continue;
+        const now = whoseAfter.get(tableId);
+        if (now === undefined) continue;
+        if (!now.private || !isDeepStrictEqual(now.belongs, was.belongs) || !isDeepStrictEqual(now.staff, was.staff)) {
+          throw new ForbiddenError(`${tableId} is private: its mark, and whose its rows are, are not changed here.`, 'TABLE_FORBIDDEN', { table: tableId, reason: 'private' });
+        }
+      }
       const stillSecret = secretsUnder(proposed);
       if ([...secretsUnder(before)].some((key) => !stillSecret.has(key)) && !(await app.rbac.resolve(request)).superAdmin) {
         throw new ForbiddenError('Showing a column that is kept secret requires Super Admin.');

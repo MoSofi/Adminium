@@ -10,7 +10,7 @@ import { connectionTenantConfig, type MetaDb } from '@adminium/meta';
 
 import type { EffectiveModel } from '../connections/effective-schema.js';
 import { resolvePermissionSet, type PermissionSet } from '../rbac/resolver.js';
-import { mayBeRowLimited, rowLimitFor, type RowAction, type RowLimitContext, type RowTest } from './row-limit.js';
+import { assertNotPrivate, mayBeRowLimited, rowLimitFor, type RowAction, type RowLimitContext, type RowTest } from './row-limit.js';
 import { venueClock } from './venue-time.js';
 
 export async function rowLimitContextOf(
@@ -62,4 +62,14 @@ export async function rowLimitContextForUser(
 ): Promise<RowLimitContext | null> {
   if (userId === null || userId === undefined) return { set: { superAdmin: false }, connectionId, model, today: venueClock(now, 'UTC').day, nobody: true };
   return rowLimitContextOf(meta, await resolvePermissionSet(meta, { kind: 'user', id: userId, label: '' }), connectionId, model, now);
+}
+
+/**
+ * A file out of a table holds no value looked up from a private table and no
+ * figure folded from one: the requester's own rows there are theirs on the
+ * screen, and a file is not the screen (`assertNotPrivate`).
+ */
+export function assertNoPrivateProjection(lookups: readonly { hops: { refTable: object }[] }[], measures: readonly { refTable: object }[]): void {
+  for (const lookup of lookups) for (const hop of lookup.hops) assertNotPrivate(hop.refTable as never, 'no file holds its values');
+  for (const measure of measures) assertNotPrivate(measure.refTable as never, 'no file holds its figures');
 }

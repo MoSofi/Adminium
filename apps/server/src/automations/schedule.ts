@@ -154,8 +154,10 @@ async function runOneSchedule(input: {
   let table: ResolvedTable;
   try {
     table = view.table(forEach.table);
-  } catch {
-    return { runsStarted: 0, capped: false };
+  } catch (error) {
+    // Only a private table is passed over; a table that is not there at all fails the tick, as it always did.
+    if ((await loadSnapshotView(deps.meta, connectionId)).linkTable(forEach.table)?.table.private === true) return { runsStarted: 0, capped: false };
+    throw error;
   }
 
   const filter = toRecordFilterAll(forEach.where, { table, dialect, now });

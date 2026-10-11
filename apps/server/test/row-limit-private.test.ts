@@ -12,7 +12,7 @@
 import { automationRunsRepo, documentProfilesRepo } from '@adminium/meta';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { createDocumentPipeline } from '../src/documents/compose.js';
+import { createDocumentPipeline, documentReads } from '../src/documents/compose.js';
 import { loadSnapshotView } from '../src/data-io/snapshot-view.js';
 import { createPublicViews } from '../src/public-api/runtime.js';
 import { ENGINES, world, type PersonName, type World } from './row-limit-world.js';
@@ -115,6 +115,38 @@ for (const [dialect, available] of ENGINES) {
       expect(() => view.table(notes())).toThrow();
       expect(view.linkTable(notes())).toBeNull();
       expect(view.table(w.id('deals')).id).toBe(w.id('deals'));
+    });
+
+    it('keeps its mark, and whose its rows are, through a save of the schema\'s rules by anybody', async () => {
+      type Rule = { op: string; tableName: string; columnName: string | null; value: unknown; status: string };
+      const stored = json<{ overrides: Rule[] }>(await call('owner', 'GET', `connections/${w.connectionId}/overrides`)).overrides;
+      const send = (rules: Rule[]) => call('owner', 'PUT', `connections/${w.connectionId}/overrides`, { overrides: rules.map(({ op, tableName, columnName, value, status }) => ({ op, tableName, ...(columnName === null ? {} : { columnName }), value, status })) });
+      const ofNotes = (rule: Rule) => rule.tableName === notes();
+      // The mark left out; the mark switched off; a way taken away; a column of its people unmarked.
+      const without = (drop: (rule: Rule) => boolean) => stored.filter((rule) => !drop(rule));
+      for (const [what, rules] of [
+        ['the mark left out', without((rule) => ofNotes(rule) && rule.op === 'table.private')],
+        ['the mark switched off', stored.map((rule) => (ofNotes(rule) && rule.op === 'table.private' ? { ...rule, status: 'disabled' } : rule))],
+        ['its ways left out', without((rule) => ofNotes(rule) && rule.op === 'table.belongs')],
+        ['a staff column unmarked', without((rule) => ofNotes(rule) && rule.op === 'column.staff' && rule.columnName === 'rep_id')],
+      ] as const) {
+        expect(refusal(await send([...rules])), what).toEqual(PRIVATE);
+      }
+      // Everything as it was is saved, and so is a change to any other table.
+      expect((await send(stored)).statusCode).toBe(200);
+      expect((await send(without((rule) => rule.tableName === w.id('followups') && rule.op === 'table.belongs'))).statusCode).toBe(200);
+      expect((await send(stored)).statusCode).toBe(200);
+      expect((await w.model()).tables.find((table) => table.id === notes())!.private).toBe(true);
+    });
+
+    it('is offered to no rule, and a document is judged by the table its link really points at', async () => {
+      const offered = json<{ connections: { id: string; tables: { id: string }[] }[] }>(await call('owner', 'GET', 'automations/sources')).connections.find((one) => one.id === w.connectionId)!.tables.map((table) => table.id);
+      expect(offered).toContain(w.id('deals'));
+      expect(offered).not.toContain(notes());
+      // A mapping that reads a quote's deal and says the column is a company's: the deal's table is what it reads.
+      const view = await loadSnapshotView(w.meta, w.connectionId);
+      const lying = { connectionId: w.connectionId, table: w.id('quotes'), mapping: { customerName: { ref: 'deal_id', column: 'title', table: w.id('companies') } }, options: {} };
+      expect(await documentReads(lying as never, async () => view)).toEqual(expect.arrayContaining([w.id('quotes'), w.id('deals')]));
     });
 
     it('is an ordinary table again when the mark is taken off', async () => {

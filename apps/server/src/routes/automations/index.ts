@@ -272,9 +272,9 @@ export function automationsRoutes(deps: AutomationsRoutesDeps): FastifyPluginAsy
     for (const { permission, table } of requiredGrants(rule.trigger, rule.graph, rule.connectionId, view, await stepsFor(rule.connectionId))) {
       // What the rule reads, and the row it changes: each of a table its author reaches every row of, for that.
       const action = permission.endsWith(':read') ? 'read' : permission.endsWith(':update') ? 'update' : null;
-      if (action === null) continue;
-      // A private table: for everybody, and said as what it is.
+      // A private table: for everybody, whatever the rule would do there, and said as what it is.
       assertNotPrivate(view?.linkTable(table) ?? null, 'no rule reads or changes it');
+      if (action === null) continue;
       if (await requestReadsWhole(meta, request, rule.connectionId, table, action)) continue;
       throw new ForbiddenError(`Your role reaches only some rows of ${table}, so this rule cannot use it.`, 'TABLE_FORBIDDEN', { permission, table, reason: 'row-limit' });
     }
@@ -358,6 +358,8 @@ export function automationsRoutes(deps: AutomationsRoutesDeps): FastifyPluginAsy
             // sample data leaves an excluded ledger table behind, and
             // resolving it answered this whole request with a 422.
             if (table.system || table.excluded === true) continue;
+            // …nor a private one: no rule reads it, so none is offered it.
+            if (table.private === true) continue;
             const resolved = view.table(`${table.schema}.${table.name}`);
             const permission = (action: string): string =>
               `table:${connection.id}:${resolved.id}:${action}`;

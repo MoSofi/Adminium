@@ -455,6 +455,105 @@ export function roleAddOnTableIssues(roles: readonly { key: string; tables?: rea
   return out;
 }
 
+/**
+ * The ways a manifest's own tables could carry a private table's rows out
+ * from under it, or lean on it and stop working: each is refused where it is
+ * written. A private table's rows are read on the screen by the people they
+ * belong to; nothing is kept from them elsewhere, nothing else is reached
+ * through them, and nothing Adminium does by itself runs on them.
+ */
+export function privateShapeIssues(
+  tables: readonly {
+    ref: string;
+    private?: true | undefined;
+    belongs?: readonly unknown[] | undefined;
+    states?: { timed?: unknown; effects?: readonly { via?: string }[] | undefined } | undefined;
+    postings?: unknown;
+    adjust?: unknown;
+    columns: readonly { ref: string; type?: string; references?: string | undefined; rules?: { rollup?: { from: string } | undefined; copy?: { via: string } | undefined; lookup?: { table: unknown } | undefined } | undefined }[];
+  }[],
+): ReferenceIssue[] {
+  const held = new Set(tables.filter((table) => table.private === true).map((table) => table.ref));
+  if (held.size === 0) return [];
+  const out: ReferenceIssue[] = [];
+  const said = (ref: string, what: string): string => `"${ref}" is private: only the people its rows belong to read it, so ${what}`;
+  tables.forEach((table, t) => {
+    const at = (...rest: (string | number)[]): (string | number)[] => ['requiredSchema', 'tables', t, ...rest];
+    const pointsAt = (column: string): string | undefined => table.columns.find((candidate) => candidate.ref === column)?.references;
+    if (table.private === true) {
+      // What Adminium does by itself, for everybody: a ledger's postings, a price rule, a move when a moment passes.
+      if (table.postings !== undefined) out.push({ path: at('postings'), message: said(table.ref, 'no ledger takes its rows') });
+      if (table.adjust !== undefined) out.push({ path: at('adjust'), message: said(table.ref, 'no price rule reads its rows') });
+      if (table.states?.timed !== undefined) out.push({ path: at('states', 'timed'), message: said(table.ref, 'nothing moves its rows by itself') });
+      return;
+    }
+    table.columns.forEach((column, c) => {
+      const rules = column.rules;
+      if (rules?.rollup !== undefined && held.has(rules.rollup.from)) out.push({ path: at('columns', c, 'rules', 'rollup', 'from'), message: said(rules.rollup.from, 'no total of its rows is kept on another table') });
+      const copied = rules?.copy === undefined ? undefined : pointsAt(rules.copy.via);
+      if (copied !== undefined && held.has(copied)) out.push({ path: at('columns', c, 'rules', 'copy', 'via'), message: said(copied, 'nothing is copied out of it') });
+      const looked = rules?.lookup?.table;
+      if (typeof looked === 'string' && held.has(looked)) out.push({ path: at('columns', c, 'rules', 'lookup', 'table'), message: said(looked, 'nothing is looked up in it') });
+    });
+    (table.states?.effects ?? []).forEach((effect, e) => {
+      const target = effect.via === undefined ? undefined : pointsAt(effect.via);
+      if (target !== undefined && held.has(target)) out.push({ path: at('states', 'effects', e, 'via'), message: said(target, "another table's move does not move its rows") });
+    });
+    (table.belongs ?? []).forEach((way, w) => {
+      if (typeof way !== 'object' || way === null) return;
+      const through = (way as { through?: { table?: string } }).through;
+      if (through?.table !== undefined && held.has(through.table)) out.push({ path: at('belongs', w, 'through', 'table'), message: said(through.table, "no other table's rows are reached through it") });
+      const column = way as { column?: string; person?: string };
+      const person = column.column !== undefined && column.person !== undefined ? pointsAt(column.column) : undefined;
+      if (person !== undefined && held.has(person)) out.push({ path: at('belongs', w, 'column'), message: said(person, "no other table's rows are reached through it") });
+    });
+  });
+  return out;
+}
+
+/**
+ * A STORED TOTAL IS EVERY ROW'S. A `rollup` column is written whole — a count
+ * or a sum over every child row, whoever reads it. Beside a list of those
+ * child rows that its reader sees only part of, it says "14" over six rows,
+ * and hands a rep the size of everybody else's book. So a role that reaches
+ * only some rows of a table is not also shown a stored total of that table:
+ * the app works the figure out when it is read (a measure, which counts the
+ * reader's rows), or keeps the column from that role (`readable`).
+ *
+ * Not refused: a total over rows that are reached exactly as their parent is
+ * (the child's `belongs` is `via` the very link the total counts by) —
+ * whoever reads the parent reaches every one of them.
+ */
+export function storedTotalIssues(
+  tables: readonly { ref: string; belongs?: readonly unknown[] | undefined; columns: readonly { ref: string; rules?: { rollup?: { from: string; via: string } | undefined } | undefined }[] }[],
+  roles: readonly { key: string; permissions?: readonly string[] | undefined; limits?: Readonly<Record<string, { rows?: { read?: unknown } | undefined; readable?: readonly string[] | undefined } | undefined>> | undefined }[],
+): ReferenceIssue[] {
+  const out: ReferenceIssue[] = [];
+  const byRef = new Map(tables.map((table) => [table.ref, table]));
+  tables.forEach((table, t) => {
+    table.columns.forEach((column, c) => {
+      const rollup = column.rules?.rollup;
+      if (rollup === undefined) return;
+      const child = byRef.get(rollup.from);
+      // Reached through this parent, by this link: whoever reads the parent's row reaches all of them.
+      if ((child?.belongs ?? []).some((way) => typeof way === 'object' && way !== null && (way as { via?: unknown }).via === rollup.via)) return;
+      for (const role of roles) {
+        if (role.limits?.[rollup.from]?.rows?.read === undefined) continue;
+        const grants = new Set(role.permissions ?? []);
+        const readsParent = grants.has(`table:@${table.ref}:read`) || grants.has('table:@*:read');
+        const shown = role.limits?.[table.ref]?.readable;
+        if (!readsParent || (shown !== undefined && !shown.includes(column.ref))) continue;
+        out.push({
+          path: ['requiredSchema', 'tables', t, 'columns', c, 'rules', 'rollup'],
+          message: `"${table.ref}.${column.ref}" is a stored total of "${rollup.from}", of which "${role.key}" reaches only some rows: a stored total is every row's. Work it out when it is read (a measure), or keep the column from that role (limits.${table.ref}.readable)`,
+        });
+        return;
+      }
+    });
+  });
+  return out;
+}
+
 /** The blocks of a manifest that read rows for somebody other than the person signed in: a visitor, a rule, a mail, a printed page. */
 const BLOCKS_THAT_READ_FOR_OTHERS = ['publicAccess', 'documents', 'outbox', 'emailTemplates', 'automations'] as const;
 
