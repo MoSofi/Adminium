@@ -14,6 +14,8 @@ import {
   cappedFormulaWarnings,
   manifestSchema,
   type Manifest,
+  PHONE_KIND,
+  PHONE_SIDE,
 } from './schema.js';
 import { plainTextLengthWarnings } from './public-access.js';
 import { ledgerIndexIssues } from './ledger-indexes.js';
@@ -193,7 +195,13 @@ export function validateManifest(
  * carries no built side.
  */
 export function isManifestOnly(manifest: Manifest): boolean {
-  return manifest.kind === 'app' && manifest.frontends.every((frontend) => frontend.kind === 'none');
+  // A phone side is built on the builder's machine and is no part of a package.
+  return manifest.kind === 'app' && manifest.frontends.every((frontend) => frontend.kind === 'none' || frontend.kind === PHONE_KIND);
+}
+
+/** Whether the app has a phone side (`frontends` names `mobile`). */
+export function hasPhoneSide(manifest: Manifest): boolean {
+  return manifest.kind === 'app' && manifest.frontends.some((frontend) => frontend.side === PHONE_SIDE);
 }
 
 /** `sampleData.skipWhenShared` names the app's own tables, its `table` is one it shares, and no table left in links to a skipped one. */
