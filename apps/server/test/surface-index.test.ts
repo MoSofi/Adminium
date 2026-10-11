@@ -229,9 +229,11 @@ describe('one door', () => {
       }
     };
     walk(src);
-    // The door itself, and the dashboard's own page (which is no surface's).
+    // The door itself, the dashboard's own page (which is no surface's), and the phone preview's page
+    // (Expo's export, on this machine's own names only in a project being designed: never a surface).
     expect(found.map((line) => line.replace(/:\d+:/, ':'))).toEqual([
       "app.ts: return reply.sendFile('index.html');",
+      "plugins/phone-preview.ts: return reply.type('text/html; charset=utf-8').sendFile('index.html', join(root), { cacheControl: false });",
       "plugins/surface-index.ts: return reply.sendFile('index.html', surface.root);",
     ]);
   });

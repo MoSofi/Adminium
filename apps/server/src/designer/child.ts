@@ -102,14 +102,15 @@ export interface LongChild {
 
 /**
  * What stands between this server and a long-running program: it starts the
- * program (the arguments after `--`), and ends it the moment its own input
+ * program (the arguments after `--`: the Node the resolver named, then the
+ * program's own), and ends it the moment its own input
  * closes. This server holds that input open, so the program cannot outlive
  * the server: stopped, crashed or killed, the pipe closes and the program
  * goes with it. It is given to Node as text and reads nothing else.
  */
 const KEEPER = [
   "const { spawn } = require('node:child_process');",
-  "const child = spawn(process.execPath, process.argv.slice(1), { stdio: ['ignore', 'inherit', 'inherit'], windowsHide: true });",
+  "const child = spawn(process.argv[1], process.argv.slice(2), { stdio: ['ignore', 'inherit', 'inherit'], windowsHide: true });",
   "const end = () => { try { child.kill('SIGKILL'); } catch {} };",
   "process.stdin.on('end', end); process.stdin.on('close', end); process.stdin.on('error', end); process.stdin.resume();",
   "process.on('SIGTERM', () => { end(); process.exit(143); });",
@@ -125,7 +126,7 @@ const KEEPER = [
 export function startLongChild(command: string, args: readonly string[], opts: { cwd: string; env?: NodeJS.ProcessEnv }): LongChild {
   let output = '';
   let stopped = false;
-  const child = spawn(command, ['-e', KEEPER, '--', ...args], {
+  const child = spawn(command, ['-e', KEEPER, '--', command, ...args], {
     cwd: opts.cwd,
     env: scrubbedEnvironment(opts.env),
     stdio: ['pipe', 'pipe', 'pipe'],
