@@ -967,6 +967,8 @@ export function createSampleDataService(deps: SampleDataDeps) {
     const existing = await ledgerRecord(app, connectionId);
     if (existing !== undefined) return existing.tableName;
     const name = ledgerNameFor(app.manifest);
+    // A list an earlier install left, of rows in tables this install does not read (it started on its own).
+    const stale = (await records.forInstall(connectionId, app.key)).some((record) => record.role === 'sample-ledger' && record.state === 'dropped' && record.tableName === name);
     await asDb(handle.db)
       .schema.createTable(name)
       .ifNotExists()
@@ -978,6 +980,8 @@ export function createSampleDataService(deps: SampleDataDeps) {
       .addColumn('col_hashes', 'text', (col) => col.notNull())
       .addColumn('created_at', 'bigint', (col) => col.notNull())
       .execute();
+    // Its table, when still there, is taken empty: counted with this install's, those rows would read as its sample.
+    if (stale) await asDb(handle.db).deleteFrom(name as never).execute();
     await records.record({
       appKey: app.key,
       manifestId: app.manifestId,

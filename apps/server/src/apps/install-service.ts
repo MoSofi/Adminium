@@ -2514,7 +2514,10 @@ export function createAppInstallService(deps: AppRoutesDeps) {
       // sample is then still the sample — it can be removed, and is not offered a second time over itself.
       if (connectionId !== undefined) {
         const keptList = (await tableRecords.forInstall(connectionId, key)).find((record) => record.role === 'sample-ledger' && record.state === 'released');
-        if (keptList !== undefined && ((await deps.schemaTarget?.read(connectionId, new Set([keptList.tableName])))?.tables ?? []).some((table) => table.ref === keptList.tableName)) {
+        if (keptList !== undefined && tablesPlan !== undefined && tablesPlan.plan.reuse.length === 0) {
+          // An install that starts on tables of its own reads none of the rows listed: that list is no longer its.
+          await tableRecords.setState(keptList.id, 'dropped');
+        } else if (keptList !== undefined && ((await deps.schemaTarget?.read(connectionId, new Set([keptList.tableName])))?.tables ?? []).some((table) => table.ref === keptList.tableName)) {
           await tableRecords.record({ appKey: key, manifestId: rowId, connectionId, ref: keptList.ref, tableName: keptList.tableName, owned: keptList.owned, state: 'created', role: 'sample-ledger', prefix: keptList.prefix });
         }
       }
