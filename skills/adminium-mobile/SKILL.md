@@ -11,6 +11,8 @@ signed in as staff, and it reaches only what `manifest/access.json` grants, thro
 API. It is not a web side: it has no address, and Adminium serves it to nobody. What staff do,
 they do in the dashboard.
 
+Read `references/guides/phone-app--*.md` before writing a screen.
+
 Create it with **new** `--mobile`, or `add_side` with `"mobile"`. That writes the files, adds
 `{ "side": "mobile", "kind": "expo" }` to `frontends`, and installs Expo's packages (about
 350 MB) once a person said yes. The app then needs this Adminium or newer.

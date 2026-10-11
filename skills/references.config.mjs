@@ -51,6 +51,15 @@ export default {
     { area: 'projects', page: 'projects/apps.md' },
     { area: 'cli', page: 'reference/cli.md', flat: true },
   ],
+  'adminium-mobile': [
+    { area: 'guides', page: 'guides/apps/phone-app.md' },
+    { area: 'guides', page: 'guides/apps/public-access.md' },
+    { area: 'guides', page: 'guides/apps/identity-and-own-links.md' },
+    { area: 'guides', page: 'guides/apps/public-pictures.md' },
+    { area: 'public-api', page: 'guides/public-api/endpoints-and-keys.md', flat: true },
+    { area: 'errors', page: 'reference/errors.md', flat: true },
+    { area: 'cli', page: 'reference/cli.md', flat: true },
+  ],
   'adminium-add-ons': [
     { area: 'guides', page: 'guides/building-on-an-add-on.md' },
     { area: 'guides', page: 'guides/apps/emails.md' },

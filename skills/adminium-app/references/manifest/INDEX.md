@@ -41,7 +41,7 @@
 | `references/manifest/pages.md` | Pages | 5885 |
 | `references/manifest/pages--tab-words-filters-and-bulk-actions.md` | Pages — Tab words, filters and bulk actions | 2313 |
 | `references/manifest/pages--navgroups.md` | Pages — navGroups | 789 |
-| `references/manifest/frontends.md` | Frontends | 2101 |
+| `references/manifest/frontends.md` | Frontends | 2774 |
 | `references/manifest/roles.md` | Roles | 6710 |
 | `references/manifest/roles--a-role-on-an-add-on-s-tables.md` | Roles — A role on an add-on's tables | 1422 |
 | `references/manifest/settings.md` | Settings | 1211 |

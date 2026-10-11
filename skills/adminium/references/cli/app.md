@@ -14,7 +14,7 @@ options.
 ### `app new`
 
 ```
-adminium app new <key> [--name <text>] [--staff] [--customer] [--no-install]
+adminium app new <key> [--name <text>] [--staff] [--customer] [--mobile] [--no-install]
 ```
 
 Writes a small working app into `apps/<key>/`: two tables, a dashboard page for
@@ -27,12 +27,18 @@ test file (`node --test apps/<key>/tests/app.test.mjs`). The app carries the pub
 | `--name <text>` | The app's name as people read it. Default: made from the key |
 | `--staff` | Add screens for staff in `apps/<key>/staff/` |
 | `--customer` | Add public screens for customers in `apps/<key>/customer/`, and an `access.json` that grants them one table |
+| `--mobile` | Add a phone app for customers in `apps/<key>/mobile/` (an Expo project), and an `access.json`. Asking for it is your yes to installing Expo's packages (about 350 MB) and building with Expo on this computer: see [A phone app for an app](https://docs.adminium.dev/guides/apps/phone-app/) |
 | `--no-install` | Do not install the packages the screens need |
 
 With a side, `react` and `react-dom` (and `@adminiumjs/public-client` for a
 customer side) are added to the project's `package.json` when they are not
 there, and the project's package manager installs them. With neither flag the
 app is its tables and pages alone, and nothing is installed.
+
+With `--mobile` the project's `package.json` gains nothing: the phone app has its own, in
+`apps/<key>/mobile/`, and its packages are installed there with npm and no install scripts. With
+`--no-install` they are left for [`app approve-build`](https://docs.adminium.dev/reference/cli/#app-approve-build). The phone app's
+preview, and the code that opens it on a phone, are in [`adminium design`](https://docs.adminium.dev/reference/cli/#design).
 
 ### `app check`
 

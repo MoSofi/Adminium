@@ -255,6 +255,12 @@ The approval is of their exact words, kept in `.adminium/approved-builds.json`. 
 of `build.json` and it has to be given again. `--yes` approves without asking, for a script that has
 shown the commands another way.
 
+For an app with a [phone app](/guides/apps/phone-app/) (`apps/<key>/mobile/`) it asks the same of
+Expo's install and build, then installs the phone app's packages. That approval is of the phone
+app's package list and settings as they read (`package.json`, its lock file, `app.json`,
+`index.ts`, `tsconfig.json`): change one and it is asked again. A phone side whose folder holds a
+file Expo would run as configuration is refused, with the file named.
+
 ## `owner`
 
 ```
@@ -378,7 +384,7 @@ options.
 ### `app new`
 
 ```
-adminium app new <key> [--name <text>] [--staff] [--customer] [--no-install]
+adminium app new <key> [--name <text>] [--staff] [--customer] [--mobile] [--no-install]
 ```
 
 Writes a small working app into `apps/<key>/`: two tables, a dashboard page for
@@ -391,12 +397,18 @@ test file (`node --test apps/<key>/tests/app.test.mjs`). The app carries the pub
 | `--name <text>` | The app's name as people read it. Default: made from the key |
 | `--staff` | Add screens for staff in `apps/<key>/staff/` |
 | `--customer` | Add public screens for customers in `apps/<key>/customer/`, and an `access.json` that grants them one table |
+| `--mobile` | Add a phone app for customers in `apps/<key>/mobile/` (an Expo project), and an `access.json`. Asking for it is your yes to installing Expo's packages (about 350 MB) and building with Expo on this computer: see [A phone app for an app](/guides/apps/phone-app/) |
 | `--no-install` | Do not install the packages the screens need |
 
 With a side, `react` and `react-dom` (and `@adminiumjs/public-client` for a
 customer side) are added to the project's `package.json` when they are not
 there, and the project's package manager installs them. With neither flag the
 app is its tables and pages alone, and nothing is installed.
+
+With `--mobile` the project's `package.json` gains nothing: the phone app has its own, in
+`apps/<key>/mobile/`, and its packages are installed there with npm and no install scripts. With
+`--no-install` they are left for [`app approve-build`](#app-approve-build). The phone app's
+preview, and the code that opens it on a phone, are in [`adminium design`](#design).
 
 ### `app check`
 

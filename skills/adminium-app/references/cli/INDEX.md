@@ -12,13 +12,13 @@
 | `references/cli/new.md` | `new` | 3070 |
 | `references/cli/dev.md` | `dev` | 2619 |
 | `references/cli/design.md` | `design` | 1569 |
-| `references/cli/app-approve-build.md` | `app approve-build` | 800 |
+| `references/cli/app-approve-build.md` | `app approve-build` | 1277 |
 | `references/cli/owner.md` | `owner` | 645 |
 | `references/cli/install.md` | `install` | 1170 |
 | `references/cli/folder-facts.md` | `folder-facts` | 595 |
 | `references/cli/build.md` | `build` | 1221 |
 | `references/cli/check.md` | `check` | 1558 |
-| `references/cli/app.md` | `app` | 5391 |
+| `references/cli/app.md` | `app` | 6150 |
 | `references/cli/pull.md` | `pull` | 1333 |
 | `references/cli/eject.md` | `eject` | 1119 |
 | `references/cli/try.md` | `try` | 1463 |

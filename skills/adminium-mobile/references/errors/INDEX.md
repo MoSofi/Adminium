@@ -1,0 +1,33 @@
+<!-- produced by scripts/skills/build-references.mjs; do not edit -->
+
+# `adminium-mobile` references: errors
+
+| File | What it covers | Bytes |
+|---|---|---|
+| `references/errors/overview.md` | Error codes | 455 |
+| `references/errors/the-two-envelopes.md` | The two envelopes | 2266 |
+| `references/errors/public-api-codes.md` | Public API codes | 4880 |
+| `references/errors/public-api-codes--a-lost-race.md` | Public API codes — A lost race | 1481 |
+| `references/errors/public-api-codes--full-sold-out-no-room.md` | Public API codes — Full, sold out, no room | 1963 |
+| `references/errors/public-api-codes--too-early-and-too-late.md` | Public API codes — Too early and too late | 1481 |
+| `references/errors/public-api-codes--price-changed.md` | Public API codes — Price changed | 926 |
+| `references/errors/public-api-codes--a-refused-write.md` | Public API codes — A refused write | 3230 |
+| `references/errors/public-api-codes--a-refused-query.md` | Public API codes — A refused query | 1715 |
+| `references/errors/public-api-codes--limits-reached.md` | Public API codes — Limits reached | 1121 |
+| `references/errors/public-api-codes--switched-off.md` | Public API codes — Switched off | 445 |
+| `references/errors/public-api-codes--no-email-can-go.md` | Public API codes — No email can go | 488 |
+| `references/errors/public-api-codes--a-typed-code.md` | Public API codes — A typed code | 512 |
+| `references/errors/public-api-codes--out-of-stock-and-a-refused-card.md` | Public API codes — Out of stock, and a refused card | 1500 |
+| `references/errors/how-a-desk-refusal-reaches-a-guest.md` | How a desk refusal reaches a guest | 2094 |
+| `references/errors/staff-and-api-key-write-codes.md` | Staff and API-key write codes | 4543 |
+| `references/errors/staff-and-api-key-write-codes--a-refused-price.md` | Staff and API-key write codes — A refused price | 1581 |
+| `references/errors/staff-and-api-key-write-codes--validation-failed.md` | Staff and API-key write codes — VALIDATION_FAILED | 2335 |
+| `references/errors/staff-and-api-key-write-codes--unique-violation.md` | Staff and API-key write codes — UNIQUE_VIOLATION | 589 |
+| `references/errors/staff-and-api-key-write-codes--capacity-full.md` | Staff and API-key write codes — CAPACITY_FULL | 1086 |
+| `references/errors/staff-and-api-key-write-codes--states.md` | Staff and API-key write codes — States | 3297 |
+| `references/errors/staff-and-api-key-write-codes--a-ledger-s-refusal.md` | Staff and API-key write codes — A ledger's refusal | 2086 |
+| `references/errors/staff-and-api-key-write-codes--what-a-read-limit-leaves-out.md` | Staff and API-key write codes — What a read limit leaves out | 933 |
+| `references/errors/codes-met-outside-a-request--an-email-that-is-not-sent.md` | Codes met outside a request — An email that is not sent | 758 |
+| `references/errors/codes-met-outside-a-request--an-app-s-install-check.md` | Codes met outside a request — An app's install check | 1056 |
+| `references/errors/codes-met-outside-a-request--installing-updating-and-removing-an-add-on.md` | Codes met outside a request — Installing, updating and removing an add-on | 2226 |
+| `references/errors/codes-met-outside-a-request--saving-an-endpoint-in-studio.md` | Codes met outside a request — Saving an endpoint in Studio | 4623 |
