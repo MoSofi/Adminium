@@ -158,8 +158,13 @@ export function createPromptService(deps: PromptServiceDeps) {
 
   /** The tables marked private on a connection: in nobody's figures, whoever starts the run (a command, a first try of an app). */
   async function privateTablesOf(connectionId: string): Promise<string[]> {
-    const rows = await meta.db.selectFrom('adminium_schema_overrides').select('tableName').where('connectionId', '=', connectionId).where('op', '=', 'table.private' as never).where('status', '=', 'active').execute();
-    return rows.map((row) => row.tableName);
+    return (await overridesRepo(meta).listForConnection(connectionId, { status: 'active' })).filter((row) => row.op === 'table.private').map((row) => row.tableName);
+  }
+
+  /** The tables no figures are collected of, when there are any: nearly always none, and then the collector is asked as it always was. */
+  async function statsLeftOut(input: CreateRunForConnectionInput): Promise<{ without?: ReadonlySet<string> }> {
+    const without = new Set([...(input.withoutStatsOf ?? []), ...(await privateTablesOf(input.connectionId))]);
+    return without.size === 0 ? {} : { without };
   }
 
   return {
@@ -194,7 +199,7 @@ export function createPromptService(deps: PromptServiceDeps) {
         }
       }
 
-      const stats = await collectStats({ connectionId: input.connectionId, snapshotId, model: await codesAsSecrets(input.connectionId, model), sampling, without: new Set([...(input.withoutStatsOf ?? []), ...(await privateTablesOf(input.connectionId))]) });
+      const stats = await collectStats({ connectionId: input.connectionId, snapshotId, model: await codesAsSecrets(input.connectionId, model), sampling, ...(await statsLeftOut(input)) });
 
       const created = await runService.createRun({
         connectionId: input.connectionId,
