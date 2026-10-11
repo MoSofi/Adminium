@@ -18,6 +18,8 @@ import { ENGINES, world, type PersonName, type World } from './row-limit-world.j
 
 const BENCH = process.env.ROW_LIMIT_BENCH === '1';
 const ROWS = 50_000;
+/** A new filter value for every card asked, in the whole run: no answer is a kept one. */
+let asked = 0;
 const RUNS = 15;
 const OWN = { reach: 'own' } as const;
 
@@ -120,6 +122,35 @@ for (const [dialect, available] of ENGINES) {
         say(tag('50,000 quotes through their deal, page of 50, exact count'), 'nothing limits them', await time('lena', `${data}/big_quotes?order=id.asc`));
         say(tag('50,000 quotes through their deal, page of 50, exact count'), 'a rep (own)', await time('dana', `${data}/big_quotes?order=id.asc`));
         say(tag('one deal by its key'), 'nothing limits them', await time('lena', `${data}/big_deals/50`).catch(() => ({ ms: NaN, rows: 0, total: null })));
+        // T07: a count over the rows that point at each listed row, a value looked up through a link, and a card's sum.
+        const agg = encodeURIComponent('quotes:big_quotes.deal_id:count');
+        say(tag('50,000 deals, page of 50, each with a count of its quotes'), 'nothing limits them', await time('lena', `${data}/big_deals?order=id.asc&count=none&agg=${agg}`));
+        say(tag('50,000 deals, page of 50, each with a count of its quotes'), 'a rep (own)', await time('dana', `${data}/big_deals?order=id.asc&count=none&agg=${agg}`));
+        const lookup = encodeURIComponent('deal_title:deal_id.title');
+        say(tag('50,000 quotes, page of 50, each with its deal\'s title'), 'nothing limits them', await time('lena', `${data}/big_quotes?order=id.asc&count=none&lookup=${lookup}`));
+        say(tag('50,000 quotes, page of 50, each with its deal\'s title'), 'a rep (own)', await time('dana', `${data}/big_quotes?order=id.asc&count=none&lookup=${lookup}`));
+        const card = async (who: PersonName, what: string, descriptor: Record<string, unknown>, as: string) => {
+          const cookie = (await w.signIn(who)).cookie;
+          // A new filter value each time, so the card's 30-second cache never answers.
+          const once = () => w.app.inject({ method: 'POST', url: '/api/v1/widget-data/query', headers: { cookie }, payload: { descriptor: { connectionId: w.connectionId, ...descriptor, filters: [{ column: 'id', op: 'gte', value: -(asked += 1) }] } } });
+          const first = await once();
+          expect(first.statusCode, first.body.slice(0, 300)).toBe(200);
+          const took: number[] = [];
+          for (let i = 0; i < RUNS; i += 1) {
+            const at = performance.now();
+            await once();
+            took.push(performance.now() - at);
+          }
+          took.sort((a, b) => a - b);
+          lines.push(`| ${tag(what)} | ${as} | ${took[Math.floor(RUNS / 2)]!.toFixed(1)} | - | ${JSON.stringify((JSON.parse(first.body) as { result: { value?: unknown } }).result.value ?? '')} |`);
+        };
+        const sum = { source: { name: 'big_deals' }, shape: 'single-metric', aggregations: [{ fn: 'sum', column: 'amount', alias: 'total' }] };
+        await card('lena', 'a card: the sum of 50,000 deals', sum, 'nothing limits them');
+        await card('dana', 'a card: the sum of 50,000 deals', sum, 'a rep (own)');
+        await card('mara', 'a card: the sum of 50,000 deals', sum, 'a manager (team of 20)');
+        const byState = { source: { name: 'big_deals' }, shape: 'categorical', groupBy: ['state'], aggregations: [{ fn: 'count', alias: 'n' }] };
+        await card('lena', 'a card: 50,000 deals counted by state', byState, 'nothing limits them');
+        await card('dana', 'a card: 50,000 deals counted by state', byState, 'a rep (own)');
       }
     }, 900_000);
   });

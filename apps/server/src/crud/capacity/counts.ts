@@ -22,6 +22,8 @@ import { sql } from 'kysely';
 
 import type { ResolvedTable } from '../identifiers.js';
 import type { Row } from '../mask.js';
+import { rowLimitFor, type RowLimitContext } from '../row-limit.js';
+import { reachedKeys } from '../row-writes.js';
 import { refuseHiddenIn } from '../read-view.js';
 import type { WriteTarget } from '../write-context.js';
 import { addDays, outOfService, Reads } from './count.js';
@@ -50,6 +52,14 @@ const MOST_VALUES = 50;
 export interface CountsAccess {
   table(tableId: string): Promise<void>;
   column(table: ResolvedTable, name: string): Promise<void>;
+  /**
+   * Whose question it is, when a role of theirs reaches only some rows
+   * (`crud/row-limit.ts`). What is counted against a pool is counted whole —
+   * a count of the asker's own rows would call a full slot free — but WHICH
+   * pools are answered for are the pools' rows the asker reaches: found, or
+   * named by key.
+   */
+  rows?: RowLimitContext | null | undefined;
 }
 
 export type CountsAnswer = { ok: true; data: { kind: Rule['kind']; rows: Record<string, unknown>[] } } | { ok: false; message: string };
@@ -115,7 +125,9 @@ export async function capacityCounts(target: WriteTarget, ask: CountsAsk, now: D
     if (rule.via === null) return { ok: true, data: { kind: 'parent', rows: [] } };
     await access.table(rule.via.table.id);
     for (const wider of rule.also) if (wider.via !== null) await access.table(wider.via.table.id);
-    let ids = [...(ask.ids ?? [])];
+    const poolTest = access.rows == null ? null : rowLimitFor(access.rows, rule.via.table.id, 'read');
+    // Pools named by key: the ones the asker reaches. A key of a row out of their reach is a key of no row.
+    let ids = poolTest === null || access.rows == null ? [...(ask.ids ?? [])] : [...(await reachedKeys(access.rows, db, rule.via.table.id, rule.via.key, ask.ids ?? []))];
     // Which value each row was found under, when asked under several.
     const underOf = new Map<string, string>();
     if (ask.under !== undefined) {
@@ -124,13 +136,12 @@ export async function capacityCounts(target: WriteTarget, ask: CountsAsk, now: D
       if (wanted.length === 0 || !rule.via.table.columns.has(ask.under)) return refused('Ask under a column of the pools\' rows, with its value.');
       if (wanted.length > MOST_VALUES) return refused(`Ask under at most ${String(MOST_VALUES)} values at once.`);
       await access.column(rule.via.table, ask.under);
-      const found = (await db
+      let pools = db
         .selectFrom(rule.via.table.id)
         .select([db.dynamic.ref(rule.via.key) as never, sql.ref(ask.under).as('adm_under') as never])
-        .where((eb) => eb(db.dynamic.ref(ask.under!), 'in', wanted))
-        .orderBy(db.dynamic.ref(rule.via.key))
-        .limit(MOST_ROWS)
-        .execute()) as Row[];
+        .where((eb) => eb(db.dynamic.ref(ask.under!), 'in', wanted));
+      if (poolTest !== null) pools = pools.where(poolTest(db, rule.via.table.name));
+      const found = (await pools.orderBy(db.dynamic.ref(rule.via.key)).limit(MOST_ROWS).execute()) as Row[];
       for (const row of found) {
         const id = String(row[rule.via.key]);
         ids.push(id);
@@ -146,7 +157,10 @@ export async function capacityCounts(target: WriteTarget, ask: CountsAsk, now: D
     const wider = await widerKeysOf(target, rule, ids, reads);
     const widerStates = new Map<string, { key: string; size: number | null; taken: number; held: number }>();
     for (const pool of rule.also) {
-      const keys = [...new Set(wider.get(pool.part)?.values() ?? [])];
+      const all = [...new Set(wider.get(pool.part)?.values() ?? [])];
+      // A wider pool (a ticket type's event) is told to whoever reaches its row: one out of reach keeps its counts to itself.
+      const within = access.rows == null || pool.via === null ? null : await reachedKeys(access.rows, db, pool.via.table.id, pool.via.key, all);
+      const keys = within === null ? all : all.filter((key) => within.has(String(key)));
       if (keys.length === 0) continue;
       for (const s of await tallyFor(db, target, rule, keys.map((key) => ({ part: pool.part, key, at: day })), now, [], 'staff')) {
         widerStates.set(`${pool.part}|${s.key}`, { key: s.key, size: s.size, taken: s.taken, held: s.held });
@@ -183,12 +197,16 @@ export async function capacityCounts(target: WriteTarget, ask: CountsAsk, now: D
   await access.table(rule.via.table.id);
   if (rule.pool.kind === 'count') await access.table(rule.pool.table);
   if (rule.outOfService !== null) await access.table(rule.outOfService.table);
+  const nightTest = access.rows == null ? null : rowLimitFor(access.rows, rule.via.table.id, 'read');
+  let all = db.selectFrom(rule.via.table.id).select(db.dynamic.ref(rule.via.key) as never);
+  if (nightTest !== null) all = all.where(nightTest(db, rule.via.table.name));
+  const named = ask.ids !== undefined && ask.ids.length > 0 ? ask.ids.slice(0, 200) : null;
   const pools =
-    ask.ids !== undefined && ask.ids.length > 0
-      ? ask.ids.slice(0, 200)
-      : ((await db.selectFrom(rule.via.table.id).select(db.dynamic.ref(rule.via.key) as never).orderBy(db.dynamic.ref(rule.via.key)).limit(200).execute()) as Row[]).map((row) =>
-          String(row[rule.via!.key]),
-        );
+    named !== null
+      ? nightTest === null || access.rows == null
+        ? named
+        : named.filter(((reached) => (id: string) => reached.has(String(id)))(await reachedKeys(access.rows, db, rule.via.table.id, rule.via.key, named)))
+      : ((await all.orderBy(db.dynamic.ref(rule.via.key)).limit(200).execute()) as Row[]).map((row) => String(row[rule.via!.key]));
   const states = await capacityState(db, target, { rule: rule.index, keys: pools, from: ask.from, to: addDays(ask.from!, ask.days!) }, now);
   // Rooms out of service, per pool and night: what the size already leaves out.
   const closed = await outOfService(rule, pools, rangeOf(ask.from!, addDays(ask.from!, ask.days!)), new Reads(db));

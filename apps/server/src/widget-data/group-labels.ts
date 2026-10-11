@@ -15,6 +15,7 @@ import type { Kysely } from 'kysely';
 import type { SourceDatabase } from '../connections/manager.js';
 import type { ResolvedTable, SnapshotView } from '../crud/identifiers.js';
 import { piiAllows, type PiiAccess, type Row } from '../crud/mask.js';
+import type { RowTest } from '../crud/row-limit.js';
 import { ValidationFailedError } from '../errors.js';
 import type { CompiledWidgetQuery, GroupLabelSource } from './compiler.js';
 
@@ -68,6 +69,8 @@ export async function groupLabelsFor(input: {
   /** Asked of the table the label is read from, not the grouped one. */
   canReadPii: PiiAccess;
   canReadTable: (tableId: string) => Promise<boolean>;
+  /** The rows of the label's table the reader reaches (`crud/row-limit.ts`): a group whose row is out of their reach keeps its key and gets no name. */
+  rowTestFor?: ((tableId: string) => RowTest | null) | undefined;
 }): Promise<ReadonlyMap<string, string> | undefined> {
   const { path, compiled, view } = input;
   if (path === undefined) return undefined;
@@ -88,10 +91,12 @@ export async function groupLabelsFor(input: {
   const alias = compiled.groupAlias;
   const keys = [...new Set(input.rows.map((row) => row[alias]).filter((key) => key !== null && key !== undefined))].slice(0, LABEL_KEYS_MAX);
   if (keys.length === 0) return new Map();
-  const found = (await input.db
+  const rowTest = input.rowTestFor?.(target.id) ?? null;
+  let named = input.db
     .selectFrom(target.id as never)
     .select([`${referenced} as k` as never, `${column} as l` as never])
-    .where(referenced as never, 'in', keys as never)
-    .execute()) as { k: unknown; l: unknown }[];
+    .where(referenced as never, 'in', keys as never);
+  if (rowTest !== null) named = named.where(rowTest(input.db, target.name));
+  const found = (await named.execute()) as { k: unknown; l: unknown }[];
   return new Map(found.filter((row) => row.l !== null && row.l !== undefined && String(row.l) !== '').map((row) => [String(row.k), String(row.l)]));
 }

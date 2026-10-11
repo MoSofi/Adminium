@@ -43,6 +43,8 @@ import { compileQuickSearch, type CompileFilterContext } from '../../crud/filter
 import type { ResolvedTable, SnapshotView } from '../../crud/identifiers.js';
 import { labelColumnFor } from '../../crud/labels.js';
 import { pkLabel } from '../../crud/records.js';
+import type { RowLimitContext } from '../../crud/row-limit.js';
+import { rowLimitContextOf, rowTestOf } from '../../crud/row-limit-context.js';
 import type { Row } from '../../crud/mask.js';
 import { loadSnapshotView } from '../../data-io/snapshot-view.js';
 import { readViewFor } from '../../crud/read-view.js';
@@ -176,6 +178,17 @@ export function searchRoutes(deps: SearchRoutesDeps): FastifyPluginAsyncZod {
         if ((request.user ?? null) === null && (request.apiKeyPrincipal ?? null) === null) {
           throw new UnauthorizedError('UNAUTHENTICATED');
         }
+
+        /** What it takes to ask which rows the searcher reaches, per connection; null for nearly everyone. */
+        const rowContexts = new Map<string, RowLimitContext | null>();
+        const rowsFor = async (connectionId: string, view: SnapshotView): Promise<RowLimitContext | null> => {
+          if (!rowContexts.has(connectionId)) {
+            // A server mounted with no permission resolver limits nobody (a test's bare routes).
+            const set = app.hasDecorator('rbac') ? await app.rbac.resolve(request) : null;
+            rowContexts.set(connectionId, set === null ? null : await rowLimitContextOf(meta, set, connectionId, view.model));
+          }
+          return rowContexts.get(connectionId) ?? null;
+        };
 
         const q = request.query.q.trim();
         // Zod enforces ≥ 2 raw chars; re-check after trimming.
@@ -352,6 +365,9 @@ export function searchRoutes(deps: SearchRoutesDeps): FastifyPluginAsyncZod {
           let qb = db
             .selectFrom(table.id)
             .select([...selectNames].map((name) => db.dynamic.ref(name)));
+          // Among the rows the searcher reaches of this table: a hit names a row, and a row out of reach is not there to be found.
+          const rowTest = rowTestOf(await rowsFor(connectionId, view), table.id, 'read');
+          if (rowTest !== null) qb = qb.where(rowTest(db, table.name));
           qb = qb.where((eb) => {
             const match = compileQuickSearch(eb as never, ctx, q);
             return match ?? eb(eb.val(1), '=', 0);

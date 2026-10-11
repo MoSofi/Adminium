@@ -16,6 +16,8 @@
  * reader's locale.
  */
 
+import { createHash } from 'node:crypto';
+
 import type { FastifyRequest } from 'fastify';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { connectionTenantConfig, overridesRepo, snapshotsRepo, userPrefsRepo, type MetaDb } from '@adminium/meta';
@@ -30,6 +32,9 @@ import { SnapshotView } from '../../crud/identifiers.js';
 import { resolveLookups } from '../../crud/lookups.js';
 import { canReadPii, piiCheckFor } from '../../crud/mask.js';
 import type { Row } from '../../crud/mask.js';
+import type { RowTest } from '../../crud/row-limit.js';
+import { limitProjections, rowLimitContextOf, rowTestOf } from '../../crud/row-limit-context.js';
+import { ROW_ACTIONS } from '../../rbac/row-limits.js';
 import { WidgetDataCache, cacheKeyOf } from '../../widget-data/cache.js';
 import { readViewFor } from '../../crud/read-view.js';
 import { venueClock } from '../../crud/venue-time.js';
@@ -142,7 +147,32 @@ export function widgetDataRoutes(deps: WidgetDataRoutesDeps): FastifyPluginAsync
       const resolution = await app.rbac.resolve(request);
       // …and by what the roles read of the tables: a limit tightened on the same role is a new answer at once, never the cached one.
       const reads = resolution.readLimits === undefined ? '' : `:${JSON.stringify(resolution.readLimits.limited.map((entry) => [entry.grant, [...entry.limit.readable].sort()]))}`;
-      const roleScope = `${[...resolution.roleIds].sort().join(',')}${resolution.superAdmin ? '+sa' : ''}:${unmasked ? 'pii' : 'masked'}${reads}`;
+      /*
+       * …and by WHOSE rows they are. A person a role holds to some rows reads
+       * figures over the rows they reach: the answer is theirs alone, so it is
+       * kept under who they are, whom they lead (a change of team is a new
+       * answer at the next request) and what each role of theirs reaches.
+       * Nobody else's key changes: for them there is nothing to add.
+       */
+      const rowsCtx = await rowLimitContextOf(deps.meta, resolution, connectionId, view.model);
+      const rowScope =
+        rowsCtx === null
+          ? ''
+          : `:rows:${createHash('sha256')
+              .update(
+                JSON.stringify([
+                  resolution.reach?.userId ?? null,
+                  resolution.reach?.ledIds ?? [],
+                  // Each role's limits, and the plain grants beside them: one taken away lifts nothing any more.
+                  ROW_ACTIONS.map((action) => (resolution.rowLimits?.[action] ?? []).map((role) => [role.limited.map((entry) => [entry.grant, entry.reach]), [...role.unlimited].sort()])),
+                  // What each table says of its rows: a table made private, or ways changed, is a new answer.
+                  view.model.tables.filter((one) => one.belongs !== undefined || one.private === true).map((one) => [one.id, one.belongs ?? null, one.private ?? false]),
+                  rowsCtx.today,
+                ]),
+              )
+              .digest('hex')}`;
+      const rowTestFor = (tableId: string): RowTest | null => rowTestOf(rowsCtx, tableId, 'read');
+      const roleScope = `${[...resolution.roleIds].sort().join(',')}${resolution.superAdmin ? '+sa' : ''}:${unmasked ? 'pii' : 'masked'}${reads}${rowScope}`;
       // The answer carries labels in the reader's language, so it is kept per language too.
       // And per venue day: "today" (a day filter, a calendar window, a limit's counts) moves at the venue's midnight.
       const venueDay = venueClock(deps.now?.() ?? new Date(), (await connectionTenantConfig(deps.meta, connectionId))?.timezone ?? 'UTC').day;
@@ -169,7 +199,7 @@ export function widgetDataRoutes(deps: WidgetDataRoutesDeps): FastifyPluginAsync
           timezone: tenant?.timezone ?? undefined,
           currency: tenant?.currency ?? null,
           now: deps.now?.() ?? new Date(),
-          access: countsAccessFor(request, connectionId, view),
+          access: countsAccessFor(request, connectionId, view, rowsCtx),
           canReadPii: piiOf,
         });
         cache.set(key, result, connectionId, table.id, limitTablesOf(view, table));
@@ -189,6 +219,8 @@ export function widgetDataRoutes(deps: WidgetDataRoutesDeps): FastifyPluginAsync
               canReadPii: piiOf,
               canReadTable: (tableId) => request.can(`table:${connectionId}:${tableId}:read`),
             });
+      // A value looked up from another table: from a row of it this reader reaches.
+      limitProjections(rowsCtx, lookups, []);
 
       const canReadTable = (tableId: string) => request.can(`table:${connectionId}:${tableId}:read`);
       // Filter and window columns one link away: this reader's read of that table and column, or a refusal.
@@ -211,6 +243,7 @@ export function widgetDataRoutes(deps: WidgetDataRoutesDeps): FastifyPluginAsync
         timezone,
         paths,
         groupLabel,
+        ...(rowsCtx === null ? {} : { rowTestFor }),
       });
 
       const startedAt = Date.now();
@@ -231,6 +264,7 @@ export function widgetDataRoutes(deps: WidgetDataRoutesDeps): FastifyPluginAsync
         db,
         canReadPii: piiOf,
         canReadTable: (tableId) => request.can(`table:${connectionId}:${tableId}:read`),
+        ...(rowsCtx === null ? {} : { rowTestFor }),
       });
       const shaped = shapeRows({ compiled, rows, priorRows, total, canReadPii: unmasked, connectionId, groupLabels });
       // What a limit has taken from each row listed (`counts`), on the counts route's read rules.
@@ -251,7 +285,7 @@ export function widgetDataRoutes(deps: WidgetDataRoutesDeps): FastifyPluginAsync
                 dialect,
                 timezone,
                 now: deps.now?.() ?? new Date(),
-                access: countsAccessFor(request, connectionId, view),
+                access: countsAccessFor(request, connectionId, view, rowsCtx),
               })),
             };
 

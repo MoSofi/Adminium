@@ -29,6 +29,7 @@ import { ForbiddenError, NotFoundError, ValidationFailedError } from '../errors.
 import type { SourceDatabase } from '../connections/manager.js';
 import { addDays, at, countsNow, nightKey, nightsOf, Reads, staysOf, storedRows, type CountContext } from '../crud/capacity/count.js';
 import { capacityCounts, type CountsAccess, type CountsAsk } from '../crud/capacity/counts.js';
+import type { RowLimitContext } from '../crud/row-limit.js';
 import { rangeOf } from '../crud/capacity/judge.js';
 import { rulesFor, type Rule } from '../crud/capacity/rules.js';
 import { tableRulesFor } from '../crud/column-rules.js';
@@ -87,8 +88,9 @@ export type ShapedCapacity = ShapedCapacityCategorical | ShapedCapacityRecordLis
  * What the reader may read beyond the limited table — the data route's
  * `access` for the same counts, made from this request.
  */
-export function countsAccessFor(request: FastifyRequest, connectionId: string, view: SnapshotView): CountsAccess {
+export function countsAccessFor(request: FastifyRequest, connectionId: string, view: SnapshotView, rows: RowLimitContext | null = null): CountsAccess {
   return {
+    rows,
     table: async (tableId: string) => {
       const permission = `table:${connectionId}:${tableId}:read`;
       if (!(await request.can(permission))) throw new ForbiddenError('You do not have access to this table.', 'TABLE_FORBIDDEN', { permission });
@@ -208,8 +210,21 @@ export async function answerCapacityCounts(input: {
     const metric = capacity.metric ?? 'taken';
     // Each rate read once for this answer, however many stays and nights it prices.
     const rates: RateReads = new Map();
-    const figureOf = async (counted: readonly CountsRow[], from: string, days: number): Promise<number | null> =>
-      metric === 'earnings' ? earningsOf(input, target, rule, from, days, capacity.ids, rates) : figure(metric, counted);
+    /*
+     * What the pools earned is added up over the pools the counts answered
+     * for: for somebody who reaches only some of the pools' rows, those — a
+     * pool named by key and out of their reach earns them no figure.
+     */
+    const poolsOf = (counted: readonly CountsRow[]): readonly string[] | undefined | null => {
+      if (input.access.rows == null) return capacity.ids;
+      const reached = [...new Set(counted.map((row) => String(row['pool'] ?? row['id'] ?? '')).filter((key) => key !== ''))];
+      return reached.length === 0 ? null : reached;
+    };
+    const figureOf = async (counted: readonly CountsRow[], from: string, days: number): Promise<number | null> => {
+      if (metric !== 'earnings') return figure(metric, counted);
+      const pools = poolsOf(counted);
+      return pools === null ? null : earningsOf(input, target, rule, from, days, pools, rates);
+    };
     if (metric === 'earnings') await assertEarningsReadable(input, rule);
     const value = await figureOf(rows, asked.from, asked.days);
     // The span just before, where the counts have days: yesterday, the week before.

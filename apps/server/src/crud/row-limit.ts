@@ -64,6 +64,12 @@ export interface RowLimitContext {
   model: Pick<EffectiveModel, 'tables' | 'relations' | 'dialect'>;
   /** The business's calendar day, `YYYY-MM-DD`: the day a dated listing (cover for a colleague) is judged on. */
   today: string;
+  /**
+   * Nobody is asking: a job with no requester, a tool with no person behind
+   * it. Such a read reaches no row of any table — said outright, rather than
+   * left to whichever check upstream happens to stop it first.
+   */
+  nobody?: true | undefined;
 }
 
 /**
@@ -332,7 +338,7 @@ export function writerReaches(ctx: RowLimitContext, tableId: string): readonly R
 export function rowLimitFor(ctx: RowLimitContext, tableId: string, action: RowAction): RowTest | null {
   const table = ctx.model.tables.find((candidate) => candidate.id === tableId);
   // A table the model has not is no table to read: asked about by mistake, it reaches nothing rather than everything.
-  if (table === undefined) return () => never();
+  if (table === undefined || ctx.nobody === true) return () => never();
   const held = heldTo(ctx, table, action);
   if (held.length === 0) return null;
   return (db, alias, reads) => {

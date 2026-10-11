@@ -9,7 +9,7 @@
 import { connectionTenantConfig, type MetaDb } from '@adminium/meta';
 
 import type { EffectiveModel } from '../connections/effective-schema.js';
-import type { PermissionSet } from '../rbac/resolver.js';
+import { resolvePermissionSet, type PermissionSet } from '../rbac/resolver.js';
 import { mayBeRowLimited, rowLimitFor, type RowAction, type RowLimitContext, type RowTest } from './row-limit.js';
 import { venueClock } from './venue-time.js';
 
@@ -45,4 +45,21 @@ export function limitProjections<L extends { hops: { refTable: { id: string }; r
   if (rows === null) return;
   for (const lookup of lookups) for (const hop of lookup.hops) hop.rowTest = rowLimitFor(rows, hop.refTable.id, 'read');
   for (const measure of measures) measure.rowTest = rowLimitFor(rows, measure.refTable.id, 'read');
+}
+
+/**
+ * The same for a read made OUTSIDE a request, as a person named by their id:
+ * a job that runs for whoever asked, the assistant answering somebody. Their
+ * permission set is resolved now, so a limit put on them since they asked
+ * holds. With no person at all the read reaches no row.
+ */
+export async function rowLimitContextForUser(
+  meta: MetaDb,
+  userId: string | null | undefined,
+  connectionId: string,
+  model: Pick<EffectiveModel, 'tables' | 'relations' | 'dialect'>,
+  now: Date = new Date(),
+): Promise<RowLimitContext | null> {
+  if (userId === null || userId === undefined) return { set: { superAdmin: false }, connectionId, model, today: venueClock(now, 'UTC').day, nobody: true };
+  return rowLimitContextOf(meta, await resolvePermissionSet(meta, { kind: 'user', id: userId, label: '' }), connectionId, model, now);
 }

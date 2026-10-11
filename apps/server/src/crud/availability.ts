@@ -36,6 +36,7 @@ import { ValidationFailedError } from '../errors.js';
 import type { SourceDatabase } from '../connections/manager.js';
 import type { ResolvedTable, SnapshotView } from './identifiers.js';
 import type { Row } from './mask.js';
+import type { RowTest } from './row-limit.js';
 
 /**
  * Most distinct instants one read answers with. A month of quarter-hour slots
@@ -128,6 +129,13 @@ export async function readAvailability(
   table: ResolvedTable,
   columns: { instant: string; resource: string | null },
   query: AvailabilityQuery,
+  /**
+   * The rows the asker reaches (`crud/row-limit.ts`), when the times asked
+   * about are NOT the table's own booking or capacity rule's: any other date
+   * column, read over every row, would show when a colleague's rows fall due.
+   * Absent: every row, as a rule's own "which times are taken" must be.
+   */
+  rowTest?: RowTest | null,
 ): Promise<Availability> {
   const instant = temporal(dialect, columns.instant);
   let statement = db
@@ -137,6 +145,7 @@ export async function readAvailability(
     .where(() => sql<boolean>`${instant} >= ${bound(dialect, query.from)}`)
     .where(() => sql<boolean>`${instant} < ${bound(dialect, query.to)}`)
     .limit(AVAILABILITY_CAP + 1);
+  if (rowTest != null) statement = statement.where(rowTest(db, table.name));
 
   if (columns.resource !== null && query.resourceValue !== undefined) {
     const resource = columns.resource;
@@ -187,4 +196,25 @@ function instantText(value: unknown): string {
   const match = /^(\d{4}-\d{2}-\d{2})(?:[T ](\d{2}):(\d{2}))?/.exec(text);
   if (match === null) return text;
   return `${match[1] as string}T${match[2] ?? '00'}:${match[3] ?? '00'}`;
+}
+
+/**
+ * Whether the times asked about are the ones a rule of the table itself
+ * takes: a booking's start (per its resource), or a slot limit's slot (per
+ * its resource). Only then is "which times are taken" asked of every row —
+ * a calendar that showed a colleague's slot as free would offer a time the
+ * save refuses. Any other column, or any other column to test a value of, is
+ * an ordinary read of the table's rows and is held to the asker's own.
+ */
+export function availabilityIsOfRule(table: Pick<ResolvedTable, 'table'>, columns: { instant: string; resource: string | null }): boolean {
+  const pairs: { instant: string; resource: string | undefined }[] = [];
+  const booking = table.table?.booking;
+  if (booking !== undefined) pairs.push({ instant: booking.start, resource: booking.resource });
+  const slot = table.table?.capacity;
+  if (slot !== undefined) pairs.push({ instant: slot.slot, resource: slot.resource });
+  for (const rule of table.table?.capacityRules ?? []) {
+    const one = rule as { kind?: string; slot?: unknown; resource?: unknown };
+    if (one.kind === 'slot' && typeof one.slot === 'string') pairs.push({ instant: one.slot, resource: typeof one.resource === 'string' ? one.resource : undefined });
+  }
+  return pairs.some((pair) => pair.instant === columns.instant && (columns.resource === null || columns.resource === pair.resource));
 }

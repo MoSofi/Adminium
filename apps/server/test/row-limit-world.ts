@@ -20,7 +20,7 @@
  *   tickets     1→agent 1 (Dana) 2→agent 2 (Omar) 3 nobody   4→agent 3 (no person)
  *   one-to-ones 1 Mara+Dana   2 Lena+Sam   3 Mara+Omar        (private)
  *   tags        deal 1: Hot, Key   deal 3: Hot   deal 5: Key
- *   follow-ups  1 Dana's and 2 Omar's, both under deal 1   3 Omar's, under deal 3
+ *   follow-ups  1 Dana's and 2 Omar's, both under deal 1   3 Omar's and 4 Dana's, under deal 3
  *   deal↔ticket deal 1 is linked to tickets 1 (Dana's) and 2 (Omar's)
  *
  * A deal has a code Adminium makes (`ref_code`) and a button, "win", that
@@ -36,7 +36,7 @@ import { sql, type Kysely } from 'kysely';
 import { expect } from 'vitest';
 import { parseDatabaseModel } from '@adminium/engine';
 import { AdapterRegistry, type AdapterProvider } from '@adminium/engine/adapter';
-import { createFirstSuperAdmin, createSqliteMetaDb, firstRun, overridesRepo, permissionsRepo, rolesRepo, snapshotsRepo, teamsRepo, usersRepo, type MetaDb, type RowLimit } from '@adminium/meta';
+import { createFirstSuperAdmin, createSqliteMetaDb, firstRun, overridesRepo, pagesRepo, permissionsRepo, rolesRepo, snapshotsRepo, teamsRepo, usersRepo, type MetaDb, type RowLimit } from '@adminium/meta';
 
 import type { AdminiumServer } from '../src/app.js';
 import { composeServer } from '../src/compose.js';
@@ -67,7 +67,7 @@ export type TableName = (typeof TABLES)[number];
 /** The tables in SQL every engine takes: explicit keys, table-level foreign keys (MySQL reads no other kind). */
 const DDL: readonly string[] = [
   `CREATE TABLE companies (id INTEGER PRIMARY KEY, name VARCHAR(80) NOT NULL)`,
-  `CREATE TABLE deals (id INTEGER PRIMARY KEY, title VARCHAR(80) NOT NULL, owner_id VARCHAR(36), state VARCHAR(10) NOT NULL, amount INTEGER NOT NULL, big BOOLEAN NOT NULL, company_id INTEGER, ref_code VARCHAR(12), FOREIGN KEY (company_id) REFERENCES companies(id))`,
+  `CREATE TABLE deals (id INTEGER PRIMARY KEY, title VARCHAR(80) NOT NULL, owner_id VARCHAR(36), state VARCHAR(10) NOT NULL, amount INTEGER NOT NULL, big BOOLEAN NOT NULL, company_id INTEGER, ref_code VARCHAR(12), close_on DATE, FOREIGN KEY (company_id) REFERENCES companies(id))`,
   `CREATE TABLE tags (id INTEGER PRIMARY KEY, name VARCHAR(40) NOT NULL)`,
   `CREATE TABLE deal_tags (deal_id INTEGER NOT NULL, tag_id INTEGER NOT NULL, PRIMARY KEY (deal_id, tag_id), FOREIGN KEY (deal_id) REFERENCES deals(id), FOREIGN KEY (tag_id) REFERENCES tags(id))`,
   `CREATE TABLE deal_members (id INTEGER PRIMARY KEY, deal_id INTEGER NOT NULL, user_id VARCHAR(36) NOT NULL, FOREIGN KEY (deal_id) REFERENCES deals(id))`,
@@ -156,6 +156,8 @@ export interface World {
   belongs: (table: TableName, ways: BelongsWay[] | null) => Promise<void>;
   /** Mark a table private, or not. */
   private: (table: TableName, on: boolean) => Promise<void>;
+  /** A records page over a table, which these roles may open: what the search box looks through. */
+  page: (table: TableName, roles: string[]) => Promise<string>;
   close: () => Promise<void>;
 }
 
@@ -247,7 +249,8 @@ export async function world(dialect: Dialect): Promise<World> {
     [9, 'lena', 'won', 40000],
   ];
   for (const [key, owner, state, amount] of deals) {
-    await run(`INSERT INTO deals (id, title, owner_id, state, amount, big, company_id) VALUES (${String(key)}, 'Deal ${String(key)}', ${q(owner === null ? null : people[owner])}, '${state}', ${String(amount)}, ${yes(amount >= 20000)}, ${String(key % 2 === 0 ? 2 : 1)})`);
+    // Each deal is due to close on its own day of November 2026: deal 3 on the 3rd.
+    await run(`INSERT INTO deals (id, title, owner_id, state, amount, big, company_id, close_on) VALUES (${String(key)}, 'Deal ${String(key)}', ${q(owner === null ? null : people[owner])}, '${state}', ${String(amount)}, ${yes(amount >= 20000)}, ${String(key % 2 === 0 ? 2 : 1)}, '2026-11-0${String(key)}')`);
   }
   await run(`INSERT INTO deal_members (id, deal_id, user_id) VALUES (1, 5, '${people.dana}')`);
   await run(`INSERT INTO tags (id, name) VALUES (1, 'Hot'), (2, 'Key')`);
@@ -260,7 +263,7 @@ export async function world(dialect: Dialect): Promise<World> {
   await run(`INSERT INTO deliveries (id, crew_id, place) VALUES (1, 1, 'Harbour'), (2, 2, 'Northfield'), (3, NULL, 'Unplanned'), (4, 3, 'Nobody on it')`);
   await run(`INSERT INTO agents (id, name, user_id) VALUES (1, 'Dana', '${people.dana}'), (2, 'Omar', '${people.omar}'), (3, 'A bot', NULL)`);
   await run(`INSERT INTO tickets (id, subject, assignee_id) VALUES (1, 'One', 1), (2, 'Two', 2), (3, 'Three', NULL), (4, 'Four', 3)`);
-  await run(`INSERT INTO followups (id, deal_id, owner_id, note) VALUES (1, 1, '${people.dana}', 'Ring Harbour'), (2, 1, '${people.omar}', 'Send the samples'), (3, 3, '${people.omar}', 'Chase the PO')`);
+  await run(`INSERT INTO followups (id, deal_id, owner_id, note) VALUES (1, 1, '${people.dana}', 'Ring Harbour'), (2, 1, '${people.omar}', 'Send the samples'), (3, 3, '${people.omar}', 'Chase the PO'), (4, 3, '${people.dana}', 'Dana helps on three')`);
   await run(`INSERT INTO deal_tickets (deal_id, ticket_id) VALUES (1, 1), (1, 2)`);
   await run(`INSERT INTO one_to_ones (id, manager_id, rep_id, note) VALUES (1, '${people.mara}', '${people.dana}', 'Dana, August'), (2, '${people.lena}', '${people.sam}', 'Sam, August'), (3, '${people.mara}', '${people.omar}', 'Omar, August')`);
 
@@ -372,6 +375,11 @@ export async function world(dialect: Dialect): Promise<World> {
     },
     belongs,
     private: setPrivate,
+    page: async (table, slugs) => {
+      const made = await pagesRepo(meta).create({ connectionId: connection.id, slug: table, type: 'page-crud', title: table, navGroup: 'manage', config: { source: { table: id(table) } }, createdBy: ownerId });
+      for (const slug of slugs) await permissionsRepo(meta).grant((await rolesRepo(meta).findBySlug(slug))!.id, 'page', made.id, { view: true, edit: false } as never);
+      return made.id;
+    },
     close: async () => {
       await app.close();
       await manager.disposeAll().catch(() => undefined);

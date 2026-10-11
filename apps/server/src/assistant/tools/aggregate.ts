@@ -21,6 +21,8 @@ import { queryDescriptorSchema } from '@adminium/engine/config';
 import { AppError } from '../../errors.js';
 import type { Row } from '../../crud/mask.js';
 import { compileWidgetQuery, resolveSource } from '../../widget-data/compiler.js';
+import { rowTestOf } from '../../crud/row-limit-context.js';
+import { rowsForAsker } from './row-reach.js';
 import { shapeRows, toNumber } from '../../widget-data/shapers.js';
 import type { AssistantTool, AssistantToolOutcome } from '../types.js';
 import { ROW_LIMIT_MAX } from './rows.js';
@@ -156,10 +158,13 @@ export const aggregateTool: AssistantTool = {
 
     const { db, dialect } = await deps.manager.data(connectionId);
     try {
+      // A total over the rows the person reaches, as a card on their screen would be.
+      const reach = await rowsForAsker(deps, connectionId, view.model);
       const compiled = compileWidgetQuery({
         db,
         view,
         descriptor: scoped,
+        ...(reach === null ? {} : { rowTestFor: (id: string) => rowTestOf(reach, id, 'read') }),
         // Always masked, like every other read that leaves the instance. The
         // compiler answers COLUMN_FORBIDDEN for a descriptor that aggregates a
         // masked column, which is the refusal this argument buys.

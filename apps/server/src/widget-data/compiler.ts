@@ -58,6 +58,7 @@ import type { SourceDatabase } from '../connections/manager.js';
 import { compileFilter, type CompileFilterContext, type FilterCondition, type RecordFilter } from '../crud/filters.js';
 import type { ResolvedColumn, ResolvedTable, SnapshotView } from '../crud/identifiers.js';
 import { lookupSelections, type ResolvedLookup } from '../crud/lookups.js';
+import type { RowTest } from '../crud/row-limit.js';
 import { venueClock, wallTimeToInstant } from '../crud/venue-time.js';
 import { offsetSpans, stepsOf, wallText, type OffsetSpan } from './zone-offsets.js';
 import { choiceWordsOf } from './choice-words.js';
@@ -233,6 +234,14 @@ export interface CompileWidgetQueryOptions {
    * caller did not resolve is refused.
    */
   paths?: ReadonlyMap<string, ResolvedPath> | undefined;
+  /**
+   * The rows of a table the READER reaches (`crud/row-limit.ts`), or null
+   * where nothing limits them there. Asked for the source and for every
+   * table a filter, a window or an order reaches one link away: a figure is
+   * then a figure over the rows its reader could list, never over a
+   * colleague's. Absent: nobody is limited, and the query is the one it was.
+   */
+  rowTestFor?: ((tableId: string) => RowTest | null) | undefined;
   /** The group label's source when the reader may read it (ranking ties). */
   groupLabel?: GroupLabelSource | undefined;
 }
@@ -1004,8 +1013,13 @@ export function compileWidgetQuery(opts: CompileWidgetQueryOptions): CompiledWid
     return path;
   };
   // The key column in `IN (SELECT key FROM parent WHERE …)`: a row whose key is empty matches nothing.
+  /** The rows of a table one link away, as this reader reaches them: its own test on its own select. */
+  const reached = <Q extends { where: (expression: Expression<SqlBool>) => Q }>(query: Q, tableId: string, alias: string): Q => {
+    const test = opts.rowTestFor?.(tableId) ?? null;
+    return test === null ? query : query.where(test(db, alias));
+  };
   const throughPath = (qb: Qb, path: ResolvedPath, where: (inner: Qb) => Qb): Qb =>
-    qb.where((eb) => eb(dynamic.ref(path.fkColumn.name), 'in', where(db.selectFrom(path.parent.id).select(dynamic.ref(path.parentKey)) as unknown as Qb) as never));
+    qb.where((eb) => eb(dynamic.ref(path.fkColumn.name), 'in', where(reached(db.selectFrom(path.parent.id).select(dynamic.ref(path.parentKey)), path.parent.id, path.parent.name) as unknown as Qb) as never));
 
   // --- WHERE: descriptor filters (CRUD DSL compiler) + rolling window -------
   const conditions =
@@ -1023,10 +1037,9 @@ export function compileWidgetQuery(opts: CompileWidgetQueryOptions): CompiledWid
     const path = pathOf(node.column);
     // The parent's column, compiled by the same filter compiler against the parent.
     const parentCtx: CompileFilterContext = { view, table: path.parent, canReadPii: path.unmasked, dynamic, dialect };
-    const keys = db
-      .selectFrom(path.parent.id)
-      .select(dynamic.ref(path.parentKey))
-      .where((inner) => compileFilter(inner as never, parentCtx, onDay({ ...node, column: path.column.name }, path.column)));
+    const keys = reached(db.selectFrom(path.parent.id).select(dynamic.ref(path.parentKey)), path.parent.id, path.parent.name).where((inner) =>
+      compileFilter(inner as never, parentCtx, onDay({ ...node, column: path.column.name }, path.column)),
+    );
     return eb(dynamic.ref(path.fkColumn.name), 'in', keys as never);
   };
   /** A condition on a venue day, as the plain conditions it stands for (a time column's day is its span). */
@@ -1083,7 +1096,8 @@ export function compileWidgetQuery(opts: CompileWidgetQueryOptions): CompiledWid
         : instantBoundValue(windowColumn, instant, dialect);
 
   const applyWhere = (qb: Qb, window: { start: Date; end: Date | null } | null): Qb => {
-    let out = qb;
+    // First, and whatever else is asked: the source's rows as this reader reaches them.
+    let out = reached(qb, table.id, table.name);
     if (conditions.length > 0) {
       out = out.where((eb) => eb.and(conditions.map((node) => compileNode(eb as never, node))));
     }
@@ -1189,11 +1203,14 @@ export function compileWidgetQuery(opts: CompileWidgetQueryOptions): CompiledWid
         }
         const alias = path.parent.name === '__order' ? '__order_' : '__order';
         const outer = dynamic.ref(`${table.name}.${groupColumn.name}`);
-        const value = sql`${db
-          .selectFrom(`${path.parent.id} as ${alias}`)
-          .select(dynamic.ref(`${alias}.${path.column.name}`))
-          .whereRef(dynamic.ref(`${alias}.${path.parentKey}`), '=', outer)
-          .limit(1)}`;
+        const value = sql`${reached(
+          db
+            .selectFrom(`${path.parent.id} as ${alias}`)
+            .select(dynamic.ref(`${alias}.${path.column.name}`))
+            .whereRef(dynamic.ref(`${alias}.${path.parentKey}`), '=', outer),
+          path.parent.id,
+          alias,
+        ).limit(1)}`;
         return { expr: sql`(${value})`, dir: key.dir, nullable: true };
       });
   let bucketZone: string | null = null;
@@ -1285,7 +1302,7 @@ export function compileWidgetQuery(opts: CompileWidgetQueryOptions): CompiledWid
       const first = compiledAggs[0];
       if (shape === 'categorical' && first !== undefined) {
         const groupColumn = view.readableColumn(table, groupColumns[0] as string, canReadPii);
-        const label = groupLabelExpr(db, table, groupColumn, opts.groupLabel, dialect);
+        const label = groupLabelExpr(db, table, groupColumn, opts.groupLabel, dialect, opts.groupLabel === undefined ? null : (opts.rowTestFor?.(opts.groupLabel.table.id) ?? null));
         const ranking = rankingOrder(groupColumn);
         if (ranking.length === 0) {
           // Deterministic fold order: biggest buckets first, by the first alias; a group with no value last on every engine.
@@ -1404,16 +1421,18 @@ function groupLabelExpr(
   column: ResolvedColumn,
   source: GroupLabelSource | undefined,
   dialect: Dialect,
+  /** The rows of the label's table the reader reaches: a group whose row is out of their reach has no name to rank by. */
+  rowTest: RowTest | null = null,
 ): RawBuilder<unknown> | null {
   const dynamic = db.dynamic;
   const outer = dynamic.ref(`${table.name}.${column.name}`);
   if (source !== undefined) {
     const alias = source.table.name === '__label' ? '__label_' : '__label';
-    return sql`${db
+    const named = db
       .selectFrom(`${source.table.id} as ${alias}`)
       .select(dynamic.ref(`${alias}.${source.column}`))
-      .whereRef(dynamic.ref(`${alias}.${source.key}`), '=', outer)
-      .limit(1)}`;
+      .whereRef(dynamic.ref(`${alias}.${source.key}`), '=', outer);
+    return sql`${(rowTest === null ? named : named.where(rowTest(db, alias))).limit(1)}`;
   }
   const words = choiceWordsOf(table.table?.columns.find((candidate) => candidate.name === column.name)).labels;
   if (words === undefined || Object.keys(words).length === 0) return null;

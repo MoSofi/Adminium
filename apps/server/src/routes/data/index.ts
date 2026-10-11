@@ -29,7 +29,7 @@ import {
 import type { DatabaseModel, Dialect } from '@adminium/engine';
 import type { TablePrivileges } from '@adminium/engine/adapter';
 import { builtinOptionValues } from '@adminium/engine/config';
-import type { Kysely } from 'kysely';
+import { sql, type Kysely } from 'kysely';
 
 import { AppError, ConflictError, ForbiddenError, NotFoundError, ValidationFailedError } from '../../errors.js';
 import { addOnInstallsStamp, addOnTablesFor } from '../../apps/add-on-tables.js';
@@ -105,7 +105,7 @@ import {
   type RequestedChildRow,
   type ResolvedChild,
 } from '../../crud/child-rows.js';
-import { availabilityColumns, readAvailability } from '../../crud/availability.js';
+import { availabilityColumns, readAvailability, availabilityIsOfRule } from '../../crud/availability.js';
 import { STAFF_TREE_MAX_ROWS, type TreeNode, type TreeOutcome, type TreePath, type TreeWritten } from '../../crud/write-tree.js';
 import { priceAnswer, type PriceAnswer } from '../../crud/adjust/replies.js';
 import type { AdjustedOrder } from '../../crud/adjust/step.js';
@@ -1384,14 +1384,29 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
       db: Kysely<SourceDatabase>,
       link: ResolvedLink,
       ownKey: unknown,
+      /**
+       * Whose reading it is: for somebody who reaches only some rows of the
+       * target, the links to the rows they reach — asked in this read itself,
+       * so the page that is cut from it, and "there are more", are of rows
+       * they can be shown.
+       */
+      rows: RowLimitContext | null = null,
     ): Promise<string[]> {
-      const rows = await db
+      const test = rowTestOf(rows, link.target.id, 'read');
+      let query = db
         .selectFrom(link.linkTable.id)
         .select((eb) => [eb.ref(link.targetColumn).as('key')])
-        .where((eb) => eb(db.dynamic.ref(link.ownColumn), '=', ownKey))
-        .limit(LINK_READ_CAP + 1)
-        .execute();
-      return (rows as { key: unknown }[]).map((row) => String(row.key));
+        .where((eb) => eb(db.dynamic.ref(link.ownColumn), '=', ownKey));
+      if (test !== null) {
+        const reached = db
+          .selectFrom(`${link.target.id} as adm_lt` as never)
+          .select(sql.lit(1).as('one'))
+          .where(sql.id('adm_lt', link.targetKeyColumn), '=', sql.id(link.linkTable.name, link.targetColumn))
+          .where(test(db, 'adm_lt'));
+        query = query.where(sql<boolean>`exists ${reached}`);
+      }
+      const found = await query.limit(LINK_READ_CAP + 1).execute();
+      return (found as { key: unknown }[]).map((row) => String(row.key));
     }
 
     /**
@@ -2507,9 +2522,34 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         const last = page.at(-1);
         const image = (value: unknown) =>
           typeof value === 'object' && value !== null && !Array.isArray(value) ? readableImage(ctx.readView, ctx.table.id, value as Row) : value;
+        /*
+         * A change of the record's links keeps the keys it linked to. For a
+         * reader who reaches only some rows of the linked table, the keys of
+         * the rows out of their reach are left out, as the record's own list
+         * of links leaves them out.
+         */
+        const reachedOf = new Map<string, Set<string> | null>();
+        const linkKeys = async (side: unknown): Promise<unknown> => {
+          const held = side as { relation?: unknown; keys?: unknown } | null;
+          if (ctx.rows === null || held === null || typeof held !== 'object' || typeof held.relation !== 'string' || !Array.isArray(held.keys)) return side;
+          const resolution = resolveLink(ctx.view, ctx.table, held.relation);
+          // A link that is no longer one: nothing says which table its keys were of, so none is shown.
+          if (!resolution.ok) return { ...held, keys: [] };
+          const { link } = resolution;
+          const keys = held.keys.map((key) => String(key));
+          const cached = reachedOf.get(`${held.relation}|${keys.join(',')}`);
+          const reached = cached ?? (await reachedKeys(ctx.rows, ctx.db, link.target.id, link.targetKeyColumn, keys));
+          reachedOf.set(`${held.relation}|${keys.join(',')}`, reached);
+          return { ...held, keys: keys.filter((key) => reached.has(key)) };
+        };
+        const shown: Record<string, unknown>[] = [];
+        for (const row of page) {
+          const changes = parseJsonColumn(row.changes) as Record<string, unknown> | null;
+          shown.push(changes !== null && row.action === 'record.links' ? { ...changes, ...('before' in changes ? { before: await linkKeys(changes['before']) } : {}), ...('after' in changes ? { after: await linkKeys(changes['after']) } : {}) } : (changes as Record<string, unknown>));
+        }
         return {
-          entries: page.map((row) => {
-            const changes = parseJsonColumn(row.changes) as Record<string, unknown> | null;
+          entries: page.map((row, at) => {
+            const changes = shown[at] as Record<string, unknown> | null;
             return {
               id: row.id,
               createdAt: Number(row.createdAt),
@@ -2820,11 +2860,29 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         const query = request.query;
         const { exclude: excludeId, ...rest } = query;
         const columns = availabilityColumns(ctx.view, ctx.table, rest, ctx.unmasked);
-        const exclude = excludeId === undefined ? undefined : parseRecordId(ctx.table, excludeId);
-        return await readAvailability(ctx.db, ctx.dialect, ctx.table, columns, {
-          ...rest,
-          ...(exclude === undefined ? {} : { exclude }),
-        });
+        /*
+         * WHICH TIMES ARE TAKEN is asked of every row only where it is the
+         * table's own rule that takes them: a booking or a limit it declares,
+         * over the columns that rule counts by. A calendar that showed a
+         * colleague's slot as free would offer a time the save then refuses.
+         * Any other date column of a table the asker reads in part — when a
+         * deal is due to close, whose it is — is read over their rows.
+         */
+        const whole = availabilityIsOfRule(ctx.table, columns);
+        // A row to leave out is one the asker reaches: asked with and without a colleague's key, the two answers would give its time away.
+        const named = excludeId === undefined ? undefined : parseRecordId(ctx.table, excludeId);
+        const exclude = named === undefined || (ctx.rows !== null && (await startRow(ctx, named, 'read')) === undefined) ? undefined : named;
+        return await readAvailability(
+          ctx.db,
+          ctx.dialect,
+          ctx.table,
+          columns,
+          {
+            ...rest,
+            ...(exclude === undefined ? {} : { exclude }),
+          },
+          whole ? null : rowTestOf(ctx.rows, ctx.table.id, 'read'),
+        );
       },
     );
 
@@ -2854,7 +2912,9 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         }
         const timezone = (await connectionTenantConfig(meta, ctx.connectionId))?.timezone ?? 'UTC';
         const target = { connectionId: ctx.connectionId, table: ctx.table, db: ctx.db, dialect: ctx.dialect, timezone, origin: 'dashboard' as const };
-        const excluded = query.exclude === undefined ? null : parseRecordId(ctx.table, query.exclude);
+        // A booking to leave out is one the asker reaches: a colleague's key, left out, would show which slot is theirs.
+        const leaveOut = query.exclude === undefined ? null : parseRecordId(ctx.table, query.exclude);
+        const excluded = leaveOut === null || (ctx.rows !== null && (await startRow(ctx, leaveOut, 'read')) === undefined) ? null : leaveOut;
         const input = {
           kind: query.kind,
           resource: query.resource ?? 'any',
@@ -2897,6 +2957,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
           column: async (table: ResolvedTable, name: string) => {
             ctx.view.readableColumn(table, name, await canReadPii(request, ctx.connectionId, table.id));
           },
+          rows: ctx.rows,
         };
         const answer = await capacityCounts(
           { connectionId: ctx.connectionId, view: ctx.view, table: ctx.table, db: ctx.db, dialect: ctx.dialect, timezone },
@@ -2976,7 +3037,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         if (record === undefined) throw new NotFoundError('Record not found.', { pk });
         const ownKey = record[link.ownKeyColumn];
 
-        const keys = await currentLinks(ctx.db, link, ownKey);
+        const keys = await currentLinks(ctx.db, link, ownKey, ctx.rows);
         const hasMore = keys.length > LINK_READ_CAP;
         const page = keys.slice(0, LINK_READ_CAP);
         if (page.length === 0) return { data: [], hasMore: false };

@@ -44,6 +44,9 @@ const WHOLE: ReadonlySet<string> = new Set(['integer', 'bigint']);
 /** Whether two columns hold the same kind of value, so one can be looked up by the other. */
 const sameKind = (a: string, b: string): boolean => a === b || (TEXTS.has(a) && TEXTS.has(b)) || (WHOLE.has(a) && WHOLE.has(b));
 
+/** What a table goes by when it is selected plainly: its own name, as the model has it. */
+const nameOf = (ctx: RowLimitContext, tableId: string): string => ctx.model.tables.find((candidate) => candidate.id === tableId)?.name ?? tableId.slice(tableId.lastIndexOf('.') + 1);
+
 /** A link that names no row: what the database answers a foreign key that points at nothing, with its own sentence left out. */
 export function linkRefused(): ConflictError {
   return new ConflictError('The change violates a foreign-key constraint.', 'FK_VIOLATION', { constraint: null, detail: null });
@@ -85,7 +88,7 @@ function linkTargets(ctx: RowLimitContext, table: EffectiveTable): LinkTarget[] 
 /** Whether a row of `tableId` with these key values is one the person reaches for a read. */
 export async function reachesKey(ctx: RowLimitContext, db: Db, tableId: string, key: string | readonly string[], value: unknown): Promise<boolean> {
   const test = rowLimitFor(ctx, tableId, 'read');
-  const name = tableId.slice(tableId.lastIndexOf('.') + 1);
+  const name = nameOf(ctx, tableId);
   const keys = typeof key === 'string' ? [key] : key;
   const values = typeof key === 'string' ? [value] : (value as readonly unknown[]);
   let query = db.selectFrom(tableId as never).select(sql.lit(1).as('one'));
@@ -120,8 +123,8 @@ export async function assertLinksReached(ctx: RowLimitContext | null, db: Db, ta
 export async function reachedKeys(ctx: RowLimitContext | null, db: Db, tableId: string, key: string, keys: readonly unknown[]): Promise<Set<string>> {
   const all = new Set(keys.map((value) => String(value)));
   const test = ctx === null ? null : rowLimitFor(ctx, tableId, 'read');
-  if (test === null || keys.length === 0) return all;
-  const name = tableId.slice(tableId.lastIndexOf('.') + 1);
+  if (ctx === null || test === null || keys.length === 0) return all;
+  const name = nameOf(ctx, tableId);
   const out = new Set<string>();
   for (let at = 0; at < keys.length; at += 200) {
     const rows = await db
@@ -217,7 +220,7 @@ export async function assertNoUnreachedChildren(ctx: RowLimitContext | null, db:
     const test = rowLimitFor(ctx, relation.from.tableId, 'read');
     const value = row[relation.to.columns[0]!];
     if (test === null || empty(value)) continue;
-    const name = relation.from.tableId.slice(relation.from.tableId.lastIndexOf('.') + 1);
+    const name = nameOf(ctx, relation.from.tableId);
     const hidden = await db
       .selectFrom(relation.from.tableId as never)
       .select(sql.lit(1).as('one'))

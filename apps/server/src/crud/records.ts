@@ -139,15 +139,15 @@ export async function referenceCounts(
     const value = pk[toColumn] ?? (await fetchByPk(db, table, pk))?.[toColumn];
     if (value === undefined) continue;
     // Both identifiers come from the snapshot's relation graph, never the client.
+    // Named as the app or the operator named the table: a panel's tab read "ordering_order_items".
+    const from = view.model.tables.find((candidate) => candidate.id === relation.fromTable);
     const test = reader === undefined ? null : rowLimitFor(reader.rows, relation.fromTable, 'read');
     let counted = db
       .selectFrom(relation.fromTable)
       .select((eb) => eb.fn.countAll().as('count'))
       .where((eb) => eb(db.dynamic.ref(fromColumn), '=', value));
-    if (test !== null) counted = counted.where(test(db, relation.fromTable.slice(relation.fromTable.lastIndexOf('.') + 1)));
+    if (test !== null) counted = counted.where(test(db, from?.name ?? relation.fromTable));
     const row = await counted.executeTakeFirst();
-    // Named as the app or the operator named the table: a panel's tab read "ordering_order_items".
-    const from = view.model.tables.find((candidate) => candidate.id === relation.fromTable);
     const label = from?.labelPlural ?? from?.label;
     out.push({
       relationId: relation.relationId,
