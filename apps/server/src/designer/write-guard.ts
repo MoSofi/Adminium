@@ -15,7 +15,10 @@
  * tools refuse to write one the model has not read in the turn, so a change
  * is built on, not undone.
  */
+import { existsSync } from 'node:fs';
+
 import { buildCodeStems, codeStem, hasOwnBuild } from '../project/apps/own-build.js';
+import { PHONE_SIDE, phoneDir } from '../project/apps/phone.js';
 
 /** An app manifest's own build command is set by a person: refused when anyone else writes one. */
 export function addsBuildCommand(path: string, content: string, appKey: string): boolean {
@@ -72,6 +75,41 @@ export function isBuildFile(inside: string): boolean {
   );
 }
 
+/** A file Expo, Metro, Babel or PostCSS runs or reads as configuration, by its name (folded). */
+const PHONE_CONFIG_NAME = /^(metro\.config|babel\.config|app\.config|react-native\.config|postcss\.config)\.[a-z]+$|^\.babelrc(\.[a-z]+)?$/;
+
+/**
+ * Why a path inside an app is not written from the Designer because of the
+ * app's phone side, as a sentence for whoever tried; null when it may be.
+ * `inside` is the path within the app, folded.
+ *
+ * Expo's build runs code where the server's bundler only reads it. A person
+ * approved the phone side's package list and settings as they read; so those
+ * files, and every file Expo would run as configuration, are never written
+ * here. What is written here is the phone app's screens: `mobile/App.tsx`,
+ * and code and data under `mobile/src/` and `mobile/assets/`.
+ */
+export function phoneFileRefusal(root: string, appKey: string, inside: string): string | null {
+  const name = inside.slice(inside.lastIndexOf('/') + 1);
+  const underPhone = inside === PHONE_SIDE || inside.startsWith(`${PHONE_SIDE}/`);
+  if (!underPhone) {
+    // Metro looks for its configuration upward from the phone side: the app's own folder counts.
+    if (!existsSync(phoneDir(root, appKey))) return null;
+    if (PHONE_CONFIG_NAME.test(inside) || inside === 'package.json') return `${inside} would be read by Expo's build of the phone app as configuration. An app with a phone app has no such file.`;
+    return null;
+  }
+  const within = inside.slice(PHONE_SIDE.length + 1);
+  if (PHONE_CONFIG_NAME.test(name) || name.startsWith('.') || name === 'package.json' || name === 'package-lock.json') {
+    return `${inside} decides what Expo's build of the phone app runs, and the person approved that as it is. Write the phone app's screens in ${PHONE_SIDE}/App.tsx and under ${PHONE_SIDE}/src/.`;
+  }
+  if (within === 'app.tsx') return null;
+  if (within === 'src/adminium.ts' || within === 'app.json' || within === 'index.ts' || within === 'tsconfig.json') {
+    return `${inside} is written by Adminium with the phone app and is the same in every app. Write the screens in ${PHONE_SIDE}/App.tsx and under ${PHONE_SIDE}/src/.`;
+  }
+  if (/^src\/.+\.(tsx?|json)$/.test(within) || /^assets\/.+\.(png|jpe?g|webp|svg|json)$/.test(within)) return null;
+  return `A phone app's files are ${PHONE_SIDE}/App.tsx, code under ${PHONE_SIDE}/src/ (.ts, .tsx, .json) and pictures under ${PHONE_SIDE}/assets/. ${inside} is none of them.`;
+}
+
 /** Why a path needs a person's yes on a card before it is written, or null. `normal` is the jail's own spelling of it. */
 export function needsCard(root: string, appKey: string, normal: string): 'server-code' | 'build-code' | null {
   if (/^(hooks|actions)\//i.test(normal)) return 'server-code';
@@ -81,7 +119,7 @@ export function needsCard(root: string, appKey: string, normal: string): 'server
   return buildCodeStems(root, appKey).has(codeStem(normal.slice(lead.length))) ? 'build-code' : null;
 }
 
-export type NoCardReason = 'build-json' | 'build-file' | 'server-code' | 'build-code' | 'build-command';
+export type NoCardReason = 'build-json' | 'build-file' | 'server-code' | 'build-code' | 'build-command' | 'phone-file';
 
 /**
  * Why this path, with this content, may not be written with no card; null
@@ -93,6 +131,7 @@ export function noCardRefusal(root: string, appKey: string, normal: string, cont
   const inside = folded.startsWith(`apps/${appKey}/`) ? folded.slice(`apps/${appKey}/`.length) : null;
   if (inside === 'build.json') return 'build-json';
   if (inside !== null && hasOwnBuild(root, appKey) && isBuildFile(inside)) return 'build-file';
+  if (inside !== null && phoneFileRefusal(root, appKey, inside) !== null) return 'phone-file';
   const card = needsCard(root, appKey, normal);
   if (card !== null) return card;
   return content !== null && addsBuildCommand(normal, content, appKey) ? 'build-command' : null;

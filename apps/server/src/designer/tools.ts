@@ -37,12 +37,14 @@ import { builtInStylesDir, findDesignSkill, listDesignSkills, skillGuidance, sty
 import { applyLook, cleanLook, directionFromWords, lookInUse, mentionsLook, missingFonts, ownFontPatch, readLook, resolveLook, sidesWithScreens, type Look } from '../project/apps/look.js';
 import { cleanThemePatch, isPublicFontName, mergePatches, OWN_FONTS_MAX, themeFromPalette } from '../project/apps/theme.js';
 import { APPS_DIR } from '../project/apps/read-app.js';
-import { addSide, addUiParts, DEFAULT_LOOK, nameFromKey, PUBLIC_CLIENT_PACKAGE, UI_PARTS } from '../project/apps/scaffold-app.js';
+import { addPhoneSide, addSide, addUiParts, DEFAULT_LOOK, nameFromKey, PUBLIC_CLIENT_PACKAGE, UI_PARTS } from '../project/apps/scaffold-app.js';
+import { PHONE_SIDE, approvePhone, hasPhoneCode, isPhoneApproved, phoneShapeProblems } from '../project/apps/phone.js';
+import { installPhone, phoneInstalled } from '../project/apps/phone-build.js';
 import type { AppSide } from '../project/apps/read-app.js';
 import { hasOwnBuild } from '../project/apps/own-build.js';
 import { declaredLedgers, ledgerParts } from '../project/apps/ledger-parts.js';
 import { adoptParts, shapeParts, spelledOut } from '../project/apps/shape-parts.js';
-import { addsBuildCommand, createTurnReads, isBuildFile, needsCard, renamesTables } from './write-guard.js';
+import { addsBuildCommand, createTurnReads, isBuildFile, needsCard, phoneFileRefusal, renamesTables } from './write-guard.js';
 import { sideCallIssues, sideCallLines } from '../project/apps/side-calls.js';
 import { outsidePictureLines, outsidePictures } from '../project/apps/side-pictures.js';
 import { rebuildApps } from '../project/build.js';
@@ -425,6 +427,60 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
       : outsidePictureLines(outsidePictures(deps.root, appKey), (host) => deps.pictureSites?.covers(host) ?? true, deps.pictureSites.closed() === null);
 
   /**
+   * The phone side: a phone app for customers, built with Expo. Expo's build
+   * runs code on this computer, and its packages are about 350 MB, so the
+   * person is asked first, in plain words, once. A yes writes the starter,
+   * keeps the yes for the files as they then read, and installs.
+   */
+  async function addPhone(ctx: ToolContext): Promise<ToolOutcome> {
+    const where = `apps/${appKey}/${PHONE_SIDE}`;
+    const steps =
+      `Now write the phone app for THIS app: ${where}/App.tsx (and more screens under ${where}/src/), with React Native's parts, as adminium-mobile/SKILL.md says. ` +
+      `It reaches only what manifest/access.json grants: write that file too. Never write ${where}/package.json, app.json, index.ts, tsconfig.json or src/adminium.ts: they are Adminium's. Then build_sides, check_app and apply_app.`;
+    if (hasOwnBuild(deps.root, appKey)) return refused('This app is a copy of a published one and builds its own screens: a phone app is not added to it here.', 'Added no phone app');
+    if (hasPhoneCode(deps.root, appKey) && isPhoneApproved(deps.root, appKey) && phoneInstalled(deps.root, appKey)) {
+      return text(`The phone app is already there: edit ${where}/App.tsx.\n${steps}`, 'The phone app is there');
+    }
+    if (!isPhoneApproved(deps.root, appKey)) {
+      const yes = 'Add the phone app';
+      const answer = await ctx.ask({
+        type: 'question',
+        question: 'Add a phone app? It installs Expo’s packages (about 350 MB, about a minute) and builds with Expo on this computer.',
+        choices: [yes, 'Not now'],
+      });
+      if (answer.type !== 'question' || answer.text !== yes) {
+        return refused('The person said no to a phone app for now. Do not ask again in this turn: build the rest, and say that the phone app was left out.', 'No phone app');
+      }
+    }
+    let written: string[] = [];
+    try {
+      jail.resolve(`${where}/App.tsx`, 'write');
+      let name = nameFromKey(appKey);
+      try {
+        const app = JSON.parse(readFileSync(jail.resolve(`apps/${appKey}/manifest/app.json`, 'read'), 'utf8')) as { name?: unknown };
+        if (typeof app.name === 'string' && app.name.trim() !== '') name = app.name;
+      } catch {
+        // The key's words will do.
+      }
+      written = addPhoneSide({ root: deps.root, key: appKey, name, version: deps.version });
+      const shape = phoneShapeProblems(deps.root, appKey);
+      if (shape.length > 0) return refused(`The phone app's folder cannot be built as it is:\n${shape.map((problem) => `${problem.file} ${problem.message}`).join('\n')}`, 'Added no phone app');
+      approvePhone(deps.root, appKey);
+    } catch (error) {
+      if (error instanceof JailError || error instanceof Error) return refused(error.message, 'Could not add the phone app');
+      throw error;
+    }
+    const installed = await installPhone(deps.root, appKey, { signal: ctx.signal });
+    if (!installed.ok) {
+      return refused(`${installed.words}\nThe phone app's files are written. Tell the person its packages could not be installed (this needs the network), and that the Phone tab has a button to try again. Build the rest of the app.`, 'The phone app’s packages were not installed');
+    }
+    return text(
+      `${written.length === 0 ? 'The phone app was there; its packages are installed now.' : `Written:\n${written.map((file) => `- ${file}`).join('\n')}\nThe side is declared in app.json.`}\n\n${steps}`,
+      'Added the phone app',
+    );
+  }
+
+  /**
    * An app with a build of its own (a copy of a published app): the files that decide what its approved build
    * RUNS are a person's to change. A model that could edit them would have a shell again.
    */
@@ -439,6 +495,9 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
     if (inside === null) return null;
     // A build of its own is a person's to give an app: no app gets one from a model.
     if (inside === 'build.json') return refused('build.json names a command this machine runs, and only a person writes it. Build the screens in src/<side>/ as the skill says.', 'Not yours to change');
+    // A phone side: what Expo's build runs is a person's, and the engine's own files stay the engine's.
+    const phone = phoneFileRefusal(deps.root, appKey, inside);
+    if (phone !== null) return refused(phone, 'Not yours to change');
     if (!hasOwnBuild(deps.root, appKey)) return null;
     return isBuildFile(inside)
       ? refused(`${inside} decides what this app's build runs, and the person approved that build as it is. It is theirs to change. Do what was asked in the app's manifest and its src/.`, 'Not yours to change')
@@ -854,7 +913,7 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
     },
     {
       name: 'build_sides',
-      description: 'Build the app’s screens (its staff and customer sides). Gives the first errors when they do not build.',
+      description: 'Build the app’s screens (its staff and customer sides, and its phone app). Gives the first errors when they do not build.',
       inputSchema: { type: 'object', properties: {}, additionalProperties: false },
       running: () => 'Building the screens',
       run: async (_input, ctx) => {
@@ -868,8 +927,13 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
           return { content: problems.slice(0, 20).join('\n'), label: 'Screens did not build', isError: true, detail: problems.slice(0, 3).join('\n') };
         }
         const sides = app?.sides ?? [];
-        return text(sides.length === 0 ? 'The app has no screens of its own; nothing to build.' : `Built: ${sides.join(', ')}.`, sides.length === 0 ? 'No screens to build' : `Built ${sides.join(' and ')}`, {
-          facts: { count: sides.length },
+        // The phone app is built with the rest. Code of yours that does not build is an error to fix; the rest is said, and stops nothing.
+        const phone = app?.phone;
+        if (phone?.state === 'failed') return { content: phone.words, label: 'The phone app did not build', isError: true, detail: phone.words.split('\n').slice(0, 3).join('\n') };
+        const phoneLine = phone === undefined ? '' : phone.state === 'built' ? ' The phone app is built.' : ` The phone app was not built: ${phone.state === 'none' ? '' : phone.words}`;
+        const made = [...sides, ...(phone?.state === 'built' ? ['the phone app'] : [])];
+        return text(made.length === 0 ? `The app has no screens of its own; nothing to build.${phoneLine}` : `Built: ${sides.join(', ')}.${phoneLine}`, made.length === 0 ? 'No screens to build' : `Built ${made.join(' and ')}`, {
+          facts: { count: made.length },
         });
       },
     },
@@ -1029,12 +1093,16 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
     {
       name: 'add_side',
       description:
-        'Give the app screens of its own for one side: "staff" (people who sign in) or "customer" (public, nobody signed in). Writes a working starter screen (src/main.tsx, src/App.tsx, and its look: src/app.css, src/theme.css) and declares the side in app.json. The first time, the person is asked how it should look unless they already said. The starter screen lists and adds rows of tables named "items" and "requests": rewrite src/App.tsx for this app’s own tables, keeping the way it loads, lists, sends and reports errors. A customer screen reaches only what manifest/access.json grants: write that file too.',
-      inputSchema: { type: 'object', properties: { side: { type: 'string', enum: ['staff', 'customer'] } }, required: ['side'], additionalProperties: false },
-      running: (input) => `Adding the ${String(input['side'] ?? '')} side`,
+        'Give the app screens of its own for one side: "staff" (people who sign in), "customer" (public, nobody signed in) or "mobile" (a phone app for customers, written with React Native: read adminium-mobile/SKILL.md first; the person is asked once, because it installs Expo). Writes a working starter screen (src/main.tsx, src/App.tsx, and its look: src/app.css, src/theme.css) and declares the side in app.json. The first time, the person is asked how it should look unless they already said. The starter screen lists and adds rows of tables named "items" and "requests": rewrite src/App.tsx for this app’s own tables, keeping the way it loads, lists, sends and reports errors. A customer screen reaches only what manifest/access.json grants: write that file too.',
+      inputSchema: { type: 'object', properties: { side: { type: 'string', enum: ['staff', 'customer', 'mobile'] } }, required: ['side'], additionalProperties: false },
+      running: (input) => (input['side'] === 'mobile' ? 'Adding the phone app (Expo’s packages are about 350 MB)' : `Adding the ${String(input['side'] ?? '')} side`),
       run: async (input, ctx) => {
         const side = str(input, 'side');
-        if (side !== 'staff' && side !== 'customer') return refused('Give "side": "staff" or "customer".', 'Added no side');
+        if (side === PHONE_SIDE) {
+          const nameless = unnamed(ctx);
+          return nameless ?? (await addPhone(ctx));
+        }
+        if (side !== 'staff' && side !== 'customer') return refused('Give "side": "staff", "customer" or "mobile".', 'Added no side');
         const nameless = unnamed(ctx);
         if (nameless !== null) return nameless;
         if (hasOwnBuild(deps.root, appKey)) return refused(`This app keeps its screens in apps/${appKey}/src/ and builds them itself: edit them there.`, 'Added no side');

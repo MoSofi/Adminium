@@ -8,7 +8,7 @@
  */
 import { z } from 'zod';
 
-const target = z.enum(['auto', 'dashboard', 'web']);
+const target = z.enum(['auto', 'dashboard', 'web', 'mobile']);
 
 export const designerSession = z.object({
   id: z.string(),
@@ -200,7 +200,7 @@ const designerFilePath = z.string().min(1).max(300);
 export const designerFilesReply = z.object({
   groups: z.array(
     z.object({
-      key: z.enum(['customer', 'staff', 'dashboard', 'settings']),
+      key: z.enum(['customer', 'staff', 'mobile', 'dashboard', 'settings']),
       files: z.array(z.object({ path: z.string(), label: z.string(), hash: designerFileHash, size: z.number().int(), note: z.enum(['brief']).optional() })),
     }),
   ),

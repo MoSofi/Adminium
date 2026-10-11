@@ -19,12 +19,13 @@
  * end, nothing a sentence could hide in.
  */
 import { webcrypto } from 'node:crypto';
-import { lstatSync, readdirSync } from 'node:fs';
+import { existsSync, lstatSync, readdirSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { isDeepStrictEqual } from 'node:util';
 
 import { hasOwnBuild } from '../project/apps/own-build.js';
+import { PHONE_SIDE } from '../project/apps/phone.js';
 import { APPS_DIR, MANIFEST_PARTS_DIR } from '../project/apps/read-app.js';
 import { createJail, MAX_WRITE_BYTES, type Jail } from './jail.js';
 import { noCardRefusal } from './write-guard.js';
@@ -37,8 +38,8 @@ export const FILES_SAVED_MAX = 40;
 /** A save's whole body: forty files of a few dozen kilobytes each, and room to spare. */
 export const FILES_SAVE_BODY_BYTES = 3 * 1024 * 1024;
 
-export type FileGroupKey = 'customer' | 'staff' | 'dashboard' | 'settings';
-const GROUP_ORDER: readonly FileGroupKey[] = ['customer', 'staff', 'dashboard', 'settings'];
+export type FileGroupKey = 'customer' | 'staff' | 'mobile' | 'dashboard' | 'settings';
+const GROUP_ORDER: readonly FileGroupKey[] = ['customer', 'staff', 'mobile', 'dashboard', 'settings'];
 
 export interface EditableFile {
   /** Project-relative, as the jail spells it. */
@@ -142,6 +143,9 @@ function candidates(root: string, appKey: string, opts: { look: boolean }): Cand
     if (side === 'staff') fixed.push({ path: `${app}/staff/nav.json`, label: 'staff/nav.json', group: 'staff' });
     for (const inside of sourcesUnder(join(dir, side, 'src'))) sides.push({ path: `${app}/${side}/src/${inside}`, label: `${side}/${inside}`, group: side });
   }
+  // The phone app: its first screen, and what is beside it. The files that are Adminium's are not offered (the write guard takes them out).
+  if (existsSync(join(dir, PHONE_SIDE, 'App.tsx'))) sides.push({ path: `${app}/${PHONE_SIDE}/App.tsx`, label: `${PHONE_SIDE}/App.tsx`, group: 'mobile' });
+  for (const inside of sourcesUnder(join(dir, PHONE_SIDE, 'src'))) sides.push({ path: `${app}/${PHONE_SIDE}/src/${inside}`, label: `${PHONE_SIDE}/${inside}`, group: 'mobile' });
   sides.sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
   return [...fixed, ...sides];
 }
