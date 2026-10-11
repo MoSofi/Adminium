@@ -105,7 +105,7 @@ export const MENTIONS_SCREENS = /\b(screens?|public (page|site|form)|customers? 
 export const MENTIONS_PHONE_APP = /\b(phone app|mobile app|i(os|phone) app|android app|app for (their |my |the )?(phones?|i ?phones?|android)|native app|expo go|expo app|(with|using|in|on) expo|react native)\b/i;
 
 /** Words that say a page in a browser is wanted, whatever else is. */
-const MENTIONS_WEB = /\b(web ?site|web ?page|web app|landing page|home ?page|public (page|site|form)|a site for|storefront|booking page|order online|portal|kiosk|browser|staff (screen|side))\b/i;
+export const MENTIONS_WEB = /\b(web ?site|web ?page|web app|landing page|home ?page|public (page|site|form)|a site for|storefront|booking page|order online|portal|kiosk|browser|staff (screen|side))\b/i;
 
 /**
  * Whether the words ask for a phone app and for no page in a browser. A phone app is asked for in words a

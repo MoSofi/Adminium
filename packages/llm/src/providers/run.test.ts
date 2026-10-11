@@ -891,6 +891,10 @@ describe('OpenAI refusing tools from a model that reasons (seen on gpt-6-luna)',
   it('is said as it is when the second request is refused too, and for a request with no tools', async () => {
     serve(refusal(), refusal());
     await expect(OPENAI().run(request({ tools }))).rejects.toMatchObject({ status: 400 });
+    // A model that took neither is not remembered as one that takes the second: it is asked the plain way again.
+    const next = serve(refusal(), refusal());
+    await expect(OPENAI().run(request({ tools }))).rejects.toMatchObject({ status: 400 });
+    expect(next[0]?.json).not.toHaveProperty('reasoning_effort');
     const sent = serve(refusal());
     await expect(OPENAI().run(request({ tools: [] }))).rejects.toMatchObject({ status: 400 });
     expect(sent).toHaveLength(1);

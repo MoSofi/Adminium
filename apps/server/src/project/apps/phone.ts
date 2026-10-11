@@ -102,6 +102,8 @@ export function phoneShapeProblems(root: string, key: string): PhoneProblem[] {
   const dir = phoneDir(root, key);
   const problems: PhoneProblem[] = [];
   if (!existsSync(dir)) return problems;
+  // The folder itself is the app's own: a link to another place is somebody else's project.
+  if (lstatSync(dir).isSymbolicLink()) return [{ file: where(key, ''), message: 'is a link. A phone side is a folder of the app’s own.' }];
 
   // Metro looks for its configuration upward: the app's own folder counts.
   for (const name of readdirSync(appDir(root, key))) {
@@ -245,7 +247,7 @@ export const isPhoneApproved = (root: string, key: string): boolean => approvals
 export function approvePhone(root: string, key: string, opts: { afterInstall?: boolean } = {}): void {
   // A yes given now is to packages fetched now. Packages that were already in the folder when it was asked
   // (they came with it) are nobody's approved install: they go, and the install fetches them from the registry.
-  if (opts.afterInstall !== true && !isPhoneApproved(root, key)) rmSync(join(phoneDir(root, key), 'node_modules'), { recursive: true, force: true });
+  if (opts.afterInstall !== true && !isPhoneApproved(root, key) && existsSync(phoneDir(root, key)) && !lstatSync(phoneDir(root, key)).isSymbolicLink()) rmSync(join(phoneDir(root, key), 'node_modules'), { recursive: true, force: true });
   const file = approvalsFile(root);
   mkdirSync(dirname(file), { recursive: true });
   writeFileSync(file, `${JSON.stringify({ ...approvals(root), [approvalName(key)]: phoneFingerprint(root, key) }, null, 2)}\n`, { mode: 0o600 });

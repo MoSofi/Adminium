@@ -168,7 +168,8 @@ export function doorQr(text: string): string {
 /** A path as asked, or null for one that tries to be read two ways. */
 export function doorPath(url: string | undefined): { pathname: string; search: string } | null {
   const raw = url ?? '/';
-  if (!raw.startsWith('/') || raw.startsWith('//') || /[\\\0\s]/.test(raw)) return null;
+  // (No `#` either: a bundler that reads the address as a URL would drop what follows it, and read less than was checked.)
+  if (!raw.startsWith('/') || raw.startsWith('//') || /[\\\0\s#]/.test(raw)) return null;
   const mark = raw.indexOf('?');
   const pathname = mark === -1 ? raw : raw.slice(0, mark);
   const search = mark === -1 ? '' : raw.slice(mark);
@@ -209,7 +210,8 @@ export function doorRoute(method: string, pathname: string, search: string): 'ma
  * packages, named plainly. No step up, no dot file, nothing left to decode.
  */
 export function doorAssetPath(value: string): boolean {
-  if (value.length > 400 || /[\\%]/.test(value) || [...value].some((letter) => letter.charCodeAt(0) < 0x20)) return false;
+  // (Metro cuts the path at its first `?` and reads what is before it: no `?` and no `#`, so the name checked is the name read.)
+  if (value.length > 400 || /[\\%?#]/.test(value) || [...value].some((letter) => letter.charCodeAt(0) < 0x20)) return false;
   if (!/^\.\/(assets|node_modules)\//.test(value)) return false;
   const parts = value.slice(2).split('/');
   if (parts.some((part) => part === '' || part.startsWith('.'))) return false;

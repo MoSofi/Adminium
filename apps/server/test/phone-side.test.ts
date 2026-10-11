@@ -329,6 +329,18 @@ describe('a person’s approval of a phone side', () => {
     rmSync(elsewhere, { recursive: true, force: true });
   });
 
+  it('a phone folder that is a link to another place is refused, and a yes deletes nothing there', () => {
+    const elsewhere = tempProject('adminium-phone-linked-');
+    mkdirSync(join(elsewhere, 'node_modules/expo'), { recursive: true });
+    writeFileSync(join(elsewhere, 'App.tsx'), 'export function App() { return null; }\n');
+    rmSync(mobile(), { recursive: true, force: true });
+    symlinkSync(elsewhere, mobile());
+    expect(problems()).toEqual([expect.stringContaining('is a link. A phone side is a folder of the app’s own.')]);
+    approvePhone(root, 'shop');
+    expect(existsSync(join(elsewhere, 'node_modules/expo'))).toBe(true);
+    rmSync(elsewhere, { recursive: true, force: true });
+  });
+
   it('keeps the approvals already in the file', () => {
     mkdirSync(join(root, '.adminium'), { recursive: true });
     writeFileSync(join(root, '.adminium/approved-builds.json'), JSON.stringify({ other: 'abc' }));

@@ -253,8 +253,10 @@ function createRunner(shape: RunnerShape): ProviderRunner {
         return await runOnce(shape, req, true, req.tools.length > 0 && noReasoning.has(known(req.model)));
       } catch (error) {
         if (shape.official && req.tools.length > 0 && !noReasoning.has(known(req.model)) && refusedToolsWithReasoning(error)) {
+          // Remembered once it worked: a model that takes neither is asked the plain way again next time, and says so again.
+          const result = await runOnce(shape, req, true, true);
           noReasoning.add(known(req.model));
-          return runOnce(shape, req, true, true);
+          return result;
         }
         // A server that does not know `stream_options` and says so is asked again without it.
         if (

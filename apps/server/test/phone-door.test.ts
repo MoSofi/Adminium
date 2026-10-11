@@ -70,7 +70,7 @@ describe('a path asked of the door', () => {
     expect(doorPath('/assets/img/logo.png')).toEqual({ pathname: '/assets/img/logo.png', search: '' });
   });
 
-  it.each(['//evil.example/x', 'http://evil.example/', 'index.ts.bundle', '/a\\b', '\\\\host\\x', '/a b', '/a\tb', '/a\0b', '/assets/%2e%2e/x', '/assets/..%2fpackage.json', '/%2f', '/a%5cb', '/assets/../package.json', '/..', '/../x', '/assets/x/..'])(
+  it.each(['/assets/?unstable_path=./assets/s.yml#/x.png', '/#', '//evil.example/x', 'http://evil.example/', 'index.ts.bundle', '/a\\b', '\\\\host\\x', '/a b', '/a\tb', '/a\0b', '/assets/%2e%2e/x', '/assets/..%2fpackage.json', '/%2f', '/a%5cb', '/assets/../package.json', '/..', '/../x', '/assets/x/..'])(
     'refuses %j: a path that could be read two ways',
     (url) => {
       expect(doorPath(url)).toBeNull();
@@ -83,7 +83,7 @@ describe('an asset asked for by its path', () => {
     expect(doorAssetPath(value)).toBe(true);
   });
 
-  it.each(['assets/logo.png', '/assets/logo.png', './src/x.png', './assets/../x.png', './assets//x.png', './assets/.x.png', './assets/x.png/', './assets/x.js', './assets/x', './assets/x.png%00', './assets/%2e%2e/x.png', './assets\\x.png', './node_modules/.bin/x.png', `./assets/${'a'.repeat(400)}.png`, ''])('%j is not', (value) => {
+  it.each(['assets/logo.png', '/assets/logo.png', './src/x.png', './assets/../x.png', './assets//x.png', './assets/.x.png', './assets/x.png/', './assets/x.js', './assets/x', './assets/x.png%00', './assets/data.yaml?.png', './assets/a.db?x/y.png', './assets/s.yml#/x.png', './assets/%2e%2e/x.png', './assets\\x.png', './node_modules/.bin/x.png', `./assets/${'a'.repeat(400)}.png`, ''])('%j is not', (value) => {
     expect(doorAssetPath(value)).toBe(false);
   });
 });
@@ -109,6 +109,10 @@ describe('what the door passes of a phone’s request', () => {
     ['GET', '/assets/x.png', '?platform=ios&unstable_path=.%2Fsecret'],
     ['GET', '/assets/x.png', '?UNSTABLE_PATH=x'],
     ['GET', '/assets/', '?unstable_path=.%2Fpackage.json'],
+    // Metro reads what is before a `?` in the path: the name checked must be the name read.
+    ['GET', '/assets/', '?unstable_path=.%2Fassets%2Fdata.yaml%3F.png'],
+    ['GET', '/assets/', '?unstable_path=.%2Fassets%2Fa.db%3Fx%2Fy.png'],
+    ['GET', '/assets/', '?unstable_path=.%2Fassets%2Fsecret.yml%23%2Fx.png'],
     ['GET', '/assets/', '?unstable_path=.%2Fsrc%2Fadminium.ts'],
     ['GET', '/assets/', '?unstable_path=.%2Fassets%2F..%2Fpackage.json'],
     ['GET', '/assets/', '?unstable_path=.%2Fassets%2F..%2F..%2F..%2F.env'],
