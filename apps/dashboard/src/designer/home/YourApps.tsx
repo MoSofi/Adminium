@@ -13,7 +13,7 @@ import { ArrowRight, Boxes, MessageSquarePlus } from 'lucide-react';
 import { ApiError } from '../../app/api.js';
 import { getI18nInstance, t } from '../../i18n/t.js';
 import { useAppToasts } from '../../pages/toasts.js';
-import { designerApi, type YourApp } from '../api.js';
+import { designerApi, type DesignerTarget, type YourApp } from '../api.js';
 import type { PickedModel } from '../models/useModel.js';
 
 const STEPS: { limit: number; divisor: number; unit: Intl.RelativeTimeFormatUnit }[] = [
@@ -35,7 +35,7 @@ export function editedWhen(at: number, now = Date.now(), locale = getI18nInstanc
   return format.format(Math.round(delta / (365 * 86_400_000)), 'year');
 }
 
-export function YourApps({ apps, model, target }: { apps: YourApp[]; model: PickedModel | null; target: 'auto' | 'dashboard' | 'web' }): ReactNode {
+export function YourApps({ apps, model, target }: { apps: YourApp[]; model: PickedModel | null; target: DesignerTarget }): ReactNode {
   const navigate = useNavigate();
   const toasts = useAppToasts();
   const open = useMutation({

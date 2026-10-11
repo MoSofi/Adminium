@@ -123,6 +123,12 @@ describe('deriveScopeDocument', () => {
     expect(deriveScopeDocument({ kind: 'server', access: { pep_p: ['GET'] } }, eps, view).document.side).toBe('staff');
   });
 
+  it('an app key (a phone app’s) is customer-side, and is refused a service-role endpoint as a browser key is', () => {
+    expect(deriveScopeDocument({ kind: 'app', access: { pep_p: ['GET'] } }, eps, view).document.side).toBe('customer');
+    const staff = map({ id: 'pep_o', ref: 'orders', definition: orders({ auth: { role: 'service_role' } }) });
+    expect(deriveScopeDocument({ kind: 'app', access: { pep_o: ['GET'] } }, staff, view).issues.map((issue) => issue.code)).toContain('KEY_SERVICE_ROLE_BROWSER');
+  });
+
   it('one key, several endpoints, different methods on each — sorted by ref', () => {
     const { document, issues, suspended } = deriveScopeDocument(
       { kind: 'browser', access: { pep_p: ['GET'], pep_o: ['GET', 'PATCH'] } },

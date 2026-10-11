@@ -24,7 +24,7 @@
  * stop the key working — the public API off, no `self` in the origin list,
  * a database with no time zone — before anything is written.
  */
-import { ownLinksOfPerson, type Manifest } from '@adminium/manifest';
+import { hasPhoneSide, ownLinksOfPerson, type Manifest } from '@adminium/manifest';
 import {
   CUSTOMER_KEY_PURPOSE,
   connectionTenantConfig,
@@ -46,7 +46,7 @@ import type { SnapshotView } from '../crud/identifiers.js';
 import { copyPlainText } from '../public-api/anonymous-caps.js';
 import { endpointIssues, type PublicEndpointDefinition, type PublicMethod } from '../public-api/endpoint.js';
 import { EndpointSaveRefused, KeyCreateRefused, type EndpointService } from '../public-api/endpoint-service.js';
-import { generatePublishableKey, sealPublishableKey } from '../public-api/keys.js';
+import { generatePublishableKey, isPhoneAppKey, managedKeyKind, sealPublishableKey } from '../public-api/keys.js';
 import { managedGrantIssues } from '../public-api/managed-key.js';
 import { guestBase } from '../public-api/guest-base.js';
 import { addAndReadRefusal, anonymousAddAndRead } from './anonymous-access.js';
@@ -747,6 +747,13 @@ export async function installPublicAccess(input: {
   onCommitted?: ((change: PublicAccessCommit) => Promise<void>) | undefined;
   /** For an app: the add-ons that are here for it, whose entries its key may hold too. */
   addOns?: readonly AddOnEntries[] | undefined;
+  /**
+   * The phone app's key, for an app with a phone side: whether one is live
+   * (it is then among `liveKeys`' `customer` keys and settled with them),
+   * whether the operator took one back, and the live customer key whose
+   * access a new one is made with.
+   */
+  phone?: { live: boolean; withheld: boolean; customerKeyId: string | null } | undefined;
 }): Promise<{
   endpoints: string[];
   keyId: string | null;
@@ -928,6 +935,42 @@ export async function installPublicAccess(input: {
       }
     }
   }
+  /*
+   * The phone app's key: a key of its own kind with the customer key's
+   * access, made once, when the app has a phone side and a customer key.
+   * It is never made alone (no customer key, no phone key), never again
+   * after the operator took it back, and only when the operator allowed
+   * what the version adds.
+   */
+  const phoneFrom = keys[CUSTOMER_KEY_PURPOSE] ?? input.phone?.customerKeyId ?? null;
+  if (hasPhoneSide(manifest) && input.phone !== undefined && !input.phone.live && !input.phone.withheld && grant && phoneFrom !== null) {
+    const held = await input.service.heldByKey(input.connectionId, phoneFrom);
+    const access = [...held].filter(([, methods]) => methods.length > 0).map(([ref, methods]) => ({ ref, methods: [...methods] as PublicMethod[] }));
+    if (access.length > 0) {
+      const generated = generatePublishableKey('app');
+      try {
+        const made = await input.service.createKey({
+          connectionId: input.connectionId,
+          name: `${input.appName} · phone app`,
+          access,
+          secret: { prefix: generated.prefix, tokenHash: generated.tokenHash, tokenEncrypted: sealPublishableKey(input.crypto, generated.token) },
+          appKey: manifest.key,
+          origins: [],
+          kind: 'app',
+          actorId: input.actorId,
+          managedBy: manifest.key,
+          purpose: CUSTOMER_KEY_PURPOSE,
+        });
+        const peak = manifest.kind === 'app' ? manifest.publicKeys?.[CUSTOMER_KEY_PURPOSE]?.peak : undefined;
+        if (peak !== undefined) await publicKeysRepo(input.meta).setPeak(made.key.id, peak);
+        await input.onCommitted?.({ kind: 'key', purpose: CUSTOMER_KEY_PURPOSE, keyId: made.key.id, access: access.map((entry) => entry.ref) });
+      } catch (error) {
+        // The customer key stands; the phone app has no key, and the reply says why.
+        if (!(error instanceof KeyCreateRefused)) throw error;
+        skipped.push({ ref: 'phone app key', reason: error.issues.map((issue) => issue.message).join('; ') });
+      }
+    }
+  }
   const granted: Record<string, string[]> = {};
   for (const { purpose, gained } of changedKeys) {
     if (gained.length > 0) granted[purpose] = [...new Set([...(granted[purpose] ?? []), ...gained])].sort();
@@ -994,6 +1037,13 @@ export async function takeBackPublicAccess(input: {
   const staffed = (purpose: string) => manifest.kind === 'app' && manifest.publicKeys?.[purpose]?.requiresStaff !== undefined;
   for (const key of live) {
     const purpose = key.purpose;
+    // The phone app's key goes with the phone side. Ended, not revoked: a later version that has the side again gets one.
+    if (isPhoneAppKey(managedKeyKind(key.kind)) && !hasPhoneSide(manifest)) {
+      await keysRepo.expire(key.id);
+      await publicApiStateRepo(input.meta).bump();
+      await input.onCommitted({ kind: 'revoke', keyId: key.id, purpose });
+      continue;
+    }
     // An add-on has no `customer` key: a key of its own is its link's, or it goes.
     if ((purpose !== CUSTOMER_KEY_PURPOSE || manifest.kind !== 'app') && !staffed(purpose) && !opensByToken(manifest, purpose)) {
       await keysRepo.revoke(key.id);

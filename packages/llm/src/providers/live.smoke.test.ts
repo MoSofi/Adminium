@@ -41,14 +41,14 @@ if (env['ADMINIUM_AI_ANTHROPIC_API_KEY']) {
   targets.push({
     name: 'anthropic',
     config: { provider: 'anthropic', apiKey: env['ADMINIUM_AI_ANTHROPIC_API_KEY'] },
-    model: env['ADMINIUM_LIVE_ANTHROPIC_MODEL'] ?? 'claude-haiku-4-5-20251001',
+    model: env['ADMINIUM_LIVE_ANTHROPIC_MODEL'] ?? 'claude-haiku-5-5',
   });
 }
 if (env['ADMINIUM_AI_OPENAI_API_KEY']) {
   targets.push({
     name: 'openai',
     config: { provider: 'openai', apiKey: env['ADMINIUM_AI_OPENAI_API_KEY'] },
-    model: env['ADMINIUM_LIVE_OPENAI_MODEL'] ?? 'gpt-4o-mini',
+    model: env['ADMINIUM_LIVE_OPENAI_MODEL'] ?? 'gpt-6-luna',
   });
 }
 if (env['ADMINIUM_AI_COMPATIBLE_BASE_URL'] && env['ADMINIUM_LIVE_COMPATIBLE_MODEL']) {
@@ -73,8 +73,14 @@ if (env['ADMINIUM_AI_OLLAMA_BASE_URL'] && env['ADMINIUM_LIVE_OLLAMA_MODEL']) {
 /** Ids that name a message, a request, an organisation or a user, as a placeholder of the same shape. */
 function scrubIds(text: string): string {
   const calls = new Map<string, string>();
+  const tools = new Map<string, string>();
   return text
-    .replace(/\b(msg|req|toolu|srvtoolu)_[A-Za-z0-9]{6,}/g, (_all, prefix: string) => `${prefix}_${'0'.repeat(22)}`)
+    .replace(/\b(msg|req)_[A-Za-z0-9]{6,}/g, (_all, prefix: string) => `${prefix}_${'0'.repeat(22)}`)
+    // Two calls in one reply keep two ids: each is numbered in the order it was first seen.
+    .replace(/\b(toolu|srvtoolu)_[A-Za-z0-9]{6,}/g, (id, prefix: string) => {
+      if (!tools.has(id)) tools.set(id, `${prefix}_${String(tools.size + 1).padStart(22, '0')}`);
+      return tools.get(id) as string;
+    })
     .replace(/\bchatcmpl-[A-Za-z0-9]{6,}/g, `chatcmpl-${'0'.repeat(29)}`)
     .replace(/\bcall_[A-Za-z0-9]{6,}/g, (id) => {
       // Two calls in one reply stay two ids.

@@ -31,9 +31,30 @@ names and is never sent back to the browser.
 A larger model builds better. A small local model can call tools and still lose its way in an app
 with several tables and screens: it takes more steps, and it may need a "Keep going".
 
+### Models tried
+
+These were run through the Designer by the Adminium project, each on three requests (a
+dashboard-only app, an app with a customer page and a staff screen, an app built on the Invoices &
+Receipts add-on) and then one change to each. A model that is not listed was not tried: it may
+work as well.
+
+| Provider | Model | Tried | Result |
+| --- | --- | --- | --- |
+| Anthropic | `claude-haiku-5-5` | 2026-10-11 | All three apps built, checked and applied, and all three changes. The dashboard-only app took under a minute; the app with screens about six minutes. |
+| OpenAI | `gpt-6-luna` | 2026-10-11 | All three apps built, checked and applied, and all three changes. The dashboard-only app took under a minute; the app with screens about four minutes. |
+
+Both are the smallest current model of their provider. The larger ones of the same families
+(Claude Sonnet 5.5, GPT-6.1 Sol and above) were not tried.
+
+With an OpenAI model that reasons, the Designer switches the model's reasoning off: OpenAI's
+Chat Completions address, which the Designer speaks, takes tools from such a model only that way.
+Nothing needs setting for it.
+
 ## Build
 
-Describe the app and send. The Designer works in steps you can open and read: it reads the
+Describe the app and send. The menu beside the box says what to build: **Auto** (the Designer
+decides), **Dashboard only**, **Web** (a staff or customer side) or **Mobile** (a
+[phone app](/guides/apps/phone-app/) for customers). The Designer works in steps you can open and read: it reads the
 reference it needs, writes the files, runs the check, and applies the app. A turn ends with a few
 sentences on what was built, and the result is saved as a version (`v1`, `v2`, â€¦).
 
@@ -43,6 +64,7 @@ sentences on what was built, and the result is saved as a version (`v1`, `v2`, â
 | A change would remove data | A card names the table or column and how many rows hold data. Nothing is removed until you accept |
 | It needs something from outside the project | One card lists all of it, each with a checkbox: packages, fonts, a site to show pictures from. Nothing is added until you press **Send** |
 | It found pictures | A card shows them. The ones you tick are copied into the app |
+| It wants to add a phone app | The turn waits on a question: a phone app installs Expo's packages (about 350 MB) and builds with Expo on this computer. Nothing is installed until you say yes |
 | You press **Stop** | The turn ends within a second. What it wrote stays in the folder; **Put the files back** returns to the last version |
 | It reaches a limit | The turn ends and says which limit. **Keep going** starts the next turn where it stopped |
 
@@ -350,6 +372,12 @@ open tab needs.
   there. A reload, a build and a change of side come back to the page you were on. An app whose
   screens have no addresses of their own yet shows `/` and cannot be sent anywhere: ask the
   Designer to give each page its own address.
+- **Phone app**, when the app has one, shows the app's [phone app](/guides/apps/phone-app/) in a
+  phone's frame: the same code, drawn by the browser. It has no size switch and no address bar
+  (a phone app has neither), and the Designer does not look at it. While there is nothing to show
+  it says why, with a button: **Add the phone app**, **Get its packages**, **Try again**. Under
+  the frame, **Open on a phone** shows a code that a phone with Expo Go, on the same network,
+  scans to run the real app.
 - The preview is kept while another tab shows, so coming back to it does not load it again.
 - **Architecture** draws what the server applied: who uses the app, what they use, the tables and
   how they link, the emails and add-ons. Anything written to the folder and not applied yet is

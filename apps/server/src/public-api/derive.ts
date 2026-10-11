@@ -41,7 +41,9 @@ import {
 
 /* -------------------------------------------------------------- derivation */
 
-export type PublicKeyKind = 'browser' | 'server';
+import { hasVisitorReach, type PublicKeyKind } from './keys.js';
+
+export type { PublicKeyKind } from './keys.js';
 
 /** A key's grant: `{ endpointId: methods }`. */
 export type AccessMap = Readonly<Record<string, readonly PublicMethod[]>>;
@@ -135,7 +137,7 @@ export function deriveScopeDocument(
       continue;
     }
 
-    if (endpoint.definition.auth.role === 'service_role' && key.kind === 'browser') {
+    if (endpoint.definition.auth.role === 'service_role' && hasVisitorReach(key.kind)) {
       issues.push({
         code: 'KEY_SERVICE_ROLE_BROWSER',
         message: `"${endpoint.ref}" is a service-role endpoint, which only a server key may be granted`,
@@ -172,7 +174,7 @@ export function deriveScopeDocument(
 
   const document: PublicScopeDocument = {
     version: 1,
-    side: key.kind === 'server' ? 'staff' : 'customer',
+    side: hasVisitorReach(key.kind) ? 'customer' : 'staff',
     resources: resources.sort((a, b) => (a.ref < b.ref ? -1 : a.ref > b.ref ? 1 : 0)),
   };
 

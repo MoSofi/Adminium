@@ -50,7 +50,9 @@ export default {
     "dashboard": "仅仪表板",
     "dashboardLine": "数据表和管理页面",
     "web": "网页",
-    "webLine": "员工端或客户端"
+    "webLine": "员工端或客户端",
+    "mobile": "移动端",
+    "mobileLine": "手机应用"
   },
   "examples": {
     "label": "示例",
@@ -460,7 +462,12 @@ export default {
     "pages": "此端的页面",
     "pagesOpened": "您打开过的页面",
     "addressEnter": "按 {key} 前往您输入的地址。",
-    "addressQuiet": "此应用的页面还没有地址。请让 Designer 为每个页面设置自己的地址。"
+    "addressQuiet": "此应用的页面还没有地址。请让 Designer 为每个页面设置自己的地址。",
+    "mobile": "手机应用",
+    "buildingMobile": "正在构建手机应用…",
+    "failedMobile": "手机应用未能构建。",
+    "crashedMobile": "手机应用因错误而停止。",
+    "wentOnMobile": "手机应用出错后继续运行，其中一部分可能是空的。"
   },
   "arch": {
     "access": "客户访问",
@@ -743,7 +750,8 @@ export default {
     "leaveGo": "离开",
     "composerUnsaved": "你在 {count, plural, other {# 个文件}}中有未保存的更改。Designer 不会看到它们。",
     "saveFirst": "先保存",
-    "sendAnyway": "仍然发送"
+    "sendAnyway": "仍然发送",
+    "groupMobile": "手机应用"
   },
   "chat": {
     "copy": "复制这条消息",
@@ -820,5 +828,45 @@ export default {
     "go": "导出…",
     "saved": "已保存 {file}，{size} MB",
     "failed": "无法生成导出文件"
+  },
+  "phone": {
+    "adding": "正在添加手机应用…",
+    "installing": "正在安装 Expo 的软件包（约 350 MB）…",
+    "building": "正在构建手机应用…",
+    "addTitle": "要添加手机应用吗？",
+    "approveTitle": "此应用带有手机应用。要在这台电脑上构建它吗？",
+    "packages": "它需要这些软件包：",
+    "packagesTitle": "手机应用的软件包尚未安装。",
+    "shapeTitle": "手机应用的文件夹按现状无法构建。",
+    "failedTitle": "手机应用未能构建。",
+    "addLine": "这会安装 Expo 的软件包（约 350 MB，约一分钟），并在这台电脑上用 Expo 构建。需要联网。",
+    "add": "添加手机应用",
+    "approve": "在这里构建",
+    "getPackages": "获取软件包",
+    "tryAgain": "重试",
+    "fixMessage": "手机应用未能构建：{error} 请修复。",
+    "waitTurn": "Designer 正在工作。此操作会等它完成。",
+    "doorTitle": "在手机上打开",
+    "code": "用手机扫描的二维码",
+    "stepGo": "在手机上安装 Expo Go。",
+    "stepGoSdk": "在手机上安装 Expo Go（适用于 SDK {sdk} 的版本）。",
+    "stepNetwork": "让手机与这台电脑连接同一个网络。",
+    "stepScan": "用手机相机或在 Expo Go 中扫描二维码。",
+    "copy": "复制地址",
+    "copied": "已复制",
+    "connected": "已有手机连接。",
+    "waiting": "还没有手机连接。",
+    "sdkMismatch": "那部手机上的 Expo Go 适用于 SDK {phone}，而此应用是为 SDK {app} 编写的。请安装适用于 SDK {app} 的 Expo Go。",
+    "doorNote": "在此打开期间，扫描二维码的手机可以打开此应用的手机预览，并访问应用公开的内容，除此之外无法访问这台电脑上的任何东西。只有第一部扫描的手机会被放行。你停止它时它会关闭，半小时没有手机使用也会关闭。如果手机上没有反应，请检查两者是否在同一网络，以及这台电脑的防火墙是否放行。",
+    "starting": "正在启动 Expo 的打包器…",
+    "doorLead": "这里会显示一个二维码。与这台电脑在同一网络、装有 Expo Go 的手机扫描它，就会用这台电脑的数据运行真正的应用。不会向其他任何地方发送内容。",
+    "closedIdle": "半小时没有手机使用，已关闭。",
+    "closedNetwork": "这台电脑的网络变了，二维码已失效。请显示新的二维码。",
+    "noNetwork": "这台电脑不在手机可以访问的任何网络上。请先连接 Wi-Fi。",
+    "address": "这台电脑在手机所在网络上的地址",
+    "stop": "停止",
+    "show": "显示二维码",
+    "open": "在手机上打开",
+    "webNote": "由浏览器绘制：接近手机，但不是手机。Designer 不会查看这一侧。"
   }
 } as const;

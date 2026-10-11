@@ -3000,7 +3000,8 @@ export default {
       "hide": "Skrýt klíč",
       "kind": {
         "browser": "PROHLÍŽEČ",
-        "server": "SERVER"
+        "server": "SERVER",
+        "app": "APLIKACE PRO TELEFON"
       },
       "never": "Nikdy",
       "reveal": "Zobrazit klíč",
@@ -3207,7 +3208,11 @@ export default {
     "crumb": "Aplikace",
     "sampleLedger": "Seznam ukázkových záznamů Adminia",
     "customerApiOff": "Tyto stránky se otevřou, ale nemohou nic číst ani ukládat: veřejné API je vypnuté. Zapněte ho ve Studiu › Klíče API.",
-    "customerNoAccess": "Tyto stránky se otevřou, ale nemohou nic číst ani ukládat: aplikace byla nainstalována bez veřejného přístupu. Aktualizujte ji a přístup povolte."
+    "customerNoAccess": "Tyto stránky se otevřou, ale nemohou nic číst ani ukládat: aplikace byla nainstalována bez veřejného přístupu. Aktualizujte ji a přístup povolte.",
+    "phone": "Aplikace pro telefon",
+    "phoneLine": "Tato aplikace má aplikaci pro telefon určenou zákazníkům. Adminium ji nikomu neposkytuje: běží v telefonu a s vlastním klíčem se dostane k tomu, k čemu smějí hosté. Vypnutím zákaznických obrazovek se zastaví i ona.",
+    "phoneBuild": "Aplikace pro telefon sestavená pro obchod potřebuje od tohoto serveru dvě věci: jeho adresu, jak se na ni telefon dostane, a klíč aplikace „aplikace pro telefon“.",
+    "phoneKeys": "Otevřít klíče API"
   },
   "uninstall": {
     "files": "Soubory aplikace",
@@ -3295,7 +3300,8 @@ export default {
       "noPublicAddress": "Tato aplikace nemá veřejnou adresu, takže nelze poslat přihlašovací odkaz. Přiřaďte doménu její zákaznické části, nebo nastavte veřejnou adresu serveru.",
       "currency": "Tato databáze nemá nastavenou měnu, takže částky aplikace se v přehledu zobrazují v amerických dolarech a v jejích e-mailech bez měny. Nastavte ji ve Studiu › Připojení › Regionální nastavení."
     },
-    "createConfirmed": "Přidávat do {table} a dostat potvrzovací e-mail"
+    "createConfirmed": "Přidávat do {table} a dostat potvrzovací e-mail",
+    "phoneKey": "Dát aplikaci pro telefon vlastní klíč k tomu, k čemu už hosté smějí. Funguje z aplikace v telefonu, nikdy z webové stránky."
   },
   "addOnNeeded": {
     "appDisabled": "Vypnutá – stále ho potřebuje",

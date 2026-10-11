@@ -4,9 +4,9 @@
  * body with the system message prepended, response parsing, temperature-0
  * enforcement, chat-model filtering + static fallback.
  */
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { createOpenAiClient } from './openai.js';
+import { createOpenAiClient, forgetOpenAiShapes } from './openai.js';
 import { OPENAI_STATIC_MODELS } from './model-catalog.js';
 import { ProviderError } from './types.js';
 
@@ -67,7 +67,7 @@ describe('createOpenAiClient.complete', () => {
     const body = JSON.parse(call.init.body as string) as Record<string, unknown>;
     expect(body).toEqual({
       model: 'gpt-4o',
-      max_tokens: 16000,
+      max_completion_tokens: 16000,
       temperature: 0,
       messages: [
         { role: 'system', content: 'system prompt' },
@@ -105,9 +105,84 @@ describe('createOpenAiClient.complete', () => {
   });
 });
 
+describe('what the real service refuses (seen 2026-10-11 on gpt-6-luna)', () => {
+  beforeEach(() => forgetOpenAiShapes());
+  // The service's own words.
+  const refusal = (param: string, message: string): Response => jsonResponse({ error: { message, type: 'invalid_request_error', param, code: 'unsupported_value' } }, 400);
+  const noZero = (): Response => refusal('temperature', "Unsupported value: 'temperature' does not support 0 with this model. Only the default (1) value is supported.");
+  const serve = (...replies: (() => Response)[]): Record<string, unknown>[] => {
+    const bodies: Record<string, unknown>[] = [];
+    let next = 0;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (_url: unknown, init?: RequestInit) => {
+        bodies.push(JSON.parse(String(init?.body)) as Record<string, unknown>);
+        const reply = replies[Math.min(next, replies.length - 1)] as () => Response;
+        next += 1;
+        return reply();
+      }),
+    );
+    return bodies;
+  };
+  const ask = { system: '', messages: [{ role: 'user' as const, content: 'hi' }], model: 'gpt-6-luna', maxTokens: 50, temperature: 0 };
+
+  it('never sends max_tokens to the official API: every model there takes max_completion_tokens', async () => {
+    const bodies = serve(() => jsonResponse(OK_BODY));
+    await createOpenAiClient({ provider: 'openai', apiKey: KEY, model: 'gpt-6-luna' }).complete(ask);
+    expect(bodies[0]).not.toHaveProperty('max_tokens');
+    expect(bodies[0]).toMatchObject({ max_completion_tokens: 50, temperature: 0 });
+    expect(bodies[0]).not.toHaveProperty('reasoning_effort');
+  });
+
+  it('a model that refuses temperature 0 is asked again with its reasoning off, and remembered', async () => {
+    const bodies = serve(noZero, () => jsonResponse(OK_BODY));
+    const client = createOpenAiClient({ provider: 'openai', apiKey: KEY, model: 'gpt-6-luna' });
+    await client.complete(ask);
+    expect(bodies).toHaveLength(2);
+    expect(bodies[1]).toMatchObject({ reasoning_effort: 'none', temperature: 0, max_completion_tokens: 50 });
+    await client.complete(ask);
+    expect(bodies).toHaveLength(3);
+    expect(bodies[2]).toMatchObject({ reasoning_effort: 'none', temperature: 0 });
+    // Another model starts from the plain request.
+    await client.complete({ ...ask, model: 'gpt-4o' });
+    expect(bodies[3]).not.toHaveProperty('reasoning_effort');
+  });
+
+  it('a model that takes neither is refused as it is: temperature 0 is not given up', async () => {
+    const noEffort = (): Response => refusal('reasoning_effort', "Unsupported parameter: 'reasoning_effort' is not supported with this model.");
+    const bodies = serve(noZero, noEffort, () => jsonResponse(OK_BODY));
+    await expect(createOpenAiClient({ provider: 'openai', apiKey: KEY, model: 'x' }).complete({ ...ask, model: 'x' })).rejects.toMatchObject({ status: 400 });
+    expect(bodies).toHaveLength(2);
+    expect(bodies.every((body) => body['temperature'] === 0)).toBe(true);
+  });
+
+  it('remembers what a model took across clients: a client is made anew for every run', async () => {
+    const bodies = serve(noZero, () => jsonResponse(OK_BODY));
+    await createOpenAiClient({ provider: 'openai', apiKey: KEY, model: 'gpt-6-luna' }).complete(ask);
+    await createOpenAiClient({ provider: 'openai', apiKey: KEY, model: 'gpt-6-luna' }).complete(ask);
+    expect(bodies).toHaveLength(3);
+    expect(bodies[2]).toMatchObject({ reasoning_effort: 'none' });
+    // Another address is another service: nothing learned at one is assumed of it.
+    await createOpenAiClient({ provider: 'openai', apiKey: KEY, model: 'gpt-6-luna', baseUrl: 'https://other.example/v1' }).complete(ask);
+    expect(bodies[3]).not.toHaveProperty('reasoning_effort');
+  });
+
+  it('any other refusal is not asked twice', async () => {
+    const bodies = serve(() => refusal('model', 'The model does not exist.'));
+    await expect(createOpenAiClient({ provider: 'openai', apiKey: KEY, model: 'x' }).complete(ask)).rejects.toMatchObject({ status: 400 });
+    expect(bodies).toHaveLength(1);
+  });
+});
+
 describe('createOpenAiClient.listModels', () => {
+  it('leaves out the gpt models that do not chat', async () => {
+    stubFetch(jsonResponse({ data: ['gpt-6-luna', 'gpt-6.1-sol', 'gpt-5-mini', 'gpt-live-transcribe', 'gpt-realtime-2.1-mini', 'gpt-audio-mini-2025-10-06', 'gpt-4o-mini-tts', 'gpt-image-2.5-flare', 'gpt-5-search-api', 'gpt-live-1'].map((id) => ({ id })) }));
+    const models = await createOpenAiClient({ provider: 'openai', apiKey: KEY, model: 'gpt-6-luna' }).listModels();
+    expect(models.map((model) => model.id)).toEqual(['gpt-6-luna', 'gpt-6.1-sol', 'gpt-5-mini']);
+  });
+
   it('filters to chat models and labels by id, excluding o-series reasoning models', async () => {
-    // o4-mini is a reasoning model: the fixed max_tokens + temperature:0 body
+    // o4-mini is a reasoning model with no way to turn its reasoning off: temperature 0
     // (a mandate) always 400s on it, so it must not be offered.
     const calls = stubFetch(
       jsonResponse({ data: [{ id: 'gpt-4o' }, { id: 'text-embedding-3-small' }, { id: 'o4-mini' }, { id: 'whisper-1' }] }),

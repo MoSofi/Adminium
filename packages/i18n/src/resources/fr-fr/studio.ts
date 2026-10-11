@@ -3000,7 +3000,8 @@ export default {
       "hide": "Masquer la clé",
       "kind": {
         "browser": "NAVIGATEUR",
-        "server": "SERVEUR"
+        "server": "SERVEUR",
+        "app": "APP MOBILE"
       },
       "never": "Jamais",
       "reveal": "Afficher la clé",
@@ -3207,7 +3208,11 @@ export default {
     "crumb": "Apps",
     "sampleLedger": "La liste des enregistrements d’exemple d’Adminium",
     "customerApiOff": "Ces pages s’ouvrent, mais elles ne peuvent rien lire ni enregistrer : l’API publique est désactivée. Activez-la dans Studio › Clés API.",
-    "customerNoAccess": "Ces pages s’ouvrent, mais elles ne peuvent rien lire ni enregistrer : l’application a été installée sans son accès public. Mettez-la à jour et autorisez-le."
+    "customerNoAccess": "Ces pages s’ouvrent, mais elles ne peuvent rien lire ni enregistrer : l’application a été installée sans son accès public. Mettez-la à jour et autorisez-le.",
+    "phone": "Application mobile",
+    "phoneLine": "Cette application a une application mobile pour les clients. Adminium ne la sert à personne : elle s’exécute sur un téléphone et atteint, avec une clé à elle, ce que les invités peuvent atteindre. Désactiver les écrans clients l’arrête aussi.",
+    "phoneBuild": "Une application mobile construite pour un store a besoin de deux choses de ce serveur : son adresse telle qu’un téléphone l’atteint, et la clé « application mobile » de l’application.",
+    "phoneKeys": "Ouvrir les clés d’API"
   },
   "uninstall": {
     "files": "Les fichiers de l’app",
@@ -3295,7 +3300,8 @@ export default {
       "noPublicAddress": "Cette application n’a pas d’adresse publique : aucun lien de connexion ne peut être envoyé. Associez un domaine à son côté client, ou définissez l’adresse publique du serveur.",
       "currency": "Aucune devise n’est définie pour cette base de données : les montants de l’application s’affichent en dollars américains dans le tableau de bord et sans devise dans ses e-mails. Définissez-en une dans Studio › Connexions › Paramètres régionaux."
     },
-    "createConfirmed": "Ajouter à {table} et recevoir un e-mail de confirmation"
+    "createConfirmed": "Ajouter à {table} et recevoir un e-mail de confirmation",
+    "phoneKey": "Donner à l’application mobile de l’app une clé à elle, pour ce que les invités peuvent déjà atteindre. Elle fonctionne depuis une application mobile, jamais depuis une page web."
   },
   "addOnNeeded": {
     "appDisabled": "Désactivée — elle en a toujours besoin",

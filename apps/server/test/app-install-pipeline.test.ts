@@ -8,6 +8,7 @@
  * Nothing here is faked below the HTTP route: the connection manager, the
  * introspection, the schema editor's plan and apply, and the DDL all run.
  */
+import { APP_VERSION } from '../src/version.js';
 import { createHash, randomBytes } from 'node:crypto';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -3871,6 +3872,80 @@ for (const [dialect, available] of legs) {
       // …and stops at once: the resolver's cached scope is dropped by the uninstall itself, not by an earlier step.
       expect(INVALIDATED_KEYS.filter((id) => id === made.keyId).length).toBe(droppedBefore + 1);
       expect(await endpoints()).toEqual([]);
+    }, 60_000);
+
+    it('an app with a phone side gets an app key beside its customer key, holding the same, and loses it with the side', async () => {
+      const h = (open = await harness(dialect));
+      const phone = (version: string, mobile: boolean, select: string[] = ['id', 'name']) => ({
+        ...MANIFEST,
+        version,
+        // A phone side is a word of this release: the floor is this server's own version.
+        compatibility: { minAdminiumVersion: APP_VERSION },
+        frontends: [...MANIFEST.frontends, ...(mobile ? [{ side: 'mobile', kind: 'expo' }] : [])],
+        publicAccess: [{ table: 'menu_items', methods: ['GET'], select }],
+      });
+      const keysOf = async () => (await publicKeysRepo(h.meta).list()).filter((k) => k.managedBy === 'pos').sort((a, b) => a.kind.localeCompare(b.kind));
+
+      await stageManifest(h, phone('1.0.0', true));
+      const installed = await post(h, '/apps/install');
+      expect(installed.statusCode, installed.body).toBe(200);
+      const [appKey, browserKey] = await keysOf();
+      // The reply's key is the customer's: the one a page is served.
+      expect(installed.json().publicAccess.keyId).toBe(browserKey!.id);
+      expect(browserKey).toMatchObject({ kind: 'browser', purpose: 'customer', name: 'Point of Sale · guests' });
+      expect(appKey).toMatchObject({ kind: 'app', purpose: 'customer', name: 'Point of Sale · phone app', appKey: 'pos', side: 'customer', revokedAt: null });
+      expect(appKey!.prefix.startsWith('adm_app_')).toBe(true);
+      // Re-readable, as a key that ships in a bundle must be.
+      expect(appKey!.tokenEncrypted).not.toBe('');
+      expect(JSON.parse(String(appKey!.origins))).toEqual([]);
+      const access = (key: { access: unknown }) => (typeof key.access === 'string' ? JSON.parse(key.access) : key.access) as Record<string, string[]>;
+      expect(access(appKey!)).toEqual(access(browserKey!));
+      // A page is never served the app key.
+      expect((await publicKeysRepo(h.meta).newestLiveByApp('pos', 'customer'))?.id).toBe(browserKey!.id);
+
+      // An update keeps both, and makes neither again.
+      await stageManifest(h, phone('1.1.0', true));
+      expect((await h.app.inject({ method: 'POST', url: '/apps/pos/update' })).statusCode).toBe(200);
+      expect((await keysOf()).map((k) => [k.id, k.revokedAt])).toEqual([
+        [appKey!.id, null],
+        [browserKey!.id, null],
+      ]);
+
+      // The version drops the phone side: its key is ended (not revoked: nobody said no), the customer's stays.
+      const liveApp = async () => (await keysOf()).filter((k) => k.kind === 'app' && k.revokedAt === null && (k.expiresAt === null || Number(k.expiresAt) > Date.now()));
+      await stageManifest(h, phone('1.2.0', false));
+      expect((await h.app.inject({ method: 'POST', url: '/apps/pos/update' })).statusCode).toBe(200);
+      const after = await keysOf();
+      expect(after.find((k) => k.id === appKey!.id)).toMatchObject({ revokedAt: null });
+      expect(after.find((k) => k.id === appKey!.id)!.expiresAt).not.toBeNull();
+      expect(await liveApp()).toEqual([]);
+      expect(after.find((k) => k.id === browserKey!.id)).toMatchObject({ revokedAt: null, expiresAt: null });
+
+      // The side comes back. The check says a key would be made, and nothing is made until the operator allows it.
+      await stageManifest(h, phone('1.3.0', true));
+      const check = await h.app.inject({ method: 'POST', url: '/apps/plan', payload: { key: 'pos', version: '1.3.0', connectionId: h.connectionId } });
+      expect(check.statusCode, check.body).toBe(200);
+      expect(check.json().plan.publicAccess.phoneKey).toBe('made');
+      expect((await h.app.inject({ method: 'POST', url: '/apps/pos/update' })).statusCode).toBe(200);
+      expect(await liveApp()).toEqual([]);
+      await stageManifest(h, phone('1.4.0', true));
+      expect((await h.app.inject({ method: 'POST', url: '/apps/pos/update', payload: { publicAccess: true } })).statusCode).toBe(200);
+      const [second] = await liveApp();
+      expect(second).toMatchObject({ kind: 'app', purpose: 'customer' });
+      expect(second!.id).not.toBe(appKey!.id);
+
+      // The operator revokes it: no update makes it again, allowed or not, and the check says so.
+      // (As the API keys page does it: this harness serves the apps' routes only.)
+      expect(await publicKeysRepo(h.meta).revoke(second!.id)).toBe(true);
+      await stageManifest(h, phone('1.5.0', true));
+      const told = await h.app.inject({ method: 'POST', url: '/apps/plan', payload: { key: 'pos', version: '1.5.0', connectionId: h.connectionId } });
+      expect(told.json().plan.publicAccess.phoneKey).toBe('withheld');
+      expect((await h.app.inject({ method: 'POST', url: '/apps/pos/update', payload: { publicAccess: true } })).statusCode).toBe(200);
+      expect(await liveApp()).toEqual([]);
+
+      // Uninstalled: every key of the app is revoked.
+      expect((await h.app.inject({ method: 'DELETE', url: '/apps/pos' })).statusCode).toBe(200);
+      expect((await keysOf()).every((k) => k.revokedAt !== null)).toBe(true);
     }, 60_000);
 
     it('holds the app’s own key to the safe list, and an update may not widen it', async () => {

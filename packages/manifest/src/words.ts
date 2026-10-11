@@ -92,6 +92,7 @@ export const INSTALL_FLOOR_WORD_NAMES = [
   'automations.addOnStep',
   'email.showWhen',
   'placeholder.backup',
+  'frontend.mobile',
 ] as const;
 export type ManifestWordName = (typeof INSTALL_FLOOR_WORD_NAMES)[number];
 
@@ -147,6 +148,10 @@ export function installFloorWords(document: unknown): ManifestWord[] {
     // An app has always had the other blocks: these two it has only since the install floor.
     if (document['automations'] !== undefined) out.push({ word: 'automations', path: 'automations' });
     if (isDoc(document['sampleData']) && document['sampleData']['addOns'] !== undefined) out.push({ word: 'sampleData.addOns', path: 'sampleData.addOns' });
+    // A phone side: a server that does not know the side refuses the whole manifest.
+    list(document['frontends']).forEach((frontend, f) => {
+      if (isDoc(frontend) && frontend['side'] === 'mobile') out.push({ word: 'frontend.mobile', path: `frontends.${String(f)}.side` });
+    });
   }
 
   list(schema['tables']).forEach((table, t) => {

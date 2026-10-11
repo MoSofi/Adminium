@@ -23,8 +23,8 @@ import type { DesignerEvent } from './events.js';
 /** Where the Designer keeps what it keeps, under the project folder. */
 export const DESIGNER_DIR = join('.adminium', 'designer');
 
-/** What a person can ask the Designer to build for. Mobile comes with its own milestone. */
-export const DESIGNER_TARGETS = ['auto', 'dashboard', 'web'] as const;
+/** What a person can ask the Designer to build for. `mobile` is a phone app for customers (the app's phone side). */
+export const DESIGNER_TARGETS = ['auto', 'dashboard', 'web', 'mobile'] as const;
 export type DesignerTarget = (typeof DESIGNER_TARGETS)[number];
 
 export interface DesignerSession {

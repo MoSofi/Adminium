@@ -14,7 +14,7 @@ import { AttachButton, attachHandlers, AttachTray, useAttach, useReadsImages } f
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent, type ReactNode } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { AlertTriangle, ArrowUp, ChevronDown, Globe, LayoutDashboard, RefreshCw, Sparkles, type LucideIcon } from 'lucide-react';
+import { AlertTriangle, ArrowUp, ChevronDown, Globe, LayoutDashboard, RefreshCw, Smartphone, Sparkles, type LucideIcon } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -24,6 +24,7 @@ import {
 } from '@adminium/ui';
 
 import { ApiError } from '../../app/api.js';
+import { systemInfoQuery } from '../../app/capabilities.js';
 import { useAppToasts } from '../../pages/toasts.js';
 import { t } from '../../i18n/t.js';
 import { designerApi, yourAppsQuery, type DesignerTarget, type CatalogApp } from '../api.js';
@@ -44,12 +45,15 @@ export const SHOW_START_WITH_AN_APP = true;
 
 const MAX_LINES_PX = 216;
 
-function targets(): { id: DesignerTarget; label: string; line: string; icon: LucideIcon }[] {
-  return [
+/** A phone app is built where an app is designed on a person's own computer: a live server offers none. */
+function targets(live: boolean): { id: DesignerTarget; label: string; line: string; icon: LucideIcon }[] {
+  const all: { id: DesignerTarget; label: string; line: string; icon: LucideIcon }[] = [
     { id: 'auto', label: t('designer:target.auto', 'Auto'), line: t('designer:target.autoLine', 'Adminium decides'), icon: Sparkles },
     { id: 'dashboard', label: t('designer:target.dashboard', 'Dashboard only'), line: t('designer:target.dashboardLine', 'tables and admin pages'), icon: LayoutDashboard },
     { id: 'web', label: t('designer:target.web', 'Web'), line: t('designer:target.webLine', 'a staff or customer side'), icon: Globe },
+    { id: 'mobile', label: t('designer:target.mobile', 'Mobile'), line: t('designer:target.mobileLine', 'a phone app'), icon: Smartphone },
   ];
+  return live ? all.filter((entry) => entry.id !== 'mobile') : all;
 }
 
 export function DesignerHome(): ReactNode {
@@ -58,6 +62,7 @@ export function DesignerHome(): ReactNode {
   const model = useDesignerModel();
   const control = useModelControl(model);
   const yourApps = useQuery(yourAppsQuery());
+  const info = useQuery(systemInfoQuery());
   const [text, setText] = useState('');
   const [target, setTarget] = useState<DesignerTarget>('auto');
   // The style of the app's own screens: null leaves it to the Designer.
@@ -93,10 +98,15 @@ export function DesignerHome(): ReactNode {
     el.style.height = `${String(Math.min(el.scrollHeight, MAX_LINES_PX))}px`;
   }, [text]);
 
+  const options = targets(info.data?.designer?.mode === 'live');
+  const chosen = options.find((entry) => entry.id === target) ?? (options[0] as (typeof options)[number]);
+
   const start = useMutation({
     mutationFn: async () => {
       if (model.picked === null) throw new Error('no model');
-      const base = { title: nameFromRequest(text), ...(style === null ? {} : { style }), target, connectionId: model.picked.connectionId, model: model.picked.model };
+      // What is sent is what the menu shows: a choice this server does not offer (Mobile, picked before the server said it is a live one) is not sent.
+      const target = chosen.id;
+      const base = { title: nameFromRequest(text), ...(style === null || target === 'dashboard' || target === 'mobile' ? {} : { style }), target, connectionId: model.picked.connectionId, model: model.picked.model };
       if (attach.files.length === 0 && made.current === null) return designerApi.createSession({ ...base, text: text.trim(), ...(seesPage() ? { sees: true } : {}) });
       // With files: the session first (they are kept in it), then the files, then the message that names them.
       // A file the server refuses, or a turn that does not start, stops here with its words: the message and the files stay
@@ -130,8 +140,6 @@ export function DesignerHome(): ReactNode {
       send();
     }
   };
-  const options = targets();
-  const chosen = options.find((entry) => entry.id === target) ?? (options[0] as (typeof options)[number]);
   const noteId = 'designer-home-note';
 
   return (
@@ -192,7 +200,8 @@ export function DesignerHome(): ReactNode {
                     </DropdownMenuRadioGroup>
                   </DropdownMenuContent>
                 </DropdownMenu>
-                {target === 'dashboard' ? null : <StylePicker value={style} disabled={noModel} onChange={setStyle} />}
+                {/* A style is the look of the app's web screens: a dashboard-only app and a phone app have none to pick. */}
+                {target === 'dashboard' || target === 'mobile' ? null : <StylePicker value={style} disabled={noModel} onChange={setStyle} />}
                 <button
                   type="submit"
                   disabled={!canSend || start.isPending}

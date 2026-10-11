@@ -26,6 +26,7 @@ import {
   hashPublishableKey,
   keyIsLive,
   keyKindOf,
+  storedKeyKind,
   tokenHashEquals,
   PUBLISHABLE_DISPLAY_PREFIX_LENGTH,
   type PublicKeyKind,
@@ -33,7 +34,7 @@ import {
 
 export interface ResolvedKey {
   keyId: string;
-  /** `browser` (`adm_pub_`) or `server` (`adm_srv_`), as the row says and the prefix agreed. */
+  /** `browser` (`adm_pub_`), `server` (`adm_srv_`) or `app` (`adm_app_`), as the row says and the prefix agreed. */
   kind: PublicKeyKind;
   scopeId: string;
   connectionId: string;
@@ -182,8 +183,9 @@ export function createPublicKeyResolver(deps: ResolverDeps): PublicKeyResolver {
      * the server prefix would skip the origin check. The hash
      * covers the prefix, so this can only fail for a forged row.
      */
-    const kind: PublicKeyKind = matched.kind === 'server' ? 'server' : 'browser';
-    if (keyKindOf(token) !== kind) return fail('hash-mismatch', { prefix });
+    // A kind this server does not know answers nothing: never read as the nearest one it does.
+    const kind = storedKeyKind(matched.kind);
+    if (kind === null || keyKindOf(token) !== kind) return fail('hash-mismatch', { prefix });
 
     const scopeRow = await deps.findScopeById(matched.scopeId);
     if (scopeRow === null) return fail('scope-missing', { keyId: matched.id, scopeId: matched.scopeId });

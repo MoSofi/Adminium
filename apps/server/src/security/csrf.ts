@@ -107,7 +107,7 @@ import { createHmac, timingSafeEqual } from 'node:crypto';
 import type { FastifyRequest } from 'fastify';
 
 import { deriveKey } from '../config/secrets.js';
-import { PUBLISHABLE_KEY_PREFIX, SERVER_KEY_PREFIX } from '../public-api/keys.js';
+import { keyKindOf } from '../public-api/keys.js';
 import { parseBearerApiKey } from '../rbac/api-keys.js';
 
 /** Header the dashboard echoes the bootstrap `csrfToken` in. */
@@ -359,10 +359,10 @@ function formToken(body: unknown): string | undefined {
   return match?.[1];
 }
 
-/** A public API key (`adm_pub_` / `adm_srv_`) in the Authorization header. */
+/** A public API key (`adm_pub_` / `adm_srv_` / `adm_app_`) in the Authorization header. */
 function publicKeyBearer(authorization: string | undefined): boolean {
   const match = /^Bearer\s+(\S+)$/i.exec((authorization ?? '').trim());
-  return match !== null && (match[1]!.startsWith(PUBLISHABLE_KEY_PREFIX) || match[1]!.startsWith(SERVER_KEY_PREFIX));
+  return match !== null && keyKindOf(match[1]!) !== null;
 }
 
 /**

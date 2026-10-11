@@ -11,7 +11,29 @@ import { api, ApiError, csrfHeaders } from '../app/api.js';
 
 const BASE = '/api/v1/designer';
 
-export type DesignerTarget = 'auto' | 'dashboard' | 'web';
+export type DesignerTarget = 'auto' | 'dashboard' | 'web' | 'mobile';
+
+/** How an app's phone side stands (mirrors the server's `designerPhoneReply`). */
+export type PhoneStanding =
+  | { state: 'none' }
+  | { state: 'shape' | 'no-packages' | 'failed'; words: string }
+  /** `packages` are what its package.json asks for, by name: what the yes installs. */
+  | { state: 'unapproved'; words: string; packages: string[] }
+  | { state: 'built'; build: string }
+  | { state: 'working'; step: 'adding' | 'installing' | 'building' };
+
+/** The door a real phone comes through. `url` carries the code a phone scans. */
+export type PhoneDoorState =
+  | { state: 'off' }
+  | { state: 'starting'; app: string }
+  | { state: 'open'; app: string; url: string; qr: string; address: string; sdk: string | null; connected: boolean; phoneSdk: string | null; lastSeen: number | null }
+  | { state: 'closed'; app: string; why: 'stopped' | 'idle' | 'network' | 'failed'; words: string };
+
+export interface PhoneStatus {
+  phone: PhoneStanding;
+  door: PhoneDoorState;
+  addresses: { address: string; name: string }[];
+}
 
 export interface DesignerSession {
   id: string;
@@ -247,7 +269,7 @@ export type FolderHold = 'save' | 'style' | 'restore' | 'start';
 /** `by: 'person'`: caused from a page, outside any turn. It carries the last turn's number and belongs to none. */
 export type DesignerEvent = DesignerEventBody & { seq: number; turn: number; at: number; by?: 'person' };
 
-export type DesignerFileGroup = 'customer' | 'staff' | 'dashboard' | 'settings';
+export type DesignerFileGroup = 'customer' | 'staff' | 'mobile' | 'dashboard' | 'settings';
 /** A file a person may open: where it is in the project, what it is called on the page, and what it holds now (by hash). */
 export interface DesignerFile {
   path: string;
@@ -408,6 +430,12 @@ export const designerApi = {
   saveFiles: (id: string, files: readonly { path: string; content: string; base: string }[]) => api.put<DesignerFilesSaved>(`${BASE}/sessions/${id}/files`, { files }),
   /** One of the app's files a person may open, whole, with the hash it has now. */
   fileContent: (id: string, path: string) => api.get<{ path: string; content: string; hash: string }>(`${BASE}/sessions/${id}/files/content?path=${encodeURIComponent(path)}`),
+  /** The app's phone side: how it stands, the door a phone comes through, this computer's addresses. */
+  phone: (id: string) => api.get<PhoneStatus>(`${BASE}/sessions/${id}/phone`),
+  /** A person's yes: add the phone app (or get its packages), build it and apply the app. Answers at once; watch `phone`. */
+  phoneAdd: (id: string) => api.post<PhoneStatus>(`${BASE}/sessions/${id}/phone/add`, {}),
+  phoneOpen: (id: string, address: string) => api.post<PhoneStatus>(`${BASE}/sessions/${id}/phone/open`, { address }),
+  phoneStop: (id: string) => api.post<PhoneStatus>(`${BASE}/sessions/${id}/phone/stop`, {}),
   previewTicket: (id: string, to: string) => api.post<{ url: string; origin: string; seenAs?: string[] }>(`${BASE}/sessions/${id}/preview-ticket`, { to }),
   /** A one-use link that signs this project's local owner in from the system's browser, landing on `to` (a path). */
   browserLink: (to: string) => api.post<{ data: { url: string } }>('/api/v1/auth/design-link', { to }),

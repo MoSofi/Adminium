@@ -31,6 +31,7 @@ import { unbuiltInManifest } from '../../crud/unbuilt-rules.js';
 import { declaredLedgers, hostAdjustIssue, hostPostingIssue } from './ledger-parts.js';
 import { serverCodeSources } from '../build-shared.js';
 import { MANIFEST_FILE, MANIFEST_PARTS_DIR, SIDES, appPath, readAppFolder, sideEntry, type AppFolder, type AppProblem, type AppSide } from './read-app.js';
+import { PHONE_SIDE, hasPhoneCode, phoneShapeProblems } from './phone.js';
 import { hasOwnBuild } from './own-build.js';
 
 export interface AppFinding extends AppProblem {
@@ -47,6 +48,8 @@ export interface AppCheck {
   access: string[];
   /** The sides that have code to build. */
   sides: AppSide[];
+  /** Whether the app has a phone side's code (`mobile/`): built by Expo, never with `sides`. */
+  phone: boolean;
 }
 
 /** `a`, `a and b`, `a, b and c`. */
@@ -116,7 +119,9 @@ export function checkApp(root: string, key: string, opts: { version: string; add
   // An app with a build of its own keeps its screens where its build wants them: the manifest says which sides it has.
   const ownBuild = hasOwnBuild(root, key);
   let sides = SIDES.filter((side) => sideEntry(root, key, side) !== null);
-  const result = (manifest: AppManifest | null, access: string[] = []): AppCheck => ({ key, folder, manifest, findings, access, sides });
+  // A copied app builds its own screens from wherever its build reads them: a `mobile/` folder there is its own business.
+  const phone = hasPhoneCode(root, key) && !ownBuild;
+  const result = (manifest: AppManifest | null, access: string[] = []): AppCheck => ({ key, folder, manifest, findings, access, sides, phone });
   if (folder.document === null) return result(null);
 
   /** A validator path, said against the file it is written in. */
@@ -164,7 +169,17 @@ export function checkApp(root: string, key: string, opts: { version: string; add
 
   if (ownBuild) sides = SIDES.filter((side) => manifest.frontends.some((frontend) => frontend.side === side && frontend.kind === 'spa'));
   // Every screen the manifest declares has its code, and the reverse.
+  // The phone side: declared and there, or neither; and its folder holds nothing Expo would run unasked.
+  const declaresPhone = manifest.frontends.some((frontend) => frontend.side === PHONE_SIDE);
+  if (declaresPhone && !phone) {
+    const index = manifest.frontends.findIndex((frontend) => frontend.side === PHONE_SIDE);
+    findings.push(error(at(`frontends.${String(index)}`).file, `frontends.${String(index)}`, `declares a phone side, and ${appPath(key, PHONE_SIDE, 'App.tsx')} does not exist.`));
+  }
+  if (!declaresPhone && phone) findings.push(error(appPath(key, PHONE_SIDE), '', "has code, and the manifest's frontends do not list a mobile side."));
+  if (declaresPhone || phone) for (const problem of phoneShapeProblems(root, key)) findings.push(error(problem.file, '', problem.message));
+
   for (const [index, frontend] of ownBuild ? [] : manifest.frontends.entries()) {
+    if (frontend.side === PHONE_SIDE) continue;
     const built = sides.includes(frontend.side);
     if (frontend.kind === 'spa' && !built) {
       findings.push(

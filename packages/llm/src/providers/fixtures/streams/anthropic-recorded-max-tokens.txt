@@ -1,0 +1,25 @@
+# recorded 2026-10-11 from anthropic, model claude-haiku-5-5
+event: message_start
+data: {"type":"message_start","message":{"model":"claude-haiku-5-5","id":"msg_0000000000000000000000","type":"message","role":"assistant","content":[],"container":null,"stop_reason":null,"stop_sequence":null,"stop_details":null,"usage":{"input_tokens":43,"cache_creation_input_tokens":0,"cache_read_input_tokens":0,"cache_creation":{"ephemeral_5m_input_tokens":0,"ephemeral_1h_input_tokens":0},"output_tokens":8,"service_tier":"standard","inference_geo":"global"},"diagnostics":null}}
+
+event: content_block_start
+data: {"type":"content_block_start","index":0,"content_block":{"type":"thinking","thinking":"","signature":""}      }
+
+event: ping
+data: {"type": "ping"}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":""}  }
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"signature_delta","signature":"CAQSnwUKEAgSGAI4AUIIdGhpbmtpbmcSDLq5M4keO2QnMhUYzRoMbZswzIA0GKsUcbstIjB7VXHi+eQUTEs7RVfXjoeKmkYbarZOoYvWz/EiXZbqqMXMaDpQEumrdNhgHab/5/QqvAT7kkeUVUgseWPJqU+RhWvGvdFwUPUaMDq+83OvDs/mMYo/OH077TTlOej1VbQ6UnVqVVplymsvuf5U8VmA3hEbyEjDeVSip5PY+zwZ0k+GOqob+D3vJq+cgOmxwco7uD7amQfUgby8TseHyNbE4LVa37RcJ7qrqZZcEwUzM6MiwQLeyjAAn9E7EPvZPjJj3Mo8TyYVDsFmmN8Es09YYmkojX3mgT4hrSh9CuVtSspB457eHzYIP+FFgbB4cmtECPUthnq0y0bpS2o94f2I0YoXXs3cKCN5pAuHWOXaxcjGQwybNbiVHEahWLlf6RH77J4IepCfuMXH9q/illfIrVH/iZnNMkPzNRxG/dN9hWhPAxBamPFgx4PueNNB2NOwE7FY0LjD/BqJBqzYfCdDXSlfMteRK4EBACIScnSsZHzSaV3OErLIpYs3srhomWcvty7kQch210JoXhBxMrqeXQjF12AfIhwAj1XAEjP2XwtPREluBGOM838V9dhF8Yw2mlFk3LRxKjh07P6cn2NOHAXExKSQNzhD3V594jNXzSVj8z2giah0s/FjF8C/dZym2EV9ebA+af0Oibj6CT0lm444jA2BLpFX/VNyJExOsVCE1AUM+PBBig/QI5w0zIx6O45SoJO3CBDMcmmZEvxEc0fu+V2zixBMTfXlAClCS7MNEdY8CwppWQTG0XshbInnhnuBakx3bzn57o1KClnAPS4ldTnMIdhr68E5xwRdeS/wqUPSF3Sou6JAwnFxVxgB"}          }
+
+event: content_block_stop
+data: {"type":"content_block_stop","index":0       }
+
+event: message_delta
+data: {"type":"message_delta","delta":{"stop_reason":"max_tokens","stop_sequence":null,"stop_details":null,"container":null},"usage":{"input_tokens":43,"cache_creation_input_tokens":0,"cache_read_input_tokens":0,"output_tokens":32,"output_tokens_details":{"thinking_tokens":32}}    }
+
+event: message_stop
+data: {"type":"message_stop"         }
+

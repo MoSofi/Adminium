@@ -2990,7 +2990,8 @@
       "hide": "Hide key",
       "kind": {
         "browser": "BROWSER",
-        "server": "SERVER"
+        "server": "SERVER",
+        "app": "PHONE APP"
       },
       "never": "Never",
       "reveal": "Reveal key",
@@ -3197,7 +3198,11 @@
     "crumb": "Apps",
     "sampleLedger": "Adminium’s list of sample records",
     "customerApiOff": "These pages open, but they cannot read or save anything: the public API is switched off. Switch it on under Studio › API keys.",
-    "customerNoAccess": "These pages open, but they cannot read or save anything: the app was installed without its public access. Update the app and allow it."
+    "customerNoAccess": "These pages open, but they cannot read or save anything: the app was installed without its public access. Update the app and allow it.",
+    "phone": "Phone app",
+    "phoneLine": "This app has a phone app for customers. Adminium serves it to nobody: it runs on a phone, and reaches what guests may reach with a key of its own. Switching the customer screens off stops it too.",
+    "phoneBuild": "A phone app built for a store needs two things from this server: its address as a phone reaches it, and the app’s “phone app” key.",
+    "phoneKeys": "Open API keys"
   },
   "uninstall": {
     "files": "The app’s files",
@@ -3285,7 +3290,8 @@
       "noPublicAddress": "This app has no public address, so no sign-in link can be sent. Map a domain to its customer side, or set the server’s public address.",
       "currency": "This database has no currency set, so the app’s money shows in US dollars on the dashboard and with no currency in its emails. Set one under Studio › Connections › Regional settings."
     },
-    "createConfirmed": "Add to {table}, and get a confirmation email"
+    "createConfirmed": "Add to {table}, and get a confirmation email",
+    "phoneKey": "Give the app’s phone app a key of its own, for what guests may already reach. It works from a phone app, never from a web page."
   },
   "addOnNeeded": {
     "appDisabled": "Switched off — it still needs it",

@@ -1,0 +1,212 @@
+/*
+ * The phone app of __NAME__.
+ *
+ * It is for customers: nobody is signed in as staff. It reaches Adminium's
+ * public API with a key, and there ONLY what manifest/access.json grants.
+ * Write access.json first, run `adminium app check` to read back what it
+ * grants, then write the screens.
+ *
+ * It is written with React Native's parts (View, Text, Pressable, TextInput,
+ * FlatList), not HTML: there is no <div>, no CSS file and no address bar on a
+ * phone. A screen is a component; which one shows is a state.
+ */
+import { useCallback, useEffect, useState } from 'react';
+import { ActivityIndicator, FlatList, Pressable, SafeAreaView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
+import { PublicApiError, type Row } from '@adminiumjs/public-client';
+
+import { en, tableName, useAdminium, type Connection } from './src/adminium';
+
+/** The tables' short names: the `ref` of each file in manifest/tables/. */
+const ITEMS = 'items';
+const REQUESTS = 'requests';
+
+type Screen = 'offer' | 'request';
+
+export function App() {
+  const loaded = useAdminium();
+  return (
+    <SafeAreaView style={styles.page}>
+      <StatusBar style="auto" />
+      {loaded.state === 'loading' ? (
+        <ActivityIndicator style={styles.centre} accessibilityLabel={en('Loading')} />
+      ) : loaded.state === 'error' ? (
+        <Text style={[styles.notice, styles.error]}>{loaded.message}</Text>
+      ) : (
+        <Screens connection={loaded.value} />
+      )}
+    </SafeAreaView>
+  );
+}
+
+/** The screens, and the bar that moves between them. */
+function Screens({ connection }: { connection: Connection }) {
+  const [screen, setScreen] = useState<Screen>('offer');
+  return (
+    <View style={styles.fill}>
+      <View style={styles.header}>
+        <View style={styles.mark}>
+          <Text style={styles.markText}>{connection.appName.slice(0, 1).toUpperCase()}</Text>
+        </View>
+        <Text style={styles.title} accessibilityRole="header">
+          {connection.appName}
+        </Text>
+      </View>
+      <View style={styles.fill}>{screen === 'offer' ? <Offer connection={connection} onAsk={() => setScreen('request')} /> : <Request connection={connection} />}</View>
+      <View style={styles.tabs} accessibilityRole="tablist">
+        <Tab label={en('On offer')} selected={screen === 'offer'} onPress={() => setScreen('offer')} />
+        <Tab label={en('Send a request')} selected={screen === 'request'} onPress={() => setScreen('request')} />
+      </View>
+    </View>
+  );
+}
+
+function Tab({ label, selected, onPress }: { label: string; selected: boolean; onPress: () => void }) {
+  return (
+    <Pressable style={styles.tab} onPress={onPress} accessibilityRole="tab" accessibilityState={{ selected }}>
+      <Text style={[styles.tabText, selected ? styles.tabSelected : null]}>{label}</Text>
+    </Pressable>
+  );
+}
+
+/**
+ * What to tell a customer when something fails. A public error's `message`
+ * is written for developers, so the screen says its own sentence and keeps
+ * the code for whoever is asked about it.
+ */
+function sorry(error: unknown): string {
+  const code = error instanceof PublicApiError ? error.code : null;
+  return code === null ? en('Something went wrong. Please try again.') : `${en('That did not work. Please try again.')} (${code})`;
+}
+
+/** The first screen: what is on offer. */
+function Offer({ connection, onAsk }: { connection: Connection; onAsk: () => void }) {
+  const [rows, setRows] = useState<Row[] | null>(null);
+  const [problem, setProblem] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    try {
+      // The public API returns rows in key order and takes no sort or filter of the
+      // caller's: sort here, and narrow what is public with "filters" in access.json.
+      const listed = (await connection.client.list(tableName(connection, ITEMS), { limit: 50 })).data;
+      setRows([...listed].sort((a, b) => Number(b['id']) - Number(a['id'])));
+      setProblem(null);
+    } catch (error) {
+      setRows([]);
+      setProblem(sorry(error));
+    }
+  }, [connection]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  return (
+    <FlatList
+      contentContainerStyle={styles.list}
+      data={rows ?? []}
+      keyExtractor={(row) => String(row['id'])}
+      refreshing={rows === null}
+      onRefresh={() => void load()}
+      ListHeaderComponent={
+        <View style={styles.hero}>
+          <Text style={styles.eyebrow}>{en('Welcome')}</Text>
+          <Text style={styles.heading}>{en('What can we do for you?')}</Text>
+          <Text style={styles.lead}>{en('See what is on offer, and send us what you need.')}</Text>
+          <Pressable style={styles.button} onPress={onAsk} accessibilityRole="button">
+            <Text style={styles.buttonText}>{en('Send a request')}</Text>
+          </Pressable>
+          {problem === null ? null : <Text style={[styles.notice, styles.error]}>{problem}</Text>}
+        </View>
+      }
+      ListEmptyComponent={rows === null || problem !== null ? null : <Text style={styles.muted}>{en('Nothing is on offer yet.')}</Text>}
+      renderItem={({ item }) => (
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>{String(item['title'] ?? '')}</Text>
+          <Text style={styles.muted}>{String(item['status'] ?? '')}</Text>
+        </View>
+      )}
+    />
+  );
+}
+
+/** The second screen: send a request. */
+function Request({ connection }: { connection: Connection }) {
+  const [message, setMessage] = useState('');
+  const [sending, setSending] = useState(false);
+  const [said, setSaid] = useState<{ ok: boolean; text: string } | null>(null);
+
+  const send = async () => {
+    if (message.trim() === '' || sending) return;
+    setSending(true);
+    setSaid(null);
+    try {
+      await connection.client.create(tableName(connection, REQUESTS), { message: message.trim() });
+      setMessage('');
+      setSaid({ ok: true, text: en('Thank you. We have your request.') });
+    } catch (error) {
+      setSaid({ ok: false, text: sorry(error) });
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <View style={styles.form}>
+      <Text style={styles.heading}>{en('Send a request')}</Text>
+      <Text style={styles.label} nativeID="message-label">
+        {en('What do you need?')}
+      </Text>
+      <TextInput
+        style={styles.input}
+        value={message}
+        onChangeText={setMessage}
+        multiline
+        maxLength={500}
+        accessibilityLabelledBy="message-label"
+        placeholder={en('Write it here')}
+      />
+      <Pressable style={[styles.button, message.trim() === '' || sending ? styles.buttonOff : null]} onPress={() => void send()} disabled={message.trim() === '' || sending} accessibilityRole="button">
+        <Text style={styles.buttonText}>{sending ? en('Sending…') : en('Send')}</Text>
+      </Pressable>
+      {said === null ? null : <Text style={[styles.notice, said.ok ? styles.good : styles.error]}>{said.text}</Text>}
+    </View>
+  );
+}
+
+// The colours and sizes, in one place: change them here for the whole app.
+const ink = '#1c1b22';
+const quiet = '#6b6a75';
+const line = '#e4e3ea';
+const accent = '#3d4fd8';
+
+const styles = StyleSheet.create({
+  page: { flex: 1, backgroundColor: '#fbfbfd' },
+  fill: { flex: 1 },
+  centre: { flex: 1 },
+  header: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: line },
+  mark: { width: 30, height: 30, borderRadius: 8, backgroundColor: accent, alignItems: 'center', justifyContent: 'center' },
+  markText: { color: '#ffffff', fontWeight: '700' },
+  title: { fontSize: 17, fontWeight: '700', color: ink },
+  tabs: { flexDirection: 'row', borderTopWidth: 1, borderTopColor: line, backgroundColor: '#ffffff' },
+  tab: { flex: 1, alignItems: 'center', paddingVertical: 14, minHeight: 48 },
+  tabText: { fontSize: 14, color: quiet, fontWeight: '600' },
+  tabSelected: { color: accent },
+  list: { padding: 20, gap: 12 },
+  hero: { gap: 8, marginBottom: 8 },
+  eyebrow: { fontSize: 12, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase', color: accent },
+  heading: { fontSize: 26, fontWeight: '800', color: ink },
+  lead: { fontSize: 16, lineHeight: 23, color: quiet },
+  card: { padding: 16, borderRadius: 14, borderWidth: 1, borderColor: line, backgroundColor: '#ffffff', gap: 4 },
+  cardTitle: { fontSize: 16, fontWeight: '600', color: ink },
+  muted: { fontSize: 14, color: quiet },
+  form: { padding: 20, gap: 12 },
+  label: { fontSize: 14, fontWeight: '600', color: ink },
+  input: { minHeight: 120, padding: 12, borderRadius: 12, borderWidth: 1, borderColor: line, backgroundColor: '#ffffff', fontSize: 16, color: ink, textAlignVertical: 'top' },
+  button: { alignSelf: 'flex-start', minHeight: 48, paddingHorizontal: 20, borderRadius: 12, backgroundColor: accent, alignItems: 'center', justifyContent: 'center' },
+  buttonOff: { opacity: 0.5 },
+  buttonText: { color: '#ffffff', fontSize: 16, fontWeight: '700' },
+  notice: { padding: 12, borderRadius: 10, fontSize: 14 },
+  error: { backgroundColor: '#fdecec', color: '#8a1c1c' },
+  good: { backgroundColor: '#e9f7ee', color: '#125c2c' },
+});

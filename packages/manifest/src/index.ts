@@ -20,6 +20,8 @@ export {
   COLUMN_SEMANTICS,
   COLUMN_ROLES,
   FRONTEND_KINDS,
+  PHONE_KIND,
+  PHONE_SIDE,
   FIRST_PARTY_PUBLISHER_ID,
   LOCAL_PUBLISHER_ID,
   manifestSchema,
@@ -107,6 +109,7 @@ export { STATE_ACTIONS_MAX, stateActionIssues, stateActionKind, stateActionSchem
 export {
   validateManifest,
   isManifestOnly,
+  hasPhoneSide,
   parseManifest,
   manifestWarnings,
   type ValidateManifestResult,

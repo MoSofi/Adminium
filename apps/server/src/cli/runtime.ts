@@ -544,6 +544,8 @@ export interface CliDeps {
   cwd: string;
   /** Runs installs and git for `adminium new`; the real one when omitted. */
   runProcess?: RunProcess;
+  /** Installs an app's phone side (Expo's packages): a test's stand-in for the real install, which needs the network. */
+  installPhone?: (root: string, key: string) => Promise<{ ok: true } | { ok: false; words: string }>;
   /** Opens the shared service graph. */
   openRuntime: (env: Env, opts?: OpenRuntimeOptions) => Promise<CliRuntime>;
   /** Boots + listens. */

@@ -58,18 +58,16 @@ export interface ProviderCatalogEntry {
 }
 
 const ANTHROPIC_STATIC_MODELS: readonly LlmModelInfo[] = [
-  { id: 'claude-opus-4-8', label: 'Claude Opus 4.8' },
-  { id: 'claude-opus-4-7', label: 'Claude Opus 4.7' },
-  { id: 'claude-sonnet-5', label: 'Claude Sonnet 5' },
-  { id: 'claude-sonnet-4-6', label: 'Claude Sonnet 4.6' },
-  { id: 'claude-haiku-4-5', label: 'Claude Haiku 4.5' },
+  { id: 'claude-sonnet-5-5', label: 'Claude Sonnet 5.5' },
+  { id: 'claude-haiku-5-5', label: 'Claude Haiku 5.5' },
+  { id: 'claude-opus-5-5', label: 'Claude Opus 5.5' },
+  { id: 'claude-fable-5-1', label: 'Claude Fable 5.1' },
 ];
 
 const OPENAI_STATIC_MODELS: readonly LlmModelInfo[] = [
-  { id: 'gpt-4o', label: 'GPT-4o' },
-  { id: 'gpt-4o-mini', label: 'GPT-4o mini' },
-  { id: 'gpt-4.1', label: 'GPT-4.1' },
-  { id: 'gpt-4.1-mini', label: 'GPT-4.1 mini' },
+  { id: 'gpt-6.1-sol', label: 'GPT-6.1 Sol' },
+  { id: 'gpt-6-luna', label: 'GPT-6 Luna' },
+  { id: 'gpt-6-astra', label: 'GPT-6 Astra' },
 ];
 
 const CATALOG: Record<ConfigurableProvider, ProviderCatalogEntry> = {

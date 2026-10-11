@@ -1,0 +1,33 @@
+<!-- produced from apps/docs/src/content/docs/guides/apps/phone-app.md § Add one; do not edit -->
+
+# A phone app for an app: Add one
+
+In the Designer, pick **Mobile** in the "what to build" menu, or ask for a phone app. On a
+terminal:
+
+```bash
+npx @adminiumjs/adminium app new orders --mobile
+```
+
+Either way a person is asked first, once: a phone side installs Expo's packages (about 350 MB,
+about a minute, from npm) into `apps/<key>/mobile/node_modules`, and Expo's build runs the code of
+those packages on your computer. Typing `--mobile` is that yes. In the Designer it is a question in
+the chat, or the button on the Phone tab.
+
+The yes is kept for the phone app's package list and settings **as they read then**
+(`package.json`, its lock file, `app.json`, `index.ts`, `tsconfig.json`). Change one of them and
+you are asked again. For a phone side that came from somewhere else (a folder someone sent you):
+
+```bash
+npx @adminiumjs/adminium app approve-build orders
+```
+
+It shows what will run, asks, and installs the packages. The packages are named by a version
+from the npm registry and nothing else: a package given as an address, a git repository or a
+file is refused, and so is a lock file that fetches from anywhere else, a second lock
+(`npm-shrinkwrap.json`, another package manager's) or one in npm's old form. The install always
+asks the npm registry itself (`registry.npmjs.org`), whatever this computer's npm is set to.
+Packages that were already in the folder when you said yes (a `node_modules` that came with it)
+are thrown away and fetched again. On a terminal the yes is kept in the
+project (`.adminium/approved-builds.json`); in the desktop app it is kept per computer, so a
+folder never arrives approved.

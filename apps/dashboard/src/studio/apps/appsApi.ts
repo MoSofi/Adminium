@@ -68,6 +68,8 @@ export interface InstalledApp {
   installedAt: number;
   connectionId: string | null;
   sides: InstalledAppSide[];
+  /** The app has a phone app for customers: served to nobody, with a key of its own. Absent otherwise, and from an older server. */
+  phone?: true;
   /** Who the manifest says made it; `local` is an app made on this install. Absent from an older server. */
   publisher?: { id: string; name: string };
   /**
@@ -642,6 +644,8 @@ export interface AppInstallPlan {
      * screen's into a shared link's, whose token alone opens what they read.
      */
     opensWithoutStaff?: string[];
+    /** An update's check, for an app with a phone side: its phone app has a key, would be given one, or the operator took it back. */
+    phoneKey?: 'held' | 'made' | 'withheld';
     warnings: { code: string; message: string }[];
     /** Making the app's key needs the API keys permission. */
     canGrant: boolean;

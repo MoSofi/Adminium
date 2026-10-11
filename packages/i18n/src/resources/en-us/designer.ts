@@ -50,7 +50,9 @@ export default {
     "dashboard": "Dashboard only",
     "dashboardLine": "tables and admin pages",
     "web": "Web",
-    "webLine": "a staff or customer side"
+    "webLine": "a staff or customer side",
+    "mobile": "Mobile",
+    "mobileLine": "a phone app"
   },
   "examples": {
     "label": "Examples",
@@ -460,7 +462,12 @@ export default {
     "pages": "Pages on this side",
     "pagesOpened": "Pages you have opened",
     "addressEnter": "Press {key} to go to what you typed.",
-    "addressQuiet": "This app’s pages have no addresses yet. Ask the Designer to give each page its own address."
+    "addressQuiet": "This app’s pages have no addresses yet. Ask the Designer to give each page its own address.",
+    "mobile": "Phone app",
+    "buildingMobile": "Building the phone app…",
+    "failedMobile": "The phone app did not build.",
+    "crashedMobile": "The phone app stopped with an error.",
+    "wentOnMobile": "The phone app hit an error and went on. A part of it may be empty."
   },
   "arch": {
     "access": "Customer access",
@@ -743,7 +750,8 @@ export default {
     "leaveGo": "Leave",
     "composerUnsaved": "You have unsaved changes in {count, plural, one {# file} other {# files}}. The Designer will not see them.",
     "saveFirst": "Save first",
-    "sendAnyway": "Send anyway"
+    "sendAnyway": "Send anyway",
+    "groupMobile": "Phone app"
   },
   "chat": {
     "copy": "Copy this message",
@@ -820,5 +828,45 @@ export default {
     "go": "Export…",
     "saved": "Saved {file}, {size} MB",
     "failed": "The export could not be made"
+  },
+  "phone": {
+    "adding": "Adding the phone app…",
+    "installing": "Installing Expo’s packages (about 350 MB)…",
+    "building": "Building the phone app…",
+    "addTitle": "Add a phone app?",
+    "approveTitle": "This app has a phone app. Build it on this computer?",
+    "packages": "It asks for these packages:",
+    "packagesTitle": "The phone app’s packages are not installed.",
+    "shapeTitle": "The phone app’s folder cannot be built as it is.",
+    "failedTitle": "The phone app did not build.",
+    "addLine": "It installs Expo’s packages (about 350 MB, about a minute) and builds with Expo on this computer. This needs the network.",
+    "add": "Add the phone app",
+    "approve": "Build it here",
+    "getPackages": "Get its packages",
+    "tryAgain": "Try again",
+    "fixMessage": "The phone app did not build: {error} Please fix it.",
+    "waitTurn": "The Designer is working. This waits until it is done.",
+    "doorTitle": "Open on a phone",
+    "code": "A code to scan with the phone",
+    "stepGo": "Install Expo Go on the phone.",
+    "stepGoSdk": "Install Expo Go on the phone (the one for SDK {sdk}).",
+    "stepNetwork": "Put the phone on the same network as this computer.",
+    "stepScan": "Scan the code with the phone’s camera, or in Expo Go.",
+    "copy": "Copy the address",
+    "copied": "Copied",
+    "connected": "A phone is connected.",
+    "waiting": "No phone has connected yet.",
+    "sdkMismatch": "That phone’s Expo Go is for SDK {phone}, and this app is written for SDK {app}. Install the Expo Go for SDK {app}.",
+    "doorNote": "While this is open, the phone that scans the code can open this app’s phone preview and reach what the app makes public, and nothing else on this computer. Only the first phone to scan it is let in. It closes when you stop it, and after half an hour with no phone using it. If nothing happens on the phone, check that both are on the same network and that this computer’s firewall lets it in.",
+    "starting": "Starting Expo’s bundler…",
+    "doorLead": "This shows a code. A phone with Expo Go, on the same network as this computer, scans it and runs the real app with this computer’s data. Nothing is sent anywhere else.",
+    "closedIdle": "It closed after half an hour with no phone using it.",
+    "closedNetwork": "This computer’s network changed, so the code led nowhere. Show a new one.",
+    "noNetwork": "This computer is on no network a phone could reach. Connect it to Wi-Fi first.",
+    "address": "This computer’s address on the phone’s network",
+    "stop": "Stop",
+    "show": "Show the code",
+    "open": "Open on a phone",
+    "webNote": "Drawn by the browser: close to the phone, not the phone. The Designer does not look at this side."
   }
 } as const;

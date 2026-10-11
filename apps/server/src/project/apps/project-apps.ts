@@ -229,7 +229,7 @@ export function createProjectApps(opts: ProjectAppsOptions): ProjectApps {
     if (opts.mode === 'dev') {
       await opts.publicApi.enable(key);
       opts.log(
-        `App "${key}": switched the public API on (Settings → API), so its customer side can reach what its manifest grants.` +
+        `App "${key}": switched the public API on (Settings → API), so its customers (its customer side, its phone app) can reach what its manifest grants.` +
           (opts.publicApi.reachable === true
             ? ' This server listens beyond this machine: whoever can reach it can use that too. Start it with --host 127.0.0.1 to keep it here.'
             : ''),

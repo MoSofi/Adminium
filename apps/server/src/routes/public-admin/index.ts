@@ -51,6 +51,8 @@ import {
   rotatePublishableKey,
   sealPublishableKey,
   SERVER_KEY_SEALED_SENTINEL,
+  hasVisitorReach,
+  managedKeyKind,
 } from '../../public-api/keys.js';
 import { compileScope, ScopeCompileError, type ScopeIssue } from '../../public-api/scope.js';
 import { derivedDocumentIssues, parseAccess } from '../../public-api/derive.js';
@@ -153,7 +155,7 @@ function keyToDto(row: PublicKey, extras: KeyExtras = NO_EXTRAS): PublicKeyDto {
     prefix: row.prefix,
     scopeId: row.scopeId,
     connectionId: extras.connectionId,
-    kind: row.kind === 'server' ? 'server' : 'browser',
+    kind: managedKeyKind(row.kind),
     access: extras.access,
     issues: extras.issues.map((i) => ({ ...i })),
     side: row.side === 'staff' ? 'staff' : 'customer',
@@ -650,7 +652,7 @@ export function publicAdminRoutes(deps: PublicAdminRoutesDeps): FastifyPluginAsy
           );
         }
         const kind = body.kind ?? 'browser';
-        if (kind === 'server' && byScope) {
+        if (!hasVisitorReach(kind) && byScope) {
           throw new ValidationFailedError('A server key is made from endpoints.', {
             issues: [{ code: 'KEY_SHAPE_INVALID', message: 'send connectionId with access for a server key' }],
           });
@@ -661,7 +663,7 @@ export function publicAdminRoutes(deps: PublicAdminRoutesDeps): FastifyPluginAsy
           tokenHash: generated.tokenHash,
           // A server key is shown once and stored hash-only: there is nothing
           // to reveal later, which is what makes "copy it now" true.
-          tokenEncrypted: kind === 'server' ? SERVER_KEY_SEALED_SENTINEL : sealPublishableKey(crypto, generated.token),
+          tokenEncrypted: hasVisitorReach(kind) ? sealPublishableKey(crypto, generated.token) : SERVER_KEY_SEALED_SENTINEL,
         };
 
         if (byAccess) {
@@ -784,7 +786,7 @@ export function publicAdminRoutes(deps: PublicAdminRoutesDeps): FastifyPluginAsy
         // Checked BEFORE the audit row and the decrypt: a server key was
         // stored hash-only, and "revealing" its empty sentinel would audit a
         // read that returned nothing and then fail blaming the secret.
-        if (row.kind === 'server') {
+        if (!hasVisitorReach(managedKeyKind(row.kind))) {
           throw new ConflictError('A server key is shown once, when it is made; there is nothing to reveal.', 'CONFLICT', {
             id: row.id,
           });
@@ -813,13 +815,13 @@ export function publicAdminRoutes(deps: PublicAdminRoutesDeps): FastifyPluginAsy
           throw new ConflictError('This key is revoked; create a new one.', 'CONFLICT', { id: row.id });
         }
         // Rotation keeps the kind: a server key rotates to a new `adm_srv_`,
-        // still shown once.
-        const kind = row.kind === 'server' ? 'server' : 'browser';
+        // still shown once; an app key to a new `adm_app_`, never to a browser key.
+        const kind = managedKeyKind(row.kind);
         const next = rotatePublishableKey(kind);
         await keys.rotate(row.id, {
           prefix: next.prefix,
           tokenHash: next.tokenHash,
-          tokenEncrypted: kind === 'server' ? SERVER_KEY_SEALED_SENTINEL : sealPublishableKey(crypto, next.token),
+          tokenEncrypted: hasVisitorReach(kind) ? sealPublishableKey(crypto, next.token) : SERVER_KEY_SEALED_SENTINEL,
         });
         deps.invalidateResolver?.(row.id);
         await bump();

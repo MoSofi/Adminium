@@ -8,7 +8,7 @@
  */
 import { z } from 'zod';
 
-const target = z.enum(['auto', 'dashboard', 'web']);
+const target = z.enum(['auto', 'dashboard', 'web', 'mobile']);
 
 export const designerSession = z.object({
   id: z.string(),
@@ -200,7 +200,7 @@ const designerFilePath = z.string().min(1).max(300);
 export const designerFilesReply = z.object({
   groups: z.array(
     z.object({
-      key: z.enum(['customer', 'staff', 'dashboard', 'settings']),
+      key: z.enum(['customer', 'staff', 'mobile', 'dashboard', 'settings']),
       files: z.array(z.object({ path: z.string(), label: z.string(), hash: designerFileHash, size: z.number().int(), note: z.enum(['brief']).optional() })),
     }),
   ),
@@ -388,3 +388,43 @@ export const designerArchitectureReply = z.object({
   }),
   pending: z.array(z.object({ part: z.string(), node: z.string().nullable() })),
 });
+
+// ── the phone side ───────────────────────────────────────────────────────────
+
+/** How an app's phone side stands: one of these, with the engine's words where there is something to say. */
+const designerPhoneStanding = z.discriminatedUnion('state', [
+  z.object({ state: z.literal('none') }),
+  z.object({ state: z.literal('shape'), words: z.string() }),
+  z.object({ state: z.literal('unapproved'), words: z.string(), packages: z.array(z.string()) }),
+  z.object({ state: z.literal('no-packages'), words: z.string() }),
+  z.object({ state: z.literal('failed'), words: z.string() }),
+  z.object({ state: z.literal('built'), build: z.string() }),
+  z.object({ state: z.literal('working'), step: z.enum(['adding', 'installing', 'building']) }),
+]);
+
+/** The door a real phone comes through. `url` carries the code: it is for the page that draws it, and is never logged. */
+const designerPhoneDoor = z.discriminatedUnion('state', [
+  z.object({ state: z.literal('off') }),
+  z.object({ state: z.literal('starting'), app: z.string() }),
+  z.object({
+    state: z.literal('open'),
+    app: z.string(),
+    url: z.string(),
+    qr: z.string(),
+    address: z.string(),
+    sdk: z.string().nullable(),
+    connected: z.boolean(),
+    phoneSdk: z.string().nullable(),
+    lastSeen: z.number().nullable(),
+  }),
+  z.object({ state: z.literal('closed'), app: z.string(), why: z.enum(['stopped', 'idle', 'network', 'failed']), words: z.string() }),
+]);
+
+export const designerPhoneReply = z.object({
+  phone: designerPhoneStanding,
+  door: designerPhoneDoor,
+  /** This computer's addresses a phone on the same network could reach, the likeliest first. */
+  addresses: z.array(z.object({ address: z.string(), name: z.string() })),
+});
+
+export const designerPhoneOpenBody = z.object({ address: z.string().min(7).max(15) }).strict();

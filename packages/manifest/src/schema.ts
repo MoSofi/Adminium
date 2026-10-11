@@ -1298,7 +1298,8 @@ export const manifestWidgetSchema = z
 
 // ── frontend ─────────────────────────────────────────────────────────────────
 
-export const FRONTEND_KINDS = ['spa', 'electron', 'none'] as const;
+/** `expo` is a phone app's: built by Expo, never by the server's bundler, and only for the side `mobile`. */
+export const FRONTEND_KINDS = ['spa', 'electron', 'none', 'expo'] as const;
 
 export const frontendEnvVarSchema = z
   .object({
@@ -1315,7 +1316,16 @@ export const frontendEnvVarSchema = z
  * plus a staff side, a customer side, or both. At least one, or it is not a
  * micro-SaaS but somebody's own build.
  */
-export const FRONTEND_SIDES = ['staff', 'customer'] as const;
+export const FRONTEND_SIDES = ['staff', 'customer', 'mobile'] as const;
+
+/**
+ * The phone side: a phone app for customers, in `apps/<key>/mobile/`. It is a
+ * side of the app and not a web side: a server never serves it to the public,
+ * a package carries nothing of it, and it has no address, no placement and no
+ * switch. What it has is a key of its own kind for the public API.
+ */
+export const PHONE_SIDE = 'mobile';
+export const PHONE_KIND = 'expo';
 
 export const frontendSchema = z
   .object({
@@ -1462,6 +1472,26 @@ function sidesAreDistinct(m: { frontends: readonly { side: string }[] }): boolea
     seen.add(f.side);
   }
   return true;
+}
+
+/**
+ * The phone side is `kind: "expo"` and nothing else, and `expo` is the phone
+ * side's alone. It names no entry, routes, placement or switch: those are a
+ * served web side's.
+ */
+function phoneSideIssues(m: { frontends: readonly Record<string, unknown>[] }): { path: (string | number)[]; message: string }[] {
+  const out: { path: (string | number)[]; message: string }[] = [];
+  m.frontends.forEach((frontend, index) => {
+    const phone = frontend['side'] === PHONE_SIDE;
+    if (phone !== (frontend['kind'] === PHONE_KIND)) {
+      out.push({ path: ['frontends', index, 'kind'], message: `the side "${PHONE_SIDE}" is kind "${PHONE_KIND}", and "${PHONE_KIND}" is that side's alone` });
+    }
+    if (!phone) return;
+    for (const word of ['entry', 'env', 'routes', 'placement', 'enabled']) {
+      if (frontend[word] !== undefined) out.push({ path: ['frontends', index, word], message: `a phone side has no "${word}": it is not served by Adminium` });
+    }
+  });
+  return out;
 }
 
 const SIDES_MESSAGE = {
@@ -2980,6 +3010,7 @@ export const appManifestSchema = z
   .refine(compatibilityWindowOrdered, { ...WINDOW_MESSAGE, path: [...WINDOW_MESSAGE.path] })
   .refine(sidesAreDistinct, { ...SIDES_MESSAGE, path: [...SIDES_MESSAGE.path] })
   .superRefine((m, ctx) => {
+    for (const issue of phoneSideIssues(m)) ctx.addIssue({ code: 'custom', message: issue.message, path: issue.path });
     for (const issue of installFloorIssues(m)) ctx.addIssue({ code: 'custom', message: issue.message, path: issue.path });
     for (const issue of appReferenceIssues(m)) {
       ctx.addIssue({ code: 'custom', message: issue.message, path: issue.path });

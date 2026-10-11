@@ -51,7 +51,7 @@ describe('server keys [sqlite]', () => {
     expect((await publicKeysRepo(s.meta).findById(key.id))?.tokenEncrypted).toBe('');
 
     expect((await read(s, token)).statusCode).toBe(200);
-    for (const headers of [{ origin: PUBLIC_ORIGIN }, { 'sec-fetch-site': 'same-origin' }, { 'sec-fetch-mode': 'cors' }]) {
+    for (const headers of [{ origin: PUBLIC_ORIGIN }, { 'sec-fetch-site': 'same-origin' }, { 'sec-fetch-mode': 'cors' }, { 'sec-fetch-dest': 'empty' }]) {
       const refused = await read(s, token, headers);
       expect(refused.statusCode).toBe(403);
       expect((refused.json() as { error: { code: string; message: string } }).error).toMatchObject({

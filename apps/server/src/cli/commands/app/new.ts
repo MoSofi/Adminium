@@ -6,6 +6,8 @@
 import { checkApp } from '../../../project/apps/check-app.js';
 import { appPath, type AppSide } from '../../../project/apps/read-app.js';
 import { addSideDependencies, appKeyProblem, nameFromKey, scaffoldApp } from '../../../project/apps/scaffold-app.js';
+import { approvePhone } from '../../../project/apps/phone.js';
+import { installPhone } from '../../../project/apps/phone-build.js';
 import { refreshInstallStamp } from '../../../project/install-stamp.js';
 import { packageManagerProgram } from '../../../project/programs.js';
 import { APP_VERSION } from '../../../version.js';
@@ -19,19 +21,24 @@ const flags: FlagSpecs = {
   name: { type: 'string', placeholder: '<text>', describe: "The app's name as people read it", defaultDescription: 'made from the key' },
   staff: { type: 'boolean', describe: 'Add screens for staff (apps/<key>/staff/)' },
   customer: { type: 'boolean', describe: 'Add public screens for customers (apps/<key>/customer/)' },
+  mobile: { type: 'boolean', describe: 'Add a phone app for customers (apps/<key>/mobile/, built with Expo)' },
   'no-install': { type: 'boolean', describe: 'Do not install the packages the screens need' },
 };
 
 export const appNewCommand: Command = {
   name: 'new',
   summary: 'Write a starter app into apps/<key>/',
-  usage: 'adminium app new <key> [--name <text>] [--staff] [--customer] [--no-install]',
+  usage: 'adminium app new <key> [--name <text>] [--staff] [--customer] [--mobile] [--no-install]',
   describe:
     'Writes a small working app: two tables, a dashboard page for each, one role\n' +
     'and sample data, with its manifest as part files. --staff and --customer add a\n' +
     'side each, with one screen over that table; with neither, the app is its\n' +
-    'tables and pages alone. The app carries the publisher "local": it is yours,\n' +
-    'and installs from a file. Then edit the files and run  adminium app check.',
+    'tables and pages alone. --mobile adds a phone app for customers: an Expo\n' +
+    'project in apps/<key>/mobile/, with its own packages (about 350 MB), and\n' +
+    'asking for it is your yes to installing them and building with Expo on this\n' +
+    'computer. Its preview and the code that opens it on a phone are in the\n' +
+    'Designer (adminium design). The app carries the publisher "local": it is\n' +
+    'yours, and installs from a file. Then edit the files and run  adminium app check.',
   flags,
 
   async run({ io, deps, argv }) {
@@ -46,7 +53,8 @@ export const appNewCommand: Command = {
     const name = typeof values['name'] === 'string' && values['name'].trim() !== '' ? values['name'].trim() : nameFromKey(key);
     if (name.length > 80) throw new CliUsageError('--name is at most 80 characters.', 'app new');
 
-    const created = scaffoldApp({ root: project.root, key, name, sides, version: APP_VERSION });
+    const phone = values['mobile'] === true;
+    const created = scaffoldApp({ root: project.root, key, name, sides, version: APP_VERSION, ...(phone ? { phone: true } : {}) });
     io.out(`Created ${appPath(key)}/ (${String(created.length)} files).`);
 
     const added = addSideDependencies(project.root, sides, APP_VERSION);
@@ -72,6 +80,22 @@ export const appNewCommand: Command = {
       }
     }
 
+    if (phone) {
+      // Asking for a phone side on a terminal is the yes to its install and build, for this app as it was just written.
+      approvePhone(project.root, key);
+      if (values['no-install'] === true) {
+        io.out(`The phone app's packages are not installed. Install them before its preview can be built:  adminium app approve-build ${key}`);
+      } else {
+        io.out('Installing the phone app’s packages (Expo, about 350 MB; this takes about a minute) …');
+        const installed = await (deps.installPhone ?? installPhone)(project.root, key);
+        if (!installed.ok) {
+          installFailed = true;
+          io.err(installed.words);
+          io.err(`The app's files are in place; run  adminium app approve-build ${key}  to install them again.`);
+        }
+      }
+    }
+
     // What was just written is checked like anything else: a starter that fails its own check is a bug to see now.
     const check = checkApp(project.root, key, { version: APP_VERSION });
     printCheck(io, check);
@@ -79,7 +103,8 @@ export const appNewCommand: Command = {
 
     io.out('');
     io.out('Next:');
-    io.out(`  edit ${appPath(key, 'manifest')}/ — tables, pages, roles${sides.includes('customer') ? ', access' : ''}`);
+    io.out(`  edit ${appPath(key, 'manifest')}/ — tables, pages, roles${sides.includes('customer') || phone ? ', access' : ''}`);
+    if (phone) io.out(`  edit ${appPath(key, 'mobile', 'App.tsx')} — the phone app's screens; its preview and the code to open it on a phone are in  adminium design`);
     io.out('  npm run dev                               runs it from this folder: save a file and it is applied');
     io.out(`  npx @adminiumjs/adminium app check ${key}`);
     io.out(`  npx @adminiumjs/adminium app try ${key}     packs it and installs it on a throwaway Adminium`);

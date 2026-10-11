@@ -39,7 +39,7 @@ import { parseRecordId, pkLabel } from '../../crud/records.js';
 import { runList } from '../../crud/list.js';
 import type { FileStore } from '../../files/store.js';
 import { combinePredicates } from '../../public-api/claim.js';
-import { openPublishableKey } from '../../public-api/keys.js';
+import { hasVisitorReach, openPublishableKey } from '../../public-api/keys.js';
 import type { PublicRateLimiter, RateDecision } from '../../public-api/limiter.js';
 import { fileIdOf } from '../../public-api/private-file.js';
 import { createPictureCache, isPictureMime, matchesTag, pictureHeaders, PICTURE_MAX_BYTES, readCapped, type PictureMime } from '../../public-api/picture.js';
@@ -121,7 +121,7 @@ export function registerPictures(app: FastifyInstance, deps: PictureDeps): void 
       return none();
     }
     // A customer's key, for every visitor: a staff screen's key is no page's.
-    if (key.kind !== 'browser' || key.side !== 'customer' || key.requiresStaff !== null) return none();
+    if (!hasVisitorReach(key.kind) || key.side !== 'customer' || key.requiresStaff !== null) return none();
     if (key.managedBy !== null && request.server.surfaceSettings != null) {
       const availability = availabilityOf(await request.server.surfaceSettings.read(), key.managedBy, 'customer');
       if (availability !== 'ok') return deps.fail(reply, 503, availability === 'app-disabled' ? 'APP_DISABLED' : 'SURFACE_OFF', 'This app is switched off right now.');

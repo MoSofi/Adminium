@@ -68,6 +68,8 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   // What a template writes when a value is missing: a block tied to a value, a backup after a bar. The email renderer's.
   'email.showWhen',
   'placeholder.backup',
+  // A phone side: its key is made at install, and its preview built in a project being designed.
+  'frontend.mobile',
   // The price question: a host's rule on its orders, and the add-on's side of it. Asked inside every save that moves an order's price.
   'table.adjust',
   'addOn.adjuster',

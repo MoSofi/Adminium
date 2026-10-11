@@ -45,14 +45,16 @@ export function printCheck(io: CommandContext['io'], check: AppCheck, opts: { br
   if (hasErrors(check) || check.manifest === null) return;
   const manifest = check.manifest;
   const tables = manifest.requiredSchema.tables.length;
+  // Who the public access is for: the customer side, the phone app, or both (a phone app is a customer's).
+  const who = check.phone ? (check.sides.includes('customer') ? 'the customer side and the phone app' : 'the phone app') : 'the customer side';
   io.out(
     `✓ ${manifest.name} ${manifest.version} (${check.key}): ${String(tables)} table(s), ${String(manifest.pages.length)} page(s), ` +
-      (check.sides.length === 0 ? 'no screens of its own' : `${check.sides.join(' and ')} side`),
+      (check.sides.length === 0 ? (check.phone ? 'a phone app' : 'no screens of its own') : `${check.sides.join(' and ')} side${check.phone ? ' and a phone app' : ''}`),
   );
   if (check.access.length === 0) {
-    io.out('✓ the customer side reaches nothing: the manifest grants no public access');
+    io.out(`✓ ${who} reaches nothing: the manifest grants no public access`);
   } else {
-    io.out('✓ the customer side may reach only this:');
+    io.out(`✓ ${who} may reach only this:`);
     for (const line of check.access) io.out(`    ${line}`);
   }
 }

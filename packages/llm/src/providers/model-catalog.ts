@@ -7,7 +7,8 @@
  *   - openai-compatible  → live, tolerate 404 → `[]` (user free-texts the model)
  *   - ollama             → live only (local models vary; no static fallback)
  *
- * The static ids are a conservative snapshot for offline/first-run UX; the live
+ * The static ids are the providers' current line-up as their public model pages
+ * listed it on 2026-10-11, for offline/first-run UX; the live
  * fetch is always attempted first, so a stale entry here never blocks a real model.
  */
 import { requestJson } from './http.js';
@@ -16,18 +17,16 @@ import { ProviderError, type ModelInfo } from './types.js';
 // ─── Static fallback lists ───────────────────────────────────────────────────
 
 export const ANTHROPIC_STATIC_MODELS: readonly ModelInfo[] = [
-  { id: 'claude-opus-4-8', label: 'Claude Opus 4.8' },
-  { id: 'claude-opus-4-7', label: 'Claude Opus 4.7' },
-  { id: 'claude-sonnet-5', label: 'Claude Sonnet 5' },
-  { id: 'claude-sonnet-4-6', label: 'Claude Sonnet 4.6' },
-  { id: 'claude-haiku-4-5', label: 'Claude Haiku 4.5' },
+  { id: 'claude-sonnet-5-5', label: 'Claude Sonnet 5.5' },
+  { id: 'claude-haiku-5-5', label: 'Claude Haiku 5.5' },
+  { id: 'claude-opus-5-5', label: 'Claude Opus 5.5' },
+  { id: 'claude-fable-5-1', label: 'Claude Fable 5.1' },
 ];
 
 export const OPENAI_STATIC_MODELS: readonly ModelInfo[] = [
-  { id: 'gpt-4o', label: 'GPT-4o' },
-  { id: 'gpt-4o-mini', label: 'GPT-4o mini' },
-  { id: 'gpt-4.1', label: 'GPT-4.1' },
-  { id: 'gpt-4.1-mini', label: 'GPT-4.1 mini' },
+  { id: 'gpt-6.1-sol', label: 'GPT-6.1 Sol' },
+  { id: 'gpt-6-luna', label: 'GPT-6 Luna' },
+  { id: 'gpt-6-astra', label: 'GPT-6 Astra' },
 ];
 
 // ─── Model capabilities ──────────────────────────────────────────────────────
@@ -122,15 +121,15 @@ interface OpenAiModelsResponse {
 /**
  * True for ids that name a chat/completions-capable OpenAI model usable for
  * enrichment. The o-series reasoning models (`o1`/`o3`/`o4-*`) are deliberately
- * EXCLUDED: the Chat Completions contract this client speaks (`max_tokens` +
- * `temperature: 0`, both fixed here) is rejected by those models — they require
- * `max_completion_tokens` and forbid `temperature ≠ 1`, so every enrichment
- * call on them 400s. Since temperature 0 is a non-negotiable determinism
- * mandate (`assertEnrichmentTemperature`), offering them would be a guaranteed
- * dead end; we filter them out of the catalog entirely.
+ * EXCLUDED: they forbid `temperature ≠ 1` and have no way to turn their
+ * reasoning off, and temperature 0 is a non-negotiable determinism mandate
+ * (`assertEnrichmentTemperature`). The `gpt-…` models that reason take
+ * temperature 0 with `reasoning_effort: "none"`, which the client sends when
+ * the service asks for it (`OfficialShape` in `openai.ts`).
  */
 function isOpenAiChatModel(id: string): boolean {
-  return /gpt|chatgpt/i.test(id);
+  // The real list (read 2026-10-11) also holds `gpt-…` models that do not chat: speech, live audio, pictures, search.
+  return /gpt|chatgpt/i.test(id) && !/realtime|audio|transcribe|tts|whisper|image|search|-live\b|\blive-|embedding|moderation/i.test(id);
 }
 
 /** `GET {baseUrl}/models` filtered to chat models; on any failure returns the static OpenAI list. */

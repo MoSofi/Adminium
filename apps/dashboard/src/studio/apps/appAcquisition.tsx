@@ -118,7 +118,9 @@ function publicAccessAdded(plan: AppInstallPlan): NonNullable<AppInstallPlan['pu
   const access = plan.publicAccess;
   const added = (access?.endpoints ?? []).filter((endpoint) => endpoint.onUpdate === 'granted');
   const unlocked = access?.opensWithoutStaff ?? [];
-  return access === undefined || (added.length === 0 && unlocked.length === 0) ? null : { ...access, endpoints: added };
+  // A key for the app's phone app is a new key: asked like a new entry.
+  const phone = access?.phoneKey === 'made';
+  return access === undefined || (added.length === 0 && unlocked.length === 0 && !phone) ? null : { ...access, endpoints: added };
 }
 
 /** An update waiting on columns the operator has been asked to add. */

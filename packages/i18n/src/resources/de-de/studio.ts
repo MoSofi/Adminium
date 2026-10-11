@@ -3000,7 +3000,8 @@ export default {
       "hide": "Schlüssel verbergen",
       "kind": {
         "browser": "BROWSER",
-        "server": "SERVER"
+        "server": "SERVER",
+        "app": "HANDY-APP"
       },
       "never": "Nie",
       "reveal": "Schlüssel anzeigen",
@@ -3207,7 +3208,11 @@ export default {
     "crumb": "Apps",
     "sampleLedger": "Adminiums Liste der Beispieldatensätze",
     "customerApiOff": "Diese Seiten öffnen sich, können aber nichts lesen oder speichern: Die öffentliche API ist ausgeschaltet. Schalten Sie sie unter Studio › API-Schlüssel ein.",
-    "customerNoAccess": "Diese Seiten öffnen sich, können aber nichts lesen oder speichern: Die App wurde ohne ihren öffentlichen Zugriff installiert. Aktualisieren Sie die App und erlauben Sie ihn."
+    "customerNoAccess": "Diese Seiten öffnen sich, können aber nichts lesen oder speichern: Die App wurde ohne ihren öffentlichen Zugriff installiert. Aktualisieren Sie die App und erlauben Sie ihn.",
+    "phone": "Handy-App",
+    "phoneLine": "Diese App hat eine Handy-App für Kunden. Adminium liefert sie an niemanden aus: Sie läuft auf einem Handy und erreicht mit einem eigenen Schlüssel, was Gäste erreichen dürfen. Wer die Kundenansichten abschaltet, hält auch sie an.",
+    "phoneBuild": "Eine Handy-App, die für einen Store gebaut wird, braucht zwei Dinge von diesem Server: seine Adresse, wie ein Handy sie erreicht, und den Schlüssel „Handy-App“ der App.",
+    "phoneKeys": "API-Schlüssel öffnen"
   },
   "uninstall": {
     "files": "Die Dateien der App",
@@ -3295,7 +3300,8 @@ export default {
       "noPublicAddress": "Diese App hat keine öffentliche Adresse, daher kann kein Anmeldelink gesendet werden. Ordnen Sie ihrer Kundenseite eine Domain zu oder legen Sie die öffentliche Adresse des Servers fest.",
       "currency": "Für diese Datenbank ist keine Währung festgelegt. Beträge der App erscheinen daher im Dashboard in US-Dollar und in ihren E-Mails ohne Währung. Legen Sie eine unter Studio › Verbindungen › Regionale Einstellungen fest."
     },
-    "createConfirmed": "Zu {table} hinzufügen und eine Bestätigungs-E-Mail erhalten"
+    "createConfirmed": "Zu {table} hinzufügen und eine Bestätigungs-E-Mail erhalten",
+    "phoneKey": "Der Handy-App der App einen eigenen Schlüssel geben, für das, was Gäste schon erreichen dürfen. Er funktioniert aus einer Handy-App, nie von einer Webseite aus."
   },
   "addOnNeeded": {
     "appDisabled": "Ausgeschaltet – braucht es trotzdem",

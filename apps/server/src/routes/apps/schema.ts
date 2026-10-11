@@ -442,6 +442,14 @@ export const appInstallPlanDto = z.object({
        * Made only when the update is sent `publicAccess: true`.
        */
       opensWithoutStaff: z.array(z.string()).optional(),
+      /**
+       * For an app with a phone side that is already installed: whether its
+       * phone app has a key (`held`), the update would make one (`made`: a
+       * key for a program, with what guests may already reach, and only when
+       * the update is sent `publicAccess: true`), or the operator took it
+       * back and none is made (`withheld`).
+       */
+      phoneKey: z.enum(['held', 'made', 'withheld']).optional(),
       warnings: z.array(z.object({ code: z.string(), message: z.string() })),
       /** Making the app's key needs `system:api-keys:manage`. */
       canGrant: z.boolean(),
@@ -582,6 +590,8 @@ export const installedAppReply = z.object({
   installedAt: z.number(),
   connectionId: z.string().nullable(),
   sides: z.array(installedSide),
+  /** True for an app with a phone side (a phone app for customers): it is served to nobody, and has a key of its own. Absent otherwise. */
+  phone: z.literal(true).optional(),
   /** Who the manifest says made it; `local` is an app made on this install. Absent when unreadable. */
   publisher: appPublisher.optional(),
   /**

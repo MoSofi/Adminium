@@ -196,6 +196,7 @@ export default defineConfig({
                 { label: 'Sample data', link: '/guides/apps/sample-data/' },
                 { label: 'App roles and staff access', link: '/guides/apps/roles-and-staff-access/' },
                 { label: 'Building an app’s screens', link: '/guides/apps/building-a-side/' },
+                { label: 'A phone app for an app', link: '/guides/apps/phone-app/' },
                 { label: 'An app’s public access', link: '/guides/apps/public-access/' },
                 { label: 'An order with its lines', link: '/guides/apps/orders-with-lines/' },
                 {

@@ -15,7 +15,7 @@ import { join } from 'node:path';
 import { ASSISTANT_INPUT_TOKEN_LIMIT, estimateTokens, type RunMessage } from '@adminium/llm';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { ADDRESSES, appNow, createPrompt, MENTIONS_ADD_ON, MENTIONS_OWN_ROW, MENTIONS_SCREENS, OWN_ROW_GUIDE, skillsFor, taskGuides, trimTranscript } from '../src/designer/prompt.js';
+import { ADDRESSES, appNow, asksOnlyForPhoneApp, createPrompt, MENTIONS_ADD_ON, MENTIONS_OWN_ROW, MENTIONS_PHONE_APP, MENTIONS_SCREENS, OWN_ROW_GUIDE, skillsFor, taskGuides, trimTranscript } from '../src/designer/prompt.js';
 import { scaffoldApp } from '../src/project/apps/scaffold-app.js';
 import { emptyFirstPreview, placeholderScreens, unopenedTables, unreadPersonalColumns } from '../src/designer/service.js';
 import type { DesignerSession } from '../src/designer/session-store.js';
@@ -422,5 +422,69 @@ describe('pictures, made ready to send', () => {
     // Twelve megabytes: two of five fit, and they are the newest two.
     expect(sent(out)).toEqual(['p3', 'p4']);
     expect(lines(out)).toContain('"p1.png". You cannot see it: it could not be sent with this request');
+  });
+});
+
+describe('a phone app', () => {
+  const MOBILE = 'adminium-mobile/SKILL.md';
+  const SURFACE = 'adminium-surface/SKILL.md';
+
+  it('carries the phone skill with the Mobile target, for an app that has a phone side, and when the person asks for one', () => {
+    expect(skillsFor(session({ target: 'mobile' as DesignerSession['target'] }), { hasSides: false, mentionsAddOn: false })).toEqual(['adminium/SKILL.md', 'adminium-app/SKILL.md', 'adminium-app/references/INDEX.md', MOBILE]);
+    expect(skillsFor(session(), { hasSides: false, mentionsAddOn: false, hasPhone: true })).toContain(MOBILE);
+    expect(skillsFor(session({ target: 'dashboard' }), { hasSides: false, mentionsAddOn: false, hasPhone: true })).toContain(MOBILE);
+    expect(skillsFor(session(), { hasSides: false, mentionsAddOn: false, mentionsPhoneApp: true })).toContain(MOBILE);
+    expect(skillsFor(session({ target: 'web' }), { hasSides: false, mentionsAddOn: false, mentionsPhoneApp: true })).toContain(MOBILE);
+  });
+
+  it('does not carry it for words about a phone app when the person asked for the dashboard alone, or with no word of one', () => {
+    expect(skillsFor(session({ target: 'dashboard' }), { hasSides: false, mentionsAddOn: false, mentionsPhoneApp: true })).not.toContain(MOBILE);
+    expect(skillsFor(session(), { hasSides: false, mentionsAddOn: false, mentionsScreens: true })).not.toContain(MOBILE);
+    expect(skillsFor(session({ target: 'web' }), { hasSides: true, mentionsAddOn: false })).not.toContain(MOBILE);
+  });
+
+  it('with the Mobile target, words a website is asked for in are about the phone app: no surface skill unless the app has web sides', () => {
+    const mobile = session({ target: 'mobile' as DesignerSession['target'] });
+    expect(skillsFor(mobile, { hasSides: false, mentionsAddOn: false, mentionsScreens: true })).not.toContain(SURFACE);
+    expect(skillsFor(mobile, { hasSides: false, mentionsAddOn: false, mentionsScreens: true })).toContain(MOBILE);
+    expect(skillsFor(mobile, { hasSides: true, mentionsAddOn: false, mentionsScreens: true })).toEqual(expect.arrayContaining([SURFACE, MOBILE]));
+    // The add-ons skill is its own question.
+    expect(skillsFor(mobile, { hasSides: false, mentionsAddOn: true })).toEqual(expect.arrayContaining([MOBILE, 'adminium-add-ons/SKILL.md']));
+  });
+
+  it('knows a phone app when it is asked for, and not a phone that rings', () => {
+    for (const asked of ['I want a phone app for my customers', 'Can you make an iOS app?', 'An iPhone app to order ahead', 'a mobile app for bookings', 'An Android app too', 'an app for their phones', 'Build it with Expo', 'a React Native app']) {
+      expect(MENTIONS_PHONE_APP.test(asked), asked).toBe(true);
+    }
+    for (const asked of ['customers can phone us', 'Store each customer’s phone number', 'The site should work on mobile', 'A booking page for the salon']) {
+      expect(MENTIONS_PHONE_APP.test(asked), asked).toBe(false);
+    }
+  });
+
+  it('takes the words for a phone app alone only when no page in a browser is asked for with it', () => {
+    for (const asked of ['A phone app where customers can order ahead', 'an iOS app for my staff to see bookings', 'Build it with Expo, customers can book']) {
+      expect(asksOnlyForPhoneApp(asked), asked).toBe(true);
+    }
+    for (const asked of ['A booking website for customers, and a mobile app later', 'a phone app and a public page to register', 'an app for our trade expo, visitors register on a public page', 'customers can book on the website', 'A kiosk and an Android app']) {
+      expect(asksOnlyForPhoneApp(asked), asked).toBe(false);
+    }
+    // With both asked for, the website keeps its skill, and the phone app has its own beside it.
+    const auto = session({ target: 'auto' as DesignerSession['target'] });
+    const both = 'A booking website for customers, and a mobile app later';
+    const names = skillsFor(auto, { hasSides: false, mentionsAddOn: false, mentionsScreens: MENTIONS_SCREENS.test(both) && !asksOnlyForPhoneApp(both), mentionsPhoneApp: MENTIONS_PHONE_APP.test(both) });
+    expect(names).toEqual(expect.arrayContaining(['adminium-surface/SKILL.md', MOBILE]));
+  });
+
+  it('the app as the model is told it says whether it has a phone side, and a turn on one reads the phone skill', async () => {
+    expect(appNow(root, APP_VERSION, 'repairs').hasPhone).toBe(false);
+    const io = fakeIo({ interactive: false });
+    const deps = fakeDeps({ cwd: root, env: {} });
+    deps.runProcess = () => ({ status: 0, stdout: '' });
+    expect(await runCli(['app', 'new', 'cafe', '--mobile', '--no-install'], { io, deps }), io.stderr()).toBe(0);
+    expect(appNow(root, APP_VERSION, 'cafe').hasPhone).toBe(true);
+    const prompt = createPrompt({ root, version: APP_VERSION, skills: createSkills(), providerOf: async () => 'ollama' });
+    expect((await prompt(session({ appKey: 'cafe' }), [say('user', 'Make the buttons bigger.')])).system).toContain(`===== ${MOBILE} =====`);
+    expect((await prompt(session(), [say('user', 'Make the buttons bigger.')])).system).not.toContain(`===== ${MOBILE} =====`);
+    expect((await prompt(session(), [say('user', 'I want a phone app for my customers.')])).system).toContain(`===== ${MOBILE} =====`);
   });
 });

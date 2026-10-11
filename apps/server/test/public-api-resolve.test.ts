@@ -37,6 +37,7 @@ function rows(token: string, over: Partial<PublicKeyRow> = {}) {
     prefix,
     tokenHash,
     scopeId: 'psc_1',
+    kind: 'browser',
     side: 'customer',
     origins: '[]',
     expiresAt: null,

@@ -63,6 +63,10 @@ cover many endpoints with different methods on each.
 - A **server** key (`adm_srv_…`) is for your own backend. It needs no `Origin`, is shown
   once and cannot be revealed, and is refused from a browser. Only a server key can be
   granted a **service role** endpoint.
+- An **app** key (`adm_app_…`) is for a phone app. Like a server key it needs no `Origin` and is
+  refused from a browser; in everything else it is a browser key: a visitor's reach and limits,
+  the human check, and it can be revealed again. It is not made here: an app with a
+  [phone app](/guides/apps/phone-app/) gets one when it is installed.
 
 A key expires after 30 days, 90 days or never. **Revoke** ends it on the very next
 request, and within 5 seconds on any other replica of this server.
@@ -149,7 +153,7 @@ the venue can still cancel from its own screens.
 | Status | Code | When |
 |---|---|---|
 | 401 | `PUBLIC_KEY_INVALID` | The key is unknown, revoked or expired |
-| 403 | `PUBLIC_ORIGIN_REFUSED` | A browser key from an origin not listed, or a server key from a browser |
+| 403 | `PUBLIC_ORIGIN_REFUSED` | A browser key from an origin not listed, or a server key or an app key from a browser |
 | 404 | `PUBLIC_REF_NOT_FOUND` | No such endpoint, a method the key was not granted, or a row outside the endpoint's filter. All three look the same on purpose |
 | 400 | `PUBLIC_WRITE_REFUSED` | A column that is not writable, a PUT missing one, a batch of 0 or more than 500 rows, or a write the database refused. A value refused for itself in a writable column names it: `params.column` and `params.reason` (`too-long`, `format`, `invalid-character`, `required` on a create, and the others in [Error codes](/reference/errors/#a-refused-write)) |
 | 400 | `PUBLIC_QUERY_REFUSED` | A filter or sort the endpoint does not allow, or a path or query parameter holding U+0000 (`%00`), which `params.parameter` names |

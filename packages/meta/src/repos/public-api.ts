@@ -620,6 +620,22 @@ export function publicKeysRepo(meta: MetaDb) {
       return Number(res.numUpdatedRows) === 1;
     },
 
+    /**
+     * End a key at `at` without revoking it: what Adminium does to a key it
+     * made and takes back on its own (a phone app's key, when a version of the
+     * app drops the phone side). A revoke is a person's no, and is never
+     * undone by a later version; a key ended this way may be made again.
+     */
+    async expire(id: string, at: number = Date.now()): Promise<boolean> {
+      const res = await db
+        .updateTable('adminium_public_keys')
+        .set({ expiresAt: at, updatedAt: at })
+        .where('id', '=', id)
+        .where('revokedAt', 'is', null)
+        .executeTakeFirst();
+      return Number(res.numUpdatedRows) === 1;
+    },
+
     async revoke(id: string, at: number = Date.now()): Promise<boolean> {
       const res = await db
         .updateTable('adminium_public_keys')

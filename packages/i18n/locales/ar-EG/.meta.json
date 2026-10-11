@@ -9991,6 +9991,10 @@
     "status": "mt",
     "srcHash": "87f5d334c7df"
   },
+  "designer.code.groupMobile": {
+    "status": "mt",
+    "srcHash": "a32fd3400931"
+  },
   "designer.code.groupSettings": {
     "status": "mt",
     "srcHash": "b47678a28045"
@@ -10707,6 +10711,158 @@
     "status": "mt",
     "srcHash": "8b6f147aacf1"
   },
+  "designer.phone.add": {
+    "status": "mt",
+    "srcHash": "7b7fba6b0207"
+  },
+  "designer.phone.addLine": {
+    "status": "mt",
+    "srcHash": "8aa78e4d6b59"
+  },
+  "designer.phone.addTitle": {
+    "status": "mt",
+    "srcHash": "e0d5ba1986bb"
+  },
+  "designer.phone.adding": {
+    "status": "mt",
+    "srcHash": "6d48b2a0f267"
+  },
+  "designer.phone.address": {
+    "status": "mt",
+    "srcHash": "30fd50db0fe9"
+  },
+  "designer.phone.approve": {
+    "status": "mt",
+    "srcHash": "3fa5bf70e72f"
+  },
+  "designer.phone.approveTitle": {
+    "status": "mt",
+    "srcHash": "2ca9473e414b"
+  },
+  "designer.phone.building": {
+    "status": "mt",
+    "srcHash": "9559fbff7f35"
+  },
+  "designer.phone.closedIdle": {
+    "status": "mt",
+    "srcHash": "0d94953002ca"
+  },
+  "designer.phone.closedNetwork": {
+    "status": "mt",
+    "srcHash": "dd78489c5cdf"
+  },
+  "designer.phone.code": {
+    "status": "mt",
+    "srcHash": "97366cc6bdec"
+  },
+  "designer.phone.connected": {
+    "status": "mt",
+    "srcHash": "bda6c2fe2965"
+  },
+  "designer.phone.copied": {
+    "status": "mt",
+    "srcHash": "8e3df45a49db"
+  },
+  "designer.phone.copy": {
+    "status": "mt",
+    "srcHash": "311bee6a5620"
+  },
+  "designer.phone.doorLead": {
+    "status": "mt",
+    "srcHash": "de65dfd16999"
+  },
+  "designer.phone.doorNote": {
+    "status": "mt",
+    "srcHash": "5612b3aff60b"
+  },
+  "designer.phone.doorTitle": {
+    "status": "mt",
+    "srcHash": "3641ad0d7611"
+  },
+  "designer.phone.failedTitle": {
+    "status": "mt",
+    "srcHash": "eb329fc69453"
+  },
+  "designer.phone.fixMessage": {
+    "status": "mt",
+    "srcHash": "e8fbf483c124"
+  },
+  "designer.phone.getPackages": {
+    "status": "mt",
+    "srcHash": "a46dc9a36667"
+  },
+  "designer.phone.installing": {
+    "status": "mt",
+    "srcHash": "e1562e568550"
+  },
+  "designer.phone.noNetwork": {
+    "status": "mt",
+    "srcHash": "f54efd096ae5"
+  },
+  "designer.phone.open": {
+    "status": "mt",
+    "srcHash": "3641ad0d7611"
+  },
+  "designer.phone.packages": {
+    "status": "mt",
+    "srcHash": "8082892a9c82"
+  },
+  "designer.phone.packagesTitle": {
+    "status": "mt",
+    "srcHash": "3af7ad02bf0a"
+  },
+  "designer.phone.sdkMismatch": {
+    "status": "mt",
+    "srcHash": "b7ea40d83504"
+  },
+  "designer.phone.shapeTitle": {
+    "status": "mt",
+    "srcHash": "8c04fc2b1c45"
+  },
+  "designer.phone.show": {
+    "status": "mt",
+    "srcHash": "ec2cd05235df"
+  },
+  "designer.phone.starting": {
+    "status": "mt",
+    "srcHash": "c3e49e767b30"
+  },
+  "designer.phone.stepGo": {
+    "status": "mt",
+    "srcHash": "0fcd004c3b42"
+  },
+  "designer.phone.stepGoSdk": {
+    "status": "mt",
+    "srcHash": "7f0f720751f8"
+  },
+  "designer.phone.stepNetwork": {
+    "status": "mt",
+    "srcHash": "489dbea50a31"
+  },
+  "designer.phone.stepScan": {
+    "status": "mt",
+    "srcHash": "2b92f8ac9715"
+  },
+  "designer.phone.stop": {
+    "status": "mt",
+    "srcHash": "9e253470c876"
+  },
+  "designer.phone.tryAgain": {
+    "status": "mt",
+    "srcHash": "042c862e4467"
+  },
+  "designer.phone.waitTurn": {
+    "status": "mt",
+    "srcHash": "2308ff6e2a95"
+  },
+  "designer.phone.waiting": {
+    "status": "mt",
+    "srcHash": "1f7fc395c37e"
+  },
+  "designer.phone.webNote": {
+    "status": "mt",
+    "srcHash": "43d993d1a714"
+  },
   "designer.pictures.added": {
     "status": "mt",
     "srcHash": "766a4bb0d961"
@@ -10775,6 +10931,10 @@
     "status": "mt",
     "srcHash": "4adde6960a60"
   },
+  "designer.preview.buildingMobile": {
+    "status": "mt",
+    "srcHash": "9559fbff7f35"
+  },
   "designer.preview.buildingStaff": {
     "status": "mt",
     "srcHash": "749f12f03ac2"
@@ -10782,6 +10942,10 @@
   "designer.preview.crashedCustomer": {
     "status": "mt",
     "srcHash": "e9e28a1dee1a"
+  },
+  "designer.preview.crashedMobile": {
+    "status": "mt",
+    "srcHash": "ed451b7e16c2"
   },
   "designer.preview.crashedStaff": {
     "status": "mt",
@@ -10806,6 +10970,10 @@
   "designer.preview.failedDashboard": {
     "status": "mt",
     "srcHash": "4f1bfe5a3133"
+  },
+  "designer.preview.failedMobile": {
+    "status": "mt",
+    "srcHash": "eb329fc69453"
   },
   "designer.preview.failedStaff": {
     "status": "mt",
@@ -10838,6 +11006,10 @@
   "designer.preview.loading": {
     "status": "mt",
     "srcHash": "db093d7a6f00"
+  },
+  "designer.preview.mobile": {
+    "status": "mt",
+    "srcHash": "a32fd3400931"
   },
   "designer.preview.more": {
     "status": "mt",
@@ -10962,6 +11134,10 @@
   "designer.preview.wentOnCustomer": {
     "status": "mt",
     "srcHash": "0fe76b884382"
+  },
+  "designer.preview.wentOnMobile": {
+    "status": "mt",
+    "srcHash": "852ff57a1817"
   },
   "designer.preview.wentOnStaff": {
     "status": "mt",
@@ -11814,6 +11990,14 @@
   "designer.target.menu": {
     "status": "mt",
     "srcHash": "0513a8afaa4d"
+  },
+  "designer.target.mobile": {
+    "status": "mt",
+    "srcHash": "b1d702459399"
+  },
+  "designer.target.mobileLine": {
+    "status": "mt",
+    "srcHash": "f6df6e7a0a76"
   },
   "designer.target.web": {
     "status": "mt",
@@ -18923,6 +19107,10 @@
     "status": "mt",
     "srcHash": "772f80ad52e8"
   },
+  "studio.apiKeys.keys.kind.app": {
+    "status": "mt",
+    "srcHash": "40eb649adf10"
+  },
   "studio.apiKeys.keys.kind.browser": {
     "status": "mt",
     "srcHash": "97df859a3e8c"
@@ -19503,6 +19691,10 @@
     "status": "mt",
     "srcHash": "b5190800ccb3"
   },
+  "studio.appPublicAccess.phoneKey": {
+    "status": "mt",
+    "srcHash": "f0cc1272c99e"
+  },
   "studio.appPublicAccess.read": {
     "status": "mt",
     "srcHash": "ae7d86ed0176"
@@ -19746,6 +19938,22 @@
   "studio.appSettings.ownAddress": {
     "status": "mt",
     "srcHash": "4368b1abaf3f"
+  },
+  "studio.appSettings.phone": {
+    "status": "mt",
+    "srcHash": "a32fd3400931"
+  },
+  "studio.appSettings.phoneBuild": {
+    "status": "mt",
+    "srcHash": "3deeea7f0aeb"
+  },
+  "studio.appSettings.phoneKeys": {
+    "status": "mt",
+    "srcHash": "4423f522827c"
+  },
+  "studio.appSettings.phoneLine": {
+    "status": "mt",
+    "srcHash": "3431723b9138"
   },
   "studio.appSettings.preview": {
     "status": "mt",

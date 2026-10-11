@@ -4,6 +4,7 @@
  */
 
 import { loadProjectBundler, type LoadBundler } from '../../../project/build.js';
+import { hasPhoneCode } from '../../../project/apps/phone.js';
 import { checkApp, type AppCheck } from '../../../project/apps/check-app.js';
 import { resolveAppKey } from '../../../project/apps/read-app.js';
 import { buildAppSides, sideBuildPath, type BuiltSide } from '../../../project/apps/side-build.js';
@@ -67,7 +68,11 @@ export const appBuildCommand: Command = {
     const built = await checkAndBuild(io, project, key);
     if (built === null) return EXIT_VALIDATION_FAILED;
     if (built.sides.length === 0) {
-      io.out('This app has no screens of its own, so there is nothing to build.');
+      io.out(
+        hasPhoneCode(project.root, key)
+          ? 'This app’s only screens are its phone app, which is built as a preview where the app is designed (adminium design, adminium dev). There is nothing to build here.'
+          : 'This app has no screens of its own, so there is nothing to build.',
+      );
       return EXIT_OK;
     }
     for (const side of built.sides) {

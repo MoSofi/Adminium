@@ -9,6 +9,8 @@
  * decides what becomes of them.
  */
 import type { Attachment, Attachments } from './attachments.js';
+import { PHONE_SIDE } from '../project/apps/phone.js';
+import { phoneNow } from '../project/apps/phone-build.js';
 import { existsSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -40,7 +42,7 @@ import { createDesignerRunner, type Actor, type BusyKind, type DesignerLimits, t
 import { createSessionStore, DESIGNER_TARGETS, type DesignerSession, type DesignerTarget, type SessionStore } from './session-store.js';
 import type { DesignerTool } from './tool-types.js';
 import type { Versions } from './versions.js';
-import { DESIGNER_MAX_OUTPUT_TOKENS } from './prompt.js';
+import { DESIGNER_MAX_OUTPUT_TOKENS, asksOnlyForPhoneApp } from './prompt.js';
 
 export interface DesignerHost {
   /** The project folder. */
@@ -248,7 +250,8 @@ export function unopenedTables(manifest: unknown): string[] {
     if (!granted.has(table.ref)) out.push(`- No role is granted the table "${table.ref}": staff cannot read it.`);
   }
   // Customers were given a way in, and no screen to come in by.
-  if ((app?.publicAccess ?? []).length > 0 && !(app?.frontends ?? []).some((side) => side.side === 'customer' && side.kind !== 'none')) {
+  // (A phone app is a way in too.)
+  if ((app?.publicAccess ?? []).length > 0 && !(app?.frontends ?? []).some((side) => (side.side === 'customer' && side.kind !== 'none') || side.side === PHONE_SIDE)) {
     out.push('- Customers may reach the app’s data (access.json), and the app has no customer screen: if the person asked for a page their customers use, build the customer side.');
   }
   return out;
@@ -553,13 +556,18 @@ export function createDesigner(host: DesignerHost): Designer {
         .flatMap((entry) => entry.message.content.flatMap((block) => (block.type === 'text' ? [block.text] : [])))
         .join(' ');
       const noScreens =
-        session.target !== 'dashboard' && ASKS_FOR_SCREENS.test(asked) && sidesWithScreens(host.root, session.appKey).length === 0
+        // (A phone app and nothing for a browser: the words are about the phone app.)
+        session.target !== 'dashboard' && session.target !== 'mobile' && !asksOnlyForPhoneApp(asked) && ASKS_FOR_SCREENS.test(asked) && sidesWithScreens(host.root, session.appKey).length === 0
           ? [
               `- The person asked for ${/\bwebsite|\bsite\b|public|customers?\b/i.test(asked) ? 'a page customers see' : 'screens of the app\'s own'}, and the app has none yet: call add_side (${/\bstaff\b/i.test(asked) && !/\bwebsite|public|customers?\b/i.test(asked) ? '"staff"' : '"customer"'}) and build it now. Do not ask whether to: it is what they asked for.`,
             ]
           : [];
+      // The phone app as its files are now did not build: nobody sees it until it does.
+      const phone = phoneNow(host.root, session.appKey);
+      const phoneFailed = phone.state === 'failed' ? [`- ${phone.words.split('\n').slice(0, 12).join('\n  ')}\n  Fix it in apps/${session.appKey}/mobile/App.tsx or the file under mobile/src/ it names, then call build_sides.`] : [];
       return [
         ...noScreens,
+        ...phoneFailed,
         ...unloadedFiles(session),
         ...unopenedTables(manifest),
         ...unreadPersonalColumns(manifest),

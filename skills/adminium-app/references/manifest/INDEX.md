@@ -14,7 +14,7 @@
 | `references/manifest/requiredschema--table-names-and-prefixed.md` | requiredSchema — Table names and `prefixed` | 1246 |
 | `references/manifest/requiredschema--what-the-plan-does-with-each-table.md` | requiredSchema — What the plan does with each table | 1832 |
 | `references/manifest/requiredschema--tables.md` | requiredSchema — Tables | 2506 |
-| `references/manifest/requiredschema--columns.md` | requiredSchema — Columns | 7718 |
+| `references/manifest/requiredschema--columns.md` | requiredSchema — Columns | 7808 |
 | `references/manifest/requiredschema--columns-2.md` | requiredSchema — Columns (part 2) | 652 |
 | `references/manifest/requiredschema--column-rules.md` | requiredSchema — Column rules | 7546 |
 | `references/manifest/requiredschema--column-rules-2.md` | requiredSchema — Column rules (part 2) | 7261 |
@@ -41,7 +41,7 @@
 | `references/manifest/pages.md` | Pages | 5885 |
 | `references/manifest/pages--tab-words-filters-and-bulk-actions.md` | Pages — Tab words, filters and bulk actions | 2313 |
 | `references/manifest/pages--navgroups.md` | Pages — navGroups | 789 |
-| `references/manifest/frontends.md` | Frontends | 2101 |
+| `references/manifest/frontends.md` | Frontends | 2774 |
 | `references/manifest/roles.md` | Roles | 6710 |
 | `references/manifest/roles--a-role-on-an-add-on-s-tables.md` | Roles — A role on an add-on's tables | 1422 |
 | `references/manifest/settings.md` | Settings | 1211 |

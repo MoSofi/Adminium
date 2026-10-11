@@ -5,7 +5,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { compareSemver, isManifestOnly, validateManifest, parseManifest } from '../src/index.js';
+import { compareSemver, hasPhoneSide, installFloorWords, isManifestOnly, validateManifest, parseManifest } from '../src/index.js';
 
 /** A minimal-but-complete valid manifest, shaped after the ecommerce-shop
  * example. */
@@ -125,6 +125,35 @@ describe('validateManifest — identity & policy', () => {
     expect(none.ok && isManifestOnly(none.manifest)).toBe(true);
     const some = validateManifest(validManifest());
     expect(some.ok && isManifestOnly(some.manifest)).toBe(false);
+  });
+
+  it('a phone side is `mobile` + `expo`, each the other’s alone, with nothing a served side has', () => {
+    const phone = (frontend: Record<string, unknown>) => validateManifest({ ...validManifest(), frontends: [{ side: 'staff', kind: 'spa' }, frontend] });
+    const ok = phone({ side: 'mobile', kind: 'expo' });
+    expect(ok.ok, JSON.stringify(ok)).toBe(true);
+    expect(ok.ok && hasPhoneSide(ok.manifest)).toBe(true);
+    expect(ok.ok && isManifestOnly(ok.manifest)).toBe(false);
+    for (const wrong of [
+      { side: 'mobile', kind: 'spa' },
+      { side: 'customer', kind: 'expo' },
+      { side: 'mobile', kind: 'expo', placement: 'external' },
+      { side: 'mobile', kind: 'expo', routes: { home: '/' } },
+      { side: 'mobile', kind: 'expo', enabled: false },
+      { side: 'mobile', kind: 'expo', entry: 'App.tsx' },
+    ]) {
+      expect(phone(wrong).ok, JSON.stringify(wrong)).toBe(false);
+    }
+    // An app whose only side is a phone app carries no built side, as one with none does.
+    const only = validateManifest({ ...validManifest(), frontends: [{ side: 'mobile', kind: 'expo' }] });
+    expect(only.ok && isManifestOnly(only.manifest) && hasPhoneSide(only.manifest)).toBe(true);
+    // Twice is refused as any side is.
+    expect(validateManifest({ ...validManifest(), frontends: [{ side: 'mobile', kind: 'expo' }, { side: 'mobile', kind: 'expo' }] }).ok).toBe(false);
+  });
+
+  it('names a phone side as a word a server may not know', () => {
+    const words = installFloorWords({ ...validManifest(), frontends: [{ side: 'staff', kind: 'spa' }, { side: 'mobile', kind: 'expo' }] });
+    expect(words).toContainEqual({ word: 'frontend.mobile', path: 'frontends.1.side' });
+    expect(installFloorWords(validManifest()).some((found) => found.word === 'frontend.mobile')).toBe(false);
   });
 
   it('rejects an unknown category and a non-semver version', () => {

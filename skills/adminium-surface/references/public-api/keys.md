@@ -10,6 +10,10 @@ cover many endpoints with different methods on each.
 - A **server** key (`adm_srv_…`) is for your own backend. It needs no `Origin`, is shown
   once and cannot be revealed, and is refused from a browser. Only a server key can be
   granted a **service role** endpoint.
+- An **app** key (`adm_app_…`) is for a phone app. Like a server key it needs no `Origin` and is
+  refused from a browser; in everything else it is a browser key: a visitor's reach and limits,
+  the human check, and it can be revealed again. It is not made here: an app with a
+  [phone app](https://docs.adminium.dev/guides/apps/phone-app/) gets one when it is installed.
 
 A key expires after 30 days, 90 days or never. **Revoke** ends it on the very next
 request, and within 5 seconds on any other replica of this server.

@@ -239,7 +239,7 @@ describe('inline provider setup', () => {
   /** Fill Anthropic + model + key and save. */
   async function saveAnthropic() {
     await userEvent.click(screen.getByRole('radio', { name: /Claude models via the Anthropic API/ }));
-    await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Model' }), 'claude-opus-4-8');
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Model' }), 'claude-sonnet-5-5');
     await userEvent.type(screen.getByLabelText('API key', { exact: false }), 'sk-ant-abcd1234');
     await userEvent.click(screen.getByRole('button', { name: 'Save provider' }));
   }

@@ -171,6 +171,17 @@ export function PublicAccessInstallCard({
           ))}
         </ul>
       ) : null}
+      {access.phoneKey === 'made' ? (
+        <p className="mb-[13px] flex items-start gap-2 text-[12.5px] leading-[1.45] text-warn" data-role="public-access-phone-key">
+          <AlertTriangle aria-hidden className="mt-px size-3.5 shrink-0" />
+          <span>
+            {t(
+              'studio:appPublicAccess.phoneKey',
+              'Give the app’s phone app a key of its own, for what guests may already reach. It works from a phone app, never from a web page.',
+            )}
+          </span>
+        </p>
+      ) : null}
       {troubled.length > 0 ? (
         <ul className="mb-[13px] flex flex-col gap-1.5" data-role="public-access-issues">
           {troubled.map((endpoint) => (

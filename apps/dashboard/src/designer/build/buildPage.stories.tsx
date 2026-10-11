@@ -58,6 +58,11 @@ function previewOf(sides: readonly PreviewSide[], side: PreviewSide, seenAs: rea
     ticket: { url: 'about:blank', origin: 'http://localhost', seenAs },
     ticketError: null,
     running: false,
+    phone: null,
+    addPhone: noop,
+    openPhoneDoor: noop,
+    stopPhoneDoor: noop,
+    phoneError: null,
     openTab: noop,
     canOpenTab: true,
   };

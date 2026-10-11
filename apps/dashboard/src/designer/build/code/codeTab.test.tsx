@@ -209,6 +209,28 @@ describe('the Code tab', () => {
     expect(within(files()).getAllByRole('button').filter((button) => button.tabIndex === 0).map((button) => button.textContent)).toEqual(['look.json']);
   });
 
+  it('titles the phone app’s files "Phone app", where the server lists them', async () => {
+    const phone = 'apps/shop/mobile/App.tsx';
+    disk[phone] = 'export default function Phone() {\n  return null;\n}\n';
+    listAnswer = () => {
+      const file = (path: string, label: string) => ({ path, label, hash: hashOf(disk[path] ?? ''), size: (disk[path] ?? '').length });
+      return jsonResponse(200, {
+        groups: [
+          { key: 'customer', files: [file(APP, 'customer/App.tsx')] },
+          { key: 'mobile', files: [file(phone, 'mobile/App.tsx')] },
+          { key: 'dashboard', files: [file(PAGE, 'dashboard/pages/items.json')] },
+        ],
+        busy: null,
+        version,
+      });
+    };
+    await open();
+    expect(within(files()).getAllByRole('group').map((group) => group.getAttribute('aria-label'))).toEqual(['Customer side', 'Phone app', 'Dashboard side']);
+    const group = within(files()).getByRole('group', { name: 'Phone app' });
+    await userEvent.click(within(group).getByRole('button', { name: /^App\.tsx/ }));
+    await waitFor(() => expect(editorText()).toContain('export default function Phone'));
+  });
+
   it('keeps what was typed in each file, marks it, and saves every edited file in one save', async () => {
     await open();
     type('// mine\n');

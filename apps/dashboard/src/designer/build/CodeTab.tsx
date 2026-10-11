@@ -21,6 +21,7 @@ import type { CodeFiles, CodeLock } from './useCodeFiles.js';
 function groupTitle(key: DesignerFileGroup): string {
   if (key === 'customer') return t('designer:code.groupCustomer', 'Customer side');
   if (key === 'staff') return t('designer:code.groupStaff', 'Staff side');
+  if (key === 'mobile') return t('designer:code.groupMobile', 'Phone app');
   if (key === 'dashboard') return t('designer:code.groupDashboard', 'Dashboard side');
   return t('designer:code.groupSettings', 'Design and settings');
 }

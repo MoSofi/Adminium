@@ -19,7 +19,7 @@ In the folder where you want to work, run:
 npx skills add Adminiumjs/skills
 ```
 
-It asks which skills to add and for which agent. Take all six: they are small, and they hand work
+It asks which skills to add and for which agent. Take all seven: they are small, and they hand work
 to each other. To make them available in every folder on your computer, add `--global`.
 
 You need [Node.js](https://nodejs.org) 22.14 or later. You do not need a database to start: the
@@ -54,7 +54,7 @@ You can leave any of these out. The agent picks something sensible and says what
 The agent does not say "it works" on its own word. Adminium checks every change, and the agent
 shows you the result.
 
-## The six skills
+## The seven skills
 
 ### `adminium` — the starting point
 
@@ -95,6 +95,18 @@ Try:
 - "Make a tablet screen for the workshop that shows today's jobs with one tap to mark a job done."
 - "Let a guest open their own booking from a link and change the date."
 
+### `adminium-mobile` — a phone app for your customers
+
+Builds a phone app for the app's customers, with React Native and Expo. It reaches only what you
+allow customers to reach, with a key of its own. You see it in a phone's frame as it is built, and
+on a real phone by scanning a code. Adding one installs Expo's packages (about 350 MB), and you
+are asked first.
+
+Try:
+
+- "Add a phone app where customers see the menu and send an order."
+- "Make the phone app's first screen a list of today's classes, with a button to book one."
+
 ### `adminium-design` — making the screens look good
 
 Makes those screens look like they were made for your business, not like a template: a clear first
@@ -129,7 +141,7 @@ Try:
 For the cases where settings and pages are not enough: a dashboard page or card written in React, a
 rule that runs on the server when a record is saved, or a button that runs your own code. It also
 covers the project's settings, its databases and putting the project on a server. This is the most
-technical of the six; most apps never need it.
+technical of the seven; most apps never need it.
 
 Try:
 
@@ -141,6 +153,8 @@ Try:
 ## What they cannot do yet
 
 - **Take payments** on a customer screen.
+- **Put a phone app in a store.** The phone app is built and previewed here; sending it to the App
+  Store or Google Play is done with Expo's own tools.
 - **Publish an app** to the adminium.dev marketplace. An app you build installs from its folder or
   from its file.
 - **Carry server code inside an app file.** Rules and buttons that run your own code stay in the
