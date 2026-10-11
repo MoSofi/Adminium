@@ -1889,6 +1889,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
         documentRoutes({
           meta,
           storage,
+          manager,
           runtime: () => addOnRuntime,
           // An app's staff screen draws through the same pipeline as every other door.
           pipeline: documents,

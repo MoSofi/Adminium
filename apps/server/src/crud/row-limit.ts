@@ -66,8 +66,10 @@ export interface RowLimitContext {
   today: string;
   /**
    * Nobody is asking: a job with no requester, a tool with no person behind
-   * it. Such a read reaches no row of any table — said outright, rather than
-   * left to whichever check upstream happens to stop it first.
+   * it. Such a read reaches no row of a table that says whose its rows are
+   * (`belongs`, or private) — said outright, rather than left to whichever
+   * check upstream happens to stop it first. A table that says nothing of its
+   * rows is read as it always was.
    */
   nobody?: true | undefined;
 }
@@ -303,7 +305,8 @@ class Build {
  * nearly everyone, and then no request reads a clock or builds a test.
  */
 export function mayBeRowLimited(set: Pick<PermissionSet, 'rowLimits'>, model: Pick<EffectiveModel, 'tables'>): boolean {
-  return set.rowLimits !== undefined || model.tables.some((table) => table.private === true);
+  // A caller that has no model in hand (a bare harness) has no table that could say anything of its rows.
+  return set.rowLimits !== undefined || (model?.tables ?? []).some((table) => table.private === true);
 }
 
 /** The reaches a person's `action` on a table is held to, one list per test that must pass; empty when nothing holds them. */
@@ -338,7 +341,8 @@ export function writerReaches(ctx: RowLimitContext, tableId: string): readonly R
 export function rowLimitFor(ctx: RowLimitContext, tableId: string, action: RowAction): RowTest | null {
   const table = ctx.model.tables.find((candidate) => candidate.id === tableId);
   // A table the model has not is no table to read: asked about by mistake, it reaches nothing rather than everything.
-  if (table === undefined || ctx.nobody === true) return () => never();
+  if (table === undefined) return () => never();
+  if (ctx.nobody === true) return table.belongs !== undefined || table.private === true ? () => never() : null;
   const held = heldTo(ctx, table, action);
   if (held.length === 0) return null;
   return (db, alias, reads) => {

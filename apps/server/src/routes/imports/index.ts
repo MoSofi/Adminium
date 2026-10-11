@@ -34,6 +34,7 @@ import { SnapshotView, type ResolvedTable } from '../../crud/identifiers.js';
 import { coerceCell } from '../../data-io/coerce.js';
 import { parseCsv } from '../../data-io/csv.js';
 import { loadSnapshotView } from '../../data-io/snapshot-view.js';
+import { requestReadsWhole } from '../../crud/row-reach-request.js';
 import { assertImportReadable, readViewOf } from '../../crud/read-view.js';
 import { assertImportCreatable, createLimitOf, updateLimitOf } from '../../rbac/update-limits.js';
 import {
@@ -160,9 +161,20 @@ export function importsRoutes(deps: ImportsRoutesDeps): FastifyPluginAsyncZod {
   const imports = importsRepo(meta);
   const files = filesRepo(meta);
 
+  /**
+   * Somebody else's import — its file, its mapping, the report of the rows it
+   * refused, each of which quotes rows — is opened by a holder of the manage
+   * grant whom nothing limits on the table it wrote: a report of rows that
+   * are not theirs is not theirs to read, whoever asked for the import.
+   */
+  async function mayOpenAnothers(request: FastifyRequest, row: DataImport, asked?: Map<string, boolean>): Promise<boolean> {
+    if (!(await request.can(IMPORTS_MANAGE_PERMISSION))) return false;
+    return requestReadsWhole(meta, request, row.connectionId, row.tableName, asked);
+  }
+
   async function assertVisible(request: FastifyRequest, row: DataImport, userId: string): Promise<void> {
     if (row.requestedBy === userId) return;
-    if (await request.can(IMPORTS_MANAGE_PERMISSION)) return;
+    if (await mayOpenAnothers(request, row)) return;
     throw new NotFoundError(`Import ${row.id} not found.`);
   }
 
@@ -395,7 +407,10 @@ export function importsRoutes(deps: ImportsRoutesDeps): FastifyPluginAsyncZod {
           ...(manage ? {} : { requestedBy: userId }),
           limit: request.query.limit,
         });
-        return { data: rows.map(toView) };
+        const asked = new Map<string, boolean>();
+        const shown: DataImport[] = [];
+        for (const row of rows) if (row.requestedBy === userId || (await mayOpenAnothers(request, row, asked))) shown.push(row);
+        return { data: shown.map(toView) };
       },
     );
 

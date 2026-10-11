@@ -33,6 +33,9 @@ import type { ConnectionManager, SourceDatabase } from '../connections/manager.j
 import type { ResolvedColumn, ResolvedTable, SnapshotView } from '../crud/identifiers.js';
 import { tableRulesFor, type FieldIssues } from '../crud/column-rules.js';
 import type { Row } from '../crud/mask.js';
+import { writerReaches, type RowLimitContext } from '../crud/row-limit.js';
+import { rowLimitContextOf, rowTestOf } from '../crud/row-limit-context.js';
+import { assertLinksReached, assertStaffColumns } from '../crud/row-writes.js';
 import {
   HookFailedError,
   HookRejectedError,
@@ -51,7 +54,7 @@ import { coerceCell } from '../data-io/coerce.js';
 import { EXPORT_BOM, createCsvParser, serializeCsvRow } from '../data-io/csv.js';
 import { loadSnapshotView } from '../data-io/snapshot-view.js';
 import { assertImportReadable, readViewOf } from '../crud/read-view.js';
-import { AppError } from '../errors.js';
+import { AppError, NotFoundError } from '../errors.js';
 import { scrubRefusal } from '../routes/data/refusal-scrub.js';
 import { resolvePermissionSet } from '../rbac/resolver.js';
 import { assertImportCreatable, createLimitOf, updateLimitOf } from '../rbac/update-limits.js';
@@ -215,12 +218,43 @@ async function runImport(
   const matchResolved = matchColumn === null ? null : view.column(table, matchColumn);
   // As the person who asked reads the table, again now: a role narrowed since the import was made is held to it.
   let readView: SnapshotView | null = null;
+  /*
+   * WHOSE ROWS. The import writes as the person who asked for it, as their
+   * roles stand now: somebody held to some rows of the table (`crud/row-
+   * limit.ts`) changes only rows they reach, names in a staff column only
+   * people the table lets them name, and links only to rows they reach. For
+   * them every row is written on its own, so each is judged; and an update
+   * is matched on a column no two rows share, or a row they cannot see could
+   * be the one that matched.
+   */
+  let reach: RowLimitContext | null = null;
   if (row.requestedBy !== null) {
     const permissions = await resolvePermissionSet(deps.meta, { kind: 'user', id: row.requestedBy, label: row.requestedBy });
+    reach = await rowLimitContextOf(deps.meta, permissions, row.connectionId, view.model);
     readView = readViewOf(view, permissions);
     assertImportReadable(readView, table.id, row.mapping.columns, matchColumn, updateLimitOf(permissions, row.connectionId, table.id)?.writable ?? null);
     assertImportCreatable(createLimitOf(permissions, row.connectionId, table.id), table.id, row.mapping.columns);
   }
+  const held = reach !== null && writerReaches(reach, table.id) !== null;
+  const updateTest = rowTestOf(reach, table.id, 'update');
+  if (held && matchResolved !== null && !(matchResolved.isPrimaryKey || table.table.columns.find((column) => column.name === matchResolved.name)?.isUnique === true)) {
+    throw new Error(`Rows of ${table.name} are matched on a column no two rows share (its key, or a unique column): ${matchResolved.name} is neither.`);
+  }
+  /** What one row names, judged for a requester who reaches only some rows: nothing for anybody else (a file brought in as history keeps what it names). */
+  const judge = async (values: Row, before: Row | null): Promise<void> => {
+    if (!held) return;
+    await assertLinksReached(reach, db as Kysely<SourceDatabase>, table.id, values, before);
+    await assertStaffColumns(reach, deps.meta, db as Kysely<SourceDatabase>, view.model, table.id, values, before);
+  };
+  /** The stored row a file's row matches, among the rows the requester's update reaches. */
+  const matched = async (column: string, value: unknown): Promise<Row | undefined> => {
+    let query = (db as Kysely<SourceDatabase>).selectFrom(table.id).selectAll().where((eb) => eb(db.dynamic.ref(column), '=', value));
+    if (updateTest !== null) query = query.where(updateTest(db as Kysely<SourceDatabase>, table.name));
+    return (await query.limit(1).executeTakeFirst()) as Row | undefined;
+  };
+  /** …and the same test in the UPDATE itself: a row handed on between the match and the write is not written. */
+  const within = updateTest === null ? undefined : ((query: never) => (query as { where: (e: unknown) => never }).where(updateTest(db as Kysely<SourceDatabase>, table.name))) as never;
+
   /**
    * A refused row's words, as the person who asked may read them: a role that
    * reads the table only in part is told a refusal as the data routes tell it
@@ -258,7 +292,7 @@ async function runImport(
     pending = [];
     if (ctx.signal.aborted) throw new JobCancelledError(ctx.jobId);
 
-    if (mode === 'upsert' || hooked.create) {
+    if (mode === 'upsert' || hooked.create || held) {
       for (const item of chunk) await writeOne(item, mode === 'upsert');
     } else {
       /*
@@ -365,14 +399,10 @@ async function runImport(
         }
         const match = { [matchResolved.name]: matchValue };
         if (hooked.update) {
-          const existing = await (db as Kysely<SourceDatabase>)
-            .selectFrom(table.id)
-            .selectAll()
-            .where((eb) => eb(db.dynamic.ref(matchResolved.name), '=', matchValue))
-            .limit(1)
-            .executeTakeFirst();
+          const existing = await matched(matchResolved.name, matchValue);
           if (existing !== undefined) {
             const before = existing as Row;
+            await judge(item.values, before);
             const [prepared] = await writes.beforeEach(
               'update',
               writeTarget,
@@ -385,20 +415,16 @@ async function runImport(
               refuseRow(item, prepared.issues);
               return;
             }
-            await updateRows(db, dialect, table, prepared.values, match);
+            if ((await updateRows(db, dialect, table, prepared.values, match, within)) === 0 && within !== undefined) throw new NotFoundError('Record not found.');
             updated += 1;
             await afterImportWrite('update', match, before);
             return;
           }
         } else {
           // The whole row: the parent it fed before, when this update moves it to another.
-          const existing = (await (db as Kysely<SourceDatabase>)
-            .selectFrom(table.id)
-            .selectAll()
-            .where((eb) => eb(db.dynamic.ref(matchResolved.name), '=', matchValue))
-            .limit(1)
-            .executeTakeFirst()) as Row | undefined;
+          const existing = await matched(matchResolved.name, matchValue);
           if (existing !== undefined) {
+            await judge(item.values, existing);
             // Prepared against the row as it is: a formula over it (a line's
             // amount, when only its qty is in the file) reads the stored inputs.
             const [prepared] = await writes.beforeEach('update', writeTarget, context, [{ values: item.values, record: existing }], HISTORY);
@@ -407,13 +433,15 @@ async function runImport(
               refuseRow(item, prepared?.issues ?? null);
               return;
             }
-            await updateRows(db, dialect, table, values, match);
+            if ((await updateRows(db, dialect, table, values, match, within)) === 0 && within !== undefined) throw new NotFoundError('Record not found.');
             updated += 1;
             await writes.settle('update', writeTarget, [{ record: { ...existing, ...values, ...match }, before: existing }]);
             return;
           }
         }
       }
+      // A new row: what it names, before anything is copied from a row it links to.
+      await judge(item.values, null);
       if (hooked.create) {
         const [prepared] = await writes.beforeEach('create', writeTarget, context, [{ values: item.values }], HISTORY);
         if (prepared === undefined) return;

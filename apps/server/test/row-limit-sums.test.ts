@@ -307,8 +307,10 @@ for (const [dialect, available] of ENGINES) {
         const { rowLimitFor } = await import('../src/crud/row-limit.js');
         const nobody = await rowsForAsker({ meta: w.meta, userId: null }, w.connectionId, await w.model());
         expect(nobody).not.toBeNull();
-        const none = rowLimitFor(nobody!, w.id('companies'), 'read')!;
-        expect(await w.db.selectFrom(w.id('companies')).select('id').where(none(w.db, 'companies')).execute()).toEqual([]);
+        // No row of a table that says whose its rows are; a table that says nothing is read as it always was.
+        const none = rowLimitFor(nobody!, w.id('deals'), 'read')!;
+        expect(await w.db.selectFrom(w.id('deals')).select('id').where(none(w.db, 'deals')).execute()).toEqual([]);
+        expect(rowLimitFor(nobody!, w.id('companies'), 'read')).toBeNull();
       });
     });
   });

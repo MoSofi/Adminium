@@ -35,6 +35,7 @@ import type { ConnectionManager } from '../connections/manager.js';
 import { LIST_LIMIT_MAX, runList, type ListResult } from '../crud/list.js';
 import { loadSnapshotView } from '../data-io/snapshot-view.js';
 import { readViewForUser } from '../crud/read-view.js';
+import { limitProjections, rowLimitContextForUser, rowTestOf } from '../crud/row-limit-context.js';
 import { filtersToWhere, resolveExportDefinition, sanitizeFileName } from '../export/definition.js';
 import { createRowWriter, type WriterColumn } from '../export/writer.js';
 import type { FileStore } from '../files/store.js';
@@ -159,6 +160,14 @@ async function runExport(
   const view = payload.userId === undefined ? whole : await readViewForUser(deps.meta, payload.userId, whole);
   const table = view.table(row.source.table);
   const { db, dialect } = await deps.manager.data(row.connectionId);
+  /*
+   * The rows the person who asked reaches, as their roles stand NOW: the file
+   * holds what they could list, and a limit put on them since they asked
+   * holds. With nobody behind the job, no row: a file is not a place to find
+   * out that nobody was asked.
+   */
+  const reach = await rowLimitContextForUser(deps.meta, payload.userId, row.connectionId, whole.model);
+  const rowTest = rowTestOf(reach, table.id, 'read') ?? undefined;
 
   const where = filtersToWhere(row.source.filters);
 
@@ -215,6 +224,8 @@ async function runExport(
         measures: definition.measures,
         fields: definition.fields,
       };
+  // A looked-up value and a figure in the file: over the rows of its table the requester reaches.
+  limitProjections(reach, projection.lookups, projection.measures);
   const rowWriter = createRowWriter(row.format === 'csv' ? 'csv' : 'json', columns, {
     legacy: definition.legacy,
     headerRow: row.source.options?.headerRow,
@@ -264,6 +275,7 @@ async function runExport(
         },
         canReadPii: payload.unmasked,
         dialect,
+        rowTest,
         lookups: projection.lookups,
         measures: projection.measures,
         derivedFields: projection.fields,

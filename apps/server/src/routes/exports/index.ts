@@ -32,6 +32,7 @@ import type { ConnectionManager } from '../../connections/manager.js';
 import { canReadPii, piiCheckFor, piiTablesOf, UNMASK_PERMISSION } from '../../crud/mask.js';
 import { loadSnapshotView } from '../../data-io/snapshot-view.js';
 import { readViewFor } from '../../crud/read-view.js';
+import { requestReadsWhole } from '../../crud/row-reach-request.js';
 import { resolveExportDefinition, sanitizeFileName } from '../../export/definition.js';
 import { registerBuilderRoutes } from './builder.js';
 import { requireUserId, resolveSource } from './source.js';
@@ -99,10 +100,30 @@ export function exportsRoutes(deps: ExportsRoutesDeps): FastifyPluginAsyncZod {
     return row.fileId === null ? null : files.findById(row.fileId);
   }
 
-  /** Owner sees their own; anyone else needs the manage grant. */
+  /**
+   * Whether somebody who is NOT the one who asked for a file may open it: they
+   * hold the manage grant, and nothing limits which rows of the file's table
+   * they read. A file of a table a person reads in part holds rows that are
+   * not theirs, whoever wrote it; the manage grant is to look after exports,
+   * not a way round a role.
+   */
+  async function mayOpenAnothers(request: FastifyRequest, row: DataExport, asked: Map<string, boolean> = new Map()): Promise<boolean> {
+    if (!(await request.can(EXPORTS_MANAGE_PERMISSION))) return false;
+    const tableName = row.source.table;
+    if (row.connectionId === null || typeof tableName !== 'string') return true;
+    const key = `${row.connectionId}|${tableName}`;
+    const known = asked.get(key);
+    if (known !== undefined) return known;
+    // A table that is gone, a connection with no snapshot: nothing says whose the rows were, so the file stays its requester's.
+    const answer = await requestReadsWhole(meta, request, row.connectionId, tableName);
+    asked.set(key, answer);
+    return answer;
+  }
+
+  /** Owner sees their own; anyone else needs the manage grant, and to read the file's table whole. */
   async function assertVisible(request: FastifyRequest, row: DataExport, userId: string): Promise<void> {
     if (row.requestedBy === userId) return;
-    if (await request.can(EXPORTS_MANAGE_PERMISSION)) return;
+    if (await mayOpenAnothers(request, row)) return;
     throw new NotFoundError(`Export ${row.id} not found.`);
   }
 
@@ -222,7 +243,12 @@ export function exportsRoutes(deps: ExportsRoutesDeps): FastifyPluginAsyncZod {
           limit: request.query.limit,
         });
         const views: ExportView[] = [];
-        for (const row of rows) views.push(toView(row, await fileFor(row)));
+        const asked = new Map<string, boolean>();
+        for (const row of rows) {
+          // Somebody else's file of a table this person reads in part is not listed for them either.
+          if (row.requestedBy !== userId && !(await mayOpenAnothers(request, row, asked))) continue;
+          views.push(toView(row, await fileFor(row)));
+        }
         return { data: views };
       },
     );

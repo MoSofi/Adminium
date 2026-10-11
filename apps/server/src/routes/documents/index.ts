@@ -70,6 +70,12 @@ import { providerOf } from '../../documents/provider.js';
 import { mappedTables, type CollectionSource, type ProfileMapping } from '../../documents/subject.js';
 import { outboundKey } from '../../documents/compose.js';
 import type { ResolvedTable, SnapshotView } from '../../crud/identifiers.js';
+import type { ConnectionManager } from '../../connections/manager.js';
+import type { Row } from '../../crud/mask.js';
+import { parseRecordId } from '../../crud/records.js';
+import { fetchVisible, type RowAction } from '../../crud/row-limit.js';
+import { rowTestOf } from '../../crud/row-limit-context.js';
+import { rowsForRequest } from '../../crud/row-reach-request.js';
 import { readsHidden, readViewFor } from '../../crud/read-view.js';
 import { tableRulesFor } from '../../crud/column-rules.js';
 import { syncProfileTrigger } from '../../documents/trigger-sync.js';
@@ -116,6 +122,12 @@ export interface DocumentRoutesDeps {
   pipeline?: RenderDeps | undefined;
   /** The print tokens and tickets of this process; a test's own otherwise. */
   prints?: PrintStore | undefined;
+  /**
+   * Where the rows a document was drawn from are read, to ask whether its
+   * reader reaches them (`crud/row-limit.ts`). Absent: somebody who reaches
+   * only some rows is shown no document of a table at all.
+   */
+  manager?: ConnectionManager | undefined;
 }
 
 /** Where this server mounts its API (`routes/index.ts`), for the links a reply hands out. */
@@ -253,10 +265,43 @@ export function documentRoutes(deps: DocumentRoutesDeps): FastifyPluginAsyncZod 
    * add-ons". Both branches return a boolean AND the table that refused, so a
    * 403 can name it instead of saying no.
    */
+  /**
+   * Whether this caller reaches the rows a document was drawn from, when a
+   * role of theirs holds them to some rows. The record it is about is asked
+   * as a record is (`fetchVisible`): one out of their reach is a document
+   * that is not there. And every OTHER table it read — its lines, a
+   * statement's invoices — must be one they read whole: a page drawn from
+   * every row cannot be cut down to theirs after the fact.
+   */
+  async function reachesRows(request: FastifyRequest, row: DocumentRow, profile: DocumentProfile | null, action: RowAction): Promise<boolean> {
+    if (row.connectionId === null) return true;
+    const whole = await viewOf(row.connectionId)();
+    if (whole === null) return true;
+    const rows = await rowsForRequest(deps.meta, request, row.connectionId, whole.model);
+    if (rows === null) return true;
+    const head = row.entityTable === null ? null : whole.linkTable(row.entityTable);
+    if (head !== null && row.entityId !== null && rowTestOf(rows, head.id, action) !== null) {
+      if (deps.manager === undefined) return false;
+      let pk: Row;
+      try {
+        pk = parseRecordId(head, row.entityId);
+      } catch {
+        return false;
+      }
+      const { db } = await deps.manager.data(row.connectionId);
+      if ((await fetchVisible(rows, db, head, pk, action)) === undefined) return false;
+    }
+    if (profile === null) return true;
+    for (const table of await documentReads(profile, viewOf(row.connectionId))) {
+      if (table !== head?.id && rowTestOf(rows, whole.linkTable(table)?.id ?? table, 'read') !== null) return false;
+    }
+    return true;
+  }
+
   async function readable(
     request: FastifyRequest,
     row: DocumentRow,
-  ): Promise<{ ok: true } | { ok: false; table: string | null }> {
+  ): Promise<{ ok: true } | { ok: false; table: string | null; hidden?: true }> {
     const userId = request.user?.id ?? null;
 
     if (row.profileId === null || row.connectionId === null) {
@@ -283,8 +328,15 @@ export function documentRoutes(deps: DocumentRoutesDeps): FastifyPluginAsyncZod 
     const whole = await viewOf(row.connectionId)();
     const refused = whole === null ? null : documentColumnRefused(profile, await readViewFor(request, whole));
     if (refused !== null) return { ok: false, table: refused };
+    // …and the rows it was drawn from, when the caller's role reaches a table only in part: not theirs, it is not there.
+    if (!(await reachesRows(request, row, profile, 'read'))) return { ok: false, table: null, hidden: true };
     return { ok: true };
   }
+
+  /** A document of rows out of the caller's reach answers as a document that is not there. */
+  const hiddenAs = (row: DocumentRow): never => {
+    throw new NotFoundError(`Document ${row.id} not found.`);
+  };
 
   function toReply(row: DocumentRow, replaced = false) {
     return {
@@ -547,6 +599,8 @@ export function documentRoutes(deps: DocumentRoutesDeps): FastifyPluginAsyncZod 
         const out = [];
         for (const row of rows) {
           const verdict = await readable(request, row);
+          // …except a document of rows the caller does not reach: for them neither the row nor its documents exist.
+          if (!verdict.ok && verdict.hidden === true) continue;
           // A refusal REDACTS rather than removes: the row's existence is a
           // fact the record page must not lie about.
           out.push(
@@ -566,6 +620,7 @@ export function documentRoutes(deps: DocumentRoutesDeps): FastifyPluginAsyncZod 
       async (request) => {
         const row = await load(request.params.id);
         const verdict = await readable(request, row);
+        if (!verdict.ok && verdict.hidden === true) hiddenAs(row);
         return toReply(
           verdict.ok ? row : (await documents.findById(row.id, { redacted: true }))!,
         );
@@ -578,6 +633,7 @@ export function documentRoutes(deps: DocumentRoutesDeps): FastifyPluginAsyncZod 
       async (request, reply) => {
         const row = await load(request.params.id);
         const verdict = await readable(request, row);
+        if (!verdict.ok && verdict.hidden === true) hiddenAs(row);
         if (!verdict.ok) {
           // NAME THE TABLE. "You may not read this" sends an operator to
           // guess; "you may not read public.order_lines" sends them to the
@@ -598,6 +654,7 @@ export function documentRoutes(deps: DocumentRoutesDeps): FastifyPluginAsyncZod 
       async (request, reply) => {
         const row = await load(request.params.id);
         const verdict = await readable(request, row);
+        if (!verdict.ok && verdict.hidden === true) hiddenAs(row);
         if (!verdict.ok) throw new ForbiddenError('This document is not yours to read.');
         return await serveBytes(reply, row, { inline: true, print: true });
       },
@@ -806,6 +863,8 @@ export function documentRoutes(deps: DocumentRoutesDeps): FastifyPluginAsyncZod 
       },
       async (request) => {
         const row = await load(request.params.id);
+        // Voiding it changes the record's own document: of a record the caller's update reaches.
+        if (!(await reachesRows(request, row, row.profileId === null ? null : await profiles.findById(row.profileId), 'update'))) hiddenAs(row);
         if (!(await mayAdminister(request, row))) {
           throw new ForbiddenError('You may not void this document.');
         }
@@ -846,6 +905,7 @@ export function documentRoutes(deps: DocumentRoutesDeps): FastifyPluginAsyncZod 
          * which are outcomes an operator can act on rather than errors.
          */
         const row = await load(request.params.id);
+        if (!(await reachesRows(request, row, row.profileId === null ? null : await profiles.findById(row.profileId), 'update'))) hiddenAs(row);
         if (!(await mayAdminister(request, row))) {
           throw new ForbiddenError('You may not send this document.');
         }
