@@ -49,6 +49,14 @@ export const STREAM_SSE_EVENT_TYPES = [
   'record.attachments',
 ] as const;
 
+/** How long a burst of "this table changed" frames is gathered into one. */
+export const BARE_CHANGE_WAIT_MS = 750;
+
+/** A table's frame that names no row and says only that something changed (the server's `changed` mark). */
+export function isBareChange(data: unknown): boolean {
+  return typeof data === 'object' && data !== null && (data as { changed?: unknown }).changed === true && (data as { pk?: unknown }).pk == null && (data as { row?: unknown }).row == null;
+}
+
 export interface StreamTransportOptions {
   /** Seam for tests: build the underlying realtime client. */
   createClient?: (options: RealtimeClientOptions) => RealtimeClient;
@@ -68,10 +76,36 @@ export function createStreamTransport(options: StreamTransportOptions = {}): Das
   let client: RealtimeClient | null = null;
   let connected = false;
 
-  const dispatch = (event: RealtimeEvent): void => {
+  const deliver = (event: RealtimeEvent): void => {
     const set = listeners.get(event.channel);
     if (set === undefined) return;
     for (const listener of [...set]) listener(event);
+  };
+
+  /*
+   * "This table changed", with no row to tell whose (the server's `changed`
+   * mark): what somebody whose role reaches only some rows of a table is
+   * sent for EVERY write of it by anybody, when whose a row is cannot be
+   * told from the row. A screen that looked again at each would make a
+   * request per colleague's keystroke, so a burst of them is ONE frame: the
+   * first for a channel and a kind starts the wait, the ones that arrive
+   * during it are that same frame, and it is handed on when the wait ends.
+   */
+  const held = new Map<string, ReturnType<typeof setTimeout>>();
+  const dispatch = (event: RealtimeEvent): void => {
+    if (!isBareChange(event.data)) {
+      deliver(event);
+      return;
+    }
+    const key = `${event.channel}|${event.type}`;
+    if (held.has(key)) return;
+    held.set(
+      key,
+      setTimeout(() => {
+        held.delete(key);
+        deliver(event);
+      }, BARE_CHANGE_WAIT_MS),
+    );
   };
 
   const setConnected = (next: boolean): void => {
@@ -95,6 +129,8 @@ export function createStreamTransport(options: StreamTransportOptions = {}): Das
     client.stop();
     client = null;
     connected = false;
+    for (const timer of held.values()) clearTimeout(timer);
+    held.clear();
   };
 
   return {

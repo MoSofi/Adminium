@@ -19,7 +19,7 @@
 import type { ResolvedTable } from '../crud/identifiers.js';
 import { staffInstants } from '../crud/instants.js';
 import { maskRow, type Row } from '../crud/mask.js';
-import { widgetDataChannel, type RealtimeHub } from '../realtime/hub.js';
+import { widgetDataChannel, type FrameReach, type RealtimeHub } from '../realtime/hub.js';
 
 export interface WidgetStreamMutation {
   connectionId: string;
@@ -34,8 +34,31 @@ export interface WidgetStreamMutation {
   pk?: Row | null | undefined;
   /** Affected row: the after-image for create/update, the pre-image for delete. */
   row?: Row | null | undefined;
+  /**
+   * The row as it was before an update, when the caller has it: a row that
+   * changed hands is then told to the person it left (its key, and no row)
+   * as well as to the one it went to.
+   */
+  before?: Row | null | undefined;
   /** Event timestamp (ms); defaults to the hub's `Date.now()`. */
   at?: number | undefined;
+}
+
+/**
+ * Whose the written row is, for each subscriber's filter (`realtime/read-
+ * frames.ts`): the staff columns people belong to a row of this table by,
+ * and what they held before and after — read from the rows as they are
+ * stored, before anything is masked for the wire.
+ */
+function reachOf(mutation: WidgetStreamMutation): FrameReach {
+  const table = mutation.table.table as { belongs?: readonly ({ column: string; person?: string } | { through: unknown } | { via: string })[]; private?: true } | undefined;
+  const ways = table?.belongs ?? [];
+  const plain = ways.every((way) => 'column' in way && way.person === undefined);
+  const columns = plain ? ways.map((way) => (way as { column: string }).column) : null;
+  const image = (row: Row | null | undefined): Record<string, unknown> | null => (columns === null || row === null || row === undefined ? null : Object.fromEntries(columns.map((column) => [column, row[column]])));
+  const row = image(mutation.row);
+  // A deleted row's frame carries the row as it was: that is both of its images.
+  return { private: table?.private === true, columns, before: mutation.before === undefined ? (mutation.type === 'record.delete' ? row : null) : image(mutation.before), after: row };
 }
 
 /**
@@ -54,5 +77,5 @@ export function publishWidgetDataStream(hub: RealtimeHub, mutation: WidgetStream
     mutation.pk === null || mutation.pk === undefined
       ? null
       : maskRow(mutation.pk, mutation.table, false);
-  hub.publish(channel, mutation.type, { type: mutation.type, pk, row }, mutation.at);
+  hub.publish(channel, mutation.type, { type: mutation.type, pk, row }, mutation.at, reachOf(mutation));
 }

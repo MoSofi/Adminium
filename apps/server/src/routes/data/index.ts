@@ -2441,6 +2441,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
               type: action === 'delete' ? 'record.delete' : 'record.update',
               pk: event.pk,
               row: action === 'delete' ? event.before : event.after,
+              ...(action === 'delete' ? {} : { before: event.before }),
             });
           }
         }

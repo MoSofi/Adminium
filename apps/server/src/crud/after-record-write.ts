@@ -292,6 +292,8 @@ export async function afterRecordWrite(
       type: `record.${action}`,
       pk: entity.pk,
       row: action === 'delete' ? before : after,
+      // Whose it was: a row handed on is told to the one it left too.
+      ...(action === 'update' ? { before } : {}),
     });
   }
 
