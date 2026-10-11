@@ -3208,7 +3208,11 @@ export default {
     "crumb": "Apps",
     "sampleLedger": "Adminiums Liste der Beispieldatensätze",
     "customerApiOff": "Diese Seiten öffnen sich, können aber nichts lesen oder speichern: Die öffentliche API ist ausgeschaltet. Schalten Sie sie unter Studio › API-Schlüssel ein.",
-    "customerNoAccess": "Diese Seiten öffnen sich, können aber nichts lesen oder speichern: Die App wurde ohne ihren öffentlichen Zugriff installiert. Aktualisieren Sie die App und erlauben Sie ihn."
+    "customerNoAccess": "Diese Seiten öffnen sich, können aber nichts lesen oder speichern: Die App wurde ohne ihren öffentlichen Zugriff installiert. Aktualisieren Sie die App und erlauben Sie ihn.",
+    "phone": "Handy-App",
+    "phoneLine": "Diese App hat eine Handy-App für Kunden. Adminium liefert sie an niemanden aus: Sie läuft auf einem Handy und erreicht mit einem eigenen Schlüssel, was Gäste erreichen dürfen. Wer die Kundenansichten abschaltet, hält auch sie an.",
+    "phoneBuild": "Eine Handy-App, die für einen Store gebaut wird, braucht zwei Dinge von diesem Server: seine Adresse, wie ein Handy sie erreicht, und den Schlüssel „Handy-App“ der App.",
+    "phoneKeys": "API-Schlüssel öffnen"
   },
   "uninstall": {
     "files": "Die Dateien der App",

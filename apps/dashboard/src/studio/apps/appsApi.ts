@@ -68,6 +68,8 @@ export interface InstalledApp {
   installedAt: number;
   connectionId: string | null;
   sides: InstalledAppSide[];
+  /** The app has a phone app for customers: served to nobody, with a key of its own. Absent otherwise, and from an older server. */
+  phone?: true;
   /** Who the manifest says made it; `local` is an app made on this install. Absent from an older server. */
   publisher?: { id: string; name: string };
   /**

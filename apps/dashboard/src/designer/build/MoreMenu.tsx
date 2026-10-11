@@ -35,7 +35,8 @@ export function MoreMenu({
   onSide: (side: string) => void;
   seen: { label: string; tip: string } | null;
   sees: boolean;
-  onSees: (on: boolean) => void;
+  /** Absent for a side the Designer does not look at (a phone app): the switch is then not in the menu. */
+  onSees?: ((on: boolean) => void) | undefined;
   /** Absent where there is nowhere to open it. */
   onNewTab?: (() => void) | undefined;
 }): ReactNode {
@@ -69,6 +70,7 @@ export function MoreMenu({
             <DropdownMenuSeparator />
           </>
         ) : null}
+        {onSees === undefined ? null : (
         <DropdownMenuItem
           role="menuitemcheckbox"
           aria-checked={sees}
@@ -83,6 +85,7 @@ export function MoreMenu({
         >
           {t('designer:preview.sees', 'The Designer looks at the page after it builds')}
         </DropdownMenuItem>
+        )}
         {rows && onNewTab !== undefined ? (
           <DropdownMenuItem icon={<ExternalLink className="rtl:-scale-x-100" />} onSelect={onNewTab} className={MENU_ROW}>
             {t('designer:preview.newTab', 'Open in a new tab')}

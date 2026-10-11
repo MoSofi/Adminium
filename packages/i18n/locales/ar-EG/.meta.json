@@ -19935,6 +19935,22 @@
     "status": "mt",
     "srcHash": "4368b1abaf3f"
   },
+  "studio.appSettings.phone": {
+    "status": "mt",
+    "srcHash": "a32fd3400931"
+  },
+  "studio.appSettings.phoneBuild": {
+    "status": "mt",
+    "srcHash": "3deeea7f0aeb"
+  },
+  "studio.appSettings.phoneKeys": {
+    "status": "mt",
+    "srcHash": "4423f522827c"
+  },
+  "studio.appSettings.phoneLine": {
+    "status": "mt",
+    "srcHash": "3431723b9138"
+  },
   "studio.appSettings.preview": {
     "status": "mt",
     "srcHash": "f1fbb2b43dca"

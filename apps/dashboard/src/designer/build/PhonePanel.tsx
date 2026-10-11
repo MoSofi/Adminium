@@ -100,7 +100,7 @@ function Standing({ phone, onAdd, onFix, error, running }: { phone: PhoneStandin
           </button>
         ) : null}
       </div>
-      {running && phone.state !== 'failed' ? <p className="text-[12px] text-fg-subtle">{t('designer:phone.waitTurn', 'The Designer is working. This waits until it is done.')}</p> : null}
+      {running ? <p className="text-[12px] text-fg-subtle">{t('designer:phone.waitTurn', 'The Designer is working. This waits until it is done.')}</p> : null}
     </div>
   );
 }

@@ -308,7 +308,7 @@ export function usePreview(session: DesignerSession, turns: readonly TurnView[])
   const inApp = getDesktopApi() !== null;
   const canOpenTab = true;
   const openInBrowser = (): void => {
-    if (side === 'customer' && origin !== null) {
+    if ((side === 'customer' || side === 'mobile') && origin !== null) {
       window.open(`${origin}${to}`, '_blank', 'noopener');
       return;
     }

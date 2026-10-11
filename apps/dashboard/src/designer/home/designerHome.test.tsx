@@ -12,6 +12,8 @@
  *  5. "Your apps" lists the folder's apps; Continue opens the newest session,
  *     and an app no session built gets one, with no first message.
  *  6. "Start with an app" is not on the page yet.
+ *  7. What to build has four choices, the last a phone app; a dashboard-only
+ *     app and a phone app have no style to pick, and send none.
  */
 import { QueryClientProvider } from '@tanstack/react-query';
 import { RouterProvider, createMemoryHistory } from '@tanstack/react-router';
@@ -23,8 +25,8 @@ import { createQueryClient } from '../../app/query.js';
 import { createAppRouter } from '../../app/router.js';
 import { installTestI18n } from '../../i18n/testing.js';
 import { jsonResponse, makeBootstrap } from '../../test/fixtures.js';
-import type { DesignerModels, YourApp } from '../api.js';
-import { EXAMPLES, type Example } from './examples.js';
+import type { DesignerModels, DesignerStyle, YourApp } from '../api.js';
+import { EXAMPLES, nameFromRequest, type Example } from './examples.js';
 
 class FakeWebSocket {
   onopen: (() => void) | null = null;
@@ -67,11 +69,14 @@ const WITH_MODEL: DesignerModels = {
 let calls: Call[];
 let models: DesignerModels;
 let apps: YourApp[];
+/** The styles the server offers; null is a server asked for none (the route answers 404, as before styles were tested here). */
+let styles: DesignerStyle[] | null;
 
 beforeEach(() => {
   calls = [];
   models = WITH_MODEL;
   apps = [];
+  styles = null;
   window.localStorage.clear();
 });
 
@@ -93,6 +98,7 @@ function stubFetch(): void {
         const sent = body as { appKey?: string; text?: string };
         return Promise.resolve(jsonResponse(201, { session: { ...SESSION, appKey: sent.appKey ?? SESSION.appKey }, turn: sent.text === undefined ? null : 1 }));
       }
+      if (url === '/api/v1/designer/styles' && styles !== null) return Promise.resolve(jsonResponse(200, { styles }));
       if (url === '/api/v1/designer/apps') return Promise.resolve(jsonResponse(200, { state: 'ok', apps: [] }));
       if (url === '/api/v1/auth/design-session') return Promise.resolve(jsonResponse(200, { ok: true }));
       return Promise.resolve(jsonResponse(404, { error: { code: 'NOT_FOUND', message: 'nope', requestId: 'req_t' } }));
@@ -183,13 +189,85 @@ describe('sending from Designer Home', () => {
     await renderHome();
     await waitFor(() => expect(box().disabled).toBe(false));
     await userEvent.click(screen.getByRole('button', { name: 'What to build: Auto' }));
-    await userEvent.click(await screen.findByRole('menuitemradio', { name: /Dashboard only/ }));
+    await screen.findByRole('menuitemradio', { name: /Dashboard only/ });
+    // Four choices, each with its line; a phone app is the last.
+    expect(screen.getAllByRole('menuitemradio').map((row) => row.textContent)).toEqual(['AutoAdminium decides', 'Dashboard onlytables and admin pages', 'Weba staff or customer side', 'Mobilea phone app']);
+    expect(screen.getByRole('menuitemradio', { name: /Mobile/ })).toBeTruthy();
+    await userEvent.click(screen.getByRole('menuitemradio', { name: /Dashboard only/ }));
     expect(screen.getByRole('button', { name: 'What to build: Dashboard only' })).toBeTruthy();
-    expect(screen.queryByRole('menuitemradio', { name: /Mobile/ })).toBeNull();
     await userEvent.type(box(), 'Stock for a nursery');
     await userEvent.click(sendButton());
     await waitFor(() => expect(created()).toHaveLength(1));
     expect((created()[0]?.body as { target: string }).target).toBe('dashboard');
+  });
+});
+
+describe('a phone app, picked in "What to build"', () => {
+  const stylePicker = () => screen.queryByRole('button', { name: /^Style: / });
+  async function pick(name: RegExp): Promise<void> {
+    await userEvent.click(screen.getByRole('button', { name: /^What to build: / }));
+    await userEvent.click(await screen.findByRole('menuitemradio', { name }));
+  }
+
+  it('is the fourth choice, and is sent as what to build for, with no style', async () => {
+    await renderHome();
+    await waitFor(() => expect(box().disabled).toBe(false));
+    await pick(/Mobile/);
+    expect(screen.getByRole('button', { name: 'What to build: Mobile' })).toBeTruthy();
+    await userEvent.type(box(), 'A loyalty card for a bakery');
+    await userEvent.click(sendButton());
+    await waitFor(() => expect(created()).toHaveLength(1));
+    expect(created()[0]?.body).toEqual({ title: nameFromRequest('A loyalty card for a bakery'), target: 'mobile', connectionId: 'env:anthropic', model: 'claude-test', text: 'A loyalty card for a bakery', sees: true });
+  });
+
+  it('has no style to pick, as a dashboard-only app has none; the web and Auto have', async () => {
+    await renderHome();
+    await waitFor(() => expect(box().disabled).toBe(false));
+    expect(stylePicker()).not.toBeNull();
+    await pick(/Mobile/);
+    expect(stylePicker()).toBeNull();
+    await pick(/Dashboard only/);
+    expect(stylePicker()).toBeNull();
+    await pick(/Web/);
+    expect(stylePicker()).not.toBeNull();
+    await pick(/Auto/);
+    expect(stylePicker()).not.toBeNull();
+  });
+
+  it('does not send a style picked earlier, though the style is kept for when the web is what to build', async () => {
+    styles = [{ key: 'warm', title: 'Warm', description: 'Soft and loud', origin: 'built-in', hasTheme: true, hasPreview: false } as DesignerStyle];
+    await renderHome();
+    await waitFor(() => expect(box().disabled).toBe(false));
+    await userEvent.click(screen.getByRole('button', { name: 'Style: Let the Designer choose' }));
+    await userEvent.click(await screen.findByRole('menuitem', { name: /Warm/ }));
+    expect(screen.getByRole('button', { name: 'Style: Warm' })).toBeTruthy();
+
+    await pick(/Mobile/);
+    expect(stylePicker()).toBeNull();
+    // The style was kept, not dropped: it is the phone app that has none.
+    await pick(/Web/);
+    expect(screen.getByRole('button', { name: 'Style: Warm' })).toBeTruthy();
+    await pick(/Mobile/);
+
+    await userEvent.type(box(), 'A loyalty card');
+    await userEvent.click(sendButton());
+    await waitFor(() => expect(created()).toHaveLength(1));
+    const sent = created()[0]?.body as { target: string; style?: string };
+    expect(sent.target).toBe('mobile');
+    expect('style' in sent).toBe(false);
+  });
+
+  it('sends the style picked when the web is what to build', async () => {
+    styles = [{ key: 'warm', title: 'Warm', description: 'Soft and loud', origin: 'built-in', hasTheme: true, hasPreview: false } as DesignerStyle];
+    await renderHome();
+    await waitFor(() => expect(box().disabled).toBe(false));
+    await userEvent.click(screen.getByRole('button', { name: 'Style: Let the Designer choose' }));
+    await userEvent.click(await screen.findByRole('menuitem', { name: /Warm/ }));
+    await pick(/Web/);
+    await userEvent.type(box(), 'A loyalty card');
+    await userEvent.click(sendButton());
+    await waitFor(() => expect(created()).toHaveLength(1));
+    expect(created()[0]?.body).toMatchObject({ target: 'web', style: 'warm' });
   });
 });
 

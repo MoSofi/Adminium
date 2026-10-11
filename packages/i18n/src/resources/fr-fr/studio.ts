@@ -3208,7 +3208,11 @@ export default {
     "crumb": "Apps",
     "sampleLedger": "La liste des enregistrements d’exemple d’Adminium",
     "customerApiOff": "Ces pages s’ouvrent, mais elles ne peuvent rien lire ni enregistrer : l’API publique est désactivée. Activez-la dans Studio › Clés API.",
-    "customerNoAccess": "Ces pages s’ouvrent, mais elles ne peuvent rien lire ni enregistrer : l’application a été installée sans son accès public. Mettez-la à jour et autorisez-le."
+    "customerNoAccess": "Ces pages s’ouvrent, mais elles ne peuvent rien lire ni enregistrer : l’application a été installée sans son accès public. Mettez-la à jour et autorisez-le.",
+    "phone": "Application mobile",
+    "phoneLine": "Cette application a une application mobile pour les clients. Adminium ne la sert à personne : elle s’exécute sur un téléphone et atteint, avec une clé à elle, ce que les invités peuvent atteindre. Désactiver les écrans clients l’arrête aussi.",
+    "phoneBuild": "Une application mobile construite pour un store a besoin de deux choses de ce serveur : son adresse telle qu’un téléphone l’atteint, et la clé « application mobile » de l’application.",
+    "phoneKeys": "Ouvrir les clés d’API"
   },
   "uninstall": {
     "files": "Les fichiers de l’app",

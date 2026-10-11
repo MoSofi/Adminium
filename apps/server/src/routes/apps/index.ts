@@ -42,6 +42,7 @@ import {
   validateManifest,
   type Manifest,
   satisfiesSemverRange,
+  PHONE_SIDE,
 } from '@adminium/manifest';
 import { type DatabaseModel } from '@adminium/engine';
 import {
@@ -173,6 +174,12 @@ export {
   type InstallAnswers,
 } from '../../apps/install-service.js';
 
+
+/** Whether a stored manifest declares a phone side: read from the document as it is, valid or not. */
+function phoneOf(document: unknown): boolean {
+  const frontends = (document as { frontends?: unknown } | null)?.frontends;
+  return Array.isArray(frontends) && frontends.some((entry) => (entry as { side?: unknown } | null)?.side === PHONE_SIDE);
+}
 
 export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
   const service = createAppInstallService(deps);
@@ -319,6 +326,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
                       : ('on' as const),
               };
             }),
+            ...(phoneOf(installed.document) ? { phone: true as const } : {}),
             ...(publisherOf(installed.document) === null ? {} : { publisher: publisherOf(installed.document)! }),
             // No side served, unless the app declares none: that one is whole.
             // …while its package is still here: one whose files are gone is missing like any other.

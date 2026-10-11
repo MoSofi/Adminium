@@ -55,6 +55,7 @@ import {
   EyeOff,
   History,
   LayoutPanelLeft,
+  Smartphone,
   Package,
   PauseCircle,
   PlugZap,
@@ -304,6 +305,7 @@ function Loaded({ app }: { app: InstalledApp }) {
       <div className="flex flex-wrap items-start gap-3.5">
         <div className="flex min-w-0 flex-[1_1_400px] flex-col gap-3.5">
           <ScreensCard app={app} settings={settings} busy={patch.isPending} onPatch={(change) => patch.mutate(change)} onChanged={refresh} />
+          {app.phone === true ? <PhoneAppCard /> : null}
           {settings.declared.map((setting) => (
             <DeclaredSettingCard
               key={setting.key}
@@ -362,6 +364,36 @@ function ScreensCard({
           />
         ))}
       </div>
+    </section>
+  );
+}
+
+/**
+ * An app with a phone app. It is not one of the sets of screens: Adminium
+ * serves it to nobody, so it has no address and no switch. What an operator
+ * needs to know is that it has a key of its own, and where that is.
+ */
+function PhoneAppCard() {
+  return (
+    <section className={CARD} aria-labelledby="app-phone-title" data-testid="app-phone">
+      <CardTitle icon={<Smartphone />}>
+        <span id="app-phone-title">{t('studio:appSettings.phone', 'Phone app')}</span>
+      </CardTitle>
+      <p className="text-[13px] leading-[1.5] text-fg-muted">
+        {t(
+          'studio:appSettings.phoneLine',
+          'This app has a phone app for customers. Adminium serves it to nobody: it runs on a phone, and reaches what guests may reach with a key of its own. Switching the customer screens off stops it too.',
+        )}
+      </p>
+      <p className="mt-2 text-[13px] leading-[1.5] text-fg-muted">
+        {t(
+          'studio:appSettings.phoneBuild',
+          'A phone app built for a store needs two things from this server: its address as a phone reaches it, and the app’s “phone app” key.',
+        )}
+      </p>
+      <Link to="/studio/api-keys" className="mt-2.5 inline-block text-[13px] font-bold text-accent hover:underline">
+        {t('studio:appSettings.phoneKeys', 'Open API keys')}
+      </Link>
     </section>
   );
 }

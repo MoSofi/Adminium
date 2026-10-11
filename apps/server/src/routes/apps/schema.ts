@@ -590,6 +590,8 @@ export const installedAppReply = z.object({
   installedAt: z.number(),
   connectionId: z.string().nullable(),
   sides: z.array(installedSide),
+  /** True for an app with a phone side (a phone app for customers): it is served to nobody, and has a key of its own. Absent otherwise. */
+  phone: z.literal(true).optional(),
   /** Who the manifest says made it; `local` is an app made on this install. Absent when unreadable. */
   publisher: appPublisher.optional(),
   /**

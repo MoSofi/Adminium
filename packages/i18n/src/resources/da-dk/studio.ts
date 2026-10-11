@@ -3208,7 +3208,11 @@ export default {
     "crumb": "Apps",
     "sampleLedger": "Adminiums liste over eksempelposter",
     "customerApiOff": "Siderne åbner, men de kan hverken læse eller gemme noget: den offentlige API er slået fra. Slå den til under Studio › API-nøgler.",
-    "customerNoAccess": "Siderne åbner, men de kan hverken læse eller gemme noget: appen blev installeret uden sin offentlige adgang. Opdater appen, og tillad den."
+    "customerNoAccess": "Siderne åbner, men de kan hverken læse eller gemme noget: appen blev installeret uden sin offentlige adgang. Opdater appen, og tillad den.",
+    "phone": "Telefonapp",
+    "phoneLine": "Denne app har en telefonapp til kunder. Adminium viser den ikke til nogen: Den kører på en telefon og når det, gæster må nå, med sin egen nøgle. Slår du kundeskærmene fra, stopper den også.",
+    "phoneBuild": "En telefonapp, der bygges til en butik, skal bruge to ting fra denne server: dens adresse, som en telefon når den, og appens nøgle “telefonapp”.",
+    "phoneKeys": "Åbn API-nøgler"
   },
   "uninstall": {
     "files": "Appens filer",

@@ -3208,7 +3208,11 @@ export default {
     "crumb": "Apps",
     "sampleLedger": "Adminium’s list of sample records",
     "customerApiOff": "These pages open, but they cannot read or save anything: the public API is switched off. Switch it on under Studio › API keys.",
-    "customerNoAccess": "These pages open, but they cannot read or save anything: the app was installed without its public access. Update the app and allow it."
+    "customerNoAccess": "These pages open, but they cannot read or save anything: the app was installed without its public access. Update the app and allow it.",
+    "phone": "Phone app",
+    "phoneLine": "This app has a phone app for customers. Adminium serves it to nobody: it runs on a phone, and reaches what guests may reach with a key of its own. Switching the customer screens off stops it too.",
+    "phoneBuild": "A phone app built for a store needs two things from this server: its address as a phone reaches it, and the app’s “phone app” key.",
+    "phoneKeys": "Open API keys"
   },
   "uninstall": {
     "files": "The app’s files",

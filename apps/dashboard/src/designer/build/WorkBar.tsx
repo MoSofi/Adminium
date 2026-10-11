@@ -321,8 +321,9 @@ export function WorkBar({
                   <ExternalLink aria-hidden="true" className="size-3.5 rtl:-scale-x-100" />
                 </button>,
               )}
-          {level === 0 ? null : live ? (
-            <MoreMenu rows={rows} sides={choices} side={side} onSide={(value) => preview.setSide(value as PreviewSide)} seen={seen} sees={sees} onSees={setSees} {...(preview.canOpenTab ? { onNewTab: preview.openTab } : {})} />
+          {/* The camera is "More"'s one row until the bar is in rows: a phone app, which the Designer does not look at, has no "More" before that. */}
+          {level === 0 || (phone && !rows) ? null : live ? (
+            <MoreMenu rows={rows} sides={choices} side={side} onSide={(value) => preview.setSide(value as PreviewSide)} seen={seen} sees={sees} {...(phone ? {} : { onSees: setSees })} {...(preview.canOpenTab ? { onNewTab: preview.openTab } : {})} />
           ) : (
             <span className={TOOL_ICON} />
           )}

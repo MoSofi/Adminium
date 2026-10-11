@@ -5,7 +5,7 @@
  * and the level picked from what the bar itself measures.
  */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Tabs, ThemeProvider } from '@adminium/ui';
@@ -238,6 +238,115 @@ describe('the work bar', () => {
     bar(0, model(), { tab: 'architecture', end: <span>Read only</span> });
     expect(parts()).toMatchObject({ sideSwitch: false, reload: false, address: false, camera: false, more: false });
     expect(screen.getByText('Read only')).toBeTruthy();
+  });
+});
+
+describe('the work bar on the phone app’s side', () => {
+  const PHONE_SIDES: PreviewSide[] = ['dashboard', 'staff', 'customer', 'mobile'];
+  const phone = (over: Partial<PreviewModel> = {}): PreviewModel => model({ sides: PHONE_SIDES, side: 'mobile', ticket: null, ...over });
+  /** The bar with an address that could not be missed, were it drawn. */
+  function phoneBar(level: BarLevel, preview: PreviewModel): void {
+    render(
+      <ThemeProvider>
+        <Tabs value="preview">
+          <WorkBar tabs={TABS} tab="preview" level={level} preview={preview} address={<span data-testid="address">the address</span>} onNotice={() => undefined} />
+        </Tabs>
+      </ThemeProvider>,
+    );
+  }
+
+  it('names the side "Phone app", last among the sides, and picks it like any other', async () => {
+    const preview = phone({ side: 'staff' });
+    bar(0, preview);
+    const radios = within(screen.getByRole('radiogroup', { name: 'Side' })).getAllByRole('radio');
+    expect(radios.map((radio) => radio.textContent)).toEqual(['Dashboard', 'Staff', 'Customer', 'Phone app']);
+    await userEvent.click(radios[3]!);
+    expect(preview.setSide).toHaveBeenCalledWith('mobile');
+  });
+
+  it('has no size, no address and no camera at level 0: a phone app is one size, has no addresses, and is not looked at', () => {
+    phoneBar(0, phone());
+    expect(parts()).toEqual({ sideSwitch: true, sideMenu: false, sizeSwitch: false, sizeMenu: false, chipText: true, chipIcon: false, reload: true, address: false, camera: false, newTab: true, more: false });
+    expect(screen.queryByTestId('address')).toBeNull();
+    expect(within(screen.getByRole('radiogroup', { name: 'Side' })).getByRole('radio', { name: 'Phone app' }).getAttribute('aria-checked')).toBe('true');
+  });
+
+  it('has all three on any other side of the same app: it is the side that takes them away', () => {
+    phoneBar(0, phone({ side: 'customer' }));
+    expect(screen.getByTestId('address')).toBeTruthy();
+    expect(parts()).toMatchObject({ sizeSwitch: true, camera: true });
+  });
+
+  it('says a phone app is seen as a visitor, whatever roles a ticket named', () => {
+    phoneBar(0, phone({ ticket: { url: 'http://localhost:4731/x', origin: 'http://localhost:4731', seenAs: ['Cook'] } }));
+    expect(screen.getByRole('note', { name: 'Seen as: visitor. A visitor, not signed in.' })).toBeTruthy();
+    expect(screen.getByText('Seen as: visitor')).toBeTruthy();
+    expect(seenAs('mobile', ['Cook'])).toEqual({ label: 'Seen as: visitor', tip: 'A visitor, not signed in.', said: 'Seen as: visitor. A visitor, not signed in.' });
+  });
+
+  it('has no size at level 1 either', () => {
+    phoneBar(1, phone());
+    expect(parts()).toMatchObject({ sideSwitch: true, sizeSwitch: false, sizeMenu: false, chipText: true, reload: true, address: false, camera: false, newTab: true });
+    expect(screen.queryByTestId('address')).toBeNull();
+  });
+
+  it.each([2, 3] as const)('has the side’s menu and no "Size: …" menu at level %i', async (level) => {
+    const preview = phone();
+    phoneBar(level, preview);
+    expect(parts()).toMatchObject({ sideSwitch: false, sideMenu: true, sizeSwitch: false, sizeMenu: false, reload: true, address: false, camera: false, newTab: true });
+    expect(screen.queryByTestId('address')).toBeNull();
+    const side = screen.getByRole('button', { name: 'Side: Phone app' });
+    expect(side.textContent).toBe('Phone app');
+    await userEvent.click(side);
+    const rows = within(await screen.findByRole('menu', { name: 'Side: Phone app' })).getAllByRole('menuitemradio');
+    expect(rows.map((row) => [row.textContent, row.getAttribute('aria-checked')])).toEqual([
+      ['Dashboard', 'false'],
+      ['Staff', 'false'],
+      ['Customer', 'false'],
+      ['Phone app', 'true'],
+    ]);
+  });
+
+  it('is its icon at level 3, which says "visitor" in full', () => {
+    phoneBar(3, phone());
+    expect(screen.getByRole('img', { name: 'Seen as: visitor. A visitor, not signed in.' })).toBeTruthy();
+  });
+
+  it('is two rows at level 4 with reload and "More", and still no address; "More" names the side and whose eyes it is', async () => {
+    const preview = phone();
+    phoneBar(4, preview);
+    expect(parts()).toEqual({ sideSwitch: false, sideMenu: false, sizeSwitch: false, sizeMenu: false, chipText: false, chipIcon: false, reload: true, address: false, camera: false, newTab: false, more: true });
+    expect(screen.queryByTestId('address')).toBeNull();
+    await userEvent.click(screen.getByRole('button', { name: 'More' }));
+    const menu = await screen.findByRole('menu', { name: 'More' });
+    expect(within(menu).getAllByRole('menuitemradio').map((row) => [row.textContent, row.getAttribute('aria-checked')])).toEqual([
+      ['Dashboard', 'false'],
+      ['Staff', 'false'],
+      ['Customer', 'false'],
+      ['Phone app', 'true'],
+    ]);
+    expect(menu.textContent).toContain('Seen as: visitor');
+    await userEvent.click(within(menu).getByRole('menuitem', { name: 'Open in a new tab' }));
+    expect(preview.openTab).toHaveBeenCalled();
+  });
+
+  it('still reloads the phone app', async () => {
+    const preview = phone();
+    phoneBar(0, preview);
+    await userEvent.click(screen.getByRole('button', { name: 'Reload the preview' }));
+    expect(preview.reload).toHaveBeenCalledTimes(1);
+  });
+
+  // The camera is "More"'s one row until the bar is in rows: for a phone app, which the Designer does not look at,
+  // there is then no "More" at all, and once the bar is in rows its "More" has no camera row.
+  it('offers no camera switch for a phone app at any fold of the bar', async () => {
+    phoneBar(1, phone());
+    expect(screen.queryByRole('button', { name: 'More' })).toBeNull();
+    cleanup();
+    phoneBar(4, phone());
+    await userEvent.click(screen.getByRole('button', { name: 'More' }));
+    const menu = await screen.findByRole('menu', { name: 'More' });
+    expect(within(menu).queryByRole('menuitemcheckbox', { name: 'The Designer looks at the page after it builds' })).toBeNull();
   });
 });
 
