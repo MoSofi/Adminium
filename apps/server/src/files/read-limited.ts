@@ -13,6 +13,9 @@ import type { MetaDb, StoredFile } from '@adminium/meta';
 import type { ConnectionManager } from '../connections/manager.js';
 import { readViewOf } from '../crud/read-view.js';
 import { fetchByPk, parseRecordId } from '../crud/records.js';
+import { fetchVisible, type RowAction } from '../crud/row-limit.js';
+import { rowTestOf } from '../crud/row-limit-context.js';
+import { rowsForRequest } from '../crud/row-reach-request.js';
 import { loadSnapshotView } from '../data-io/snapshot-view.js';
 import { readLimitOf } from '../rbac/read-limits.js';
 
@@ -46,5 +49,53 @@ export function hiddenFileCheck(meta: MetaDb, manager: ConnectionManager): (requ
     const hidden = columns.some((column) => column.unreadable === true && holds(row[column.name], file.id));
     const shown = columns.some((column) => column.unreadable !== true && column.secret !== true && holds(row[column.name], file.id));
     return hidden && !shown;
+  };
+}
+
+/** The record a file hangs on, or is being hung on: its table by the name the file keeps, and its id as a record's address spells it. */
+export interface FileRecord {
+  connectionId: string;
+  table: string;
+  /** Null for a file uploaded for a record that is not made yet. */
+  recordId: string | null;
+  /** Who uploaded the file; null for one that is being uploaded now, or whose uploader is gone. */
+  uploadedBy: string | null;
+}
+
+/**
+ * Whether a caller reaches the record a file hangs on, when a role of theirs
+ * holds them to some rows of its table (`crud/row-limit.ts`): a file is read
+ * with its record, and changed with it. Asked BESIDE the table's grant, never
+ * instead of it, and of everybody: having uploaded the file, or holding the
+ * grant that looks after files, is no way to a row that is not theirs.
+ *
+ * A file uploaded for a record that is not made yet has no row to ask about:
+ * it is its uploader's until the record is saved.
+ *
+ * True for nearly everyone at no cost: nothing limits them, and no row is read.
+ */
+export function fileRecordCheck(meta: MetaDb, manager: ConnectionManager): (request: FastifyRequest, record: FileRecord, action: RowAction) => Promise<boolean> {
+  return async (request, record, action) => {
+    let view;
+    try {
+      view = await loadSnapshotView(meta, record.connectionId);
+    } catch {
+      // No schema to read: nothing says whose the rows are, and the table's own grant has already answered.
+      return true;
+    }
+    const rows = await rowsForRequest(meta, request, record.connectionId, view.model);
+    if (rows === null) return true;
+    const table = view.linkTable(record.table);
+    if (rowTestOf(rows, table?.id ?? record.table, action) === null) return true;
+    if (table === null) return false;
+    if (record.recordId === null) return record.uploadedBy !== null && record.uploadedBy === request.user?.id;
+    let pk;
+    try {
+      pk = parseRecordId(table, record.recordId);
+    } catch {
+      return false;
+    }
+    const { db } = await manager.data(record.connectionId);
+    return (await fetchVisible(rows, db, table, pk, action)) !== undefined;
   };
 }

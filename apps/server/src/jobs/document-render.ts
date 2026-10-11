@@ -98,5 +98,7 @@ export function registerDocumentRenderHandler(registry: JobRegistry, deps: Rende
           throw new Error(outcome.error);
       }
     },
+    // Its payload says who asked, and the rows are read as that person reaches them: never a payload somebody posts.
+    { internal: true },
   );
 }

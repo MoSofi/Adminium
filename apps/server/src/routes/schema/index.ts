@@ -14,6 +14,9 @@
  * `schema.read`); override writes require `system:schema:remap`.
  */
 
+import { rowTestOf } from '../../crud/row-limit-context.js';
+import { rowsForRequest } from '../../crud/row-reach-request.js';
+import { loadSnapshotView } from '../../data-io/snapshot-view.js';
 import { isDeepStrictEqual } from 'node:util';
 
 import type { FastifyRequest } from 'fastify';
@@ -80,7 +83,32 @@ export function schemaRoutes(deps: SchemaRoutesDeps): FastifyPluginAsyncZod {
       return latest;
     }
 
+    /**
+     * The model as this caller may be told it: without the row-count estimate
+     * of a table they read only some rows of (`crud/row-limit.ts`) — how many
+     * rows a table holds in all is a fact about everybody's. Nearly everyone
+     * gets the model as it is.
+     */
+    async function withoutCountsOutOfReach<M>(request: FastifyRequest, connectionId: string, model: M): Promise<M> {
+      const view = await loadSnapshotView(meta, connectionId).catch(() => null);
+      const rows = view === null ? null : await rowsForRequest(meta, request, connectionId, view.model);
+      if (view === null || rows === null) return model;
+      const inPart = new Set(view.model.tables.filter((table) => rowTestOf(rows, table.id, 'read') !== null).map((table) => table.id));
+      if (inPart.size === 0) return model;
+      const whole = model as { tables?: { id: string; rowCountEstimate?: unknown }[] };
+      if (!Array.isArray(whole.tables)) return model;
+      return {
+        ...whole,
+        tables: whole.tables.map((table) => {
+          if (!inPart.has(table.id)) return table;
+          const { rowCountEstimate: _all, ...rest } = table;
+          return rest;
+        }),
+      } as M;
+    }
+
     async function schemaPayload(
+      request: FastifyRequest,
       connectionId: string,
       snapshot: SchemaSnapshot,
       raw: boolean,
@@ -98,7 +126,7 @@ export function schemaRoutes(deps: SchemaRoutesDeps): FastifyPluginAsyncZod {
           checksum: snapshot.checksum,
           createdAt: snapshot.createdAt,
           source: snapshot.source,
-          model: snapshot.schema,
+          model: await withoutCountsOutOfReach(request, connectionId, snapshot.schema),
           appliedOverrides: 0,
           schemaAuthoring,
         };
@@ -110,9 +138,13 @@ export function schemaRoutes(deps: SchemaRoutesDeps): FastifyPluginAsyncZod {
         checksum: snapshot.checksum,
         createdAt: snapshot.createdAt,
         source: snapshot.source,
-        model: applyOverrides(snapshot.schema as DatabaseModel, active, {
-          ...(locale === undefined ? {} : { defaultLocale: locale }),
-        }),
+        model: await withoutCountsOutOfReach(
+          request,
+          connectionId,
+          applyOverrides(snapshot.schema as DatabaseModel, active, {
+            ...(locale === undefined ? {} : { defaultLocale: locale }),
+          }),
+        ),
         appliedOverrides: active.length,
         schemaAuthoring,
       };
@@ -126,7 +158,7 @@ export function schemaRoutes(deps: SchemaRoutesDeps): FastifyPluginAsyncZod {
       },
       async (request) => {
         const snapshot = await mustLatest(request.params.id);
-        return schemaPayload(request.params.id, snapshot, request.query.raw === true, request.query.locale);
+        return schemaPayload(request, request.params.id, snapshot, request.query.raw === true, request.query.locale);
       },
     );
 
@@ -165,7 +197,7 @@ export function schemaRoutes(deps: SchemaRoutesDeps): FastifyPluginAsyncZod {
         if (snapshot === null || snapshot.connectionId !== request.params.id) {
           throw new NotFoundError('Snapshot not found.', { snapshotId: request.params.snapshotId });
         }
-        return schemaPayload(request.params.id, snapshot, request.query.raw === true, request.query.locale);
+        return schemaPayload(request, request.params.id, snapshot, request.query.raw === true, request.query.locale);
       },
     );
 

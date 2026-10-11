@@ -67,14 +67,13 @@ import type { StatementSources } from '../../documents/statement.js';
 import { recordKeyOf } from '../public/documents.js';
 import { emailDocument } from '../../documents/deliver.js';
 import { providerOf } from '../../documents/provider.js';
-import { mappedTables, type CollectionSource, type ProfileMapping } from '../../documents/subject.js';
-import { outboundKey } from '../../documents/compose.js';
+import type { CollectionSource, ProfileMapping } from '../../documents/subject.js';
+import { documentReads, outboundKey } from '../../documents/compose.js';
 import type { ResolvedTable, SnapshotView } from '../../crud/identifiers.js';
 import type { ConnectionManager } from '../../connections/manager.js';
 import type { Row } from '../../crud/mask.js';
-import { parseRecordId } from '../../crud/records.js';
-import { fetchVisible, type RowAction } from '../../crud/row-limit.js';
-import { rowTestOf } from '../../crud/row-limit-context.js';
+import type { RowAction } from '../../crud/row-limit.js';
+import { bodyReadInPart, documentRowsReached } from '../../documents/row-reach.js';
 import { rowsForRequest } from '../../crud/row-reach-request.js';
 import { readsHidden, readViewFor } from '../../crud/read-view.js';
 import { tableRulesFor } from '../../crud/column-rules.js';
@@ -141,46 +140,6 @@ const NO_SECRETS = {
     throw new Error('documents never read a credential');
   },
 };
-
-/**
- * Every table a document drawn by this profile reads: the ones its mapping
- * names, and a statement's source tables — the invoices and payments it
- * lists are as much its contents as the client row. The one set every staff
- * door asks read on, so a statement never shows through one door what
- * another would refuse.
- */
-async function documentReads(profile: DocumentProfile, viewOf: () => Promise<SnapshotView | null>): Promise<readonly string[]> {
-  const statement = (profile.options as { statement?: StatementSources }).statement;
-  const mapping = profile.mapping as ProfileMapping;
-  const reads = new Set(mappedTables(mapping, profile.table));
-  if (statement !== undefined) {
-    reads.add(statement.documents.table);
-    reads.add(statement.payments.table);
-  }
-  /*
-   * A linked row's column whose mapping does not name its table (an older
-   * profile) is read all the same: the table is the one the row's foreign
-   * key points at, found in the schema — loaded only when such a mapping
-   * exists. A key the schema cannot resolve reads nothing, so asks nothing.
-   */
-  const unnamed = Object.values(mapping).filter((mapped) => 'ref' in mapped && mapped.table === undefined);
-  if (unnamed.length > 0) {
-    const view = await viewOf();
-    let base = null;
-    try {
-      base = view?.table(profile.table) ?? null;
-    } catch {
-      base = null;
-    }
-    if (view !== null && base !== null) {
-      for (const mapped of unnamed) {
-        const target = 'ref' in mapped ? outboundKey(view, base, mapped.ref)?.tableId : undefined;
-        if (target !== undefined) reads.add(target);
-      }
-    }
-  }
-  return [...reads];
-}
 
 /**
  * The first table a document drawn by this profile reads a column of that
@@ -275,27 +234,32 @@ export function documentRoutes(deps: DocumentRoutesDeps): FastifyPluginAsyncZod 
    */
   async function reachesRows(request: FastifyRequest, row: DocumentRow, profile: DocumentProfile | null, action: RowAction): Promise<boolean> {
     if (row.connectionId === null) return true;
-    const whole = await viewOf(row.connectionId)();
+    const connectionId = row.connectionId;
+    const whole = await viewOf(connectionId)();
     if (whole === null) return true;
-    const rows = await rowsForRequest(deps.meta, request, row.connectionId, whole.model);
-    if (rows === null) return true;
-    const head = row.entityTable === null ? null : whole.linkTable(row.entityTable);
-    if (head !== null && row.entityId !== null && rowTestOf(rows, head.id, action) !== null) {
-      if (deps.manager === undefined) return false;
-      let pk: Row;
-      try {
-        pk = parseRecordId(head, row.entityId);
-      } catch {
-        return false;
-      }
-      const { db } = await deps.manager.data(row.connectionId);
-      if ((await fetchVisible(rows, db, head, pk, action)) === undefined) return false;
-    }
-    if (profile === null) return true;
-    for (const table of await documentReads(profile, viewOf(row.connectionId))) {
-      if (table !== head?.id && rowTestOf(rows, whole.linkTable(table)?.id ?? table, 'read') !== null) return false;
-    }
-    return true;
+    // The record's key as the document kept it (`entityId` is that key flattened for an index, not an address).
+    const pk: Row | null = row.entity === null ? null : (row.entity.pk as Row);
+    const manager = deps.manager;
+    return documentRowsReached({
+      rows: await rowsForRequest(deps.meta, request, connectionId, whole.model),
+      view: whole,
+      db: manager === undefined ? undefined : async () => (await manager.data(connectionId)).db,
+      // A document about no record (a statement of nothing in particular) has no row to ask about; its tables are still asked.
+      head: row.entityId === null ? null : row.entityTable,
+      pk,
+      reads: profile === null ? [] : await documentReads(profile, viewOf(connectionId)),
+      action,
+    });
+  }
+
+  /**
+   * A table a document reads beside its own record's that this caller reads
+   * only in part, or null: such a document is not drawn for them at all
+   * (`documents/row-reach.ts`). The record itself is asked about where it is
+   * read, so one out of reach answers as one that is not there.
+   */
+  async function bodyInPart(request: FastifyRequest, profile: DocumentProfile, view: SnapshotView): Promise<string | null> {
+    return bodyReadInPart(await rowsForRequest(deps.meta, request, profile.connectionId, view.model), view, profile.table, await documentReads(profile, async () => view));
   }
 
   async function readable(
@@ -695,6 +659,9 @@ export function documentRoutes(deps: DocumentRoutesDeps): FastifyPluginAsyncZod 
         const whole = await viewOf(profile.connectionId)();
         const hiddenIn = whole === null ? null : documentColumnRefused(profile, await readViewFor(request, whole));
         if (hiddenIn !== null) throw new ForbiddenError(`This document prints columns of ${hiddenIn} your role does not read.`, 'COLUMN_FORBIDDEN', { table: hiddenIn, reason: 'read-limit' });
+        // …and lists no rows of a table their role reads only in part: a page of some of the lines is a wrong page.
+        const inPart = whole === null ? null : await bodyInPart(request, profile, whole);
+        if (inPart !== null) throw new ForbiddenError(`This document lists rows of ${inPart}, of which your role reads only some.`, 'TABLE_FORBIDDEN', { table: inPart, reason: 'row-limit' });
         // An app's document with its add-on switched off for the app is off
         // here too, as it is on the app's own door (and the job skips it).
         const off = await ownedDocumentOff(deps.meta, profile, deps.runtime);
@@ -800,6 +767,8 @@ export function documentRoutes(deps: DocumentRoutesDeps): FastifyPluginAsyncZod 
           for (const table of await documentReads(profile, async () => view)) if (!(await canRead(table))) notFound();
           // …and every column it prints: a role that reads the table in part draws no document of the rest.
           if (documentColumnRefused(profile, await readViewFor(request, view)) !== null) notFound();
+          // …and every row of the tables it lists beside its own record.
+          if ((await bodyInPart(request, profile, view)) !== null) notFound();
         }
 
         // Declared, readable — and switched on?
@@ -852,7 +821,7 @@ export function documentRoutes(deps: DocumentRoutesDeps): FastifyPluginAsyncZod 
     );
 
     // An add-on's own page asks for a document of one of its own tables: the same rule, by the add-on's names.
-    registerAddOnRender(app, { meta: deps.meta, runtime: deps.runtime, pipeline: deps.pipeline, prints: deps.prints }, { apiPrefix: API_PREFIX, notFound, documentReads, documentColumnRefused, toReply });
+    registerAddOnRender(app, { meta: deps.meta, runtime: deps.runtime, pipeline: deps.pipeline, prints: deps.prints }, { apiPrefix: API_PREFIX, notFound, documentReads, documentColumnRefused, bodyInPart, toReply });
 
     app.post(
       '/documents/:id/void',

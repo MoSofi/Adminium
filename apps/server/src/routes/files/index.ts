@@ -32,6 +32,7 @@
  * cannot change how any other route reads a body.
  */
 
+import type { FileRecord } from '../../files/read-limited.js';
 import type { Readable } from 'node:stream';
 
 import type { FastifyRequest } from 'fastify';
@@ -114,6 +115,12 @@ export interface FilesRoutesDeps {
    * not theirs either. Absent: a file is read with its table, whole.
    */
   hiddenFile?: ((request: FastifyRequest, file: StoredFile) => Promise<boolean>) | undefined;
+  /**
+   * Whether the caller reaches the record a file hangs on (`files/read-
+   * limited.ts`), for somebody a role holds to some rows of its table.
+   * Absent: nobody here is held to rows (a harness with no source database).
+   */
+  reachesRecord?: ((request: FastifyRequest, record: FileRecord, action: 'read' | 'update') => Promise<boolean>) | undefined;
   storage: FileStore;
   /** Storage-credential closures, for the destination names on `GET /files/usage`. */
   storageCrypto: DsnCrypto;
@@ -235,13 +242,24 @@ export function filesRoutes(deps: FilesRoutesDeps): FastifyPluginAsyncZod {
    */
   async function canRead(request: FastifyRequest, file: StoredFile): Promise<boolean> {
     const permission = entityPermission(file, 'read');
-    if (permission !== null) return (await request.can(permission)) && !((await deps.hiddenFile?.(request, file)) ?? false);
+    if (permission !== null) return (await request.can(permission)) && !((await deps.hiddenFile?.(request, file)) ?? false) && (await reaches(request, file, 'read'));
     if (file.uploadedBy !== null && file.uploadedBy === request.user?.id) return true;
     return request.can(FILES_MANAGE_PERMISSION);
   }
 
-  /** May this caller change or remove it? `update` on the entity, else the uploader. */
+  /**
+   * Whether the caller reaches the record this file hangs on. A file of a
+   * table whose rows the caller reads only in part is read and changed with
+   * its record — by its uploader and by a holder of `files.manage` too.
+   */
+  async function reaches(request: FastifyRequest, file: StoredFile, action: 'read' | 'update'): Promise<boolean> {
+    if (deps.reachesRecord === undefined || file.entityConnectionId === null || file.entityTable === null) return true;
+    return deps.reachesRecord(request, { connectionId: file.entityConnectionId, table: file.entityTable, recordId: file.entityId, uploadedBy: file.uploadedBy }, action);
+  }
+
+  /** May this caller change or remove it? `update` on the entity, else the uploader — and, of a record, one their update reaches. */
   async function canWrite(request: FastifyRequest, file: StoredFile): Promise<boolean> {
+    if (!(await reaches(request, file, 'update'))) return false;
     const permission = entityPermission(file, 'update');
     if (permission !== null && (await request.can(permission))) return true;
     if (file.uploadedBy !== null && file.uploadedBy === request.user?.id) return true;
@@ -386,6 +404,10 @@ export function filesRoutes(deps: FilesRoutesDeps): FastifyPluginAsyncZod {
               'FORBIDDEN',
               { permission: updatePermission },
             );
+          }
+          // A record somebody held to some rows of the table does not reach is, for them, a record that is not there.
+          if (recordId !== undefined && deps.reachesRecord !== undefined && !(await deps.reachesRecord(request, { connectionId, table, recordId, uploadedBy: userId }, 'update'))) {
+            throw new NotFoundError('Record not found.');
           }
         }
 
@@ -533,11 +555,10 @@ export function filesRoutes(deps: FilesRoutesDeps): FastifyPluginAsyncZod {
         // A caller with `files.manage` sees everything; anyone else additionally
         // passes the per-file read rule, so a table grant they lack cannot leak
         // a row through a record filter.
-        const visible = manage
-          ? page.rows
-          : (await Promise.all(page.rows.map(async (row) => ((await canRead(request, row)) ? row : null)))).filter(
-              (row): row is StoredFile => row !== null,
-            );
+        // …and a file of a record out of the caller's reach is listed for nobody, that grant or not.
+        const visible = (await Promise.all(page.rows.map(async (row) => ((manage ? await reaches(request, row, 'read') : await canRead(request, row)) ? row : null)))).filter(
+          (row): row is StoredFile => row !== null,
+        );
 
         return { data: visible.map(toView), nextCursor: page.nextCursor };
       },
@@ -713,6 +734,10 @@ export function filesRoutes(deps: FilesRoutesDeps): FastifyPluginAsyncZod {
         // The file must already be one the caller could act on — otherwise
         // attaching would be a way to adopt somebody else's upload.
         if (!(await canWrite(request, file))) throw new NotFoundError(`File ${request.params.id} not found.`);
+        // …and the record it is hung on, one their update reaches: for them any other is not there.
+        if (deps.reachesRecord !== undefined && !(await deps.reachesRecord(request, { connectionId, table, recordId, uploadedBy: request.user?.id ?? null }, 'update'))) {
+          throw new NotFoundError('Record not found.');
+        }
 
         const attached = await files.attach(file.id, {
           connectionId,

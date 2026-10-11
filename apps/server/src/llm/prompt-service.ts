@@ -55,6 +55,11 @@ export interface CollectRunStatsInput {
   model: DatabaseModel;
   /** Sampling opt-in — sample-free when `null`. */
   sampling: Sampling;
+  /**
+   * Tables (by id) left out of the statistics: the ones whoever asked reads
+   * only some rows of. A count, a range and a sample are of every row.
+   */
+  without?: ReadonlySet<string> | undefined;
 }
 
 /**
@@ -78,6 +83,8 @@ export interface CreateRunForConnectionInput {
   /** Sampling opt-in; `null` = sample-free (default). */
   sampling?: Sampling | undefined;
   createdBy?: string | null | undefined;
+  /** Tables (by id) whose rows the asker reads only in part: no statistics are collected of them. */
+  withoutStatsOf?: ReadonlySet<string> | undefined;
 }
 
 export interface CreateRunForConnectionResult extends CreateRunResult {
@@ -181,7 +188,7 @@ export function createPromptService(deps: PromptServiceDeps) {
         }
       }
 
-      const stats = await collectStats({ connectionId: input.connectionId, snapshotId, model: await codesAsSecrets(input.connectionId, model), sampling });
+      const stats = await collectStats({ connectionId: input.connectionId, snapshotId, model: await codesAsSecrets(input.connectionId, model), sampling, ...(input.withoutStatsOf === undefined ? {} : { without: input.withoutStatsOf }) });
 
       const created = await runService.createRun({
         connectionId: input.connectionId,

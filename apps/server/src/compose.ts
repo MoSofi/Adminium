@@ -253,7 +253,7 @@ import { invoicesRoutes } from './routes/invoices/index.js';
 import { reportDocumentsRoutes } from './routes/report-documents/index.js';
 import { llmRoutes } from './routes/llm/index.js';
 import { meViewsRoutes } from './routes/me-views/index.js';
-import { hiddenFileCheck } from './files/read-limited.js';
+import { fileRecordCheck, hiddenFileCheck } from './files/read-limited.js';
 import { notificationsRoutes } from './routes/notifications/index.js';
 import { onboardingRoutes } from './routes/onboarding/index.js';
 import { pagesRoutes } from './routes/pages/index.js';
@@ -1804,7 +1804,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       );
       await api.register(automationRunsRoutes({ meta }));
       await api.register(
-        emailTemplatesRoutes({ meta, storage, cancelRunningJob: (jobId) => jobs.worker.requestCancel(jobId) }),
+        emailTemplatesRoutes({ meta, storage, reachesRecord: fileRecordCheck(meta, manager), cancelRunningJob: (jobId) => jobs.worker.requestCancel(jobId) }),
       );
       // The authored `/invoices` surface — the same deps shape as the
       // email documents; rendering is a later wave's.
@@ -1868,6 +1868,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           storageCrypto,
           // A file held only in a column the reader's role does not read is not theirs.
           hiddenFile: hiddenFileCheck(meta, manager),
+          // …and a file of a record its reader's role does not reach is not theirs either.
+          reachesRecord: fileRecordCheck(meta, manager),
           columnFileBlock: (input) => columnBlocks.forColumn(input),
           // The sidecar half: `config.attachments` narrows the allowlist, the
           // cap and the destination for an upload that names no column, and

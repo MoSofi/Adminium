@@ -39,7 +39,10 @@ import { listedReductions, type ListedColumns } from '../crud/adjust/listed.js';
 import { compileFilter } from '../crud/filters.js';
 import type { ResolvedTable, SnapshotView } from '../crud/identifiers.js';
 import { wallTimesAsInstants } from '../crud/instants.js';
+import type { Row } from '../crud/mask.js';
 import { fetchByPk } from '../crud/records.js';
+import { rowLimitContextForUser } from '../crud/row-limit-context.js';
+import { documentRowsReached } from './row-reach.js';
 import { loadSnapshotView } from '../data-io/snapshot-view.js';
 import { connectionTenantConfig } from '@adminium/meta';
 import type { EmailLogger } from '../email/send.js';
@@ -47,7 +50,7 @@ import type { FileStore } from '../files/store.js';
 import { DocumentReadError, type DocumentWithhold, type ReadFilter, type RenderDeps, type SourceRead } from './render.js';
 import { blankWithheld, holderColumnsOf, linkedRowsOf, withholdRulesOf, type TableWithholds } from '../public-api/withhold.js';
 import { dayOf, dayOn, keptBy, readStatement, scaled, unscaled, type BalanceAfter, type Narrowing, type StatementPeriod, type StatementSources } from './statement.js';
-import { LIST_KEY, type CollectionSource, type NightlySource, type ProfileMapping, type SlotMapping } from './subject.js';
+import { LIST_KEY, mappedTables, type CollectionSource, type NightlySource, type ProfileMapping, type SlotMapping } from './subject.js';
 import { tableRulesFor } from '../crud/column-rules.js';
 import { storedNights } from '../crud/per-night.js';
 
@@ -403,6 +406,46 @@ async function balanceAfter(
   return unscaled(balance);
 }
 
+/**
+ * Every table a document drawn by this profile reads: the ones its mapping
+ * names, and a statement's source tables — the invoices and payments it
+ * lists are as much its contents as the client row. The one set every staff
+ * door asks read on, so a statement never shows through one door what
+ * another would refuse.
+ */
+export async function documentReads(profile: DocumentProfile, viewOf: () => Promise<SnapshotView | null>): Promise<readonly string[]> {
+  const statement = (profile.options as { statement?: StatementSources }).statement;
+  const mapping = profile.mapping as ProfileMapping;
+  const reads = new Set(mappedTables(mapping, profile.table));
+  if (statement !== undefined) {
+    reads.add(statement.documents.table);
+    reads.add(statement.payments.table);
+  }
+  /*
+   * A linked row's column whose mapping does not name its table (an older
+   * profile) is read all the same: the table is the one the row's foreign
+   * key points at, found in the schema — loaded only when such a mapping
+   * exists. A key the schema cannot resolve reads nothing, so asks nothing.
+   */
+  const unnamed = Object.values(mapping).filter((mapped) => 'ref' in mapped && mapped.table === undefined);
+  if (unnamed.length > 0) {
+    const view = await viewOf();
+    let base = null;
+    try {
+      base = view?.table(profile.table) ?? null;
+    } catch {
+      base = null;
+    }
+    if (view !== null && base !== null) {
+      for (const mapped of unnamed) {
+        const target = 'ref' in mapped ? outboundKey(view, base, mapped.ref)?.tableId : undefined;
+        if (target !== undefined) reads.add(target);
+      }
+    }
+  }
+  return [...reads];
+}
+
 export interface DocumentPipelineDeps {
   meta: MetaDb;
   manager: ConnectionManager;
@@ -504,9 +547,20 @@ export function createDocumentPipeline(deps: DocumentPipelineDeps): RenderDeps {
      * `tables` is the mapped-table list the ROUTE resolved grants over; the
      * read itself follows the mapping, so it is named and not used here.
      */
-    readSource: async ({ profile, pk, period, locale, at, readFilters, withhold }): Promise<SourceRead | null> => {
+    readSource: async ({ profile, pk, period, locale, at, readFilters, withhold, reader }): Promise<SourceRead | null> => {
       const view = await loadSnapshotView(deps.meta, profile.connectionId);
       const { db, dialect } = await deps.manager.data(profile.connectionId);
+      /*
+       * WHOSE ROWS. Drawn for a staff member who asked for it, the document is
+       * of a record they reach, and of other tables they read whole (`row-
+       * reach.ts`), as their roles stand NOW. Anything else is a row that is
+       * not there: the answer a deleted row gets, so asking tells nothing.
+       */
+      if (reader !== undefined) {
+        const rows = await rowLimitContextForUser(deps.meta, reader, profile.connectionId, view.model);
+        const reached = await documentRowsReached({ rows, view, db: async () => db as Kysely<SourceDatabase>, head: profile.table, pk: pk as Row, reads: await documentReads(profile, async () => view), action: 'read' });
+        if (!reached) return null;
+      }
       return await readProfileSource({
         db: db as Kysely<SourceDatabase>,
         view,

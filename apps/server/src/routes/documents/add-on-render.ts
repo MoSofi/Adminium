@@ -106,6 +106,8 @@ export interface AddOnRenderHelpers {
   documentReads(profile: DocumentProfile, viewOf: () => Promise<SnapshotView | null>): Promise<readonly string[]>;
   /** A table whose column the document prints and this reader's view hides, or null. */
   documentColumnRefused(profile: DocumentProfile, view: SnapshotView): string | null;
+  /** A table the document lists rows of beside its own record's that this caller reads only in part, or null. */
+  bodyInPart(request: FastifyRequest, profile: DocumentProfile, view: SnapshotView): Promise<string | null>;
   toReply(row: DocumentRow): z.infer<typeof appDocumentRenderReply>['document'];
 }
 
@@ -197,6 +199,9 @@ export function registerAddOnRender(instance: FastifyInstance, deps: AddOnRender
         }
       }
 
+      // The token, like a role, stands for the row: not for the rows of another table the document lists, read only in part.
+      if ((await helpers.bodyInPart(request, profile, found.view)) !== null) helpers.notFound();
+
       // Declared, readable — and switched on?
       const off = await ownedDocumentOff(deps.meta, profile, deps.runtime);
       if (off !== null || !profile.enabled) {
@@ -258,6 +263,8 @@ export function registerAddOnRender(instance: FastifyInstance, deps: AddOnRender
         pk: ticket.pk,
         requestedBy: userId,
         actorKind: 'user',
+        // A maker's print is of the row they made, whatever rows their role reaches; any other ticket is read as its holder reaches rows.
+        ...(ticket.once ? { byMaker: true as const } : {}),
         ...(ticket.paper === undefined ? {} : { paper: ticket.paper }),
         ...(ticket.locale === undefined ? {} : { locale: ticket.locale }),
         ...(ticket.values === undefined ? {} : { values: ticket.values }),

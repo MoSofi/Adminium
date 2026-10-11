@@ -30,7 +30,12 @@ import {
   type MetaDb,
 } from '@adminium/meta';
 
+import type { FastifyRequest } from 'fastify';
+
 import { auditExempt } from '../../audit/coverage.js';
+import { requiredGrants } from '../../automations/validate.js';
+import { requestReadsWhole } from '../../crud/row-reach-request.js';
+import { loadSnapshotView } from '../../data-io/snapshot-view.js';
 import { NotFoundError } from '../../errors.js';
 import { PERMISSIONS } from '../../rbac/permissions.js';
 import {
@@ -82,6 +87,27 @@ export function automationRunsRoutes(deps: AutomationRunsRoutesDeps): FastifyPlu
       durationMs: run.durationMs,
       wakeAt: run.wakeAt,
     };
+  }
+
+  /**
+   * Whether this caller reads every row of the tables a run read: the row
+   * that set it off, and each table its rule reads beside it. A run's trace
+   * and the row kept with it are those rows' values; somebody held to some
+   * rows of one of the tables (`crud/row-limit.ts`) is not shown them.
+   */
+  async function readsWhole(request: FastifyRequest, run: AutomationRun): Promise<boolean> {
+    const rule = await rules.findById(run.automationId);
+    const connectionId = run.triggerEvent.record?.connectionId ?? rule?.connectionId ?? null;
+    if (connectionId === null) return true;
+    const tables = new Set<string>();
+    if (run.triggerEvent.record !== null) tables.add(run.triggerEvent.record.table);
+    if (rule !== null) {
+      const view = await loadSnapshotView(meta, connectionId).catch(() => null);
+      for (const { permission, table } of requiredGrants(rule.trigger, rule.graph, connectionId, view)) if (permission.endsWith(':read')) tables.add(table);
+    }
+    const asked = new Map<string, boolean>();
+    for (const table of tables) if (!(await requestReadsWhole(meta, request, connectionId, table, asked))) return false;
+    return true;
   }
 
   return async (app) => {
@@ -161,6 +187,17 @@ export function automationRunsRoutes(deps: AutomationRunsRoutesDeps): FastifyPlu
         const run = await runs.findById(request.params.id);
         if (run === null) throw new NotFoundError('No such run.', { id: request.params.id });
         const ruleNames = await names();
+        // What the run read is told to somebody who reads every row of the tables it read; anybody else is told how it went and when.
+        if (!(await readsWhole(request, run))) {
+          return {
+            run: {
+              ...row(run, ruleNames),
+              trace: run.trace === null ? null : { ...run.trace, steps: run.trace.steps.map((step) => ({ ...step, log: null })) },
+              triggerEvent: { ...withoutValues(run.triggerEvent), record: null, snapshot: null },
+              error: run.error === null ? null : 'This run failed. What it read is not shown: your role reads only some rows of its table.',
+            },
+          };
+        }
         return {
           run: {
             ...row(run, ruleNames),

@@ -7,6 +7,8 @@
  *
  * Requires `system:audit:read` (meta closed-set key `audit.read`).
  */
+import type { RowLimitContext } from '../../crud/row-limit.js';
+import { rowLimitContextOf, rowTestOf } from '../../crud/row-limit-context.js';
 import { auditEntityKeyPart, type MetaDb } from '@adminium/meta';
 import type { FastifyRequest } from 'fastify';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
@@ -106,6 +108,54 @@ async function asReadBy(request: FastifyRequest, entries: AuditEntryDto[]): Prom
 
 const meta = (request: FastifyRequest): MetaDb => request.server.rbac.meta;
 
+/**
+ * The entries a reader held to some rows of a table may see: none of that
+ * table's. An entry holds a row's images, or names one (a file hung on it, a
+ * document drawn of it), and the log cannot be cut down to the rows that are
+ * theirs after the fact; a record's own history, on its page, is where they
+ * read what happened to a row they reach. Nearly everyone reads every entry:
+ * nothing limits them and no schema is loaded.
+ */
+async function withoutRowsOutOfReach(request: FastifyRequest, entries: AuditEntryDto[]): Promise<AuditEntryDto[]> {
+  const permissions = await request.server.rbac.resolve(request);
+  const reaches = new Map<string, Promise<{ view: SnapshotView; rows: RowLimitContext | null } | null>>();
+  const reachOf = (connectionId: string) => {
+    if (!reaches.has(connectionId)) {
+      reaches.set(
+        connectionId,
+        loadSnapshotView(meta(request), connectionId)
+          .then(async (view) => ({ view, rows: await rowLimitContextOf(meta(request), permissions, connectionId, view.model) }))
+          .catch(() => null),
+      );
+    }
+    return reaches.get(connectionId)!;
+  };
+  const tableOf = (value: unknown): string | null => (typeof value === 'object' && value !== null && typeof (value as { table?: unknown }).table === 'string' ? (value as { table: string }).table : null);
+  const out: AuditEntryDto[] = [];
+  for (const entry of entries) {
+    const entity = entry.entity as { connectionId?: unknown } | null;
+    const changes = entry.changes as { before?: unknown; after?: unknown } | null;
+    const connectionId = typeof entity?.connectionId === 'string' ? entity.connectionId : entry.connectionId;
+    const tables = [tableOf(entity), tableOf(changes?.before), tableOf(changes?.after)].filter((table): table is string => table !== null);
+    if (connectionId === null || tables.length === 0) {
+      out.push(entry);
+      continue;
+    }
+    const reach = await reachOf(connectionId);
+    // No schema to read (a connection that is gone): nothing says whose the rows were, and nothing limited anybody there.
+    if (reach === null || reach.rows === null) {
+      out.push(entry);
+      continue;
+    }
+    const whole = tables.every((name) => {
+      const table = reach.view.linkTable(name);
+      return table !== null && rowTestOf(reach.rows, table.id, 'read') === null;
+    });
+    if (whole) out.push(entry);
+  }
+  return out;
+}
+
 interface Cursor {
   createdAt: number;
   id: string;
@@ -185,7 +235,8 @@ export const auditRoutes: FastifyPluginAsyncZod = async (app) => {
         rows.length > limit && last !== undefined
           ? encodeCursor({ createdAt: last.createdAt, id: last.id })
           : null;
-      return { entries: await asReadBy(request, page.map((row) => toDto(row as AuditRow))), nextCursor };
+      // A short page is still followed by `nextCursor`: what was left out is not counted.
+      return { entries: await asReadBy(request, await withoutRowsOutOfReach(request, page.map((row) => toDto(row as AuditRow)))), nextCursor };
     },
   );
 
@@ -202,7 +253,10 @@ export const auditRoutes: FastifyPluginAsyncZod = async (app) => {
         .where('id', '=', request.params.id)
         .executeTakeFirst();
       if (row === undefined) throw new NotFoundError('Audit entry not found.', { id: request.params.id });
-      return (await asReadBy(request, [toDto(row as AuditRow)]))[0]!;
+      const [entry] = await asReadBy(request, await withoutRowsOutOfReach(request, [toDto(row as AuditRow)]));
+      // An entry of a table whose rows the reader reaches only in part is, for them, not there.
+      if (entry === undefined) throw new NotFoundError('Audit entry not found.', { id: request.params.id });
+      return entry;
     },
   );
 };

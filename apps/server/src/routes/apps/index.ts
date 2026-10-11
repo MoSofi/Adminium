@@ -35,6 +35,9 @@
  * build behind, and only `openapi-check` catches it.
  */
 
+import { rowTestOf } from '../../crud/row-limit-context.js';
+import { rowsForRequest } from '../../crud/row-reach-request.js';
+import { loadSnapshotView } from '../../data-io/snapshot-view.js';
 import {
   compareSemver,
   isAddOnManifest,
@@ -1536,6 +1539,15 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
           manager === undefined || connectionId === null || model === null
             ? new Map<string, number>()
             : await liveRowCounts(manager, connectionId, model, records.map((record) => record.tableName));
+        // How many rows a table holds is told to somebody who reads them all: a count of a table read in part is left out.
+        const inPart = new Set<string>();
+        if (connectionId !== null && model !== null) {
+          const view = await loadSnapshotView(deps.meta, connectionId).catch(() => null);
+          const reach = view === null ? null : await rowsForRequest(deps.meta, request, connectionId, view.model);
+          if (view !== null && reach !== null) {
+            for (const table of view.model.tables) if (rowTestOf(reach, table.id, 'read') !== null) inPart.add(table.name);
+          }
+        }
         const tables = records
           .filter(
             (record) =>
@@ -1550,10 +1562,11 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
             table: record.tableName,
             state: record.state,
             role: record.role === 'sample-ledger' ? ('sample-ledger' as const) : ('app' as const),
-            rows:
-              live.get(record.tableName) ??
-              model?.tables.find((table) => table.name === record.tableName)?.rowCountEstimate ??
-              null,
+            rows: inPart.has(record.tableName)
+              ? null
+              : (live.get(record.tableName) ??
+                model?.tables.find((table) => table.name === record.tableName)?.rowCountEstimate ??
+                null),
           }));
         // This app's own lines, newest first. The key is in the row's JSON, so
         // the filter is here; a busy instance's app log is small.

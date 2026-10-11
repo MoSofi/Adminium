@@ -27,6 +27,7 @@
  * current state of the resource, and it lets the SPA tell the operator to go
  * configure SMTP instead of hunting for a bad field in their own payload.
  */
+import type { FileRecord } from '../../files/read-limited.js';
 import { createHash } from 'node:crypto';
 
 import type { FastifyRequest } from 'fastify';
@@ -122,6 +123,12 @@ export interface EmailTemplatesRoutesDeps {
   secret?: string | undefined;
   /** Bytes for export (fixed attachments inline) and import (files re-created in the library). */
   storage?: FileStore | undefined;
+  /**
+   * Whether the caller reaches the record a file hangs on (`files/read-
+   * limited.ts`): a file of a record out of their reach is not theirs to
+   * attach to an email, which would send its bytes to whoever they choose.
+   */
+  reachesRecord?: ((request: FastifyRequest, record: FileRecord, action: 'read' | 'update') => Promise<boolean>) | undefined;
   /**
    * `app.jobs.worker.requestCancel` — the cooperative cancel of a RUNNING
    * campaign. Optional: a harness without a worker cancels only scheduled
@@ -523,6 +530,16 @@ export function emailTemplatesRoutes(deps: EmailTemplatesRoutesDeps): FastifyPlu
         await requireSettingsManage(request, 'edit email templates');
         const row = await mustFind(request.params.id);
         const doc = await acceptDocument(request.body.document);
+        // A file newly attached by its id: one of a record the author reaches. Any other answers as an id that names no file.
+        const held = new Set(row.attachments.flatMap((attachment) => (attachment.kind === 'file' ? [attachment.fileId] : [])));
+        for (const attachment of doc.attachments) {
+          if (attachment.kind !== 'file' || held.has(attachment.fileId) || deps.reachesRecord === undefined) continue;
+          const file = await files.findById(attachment.fileId);
+          if (file === null || file.entityConnectionId === null || file.entityTable === null) continue;
+          if (!(await deps.reachesRecord(request, { connectionId: file.entityConnectionId, table: file.entityTable, recordId: file.entityId, uploadedBy: file.uploadedBy }, 'read'))) {
+            throw new ValidationFailedError(`File ${attachment.fileId} not found.`, { attachments: 'unknown-file' });
+          }
+        }
         const at = app.rbac.now();
         const { name, category, enabled } = request.body;
         const updated = await templates.patch(

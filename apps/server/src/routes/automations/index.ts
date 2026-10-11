@@ -27,6 +27,7 @@
  * toast are built on.
  */
 
+import { requestReadsWhole } from '../../crud/row-reach-request.js';
 import type { FastifyRequest } from 'fastify';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import {
@@ -244,6 +245,30 @@ export function automationsRoutes(deps: AutomationsRoutesDeps): FastifyPluginAsy
         'TABLE_FORBIDDEN',
         { permission, table },
       );
+    }
+    await assertAuthorReadsWhole(request, rule, view);
+  }
+
+  /**
+   * WHOSE ROWS A RULE READS. A rule runs as the system: it is handed every
+   * row of the table it watches, and of each table it reads beside it, and
+   * its steps send what they read wherever its author says. So its author
+   * must be somebody who reads EVERY row of those tables — a person held to
+   * their own deals who could write "on any deal, mail me" would read
+   * everybody's by mail. Asked whenever a rule is saved, switched on, copied
+   * or tried, of whoever does it.
+   */
+  async function assertAuthorReadsWhole(
+    request: FastifyRequest,
+    rule: { trigger: Automation['trigger']; graph: Automation['graph']; connectionId: string | null },
+    known?: SnapshotView | null,
+  ): Promise<void> {
+    if (rule.connectionId === null) return;
+    const view = known === undefined ? await viewFor(rule.connectionId).catch(() => null) : known;
+    const asked = new Map<string, boolean>();
+    for (const { permission, table } of requiredGrants(rule.trigger, rule.graph, rule.connectionId, view, await stepsFor(rule.connectionId))) {
+      if (!permission.endsWith(':read') || (await requestReadsWhole(meta, request, rule.connectionId, table, asked))) continue;
+      throw new ForbiddenError(`Your role reads only some rows of ${table}, so this rule cannot use it.`, 'TABLE_FORBIDDEN', { permission, table, reason: 'row-limit' });
     }
   }
 
@@ -513,6 +538,9 @@ export function automationsRoutes(deps: AutomationsRoutesDeps): FastifyPluginAsy
         if (body.trigger !== undefined || body.graph !== undefined || switchedOn) {
           await validateOrThrow(request, next);
           await assertAuthorGrants(request, next);
+        } else if (body.enabled === true && !rule.enabled) {
+          // Switching a rule on is setting it to read: by somebody who reads every row it will.
+          await assertAuthorReadsWhole(request, next);
         }
 
         const incomplete = firstIncompleteNode(next.graph, await stepsFor(next.connectionId));
@@ -599,6 +627,8 @@ export function automationsRoutes(deps: AutomationsRoutesDeps): FastifyPluginAsy
       async (request, reply) => {
         const rule = await rules.findById(request.params.id);
         if (rule === null) throw new NotFoundError('No such rule.', { id: request.params.id });
+        // The copy is its maker's rule: of tables they read every row of.
+        await assertAuthorReadsWhole(request, rule);
         const at = now();
         const copy = await rules.create(
           {

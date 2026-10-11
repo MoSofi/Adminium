@@ -18,6 +18,8 @@ import type { ConnectionManager } from '../../connections/manager.js';
 import type { ResolvedTable, SnapshotView } from '../../crud/identifiers.js';
 import { canReadPii, maskRow, type Row } from '../../crud/mask.js';
 import { fetchByPk, parseRecordId, pkLabel } from '../../crud/records.js';
+import { fetchVisible, type RowAction } from '../../crud/row-limit.js';
+import { rowsForRequest } from '../../crud/row-reach-request.js';
 import { HookRejectedError, type WriteContext } from '../../crud/write-service.js';
 import { loadSnapshotView } from '../../data-io/snapshot-view.js';
 import { AppError, ForbiddenError, NotFoundError, ValidationFailedError } from '../../errors.js';
@@ -171,8 +173,12 @@ export function createActionRunner(deps: ActionRunnerDeps) {
     const unmasked = await canReadPii(request, placed.connection.id, placed.table.id);
     const keys = input.ids.map((id) => keyOf(placed.table, id));
     const records: Row[] = [];
+    // The rows the person chose, as far as their role reaches rows for what the action does: one out of reach is one that is not there.
+    const reach = await rowsForRequest(deps.meta, request, placed.connection.id, placed.view.model);
+    const needs = permissionOf(action);
+    const rowAction: RowAction = needs === 'update' || needs === 'delete' ? needs : 'read';
     for (const pk of keys) {
-      const row = await fetchByPk(raw, placed.table, pk);
+      const row = reach === null ? await fetchByPk(raw, placed.table, pk) : await fetchVisible(reach, raw, placed.table, pk, rowAction);
       if (row === undefined) throw new NotFoundError('Record not found.', { pk });
       records.push(maskRow(row, placed.table, unmasked));
     }

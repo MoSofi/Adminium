@@ -140,7 +140,11 @@ export interface World {
   /** The whole model as the server reads it now. */
   model: () => Promise<EffectiveModel>;
   /** A role holding these table actions, each with the rows it reaches; `also` are grant rows made as given. */
-  role: (slug: string, tables: Partial<Record<TableName, { actions: RowAction[] | ('create' | RowAction)[]; rows?: RowLimit }>>) => Promise<string>;
+  role: (slug: string, tables: Partial<Record<TableName, { actions: ('create' | 'export' | 'import' | RowAction)[]; rows?: RowLimit }>>) => Promise<string>;
+  /** Give a role workspace rights by their keys (`exports.manage`, `audit.read`). */
+  system: (slug: string, keys: string[]) => Promise<void>;
+  /** Run every job that is waiting, as the worker would. */
+  jobs: () => Promise<void>;
   /** Give a person a role by its slug. */
   give: (person: PersonName, slug: string) => Promise<void>;
   take: (person: PersonName, slug: string) => Promise<void>;
@@ -305,7 +309,8 @@ export async function world(dialect: Dialect): Promise<World> {
     manager,
     runService,
     applyService: createApplyService({ meta, runService }),
-    allowed: null,
+    // Empty vocabularies: enough for the routes that keep a model's runs to be mounted.
+    allowed: { templates: [], widgets: [], widgetContracts: {} },
     logger: false,
     telemetry: false,
   });
@@ -348,6 +353,13 @@ export async function world(dialect: Dialect): Promise<World> {
         await permissionsRepo(meta).grant(role.id, 'table', `${connection.id}/${id(table as TableName)}`, { ...actions, ...(grant.rows === undefined ? {} : { rowLimit: grant.rows }) } as never);
       }
       return role.id;
+    },
+    system: async (slug, keys) => {
+      const role = (await rolesRepo(meta).findBySlug(slug)) ?? (await rolesRepo(meta).create({ slug, name: slug }));
+      for (const key of keys) await permissionsRepo(meta).grant(role.id, 'system', key, { allowed: true } as never);
+    },
+    jobs: async () => {
+      while ((await composed.jobs.worker.runOnce()) > 0);
     },
     give: async (person, slug) => {
       await rolesRepo(meta).assignToUser(people[person], (await rolesRepo(meta).findBySlug(slug))!.id);
