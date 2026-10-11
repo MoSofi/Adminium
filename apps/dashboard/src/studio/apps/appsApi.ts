@@ -642,6 +642,8 @@ export interface AppInstallPlan {
      * screen's into a shared link's, whose token alone opens what they read.
      */
     opensWithoutStaff?: string[];
+    /** An update's check, for an app with a phone side: its phone app has a key, would be given one, or the operator took it back. */
+    phoneKey?: 'held' | 'made' | 'withheld';
     warnings: { code: string; message: string }[];
     /** Making the app's key needs the API keys permission. */
     canGrant: boolean;

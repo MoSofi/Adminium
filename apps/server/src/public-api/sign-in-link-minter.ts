@@ -19,6 +19,7 @@
  * declares, and it only ever names a path under the app: never a URL.
  */
 import { createHash } from 'node:crypto';
+import { storedPageKey } from './keys.js';
 
 import { manifestsRepo, publicChallengesRepo, publicKeysRepo, type DsnCrypto, type MetaDb } from '@adminium/meta';
 
@@ -91,7 +92,8 @@ export function createSignInLinkMinter(deps: SignInLinkMinterDeps): SignInLinkMi
       }
       // The app's own key that signs its people in by link, on this connection and table.
       const keys = (await publicKeysRepo(deps.meta).listManagedBy(input.appKey)).filter(
-        (key) => key.revokedAt === null && (key.expiresAt === null || key.expiresAt > input.now),
+        // A page's key: the link is opened by a web page, which is never served a phone app's key.
+        (key) => key.revokedAt === null && (key.expiresAt === null || key.expiresAt > input.now) && storedPageKey(key.kind),
       );
       for (const key of keys) {
         const keyed = await scopeOfKey(deps.meta, deps.views, key.id, input.now);

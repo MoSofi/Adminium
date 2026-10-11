@@ -323,7 +323,9 @@ export function ApiKeysPage() {
                       >
                         {key.kind === 'server'
                           ? t('studio:apiKeys.keys.kind.server', 'SERVER')
-                          : t('studio:apiKeys.keys.kind.browser', 'BROWSER')}
+                          : key.kind === 'app'
+                            ? t('studio:apiKeys.keys.kind.app', 'PHONE APP')
+                            : t('studio:apiKeys.keys.kind.browser', 'BROWSER')}
                       </span>
                       <span className="truncate text-[13px] font-bold text-fg">{key.name}</span>
                       {key.requiresStaff != null ? (
@@ -349,7 +351,7 @@ export function ApiKeysPage() {
                       <span dir="ltr" className={`truncate font-mono text-[12px] text-fg-muted ${shown === null ? '' : 'select-all'}`}>
                         {shown ?? maskKey(key.prefix)}
                       </span>
-                      {key.kind === 'browser' ? (
+                      {key.kind !== 'server' ? (
                         <button
                           type="button"
                           aria-label={shown === null ? t('studio:apiKeys.keys.reveal', 'Reveal key') : t('studio:apiKeys.keys.hide', 'Hide key')}

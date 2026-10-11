@@ -44,7 +44,7 @@ import {
   type PublicEndpoint,
   type PublicKey,
 } from '@adminium/meta';
-import { hasVisitorReach, managedKeyKind, refusesBrowserHeaders } from './keys.js';
+import { hasVisitorReach, isPhoneAppKey, managedKeyKind, refusesBrowserHeaders } from './keys.js';
 import { createHash } from 'node:crypto';
 
 import type { SnapshotView } from '../crud/identifiers.js';
@@ -677,7 +677,7 @@ export function createEndpointService(deps: EndpointServiceDeps) {
         issues.push({ code: 'KEY_SERVER_APP_BOUND', message: 'a server key cannot be bound to a hosted app' });
       }
       if (refusesBrowserHeaders(kind) && input.origins !== undefined && input.origins.length > 0) {
-        issues.push({ code: 'KEY_SERVER_ORIGINS', message: `${kind === 'app' ? 'an app' : 'a server'} key is refused from every browser; it takes no origins` });
+        issues.push({ code: 'KEY_SERVER_ORIGINS', message: `${isPhoneAppKey(kind) ? 'an app' : 'a server'} key is refused from every browser; it takes no origins` });
       }
       if (changed.length > 0) throw new EndpointChanged(changed);
 

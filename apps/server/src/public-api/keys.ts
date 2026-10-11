@@ -95,6 +95,19 @@ export const refusesBrowserHeaders = (kind: PublicKeyKind): boolean => kind !== 
 /** A phone app's key: made and taken back with the app's phone side. */
 export const isPhoneAppKey = (kind: PublicKeyKind): boolean => kind === 'app';
 
+/**
+ * The same questions of a STORED kind, for code that picks among an app's
+ * keys ("its customer key", "its phone app's key", "the keys that stand for a
+ * visitor"). A word this server does not know is none of them, as it is to a
+ * request: it is never the key served to a page, and never counted as live.
+ */
+export const storedPageKey = (kind: string | null | undefined): boolean => storedKeyKind(kind) === 'browser';
+export const storedPhoneKey = (kind: string | null | undefined): boolean => storedKeyKind(kind) === 'app';
+export const storedVisitorKey = (kind: string | null | undefined): boolean => {
+  const known = storedKeyKind(kind);
+  return known !== null && hasVisitorReach(known);
+};
+
 /** The key is served to a page by `surface-config.json` and bound by the origin rule: a browser key only. */
 export const servedToPages = (kind: PublicKeyKind): boolean => kind === 'browser';
 

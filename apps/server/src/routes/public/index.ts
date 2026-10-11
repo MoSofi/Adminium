@@ -115,7 +115,7 @@ import {
   typedDigest,
   type PublicSessionContext,
 } from '../../public-api/claim.js';
-import { generatePublicSessionToken, hashPublishableKey, hasVisitorReach, keyKindOf, openPublishableKey, refusesBrowserHeaders, servedToPages } from '../../public-api/keys.js';
+import { generatePublicSessionToken, hashPublishableKey, hasVisitorReach, isPhoneAppKey, keyKindOf, openPublishableKey, refusesBrowserHeaders, servedToPages } from '../../public-api/keys.js';
 import type { RequestStats } from '../../public-api/stats.js';
 import { fetchByPk, parseRecordId, pkLabel } from '../../crud/records.js';
 import { tableRulesFor, unstorableText } from '../../crud/column-rules.js';
@@ -1161,7 +1161,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
        */
       const h = request.headers;
       if (h.origin !== undefined || h['sec-fetch-site'] !== undefined || h['sec-fetch-mode'] !== undefined || h['sec-fetch-dest'] !== undefined) {
-        fail(reply, 403, 'PUBLIC_ORIGIN_REFUSED', tokenKind === 'app' ? 'An app key cannot be used from a browser.' : 'A server key cannot be used from a browser.');
+        fail(reply, 403, 'PUBLIC_ORIGIN_REFUSED', isPhoneAppKey(tokenKind) ? 'An app key cannot be used from a browser.' : 'A server key cannot be used from a browser.');
         return null;
       }
     } else if (!originAllowed) {
@@ -4626,8 +4626,9 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
      */
     const linkReady = async (reply: FastifyReply, ok: { key: ResolvedKey }): Promise<{ identity: LinkIdentity; base: string | null } | null> => {
       const identity = linkIdentityOf(ok.key.scope);
-      if (identity === null) {
-        fail(reply, 403, 'PUBLIC_CLAIM_UNAVAILABLE', 'This key does not support claims.');
+      // A sign-in link is opened by a web page with the page's own key: a phone app signs people in with a code.
+      if (identity === null || isPhoneAppKey(ok.key.kind)) {
+        fail(reply, 403, 'PUBLIC_CLAIM_UNAVAILABLE', identity === null ? 'This key does not support claims.' : 'A sign-in link opens in a web page. A phone app signs people in with a code.');
         return null;
       }
       if (!(await isEmailConfigured(meta, null))) {

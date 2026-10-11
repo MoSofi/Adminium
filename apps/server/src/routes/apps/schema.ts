@@ -442,6 +442,14 @@ export const appInstallPlanDto = z.object({
        * Made only when the update is sent `publicAccess: true`.
        */
       opensWithoutStaff: z.array(z.string()).optional(),
+      /**
+       * For an app with a phone side that is already installed: whether its
+       * phone app has a key (`held`), the update would make one (`made`: a
+       * key for a program, with what guests may already reach, and only when
+       * the update is sent `publicAccess: true`), or the operator took it
+       * back and none is made (`withheld`).
+       */
+      phoneKey: z.enum(['held', 'made', 'withheld']).optional(),
       warnings: z.array(z.object({ code: z.string(), message: z.string() })),
       /** Making the app's key needs `system:api-keys:manage`. */
       canGrant: z.boolean(),

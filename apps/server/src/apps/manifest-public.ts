@@ -1037,9 +1037,9 @@ export async function takeBackPublicAccess(input: {
   const staffed = (purpose: string) => manifest.kind === 'app' && manifest.publicKeys?.[purpose]?.requiresStaff !== undefined;
   for (const key of live) {
     const purpose = key.purpose;
-    // The phone app's key goes with the phone side.
+    // The phone app's key goes with the phone side. Ended, not revoked: a later version that has the side again gets one.
     if (isPhoneAppKey(managedKeyKind(key.kind)) && !hasPhoneSide(manifest)) {
-      await keysRepo.revoke(key.id);
+      await keysRepo.expire(key.id);
       await publicApiStateRepo(input.meta).bump();
       await input.onCommitted({ kind: 'revoke', keyId: key.id, purpose });
       continue;

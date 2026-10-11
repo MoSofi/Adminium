@@ -17,6 +17,7 @@ import { addressKey } from '../src/public-api/claim-code.js';
 import { solveProof } from '../src/public-api/proof.js';
 import { createPublicViews } from '../src/public-api/runtime.js';
 import type { SignInLinkMinter } from '../src/outbox/sign-in-link.js';
+import { generatePublishableKey } from '../src/public-api/keys.js';
 import { createSignInLinkMinter, declaredRoute } from '../src/public-api/sign-in-link-minter.js';
 import { SIGN_IN_LINK_JOB_KIND } from '../src/public-api/sign-in-link.js';
 import { installInvoicing, invoicingManifest, LEGS, type InvoicingHarness } from './invoicing-install.helpers.js';
@@ -143,6 +144,40 @@ describe.each(LEGS)('the link an app’s email carries — %s', (dialect, availa
     for (const job of jobs) await entry.run(entry.schema.parse(typeof job.payload === 'string' ? JSON.parse(job.payload) : job.payload), {} as never);
     const mailed = await h.meta.db.selectFrom('adminium_jobs').select('id').where('kind', '=', 'email.send').execute();
     expect(mailed).toHaveLength(2);
+  });
+
+  it.skipIf(!available)('is minted on the page’s key when the app has a phone app’s key too, and a phone app is sent no link', async () => {
+    // A phone app's key beside the customer key: newer, with the same reach.
+    const keyId = (h.reply['publicAccess'] as { keyId: string }).keyId;
+    const row = await h.meta.db.selectFrom('adminium_public_keys').selectAll().where('id', '=', keyId).executeTakeFirstOrThrow();
+    const phone = generatePublishableKey('app');
+    await h.meta.db
+      .insertInto('adminium_public_keys')
+      .values({ ...row, id: 'pbk_phone_app', name: 'Studio · phone app', kind: 'app', prefix: phone.prefix, tokenHash: phone.tokenHash, createdAt: Number(row.createdAt) + 60_000 } as never)
+      .execute();
+
+    // The link opens in the web page, with the page's key.
+    const url = await mint();
+    const opened = await send('/claim/link/verify', { token: tokenOf(url!) });
+    expect(opened.statusCode, opened.body).toBe(200);
+
+    // The phone app asks for a link: refused in words, and nothing is queued.
+    const before = (await h.meta.db.selectFrom('adminium_jobs').select('id').where('kind', '=', SIGN_IN_LINK_JOB_KIND).execute()).length;
+    const auth = { authorization: `Bearer ${phone.token}` };
+    const asked = await served.composed.app.inject({ method: 'GET', url: '/api/v1/public/challenge?purpose=claim', remoteAddress: from(), headers: auth });
+    expect(asked.statusCode, asked.body).toBe(200);
+    const challenge = (asked.json() as { data: { id: string; salt: string; difficulty: number } }).data;
+    const refused = await served.composed.app.inject({
+      method: 'POST',
+      url: '/api/v1/public/claim/link',
+      remoteAddress: from(),
+      headers: { ...auth, 'x-adminium-proof': `${challenge.id}.${solveProof(challenge.salt, challenge.difficulty)}` },
+      payload: { email: 'ada@example.com' },
+    });
+    expect(refused.statusCode, refused.body).toBe(403);
+    expect(served.codeOf(refused)).toBe('PUBLIC_CLAIM_UNAVAILABLE');
+    expect((await h.meta.db.selectFrom('adminium_jobs').select('id').where('kind', '=', SIGN_IN_LINK_JOB_KIND).execute()).length).toBe(before);
+    await h.meta.db.deleteFrom('adminium_public_keys').where('id', '=', 'pbk_phone_app').execute();
   });
 
   it.skipIf(!available)('dies with the address it was minted for', async () => {

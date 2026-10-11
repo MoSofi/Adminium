@@ -17,7 +17,8 @@ import { queryOptions } from '@tanstack/react-query';
 import { ApiError, api } from '../../app/api.js';
 
 export type Method = 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE' | 'BATCH';
-export type KeyKind = 'browser' | 'server';
+/** `app` is a phone app's key: an app's install makes it, and this page never does. */
+export type KeyKind = 'browser' | 'server' | 'app';
 
 /** One compile issue, as the server reports it. */
 export interface Issue {
