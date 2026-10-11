@@ -14,6 +14,14 @@
  * The two differ in ONE request field: the official API takes
  * `max_completion_tokens` (its reasoning models refuse `max_tokens`), and
  * compatible servers know only `max_tokens`.
+ *
+ * And one thing the official API refuses, seen on the real service
+ * (2026-10-11, gpt-6-luna): a model that reasons by default takes no function
+ * tools on this address unless the request says `reasoning_effort: "none"`
+ * (HTTP 400, param `reasoning_effort`). A request with tools that is refused
+ * so is asked again with that field, and the model is remembered, so the
+ * refusal costs one request per model and process. Models that do not know
+ * the field never see it.
  */
 import { parseItem, streamError, streamRequest } from './run-http.js';
 import {
@@ -78,10 +86,11 @@ export function openAiMessages(system: string, messages: readonly RunMessage[]):
   return out;
 }
 
-export function openAiRunBody(req: RunRequest, opts: { official: boolean; usage: boolean }): Record<string, unknown> {
+export function openAiRunBody(req: RunRequest, opts: { official: boolean; usage: boolean; noReasoning?: boolean }): Record<string, unknown> {
   return {
     model: req.model,
     stream: true,
+    ...(opts.noReasoning === true ? { reasoning_effort: 'none' } : {}),
     ...(opts.usage ? { stream_options: { include_usage: true } } : {}),
     ...(opts.official ? { max_completion_tokens: req.maxTokens } : { max_tokens: req.maxTokens }),
     messages: openAiMessages(req.system, req.messages),
@@ -112,7 +121,7 @@ interface RunnerShape {
   official: boolean;
 }
 
-async function runOnce(shape: RunnerShape, req: RunRequest, usage: boolean): Promise<RunResult> {
+async function runOnce(shape: RunnerShape, req: RunRequest, usage: boolean, noReasoning = false): Promise<RunResult> {
   const { provider, apiKey } = shape;
   let text = '';
   const calls: OpenCall[] = [];
@@ -146,7 +155,7 @@ async function runOnce(shape: RunnerShape, req: RunRequest, usage: boolean): Pro
     provider,
     url: `${shape.baseUrl}/chat/completions`,
     headers,
-    body: openAiRunBody(req, { official: shape.official, usage }),
+    body: openAiRunBody(req, { official: shape.official, usage, noReasoning }),
     apiKey,
     signal: req.signal,
     firstByteTimeoutMs: req.firstByteTimeoutMs ?? RUN_FIRST_BYTE_TIMEOUT_MS,
@@ -219,13 +228,22 @@ async function runOnce(shape: RunnerShape, req: RunRequest, usage: boolean): Pro
   };
 }
 
+/** Whether the service refused the request for its tools together with the model's reasoning. */
+const refusedToolsWithReasoning = (error: unknown): boolean => error instanceof ProviderError && error.status === 400 && /reasoning_effort/.test(error.message);
+
 function createRunner(shape: RunnerShape): ProviderRunner {
+  /** The models that took tools only with their reasoning off. */
+  const noReasoning = new Set<string>();
   return {
     id: shape.provider,
     async run(req: RunRequest): Promise<RunResult> {
       try {
-        return await runOnce(shape, req, true);
+        return await runOnce(shape, req, true, noReasoning.has(req.model));
       } catch (error) {
+        if (shape.official && req.tools.length > 0 && !noReasoning.has(req.model) && refusedToolsWithReasoning(error)) {
+          noReasoning.add(req.model);
+          return runOnce(shape, req, true, true);
+        }
         // A server that does not know `stream_options` and says so is asked again without it.
         if (
           !shape.official &&

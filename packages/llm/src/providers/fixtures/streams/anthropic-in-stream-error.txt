@@ -1,4 +1,4 @@
-# synthetic: written from the provider's published stream format, not recorded. Replace with a recording (see README.md).
+# synthetic: written by hand from the provider's published stream format, and it stays so: a provider cannot be asked to break off in the middle of a reply. Not a recording (see README.md).
 event: message_start
 data: {"type":"message_start","message":{"id":"msg_00000000000000000000000","type":"message","role":"assistant","model":"claude-sonnet-5-5","content":[],"stop_reason":null,"usage":{"input_tokens":20,"output_tokens":1}}}
 

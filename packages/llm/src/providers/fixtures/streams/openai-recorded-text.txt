@@ -1,0 +1,21 @@
+# recorded 2026-10-11 from openai, model gpt-6-luna
+data: {"id":"chatcmpl-00000000000000000000000000000","object":"chat.completion.chunk","created":1791700280,"model":"gpt-6-luna","service_tier":"default","system_fingerprint":null,"choices":[{"index":0,"delta":{"role":"assistant","content":"","refusal":null},"finish_reason":null}],"usage":null,"obfuscation":""}
+
+data: {"id":"chatcmpl-00000000000000000000000000000","object":"chat.completion.chunk","created":1791700280,"model":"gpt-6-luna","service_tier":"default","system_fingerprint":null,"choices":[{"index":0,"delta":{"content":"Hello"},"finish_reason":null}],"usage":null,"obfuscation":"v4NUfpwnHr6ag"}
+
+data: {"id":"chatcmpl-00000000000000000000000000000","object":"chat.completion.chunk","created":1791700280,"model":"gpt-6-luna","service_tier":"default","system_fingerprint":null,"choices":[{"index":0,"delta":{"content":","},"finish_reason":null}],"usage":null,"obfuscation":"C"}
+
+data: {"id":"chatcmpl-00000000000000000000000000000","object":"chat.completion.chunk","created":1791700280,"model":"gpt-6-luna","service_tier":"default","system_fingerprint":null,"choices":[{"index":0,"delta":{"content":" w"},"finish_reason":null}],"usage":null,"obfuscation":""}
+
+data: {"id":"chatcmpl-00000000000000000000000000000","object":"chat.completion.chunk","created":1791700280,"model":"gpt-6-luna","service_tier":"default","system_fingerprint":null,"choices":[{"index":0,"delta":{"content":"ör"},"finish_reason":null}],"usage":null,"obfuscation":""}
+
+data: {"id":"chatcmpl-00000000000000000000000000000","object":"chat.completion.chunk","created":1791700280,"model":"gpt-6-luna","service_tier":"default","system_fingerprint":null,"choices":[{"index":0,"delta":{"content":"ld"},"finish_reason":null}],"usage":null,"obfuscation":""}
+
+data: {"id":"chatcmpl-00000000000000000000000000000","object":"chat.completion.chunk","created":1791700280,"model":"gpt-6-luna","service_tier":"default","system_fingerprint":null,"choices":[{"index":0,"delta":{"content":"!"},"finish_reason":null}],"usage":null,"obfuscation":"9"}
+
+data: {"id":"chatcmpl-00000000000000000000000000000","object":"chat.completion.chunk","created":1791700280,"model":"gpt-6-luna","service_tier":"default","system_fingerprint":null,"choices":[{"index":0,"delta":{},"finish_reason":"stop"}],"usage":null,"obfuscation":"eMKSyr6kg1eM"}
+
+data: {"id":"chatcmpl-00000000000000000000000000000","object":"chat.completion.chunk","created":1791700280,"model":"gpt-6-luna","service_tier":"default","system_fingerprint":null,"choices":[],"usage":{"prompt_tokens":33,"completion_tokens":9,"total_tokens":42,"prompt_tokens_details":{"cached_tokens":0,"cache_write_tokens":0,"audio_tokens":0},"completion_tokens_details":{"reasoning_tokens":0,"audio_tokens":0,"accepted_prediction_tokens":0,"rejected_prediction_tokens":0}},"obfuscation":"4hX4kdupSqH"}
+
+data: [DONE]
+

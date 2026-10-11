@@ -31,6 +31,25 @@ names and is never sent back to the browser.
 A larger model builds better. A small local model can call tools and still lose its way in an app
 with several tables and screens: it takes more steps, and it may need a "Keep going".
 
+### Models tried
+
+These were run through the Designer by the Adminium project, each on three requests (a
+dashboard-only app, an app with a customer page and a staff screen, an app built on the Invoices &
+Receipts add-on) and then one change to each. A model that is not listed was not tried: it may
+work as well.
+
+| Provider | Model | Tried | Result |
+| --- | --- | --- | --- |
+| Anthropic | `claude-haiku-5-5` | 2026-10-11 | All three apps built, checked and applied, and all three changes. The dashboard-only app took under a minute; the app with screens about six minutes. |
+| OpenAI | `gpt-6-luna` | 2026-10-11 | All three apps built, checked and applied, and all three changes. The dashboard-only app took under a minute; the app with screens about four minutes. |
+
+Both are the smallest current model of their provider. The larger ones of the same families
+(Claude Sonnet 5.5, GPT-6.1 Sol and above) were not tried.
+
+With an OpenAI model that reasons, the Designer switches the model's reasoning off: OpenAI's
+Chat Completions address, which the Designer speaks, takes tools from such a model only that way.
+Nothing needs setting for it.
+
 ## Build
 
 Describe the app and send. The menu beside the box says what to build: **Auto** (the Designer

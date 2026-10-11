@@ -780,6 +780,125 @@ describe('whether a model can be built with', () => {
   });
 });
 
+// ── What the real services sent (recorded 2026-10-11) ────────────────────────
+
+describe('a reply recorded from Anthropic (claude-haiku-5-5)', () => {
+  it('reads its text', async () => {
+    serve(fixture('anthropic-recorded-text'));
+    const { result } = await collect(ANTHROPIC());
+    expect(result).toEqual({ blocks: [{ type: 'text', text: 'Hello, wörld!' }], stop: 'end', malformed: [], usage: { inputTokens: 44, outputTokens: 10 } });
+  });
+
+  it('reads a tool call, and counts what the cache read as tokens sent: the cache marks are taken by the real service', async () => {
+    serve(fixture('anthropic-recorded-one-tool'));
+    const { result } = await collect(ANTHROPIC());
+    expect(result.blocks).toEqual([{ type: 'tool_call', id: 'toolu_0000000000000000000001', name: 'write_file', input: { path: 'apps/repairs/manifest/tables/jobs.json', content: '{"ref": "jobs"}' } }]);
+    expect(result.stop).toBe('tool_calls');
+    // 4 sent fresh, 518 read from the cache.
+    expect(result.usage).toEqual({ inputTokens: 522, outputTokens: 96 });
+  });
+
+  it('reads two calls in one reply, the first with no arguments', async () => {
+    serve(fixture('anthropic-recorded-two-tools'));
+    const { result } = await collect(ANTHROPIC());
+    expect(result.blocks).toEqual([
+      { type: 'tool_call', id: 'toolu_0000000000000000000001', name: 'list_files', input: {} },
+      { type: 'tool_call', id: 'toolu_0000000000000000000002', name: 'write_file', input: { path: 'a.json', content: '{}' } },
+    ]);
+    expect(result.malformed).toEqual([]);
+  });
+
+  it('says the tokens ran out when all of them went to thinking, with nothing of the thinking kept', async () => {
+    serve(fixture('anthropic-recorded-max-tokens'));
+    const { result, events } = await collect(ANTHROPIC());
+    expect(result).toEqual({ blocks: [], stop: 'max_tokens', malformed: [], usage: { inputTokens: 43, outputTokens: 32 } });
+    expect(events.filter((event) => event.type === 'text')).toEqual([]);
+  });
+
+  it('reads the same whatever the size of the pieces it arrives in', async () => {
+    for (const size of [1, 7, 64]) {
+      serve(new Response(body(fixture('anthropic-recorded-two-tools'), size), { status: 200 }));
+      const { result } = await collect(ANTHROPIC());
+      expect(result.blocks.map((block) => (block.type === 'tool_call' ? block.name : block.type)), String(size)).toEqual(['list_files', 'write_file']);
+    }
+  });
+});
+
+describe('a reply recorded from OpenAI (gpt-6-luna)', () => {
+  it('reads its text and its usage', async () => {
+    serve(fixture('openai-recorded-text'));
+    const { result } = await collect(OPENAI());
+    expect(result).toEqual({ blocks: [{ type: 'text', text: 'Hello, wörld!' }], stop: 'end', malformed: [], usage: { inputTokens: 33, outputTokens: 9 } });
+  });
+
+  it('reads a tool call', async () => {
+    serve(fixture('openai-recorded-one-tool'));
+    const { result } = await collect(OPENAI());
+    expect(result.blocks).toEqual([{ type: 'tool_call', id: 'call_000000000000000000000001', name: 'write_file', input: { path: 'apps/repairs/manifest/tables/jobs.json', content: '{"ref": "jobs"}' } }]);
+    expect(result.stop).toBe('tool_calls');
+  });
+
+  it('reads two calls in one reply', async () => {
+    serve(fixture('openai-recorded-two-tools'));
+    const { result } = await collect(OPENAI());
+    expect(result.blocks).toEqual([
+      { type: 'tool_call', id: 'call_000000000000000000000001', name: 'list_files', input: {} },
+      { type: 'tool_call', id: 'call_000000000000000000000002', name: 'write_file', input: { path: 'a.json', content: '{}' } },
+    ]);
+  });
+
+  it('says the tokens ran out', async () => {
+    serve(fixture('openai-recorded-max-tokens'));
+    const { result } = await collect(OPENAI());
+    expect(result.stop).toBe('max_tokens');
+    expect(result.usage).toEqual({ inputTokens: 34, outputTokens: 32 });
+  });
+});
+
+describe('OpenAI refusing tools from a model that reasons (seen on gpt-6-luna)', () => {
+  // The service's own words, 2026-10-11.
+  const refusal = (): Response =>
+    new Response(
+      JSON.stringify({
+        error: {
+          message: "Function tools with reasoning_effort are not supported for gpt-6-luna in /v1/chat/completions. To use function tools, use /v1/responses or set reasoning_effort to 'none'.",
+          type: 'invalid_request_error',
+          param: 'reasoning_effort',
+          code: null,
+        },
+      }),
+      { status: 400, headers: { 'content-type': 'application/json' } },
+    );
+  const tools = [{ name: 'write_file', description: 'Write a file.', inputSchema: { type: 'object' } }];
+
+  it('asks again with the reasoning off, and remembers the model so the next request is asked once', async () => {
+    const sent = serve(refusal(), fixture('openai-recorded-one-tool'), fixture('openai-recorded-one-tool'));
+    const run = OPENAI();
+    const first = await run.run(request({ tools }));
+    expect(first.stop).toBe('tool_calls');
+    expect(sent).toHaveLength(2);
+    expect(sent[0]?.json).not.toHaveProperty('reasoning_effort');
+    expect(sent[1]?.json).toMatchObject({ reasoning_effort: 'none' });
+    await run.run(request({ tools }));
+    expect(sent).toHaveLength(3);
+    expect(sent[2]?.json).toMatchObject({ reasoning_effort: 'none' });
+  });
+
+  it('is said as it is when the second request is refused too, and for a request with no tools', async () => {
+    serve(refusal(), refusal());
+    await expect(OPENAI().run(request({ tools }))).rejects.toMatchObject({ status: 400 });
+    const sent = serve(refusal());
+    await expect(OPENAI().run(request({ tools: [] }))).rejects.toMatchObject({ status: 400 });
+    expect(sent).toHaveLength(1);
+  });
+
+  it('never sends the field to a compatible server', async () => {
+    const sent = serve(refusal());
+    await expect(COMPATIBLE().run(request({ tools }))).rejects.toMatchObject({ status: 400 });
+    expect(sent).toHaveLength(1);
+  });
+});
+
 describe('the runner factory', () => {
   it('refuses a provider that has no runner', () => {
     expect(() => createProviderRunner({ provider: 'adminium-managed' })).toThrow(ProviderError);

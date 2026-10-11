@@ -1,4 +1,4 @@
-# synthetic: written from the provider's published stream format, not recorded. Replace with a recording (see README.md).
+# synthetic: written by hand to hold a shape the run tests need (pieces cut in awkward places, a call cut off, cache counts). What the real service sent is in the `-recorded-` file of the same name (see README.md).
 event: message_start
 data: {"type":"message_start","message":{"id":"msg_00000000000000000000000","type":"message","role":"assistant","model":"claude-sonnet-5-5","content":[],"stop_reason":null,"usage":{"input_tokens":90,"output_tokens":1}}}
 

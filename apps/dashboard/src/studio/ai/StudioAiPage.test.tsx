@@ -75,7 +75,7 @@ function makeRun(overrides: Partial<LlmRunDto> = {}): LlmRunDto {
     snapshotId: 'snap_1',
     mode: 'provider',
     provider: 'anthropic',
-    model: 'claude-opus-4-8',
+    model: 'claude-sonnet-5-5',
     promptVersion: 'adminium.prompt/v1',
     status: 'applied',
     validationStatus: 'valid',
@@ -161,17 +161,17 @@ function stubFetch(options: StubOptions = {}) {
     }
     if (url === '/api/v1/llm/config/assistant-test' && method === 'POST') {
       return Promise.resolve(
-        jsonResponse(200, options.assistantTest ?? { ok: true, model: 'claude-opus-4-8', rounds: 2, latencyMs: 3100, failure: null, message: null }),
+        jsonResponse(200, options.assistantTest ?? { ok: true, model: 'claude-sonnet-5-5', rounds: 2, latencyMs: 3100, failure: null, message: null }),
       );
     }
     if (url === '/api/v1/llm/config/test' && method === 'POST') {
       return Promise.resolve(
-        jsonResponse(200, { ok: true, model: 'claude-opus-4-8', latencyMs: 87, error: null }),
+        jsonResponse(200, { ok: true, model: 'claude-sonnet-5-5', latencyMs: 87, error: null }),
       );
     }
     if (url === '/api/v1/llm/models' && method === 'GET') {
       return Promise.resolve(
-        jsonResponse(200, { models: [{ id: 'claude-opus-4-8', label: 'Claude Opus 4.8' }], source: 'live' }),
+        jsonResponse(200, { models: [{ id: 'claude-sonnet-5-5', label: 'Claude Opus 4.8' }], source: 'live' }),
       );
     }
     if (url.startsWith('/api/v1/llm/runs') && method === 'GET') {
@@ -256,7 +256,7 @@ describe('StudioAiPage', () => {
     await screen.findByRole('heading', { name: 'AI enrichment' });
 
     await user.click(screen.getByRole('radio', { name: /Claude models via the Anthropic API/ }));
-    await user.selectOptions(screen.getByRole('combobox', { name: 'Model' }), 'claude-opus-4-8');
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Model' }), 'claude-sonnet-5-5');
 
     const RAW_KEY = 'sk-ant-abcd1234';
     await user.type(screen.getByLabelText('API key', { exact: false }), RAW_KEY);
@@ -280,7 +280,7 @@ describe('StudioAiPage', () => {
     renderPage({
       config: makeConfig({
         provider: 'anthropic',
-        model: 'claude-opus-4-8',
+        model: 'claude-sonnet-5-5',
         apiKeySet: true,
         apiKeyLast4: '1234',
       }),
@@ -291,12 +291,12 @@ describe('StudioAiPage', () => {
     await waitFor(() => expect(testButton.hasAttribute('disabled')).toBe(false));
     await user.click(testButton);
 
-    expect(await screen.findByText(/Connected to claude-opus-4-8 in 87 ms/)).toBeDefined();
+    expect(await screen.findByText(/Connected to claude-sonnet-5-5 in 87 ms/)).toBeDefined();
   });
 
   it('tests the saved model with the assistant, and says when it can run it', async () => {
     const user = userEvent.setup();
-    renderPage({ config: makeConfig({ provider: 'anthropic', model: 'claude-opus-4-8', apiKeySet: true, apiKeyLast4: '1234' }) });
+    renderPage({ config: makeConfig({ provider: 'anthropic', model: 'claude-sonnet-5-5', apiKeySet: true, apiKeyLast4: '1234' }) });
     await screen.findByRole('heading', { name: 'Configure Anthropic' });
     const button = screen.getByRole('button', { name: 'Test Milo with this model' });
     await waitFor(() => expect(button.hasAttribute('disabled')).toBe(false));
@@ -307,8 +307,8 @@ describe('StudioAiPage', () => {
   it('names a model that answers but cannot run the assistant', async () => {
     const user = userEvent.setup();
     renderPage({
-      config: makeConfig({ provider: 'anthropic', model: 'claude-opus-4-8', apiKeySet: true, apiKeyLast4: '1234' }),
-      assistantTest: { ok: false, model: 'claude-opus-4-8', rounds: 3, latencyMs: 900, failure: 'format', message: null },
+      config: makeConfig({ provider: 'anthropic', model: 'claude-sonnet-5-5', apiKeySet: true, apiKeyLast4: '1234' }),
+      assistantTest: { ok: false, model: 'claude-sonnet-5-5', rounds: 3, latencyMs: 900, failure: 'format', message: null },
     });
     await screen.findByRole('heading', { name: 'Configure Anthropic' });
     const button = screen.getByRole('button', { name: 'Test Milo with this model' });
