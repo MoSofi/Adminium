@@ -41,7 +41,7 @@ for (const [dialect, available] of ENGINES) {
     const deals = (): string => w.id('deals');
     const keysIn = (csv: string): number[] =>
       csv
-        .replace(/^﻿/, '')
+        .replace(/^\uFEFF/, '')
         .trim()
         .split(/\r?\n/)
         .slice(1)
@@ -116,6 +116,16 @@ for (const [dialect, available] of ENGINES) {
         await w.jobs();
         // Omar's own are 3 and 4; the cover for Sam ended in August.
         expect(keysIn((await download('omar', id)).body)).toEqual([3, 4]);
+      });
+
+      it('is not written for somebody whose grant to export the table was taken away while it waited', async () => {
+        await w.role('exporter', { deals: { actions: ['read', 'export'] } });
+        await w.give('kim', 'exporter');
+        const id = await exportDeals('kim', false);
+        await w.take('kim', 'exporter');
+        await w.jobs();
+        const made = await w.meta.db.selectFrom('adminium_exports').select(['status', 'fileId']).where('id', '=', id).executeTakeFirstOrThrow();
+        expect([made.status, made.fileId]).toEqual(['failed', null]);
       });
 
       it('is opened and listed by another person only when nothing limits them on its table', async () => {
@@ -221,6 +231,21 @@ for (const [dialect, available] of ENGINES) {
         // Mara leads Omar, so his deal's sheet is hers to read; the one with follow-ups is not, for her either.
         expect((await listed('mara')).sort()).toEqual([kept['hers']!, kept['omars']!].sort());
         expect((await listed('lena')).sort()).toEqual(Object.values(kept).sort());
+      });
+
+      it('that is kept answers as one that is not there before any other refusal is said', async () => {
+        // Its lines are a table Dana's role does not read at all: of her own deal it is there and closed to her; of Omar's it is not there.
+        const profile = await documentProfilesRepo(w.meta).create({ addOnKey: 'invoices', kind: 'receipt', name: 'Deal with lines', connectionId: w.connectionId, table: deals(), mapping: { customerName: { column: 'title' }, items: { collection: { table: w.id('quote_lines'), fkColumn: 'quote_id', columns: {} } } } });
+        const keep = async (deal: number): Promise<string> =>
+          (await documentsRepo(w.meta).create({ profileId: profile.id, addOnKey: 'invoices', kind: 'receipt', connectionId: w.connectionId, entity: { connectionId: w.connectionId, table: deals(), pk: { id: deal }, label: `Deal ${String(deal)}` }, subject: { fields: {} }, locale: 'en-US', format: 'pdf' })).id;
+        const [hers, his] = [await keep(1), await keep(3)];
+        expect((await get('dana', `documents/${hers}`)).statusCode).toBe(200);
+        expect((await get('dana', `documents/${hers}/content`)).statusCode).toBe(403);
+        expect((await get('dana', `documents/${his}`)).statusCode).toBe(404);
+        expect((await get('dana', `documents/${his}/content`)).statusCode).toBe(404);
+        const listed = json<{ documents: { id: string }[] }>(await get('dana', `documents?entityTable=${encodeURIComponent(deals())}`)).documents.map((row) => row.id);
+        expect([listed.includes(hers), listed.includes(his)]).toEqual([true, false]);
+        await w.meta.db.deleteFrom('adminium_documents').where('id', 'in', [hers, his]).execute();
       });
 
       it('that is kept is voided only by somebody whose update reaches its record', async () => {
@@ -333,7 +358,16 @@ for (const [dialect, available] of ENGINES) {
         const refused = await put('dana', omars);
         expect(refused.statusCode, refused.body).toBe(422);
         expect((await put('dana', hers)).statusCode).toBe(200);
+        // A picture in a block is a file sent too.
+        const pictured = (who: Who, fileId: string) =>
+          call(who, 'PUT', `email-templates/${detail.id}`, { name: detail.name, category: detail.category, enabled: false, document: { ...detail.document, blocks: [{ id: 'img1', block: 'email.image', data: { fileId, alt: 'x' }, style: {} }] } });
+        expect((await pictured('dana', omars)).statusCode).toBe(422);
+        // Somebody's export is no file to attach, for anybody.
+        const exported = (await w.meta.db.selectFrom('adminium_exports').select('fileId').where('id', '=', await exportDeals('lena')).executeTakeFirstOrThrow()).fileId!;
+        for (const who of ['dana', 'lena'] as const) expect((await put(who, exported)).statusCode, who).toBe(422);
         expect((await put('lena', omars)).statusCode).toBe(200);
+        // What the stored document already names is saved again by anybody.
+        expect((await put('dana', omars)).statusCode).toBe(200);
       });
     });
 
@@ -361,6 +395,38 @@ for (const [dialect, available] of ENGINES) {
         expect(named.length).toBeGreaterThan(0);
         expect((await entries('dana')).filter((entry) => named.includes(entry.id))).toEqual([]);
       });
+
+      it('never ends a page on an entry it left out', async () => {
+        // A file of Omar's deal renamed by Lena: the entry names the table, not a record.
+        const omars = await fileOn('owner', 3, 'cursor.pdf');
+        expect((await call('lena', 'PATCH', `files/${omars}`, { filename: 'cursor-2.pdf' })).statusCode).toBe(200);
+        const hidden = new Set((await auditRepo(w.meta).list({ limit: 1000 })).filter((entry) => JSON.stringify([entry.entity, entry.changes]).includes(deals())).map((entry) => entry.id));
+        expect(hidden.size).toBeGreaterThan(2);
+        // Asked for by the record, one at a time: nothing, and no cursor to follow.
+        const byRecord = json<{ entries: unknown[]; nextCursor: string | null }>(await get('dana', `audit?limit=1&connectionId=${w.connectionId}&entityTable=${encodeURIComponent(deals())}&entityId=3`));
+        expect(byRecord).toEqual({ entries: [], nextCursor: null });
+        // The whole log, one at a time: every cursor is the entry just answered.
+        let cursor: string | null = null;
+        let pages = 0;
+        const seen: string[] = [];
+        do {
+          const page: { entries: { id: string }[]; nextCursor: string | null } = json(await get('dana', `audit?limit=1${cursor === null ? '' : `&cursor=${encodeURIComponent(cursor)}`}`));
+          for (const entry of page.entries) seen.push(entry.id);
+          if (page.nextCursor !== null) {
+            const named = Buffer.from(page.nextCursor, 'base64url').toString('utf8').split(':').slice(1).join(':');
+            expect(hidden.has(named), 'a cursor names an entry that was left out').toBe(false);
+            expect(named).toBe(page.entries.at(-1)?.id);
+          }
+          cursor = page.nextCursor;
+          pages += 1;
+        } while (cursor !== null && pages < 400);
+        expect(seen.filter((id) => hidden.has(id))).toEqual([]);
+        expect(seen.length).toBeGreaterThan(3);
+        expect(new Set(seen).size).toBe(seen.length);
+        // Lena pages through the same log and is shown every one of them.
+        const all = json<{ entries: { id: string }[] }>(await get('lena', 'audit?limit=200')).entries.map((entry) => entry.id);
+        expect([...hidden].filter((id) => all.includes(id)).length).toBeGreaterThan(2);
+      });
     });
 
     describe('a rule and its runs (U1–U3)', () => {
@@ -387,13 +453,26 @@ for (const [dialect, available] of ENGINES) {
         expect((await post('lena', `automations/${id}/duplicate`)).statusCode).toBe(201);
       });
 
+      it('is not a way to change rows its author\'s own update does not reach', async () => {
+        // Kim reads every deal and changes only her own.
+        await w.role('half', { deals: { actions: ['read', 'update'], rows: { update: OWN } } });
+        await w.give('kim', 'half');
+        await w.give('kim', 'keeper');
+        cookies.delete('kim');
+        const changing = { ...rule('Take every deal'), graph: { version: 1, nodes: [{ id: 'n1', kind: 'trigger', title: 'When a deal changes' }, { id: 'n2', kind: 'action', title: 'Update field', onError: false, action: { kind: 'record.update', values: {} } }] } };
+        expect(refusal(await post('kim', 'automations', changing))).toEqual([403, 'TABLE_FORBIDDEN', 'row-limit']);
+        // One that only reads is hers to write: she reads them all.
+        expect((await post('kim', 'automations', rule('Kim watches deals'))).statusCode).toBe(201);
+        expect((await post('lena', 'automations', changing)).statusCode).toBe(201);
+      });
+
       it('shows what a run read only to somebody who reads every row of its table', async () => {
         const id = json<{ id: string }>(await post('lena', 'automations', rule('Runs'))).id;
         const run = await automationRunsRepo(w.meta).begin(
           { automationId: id, dedupeKey: `k-${dialect}`, origin: 'watch', triggerEvent: { event: 'record.updated', origin: 'watch', hops: 0, record: { connectionId: w.connectionId, table: deals(), pk: { id: 3 }, label: 'Deal 3' }, snapshot: { id: 3, title: 'Deal 3', amount: 8000 }, occurredAt: Date.now() } },
           Date.now(),
         );
-        await automationRunsRepo(w.meta).finish(run!.id, { status: 'failed', trace: { version: 1, steps: [{ nodeId: 'n2', name: 'Send email', kind: 'action', status: 'fail', startedAt: Date.now(), durationMs: 3, log: 'to omar@firm.test about Deal 3' }], resume: null }, error: 'Deal 3 has no address' }, Date.now());
+        await automationRunsRepo(w.meta).finish(run!.id, { status: 'failed', durationMs: 3, trace: { version: 1, steps: [{ nodeId: 'n2', name: 'Send email', kind: 'action', status: 'fail', startedAt: Date.now(), durationMs: 3, log: 'to omar@firm.test about Deal 3' }], resume: null }, error: 'Deal 3 has no address' }, Date.now());
         type Seen = { run: { status: string; trace: { steps: { log: string | null }[] } | null; triggerEvent: { record: unknown; snapshot: unknown }; error: string | null } };
         const hers = json<Seen>(await get('dana', `automation-runs/${run!.id}`)).run;
         expect(hers.status).toBe('failed');
@@ -425,6 +504,8 @@ for (const [dialect, available] of ENGINES) {
           const res = await get('dana', url);
           expect([res.statusCode, json<{ error: { code: string } }>(res).error.code], url).toEqual([missing.statusCode, json<{ error: { code: string } }>(missing).error.code]);
         }
+        const applied = await post('dana', `llm/runs/${id}/apply`, { accepted: [] });
+        expect([applied.statusCode, json<{ error: { code: string } }>(applied).error.code]).toEqual([missing.statusCode, json<{ error: { code: string } }>(missing).error.code]);
         expect((await get('lena', `llm/runs/${id}`)).statusCode).toBe(200);
         // The Super Admin is limited only on the private table, which is in nobody's figures.
         expect((await get('owner', `llm/runs/${id}`)).statusCode).toBe(200);

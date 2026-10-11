@@ -167,9 +167,9 @@ export function importsRoutes(deps: ImportsRoutesDeps): FastifyPluginAsyncZod {
    * grant whom nothing limits on the table it wrote: a report of rows that
    * are not theirs is not theirs to read, whoever asked for the import.
    */
-  async function mayOpenAnothers(request: FastifyRequest, row: DataImport, asked?: Map<string, boolean>): Promise<boolean> {
+  async function mayOpenAnothers(request: FastifyRequest, row: DataImport): Promise<boolean> {
     if (!(await request.can(IMPORTS_MANAGE_PERMISSION))) return false;
-    return requestReadsWhole(meta, request, row.connectionId, row.tableName, asked);
+    return requestReadsWhole(meta, request, row.connectionId, row.tableName);
   }
 
   async function assertVisible(request: FastifyRequest, row: DataImport, userId: string): Promise<void> {
@@ -407,9 +407,8 @@ export function importsRoutes(deps: ImportsRoutesDeps): FastifyPluginAsyncZod {
           ...(manage ? {} : { requestedBy: userId }),
           limit: request.query.limit,
         });
-        const asked = new Map<string, boolean>();
         const shown: DataImport[] = [];
-        for (const row of rows) if (row.requestedBy === userId || (await mayOpenAnothers(request, row, asked))) shown.push(row);
+        for (const row of rows) if (row.requestedBy === userId || (await mayOpenAnothers(request, row))) shown.push(row);
         return { data: shown.map(toView) };
       },
     );

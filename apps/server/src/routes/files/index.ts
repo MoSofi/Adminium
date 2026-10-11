@@ -266,6 +266,15 @@ export function filesRoutes(deps: FilesRoutesDeps): FastifyPluginAsyncZod {
     return request.can(FILES_MANAGE_PERMISSION);
   }
 
+  /**
+   * What an audit entry about a file says of the record it hangs on: its
+   * connection and its table, so the log leaves the entry out for a reader
+   * who reaches only some rows of that table (`routes/audit`), as it does a
+   * record's own entries. Nothing for a file that hangs on no record.
+   */
+  const ofRecord = (file: StoredFile): { connectionId?: string } => (file.entityConnectionId === null || file.entityTable === null ? {} : { connectionId: file.entityConnectionId });
+  const tableOf = (file: StoredFile): { table?: string } => (file.entityConnectionId === null || file.entityTable === null ? {} : { table: file.entityTable });
+
   /** Load a served-kind file, or 404. Trashed rows 404 on content, not on read. */
   async function load(id: string): Promise<StoredFile> {
     const file = await files.findById(id);
@@ -800,7 +809,8 @@ export function filesRoutes(deps: FilesRoutesDeps): FastifyPluginAsyncZod {
         await app.rbac.audit(request, {
           category: 'data',
           action: 'file.rename',
-          changes: { before: { filename: file.filename }, after: { filename: request.body.filename } },
+          ...ofRecord(file),
+          changes: { before: { filename: file.filename, ...tableOf(file) }, after: { filename: request.body.filename } },
         });
         return { data: toView(renamed) };
       },
@@ -825,7 +835,8 @@ export function filesRoutes(deps: FilesRoutesDeps): FastifyPluginAsyncZod {
         await app.rbac.audit(request, {
           category: 'data',
           action: 'file.delete',
-          changes: { before: { fileId: file.id, filename: file.filename } },
+          ...ofRecord(file),
+          changes: { before: { fileId: file.id, filename: file.filename, ...tableOf(file) } },
         });
         return { data: toView(trashed ?? file) };
       },
@@ -849,7 +860,8 @@ export function filesRoutes(deps: FilesRoutesDeps): FastifyPluginAsyncZod {
         await app.rbac.audit(request, {
           category: 'data',
           action: 'file.restore',
-          changes: { after: { fileId: file.id, filename: file.filename } },
+          ...ofRecord(file),
+          changes: { after: { fileId: file.id, filename: file.filename, ...tableOf(file) } },
         });
         return { data: toView(restored) };
       },

@@ -31,12 +31,19 @@ function idOf(view: SnapshotView, table: string): string {
  * reads only in part, or null. A table the model has not is one: nothing
  * says whose its rows are.
  */
-export function bodyReadInPart(rows: RowLimitContext | null, view: SnapshotView, head: string | null, reads: readonly string[]): string | null {
+export function bodyReadInPart(
+  rows: RowLimitContext | null,
+  view: SnapshotView,
+  head: string | null,
+  reads: readonly string[],
+  /** The document reads OTHER rows of its record's own table too (rows that point at it, the ones before it): then that table is asked like any other. */
+  beyondRow = false,
+): string | null {
   if (rows === null) return null;
   const headId = head === null ? null : idOf(view, head);
   for (const table of reads) {
     const id = idOf(view, table);
-    if (id !== headId && rowTestOf(rows, id, 'read') !== null) return table;
+    if ((id !== headId || beyondRow) && rowTestOf(rows, id, 'read') !== null) return table;
   }
   return null;
 }
@@ -55,12 +62,14 @@ export async function documentRowsReached(input: {
   head: string | null;
   pk: Row | null;
   reads: readonly string[];
+  /** See {@link bodyReadInPart}. */
+  beyondRow?: boolean | undefined;
   action: RowAction;
 }): Promise<boolean> {
   const { rows, view } = input;
   if (rows === null) return true;
   const head = input.head === null ? null : view.linkTable(input.head);
-  if (input.head !== null && head === null) return rowTestOf(rows, input.head, input.action) === null && bodyReadInPart(rows, view, input.head, input.reads) === null;
+  if (input.head !== null && head === null) return rowTestOf(rows, input.head, input.action) === null && bodyReadInPart(rows, view, input.head, input.reads, input.beyondRow) === null;
   if (head !== null && rowTestOf(rows, head.id, input.action) !== null) {
     if (input.db === undefined || input.pk === null) return false;
     // Only the key's own columns: nothing else a caller sent beside them names a column here.
@@ -72,5 +81,5 @@ export async function documentRowsReached(input: {
     if (head.primaryKey.length === 0) return false;
     if ((await fetchVisible(rows, await input.db(), head, pk, input.action)) === undefined) return false;
   }
-  return bodyReadInPart(rows, view, head?.id ?? null, input.reads) === null;
+  return bodyReadInPart(rows, view, head?.id ?? null, input.reads, input.beyondRow) === null;
 }

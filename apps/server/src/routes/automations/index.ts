@@ -27,7 +27,7 @@
  * toast are built on.
  */
 
-import { requestReadsWhole } from '../../crud/row-reach-request.js';
+import { reachOfRequest, requestReadsWhole } from '../../crud/row-reach-request.js';
 import type { FastifyRequest } from 'fastify';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import {
@@ -255,7 +255,8 @@ export function automationsRoutes(deps: AutomationsRoutesDeps): FastifyPluginAsy
    * its steps send what they read wherever its author says. So its author
    * must be somebody who reads EVERY row of those tables — a person held to
    * their own deals who could write "on any deal, mail me" would read
-   * everybody's by mail. Asked whenever a rule is saved, switched on, copied
+   * everybody's by mail, and one who changes only their own could write
+   * "on any deal, set the owner". Asked whenever a rule is saved, switched on, copied
    * or tried, of whoever does it.
    */
   async function assertAuthorReadsWhole(
@@ -264,11 +265,14 @@ export function automationsRoutes(deps: AutomationsRoutesDeps): FastifyPluginAsy
     known?: SnapshotView | null,
   ): Promise<void> {
     if (rule.connectionId === null) return;
+    // Nearly everyone: nothing could limit them, and nothing more is read.
+    if ((await reachOfRequest(meta, request, rule.connectionId)) === null) return;
     const view = known === undefined ? await viewFor(rule.connectionId).catch(() => null) : known;
-    const asked = new Map<string, boolean>();
     for (const { permission, table } of requiredGrants(rule.trigger, rule.graph, rule.connectionId, view, await stepsFor(rule.connectionId))) {
-      if (!permission.endsWith(':read') || (await requestReadsWhole(meta, request, rule.connectionId, table, asked))) continue;
-      throw new ForbiddenError(`Your role reads only some rows of ${table}, so this rule cannot use it.`, 'TABLE_FORBIDDEN', { permission, table, reason: 'row-limit' });
+      // What the rule reads, and the row it changes: each of a table its author reaches every row of, for that.
+      const action = permission.endsWith(':read') ? 'read' : permission.endsWith(':update') ? 'update' : null;
+      if (action === null || (await requestReadsWhole(meta, request, rule.connectionId, table, action))) continue;
+      throw new ForbiddenError(`Your role reaches only some rows of ${table}, so this rule cannot use it.`, 'TABLE_FORBIDDEN', { permission, table, reason: 'row-limit' });
     }
   }
 

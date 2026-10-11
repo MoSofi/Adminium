@@ -28,8 +28,7 @@
  */
 
 import { rowTestOf } from '../../crud/row-limit-context.js';
-import { rowsForRequest } from '../../crud/row-reach-request.js';
-import { loadSnapshotView } from '../../data-io/snapshot-view.js';
+import { reachOfRequest } from '../../crud/row-reach-request.js';
 import { parseDatabaseModel, type DatabaseModel } from '@adminium/engine';
 import {
   ProviderError,
@@ -276,11 +275,11 @@ export function llmRoutes(deps: LlmRoutesDeps): FastifyPluginAsyncZod {
    */
   async function tablesReadInPart(request: FastifyRequest, connectionId: string): Promise<ReadonlySet<string>> {
     const out = new Set<string>();
-    const view = await loadSnapshotView(meta, connectionId).catch(() => null);
-    if (view === null) return out;
-    const rows = await rowsForRequest(meta, request, connectionId, view.model);
-    if (rows === null) return out;
-    for (const table of view.model.tables) if (rowTestOf(rows, table.id, 'read') !== null) out.add(table.id);
+    const reach = await reachOfRequest(meta, request, connectionId);
+    if (reach === null) return out;
+    // Somebody something could limit, and no schema to say on which tables: no figures of any.
+    if (reach === 'unreadable') return new Set((((await snapshots.latest(connectionId))?.schema as DatabaseModel | undefined)?.tables ?? []).map((table) => table.id));
+    for (const table of reach.view.model.tables) if (rowTestOf(reach.rows, table.id, 'read') !== null) out.add(table.id);
     return out;
   }
 
@@ -298,10 +297,9 @@ export function llmRoutes(deps: LlmRoutesDeps): FastifyPluginAsyncZod {
     };
     if (run === null) return gone();
     if (run.createdBy !== null && run.createdBy === actorIdOf(request)) return run;
-    const view = await loadSnapshotView(meta, run.connectionId).catch(() => null);
-    if (view === null) return run;
-    const rows = await rowsForRequest(meta, request, run.connectionId, view.model);
-    if (rows !== null && view.model.tables.some((table) => table.private !== true && rowTestOf(rows, table.id, 'read') !== null)) return gone();
+    const reach = await reachOfRequest(meta, request, run.connectionId);
+    if (reach === null) return run;
+    if (reach === 'unreadable' || reach.view.model.tables.some((table) => table.private !== true && rowTestOf(reach.rows, table.id, 'read') !== null)) return gone();
     return run;
   }
 
@@ -677,6 +675,8 @@ export function llmRoutes(deps: LlmRoutesDeps): FastifyPluginAsyncZod {
       '/llm/runs/:id/apply',
       { preHandler: guard, schema: { params: runIdParams, body: runApplyBody, response: { 200: runApplyReply } } },
       async (request) => {
+        // Another person's run is applied, like it is read, only by somebody no table of its connection limits.
+        await runOf(request);
         try {
           const actor = actorIdOf(request);
           const result = await applyService.applyRun(request.params.id, request.body.accepted, {

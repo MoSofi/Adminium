@@ -16,6 +16,7 @@
  * `json` is JSON-lines (one object per line). `xlsx` is rejected at the
  * route; a row that reaches here anyway fails cleanly.
  */
+import { permissionSetAllows, resolvePermissionSet } from '../rbac/resolver.js';
 import {
   auditRepo,
   exportsRepo,
@@ -159,6 +160,10 @@ async function runExport(
   const whole = await loadSnapshotView(deps.meta, row.connectionId);
   const view = payload.userId === undefined ? whole : await readViewForUser(deps.meta, payload.userId, whole);
   const table = view.table(row.source.table);
+  // …and only while they may still export the table at all: a grant taken away since they asked is not outlived by the queue.
+  if (payload.userId !== undefined && !permissionSetAllows(await resolvePermissionSet(deps.meta, { kind: 'user', id: payload.userId, label: payload.userId }), `table:${row.connectionId}:${table.id}:export`)) {
+    throw new Error('You no longer have export access to this table.');
+  }
   const { db, dialect } = await deps.manager.data(row.connectionId);
   /*
    * The rows the person who asked reaches, as their roles stand NOW: the file

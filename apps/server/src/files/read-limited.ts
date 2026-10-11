@@ -15,7 +15,7 @@ import { readViewOf } from '../crud/read-view.js';
 import { fetchByPk, parseRecordId } from '../crud/records.js';
 import { fetchVisible, type RowAction } from '../crud/row-limit.js';
 import { rowTestOf } from '../crud/row-limit-context.js';
-import { rowsForRequest } from '../crud/row-reach-request.js';
+import { reachOfRequest } from '../crud/row-reach-request.js';
 import { loadSnapshotView } from '../data-io/snapshot-view.js';
 import { readLimitOf } from '../rbac/read-limits.js';
 
@@ -76,15 +76,11 @@ export interface FileRecord {
  */
 export function fileRecordCheck(meta: MetaDb, manager: ConnectionManager): (request: FastifyRequest, record: FileRecord, action: RowAction) => Promise<boolean> {
   return async (request, record, action) => {
-    let view;
-    try {
-      view = await loadSnapshotView(meta, record.connectionId);
-    } catch {
-      // No schema to read: nothing says whose the rows are, and the table's own grant has already answered.
-      return true;
-    }
-    const rows = await rowsForRequest(meta, request, record.connectionId, view.model);
-    if (rows === null) return true;
+    const reach = await reachOfRequest(meta, request, record.connectionId);
+    if (reach === null) return true;
+    // Somebody something could limit, and no schema to say which rows: none.
+    if (reach === 'unreadable') return false;
+    const { view, rows } = reach;
     const table = view.linkTable(record.table);
     if (rowTestOf(rows, table?.id ?? record.table, action) === null) return true;
     if (table === null) return false;

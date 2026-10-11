@@ -107,17 +107,11 @@ export function exportsRoutes(deps: ExportsRoutesDeps): FastifyPluginAsyncZod {
    * not theirs, whoever wrote it; the manage grant is to look after exports,
    * not a way round a role.
    */
-  async function mayOpenAnothers(request: FastifyRequest, row: DataExport, asked: Map<string, boolean> = new Map()): Promise<boolean> {
+  async function mayOpenAnothers(request: FastifyRequest, row: DataExport): Promise<boolean> {
     if (!(await request.can(EXPORTS_MANAGE_PERMISSION))) return false;
     const tableName = row.source.table;
     if (row.connectionId === null || typeof tableName !== 'string') return true;
-    const key = `${row.connectionId}|${tableName}`;
-    const known = asked.get(key);
-    if (known !== undefined) return known;
-    // A table that is gone, a connection with no snapshot: nothing says whose the rows were, so the file stays its requester's.
-    const answer = await requestReadsWhole(meta, request, row.connectionId, tableName);
-    asked.set(key, answer);
-    return answer;
+    return requestReadsWhole(meta, request, row.connectionId, tableName);
   }
 
   /** Owner sees their own; anyone else needs the manage grant, and to read the file's table whole. */
@@ -243,10 +237,9 @@ export function exportsRoutes(deps: ExportsRoutesDeps): FastifyPluginAsyncZod {
           limit: request.query.limit,
         });
         const views: ExportView[] = [];
-        const asked = new Map<string, boolean>();
         for (const row of rows) {
           // Somebody else's file of a table this person reads in part is not listed for them either.
-          if (row.requestedBy !== userId && !(await mayOpenAnothers(request, row, asked))) continue;
+          if (row.requestedBy !== userId && !(await mayOpenAnothers(request, row))) continue;
           views.push(toView(row, await fileFor(row)));
         }
         return { data: views };

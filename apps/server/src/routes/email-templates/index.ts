@@ -27,6 +27,7 @@
  * current state of the resource, and it lets the SPA tell the operator to go
  * configure SMTP instead of hunting for a bad field in their own payload.
  */
+import { assertNamedFiles, fileIdsOf } from '../../email/file-reach.js';
 import type { FileRecord } from '../../files/read-limited.js';
 import { createHash } from 'node:crypto';
 
@@ -314,6 +315,18 @@ export function emailTemplatesRoutes(deps: EmailTemplatesRoutesDeps): FastifyPlu
     return doc;
   }
 
+  /**
+   * The files a document coming in names beyond what the stored one already
+   * does: each one its author may send (`email/file-reach.ts`). Before
+   * anything else reads them — their size is not told for a file refused.
+   */
+  async function assertFiles(request: FastifyRequest, stored: EmailTemplate, input: Parameters<typeof normalizeDocument>[0]): Promise<void> {
+    const reaches = deps.reachesRecord;
+    await assertNamedFiles(meta, normalizeDocument(input), new Set(fileIdsOf(stored)), async (file) =>
+      reaches === undefined ? true : reaches(request, { connectionId: file.entityConnectionId!, table: file.entityTable!, recordId: file.entityId, uploadedBy: file.uploadedBy }, 'read'),
+    );
+  }
+
   /** A scheduled run cannot outlive its campaign's archive or deletion. */
   async function cancelScheduledRun(templateId: string, at: number): Promise<void> {
     const run = await runs.active(templateId);
@@ -529,17 +542,8 @@ export function emailTemplatesRoutes(deps: EmailTemplatesRoutesDeps): FastifyPlu
         const userId = requireUserId(request);
         await requireSettingsManage(request, 'edit email templates');
         const row = await mustFind(request.params.id);
+        await assertFiles(request, row, request.body.document);
         const doc = await acceptDocument(request.body.document);
-        // A file newly attached by its id: one of a record the author reaches. Any other answers as an id that names no file.
-        const held = new Set(row.attachments.flatMap((attachment) => (attachment.kind === 'file' ? [attachment.fileId] : [])));
-        for (const attachment of doc.attachments) {
-          if (attachment.kind !== 'file' || held.has(attachment.fileId) || deps.reachesRecord === undefined) continue;
-          const file = await files.findById(attachment.fileId);
-          if (file === null || file.entityConnectionId === null || file.entityTable === null) continue;
-          if (!(await deps.reachesRecord(request, { connectionId: file.entityConnectionId, table: file.entityTable, recordId: file.entityId, uploadedBy: file.uploadedBy }, 'read'))) {
-            throw new ValidationFailedError(`File ${attachment.fileId} not found.`, { attachments: 'unknown-file' });
-          }
-        }
         const at = app.rbac.now();
         const { name, category, enabled } = request.body;
         const updated = await templates.patch(
@@ -835,6 +839,8 @@ export function emailTemplatesRoutes(deps: EmailTemplatesRoutesDeps): FastifyPlu
           );
         }
 
+        // The on-screen document, which may name files the stored one does not: asked as a save asks.
+        await assertFiles(request, row, request.body.document);
         const doc = await acceptDocument(request.body.document);
         const appName = await settings.get('branding.appName');
         const origin = await linkOrigin(meta, request);

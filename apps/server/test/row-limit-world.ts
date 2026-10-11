@@ -208,7 +208,8 @@ async function sourceDatabase(dialect: Dialect, dataDir: string): Promise<{ dsn:
 
 let signIns = 0;
 
-export async function world(dialect: Dialect): Promise<World> {
+/** `staticRoot`: a built dashboard to serve, for a look in a real browser. */
+export async function world(dialect: Dialect, opts: { staticRoot?: string } = {}): Promise<World> {
   const dataDir = await mkdtemp(join(tmpdir(), 'row-limit-'));
   const meta = createSqliteMetaDb({ database: new BetterSqlite3(':memory:') });
   await firstRun(meta);
@@ -313,6 +314,7 @@ export async function world(dialect: Dialect): Promise<World> {
     allowed: { templates: [], widgets: [], widgetContracts: {} },
     logger: false,
     telemetry: false,
+    ...(opts.staticRoot === undefined ? {} : { staticRoot: opts.staticRoot }),
   });
   const app = composed.app;
   await app.ready();

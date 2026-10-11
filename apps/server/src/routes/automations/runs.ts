@@ -34,7 +34,7 @@ import type { FastifyRequest } from 'fastify';
 
 import { auditExempt } from '../../audit/coverage.js';
 import { requiredGrants } from '../../automations/validate.js';
-import { requestReadsWhole } from '../../crud/row-reach-request.js';
+import { reachOfRequest, requestReadsWhole } from '../../crud/row-reach-request.js';
 import { loadSnapshotView } from '../../data-io/snapshot-view.js';
 import { NotFoundError } from '../../errors.js';
 import { PERMISSIONS } from '../../rbac/permissions.js';
@@ -99,14 +99,15 @@ export function automationRunsRoutes(deps: AutomationRunsRoutesDeps): FastifyPlu
     const rule = await rules.findById(run.automationId);
     const connectionId = run.triggerEvent.record?.connectionId ?? rule?.connectionId ?? null;
     if (connectionId === null) return true;
+    // Nearly everyone: nothing could limit them, and nothing more is read.
+    if ((await reachOfRequest(meta, request, connectionId)) === null) return true;
     const tables = new Set<string>();
     if (run.triggerEvent.record !== null) tables.add(run.triggerEvent.record.table);
     if (rule !== null) {
       const view = await loadSnapshotView(meta, connectionId).catch(() => null);
       for (const { permission, table } of requiredGrants(rule.trigger, rule.graph, connectionId, view)) if (permission.endsWith(':read')) tables.add(table);
     }
-    const asked = new Map<string, boolean>();
-    for (const table of tables) if (!(await requestReadsWhole(meta, request, connectionId, table, asked))) return false;
+    for (const table of tables) if (!(await requestReadsWhole(meta, request, connectionId, table))) return false;
     return true;
   }
 

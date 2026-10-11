@@ -446,6 +446,39 @@ export async function documentReads(profile: DocumentProfile, viewOf: () => Prom
   return [...reads];
 }
 
+/**
+ * Whether a document of this profile reads OTHER rows of its record's own
+ * table: a list of rows of that table (its children kept beside it), a
+ * column of a row of that table it links to, a statement over it, or the
+ * balance after it, which adds up the rows before it. For somebody who
+ * reaches only some rows of that table, such a document is no more theirs
+ * than one that lists another table they read in part.
+ */
+export function readsBeyondOwnRow(profile: DocumentProfile, view: SnapshotView): boolean {
+  const own = view.linkTable(profile.table)?.id ?? profile.table;
+  const is = (table: string | undefined): boolean => table !== undefined && (view.linkTable(table)?.id ?? table) === own;
+  const listed = (source: CollectionSource): boolean => source.pair === undefined && (is(source.table) || Object.values(source.lists ?? {}).some((list) => is(list.table)));
+  const options = profile.options as { statement?: StatementSources; balanceAfter?: unknown };
+  if (options.balanceAfter !== undefined) return true;
+  if (options.statement !== undefined && (is(options.statement.documents.table) || is(options.statement.payments.table))) return true;
+  let base: ResolvedTable | null = null;
+  try {
+    base = view.table(profile.table);
+  } catch {
+    base = null;
+  }
+  for (const mapped of Object.values(profile.mapping as ProfileMapping)) {
+    if ('collection' in mapped) {
+      if (listed(mapped.collection)) return true;
+    } else if ('sources' in mapped) {
+      if (mapped.sources.some((source) => 'collection' in source && listed(source.collection))) return true;
+    } else if ('ref' in mapped) {
+      if (is(mapped.table ?? (base === null ? undefined : outboundKey(view, base, mapped.ref)?.tableId))) return true;
+    }
+  }
+  return false;
+}
+
 export interface DocumentPipelineDeps {
   meta: MetaDb;
   manager: ConnectionManager;
@@ -558,7 +591,7 @@ export function createDocumentPipeline(deps: DocumentPipelineDeps): RenderDeps {
        */
       if (reader !== undefined) {
         const rows = await rowLimitContextForUser(deps.meta, reader, profile.connectionId, view.model);
-        const reached = await documentRowsReached({ rows, view, db: async () => db as Kysely<SourceDatabase>, head: profile.table, pk: pk as Row, reads: await documentReads(profile, async () => view), action: 'read' });
+        const reached = await documentRowsReached({ rows, view, db: async () => db as Kysely<SourceDatabase>, head: profile.table, pk: pk as Row, reads: await documentReads(profile, async () => view), beyondRow: readsBeyondOwnRow(profile, view), action: 'read' });
         if (!reached) return null;
       }
       return await readProfileSource({
@@ -683,7 +716,10 @@ export async function readProfileSource(input: {
   const table = view.table(profile.table);
   const unheld = heldFrom(view, input.withhold);
 
-  const found = (await fetchByPk(db, table, input.pk as never)) as Record<string, unknown> | undefined;
+  // By the key's own columns: nothing else whoever asked sent beside them names a column here.
+  const key = Object.fromEntries(table.primaryKey.filter((column) => input.pk[column] !== undefined).map((column) => [column, input.pk[column]]));
+  if (table.primaryKey.length === 0 || Object.keys(key).length !== table.primaryKey.length) return null;
+  const found = (await fetchByPk(db, table, key as never)) as Record<string, unknown> | undefined;
   // The row was deleted between the trigger and the job — the undo
   // window's ordinary outcome, and a SKIP rather than a failure.
   if (found === undefined) return null;

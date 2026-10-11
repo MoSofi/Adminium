@@ -36,8 +36,7 @@
  */
 
 import { rowTestOf } from '../../crud/row-limit-context.js';
-import { rowsForRequest } from '../../crud/row-reach-request.js';
-import { loadSnapshotView } from '../../data-io/snapshot-view.js';
+import { reachOfRequest } from '../../crud/row-reach-request.js';
 import {
   compareSemver,
   isAddOnManifest,
@@ -1542,11 +1541,10 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
         // How many rows a table holds is told to somebody who reads them all: a count of a table read in part is left out.
         const inPart = new Set<string>();
         if (connectionId !== null && model !== null) {
-          const view = await loadSnapshotView(deps.meta, connectionId).catch(() => null);
-          const reach = view === null ? null : await rowsForRequest(deps.meta, request, connectionId, view.model);
-          if (view !== null && reach !== null) {
-            for (const table of view.model.tables) if (rowTestOf(reach, table.id, 'read') !== null) inPart.add(table.name);
-          }
+          const reach = await reachOfRequest(deps.meta, request, connectionId);
+          // Somebody something could limit, and no schema to say on which tables: no count of any.
+          if (reach === 'unreadable') for (const record of records) inPart.add(record.tableName);
+          else if (reach !== null) for (const table of reach.view.model.tables) if (rowTestOf(reach.rows, table.id, 'read') !== null) inPart.add(table.name);
         }
         const tables = records
           .filter(

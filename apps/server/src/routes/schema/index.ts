@@ -15,8 +15,7 @@
  */
 
 import { rowTestOf } from '../../crud/row-limit-context.js';
-import { rowsForRequest } from '../../crud/row-reach-request.js';
-import { loadSnapshotView } from '../../data-io/snapshot-view.js';
+import { reachOfRequest } from '../../crud/row-reach-request.js';
 import { isDeepStrictEqual } from 'node:util';
 
 import type { FastifyRequest } from 'fastify';
@@ -90,12 +89,12 @@ export function schemaRoutes(deps: SchemaRoutesDeps): FastifyPluginAsyncZod {
      * gets the model as it is.
      */
     async function withoutCountsOutOfReach<M>(request: FastifyRequest, connectionId: string, model: M): Promise<M> {
-      const view = await loadSnapshotView(meta, connectionId).catch(() => null);
-      const rows = view === null ? null : await rowsForRequest(meta, request, connectionId, view.model);
-      if (view === null || rows === null) return model;
-      const inPart = new Set(view.model.tables.filter((table) => rowTestOf(rows, table.id, 'read') !== null).map((table) => table.id));
-      if (inPart.size === 0) return model;
+      const reach = await reachOfRequest(meta, request, connectionId);
+      if (reach === null) return model;
       const whole = model as { tables?: { id: string; rowCountEstimate?: unknown }[] };
+      // Somebody something could limit, and no schema to say on which tables: no count of any.
+      const inPart = reach === 'unreadable' ? new Set((whole.tables ?? []).map((table) => table.id)) : new Set(reach.view.model.tables.filter((table) => rowTestOf(reach.rows, table.id, 'read') !== null).map((table) => table.id));
+      if (inPart.size === 0) return model;
       if (!Array.isArray(whole.tables)) return model;
       return {
         ...whole,

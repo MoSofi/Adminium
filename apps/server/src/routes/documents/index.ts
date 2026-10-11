@@ -68,13 +68,13 @@ import { recordKeyOf } from '../public/documents.js';
 import { emailDocument } from '../../documents/deliver.js';
 import { providerOf } from '../../documents/provider.js';
 import type { CollectionSource, ProfileMapping } from '../../documents/subject.js';
-import { documentReads, outboundKey } from '../../documents/compose.js';
+import { documentReads, outboundKey, readsBeyondOwnRow } from '../../documents/compose.js';
 import type { ResolvedTable, SnapshotView } from '../../crud/identifiers.js';
 import type { ConnectionManager } from '../../connections/manager.js';
 import type { Row } from '../../crud/mask.js';
 import type { RowAction } from '../../crud/row-limit.js';
 import { bodyReadInPart, documentRowsReached } from '../../documents/row-reach.js';
-import { rowsForRequest } from '../../crud/row-reach-request.js';
+import { reachOfRequest, rowsForRequest } from '../../crud/row-reach-request.js';
 import { readsHidden, readViewFor } from '../../crud/read-view.js';
 import { tableRulesFor } from '../../crud/column-rules.js';
 import { syncProfileTrigger } from '../../documents/trigger-sync.js';
@@ -235,19 +235,21 @@ export function documentRoutes(deps: DocumentRoutesDeps): FastifyPluginAsyncZod 
   async function reachesRows(request: FastifyRequest, row: DocumentRow, profile: DocumentProfile | null, action: RowAction): Promise<boolean> {
     if (row.connectionId === null) return true;
     const connectionId = row.connectionId;
-    const whole = await viewOf(connectionId)();
-    if (whole === null) return true;
-    // The record's key as the document kept it (`entityId` is that key flattened for an index, not an address).
-    const pk: Row | null = row.entity === null ? null : (row.entity.pk as Row);
+    // Nearly everyone: nothing could limit them, and no schema is loaded to say so.
+    const reach = await reachOfRequest(deps.meta, request, connectionId);
+    if (reach === null) return true;
+    if (reach === 'unreadable') return false;
     const manager = deps.manager;
     return documentRowsReached({
-      rows: await rowsForRequest(deps.meta, request, connectionId, whole.model),
-      view: whole,
+      rows: reach.rows,
+      view: reach.view,
       db: manager === undefined ? undefined : async () => (await manager.data(connectionId)).db,
       // A document about no record (a statement of nothing in particular) has no row to ask about; its tables are still asked.
-      head: row.entityId === null ? null : row.entityTable,
-      pk,
-      reads: profile === null ? [] : await documentReads(profile, viewOf(connectionId)),
+      head: row.entity === null ? null : row.entityTable,
+      // The record's key as the document kept it (`entityId` is that key flattened for an index, not an address).
+      pk: row.entity === null ? null : (row.entity.pk as Row),
+      reads: profile === null ? [] : await documentReads(profile, async () => reach.view),
+      beyondRow: profile !== null && readsBeyondOwnRow(profile, reach.view),
       action,
     });
   }
@@ -259,7 +261,7 @@ export function documentRoutes(deps: DocumentRoutesDeps): FastifyPluginAsyncZod 
    * read, so one out of reach answers as one that is not there.
    */
   async function bodyInPart(request: FastifyRequest, profile: DocumentProfile, view: SnapshotView): Promise<string | null> {
-    return bodyReadInPart(await rowsForRequest(deps.meta, request, profile.connectionId, view.model), view, profile.table, await documentReads(profile, async () => view));
+    return bodyReadInPart(await rowsForRequest(deps.meta, request, profile.connectionId, view.model), view, profile.table, await documentReads(profile, async () => view), readsBeyondOwnRow(profile, view));
   }
 
   async function readable(
@@ -267,6 +269,14 @@ export function documentRoutes(deps: DocumentRoutesDeps): FastifyPluginAsyncZod 
     row: DocumentRow,
   ): Promise<{ ok: true } | { ok: false; table: string | null; hidden?: true }> {
     const userId = request.user?.id ?? null;
+    /*
+     * WHOSE ROWS, before anything else is answered: a document of a record
+     * out of the caller's reach is not there, and no other refusal — a table
+     * their role lacks, a column it hides, a profile that is gone — may say
+     * "there, and not yours" in its place.
+     */
+    const drawnBy = row.profileId === null ? null : await profiles.findById(row.profileId);
+    if (!(await reachesRows(request, row, drawnBy, 'read'))) return { ok: false, table: null, hidden: true };
 
     if (row.profileId === null || row.connectionId === null) {
       // No profile, no source row — the vacuous case the header names.
@@ -292,8 +302,6 @@ export function documentRoutes(deps: DocumentRoutesDeps): FastifyPluginAsyncZod 
     const whole = await viewOf(row.connectionId)();
     const refused = whole === null ? null : documentColumnRefused(profile, await readViewFor(request, whole));
     if (refused !== null) return { ok: false, table: refused };
-    // …and the rows it was drawn from, when the caller's role reaches a table only in part: not theirs, it is not there.
-    if (!(await reachesRows(request, row, profile, 'read'))) return { ok: false, table: null, hidden: true };
     return { ok: true };
   }
 
@@ -846,7 +854,8 @@ export function documentRoutes(deps: DocumentRoutesDeps): FastifyPluginAsyncZod 
           category: 'data',
           action: 'document.voided',
           connectionId: row.connectionId,
-          changes: { after: { documentId: row.id, reason: request.body.reason } },
+          // The record's table, so the log leaves the entry out for a reader who reaches only some of its rows.
+          changes: { after: { documentId: row.id, reason: request.body.reason, ...(row.entityTable === null ? {} : { table: row.entityTable }) } },
         });
         return toReply(voided);
       },
@@ -901,7 +910,7 @@ export function documentRoutes(deps: DocumentRoutesDeps): FastifyPluginAsyncZod 
           category: 'data',
           action: 'document.sent',
           connectionId: row.connectionId,
-          changes: { after: { documentId: row.id, delivery } },
+          changes: { after: { documentId: row.id, delivery, ...(row.entityTable === null ? {} : { table: row.entityTable }) } },
         });
         return { delivery };
       },

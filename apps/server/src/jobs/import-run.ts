@@ -33,8 +33,8 @@ import type { ConnectionManager, SourceDatabase } from '../connections/manager.j
 import type { ResolvedColumn, ResolvedTable, SnapshotView } from '../crud/identifiers.js';
 import { tableRulesFor, type FieldIssues } from '../crud/column-rules.js';
 import type { Row } from '../crud/mask.js';
-import { writerReaches, type RowLimitContext } from '../crud/row-limit.js';
-import { rowLimitContextOf, rowTestOf } from '../crud/row-limit-context.js';
+import { rowRefinement, writerReaches, type RowLimitContext } from '../crud/row-limit.js';
+import { rowLimitContextForUser, rowLimitContextOf, rowTestOf } from '../crud/row-limit-context.js';
 import { assertLinksReached, assertStaffColumns } from '../crud/row-writes.js';
 import {
   HookFailedError,
@@ -234,6 +234,9 @@ async function runImport(
     readView = readViewOf(view, permissions);
     assertImportReadable(readView, table.id, row.mapping.columns, matchColumn, updateLimitOf(permissions, row.connectionId, table.id)?.writable ?? null);
     assertImportCreatable(createLimitOf(permissions, row.connectionId, table.id), table.id, row.mapping.columns);
+  } else {
+    // Nobody asked for it: it changes no row of a table that says whose its rows are, as a file nobody asked for holds none.
+    reach = await rowLimitContextForUser(deps.meta, null, row.connectionId, view.model);
   }
   const held = reach !== null && writerReaches(reach, table.id) !== null;
   const updateTest = rowTestOf(reach, table.id, 'update');
@@ -252,8 +255,11 @@ async function runImport(
     if (updateTest !== null) query = query.where(updateTest(db as Kysely<SourceDatabase>, table.name));
     return (await query.limit(1).executeTakeFirst()) as Row | undefined;
   };
+  /** Whether a row that an UPDATE wrote nothing of left the requester's reach meanwhile (an engine also counts nothing for a row that already held the values). */
+  const handedOn = async (column: string, value: unknown): Promise<boolean> => updateTest !== null && (await matched(column, value)) === undefined;
   /** …and the same test in the UPDATE itself: a row handed on between the match and the write is not written. */
-  const within = updateTest === null ? undefined : ((query: never) => (query as { where: (e: unknown) => never }).where(updateTest(db as Kysely<SourceDatabase>, table.name))) as never;
+  // (Left out on MySQL for a table reached through a parent in the same table, which MySQL will not read inside its own UPDATE: there the match stands alone.)
+  const within = rowRefinement(reach, db as Kysely<SourceDatabase>, table, 'update') as never;
 
   /**
    * A refused row's words, as the person who asked may read them: a role that
@@ -415,7 +421,7 @@ async function runImport(
               refuseRow(item, prepared.issues);
               return;
             }
-            if ((await updateRows(db, dialect, table, prepared.values, match, within)) === 0 && within !== undefined) throw new NotFoundError('Record not found.');
+            if ((await updateRows(db, dialect, table, prepared.values, match, within)) === 0 && (await handedOn(matchResolved.name, matchValue))) throw new NotFoundError('Record not found.');
             updated += 1;
             await afterImportWrite('update', match, before);
             return;
@@ -433,7 +439,7 @@ async function runImport(
               refuseRow(item, prepared?.issues ?? null);
               return;
             }
-            if ((await updateRows(db, dialect, table, values, match, within)) === 0 && within !== undefined) throw new NotFoundError('Record not found.');
+            if ((await updateRows(db, dialect, table, values, match, within)) === 0 && (await handedOn(matchResolved.name, matchValue))) throw new NotFoundError('Record not found.');
             updated += 1;
             await writes.settle('update', writeTarget, [{ record: { ...existing, ...values, ...match }, before: existing }]);
             return;
