@@ -20,6 +20,7 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 
 import { NotFoundError } from '../errors.js';
 import { PHONE_SIDE, hasPhoneCode, phoneBuildDir } from '../project/apps/phone.js';
+import { listAppKeys } from '../project/apps/read-app.js';
 import { builtPhone } from '../project/apps/phone-build.js';
 import { DEV_BUILD_FILE, surfaceFileFor } from './surfaces.js';
 
@@ -46,8 +47,10 @@ export function registerPhonePreview(app: FastifyInstance, opts: PhonePreviewOpt
   const none = (reply: FastifyReply): FastifyReply => reply.code(404).header('cache-control', 'no-store').send({ error: { code: 'NOT_FOUND', message: 'There is no phone preview here.' } });
 
   const serve = async (request: FastifyRequest<{ Params: { key: string; '*'?: string } }>, reply: FastifyReply): Promise<FastifyReply> => {
-    const { key } = request.params;
-    if (!fromThisMachine(request) || !KEY.test(key) || !hasPhoneCode(opts.root, key)) return none(reply);
+    if (!fromThisMachine(request) || !KEY.test(request.params.key)) return none(reply);
+    // The app is one of this project's own folders, named as the folder is: what the address said is only looked up among them.
+    const key = listAppKeys(opts.root).find((known) => known === request.params.key);
+    if (key === undefined || !hasPhoneCode(opts.root, key)) return none(reply);
     const rest = request.params['*'] ?? '';
     void reply.header('referrer-policy', 'no-referrer');
 
