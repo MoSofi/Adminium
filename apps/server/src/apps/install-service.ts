@@ -17,6 +17,7 @@
  * that carries an app — builds its own actor and host and calls the same code.
  */
 
+import { hasVisitorReach, isPhoneAppKey, managedKeyKind, servedToPages } from '../public-api/keys.js';
 import {
   compareSemver,
   isAddOnManifest,
@@ -1199,7 +1200,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
       const own = await publicKeysRepo(deps.meta).listManagedBy(manifest.key);
       const stored = new Set((await publicEndpointsRepo(deps.meta).listByConnection(connectionId)).map((e) => e.ref));
       for (const entry of planned) {
-        const live = own.filter((k) => k.purpose === entry.key && k.kind === 'browser' && here.has(k.id));
+        const live = own.filter((k) => k.purpose === entry.key && servedToPages(managedKeyKind(k.kind)) && here.has(k.id));
         if (live.length === 0) {
           onUpdate.set(entry.ref, own.some((k) => k.purpose === entry.key) ? 'withheld' : 'granted');
           continue;
@@ -1576,7 +1577,10 @@ export function createAppInstallService(deps: AppRoutesDeps) {
           // Each of the app's keys is made once: the public side's, and a kiosk's.
           const at = Date.now();
           const own = await publicKeysRepo(deps.meta).listManagedBy(manifest.key);
-          const live = own.filter((k) => k.kind === 'browser' && k.revokedAt === null && (k.expiresAt === null || k.expiresAt > at));
+          const fresh = own.filter((k) => k.revokedAt === null && (k.expiresAt === null || k.expiresAt > at));
+          const live = fresh.filter((k) => servedToPages(managedKeyKind(k.kind)));
+          // The phone app's key: a key of its own kind beside the customer key, settled with it.
+          const phoneKeys = own.filter((k) => isPhoneAppKey(managedKeyKind(k.kind)));
           // An add-on has no `customer` key of its own: its one key is its link's.
           const declaredPurposes = [...(manifest.kind === 'app' ? [CUSTOMER_KEY_PURPOSE] : []), ...Object.keys(manifest.publicKeys ?? {})];
           const livePurposes = new Set(declaredPurposes.filter((purpose) => live.some((k) => k.purpose === purpose)));
@@ -1587,6 +1591,14 @@ export function createAppInstallService(deps: AppRoutesDeps) {
           const here = new Set((await publicKeysRepo(deps.meta).listLiveDerived(connectionId, at)).map((k) => k.id));
           const liveKeys = new Map<string, string[]>();
           for (const purpose of livePurposes) liveKeys.set(purpose, live.filter((k) => k.purpose === purpose && here.has(k.id)).map((k) => k.id));
+          const phoneLive = phoneKeys.filter((k) => fresh.includes(k) && here.has(k.id)).map((k) => k.id);
+          if (phoneLive.length > 0) liveKeys.set(CUSTOMER_KEY_PURPOSE, [...(liveKeys.get(CUSTOMER_KEY_PURPOSE) ?? []), ...phoneLive]);
+          const phone = {
+            live: phoneLive.length > 0,
+            // An install starts afresh; an update never makes again a key the operator took back.
+            withheld: !strict && phoneLive.length === 0 && phoneKeys.length > 0,
+            customerKeyId: live.find((k) => k.purpose === CUSTOMER_KEY_PURPOSE && here.has(k.id))?.id ?? null,
+          };
           const record = publicAccessRecorder(actor, manifest.key, connectionId, userId);
           try {
             const { changedKeys, ...reply } = await installPublicAccess({
@@ -1602,6 +1614,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
               livePurposes,
               withheld,
               liveKeys,
+              phone,
               grant: grant === true,
               ...(grant === true ? {} : { refusal: grant.refusal }),
               ...(ownFolder && grant === true ? { ownFolder: true } : {}),
@@ -2934,7 +2947,8 @@ export function createAppInstallService(deps: AppRoutesDeps) {
     const at = Date.now();
     const here = new Set((await publicKeysRepo(deps.meta).listLiveDerived(connectionId, at)).map((k) => k.id));
     return (await publicKeysRepo(deps.meta).listManagedBy(appKey)).filter(
-      (k) => k.kind === 'browser' && k.revokedAt === null && (k.expiresAt === null || k.expiresAt > at) && here.has(k.id),
+      // The phone app's key holds what the customer key holds: an add-on's entries go on both.
+      (k) => hasVisitorReach(managedKeyKind(k.kind)) && k.revokedAt === null && (k.expiresAt === null || k.expiresAt > at) && here.has(k.id),
     );
   }
 
@@ -3114,7 +3128,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
       if (app === null || app === 'unreadable' || !namedAddOns(app.kind === 'app' ? app.addOns : undefined).some((need) => need.key === manifest.key)) continue;
       const at = Date.now();
       const here = new Set((await publicKeysRepo(deps.meta).listLiveDerived(connectionId, at)).map((k) => k.id));
-      const live = (await publicKeysRepo(deps.meta).listManagedBy(appKey)).filter((k) => k.kind === 'browser' && k.purpose === CUSTOMER_KEY_PURPOSE && here.has(k.id));
+      const live = (await publicKeysRepo(deps.meta).listManagedBy(appKey)).filter((k) => hasVisitorReach(managedKeyKind(k.kind)) && k.purpose === CUSTOMER_KEY_PURPOSE && here.has(k.id));
       const held = new Set<string>();
       for (const entry of planned.filter((candidate) => candidate.key !== linkKey)) {
         let all = live.length > 0;
