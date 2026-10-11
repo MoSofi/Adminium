@@ -138,8 +138,22 @@ for (const [dialect, available] of ENGINES) {
         const test = rowLimitFor(await w.contextOf(many), w.id('deals'), 'update')!;
         const compiled = w.db.selectFrom(w.id('deals')).select('id').where(test(w.db, 'deals')).compile();
         expect(compiled.parameters.length).toBeLessThan(40);
+        // A team of 150 on a table reached six ways, each through a parent reached six ways: written out until the budget, then packed.
+        const wide = { ...mara, reach: { userId: w.people.mara, ledIds: [...Array.from({ length: 148 }, (_, i) => `usr_${String(i).padStart(26, '0')}`), w.people.dana, w.people.omar] } };
+        const six = Array.from({ length: 6 }, () => ({ column: 'owner_id' }));
+        const before = (await w.model()).tables.find((table) => table.id === w.id('deals'))!.belongs!;
+        await w.belongs('deals', six);
+        await w.belongs('quotes', Array.from({ length: 6 }, () => ({ via: 'deal_id' })));
+        await w.belongs('quote_lines', Array.from({ length: 6 }, () => ({ via: 'quote_id' })));
+        const lines = rowLimitFor(await w.contextOf({ ...wide, superAdmin: false, rowLimits: { read: [{ limited: [{ grant: `table:${w.connectionId}:${w.id('quote_lines')}:read`, reach: TEAM }], unlimited: new Set() }] } }), w.id('quote_lines'), 'read')!;
+        const heavy = w.db.selectFrom(w.id('quote_lines')).select('id').where(lines(w.db, 'quote_lines')).orderBy('id');
+        expect(heavy.compile().parameters.length).toBeLessThan(6500);
+        expect((await heavy.execute()).map((row) => Number((row as { id: unknown }).id))).toEqual([1, 2]);
+        await w.belongs('deals', before.map((way) => ('through' in way ? { through: { ...way.through, table: way.through.table.slice(way.through.table.lastIndexOf('.') + 1) } } : way)) as never);
+        await w.belongs('quotes', [{ via: 'deal_id' }]);
+        await w.belongs('quote_lines', [{ via: 'quote_id' }]);
         // A list just over the written-out length, and one just under.
-        for (const extra of [18, 19, 25]) {
+        for (const extra of [197, 198, 199, 250]) {
           const some = { ...mara, reach: { userId: w.people.mara, ledIds: [...Array.from({ length: extra }, (_, i) => `usr_${String(i).padStart(26, '0')}`), w.people.dana, w.people.omar] } };
           expect(await w.reached(some, 'deals'), String(extra)).toEqual([1, 2, 3, 4, 5, 6, 8]);
         }

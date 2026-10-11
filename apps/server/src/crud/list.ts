@@ -25,6 +25,7 @@ import { applyDerivedFields } from './derive.js';
 import { applyMeasureMask, measureSelections, type ResolvedMeasure } from './measures.js';
 import { applyLookupMask, lookupSelections, type ResolvedLookup } from './lookups.js';
 import { maskRows, type Row } from './mask.js';
+import type { RowTest } from './row-limit.js';
 import { cursorText } from '../security/nul-bytes.js';
 
 export const LIST_LIMIT_MAX = 200;
@@ -197,6 +198,16 @@ export interface RunListOptions {
    */
   mandatory?: RecordFilter | undefined;
   /**
+   * The rows the READER reaches (`crud/row-limit.ts`), when a role of theirs
+   * limits them: ANDed beside {@link mandatory}, never instead of it, so a
+   * caller that fixes its own row set (the assistant's "rows on this screen")
+   * is narrowed by both. It is in the page, in the count — which is then the
+   * number of rows the person reaches, so a grid still says "of N" — and in
+   * every keyset step. With it no catalogue estimate is used: a table's row
+   * statistics know nothing of whose rows they are.
+   */
+  rowTest?: RowTest | undefined;
+  /**
    * WHO the mandatory rows are decided as, when that is not who the values are
    * shown as. The assistant reads "the rows on this person's screen": which
    * rows those are is the PERSON'S own filter and search, decided with their
@@ -274,7 +285,7 @@ export interface RunListOptions {
 }
 
 export async function runList(opts: RunListOptions): Promise<ListResult> {
-  const { db, view, table, params, canReadPii, dialect, mandatory, mandatoryAs, exposeColumns, searchColumns } = opts;
+  const { db, view, table, params, canReadPii, dialect, mandatory, mandatoryAs, exposeColumns, searchColumns, rowTest } = opts;
   const lookups = opts.lookups ?? [];
   const measures = opts.measures ?? [];
   const derivedFields = opts.derivedFields ?? [];
@@ -319,6 +330,8 @@ export async function runList(opts: RunListOptions): Promise<ListResult> {
     let out = qb;
     // FIRST, and outside every conditional below. Every later clause narrows.
     const fixed: CompileFilterContext = mandatoryAs === undefined ? ctx : { ...ctx, canReadPii: mandatoryAs.canReadPii };
+    // Selected plainly, the table goes by its own name: that is what the test's subqueries reach back to.
+    if (rowTest !== undefined) out = out.where(rowTest(db, table.name));
     if (mandatory !== undefined) out = out.where((eb) => compileFilter(eb as never, fixed, mandatory));
     const fixedSearch = mandatoryAs?.search;
     if (fixedSearch !== undefined && fixedSearch.length > 0) {
@@ -473,6 +486,7 @@ export async function runList(opts: RunListOptions): Promise<ListResult> {
     // above the shared threshold; every refusal falls through to the exact
     // count this endpoint always ran.
     const unfiltered =
+      rowTest === undefined &&
       mandatory === undefined &&
       (mandatoryAs?.search ?? '') === '' &&
       filter === null &&

@@ -57,11 +57,8 @@ export const UNBUILT_ENTRY_RULES: readonly UnbuiltEntryRule[] = [];
  * in one of the two, and a test says so.
  */
 export const UNBUILT_MANIFEST_WORDS: Readonly<Partial<Record<ManifestWordName, string>>> = {
-  // Whose a row is, and a role that reaches only some rows: read and stored, and refused until every way to a row keeps it.
-  // A limit that held on a list and not on a search would be worse than none.
-  'table.belongs': '0.3.27',
-  'roles.rows': '0.3.27',
-  // Rows read by the people they belong to and nothing else: with the limit above, and the refusals that keep a rule or an export out.
+  // Rows read by the people they belong to and nothing else: held until the refusals that keep a rule, a public entry,
+  // a document and an export out of such a table are all in place. A private table that a rule could read would be private in name.
   'table.private': '0.3.27',
 };
 
@@ -157,8 +154,11 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   'column.addOnLink.default',
   'column.plainText',
   'column.customerKey',
-  // A column that holds a staff member: marked on the column, and what a row's people will be read from.
+  // A column that holds a staff member: marked on the column, and what a row's people are read from.
   'column.staff',
+  // Whose a row is, and a role whose read, update or delete reaches only some rows: the test every read and write of a row carries.
+  'table.belongs',
+  'roles.rows',
 ];
 
 export interface UnbuiltWord {

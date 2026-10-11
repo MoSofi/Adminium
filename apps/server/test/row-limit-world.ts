@@ -19,6 +19,10 @@
  *   deliveries  1 crew 1 (Kim)   2 crew 2 (Sam)   3 no crew
  *   tickets     1→agent 1 (Dana) 2→agent 2 (Omar) 3 nobody   4→agent 3 (no person)
  *   one-to-ones 1 Mara+Dana   2 Lena+Sam   3 Mara+Omar        (private)
+ *   tags        deal 1: Hot, Key   deal 3: Hot   deal 5: Key
+ *
+ * A deal has a code Adminium makes (`ref_code`) and a button, "win", that
+ * moves it from open to won: the two things a record's own routes do to it.
  */
 import { randomBytes } from 'node:crypto';
 import { mkdtemp, rm } from 'node:fs/promises';
@@ -55,13 +59,15 @@ export const ENGINES: [Dialect, boolean][] = [
   ['mysql', MYSQL_URL !== undefined],
 ];
 
-export const TABLES = ['deals', 'deal_members', 'covers', 'quotes', 'quote_lines', 'crews', 'crew_members', 'deliveries', 'agents', 'tickets', 'one_to_ones', 'companies'] as const;
+export const TABLES = ['deals', 'deal_members', 'covers', 'quotes', 'quote_lines', 'crews', 'crew_members', 'deliveries', 'agents', 'tickets', 'one_to_ones', 'companies', 'tags', 'deal_tags'] as const;
 export type TableName = (typeof TABLES)[number];
 
 /** The tables in SQL every engine takes: explicit keys, table-level foreign keys (MySQL reads no other kind). */
 const DDL: readonly string[] = [
   `CREATE TABLE companies (id INTEGER PRIMARY KEY, name VARCHAR(80) NOT NULL)`,
-  `CREATE TABLE deals (id INTEGER PRIMARY KEY, title VARCHAR(80) NOT NULL, owner_id VARCHAR(36), state VARCHAR(10) NOT NULL, amount INTEGER NOT NULL, big BOOLEAN NOT NULL, company_id INTEGER, FOREIGN KEY (company_id) REFERENCES companies(id))`,
+  `CREATE TABLE deals (id INTEGER PRIMARY KEY, title VARCHAR(80) NOT NULL, owner_id VARCHAR(36), state VARCHAR(10) NOT NULL, amount INTEGER NOT NULL, big BOOLEAN NOT NULL, company_id INTEGER, ref_code VARCHAR(12), FOREIGN KEY (company_id) REFERENCES companies(id))`,
+  `CREATE TABLE tags (id INTEGER PRIMARY KEY, name VARCHAR(40) NOT NULL)`,
+  `CREATE TABLE deal_tags (deal_id INTEGER NOT NULL, tag_id INTEGER NOT NULL, PRIMARY KEY (deal_id, tag_id), FOREIGN KEY (deal_id) REFERENCES deals(id), FOREIGN KEY (tag_id) REFERENCES tags(id))`,
   `CREATE TABLE deal_members (id INTEGER PRIMARY KEY, deal_id INTEGER NOT NULL, user_id VARCHAR(36) NOT NULL, FOREIGN KEY (deal_id) REFERENCES deals(id))`,
   `CREATE TABLE covers (id INTEGER PRIMARY KEY, owner_id VARCHAR(36) NOT NULL, cover_id VARCHAR(36) NOT NULL, starts_on DATE NOT NULL, ends_on DATE)`,
   `CREATE TABLE quotes (id INTEGER PRIMARY KEY, deal_id INTEGER, total INTEGER NOT NULL, FOREIGN KEY (deal_id) REFERENCES deals(id))`,
@@ -237,6 +243,8 @@ export async function world(dialect: Dialect): Promise<World> {
     await run(`INSERT INTO deals (id, title, owner_id, state, amount, big, company_id) VALUES (${String(key)}, 'Deal ${String(key)}', ${q(owner === null ? null : people[owner])}, '${state}', ${String(amount)}, ${yes(amount >= 20000)}, ${String(key % 2 === 0 ? 2 : 1)})`);
   }
   await run(`INSERT INTO deal_members (id, deal_id, user_id) VALUES (1, 5, '${people.dana}')`);
+  await run(`INSERT INTO tags (id, name) VALUES (1, 'Hot'), (2, 'Key')`);
+  await run(`INSERT INTO deal_tags (deal_id, tag_id) VALUES (1, 1), (1, 2), (3, 1), (5, 2)`);
   await run(`INSERT INTO covers (id, owner_id, cover_id, starts_on, ends_on) VALUES (1, '${people.sam}', '${people.omar}', '2026-08-10', '2026-08-21'), (2, '${people.lena}', '${people.dana}', '2026-09-01', NULL)`);
   await run(`INSERT INTO quotes (id, deal_id, total) VALUES (1, 1, 100), (2, 3, 200), (3, 5, 300), (4, 7, 400), (5, NULL, 500)`);
   await run(`INSERT INTO quote_lines (id, quote_id, amount) VALUES (1, 1, 10), (2, 2, 20), (3, 3, 30)`);
@@ -263,6 +271,14 @@ export async function world(dialect: Dialect): Promise<World> {
     if (on) await overrides.create({ connectionId: connection.id, op: 'table.private', tableName: id(table), value: { private: true }, origin: 'user' });
   };
   await setPrivate('one_to_ones', true);
+  await overrides.create({ connectionId: connection.id, op: 'column.code', tableName: id('deals'), columnName: 'ref_code', value: { length: 8 }, origin: 'user' });
+  await overrides.create({
+    connectionId: connection.id,
+    op: 'table.states',
+    tableName: id('deals'),
+    value: { column: 'state', initial: 'open', moves: { open: ['won', 'lost'], won: ['open', 'lost'], lost: ['open'] }, actions: [{ id: 'win', label: 'Mark won', move: { to: 'won' } }] },
+    origin: 'user',
+  });
 
   const runService = createRunService({ meta });
   const composed = await composeServer({

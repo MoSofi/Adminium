@@ -51,9 +51,11 @@ type Bool = Expression<SqlBool>;
 /**
  * A boolean SQL expression over one row, where `alias` is the name the row's
  * table goes by in the query that carries it: the table's own name when it is
- * selected plainly, or the alias it was given.
+ * selected plainly, or the alias it was given. `reads`, when given, is filled
+ * with the id of every table the expression selects from: MySQL refuses an
+ * UPDATE or a DELETE whose own WHERE reads the table it writes.
  */
-export type RowTest = (db: Db, alias: string) => Bool;
+export type RowTest = (db: Db, alias: string, reads?: Set<string>) => Bool;
 
 export interface RowLimitContext {
   set: Pick<PermissionSet, 'superAdmin' | 'rowLimits' | 'reach'>;
@@ -65,13 +67,18 @@ export interface RowLimitContext {
 }
 
 /**
- * The most ids written out as a list. A reach of a few people is a short
- * `IN (…)`; a lead of many is bound ONCE, as one value the database unpacks
- * itself. A test names the ids once per way, per link followed and per role,
- * and again for the read under an update: two thousand people written out
- * each time would pass SQLite's 32,766 bound values, then the others' 65,535.
+ * How ids are handed to the database. A list written out (`IN (?, ?, …)`) is
+ * what an index on the owner column is used for, so a team of a few dozen is
+ * written out; measured on MySQL over 50,000 rows, a team of 21 packed into
+ * one JSON value took 189 ms where the list takes 4. But a test names the
+ * ids once per way, per link followed and per role, and again for the read
+ * under an update: two thousand people written out each time would pass
+ * SQLite's 32,766 bound values, then the others' 65,535. So a list longer
+ * than {@link IDS_WRITTEN_OUT}, and any list once one test has written
+ * {@link IDS_BUDGET} ids, is bound ONCE as one value the database unpacks.
  */
-const IDS_WRITTEN_OUT = 20;
+const IDS_WRITTEN_OUT = 200;
+const IDS_BUDGET = 6000;
 
 const never = (): RawBuilder<SqlBool> => sql<SqlBool>`1 = 0`;
 const always = (): RawBuilder<SqlBool> => sql<SqlBool>`1 = 1`;
@@ -79,11 +86,8 @@ const any = (parts: readonly Bool[]): Bool => (parts.length === 0 ? never() : pa
 const every = (parts: readonly Bool[]): Bool => (parts.length === 0 ? always() : parts.length === 1 ? parts[0]! : sql<SqlBool>`(${sql.join(parts, sql` and `)})`);
 const not = (part: Bool): Bool => sql<SqlBool>`not (${part})`;
 
-/** `ref` is one of `ids`; no ids is no match. A long list is one bound value, unpacked by the database. */
-function among(ref: RawBuilder<unknown>, ids: readonly string[], dialect: string): Bool {
-  if (ids.length === 0) return never();
-  if (ids.length === 1) return sql<SqlBool>`${ref} = ${ids[0]}`;
-  if (ids.length <= IDS_WRITTEN_OUT) return sql<SqlBool>`${ref} in (${sql.join(ids)})`;
+/** `ref` is one of `ids`, as one bound value the database unpacks itself. */
+function amongPacked(ref: RawBuilder<unknown>, ids: readonly string[], dialect: string): Bool {
   if (dialect === 'postgres') return sql<SqlBool>`${ref} = any(${[...ids]}::text[])`;
   const packed = JSON.stringify(ids);
   // MySQL and MariaDB alike: the column's value, as a JSON string, is one of the array's.
@@ -106,10 +110,13 @@ function comparable(a: string, b: string): boolean {
 /** One build of a test: the model it reads, the query handle, and aliases no two subqueries share. */
 class Build {
   #aliases = 0;
+  /** The ids this test has written out so far. */
+  #written = 0;
 
   constructor(
     readonly db: Db,
     readonly ctx: RowLimitContext,
+    readonly reads?: Set<string>,
   ) {}
 
   alias(): string {
@@ -122,8 +129,13 @@ class Build {
     return sql.id(alias, column);
   }
 
+  /** `ref` is one of `ids`; no ids is no match. */
   among(ref: RawBuilder<unknown>, ids: readonly string[]): Bool {
-    return among(ref, ids, this.ctx.model.dialect);
+    if (ids.length === 0) return never();
+    if (ids.length === 1) return sql<SqlBool>`${ref} = ${ids[0]}`;
+    if (ids.length > IDS_WRITTEN_OUT || this.#written + ids.length > IDS_BUDGET) return amongPacked(ref, ids, this.ctx.model.dialect);
+    this.#written += ids.length;
+    return sql<SqlBool>`${ref} in (${sql.join(ids)})`;
   }
 
   /** The kind of value a column of a table holds; undefined for a column it has not. */
@@ -149,6 +161,7 @@ class Build {
   }
 
   exists(table: EffectiveTable, alias: string, conditions: readonly Bool[]): Bool {
+    this.reads?.add(table.id);
     let sub = this.db.selectFrom(`${table.id} as ${alias}` as never).select(sql.lit(1).as('one'));
     for (const condition of conditions) sub = sub.where(condition);
     // A subquery brings its own brackets: a second pair is a syntax error on SQLite.
@@ -308,8 +321,8 @@ export function rowLimitFor(ctx: RowLimitContext, tableId: string, action: RowAc
   if (table === undefined) return () => never();
   const held = heldTo(ctx, table, action);
   if (held.length === 0) return null;
-  return (db, alias) => {
-    const build = new Build(db, ctx);
+  return (db, alias, reads) => {
+    const build = new Build(db, ctx, reads);
     // Each list: any one role's whole test. Between the lists (the action's own, and the read under it): both.
     return every(held.map((reaches) => any(reaches.map((reach) => build.role(table, alias, reach)))));
   };
@@ -335,4 +348,23 @@ export async function fetchVisible(ctx: RowLimitContext, db: Db, table: Resolved
   if (test !== null) qb = qb.where(test(db, table.name));
   const row = await qb.executeTakeFirst();
   return row as Row | undefined;
+}
+
+/**
+ * The row test as one more condition of an UPDATE or a DELETE of `table`
+ * itself, so a row that left the person's reach between the read that
+ * judged it and the statement that writes it is not written: the statement
+ * matches no row, and the caller answers "not there". Undefined when nothing
+ * limits the person — and on MySQL for a table whose test reads the table
+ * itself (a row reached through a parent in the same table), which MySQL
+ * will not run inside that table's own UPDATE: there the read that judged
+ * the row stands alone.
+ */
+export function rowRefinement(ctx: RowLimitContext | null, db: Db, table: ResolvedTable, action: RowAction): (<Q extends { where: (expression: Bool) => Q }>(query: Q) => Q) | undefined {
+  const test = ctx === null ? null : rowLimitFor(ctx, table.id, action);
+  if (test === null || ctx === null) return undefined;
+  const reads = new Set<string>();
+  const condition = test(db, table.name, reads);
+  if (ctx.model.dialect === 'mysql' && reads.has(table.id)) return undefined;
+  return (query) => query.where(condition);
 }

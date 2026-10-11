@@ -47,6 +47,8 @@ import { SnapshotView, type ResolvedTable } from '../../crud/identifiers.js';
 import { applyDerivedFields } from '../../crud/derive.js';
 import { applyMeasureMask, fetchMeasureValues } from '../../crud/measures.js';
 import { runList } from '../../crud/list.js';
+import { fetchVisible, rowRefinement, type RowAction, type RowLimitContext } from '../../crud/row-limit.js';
+import { rowLimitContextOf, rowTestOf } from '../../crud/row-limit-context.js';
 import { applyLookupMask, fetchLookupValues } from '../../crud/lookups.js';
 import {
   resolveProjections,
@@ -258,6 +260,13 @@ interface DataContext {
    * Writes, and the rules they run, always go through the whole ones.
    */
   readView: SnapshotView;
+  /**
+   * What it takes to ask which ROWS this caller reaches (`crud/row-limit.ts`),
+   * or null when nothing can limit them here: no grant of theirs carries a
+   * row limit and the connection has no private table. Null for nearly
+   * everyone, and then every read below is the one it always was.
+   */
+  rows: RowLimitContext | null;
   readTable: ResolvedTable;
   /** Columns this caller may not read but may write: their update's `writable` or their create's `creatable` names them (a code typed once, never read back). */
   hiddenWritable: ReadonlySet<string>;
@@ -465,6 +474,30 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
       return user?.id ?? request.apiKeyPrincipal?.id ?? null;
     }
 
+    /**
+     * The row a caller named by its key, when they reach it for `action`. A
+     * row they do not reach is a row that is not there: every route below
+     * answers the two alike, and before anything else is said of the row
+     * (a limit on what an update may change answers 403, which would tell).
+     */
+    const startRow = (ctx: DataContext, pk: Row, action: RowAction, db: Kysely<SourceDatabase> = ctx.db): Promise<Row | undefined> =>
+      ctx.rows === null ? fetchByPk(db, ctx.table, pk) : fetchVisible(ctx.rows, db, ctx.table, pk, action);
+
+    /**
+     * The same test, in the UPDATE or the DELETE itself: a row handed to
+     * somebody else between `startRow` and the statement is not written by
+     * the one who gave it up. With it a write that matches no row stops
+     * quietly, and the route answers what `startRow` would have: not there.
+     */
+    const withinReach = (ctx: DataContext, action: 'update' | 'delete'): { refine: never; skipIfNone: true } | Record<string, never> => {
+      const refine = rowRefinement(ctx.rows, ctx.db, ctx.table, action);
+      return refine === undefined ? {} : { refine: refine as never, skipIfNone: true };
+    };
+    /** The row a limited write was to change is no longer theirs: the answer of a row that is not there. */
+    const stillThere = (ctx: DataContext, count: number, pk: Row): void => {
+      if (ctx.rows !== null && count === 0) throw new NotFoundError('Record not found.', { pk });
+    };
+
     async function contextFor(request: FastifyRequest, action: TableAction): Promise<DataContext> {
       /*
        * 401 without a principal, BEFORE any lookup. The resolution below
@@ -537,6 +570,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         target: { connectionId, view, table, db, dialect, rights },
         readView,
         readTable,
+        rows: await rowLimitContextOf(meta, permissions, connectionId, view.model),
         hiddenWritable: new Set(hidden.filter((column) => writable?.writable.includes(column) === true || creatable?.writable.includes(column) === true)),
         hiddenCreatable: (tableId, column) => createLimitOf(permissions, connectionId, tableId)?.writable.includes(column) === true,
       };
@@ -1585,6 +1619,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
           params: request.query,
           canReadPii: ctx.unmasked,
           dialect: ctx.dialect,
+          rowTest: rowTestOf(ctx.rows, ctx.table.id, 'read') ?? undefined,
           lookups,
           measures,
           requiredColumns,
@@ -1626,7 +1661,19 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         const { db, dialect } = await manager.data(entry.connectionId);
         const target: WriteTarget = { connectionId: entry.connectionId, view, table, db, dialect };
         // A token issued before the table numbered its rows without gaps: the rule decides now.
-        const undone: DataContext = { connectionId: entry.connectionId, view, table, db, dialect, unmasked: false, target, readView: view, readTable: table, hiddenWritable: new Set() };
+        const undone: DataContext = {
+          connectionId: entry.connectionId,
+          view,
+          table,
+          db,
+          dialect,
+          unmasked: false,
+          target,
+          readView: view,
+          readTable: table,
+          rows: await rowLimitContextOf(meta, await app.rbac.resolve(request), entry.connectionId, view.model),
+          hiddenWritable: new Set(),
+        };
         if (takesNumberBack(undone, entry.action, entry.children)) {
           throw new ConflictError(
             'This record has a number from an unbroken series, so creating it cannot be undone. Void it instead.',
@@ -2266,7 +2313,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
       async (request) => {
         const ctx = asReader(await contextFor(request, 'read'));
         const pk = parseRecordId(ctx.table, request.params.recordId);
-        const row = await fetchByPk(ctx.db, ctx.table, pk);
+        const row = await startRow(ctx, pk, 'read');
         if (row === undefined) throw new NotFoundError('Record not found.', { pk });
         return { references: await referenceCounts(ctx.db, ctx.view, ctx.table, pk) };
       },
@@ -2286,7 +2333,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
       async (request) => {
         const ctx = asReader(await contextFor(request, 'read'));
         const pk = parseRecordId(ctx.table, request.params.recordId);
-        if ((await fetchByPk(ctx.db, ctx.table, pk)) === undefined) throw new NotFoundError('Record not found.', { pk });
+        if ((await startRow(ctx, pk, 'read')) === undefined) throw new NotFoundError('Record not found.', { pk });
         const keys = auditEntityKeyOf(recordRef(ctx, pk));
         let q = meta.db
           .selectFrom('adminium_audit_log')
@@ -2452,7 +2499,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
       async (request) => {
         const ctx = asReader(await contextFor(request, 'read'));
         const pk = parseRecordId(ctx.table, request.params.recordId);
-        const row = await fetchByPk(ctx.db, ctx.table, pk);
+        const row = await startRow(ctx, pk, 'read');
         if (row === undefined) throw new NotFoundError('Record not found.', { pk });
         const since = Date.now() - DAY_MS;
         let failures = 0;
@@ -2469,7 +2516,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
       async (request) => {
         const ctx = await contextFor(request, 'update');
         const pk = parseRecordId(ctx.table, request.params.recordId);
-        const row = await fetchByPk(ctx.db, ctx.table, pk);
+        const row = await startRow(ctx, pk, 'update');
         if (row === undefined) throw new NotFoundError('Record not found.', { pk });
         let cleared = 0;
         const { rows, addresses } = await claimSubjectsOf(ctx, row);
@@ -2509,7 +2556,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         assertWithinLimit(await updateLimitFor(request, ctx.connectionId, ctx.table.id), ctx.table.id, { [column]: '' }, {});
         // A code the caller's role does not read is not theirs to make again, unless their update names it.
         if (ctx.readTable.columns.get(column)?.unreadable === true && !ctx.hiddenWritable.has(column)) ctx.readView.column(ctx.readTable, column);
-        const before = await fetchByPk(ctx.db, ctx.table, pk);
+        const before = await startRow(ctx, pk, 'update');
         if (before === undefined) throw new NotFoundError('Record not found.', { pk });
         assertMovedFrom(await updateLimitFor(request, ctx.connectionId, ctx.table.id), ctx.table.id, before, { [column]: '' });
         // A server action: the one writer whose value for a code column is taken.
@@ -2524,10 +2571,12 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
               values: { [column]: generateCode(rule.prefix ?? '', rule.length, avoid) },
               before,
               context,
+              ...withinReach(ctx, 'update'),
               announce: async (result) => {
                 await afterMutation(request, ctx, 'update', recordRef(ctx, pk), before, result.after ?? before);
               },
             });
+            stillThere(ctx, outcome.count, pk);
             const data = staffRow(ctx.dialect, outcome.after ?? before, ctx.readTable, ctx.unmasked);
             // The new code goes back only to a caller who may read the table: one who may only
             // change it made a new link, and is not handed it (nor any other code of the row).
@@ -2553,7 +2602,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
       async (request) => {
         const ctx = asReader(await contextFor(request, 'read'));
         const pk = parseRecordId(ctx.table, request.params.recordId);
-        const row = await fetchByPk(ctx.db, ctx.table, pk);
+        const row = await startRow(ctx, pk, 'read');
         if (row === undefined) throw new NotFoundError('Record not found.', { pk });
         let data = staffRow(ctx.dialect, row, ctx.readTable, ctx.unmasked);
         const { lookups, measures, fields } = await projectionsFor(request, ctx, request.query);
@@ -2718,7 +2767,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         // Each night spells out the row's dates and the rates it is priced from: refused to a role that may not read one of them.
         refuseHiddenIn(ctx.view, priced);
         const pk = parseRecordId(ctx.table, request.params.recordId);
-        const row = await fetchByPk(ctx.db, ctx.table, pk);
+        const row = await startRow(ctx, pk, 'read');
         if (row === undefined) throw new NotFoundError('Record not found.', { pk });
         const currency = (await connectionTenantConfig(meta, ctx.connectionId))?.currency ?? null;
         const nights = await storedNights(ctx.db, rules, row, currency);
@@ -2760,7 +2809,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
             });
           }
         }
-        const record = await fetchByPk(ctx.db, ctx.table, pk);
+        const record = await startRow(ctx, pk, 'read');
         if (record === undefined) throw new NotFoundError('Record not found.', { pk });
         const ownKey = record[link.ownKeyColumn];
 
@@ -3171,7 +3220,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         const pk = parseRecordId(ctx.table, request.params.recordId);
         const values = withSeenState(ctx.table, Object.keys(request.body.values).length === 0 ? {} : allowlistValues(ctx, request.body.values), request.body.from);
         await assertFileColumns(ctx, values);
-        const before = await fetchByPk(ctx.db, ctx.table, pk);
+        const before = await startRow(ctx, pk, 'update');
         if (before === undefined) throw new NotFoundError('Record not found.', { pk });
         const limit = await updateLimitFor(request, ctx.connectionId, ctx.table.id);
         assertWithinLimit(limit, ctx.table.id, values, before);
@@ -3261,7 +3310,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
       const typed = own !== undefined ? own.values : Object.keys(body.values).length === 0 ? {} : allowlistValues(ctx, body.values);
       const sent = withSeenState(ctx.table, typed, body.from);
       await assertFileColumns(ctx, sent);
-      const before = await fetchByPk(ctx.db, ctx.table, pk);
+      const before = await startRow(ctx, pk, 'update');
       if (before === undefined) throw new NotFoundError('Record not found.', { pk });
       const limit = await updateLimitFor(request, ctx.connectionId, ctx.table.id);
       assertWithinLimit(limit, ctx.table.id, own?.judged ?? sent, before);
@@ -3312,6 +3361,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
           mapError: (error) => mapDbError(error, ctx.table),
           ...inside,
           ...priced,
+          ...withinReach(ctx, 'update'),
           announce: async (result) => {
             const after = result.after ?? before;
             if (result.postings === undefined && !pricedBy(result.adjusted)) undoToken = await issueUndo(request, ctx, 'update', [before], [after], Object.keys(result.values), [], [], [], result.effects ?? []);
@@ -3321,6 +3371,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
             await tellPostings(app, { connectionId: ctx.connectionId, view: ctx.view, postings: result.postings, origin: 'dashboard', request });
           },
         });
+        stillThere(ctx, outcome.count, pk);
         // Masked columns may be written but are never echoed back.
         const told = postingAnswers(outcome.postings);
         return { data: await unreadCodesOut(request, ctx, staffRow(ctx.dialect, outcome.after ?? before, ctx.readTable, ctx.unmasked), before, outcome.after), undoToken, ...(told === undefined ? {} : { postings: told }), ...(await pricedAs(request, ctx, outcome.adjusted)), ...(outcome.after === null || outcome.after === undefined ? {} : await paidAs(request, ctx, [{ table: ctx.table, row: outcome.after }], outcome.postings)) };
@@ -3355,6 +3406,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
             mapError: (error) => mapDbError(error, ctx.table),
             ...inside,
             ...priced,
+            ...withinReach(ctx, 'update'),
             children: {
               // Each row as it will stand: a new one under this record, a changed one over what it holds now (read without a lock; the judge checks it again).
               names: async () => {
@@ -3397,6 +3449,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
               await tellPostings(app, { connectionId: ctx.connectionId, view: ctx.view, postings: result.postings, origin: 'dashboard', request });
             },
           });
+          stillThere(ctx, outcome.count, pk);
           const stored = (await writes.stored(ctx.target, [outcome.after ?? before]))[0] ?? before;
           const told = postingAnswers(outcome.postings);
           return { data: await unreadCodesOut(request, ctx, staffRow(ctx.dialect, stored, ctx.readTable, ctx.unmasked), before, stored), undoToken, ...(told === undefined ? {} : { postings: told }), ...(await pricedAs(request, ctx, outcome.adjusted)), ...(outcome.after === null || outcome.after === undefined ? {} : await paidAs(request, ctx, [{ table: ctx.table, row: outcome.after }], outcome.postings)) };
@@ -3429,12 +3482,18 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
       let after = await writes.transaction(ctx.target, [], async (trx) => {
         const tdb = trx as unknown as Kysely<SourceDatabase>;
         if (Object.keys(prepared.values).length > 0) {
+          let count = 0;
           try {
-            await updateRows(tdb, ctx.dialect, ctx.table, prepared.values, pk);
+            count = await updateRows(tdb, ctx.dialect, ctx.table, prepared.values, pk, rowRefinement(ctx.rows, ctx.db, ctx.table, 'update') as never);
           } catch (error) {
             mapDbError(error, ctx.table);
           }
+          // Handed to somebody else since it was read: nothing was written, and nothing below is.
+          stillThere(ctx, count, pk);
           effected.push(...effectsOf(prepared.values));
+        } else if (ctx.rows !== null && (await startRow(ctx, pk, 'update', tdb)) === undefined) {
+          // Only links or child rows change: the record itself is asked again, inside the transaction that changes them.
+          throw new NotFoundError('Record not found.', { pk });
         }
         const row = (await fetchByPk(tdb, ctx.table, pk)) ?? before;
         for (const requested of links) {
@@ -3492,7 +3551,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
     priceTryRoutes(app, {
       writes,
       contextFor,
-      rowOf: (ctx, key) => fetchByPk(ctx.db, ctx.table, pkFromLoose(ctx.table, key)),
+      rowOf: (ctx, key) => startRow(ctx as DataContext, pkFromLoose(ctx.table, key), 'read'),
       shown: (ctx, row) => staffRow(ctx.dialect, row, ctx.readTable, ctx.unmasked),
       localeOf: (request) => recipientLocale(meta, principalId(request)),
     });
@@ -3511,7 +3570,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
       async (request) => {
         const ctx = await contextFor(request, 'delete');
         const pk = parseRecordId(ctx.table, request.params.recordId);
-        const before = await fetchByPk(ctx.db, ctx.table, pk);
+        const before = await startRow(ctx, pk, 'delete');
         if (before === undefined) throw new NotFoundError('Record not found.', { pk });
         const context = requestWriteContext(request, 'dashboard');
         /*
@@ -3537,12 +3596,13 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         }
         let undoToken: string | null = null;
         let asked: readonly AdjustedOrder[] | undefined;
-        await writes.delete({
+        const removed = await writes.delete({
           target: ctx.target,
           pk,
           before,
           context,
           mapError: (error) => mapDbError(error, ctx.table),
+          ...withinReach(ctx, 'delete'),
           announce: async (_count, _before, adjusted) => {
             asked = adjusted;
             const entity = recordRef(ctx, pk);
@@ -3556,6 +3616,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
             await afterMutation(request, ctx, 'delete', entity, before, null);
           },
         });
+        stillThere(ctx, removed, pk);
         return { data: staffRow(ctx.dialect, before, ctx.readTable, ctx.unmasked), undoToken, ...(await pricedAs(request, ctx, asked)) };
       },
     );

@@ -114,8 +114,8 @@ describe('a manifest that uses a word this server does not run yet', () => {
 
   it('an app\'s own pages, roles, prefix, its link into an add-on and the last four of a code are no such word', () => {
     expect(unbuiltInManifest(APP)).toEqual([]);
-    // Whose a row is, and a role's rows: read and stored, and refused until every way to a row keeps the limit (plan 67, A1).
-    expect(Object.keys(UNBUILT_MANIFEST_WORDS)).toEqual(['table.belongs', 'roles.rows', 'table.private']);
+    // A private table: read and stored, and refused until every refusal that keeps it private is in place (plan 67, A1).
+    expect(Object.keys(UNBUILT_MANIFEST_WORDS)).toEqual(['table.private']);
     // A word the list holds is found where it is written, with the release that runs it.
     expect(unbuiltInManifest(APP, LATER)).toEqual([{ word: 'column.codeLast4', path: 'requiredSchema.tables.0.columns.1.rules.codeLast4', release: '0.3.21' }]);
     expect(unbuiltInManifest({ ...APP, requiredSchema: { tables: [] }, publicAccess: [] }, LATER)).toEqual([]);
