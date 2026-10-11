@@ -201,6 +201,25 @@ describe('what the programs are given', () => {
     expect(readFileSync(file, 'utf8')).toBe(written);
   });
 
+  it('an install does not renew the yes for a package list or a setting that changed while it ran', async () => {
+    approvePhone(root, 'shop');
+    const real = fake.run;
+    const changing: typeof fake.run = async (launch, opts) => {
+      const ended = await real(launch, opts);
+      // Something writes app.json while npm runs.
+      writeFileSync(mobile('app.json'), JSON.stringify({ expo: { name: 'Shop', slug: 'shop', plugins: ['left-pad'] } }));
+      return ended;
+    };
+    expect(await installPhone(root, 'shop', { run: changing })).toEqual({ ok: true });
+    expect(isPhoneApproved(root, 'shop')).toBe(false);
+    // Unchanged, the same install renews it for the lock it wrote.
+    const other = phoneProject('adminium-phone-build-other-');
+    approvePhone(other, 'shop');
+    expect(await installPhone(other, 'shop', { run: fake.run })).toEqual({ ok: true });
+    expect(isPhoneApproved(other, 'shop')).toBe(true);
+    rmSync(other, { recursive: true, force: true });
+  });
+
   it('carries nothing else of this process: no secret, no token, no database address', async () => {
     process.env['ADMINIUM_SECRET'] = 'x';
     process.env['MY_TOKEN'] = 'made-up';
@@ -208,7 +227,7 @@ describe('what the programs are given', () => {
     process.env['NODE_OPTIONS'] = '--max-old-space-size=4096';
     await buildFixturePhone(root, 'shop', fake);
     const plain = ['PATH', 'HOME', 'TMPDIR', 'TEMP', 'TMP', 'LANG', 'SystemRoot', 'APPDATA', 'LOCALAPPDATA', 'USERPROFILE', 'ComSpec', 'PATHEXT', 'ADMINIUM_DESKTOP_PROGRAMS'];
-    const expo = ['EXPO_OFFLINE', 'EXPO_NO_TELEMETRY', 'EXPO_NO_TYPESCRIPT_SETUP', 'EXPO_NO_METRO_WORKSPACE_ROOT', 'EXPO_NO_DOTENV'];
+    const expo = ['EXPO_OFFLINE', 'EXPO_NO_TELEMETRY', 'EXPO_NO_TYPESCRIPT_SETUP', 'EXPO_NO_METRO_WORKSPACE_ROOT', 'EXPO_NO_DOTENV', 'NPM_CONFIG_REGISTRY', 'npm_config_registry'];
     const allowed: Record<string, string[]> = { install: [...plain, ...expo], export: [...plain, ...expo, 'CI', 'ADMINIUM_BUILD_ROOT', 'ADMINIUM_BUILD_GUARD', 'EXPO_OVERRIDE_METRO_CONFIG'] };
     expect(fake.started.map((entry) => entry.kind)).toEqual(['install', 'export']);
     for (const started of fake.started) {
@@ -221,7 +240,8 @@ describe('what the programs are given', () => {
 
   it('the environment is built from a short list of names, whatever it is given', () => {
     const env = phoneEnvironment({ PATH: '/bin', HOME: '/home/me', ADMINIUM_SECRET: 'x', MY_TOKEN: 'y', npm_config_registry: 'https://elsewhere.example', EXPO_OFFLINE: '0', EXPO_TOKEN: 'z' });
-    expect(env).toEqual({ PATH: '/bin', HOME: '/home/me', EXPO_OFFLINE: '1', EXPO_NO_TELEMETRY: '1', EXPO_NO_TYPESCRIPT_SETUP: '1', EXPO_NO_METRO_WORKSPACE_ROOT: '1', EXPO_NO_DOTENV: '1' });
+    // The registry is npm's own, whatever was given: the lock an install writes is then one the next build accepts.
+    expect(env).toEqual({ PATH: '/bin', HOME: '/home/me', EXPO_OFFLINE: '1', EXPO_NO_TELEMETRY: '1', EXPO_NO_TYPESCRIPT_SETUP: '1', EXPO_NO_METRO_WORKSPACE_ROOT: '1', EXPO_NO_DOTENV: '1', NPM_CONFIG_REGISTRY: 'https://registry.npmjs.org/', npm_config_registry: 'https://registry.npmjs.org/' });
   });
 });
 

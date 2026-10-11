@@ -19,8 +19,9 @@
  * (2026-10-11, gpt-6-luna): a model that reasons by default takes no function
  * tools on this address unless the request says `reasoning_effort: "none"`
  * (HTTP 400, param `reasoning_effort`). A request with tools that is refused
- * so is asked again with that field, and the model is remembered, so the
- * refusal costs one request per model and process. Models that do not know
+ * so is asked again with that field, and the model is remembered for the
+ * process (not for one runner: a runner lives for one turn), so the refusal
+ * costs one request per model. Models that do not know
  * the field never see it.
  */
 import { parseItem, streamError, streamRequest } from './run-http.js';
@@ -231,17 +232,28 @@ async function runOnce(shape: RunnerShape, req: RunRequest, usage: boolean, noRe
 /** Whether the service refused the request for its tools together with the model's reasoning. */
 const refusedToolsWithReasoning = (error: unknown): boolean => error instanceof ProviderError && error.status === 400 && /reasoning_effort/.test(error.message);
 
+/**
+ * The models that took tools only with their reasoning off, by the address they were asked at. Kept for the
+ * process: a runner is made anew for every turn, and the refusal is to be paid once, not once a turn.
+ */
+const noReasoning = new Set<string>();
+
+/** Forget what was learned (tests). */
+export function forgetOpenAiRunShapes(): void {
+  noReasoning.clear();
+}
+
 function createRunner(shape: RunnerShape): ProviderRunner {
-  /** The models that took tools only with their reasoning off. */
-  const noReasoning = new Set<string>();
+  const known = (model: string): string => `${shape.baseUrl}\n${model}`;
   return {
     id: shape.provider,
     async run(req: RunRequest): Promise<RunResult> {
       try {
-        return await runOnce(shape, req, true, noReasoning.has(req.model));
+        // (Only a request with tools is refused for its reasoning: one with none keeps it.)
+        return await runOnce(shape, req, true, req.tools.length > 0 && noReasoning.has(known(req.model)));
       } catch (error) {
-        if (shape.official && req.tools.length > 0 && !noReasoning.has(req.model) && refusedToolsWithReasoning(error)) {
-          noReasoning.add(req.model);
+        if (shape.official && req.tools.length > 0 && !noReasoning.has(known(req.model)) && refusedToolsWithReasoning(error)) {
+          noReasoning.add(known(req.model));
           return runOnce(shape, req, true, true);
         }
         // A server that does not know `stream_options` and says so is asked again without it.

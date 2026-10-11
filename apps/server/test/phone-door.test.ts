@@ -20,7 +20,7 @@ import type { FastifyInstance, InjectOptions } from 'fastify';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { LongChild } from '../src/designer/child.js';
-import { createPhoneDoor, doorPath, doorQr, doorRoute, phoneAddresses, type PhoneDoor, type PhoneDoorOptions, type PhoneDoorState } from '../src/designer/phone-door.js';
+import { createPhoneDoor, doorAssetPath, doorPath, doorQr, doorRoute, phoneAddresses, type PhoneDoor, type PhoneDoorOptions, type PhoneDoorState } from '../src/designer/phone-door.js';
 import { phoneNow } from '../src/project/apps/phone-build.js';
 import { phoneDir } from '../src/project/apps/phone.js';
 import { scaffoldApp } from '../src/project/apps/scaffold-app.js';
@@ -78,6 +78,16 @@ describe('a path asked of the door', () => {
   );
 });
 
+describe('an asset asked for by its path', () => {
+  it.each(['./assets/logo.png', './assets/icons/cart.svg', './assets/a b.jpeg', './node_modules/pkg/img/x.webp', './node_modules/@scope/pkg/font.otf', './assets/x.GIF'])('%s is one a phone may have', (value) => {
+    expect(doorAssetPath(value)).toBe(true);
+  });
+
+  it.each(['assets/logo.png', '/assets/logo.png', './src/x.png', './assets/../x.png', './assets//x.png', './assets/.x.png', './assets/x.png/', './assets/x.js', './assets/x', './assets/x.png%00', './assets/%2e%2e/x.png', './assets\\x.png', './node_modules/.bin/x.png', `./assets/${'a'.repeat(400)}.png`, ''])('%j is not', (value) => {
+    expect(doorAssetPath(value)).toBe(false);
+  });
+});
+
 describe('what the door passes of a phone’s request', () => {
   it('the manifest, the app’s one bundle, its assets, and the public API', () => {
     expect(doorRoute('GET', '/', '')).toBe('manifest');
@@ -87,6 +97,10 @@ describe('what the door passes of a phone’s request', () => {
     expect(doorRoute('GET', '/index.bundle', '')).toBeNull();
     expect(doorRoute('GET', '/assets/x.png', '')).toBe('asset');
     expect(doorRoute('GET', '/assets/src/img/x.png', '?platform=ios&hash=abc')).toBe('asset');
+    // The address Expo's bundler hands a phone for every asset: the file by its path, under the app's assets or in a package.
+    expect(doorRoute('GET', '/assets/', '?unstable_path=.%2Fassets%2Flogo.png&platform=ios&hash=abc')).toBe('asset');
+    expect(doorRoute('GET', '/assets/', '?unstable_path=.%2Fnode_modules%2F%40react-navigation%2Felements%2Flib%2Fmodule%2Fassets%2Fback-icon.png&platform=android')).toBe('asset');
+    expect(doorRoute('GET', '/assets/', '?unstable_path=.%2Fnode_modules%2F%40expo%2Fvector-icons%2Fbuild%2Fvendor%2Freact-native-vector-icons%2FFonts%2FIonicons.ttf')).toBe('asset');
     for (const method of ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS']) expect(doorRoute(method, '/api/v1/public/records/x', ''), method).toBe('api');
   });
 
@@ -94,6 +108,20 @@ describe('what the door passes of a phone’s request', () => {
     ['GET', '/assets/', '?unstable_path=..%2F..%2Fpackage.json'],
     ['GET', '/assets/x.png', '?platform=ios&unstable_path=.%2Fsecret'],
     ['GET', '/assets/x.png', '?UNSTABLE_PATH=x'],
+    ['GET', '/assets/', '?unstable_path=.%2Fpackage.json'],
+    ['GET', '/assets/', '?unstable_path=.%2Fsrc%2Fadminium.ts'],
+    ['GET', '/assets/', '?unstable_path=.%2Fassets%2F..%2Fpackage.json'],
+    ['GET', '/assets/', '?unstable_path=.%2Fassets%2F..%2F..%2F..%2F.env'],
+    ['GET', '/assets/', '?unstable_path=.%2Fassets%2F.secret.png'],
+    ['GET', '/assets/', '?unstable_path=.%2Fassets%2Fdata.json'],
+    ['GET', '/assets/', '?unstable_path=.%2Fnode_modules%2Fexpo%2Fpackage.json'],
+    ['GET', '/assets/', '?unstable_path=%2Fetc%2Fhosts.png'],
+    ['GET', '/assets/', '?unstable_path=..%2F..%2Fphoto.png'],
+    ['GET', '/assets/', '?unstable_path=.%2Fassets%2Fa%252e%252e%2Fb.png'],
+    ['GET', '/assets/', '?unstable_path=.%2Fassets%5C..%5Cx.png'],
+    ['GET', '/assets/', '?unstable_path=.%2Fassets%2Fa.png&unstable_path=.%2Fpackage.json'],
+    ['GET', '/assets/', '?Unstable_Path=.%2Fassets%2Fa.png'],
+    ['GET', '/assets/x.png', '?unstable_path=.%2Fassets%2Fa.png'],
     ['GET', '/assets/x.png', '?unstable%5Fpath=..%2Fpackage.json'],
     ['GET', '/assets/x.png', '?platform=ios&%75nstable_path=x'],
     ['GET', '/assets', ''],
@@ -156,9 +184,9 @@ function ask(port: number, path: string, opts: { host?: string; method?: string;
 }
 
 /** Ask for the refresh socket; says whether the door let it through to the bundler. */
-function askSocket(port: number, path: string): Promise<'through' | 'shut'> {
+function askSocket(port: number, path: string, headers: Record<string, string> = {}): Promise<'through' | 'shut'> {
   return new Promise((resolve) => {
-    const req = httpRequest({ host: '127.0.0.1', port, path, setHost: false, agent: false, headers: { host: `${ADDRESS}:${String(port)}`, connection: 'Upgrade', upgrade: 'websocket' } });
+    const req = httpRequest({ host: '127.0.0.1', port, path, setHost: false, agent: false, headers: { host: `${ADDRESS}:${String(port)}`, connection: 'Upgrade', upgrade: 'websocket', ...headers } });
     req.on('upgrade', (_res, socket) => {
       socket.destroy();
       resolve('through');
@@ -614,6 +642,19 @@ describe('the phone door', () => {
       expect(await askSocket(port, '/hot')).toBe('through');
       expect(bundler.seen.map((entry) => `${entry.method} ${entry.url}`)).toEqual(['UPGRADE /hot']);
       expect(bundler.seen[0]?.headers.host).toBe(`127.0.0.1:${String(bundler.starts[0]?.port)}`);
+    });
+
+    it('the refresh socket of an Android phone names the door itself as its origin, and is let through; a page’s is not', async () => {
+      // React Native on Android gives every socket an Origin: the address it connects to.
+      expect(await askSocket(port, '/hot', { origin: `http://${ADDRESS}:${String(port)}` })).toBe('through');
+      // The bundler is not shown it: to the bundler this is a call from this machine.
+      expect(bundler.seen[0]?.headers).not.toHaveProperty('origin');
+      for (const origin of ['http://evil.example', `https://${ADDRESS}:${String(port)}`, `http://${ADDRESS}`, `http://${ADDRESS}:${String(port + 1)}`, 'null']) {
+        expect(await askSocket(port, '/hot', { origin }), origin).toBe('shut');
+      }
+      // And the door's own origin opens nothing but that socket.
+      expect((await ask(port, '/index.ts.bundle?platform=android', { headers: { origin: `http://${ADDRESS}:${String(port)}` } })).status).toBe(404);
+      expect(bundler.seen).toHaveLength(1);
     });
   });
 

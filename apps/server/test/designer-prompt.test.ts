@@ -15,7 +15,7 @@ import { join } from 'node:path';
 import { ASSISTANT_INPUT_TOKEN_LIMIT, estimateTokens, type RunMessage } from '@adminium/llm';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { ADDRESSES, appNow, createPrompt, MENTIONS_ADD_ON, MENTIONS_OWN_ROW, MENTIONS_PHONE_APP, MENTIONS_SCREENS, OWN_ROW_GUIDE, skillsFor, taskGuides, trimTranscript } from '../src/designer/prompt.js';
+import { ADDRESSES, appNow, asksOnlyForPhoneApp, createPrompt, MENTIONS_ADD_ON, MENTIONS_OWN_ROW, MENTIONS_PHONE_APP, MENTIONS_SCREENS, OWN_ROW_GUIDE, skillsFor, taskGuides, trimTranscript } from '../src/designer/prompt.js';
 import { scaffoldApp } from '../src/project/apps/scaffold-app.js';
 import { emptyFirstPreview, placeholderScreens, unopenedTables, unreadPersonalColumns } from '../src/designer/service.js';
 import type { DesignerSession } from '../src/designer/session-store.js';
@@ -459,6 +459,20 @@ describe('a phone app', () => {
     for (const asked of ['customers can phone us', 'Store each customer’s phone number', 'The site should work on mobile', 'A booking page for the salon']) {
       expect(MENTIONS_PHONE_APP.test(asked), asked).toBe(false);
     }
+  });
+
+  it('takes the words for a phone app alone only when no page in a browser is asked for with it', () => {
+    for (const asked of ['A phone app where customers can order ahead', 'an iOS app for my staff to see bookings', 'Build it with Expo, customers can book']) {
+      expect(asksOnlyForPhoneApp(asked), asked).toBe(true);
+    }
+    for (const asked of ['A booking website for customers, and a mobile app later', 'a phone app and a public page to register', 'an app for our trade expo, visitors register on a public page', 'customers can book on the website', 'A kiosk and an Android app']) {
+      expect(asksOnlyForPhoneApp(asked), asked).toBe(false);
+    }
+    // With both asked for, the website keeps its skill, and the phone app has its own beside it.
+    const auto = session({ target: 'auto' as DesignerSession['target'] });
+    const both = 'A booking website for customers, and a mobile app later';
+    const names = skillsFor(auto, { hasSides: false, mentionsAddOn: false, mentionsScreens: MENTIONS_SCREENS.test(both) && !asksOnlyForPhoneApp(both), mentionsPhoneApp: MENTIONS_PHONE_APP.test(both) });
+    expect(names).toEqual(expect.arrayContaining(['adminium-surface/SKILL.md', MOBILE]));
   });
 
   it('the app as the model is told it says whether it has a phone side, and a turn on one reads the phone skill', async () => {

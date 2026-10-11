@@ -40,7 +40,7 @@ export function buildOpenAiChatBody(req: CompleteRequest, official: OfficialShap
     model: req.model,
     max_completion_tokens: req.maxTokens,
     ...(official === 'quiet' ? { reasoning_effort: 'none' } : {}),
-    ...(official === 'bare' ? {} : { temperature: req.temperature }),
+    temperature: req.temperature,
     messages,
   };
 }
@@ -54,14 +54,22 @@ export function buildOpenAiChatBody(req: CompleteRequest, official: OfficialShap
  *  - `plain`: the temperature as asked. What a model that does not reason takes.
  *  - `quiet`: the same with `reasoning_effort: "none"`. What a model that
  *    reasons takes, and still at temperature 0.
- *  - `bare`: no temperature at all, for a model that takes neither.
  *
- * A model is asked the first way, and the next one only when the service
+ * A model is asked the first way, and the second only when the service
  * refuses the request for its temperature or its reasoning; what it took is
- * remembered for the process.
+ * remembered for the process (a client is made anew for every run). A model
+ * that takes neither is refused, as it is: temperature 0 is not given up
+ * (`assertEnrichmentTemperature`).
  */
-export type OfficialShape = 'plain' | 'quiet' | 'bare';
-const OFFICIAL_SHAPES: readonly OfficialShape[] = ['plain', 'quiet', 'bare'];
+export type OfficialShape = 'plain' | 'quiet';
+const OFFICIAL_SHAPES: readonly OfficialShape[] = ['plain', 'quiet'];
+/** The shape each model took, by the address it was asked at. */
+const shapes = new Map<string, OfficialShape>();
+
+/** Forget what was learned (tests). */
+export function forgetOpenAiShapes(): void {
+  shapes.clear();
+}
 const refusedForShape = (error: unknown): boolean => error instanceof ProviderError && error.status === 400 && /temperature|reasoning_effort/.test(error.message);
 
 /** Extracts assistant text + token usage from a Chat Completions response. */
@@ -94,9 +102,6 @@ export function createOpenAiClient(config: ProviderConfig): ProviderClient {
     authorization: `Bearer ${apiKey}`,
   });
 
-  /** The shape each model took. */
-  const shapes = new Map<string, OfficialShape>();
-
   const client: ProviderClient = {
     id: 'openai',
 
@@ -106,7 +111,8 @@ export function createOpenAiClient(config: ProviderConfig): ProviderClient {
 
     async complete(req) {
       assertEnrichmentTemperature(req.temperature, 'openai');
-      let at = OFFICIAL_SHAPES.indexOf(shapes.get(req.model) ?? 'plain');
+      const known = `${baseUrl}\n${req.model}`;
+      let at = OFFICIAL_SHAPES.indexOf(shapes.get(known) ?? 'plain');
       for (;;) {
         const shape = OFFICIAL_SHAPES[at] as OfficialShape;
         try {
@@ -119,7 +125,7 @@ export function createOpenAiClient(config: ProviderConfig): ProviderClient {
             ...(timeoutMs !== undefined ? { timeoutMs } : {}),
             body: buildOpenAiChatBody(req, shape),
           });
-          shapes.set(req.model, shape);
+          shapes.set(known, shape);
           return parseOpenAiChatResponse(json, 'openai');
         } catch (error) {
           if (at === OFFICIAL_SHAPES.length - 1 || !refusedForShape(error)) throw error;

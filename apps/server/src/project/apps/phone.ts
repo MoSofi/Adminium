@@ -17,7 +17,7 @@
  *    read, so a phone preview is never served as a website.
  */
 import { createHash } from 'node:crypto';
-import { existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, writeFileSync, rmSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 
 import { PHONE_SIDE } from '@adminium/manifest';
@@ -149,8 +149,16 @@ export function phoneShapeProblems(root: string, key: string): PhoneProblem[] {
     for (const field of ['optionalDependencies', 'peerDependencies', 'bundleDependencies', 'bundledDependencies'] as const) {
       if (pkg[field] !== undefined) problems.push({ file: where(key, 'package.json'), message: `has "${field}". A phone side lists its packages under "dependencies" and "devDependencies".` });
     }
-    // The lock says where each package is fetched from: the registry, and nowhere else.
+    // The lock says where each package is fetched from: the registry, and nowhere else. It is the one lock npm is
+    // given: a shrinkwrap would be read before it, and an old lock names its sources where this does not look.
+    if (existsSync(join(dir, 'npm-shrinkwrap.json'))) problems.push({ file: where(key, 'npm-shrinkwrap.json'), message: 'is a lock npm would read in place of package-lock.json. A phone side has none: take it out.' });
+    for (const other of ['yarn.lock', 'pnpm-lock.yaml', 'bun.lockb', 'bun.lock']) {
+      if (existsSync(join(dir, other))) problems.push({ file: where(key, other), message: 'is another package manager’s lock. A phone side is installed by npm, from package-lock.json: take it out.' });
+    }
     const lock = json(join(dir, PHONE_LOCK));
+    if (existsSync(join(dir, PHONE_LOCK)) && (lock === null || typeof lock['lockfileVersion'] !== 'number' || lock['lockfileVersion'] < 2 || lock['dependencies'] !== undefined && lock['packages'] === undefined)) {
+      problems.push({ file: where(key, PHONE_LOCK), message: 'does not read as a lock npm writes today (lockfileVersion 2 or 3). Remove it: the install writes a new one.' });
+    }
     const elsewhere = lock === null ? [] : Object.entries((lock['packages'] ?? {}) as Record<string, { resolved?: unknown } | null>).filter(([, entry]) => typeof entry?.resolved === 'string' && !entry.resolved.startsWith(NPM_REGISTRY)).map(([name]) => name);
     if (elsewhere.length > 0) {
       problems.push({ file: where(key, PHONE_LOCK), message: `fetches ${String(elsewhere.length)} package(s) from somewhere other than the npm registry (${elsewhere.slice(0, 3).map((name) => name.replace(/^node_modules\//, '').slice(0, 40)).join(', ')}). Remove the lock file, or the packages.` });
@@ -234,7 +242,10 @@ function approvals(root: string): Record<string, string> {
 export const isPhoneApproved = (root: string, key: string): boolean => approvals(root)[approvalName(key)] === phoneFingerprint(root, key);
 
 /** Record that a person approved this app's phone side as it reads now. */
-export function approvePhone(root: string, key: string): void {
+export function approvePhone(root: string, key: string, opts: { afterInstall?: boolean } = {}): void {
+  // A yes given now is to packages fetched now. Packages that were already in the folder when it was asked
+  // (they came with it) are nobody's approved install: they go, and the install fetches them from the registry.
+  if (opts.afterInstall !== true && !isPhoneApproved(root, key)) rmSync(join(phoneDir(root, key), 'node_modules'), { recursive: true, force: true });
   const file = approvalsFile(root);
   mkdirSync(dirname(file), { recursive: true });
   writeFileSync(file, `${JSON.stringify({ ...approvals(root), [approvalName(key)]: phoneFingerprint(root, key) }, null, 2)}\n`, { mode: 0o600 });
@@ -246,8 +257,7 @@ export function phonePackages(root: string, key: string): string[] {
   if (pkg === null) return [];
   return Object.keys({ ...(pkg['dependencies'] as Record<string, unknown> | undefined), ...(pkg['devDependencies'] as Record<string, unknown> | undefined) })
     .filter((name) => /^(@[a-z0-9][a-z0-9._-]*\/)?[a-z0-9][a-z0-9._-]*$/.test(name))
-    .sort()
-    .slice(0, 60);
+    .sort();
 }
 
 /** The files an approval covers but an install does not write, each as its hash: the same before and after an install means nothing of them changed meanwhile. */

@@ -38,7 +38,7 @@ import { applyLook, cleanLook, directionFromWords, lookInUse, mentionsLook, miss
 import { cleanThemePatch, isPublicFontName, mergePatches, OWN_FONTS_MAX, themeFromPalette } from '../project/apps/theme.js';
 import { APPS_DIR } from '../project/apps/read-app.js';
 import { addPhoneSide, addSide, addUiParts, DEFAULT_LOOK, nameFromKey, PUBLIC_CLIENT_PACKAGE, UI_PARTS } from '../project/apps/scaffold-app.js';
-import { PHONE_SIDE, approvePhone, hasPhoneCode, isPhoneApproved, phoneShapeProblems } from '../project/apps/phone.js';
+import { PHONE_SIDE, approvePhone, hasPhoneCode, isPhoneApproved, phonePackages, phoneShapeProblems } from '../project/apps/phone.js';
 import { installPhone, phoneInstalled } from '../project/apps/phone-build.js';
 import type { AppSide } from '../project/apps/read-app.js';
 import { hasOwnBuild } from '../project/apps/own-build.js';
@@ -447,10 +447,13 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
       const yes = 'Add the phone app';
       const answer = await ctx.ask({
         type: 'question',
-        question: 'Add a phone app? It installs Expo’s packages (about 350 MB, about a minute) and builds with Expo on this computer.',
-        choices: [yes, 'Not now'],
+        // A phone app that is already in the folder (it came with it) is approved as it reads: its packages are named, as the Phone tab names them.
+        question: hasPhoneCode(deps.root, appKey)
+          ? `This app has a phone app. Build it on this computer? It installs its packages from npm (about 350 MB, about a minute) and builds with Expo. It asks for: ${phonePackages(deps.root, appKey).join(', ').slice(0, 1500)}.`
+          : 'Add a phone app? It installs Expo’s packages (about 350 MB, about a minute) and builds with Expo on this computer.',
+        choices: [hasPhoneCode(deps.root, appKey) ? 'Build it here' : yes, 'Not now'],
       });
-      if (answer.type !== 'question' || answer.text !== yes) {
+      if (answer.type !== 'question' || (answer.text !== yes && answer.text !== 'Build it here')) {
         return refused('The person said no to a phone app for now. Do not ask again in this turn: build the rest, and say that the phone app was left out.', 'No phone app');
       }
     }

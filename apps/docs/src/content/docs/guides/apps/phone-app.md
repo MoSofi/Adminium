@@ -43,7 +43,11 @@ npx @adminiumjs/adminium app approve-build orders
 
 It shows what will run, asks, and installs the packages. The packages are named by a version
 from the npm registry and nothing else: a package given as an address, a git repository or a
-file is refused, and so is a lock file that fetches from anywhere else. On a terminal the yes is kept in the
+file is refused, and so is a lock file that fetches from anywhere else, a second lock
+(`npm-shrinkwrap.json`, another package manager's) or one in npm's old form. The install always
+asks the npm registry itself (`registry.npmjs.org`), whatever this computer's npm is set to.
+Packages that were already in the folder when you said yes (a `node_modules` that came with it)
+are thrown away and fetched again. On a terminal the yes is kept in the
 project (`.adminium/approved-builds.json`); in the desktop app it is kept per computer, so a
 folder never arrives approved.
 

@@ -129,7 +129,7 @@ interface OpenAiModelsResponse {
  */
 function isOpenAiChatModel(id: string): boolean {
   // The real list (read 2026-10-11) also holds `gpt-…` models that do not chat: speech, live audio, pictures, search.
-  return /gpt|chatgpt/i.test(id) && !/realtime|audio|transcribe|tts|whisper|image|search|live|embedding|moderation/i.test(id);
+  return /gpt|chatgpt/i.test(id) && !/realtime|audio|transcribe|tts|whisper|image|search|-live\b|\blive-|embedding|moderation/i.test(id);
 }
 
 /** `GET {baseUrl}/models` filtered to chat models; on any failure returns the static OpenAI list. */

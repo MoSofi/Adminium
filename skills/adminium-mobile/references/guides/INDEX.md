@@ -5,7 +5,7 @@
 | File | What it covers | Bytes |
 |---|---|---|
 | `references/guides/phone-app--overview.md` | A phone app for an app | 1191 |
-| `references/guides/phone-app--add-one.md` | Add one | 1397 |
+| `references/guides/phone-app--add-one.md` | Add one | 1731 |
 | `references/guides/phone-app--the-folder.md` | The folder | 1371 |
 | `references/guides/phone-app--write-a-screen.md` | Write a screen | 2108 |
 | `references/guides/phone-app--see-it.md` | See it | 1743 |

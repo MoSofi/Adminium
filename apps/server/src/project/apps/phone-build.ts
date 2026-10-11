@@ -24,7 +24,7 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, s
 import { dirname, join } from 'node:path';
 
 import { runChild, type ChildResult } from '../../designer/child.js';
-import { DESKTOP_PROGRAMS_ENV, nodeProgram, packageManagerProgram, type Launch } from '../programs.js';
+import { DESKTOP_PROGRAMS_ENV, nodeProgram, packageManagerProgram, type Launch, NPM_REGISTRY } from '../programs.js';
 import { guardEnvironment } from './own-build.js';
 import { PHONE_LOCK, PHONE_SIDE, approvePhone, hasPhoneCode, isPhoneApproved, phoneBuildDir, phoneDir, phonePackages, phoneSettingsHash, phoneShapeProblems, phoneUnapprovedWords } from './phone.js';
 import { APPS_DIR } from './read-app.js';
@@ -103,6 +103,10 @@ export function phoneEnvironment(env: NodeJS.ProcessEnv = process.env): Record<s
   out['EXPO_NO_TYPESCRIPT_SETUP'] = '1';
   out['EXPO_NO_METRO_WORKSPACE_ROOT'] = '1';
   out['EXPO_NO_DOTENV'] = '1';
+  // The packages come from the npm registry itself, whatever this computer's npm is set to: the lock the install
+  // writes is then one the next build accepts, and a registry set in a file that came with a folder is not asked.
+  out['NPM_CONFIG_REGISTRY'] = NPM_REGISTRY;
+  out['npm_config_registry'] = NPM_REGISTRY;
   return out;
 }
 
@@ -211,7 +215,7 @@ export function installPhone(root: string, key: string, opts: PhoneOptions = {})
     writeFileSync(join(dir, INSTALL_STAMP), installHash(dir));
     // The lock is new or moved: the yes was to this package list, and stays. A package list or a setting that
     // changed while the install ran is not what was approved: the person is asked again.
-    if (phoneSettingsHash(root, key) === approved) approvePhone(root, key);
+    if (phoneSettingsHash(root, key) === approved) approvePhone(root, key, { afterInstall: true });
     return { ok: true };
   });
 }

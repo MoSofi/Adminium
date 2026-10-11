@@ -102,7 +102,17 @@ const skill = (skills: Skills, name: string): string => {
 export const MENTIONS_SCREENS = /\b(screens?|public (page|site|form)|customers? (can|need|see|should|page|side)|staff (screen|side|app)|portal|web ?site|web ?page|landing page|home ?page|a site for|storefront|booking page|order online|kiosk|tablet|phone)\b/i;
 
 /** Words that say the person wants an app on a phone, not a page in a browser. */
-export const MENTIONS_PHONE_APP = /\b(phone app|mobile app|i(os|phone) app|android app|app for (their |my |the )?(phones?|i ?phones?|android)|native app|expo|react native)\b/i;
+export const MENTIONS_PHONE_APP = /\b(phone app|mobile app|i(os|phone) app|android app|app for (their |my |the )?(phones?|i ?phones?|android)|native app|expo go|expo app|(with|using|in|on) expo|react native)\b/i;
+
+/** Words that say a page in a browser is wanted, whatever else is. */
+const MENTIONS_WEB = /\b(web ?site|web ?page|web app|landing page|home ?page|public (page|site|form)|a site for|storefront|booking page|order online|portal|kiosk|browser|staff (screen|side))\b/i;
+
+/**
+ * Whether the words ask for a phone app and for no page in a browser. A phone app is asked for in words a
+ * website is asked for in ("customers can", "phone"): only then are those words about the phone app alone.
+ * "A booking website, and a mobile app later" asks for the website too.
+ */
+export const asksOnlyForPhoneApp = (text: string): boolean => MENTIONS_PHONE_APP.test(text) && !MENTIONS_WEB.test(text);
 
 /** Words that say an add-on may do the job: invoices, stock. English, and not the only way in (an app that names an add-on carries the skill too). */
 export const MENTIONS_ADD_ON = /\b(add-?ons?|invoices?|quotes?|receipts?|stock|inventory|supplies|ingredients|warehouse|batch(es)?|expir(y|es|ed|ing)|reorder(s|ing)?|stock ?take|discounts?|coupons?|vouchers?|gift ?cards?|store credit|loyalty|happy hour)\b/i;
@@ -118,7 +128,7 @@ export function skillsFor(session: DesignerSession, opts: { hasSides: boolean; m
   const names = ['adminium/SKILL.md', 'adminium-app/SKILL.md', 'adminium-app/references/INDEX.md'];
   const phone = session.target === 'mobile' || opts.hasPhone === true || (opts.mentionsPhoneApp === true && session.target !== 'dashboard');
   // A phone app is asked for in words a website is asked for in ("customers can", "phone"): with the Mobile target, those words are about the phone app.
-  if (session.target === 'web' || opts.hasSides || (opts.mentionsScreens === true && session.target !== 'dashboard' && session.target !== 'mobile' && opts.mentionsPhoneApp !== true)) names.push('adminium-surface/SKILL.md', 'adminium-surface/references/INDEX.md');
+  if (session.target === 'web' || opts.hasSides || (opts.mentionsScreens === true && session.target !== 'dashboard' && session.target !== 'mobile')) names.push('adminium-surface/SKILL.md', 'adminium-surface/references/INDEX.md');
   if (phone) names.push('adminium-mobile/SKILL.md');
   if (opts.mentionsAddOn || opts.namesAddOn === true) names.push('adminium-add-ons/SKILL.md', 'adminium-add-ons/references/INDEX.md');
   return names;
@@ -458,7 +468,7 @@ export function createPrompt(deps: PromptDeps) {
     const stylesDir = deps.stylesDir === undefined ? builtInStylesDir() : deps.stylesDir;
     const app = appNow(deps.root, deps.version, session.appKey, stylesDir, deps.needsName?.(session) === true);
     const said = messages.flatMap((message) => (message.role === 'user' ? [firstText(message)] : [])).join(' ');
-    const names = skillsFor(session, { hasSides: app.hasSides, mentionsAddOn: MENTIONS_ADD_ON.test(said), mentionsScreens: MENTIONS_SCREENS.test(said), namesAddOn: app.namesAddOn, hasPhone: app.hasPhone, mentionsPhoneApp: MENTIONS_PHONE_APP.test(said) });
+    const names = skillsFor(session, { hasSides: app.hasSides, mentionsAddOn: MENTIONS_ADD_ON.test(said), mentionsScreens: MENTIONS_SCREENS.test(said) && !asksOnlyForPhoneApp(said), namesAddOn: app.namesAddOn, hasPhone: app.hasPhone, mentionsPhoneApp: MENTIONS_PHONE_APP.test(said) });
     const target =
       session.target === 'dashboard'
         ? 'The person asked for a dashboard only: tables and pages, no screens of its own.'
@@ -473,7 +483,7 @@ export function createPrompt(deps: PromptDeps) {
     const ownRow = MENTIONS_OWN_ROW.test(opts.said ?? firstText(lastSaid)) ? skill(deps.skills, OWN_ROW_GUIDE) : '';
     // Design is for an app with screens of its own, or one about to have them; a dashboard-only app is told none of it.
     // A phone app has no theme file and no made parts: the design checklist is for the web sides.
-    const designs = session.target !== 'dashboard' && (app.hasSides || session.target === 'web' || (session.target !== 'mobile' && !MENTIONS_PHONE_APP.test(said) && MENTIONS_SCREENS.test(said)));
+    const designs = session.target !== 'dashboard' && (app.hasSides || session.target === 'web' || (session.target !== 'mobile' && !asksOnlyForPhoneApp(said) && MENTIONS_SCREENS.test(said)));
     const design = designs ? designSection(deps.root, session.appKey, deps.skills, stylesDir) : '';
     const system = `${PREAMBLE.replace('{{addresses}}', names.includes('adminium-surface/SKILL.md') ? '' : ` ${ADDRESSES}`)}\n\n${VERBS}\n\n${target}${names.map((name) => skill(deps.skills, name)).join('')}${design === '' ? '' : `\n\n${design}`}${ownRow === '' ? '' : `\n\nThis request is about a person seeing their own row. Do it exactly as this page says, and no other way:${ownRow}`}\n\n${taskGuides(deps.skills)}\n\n===== The app now =====\n${app.text}${app.empty ? `\n\n${partExamples(session.appKey, deps.version)}` : ''}`;
 

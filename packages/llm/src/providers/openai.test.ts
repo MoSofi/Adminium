@@ -4,9 +4,9 @@
  * body with the system message prepended, response parsing, temperature-0
  * enforcement, chat-model filtering + static fallback.
  */
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { createOpenAiClient } from './openai.js';
+import { createOpenAiClient, forgetOpenAiShapes } from './openai.js';
 import { OPENAI_STATIC_MODELS } from './model-catalog.js';
 import { ProviderError } from './types.js';
 
@@ -106,6 +106,7 @@ describe('createOpenAiClient.complete', () => {
 });
 
 describe('what the real service refuses (seen 2026-10-11 on gpt-6-luna)', () => {
+  beforeEach(() => forgetOpenAiShapes());
   // The service's own words.
   const refusal = (param: string, message: string): Response => jsonResponse({ error: { message, type: 'invalid_request_error', param, code: 'unsupported_value' } }, 400);
   const noZero = (): Response => refusal('temperature', "Unsupported value: 'temperature' does not support 0 with this model. Only the default (1) value is supported.");
@@ -147,16 +148,23 @@ describe('what the real service refuses (seen 2026-10-11 on gpt-6-luna)', () => 
     expect(bodies[3]).not.toHaveProperty('reasoning_effort');
   });
 
-  it('a model that takes neither is asked with no temperature at all, and a third refusal is said as it is', async () => {
+  it('a model that takes neither is refused as it is: temperature 0 is not given up', async () => {
     const noEffort = (): Response => refusal('reasoning_effort', "Unsupported parameter: 'reasoning_effort' is not supported with this model.");
     const bodies = serve(noZero, noEffort, () => jsonResponse(OK_BODY));
-    await createOpenAiClient({ provider: 'openai', apiKey: KEY, model: 'x' }).complete(ask);
+    await expect(createOpenAiClient({ provider: 'openai', apiKey: KEY, model: 'x' }).complete({ ...ask, model: 'x' })).rejects.toMatchObject({ status: 400 });
+    expect(bodies).toHaveLength(2);
+    expect(bodies.every((body) => body['temperature'] === 0)).toBe(true);
+  });
+
+  it('remembers what a model took across clients: a client is made anew for every run', async () => {
+    const bodies = serve(noZero, () => jsonResponse(OK_BODY));
+    await createOpenAiClient({ provider: 'openai', apiKey: KEY, model: 'gpt-6-luna' }).complete(ask);
+    await createOpenAiClient({ provider: 'openai', apiKey: KEY, model: 'gpt-6-luna' }).complete(ask);
     expect(bodies).toHaveLength(3);
-    expect(bodies[2]).not.toHaveProperty('temperature');
-    expect(bodies[2]).not.toHaveProperty('reasoning_effort');
-    const again = serve(noZero, noEffort, noZero);
-    await expect(createOpenAiClient({ provider: 'openai', apiKey: KEY, model: 'x' }).complete(ask)).rejects.toMatchObject({ status: 400 });
-    expect(again).toHaveLength(3);
+    expect(bodies[2]).toMatchObject({ reasoning_effort: 'none' });
+    // Another address is another service: nothing learned at one is assumed of it.
+    await createOpenAiClient({ provider: 'openai', apiKey: KEY, model: 'gpt-6-luna', baseUrl: 'https://other.example/v1' }).complete(ask);
+    expect(bodies[3]).not.toHaveProperty('reasoning_effort');
   });
 
   it('any other refusal is not asked twice', async () => {

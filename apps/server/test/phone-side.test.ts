@@ -190,6 +190,29 @@ describe('the shape of a phone side’s folder', () => {
     expect(problems()).toEqual([expect.stringContaining('apps/shop/mobile/package-lock.json fetches 2 package(s) from somewhere other than the npm registry (expo, b)')]);
   });
 
+  it('refuses any lock npm would read in place of package-lock.json, another manager’s lock, and a lock in the old form', () => {
+    writeFileSync(mobile('npm-shrinkwrap.json'), JSON.stringify({ lockfileVersion: 3, packages: { 'node_modules/expo': { resolved: 'https://evil.example/expo.tgz' } } }));
+    expect(problems()).toEqual([expect.stringContaining('apps/shop/mobile/npm-shrinkwrap.json is a lock npm would read in place of package-lock.json')]);
+    rmSync(mobile('npm-shrinkwrap.json'));
+    writeFileSync(mobile('yarn.lock'), '');
+    expect(problems()).toEqual([expect.stringContaining('apps/shop/mobile/yarn.lock is another package manager’s lock')]);
+    rmSync(mobile('yarn.lock'));
+    // The old form names each package's source under "dependencies", where the rule above does not look.
+    writeFileSync(mobile('package-lock.json'), JSON.stringify({ lockfileVersion: 1, dependencies: { expo: { version: '57.0.27', resolved: 'https://evil.example/expo.tgz' } } }));
+    expect(problems()).toEqual([expect.stringContaining('apps/shop/mobile/package-lock.json does not read as a lock npm writes today')]);
+    writeFileSync(mobile('package-lock.json'), 'not json');
+    expect(problems()).toEqual([expect.stringContaining('does not read as a lock npm writes today')]);
+  });
+
+  it('says every package, however many there are', () => {
+    change('package.json', (pkg) => {
+      for (let n = 0; n < 80; n += 1) (pkg['dependencies'] as Record<string, unknown>)[`zz-extra-${String(n).padStart(2, '0')}`] = '1.0.0';
+    });
+    const listed = phonePackages(root, 'shop');
+    expect(listed).toContain('zz-extra-79');
+    expect(listed.filter((name) => name.startsWith('zz-extra-'))).toHaveLength(80);
+  });
+
   it('says what a phone side’s package.json asks for, by name, in order', () => {
     const listed = phonePackages(root, 'shop');
     expect(listed).toContain('expo');
@@ -275,6 +298,35 @@ describe('a person’s approval of a phone side', () => {
     approvePhone(root, 'shop');
     expect(isPhoneApproved(root, 'shop')).toBe(true);
     expect(readJson(join(root, '.adminium/approved-builds.json'))).toEqual({ 'shop#mobile': phoneFingerprint(root, 'shop') });
+  });
+
+  it('a yes to a phone side that came with packages throws those packages away: the install fetches them', () => {
+    mkdirSync(mobile('node_modules/expo/bin'), { recursive: true });
+    writeFileSync(mobile('node_modules/expo/bin/cli'), 'whatever came with the folder\n');
+    mkdirSync(mobile('node_modules/.adminium'), { recursive: true });
+    writeFileSync(mobile('node_modules/.adminium/installed'), 'a stamp anybody can write');
+    approvePhone(root, 'shop');
+    expect(existsSync(mobile('node_modules'))).toBe(false);
+    expect(isPhoneApproved(root, 'shop')).toBe(true);
+    // Approved as it reads, and installed since: a second yes to the same thing throws nothing away, and the
+    // approval an install renews for its new lock keeps what it installed.
+    mkdirSync(mobile('node_modules/expo'), { recursive: true });
+    approvePhone(root, 'shop');
+    expect(existsSync(mobile('node_modules/expo'))).toBe(true);
+    writeFileSync(mobile('package-lock.json'), '{"lockfileVersion":3,"packages":{}}\n');
+    approvePhone(root, 'shop', { afterInstall: true });
+    expect(existsSync(mobile('node_modules/expo'))).toBe(true);
+    expect(isPhoneApproved(root, 'shop')).toBe(true);
+  });
+
+  it('a link in place of node_modules is taken away with the yes, and where it led is left alone', () => {
+    const elsewhere = tempProject('adminium-phone-elsewhere-');
+    writeFileSync(join(elsewhere, 'kept.txt'), 'x');
+    symlinkSync(elsewhere, mobile('node_modules'));
+    approvePhone(root, 'shop');
+    expect(existsSync(mobile('node_modules'))).toBe(false);
+    expect(existsSync(join(elsewhere, 'kept.txt'))).toBe(true);
+    rmSync(elsewhere, { recursive: true, force: true });
   });
 
   it('keeps the approvals already in the file', () => {

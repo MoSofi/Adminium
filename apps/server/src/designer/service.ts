@@ -9,7 +9,7 @@
  * decides what becomes of them.
  */
 import type { Attachment, Attachments } from './attachments.js';
-import { PHONE_SIDE, hasPhoneCode } from '../project/apps/phone.js';
+import { PHONE_SIDE } from '../project/apps/phone.js';
 import { phoneNow } from '../project/apps/phone-build.js';
 import { existsSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
@@ -42,7 +42,7 @@ import { createDesignerRunner, type Actor, type BusyKind, type DesignerLimits, t
 import { createSessionStore, DESIGNER_TARGETS, type DesignerSession, type DesignerTarget, type SessionStore } from './session-store.js';
 import type { DesignerTool } from './tool-types.js';
 import type { Versions } from './versions.js';
-import { DESIGNER_MAX_OUTPUT_TOKENS, MENTIONS_PHONE_APP } from './prompt.js';
+import { DESIGNER_MAX_OUTPUT_TOKENS, asksOnlyForPhoneApp } from './prompt.js';
 
 export interface DesignerHost {
   /** The project folder. */
@@ -556,8 +556,8 @@ export function createDesigner(host: DesignerHost): Designer {
         .flatMap((entry) => entry.message.content.flatMap((block) => (block.type === 'text' ? [block.text] : [])))
         .join(' ');
       const noScreens =
-        // (A phone app is what was asked for when the person named one, and is screens of the app's own once it is there.)
-        session.target !== 'dashboard' && session.target !== 'mobile' && !MENTIONS_PHONE_APP.test(asked) && !hasPhoneCode(host.root, session.appKey) && ASKS_FOR_SCREENS.test(asked) && sidesWithScreens(host.root, session.appKey).length === 0
+        // (A phone app and nothing for a browser: the words are about the phone app.)
+        session.target !== 'dashboard' && session.target !== 'mobile' && !asksOnlyForPhoneApp(asked) && ASKS_FOR_SCREENS.test(asked) && sidesWithScreens(host.root, session.appKey).length === 0
           ? [
               `- The person asked for ${/\bwebsite|\bsite\b|public|customers?\b/i.test(asked) ? 'a page customers see' : 'screens of the app\'s own'}, and the app has none yet: call add_side (${/\bstaff\b/i.test(asked) && !/\bwebsite|public|customers?\b/i.test(asked) ? '"staff"' : '"customer"'}) and build it now. Do not ask whether to: it is what they asked for.`,
             ]

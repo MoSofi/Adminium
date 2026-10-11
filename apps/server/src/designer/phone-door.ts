@@ -184,18 +184,36 @@ export function doorRoute(method: string, pathname: string, search: string): 'ma
   if (pathname === '/') return 'manifest';
   // The app's one bundle, by the name Expo's manifest gives it.
   if (pathname === '/index.ts.bundle') return 'bundle';
-  // An asset of the app by its place, never by a path given in the question (`unstable_path` reads a file by
-  // its path; the question is read as the bundler reads it, so `unstable%5Fpath` is the same word).
-  if (pathname.startsWith('/assets/') && pathname.length > '/assets/'.length) {
+  // An asset. Expo's bundler hands a phone every asset as `/assets/?unstable_path=./<its path>`, and that
+  // word reads a file by its path: it is passed for a picture or a font under the app's own `assets/` or
+  // in a package, and for nothing else. (The question is read as the bundler reads it, so
+  // `unstable%5Fpath` is the same word.)
+  if (pathname === '/assets/' || pathname.startsWith('/assets/')) {
     let asked: URLSearchParams;
     try {
       asked = new URLSearchParams(search);
     } catch {
       return null;
     }
-    return [...asked.keys()].some((name) => name.toLowerCase() === 'unstable_path') ? null : 'asset';
+    const given = [...asked.entries()].filter(([name]) => name.toLowerCase() === 'unstable_path');
+    if (given.length === 0) return pathname.length > '/assets/'.length ? 'asset' : null;
+    const [name, value] = given[0] as [string, string];
+    return given.length === 1 && name === 'unstable_path' && pathname === '/assets/' && doorAssetPath(value) ? 'asset' : null;
   }
   return null;
+}
+
+/**
+ * Whether a path given as `unstable_path` is an asset a phone may have: a
+ * picture or a font, under the phone side's `assets/` or in one of its
+ * packages, named plainly. No step up, no dot file, nothing left to decode.
+ */
+export function doorAssetPath(value: string): boolean {
+  if (value.length > 400 || /[\\%]/.test(value) || [...value].some((letter) => letter.charCodeAt(0) < 0x20)) return false;
+  if (!/^\.\/(assets|node_modules)\//.test(value)) return false;
+  const parts = value.slice(2).split('/');
+  if (parts.some((part) => part === '' || part.startsWith('.'))) return false;
+  return /\.(png|jpe?g|webp|gif|svg|ttf|otf)$/i.test(parts[parts.length - 1] as string);
 }
 
 /** Headers a phone's request may carry to the bundler or the API. Never a cookie, never what says where it came from. */
@@ -203,7 +221,7 @@ function passed(headers: IncomingMessage['headers']): Record<string, string> {
   const out: Record<string, string> = {};
   for (const [name, value] of Object.entries(headers)) {
     if (typeof value !== 'string') continue;
-    if (/^(host|cookie|forwarded|x-forwarded-.*|x-real-ip|connection|upgrade|keep-alive|transfer-encoding|proxy-.*|te|trailer)$/i.test(name)) continue;
+    if (/^(host|origin|cookie|forwarded|x-forwarded-.*|x-real-ip|connection|upgrade|keep-alive|transfer-encoding|proxy-.*|te|trailer)$/i.test(name)) continue;
     out[name] = value;
   }
   return out;
@@ -426,7 +444,10 @@ export function createPhoneDoor(opts: PhoneDoorOptions): PhoneDoor {
       const allowed = (req: IncomingMessage, route: string | null, search: string): boolean => {
         const h = req.headers;
         if ((h.host ?? '').toLowerCase() !== host) return false;
-        if (h.origin !== undefined || h.referer !== undefined || Object.keys(h).some((name) => name.startsWith('sec-fetch-'))) return false;
+        // (React Native on Android gives its own socket an Origin: the address it connects to. No page has the door's own
+        // address as its origin, since the door serves no page; so the refresh socket, and only it, may say that one.)
+        const ownSocket = route === 'hot' && h.origin === `http://${host}`;
+        if ((h.origin !== undefined && !ownSocket) || h.referer !== undefined || Object.keys(h).some((name) => name.startsWith('sec-fetch-'))) return false;
         // A browser always says it is one, and a page in it cannot say otherwise: a phone app never does.
         if (/^\s*Mozilla\//i.test(String(h['user-agent'] ?? ''))) return false;
         const remote = req.socket.remoteAddress ?? '';

@@ -13,12 +13,12 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { anthropicMessages } from './run-anthropic.js';
 import { canBuild, createProviderRunner, PROBE_PICTURE, readsImages } from './run-factory.js';
 import { ollamaMessages } from './run-ollama.js';
-import { openAiMessages } from './run-openai.js';
+import { forgetOpenAiRunShapes, openAiMessages } from './run-openai.js';
 import { streamRequest } from './run-http.js';
 import type { ProviderRunner, RunEvent, RunMessage, RunRequest, RunResult, RunTool } from './run-types.js';
 import { ProviderError, type ProviderConfig } from './types.js';
@@ -870,6 +870,7 @@ describe('OpenAI refusing tools from a model that reasons (seen on gpt-6-luna)',
       { status: 400, headers: { 'content-type': 'application/json' } },
     );
   const tools = [{ name: 'write_file', description: 'Write a file.', inputSchema: { type: 'object' } }];
+  beforeEach(() => forgetOpenAiRunShapes());
 
   it('asks again with the reasoning off, and remembers the model so the next request is asked once', async () => {
     const sent = serve(refusal(), fixture('openai-recorded-one-tool'), fixture('openai-recorded-one-tool'));
@@ -879,9 +880,12 @@ describe('OpenAI refusing tools from a model that reasons (seen on gpt-6-luna)',
     expect(sent).toHaveLength(2);
     expect(sent[0]?.json).not.toHaveProperty('reasoning_effort');
     expect(sent[1]?.json).toMatchObject({ reasoning_effort: 'none' });
-    await run.run(request({ tools }));
+    // Another runner (one is made for every turn) asks once, and a request with no tools keeps the model's reasoning.
+    await OPENAI().run(request({ tools }));
     expect(sent).toHaveLength(3);
     expect(sent[2]?.json).toMatchObject({ reasoning_effort: 'none' });
+    await run.run(request({ tools: [] }));
+    expect(sent[3]?.json).not.toHaveProperty('reasoning_effort');
   });
 
   it('is said as it is when the second request is refused too, and for a request with no tools', async () => {

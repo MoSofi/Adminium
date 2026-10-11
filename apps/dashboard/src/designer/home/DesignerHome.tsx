@@ -98,9 +98,14 @@ export function DesignerHome(): ReactNode {
     el.style.height = `${String(Math.min(el.scrollHeight, MAX_LINES_PX))}px`;
   }, [text]);
 
+  const options = targets(info.data?.designer?.mode === 'live');
+  const chosen = options.find((entry) => entry.id === target) ?? (options[0] as (typeof options)[number]);
+
   const start = useMutation({
     mutationFn: async () => {
       if (model.picked === null) throw new Error('no model');
+      // What is sent is what the menu shows: a choice this server does not offer (Mobile, picked before the server said it is a live one) is not sent.
+      const target = chosen.id;
       const base = { title: nameFromRequest(text), ...(style === null || target === 'dashboard' || target === 'mobile' ? {} : { style }), target, connectionId: model.picked.connectionId, model: model.picked.model };
       if (attach.files.length === 0 && made.current === null) return designerApi.createSession({ ...base, text: text.trim(), ...(seesPage() ? { sees: true } : {}) });
       // With files: the session first (they are kept in it), then the files, then the message that names them.
@@ -135,8 +140,6 @@ export function DesignerHome(): ReactNode {
       send();
     }
   };
-  const options = targets(info.data?.designer?.mode === 'live');
-  const chosen = options.find((entry) => entry.id === target) ?? (options[0] as (typeof options)[number]);
   const noteId = 'designer-home-note';
 
   return (

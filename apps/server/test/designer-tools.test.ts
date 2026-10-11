@@ -440,6 +440,22 @@ describe('the Designer’s tools', () => {
     expect(await run('write_file', { path: 'apps/repairs/mobile/App.tsx', content: 'export function App() { return null; }\n' })).not.toMatchObject({ isError: true });
   });
 
+  it('name the packages before a phone app that came with the folder is built, and build nothing on a no', async () => {
+    addPhoneSide({ root, key: 'repairs', name: 'Repairs', version: APP_VERSION });
+    const pkgFile = join(root, 'apps/repairs/mobile/package.json');
+    const pkg = JSON.parse(readFileSync(pkgFile, 'utf8')) as { dependencies: Record<string, string> };
+    writeFileSync(pkgFile, JSON.stringify({ ...pkg, dependencies: { ...pkg.dependencies, 'left-pad': '1.3.0' } }));
+    answers.push({ type: 'question', text: 'Not now' });
+    const said = await run('add_side', { side: 'mobile' });
+    expect(said).toMatchObject({ isError: true, label: 'No phone app' });
+    const card = asked.find((entry) => entry.type === 'question') as { question: string; choices: string[] };
+    expect(card.question).toContain('This app has a phone app. Build it on this computer?');
+    expect(card.question).toContain('left-pad');
+    expect(card.question).toContain('expo');
+    expect(card.choices).toEqual(['Build it here', 'Not now']);
+    expect(existsSync(join(root, 'apps/repairs/mobile/node_modules'))).toBe(false);
+  });
+
   it('ask for no package for an app whose only screens are its phone app', async () => {
     for (const side of ['staff', 'customer']) rmSync(join(root, 'apps/repairs', side), { recursive: true, force: true });
     addPhoneSide({ root, key: 'repairs', name: 'Repairs', version: APP_VERSION });
