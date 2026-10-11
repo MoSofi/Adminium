@@ -14,6 +14,7 @@
  * address by default, and the preview is not for the network. A phone reaches
  * its app through the phone door, which is another thing.
  */
+import { readdirSync, type Dirent } from 'node:fs';
 import { join } from 'node:path';
 
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
@@ -22,7 +23,7 @@ import { NotFoundError } from '../errors.js';
 import { PHONE_SIDE, hasPhoneCode, phoneBuildDir } from '../project/apps/phone.js';
 import { listAppKeys } from '../project/apps/read-app.js';
 import { builtPhone } from '../project/apps/phone-build.js';
-import { DEV_BUILD_FILE, surfaceFileFor } from './surfaces.js';
+import { DEV_BUILD_FILE } from './surfaces.js';
 
 export interface PhonePreviewOptions {
   /** The project's folder. */
@@ -38,6 +39,23 @@ const LOOPBACK_ADDRESSES = new Set(['127.0.0.1', '::1', '::ffff:127.0.0.1']);
 export function fromThisMachine(request: Pick<FastifyRequest, 'ip' | 'headers'>): boolean {
   const host = (request.headers.host ?? '').toLowerCase().replace(/:\d+$/, '');
   return LOOPBACK_NAMES.has(host) && LOOPBACK_ADDRESSES.has(request.ip);
+}
+
+/** Every file of a built phone preview, by its path inside the build; no dot file, and no link followed. */
+function builtFiles(root: string, prefix = '', out: string[] = []): string[] {
+  let entries: Dirent[];
+  try {
+    entries = readdirSync(join(root, prefix), { withFileTypes: true });
+  } catch {
+    return out;
+  }
+  for (const entry of entries) {
+    if (entry.name.startsWith('.')) continue;
+    const path = prefix === '' ? entry.name : `${prefix}/${entry.name}`;
+    if (entry.isDirectory()) builtFiles(root, path, out);
+    else if (entry.isFile()) out.push(path);
+  }
+  return out;
 }
 
 /** An app's key as a folder may be named: nothing that leaves `apps/`. */
@@ -72,10 +90,11 @@ export function registerPhonePreview(app: FastifyInstance, opts: PhonePreviewOpt
     }
     if (builtPhone(opts.root, key) === null) return none(reply);
     const root = phoneBuildDir(opts.root, key);
-    const file = surfaceFileFor(root, `/${rest}`);
+    // A file of the build, named as the build's own folder lists it: what the address said is only looked up in that list.
+    const file = rest === 'index.html' ? undefined : builtFiles(root).find((known) => known === rest);
     // Never kept: the next build must be what the next look shows.
     void reply.header('cache-control', 'no-store');
-    if (file !== null && !file.split('/').some((part) => part.startsWith('.')) && file !== 'adminium-phone.json') return reply.sendFile(file, root, { cacheControl: false });
+    if (file !== undefined && file !== 'adminium-phone.json') return reply.sendFile(file, root, { cacheControl: false });
     // A file asked for by name that is not there is not the page.
     if (/\.[a-z0-9]{1,8}$/i.test(rest) && rest !== 'index.html') return none(reply);
     return reply.type('text/html; charset=utf-8').sendFile('index.html', join(root), { cacheControl: false });
