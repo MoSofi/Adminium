@@ -1,5 +1,27 @@
 # @adminium/server
 
+## 0.3.27
+
+### Patch Changes
+
+- 0c42349: The Designer's Code tab can be searched. Ctrl+F (Cmd+F on a Mac) looks for words in the open file: every place is marked, the bar says which one you are on, and Enter goes to the next. The field above the file list looks in every file you can open there, and lists each place by file and line; choosing one opens the file at that line. Both can match case and whole words.
+- 0c42349: The Designer has an effort menu beside the model's own, for a model that takes the setting: it lists the levels that model takes, and a model that takes none shows no menu. The Designer can put pictures you attached into the app it builds, as a file of the app or on a sample row. In a table, a column that shows a linked row's name starts at the same edge as other words; it was set at the far edge, as a number is.
+- 0c42349: The Designer's preview has a "Pick an element" button on an app's staff and customer sides. Click it, then click any part of the page: the element shows as a chip above the message box, and the message you send is about that element. The Designer is told its tag and classes, the words it shows, what it sits in and how large it is drawn, and looks for the code that draws it. Esc stops picking.
+- 0c42349: The Designer looks at the page again after it builds. When it built the screens and then applied the app, which is what it does in almost every turn, it waited half a minute for the preview and then finished without having seen the page, so it could say a change was made when nothing looked different. The picture it is shown is also right now on a page whose sections are sized by the window's height. A file edit that changes nothing is no longer reported as an edit, and the Designer no longer tells you to refresh the preview.
+- 0c42349: The Designer's preview has a "Take a picture of a part of the page" button on an app's staff and customer sides. Click it, then drag over the part you mean: the picture is attached to your next message, so you can say what is wrong in it before you send. The page in the preview draws the picture itself, so nothing is asked of your screen. Esc stops the drag.
+- d33ce68: An app installed again on tables of its own (its earlier tables were dropped, or were an older version's under plain names) starts its sample afresh: the earlier install's list of sample rows is no longer counted with the new one, which doubled the count shown. Rows an earlier version left behind stay as ordinary rows.
+- Updated dependencies [0c42349]
+  - @adminium/llm@0.3.27
+  - @adminium/engine@0.3.27
+  - @adminium/adapter-mysql@0.3.27
+  - @adminium/adapter-postgres@0.3.27
+  - @adminium/adapter-sqlite@0.3.27
+  - @adminium/schema-import@0.3.27
+  - @adminium/add-on-contracts@0.3.27
+  - @adminium/i18n@0.3.27
+  - @adminium/manifest@0.3.27
+  - @adminium/meta@0.3.27
+
 ## 0.3.26
 
 ### Patch Changes
