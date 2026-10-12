@@ -80,7 +80,25 @@ function defaultIsRemoval(payload: StreamEventPayload): boolean {
 }
 
 /** A stream mutation held while paused, replayed in order on resume. */
-type PendingOp<T> = { kind: 'upsert'; item: T } | { kind: 'remove'; key: string | number };
+type PendingOp<T> = { kind: 'upsert'; item: T } | { kind: 'remove'; key: string | number } | { kind: 'let-go'; key: string };
+
+/**
+ * The key of a row a frame says to let go of: `pk` with one value and no
+ * `row`. Read as text, because a key column's value and a widget's own key
+ * for the row are the same value and not always the same type. A key of
+ * several columns names no single widget key, and is left to the next
+ * refetch.
+ */
+function keyOfLetGo(payload: StreamEventPayload): string | null {
+  if (payload.row !== null && payload.row !== undefined) return null;
+  const pk = payload.pk;
+  if (pk === null || pk === undefined) return null;
+  if (typeof pk === 'string' || typeof pk === 'number') return String(pk);
+  if (typeof pk !== 'object') return null;
+  const values = Object.values(pk as Record<string, unknown>);
+  const only = values.length === 1 ? values[0] : undefined;
+  return typeof only === 'string' || typeof only === 'number' ? String(only) : null;
+}
 
 export function useWidgetStream<T>(options: UseWidgetStreamOptions<T>): WidgetStream<T> {
   const isDemo = options.channel === undefined && options.demo !== undefined;
@@ -139,6 +157,22 @@ export function useWidgetStream<T>(options: UseWidgetStreamOptions<T>): WidgetSt
   const handleEvent = useRef((event: StreamRealtimeEvent): void => {
     const payload = (event.data ?? {}) as StreamEventPayload;
     const item = selectItemRef.current(payload, event);
+    // A key and no row, on a frame that is no delete: the row is somebody else's now (handed to a colleague).
+    // The server sends its key so this screen lets go of it; the row itself is no longer this reader's to see.
+    const gone = item === null && !isRemovalRef.current(payload) ? keyOfLetGo(payload) : null;
+    if (gone !== null) {
+      const match = (prev: Parameters<typeof removeStreamItem<T>>[0]) => prev.items.find((held) => String(getKeyRef.current(held)) === gone);
+      if (pausedRef.current) {
+        // Held like any other removal while the feed is frozen; the key is found when it is replayed.
+        pendingRef.current = [...pendingRef.current, { kind: 'let-go', key: gone }];
+        return;
+      }
+      setBuffer((prev) => {
+        const held = match(prev);
+        return held === undefined ? prev : removeStreamItem(prev, getKeyRef.current(held), getKeyRef.current);
+      });
+      return;
+    }
     if (isRemovalRef.current(payload)) {
       if (item === null) return;
       const key = getKeyRef.current(item);
@@ -188,6 +222,11 @@ export function useWidgetStream<T>(options: UseWidgetStreamOptions<T>): WidgetSt
     setBuffer((prev) => {
       let next = prev;
       for (const op of flush) {
+        if (op.kind === 'let-go') {
+          const held = next.items.find((item) => String(getKeyRef.current(item)) === op.key);
+          if (held !== undefined) next = removeStreamItem(next, getKeyRef.current(held), getKeyRef.current);
+          continue;
+        }
         next =
           op.kind === 'upsert'
             ? upsertStreamItem(next, op.item, { getKey: getKeyRef.current, max: maxRef.current, countUnread: true })
