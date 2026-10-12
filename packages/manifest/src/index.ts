@@ -119,6 +119,7 @@ export {
 } from './validate.js';
 
 export { BOOKING_WEEKDAYS, bookingSchema, type BookingRule } from './booking.js';
+export { occupiesSchema, type OccupiesRule } from './occupies.js';
 
 export {
   capacityListSchema,

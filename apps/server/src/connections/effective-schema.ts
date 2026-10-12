@@ -453,6 +453,23 @@ export interface BookingHoursTable {
 }
 
 /**
+ * `table.occupies`: a row takes a resource for a time (a room for an hour, a
+ * crew for a day). No two counted rows of one resource overlap, unless they
+ * `shared` it; with `hours`, the resource has a row for the weekday and a
+ * timed row lies inside it. `hours.table` is an id in the snapshot.
+ */
+export interface TableOccupiesRule {
+  resource: string;
+  start?: string;
+  minutes?: string;
+  end?: string;
+  day?: string;
+  countWhere?: { column: string; values: string[] };
+  shared?: true;
+  hours?: { table: string; resource: string; weekday: string; opens?: string; closes?: string };
+}
+
+/**
  * `table.booking`: booking PEOPLE. No two counted rows of one resource may
  * overlap, inside its weekly hours and outside its closures. Every nested
  * `table` is an id in the snapshot, mapped from the app's short names at
@@ -600,6 +617,8 @@ export interface EffectiveTable extends Omit<TableModel, 'columns'> {
   capacityRules?: EffectiveCapacityRule[];
   /** Booking people (`table.booking`). */
   booking?: TableBookingRule;
+  /** A row takes a resource for a time (`table.occupies`). */
+  occupies?: TableOccupiesRule;
   /**
    * A document's life (`table.states`). Carried in the model the dashboard
    * reads, so a record page draws a locked row's fields read-only: a field is
@@ -1405,6 +1424,10 @@ export function applyOverrides(
       }
       case 'table.booking': {
         if (table !== undefined) table.booking = value as unknown as TableBookingRule;
+        break;
+      }
+      case 'table.occupies': {
+        if (table !== undefined) table.occupies = value as unknown as TableOccupiesRule;
         break;
       }
       case 'table.states': {

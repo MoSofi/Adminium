@@ -1242,6 +1242,39 @@ function oneCapacityRuleIssue(value: Value, table: TableModel, model: DatabaseMo
  * short name, or none) is caught here, before the guard would query a table
  * that is not there on every booking.
  */
+/**
+ * A plain guard (`table.occupies`) against the model as it stands: its own
+ * columns are there and of the kind each is read as, and the hours table has
+ * the columns the rule names.
+ */
+export function occupiesRuleIssue(raw: unknown, table: TableModel, model: DatabaseModel): string | null {
+  const value = (raw ?? {}) as Value;
+  const own = (name: unknown) => table.columns.find((c) => c.name === String(name));
+  for (const key of ['resource', 'start', 'minutes', 'end', 'day']) {
+    if (value[key] !== undefined && own(value[key]) === undefined) return `${table.name} has no column ${JSON.stringify(value[key])}.`;
+  }
+  const counted = (value['countWhere'] as Value | undefined)?.['column'];
+  if (counted !== undefined && own(counted) === undefined) return `${table.name} has no column ${JSON.stringify(counted)}.`;
+  if ((value['start'] === undefined) === (value['day'] === undefined)) return 'The time is a start or a whole day, one of the two.';
+  if (value['start'] !== undefined && (value['minutes'] === undefined) === (value['end'] === undefined)) return 'A start comes with its minutes or its end, one of the two.';
+  const minutes = value['minutes'] === undefined ? undefined : own(value['minutes']);
+  if (minutes !== undefined && !NUMERIC_TYPES.has(minutes.logicalType)) return `${minutes.name} is not a number, so it cannot be a length in minutes.`;
+  const day = value['day'] === undefined ? undefined : own(value['day']);
+  if (day !== undefined && day.logicalType !== 'date') return `${day.name} is not a date.`;
+  const hours = value['hours'] as Value | undefined;
+  if (value['shared'] === true && hours === undefined) return 'Rows that share the time are judged by the hours alone: name them.';
+  if (hours !== undefined) {
+    const id = String(hours['table'] ?? '');
+    const source = model.tables.find((candidate) => candidate.id === id);
+    if (source === undefined) return `There is no table ${JSON.stringify(id)} for the hours to be read from.`;
+    for (const [key, column] of Object.entries(hours)) {
+      if (key === 'table' || typeof column !== 'string') continue;
+      if (!source.columns.some((c) => c.name === column)) return `${source.name} has no column ${JSON.stringify(column)} for the hours.`;
+    }
+  }
+  return null;
+}
+
 export function bookingRuleIssue(raw: unknown, table: TableModel, model: DatabaseModel): string | null {
   const value = (raw ?? {}) as Value;
   const own = (name: unknown) => table.columns.find((c) => c.name === String(name));

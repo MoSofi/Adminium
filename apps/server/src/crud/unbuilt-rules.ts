@@ -163,6 +163,8 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   'sampleData.people',
   // An app's starting rows (`seeds`): written by its install as an add-on's are, into empty tables only.
   'app.seeds',
+  // A row takes a resource for a time: no two overlap, within the resource's hours; held by the lock a booking's write holds.
+  'table.occupies',
   // Rows read by the people they belong to and by nothing else: not in the view a rule, a public door, a kiosk's key or an owner's
   // code reads through, and refused by name as a file out, a file in, a scheduled report and a document.
   'table.private',

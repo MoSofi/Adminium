@@ -96,7 +96,7 @@ import { getPrincipal } from '../rbac/principal.js';
 import { negotiateLocale } from '../plugins/surfaces.js';
 import { capacityLockNames, touchesCapacity } from './capacity/judge.js';
 import { batchNeedsGuard, judgeRows, withLimitLocks } from './capacity/door.js';
-import { bookingCounts, bookingDay, bookingNeed, bookingRefusal, checkBooking, touchesBooking, withBookingLock } from './booking-guard.js';
+import { bookingColumn, bookingCounts, bookingDay, bookingNeed, bookingRefusal, checkBooking, touchesBooking, withBookingLock } from './booking-guard.js';
 import { decideRow, needsStored, stampFires, stampYields, type DecideContext } from './decide.js';
 import { renewedColumns, withRenewRetry } from './code-renew.js';
 import { canonicalCode, isLookupIssue, lookupIssue, reservedIssue, type LookupMiss } from './code-lookup.js';
@@ -2619,7 +2619,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         return rolls ? await atomically(target, write) : await write(target.db);
       }
       const day = bookingDay(booking, { ...current, ...values }, zone ?? 'UTC');
-      if (day === null) await guarded(() => Promise.reject(bookingRefusal('BOOKING_OUT_OF_RANGE', booking.start)), mapError);
+      if (day === null) await guarded(() => Promise.reject(bookingRefusal('BOOKING_OUT_OF_RANGE', bookingColumn(booking))), mapError);
       setDay(day);
       try {
         return await withBookingLock({ ...target, timezone: zone }, day!, write);
@@ -2913,8 +2913,11 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
    * or no-show together — needs no lock and goes through as a batch.
    */
   function movesBooking(rule: NonNullable<TableRules['booking']>, row: Row): boolean {
-    if ([rule.start, rule.minutes, rule.resource, rule.kind].some((column) => Object.prototype.hasOwnProperty.call(row, column))) return true;
-    return Object.prototype.hasOwnProperty.call(row, rule.countWhere.column) && bookingCounts(rule, row);
+    // Any column that places the row, or the one that decides whether it counts (then only when it does).
+    if (!touchesBooking(rule, row)) return false;
+    const counted = 'plain' in rule ? rule.plain.countWhere?.column : rule.countWhere.column;
+    const others = Object.keys(row).filter((column) => column !== counted);
+    return touchesBooking(rule, Object.fromEntries(others.map((column) => [column, row[column]]))) || bookingCounts(rule, row);
   }
 
   /**
@@ -3700,7 +3703,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       let day: string | null = null;
       if (booking !== undefined && need !== null) {
         day = bookingDay(booking, checked, zone ?? 'UTC');
-        if (day === null) await guarded(() => Promise.reject(bookingRefusal('BOOKING_OUT_OF_RANGE', booking.start)), input.mapError);
+        if (day === null) await guarded(() => Promise.reject(bookingRefusal('BOOKING_OUT_OF_RANGE', bookingColumn(booking))), input.mapError);
       }
       // A number without gaps is taken under the series' lock, held until the row commits.
       const series = numberLockName(target.table, checked);

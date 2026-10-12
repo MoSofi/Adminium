@@ -53,6 +53,7 @@
               "column.rollup",
               "column.perNight",
               "table.capacity",
+              "table.occupies",
               "table.booking",
               "table.states",
               "table.postings",

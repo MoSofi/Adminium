@@ -37,7 +37,7 @@ import {
 import { ForbiddenError, NotFoundError, ValidationFailedError } from '../../errors.js';
 import { outboxWrittenColumns } from '../../outbox/moves.js';
 import { shareCodesOn } from '../../public-api/share-codes.js';
-import { bookingRuleIssue, capacityRuleIssue, columnRuleIssue, keptColumnIssue, statesRuleIssue } from '../../connections/column-rules-validation.js';
+import { bookingRuleIssue, capacityRuleIssue, occupiesRuleIssue, columnRuleIssue, keptColumnIssue, statesRuleIssue } from '../../connections/column-rules-validation.js';
 import { LEDGER_RULE_OPS } from '../../ledgers/rules.js';
 import { applyOverrides, columnPolicyFor } from '../../connections/effective-schema.js';
 import type { ConnectionManager } from '../../connections/manager.js';
@@ -309,6 +309,11 @@ export function schemaRoutes(deps: SchemaRoutesDeps): FastifyPluginAsyncZod {
           throw new ValidationFailedError('A table has a capacity or a booking rule, not both.', { table: tableName });
         }
       }
+      for (const tableName of guarded('table.occupies')) {
+        if (capacityTables.has(tableName) || guarded('table.booking').has(tableName)) {
+          throw new ValidationFailedError('A table has one rule that places its rows: capacity, booking or occupies.', { table: tableName });
+        }
+      }
       let storedStates: Awaited<ReturnType<typeof overrides.listForConnection>> | undefined;
       for (const item of body.overrides) {
         try {
@@ -384,6 +389,10 @@ export function schemaRoutes(deps: SchemaRoutesDeps): FastifyPluginAsyncZod {
         }
         if (item.op === 'table.booking') {
           const issue = bookingRuleIssue(item.value, table, model);
+          if (issue !== null) throw new ValidationFailedError(issue, { table: item.tableName, op: item.op });
+        }
+        if (item.op === 'table.occupies') {
+          const issue = occupiesRuleIssue(item.value, table, model);
           if (issue !== null) throw new ValidationFailedError(issue, { table: item.tableName, op: item.op });
         }
         if (item.op === 'table.states') {

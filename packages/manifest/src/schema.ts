@@ -24,6 +24,7 @@ import { z } from 'zod';
 
 import { addOnNeedsIssues, addOnsSchema, requiresAddOn, type AddOnNeeds } from './add-ons.js';
 import { bookingIssues, bookingSchema } from './booking.js';
+import { occupiesIssues, occupiesSchema } from './occupies.js';
 import { capacityIssues, capacitySchema, isLegacyCapacity, kindOf, rulesOf, viaIndexIssues, type Capacity } from './capacity.js';
 import { appDocumentIssues, appDocumentSchema, mappingIssues, type AppDocument } from './documents.js';
 import { formulaColumns, formulaExprSchema, tableFormulaIssues } from './formula.js';
@@ -908,6 +909,8 @@ export const requiredTableSchema = z
     capacity: capacitySchema.optional(),
     /** Booking people: no two counted rows of one resource may overlap (see `booking.ts`). */
     booking: bookingSchema.optional(),
+    /** A row takes a resource for a time: no two overlap, and it lies within the resource's hours (see `occupies.ts`). */
+    occupies: occupiesSchema.optional(),
     /** States, the moves between them, locks and no-delete (see `states.ts`). */
     states: statesSchema.optional(),
     /**
@@ -2580,6 +2583,12 @@ export function appReferenceIssues(
       // The late flag is Adminium's to set.
       if (table.booking.cancel?.flag !== undefined) decide(table.ref, table.booking.cancel.flag);
     }
+    if (table.occupies !== undefined) {
+      out.push(...occupiesIssues(table, table.occupies, index, at));
+      // One lock a write: a table's rows are placed by one of the three rules, never two.
+      if (table.booking !== undefined) out.push({ path: at('occupies'), message: 'a table carries "booking" or "occupies", not both' });
+      if (table.capacity !== undefined) out.push({ path: at('occupies'), message: 'a table carries "capacity" or "occupies", not both' });
+    }
     out.push(...tableFormulaIssues(table.columns, (c, ...rest) => at('columns', c, ...rest)));
     if (table.states !== undefined) {
       out.push(
@@ -2594,7 +2603,7 @@ export function appReferenceIssues(
             decided: (column) => decided.get(table.ref)?.has(column) === true,
             bookingCancel: table.booking?.cancel === undefined ? undefined : table.booking.cancel.when,
             statesOf: (ref) => tables.get(ref)?.states,
-            bookedOf: (ref) => tables.get(ref)?.booking !== undefined,
+            bookedOf: (ref) => tables.get(ref)?.booking !== undefined || tables.get(ref)?.occupies !== undefined,
             lineOf: (ref) => [...tables.values()].find((other) => other.states?.children?.[ref] !== undefined)?.ref,
             outboxTable: m.outbox?.table,
             pages: new Set((m.pages ?? []).flatMap((page) => ('ref' in page && typeof page.ref === 'string' ? [page.ref] : []))),
@@ -2775,7 +2784,7 @@ function settingTableIssues(m: {
     if (ref === settingsTable || ref === m.addOn?.settingsTable) return true;
     const table = tables.find((t) => t.ref === ref);
     if (table === undefined) return true; // a table the manifest lacks is refused where the rule is checked
-    if (table.states !== undefined || table.capacity !== undefined || table.booking !== undefined) return false;
+    if (table.states !== undefined || table.capacity !== undefined || table.booking !== undefined || table.occupies !== undefined) return false;
     if (table.columns.some((column) => column.type === 'fk')) return false;
     return !tables.some((other) => other.columns.some((column) => column.type === 'fk' && column.references === ref));
   };
@@ -3075,6 +3084,7 @@ export interface RequiredTableShape {
   }[];
   capacity?: Capacity | undefined;
   booking?: z.infer<typeof bookingSchema> | undefined;
+  occupies?: z.infer<typeof occupiesSchema> | undefined;
   states?: States | undefined;
   builtOn?: string | undefined;
   postings?: z.infer<typeof postingsSchema> | undefined;
@@ -3297,6 +3307,7 @@ export function installsLikeAnApp(m: Manifest): boolean {
       table.states !== undefined ||
       table.capacity !== undefined ||
       table.booking !== undefined ||
+      table.occupies !== undefined ||
       table.unique !== undefined ||
       table.indexes !== undefined ||
       table.postings !== undefined ||

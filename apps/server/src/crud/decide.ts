@@ -100,13 +100,19 @@ function yes(table: ResolvedTable, column: string): true | 1 {
 
 const has = (values: Row, column: string) => Object.prototype.hasOwnProperty.call(values, column);
 
+/** The booking rule that asks about a late cancellation; a plain rule (a resource and a time) has none. */
+const lateRule = (rules: TableRules | null): TableBookingRule | undefined => {
+  const rule = rules?.booking;
+  return rule !== undefined && !('plain' in rule) && rule.cancel !== undefined ? rule : undefined;
+};
+
 /**
  * Whether a rule on this table needs the stored row before it can decide —
  * or work a formula out: a change of `qty` alone still needs the `rate`.
  */
 export function needsStored(rules: TableRules | null): boolean {
   return (
-    rules?.booking?.cancel !== undefined ||
+    lateRule(rules) !== undefined ||
     [...(rules?.stamps ?? []), ...(rules?.seals ?? [])].some((stamp) => stamp.on !== 'create') ||
     (rules?.formulas?.length ?? 0) > 0 ||
     // A price by the night reads the stay's other dates and its rate's link.
@@ -139,7 +145,8 @@ export async function decideRow(
   if (rules === null || action === 'delete' || HISTORY.has(context.origin)) return values;
   if (action === 'update' && before === null) return values;
   let out = values;
-  if (action === 'update' && rules.booking?.cancel !== undefined) out = await decideLate(rules.booking, out, before!, context);
+  const late = lateRule(rules);
+  if (action === 'update' && late !== undefined) out = await decideLate(late, out, before!, context);
   if (action === 'update' && (rules.states?.late?.length ?? 0) > 0) out = await decideStatesLate(rules, out, before!, context);
   // A move marked undo keeps the stamps of the state it returns to, and empties those marked clearOnBack of the one it leaves.
   const undo = action === 'update' ? undoMoveOf(rules.states, before, out) : null;

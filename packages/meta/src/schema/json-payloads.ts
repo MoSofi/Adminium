@@ -1327,6 +1327,26 @@ export const overridePatchSchema = z.discriminatedUnion('op', [
    * the installer maps an app's short names to the real ones before it writes
    * the rule, so the guard never reads a table by a name that does not exist.
    */
+  /*
+   * A row takes a resource for a time (`table.occupies`): no two counted rows
+   * of one resource overlap, and with `hours` the row lies within the
+   * resource's own week. The hours table is its id in the snapshot.
+   */
+  z.object({
+    op: z.literal('table.occupies'),
+    value: z
+      .object({
+        resource: bookingName,
+        start: bookingName.optional(),
+        minutes: bookingName.optional(),
+        end: bookingName.optional(),
+        day: bookingName.optional(),
+        countWhere: z.object({ column: bookingName, values: z.array(z.string().min(1)).min(1) }).strict().optional(),
+        shared: z.literal(true).optional(),
+        hours: z.object({ table: bookingTable, resource: bookingName, weekday: bookingName, opens: bookingName.optional(), closes: bookingName.optional() }).strict().optional(),
+      })
+      .strict(),
+  }),
   z.object({
     op: z.literal('table.booking'),
     value: z.object({

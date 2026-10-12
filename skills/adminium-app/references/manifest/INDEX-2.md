@@ -4,6 +4,7 @@
 
 | File | What it covers | Bytes |
 |---|---|---|
+| `references/manifest/add-on-manifests--shapes.md` | Add-on manifests — Shapes | 2541 |
 | `references/manifest/add-on-manifests--steps-for-automations.md` | Add-on manifests — Steps for Automations | 2669 |
 | `references/manifest/add-on-manifests--what-an-add-on-tells-the-assistant.md` | Add-on manifests — What an add-on tells the assistant | 1646 |
 | `references/manifest/add-on-manifests--stock-words.md` | Add-on manifests — Stock words | 2389 |

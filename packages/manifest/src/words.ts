@@ -84,6 +84,7 @@ export const INSTALL_FLOOR_WORD_NAMES = [
   'sampleData.addOns',
   'sampleData.people',
   'app.seeds',
+  'table.occupies',
   'email.onlyWith',
   'email.onlyWithout',
   'outbox.pages.app',
@@ -137,6 +138,8 @@ export const WORD_FLOORS: Readonly<Partial<Record<ManifestWordName, string>>> = 
   'sampleData.people': '0.3.27',
   // An app's starting rows: written once by its install, into tables that are still empty.
   'app.seeds': '0.3.27',
+  // A row takes a resource for a time: no two overlap, within the resource's hours.
+  'table.occupies': '0.3.27',
 };
 
 /** Every word of `document` that needs the install floor, in document order. */
@@ -191,6 +194,7 @@ export function installFloorWords(document: unknown): ManifestWord[] {
     if (table['adjust'] !== undefined) out.push({ word: 'table.adjust', path: `${at}.adjust` });
     if (table['belongs'] !== undefined) out.push({ word: 'table.belongs', path: `${at}.belongs` });
     if (table['private'] !== undefined) out.push({ word: 'table.private', path: `${at}.private` });
+    if (table['occupies'] !== undefined) out.push({ word: 'table.occupies', path: `${at}.occupies` });
     if (isDoc(table['states']) && table['states']['actions'] !== undefined) out.push({ word: 'states.actions', path: `${at}.states.actions` });
     list(isDoc(table['states']) ? table['states']['actions'] : undefined).forEach((action, a) => {
       if (isDoc(action) && action['handOver'] !== undefined) out.push({ word: 'states.handOver', path: `${at}.states.actions.${String(a)}.handOver` });

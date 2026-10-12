@@ -74,7 +74,7 @@ import { installedShapes } from '../documents/app-profiles.js';
 import { ownsBlocks } from './owns-blocks.js';
 import { canonicalJson } from './sample-data.js';
 import { mapTableRefs } from './real-refs.js';
-import { adjustRuleIssue, belongsRuleIssue, bookingRuleIssue, capacityRuleIssue, columnRuleIssue, keptColumnIssue, postingsRuleIssue, statesRuleIssue } from '../connections/column-rules-validation.js';
+import { adjustRuleIssue, belongsRuleIssue, bookingRuleIssue, occupiesRuleIssue, capacityRuleIssue, columnRuleIssue, keptColumnIssue, postingsRuleIssue, statesRuleIssue } from '../connections/column-rules-validation.js';
 import { applyOverrides, columnsShown } from '../connections/effective-schema.js';
 import { ValidationFailedError } from '../errors.js';
 import { shareCodesOn, type ShareCodes } from '../public-api/share-codes.js';
@@ -116,6 +116,7 @@ export type RuleOp =
   | 'table.private'
   | 'table.capacity'
   | 'table.booking'
+  | 'table.occupies'
   | 'table.states'
   | 'table.postings'
   | 'table.adjust'
@@ -125,7 +126,7 @@ export type RuleOp =
 /** Ops that name things rather than rule a write: no column-rule check applies. */
 const NAMING_OPS: ReadonlySet<RuleOp> = new Set(['column.label', 'column.yesNo', 'table.label', 'table.keyField']);
 /** Ops that belong to the table, not one of its columns. */
-const TABLE_OPS: ReadonlySet<RuleOp> = new Set(['table.capacity', 'table.booking', 'table.states', 'table.postings', 'table.adjust', 'table.belongs', 'table.private', 'table.label', 'table.keyField']);
+const TABLE_OPS: ReadonlySet<RuleOp> = new Set(['table.capacity', 'table.booking', 'table.occupies', 'table.states', 'table.postings', 'table.adjust', 'table.belongs', 'table.private', 'table.label', 'table.keyField']);
 
 interface DesiredRule {
   /** Written only on a table this app created, and silently left out elsewhere (Adminium asks it, not the manifest). */
@@ -260,16 +261,18 @@ export function opsForRules(appKey: string, rules: ColumnRules): { op: RuleOp; v
 export function tableOpsFor(table: {
   capacity?: unknown;
   booking?: unknown;
+  occupies?: unknown;
   states?: unknown;
   postings?: readonly object[] | undefined;
   adjust?: unknown;
   belongs?: readonly object[] | undefined;
   private?: true | undefined;
-}): { op: 'table.capacity' | 'table.booking' | 'table.states' | 'table.postings' | 'table.adjust' | 'table.belongs' | 'table.private'; value: Record<string, unknown> }[] {
+}): { op: 'table.capacity' | 'table.booking' | 'table.occupies' | 'table.states' | 'table.postings' | 'table.adjust' | 'table.belongs' | 'table.private'; value: Record<string, unknown> }[] {
   const out: ReturnType<typeof tableOpsFor> = [];
   for (const [op, value] of [
     ['table.capacity', table.capacity],
     ['table.booking', table.booking],
+    ['table.occupies', table.occupies],
     ['table.states', table.states],
     // The table's postings are one rule: `{postings}`, each kept as the manifest spells it.
     ['table.postings', table.postings === undefined ? undefined : { postings: table.postings.map((posting) => ({ ...posting })) }],
@@ -739,12 +742,14 @@ export async function writeManifestRules(input: {
         judged(issue);
         return;
       }
-    } else if (rule.op === 'table.capacity' || rule.op === 'table.booking' || rule.op === 'table.states' || rule.op === 'table.postings' || rule.op === 'table.adjust') {
+    } else if (rule.op === 'table.capacity' || rule.op === 'table.booking' || rule.op === 'table.occupies' || rule.op === 'table.states' || rule.op === 'table.postings' || rule.op === 'table.adjust') {
       const check =
         rule.op === 'table.capacity'
           ? capacityRuleIssue
           : rule.op === 'table.booking'
             ? bookingRuleIssue
+            : rule.op === 'table.occupies'
+              ? occupiesRuleIssue
             : rule.op === 'table.postings'
               ? postingsRuleIssue
               : rule.op === 'table.adjust'
@@ -757,7 +762,7 @@ export async function writeManifestRules(input: {
       }
     } else if (!NAMING_OPS.has(rule.op) && rule.op !== 'column.enumLabels' && rule.op !== 'column.pii' && rule.op !== 'column.secret' && column !== undefined) {
       const issue = columnRuleIssue(
-        rule.op as Exclude<RuleOp, 'column.enumLabels' | 'column.pii' | 'column.secret' | 'column.label' | 'column.yesNo' | 'table.capacity' | 'table.booking' | 'table.states' | 'table.postings' | 'table.adjust' | 'table.belongs' | 'table.private' | 'table.label' | 'table.keyField'>,
+        rule.op as Exclude<RuleOp, 'column.enumLabels' | 'column.pii' | 'column.secret' | 'column.label' | 'column.yesNo' | 'table.capacity' | 'table.booking' | 'table.occupies' | 'table.states' | 'table.postings' | 'table.adjust' | 'table.belongs' | 'table.private' | 'table.label' | 'table.keyField'>,
         rule.value,
         column,
         model,

@@ -65,6 +65,7 @@ import type {
   StateParent,
   TableStatesRule,
   TableBookingRule,
+  TableOccupiesRule,
   TableCapacityRule,
   EffectiveCapacityRule,
   TablePosting,
@@ -375,6 +376,11 @@ export interface RollupInto {
   climbs: RollupInto[];
 }
 
+/** A table's plain guard, as the write service carries it where a booking rule would be. */
+export interface PlainBooking {
+  plain: TableOccupiesRule;
+}
+
 export interface TableRules {
   fills: ColumnFill[];
   checks: ColumnCheck[];
@@ -474,7 +480,7 @@ export interface TableRules {
   /** Limits of other tables whose rows belong to this table's rows (an order's tickets): its changes may move them. */
   capacityOwners?: OwnedRule[];
   /** Booking people on this table: no overlap per resource. */
-  booking?: TableBookingRule;
+  booking?: TableBookingRule | PlainBooking;
   /** Columns whose zone-less wall times are read on the venue's clock. */
   venueLocal?: string[];
   /** The column priced night by night, and where its rate and adjustments are read. */
@@ -851,7 +857,9 @@ export function tableRulesFor(target: { view: SnapshotView; table: ResolvedTable
   const capacityRules = target.table.table?.capacityRules;
   // A hand-built target may carry no model: nothing belongs to its rows.
   const capacityOwners = target.view?.model === undefined || target.table.table === undefined ? [] : ownedRules(target.view, target.table);
-  const booking = target.table.table?.booking;
+  // One guard a table: the booking of people, or the plain rule (`occupies`), run by the same lock and the same steps.
+  const occupies = target.table.table?.occupies;
+  const booking: TableBookingRule | PlainBooking | undefined = target.table.table?.booking ?? (occupies === undefined ? undefined : { plain: occupies });
   // A copy through a link another copy fills runs after that copy.
   orderCopies(copies);
   const decided = copies.length + sequences.length + codes.length + stamps.length > 0;
