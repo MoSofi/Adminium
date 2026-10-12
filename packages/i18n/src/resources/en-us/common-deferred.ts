@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * GENERATED MIRROR of ../../../locales/en-US/common.json (its builder, kb, about, team groups: en-US's deferred part of `common`) — do not edit by hand.
+ * GENERATED MIRROR of ../../../locales/en-US/common.json (its builder, kb, about, team, quietHours groups: en-US's deferred part of `common`) — do not edit by hand.
  * The JSON file is the canonical hand-authored bundle;
  * this TS mirror exists so the runtime can bundle a namespace (en-US's eager
  * ones) or chunk-split it (every other locale, and en-US's deferred `studio`)
@@ -575,5 +575,22 @@ export default {
       "sample": "{name} (sample)",
       "add": "Add"
     }
+  },
+  "quietHours": {
+    "title": "Quiet hours and summaries",
+    "help": "In your quiet hours a notice still shows in the bell, without a sound or a pop-up, and its email waits until the hours end. Something marked urgent reaches you at once.",
+    "zone": "Your time zone",
+    "zoneDefault": "The business’s ({zone})",
+    "none": "No quiet hours",
+    "from": "Quiet from, {day}",
+    "until": "until",
+    "to": "Quiet until, {day}",
+    "nextDay": "the next day",
+    "daySwitch": "Quiet hours on {day}",
+    "copy": "Copy {day}’s hours to every day",
+    "digestDay": "Send my summaries on",
+    "digestWhenRun": "The day each one is made",
+    "digestTime": "At",
+    "always": "Always tell me, also in quiet hours"
   }
 } as const;

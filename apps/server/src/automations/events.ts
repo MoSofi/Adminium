@@ -84,11 +84,19 @@ export function scheduleOccurrenceKey(input: {
   pk: Row | null;
   /** Omitted when the rule says "once per record". */
   tick?: number | undefined;
+  /** "Once per spell": the number of the spell the row is in, from 1. One run a spell. */
+  spell?: number | undefined;
 }): string {
   const subject =
     input.table === null || input.pk === null ? 'tick' : pkKey(input.table, input.pk);
   const base = `${input.ruleId}:${subject}`;
+  if (input.spell !== undefined) return capKey(`${base}:s${String(input.spell)}`);
   return capKey(input.tick === undefined ? base : `${base}:${input.tick}`);
+}
+
+/** A row's key in a rule's list of spells: its primary key, as a run's own key spells it. */
+export function spellRowKey(table: ResolvedTable, pk: Row): string {
+  return capKey(pkKey(table, pk));
 }
 
 const BARE_DAY = /^(\d{4})-(\d{2})-(\d{2})$/;

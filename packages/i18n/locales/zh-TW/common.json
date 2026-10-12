@@ -127,7 +127,8 @@
       "openStaff": "開啟員工畫面",
       "openStaffInstance": "開啟員工畫面 · {instance}"
     },
-    "drawerTitle": "導覽"
+    "drawerTitle": "導覽",
+    "emptyPartsOff": "目前沒有為你開啟的內容。請聯絡管理員。"
   },
   "apps": {
     "frame": {
@@ -295,6 +296,15 @@
       "title": "此應用程式在獨立的位址開啟",
       "body": "它在自己的位址開啟，而不是在儀表板內。",
       "primary": "開啟"
+    },
+    "partOff": {
+      "title": "應用程式的這個部分已關閉",
+      "body": "管理員關閉了應用程式的這個部分。沒有刪除任何內容——請在「工作室 → 應用程式」的「組成部分」中重新開啟。",
+      "secondary": "返回"
+    },
+    "partsOff": {
+      "title": "目前沒有為你開啟的內容",
+      "body": "你擁有的每個角色都屬於某個應用程式中目前已關閉的部分。沒有刪除任何內容。請讓管理員開啟該部分，或為你指派其他角色。"
     }
   },
   "notFound": {
@@ -1528,7 +1538,9 @@
     "event": {
       "reportReady": "排程報表已就緒",
       "reportFailed": "排程報表失敗",
-      "backupCompleted": "備份完成"
+      "backupCompleted": "備份完成",
+      "ruleNotice": "規則發出的通知",
+      "mention": "有人提到了我"
     }
   },
   "theme": {
@@ -1816,5 +1828,22 @@
       "unread": "1 則未讀回答",
       "proposal": "有一項變更等待你確認"
     }
+  },
+  "quietHours": {
+    "title": "勿擾時段與摘要",
+    "help": "在勿擾時段，通知仍會顯示在鈴鐺中，但不發出聲音、不彈出，其郵件會等到時段結束再傳送。標記為緊急的內容會立即送達。",
+    "zone": "你的時區",
+    "zoneDefault": "企業的時區（{zone}）",
+    "none": "無勿擾時段",
+    "from": "勿擾開始，{day}",
+    "until": "至",
+    "to": "勿擾結束，{day}",
+    "nextDay": "隔日",
+    "daySwitch": "{day}的勿擾時段",
+    "copy": "將{day}的時段複製到每一天",
+    "digestDay": "在以下日期傳送我的摘要",
+    "digestWhenRun": "各摘要產生的當天",
+    "digestTime": "時間",
+    "always": "一律通知我，即使在勿擾時段"
   }
 }

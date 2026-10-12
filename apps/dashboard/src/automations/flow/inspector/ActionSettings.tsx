@@ -20,7 +20,7 @@
  * `connectionId` is a prop: see `RecordSettings`.
  */
 
-import { ChipInput, Combobox, Input, Select, Textarea, type ComboboxOption } from '@adminium/ui';
+import { Button, ChipInput, Combobox, Input, Select, Switch, Textarea, type ComboboxOption } from '@adminium/ui';
 import { AtSign, CircleAlert, Columns3, Link2 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useId, useState, type ReactNode } from 'react';
@@ -29,7 +29,7 @@ import { t } from '../../../i18n/t.js';
 import { createCrudApi } from '../../../api/crud.js';
 import type { SourceStepInput, SourceTable, Sources } from '../../api.js';
 import { addOnNameOf, columnOfInput, inLanguage, inputMode, stepOf, type StepAction } from '../../model/addOnSteps.js';
-import type { Action, WriteValue } from '../../model/graph.js';
+import type { Action, DigestSection, WriteValue } from '../../model/graph.js';
 import { columnOfValue, holdsAddresses, linkedColumns, placeholderRows, templateOf, varsFor, type PlaceholderRow } from '../../model/placeholders.js';
 import { Card, Field } from './primitives.js';
 
@@ -54,6 +54,8 @@ export function ActionSettings(props: ActionSettingsProps): ReactNode {
       return <EmailSettings {...props} action={props.action} />;
     case 'notification':
       return <NotificationSettings {...props} action={props.action} />;
+    case 'digest':
+      return <DigestSettings {...props} action={props.action} />;
     case 'record.create':
       return <RecordSettings {...props} action={props.action} />;
     case 'record.update':
@@ -308,15 +310,21 @@ function EmailSettings({
             const kind = event.target.value;
             if (kind === 'field') onChange({ to: { kind: 'field', column: '' } });
             else if (kind === 'fixed') onChange({ to: { kind: 'fixed', addresses: [] } });
+            else if (kind === 'staff') onChange({ to: { kind: 'staff', column: '' } });
             else onChange({ to: null });
           }}
           data-testid="email-to-kind"
         >
           <option value="">{t('automations:email.to', 'To')}</option>
           <option value="field">{t('automations:email.toField', "This record's email")}</option>
+          <option value="staff">{t('automations:email.toStaff', 'The person on this record')}</option>
           <option value="fixed">{t('automations:email.toFixed', 'Addresses')}</option>
         </Select>
       </Field>
+
+      {to?.kind === 'staff' ? (
+        <StaffColumnField table={table} value={to.column} onChange={(column) => onChange({ to: { kind: 'staff', column } })} testId="email-to-staff" />
+      ) : null}
 
       {to?.kind === 'field' ? (
         <Field label={t('automations:email.column', 'Column')}>
@@ -501,13 +509,10 @@ function PlaceholderLine({
 
 // --- notification (D20) -----------------------------------------------------
 
-function NotificationSettings({
-  action,
-  sources,
-  onChange,
-}: ActionSettingsProps & { action: Extract<Action, { kind: 'notification' }> }): ReactNode {
+function NotificationSettings(props: ActionSettingsProps & { action: Extract<Action, { kind: 'notification' }> }): ReactNode {
+  const { action, sources, onChange } = props;
   const to = action.to;
-  const mode = to === null ? '' : 'roles' in to ? 'roles' : 'users';
+  const mode = to === null ? '' : 'roles' in to ? 'roles' : 'column' in to ? 'column' : 'users';
   return (
     <Card title={t('automations:pick.notification', 'Send notification')}>
       <Field label={t('automations:notif.to', 'Send to')}>
@@ -517,15 +522,21 @@ function NotificationSettings({
             const next = event.target.value;
             if (next === 'roles') onChange({ to: { roles: [] } });
             else if (next === 'users') onChange({ to: { users: [] } });
+            else if (next === 'column') onChange({ to: { column: '' } });
             else onChange({ to: null });
           }}
           data-testid="notif-mode"
         >
           <option value="">{t('automations:notif.to', 'Send to')}</option>
+          <option value="column">{t('automations:notif.column', 'The person on this record')}</option>
           <option value="roles">{t('automations:notif.roles', 'Everyone with a role')}</option>
           <option value="users">{t('automations:notif.users', 'Specific people')}</option>
         </Select>
       </Field>
+
+      {to !== null && 'column' in to ? (
+        <StaffColumnField table={props.table} value={to.column} onChange={(column) => onChange({ to: { column } })} testId="notif-column" />
+      ) : null}
 
       {to !== null && 'roles' in to ? (
         <Field label={t('automations:notif.roles', 'Everyone with a role')}>
@@ -567,6 +578,163 @@ function NotificationSettings({
           data-testid="notif-body"
         />
       </Field>
+      <div className="flex items-center gap-3 rounded-[11px] border border-border bg-surface px-3.5 py-3">
+        <div className="flex-1">
+          <div className="text-[12.5px] font-semibold">{t('automations:notif.urgent', 'Urgent')}</div>
+          <div className="mt-0.5 text-[11px] text-fg-subtle">{t('automations:notif.urgentBody', 'Told at once, also in a person’s quiet hours')}</div>
+        </div>
+        <Switch
+          checked={action.urgent === true}
+          onCheckedChange={(checked) => onChange({ urgent: checked ? true : undefined } as Partial<Action>)}
+          aria-label={t('automations:notif.urgent', 'Urgent')}
+          data-testid="notif-urgent"
+        />
+      </div>
+    </Card>
+  );
+}
+
+/** The staff columns a step may tell: this table's own, then the ones a link leads to. */
+export function staffColumnOptions(table: SourceTable | null): { value: string; label: string }[] {
+  if (table === null) return [];
+  const own = table.columns.filter((column) => column.staff === true).map((column) => ({ value: column.name, label: column.label }));
+  const linked = (table.links ?? []).flatMap((link) => {
+    const through = table.columns.find((column) => column.name === link.column)?.label ?? link.column;
+    return link.columns.filter((column) => column.staff === true).map((column) => ({ value: `${link.column}.${column.name}`, label: `${through} → ${column.label}` }));
+  });
+  return [...own, ...linked];
+}
+
+/** Which person of the record a step tells: one of its staff columns. An empty one tells nobody, and the run says so. */
+function StaffColumnField({ table, value, onChange, testId }: { table: SourceTable | null; value: string; onChange: (column: string) => void; testId: string }): ReactNode {
+  const options = staffColumnOptions(table);
+  return (
+    <Field label={t('automations:notif.columnPick', 'Which person')}>
+      <Select value={value} onChange={(event) => onChange(event.target.value)} data-testid={testId}>
+        <option value="">{t('automations:notif.columnChoose', 'Choose a column…')}</option>
+        {/* A column the step already names stays listed, whatever the table says of it now. */}
+        {value !== '' && !options.some((option) => option.value === value) ? <option value={value}>{value}</option> : null}
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </Select>
+      {options.length === 0 ? (
+        <p className="mt-1 text-[11px] leading-[1.45] text-fg-subtle" data-testid={`${testId}-none`}>
+          {t('automations:notif.columnNone', 'This table has no column that holds a staff member.')}
+        </p>
+      ) : (
+        <p className="mt-1 text-[11px] leading-[1.45] text-fg-subtle">{t('automations:notif.columnEmpty', 'A record with nobody in that column tells nobody, and the run says so.')}</p>
+      )}
+    </Field>
+  );
+}
+
+// --- a summary for each person ----------------------------------------------
+
+function DigestSettings({ action, sources, connectionId, onChange }: ActionSettingsProps & { action: Extract<Action, { kind: 'digest' }> }): ReactNode {
+  const tables = (sources?.connections.find((row) => row.id === connectionId) ?? sources?.connections[0] ?? null)?.tables ?? [];
+  const setSections = (sections: DigestSection[]): void => onChange({ sections } as Partial<Action>);
+  const patch = (index: number, change: Partial<DigestSection>): void => setSections(action.sections.map((section, i) => (i === index ? { ...section, ...change } : section)));
+  return (
+    <Card title={t('automations:pick.digest', 'Send each person a summary')}>
+      <p className="text-[11px] leading-[1.5] text-fg-subtle">
+        {t('automations:digest.help', 'One email for each person, listing only the rows that are theirs and that they may read. It is sent at the time each person chose for summaries, or when the rule runs.')}
+      </p>
+      <Field label={t('automations:email.template', 'Template')}>
+        <Select value={action.templateKey ?? ''} onChange={(event) => onChange({ templateKey: event.target.value === '' ? null : event.target.value } as Partial<Action>)} data-testid="digest-template">
+          <option value="">{t('automations:email.template', 'Template')}</option>
+          {(sources?.templates ?? []).map((template) => (
+            <option key={template.key} value={template.key}>
+              {template.name}
+            </option>
+          ))}
+        </Select>
+      </Field>
+      <Field label={t('automations:notif.roles', 'Everyone with a role')}>
+        <Select
+          multiple
+          value={action.to?.roles ?? []}
+          onChange={(event) => onChange({ to: { roles: [...event.target.selectedOptions].map((option) => option.value) } } as Partial<Action>)}
+          data-testid="digest-roles"
+        >
+          {(sources?.roles ?? []).map((role) => (
+            <option key={role.id} value={role.id}>
+              {role.name}
+            </option>
+          ))}
+        </Select>
+      </Field>
+      {action.sections.map((section, index) => {
+        const of = tables.find((row) => row.id === section.table) ?? null;
+        return (
+          <div key={index} className="flex flex-col gap-2 rounded-[11px] border border-border bg-surface px-3 py-2.5" data-testid={`digest-section-${String(index)}`}>
+            <Field label={t('automations:digest.sectionKey', 'Section name (the template’s rows block names it)')}>
+              <Input value={section.key} onChange={(event) => patch(index, { key: event.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-') })} data-testid={`digest-key-${String(index)}`} />
+            </Field>
+            <Field label={t('automations:rec.table', 'Table')}>
+              <Select value={section.table} onChange={(event) => patch(index, { table: event.target.value, owner: '', where: [], orderBy: null })} data-testid={`digest-table-${String(index)}`}>
+                <option value="">{t('automations:digest.chooseTable', 'Choose a table…')}</option>
+                {tables
+                  .filter((row) => row.canRead && row.columns.some((column) => column.staff === true))
+                  .map((row) => (
+                    <option key={row.id} value={row.id}>
+                      {row.label}
+                    </option>
+                  ))}
+              </Select>
+            </Field>
+            <Field label={t('automations:digest.owner', 'Rows where this person is')}>
+              <Select value={section.owner} onChange={(event) => patch(index, { owner: event.target.value })} data-testid={`digest-owner-${String(index)}`}>
+                <option value="">{t('automations:notif.columnChoose', 'Choose a column…')}</option>
+                {(of?.columns ?? [])
+                  .filter((column) => column.staff === true)
+                  .map((column) => (
+                    <option key={column.name} value={column.name}>
+                      {column.label}
+                    </option>
+                  ))}
+              </Select>
+            </Field>
+            {section.where.length === 0 ? null : (
+              <p className="text-[11px] leading-[1.45] text-fg-subtle" data-testid={`digest-where-${String(index)}`}>
+                {t('automations:digest.conditions', '{count, plural, one {And # more condition, kept as it is.} other {And # more conditions, kept as they are.}}', { count: section.where.length })}
+              </p>
+            )}
+            <Field label={t('automations:digest.limit', 'At most this many rows')}>
+              <Input
+                type="number"
+                min={1}
+                max={50}
+                value={String(section.limit)}
+                onChange={(event) => patch(index, { limit: Math.min(50, Math.max(1, Math.trunc(Number(event.target.value) || 1))) })}
+                data-testid={`digest-limit-${String(index)}`}
+              />
+            </Field>
+            <Button variant="ghost" size="sm" onClick={() => setSections(action.sections.filter((_, i) => i !== index))} data-testid={`digest-remove-${String(index)}`}>
+              {t('automations:digest.removeSection', 'Remove this section')}
+            </Button>
+          </div>
+        );
+      })}
+      {action.sections.length >= 6 ? null : (
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={() => setSections([...action.sections, { key: `section-${String(action.sections.length + 1)}`, table: '', owner: '', where: [], orderBy: null, limit: 20 }])}
+          data-testid="digest-add"
+        >
+          {t('automations:digest.addSection', 'Add a section')}
+        </Button>
+      )}
+      <div className="flex items-center gap-3 rounded-[11px] border border-border bg-surface px-3.5 py-3">
+        <div className="flex-1">
+          <div className="text-[12.5px] font-semibold">{t('automations:digest.sendEmpty', 'Send when there is nothing to list')}</div>
+          <div className="mt-0.5 text-[11px] text-fg-subtle">{t('automations:digest.sendEmptyBody', 'Off: a person with no row in any section gets no email')}</div>
+        </div>
+        <Switch checked={action.sendEmpty} onCheckedChange={(checked) => onChange({ sendEmpty: checked } as Partial<Action>)} aria-label={t('automations:digest.sendEmpty', 'Send when there is nothing to list')} data-testid="digest-send-empty" />
+      </div>
     </Card>
   );
 }
@@ -625,6 +793,25 @@ function RecordSettings({
             placeholder={t('automations:modal.tablePlaceholder', 'Search tables…')}
             emptyText={t('automations:modal.tableEmpty', 'No matching table')}
           />
+        </Field>
+      ) : null}
+
+      {isCreate ? (
+        <Field label={t('automations:rec.name', 'Name of the new row, for later steps (optional)')}>
+          <Input
+            value={action.kind === 'record.create' ? (action.name ?? '') : ''}
+            placeholder="deal"
+            onChange={(event) => {
+              const name = event.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '_').replace(/^[^a-z]+/, '').slice(0, 40);
+              onChange({ name: name === '' ? undefined : name } as Partial<Action>);
+            }}
+            data-testid="rec-name"
+          />
+          {action.kind === 'record.create' && action.name !== undefined ? (
+            <p className="mt-1 text-[11px] leading-[1.45] text-fg-subtle" data-testid="rec-name-hint">
+              {t('automations:rec.nameHint', 'A later step reads it as {token}', { token: `{{steps.${action.name}.column}}` })}
+            </p>
+          ) : null}
         </Field>
       ) : null}
 

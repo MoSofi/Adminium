@@ -21,6 +21,7 @@
  * can explain before it asks. This is the authority; that is the courtesy.
  */
 
+import { stepRowProblems } from './step-rows.js';
 import { placeholdersIn } from '@adminium/manifest';
 import type {
   AutomationAction,
@@ -105,10 +106,13 @@ export function isActionComplete(action: AutomationAction): boolean {
     case 'email':
       if (action.templateKey === null || action.templateKey === '') return false;
       if (action.to === null) return false;
-      return action.to.kind === 'field' ? action.to.column !== '' : action.to.addresses.length > 0;
+      return action.to.kind === 'fixed' ? action.to.addresses.length > 0 : action.to.column !== '';
     case 'notification':
       if (action.to === null || action.title.trim() === '') return false;
-      return 'users' in action.to ? action.to.users.length > 0 : action.to.roles.length > 0;
+      return 'users' in action.to ? action.to.users.length > 0 : 'column' in action.to ? action.to.column !== '' : action.to.roles.length > 0;
+    case 'digest':
+      if (action.templateKey === null || action.templateKey === '' || action.to === null || action.to.roles.length === 0 || action.sections.length === 0) return false;
+      return action.sections.every((section) => section.table !== '' && section.owner !== '' && section.where.every(isConditionComplete));
     case 'record.create':
       return action.table !== null && action.table !== '' && Object.keys(action.values).length > 0;
     case 'record.update':
@@ -204,6 +208,22 @@ function relatedColumn(table: ResolvedTable, ref: RelatedRef, ctx: ResolveContex
   return { target: target.table, column };
 }
 
+/**
+ * The staff column a step tells: the record's own (`owner_id`), or one of the
+ * row a link of it names (`deal_id.owner_id`). Read as the author reads the
+ * schema, and it must hold a staff member: any other column names nobody.
+ */
+function staffColumn(path: string, table: ResolvedTable | null, ctx: ResolveContext, where: string): void {
+  if (table === null) throw new ValidationFailedError(`${where}: this rule has no record, so there is no person on it to tell. ${NO_RECORD_REMEDY}`, {});
+  const related = parseRelated(path);
+  const of = related === null ? table : relatedColumn(table, related, ctx, where).target;
+  const name = related === null ? path : related.column;
+  if (related === null && readColumn(table, path, where) === undefined) throw new ValidationFailedError(`${where}: ${table.id} has no column ${path}.`, { column: path });
+  if (of.table.columns.find((column) => column.name === name)?.staff !== true) {
+    throw new ValidationFailedError(`${where}: ${of.id}.${name} does not hold a staff member, so it names nobody to tell.`, { column: path, reason: 'not-staff' });
+  }
+}
+
 /** A typed address, as a mail server would take it: one @, something on both sides, a dot after it, no spaces. */
 const ADDRESS = /^[^\s@,;<>]+@[^\s@,;<>]+\.[^\s@,;<>]+$/;
 
@@ -269,6 +289,7 @@ function checkAction(
           { templateKey: action.templateKey },
         );
       }
+      if (action.to?.kind === 'staff' && action.to.column !== '') staffColumn(action.to.column, table, ctx, where);
       if (action.to?.kind === 'field' && action.to.column !== '') {
         if (table === null) {
           throw new ValidationFailedError(
@@ -287,6 +308,37 @@ function checkAction(
         const wrong = action.to.addresses.map((address) => address.trim()).find((address) => address !== '' && !ADDRESS.test(address));
         if (wrong !== undefined) {
           throw new ValidationFailedError(`${where}: “${wrong}” is not an email address.`, { address: wrong, reason: 'not-an-address' });
+        }
+      }
+      return;
+    }
+    case 'notification': {
+      if (action.to !== null && 'column' in action.to && action.to.column !== '') staffColumn(action.to.column, table, ctx, where);
+      return;
+    }
+    case 'digest': {
+      if (action.templateKey !== null && action.templateKey !== '' && !ctx.templateKeys.has(action.templateKey)) {
+        throw new ValidationFailedError(`${where}: there is no live email template with the key ${action.templateKey}.`, { templateKey: action.templateKey });
+      }
+      const keys = new Set<string>();
+      for (const section of action.sections) {
+        if (keys.has(section.key)) throw new ValidationFailedError(`${where}: two sections are called "${section.key}".`, { section: section.key });
+        keys.add(section.key);
+        if (section.table === '') continue;
+        // Read as the rule's author reads it: a table or a column they are not shown is not theirs to list for others.
+        const of = tableOrThrow(ctx, section.table, `${where}, section "${section.key}"`);
+        if (section.owner !== '') {
+          if (readColumn(of, section.owner, where) === undefined) throw new ValidationFailedError(`${where}: ${of.id} has no column ${section.owner}.`, { column: section.owner });
+          if (of.table.columns.find((column) => column.name === section.owner)?.staff !== true) {
+            throw new ValidationFailedError(`${where}: ${of.id}.${section.owner} does not hold a staff member, so a section cannot list "the rows that are this person's" by it.`, { column: section.owner, reason: 'not-staff' });
+          }
+        }
+        for (const condition of section.where) {
+          if ('count' in condition.left) throw new ValidationFailedError(`${where}: a section's conditions are read by the database, and cannot count other rows.`, { table: of.id });
+          checkCondition(condition, of, ctx, `${where}, section "${section.key}"`);
+        }
+        if (section.orderBy !== null && readColumn(of, section.orderBy.column, where) === undefined) {
+          throw new ValidationFailedError(`${where}: ${of.id} has no column ${section.orderBy.column}.`, { column: section.orderBy.column });
         }
       }
       return;
@@ -351,8 +403,6 @@ function checkAction(
       }
       return;
     }
-    case 'notification':
-      return;
     case 'add-on.step': {
       // Unfinished is allowed to be saved, and so is a step whose add-on is gone or off: the
       // step keeps its settings, the rule cannot be switched on (`firstIncompleteNode`), and
@@ -459,7 +509,7 @@ export function resolveRule(
     for (const condition of trigger.when ?? []) checkCondition(condition, table, ctx, 'The trigger');
   } else if (trigger.forEach !== undefined) {
     table = tableOrThrow(ctx, trigger.forEach.table, 'The schedule');
-    if (trigger.forEach.once && trigger.forEach.where.length === 0) {
+    if (trigger.forEach.once !== false && trigger.forEach.where.length === 0) {
       // "Once per record" over an unfiltered table fires for every row of the
       // table on the first tick and never again — never what anybody means.
       throw new ValidationFailedError(
@@ -483,6 +533,17 @@ export function resolveRule(
       checkCondition(node.condition, table, ctx, where);
     }
   }
+  // A row a step makes, read by a later one (`{{steps.deal.id}}`): made before it is read, and only what its author is shown.
+  const problem = stepRowProblems(graph, (name) => {
+    let made: ResolvedTable;
+    try {
+      made = tableOrThrow(ctx, name, '');
+    } catch {
+      return null;
+    }
+    return { id: made.id, readable: (column) => (!made.columns.has(column) ? 'none' : made.columns.get(column)!.unreadable === true || made.columns.get(column)!.secret || made.columns.get(column)!.masked ? 'hidden' : 'ok') };
+  })[0];
+  if (problem !== undefined) throw new ValidationFailedError(`Step “${problem.title}”: ${problem.message}`, { nodeId: problem.nodeId, reason: 'step-row' });
   // A placeholder that reaches through a link (`{{customer_id.name}}`): the link and the far
   // column must be there, and a protected column is no placeholder there either. A name whose
   // first half is no link is left alone: an unknown placeholder stays as written, as ever.

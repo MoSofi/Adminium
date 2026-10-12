@@ -137,7 +137,8 @@ export default {
       "openStaff": "Otevřít obrazovky pro personál",
       "openStaffInstance": "Otevřít obrazovky pro personál · {instance}"
     },
-    "drawerTitle": "Navigace"
+    "drawerTitle": "Navigace",
+    "emptyPartsOff": "Právě pro vás není nic zapnuto. Obraťte se na správce."
   },
   "apps": {
     "frame": {
@@ -305,6 +306,15 @@ export default {
       "title": "Tato aplikace se otevírá samostatně",
       "body": "Otevírá se na vlastní adrese, ne v dashboardu.",
       "primary": "Otevřít"
+    },
+    "partOff": {
+      "title": "Tato část aplikace je vypnutá",
+      "body": "Správce tuto část aplikace vypnul. Nic nebylo smazáno — zapněte ji ve Studiu → Aplikace, v oddílu Části.",
+      "secondary": "Zpět"
+    },
+    "partsOff": {
+      "title": "Nic pro vás není zapnuto",
+      "body": "Každá vaše role patří k části aplikace, která je právě vypnutá. Nic nebylo smazáno. Požádejte správce, aby tuto část zapnul nebo vám přidělil jinou roli."
     }
   },
   "notFound": {
@@ -1538,7 +1548,9 @@ export default {
     "event": {
       "reportReady": "Naplánovaná sestava připravena",
       "reportFailed": "Naplánovaná sestava selhala",
-      "backupCompleted": "Záloha dokončena"
+      "backupCompleted": "Záloha dokončena",
+      "ruleNotice": "Upozornění z pravidla",
+      "mention": "Někdo mě zmínil"
     }
   },
   "theme": {
@@ -1826,5 +1838,22 @@ export default {
       "unread": "1 nepřečtená odpověď",
       "proposal": "Čeká na vás změna"
     }
+  },
+  "quietHours": {
+    "title": "Doba klidu a souhrny",
+    "help": "V době klidu se upozornění stále zobrazí ve zvonku, bez zvuku a bez vyskakovacího okna, a jeho e-mail počká do konce klidu. Co je označeno jako naléhavé, se k vám dostane ihned.",
+    "zone": "Vaše časové pásmo",
+    "zoneDefault": "Firemní ({zone})",
+    "none": "Bez doby klidu",
+    "from": "Klid od, {day}",
+    "until": "do",
+    "to": "Klid do, {day}",
+    "nextDay": "následující den",
+    "daySwitch": "Doba klidu, {day}",
+    "copy": "Zkopírovat časy ze dne {day} na všechny dny",
+    "digestDay": "Posílat mé souhrny v",
+    "digestWhenRun": "V den, kdy se vytvoří",
+    "digestTime": "V",
+    "always": "Vždy mě upozornit, i v době klidu"
   }
 } as const;

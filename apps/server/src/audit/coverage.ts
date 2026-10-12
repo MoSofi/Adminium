@@ -144,6 +144,9 @@ export const AUDIT_COVERAGE: Readonly<Record<string, AuditMark>> = {
   'PUT /api/v1/me/notification-prefs': auditExempt(
     'The caller’s own delivery preferences — a per-user setting, not a workspace one.',
   ),
+  'PUT /api/v1/me/notification-schedule': auditExempt(
+    'The caller’s own delivery preferences — a per-user setting, not a workspace one.',
+  ),
   // routes/me-views/index.ts:12, verbatim: "Overrides are personal and
   // reversible, so they are not audited — only shared-default writes are
   // (see routes/pages)."

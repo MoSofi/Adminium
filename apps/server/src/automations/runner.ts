@@ -37,6 +37,9 @@
  * of every fork".
  */
 
+import { dryRunDigestAction, runDigestAction } from './digest.js';
+import { assertStepRowsMade, stepTokensOf } from './step-rows.js';
+import { rulePartOff } from '../rbac/app-parts.js';
 import type { Kysely } from 'kysely';
 import type { FastifyInstance } from 'fastify';
 import {
@@ -188,6 +191,12 @@ export async function walkRule(deps: RunnerDeps, input: WalkInput): Promise<RunO
       trace.setResume(null);
       return { kind: 'finished', status: 'skipped', trace: trace.snapshot(), workMs: 0, error: null };
     }
+    // A run claimed while its part was on, reached after it was switched off: passed over, and said.
+    if (await rulePartOff(deps.meta, input.rule)) {
+      trace.add({ nodeId: 'owner', name: input.rule.name, kind: 'trigger', status: 'skip', startedAt: now, log: text.partOff() });
+      trace.setResume(null);
+      return { kind: 'finished', status: 'skipped', trace: trace.snapshot(), workMs: 0, error: null };
+    }
   }
 
   const source = await openSource(deps, input.event);
@@ -229,14 +238,18 @@ export async function walkRule(deps: RunnerDeps, input: WalkInput): Promise<RunO
   // The rows the rule reaches through a link, read once for the whole run.
   if (source !== null) source.related = await loadRelated(source, relatedUses(input.rule.graph).map((use) => use.link));
   const refreshTokens = (): void => {
-    ctx.tokens = tokensFor({
-      row: source?.row ?? null,
-      table: source?.table ?? null,
-      related: source?.related,
-      ruleName: input.rule.name,
-      recordLabel: source?.record.label ?? '',
-      now,
-    });
+    ctx.tokens = {
+      ...tokensFor({
+        row: source?.row ?? null,
+        table: source?.table ?? null,
+        related: source?.related,
+        ruleName: input.rule.name,
+        recordLabel: source?.record.label ?? '',
+        now,
+      }),
+      // The rows the steps so far made, read back from the trace: there after a wait too, when nothing else is.
+      ...stepTokensOf(trace.steps),
+    };
   };
   refreshTokens();
 
@@ -372,9 +385,9 @@ export async function walkRule(deps: RunnerDeps, input: WalkInput): Promise<RunO
 
     // An action.
     try {
+      // A step that reads a row no earlier step made stops here, before it does anything.
+      assertStepRowsMade(node.action, ctx.tokens);
       const result = dryRun ? await dryRunAction(node, ctx) : await runAction(node, ctx);
-      // A write moves the record under the run's feet, on purpose (C.3).
-      refreshTokens();
       trace.add({
         nodeId: node.id,
         name: node.title,
@@ -383,7 +396,10 @@ export async function walkRule(deps: RunnerDeps, input: WalkInput): Promise<RunO
         startedAt,
         durationMs: (deps.now ?? Date.now)() - startedAt,
         log: result.log,
+        ...(result.made === undefined ? {} : { made: result.made }),
       });
+      // A write moves the record under the run's feet, on purpose (C.3); and a row just made is there for the next step.
+      refreshTokens();
     } catch (caught) {
       const message = caught instanceof Error ? caught.message : String(caught);
       trace.add({
@@ -433,6 +449,8 @@ async function runAction(node: AutomationNode, ctx: ActionContext) {
       return runEmailAction(node.action, ctx);
     case 'notification':
       return runNotificationAction(node.action, ctx);
+    case 'digest':
+      return runDigestAction(node.action, ctx);
     case 'record.create':
       return runCreateAction(node.action, ctx);
     case 'record.update':
@@ -453,6 +471,8 @@ async function dryRunAction(node: AutomationNode, ctx: ActionContext) {
       return dryRunEmailAction(node.action, ctx);
     case 'notification':
       return dryRunNotificationAction(node.action, ctx);
+    case 'digest':
+      return dryRunDigestAction(node.action, ctx);
     case 'record.create':
       return dryRunCreateAction(node.action, ctx);
     case 'record.update':

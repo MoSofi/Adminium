@@ -16,6 +16,7 @@
  * `format` stores the `pdf | png` intent and the SPA labels delivery "Data
  * snapshot (PDF/PNG rendering arrives in a later release)".
  */
+import { assertPagePartOn } from '../../rbac/app-parts.js';
 import type { ResolvedTable } from '../../crud/identifiers.js';
 import { assertNotPrivate } from '../../crud/row-limit.js';
 import type { FastifyRequest } from 'fastify';
@@ -174,6 +175,8 @@ export function scheduledReportsRoutes(deps: ScheduledReportsRoutesDeps): Fastif
         if (page === null) {
           throw new ValidationFailedError(`Page ${pageId} does not exist.`, { pageId });
         }
+        // A report over a page of a part of its app that is switched off would never be sent: refused, as the page is.
+        await assertPagePartOn(meta, page.config);
         await requireExportGrantForPage(request, page);
         const at = now();
         const row = await reports.create(
@@ -221,6 +224,7 @@ export function scheduledReportsRoutes(deps: ScheduledReportsRoutesDeps): Fastif
               pageId: patch.pageId,
             });
           }
+          await assertPagePartOn(meta, nextPage.config);
           // Retargeting a schedule is scheduling: same export-grant guard.
           await requireExportGrantForPage(request, nextPage);
         }

@@ -83,6 +83,7 @@ export function StatePage({ stateId, requestId, fullPage = true, onRetry }: Stat
     'connection-paused': () => window.history.back(),
     'app-disabled': () => window.history.back(),
     'screens-off': () => window.history.back(),
+    'part-off': () => window.history.back(),
   };
 
   return (

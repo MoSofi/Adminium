@@ -111,3 +111,19 @@ export function proseNumber(value: number | string | null | undefined, locale: s
     return written;
   }
 }
+
+/**
+ * A text in the reader's own language, or none: their exact tag, then another
+ * region of their language. For a name that already has an English of its
+ * own to fall back on (a role's).
+ */
+export function sameLanguage(labels: Readonly<Record<string, string>>, locale: string): string | undefined {
+  const tag = bcp47(locale);
+  const exact = labels[tag];
+  if (exact !== undefined) return exact;
+  const language = tag.split('-')[0]!.toLowerCase();
+  for (const [key, value] of Object.entries(labels)) {
+    if (key.split('-')[0]!.toLowerCase() === language) return value;
+  }
+  return undefined;
+}

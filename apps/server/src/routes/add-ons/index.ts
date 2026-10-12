@@ -552,6 +552,25 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
    * Only the documents that need THIS add-on, and only the ones missing: what
    * an operator changed or deleted is theirs.
    */
+  /**
+   * The parts of the apps an add-on was just connected to that waited for
+   * it: put in, each app applied again from its own package. Done here, once
+   * the add-on stands installed and connected, never from inside its install.
+   */
+  async function putInWaitingParts(request: FastifyRequest, hosts: readonly string[]): Promise<void> {
+    const core = installer.core?.() ?? null;
+    if (core === null) return;
+    const actor = actorOf(request);
+    for (const appKey of hosts) {
+      if (appKey === DASHBOARD_HOST) continue;
+      await core.putInParts({
+        appKey,
+        actor: { id: actor.id, label: actor.label, superAdmin: actor.superAdmin ?? (() => Promise.resolve(false)), can: actor.can ?? (() => Promise.resolve(false)) },
+        host: { log: request.log, ...(request.server.hasDecorator('realtime') ? { publish: (channel, event, payload) => request.server.realtime.publish(channel, event, payload) } : {}) },
+      });
+    }
+  }
+
   async function makeAppDocuments(request: FastifyRequest, addOnKey: string, hosts: readonly string[]): Promise<void> {
     if (deps.runtime === undefined || hosts.length === 0) return;
     const made = await attachAppDocuments({ meta: deps.meta, addOnKey, hosts, runtime: deps.runtime, createdBy: request.user?.id ?? null });
@@ -1441,6 +1460,8 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
         });
         // A version that draws a kind another add-on was waiting for: made now, not at that add-on's next update.
         await makeSuggestedDocuments(request, request.params.key);
+        // A version an app's part was waiting for (the one before was out of the app's range): the part is put in.
+        await putInWaitingParts(request, installed.attachments.map((attachment) => attachment.attachedTo));
         const { pages, rules, roles, outbox, documents, seeds, seedsKept, publicAccess, publicAccessByApp, publicAccessRemoved } = written ?? {};
         return {
           addOn: await toDto(installed),
@@ -1562,6 +1583,7 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
             ...(request.server.hasDecorator('realtime') ? { publish: (channel, event, payload) => request.server.realtime.publish(channel, event, payload) } : {}),
           },
         });
+        await putInWaitingParts(request, attachTo);
         await makeAppDocuments(request, key, attachTo);
         // …and the documents other add-ons were waiting for it to draw.
         await makeSuggestedDocuments(request, key);
@@ -1596,6 +1618,7 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
           publicAccess: request.body.publicAccess,
           actor: actorOf(request),
         });
+        await putInWaitingParts(request, [request.body.app]);
         await makeAppDocuments(request, request.params.key, [request.body.app]);
         return { addOn: await toDto(installed), change, ...(publicAccess === undefined ? {} : { publicAccess }) };
       },
@@ -1965,6 +1988,8 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
         // Switched back on: the app's documents it draws, if the app was
         // installed while it was off. Switched off, they stay and are off.
         if (request.body.enabled) await makeAppDocuments(request, request.params.key, [request.body.attachedTo]);
+        // …and a part of the app that waited for this add-on is put in.
+        if (request.body.enabled) await putInWaitingParts(request, [host]);
 
         const after = await manifests.findByKey(request.params.key);
         const features = request.body.enabled ? [] : needs.filter((need) => need.need === 'feature');

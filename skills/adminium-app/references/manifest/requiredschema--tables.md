@@ -19,6 +19,7 @@
 | `occupies` | no | Rows that take a resource for a time (a room for an hour, a van for a day), never overlapping; see [A resource and a time](https://docs.adminium.dev/reference/manifest/#a-resource-and-a-time). A table has one of `capacity`, `booking` and `occupies`. Needs Adminium 0.3.27. |
 | `states` | no | The states a row moves through, what is locked in each, and the child tables tied to them; see [States](https://docs.adminium.dev/reference/manifest/#states). |
 | `unique` | no | 1–8 sets of 2–4 columns no two rows may hold the same values in together; see [Columns unique together](https://docs.adminium.dev/reference/manifest/#columns-unique-together). |
+| `module` | no | The [part](https://docs.adminium.dev/reference/manifest/#parts) of the app the table belongs to. Needs Adminium 0.3.27. |
 
 `label`, `labelPlural`, `keyField` and every column `label` are installed as the operator's own
 labels would be. The operator can rename anything; a name they changed is theirs, and a later

@@ -152,6 +152,8 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   'column.customerKey',
   // A column that holds a staff member: marked on the column, and what a row's people are read from.
   'column.staff',
+  // Text in which people are mentioned: each one named is somebody who signs in, and is told after the save.
+  'column.mentions',
   // Whose a row is, and a role whose read, update or delete reaches only some rows: the test every read and write of a row carries.
   'table.belongs',
   'roles.rows',
@@ -165,6 +167,25 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   'app.seeds',
   // A row takes a resource for a time: no two overlap, within the resource's hours; held by the lock a booking's write holds.
   'table.occupies',
+  // A running number a sample's rows may take: only the check of a sample file reads the mark, the write path already numbers them.
+  'sequence.sample',
+  // The parts of an app: a switch per part, read wherever something of a part is served or run.
+  'app.modules',
+  'roles.names',
+  // An app that shows maps: its install asks, once for the install, whether they are shown.
+  'app.maps',
+  // A rule tells the person a staff column of its record names (or of a linked row); nobody there is a line in the run's log.
+  'automations.staffRecipient',
+  // A row visited once for each spell it matches: kept per rule and row, closed when the row stops matching.
+  'automations.perSpell',
+  // A notice told at once, also in the reader's quiet hours.
+  'automations.urgent',
+  // A summary for each person, read as that person when it is sent.
+  'automations.digest',
+  // A row a step makes, kept in the run's trace for the steps after it.
+  'automations.stepName',
+  // More than twelve rules in one manifest: each is installed as the first twelve are.
+  'automations.many',
   // Rows read by the people they belong to and by nothing else: not in the view a rule, a public door, a kiosk's key or an owner's
   // code reads through, and refused by name as a file out, a file in, a scheduled report and a document.
   'table.private',

@@ -3130,7 +3130,9 @@ export default {
       "advice": "请让你的经理在 {app} → 设置 中开启。",
       "signOut": "退出登录",
       "noAccess": "此账户无法打开 {app}。",
-      "noAccessAdvice": "请让你的主管为你分配可以打开 {app} 的角色。"
+      "noAccessAdvice": "请让你的主管为你分配可以打开 {app} 的角色。",
+      "partsOff": "{app} 中目前没有为你开启的内容。",
+      "partsOffAdvice": "你拥有的每个角色都属于 {app} 中已关闭的部分。请让你的主管开启该部分，或为你分配其他角色。"
     },
     "notFound": {
       "title": "找不到页面",
@@ -3421,5 +3423,52 @@ export default {
     "body": "{count, plural, other {此页面只能配合此应用在这里尚未拥有的附加组件使用，因此不在侧边栏中。附加组件安装并连接到应用后，它就会回来。}}",
     "open": "打开应用的设置",
     "title": "{page} 需要附加组件"
+  },
+  "appParts": {
+    "title": "组成部分",
+    "help": "关闭这家企业用不到的部分。已关闭的部分没有页面、规则和角色；其记录会保留。",
+    "onePage": "1 个页面",
+    "pages": "{n} 个页面",
+    "oneRule": "1 条规则已开启",
+    "rules": "{n} 条规则已开启",
+    "roles": "角色：{roles}",
+    "leftOut": "尚未设置。在“附加组件”中连接 {addOns} 后即会加入。",
+    "waiting": "在“附加组件”中连接 {addOns} 之前保持关闭。",
+    "always": "始终开启",
+    "needs": "需要附加组件",
+    "switch": "{part}，开启或关闭",
+    "on": "开",
+    "off": "关",
+    "dialogClose": "关闭",
+    "cancel": "取消",
+    "onDialog": {
+      "title": "开启“{part}”？",
+      "back": "其页面、规则和角色会立即恢复，无需更新或重启。",
+      "noCatchUp": "关闭期间发生的事情不会补做：其规则当时没有运行，现在也不会为错过的内容运行。",
+      "confirm": "开启"
+    },
+    "offDialog": {
+      "title": "关闭“{part}”？",
+      "stops": "其页面会从菜单中移除，规则停止，角色在重新开启前不授予任何权限。",
+      "stays": "其记录会保留。其他部分中读取这些记录的角色仍可读取。",
+      "open": "其中目前未完成的：",
+      "openRows": "{table} 中有 {n} 条未完成",
+      "oneRule": "1 条已开启的规则将停止",
+      "rules": "{n} 条已开启的规则将停止",
+      "oneStranded": "将有 1 人没有任何已开启的内容",
+      "stranded": "将有 {n} 人没有任何已开启的内容",
+      "nothingOpen": "其中目前没有未完成的内容。",
+      "confirm": "关闭"
+    },
+    "installHelp": "选择开始使用 {app} 的哪些部分。之后可在应用设置中随时开启或关闭任何一个。",
+    "installTick": "开始时启用“{part}”",
+    "installAlways": "始终开启",
+    "installLeftOut": "本次安装不包含：它需要 {addOns}。请在“附加组件”中勾选，或稍后连接后再加入这一部分。",
+    "installNeeds": "与 {addOns} 配合使用，后者会随应用一起安装。"
+  },
+  "installMaps": {
+    "title": "地图",
+    "tick": "显示地图（使用 OpenFreeMap）",
+    "note": "每个人的浏览器会从地图服务器获取地图图片。服务器只知道正在查看哪个区域，不会得知你的任何记录。这是此处所有应用共用的一个开关。"
   }
 } as const;

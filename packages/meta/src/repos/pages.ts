@@ -99,6 +99,21 @@ export interface PageNavRow {
   appKey?: string | null;
   /** An app page's group within the app's sidebar section (the envelope's `nav.group`). */
   appGroup?: string | null;
+  /** The part of its app a manifest page belongs to (the envelope's `module`), or null. */
+  appModule?: string | null;
+}
+
+/** The app a stored page belongs to and the part of it, read off its envelope; null for a page of no app. */
+export function pageAppPart(config: unknown): { app: string; module: string | null } | null {
+  try {
+    const parsed: unknown = typeof config === 'string' ? JSON.parse(config) : config;
+    if (typeof parsed !== 'object' || parsed === null) return null;
+    const envelope = parsed as { app?: unknown; module?: unknown };
+    if (typeof envelope.app !== 'string') return null;
+    return { app: envelope.app, module: typeof envelope.module === 'string' ? envelope.module : null };
+  } catch {
+    return null;
+  }
 }
 
 /** The envelope's `app`, tolerantly — nav must never throw. */
@@ -1088,6 +1103,7 @@ export function pagesRepo(meta: MetaDb) {
         manifestTitle: manifestTitleOf(config),
         appKey: appKeyOf(config),
         appGroup: appGroupOf(config),
+        appModule: pageAppPart(config)?.module ?? null,
       }));
     },
 

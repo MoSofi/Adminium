@@ -84,6 +84,8 @@ export interface FormColumnFactReply {
   /** A choice column's words for its values, in the reader's language, and their tones. */
   enumLabels?: Record<string, string> | undefined;
   enumTones?: Record<string, string> | undefined;
+  /** People are mentioned in this text. */
+  mentions?: true | undefined;
 }
 
 /** The reply's array, keyed by column name — the shape the form reads. */
@@ -96,6 +98,7 @@ function factsByColumn(block: ColumnFactsReply | undefined): ColumnFacts {
       filledBy: column.filledBy,
       required: column.required,
       ...(column.requiredWhen === undefined ? {} : { requiredWhen: column.requiredWhen }),
+      ...(column.mentions === true ? { mentions: true as const } : {}),
       writable: column.writable,
       ...(column.insertable === undefined ? {} : { insertable: column.insertable }),
       ...(column.updatable === undefined ? {} : { updatable: column.updatable }),

@@ -51,7 +51,7 @@ import type { ResolvedColumn, ResolvedTable, SnapshotView } from '../../crud/ide
 import { pkLabel } from '../../crud/records.js';
 import type { Row } from '../../crud/mask.js';
 import { PERMISSIONS } from '../../rbac/permissions.js';
-import { nextTickFor } from '../../automations/schedule.js';
+import { forgetSpellsIfChosenAnew, nextTickFor } from '../../automations/schedule.js';
 import { walkRule, type RunnerDeps } from '../../automations/runner.js';
 import { isAddressColumn, relatedTargets } from '../../automations/related.js';
 import { readViewForUser } from '../../crud/read-view.js';
@@ -214,6 +214,8 @@ export function automationsRoutes(deps: AutomationsRoutesDeps): FastifyPluginAsy
       pii: column.masked || column.secret,
       emailLike: isAddressColumn(table, column.name),
       dateLike: isDateColumn(column),
+      // Holds a staff member: a step may tell "the person in this column".
+      ...(table.table.columns.find((c) => c.name === column.name)?.staff === true ? { staff: true } : {}),
     };
   }
 
@@ -581,6 +583,7 @@ export function automationsRoutes(deps: AutomationsRoutesDeps): FastifyPluginAsy
           },
           at,
         );
+        if (body.trigger !== undefined) await forgetSpellsIfChosenAnew(deps.meta, rule.id, rule.trigger, next.trigger);
         if (updated === null) throw new NotFoundError('No such rule.', { id: rule.id });
         await app.rbac.audit(request, {
           category: 'automation',

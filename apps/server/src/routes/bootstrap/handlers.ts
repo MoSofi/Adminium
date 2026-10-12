@@ -39,6 +39,7 @@ import { addOnPagePermission, pagesAreGated } from '../../add-ons/page-gate.js';
 
 import { screensOnlyError } from '../../apps/screens-only.js';
 import { UnauthorizedError } from '../../errors.js';
+import { loadAppParts, partIsOn } from '../../rbac/app-parts.js';
 import { PERMISSIONS } from '../../rbac/permissions.js';
 import type { AuthContext } from '../../plugins/auth.js';
 import { csrfSigningKey, issueCsrfToken } from '../../security/csrf.js';
@@ -828,8 +829,15 @@ export async function bootstrapHandler(
   const addOnNav = buildAddOnNav(addOnDocuments, (ref) => openCodePages.has(ref), prefs.locale);
   const addOnKeys = new Set(sectionAddOns.map((row) => row.key));
   const withheld = visibleRows.filter((row) => row.appKey != null && unmet.get(row.appKey)?.has(row.slug) === true);
+  /*
+   * PAGES OF A PART THAT IS OFF. An app's owner switches its parts on and
+   * off; a page of one that is off leaves the sidebar and is listed apart,
+   * so a bookmark lands on "this part is switched off".
+   */
+  const appParts = await loadAppParts(ctx.meta, [...new Set(visibleRows.flatMap((row) => (row.appKey != null && row.appModule != null ? [row.appKey] : [])))]);
+  const partOff = visibleRows.filter((row) => !withheld.includes(row) && row.appKey != null && !partIsOn(appParts.get(row.appKey), row.appModule));
   const { nav, hidden, paused, disabledApp, appItems } = buildNavTree(
-    visibleRows.filter((row) => !withheld.includes(row)),
+    visibleRows.filter((row) => !withheld.includes(row) && !partOff.includes(row)),
     new Map(connectionRows.map((row) => [row.id, { name: row.name, currency: row.currency }])),
     pausedConnectionIds,
     prefs.locale,
@@ -887,6 +895,13 @@ export async function bootstrapHandler(
               .flat()
               .map(({ item }) => ({ ...item, ...unmet.get(item.appKey!)!.get(item.slug)! })),
           }),
+      ...(partOff.length === 0
+        ? {}
+        : {
+            partOffPages: [...buildNavTree(partOff, new Map(), new Set(), prefs.locale, new Set(), new Set(partOff.map((row) => row.appKey!))).appItems.values()].flat().map(({ item }) => item),
+          }),
+      // Every role the person holds is of a part that is off: said plainly, in place of an empty dashboard.
+      ...(request.rbacResolution?.partsOff === true ? { partsOff: true as const } : {}),
       appSections: [
         ...buildAppSections({
           apps: sectionApps,

@@ -2,6 +2,10 @@
 
 # Manifest spec: requiredSchema — Column rules
 
+Every name a rule uses is checked against the manifest: `copy.via` must be a foreign key of the
+table, `rollup.via` must point back at this table, and so on. `normalize` is for `text` columns
+only.
+
 The rules are kept on every door a row is written through: a form, a bulk edit, an import, an
 automation, the public API and an outbox's `onSent` change. `normalize`, `formula` and the
 rounding to a `scale` apply on each of them. History keeps what it brings: an import and sample
@@ -86,8 +90,3 @@ that would take the balance below zero: what a visit's fee, its payments and its
                          "balance": { "column": "balance", "of": "fee", "minus": ["waived"] },
                          "cap": true } } }
 ```
-
-`of` may be another total of the row, so money given back is capped by money taken: two totals
-over the same payments, `taken` (`where` `kind` `taken`) and `given_back` (`where` `kind`
-`given_back`, `balance: { "column": "refundable", "of": "taken" }`, `cap: true`). A refund past what
-was taken is refused, and so is lowering a payment taken below what already went back.

@@ -245,6 +245,19 @@ export class ConnectionDisabledError extends AppError {
 }
 
 /**
+ * 409 — something of a part of an app that its owner switched off (or whose
+ * add-on is not connected): a page, a document, a public entry. Nothing was
+ * deleted; the answer changes when the part is switched on.
+ */
+export class PartOffError extends AppError {
+  override readonly name = 'PartOffError';
+
+  constructor(appKey: string, module: string) {
+    super(409, 'PART_OFF', `This part of "${appKey}" is switched off. Switch it on in Studio → Apps.`, { appKey, module });
+  }
+}
+
+/**
  * 503 — an installed app is switched off by an operator: the whole app
  * (`APP_DISABLED`) or one of its sides (`SURFACE_OFF`).
  *

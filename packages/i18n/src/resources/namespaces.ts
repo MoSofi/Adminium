@@ -218,7 +218,7 @@ export const UI_DEFERRED_GROUPS = ['widgets', 'templates', 'pages'] as const;
  * reads a key in these groups (the entry-budget check refuses a build whose
  * entry names one).
  */
-export const COMMON_DEFERRED_GROUPS = ['builder', 'kb', 'about', 'team'] as const;
+export const COMMON_DEFERRED_GROUPS = ['builder', 'kb', 'about', 'team', 'quietHours'] as const;
 
 /** The namespaces en-US delivers in two parts, and the groups of each that come later. */
 export const DEFERRED_GROUPS = { ui: UI_DEFERRED_GROUPS, common: COMMON_DEFERRED_GROUPS } as const;

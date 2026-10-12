@@ -364,7 +364,10 @@ function RoleCheckboxes(props: {
   }
   return (
     <div className="flex flex-col gap-2">
-      {props.roles.map((role) => {
+      {/* A role whose part of its app is switched off is offered to nobody new; somebody who holds it sees it, to take it away. */}
+      {props.roles
+        .filter((role) => role.partsOff !== true || props.selected.includes(role.id))
+        .map((role) => {
         const id = `${props.idPrefix}-role-${role.id}`;
         const checked = props.selected.includes(role.id);
         return (

@@ -39,6 +39,10 @@ export interface RoleListItem {
   memberCount: number;
   createdAt: number;
   updatedAt: number;
+  /** The app whose manifest made the role; absent for every other role. */
+  appKey?: string;
+  /** Every part of its app the role belongs to is switched off: it gives nothing now, and is offered to nobody new. */
+  partsOff?: true;
 }
 
 /** Row-header grouping (presentation only) — mirrors `permissionCategory`. */

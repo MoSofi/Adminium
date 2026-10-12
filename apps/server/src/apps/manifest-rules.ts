@@ -112,6 +112,7 @@ export type RuleOp =
   | 'column.plainText'
   | 'column.customerKey'
   | 'column.staff'
+  | 'column.mentions'
   | 'table.belongs'
   | 'table.private'
   | 'table.capacity'
@@ -249,6 +250,7 @@ export function opsForRules(appKey: string, rules: ColumnRules): { op: RuleOp; v
   if (rules.plainText !== undefined) out.push({ op: 'column.plainText', value: { plainText: rules.plainText === true ? true : { ...rules.plainText } } });
   if (rules.customerKey !== undefined) out.push({ op: 'column.customerKey', value: { ...rules.customerKey } });
   if (rules.staff === true) out.push({ op: 'column.staff', value: { staff: true } });
+  if (rules.mentions !== undefined) out.push({ op: 'column.mentions', value: { mentions: rules.mentions === true ? true : { about: rules.mentions.about } } });
   return out;
 }
 

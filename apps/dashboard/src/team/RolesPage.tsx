@@ -464,6 +464,11 @@ export function RolesPage(): ReactNode {
                         {role.description === null ? null : (
                           <span className="truncate text-caption text-fg-subtle">{role.description}</span>
                         )}
+                        {role.partsOff === true ? (
+                          <span className="truncate text-caption text-fg-subtle" data-part="parts-off">
+                            {t('roles:partsOff', 'Its part of the app is switched off: it gives nothing until that part is on.')}
+                          </span>
+                        ) : null}
                       </div>
                     </td>
                     <td className="px-4 py-2.5 text-fg-muted">

@@ -101,7 +101,9 @@ export default {
       "tooLarge": "必须小于或等于 {max}。",
       "outOfRange": "此数字超出范围。",
       "duplicate": "已添加。",
-      "form": "部分值被拒绝。请检查标记的字段。"
+      "form": "部分值被拒绝。请检查标记的字段。",
+      "mentionUnknown": "此处提到的某人不是在这里登录的人员。请输入 @ 并从列表中选择。",
+      "tooManyMentions": "此处提到的人太多。请减少提及的人数。"
     },
     "lines": {
       "add": "添加行",
@@ -2102,5 +2104,8 @@ export default {
       "low": "库存低",
       "out": "缺货"
     }
+  },
+  "mentions": {
+    "people": "可提及的人员"
   }
 } as const;

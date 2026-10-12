@@ -326,7 +326,7 @@ export async function installInvoicing(
    * `database` names the fresh database (a random suffix follows): the default
    * carries `adminium_`, which a rule refuses in a MySQL table's id.
    */
-  source: { prepare?: (run: (statement: string) => Promise<void>) => Promise<void>; choices?: Record<string, unknown>; database?: string } = {},
+  source: { prepare?: (run: (statement: string) => Promise<void>) => Promise<void>; choices?: Record<string, unknown>; database?: string; /** More of the install's own body: the add-ons ticked with it, the parts it starts with. */ install?: Record<string, unknown> } = {},
   hooks: PublicAccessHooks = {},
 ): Promise<InvoicingHarness & { reply: Record<string, unknown> }> {
   const dataDir = await mkdtemp(join(tmpdir(), 'invoicing-'));
@@ -409,7 +409,7 @@ export async function installInvoicing(
   const plan = await app.inject({ method: 'POST', url: '/apps/plan', payload: body });
   expect(plan.statusCode, plan.body).toBe(200);
   const reviewed = source.choices === undefined ? {} : { planChecksum: (plan.json() as { plan: { checksum: string } }).plan.checksum };
-  const install = await app.inject({ method: 'POST', url: '/apps/install', payload: { ...body, ...reviewed } });
+  const install = await app.inject({ method: 'POST', url: '/apps/install', payload: { ...body, ...reviewed, ...(source.install ?? {}) } });
   expect(install.statusCode, install.body).toBe(200);
 
   const prefix = `${String(manifest['key']).replace(/-/g, '_')}_`;

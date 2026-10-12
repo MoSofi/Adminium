@@ -397,12 +397,30 @@ function ScheduleTrigger({
             </div>
           </div>
           <Switch
-            checked={forEach.once}
+            checked={forEach.once !== false}
             onCheckedChange={(checked) => {
               onChange({ ...trigger, forEach: { ...forEach, once: checked } });
             }}
             aria-label={t('automations:trig.once', 'Once per record')}
             data-testid="trig-once"
+          />
+        </div>
+      )}
+      {forEach === undefined || forEach.once === false ? null : (
+        <div className="flex items-center gap-3 rounded-[11px] border border-border bg-surface px-3.5 py-3">
+          <div className="flex-1">
+            <div className="text-[12.5px] font-semibold">{t('automations:trig.perSpell', 'Again when it matches anew')}</div>
+            <div className="mt-0.5 text-[11px] text-fg-subtle">
+              {t('automations:trig.perSpellBody', 'A record that stops matching and matches again later is run again: once for each such spell')}
+            </div>
+          </div>
+          <Switch
+            checked={forEach.once === 'per-spell'}
+            onCheckedChange={(checked) => {
+              onChange({ ...trigger, forEach: { ...forEach, once: checked ? 'per-spell' : true } });
+            }}
+            aria-label={t('automations:trig.perSpell', 'Again when it matches anew')}
+            data-testid="trig-per-spell"
           />
         </div>
       )}

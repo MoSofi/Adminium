@@ -81,6 +81,7 @@ import {
   teamsRepo,
   usersRepo,
   type MetaDb,
+  readAppModules,
 } from '@adminium/meta';
 
 import { createAppFiles, type AppFiles } from './app-files.js';
@@ -973,6 +974,25 @@ export function createSampleDataService(deps: SampleDataDeps) {
     );
   }
 
+  async function leftOutOf(app: SampleApp): Promise<{ tables: ReadonlySet<string>; columns: Readonly<Record<string, readonly string[]>> } | null> {
+    const row = await deps.meta.db.selectFrom('adminium_manifests').select('modules').where('id', '=', app.manifestId).executeTakeFirst();
+    const leftOut = readAppModules(row?.modules)?.leftOut;
+    return leftOut === undefined ? null : { tables: new Set(leftOut.tables), columns: leftOut.columns };
+  }
+
+  function withoutLeftOut(bundle: SampleBundle, leftOut: Awaited<ReturnType<typeof leftOutOf>>): SampleBundle {
+    if (leftOut === null) return bundle;
+    return {
+      ...bundle,
+      tables: bundle.tables
+        .filter((table) => !leftOut.tables.has(table.ref))
+        .map((table) => {
+          const lost = leftOut.columns[table.ref];
+          return lost === undefined ? table : { ...table, rows: table.rows.map((row) => Object.fromEntries(Object.entries(row).filter(([column]) => !lost.includes(column)))) };
+        }),
+    };
+  }
+
   async function loadBundle(app: SampleApp): Promise<SampleBundle> {
     const file = sampleFileOf(app.manifest);
     if (file === undefined) {
@@ -992,11 +1012,13 @@ export function createSampleDataService(deps: SampleDataDeps) {
         issues: bundle.error.issues.map((issue) => ({ path: issue.path.join('.'), message: issue.message })),
       });
     }
-    const issues = sampleBundleIssues(bundle.data, app.manifest);
+    // A part of the app this install left out has no tables here: its sample rows, and the links to them, are left out with it.
+    const data = withoutLeftOut(bundle.data, await leftOutOf(app));
+    const issues = sampleBundleIssues(data, app.manifest);
     if (issues.length > 0) {
       throw new ValidationFailedError(`"${file}" does not fit this app.`, { reason: 'SAMPLE_INVALID', issues });
     }
-    return bundle.data;
+    return data;
   }
 
   async function viewFor(connectionId: string): Promise<SnapshotView> {

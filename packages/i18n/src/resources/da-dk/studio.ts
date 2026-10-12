@@ -3130,7 +3130,9 @@ export default {
       "advice": "Bed din leder om at slå det til under {app} → Indstillinger.",
       "signOut": "Log ud",
       "noAccess": "Denne konto kan ikke åbne {app}.",
-      "noAccessAdvice": "Bed din leder om en rolle, der åbner {app}."
+      "noAccessAdvice": "Bed din leder om en rolle, der åbner {app}.",
+      "partsOff": "Intet i {app} er slået til for dig.",
+      "partsOffAdvice": "Alle dine roller hører til en del af {app}, som er slået fra. Bed din leder om at slå den til eller give dig en anden rolle."
     },
     "notFound": {
       "title": "Siden blev ikke fundet",
@@ -3421,5 +3423,52 @@ export default {
     "body": "Denne side virker kun med {count, plural, one {en tilføjelse} other {tilføjelser}}, som appen ikke har her endnu, så den er ikke i sidepanelet. Den kommer tilbage, når {count, plural, one {den} other {de}} er installeret og forbundet til appen.",
     "open": "Åbn appens indstillinger",
     "title": "{page} kræver en tilføjelse"
+  },
+  "appParts": {
+    "title": "Dele",
+    "help": "Slå de dele fra, som denne virksomhed ikke bruger. En del, der er slået fra, har ingen sider, regler eller roller; dens poster bliver.",
+    "onePage": "1 side",
+    "pages": "{n} sider",
+    "oneRule": "1 regel slået til",
+    "rules": "{n} regler slået til",
+    "roles": "Roller: {roles}",
+    "leftOut": "Ikke sat op endnu. Tilslut {addOns} under Tilføjelser, så bliver delen sat op.",
+    "waiting": "Slået fra, indtil {addOns} er tilsluttet under Tilføjelser.",
+    "always": "Altid til",
+    "needs": "Kræver en tilføjelse",
+    "switch": "{part}, til eller fra",
+    "on": "Til",
+    "off": "Fra",
+    "dialogClose": "Luk",
+    "cancel": "Annuller",
+    "onDialog": {
+      "title": "Slå {part} til?",
+      "back": "Dens sider, regler og roller er tilbage med det samme. Ingen opdatering eller genstart er nødvendig.",
+      "noCatchUp": "Intet af det, der skete, mens den var slået fra, bliver indhentet: dens regler kørte ikke, og de kører heller ikke nu for det, der blev misset.",
+      "confirm": "Slå til"
+    },
+    "offDialog": {
+      "title": "Slå {part} fra?",
+      "stops": "Dens sider forsvinder fra menuen, dens regler stopper, og dens roller giver intet, før den slås til igen.",
+      "stays": "Dens poster bliver. En rolle fra en anden del, som læser dem, gør det stadig.",
+      "open": "Åbent i den lige nu:",
+      "openRows": "{n} ikke afsluttet i {table}",
+      "oneRule": "1 regel, der er slået til, stopper",
+      "rules": "{n} regler, der er slået til, stopper",
+      "oneStranded": "1 person vil ikke have noget slået til",
+      "stranded": "{n} personer vil ikke have noget slået til",
+      "nothingOpen": "Intet er åbent i den lige nu.",
+      "confirm": "Slå fra"
+    },
+    "installHelp": "Vælg de dele af {app}, du vil starte med. Hver af dem kan slås til eller fra senere i appens indstillinger.",
+    "installTick": "Start med {part}",
+    "installAlways": "altid til",
+    "installLeftOut": "Udeladt af denne installation: den kræver {addOns}. Sæt hak under Tilføjelser, eller tilslut senere, så bliver delen sat op.",
+    "installNeeds": "Virker med {addOns}, som installeres sammen med appen."
+  },
+  "installMaps": {
+    "title": "Kort",
+    "tick": "Vis kort (bruger OpenFreeMap)",
+    "note": "hver persons browser henter kortets billeder fra kortserveren. Den får at vide, hvilket område der ses på, og intet om dine poster. Det er én kontakt for alle apps her."
   }
 } as const;

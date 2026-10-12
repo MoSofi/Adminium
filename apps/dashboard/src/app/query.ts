@@ -40,6 +40,8 @@ export const SYSTEM_STATE_IDS = [
    */
   'app-disabled',
   'screens-off',
+  /** A page of a part of an app that its owner switched off: nothing is broken, and switching it on is the fix. */
+  'part-off',
 ] as const;
 export type SystemStateId = (typeof SYSTEM_STATE_IDS)[number];
 

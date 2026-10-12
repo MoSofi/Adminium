@@ -39,6 +39,8 @@ export const FIELD_ISSUE_CODES = [
   'plain-text',
   'not-found',
   'reserved',
+  'mention-unknown',
+  'too-many-mentions',
 ] as const;
 
 export type FieldIssueCode = (typeof FIELD_ISSUE_CODES)[number];
@@ -102,6 +104,11 @@ export function fieldIssueMessage(t: Translate, issue: FieldIssue): string {
       return t('ui:formDialog.issue.plainText', 'Use letters, spaces and ordinary punctuation only: no web or email address.');
     case 'not-found':
       return t('ui:formDialog.issue.notFound', 'This is no longer there. Choose another.');
+    // Somebody named after an @ who does not sign in here (removed since, or typed by hand).
+    case 'mention-unknown':
+      return t('ui:formDialog.issue.mentionUnknown', 'Somebody mentioned here is not a person who signs in. Type @ and choose them from the list.');
+    case 'too-many-mentions':
+      return t('ui:formDialog.issue.tooManyMentions', 'Too many people are mentioned here. Mention fewer.');
     // A discount code spelled like a voucher's or a gift card's: a typed value starting so would be taken for one of those.
     case 'reserved':
       return t('ui:formDialog.issue.reserved', 'A discount code cannot start like a voucher or a gift card code.');

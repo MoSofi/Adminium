@@ -33,6 +33,7 @@
  * partial: true }` on its group instead of failing the request.
  */
 
+import { pagesOfPartsOff } from '../../rbac/app-parts.js';
 import type { FastifyRequest } from 'fastify';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { pagesRepo, readBool, type MetaDb, type Page } from '@adminium/meta';
@@ -215,9 +216,11 @@ export function searchRoutes(deps: SearchRoutesDeps): FastifyPluginAsyncZod {
             (a, b) => a.title.localeCompare(b.title) || a.slug.localeCompare(b.slug),
           );
           const hits: SearchPageHit[] = [];
+          // A page of a part of its app that is switched off is found by nothing.
+          const partOff = await pagesOfPartsOff(meta, navRows);
           for (const row of navRows) {
             if (hits.length >= limit) break;
-            if (!readBool(row.isEnabled)) continue;
+            if (!readBool(row.isEnabled) || partOff.has(row.id)) continue;
             if (!row.title.toLowerCase().includes(qLower)) continue;
             if (!(await can(request, `page:${row.id}:view`))) continue;
             hits.push({ pageId: row.id, slug: row.slug, title: row.title, icon: row.icon });

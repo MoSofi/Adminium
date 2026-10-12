@@ -120,6 +120,7 @@ import type { RequestStats } from '../../public-api/stats.js';
 import { fetchByPk, parseRecordId, pkLabel } from '../../crud/records.js';
 import { tableRulesFor, unstorableText } from '../../crud/column-rules.js';
 import { quoteNights } from '../../crud/per-night.js';
+import { offeredRoles, withOpenDoors } from '../../rbac/app-parts.js';
 import { appOutboxesRepo, connectionTenantConfig } from '@adminium/meta';
 import { needsStored } from '../../crud/decide.js';
 import { keptRow, type Row } from '../../crud/mask.js';
@@ -880,7 +881,8 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         .map(([host]) => host.toLowerCase());
       if (hosts.length > 0 && !hosts.includes(request.hostname.toLowerCase())) return false;
     }
-    const roles = await rolesRepo(meta).rolesForUser(user.id);
+    // A role whose part of the app is off opens no kiosk: it is not offered, so it is not held for this.
+    const roles = await offeredRoles(meta, await rolesRepo(meta).rolesForUser(user.id));
     return roles.some((role) => role.slug === binding.roleSlug && role.appKey === binding.appKey);
   };
   /**
@@ -1409,7 +1411,8 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
       }
     }
 
-    return { key, session };
+    // The key as it stands now: without the entries of a part of its app that is switched off, for every door behind this gate.
+    return { key: await withOpenDoors(meta, key), session };
   };
 
   /** Whether a link's session still belongs to its person: their address still the one it went to. */

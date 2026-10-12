@@ -2,6 +2,19 @@
 
 # Manifest spec: requiredSchema — Column rules
 
+A formula fills a `decimal`, `money`, `int` or `bigint` column, never a `float` (a
+[`join`](https://docs.adminium.dev/reference/manifest/#joined-text) fills a `text` column). It reads only columns of its own table, and every
+column it counts with holds a number; `eq`, `neq` and `isNull` may name any column,
+`hoursBetween` names two different `timestamptz` columns and `daysBetween` two different `date`
+columns. It
+may not read itself, formulas may not read each other in a circle, and an expression nests at most
+8 deep. A value a writer sends to a formula column is dropped. Anything that reads another row is a
+`copy` or a `rollup`, which already keep in step when that other row changes.
+
+#### Hours between two moments
+
+`hoursBetween` works a time entry's hours out from its start and its stop:
+
 ```json
 { "ref": "hours", "type": "decimal", "scale": 2, "nullable": true,
   "rules": { "formula": { "hoursBetween": ["started_at", "stopped_at"] } } }
@@ -103,22 +116,3 @@ number once taken stays taken; void the row instead.
 The `format` column is `text` and nullable, and its `maxLength` must hold the prefix and the
 padding. Give the text a `unique` constraint, as the example does: a second guard against a
 number twice, which MySQL's numbering also leans on.
-
-An import brings its own history: it keeps the numbers its rows carry, and a row that carries only
-the text, written as the table's prefix followed by digits, gets the number from those digits.
-The series then carries on after the largest. Sample rows spell a gapless number `null`, so they
-stay off the real series, unless the series is marked `sample`; see [Sample data](https://docs.adminium.dev/reference/manifest/#sample-data).
-
-#### Values from elsewhere
-
-A `default` rule fills a column on a create that leaves it empty, with a value read when the row is
-made:
-
-```json
-{ "ref": "currency", "type": "text", "maxLength": 3, "nullable": true,
-  "rules": { "default": { "from": "connection.currency" } } },
-{ "ref": "tax_rate", "type": "decimal", "scale": 3, "nullable": true,
-  "rules": { "default": { "from": { "addOn": "invoices", "setting": "default_tax_rate" } } } }
-```
-
-`from` is one of:

@@ -88,6 +88,8 @@ export interface ColumnFact {
    * labels, what a list draws a status in when the page stores none of its own.
    */
   enumTones?: Record<string, string>;
+  /** People are mentioned in this text: the form offers who may be named as the writer types `@`. */
+  mentions?: true;
 }
 
 /** A relation the form can offer as a field of chips. */
@@ -218,6 +220,7 @@ function blockFor(
       ...(column.validation === undefined ? {} : { validation: column.validation }),
       ...(column.enumLabels === undefined ? {} : { enumLabels: column.enumLabels }),
       ...(column.enumTones === undefined ? {} : { enumTones: column.enumTones }),
+      ...(column.mentions === undefined ? {} : { mentions: true as const }),
     });
   }
   columns.sort((a, b) => a.ordinal - b.ordinal);

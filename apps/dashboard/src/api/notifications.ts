@@ -37,6 +37,22 @@ export interface NotificationChannelsDto {
   inApp: boolean;
   email: boolean;
   push: boolean;
+  /** "Always tell me": reaches the person at once, also in their quiet hours. */
+  always?: boolean;
+}
+
+/**
+ * When a person is told: their time zone, the hours of each weekday
+ * (0 = Sunday) they are not to be disturbed in, and when their summaries are
+ * sent. Everything null: every notice at once, a summary when its rule runs.
+ */
+export interface NotificationScheduleDto {
+  timezone: string | null;
+  quiet: Partial<Record<'0' | '1' | '2' | '3' | '4' | '5' | '6', { from: string; to: string }>> | null;
+  digestDay: number | null;
+  digestTime: string | null;
+  /** The zone used while the person has chosen none: the business's own. */
+  fallbackTimezone: string;
 }
 
 export interface ChannelAvailabilityDto {
@@ -86,7 +102,19 @@ export const notificationsApi = {
     (
       await api.put<{ data: NotificationPrefsDto }>('/api/v1/me/notification-prefs', { events })
     ).data,
+
+  getSchedule: async () => (await api.get<{ data: NotificationScheduleDto }>('/api/v1/me/notification-schedule')).data,
+
+  putSchedule: async (schedule: Omit<NotificationScheduleDto, 'fallbackTimezone'>) =>
+    (await api.put<{ data: NotificationScheduleDto }>('/api/v1/me/notification-schedule', schedule)).data,
 };
+
+export function notificationScheduleQuery() {
+  return queryOptions({
+    queryKey: ['notifications', 'schedule'] as const,
+    queryFn: () => notificationsApi.getSchedule(),
+  });
+}
 
 export function notificationsQuery(opts: { unread?: boolean; limit?: number } = {}) {
   return queryOptions({

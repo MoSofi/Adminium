@@ -33,7 +33,7 @@ import {
   optionsForColumn,
   unchangedField,
 } from './field-mapping.js';
-import { CONTROL_COMPONENTS, type ControlOption } from './controls/index.js';
+import { CONTROL_COMPONENTS, MENTIONS_ENTRY, type ControlOption } from './controls/index.js';
 import { relationColumnShape } from './controls/reference-chips.js';
 import type { ColumnFact, ColumnFacts, ListOptionsResolver } from './field-mapping.js';
 import type { CrudApi, CrudRow } from './crud-api.js';
@@ -816,7 +816,8 @@ export function RecordForm({
       );
     }
 
-    const entry = CONTROL_COMPONENTS[control as keyof typeof CONTROL_COMPONENTS] ?? CONTROL_COMPONENTS.text;
+    // A text people are mentioned in takes the box that offers them, whichever text control the page chose for it.
+    const entry = fact?.mentions === true && relationId === null ? MENTIONS_ENTRY : (CONTROL_COMPONENTS[control as keyof typeof CONTROL_COMPONENTS] ?? CONTROL_COMPONENTS.text);
     const Control = entry.component;
 
     const required = relationId === null && (overrides.required === true || isRequired(column, fact, values, mode === 'edit' ? initialValues : undefined));

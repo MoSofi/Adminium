@@ -1,6 +1,11 @@
-<!-- produced from apps/docs/src/content/docs/reference/manifest.md § requiredSchema — Tables built on an add-on's shape; do not edit -->
+<!-- produced from apps/docs/src/content/docs/reference/manifest.md § Maps; do not edit -->
 
-# Manifest spec: requiredSchema — Tables built on an add-on's shape
+# Manifest spec: Maps
+
+`"maps": true` at the top of an app's manifest says the app shows maps. A map's pictures are
+fetched by each person's browser from a map server, so whether maps are shown is one switch for
+the whole install. The install check of the **first** app that says this asks, with the tick on;
+once somebody has answered, no later install asks again. Needs Adminium 0.3.27.
 
 ### Tables built on an add-on's shape
 
@@ -15,7 +20,8 @@ keeps on them and its states. The Invoices & Receipts add-on defines `invoice@1`
 ```
 
 `builtOn` is `<add-on key>/<shape name>@<version>`. The app must require that add-on in
-[`addOns.requires`](https://docs.adminium.dev/reference/manifest/#add-ons). `builtOn` is not the table's [`shape`](https://docs.adminium.dev/reference/manifest/#tables) field: that lets two
+[`addOns.requires`](https://docs.adminium.dev/reference/manifest/#add-ons), or put the table in a [part](https://docs.adminium.dev/reference/manifest/#parts) whose feature needs the add-on:
+the part is then left out of an install without it. `builtOn` is not the table's [`shape`](https://docs.adminium.dev/reference/manifest/#tables) field: that lets two
 apps share one table, while two apps built on one add-on's shape each get tables of their own.
 
 The table **spells out** every column of its part, with the part's type, nullability, enum values,

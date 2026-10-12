@@ -67,6 +67,8 @@ import {
   snapshotsRepo,
   type DsnCrypto,
   type MetaDb,
+  userPrefsRepo,
+  roleNameFor,
 } from '@adminium/meta';
 
 import type { Manifest } from '@adminium/manifest';
@@ -78,7 +80,8 @@ import { auditAuth } from '../auth/audit.js';
 import { clearSessionCookie } from '../auth/sessions.js';
 import { resolveLabel, type HostedSurface, type SurfaceSide } from '../cli/surfaces-root.js';
 import { AppError, AppUnavailableError, ForbiddenError, NotFoundError } from '../errors.js';
-import { bcp47 } from '../i18n/bcp47.js';
+import { bcp47, sameLanguage } from '../i18n/bcp47.js';
+import { loadAppParts, offeredRoles } from '../rbac/app-parts.js';
 import { loadOverrideMap, recipientLocale } from '../i18n/server-i18n.js';
 import { openPublishableKey, storedPageKey } from '../public-api/keys.js';
 import { CSRF_FORM_FIELD, normalizeHost } from '../security/csrf.js';
@@ -322,7 +325,7 @@ async function sendNotFoundPage(meta: MetaDb, request: FastifyRequest, reply: Fa
 async function sendUnavailablePage(
   meta: MetaDb,
   surface: HostedSurface,
-  reason: 'app-disabled' | 'side-off' | 'no-access',
+  reason: 'app-disabled' | 'side-off' | 'no-access' | 'parts-off',
   settings: SurfaceSettings,
   request: FastifyRequest,
   reply: FastifyReply,
@@ -354,7 +357,7 @@ async function sendUnavailablePage(
   });
   await reply
     // Switched off is the app's state (503); no access is this person's (403).
-    .code(reason === 'no-access' ? 403 : 503)
+    .code(reason === 'no-access' || reason === 'parts-off' ? 403 : 503)
     .header('cache-control', 'no-store')
     .header('x-robots-tag', 'noindex')
     .type('text/html; charset=utf-8')
@@ -572,7 +575,8 @@ export const surfacesPlugin = fp<SurfacesPluginOptions>(
             // and a way to sign out; anything else the coded answer.
             if (isDocumentNavigation(request) && opts.metaDb !== undefined) {
               const settings = (await app.surfaceSettings?.read()) ?? NO_SURFACE_SETTINGS;
-              await sendUnavailablePage(opts.metaDb, surface, 'no-access', settings, request, reply);
+              // Every role they hold is of a part that is switched off: said as that, not as "no role".
+              await sendUnavailablePage(opts.metaDb, surface, request.rbacResolution?.partsOff === true ? 'parts-off' : 'no-access', settings, request, reply);
               return true;
             }
             throw new ForbiddenError('This account cannot open this app’s staff screens.', 'FORBIDDEN', {
@@ -689,6 +693,7 @@ export const surfacesPlugin = fp<SurfacesPluginOptions>(
           ...(access === null ? {} : { access }),
           ...(tables === null ? {} : { tables }),
           ...(values === null ? {} : { settings: values }),
+          ...(await partsOf(appKey)),
           ...(venue === null
             ? {}
             : { timezone: venue.timezone, timezoneSource: venue.timezoneSource, currency: venue.currency }),
@@ -729,8 +734,21 @@ export const surfacesPlugin = fp<SurfacesPluginOptions>(
         ...(Object.keys(shared).length === 0 ? {} : { publicKeys: shared }),
         ...(tables === null ? {} : { tables }),
         ...(values === null ? {} : { settings: values }),
+        ...(await partsOf(appKey)),
         now: new Date().toISOString(),
       };
+    }
+
+    /**
+     * THE PARTS OF THE APP, each on or off: a screen of a part is inside the
+     * app's own bundle, so the app hides it. The server's own gate for what
+     * such a screen reads is the roles, which lapse with the part.
+     */
+    async function partsOf(appKey: string): Promise<{ modules?: Record<string, boolean> }> {
+      if (opts.metaDb === undefined) return {};
+      const parts = (await loadAppParts(opts.metaDb, [appKey])).get(appKey);
+      if (parts === undefined || parts.modules === null) return {};
+      return { modules: Object.fromEntries(parts.modules.defs.map((def) => [def.id, !parts.off.has(def.id)])) };
     }
 
     /**
@@ -765,9 +783,11 @@ export const surfacesPlugin = fp<SurfacesPluginOptions>(
         }
         if (held.length > 0) grants[ref] = held;
       }
+      // Each role under its name in the reader's language, while the owner has not renamed it.
+      const locale = (await userPrefsRepo(metaDb).resolve(userId)).locale;
       const roles = (await rolesRepo(metaDb).rolesForUser(userId))
         .filter((role) => role.appKey === appKey)
-        .map((role) => ({ slug: role.slug, name: role.name }));
+        .map((role) => ({ slug: role.slug, name: roleNameFor(role, (names) => sameLanguage(names, locale)) }));
       return { tables: grants, roles };
     }
 
@@ -783,7 +803,8 @@ export const surfacesPlugin = fp<SurfacesPluginOptions>(
       const crypto = opts.crypto;
       if (metaDb === undefined || crypto === undefined) return {};
       const roles = await rolesRepo(metaDb).rolesForUser(userId);
-      const held = new Set(roles.filter((role) => role.appKey === appKey).map((role) => role.slug));
+      // A role whose part of the app is off is not offered: it holds no kiosk key.
+      const held = new Set((await offeredRoles(metaDb, roles)).filter((role) => role.appKey === appKey).map((role) => role.slug));
       if (held.size === 0) return {};
       const keys = publicKeysRepo(metaDb);
       const out: Record<string, string> = {};

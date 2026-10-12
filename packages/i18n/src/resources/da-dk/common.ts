@@ -137,7 +137,8 @@ export default {
       "openStaff": "Åbn personaleskærmene",
       "openStaffInstance": "Åbn personaleskærmene · {instance}"
     },
-    "drawerTitle": "Navigation"
+    "drawerTitle": "Navigation",
+    "emptyPartsOff": "Intet er slået til for dig lige nu. Spørg en administrator."
   },
   "apps": {
     "frame": {
@@ -305,6 +306,15 @@ export default {
       "title": "Denne app åbner for sig selv",
       "body": "Den åbner på sin egen adresse, ikke i dashboardet.",
       "primary": "Åbn den"
+    },
+    "partOff": {
+      "title": "Denne del af appen er slået fra",
+      "body": "En administrator har slået denne del af appen fra. Intet er slettet — slå den til i Studio → Apps under Dele.",
+      "secondary": "Tilbage"
+    },
+    "partsOff": {
+      "title": "Intet er slået til for dig",
+      "body": "Alle dine roller hører til en del af en app, som er slået fra lige nu. Intet er slettet. Bed en administrator om at slå delen til eller give dig en anden rolle."
     }
   },
   "notFound": {
@@ -1538,7 +1548,9 @@ export default {
     "event": {
       "reportReady": "Planlagt rapport klar",
       "reportFailed": "Planlagt rapport mislykkedes",
-      "backupCompleted": "Backup fuldført"
+      "backupCompleted": "Backup fuldført",
+      "ruleNotice": "En besked fra en regel",
+      "mention": "Nogen har nævnt mig"
     }
   },
   "theme": {
@@ -1826,5 +1838,22 @@ export default {
       "unread": "1 ulæst svar",
       "proposal": "En ændring venter på dig"
     }
+  },
+  "quietHours": {
+    "title": "Stilletimer og overblik",
+    "help": "I dine stilletimer vises en besked stadig i klokken uden lyd eller pop op, og dens e-mail venter, til timerne er slut. Noget, der er markeret som haster, når dig med det samme.",
+    "zone": "Din tidszone",
+    "zoneDefault": "Virksomhedens ({zone})",
+    "none": "Ingen stilletimer",
+    "from": "Stille fra, {day}",
+    "until": "til",
+    "to": "Stille til, {day}",
+    "nextDay": "næste dag",
+    "daySwitch": "Stilletimer {day}",
+    "copy": "Kopiér timerne for {day} til alle dage",
+    "digestDay": "Send mine overblik",
+    "digestWhenRun": "Den dag, hvert af dem laves",
+    "digestTime": "Kl.",
+    "always": "Giv mig altid besked, også i stilletimer"
   }
 } as const;

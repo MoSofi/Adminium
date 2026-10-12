@@ -334,6 +334,15 @@ export async function writeManifestRoles(input: {
       result.created.push(slug);
       fresh = true;
     }
+    /*
+     * ITS PARTS AND ITS NAME IN OTHER LANGUAGES, as this version says them.
+     * A role still called what its manifest called it follows a new name; one
+     * the owner renamed keeps theirs, and is then shown in one language.
+     */
+    const parts = 'modules' in declared && Array.isArray(declared.modules) ? declared.modules : null;
+    const names = 'names' in declared && declared.names !== undefined ? { from: declared.name, names: { ...declared.names } } : null;
+    if (role.names !== null && role.name === role.names.from && role.name !== declared.name) await roles.rename(role.id, declared.name);
+    if (JSON.stringify(role.modules) !== JSON.stringify(parts) || JSON.stringify(role.names) !== JSON.stringify(names)) await roles.setParts(role.id, { modules: parts, names });
     const wanted = grantsOf(declared, manifest.roles ?? []);
     /*
      * WHAT AN EARLIER VERSION GAVE AND THIS ONE NO LONGER ASKS FOR is taken

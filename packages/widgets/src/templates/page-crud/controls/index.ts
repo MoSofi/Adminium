@@ -37,6 +37,7 @@ import { ReadonlyControl, ReferenceControl } from './reference.js';
 import {
   EmailControl,
   JsonControl,
+  MentionsControl,
   MonoControl,
   PasswordControl,
   PhoneControl,
@@ -48,6 +49,9 @@ import {
 import type { ControlEntry } from './types.js';
 
 export type { ControlEntry, ControlOption, ControlProps } from './types.js';
+
+/** The box of a text people are mentioned in: chosen by the column's own mark, not by the page. */
+export const MENTIONS_ENTRY: ControlEntry = { component: MentionsControl };
 
 export const CONTROL_COMPONENTS: Readonly<Record<FormControl, ControlEntry>> = {
   text: { component: TextControl },

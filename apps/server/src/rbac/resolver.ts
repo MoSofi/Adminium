@@ -8,6 +8,7 @@
 
 import { permissionsRepo, rolesRepo, teamsRepo, type MetaDb, type Role } from '@adminium/meta';
 
+import { loadAppParts, refNamesTable, roleIsOffered, tablesOfPartsOff } from './app-parts.js';
 import { grantsFromMatrixRows, isGranted } from './permissions.js';
 import type { RbacPrincipal } from './principal.js';
 import { createLimitOfRow, limitOfRow, type LimitedUpdate, type UpdateLimits } from './update-limits.js';
@@ -52,6 +53,11 @@ export interface PermissionSet {
    * built from bare roles has none, and reaches no row a limit asks an owner for.
    */
   reach?: RowReachOf | undefined;
+  /**
+   * Set when the person holds roles and every one of them is of a part of an
+   * app that is switched off: they are told so, in place of an empty dashboard.
+   */
+  partsOff?: true | undefined;
 }
 
 export function emptyPermissionSet(): PermissionSet {
@@ -62,24 +68,6 @@ export function emptyPermissionSet(): PermissionSet {
 export function screensOnlyApps(roles: readonly Role[]): string[] | null {
   if (roles.length === 0 || roles.some((role) => role.slug === SUPER_ADMIN_SLUG || !role.screensOnly)) return null;
   return [...new Set(roles.flatMap((role) => (role.appKey === null ? [] : [role.appKey])))];
-}
-
-/**
- * The app keys among these roles whose app is switched off. An app's roles
- * are suspended with it: they grant nothing until it is switched back on, and
- * nothing about them is deleted.
- */
-async function suspendedApps(meta: MetaDb, roles: readonly Role[]): Promise<ReadonlySet<string>> {
-  const keys = [...new Set(roles.flatMap((role) => (role.appKey === null ? [] : [role.appKey])))];
-  if (keys.length === 0) return new Set();
-  const rows = await meta.db
-    .selectFrom('adminium_manifests')
-    .select('manifestKey')
-    .where('kind', '=', 'app')
-    .where('status', '=', 'disabled')
-    .where('manifestKey', 'in', keys)
-    .execute();
-  return new Set(rows.map((row) => row.manifestKey));
 }
 
 /** Union the grant strings of a concrete role list. */
@@ -98,13 +86,30 @@ export async function resolveForRoles(meta: MetaDb, roles: readonly Role[]): Pro
   const createLimited: LimitedUpdate[] = [];
   // …and for which rows a read, an update and a delete reach: role by role, each action's limited grants and every other grant.
   const rowsByRole: RoleRowsDraft[] = [];
+  // The roles that count: not one of an app that is switched off, nor one whose every part is.
+  const live: Role[] = [];
+  let partsOff = false;
   if (!superAdmin) {
-    const suspended = await suspendedApps(meta, roles);
+    /*
+     * An app's roles are suspended with it: they grant nothing until it is
+     * switched back on, and nothing about them is deleted. The same for a
+     * role whose parts are all off; and a role of a part holds nothing on
+     * that part's tables while the part is off.
+     */
+    const parts = await loadAppParts(meta, [...new Set(roles.flatMap((role) => (role.appKey === null ? [] : [role.appKey])))]);
+    const closed = await tablesOfPartsOff(meta, parts);
     for (const role of roles) {
-      if (role.appKey !== null && suspended.has(role.appKey)) continue;
+      if (role.appKey !== null && parts.get(role.appKey)?.disabled === true) continue;
+      if (!roleIsOffered(role, parts)) {
+        partsOff = true;
+        continue;
+      }
+      live.push(role);
+      const lapsed = role.appKey === null || role.modules === null ? [] : closed.filter((table) => table.app === role.appKey && role.modules!.includes(table.module));
       const rows = Object.fromEntries(ROW_ACTIONS.map((action) => [action, { limited: [] as LimitedRows[], unlimited: new Set<string>() }])) as RoleRowsDraft;
       rowsByRole.push(rows);
       for (const row of await permissions.listForRole(role.id)) {
+        if (row.resourceKind === 'table' && lapsed.some((table) => refNamesTable(row.resourceRef, table.connectionId, table.table, table.schema))) continue;
         const limit = limitOfRow(row);
         const read = readLimitOfRow(row);
         const create = createLimitOfRow(row);
@@ -129,7 +134,9 @@ export async function resolveForRoles(meta: MetaDb, roles: readonly Role[]): Pro
     superAdmin,
     grants,
     roleIds: roles.map((role) => role.id),
+    // From every role held, as ever: a cashier whose app or part is off stays a person of those screens, and is told there.
     screensOnly: screensOnlyApps(roles),
+    ...(partsOff && live.length === 0 ? { partsOff: true as const } : {}),
     ...(limited.length === 0 ? {} : { updateLimits: { limited, unlimited } }),
     ...(readLimited.length === 0 ? {} : { readLimits: { limited: readLimited, unlimited: readUnlimited } }),
     ...(createLimited.length === 0 ? {} : { createLimits: { limited: createLimited, unlimited: createUnlimited } }),

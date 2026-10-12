@@ -196,6 +196,8 @@ export default defineConfig({
                 { label: 'Sample data', link: '/guides/apps/sample-data/' },
                 { label: 'App roles and staff access', link: '/guides/apps/roles-and-staff-access/' },
                 { label: 'Whose a row is', link: '/guides/apps/whose-a-row-is/' },
+                { label: 'Parts of an app', link: '/guides/apps/parts/' },
+                { label: 'Telling the person on the row', link: '/guides/apps/telling-people/' },
                 { label: 'Building an app’s screens', link: '/guides/apps/building-a-side/' },
                 { label: 'A phone app for an app', link: '/guides/apps/phone-app/' },
                 { label: 'An app’s public access', link: '/guides/apps/public-access/' },

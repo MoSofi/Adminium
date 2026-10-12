@@ -50,6 +50,7 @@ import { normalizeWriteValue } from '../../crud/write-values.js';
 import { substitute } from '../templating.js';
 import { pairsOf } from '../trace.js';
 import { isOwnTable } from '../validate.js';
+import { madeRowOf } from '../step-rows.js';
 import { ActionFailure, type ActionContext, type ActionResult } from './types.js';
 import { announceEffects } from '../../states/effects.js';
 import { tellPostings } from '../../ledgers/announce.js';
@@ -158,8 +159,12 @@ export async function runCreateAction(
   ctx: ActionContext,
 ): Promise<ActionResult> {
   const table = createTargetOf(action, ctx);
-  const created = await createRow(ctx, table, resolveValues(action.values, table, ctx));
-  return { log: ctx.text.createOk(created.label) };
+  const made = await createRowWhole(ctx, table, resolveValues(action.values, table, ctx));
+  return {
+    log: ctx.text.createOk(made.ref.label),
+    // Named: the row as it now stands (its key, its defaults, its numbers) is kept for the steps after this one.
+    ...(action.name === undefined ? {} : { made: madeRowOf(action.name, table, made.ref.pk, made.row) }),
+  };
 }
 
 /**
@@ -169,6 +174,11 @@ export async function runCreateAction(
  * an add-on gives: neither writes around it.
  */
 export async function createRow(ctx: ActionContext, table: ResolvedTable, values: Row): Promise<RecordRef> {
+  return (await createRowWhole(ctx, table, values)).ref;
+}
+
+/** {@link createRow}, with the row as the database returned it. */
+async function createRowWhole(ctx: ActionContext, table: ResolvedTable, values: Row): Promise<{ ref: RecordRef; row: Row }> {
   const source = sourceOf(ctx);
   const target: WriteTarget = { ...source, table };
   const entityOf = (inserted: Row): RecordRef => {
@@ -186,12 +196,16 @@ export async function createRow(ctx: ActionContext, table: ResolvedTable, values
         announce(ctx, { table, action: 'create', entity: entityOf(row), before: null, after: row }),
     }),
   );
-  return entityOf(inserted);
+  return { ref: entityOf(inserted), row: inserted };
 }
 
 export function dryRunCreateAction(action: CreateAction, ctx: ActionContext): ActionResult {
   const table = createTargetOf(action, ctx);
-  return { log: ctx.text.writeWould(pairsOf(resolveValues(action.values, table, ctx))) };
+  const values = resolveValues(action.values, table, ctx);
+  if (action.name === undefined) return { log: ctx.text.writeWould(pairsOf(values)) };
+  // A test run makes nothing: the steps after this read a stand-in, the values this step would write and a key that says so.
+  const pk = Object.fromEntries(table.primaryKey.map((column) => [column, values[column] ?? `(new ${action.name ?? ''})`]));
+  return { log: ctx.text.createStandIn(action.name, pairsOf(values)), made: madeRowOf(action.name, table, pk, { ...values, ...pk }, true) };
 }
 
 // --- update ----------------------------------------------------------------

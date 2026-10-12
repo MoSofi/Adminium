@@ -585,6 +585,8 @@ export interface EffectiveColumn extends ColumnModel {
   tableRef?: true;
   /** `column.staff`: the column holds a staff member's id — the one kind a table's `belongs` reads a person from. */
   staff?: true;
+  /** `column.mentions`: people are mentioned in this text; `about` is the link to the record a mention there is about. */
+  mentions?: true | { about: string };
   /** `column.announce`: a change of this formula column is told after the save. */
   announce?: true;
   /** `column.codeLast4`: the last four characters of the code in `of`. */
@@ -1472,6 +1474,12 @@ export function applyOverrides(
       case 'column.staff': {
         const column = columnOf(table, row.columnName);
         if (column !== undefined) column.staff = true;
+        break;
+      }
+      case 'column.mentions': {
+        const column = columnOf(table, row.columnName);
+        const said = (value as { mentions?: unknown }).mentions;
+        if (column !== undefined) column.mentions = typeof said === 'object' && said !== null ? { about: String((said as { about: unknown }).about) } : true;
         break;
       }
       case 'table.belongs': {

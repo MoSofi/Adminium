@@ -317,6 +317,14 @@ export interface BootstrapData {
    */
   featurePages?: FeaturePage[];
   /**
+   * Pages of a part of an app that its owner switched off — in no sidebar,
+   * read only by the page route, which says so instead of a 404. Absent when
+   * there are none, and from an older server.
+   */
+  partOffPages?: NavItem[];
+  /** Every role the reader holds is of a part of an app that is switched off: nothing is on for them. */
+  partsOff?: true;
+  /**
    * The project folder this server runs, absent on every other server. Read
    * through `project/client.ts`.
    */

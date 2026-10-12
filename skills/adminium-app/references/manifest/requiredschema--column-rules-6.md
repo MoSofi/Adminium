@@ -2,6 +2,25 @@
 
 # Manifest spec: requiredSchema — Column rules
 
+An import brings its own history: it keeps the numbers its rows carry, and a row that carries only
+the text, written as the table's prefix followed by digits, gets the number from those digits.
+The series then carries on after the largest. Sample rows spell a gapless number `null`, so they
+stay off the real series, unless the series is marked `sample`; see [Sample data](https://docs.adminium.dev/reference/manifest/#sample-data).
+
+#### Values from elsewhere
+
+A `default` rule fills a column on a create that leaves it empty, with a value read when the row is
+made:
+
+```json
+{ "ref": "currency", "type": "text", "maxLength": 3, "nullable": true,
+  "rules": { "default": { "from": "connection.currency" } } },
+{ "ref": "tax_rate", "type": "decimal", "scale": 3, "nullable": true,
+  "rules": { "default": { "from": { "addOn": "invoices", "setting": "default_tax_rate" } } } }
+```
+
+`from` is one of:
+
 | `from` | Reads |
 |---|---|
 | `"connection.currency"` | The connection's currency, a three-letter code. The column is `text` of at least 3 characters. |
@@ -95,12 +114,3 @@ its total. A rate rule that cannot be read refuses the write `409` `NIGHTLY_RATE
 
 A `lookup` fills a foreign key from a code a person types: a discount code on an order, a presale
 code on a ticket. The browser never names the codes row itself; Adminium finds it.
-
-```json
-{ "ref": "promo_code", "type": "text", "maxLength": 32, "nullable": true },
-{ "ref": "promo_id", "type": "fk", "references": "promo_codes", "nullable": true,
-  "rules": { "lookup": { "from": "promo_code", "table": "promo_codes", "column": "code",
-                         "where": [{ "column": "active", "eq": true },
-                                   { "column": "valid_until", "notBefore": "today", "orEmpty": true }],
-                         "scope": [{ "column": "event_id", "equals": "event_id", "orEmpty": true }] } } }
-```

@@ -40,7 +40,7 @@ What each list does:
   leave it out.
 - **Features.** A [page](https://docs.adminium.dev/reference/manifest/#pages) that names a feature in `feature` leaves the sidebar while the
   feature's add-ons are not all installed and switched on for the app. A
-  [document](https://docs.adminium.dev/reference/manifest/#documents) may name one too.
+  [document](https://docs.adminium.dev/reference/manifest/#documents) may name one too, and so may a [part](https://docs.adminium.dev/reference/manifest/#parts) of the app.
 
 If a later step of the app's install fails, the add-ons it installed stay: another app may already
 rely on them. Uninstalling the app keeps them too; only their link to the app goes, and the

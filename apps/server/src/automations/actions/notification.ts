@@ -25,17 +25,24 @@ import { pagesRepo, rolesRepo, usersRepo, type AutomationAction } from '@adminiu
 
 import { notify } from '../../notifications/notify.js';
 import { substitute } from '../templating.js';
+import { AUTOMATION_NOTICE_KIND } from './notice-kind.js';
+import { staffAt } from '../staff-recipient.js';
 import { ActionFailure, type ActionContext, type ActionResult } from './types.js';
 
 type NotificationAction = Extract<AutomationAction, { kind: 'notification' }>;
 
-/** The kind an automation notice publishes under; mutable per user. */
-export const AUTOMATION_NOTICE_KIND = 'automation.notice';
+export { AUTOMATION_NOTICE_KIND };
 
-async function recipientsFor(action: NotificationAction, ctx: ActionContext): Promise<string[]> {
+/** Who a notice goes to; `note` says why nobody, where that is not a failure (an empty staff column). */
+async function recipientsFor(action: NotificationAction, ctx: ActionContext): Promise<string[] | { note: string }> {
   const to = action.to;
   if (to === null) throw new ActionFailure('This step has nobody to notify.');
   if ('users' in to) return [...new Set(to.users)];
+  // The person on the row: a record that names nobody tells nobody, and the run says so.
+  if ('column' in to) {
+    const found = await staffAt(ctx.meta, ctx, to.column);
+    return 'user' in found ? [found.user.id] : { note: ctx.text.staffNobody(to.column, found.nobody) };
+  }
 
   const roles = rolesRepo(ctx.meta);
   const ids = new Set<string>();
@@ -80,6 +87,7 @@ export async function runNotificationAction(
   ctx: ActionContext,
 ): Promise<ActionResult> {
   const recipients = await recipientsFor(action, ctx);
+  if (!Array.isArray(recipients)) return { log: recipients.note };
   if (recipients.length === 0) throw new ActionFailure('Nobody holds the roles this step notifies.');
   const { title, body } = renderText(action, ctx);
   const actionUrl = await actionUrlFor(ctx);
@@ -103,7 +111,7 @@ export async function runNotificationAction(
         ...(ctx.source === null ? {} : { entity: ctx.source.record }),
         actionUrl,
       },
-      ctx.hub === undefined ? {} : { hub: ctx.hub },
+      { ...(ctx.hub === undefined ? {} : { hub: ctx.hub }), at: ctx.now, ...(action.urgent === true ? { urgent: true } : {}) },
     );
     sent += 1;
   }
@@ -116,5 +124,5 @@ export async function dryRunNotificationAction(
 ): Promise<ActionResult> {
   const recipients = await recipientsFor(action, ctx);
   renderText(action, ctx);
-  return { log: ctx.text.notifOk(recipients.length) };
+  return { log: Array.isArray(recipients) ? ctx.text.notifOk(recipients.length) : recipients.note };
 }

@@ -60,6 +60,10 @@ import {
   snapshotsRepo,
   userPrefsRepo,
   jobsRepo,
+  readAppModules,
+  automationsRepo,
+  rolesRepo,
+  roleNameFor,
 } from '@adminium/meta';
 import type { FastifyRequest } from 'fastify';
 import type { z } from 'zod';
@@ -78,6 +82,7 @@ import {
   type AppCatalogEntry,
   type UnavailableApp,
 } from '../../apps/catalog.js';
+import { addOnsHereFor, asInstalledHere, partsLeftOut, planModulesOf, tickedByDefault } from '../../apps/app-modules.js';
 import { surfacesOfInstalled } from '../../apps/installed.js';
 import { refusalReason, uploadRefusalMessage } from '../../add-ons/upload-refusal.js';
 import { audited, auditExempt } from '../../audit/coverage.js';
@@ -89,7 +94,9 @@ import {
   enqueueAppDownload,
 } from '../../jobs/app-acquire.js';
 import { CATALOG_REFRESH_KIND } from '../../jobs/add-on-acquire.js';
+import { forgetClosedDoors, loadAppParts, roleIsOffered, switchOf } from '../../rbac/app-parts.js';
 import { PERMISSIONS } from '../../rbac/permissions.js';
+import { pickLabel, sameLanguage } from '../../i18n/bcp47.js';
 import { forgetAppSurfaceSettings, NO_SURFACE_SETTINGS, sideOffOf } from '../../surfaces/settings.js';
 import { validateDomainEntries, validateInstanceEntries } from '../../surfaces/validate.js';
 import { normalizeHost } from '../../security/csrf.js';
@@ -120,6 +127,10 @@ import {
   addSampleBody,
   appJobReply,
   appKeyParams,
+  appPartBody,
+  appPartOpenReply,
+  appPartParams,
+  appPartsReply,
   appListReply,
   discardStagedAppReply,
   downloadAppBody,
@@ -1057,21 +1068,27 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
        */
       async (request) => {
         const { key, version, connectionId, choices, altPrefix, shares } = request.body;
-        const manifest = await verifiedManifest(key, version);
+        const declared = await verifiedManifest(key, version);
         // The preview an update is checked with: the same refusal the update
         // route gives, before the operator is shown tables to consent to.
         const installed = (await manifests.list('app')).find((m) => m.row.manifestKey === key);
         if (installed !== undefined) {
           // Never the plan of a takeover: the same refusal install and update give.
-          const changed = publisherChangeRefusal(manifest, publisherIdOf(installed.document));
+          const changed = publisherChangeRefusal(declared, publisherIdOf(installed.document));
           if (changed !== null) throw changed;
         }
         if (installed !== undefined && installed.row.version !== version) {
-          const refused = updateRefusal(manifest, installed.row.version);
+          const refused = updateRefusal(declared, installed.row.version);
           if (refused !== null) throw refused;
         }
         // The add-ons it names, each with its own plan: their consent is part of the app's.
-        const addOns = await addOnRowsFor(manifest, connectionId, true);
+        const addOns = await addOnRowsFor(declared, connectionId, true);
+        // The app as it would stand with the add-ons ticked: a part built on one that is not there is left out.
+        const here = addOnsHereFor(addOns, request.body.addOns ?? tickedByDefault(addOns));
+        // A part this app already has tables of here is never left out again.
+        const made = await service.tablesMadeFor(key, connectionId);
+        const leftOut = partsLeftOut(declared, here, made);
+        const manifest = asInstalledHere(declared, here, made);
         const { dto } = await planFor(
           manifest,
           connectionId,
@@ -1100,6 +1117,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
             ...(addOnProblems.length === 0 ? {} : { installable: false, problems: [...dto.problems, ...addOnProblems] }),
             ...(publicAccess === undefined ? {} : { publicAccess }),
             ...(addOns.length === 0 ? {} : { addOns }),
+            ...(declared.kind !== 'app' || declared.modules === undefined ? {} : { modules: planModulesOf(declared, leftOut, installed === undefined ? null : readAppModules(installed.row.modules)) }),
           },
         };
       },
@@ -1634,11 +1652,185 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
               request.user?.id ?? null,
               request.user?.email ?? 'unknown',
             );
+            // Switched on again: a part that waited for an add-on connected while the app was off is put in now.
+            if (verb === 'enable') await service.putInParts({ appKey: row.row.manifestKey, actor: actorOf(request), host: hostOf(request) });
           }
           return { key: row.row.manifestKey, status };
         },
       );
     }
+
+    // ── Parts ──────────────────────────────────────────────────────────────
+
+    /** The app's whole manifest as its package holds it (a part left out of the install is in it), or what is installed when the package is gone. */
+    async function declaredManifest(row: InstalledApp): Promise<Manifest | null> {
+      try {
+        return await verifiedManifest(row.row.manifestKey, row.row.version);
+      } catch {
+        return (row.document as Manifest | null) ?? null;
+      }
+    }
+
+    async function partsView(row: InstalledApp, locale: string): Promise<z.infer<typeof appPartsReply>> {
+      const key = row.row.manifestKey;
+      const declared = await declaredManifest(row);
+      const state = (await loadAppParts(deps.meta, [key])).get(key);
+      if (declared === null || declared.kind !== 'app' || state === undefined || state.modules === null) return { parts: [] };
+      const installed = (row.document as Manifest | null) ?? declared;
+      const made = new Set((installed.requiredSchema?.tables ?? []).map((table) => table.ref));
+      const addOnNames = new Map((await manifests.list('add-on')).map((m) => [m.row.manifestKey, (m.document as { name?: string } | null)?.name ?? m.row.manifestKey]));
+      const appRoles = (await rolesRepo(deps.meta).list()).filter((role) => role.appKey === key);
+      const members = new Map<string, number>();
+      for (const role of appRoles) members.set(role.id, (await rolesRepo(deps.meta).usersInRole(role.id)).length);
+      const rules = (await automationsRepo(deps.meta).listManagedBy(key, row.row.connectionId)).filter((rule) => rule.enabled);
+      return {
+        parts: (declared.modules ?? []).map((module) => {
+          const tables = (declared.requiredSchema?.tables ?? []).filter((table) => 'module' in table && table.module === module.id);
+          return {
+            id: module.id,
+            label: pickLabel(module.label, locale) ?? module.id,
+            default: module.default,
+            switch: switchOf(state.modules!, module.id),
+            on: !state.off.has(module.id),
+            waiting: (state.waiting.get(module.id) ?? []).map((addOn) => ({ key: addOn, name: addOnNames.get(addOn) ?? addOn })),
+            leftOut: tables.some((table) => !made.has(table.ref)),
+            pages: (declared.pages ?? []).filter((page) => page.module === module.id).length,
+            tables: tables.length,
+            rules: rules.filter((rule) => rule.module === module.id).length,
+            roles: appRoles
+              .filter((role) => role.modules?.includes(module.id) === true)
+              .map((role) => ({ slug: role.slug, name: roleNameFor(role, (names) => sameLanguage(names, locale)), members: members.get(role.id) ?? 0 })),
+          };
+        }),
+      };
+    }
+
+    const readerLocale = async (request: FastifyRequest): Promise<string> =>
+      request.user === null || request.user === undefined ? 'en-US' : (await userPrefsRepo(deps.meta).resolve(request.user.id)).locale;
+
+    app.get(
+      '/apps/:key/parts',
+      {
+        preHandler: app.rbac.require(PERMISSIONS.manifestsManage),
+        schema: { params: appKeyParams, response: { 200: appPartsReply } },
+      },
+      async (request) => partsView(await installedRow(request.params.key), await readerLocale(request)),
+    );
+
+    app.get(
+      '/apps/:key/parts/:part/open',
+      {
+        preHandler: app.rbac.require(PERMISSIONS.manifestsManage),
+        schema: { params: appPartParams, response: { 200: appPartOpenReply } },
+      },
+      /*
+       * WHAT IS OPEN IN A PART, asked before it is switched off: the rows of
+       * its tables that are part way through their states (a job not signed
+       * off), the rules that would stop, and the people who would be left
+       * with nothing. Counts only: no row is shown.
+       */
+      async (request) => {
+        const row = await installedRow(request.params.key);
+        const key = row.row.manifestKey;
+        const locale = await readerLocale(request);
+        const document = (row.document as Manifest | null) ?? null;
+        const module = document?.kind === 'app' ? (document.modules ?? []).find((one) => one.id === request.params.part) : undefined;
+        if (document === null || module === undefined) throw new NotFoundError(`"${key}" has no part "${request.params.part}".`);
+        const connectionId = row.row.connectionId;
+        const names = connectionId === null ? {} : await appTablesRepo(deps.meta).realNames(connectionId, key);
+        const snapshot = connectionId === null ? null : await snapshotsRepo(deps.meta).latest(connectionId);
+        const model = (snapshot?.schema ?? null) as DatabaseModel | null;
+        const manager = deps.sampleData?.manager;
+        const open: { table: string; label: string; rows: number }[] = [];
+        const handle = connectionId === null || model === null || manager === undefined ? null : await manager.mustFind(connectionId).then((found) => manager.data(found)).catch(() => null);
+        // How many rows a table holds is told to somebody who reads them all: a table read in part is left out, as on the app's page.
+        const inPart = new Set<string>();
+        if (connectionId !== null && model !== null) {
+          const reach = await reachOfRequest(deps.meta, request, connectionId);
+          if (reach === 'unreadable') for (const table of model.tables) inPart.add(table.name);
+          else if (reach !== null) for (const table of reach.view.model.tables) if (rowTestOf(reach.rows, table.id, 'read') !== null) inPart.add(table.name);
+        }
+        if (connectionId !== null && model !== null && handle !== null) {
+          for (const table of document.requiredSchema?.tables ?? []) {
+            if (!('module' in table) || table.module !== module.id || table.states === undefined) continue;
+            if (inPart.has(names[table.ref] ?? table.ref)) continue;
+            // A state something still moves out of: the row is not at its end.
+            const unfinished = Object.entries(table.states.moves).filter(([, moves]) => moves.length > 0).map(([state]) => state);
+            const real = model.tables.find((candidate) => candidate.name === (names[table.ref] ?? table.ref));
+            if (real === undefined || unfinished.length === 0) continue;
+            const counted = await handle.db
+              .selectFrom(real.id as never)
+              .select((eb) => eb.fn.countAll().as('n'))
+              .where(table.states.column as never, 'in', unfinished as never)
+              .executeTakeFirst();
+            const rows = Number((counted as { n?: unknown } | undefined)?.n ?? 0);
+            const label = table.labelPlural ?? table.label;
+            if (rows > 0) open.push({ table: table.ref, label: label === undefined ? table.ref : typeof label === 'string' ? label : (pickLabel(label, locale) ?? table.ref), rows });
+          }
+        }
+        // The people every one of whose roles is of this part alone, or of parts already off.
+        const state = await loadAppParts(deps.meta);
+        const after = new Map([...state].map(([app, parts]) => [app, app === key ? { ...parts, off: new Set([...parts.off, module.id]) } : parts]));
+        const roles = rolesRepo(deps.meta);
+        const holders = new Set<string>();
+        for (const role of (await roles.list()).filter((one) => one.appKey === key && one.modules?.includes(module.id) === true)) {
+          for (const userId of await roles.usersInRole(role.id)) holders.add(userId);
+        }
+        let stranded = 0;
+        for (const userId of holders) {
+          const held = await roles.rolesForUser(userId);
+          const before = held.some((role) => roleIsOffered(role, state) && state.get(role.appKey ?? '')?.disabled !== true);
+          const then = held.some((role) => roleIsOffered(role, after) && state.get(role.appKey ?? '')?.disabled !== true);
+          if (before && !then) stranded += 1;
+        }
+        return {
+          id: module.id,
+          label: pickLabel(module.label, locale) ?? module.id,
+          open,
+          rules: (await automationsRepo(deps.meta).listManagedBy(key, connectionId)).filter((rule) => rule.enabled && rule.module === module.id).length,
+          pages: (document.pages ?? []).filter((page) => page.module === module.id).length,
+          stranded,
+        };
+      },
+    );
+
+    app.put(
+      '/apps/:key/parts/:part',
+      {
+        preHandler: app.rbac.require(PERMISSIONS.manifestsManage),
+        config: { audit: audited('rbac') },
+        schema: { params: appPartParams, body: appPartBody, response: { 200: appPartsReply } },
+      },
+      /*
+       * THE SWITCH. On needs no update and no restart: the part's pages,
+       * rules and roles are read against the switch each time. Nothing that
+       * happened while it was off is replayed. A part that is always on, and
+       * one the app does not have, has no switch.
+       */
+      async (request) => {
+        const row = await installedRow(request.params.key);
+        const key = row.row.manifestKey;
+        const stored = readAppModules(row.row.modules);
+        const def = stored?.defs.find((one) => one.id === request.params.part);
+        if (stored === null || def === undefined) throw new NotFoundError(`"${key}" has no part "${request.params.part}".`);
+        if (def.default === 'always') {
+          throw new AppError(409, 'PART_ALWAYS_ON', 'This part of the app is always on.', { appKey: key, module: def.id });
+        }
+        const before = switchOf(stored, def.id);
+        if (before !== request.body.on) {
+          await manifests.setModuleSwitch(row.row.id, def.id, request.body.on);
+          forgetClosedDoors(deps.meta);
+          await surfacesChanged(request);
+          await auditAppEvent(
+            request.body.on ? 'app.part-on' : 'app.part-off',
+            { key, version: row.row.version, module: def.id },
+            request.user?.id ?? null,
+            request.user?.email ?? 'unknown',
+          );
+        }
+        return partsView(await installedRow(key), await readerLocale(request));
+      },
+    );
 
     app.put(
       '/apps/:key/domains',

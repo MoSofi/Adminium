@@ -234,6 +234,7 @@ the database.
 | `occupies` | no | Rows that take a resource for a time (a room for an hour, a van for a day), never overlapping; see [A resource and a time](#a-resource-and-a-time). A table has one of `capacity`, `booking` and `occupies`. Needs Adminium 0.3.27. |
 | `states` | no | The states a row moves through, what is locked in each, and the child tables tied to them; see [States](#states). |
 | `unique` | no | 1–8 sets of 2–4 columns no two rows may hold the same values in together; see [Columns unique together](#columns-unique-together). |
+| `module` | no | The [part](#parts) of the app the table belongs to. Needs Adminium 0.3.27. |
 
 `label`, `labelPlural`, `keyField` and every column `label` are installed as the operator's own
 labels would be. The operator can rename anything; a name they changed is theirs, and a later
@@ -386,6 +387,7 @@ change or delete is theirs from then on.
 | `lookup` | `{ "from", "table", "column", "where"?, "scope"? }` | A foreign key filled from a code a person types into another column: a discount code, a presale code. See [Typed codes](#typed-codes). |
 | `addOnLink` | `{ "addOn", "table" }` | A link to a row of a table an add-on keeps: an order line's stock item, a payment's gift card. No foreign key is made, so the app installs whether or not the add-on is there. The add-on is one the manifest names under [`addOns`](#add-ons). While it is not installed, or not connected to this app, the link is inert: a value sent for it is refused (`POSTING_REFUSED`, reason `add-on-unavailable`, with the column) and the rows keep what they named. While it is there, a value must be the key of a row of that table, or the column is refused `not-found`. An empty link is always taken, and an import keeps whatever it names. A `lookup` on the same column may name the same table as `{ "addOn", "table" }`: a typed code then fills the link. A [`default`](#values-from-elsewhere) may fill it from a column of the app's settings row that carries the same `addOnLink` (same add-on, same table, same type), and from nowhere else: `"default": { "from": { "table": "settings", "column": "supplies_place_id" } }`. Such a default never refuses a save: it is left empty while the add-on is not there for the app, and when the row the setting names is gone. It needs `minAdminiumVersion` 0.3.19 or later. |
 | `plainText` | `true` or `{ "digits"?, "max"? }` | On a `text` column shown to people who did not write it: a name, the message on a card, a note to the kitchen. Letters, spaces and sentence punctuation only: no web address, no email address, no `@` handle, no path. `true` is a name (no digits, up to 80 characters); an object is a note with up to `digits` digits and `max` characters. It is the column's own rule, so it holds every way of writing the row: a staff save, an import, a guest's entry (which may be stricter still). Refused as `plain-text` on the column. |
+| `mentions` | `true` or `{ "about": link }` | On a `text` column people write to each other in (a note, a comment). Its box offers the people who sign in as the writer types `@`, and the text keeps each one named as `@[Name](usr_…)`. A save that names somebody who does not sign in here is refused by the column, with nothing written. After the save each person **newly** named is told who mentioned them and on which record, never what was written; one who cannot open that record gets the same notice with no link. `about` is a link of the table: a mention in a comment is about the deal the comment is on, and that is the record the notice names and opens. Not on a [private](#whose-a-row-is) table. Needs `minAdminiumVersion` `0.3.27`. |
 | `customerKey` | `{ "of": "<address column>" }` | On a `text` column of 64 characters that may be empty: a keyed hash of the address in `of`, made by Adminium whenever that address is written and by nobody else (a value sent for it is dropped; a guest's entry may not list it). The same address gives the same key however it is spelled, and another key in another database. It says "the same customer" to whatever counts per customer, without keeping who. An empty address has no key. |
 | `codeLast4` | `{ "of": "<code column>" }` | On a `text` column that may be empty: the last four characters of the code in `of` (a column with `code`), cut by Adminium whenever that code is made — on a new row, when a collision makes it again, when a change of hands renews it. No writer's value is kept. It is what a list and a receipt show of a gift card; a code another column keeps the last four of is a **money code**, never shown in a list or a form. From Adminium 0.3.19. |
 | `perNight` | `{ "from", "to", "rate", "adjust"? }` | A price worked out night by night: a stay's room total. See [Prices by the night](#prices-by-the-night). |
@@ -1777,6 +1779,83 @@ A shared table's real rows are the venue's: the second app's [sample data](#samp
 its demo rows for it out (`skipWhenShared`). A table has `shape` or [`builtOn`](#tables-built-on-an-add-ons-shape),
 never both. See [A menu two apps share](/guides/apps/shared-menu/).
 
+## Parts
+
+An app can be cut into **parts** its owner switches on and off: a business that sends no crews out
+switches "Jobs on site" off and never sees its pages, its roles or its rules. The screens say
+"parts"; the manifest word is `modules`. A manifest that uses it sets
+`compatibility.minAdminiumVersion` to `0.3.27` or later. An add-on declares none.
+
+```json
+"modules": [
+  { "id": "selling", "label": { "en-US": "Selling" },      "default": "always" },
+  { "id": "jobs",    "label": { "en-US": "Jobs on site" }, "default": "off" },
+  { "id": "quotes",  "label": { "en-US": "Quotes" },       "default": "on", "feature": "quotes" }
+]
+```
+
+| Field | Required | Rule |
+|---|---|---|
+| `id` | yes | kebab-case, up to 40 characters, unique in the manifest. |
+| `label` | yes | A keyed [label](#conventions), `en-US` among them. |
+| `default` | yes | `on` or `off`: how the part starts; the install check offers it as a tick, and the owner switches it afterwards. `always`: the part has no switch. |
+| `feature` | no | One of the app's [`addOns.features`](#add-ons): the part is also off while that feature's add-ons are not all installed and connected to the app, whatever its switch says. |
+
+1–16 parts. What belongs to a part says so with `"module": "<id>"`: a [table](#tables), a
+[page](#pages), a rule in [`automations`](#automations), an entry in [`documents`](#documents), an
+outbox [producer](#outbox) and a [`publicAccess`](#public-access) entry each name one part. A
+[role](#roles) names one or several with `"modules": [...]`. Anything that names no part is always
+there.
+
+**What "off" means.** While a part is off:
+
+- its pages are out of the sidebar, and their addresses answer `409` `PART_OFF`;
+- its rules start no run. A run that was already waiting is passed over, with a line in its log.
+  A scheduled rule that visits each row `once` does not use a row up while the part is off;
+- its documents are not drawn, its outbox producers queue nothing, its public entries answer as
+  entries that are not there, and a scheduled report over one of its pages waits;
+- a role whose parts are **all** off gives nothing and is offered to nobody new. Somebody whose
+  every role is like that is told "nothing is switched on for you";
+- a role that belongs to the part holds **nothing on the part's tables** while it is off.
+
+**What it does not mean.** The tables and their rows stay. A role of *another* part that is
+granted one of those tables goes on reading and writing it: an account manager still sees a won
+deal's job while "Jobs on site" has no page. So a grant on a table lapses with the table's part
+only for a role that is itself of that part.
+
+Switching a part on needs no update and no restart. Nothing that happened while it was off is
+caught up: its rules did not run for those changes and do not run for them later. The app's own
+screens are told which parts are on (`modules` in their config, `session.modules` from
+`connectStaff`), and hide a screen of a part that is off; what such a screen may read is still
+decided by the roles.
+
+**A part built on an add-on the app only suggests.** A table
+[built on an add-on's shape](#tables-built-on-an-add-ons-shape) cannot be made without the add-on.
+Put it in a part whose `feature` requires that add-on and the app need not require the add-on at
+all. Installed without it, the whole part is **left out**: its tables are not made, and what names
+them elsewhere goes with them —
+
+- the part's pages, rules, documents, producers and public entries;
+- a link column into one of its tables (and an index or a `belongs` way that reads the column);
+- a kept total over one of its tables: the column stays, empty, with no rule;
+- a page bound to one of its tables, a role's grants and limits on them, a starting row and a
+  sample row for them;
+- a role left with no part.
+
+When the add-on is connected to the app later, the part is put in: the app is applied again from
+its own package, the tables and the link columns are made, and nothing that was there is touched.
+A part that is in stays in; switching its add-on off for the app only turns the part off. The
+manifest must still be valid with the part left out, and the manifest check tries it: a formula of
+another table that reads the link column, for instance, is refused with "installed without
+`<add-on>`".
+
+## Maps
+
+`"maps": true` at the top of an app's manifest says the app shows maps. A map's pictures are
+fetched by each person's browser from a map server, so whether maps are shown is one switch for
+the whole install. The install check of the **first** app that says this asks, with the tick on;
+once somebody has answered, no later install asks again. Needs Adminium 0.3.27.
+
 ### Tables built on an add-on's shape
 
 An add-on can define a **shape**: a set of named parts, each with its columns, the rules Adminium
@@ -1790,7 +1869,8 @@ keeps on them and its states. The Invoices & Receipts add-on defines `invoice@1`
 ```
 
 `builtOn` is `<add-on key>/<shape name>@<version>`. The app must require that add-on in
-[`addOns.requires`](#add-ons). `builtOn` is not the table's [`shape`](#tables) field: that lets two
+[`addOns.requires`](#add-ons), or put the table in a [part](#parts) whose feature needs the add-on:
+the part is then left out of an install without it. `builtOn` is not the table's [`shape`](#tables) field: that lets two
 apps share one table, while two apps built on one add-on's shape each get tables of their own.
 
 The table **spells out** every column of its part, with the part's type, nullability, enum values,
@@ -1880,6 +1960,7 @@ and appears in the app's own sidebar section.
 | `bindings` | no | Which of the app's tables the page reads: an object from a page-local name to a `requiredSchema` table ref. |
 | `config` | no | Page configuration: a `form` for a record page, a `layout` for `page-dashboard`, a `calendar` for `page-calendar`. |
 | `feature` | no | The id of one of the app's [`addOns.features`](#add-ons). Until every add-on the feature requires is installed, attached to the app and switched on there, the page leaves the sidebar and is listed apart, with the add-ons it needs. |
+| `module` | no | The [part](#parts) of the app the page belongs to. While that part is off the page leaves the sidebar and its address answers `409` `PART_OFF`. Needs Adminium 0.3.27. |
 
 **Templates.** A table-bound template reads one table: `page-crud`, `page-board`,
 `page-calendar`, `page-scheduler`, `page-directory`, `page-master-detail`, `page-queue-inbox`,
@@ -2131,7 +2212,9 @@ sets it to anybody.
 | Field | Required | Rule |
 |---|---|---|
 | `key` | yes | kebab-case. The full `<key>-<role key>` must fit in 40 characters. |
-| `name` | yes | 1–80 characters. |
+| `name` | yes | 1–80 characters. The English name. |
+| `names` | no | The name in other languages, keyed by BCP 47 tag (`{ "de-DE": "Kassierer" }`), each 1–80 characters. A reader sees their own language until the owner renames the role; a renamed role is shown as the owner wrote it, in every language. Needs Adminium 0.3.27. |
+| `modules` | no | 1–16 ids of the [parts](#parts) of the app the role belongs to. The role is offered while any of them is on. Needs Adminium 0.3.27. |
 | `permissions` | no | Grants, in the forms below. |
 | `cloneFrom` | no | The key of another of this app's roles, whose grants this role also gets, and its `limits`. |
 | `screensOnly` | no | `true`: people with this role open the app's own screens and never the dashboard. |
@@ -2308,7 +2391,7 @@ What each list does:
   leave it out.
 - **Features.** A [page](#pages) that names a feature in `feature` leaves the sidebar while the
   feature's add-ons are not all installed and switched on for the app. A
-  [document](#documents) may name one too.
+  [document](#documents) may name one too, and so may a [part](#parts) of the app.
 
 If a later step of the app's install fails, the add-ons it installed stay: another app may already
 rely on them. Uninstalling the app keeps them too; only their link to the app goes, and the
@@ -2343,6 +2426,7 @@ invoice, receipt or statement, drawn by an add-on that renders documents. Up to 
 | `mapping` | yes | From each of the add-on's slots (letters, digits and `_`, starting with a letter) to where its value comes from. See below. |
 | `statement` | no | Makes the document a statement. See below. |
 | `feature` | no | One of the app's [`addOns.features`](#add-ons). |
+| `module` | no | The [part](#parts) of the app the document belongs to: it is not drawn while that part is off. Needs Adminium 0.3.27. |
 | `requestValues` | no | 1–8 slots the app's own screen may fill when it asks for the document (a label sheet's `count`). Each must be a slot the entry does not map; when the add-on is attached, its outline must have the slot, with no default, holding a number or a text. See below. |
 | `where` | no | `{ "column", "in": [...] }`: only rows whose column holds one of 1–16 values have this document (a `receipt` for `payments.kind` `taken`, not for money given back). Asked for another row, the render answers `409` `DOCUMENT_NOT_FOR_ROW`; an email that would carry it goes without it. |
 
@@ -2522,7 +2606,8 @@ belong to the table that key points at; a first visit by someone not yet on file
 details on the visit itself.
 
 **Producers.** Each has a `kind` (a key of `kinds`) and a `link`, the outbox's foreign-key column
-that points at the row the message is about and must be one of `links`. Optionally `gate` and
+that points at the row the message is about and must be one of `links`. Optionally `module`, the
+[part](#parts) of the app the email belongs to (nothing is queued while it is off), `gate` and
 `optIn: true` (needs `recipient.optIn`: a person who opted out gets nothing). `gate: "enabled"`
 pauses the producer while the settings row's `settings.enabled` bool is false;
 `gate: { "setting": { "table", "column" } }` pauses it while that bool of the settings row is false,
@@ -2711,8 +2796,8 @@ project, is `failed` with a sentence naming the code. A person or an API key mak
 hand, or by an import they started), or queueing a held or failed one to go, may link it only to
 rows they can read.
 
-Templates are sent through an outbox, so a manifest with `emailTemplates` and no `outbox` is
-refused. The install's check step warns when the server cannot send email.
+Templates are sent through an outbox or by a rule's own `email` or `digest` step, so a manifest
+with no `outbox` is refused when it has a template no rule sends. The install's check step warns when the server cannot send email.
 
 #### Emails that list rows
 
@@ -2839,6 +2924,7 @@ the update's check, which sends `"publicAccess": true` to `POST /api/v1/apps/{ke
 | `methods` | yes | At least one of `GET`, `POST`, `PATCH`. `PATCH` needs a `claim`, a `claimedBy` that is not `optional`, or a `visibleWith`. |
 | `kind` | no | `records` (the default) or `availability`. |
 | `key` | no | The browser key that serves the entry: `customer` (the default) or a name in [`publicKeys`](#publickeys). |
+| `module` | no | The [part](#parts) of the app the entry belongs to: while that part is off the entry answers as one that is not there. Needs Adminium 0.3.27. |
 | `select` | no | The columns a response carries. Default: every column the app declares for the table. An entry with `claimedBy` must list them. |
 | `writable` | no | The columns a create or change may set. Never a column whose value Adminium decides. |
 | `writableValues` | no | `{ "<column>": [1–32 values] }`: the only values a browser may write into a writable column, on a create or a change. Each value must fit the column. |
@@ -3510,7 +3596,7 @@ claims `by: "token"`, and every entry on it is `GET` only, reaching the rest thr
 
 ## Automations
 
-`automations` lists up to 12 rules an app or an add-on brings with it: "when a stock point falls
+`automations` lists up to 24 rules (more than 12 needs `minAdminiumVersion` `0.3.27`) an app or an add-on brings with it: "when a stock point falls
 to its reorder level, write a request and tell the managers". A rule is written the way the
 [rules page](/guides/automations/) stores one, a trigger and then a flow of steps. A manifest
 that uses it sets `compatibility.minAdminiumVersion` to `0.3.18` or later.
@@ -3537,19 +3623,87 @@ that uses it sets `compatibility.minAdminiumVersion` to `0.3.18` or later.
 | `name`, `description` | One text, or one per language with `en-US` among them. The install keeps the one the workspace speaks. So for a step's `title` and `sub`, and a notice's `title` and `body`. |
 | `enabled` | Whether the rule is switched on when it is first installed. After that the owner's switch stands. |
 | `trigger` | `{ "kind": "record", "event", "table", "changedColumn"?, "when"? }` with `event` one of `created`, `updated`, `deleted`; or `{ "kind": "schedule", "schedule", "forEach"? }`. A schedule is `{ "kind": "interval", "everyMinutes" }` (`"5"`, `"10"`, `"15"`, `"30"`, `"60"`) or `daily`, `weekly` (with `dayOfWeek`, 0 = Sunday) or `monthly` (with `dayOfMonth`, 1–28) at a `time` such as `"17:00"`. `forEach` is `{ "table", "where", "once" }`: the rows a run visits. |
+| `module` | Optional. The [part](#parts) of the app the rule belongs to: it starts no run while that part is off. Needs Adminium 0.3.27. |
 | `graph` | `{ "version": 1, "nodes" }`: up to 40 steps with unique ids, the trigger first and only once. A step is a `trigger`, an `action`, a `condition`, a `wait` (up to 30 days), a `stop`, or a `branch` with two branches of up to 20 steps. |
 
-A step's action is one of five:
+A step's action is one of six:
 
 | `kind` | Keys | What it does |
 |---|---|---|
-| `notification` | `to: { "roles" }`, `title`, `body`? | Tells everyone who holds one of the manifest's own roles. |
-| `email` | `templateKey`, `to: { "kind": "field", "column" }`, `vars`? | Sends one of the manifest's own templates to the address a column of the record holds. |
-| `record.create` | `table`, `values` | Adds a row of one of the manifest's tables. |
+| `notification` | `to: { "roles" }` or `to: { "column" }`, `title`, `body`?, `urgent`? | Tells everyone who holds one of the manifest's own roles, or [the person on the row](#the-person-on-the-row). `"urgent": true` tells them at once, also in their quiet hours. |
+| `email` | `templateKey`, `to: { "kind": "field", "column" }` or `to: { "kind": "staff", "column" }`, `vars`? | Sends one of the manifest's own templates to the address a column of the record holds, or to [the person on the row](#the-person-on-the-row). |
+| `digest` | `templateKey`, `to: { "roles" }`, `sections`, `sendEmpty`? | Makes [a summary for each person](#a-summary-for-each-person) who holds one of the roles: their own rows, read as they read. |
+| `record.create` | `table`, `values`, `name`? | Adds a row of one of the manifest's tables. With a `name`, [the steps after it read the row it made](#a-row-a-step-makes). |
 | `record.update` | `values` | Writes columns of the record. |
 | `add-on.step` | `addOn`, `step`, `inputs` | Runs a [step an add-on gives](#steps-for-automations): the add-on's key, the step's key, and a text for each input. An add-on's own step is checked here; another add-on's is checked where the rule is installed, and fails by name while that add-on is not there. Needs `minAdminiumVersion` `0.3.22`. |
 
 A value is a text, which may carry `{{record.<column>}}`, or `{ "now": true }`.
+
+### The person on the row
+
+A notice's `to: { "column": "owner_id" }` and an email's `to: { "kind": "staff", "column":
+"owner_id" }` tell the person a [staff column](#whose-a-row-is) of the rule's record names. One
+link further is allowed: `"deal_id.owner_id"` on a follow-up is the owner of the deal the
+follow-up is on. The column must be a staff column; the validator refuses any other.
+
+A record that names nobody there (a deal with no owner yet, an empty link, a person since removed
+or suspended) tells nobody, and the run goes on: its log says who was not there. That is not a
+failure. An email to a person goes to the address they sign in with, in their language, and waits
+for the end of their quiet hours like a notice does.
+
+### Once per spell
+
+`forEach.once` is `false` (every time the rule runs), `true` (once ever, for each row) or
+`"per-spell"`: once for each time the row **starts** to meet the conditions. A deal that has gone
+quiet is told to its owner once; when somebody works on it and it goes quiet again a month later,
+its owner is told again. Adminium keeps, for each rule and row, whether the row met the conditions
+at the last look. A rule whose `forEach` is changed starts every spell afresh.
+
+### Quiet hours and urgent
+
+Each person may set, under their own notification settings, quiet hours for each weekday on their
+own clock, and the day and time their summaries are sent. A notice that arrives in quiet hours is
+in the app at once and its email waits for the hours to end; so does a rule's email to a person.
+`"urgent": true` on a notice is not held (a change to today's day sheet), and neither is a kind
+of notice the person marked "always tell me". A person who chose no time zone is read on the
+business's.
+
+### A summary for each person
+
+```json
+{ "kind": "digest", "templateKey": "crm-week", "to": { "roles": ["rep", "sales-manager"] },
+  "sections": [
+    { "key": "open", "table": "deals", "owner": "owner_id",
+      "where": [{ "left": { "field": "state" }, "op": "is", "right": "open" }],
+      "orderBy": { "column": "expected_close" }, "limit": 20 }
+  ] }
+```
+
+The step runs in a rule by the clock with no `forEach`. For each person who holds one of the
+roles it queues one email, sent at the day and time that person chose (at once for a person who
+chose none). When it is sent, each section is read **as that person**: the rows of `table` whose
+`owner` staff column names them, that meet `where`, among the rows their roles reach and with the
+columns their roles show. A manager who reads every deal still gets a summary of their own; a
+person who lost the role between the run and the send gets none; a person with nothing in any
+section gets no email unless `"sendEmpty": true`.
+
+The template draws each section with a rows block that names it, `{ "block": "email.rows",
+"data": { "section": "open", "row": { "title": "{{row.name}}" }, "empty": "…" } }`, and may read
+`{{name}}`, `{{appName}}`, `{{ruleName}}` and `{{count.<section>}}`. Up to 6 sections of up to 50
+rows. The validator refuses a section whose `owner` is not a staff column, a section no rows
+block draws, and a rows block that names no section.
+
+### A row a step makes
+
+A `record.create` step with `"name": "contact"` keeps the row it made, and every step after it may
+read `{{steps.contact.<column>}}`: an enquiry makes a contact, then a deal for that contact, then
+a follow-up on that deal, in one rule. The row is kept in the run's stored trace, so it is still
+there after a `wait`.
+
+A `{{steps.…}}` that names a row no step before it makes, or a column that row's table has not,
+is refused by the validator and when a rule is saved. A run that reaches a step whose row was not
+made (it was made on the other side of a branch) stops there and fails by name: the text is never
+written with the braces left in. A test run makes no rows; it reads a stand-in and says so.
 
 A manifest knows nothing of the install it lands on, so a shipped rule differs from one drawn on
 the rules page in three ways:

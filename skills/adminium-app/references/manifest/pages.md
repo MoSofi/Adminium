@@ -27,6 +27,7 @@ and appears in the app's own sidebar section.
 | `bindings` | no | Which of the app's tables the page reads: an object from a page-local name to a `requiredSchema` table ref. |
 | `config` | no | Page configuration: a `form` for a record page, a `layout` for `page-dashboard`, a `calendar` for `page-calendar`. |
 | `feature` | no | The id of one of the app's [`addOns.features`](https://docs.adminium.dev/reference/manifest/#add-ons). Until every add-on the feature requires is installed, attached to the app and switched on there, the page leaves the sidebar and is listed apart, with the add-ons it needs. |
+| `module` | no | The [part](https://docs.adminium.dev/reference/manifest/#parts) of the app the page belongs to. While that part is off the page leaves the sidebar and its address answers `409` `PART_OFF`. Needs Adminium 0.3.27. |
 
 **Templates.** A table-bound template reads one table: `page-crud`, `page-board`,
 `page-calendar`, `page-scheduler`, `page-directory`, `page-master-detail`, `page-queue-inbox`,

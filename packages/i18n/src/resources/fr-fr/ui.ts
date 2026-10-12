@@ -101,7 +101,9 @@ export default {
       "tooLarge": "Doit être inférieur ou égal à {max}.",
       "outOfRange": "Ce nombre est hors limites.",
       "duplicate": "Déjà ajouté.",
-      "form": "Certaines valeurs ont été refusées. Vérifiez les champs signalés."
+      "form": "Certaines valeurs ont été refusées. Vérifiez les champs signalés.",
+      "mentionUnknown": "Une personne mentionnée ici ne se connecte pas ici. Tapez @ et choisissez-la dans la liste.",
+      "tooManyMentions": "Trop de personnes sont mentionnées ici. Mentionnez-en moins."
     },
     "lines": {
       "add": "Ajouter une ligne",
@@ -2102,5 +2104,8 @@ export default {
       "low": "Faible",
       "out": "Épuisé"
     }
+  },
+  "mentions": {
+    "people": "Personnes à mentionner"
   }
 } as const;

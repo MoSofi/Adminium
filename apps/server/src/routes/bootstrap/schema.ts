@@ -412,6 +412,14 @@ export const bootstrapReply = z.object({
         }),
       )
       .optional(),
+    /**
+     * Pages of a part of an app that its owner switched off. In no sidebar;
+     * listed so a bookmark lands on "this part is switched off". Absent when
+     * there are none.
+     */
+    partOffPages: z.array(bootstrapNavItem).optional(),
+    /** The reader holds roles, and every one is of a part that is switched off: nothing is on for them. */
+    partsOff: z.literal(true).optional(),
     /** Only on a server that runs a project folder (`adminium start` in a project, `adminium dev`). */
     project: bootstrapProject.optional(),
   }),

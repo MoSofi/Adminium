@@ -120,6 +120,18 @@ export {
 
 export { BOOKING_WEEKDAYS, bookingSchema, type BookingRule } from './booking.js';
 export { occupiesSchema, type OccupiesRule } from './occupies.js';
+export {
+  MODULE_DEFAULTS,
+  modulesSchema,
+  moduleIssues,
+  modulesLeftOut,
+  optionalShapeAddOns,
+  tablesLeftOut,
+  columnsLeftOut,
+  withoutModules,
+  type ManifestModule,
+  type ModuleDefault,
+} from './modules.js';
 
 export {
   capacityListSchema,

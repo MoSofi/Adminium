@@ -601,6 +601,8 @@ export const publicAccessSchema = z
       .optional(),
     /** Which browser key serves the entry: `customer`, or one of `publicKeys`. */
     key: keyNameSchema.optional(),
+    /** The part of the app the entry belongs to: closed while it is off (see `modules.ts`). */
+    module: z.string().regex(/^[a-z][a-z0-9-]{0,39}$/, 'a module id is kebab-case').optional(),
     /**
      * The confirmation Adminium emails when a guest creates a row here: the
      * column holding their address, the columns the email shows, the app's

@@ -117,6 +117,8 @@ const producerBase = {
       z.object({ feature: z.string().regex(/^[a-z][a-z0-9-]{0,39}$/, 'a feature id'), setting: settingRefSchema }).strict(),
     ])
     .optional(),
+  /** The part of the app the email belongs to: nothing is queued while it is off (see `modules.ts`). */
+  module: z.string().regex(/^[a-z][a-z0-9-]{0,39}$/, 'a module id is kebab-case').optional(),
   /** Skipped for a recipient whose `recipient.optIn` column is false. */
   optIn: z.literal(true).optional(),
   /** Written `held`: sent only once someone approves it. */
@@ -546,7 +548,20 @@ export function outboxIssues(
 
   const box = m.outbox;
   if (box === undefined) {
-    if (templates.size > 0) out.push({ path: ['emailTemplates'], message: 'templates are sent through an outbox, and this app declares none' });
+    // With no outbox, a template is one a rule's own step sends: to an address, or to each person as their summary.
+    const byRules = new Set<string>();
+    const collect = (value: unknown): void => {
+      if (Array.isArray(value)) value.forEach(collect);
+      else if (typeof value === 'object' && value !== null) {
+        for (const [key, inner] of Object.entries(value)) {
+          if (key === 'templateKey' && typeof inner === 'string') byRules.add(inner);
+          else collect(inner);
+        }
+      }
+    };
+    for (const rule of (m as { automations?: { graph?: unknown }[] }).automations ?? []) collect(rule.graph);
+    const unsent = [...templates].filter((key) => !byRules.has(key));
+    if (unsent.length > 0) out.push({ path: ['emailTemplates'], message: `templates are sent through an outbox or by a rule's step, and nothing sends ${unsent.map((key) => `"${key}"`).join(', ')}: this app declares no outbox` });
     return out;
   }
   const at = (...rest: (string | number)[]) => ['outbox', ...rest];
@@ -916,7 +931,7 @@ export function outboxIssues(
  * nothing else. `empty` is said when there are no rows; without it the block
  * is left out.
  */
-export const emailRowsDataSchema = z
+const outboxRowsDataSchema = z
   .object({
     from: z.union([
       z
@@ -969,6 +984,28 @@ export const emailRowsDataSchema = z
     empty: z.string().min(1).max(200).optional(),
   })
   .strict();
+/**
+ * The rows of one section of a summary (a rule's `digest` step): `section`
+ * is the section's key, and `row` each line's text, reading `{{row.<column>}}`
+ * of the section's table. `empty` is said to a person the section lists
+ * nothing for; without it the block is left out for them.
+ */
+const sectionRowsDataSchema = z
+  .object({
+    section: z.string().regex(/^[a-z][a-z0-9-]{0,39}$/, 'a section key is kebab-case'),
+    row: z
+      .object({
+        title: z.string().min(1).max(300).optional(),
+        meta: z.string().min(1).max(300).optional(),
+        amount: z.string().min(1).max(300).optional(),
+        note: z.string().min(1).max(300).optional(),
+      })
+      .strict(),
+    empty: z.string().min(1).max(200).optional(),
+  })
+  .strict();
+
+export const emailRowsDataSchema = z.union([outboxRowsDataSchema, sectionRowsDataSchema]);
 export type EmailRowsData = z.infer<typeof emailRowsDataSchema>;
 
 /** A QR code of a code column, as the whole value of an image: `{{ticket.code.qr}}`. */
@@ -1067,6 +1104,11 @@ function emailBlockIssues(
           return;
         }
         const data = parsed.data;
+        // A section of a summary: its table and what its rows read are checked with the rule's step that fills it.
+        if ('section' in data) {
+          rows.push(JSON.stringify({ section: data.section }));
+          return;
+        }
         rows.push(JSON.stringify({ from: data.from, joins: data.joins ?? null }));
         const from = data.from;
         const parent = linkTable(from.link);

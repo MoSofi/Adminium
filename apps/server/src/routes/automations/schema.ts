@@ -122,6 +122,8 @@ const sourceColumnSchema = z.object({
   pii: z.boolean(),
   /** The classifier read this as an address; the email step offers it first. */
   emailLike: z.boolean(),
+  /** Holds a staff member: a step may tell "the person in this column". */
+  staff: z.boolean().optional(),
   /** A relative-time operator is offered only on these. */
   dateLike: z.boolean(),
 });

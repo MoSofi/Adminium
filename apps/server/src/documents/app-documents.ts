@@ -23,6 +23,7 @@
  * of document it does not draw — a mistake in the app, found before anything
  * is written.
  */
+import { appPartIsOn } from '../rbac/app-parts.js';
 import { satisfiesSemverRange, type AppManifest, type Manifest } from '@adminium/manifest';
 import { appTablesRepo, documentProfilesRepo, manifestsRepo, type DocumentProfile, type MetaDb } from '@adminium/meta';
 
@@ -279,6 +280,10 @@ export async function appDocumentOff(input: {
   runtime: () => AddOnRuntimeState | null;
 }): Promise<{ addOn: string; feature: string | null; reason: string } | null> {
   const entry = (input.manifest.documents ?? []).find((d) => d.table === input.table && d.kind === input.profile.kind);
+  // A document of a part of the app that is switched off is not drawn, by any door.
+  if (entry?.module !== undefined && !(await appPartIsOn(input.meta, input.manifest.key, entry.module))) {
+    return { addOn: input.profile.addOnKey, feature: entry.feature ?? null, reason: `its part of the app ("${entry.module}") is switched off` };
+  }
   const plan = { addOn: input.profile.addOnKey, kind: input.profile.kind, feature: entry?.feature };
   const verdict = availabilityOf(plan, input.manifest, await addOnAvailability(input.meta, input.manifest.key, input.runtime));
   return verdict.state === 'on' ? null : { addOn: plan.addOn, feature: plan.feature ?? null, reason: verdict.reason };

@@ -51,3 +51,5 @@ export * from './option-lists.js';
 export * from './assistant-sessions.js';
 export * from './assistant-use.js';
 export * from './teams.js';
+export * from './automation-spells.js';
+export * from './notification-schedules.js';

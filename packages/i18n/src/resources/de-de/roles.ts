@@ -164,5 +164,6 @@ export default {
     "count": "{name} würde {reached} von {total} sehen.",
     "capped": "Diese Person leitet mehr Personen, als eine Reichweite fasst; es wird nicht ihr ganzes Team gezählt.",
     "lifted": "{name} hat außerdem {roles}, was jede Zeile gibt. Diese Einschränkung gilt für diese Person nicht."
-  }
+  },
+  "partsOff": "Sein Teil der App ist ausgeschaltet: Die Rolle gewährt nichts, bis dieser Teil eingeschaltet ist."
 } as const;

@@ -91,7 +91,9 @@
       "tooLarge": "Must be {max} or less.",
       "outOfRange": "This number is out of range.",
       "duplicate": "Already added.",
-      "form": "Some values were refused. Check the marked fields."
+      "form": "Some values were refused. Check the marked fields.",
+      "mentionUnknown": "Somebody mentioned here is not a person who signs in. Type @ and choose them from the list.",
+      "tooManyMentions": "Too many people are mentioned here. Mention fewer."
     },
     "lines": {
       "add": "Add line",
@@ -2092,5 +2094,8 @@
       "low": "Low",
       "out": "Out"
     }
+  },
+  "mentions": {
+    "people": "People to mention"
   }
 }

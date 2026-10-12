@@ -127,7 +127,8 @@
       "openStaff": "打开员工界面",
       "openStaffInstance": "打开员工界面 · {instance}"
     },
-    "drawerTitle": "导航"
+    "drawerTitle": "导航",
+    "emptyPartsOff": "目前没有为你开启的内容。请联系管理员。"
   },
   "apps": {
     "frame": {
@@ -295,6 +296,15 @@
       "title": "此应用在单独的地址打开",
       "body": "它在自己的地址打开，而不是在仪表板内。",
       "primary": "打开"
+    },
+    "partOff": {
+      "title": "应用的这一部分已关闭",
+      "body": "管理员关闭了应用的这一部分。没有删除任何内容——请在“工作室 → 应用”的“组成部分”中重新开启。",
+      "secondary": "返回"
+    },
+    "partsOff": {
+      "title": "目前没有为你开启的内容",
+      "body": "你拥有的每个角色都属于某个应用中当前已关闭的部分。没有删除任何内容。请让管理员开启该部分，或为你分配其他角色。"
     }
   },
   "notFound": {
@@ -1528,7 +1538,9 @@
     "event": {
       "reportReady": "定时报告已就绪",
       "reportFailed": "定时报告失败",
-      "backupCompleted": "备份完成"
+      "backupCompleted": "备份完成",
+      "ruleNotice": "规则发出的通知",
+      "mention": "有人提到了我"
     }
   },
   "theme": {
@@ -1816,5 +1828,22 @@
       "unread": "1 条未读回答",
       "proposal": "有一项更改等待你确认"
     }
+  },
+  "quietHours": {
+    "title": "免打扰时段与摘要",
+    "help": "在免打扰时段，通知仍会显示在铃铛中，但不发出声音、不弹出，其邮件会等到时段结束再发送。标记为紧急的内容会立即送达。",
+    "zone": "你的时区",
+    "zoneDefault": "企业的时区（{zone}）",
+    "none": "无免打扰时段",
+    "from": "免打扰开始，{day}",
+    "until": "至",
+    "to": "免打扰结束，{day}",
+    "nextDay": "次日",
+    "daySwitch": "{day}的免打扰时段",
+    "copy": "将{day}的时段复制到每一天",
+    "digestDay": "在以下日期发送我的摘要",
+    "digestWhenRun": "各摘要生成的当天",
+    "digestTime": "时间",
+    "always": "始终通知我，即使在免打扰时段"
   }
 }

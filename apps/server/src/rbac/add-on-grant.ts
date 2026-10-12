@@ -21,6 +21,7 @@
  * Switching the app off already suspends its roles (the resolver); this adds
  * the add-on's side of the same question.
  */
+import { offeredRoles } from './app-parts.js';
 import { permissionsRepo, rolesRepo, type MetaDb, type Role } from '@adminium/meta';
 
 import { addOnSettingsRef } from './permissions.js';
@@ -35,6 +36,8 @@ export async function addOnSettingsGrantHeld(meta: MetaDb, principal: RbacPrinci
   } else {
     held = await roles.rolesForUser(principal.id);
   }
+  // A role that is not offered (its part of the app is off) gives nothing, this grant included.
+  held = await offeredRoles(meta, held);
   const permissions = permissionsRepo(meta);
   for (const role of held) {
     const row = await permissions.find(role.id, 'app', addOnSettingsRef(addOnKey));

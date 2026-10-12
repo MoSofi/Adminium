@@ -131,7 +131,9 @@ export default {
     "waitDesc": "在下一步之前暂停",
     "stop": "停止流程",
     "stopDesc": "在此结束本次运行",
-    "document": "生成文档"
+    "document": "生成文档",
+    "digest": "给每人发送摘要",
+    "digestDesc": "每人一封邮件，只含属于自己的行"
   },
   "node": {
     "email": {
@@ -179,6 +181,9 @@ export default {
     },
     "document": {
       "summary": "生成文档"
+    },
+    "digest": {
+      "summary": "{template} · {count, plural, other {# 个分区}}"
     }
   },
   "event": {
@@ -254,7 +259,9 @@ export default {
     "timeSaved": "每次运行节省的时间",
     "timeSavedBody": "一个人本会花费的分钟数 — 在规则上显示为“节省”",
     "addCondition": "添加条件",
-    "connection": "连接"
+    "connection": "连接",
+    "perSpell": "再次符合时重新运行",
+    "perSpellBody": "记录不再符合、之后又符合时会再次运行：每个这样的阶段运行一次"
   },
   "sched": {
     "interval": "间隔",
@@ -289,14 +296,22 @@ export default {
     "noColumn": "没有匹配的列。",
     "addressColumns": "地址列",
     "thisTable": "此表 · {table}",
-    "fromLink": "来自 {link} · {table}.{column}"
+    "fromLink": "来自 {link} · {table}.{column}",
+    "toStaff": "此记录上的人员"
   },
   "notif": {
     "to": "发送给",
     "roles": "拥有某角色的所有人",
     "users": "指定的人",
     "title": "标题",
-    "body": "消息"
+    "body": "消息",
+    "column": "此记录上的人员",
+    "columnPick": "哪位人员",
+    "columnChoose": "选择一列…",
+    "columnNone": "此表没有保存员工的列。",
+    "columnEmpty": "该列为空的记录不会通知任何人，运行记录中会注明。",
+    "urgent": "紧急",
+    "urgentBody": "立即通知，即使在对方的免打扰时段"
   },
   "rec": {
     "table": "表",
@@ -306,7 +321,9 @@ export default {
     "value": "值",
     "now": "现在",
     "remove": "移除此值",
-    "tokenHint": "使用 {token} 从记录中取值"
+    "tokenHint": "使用 {token} 从记录中取值",
+    "name": "新行的名称，供后续步骤使用（可选）",
+    "nameHint": "后续步骤通过 {token} 读取"
   },
   "hook": {
     "url": "URL",
@@ -468,5 +485,17 @@ export default {
     "changed": "{name} 修改了此规则。",
     "undo": "撤销 {name} 的修改",
     "addedBy": "由 {name} 添加"
+  },
+  "digest": {
+    "help": "每人一封邮件，只列出属于其本人且其有权读取的行。在每个人为摘要选择的时间发送，否则在规则运行时发送。",
+    "sectionKey": "分区名称（模板的行区块引用它）",
+    "chooseTable": "选择一个表…",
+    "owner": "此人在以下列中的行",
+    "conditions": "{count, plural, other {另有 # 个条件，保持不变。}}",
+    "limit": "最多显示的行数",
+    "removeSection": "移除此分区",
+    "addSection": "添加分区",
+    "sendEmpty": "没有内容时也发送",
+    "sendEmptyBody": "关闭：任何分区都没有行的人不会收到邮件"
   }
 } as const;

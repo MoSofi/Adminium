@@ -628,7 +628,7 @@ describe('the outbox and its templates', () => {
   });
 
   it('refuses templates with no outbox to send them', () => {
-    expect(issuesOf(changed((d) => delete (d as Record<string, unknown>)['outbox']))).toContain('this app declares none');
+    expect(issuesOf(changed((d) => delete (d as Record<string, unknown>)['outbox']))).toContain('this app declares no outbox');
   });
 });
 

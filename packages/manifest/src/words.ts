@@ -103,6 +103,16 @@ export const INSTALL_FLOOR_WORD_NAMES = [
   'table.private',
   'roles.rows',
   'states.handOver',
+  'app.modules',
+  'roles.names',
+  'app.maps',
+  'automations.staffRecipient',
+  'automations.perSpell',
+  'automations.urgent',
+  'automations.digest',
+  'automations.stepName',
+  'automations.many',
+  'column.mentions',
 ] as const;
 export type ManifestWordName = (typeof INSTALL_FLOOR_WORD_NAMES)[number];
 
@@ -143,6 +153,26 @@ export const WORD_FLOORS: Readonly<Partial<Record<ManifestWordName, string>>> = 
   'table.occupies': '0.3.27',
   // A running number the app's sample rows may take: the next real row follows them.
   'sequence.sample': '0.3.27',
+  // The parts of an app its owner switches on and off, and everything that names one.
+  'app.modules': '0.3.27',
+  // A role's name in other languages.
+  'roles.names': '0.3.27',
+  // The app shows maps: its install asks whether they are shown.
+  'app.maps': '0.3.27',
+  // A rule that tells the person a staff column of its record names.
+  'automations.staffRecipient': '0.3.27',
+  // A row visited once for each spell it matches.
+  'automations.perSpell': '0.3.27',
+  // A notice told at once, also in a person's quiet hours.
+  'automations.urgent': '0.3.27',
+  // A summary for each person, of the rows that are theirs.
+  'automations.digest': '0.3.27',
+  // A row a step makes, read by a later step.
+  'automations.stepName': '0.3.27',
+  // More rules than a manifest could ship before (twelve).
+  'automations.many': '0.3.27',
+  // A text column in which people are mentioned.
+  'column.mentions': '0.3.27',
 };
 
 /** Every word of `document` that needs the install floor, in document order. */
@@ -181,6 +211,8 @@ export function installFloorWords(document: unknown): ManifestWord[] {
     for (const key of ['people', 'teams'] as const) {
       if (isDoc(document['sampleData']) && document['sampleData'][key] !== undefined) out.push({ word: 'sampleData.people', path: `sampleData.${key}` });
     }
+    if (document['modules'] !== undefined) out.push({ word: 'app.modules', path: 'modules' });
+    if (document['maps'] !== undefined) out.push({ word: 'app.maps', path: 'maps' });
     // Starting rows: a release before the floor takes the block and writes none of it.
     if (document['seeds'] !== undefined) out.push({ word: 'app.seeds', path: 'seeds' });
     // A phone side: a server that does not know the side refuses the whole manifest.
@@ -218,6 +250,7 @@ export function installFloorWords(document: unknown): ManifestWord[] {
       if (rules['addOnLink'] !== undefined && rules['default'] !== undefined) out.push({ word: 'column.addOnLink.default', path: `${here}.default` });
       if (rules['tableRef'] !== undefined) out.push({ word: 'column.tableRef', path: `${here}.tableRef` });
       if (rules['staff'] !== undefined) out.push({ word: 'column.staff', path: `${here}.staff` });
+      if (rules['mentions'] !== undefined) out.push({ word: 'column.mentions', path: `${here}.mentions` });
       for (const key of ['announce', 'plainText', 'customerKey', 'codeLast4'] as const) {
         if (rules[key] !== undefined) out.push({ word: `column.${key}`, path: `${here}.${key}` });
       }
@@ -232,6 +265,7 @@ export function installFloorWords(document: unknown): ManifestWord[] {
   list(document['roles']).forEach((role, r) => {
     if (!isDoc(role)) return;
     if (role['tables'] !== undefined) out.push({ word: 'roles.tables', path: `roles.${String(r)}.tables` });
+    if (role['names'] !== undefined) out.push({ word: 'roles.names', path: `roles.${String(r)}.names` });
     // An update that reaches a row only while one of its columns holds some value.
     for (const [ref, limit] of Object.entries(isDoc(role['limits']) ? role['limits'] : {})) {
       if (isDoc(limit) && limit['writableFrom'] !== undefined) out.push({ word: 'roles.writableFrom', path: `roles.${String(r)}.limits.${ref}.writableFrom` });
@@ -276,16 +310,26 @@ export function installFloorWords(document: unknown): ManifestWord[] {
       if (placeholdersIn(JSON.stringify(entry ?? null)).some((placeholder) => placeholder.backup !== undefined)) out.push({ word: 'placeholder.backup', path: `${part}.${String(e)}` });
     });
   }
+  // More rules than a manifest could ship before.
+  if (list(document['automations']).length > 12) out.push({ word: 'automations.many', path: 'automations' });
   // A rule that uses a step an add-on gives.
   list(document['automations']).forEach((rule, r) => {
     const steps = (nodes: unknown, at: string): void => {
       list(nodes).forEach((node, n) => {
         if (!isDoc(node)) return;
         if (isDoc(node['action']) && node['action']['kind'] === 'add-on.step') out.push({ word: 'automations.addOnStep', path: `${at}.${String(n)}.action` });
+        const action = isDoc(node['action']) ? node['action'] : {};
+        const to = isDoc(action['to']) ? action['to'] : {};
+        if ((action['kind'] === 'notification' && to['column'] !== undefined) || (action['kind'] === 'email' && to['kind'] === 'staff')) out.push({ word: 'automations.staffRecipient', path: `${at}.${String(n)}.action.to` });
+        if (action['urgent'] !== undefined) out.push({ word: 'automations.urgent', path: `${at}.${String(n)}.action.urgent` });
+        if (action['kind'] === 'digest') out.push({ word: 'automations.digest', path: `${at}.${String(n)}.action` });
+        if (action['kind'] === 'record.create' && action['name'] !== undefined) out.push({ word: 'automations.stepName', path: `${at}.${String(n)}.action.name` });
         list(node['branches']).forEach((branch, b) => steps(isDoc(branch) ? branch['nodes'] : undefined, `${at}.${String(n)}.branches.${String(b)}.nodes`));
       });
     };
     steps(isDoc(rule) && isDoc(rule['graph']) ? rule['graph']['nodes'] : undefined, `automations.${String(r)}.graph.nodes`);
+    const forEach = isDoc(rule) && isDoc(rule['trigger']) && isDoc(rule['trigger']['forEach']) ? rule['trigger']['forEach'] : {};
+    if (forEach['once'] === 'per-spell') out.push({ word: 'automations.perSpell', path: `automations.${String(r)}.trigger.forEach.once` });
   });
   list(document['documents']).forEach((entry, d) => {
     for (const [slot, source] of Object.entries(isDoc(entry) && isDoc(entry['mapping']) ? entry['mapping'] : {})) {

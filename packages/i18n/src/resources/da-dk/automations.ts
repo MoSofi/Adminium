@@ -131,7 +131,9 @@ export default {
     "waitDesc": "Hold pause før næste trin",
     "stop": "Stop arbejdsgangen",
     "stopDesc": "Afslut denne kørsel her",
-    "document": "Opret dokument"
+    "document": "Opret dokument",
+    "digest": "Send hver person et overblik",
+    "digestDesc": "Én e-mail til hver, med deres egne rækker"
   },
   "node": {
     "email": {
@@ -179,6 +181,9 @@ export default {
     },
     "document": {
       "summary": "Opretter et dokument"
+    },
+    "digest": {
+      "summary": "{template} · {count, plural, one {# sektion} other {# sektioner}}"
     }
   },
   "event": {
@@ -254,7 +259,9 @@ export default {
     "timeSaved": "Sparet tid pr. kørsel",
     "timeSavedBody": "Minutter en person ville have brugt — vises som “sparer” på reglen",
     "addCondition": "Tilføj en betingelse",
-    "connection": "Forbindelse"
+    "connection": "Forbindelse",
+    "perSpell": "Igen, når den matcher på ny",
+    "perSpellBody": "En post, der holder op med at matche og senere matcher igen, køres igen: én gang for hver sådan periode"
   },
   "sched": {
     "interval": "Interval",
@@ -289,14 +296,22 @@ export default {
     "noColumn": "Ingen kolonne passer.",
     "addressColumns": "Adressekolonner",
     "thisTable": "Denne tabel · {table}",
-    "fromLink": "Via {link} · {table}.{column}"
+    "fromLink": "Via {link} · {table}.{column}",
+    "toStaff": "Personen på denne post"
   },
   "notif": {
     "to": "Send til",
     "roles": "Alle med en rolle",
     "users": "Bestemte personer",
     "title": "Titel",
-    "body": "Besked"
+    "body": "Besked",
+    "column": "Personen på denne post",
+    "columnPick": "Hvilken person",
+    "columnChoose": "Vælg en kolonne…",
+    "columnNone": "Denne tabel har ingen kolonne, der indeholder en medarbejder.",
+    "columnEmpty": "En post uden nogen i den kolonne giver ingen besked, og kørslen siger det.",
+    "urgent": "Haster",
+    "urgentBody": "Gives med det samme, også i en persons stilletimer"
   },
   "rec": {
     "table": "Tabel",
@@ -306,7 +321,9 @@ export default {
     "value": "Værdi",
     "now": "Nu",
     "remove": "Fjern denne værdi",
-    "tokenHint": "Brug {token} til at hente fra posten"
+    "tokenHint": "Brug {token} til at hente fra posten",
+    "name": "Navn på den nye række til senere trin (valgfrit)",
+    "nameHint": "Et senere trin læser den som {token}"
   },
   "hook": {
     "url": "URL",
@@ -468,5 +485,17 @@ export default {
     "changed": "{name} har ændret denne regel.",
     "undo": "Fortryd ændringen fra {name}",
     "addedBy": "Tilføjet af {name}"
+  },
+  "digest": {
+    "help": "Én e-mail til hver person med kun de rækker, der er deres, og som de må læse. Den sendes på det tidspunkt, personen har valgt til overblik, ellers når reglen kører.",
+    "sectionKey": "Sektionens navn (skabelonens rækkeblok nævner det)",
+    "chooseTable": "Vælg en tabel…",
+    "owner": "Rækker, hvor denne person er",
+    "conditions": "{count, plural, one {Og # betingelse mere, bevaret som den er.} other {Og # betingelser mere, bevaret som de er.}}",
+    "limit": "Højst så mange rækker",
+    "removeSection": "Fjern denne sektion",
+    "addSection": "Tilføj en sektion",
+    "sendEmpty": "Send også, når der intet er at vise",
+    "sendEmptyBody": "Fra: en person uden rækker i nogen sektion får ingen e-mail"
   }
 } as const;

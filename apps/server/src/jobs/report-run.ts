@@ -24,6 +24,8 @@
  * report never hot-loops the queue, and the creator is TOLD via a
  * `report.failed` notification instead of a silent skip.
  */
+import { appPartIsOn } from '../rbac/app-parts.js';
+import { pageAppPart } from '@adminium/meta';
 import { exportsRepo, pagesRepo, scheduledReportsRepo, type Job, type MetaDb } from '@adminium/meta';
 import type { EnqueueJobInput } from '@adminium/meta';
 import { z } from 'zod';
@@ -134,6 +136,13 @@ async function executeReportRun(
 
   const page = await pagesRepo(deps.meta).findById(report.pageId);
   if (page === null) return fail('The report’s page no longer exists.');
+  // A report over a page of a part of its app that is switched off waits with it: not sent, not failed, due again at its next time.
+  const part = pageAppPart(page.config);
+  if (part !== null && !(await appPartIsOn(deps.meta, part.app, part.module))) {
+    ctx.log('report-run: its part of the app is switched off, skipping', { reportId: report.id, app: part.app, module: part.module });
+    await finishRun();
+    return { reportId: report.id, exportId: null };
+  }
   const parsed = envelopeSourceSchema.safeParse(page.config);
   const source = parsed.success ? parsed.data.source : null;
   if (source === null || source.connectionId === null || source.table === null) {

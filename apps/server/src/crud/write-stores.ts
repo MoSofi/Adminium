@@ -6,6 +6,7 @@
  * currency and an add-on's settings — and the roles of whoever writes, for a
  * move only some roles may make.
  */
+import { offeredRoles } from '../rbac/app-parts.js';
 import type { Manifest } from '@adminium/manifest';
 import { addOnSettingsRepo, apiKeysRepo, connectionTenantConfig, documentSequencesRepo, readJson, rolesRepo, type MetaDb } from '@adminium/meta';
 
@@ -47,7 +48,8 @@ export function writeStores(meta: MetaDb): Pick<WriteServiceOptions, 'sequences'
     rolesOf: async (actor) => {
       const roles = rolesRepo(meta);
       let held: { slug: string }[] = [];
-      if (actor?.kind === 'user' && actor.id !== null) held = await roles.rolesForUser(actor.id);
+      // A role that is not offered (its part of the app is off) keeps no move for its holder.
+      if (actor?.kind === 'user' && actor.id !== null) held = await offeredRoles(meta, await roles.rolesForUser(actor.id));
       if (actor?.kind === 'api-key' && actor.id !== null) {
         const key = await apiKeysRepo(meta).findById(actor.id);
         const role = key === null ? null : await roles.findById(key.roleId);

@@ -3120,7 +3120,9 @@
       "advice": "請你的經理在 {app} → 設定 中開啟。",
       "signOut": "登出",
       "noAccess": "此帳號無法開啟 {app}。",
-      "noAccessAdvice": "請你的主管為你指派可以開啟 {app} 的角色。"
+      "noAccessAdvice": "請你的主管為你指派可以開啟 {app} 的角色。",
+      "partsOff": "{app} 中目前沒有為你開啟的內容。",
+      "partsOffAdvice": "你擁有的每個角色都屬於 {app} 中已關閉的部分。請讓你的主管開啟該部分，或為你指派其他角色。"
     },
     "notFound": {
       "title": "找不到頁面",
@@ -3411,5 +3413,52 @@
     "body": "{count, plural, other {此頁面只能搭配此應用程式在這裡尚未擁有的附加元件使用，因此不在側邊欄中。附加元件安裝並連接到應用程式後，它就會回來。}}",
     "open": "開啟應用程式的設定",
     "title": "{page} 需要附加元件"
+  },
+  "appParts": {
+    "title": "組成部分",
+    "help": "關閉這家企業用不到的部分。已關閉的部分沒有頁面、規則和角色；其記錄會保留。",
+    "onePage": "1 個頁面",
+    "pages": "{n} 個頁面",
+    "oneRule": "1 條規則已開啟",
+    "rules": "{n} 條規則已開啟",
+    "roles": "角色：{roles}",
+    "leftOut": "尚未設定。在「附加元件」中連接 {addOns} 後即會加入。",
+    "waiting": "在「附加元件」中連接 {addOns} 之前保持關閉。",
+    "always": "一律開啟",
+    "needs": "需要附加元件",
+    "switch": "{part}，開啟或關閉",
+    "on": "開",
+    "off": "關",
+    "dialogClose": "關閉",
+    "cancel": "取消",
+    "onDialog": {
+      "title": "開啟「{part}」？",
+      "back": "其頁面、規則和角色會立即恢復，無需更新或重新啟動。",
+      "noCatchUp": "關閉期間發生的事情不會補做：其規則當時沒有執行，現在也不會為錯過的內容執行。",
+      "confirm": "開啟"
+    },
+    "offDialog": {
+      "title": "關閉「{part}」？",
+      "stops": "其頁面會從選單中移除，規則停止，角色在重新開啟前不授予任何權限。",
+      "stays": "其記錄會保留。其他部分中讀取這些記錄的角色仍可讀取。",
+      "open": "其中目前未完成的：",
+      "openRows": "{table} 中有 {n} 筆未完成",
+      "oneRule": "1 條已開啟的規則將停止",
+      "rules": "{n} 條已開啟的規則將停止",
+      "oneStranded": "將有 1 人沒有任何已開啟的內容",
+      "stranded": "將有 {n} 人沒有任何已開啟的內容",
+      "nothingOpen": "其中目前沒有未完成的內容。",
+      "confirm": "關閉"
+    },
+    "installHelp": "選擇開始使用 {app} 的哪些部分。之後可在應用程式設定中隨時開啟或關閉任何一個。",
+    "installTick": "開始時啟用「{part}」",
+    "installAlways": "一律開啟",
+    "installLeftOut": "本次安裝不包含：它需要 {addOns}。請在「附加元件」中勾選，或稍後連接後再加入這個部分。",
+    "installNeeds": "與 {addOns} 搭配使用，後者會隨應用程式一起安裝。"
+  },
+  "installMaps": {
+    "title": "地圖",
+    "tick": "顯示地圖（使用 OpenFreeMap）",
+    "note": "每個人的瀏覽器會從地圖伺服器取得地圖圖片。伺服器只知道正在查看哪個區域，不會得知你的任何記錄。這是此處所有應用程式共用的一個開關。"
   }
 }

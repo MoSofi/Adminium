@@ -101,7 +101,7 @@ Forty-eight namespaces. Counts are operations, not paths.
 | `/api/v1/add-ons/*` | 33 | Installed add-ons — list what a host should mount, preview what installing would do, install from a verified package, enable or disable per host, and uninstall |
 | `/api/v1/api-docs` | 1 | The public API catalogue behind /api-docs — what live keys can call; 404 while the page is off |
 | `/api/v1/api-keys/*` | 3 | Issue, list and revoke API keys |
-| `/api/v1/apps/*` | 26 | Micro-SaaS apps installed into this instance — upload a built bundle or download one from the opt-in online catalog, browse what is staged or offered, plan its tables against a connection, install (with the public access it asks for, unless declined), update (giving what a new version adds to its public access only when allowed, and taking back what it drops), rename an older install’s tables to the app’s prefix, change one app’s settings, switch it off and on, set its domains and instances, add and remove its sample data, discard a staged version, and uninstall |
+| `/api/v1/apps/*` | 29 | Micro-SaaS apps installed into this instance — upload a built bundle or download one from the opt-in online catalog, browse what is staged or offered, plan its tables against a connection, install (with the public access it asks for, unless declined), update (giving what a new version adds to its public access only when allowed, and taking back what it drops), rename an older install’s tables to the app’s prefix, change one app’s settings, switch it off and on, set its domains and instances, add and remove its sample data, discard a staged version, and uninstall |
 | `/api/v1/assistant/*` | 13 | The page assistant — open a session on a page, ask it something, read what the turn came back with, and act on the draft it proposed. Every route needs the assistant permission; saving what it drafts additionally needs the same permission the page’s own save needs. The assistant reads; nothing it does writes a record on its own. |
 | `/api/v1/audit/*` | 2 | The audit log — list and read single entries |
 | `/api/v1/auth/*` | 12 | Login, logout, session listing, 2FA enrolment, password change and reset |
@@ -126,7 +126,7 @@ Forty-eight namespaces. Counts are operations, not paths.
 | `/api/v1/jobs/*` | 4 | Background jobs — enqueue, poll, cancel |
 | `/api/v1/ledgers/*` | 4 | The rules that hand rows to an add-on's ledger (stock, gift cards) — which tables post into it, whether each rule runs, how many rows hold something under it and how many saves wait to be worked out; the tables and columns a new rule may be drawn from; making the ledger's items from a table's rows; and recording the saves let through while the add-on could not be asked. Reading needs a session and the connection; the two runs need the grant that changes what a table's columns mean. A rule itself is stored under /connections/:id/tables/:table/postings. |
 | `/api/v1/llm/*` | 16 | LLM assist — provider config, runs, prompts, diffs, apply, undo |
-| `/api/v1/me/*` | 11 | The signed-in user — profile, preferences, notifications, saved layouts |
+| `/api/v1/me/*` | 13 | The signed-in user — profile, preferences, notifications, saved layouts |
 | `/api/v1/meta/*` | 2 | Where the meta store lives, and relocating it |
 | `/api/v1/onboarding/*` | 2 | The first-run checklist |
 | `/api/v1/option-lists/*` | 5 | Named sets of answers a column accepts, written once and pointed at by as many columns as need them. Reading one needs only a session — a create dialog has to render the choices to anyone who may add a row — while writing needs the same grant that points a column at a list. The built-in lists live in code and are served with their labels in the caller's locale; editing one makes an ordinary copy rather than changing it. Deleting a list a column still names is refused with 409 and the columns using it. |
@@ -256,6 +256,9 @@ PATCH /api/v1/apps/{key}/settings
 GET /api/v1/apps/{key}/overview
 POST /api/v1/apps/{key}/disable
 POST /api/v1/apps/{key}/enable
+GET /api/v1/apps/{key}/parts
+GET /api/v1/apps/{key}/parts/{part}/open
+PUT /api/v1/apps/{key}/parts/{part}
 PUT /api/v1/apps/{key}/domains
 PUT /api/v1/apps/{key}/instances
 POST /api/v1/apps/{key}/rename-tables/plan
@@ -602,6 +605,8 @@ POST /api/v1/me/notifications/{id}/read
 POST /api/v1/me/notifications/read-all
 GET /api/v1/me/notification-prefs
 PUT /api/v1/me/notification-prefs
+GET /api/v1/me/notification-schedule
+PUT /api/v1/me/notification-schedule
 PUT /api/v1/me/views/{pageId}/layout
 DELETE /api/v1/me/views/{pageId}/layout
 ```

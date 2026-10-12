@@ -4,6 +4,7 @@
  * track): `/me/notifications` (keyset list + read transitions) and
  * `/me/notification-prefs` (event × channel matrix).
  */
+import { notificationQuietSchema } from '@adminium/meta';
 import { z } from 'zod';
 import { notificationChannelsSchema } from '@adminium/meta';
 
@@ -98,3 +99,25 @@ export const notificationPrefsPutBody = z.object({
   events: z.array(z.object({ key: eventKeySchema, channels: notificationChannelsSchema })).min(1),
 });
 export type NotificationPrefsPutBody = z.infer<typeof notificationPrefsPutBody>;
+
+// --- when a person is told ---------------------------------------------------
+
+const scheduleFields = {
+  /** IANA zone; null follows the business's. */
+  timezone: z.string().min(1).max(64).nullable(),
+  /** The quiet hours of each weekday (0 = Sunday); null for none. */
+  quiet: notificationQuietSchema.nullable(),
+  /** 0 (Sunday) to 6; null sends a summary the day it is made. */
+  digestDay: z.number().int().min(0).max(6).nullable(),
+  /** `HH:MM` on the person's clock; null sends a summary when its rule runs. */
+  digestTime: z
+    .string()
+    .regex(/^([01]\d|2[0-3]):[0-5]\d$/)
+    .nullable(),
+};
+
+export const notificationSchedulePutBody = z.object(scheduleFields).strict();
+
+export const notificationScheduleReply = z.object({
+  data: z.object({ ...scheduleFields, fallbackTimezone: z.string() }),
+});

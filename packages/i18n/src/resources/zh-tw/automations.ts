@@ -131,7 +131,9 @@ export default {
     "waitDesc": "在下一步之前暫停",
     "stop": "停止流程",
     "stopDesc": "在此結束這次執行",
-    "document": "產生文件"
+    "document": "產生文件",
+    "digest": "給每人傳送摘要",
+    "digestDesc": "每人一封郵件，只含屬於自己的列"
   },
   "node": {
     "email": {
@@ -179,6 +181,9 @@ export default {
     },
     "document": {
       "summary": "產生文件"
+    },
+    "digest": {
+      "summary": "{template} · {count, plural, other {# 個區段}}"
     }
   },
   "event": {
@@ -254,7 +259,9 @@ export default {
     "timeSaved": "每次執行節省的時間",
     "timeSavedBody": "一個人本來會花的分鐘數 — 在規則上顯示為「節省」",
     "addCondition": "新增條件",
-    "connection": "連線"
+    "connection": "連線",
+    "perSpell": "再次符合時重新執行",
+    "perSpellBody": "記錄不再符合、之後又符合時會再次執行：每個這樣的階段執行一次"
   },
   "sched": {
     "interval": "間隔",
@@ -289,14 +296,22 @@ export default {
     "noColumn": "沒有符合的欄。",
     "addressColumns": "位址欄",
     "thisTable": "此資料表 · {table}",
-    "fromLink": "來自 {link} · {table}.{column}"
+    "fromLink": "來自 {link} · {table}.{column}",
+    "toStaff": "此記錄上的人員"
   },
   "notif": {
     "to": "傳送給",
     "roles": "擁有某角色的所有人",
     "users": "指定的人",
     "title": "標題",
-    "body": "訊息"
+    "body": "訊息",
+    "column": "此記錄上的人員",
+    "columnPick": "哪位人員",
+    "columnChoose": "選擇一個欄位…",
+    "columnNone": "此資料表沒有儲存員工的欄位。",
+    "columnEmpty": "該欄位為空的記錄不會通知任何人，執行記錄中會註明。",
+    "urgent": "緊急",
+    "urgentBody": "立即通知，即使在對方的勿擾時段"
   },
   "rec": {
     "table": "表格",
@@ -306,7 +321,9 @@ export default {
     "value": "值",
     "now": "現在",
     "remove": "移除此值",
-    "tokenHint": "使用 {token} 從記錄中取值"
+    "tokenHint": "使用 {token} 從記錄中取值",
+    "name": "新列的名稱，供後續步驟使用（選填）",
+    "nameHint": "後續步驟透過 {token} 讀取"
   },
   "hook": {
     "url": "URL",
@@ -468,5 +485,17 @@ export default {
     "changed": "{name} 修改了此規則。",
     "undo": "復原 {name} 的修改",
     "addedBy": "由 {name} 新增"
+  },
+  "digest": {
+    "help": "每人一封郵件，只列出屬於其本人且其有權讀取的列。在每個人為摘要選擇的時間傳送，否則在規則執行時傳送。",
+    "sectionKey": "區段名稱（範本的列區塊會引用它）",
+    "chooseTable": "選擇一個資料表…",
+    "owner": "此人在以下欄位中的列",
+    "conditions": "{count, plural, other {另有 # 個條件，保持不變。}}",
+    "limit": "最多顯示的列數",
+    "removeSection": "移除此區段",
+    "addSection": "新增區段",
+    "sendEmpty": "沒有內容時也傳送",
+    "sendEmptyBody": "關閉：任何區段都沒有列的人不會收到郵件"
   }
 } as const;

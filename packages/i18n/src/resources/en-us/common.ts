@@ -137,7 +137,8 @@ export default {
       "openStaff": "Open the staff screens",
       "openStaffInstance": "Open the staff screens · {instance}"
     },
-    "drawerTitle": "Navigation"
+    "drawerTitle": "Navigation",
+    "emptyPartsOff": "Nothing is switched on for you right now. Ask an administrator."
   },
   "apps": {
     "frame": {
@@ -305,6 +306,15 @@ export default {
       "title": "This app opens on its own",
       "body": "It opens at its own address, not inside the dashboard.",
       "primary": "Open it"
+    },
+    "partOff": {
+      "title": "This part of the app is switched off",
+      "body": "An admin switched this part of the app off. Nothing was deleted — switch it on in Studio → Apps, under Parts.",
+      "secondary": "Go back"
+    },
+    "partsOff": {
+      "title": "Nothing is switched on for you",
+      "body": "Every role you hold belongs to a part of an app that is switched off right now. Nothing was deleted. Ask an administrator to switch that part on, or to give you another role."
     }
   },
   "notFound": {
@@ -1101,7 +1111,9 @@ export default {
     "event": {
       "reportReady": "Scheduled report ready",
       "reportFailed": "Scheduled report failed",
-      "backupCompleted": "Backup completed"
+      "backupCompleted": "Backup completed",
+      "ruleNotice": "A notice from a rule",
+      "mention": "Somebody mentioned me"
     }
   },
   "theme": {

@@ -13,16 +13,16 @@
 | `references/manifest/requiredschema.md` | requiredSchema | 720 |
 | `references/manifest/requiredschema--table-names-and-prefixed.md` | requiredSchema — Table names and `prefixed` | 1246 |
 | `references/manifest/requiredschema--what-the-plan-does-with-each-table.md` | requiredSchema — What the plan does with each table | 1832 |
-| `references/manifest/requiredschema--tables.md` | requiredSchema — Tables | 2801 |
+| `references/manifest/requiredschema--tables.md` | requiredSchema — Tables | 2941 |
 | `references/manifest/requiredschema--columns.md` | requiredSchema — Columns | 7808 |
 | `references/manifest/requiredschema--columns-2.md` | requiredSchema — Columns (part 2) | 652 |
 | `references/manifest/requiredschema--column-rules.md` | requiredSchema — Column rules | 7546 |
-| `references/manifest/requiredschema--column-rules-2.md` | requiredSchema — Column rules (part 2) | 7261 |
-| `references/manifest/requiredschema--column-rules-3.md` | requiredSchema — Column rules (part 3) | 7849 |
-| `references/manifest/requiredschema--column-rules-4.md` | requiredSchema — Column rules (part 4) | 7786 |
-| `references/manifest/requiredschema--column-rules-5.md` | requiredSchema — Column rules (part 5) | 7559 |
-| `references/manifest/requiredschema--column-rules-6.md` | requiredSchema — Column rules (part 6) | 7310 |
-| `references/manifest/requiredschema--column-rules-7.md` | requiredSchema — Column rules (part 7) | 5692 |
+| `references/manifest/requiredschema--column-rules-2.md` | requiredSchema — Column rules (part 2) | 7852 |
+| `references/manifest/requiredschema--column-rules-3.md` | requiredSchema — Column rules (part 3) | 7674 |
+| `references/manifest/requiredschema--column-rules-4.md` | requiredSchema — Column rules (part 4) | 7357 |
+| `references/manifest/requiredschema--column-rules-5.md` | requiredSchema — Column rules (part 5) | 7462 |
+| `references/manifest/requiredschema--column-rules-6.md` | requiredSchema — Column rules (part 6) | 7669 |
+| `references/manifest/requiredschema--column-rules-7.md` | requiredSchema — Column rules (part 7) | 6233 |
 | `references/manifest/requiredschema--column-rules-8.md` | requiredSchema — Column rules (part 8) | 5541 |
 | `references/manifest/requiredschema--moments.md` | requiredSchema — Moments | 2748 |
 | `references/manifest/requiredschema--capacity.md` | requiredSchema — Capacity | 7647 |
@@ -37,29 +37,30 @@
 | `references/manifest/requiredschema--postings.md` | requiredSchema — Postings | 3904 |
 | `references/manifest/requiredschema--a-price-an-add-on-lowers.md` | requiredSchema — A price an add-on lowers | 3110 |
 | `references/manifest/requiredschema--shared-tables.md` | requiredSchema — Shared tables | 1948 |
-| `references/manifest/requiredschema--tables-built-on-an-add-on-s-shape.md` | requiredSchema — Tables built on an add-on's shape | 4036 |
+| `references/manifest/parts.md` | Parts | 4887 |
+| `references/manifest/maps.md` | Maps | 4473 |
 | `references/manifest/option-lists.md` | Option lists | 851 |
-| `references/manifest/pages.md` | Pages | 5885 |
+| `references/manifest/pages.md` | Pages | 6117 |
 | `references/manifest/pages--tab-words-filters-and-bulk-actions.md` | Pages — Tab words, filters and bulk actions | 2313 |
 | `references/manifest/pages--navgroups.md` | Pages — navGroups | 789 |
 | `references/manifest/frontends.md` | Frontends | 2774 |
 | `references/manifest/whose-a-row-is.md` | Whose a row is | 5027 |
-| `references/manifest/roles.md` | Roles | 6820 |
+| `references/manifest/roles.md` | Roles | 7316 |
 | `references/manifest/roles--a-role-on-an-add-on-s-tables.md` | Roles — A role on an add-on's tables | 1422 |
 | `references/manifest/settings.md` | Settings | 1211 |
-| `references/manifest/add-ons.md` | Add-ons | 3247 |
-| `references/manifest/documents.md` | Documents | 7488 |
+| `references/manifest/add-ons.md` | Add-ons | 3332 |
+| `references/manifest/documents.md` | Documents | 7671 |
 | `references/manifest/documents-2.md` | Documents (part 2) | 1846 |
 | `references/manifest/documents--a-list-of-an-add-on-s-rows.md` | Documents — A list of an add-on's rows | 1524 |
 | `references/manifest/documents--documents-that-print-a-money-code.md` | Documents — Documents that print a money code | 987 |
 | `references/manifest/emails.md` | Emails | 850 |
-| `references/manifest/emails--outbox.md` | Emails — outbox | 7591 |
+| `references/manifest/emails--outbox.md` | Emails — outbox | 7734 |
 | `references/manifest/emails--outbox-2.md` | Emails — outbox (part 2) | 5906 |
 | `references/manifest/emails--held-messages.md` | Emails — Held messages | 2873 |
-| `references/manifest/emails--emailtemplates.md` | Emails — emailTemplates | 7667 |
+| `references/manifest/emails--emailtemplates.md` | Emails — emailTemplates | 7727 |
 | `references/manifest/emails--emailtemplates-2.md` | Emails — emailTemplates (part 2) | 3407 |
 | `references/manifest/public-access.md` | Public access | 2014 |
-| `references/manifest/public-access-2.md` | Public access (part 2) | 7425 |
+| `references/manifest/public-access-2.md` | Public access (part 2) | 7632 |
 | `references/manifest/public-access-3.md` | Public access (part 3) | 3415 |
 | `references/manifest/public-access--filters.md` | Public access — Filters | 835 |
 | `references/manifest/public-access--windows-on-a-moment.md` | Public access — Windows on a moment | 2049 |
@@ -78,14 +79,14 @@
 | `references/manifest/public-access--availability.md` | Public access — Availability | 1991 |
 | `references/manifest/public-access--limits-on-a-stranger-s-create.md` | Public access — Limits on a stranger's create | 3390 |
 | `references/manifest/public-access--publickeys.md` | Public access — publicKeys | 3463 |
-| `references/manifest/automations.md` | Automations | 5036 |
+| `references/manifest/automations.md` | Automations | 4296 |
+| `references/manifest/automations--the-person-on-the-row.md` | Automations — The person on the row | 962 |
+| `references/manifest/automations--once-per-spell.md` | Automations — Once per spell | 653 |
+| `references/manifest/automations--quiet-hours-and-urgent.md` | Automations — Quiet hours and urgent | 707 |
+| `references/manifest/automations--a-summary-for-each-person.md` | Automations — A summary for each person | 1609 |
+| `references/manifest/automations--a-row-a-step-makes.md` | Automations — A row a step makes | 2591 |
 | `references/manifest/sample-data.md` | Sample data | 975 |
 | `references/manifest/sample-data--sample-people.md` | Sample data — Sample people | 7697 |
 | `references/manifest/sample-data--sample-people-2.md` | Sample data — Sample people (part 2) | 2788 |
-| `references/manifest/seeds-and-widgets.md` | seeds and widgets | 2826 |
-| `references/manifest/add-on-manifests.md` | Add-on manifests | 4354 |
-| `references/manifest/add-on-manifests--an-add-on-with-tables-of-its-own.md` | Add-on manifests — An add-on with tables of its own | 2488 |
-| `references/manifest/add-on-manifests--ledgers.md` | Add-on manifests — Ledgers | 5372 |
-| `references/manifest/add-on-manifests--the-price-question.md` | Add-on manifests — The price question | 2004 |
 
 More: `references/manifest/INDEX-2.md`

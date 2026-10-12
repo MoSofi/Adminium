@@ -33,6 +33,7 @@
  * request.
  */
 
+import { rulePartOff } from '../rbac/app-parts.js';
 import type { Dialect } from '@adminium/engine';
 import {
   auditRepo,
@@ -210,6 +211,9 @@ export class AutomationMatcher {
       };
       if (!(await evaluateAll(when as AutomationCondition[], ctx))) return;
     }
+
+    // A rule of a part that is off claims no run.
+    if (await rulePartOff(this.#deps.meta, rule)) return;
 
     const delayed = event.origin === 'dashboard';
     const wakeAt = delayed ? at + (this.#deps.undoTtlMs ?? UNDO_TTL_MS) : at;

@@ -25,6 +25,7 @@ const record = (over: Partial<AppTableRecord>): AppTableRecord => ({
   shape: null,
   rules: [],
   builtOn: null,
+  module: null,
   shapeColumns: [],
   createdAt: n,
   updatedAt: n,

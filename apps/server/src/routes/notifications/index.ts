@@ -25,19 +25,24 @@ import {
   type MetaDb,
   type Notification,
   type NotificationChannels,
+  notificationSchedulesRepo,
 } from '@adminium/meta';
 
 import { isEmailConfigured } from '../../email/send.js';
-import { UnauthorizedError } from '../../errors.js';
+import { UnauthorizedError, ValidationFailedError } from '../../errors.js';
 import {
   NOTIFICATION_READ_EVENT,
+  businessZone,
   notificationsChannel,
   type NotificationPublisher,
 } from '../../notifications/notify.js';
+import { usableZone } from '../../notifications/quiet.js';
 import {
   notificationIdParams,
   notificationPrefsPutBody,
   notificationPrefsReply,
+  notificationSchedulePutBody,
+  notificationScheduleReply,
   notificationReadReply,
   notificationsListQuery,
   notificationsListReply,
@@ -222,6 +227,42 @@ export function notificationsRoutes(deps: NotificationsRoutesDeps): FastifyPlugi
           await prefs.upsert(userId, event.key, event.channels);
         }
         return { data: await prefsView(userId) };
+      },
+    );
+
+    /*
+     * WHEN A PERSON IS TOLD: their own time zone, the hours of each weekday
+     * they are not to be disturbed in, and when their summaries are sent.
+     * Theirs alone to read and to set; nothing here is on until they set it.
+     */
+    const scheduleView = async (userId: string) => {
+      const held = await notificationSchedulesRepo(meta).find(userId);
+      return {
+        timezone: held?.timezone ?? null,
+        quiet: held?.quiet ?? null,
+        digestDay: held?.digestDay ?? null,
+        digestTime: held?.digestTime ?? null,
+        fallbackTimezone: await businessZone(meta),
+      };
+    };
+
+    app.get(
+      '/me/notification-schedule',
+      { schema: { response: { 200: notificationScheduleReply } } },
+      async (request) => ({ data: await scheduleView(requireUserId(request)) }),
+    );
+
+    app.put(
+      '/me/notification-schedule',
+      { schema: { body: notificationSchedulePutBody, response: { 200: notificationScheduleReply } } },
+      async (request) => {
+        const userId = requireUserId(request);
+        const { timezone, quiet, digestDay, digestTime } = request.body;
+        if (timezone !== null && usableZone(timezone) === null) {
+          throw new ValidationFailedError(`"${timezone}" is not a time zone this server knows.`, { fields: { timezone: { code: 'invalid' } } });
+        }
+        await notificationSchedulesRepo(meta).set(userId, { timezone, quiet, digestDay, digestTime });
+        return { data: await scheduleView(userId) };
       },
     );
   };

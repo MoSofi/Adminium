@@ -210,10 +210,30 @@ export const shapeRulesReply = z.object({
   ),
 });
 
+/** One part of an app, as the check step offers it. */
+export const appPlanModule = z.object({
+  id: z.string(),
+  label: z.record(z.string(), z.string()),
+  default: z.enum(['on', 'off', 'always']),
+  /** How it stands on an app already installed; absent on a first install. */
+  on: z.boolean().optional(),
+  needs: z.array(z.string()),
+  leftOut: z.boolean(),
+  tables: z.array(z.string()),
+  /** The roles that are offered only while this part (or another of theirs) is on. */
+  roles: z.array(z.string()),
+});
+
 export const planAppBody = z.object({
   key: appKey,
   version: z.string().min(1).max(64),
   connectionId: z.string().min(1),
+  /**
+   * The add-ons the install would bring, by key: the plan is of the app as it
+   * would stand with them (a part built on one that is not there is left
+   * out). Absent, the ones the check step shows ticked.
+   */
+  addOns: z.array(z.string().regex(/^[a-z][a-z0-9-]{1,79}$/)).max(16).optional(),
   ...installAnswers,
 });
 
@@ -387,6 +407,8 @@ export const appInstallPlanDto = z.object({
     .optional(),
   /** The app ships sample data, which can be added once it is installed. */
   sampleData: z.boolean().optional(),
+  /** The app shows maps and nobody has yet said whether this install shows them: the check step asks. */
+  maps: z.boolean().optional(),
   /**
    * The add-on settings the app's roles would be given (`addOn:<key>:settings`),
    * for the check step to show before anyone agrees: those settings are
@@ -460,6 +482,12 @@ export const appInstallPlanDto = z.object({
    * plan. Absent for an app that names none — its check is exactly as before.
    */
   addOns: z.array(appAddOnRow).optional(),
+  /**
+   * The parts of the app, for the ticks of the check step. `switch` is false
+   * for a part that is always on. `needs` are the add-ons its feature needs;
+   * `leftOut` says its tables are not made by this install, with the tables.
+   */
+  modules: z.array(appPlanModule).optional(),
 });
 
 export const appInstallPlanReply = z.object({ plan: appInstallPlanDto });
@@ -499,6 +527,14 @@ export const installAppBody = z.object({
    * suggested one only when listed; an update only with `update: true`.
    */
   addOns: z.array(appAddOnChoice).max(16).optional(),
+  /**
+   * The parts of the app to start with, by id: `true` on, `false` off. A part
+   * left out starts as its manifest says. A part that is `always` on, or one
+   * the app does not have, is refused.
+   */
+  modules: z.record(z.string().regex(/^[a-z][a-z0-9-]{0,39}$/), z.boolean()).optional(),
+  /** Whether maps are shown on this install, when the check asked (`plan.maps`). Absent: shown. Ignored once somebody has answered. */
+  maps: z.boolean().optional(),
   ...installAnswers,
 });
 
@@ -1120,3 +1156,48 @@ export const uninstallAppReply = z.object({
     .optional(),
   dropped: z.array(z.string()).optional(),
 });
+
+
+// ── parts ────────────────────────────────────────────────────────────────────
+
+export const appPartParams = z.object({ key: appKey, part: z.string().regex(/^[a-z][a-z0-9-]{0,39}$/) });
+
+/** One part of an installed app, as its page shows it. */
+export const appPartDto = z.object({
+  id: z.string(),
+  /** In the reader's language. */
+  label: z.string(),
+  default: z.enum(['on', 'off', 'always']),
+  /** The owner's switch (true for a part that is always on). */
+  switch: z.boolean(),
+  /** Whether it is on now: its switch, and every add-on it needs connected. */
+  on: z.boolean(),
+  /** The add-ons it still waits for, by name. */
+  waiting: z.array(z.object({ key: z.string(), name: z.string() })),
+  /** Its tables were not made by the install: they are when the add-on it waits for is connected. */
+  leftOut: z.boolean(),
+  pages: z.number().int(),
+  tables: z.number().int(),
+  rules: z.number().int(),
+  /** Its roles, each in the reader's language, with how many people hold it. */
+  roles: z.array(z.object({ slug: z.string(), name: z.string(), members: z.number().int() })),
+});
+
+export const appPartsReply = z.object({ parts: z.array(appPartDto) });
+
+/**
+ * What switching a part off would stop, for the question asked first: the
+ * rows of its tables that are part way through their states, the rules that
+ * are switched on, and the people whose every role is of this part.
+ */
+export const appPartOpenReply = z.object({
+  id: z.string(),
+  label: z.string(),
+  open: z.array(z.object({ table: z.string(), label: z.string(), rows: z.number().int() })),
+  rules: z.number().int(),
+  pages: z.number().int(),
+  /** People left with nothing switched on for them. */
+  stranded: z.number().int(),
+});
+
+export const appPartBody = z.object({ on: z.boolean() });

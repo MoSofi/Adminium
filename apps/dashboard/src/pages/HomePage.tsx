@@ -11,7 +11,7 @@
  * sends the reader looking for a setup step that is already done.
  */
 import { useSuspenseQuery } from '@tanstack/react-query';
-import { Database, Lock } from 'lucide-react';
+import { Database, Lock, PauseCircle } from 'lucide-react';
 
 import { bootstrapQuery } from '../app/bootstrap.js';
 import { StateHero } from '../states/StateHero.js';
@@ -43,9 +43,21 @@ export const HOME_WITHHELD: SystemStateSpec = {
   },
 };
 
+/** Every role the reader holds is of a part of an app that is switched off. */
+export const HOME_PARTS_OFF: SystemStateSpec = {
+  id: 'empty-no-sources',
+  icon: PauseCircle,
+  tone: 'accent',
+  title: { key: 'states.partsOff.title', en: 'Nothing is switched on for you' },
+  body: {
+    key: 'states.partsOff.body',
+    en: 'Every role you hold belongs to a part of an app that is switched off right now. Nothing was deleted. Ask an administrator to switch that part on, or to give you another role.',
+  },
+};
+
 export function HomePage() {
   const { data: bootstrap } = useSuspenseQuery(bootstrapQuery());
   const spec =
-    bootstrap.pagesWithheld === true ? HOME_WITHHELD : bootstrap.hasConnections === true ? HOME_NO_PAGES : NO_SOURCES;
+    bootstrap.partsOff === true ? HOME_PARTS_OFF : bootstrap.pagesWithheld === true ? HOME_WITHHELD : bootstrap.hasConnections === true ? HOME_NO_PAGES : NO_SOURCES;
   return <StateHero spec={spec} fullPage={false} />;
 }

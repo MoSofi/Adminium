@@ -22,6 +22,7 @@ import { allLocales, getI18nRevision, subscribeI18nRevision } from '@adminium/i1
 import { rememberInDesktopApp } from '../lib/desktop-runtime.js';
 import { ThemeProvider, TooltipProvider, type ThemePrefs } from '@adminium/ui';
 import { ChartDirectionBridge, WidgetRuntimeProvider } from '@adminium/widgets';
+import { PeopleSourceProvider, type PeopleSource } from '@adminium/widgets/people-source';
 
 import { dataIoRoutes } from '../data-io/routes.js';
 import { assistantMessagesReady } from '../assistant/assistantMessages.js';
@@ -64,6 +65,10 @@ import {
 } from './bootstrap.js';
 import { isHostedPlanSurface } from './capabilities.js';
 import { requestIdForError, stateIdForError } from './query.js';
+
+/** The people who sign in here whose name holds what was typed: who a mention may name. */
+const peopleByName: PeopleSource = async (query) =>
+  (await api.get<{ people: { id: string; name: string }[] }>(`/api/v1/people?limit=8&q=${encodeURIComponent(query)}`)).people;
 
 
 // --- lazy route components --------------------------------------------------
@@ -207,7 +212,10 @@ function RootComponent() {
                 map engine. One provider below any of them is a page that can
                 still pull Leaflet in the desktop shell. */}
             <WidgetRuntimeProvider env={widgetRuntimeEnv}>
-              <Outlet />
+              {/* Who a text box that takes mentions may name: asked for as the writer types after an @. */}
+              <PeopleSourceProvider value={peopleByName}>
+                <Outlet />
+              </PeopleSourceProvider>
             </WidgetRuntimeProvider>
           </ChartDirectionBridge>
         </ShortcutsProvider>

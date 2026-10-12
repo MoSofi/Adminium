@@ -174,6 +174,7 @@ import { registerAddOnEventHandlers } from './jobs/add-on-events.js';
 import { registerJobsAndRealtime, type JobsAndRealtime } from './jobs/register.js';
 import { stepLookupOf } from './automations/add-on-steps.js';
 import { registerAutomationRunHandler } from './jobs/automation-run.js';
+import { registerDigestSendHandler } from './automations/digest.js';
 import { automationsRoutes } from './routes/automations/index.js';
 import { automationRunsRoutes } from './routes/automations/runs.js';
 import { sealStoredWebhookSecrets } from './automations/webhook-secrets.js';
@@ -1396,6 +1397,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   automationsMatcher.current = automations.matcher;
   // A document mapping writes a rule of its own; the matcher hears of it here.
   onMappingRulesChanged(meta, () => automations.matcher.onRulesChanged());
+  // A rule's summary, one job a person: read as that person when it is sent, at the hour they chose.
+  registerDigestSendHandler(jobs.registry, { meta, manager, secret: env.ADMINIUM_SECRET });
   registerAutomationRunHandler(jobs.registry, {
     meta,
     manager,
@@ -1785,7 +1788,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       await api.register(
         schemaDdlRoutes({ manager, meta, crypto: dsnCryptoFromSecret(env.ADMINIUM_SECRET) }),
       );
-      await api.register(dataRoutes({ manager, meta, undoStore, files: fileReconciler, writes: recordWrites, secret: env.ADMINIUM_SECRET }));
+      await api.register(dataRoutes({ manager, meta, undoStore, files: fileReconciler, writes: recordWrites, secret: env.ADMINIUM_SECRET, hub: jobs.hub }));
       // M7 data-io + reports/notifications (T5/T6): exports and imports share
       // the jobs pipeline wired above; scheduled reports ride the same registry
       // via the poll schedule below.

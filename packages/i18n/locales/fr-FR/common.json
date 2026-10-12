@@ -127,7 +127,8 @@
       "openStaff": "Ouvrir les écrans du personnel",
       "openStaffInstance": "Ouvrir les écrans du personnel · {instance}"
     },
-    "drawerTitle": "Navigation"
+    "drawerTitle": "Navigation",
+    "emptyPartsOff": "Rien n’est activé pour vous pour le moment. Adressez-vous à un administrateur."
   },
   "apps": {
     "frame": {
@@ -295,6 +296,15 @@
       "title": "Cette app s’ouvre à part",
       "body": "Elle s’ouvre à sa propre adresse, pas dans le tableau de bord.",
       "primary": "L’ouvrir"
+    },
+    "partOff": {
+      "title": "Cette partie de l’application est désactivée",
+      "body": "Un administrateur a désactivé cette partie de l’application. Rien n’a été supprimé — réactivez-la dans Studio → Applications, sous Parties.",
+      "secondary": "Retour"
+    },
+    "partsOff": {
+      "title": "Rien n’est activé pour vous",
+      "body": "Chacun de vos rôles appartient à une partie d’application actuellement désactivée. Rien n’a été supprimé. Demandez à un administrateur d’activer cette partie ou de vous attribuer un autre rôle."
     }
   },
   "notFound": {
@@ -1528,7 +1538,9 @@
     "event": {
       "reportReady": "Rapport planifié prêt",
       "reportFailed": "Échec du rapport planifié",
-      "backupCompleted": "Sauvegarde terminée"
+      "backupCompleted": "Sauvegarde terminée",
+      "ruleNotice": "Une notification d’une règle",
+      "mention": "Quelqu’un m’a mentionné"
     }
   },
   "theme": {
@@ -1816,5 +1828,22 @@
       "unread": "1 réponse non lue",
       "proposal": "Une modification vous attend"
     }
+  },
+  "quietHours": {
+    "title": "Heures calmes et récapitulatifs",
+    "help": "Pendant vos heures calmes, une notification apparaît toujours dans la cloche, sans son ni fenêtre, et son e-mail attend la fin de ces heures. Ce qui est marqué urgent vous parvient aussitôt.",
+    "zone": "Votre fuseau horaire",
+    "zoneDefault": "Celui de l’entreprise ({zone})",
+    "none": "Pas d’heures calmes",
+    "from": "Calme à partir de, {day}",
+    "until": "jusqu’à",
+    "to": "Calme jusqu’à, {day}",
+    "nextDay": "le lendemain",
+    "daySwitch": "Heures calmes le {day}",
+    "copy": "Copier les heures de {day} sur tous les jours",
+    "digestDay": "Envoyer mes récapitulatifs le",
+    "digestWhenRun": "Le jour où chacun est préparé",
+    "digestTime": "À",
+    "always": "Toujours me prévenir, même pendant les heures calmes"
   }
 }

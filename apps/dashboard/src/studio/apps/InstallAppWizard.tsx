@@ -95,6 +95,7 @@ import {
   addOnBlock,
   addOnChoicesOf,
   addOnStepsOf,
+  isSelected,
   type AddOnPicks,
 } from './AddOnsInstallCard.js';
 import { namesList, sentence } from './addOnWords.js';
@@ -128,6 +129,7 @@ import {
   type SharePick,
   type TakenPick,
 } from './InstallCheck.js';
+import { MapsInstallCard, PartsInstallCard, partChoicesOf } from './AppPartsCard.js';
 import { PublicAccessInstallCard, publicAccessBlocked } from './PublicAccessInstallCard.js';
 import { SampleInstallCard, runSampleAdd } from './SampleData.js';
 
@@ -257,6 +259,17 @@ export function InstallAppWizard({ onClose, preselected, quick = false, onMoreCh
   const [allowPublic, setAllowPublic] = useState(true);
   // The Add-ons card's ticks and "Update it too", by add-on key.
   const [addOnPicks, setAddOnPicks] = useState<AddOnPicks>({ ticked: {}, update: {} });
+  // The parts of the app to start with, where the operator said otherwise than the app.
+  const [partPicks, setPartPicks] = useState<Record<string, boolean>>({});
+  // Maps: asked by the first app that shows them, ticked unless the operator says no.
+  const [showMaps, setShowMaps] = useState(true);
+  /*
+   * The add-ons ticked, for the check: a part built on one that is not ticked
+   * is left out of the plan, so the plan is asked for with the ticks. Held in
+   * a ref as well as in state, so a check made in the same breath as a tick
+   * is of the ticks as they now are.
+   */
+  const tickedAddOns = useRef<string[] | undefined>(undefined);
   const [downloading, setDownloading] = useState<{ key: string; pct: number } | null>(null);
   const answers = answersOf(picks, renameTo, prefix, sharePicks);
   const dirty = JSON.stringify(answers) !== JSON.stringify(checked);
@@ -310,7 +323,7 @@ export function InstallAppWizard({ onClose, preselected, quick = false, onMoreCh
   const preview = useMutation({
     mutationFn: (with_: InstallAnswers) => {
       if (staged === null) throw new Error('no bundle');
-      return planApp({ key: staged.key, version: staged.version, connectionId, ...with_ });
+      return planApp({ key: staged.key, version: staged.version, connectionId, ...(tickedAddOns.current === undefined ? {} : { addOns: tickedAddOns.current }), ...with_ });
     },
     onSuccess: ({ plan: next }, with_) => {
       setPlan(next);
@@ -343,6 +356,8 @@ export function InstallAppWizard({ onClose, preselected, quick = false, onMoreCh
         // Every add-on the install acts on, at the version the check showed:
         // a version that moved since answers SCHEMA_DRIFT, and is checked again.
         ...(addOnRows.length === 0 ? {} : { addOns: addOnChoicesOf(addOnRows, addOnPicks) }),
+        ...(plan?.modules === undefined ? {} : { modules: partChoicesOf(plan.modules, partPicks) }),
+        ...(plan?.maps === true ? { maps: showMaps } : {}),
         ...checked,
       });
     },
@@ -518,7 +533,7 @@ export function InstallAppWizard({ onClose, preselected, quick = false, onMoreCh
   const cardsOfPlan =
     plan === null
       ? null
-      : plan.publicAccess !== undefined || plan.sampleData === true || addOnRows.length > 0 ? (
+      : plan.publicAccess !== undefined || plan.sampleData === true || addOnRows.length > 0 || plan.modules !== undefined || plan.maps === true ? (
       <div className="grid grid-cols-[repeat(auto-fit,minmax(272px,1fr))] gap-3">
         {plan.publicAccess === undefined ? null : (
           <PublicAccessInstallCard access={plan.publicAccess} checked={allowPublic} onChange={setAllowPublic} />
@@ -530,7 +545,15 @@ export function InstallAppWizard({ onClose, preselected, quick = false, onMoreCh
             connectionName={connectionName}
             rows={addOnRows}
             picks={addOnPicks}
-            onTick={(key, next) => setAddOnPicks((picks) => ({ ...picks, ticked: { ...picks.ticked, [key]: next } }))}
+            onTick={(key, next) => {
+              const picks = { ...addOnPicks, ticked: { ...addOnPicks.ticked, [key]: next } };
+              setAddOnPicks(picks);
+              // A part of the app is built on this add-on: with or without it is a different plan, checked again.
+              if ((plan.modules ?? []).some((module) => module.needs.includes(key))) {
+                tickedAddOns.current = addOnRows.filter((row) => isSelected(row, picks)).map((row) => row.key);
+                preview.mutate(checked);
+              }
+            }}
             onUpdate={(key, next) => setAddOnPicks((picks) => ({ ...picks, update: { ...picks.update, [key]: next } }))}
             catalogueOn={catalogue.data?.onlineEnabled ?? null}
             downloading={downloading}
@@ -539,6 +562,17 @@ export function InstallAppWizard({ onClose, preselected, quick = false, onMoreCh
             grants={plan.addOnGrants}
           />
         )}
+        {plan.modules === undefined ? null : (
+          <PartsInstallCard
+            appName={appName}
+            modules={plan.modules}
+            picks={partPicks}
+            addOns={addOnRows}
+            onTick={(id, next) => setPartPicks((picks) => ({ ...picks, [id]: next }))}
+            busy={busy}
+          />
+        )}
+        {plan.maps === true ? <MapsInstallCard checked={showMaps} onChange={setShowMaps} /> : null}
         {plan.sampleData === true ? <SampleInstallCard checked={addSample} onChange={setAddSample} withAddOns={addOnRows.length > 0} /> : null}
       </div>
     ) : null;

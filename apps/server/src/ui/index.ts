@@ -26,6 +26,7 @@ import type {
   MouseEventHandler,
   ReactNode,
   SelectHTMLAttributes,
+  TextareaHTMLAttributes,
 } from 'react';
 import { hasAddOnRuntime, requireAddOnRuntime, type ProjectUiExport } from '@adminium/add-on-contracts/runtime';
 
@@ -193,6 +194,23 @@ export interface SelectProps
   onChange?: ChangeEventHandler<HTMLSelectElement>;
 }
 
+export interface TextAreaProps
+  extends FieldProps,
+    Omit<TextareaHTMLAttributes<HTMLTextAreaElement>, 'style' | 'className' | 'children'> {
+  /** Grows with what is typed, from three lines. Default false: a fixed box the reader can drag taller. */
+  autoResize?: boolean;
+  onChange?: ChangeEventHandler<HTMLTextAreaElement>;
+  /**
+   * People are mentioned in this text: typing `@` and a letter offers who may
+   * be named. For a column marked `"mentions"`. Such a box is controlled by
+   * `value` and `onValueChange`: the text as it is stored, each person kept
+   * by who they are (`mentionText` reads it back as it was typed).
+   */
+  mentions?: boolean;
+  /** With `mentions`: the text to store, on every change. */
+  onValueChange?: (value: string) => void;
+}
+
 export interface SwitchProps {
   label?: ReactNode;
   checked?: boolean;
@@ -345,6 +363,90 @@ export interface LinkProps {
   children?: ReactNode;
 }
 
+// ─── The larger parts, each loaded when first drawn ─────────────────────────
+
+/** A column of a board. */
+export interface BoardColumn {
+  /** What a card's `column` holds to be in this column. */
+  id: string;
+  label: string;
+  /** The colour of the column's dot. Default `neutral`. */
+  tone?: 'neutral' | 'accent' | 'pos' | 'warn' | 'danger' | 'info';
+  /** A limit on the cards in the column, shown beside its count. */
+  limit?: number;
+}
+
+/** A card of a board. */
+export interface BoardCard {
+  id: string;
+  title: string;
+  /** The `id` of the column the card is in. */
+  column: string;
+  /** A short word on the card, such as a kind or a priority. */
+  tag?: string;
+  tagTone?: BoardColumn['tone'];
+  /** Who it belongs to, shown by their initials. */
+  owner?: string;
+  /** A date or a short text at the foot of the card. */
+  due?: string;
+  /** A line under the title, such as the customer. */
+  detail?: string;
+  /** An amount or a short figure, already formatted. */
+  figure?: string;
+}
+
+export interface BoardProps {
+  columns: readonly BoardColumn[];
+  cards: readonly BoardCard[];
+  /**
+   * A card was dropped in another column (by drag, or by the keyboard: space
+   * to pick up, arrows, enter). Return the save's promise: when it rejects,
+   * the card goes back where it was.
+   */
+  onMove?: (cardId: string, fromColumn: string, toColumn: string) => void | Promise<unknown>;
+  /** A card was opened (click, or enter on it). */
+  onOpen?: (cardId: string) => void;
+  /** Shown when there is no column at all. */
+  emptyTitle?: string;
+  emptyDescription?: string;
+}
+
+export interface ImportWizardProps {
+  /** The database's name in `adminium.json`. */
+  database: string;
+  /** The table rows are imported into. */
+  table: string;
+  /** The columns a file's columns can be mapped to: each one's name in the table, and what to call it. */
+  columns: readonly { key: string; label?: string }[];
+}
+
+/** A place on a map. */
+export interface MapPoint {
+  /** Its name, in the list beside the map and on its pin. */
+  name: string;
+  lat: number;
+  lng: number;
+  /** A figure the pin is sized by; without one every pin is the same. */
+  value?: number;
+  /** Returned to `onSelect`, so the page knows which record was picked. */
+  id?: string;
+}
+
+export interface MapViewProps {
+  points: readonly MapPoint[];
+  /** Where the map starts, as `[lat, lng]`. Default: fitted to the points. */
+  center?: readonly [number, number];
+  /** 1 (the world) to 18 (a street). */
+  zoom?: number;
+  /** A pin or its row in the list was picked. */
+  onSelect?: (point: MapPoint) => void;
+  /** What `value` is, as the list's heading (such as "Open deals"). */
+  valueLabel?: string;
+  /** Shown when there is no point to place. */
+  emptyTitle?: string;
+  emptyDescription?: string;
+}
+
 // ─── The kit, from the dashboard ────────────────────────────────────────────
 
 /** The shapes the dashboard's kit object must have, name by name. */
@@ -357,10 +459,16 @@ export interface ProjectUiKit {
   Input: ComponentType<InputProps>;
   Select: ComponentType<SelectProps>;
   Switch: ComponentType<SwitchProps>;
+  TextArea: ComponentType<TextAreaProps>;
+  Board: ComponentType<BoardProps>;
+  ImportWizard: ComponentType<ImportWizardProps>;
+  MapView: ComponentType<MapViewProps>;
   DataTable: <R extends AnyRecord = AnyRecord>(props: DataTableProps<R>) => ReactNode;
   Stat: ComponentType<StatProps>;
   GeneratedPage: ComponentType<GeneratedPageProps>;
   toast: (message: string, options?: ToastOptions) => void;
+  /** A text people are mentioned in, as it was typed: each stored mention as `@Name`. */
+  mentionText: (stored: string) => string;
   EmptyState: ComponentType<EmptyStateProps>;
   Icon: ComponentType<IconProps>;
   useRecords: <R extends AnyRecord = AnyRecord>(
@@ -412,10 +520,18 @@ export const Button = take('Button');
 export const Input = take('Input');
 export const Select = take('Select');
 export const Switch = take('Switch');
+export const TextArea = take('TextArea');
+/** A board of cards in columns. Its code loads when the first board is drawn. */
+export const Board = take('Board');
+/** The import wizard for one table. Its code loads when it is first drawn. */
+export const ImportWizard = take('ImportWizard');
+/** A map with pins. Its code, and the map's pictures, load when the first map is drawn. */
+export const MapView = take('MapView');
 export const DataTable = take('DataTable');
 export const Stat = take('Stat');
 export const GeneratedPage = take('GeneratedPage');
 export const toast = take('toast');
+export const mentionText = take('mentionText');
 export const EmptyState = take('EmptyState');
 export const Icon = take('Icon');
 export const useRecords = take('useRecords');

@@ -154,5 +154,6 @@
     "count": "{name} ville se {reached} af {total}.",
     "capped": "Denne person leder flere, end én rækkevidde kan rumme, så hele teamet tælles ikke med.",
     "lifted": "{name} har også {roles}, som giver alle rækker. Denne begrænsning gælder ikke for personen."
-  }
+  },
+  "partsOff": "Dens del af appen er slået fra: den giver intet, før delen er slået til."
 }

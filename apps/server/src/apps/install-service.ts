@@ -53,6 +53,7 @@ import {
   publicKeysRepo,
   manifestsRepo,
   pagesRepo,
+  readAppModules,
   rolesRepo,
   settingsRepo,
   userPrefsRepo,
@@ -62,6 +63,8 @@ import type { z } from 'zod';
 
 import { lenientMinimum, type CatalogClient } from '../add-ons/catalog.js';
 import { addOnManifestFromStore, type AddOnInstallerDeps } from '../add-ons/install.js';
+import { addOnsHereFor, asInstalledHere, modulesFor, unknownPicks } from './app-modules.js';
+import { forgetClosedDoors } from '../rbac/app-parts.js';
 import { builtOnTables, shapeProblems, shapeRecordsFor, shapesForPlan } from './app-shapes.js';
 import {
   addOnTablesByName,
@@ -426,6 +429,12 @@ function shapeRecordOf(
 }
 
 /** A stored status, narrowed; anything unrecognised reads as `error`. */
+/** The part of its app a table belongs to, or null. */
+function tableModuleOf(manifest: Manifest, ref: string): string | null {
+  const table = (manifest.requiredSchema?.tables ?? []).find((candidate) => candidate.ref === ref);
+  return table !== undefined && 'module' in table && typeof table.module === 'string' ? table.module : null;
+}
+
 export function statusOf(value: string): 'installing' | 'installed' | 'disabled' | 'error' {
   return value === 'installing' || value === 'installed' || value === 'disabled' ? value : 'error';
 }
@@ -1049,6 +1058,8 @@ export function createAppInstallService(deps: AppRoutesDeps) {
         missingColumnsEdit: missingColumnsEdit(plan, manifest),
         ...(ruleWarnings.length === 0 ? {} : { ruleWarnings }),
         sampleData: manifest.kind === 'app' && manifest.sampleData !== undefined,
+        // Whether this install asks if maps are shown: the app shows maps, and nobody has answered for this install yet.
+        ...(manifest.kind === 'app' && manifest.maps === true && (await settingsRepo(deps.meta).get('maps.enabled')) === null ? { maps: true } : {}),
         ...(addOnGrantsOf(manifest).length === 0 ? {} : { addOnGrants: addOnGrantsOf(manifest) }),
         // What each role would hold of the tables of the add-ons the app names, once each is there for it.
         ...(roleTablesAsked(manifest).length === 0 ? {} : { roleTables: roleTablesAsked(manifest) }),
@@ -1726,6 +1737,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
         prefix,
         // The shape it is declared with, so another app can find it to share; none clears an old one.
         shape: tableShapeOf(manifest, table.ref),
+        module: tableModuleOf(manifest, table.ref),
         ...shapeRecordOf(checked.shapeRecords, table.ref),
       });
       pending.set(table.ref, record.id);
@@ -1742,6 +1754,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
         state: shared ? 'shared' : 'adopted',
         prefix,
         shape: tableShapeOf(manifest, table.ref),
+        module: tableModuleOf(manifest, table.ref),
         ...shapeRecordOf(checked.shapeRecords, table.ref),
       });
     }
@@ -1785,6 +1798,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
         state: table.action === 'share' || table.class === 'shared' ? 'shared' : table.action === 'reuse' ? 'adopted' : 'created',
         // The shape it is declared with, so another app can find it to share; none clears one a version dropped.
         shape: tableShapeOf(manifest, table.ref),
+        module: tableModuleOf(manifest, table.ref),
         ...shapeRecordOf(checked.shapeRecords, table.ref),
       });
     }
@@ -2126,6 +2140,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
         .map((row) => ({ key: row.key, version: (row.action === 'attach' ? row.installedVersion : row.offeredVersion) ?? '', update: true }));
       addOnSteps = decideAddOnSteps(manifest.name, addOnRows, input.unattended.installAddOns ? choices : []);
       if (!input.unattended.installAddOns) refuseAddOnMoves(manifest, addOnSteps);
+      manifest = asInstalledHere(manifest, addOnsHereFor(addOnRows, addOnSteps.map((step) => step.key)), await tablesMadeFor(key, connectionId));
       if ((manifest.requiredSchema?.tables ?? []).length > 0 && connectionId === null) {
         throw new ValidationFailedError(`"${key}" needs tables, and it was installed without a database.`, { reason: 'NO_CONNECTION' });
       }
@@ -2204,6 +2219,9 @@ export function createAppInstallService(deps: AppRoutesDeps) {
       }
       stage = 'finish';
       await manifests.setVersion(installed.row.id, { version: to, document: manifest });
+      // Over the switches as they stand now, not as they stood when this began: one flipped meanwhile is kept.
+      await manifests.setModules(installed.row.id, modulesFor(manifest, await manifests.modulesOfRow(installed.row.id), undefined, names ?? (connectionId === null ? {} : await appTablesRepo(deps.meta).realNames(connectionId, key))));
+      forgetClosedDoors(deps.meta);
     } catch (error) {
       const failure = stopped(error);
       await auditAppEvent('app.apply-failed', { key, from, to, stage, message: failure.message }, userId, userLabel, actor.kind);
@@ -2449,6 +2467,14 @@ export function createAppInstallService(deps: AppRoutesDeps) {
     const addOnRows = await addOnRowsFor(manifest, connectionId ?? null, true);
     const addOnSteps: AddOnStep[] = decideAddOnSteps(manifest.name, addOnRows, (input.addOns ?? []) as AddOnChoice[]);
     if (input.unattended?.installAddOns === false) refuseAddOnMoves(manifest, addOnSteps);
+    const strangers = unknownPicks(manifest, input.modules);
+    if (strangers.length > 0) {
+      throw new ValidationFailedError(`"${key}" has no part to switch called ${strangers.map((id) => `"${id}"`).join(', ')}.`, { reason: 'NO_SUCH_PART', modules: strangers });
+    }
+    // A part built on an add-on that will not be there is left out: from here on the manifest is the app as it stands here.
+    manifest = asInstalledHere(manifest, addOnsHereFor(addOnRows, addOnSteps.map((step) => step.key)), await tablesMadeFor(key, connectionId));
+    // The switches an install over this key replaces, kept: the row is made anew below.
+    const switchesBefore = prior === undefined ? null : readAppModules(prior.row.modules);
 
     // A resume re-plans against tables it made itself, so the reviewed
     // checksum no longer describes the database — by design.
@@ -2477,9 +2503,11 @@ export function createAppInstallService(deps: AppRoutesDeps) {
         ...(connectionId === undefined ? {} : { connectionId }),
         installedBy: userId,
         status: 'installing',
+        modules: modulesFor(manifest, switchesBefore, input.modules),
       });
       rowId = row.row.id;
     }
+    if (resuming) await manifests.setModules(rowId, modulesFor(manifest, switchesBefore, input.modules));
     // Stops serving a replaced version at once; the new row is not served
     // until it is `installed`.
     await deps.installed.refresh();
@@ -2549,6 +2577,8 @@ export function createAppInstallService(deps: AppRoutesDeps) {
         }
       }
       stage = 'pages';
+      // Its parts once more, now that its tables have their real names: a public entry of a part is known by the ref it is served under.
+      await manifests.setModules(rowId, modulesFor(manifest, switchesBefore, input.modules, tablesPlan?.plan.names ?? {}));
       writtenPages = await writePages(
         actor,
         host,
@@ -2579,6 +2609,10 @@ export function createAppInstallService(deps: AppRoutesDeps) {
       }
       stage = 'finish';
       await placeFromManifest(manifest, userId);
+      // Maps, asked once for the whole install by the first app that shows them: shown unless the installer said no.
+      if (manifest.kind === 'app' && manifest.maps === true && (await settingsRepo(deps.meta).get('maps.enabled')) === null) {
+        await settingsRepo(deps.meta).set('maps.enabled', input.maps ?? true, { updatedBy: userId });
+      }
       await manifests.setStatus(rowId, 'installed');
       // The add-ons' earlier versions, kept while the install could still stop.
       const installer = addOnDeps();
@@ -2743,6 +2777,8 @@ export function createAppInstallService(deps: AppRoutesDeps) {
     // The add-ons the NEW version names, decided before anything moves.
     const addOnRows = await addOnRowsFor(manifest, installed.row.connectionId, true);
     const addOnSteps = decideAddOnSteps(manifest.name, addOnRows, (input.body?.addOns ?? []) as AddOnChoice[]);
+    // A part built on an add-on that is not there for the app is left out of this version too.
+    manifest = asInstalledHere(manifest, addOnsHereFor(addOnRows, addOnSteps.map((step) => step.key)), await tablesMadeFor(key, installed.row.connectionId));
 
     /*
      * Tables against the connection the installed row ALREADY has, never a
@@ -2864,6 +2900,9 @@ export function createAppInstallService(deps: AppRoutesDeps) {
       }
       stage = 'finish';
       await manifests.setVersion(installed.row.id, { version: to, document: manifest });
+      // Over the switches as they stand now, not as they stood when this began: one flipped meanwhile is kept.
+      await manifests.setModules(installed.row.id, modulesFor(manifest, await manifests.modulesOfRow(installed.row.id), undefined, names ?? (connectionId === null ? {} : await appTablesRepo(deps.meta).realNames(connectionId, key))));
+      forgetClosedDoors(deps.meta);
     } catch (error) {
       // A refusal before anything was written stays the refusal it is.
       if (earlySteps.length === 0 && (stage === 'add-ons' || stage === 'tables') && error instanceof AppError && error.statusCode < 500) {
@@ -3065,6 +3104,69 @@ export function createAppInstallService(deps: AppRoutesDeps) {
    * is given, and each entry left out is said with its reason. This half is
    * told, not thrown: the add-on stays attached with no public door.
    */
+  /** The refs of the tables this app already has in a database: a part with one of them is never left out again. */
+  async function tablesMadeFor(key: string, connectionId: string | null | undefined): Promise<Set<string>> {
+    if (connectionId === null || connectionId === undefined) return new Set();
+    return new Set((await appTablesRepo(deps.meta).forInstall(connectionId, key)).filter((record) => record.role === 'app' && (record.state === 'created' || record.state === 'adopted' || record.state === 'shared')).map((record) => record.ref));
+  }
+
+  /** The apps an install, an update or an apply is running for right now: nothing else re-applies one of them. */
+  const moving = new Set<string>();
+  async function whileMoving<T>(key: string, run: () => Promise<T>): Promise<T> {
+    if (moving.has(key)) return run();
+    moving.add(key);
+    try {
+      return await run();
+    } finally {
+      moving.delete(key);
+    }
+  }
+
+  const NO_HOST: InstallHost = { log: { info: () => undefined, warn: () => undefined } };
+
+  async function putInParts(input: Parameters<InstallCore['putInParts']>[0]): Promise<string[]> {
+    const { appKey, actor } = input;
+    const host = input.host ?? NO_HOST;
+    if (moving.has(appKey)) return [];
+    const installed = (await manifests.list('app')).find((m) => m.row.manifestKey === appKey);
+    if (installed === undefined || installed.row.status !== 'installed') return [];
+    let declared: Manifest;
+    let waited: { ref: string }[];
+    try {
+      declared = await verifiedManifest(appKey, installed.row.version);
+      if (declared.kind !== 'app') return [];
+      const rows = await addOnRowsFor(declared, installed.row.connectionId, false);
+      const now = asInstalledHere(declared, addOnsHereFor(rows, []), await tablesMadeFor(appKey, installed.row.connectionId));
+      const made = new Set(((installed.document as Manifest | null)?.requiredSchema?.tables ?? []).map((table) => table.ref));
+      waited = (now.requiredSchema?.tables ?? []).filter((table) => !made.has(table.ref));
+    } catch (error) {
+      // Its package is not held here (an app from a folder that is gone), or its add-ons cannot be read: the part stays out
+      // until the app is next updated. Never a reason the add-on's own connecting fails.
+      host.log.warn({ err: error, app: appKey }, 'an add-on was connected, and whether a part of its app waited for it could not be told');
+      return [];
+    }
+    if (waited.length === 0) return [];
+    const parts = [...new Set(waited.flatMap((table) => ('module' in table && typeof (table as { module?: unknown }).module === 'string' ? [(table as { module: string }).module] : [])))];
+    try {
+      await whileMoving(appKey, () =>
+        applyInPlace(actor, host, {
+          key: appKey,
+          version: installed.row.version,
+          publicAccess: false,
+          publicAccessRefusal: 'a part of the app was put in; allow its public access in the app’s settings',
+          // Nothing but the app's own tables is touched: an add-on is neither installed nor updated for this.
+          unattended: { installAddOns: false, adaptForeignTables: false },
+        }),
+      );
+    } catch (error) {
+      host.log.warn({ err: error, app: appKey, parts }, 'an add-on was connected, and the part of its app that waited for it could not be put in');
+      await auditAppEvent('app.part-not-put-in', { key: appKey, version: installed.row.version, modules: parts, message: error instanceof Error ? error.message : String(error) }, actor.id, actor.label, actor.kind);
+      return [];
+    }
+    await auditAppEvent('app.part-put-in', { key: appKey, version: installed.row.version, modules: parts, tables: waited.map((table) => table.ref) }, actor.id, actor.label, actor.kind);
+    return parts;
+  }
+
   async function settleHost(input: Parameters<InstallCore['settleHost']>[0]): Promise<Awaited<ReturnType<InstallCore['settleHost']>>> {
     const { addOnKey, appKey, connectionId, actor } = input;
     const out = { roleTables: null as RoleTableResult[] | null, publicAccess: { granted: [] as string[], withdrawn: [] as string[], skipped: [] as { ref: string; reason: string }[] } };
@@ -3247,6 +3349,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
 
   const core: InstallCore = {
     settleHost,
+    putInParts,
     settleAddOnPublic,
     addOnPublicAccessOf,
     planFor: (manifest, connectionId) => planFor(manifest, connectionId),
@@ -3307,9 +3410,11 @@ export function createAppInstallService(deps: AppRoutesDeps) {
     applyTables,
     checkedPlan,
     auditAppEvent,
-    install,
-    update,
-    applyInPlace,
+    install: (actor: InstallActor, host: InstallHost, input: InstallInput) => whileMoving(input.key, () => install(actor, host, input)),
+    update: (actor: InstallActor, host: InstallHost, input: UpdateInput) => whileMoving(input.key, () => update(actor, host, input)),
+    applyInPlace: (actor: InstallActor, host: InstallHost, input: ApplyInPlaceInput) => whileMoving(input.key, () => applyInPlace(actor, host, input)),
+    putInParts,
+    tablesMadeFor,
     removals,
     answerRemoval,
     /** The versions of a key that are packages in the store, whatever the folder holds. */

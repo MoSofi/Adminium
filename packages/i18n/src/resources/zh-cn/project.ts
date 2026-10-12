@@ -24,5 +24,9 @@ export default {
   },
   "table": {
     "empty": "没有记录"
+  },
+  "kit": {
+    "partFailed": "页面的这一部分无法加载。请重新加载页面后再试。",
+    "mapPlaces": "地点"
   }
 } as const;

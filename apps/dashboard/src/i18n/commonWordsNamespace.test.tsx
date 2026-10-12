@@ -37,6 +37,8 @@ const SCREENS: Readonly<Record<string, readonly string[]>> = {
   'kb/KnowledgeBasePage.tsx': ['kb/articles.ts'],
   'team/TeamPage.tsx': ['team/TeamsCard.tsx'],
   'account/SecurityPage.tsx': [],
+  // A card of the notification settings that waits for its own words: the page around it is drawn without them.
+  'account/QuietHoursCard.tsx': [],
   'desktop/updates.tsx': [],
   'pages/builders/PageBuilderBinding.tsx': [],
   'pages/dashboard-builder/DashboardBuilder.tsx': [

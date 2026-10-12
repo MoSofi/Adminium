@@ -131,7 +131,9 @@ export default {
     "waitDesc": "Hold before next step",
     "stop": "Stop workflow",
     "stopDesc": "Halt this run here",
-    "document": "Draw document"
+    "document": "Draw document",
+    "digest": "Send each person a summary",
+    "digestDesc": "One email each, of the rows that are theirs"
   },
   "node": {
     "email": {
@@ -179,6 +181,9 @@ export default {
     },
     "document": {
       "summary": "Draws a document"
+    },
+    "digest": {
+      "summary": "{template} · {count, plural, one {# section} other {# sections}}"
     }
   },
   "event": {
@@ -254,7 +259,9 @@ export default {
     "timeSaved": "Time saved per run",
     "timeSavedBody": "Minutes a person would have spent — shown as “saves” on the rule",
     "addCondition": "Add a condition",
-    "connection": "Connection"
+    "connection": "Connection",
+    "perSpell": "Again when it matches anew",
+    "perSpellBody": "A record that stops matching and matches again later is run again: once for each such spell"
   },
   "sched": {
     "interval": "Interval",
@@ -289,14 +296,22 @@ export default {
     "noColumn": "No column matches.",
     "addressColumns": "Address columns",
     "thisTable": "This table · {table}",
-    "fromLink": "From {link} · {table}.{column}"
+    "fromLink": "From {link} · {table}.{column}",
+    "toStaff": "The person on this record"
   },
   "notif": {
     "to": "Send to",
     "roles": "Everyone with a role",
     "users": "Specific people",
     "title": "Title",
-    "body": "Message"
+    "body": "Message",
+    "column": "The person on this record",
+    "columnPick": "Which person",
+    "columnChoose": "Choose a column…",
+    "columnNone": "This table has no column that holds a staff member.",
+    "columnEmpty": "A record with nobody in that column tells nobody, and the run says so.",
+    "urgent": "Urgent",
+    "urgentBody": "Told at once, also in a person’s quiet hours"
   },
   "rec": {
     "table": "Table",
@@ -306,7 +321,9 @@ export default {
     "value": "Value",
     "now": "Now",
     "remove": "Remove this value",
-    "tokenHint": "Use {token} to copy from the record"
+    "tokenHint": "Use {token} to copy from the record",
+    "name": "Name of the new row, for later steps (optional)",
+    "nameHint": "A later step reads it as {token}"
   },
   "hook": {
     "url": "URL",
@@ -468,5 +485,17 @@ export default {
     "changed": "{name} changed this rule.",
     "undo": "Undo {name}’s change",
     "addedBy": "Added by {name}"
+  },
+  "digest": {
+    "help": "One email for each person, listing only the rows that are theirs and that they may read. It is sent at the time each person chose for summaries, or when the rule runs.",
+    "sectionKey": "Section name (the template’s rows block names it)",
+    "chooseTable": "Choose a table…",
+    "owner": "Rows where this person is",
+    "conditions": "{count, plural, one {And # more condition, kept as it is.} other {And # more conditions, kept as they are.}}",
+    "limit": "At most this many rows",
+    "removeSection": "Remove this section",
+    "addSection": "Add a section",
+    "sendEmpty": "Send when there is nothing to list",
+    "sendEmptyBody": "Off: a person with no row in any section gets no email"
   }
 } as const;

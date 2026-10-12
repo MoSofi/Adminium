@@ -137,7 +137,8 @@ export default {
       "openStaff": "Mitarbeiterbildschirme öffnen",
       "openStaffInstance": "Mitarbeiterbildschirme öffnen · {instance}"
     },
-    "drawerTitle": "Navigation"
+    "drawerTitle": "Navigation",
+    "emptyPartsOff": "Für Sie ist gerade nichts eingeschaltet. Fragen Sie einen Administrator."
   },
   "apps": {
     "frame": {
@@ -305,6 +306,15 @@ export default {
       "title": "Diese App öffnet sich eigenständig",
       "body": "Sie öffnet unter ihrer eigenen Adresse, nicht im Dashboard.",
       "primary": "Öffnen"
+    },
+    "partOff": {
+      "title": "Dieser Teil der App ist ausgeschaltet",
+      "body": "Ein Admin hat diesen Teil der App ausgeschaltet. Es wurde nichts gelöscht — schalten Sie ihn in Studio → Apps unter „Teile“ wieder ein.",
+      "secondary": "Zurück"
+    },
+    "partsOff": {
+      "title": "Für Sie ist nichts eingeschaltet",
+      "body": "Jede Ihrer Rollen gehört zu einem Teil einer App, der gerade ausgeschaltet ist. Es wurde nichts gelöscht. Bitten Sie einen Administrator, diesen Teil einzuschalten oder Ihnen eine andere Rolle zu geben."
     }
   },
   "notFound": {
@@ -1538,7 +1548,9 @@ export default {
     "event": {
       "reportReady": "Geplanter Bericht fertig",
       "reportFailed": "Geplanter Bericht fehlgeschlagen",
-      "backupCompleted": "Sicherung abgeschlossen"
+      "backupCompleted": "Sicherung abgeschlossen",
+      "ruleNotice": "Eine Meldung einer Regel",
+      "mention": "Jemand hat mich erwähnt"
     }
   },
   "theme": {
@@ -1826,5 +1838,22 @@ export default {
       "unread": "1 ungelesene Antwort",
       "proposal": "Eine Änderung wartet auf dich"
     }
+  },
+  "quietHours": {
+    "title": "Ruhezeiten und Übersichten",
+    "help": "In Ihren Ruhezeiten erscheint eine Meldung weiterhin in der Glocke, ohne Ton und ohne Einblendung, und ihre E-Mail wartet bis zum Ende der Ruhezeit. Als dringend Markiertes erreicht Sie sofort.",
+    "zone": "Ihre Zeitzone",
+    "zoneDefault": "Die des Unternehmens ({zone})",
+    "none": "Keine Ruhezeit",
+    "from": "Ruhe ab, {day}",
+    "until": "bis",
+    "to": "Ruhe bis, {day}",
+    "nextDay": "am nächsten Tag",
+    "daySwitch": "Ruhezeit am {day}",
+    "copy": "Zeiten von {day} auf alle Tage übertragen",
+    "digestDay": "Meine Übersichten senden am",
+    "digestWhenRun": "Am Tag, an dem sie erstellt werden",
+    "digestTime": "Um",
+    "always": "Immer melden, auch in Ruhezeiten"
   }
 } as const;

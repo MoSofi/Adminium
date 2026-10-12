@@ -52,7 +52,8 @@ belong to the table that key points at; a first visit by someone not yet on file
 details on the visit itself.
 
 **Producers.** Each has a `kind` (a key of `kinds`) and a `link`, the outbox's foreign-key column
-that points at the row the message is about and must be one of `links`. Optionally `gate` and
+that points at the row the message is about and must be one of `links`. Optionally `module`, the
+[part](https://docs.adminium.dev/reference/manifest/#parts) of the app the email belongs to (nothing is queued while it is off), `gate` and
 `optIn: true` (needs `recipient.optIn`: a person who opted out gets nothing). `gate: "enabled"`
 pauses the producer while the settings row's `settings.enabled` bool is false;
 `gate: { "setting": { "table", "column" } }` pauses it while that bool of the settings row is false,

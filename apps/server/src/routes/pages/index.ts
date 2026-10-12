@@ -70,6 +70,7 @@ import {
   NotFoundError,
   ValidationFailedError,
 } from '../../errors.js';
+import { assertPagePartOn } from '../../rbac/app-parts.js';
 import { applyCompositionOverrides, applyOverrides } from '../../connections/effective-schema.js';
 import { writeRefused } from '../../connections/privileges.js';
 import { canReadPii } from '../../crud/mask.js';
@@ -585,6 +586,8 @@ export function pagesRoutes(deps: PagesRoutesDeps): FastifyPluginAsyncZod {
         if (page === null || !page.isEnabled) {
           throw new NotFoundError(`page ${request.params.pageId} does not exist`);
         }
+        // A page of a part of its app that is switched off: refused by address too, whoever asks.
+        await assertPagePartOn(deps.meta, page.config);
 
         // View gate: the same `page:<id>:view` grant the bootstrap
         // nav filter applies (super-admins bypass inside `request.can`). The

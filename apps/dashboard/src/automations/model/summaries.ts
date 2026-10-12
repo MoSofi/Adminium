@@ -88,10 +88,9 @@ function actionSentence(action: Action, table: SourceTable | null): string {
       }
       const recipient = action.to;
       const to =
-        recipient.kind === 'field'
-          ? (table?.columns.find((column) => column.name === recipient.column)?.label ??
-            recipient.column)
-          : recipient.addresses.join(', ');
+        recipient.kind === 'fixed'
+          ? recipient.addresses.join(', ')
+          : (table?.columns.find((column) => column.name === recipient.column)?.label ?? recipient.column);
       return t('automations:node.email.summary', 'Template · {template} → {to}', {
         template: action.templateKey,
         to,
@@ -99,8 +98,16 @@ function actionSentence(action: Action, table: SourceTable | null): string {
     }
     case 'notification': {
       if (action.to === null) return t('automations:node.notification.sub', 'Choose who to tell');
+      if ('column' in action.to) {
+        const named = action.to.column;
+        return t('automations:node.notification.summary', 'To · {who}', { who: table?.columns.find((column) => column.name === named)?.label ?? named });
+      }
       const who = 'roles' in action.to ? action.to.roles.length : action.to.users.length;
       return t('automations:node.notification.summary', 'To · {who}', { who: String(who) });
+    }
+    case 'digest': {
+      if (action.templateKey === null) return t('automations:node.email.sub', 'Template · pick one');
+      return t('automations:node.digest.summary', '{template} · {count, plural, one {# section} other {# sections}}', { template: action.templateKey, count: action.sections.length });
     }
     case 'record.create': {
       if (action.table === null) return t('automations:node.create.sub', 'Table · pick one');

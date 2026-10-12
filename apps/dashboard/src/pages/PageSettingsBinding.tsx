@@ -34,9 +34,11 @@ const EVENT_LABELS: Record<string, { key: string; en: string }> = {
     key: 'notifications.event.backupCompleted',
     en: 'Backup completed',
   },
+  'automation.notice': { key: 'notifications.event.ruleNotice', en: 'A notice from a rule' },
+  mention: { key: 'notifications.event.mention', en: 'Somebody mentioned me' },
 };
 
-function eventLabel(eventKey: string): string {
+export function eventLabel(eventKey: string): string {
   const known = EVENT_LABELS[eventKey];
   if (known !== undefined) return t(known.key, known.en);
   // Unknown producer: humanize `custom.thing-happened` → "Custom thing happened".

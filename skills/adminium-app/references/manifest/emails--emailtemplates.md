@@ -70,8 +70,8 @@ project, is `failed` with a sentence naming the code. A person or an API key mak
 hand, or by an import they started), or queueing a held or failed one to go, may link it only to
 rows they can read.
 
-Templates are sent through an outbox, so a manifest with `emailTemplates` and no `outbox` is
-refused. The install's check step warns when the server cannot send email.
+Templates are sent through an outbox or by a rule's own `email` or `digest` step, so a manifest
+with no `outbox` is refused when it has a template no rule sends. The install's check step warns when the server cannot send email.
 
 #### Emails that list rows
 

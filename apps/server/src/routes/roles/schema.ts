@@ -20,6 +20,10 @@ export type RoleDto = z.infer<typeof roleDto>;
 export const roleListItem = roleDto.extend({
   /** Users currently holding the role (`adminium_user_roles`). */
   memberCount: z.number().int().nonnegative(),
+  /** The app whose manifest made the role; absent for every other role. */
+  appKey: z.string().optional(),
+  /** Every part of its app the role belongs to is switched off: it grants nothing now and is offered to nobody new. */
+  partsOff: z.literal(true).optional(),
 });
 
 export const roleListReply = z.object({ roles: z.array(roleListItem) });

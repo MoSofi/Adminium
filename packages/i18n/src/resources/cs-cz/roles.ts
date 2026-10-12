@@ -164,5 +164,6 @@ export default {
     "count": "{name} by viděl(a) {reached} z {total}.",
     "capped": "Tato osoba vede víc lidí, než kolik se do jednoho dosahu vejde, takže se nepočítá celý její tým.",
     "lifted": "{name} má také {roles}, což dává každý řádek. Toto omezení pro ni neplatí."
-  }
+  },
+  "partsOff": "Její část aplikace je vypnutá: dokud se nezapne, role nic neuděluje."
 } as const;

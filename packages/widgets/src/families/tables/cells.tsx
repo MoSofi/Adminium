@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
+import { mentionText } from '../forms/mentions.js';
 import { useMaybeT } from '../../lib/i18n.js';
 import { Avatar, Badge, MonoText, StatusPill, type Tone } from '@adminium/ui';
 import { Check, Eye, EyeOff, Paperclip, X } from 'lucide-react';
@@ -583,7 +584,8 @@ function CellContent({
     return <MonoText className="truncate">{String(value)}</MonoText>;
   }
 
-  return <span className="truncate">{String(value)}</span>;
+  // A text people are mentioned in reads as it was typed: `@Name`, not the stored form.
+  return <span className="truncate">{mentionText(String(value))}</span>;
 }
 
 function isPlainNumber(column: GridColumnSpec): boolean {

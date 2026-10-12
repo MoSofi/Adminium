@@ -101,7 +101,9 @@ export default {
       "tooLarge": "Musí být {max} nebo méně.",
       "outOfRange": "Toto číslo je mimo rozsah.",
       "duplicate": "Již přidáno.",
-      "form": "Některé hodnoty byly odmítnuty. Zkontrolujte označená pole."
+      "form": "Některé hodnoty byly odmítnuty. Zkontrolujte označená pole.",
+      "mentionUnknown": "Někdo, kdo je zde zmíněn, se sem nepřihlašuje. Napište @ a vyberte ho ze seznamu.",
+      "tooManyMentions": "Je zde zmíněno příliš mnoho lidí. Zmiňte jich méně."
     },
     "lines": {
       "add": "Přidat řádek",
@@ -2102,5 +2104,8 @@ export default {
       "low": "Dochází",
       "out": "Vyprodáno"
     }
+  },
+  "mentions": {
+    "people": "Lidé, které lze zmínit"
   }
 } as const;

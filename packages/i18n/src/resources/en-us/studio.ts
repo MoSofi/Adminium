@@ -3130,7 +3130,9 @@ export default {
       "advice": "Ask your manager to switch it on in {app} → Settings.",
       "signOut": "Sign out",
       "noAccess": "This account can’t open {app}.",
-      "noAccessAdvice": "Ask your manager for a role that opens {app}."
+      "noAccessAdvice": "Ask your manager for a role that opens {app}.",
+      "partsOff": "Nothing in {app} is switched on for you.",
+      "partsOffAdvice": "Every role you hold belongs to a part of {app} that is switched off. Ask your manager to switch it on, or for another role."
     },
     "notFound": {
       "title": "Page not found",
@@ -3421,5 +3423,52 @@ export default {
     "body": "This page works only with {count, plural, one {an add-on} other {add-ons}} this app does not have here yet, so it is not in the sidebar. It comes back once {count, plural, one {it is} other {they are}} installed and connected to the app.",
     "open": "Open the app’s settings",
     "title": "{page} needs an add-on"
+  },
+  "appParts": {
+    "title": "Parts",
+    "help": "Switch off the parts this business does not use. A part that is off has no pages, rules or roles; its records stay.",
+    "onePage": "1 page",
+    "pages": "{n} pages",
+    "oneRule": "1 rule on",
+    "rules": "{n} rules on",
+    "roles": "Roles: {roles}",
+    "leftOut": "Not set up yet. Connect {addOns} under Add-ons and it is put in.",
+    "waiting": "Off until {addOns} is connected, under Add-ons.",
+    "always": "Always on",
+    "needs": "Needs an add-on",
+    "switch": "{part}, on or off",
+    "on": "On",
+    "off": "Off",
+    "dialogClose": "Close",
+    "cancel": "Cancel",
+    "onDialog": {
+      "title": "Switch on {part}?",
+      "back": "Its pages, rules and roles are back at once. No update and no restart is needed.",
+      "noCatchUp": "Nothing that happened while it was off is caught up: its rules did not run, and they will not run now for what was missed.",
+      "confirm": "Switch on"
+    },
+    "offDialog": {
+      "title": "Switch off {part}?",
+      "stops": "Its pages leave the menu, its rules stop and its roles give nothing until it is switched on again.",
+      "stays": "Its records stay. A role of another part that reads them still does.",
+      "open": "Open in it right now:",
+      "openRows": "{n} not finished in {table}",
+      "oneRule": "1 rule that is on will stop",
+      "rules": "{n} rules that are on will stop",
+      "oneStranded": "1 person will have nothing switched on for them",
+      "stranded": "{n} people will have nothing switched on for them",
+      "nothingOpen": "Nothing is open in it right now.",
+      "confirm": "Switch off"
+    },
+    "installHelp": "Choose the parts of {app} to start with. Any of them can be switched on or off later, in the app’s settings.",
+    "installTick": "Start with {part}",
+    "installAlways": "always on",
+    "installLeftOut": "Left out of this install: it needs {addOns}. Tick it under Add-ons, or connect it later and the part is put in.",
+    "installNeeds": "Works with {addOns}, which is installed with the app."
+  },
+  "installMaps": {
+    "title": "Maps",
+    "tick": "Show maps (uses OpenFreeMap)",
+    "note": "each person’s browser fetches the map’s pictures from the map server. It learns which area is looked at, and nothing about your records. This is one switch for every app here."
   }
 } as const;

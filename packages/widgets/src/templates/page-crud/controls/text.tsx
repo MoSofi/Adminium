@@ -14,6 +14,7 @@ import { useMaybeT } from '../../../lib/i18n.js';
 import { Eye, EyeOff } from 'lucide-react';
 import { useState } from 'react';
 
+import { MentionTextarea } from '../../../families/forms/MentionTextarea.js';
 import type { ControlProps } from './types.js';
 
 function asText(value: unknown): string {
@@ -206,6 +207,12 @@ export function TextareaControl(props: ControlProps) {
       onChange={(event) => props.onChange(event.target.value)}
     />
   );
+}
+
+/** A text in which people are mentioned: the same box, offering who may be named after an `@`. */
+export function MentionsControl(props: ControlProps) {
+  const { type: _type, ...box } = inputProps(props);
+  return <MentionTextarea {...box} rows={3} value={asText(props.value)} onChange={(stored) => props.onChange(stored)} />;
 }
 
 /** JSON is a textarea in mono: it is text the person is responsible for. */

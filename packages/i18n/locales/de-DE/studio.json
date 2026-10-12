@@ -3120,7 +3120,9 @@
       "advice": "Bitten Sie Ihre Leitung, es unter {app} → Einstellungen einzuschalten.",
       "signOut": "Abmelden",
       "noAccess": "Dieses Konto kann {app} nicht öffnen.",
-      "noAccessAdvice": "Bitten Sie Ihre Führungskraft um eine Rolle, die {app} öffnet."
+      "noAccessAdvice": "Bitten Sie Ihre Führungskraft um eine Rolle, die {app} öffnet.",
+      "partsOff": "In {app} ist für Sie nichts eingeschaltet.",
+      "partsOffAdvice": "Jede Ihrer Rollen gehört zu einem ausgeschalteten Teil von {app}. Bitten Sie Ihre Leitung, ihn einzuschalten oder Ihnen eine andere Rolle zu geben."
     },
     "notFound": {
       "title": "Seite nicht gefunden",
@@ -3411,5 +3413,52 @@
     "body": "Diese Seite funktioniert nur mit {count, plural, one {einem Add-on} other {Add-ons}}, das der App hier noch fehlt, daher steht sie nicht in der Seitenleiste. Sie kehrt zurück, sobald {count, plural, one {es} other {sie}} installiert und mit der App verbunden {count, plural, one {ist} other {sind}}.",
     "open": "Einstellungen der App öffnen",
     "title": "{page} braucht ein Add-on"
+  },
+  "appParts": {
+    "title": "Teile",
+    "help": "Schalten Sie die Teile aus, die dieses Unternehmen nicht nutzt. Ein ausgeschalteter Teil hat keine Seiten, Regeln oder Rollen; seine Datensätze bleiben.",
+    "onePage": "1 Seite",
+    "pages": "{n} Seiten",
+    "oneRule": "1 Regel aktiv",
+    "rules": "{n} Regeln aktiv",
+    "roles": "Rollen: {roles}",
+    "leftOut": "Noch nicht eingerichtet. Verbinden Sie {addOns} unter „Add-ons“, dann wird der Teil eingerichtet.",
+    "waiting": "Aus, bis {addOns} unter „Add-ons“ verbunden ist.",
+    "always": "Immer an",
+    "needs": "Braucht ein Add-on",
+    "switch": "{part}, ein oder aus",
+    "on": "An",
+    "off": "Aus",
+    "dialogClose": "Schließen",
+    "cancel": "Abbrechen",
+    "onDialog": {
+      "title": "{part} einschalten?",
+      "back": "Seiten, Regeln und Rollen sind sofort wieder da. Kein Update und kein Neustart nötig.",
+      "noCatchUp": "Was geschah, während der Teil aus war, wird nicht nachgeholt: Seine Regeln liefen nicht und laufen für das Versäumte auch jetzt nicht.",
+      "confirm": "Einschalten"
+    },
+    "offDialog": {
+      "title": "{part} ausschalten?",
+      "stops": "Seine Seiten verschwinden aus dem Menü, seine Regeln stoppen und seine Rollen gewähren nichts, bis er wieder eingeschaltet wird.",
+      "stays": "Seine Datensätze bleiben. Eine Rolle eines anderen Teils, die sie liest, liest sie weiterhin.",
+      "open": "Darin gerade offen:",
+      "openRows": "{n} nicht abgeschlossen in {table}",
+      "oneRule": "1 aktive Regel stoppt",
+      "rules": "{n} aktive Regeln stoppen",
+      "oneStranded": "Für 1 Person ist dann nichts mehr eingeschaltet",
+      "stranded": "Für {n} Personen ist dann nichts mehr eingeschaltet",
+      "nothingOpen": "Darin ist gerade nichts offen.",
+      "confirm": "Ausschalten"
+    },
+    "installHelp": "Wählen Sie die Teile von {app}, mit denen Sie beginnen. Jeder lässt sich später in den Einstellungen der App ein- oder ausschalten.",
+    "installTick": "Mit {part} beginnen",
+    "installAlways": "immer an",
+    "installLeftOut": "Bei dieser Installation ausgelassen: braucht {addOns}. Haken Sie es unter „Add-ons“ an oder verbinden Sie es später, dann wird der Teil eingerichtet.",
+    "installNeeds": "Arbeitet mit {addOns}, das mit der App installiert wird."
+  },
+  "installMaps": {
+    "title": "Karten",
+    "tick": "Karten anzeigen (nutzt OpenFreeMap)",
+    "note": "der Browser jeder Person lädt die Kartenbilder vom Kartenserver. Dieser erfährt, welches Gebiet angesehen wird, und nichts über Ihre Datensätze. Dies ist ein Schalter für alle Apps hier."
   }
 }

@@ -2,6 +2,11 @@
 
 # Manifest spec: requiredSchema — Column rules
 
+`of` may be another total of the row, so money given back is capped by money taken: two totals
+over the same payments, `taken` (`where` `kind` `taken`) and `given_back` (`where` `kind`
+`given_back`, `balance: { "column": "refundable", "of": "taken" }`, `cap: true`). A refund past what
+was taken is refused, and so is lowering a payment taken below what already went back.
+
 A capped write is refused with `BALANCE_EXCEEDED` and the balance it would have gone below. So is a
 change to the parent that lowers `of` under what is already paid. Only a write that takes the
 balance below zero, or further below it, is refused: a row already negative from older data can
@@ -108,16 +113,3 @@ How a formula is worked out:
   it changed, reading the stored row with the new values over it. A formula that reads another
   formula column is worked out after it. A formula that reads a [rollup](https://docs.adminium.dev/reference/manifest/#totals-and-balances)
   total is worked out again whenever the total moves.
-
-A formula fills a `decimal`, `money`, `int` or `bigint` column, never a `float` (a
-[`join`](https://docs.adminium.dev/reference/manifest/#joined-text) fills a `text` column). It reads only columns of its own table, and every
-column it counts with holds a number; `eq`, `neq` and `isNull` may name any column,
-`hoursBetween` names two different `timestamptz` columns and `daysBetween` two different `date`
-columns. It
-may not read itself, formulas may not read each other in a circle, and an expression nests at most
-8 deep. A value a writer sends to a formula column is dropped. Anything that reads another row is a
-`copy` or a `rollup`, which already keep in step when that other row changes.
-
-#### Hours between two moments
-
-`hoursBetween` works a time entry's hours out from its start and its stop:

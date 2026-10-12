@@ -28,6 +28,7 @@
  * again; cleaning is bounded (two at once, one per address), and a request
  * past the bound is told to come back (503 with `Retry-After`).
  */
+import { withOpenDoors } from '../../rbac/app-parts.js';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { filesRepo, publicKeysRepo, type DsnCrypto, type MetaDb } from '@adminium/meta';
 import { z } from 'zod';
@@ -131,7 +132,8 @@ export function registerPictures(app: FastifyInstance, deps: PictureDeps): void 
     }
 
     // The entry: a read of rows that shows this column as a picture, to anyone.
-    const resource = key.scope.byRef.get(ref);
+    // …of the key as it stands now: an entry of a part of its app that is switched off is not there.
+    const resource = (await withOpenDoors(deps.meta, key)).scope.byRef.get(ref);
     if (
       resource === undefined ||
       resource.kind !== 'records' ||

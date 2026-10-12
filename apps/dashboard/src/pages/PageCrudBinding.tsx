@@ -550,6 +550,7 @@ function childColumnsOf(child: FormChildFactReply, pageId: string): { columns: r
         filledBy: column.filledBy,
         required: column.required,
         ...(column.requiredWhen === undefined ? {} : { requiredWhen: column.requiredWhen }),
+        ...(column.mentions === true ? { mentions: true as const } : {}),
         writable: column.writable,
         ...(column.insertable === undefined ? {} : { insertable: column.insertable }),
         ...(column.updatable === undefined ? {} : { updatable: column.updatable }),

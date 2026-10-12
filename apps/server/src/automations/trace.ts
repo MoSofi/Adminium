@@ -46,6 +46,17 @@ export type TraceStatus = AutomationTraceStep['status'];
 export interface TraceText {
   /** A rule an app or add-on shipped, while that one is switched off or being changed. */
   ownerOff(): string;
+  partOff(): string;
+  /** A staff column that names nobody for this record: said, and the run goes on. */
+  staffNobody(column: string, why: 'empty' | 'gone' | 'away'): string;
+  /** A notice or a mail held to the end of a person's quiet hours. */
+  heldUntil(name: string, at: string): string;
+  emailQueued(name: string): string;
+  digestNobody(): string;
+  digestQueued(people: number, later: number): string;
+  digestWould(people: number): string;
+  /** A test run's stand-in for the row a named step would make. */
+  createStandIn(name: string, pairs: string): string;
   trigger(label: string, summary: string): string;
   scheduleTick(stamp: string): string;
   evaluated(result: boolean): string;
@@ -116,6 +127,15 @@ export const TRACE_EN: TraceText = {
   undone: () => 'Undone before it ran',
   gone: () => 'Record no longer exists',
   ownerOff: () => 'Its add-on is switched off.',
+  partOff: () => 'Its part of the app is switched off.',
+  staffNobody: (column, why) =>
+    why === 'empty' ? `Nobody is named in ${column} on this record: nobody was told.` : why === 'gone' ? `The person named in ${column} is no longer here: nobody was told.` : `The person named in ${column} cannot sign in: nobody was told.`,
+  heldUntil: (name, at) => `Held for ${name} until ${at}: their quiet hours.`,
+  emailQueued: (name) => `Queued for ${name}.`,
+  digestNobody: () => 'Nobody holds the roles this summary is for: none was made.',
+  digestQueued: (people, later) => (later === 0 ? `A summary queued for ${String(people)} ${people === 1 ? 'person' : 'people'}.` : `A summary queued for ${String(people)} ${people === 1 ? 'person' : 'people'}, ${String(later)} at the time they chose.`),
+  digestWould: (people) => `Would make a summary for ${String(people)} ${people === 1 ? 'person' : 'people'}, each of their own rows.`,
+  createStandIn: (name, pairs) => `Would create ${pairs}. The steps after this read a stand-in for the row "${name}": it was not made.`,
   ruleOff: () => 'Rule was switched off while waiting',
 };
 
@@ -154,6 +174,7 @@ export class TraceBuilder {
     startedAt: number;
     durationMs?: number | null | undefined;
     log?: string | null | undefined;
+    made?: AutomationTraceStep['made'];
   }): void {
     this.#steps.push({
       nodeId: input.nodeId,
@@ -163,6 +184,7 @@ export class TraceBuilder {
       startedAt: input.startedAt,
       durationMs: input.durationMs ?? null,
       log: input.log === undefined || input.log === null ? null : input.log.slice(0, 2000),
+      ...(input.made === undefined ? {} : { made: input.made }),
     });
   }
 

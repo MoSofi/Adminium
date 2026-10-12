@@ -22,6 +22,7 @@ import type { ConnectionManager, SourceDatabase } from '../../connections/manage
 import type { ResolvedTable, SnapshotView } from '../../crud/identifiers.js';
 import type { Row } from '../../crud/mask.js';
 import type { RecordWriteService } from '../../crud/write-service.js';
+import type { AutomationTraceStep } from '@adminium/meta';
 import type { EmailTransport, SmtpConfig } from '../../email/types.js';
 import type { RenderDeps } from '../../documents/render.js';
 import type { FileStore } from '../../files/store.js';
@@ -88,6 +89,8 @@ export interface ActionContext {
 export interface ActionResult {
   /** The comp's log box, one line. Null when there is nothing to say. */
   log: string | null;
+  /** The row a named "create a row" step made, kept in the trace for the steps after it (`step-rows.ts`). */
+  made?: AutomationTraceStep['made'];
 }
 
 /** A step that failed. The message becomes the trace line AND the run's error. */

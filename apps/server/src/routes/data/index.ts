@@ -156,6 +156,9 @@ import {
 } from '../../crud/write-service.js';
 import { postingAnswers, type PostedOutcome, type PostingAnswer } from '../../crud/ledger-write.js';
 import { tellPostings } from '../../ledgers/announce.js';
+import { assertMentions, mentionColumns, tellMentioned } from '../../crud/mentions.js';
+import type { NotificationPublisher } from '../../notifications/notify.js';
+import { linkOrigin } from '../../security/public-origin.js';
 import { paymentOf, type PaidRow, type PaymentAnswer } from '../../ledgers/payment.js';
 import { answersFor, hideLedgerFigures } from '../../ledgers/tell.js';
 import { writeStores } from '../../crud/write-stores.js';
@@ -237,6 +240,8 @@ export interface DataRoutesDeps {
   files?: FileReconciler | undefined;
   /** Where every write goes, with the project's hooks. A service with no hooks otherwise. */
   writes?: RecordWriteService | undefined;
+  /** Where a notice to somebody mentioned is shown as it is made; none in a test that reads the bell by its route. */
+  hub?: NotificationPublisher | undefined;
   /**
    * The server's secret, to name a sign-in-link person's code lock by their
    * address as the public side keys it. Absent: only locks kept by the row.
@@ -537,6 +542,8 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
       // …and a link into a table they do not read at all names a row that is theirs, or none.
       await assertLinksToUnreadTables(ctx.view.model, ctx.connectionId, ctx.writer, db, tableId, values, before);
       await assertStaffColumns(ctx.rows, meta, db, ctx.view.model, tableId, values, before, opts);
+      // …and each person its text mentions is somebody who signs in here.
+      await assertMentions(meta, ctx.view.model.tables.find((candidate) => candidate.id === tableId), values);
     };
 
     /**
@@ -798,6 +805,18 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         origin: 'dashboard',
         files: deps.files,
       });
+      // The people this save newly mentions are told, once it is saved; a notice that fails is not the save's failure.
+      const writer = request.user;
+      if (after !== null && action !== 'delete' && writer !== undefined && writer !== null && mentionColumns(ctx.table.table).length > 0) {
+        try {
+          await tellMentioned(
+            { meta, manager, hub: deps.hub },
+            { connectionId: ctx.connectionId, view: ctx.view, table: ctx.table, before, after, writer: { id: writer.id, name: writer.name }, origin: await linkOrigin(meta, request) },
+          );
+        } catch (error) {
+          request.log.warn({ err: error }, 'mentions: telling the people named failed');
+        }
+      }
     }
 
     /**

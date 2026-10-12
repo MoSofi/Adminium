@@ -121,7 +121,9 @@
     "waitDesc": "Pozastavit před dalším krokem",
     "stop": "Zastavit postup",
     "stopDesc": "Ukončit tento běh zde",
-    "document": "Vytvořit dokument"
+    "document": "Vytvořit dokument",
+    "digest": "Poslat každému souhrn",
+    "digestDesc": "Každému jeden e-mail s jeho řádky"
   },
   "node": {
     "email": {
@@ -169,6 +171,9 @@
     },
     "document": {
       "summary": "Vytvoří dokument"
+    },
+    "digest": {
+      "summary": "{template} · {count, plural, one {# oddíl} few {# oddíly} many {# oddílu} other {# oddílů}}"
     }
   },
   "event": {
@@ -244,7 +249,9 @@
     "timeSaved": "Ušetřený čas na běh",
     "timeSavedBody": "Minuty, které by člověk strávil — u pravidla se zobrazí jako „ušetří“",
     "addCondition": "Přidat podmínku",
-    "connection": "Připojení"
+    "connection": "Připojení",
+    "perSpell": "Znovu, když začne opět vyhovovat",
+    "perSpellBody": "Záznam, který přestane vyhovovat a později vyhoví znovu, se spustí znovu: jednou za každé takové období"
   },
   "sched": {
     "interval": "Interval",
@@ -279,14 +286,22 @@
     "noColumn": "Žádný sloupec neodpovídá.",
     "addressColumns": "Sloupce s adresami",
     "thisTable": "Tato tabulka · {table}",
-    "fromLink": "Přes {link} · {table}.{column}"
+    "fromLink": "Přes {link} · {table}.{column}",
+    "toStaff": "Osoba u tohoto záznamu"
   },
   "notif": {
     "to": "Odeslat komu",
     "roles": "Všem s rolí",
     "users": "Konkrétním lidem",
     "title": "Nadpis",
-    "body": "Zpráva"
+    "body": "Zpráva",
+    "column": "Osoba u tohoto záznamu",
+    "columnPick": "Která osoba",
+    "columnChoose": "Vyberte sloupec…",
+    "columnNone": "Tato tabulka nemá sloupec, který obsahuje pracovníka.",
+    "columnEmpty": "Záznam, který v tom sloupci nikoho nemá, nikoho neupozorní a běh to uvede.",
+    "urgent": "Naléhavé",
+    "urgentBody": "Oznámí se ihned, i v době klidu dané osoby"
   },
   "rec": {
     "table": "Tabulka",
@@ -296,7 +311,9 @@
     "value": "Hodnota",
     "now": "Teď",
     "remove": "Odebrat tuto hodnotu",
-    "tokenHint": "Použijte {token} pro převzetí hodnoty ze záznamu"
+    "tokenHint": "Použijte {token} pro převzetí hodnoty ze záznamu",
+    "name": "Název nového řádku pro další kroky (nepovinné)",
+    "nameHint": "Další krok jej čte jako {token}"
   },
   "hook": {
     "url": "URL",
@@ -458,5 +475,17 @@
     "changed": "{name} změnil toto pravidlo.",
     "undo": "Vrátit změnu, kterou provedl {name}",
     "addedBy": "Přidal {name}"
+  },
+  "digest": {
+    "help": "Jeden e-mail pro každého, jen s řádky, které jsou jeho a které smí číst. Odešle se v čase, který si dotyčný zvolil pro souhrny, jinak při běhu pravidla.",
+    "sectionKey": "Název oddílu (uvádí jej blok řádků v šabloně)",
+    "chooseTable": "Vyberte tabulku…",
+    "owner": "Řádky, kde je tato osoba jako",
+    "conditions": "{count, plural, one {A # další podmínka, ponechaná beze změny.} few {A # další podmínky, ponechané beze změny.} many {A # další podmínky, ponechané beze změny.} other {A # dalších podmínek, ponechaných beze změny.}}",
+    "limit": "Nejvýše tolik řádků",
+    "removeSection": "Odebrat tento oddíl",
+    "addSection": "Přidat oddíl",
+    "sendEmpty": "Odeslat, i když není co vypsat",
+    "sendEmptyBody": "Vypnuto: kdo nemá v žádném oddílu řádek, nedostane e-mail"
   }
 }

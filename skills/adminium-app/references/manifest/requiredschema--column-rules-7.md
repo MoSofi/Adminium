@@ -2,6 +2,15 @@
 
 # Manifest spec: requiredSchema — Column rules
 
+```json
+{ "ref": "promo_code", "type": "text", "maxLength": 32, "nullable": true },
+{ "ref": "promo_id", "type": "fk", "references": "promo_codes", "nullable": true,
+  "rules": { "lookup": { "from": "promo_code", "table": "promo_codes", "column": "code",
+                         "where": [{ "column": "active", "eq": true },
+                                   { "column": "valid_until", "notBefore": "today", "orEmpty": true }],
+                         "scope": [{ "column": "event_id", "equals": "event_id", "orEmpty": true }] } } }
+```
+
 | Field | Rule |
 |---|---|
 | `from` | The nullable `text` column of this row the code is typed into, up to 64 characters, with no rule of its own that decides it. |

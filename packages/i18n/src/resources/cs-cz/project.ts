@@ -24,5 +24,9 @@ export default {
   },
   "table": {
     "empty": "Žádné záznamy"
+  },
+  "kit": {
+    "partFailed": "Tuto část stránky se nepodařilo načíst. Zkuste stránku načíst znovu.",
+    "mapPlaces": "Místa"
   }
 } as const;

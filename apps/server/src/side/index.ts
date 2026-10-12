@@ -563,6 +563,8 @@ export interface StaffSession {
   appName: string | null;
   /** The app's settings values. */
   settings: Record<string, unknown>;
+  /** The parts of the app, each on or off. A part the server did not name is on: hide a screen only on `false`. */
+  modules: Record<string, boolean>;
   /** The venue's time zone (IANA). `UTC` with `timezoneIsFallback` when the database has none set. */
   timezone: string;
   timezoneIsFallback: boolean;
@@ -663,6 +665,7 @@ export async function connectStaff(options: ConnectOptions = {}): Promise<StaffS
     user: text(user['id']) === null ? null : { id: String(user['id']), name: text(user['name']) ?? '', email: text(user['email']) ?? '' },
     appName: text(doc['appName']),
     settings: record(doc['settings']),
+    modules: Object.fromEntries(Object.entries(record(doc['modules'])).filter((entry): entry is [string, boolean] => typeof entry[1] === 'boolean')),
     timezone: zone ?? 'UTC',
     timezoneIsFallback: zone === null,
     currency: text(doc['currency']),
@@ -718,6 +721,7 @@ export function demoStaff(tables: Record<string, readonly Row[]>): StaffSession 
     user: null,
     appName: null,
     settings: {},
+    modules: {},
     timezone: 'UTC',
     timezoneIsFallback: true,
     currency: null,

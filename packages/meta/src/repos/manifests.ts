@@ -76,6 +76,50 @@ export interface InstallManifestInput {
    * is never served.
    */
   status?: ManifestStatus;
+  /** The parts of an app and the owner's switch for each. */
+  modules?: AppModules | null;
+}
+
+/**
+ * The parts of an installed app. `defs` is what its manifest says of each:
+ * the default and the add-ons its feature needs (all of them connected, or
+ * the part is off whatever its switch says). `on` is the owner's switch; a
+ * part with none follows its default.
+ */
+export interface AppModules {
+  defs: { id: string; default: 'on' | 'off' | 'always'; needs: string[] }[];
+  on: Record<string, boolean>;
+  /** The app's public entries that belong to a part, by the entry's ref: closed while that part is off. */
+  doors?: Record<string, string>;
+  /**
+   * What this install did not make because the add-on a part is built on is
+   * not connected: the parts, their tables, and the link columns into them on
+   * the tables that were made. Absent when nothing was left out.
+   */
+  leftOut?: { modules: string[]; tables: string[]; columns: Record<string, string[]> };
+}
+
+/** The stored parts of an app, or null when it has none or the value is not one. */
+export function readAppModules(value: unknown): AppModules | null {
+  if (value === null || value === undefined) return null;
+  const read = readJson<{ defs?: unknown; on?: unknown }>(value);
+  if (read === null || typeof read !== 'object' || !Array.isArray(read.defs)) return null;
+  const defs = read.defs.flatMap((def: unknown) => {
+    const one = def as { id?: unknown; default?: unknown; needs?: unknown };
+    if (one === null || typeof one !== 'object' || typeof one.id !== 'string') return [];
+    const start: AppModules['defs'][number]['default'] = one.default === 'on' || one.default === 'off' ? one.default : 'always';
+    return [{ id: one.id, default: start, needs: Array.isArray(one.needs) ? one.needs.filter((key): key is string => typeof key === 'string') : [] }];
+  });
+  if (defs.length === 0) return null;
+  const on = Object.fromEntries(Object.entries((read.on ?? {}) as Record<string, unknown>).filter((entry): entry is [string, boolean] => typeof entry[1] === 'boolean'));
+  const doors = Object.fromEntries(Object.entries(((read as { doors?: unknown }).doors ?? {}) as Record<string, unknown>).filter((entry): entry is [string, string] => typeof entry[1] === 'string'));
+  const out = (read as { leftOut?: { modules?: unknown; tables?: unknown; columns?: unknown } }).leftOut;
+  const strings = (value: unknown): string[] => (Array.isArray(value) ? value.filter((one): one is string => typeof one === 'string') : []);
+  const leftOut =
+    out === undefined || out === null || typeof out !== 'object' || strings(out.tables).length === 0
+      ? undefined
+      : { modules: strings(out.modules), tables: strings(out.tables), columns: Object.fromEntries(Object.entries((out.columns ?? {}) as Record<string, unknown>).map(([table, columns]) => [table, strings(columns)])) };
+  return { defs, on, ...(Object.keys(doors).length === 0 ? {} : { doors }), ...(leftOut === undefined ? {} : { leftOut }) };
 }
 
 /** `installing` → `installed` ⇄ `disabled`; `error` is kept for a broken row. */
@@ -94,6 +138,18 @@ export interface CredentialEnvelope {
   secret: Record<string, unknown>;
   expiresAt?: number | null;
   scopes?: string[] | null;
+}
+
+/**
+ * The parts of the apps named (every app when none is), without their
+ * manifests: what "is this part on" is answered from.
+ */
+export async function appModulesOf(meta: MetaDb, keys?: readonly string[]): Promise<{ key: string; id: string; status: string; connectionId: string | null; modules: AppModules | null }[]> {
+  if (keys !== undefined && keys.length === 0) return [];
+  let query = meta.db.selectFrom('adminium_manifests').select(['id', 'manifestKey', 'status', 'connectionId', 'modules']).where('kind', '=', 'app');
+  if (keys !== undefined) query = query.where('manifestKey', 'in', [...keys]);
+  const rows = await query.execute();
+  return rows.map((row) => ({ key: row.manifestKey, id: row.id, status: row.status, connectionId: row.connectionId, modules: readAppModules(row.modules) }));
 }
 
 export function manifestsRepo(meta: MetaDb, crypto: CredentialCrypto) {
@@ -155,6 +211,8 @@ export function manifestsRepo(meta: MetaDb, crypto: CredentialCrypto) {
         // after this row exists. `setPackageCopy` writes both then.
         packageIntegrity: null,
         packageFileId: null,
+        // Written only for an app with parts: a store part-way through its waves has no such column yet.
+        ...(input.modules === undefined || input.modules === null ? {} : { modules: packJson(input.modules) }),
         installedBy: input.installedBy ?? null,
         installedAt: at,
         updatedAt: at,
@@ -226,6 +284,36 @@ export function manifestsRepo(meta: MetaDb, crypto: CredentialCrypto) {
     },
 
     /** Upgrade in place: a new version and document over the same row. */
+    /** The parts of an app and the owner's switches: written by its install and update, and by the switch itself. */
+    async setModules(id: string, modules: AppModules | null, at: number = Date.now()): Promise<void> {
+      await db
+        .updateTable('adminium_manifests')
+        .set({ modules: modules === null ? null : packJson(modules), updatedAt: at })
+        .where('id', '=', id)
+        .execute();
+    },
+
+    /**
+     * One part's switch, written over what the row holds NOW: read and written
+     * back in one breath, so a switch of another part made a moment ago is
+     * not lost to this one. Answers the parts as they then stand, or null for
+     * a row with none.
+     */
+    async setModuleSwitch(id: string, module: string, on: boolean, at: number = Date.now()): Promise<AppModules | null> {
+      const row = await db.selectFrom('adminium_manifests').select('modules').where('id', '=', id).executeTakeFirst();
+      const held = readAppModules(row?.modules);
+      if (held === null) return null;
+      const next = { ...held, on: { ...held.on, [module]: on } };
+      await db.updateTable('adminium_manifests').set({ modules: packJson(next), updatedAt: at }).where('id', '=', id).execute();
+      return next;
+    },
+
+    /** The parts a row holds now, read alone (never the manifest). */
+    async modulesOfRow(id: string): Promise<AppModules | null> {
+      const row = await db.selectFrom('adminium_manifests').select('modules').where('id', '=', id).executeTakeFirst();
+      return readAppModules(row?.modules);
+    },
+
     /** Move a row along its life. */
     async setStatus(id: string, status: ManifestStatus, at: number = Date.now()): Promise<void> {
       await db.updateTable('adminium_manifests').set({ status, updatedAt: at }).where('id', '=', id).execute();

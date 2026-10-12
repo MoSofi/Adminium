@@ -164,5 +164,6 @@ export default {
     "count": "{name} 将看到 {total} 行中的 {reached} 行。",
     "capped": "此人带领的人数超过了单个范围的上限，因此未统计其整个团队。",
     "lifted": "{name} 还拥有 {roles}，该角色可访问每一行。此限制对其不生效。"
-  }
+  },
+  "partsOff": "它所属的应用部分已关闭：在该部分开启之前不授予任何权限。"
 } as const;

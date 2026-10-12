@@ -11,6 +11,7 @@
  * reading is switched on. Someone whose every role is for one app's screens
  * has no dashboard: they are told of no dashboard place.
  */
+import { pagesOfPartsOff } from '../../rbac/app-parts.js';
 import { pagesRepo, readBool, rolesRepo } from '@adminium/meta';
 
 import { ASSISTANT_PLACES, STUDIO_ROLE_SLUGS, type AssistantPlace } from '../places.js';
@@ -64,8 +65,11 @@ export async function whereIs(deps: AssistantToolDeps, q: string): Promise<Where
   if (!nobody) {
     const repo = pagesRepo(deps.meta);
     const kinds = new Map((await repo.listAll()).map((page) => [page.id, page.type]));
-    for (const row of await repo.navRows()) {
-      if (!readBool(row.isEnabled)) continue;
+    const navRows = await repo.navRows();
+    // A page of a part of its app that is switched off is not somewhere to send anybody.
+    const partOff = await pagesOfPartsOff(deps.meta, navRows);
+    for (const row of navRows) {
+      if (!readBool(row.isEnabled) || partOff.has(row.id)) continue;
       const title = navTitleOf(row, deps.locale);
       if (!matches(words, title, row.sourceTable, row.slug)) continue;
       if (!(await deps.can(`page:${row.id}:view`))) continue;

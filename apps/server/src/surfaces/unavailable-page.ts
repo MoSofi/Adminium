@@ -31,7 +31,7 @@ import type { SurfaceSide } from '../cli/surfaces-root.js';
 
 export interface UnavailablePageInput {
   side: SurfaceSide;
-  reason: 'app-disabled' | 'side-off' | 'no-access';
+  reason: 'app-disabled' | 'side-off' | 'no-access' | 'parts-off';
   /** The app's display name, in the page's language. */
   appName: string;
   /** The workspace's own name, or null while it still carries the default. */
@@ -134,11 +134,15 @@ ${input.venueName === null ? '' : `<div class="venue">${escapeHtml(input.venueNa
         ? t('studio:surfacePages.staff.appOff', '{app} is switched off for now.', { app })
         : input.reason === 'no-access'
           ? t('studio:surfacePages.staff.noAccess', 'This account can’t open {app}.', { app })
-          : t('studio:surfacePages.staff.sideOff', 'The staff screens of {app} are switched off.', { app });
+          : input.reason === 'parts-off'
+            ? t('studio:surfacePages.staff.partsOff', 'Nothing in {app} is switched on for you.', { app })
+            : t('studio:surfacePages.staff.sideOff', 'The staff screens of {app} are switched off.', { app });
     const advice =
       input.reason === 'no-access'
         ? t('studio:surfacePages.staff.noAccessAdvice', 'Ask your manager for a role that opens {app}.', { app })
-        : t('studio:surfacePages.staff.advice', 'Ask your manager to switch it on in {app} → Settings.', { app });
+        : input.reason === 'parts-off'
+          ? t('studio:surfacePages.staff.partsOffAdvice', 'Every role you hold belongs to a part of {app} that is switched off. Ask your manager to switch it on, or for another role.', { app })
+          : t('studio:surfacePages.staff.advice', 'Ask your manager to switch it on in {app} → Settings.', { app });
     const who =
       input.user === null
         ? ''

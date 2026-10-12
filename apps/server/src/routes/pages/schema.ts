@@ -197,6 +197,8 @@ const columnFactSchema = z.object({
     })
     .optional(),
   required: z.boolean(),
+  /* People are mentioned in this text. */
+  mentions: z.literal(true).optional(),
   /* Asked for only while another column of the row holds one of `in`. */
   requiredWhen: z.object({ column: z.string(), in: z.array(z.union([z.string(), z.number(), z.boolean()])) }).optional(),
   /* An admin's list, by key or by value. */

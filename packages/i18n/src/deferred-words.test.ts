@@ -23,7 +23,7 @@ describe('the groups en-US delivers later', () => {
     const listed = (name: string): string[] => JSON.parse((new RegExp(`const ${name} = (\\[[^\\]]*\\]);`).exec(script)?.[1] ?? '[]').replaceAll("'", '"')) as string[];
     expect(listed('UI_DEFERRED_GROUPS')).toEqual([...UI_DEFERRED_GROUPS]);
     expect(listed('COMMON_DEFERRED_GROUPS')).toEqual([...COMMON_DEFERRED_GROUPS]);
-    expect([...COMMON_DEFERRED_GROUPS]).toEqual(['builder', 'kb', 'about', 'team']);
+    expect([...COMMON_DEFERRED_GROUPS]).toEqual(['builder', 'kb', 'about', 'team', 'quietHours']);
     expect(Object.keys(DEFERRED_GROUPS).sort()).toEqual(['common', 'ui']);
   });
 

@@ -234,6 +234,8 @@ export const EMAIL_BLOCK_DATA_SCHEMAS: Readonly<Record<EmailBlockKind, z.ZodType
   // stored shape the sender would misread is refused where it is saved. A block with no `from` lists nothing.
   'email.rows': z
     .object({
+      // A summary's block: which of the step's sections it lists. Such a block reads no `from` of its own.
+      section: z.string().regex(/^[a-z][a-z0-9-]{0,39}$/).optional(),
       from: z
         .object({
           link: z.string().regex(/^[a-z][a-z_]*$/),

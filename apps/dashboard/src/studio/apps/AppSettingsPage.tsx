@@ -100,6 +100,7 @@ import { SampleDataCard } from './SampleData.js';
 export { SampleDataBanner } from './SampleData.js';
 /** For the page route (`pages/PageRenderer.tsx`), which loads it from here, in this chunk. */
 export { FeaturePageNotice } from './FeaturePageNotice.js';
+import { AppPartsCard } from './AppPartsCard.js';
 import { UninstallAppDialog } from './UninstallAppDialog.js';
 import { UpdateColumnsDialog } from './UpdateColumnsDialog.js';
 
@@ -305,6 +306,8 @@ function Loaded({ app }: { app: InstalledApp }) {
       <div className="flex flex-wrap items-start gap-3.5">
         <div className="flex min-w-0 flex-[1_1_400px] flex-col gap-3.5">
           <ScreensCard app={app} settings={settings} busy={patch.isPending} onPatch={(change) => patch.mutate(change)} onChanged={refresh} />
+          {/* An app with no parts has no card. */}
+          <AppPartsCard appKey={app.key} />
           {app.phone === true ? <PhoneAppCard /> : null}
           {settings.declared.map((setting) => (
             <DeclaredSettingCard

@@ -51,6 +51,10 @@ import { valueForms } from '../../outbox/sender.js';
 import { parseRelated } from '../related.js';
 import { resolveRuleTemplate, templateRequiredPlaceholders } from '../templates.js';
 import { substitute, tokensFor, type TokenMap } from '../templating.js';
+import { enqueueEmail } from '../../email/send.js';
+import { heldUntil } from '../../notifications/notify.js';
+import { staffAt } from '../staff-recipient.js';
+import { AUTOMATION_NOTICE_KIND } from './notice-kind.js';
 import { ActionFailure, type ActionContext, type ActionResult } from './types.js';
 
 type EmailAction = Extract<AutomationAction, { kind: 'email' }>;
@@ -62,6 +66,8 @@ export function recipientsFor(action: EmailAction, ctx: ActionContext): string[]
   if (to.kind === 'fixed') {
     return to.addresses.map((address) => address.trim()).filter((address) => address.length > 0);
   }
+  // The person on the row is looked up, and written to through the queue (`runStaffEmail`): never an address read off a column.
+  if (to.kind === 'staff') return [];
   if (ctx.source === null) return [];
   // The address of a related row: the order's customer's, `customer_id.email`.
   const related = parseRelated(to.column);
@@ -194,10 +200,47 @@ function listed(names: readonly string[]): string {
   return names.length > 5 ? `${shown} +${String(names.length - 5)}` : shown;
 }
 
+/**
+ * To the person on the row. Their address is looked up, the mail is written
+ * in their language, and it goes through the queue like a notice's email —
+ * so it can be held to the end of their quiet hours. Nobody in the column
+ * is a line in the log, not a failure.
+ */
+async function runStaffEmail(action: EmailAction & { to: { kind: 'staff'; column: string } }, ctx: ActionContext, dryRun: boolean): Promise<ActionResult> {
+  if (action.templateKey === null || action.templateKey === '') throw new ActionFailure('This step has no template.');
+  const found = await staffAt(ctx.meta, ctx, action.to.column);
+  if (!('user' in found)) return { log: ctx.text.staffNobody(action.to.column, found.nobody) };
+  const user = found.user;
+  const locale = await recipientLocale(ctx.meta, user.id);
+  const template = await resolveRuleTemplate(ctx.meta, action.templateKey, locale);
+  if (template === null) {
+    const exists = await existsInAnyLocale(ctx.meta, action.templateKey, locale);
+    throw new ActionFailure(exists ? `Template ${action.templateKey} is archived or switched off.` : `Template ${action.templateKey} no longer exists.`);
+  }
+  const vars = await varsFor(action, ctx, template.locale);
+  const unfilled = unfilledIn(template, vars);
+  if (dryRun) {
+    const prepared = await prepareEmail(ctx.meta, template);
+    const rendered = renderEmail({ ...prepared.render, locale: template.locale, vars, dir: 'ltr' });
+    if (unfilled.length > 0) throw new ActionFailure(ctx.text.emailUnfilledStop(listed(unfilled)));
+    return { log: ctx.text.emailWould(rendered.subject, user.name) };
+  }
+  const held = await heldUntil(ctx.meta, user.id, AUTOMATION_NOTICE_KIND, ctx.now);
+  const job = await enqueueEmail(
+    { meta: ctx.meta, secret: ctx.secret, ...(held === null ? {} : { runAt: held }) },
+    { to: user.email, templateKey: action.templateKey, locale, vars, template } as never,
+  );
+  if (job === null) throw new ActionFailure(ctx.text.emailNoSmtp());
+  const said = [held === null ? ctx.text.emailQueued(user.name) : ctx.text.heldUntil(user.name, new Date(held).toISOString())];
+  if (unfilled.length > 0) said.push(ctx.text.emailUnfilled(listed(unfilled)));
+  return { log: said.join(' · ') };
+}
+
 export async function runEmailAction(
   action: EmailAction,
   ctx: ActionContext,
 ): Promise<ActionResult> {
+  if (action.to?.kind === 'staff') return runStaffEmail(action as EmailAction & { to: { kind: 'staff'; column: string } }, ctx, false);
   const { template, recipients } = await resolve(action, ctx);
 
   const config = await resolveSmtpConfig(ctx.meta, emailSecretKey(ctx.secret));
@@ -234,6 +277,7 @@ export async function dryRunEmailAction(
   action: EmailAction,
   ctx: ActionContext,
 ): Promise<ActionResult> {
+  if (action.to?.kind === 'staff') return runStaffEmail(action as EmailAction & { to: { kind: 'staff'; column: string } }, ctx, true);
   const { template, recipients } = await resolve(action, ctx);
   // Everything the real send does except the last line: the document is
   // resolved and RENDERED, so a broken template fails the test too.

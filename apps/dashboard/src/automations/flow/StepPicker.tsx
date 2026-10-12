@@ -38,6 +38,10 @@ const TILE_TEXT: Readonly<Record<string, { label: [string, string]; desc: [strin
     label: ['automations:pick.notification', 'Send notification'],
     desc: ['automations:pick.notificationDesc', 'Tell people in this workspace'],
   },
+  digest: {
+    label: ['automations:pick.digest', 'Send each person a summary'],
+    desc: ['automations:pick.digestDesc', 'One email each, of the rows that are theirs'],
+  },
   create: {
     label: ['automations:pick.create', 'Create record'],
     desc: ['automations:pick.createDesc', 'Add a row to a table'],

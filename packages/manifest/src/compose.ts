@@ -74,6 +74,8 @@ const APP_FIELDS = [
   'capabilities',
   'frontends',
   'navGroups',
+  'modules',
+  'maps',
   'widgets',
   'prefixed',
 ] as const;

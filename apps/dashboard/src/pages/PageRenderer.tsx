@@ -73,6 +73,10 @@ export function PageRenderer() {
   if (item === null && isDisabledAppPage(bootstrap, slug)) {
     return <StatePage stateId="app-disabled" fullPage={false} />;
   }
+  // A page of a part of its app that is switched off: its URL says so.
+  if (item === null && (bootstrap.partOffPages ?? []).some((page) => page.slug === slug)) {
+    return <StatePage stateId="part-off" fullPage={false} />;
+  }
   // A page whose feature waits on an add-on: out of the sidebar, and its URL says what it needs.
   const waiting = item === null ? bootstrap.featurePages?.find((page) => page.slug === slug) : undefined;
   if (waiting !== undefined) {

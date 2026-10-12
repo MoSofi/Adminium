@@ -3120,7 +3120,9 @@
       "advice": "Demandez à votre responsable de l’activer dans {app} → Paramètres.",
       "signOut": "Se déconnecter",
       "noAccess": "Ce compte ne peut pas ouvrir {app}.",
-      "noAccessAdvice": "Demandez à votre responsable un rôle qui ouvre {app}."
+      "noAccessAdvice": "Demandez à votre responsable un rôle qui ouvre {app}.",
+      "partsOff": "Rien n’est activé pour vous dans {app}.",
+      "partsOffAdvice": "Chacun de vos rôles appartient à une partie désactivée de {app}. Demandez à votre responsable de l’activer ou de vous attribuer un autre rôle."
     },
     "notFound": {
       "title": "Page introuvable",
@@ -3411,5 +3413,52 @@
     "body": "Cette page ne fonctionne qu’avec {count, plural, one {un module} other {des modules}} que cette app n’a pas encore ici ; elle n’est donc pas dans la barre latérale. Elle revient dès que {count, plural, one {il est installé et connecté} other {ils sont installés et connectés}} à l’app.",
     "open": "Ouvrir les réglages de l’app",
     "title": "{page} a besoin d’un module"
+  },
+  "appParts": {
+    "title": "Parties",
+    "help": "Désactivez les parties que cette entreprise n’utilise pas. Une partie désactivée n’a ni pages, ni règles, ni rôles ; ses enregistrements restent.",
+    "onePage": "1 page",
+    "pages": "{n} pages",
+    "oneRule": "1 règle active",
+    "rules": "{n} règles actives",
+    "roles": "Rôles : {roles}",
+    "leftOut": "Pas encore installée. Connectez {addOns} sous Modules et elle sera mise en place.",
+    "waiting": "Désactivée tant que {addOns} n’est pas connecté, sous Modules.",
+    "always": "Toujours activée",
+    "needs": "Nécessite un module",
+    "switch": "{part}, activée ou non",
+    "on": "Oui",
+    "off": "Non",
+    "dialogClose": "Fermer",
+    "cancel": "Annuler",
+    "onDialog": {
+      "title": "Activer {part} ?",
+      "back": "Ses pages, règles et rôles reviennent aussitôt. Aucune mise à jour ni redémarrage n’est nécessaire.",
+      "noCatchUp": "Rien de ce qui s’est passé pendant la désactivation n’est rattrapé : ses règles n’ont pas tourné et ne tourneront pas maintenant pour ce qui a été manqué.",
+      "confirm": "Activer"
+    },
+    "offDialog": {
+      "title": "Désactiver {part} ?",
+      "stops": "Ses pages quittent le menu, ses règles s’arrêtent et ses rôles ne donnent rien jusqu’à sa réactivation.",
+      "stays": "Ses enregistrements restent. Un rôle d’une autre partie qui les lit continue de les lire.",
+      "open": "En cours dans cette partie :",
+      "openRows": "{n} non terminés dans {table}",
+      "oneRule": "1 règle active s’arrêtera",
+      "rules": "{n} règles actives s’arrêteront",
+      "oneStranded": "1 personne n’aura plus rien d’activé",
+      "stranded": "{n} personnes n’auront plus rien d’activé",
+      "nothingOpen": "Rien n’est en cours dans cette partie.",
+      "confirm": "Désactiver"
+    },
+    "installHelp": "Choisissez les parties de {app} avec lesquelles commencer. Chacune peut être activée ou désactivée plus tard, dans les réglages de l’application.",
+    "installTick": "Commencer avec {part}",
+    "installAlways": "toujours activée",
+    "installLeftOut": "Laissée de côté pour cette installation : elle nécessite {addOns}. Cochez-le sous Modules, ou connectez-le plus tard et la partie sera mise en place.",
+    "installNeeds": "Fonctionne avec {addOns}, installé avec l’application."
+  },
+  "installMaps": {
+    "title": "Cartes",
+    "tick": "Afficher les cartes (utilise OpenFreeMap)",
+    "note": "le navigateur de chaque personne récupère les images de la carte auprès du serveur de cartes. Celui-ci apprend quelle zone est regardée, et rien de vos enregistrements. C’est un seul réglage pour toutes les applications ici."
   }
 }

@@ -1490,6 +1490,8 @@ export const overridePatchSchema = z.discriminatedUnion('op', [
   z.object({ op: z.literal('column.customerKey'), value: z.object({ of: ruleColumn }).strict() }),
   /* A text column that holds a staff member's id: the only kind a table's `belongs` reads a person from. */
   z.object({ op: z.literal('column.staff'), value: z.object({ staff: z.literal(true) }).strict() }),
+  /* A text column in which people are mentioned; `about` is the link to the record a mention there is about (a comment's deal). */
+  z.object({ op: z.literal('column.mentions'), value: z.object({ mentions: z.union([z.literal(true), z.object({ about: ruleColumn }).strict()]) }).strict() }),
   /* How a person belongs to a row of the table, each way with its table names as the real tables' ids. */
   z.object({ op: z.literal('table.belongs'), value: z.object({ ways: z.array(storedBelongsWay).min(1).max(6) }).strict() }),
   /* Rows read by the people they belong to, and by nobody and nothing else. */
@@ -1560,8 +1562,19 @@ export const notificationChannelsSchema = z.object({
   inApp: z.boolean(),
   email: z.boolean(),
   push: z.boolean(),
+  /** "Always tell me": this kind of notice reaches the person at once, also in their quiet hours. */
+  always: z.boolean().optional(),
 });
 export type NotificationChannels = z.infer<typeof notificationChannelsSchema>;
+
+const quietTime = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'a time such as 19:00');
+/**
+ * A person's quiet hours: for each weekday (0 = Sunday) a window that starts
+ * that day at `from` and ends at `to` — the same day, or the next when `to`
+ * is not after `from` (19:00 to 08:00). A weekday left out has none.
+ */
+export const notificationQuietSchema = z.partialRecord(z.enum(['0', '1', '2', '3', '4', '5', '6']), z.object({ from: quietTime, to: quietTime }).strict());
+export type NotificationQuiet = z.infer<typeof notificationQuietSchema>;
 
 // --- llm runs -----------------------------------------
 
@@ -1818,8 +1831,12 @@ export const automationTriggerSchema = z.discriminatedUnion('kind', [
       .object({
         table: z.string().max(200),
         where: z.array(automationConditionSchema).max(8),
-        /** A record that matched before is not run again (the dedupe key drops the tick stamp). */
-        once: z.boolean(),
+        /**
+         * `true`: a record that matched before is not run again (the dedupe key
+         * drops the tick stamp). `'per-spell'`: it is run once for each spell it
+         * matches — stopping and matching again later starts a new one.
+         */
+        once: z.union([z.boolean(), z.literal('per-spell')]),
       })
       .optional(),
   }),
@@ -1847,7 +1864,21 @@ const automationValuesSchema = z.record(z.string().max(128), automationWriteValu
 const automationEmailRecipientSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('field'), column: z.string().max(128) }),
   z.object({ kind: z.literal('fixed'), addresses: z.array(z.string().max(320)).max(20) }),
+  /** The person a staff column of the record names (`owner_id`, or `<link>.<staff column>`): Adminium looks their address up. */
+  z.object({ kind: z.literal('staff'), column: z.string().max(260) }),
 ]);
+
+/** One section of a summary: the rows of a table whose `owner` is the person written to. */
+export const automationDigestSectionSchema = z.object({
+  key: z.string().regex(/^[a-z][a-z0-9-]{0,39}$/),
+  table: z.string().max(200),
+  /** A staff column of that table. */
+  owner: z.string().max(128),
+  where: z.array(automationConditionSchema).max(8).default([]),
+  orderBy: z.object({ column: z.string().max(128), dir: z.enum(['asc', 'desc']).default('asc') }).nullable().default(null),
+  limit: z.number().int().min(1).max(50).default(20),
+});
+export type AutomationDigestSection = z.infer<typeof automationDigestSectionSchema>;
 
 export const automationActionSchema = z.discriminatedUnion('kind', [
   z.object({
@@ -1873,16 +1904,31 @@ export const automationActionSchema = z.discriminatedUnion('kind', [
       .union([
         z.object({ roles: z.array(z.string()).max(20) }),
         z.object({ users: z.array(z.string()).max(50) }),
+        /** The person a staff column of the record names (`owner_id`, or `<link>.<staff column>`). */
+        z.object({ column: z.string().max(260) }),
       ])
       .nullable()
       .default(null),
     title: z.string().max(200).default(''),
     body: z.string().max(2000).nullable().default(null),
+    /** Told at once, also in the person's quiet hours. */
+    urgent: z.boolean().optional(),
   }),
   z.object({
     kind: z.literal('record.create'),
     table: z.string().max(200).nullable().default(null),
     values: automationValuesSchema.default({}),
+    /** What later steps call the row this one makes: `{{steps.<name>.<column>}}`. */
+    name: z.string().regex(/^[a-z][a-z0-9_]{0,39}$/).optional(),
+  }),
+  z.object({
+    /** A summary for each person who holds one of the roles: one email each, of the rows that are theirs. */
+    kind: z.literal('digest'),
+    templateKey: z.string().max(120).nullable().default(null),
+    to: z.object({ roles: z.array(z.string()).max(20) }).nullable().default(null),
+    sections: z.array(automationDigestSectionSchema).max(6).default([]),
+    /** Sent also to a person none of whose sections lists a row. */
+    sendEmpty: z.boolean().default(false),
   }),
   z.object({
     /** Writes back to THIS record; a related row is a residual. */
@@ -2150,6 +2196,21 @@ export const automationTraceStepSchema = z.object({
   durationMs: z.number().int().nullable(),
   /** The comp's log box — "250 OK · delivered to …", "evaluated → true". */
   log: z.string().max(2000).nullable(),
+  /**
+   * The row a named "create a row" step made: its name, its table, its key
+   * and its values as text, so a later step reads `{{steps.<name>.<column>}}`
+   * — also after a wait, when the run comes back as a new job with nothing
+   * else to remember by. `standIn` marks a test run's row, which was never made.
+   */
+  made: z
+    .object({
+      name: z.string().max(40),
+      table: z.string().max(200),
+      pk: z.record(z.string().max(128), z.unknown()),
+      values: z.record(z.string().max(128), z.string().max(4000)),
+      standIn: z.boolean().optional(),
+    })
+    .optional(),
 });
 export type AutomationTraceStep = z.infer<typeof automationTraceStepSchema>;
 

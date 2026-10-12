@@ -13,8 +13,10 @@
  * Built-ins cannot be renamed or deleted (409). Every mutation writes an
  * `rbac`-category audit entry (dotted verb + resource — anatomy).
  */
+import { sameLanguage } from '../../i18n/bcp47.js';
+import { loadAppParts, roleIsOffered } from '../../rbac/app-parts.js';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
-import { permissionsRepo, rolesRepo, usersRepo, type Role, type TableActions, type ReadLimit, type RowLimit, type UpdateLimit } from '@adminium/meta';
+import { permissionsRepo, rolesRepo, usersRepo, type Role, type TableActions, type ReadLimit, type RowLimit, type UpdateLimit, roleNameFor, userPrefsRepo } from '@adminium/meta';
 
 import { ConflictError, ForbiddenError, NotFoundError, ValidationFailedError } from '../../errors.js';
 import {
@@ -44,11 +46,12 @@ import {
   type RoleDto,
 } from './schema.js';
 
-function toDto(role: Role): RoleDto {
+function toDto(role: Role, locale?: string): RoleDto {
   return {
     id: role.id,
     slug: role.slug,
-    name: role.name,
+    // An app's role under its name in the reader's language, until the owner renames it.
+    name: locale === undefined ? role.name : roleNameFor(role, (names) => sameLanguage(names, locale)),
     description: role.description,
     isBuiltin: role.isBuiltin,
     createdAt: role.createdAt,
@@ -104,7 +107,8 @@ export const rolesRoutes: FastifyPluginAsyncZod = async (app) => {
       preHandler: app.rbac.require(PERMISSIONS.rolesManage),
       schema: { response: { 200: roleListReply } },
     },
-    async () => {
+    async (request) => {
+      const locale = request.user === null || request.user === undefined ? undefined : (await userPrefsRepo(meta).resolve(request.user.id)).locale;
       const [all, counts] = await Promise.all([
         roles.list(),
         meta.db
@@ -114,8 +118,15 @@ export const rolesRoutes: FastifyPluginAsyncZod = async (app) => {
           .execute(),
       ]);
       const countByRole = new Map(counts.map((row) => [row.roleId, Number(row.memberCount)]));
+      // A role of an app's parts is offered while one of them is on: one that is not says so, and is given to nobody new.
+      const parts = await loadAppParts(meta, [...new Set(all.flatMap((role) => (role.appKey === null || role.modules === null ? [] : [role.appKey])))]);
       return {
-        roles: all.map((role) => ({ ...toDto(role), memberCount: countByRole.get(role.id) ?? 0 })),
+        roles: all.map((role) => ({
+          ...toDto(role, locale),
+          memberCount: countByRole.get(role.id) ?? 0,
+          ...(role.appKey === null ? {} : { appKey: role.appKey }),
+          ...(roleIsOffered(role, parts) ? {} : { partsOff: true as const }),
+        })),
       };
     },
   );

@@ -28,7 +28,7 @@ import { createHash } from 'node:crypto';
 import type { ManifestAutomation, ManifestCondition, ManifestNode, Manifest } from '@adminium/manifest';
 import { auditRepo, automationsRepo, emailTemplatesRepo, rolesRepo, settingsRepo, type Automation, type AutomationGraph, type AutomationTrigger, type MetaDb } from '@adminium/meta';
 
-import { nextTickFor } from '../automations/schedule.js';
+import { forgetSpellsIfChosenAnew, nextTickFor } from '../automations/schedule.js';
 import { firstIncompleteNode, resolveRule } from '../automations/validate.js';
 import type { SnapshotView } from '../crud/identifiers.js';
 import { roleSlugFor } from './manifest-roles.js';
@@ -87,8 +87,30 @@ function boundNode(node: unknown, b: Binding): unknown {
   if (anyNode.kind !== 'action') return base;
   const action = anyNode['action'] as { kind: string } & Record<string, unknown>;
   if (action.kind === 'notification') {
+    // To the people of a role, by the role's id here; or to the person a staff column names, as written.
+    const to = action['to'] as { roles: string[] } | { column: string };
+    return { ...base, action: { ...action, to: 'roles' in to ? { roles: to.roles.map((key) => b.roleId(key)) } : to, title: one(action['title'] as Words, b.language), ...(action['body'] === undefined ? {} : { body: one(action['body'] as Words, b.language) }) } };
+  }
+  if (action.kind === 'digest') {
     const to = action['to'] as { roles: string[] };
-    return { ...base, action: { ...action, to: { roles: to.roles.map((key) => b.roleId(key)) }, title: one(action['title'] as Words, b.language), ...(action['body'] === undefined ? {} : { body: one(action['body'] as Words, b.language) }) } };
+    const sections = action['sections'] as { key: string; table: string; owner: string; where?: ManifestCondition[]; orderBy?: { column: string; dir?: 'asc' | 'desc' }; limit?: number }[];
+    return {
+      ...base,
+      action: {
+        kind: 'digest',
+        templateKey: action['templateKey'],
+        to: { roles: to.roles.map((key) => b.roleId(key)) },
+        sections: sections.map((section) => ({
+          key: section.key,
+          table: b.realId(section.table),
+          owner: section.owner,
+          where: (section.where ?? []).map((condition) => boundCondition(condition, b)),
+          orderBy: section.orderBy === undefined ? null : { column: section.orderBy.column, dir: section.orderBy.dir ?? 'asc' },
+          limit: section.limit ?? 20,
+        })),
+        sendEmpty: action['sendEmpty'] === true,
+      },
+    };
   }
   if (action.kind === 'record.create') return { ...base, action: { ...action, table: b.realId(action['table'] as string) } };
   return base;
@@ -201,10 +223,12 @@ export async function installAutomations(input: InstallAutomationsInput): Promis
     if (unfinished !== null) throw refusal(`its step "${unfinished.title}" is not finished.`);
 
     const existing = mine.find((candidate) => candidate.templateKey === rule.key);
+    // The part it belongs to is the app's to say, also of a rule its owner has since changed.
+    if (existing !== undefined && existing.module !== (rule.module ?? null)) await repo.setModule(existing.id, rule.module ?? null);
     if (existing === undefined) {
       const schedule = bound.trigger.kind === 'schedule' ? bound.trigger.schedule : null;
       const made = await repo.create(
-        { connectionId, ...bound, enabled: rule.enabled, nextRunAt: rule.enabled && schedule !== null ? nextTickFor(schedule, at) : null, createdBy: null, managedBy: manifest.key, templateKey: rule.key, contentHash: null },
+        { connectionId, ...bound, enabled: rule.enabled, nextRunAt: rule.enabled && schedule !== null ? nextTickFor(schedule, at) : null, createdBy: null, managedBy: manifest.key, templateKey: rule.key, contentHash: null, module: rule.module ?? null },
         at,
       );
       // Hashed as the store keeps it, so reading it back is never an edit.
@@ -226,6 +250,7 @@ export async function installAutomations(input: InstallAutomationsInput): Promis
       { name: bound.name, description: bound.description, trigger, graph: bound.graph, ...(existing.enabled && schedule !== null ? { nextRunAt: nextTickFor(schedule, at) } : schedule === null ? { nextRunAt: null } : {}) },
       at,
     );
+    await forgetSpellsIfChosenAnew(meta, existing.id, existing.trigger, trigger);
     await repo.setHash(existing.id, automationHashOf((await repo.findById(existing.id)) ?? existing));
     result.written.push(rule.key);
   }

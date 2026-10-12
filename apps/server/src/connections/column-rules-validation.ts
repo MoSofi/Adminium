@@ -167,7 +167,8 @@ export function columnRuleIssue(
     | 'column.codeLast4'
     | 'column.plainText'
     | 'column.customerKey'
-    | 'column.staff',
+    | 'column.staff'
+    | 'column.mentions',
   raw: unknown,
   column: ColumnModel,
   model: DatabaseModel,
@@ -491,6 +492,11 @@ export function columnRuleIssue(
 
     case 'column.tableRef': {
       return TEXTUAL_TYPES.has(column.logicalType) ? null : `A table's name is kept in text; ${name} is ${column.logicalType}.`;
+    }
+
+    case 'column.mentions': {
+      if (column.isGenerated || column.isPrimaryKey) return `${name} is not text people write.`;
+      return TEXTUAL_TYPES.has(column.logicalType) ? null : `People are mentioned in text; ${name} is ${column.logicalType}.`;
     }
 
     case 'column.staff': {

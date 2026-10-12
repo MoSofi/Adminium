@@ -24,5 +24,9 @@ export default {
   },
   "table": {
     "empty": "No records"
+  },
+  "kit": {
+    "partFailed": "This part of the page could not be loaded. Reload the page to try again.",
+    "mapPlaces": "Places"
   }
 } as const;

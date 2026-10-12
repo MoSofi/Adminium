@@ -141,6 +141,10 @@ export interface AdminiumRolesTable {
   appKey: string | null;
   /** Opens the app's own screens and never the dashboard (wave 0039). */
   screensOnly: BoolColumn;
+  /** JSON array of the parts of its app the role belongs to (wave 0057); null when it names none. */
+  modules: JsonColumn | null;
+  /** `{from, names}`: the name it was installed under and that name in other languages (wave 0057). */
+  names: JsonColumn | null;
 }
 
 /** per-table / per-page / system permission matrix. */
@@ -591,6 +595,8 @@ export interface AdminiumAutomationsTable {
   managedBy: string | null;
   /** The name the manifest gave the rule; one a manifest and a database (0051). */
   templateKey: string | null;
+  /** The part of its app a shipped rule belongs to (wave 0057). */
+  module: string | null;
   /** A fingerprint of what was written for the manifest: a rule that no longer matches it was edited (0051). */
   contentHash: string | null;
   createdAt: Ts;
@@ -1030,6 +1036,8 @@ export interface AdminiumManifestsTable {
    * Added by 0037.
    */
   packageFileId: Id | null;
+  /** `{defs, on}`: the parts of the app and the owner's switch for each (wave 0057); null for an app with none. */
+  modules: JsonColumn | null;
   installedBy: Id | null;
   installedAt: Ts;
   updatedAt: Ts;
@@ -1244,6 +1252,8 @@ export interface AdminiumAppTablesTable {
   builtOn: string | null;
   /** JSON array of the column names the shape owns (wave 0044). */
   shapeColumns: string | null;
+  /** The part of its app the table belongs to (wave 0057). */
+  module: string | null;
   createdAt: Ts;
   updatedAt: Ts;
   releasedAt: Ts | null;
@@ -1440,6 +1450,32 @@ export interface AdminiumTeamMembersTable {
   createdAt: Ts;
 }
 
+/** A rule's spell for one row (wave 0058): composite PK (automation_id, row_key); goes with its rule. */
+export interface AdminiumAutomationSpellsTable {
+  automationId: Id;
+  /** The row's key, as a run's own key spells it. */
+  rowKey: string;
+  /** The number of the spell the row is in, from 1. */
+  spell: number;
+  /** Whether the row still matched at the last tick. */
+  open: BoolColumn;
+  lastTick: Ts;
+}
+
+/** When a person is told (wave 0058): one row a person who set something. */
+export interface AdminiumNotificationSchedulesTable {
+  userId: Id;
+  /** IANA zone; null follows the database's own. */
+  timezone: string | null;
+  /** JSON: the quiet hours of each weekday (`notificationQuietSchema`); null for none. */
+  quiet: JsonColumn | null;
+  /** 0 (Sunday) to 6; null sends a summary when its rule runs. */
+  digestDay: number | null;
+  /** `HH:MM` in the person's zone; null sends a summary when its rule runs. */
+  digestTime: string | null;
+  updatedAt: Ts;
+}
+
 export interface AdminiumAssistantTurnsTable {
   id: Id;
   sessionId: Id;
@@ -1543,6 +1579,8 @@ export interface MetaDB {
   adminium_assistant_use: AdminiumAssistantUseTable;
   adminium_teams: AdminiumTeamsTable;
   adminium_team_members: AdminiumTeamMembersTable;
+  adminium_automation_spells: AdminiumAutomationSpellsTable;
+  adminium_notification_schedules: AdminiumNotificationSchedulesTable;
 }
 
 /** Every physical table name, in dependency-safe creation order. */
@@ -1611,4 +1649,6 @@ export const META_TABLE_NAMES = [
   'adminium_assistant_use',
   'adminium_teams',
   'adminium_team_members',
+  'adminium_automation_spells',
+  'adminium_notification_schedules',
 ] as const satisfies readonly (keyof MetaDB)[];

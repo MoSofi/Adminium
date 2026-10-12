@@ -69,6 +69,7 @@
  * check and the insert run under one lock per app, so two instances — or a
  * producer and the repair — cannot both add the row.
  */
+import { appPartIsOn } from '../rbac/app-parts.js';
 import type { Dialect } from '@adminium/engine';
 import { resendAddressOf, sameDecimal, type Outbox, type OutboxProducer, type SettingSource } from '@adminium/manifest';
 import { appOutboxesRepo, appTablesRepo, connectionTenantConfig, manifestsRepo, type AppOutboxRow, type MetaDb } from '@adminium/meta';
@@ -468,6 +469,8 @@ export function createOutboxProducers(deps: OutboxDeps): OutboxProducers {
     const written = await withNamedLocks({ db: opts.db ?? handle.db, dialect: handle.dialect }, lockName, async (db): Promise<Row | null> => {
       if (await isSample(db, box, source, sourceKey)) return null;
       if (about.row !== row && (await isSample(db, box, about.table, Object.fromEntries(about.table.primaryKey.map((c) => [c, about.row[c]]))))) return null;
+      // An email of a part of the app that is switched off is not queued.
+      if (producer.module !== undefined && !(await appPartIsOn(deps.meta, box.appKey, producer.module))) return null;
       if (producer.gate !== undefined && !(await switchedOn(db, box, producer.gate))) return null;
       const read = settingReader(deps.meta, db);
       // The log is the dedupe.

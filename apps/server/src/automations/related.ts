@@ -128,7 +128,12 @@ export function relatedUses(graph: AutomationGraph): RelatedUse[] {
   for (const node of nodesOf(graph)) {
     if (node.kind !== 'action') continue;
     const action = node.action;
-    if (action.kind === 'email' && action.to?.kind === 'field') {
+    if (action.kind === 'email' && (action.to?.kind === 'field' || action.to?.kind === 'staff')) {
+      const ref = parseRelated(action.to.column);
+      if (ref !== null) out.push({ ...ref, nodeId: node.id, title: node.title, as: 'recipient', step: action.kind });
+    }
+    // The person a notice tells, when that is somebody of a linked row (the quote's deal's owner).
+    if (action.kind === 'notification' && action.to !== null && 'column' in action.to) {
       const ref = parseRelated(action.to.column);
       if (ref !== null) out.push({ ...ref, nodeId: node.id, title: node.title, as: 'recipient', step: action.kind });
     }

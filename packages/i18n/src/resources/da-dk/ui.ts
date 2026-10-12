@@ -101,7 +101,9 @@ export default {
       "tooLarge": "Skal være {max} eller derunder.",
       "outOfRange": "Dette tal er uden for intervallet.",
       "duplicate": "Allerede tilføjet.",
-      "form": "Nogle værdier blev afvist. Tjek de markerede felter."
+      "form": "Nogle værdier blev afvist. Tjek de markerede felter.",
+      "mentionUnknown": "En person, der nævnes her, logger ikke ind her. Skriv @, og vælg personen på listen.",
+      "tooManyMentions": "Der nævnes for mange personer her. Nævn færre."
     },
     "lines": {
       "add": "Tilføj linje",
@@ -2102,5 +2104,8 @@ export default {
       "low": "Lav",
       "out": "Udsolgt"
     }
+  },
+  "mentions": {
+    "people": "Personer, du kan nævne"
   }
 } as const;

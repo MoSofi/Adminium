@@ -40,6 +40,8 @@ export interface ColumnFact {
    * away event names who is away). The server refuses the write otherwise.
    */
   requiredWhen?: { column: string; in: readonly (string | number | boolean)[] } | undefined;
+  /** People are mentioned in this text: its box offers who may be named. */
+  mentions?: true | undefined;
   /** False for a generated column: shown, never sent. */
   writable: boolean;
   /**

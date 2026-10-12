@@ -612,7 +612,9 @@ export function SidebarNav({ bootstrap, className, id }: SidebarNavProps) {
             {/* Two different emptinesses. With pages that exist but are not
                 shared with this role, "connect a database" is false — and it
                 sends the reader looking for a setup step that is not theirs. */}
-            {bootstrap.pagesWithheld === true
+            {bootstrap.partsOff === true
+              ? t('nav.emptyPartsOff', 'Nothing is switched on for you right now. Ask an administrator.')
+              : bootstrap.pagesWithheld === true
               ? t(
                   'nav.emptyWithheld',
                   'No pages have been shared with your role yet. Ask an administrator for access.',

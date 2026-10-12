@@ -23,6 +23,7 @@ import type { AddOnStep } from '@adminium/add-on-contracts';
 import { z } from 'zod';
 
 import { addOnNeedsIssues, addOnsSchema, requiresAddOn, type AddOnNeeds } from './add-ons.js';
+import { addOnModuleIssues, moduleIdSchema, moduleIssues, modulesSchema, optionalShapeAddOns, roleNamesSchema, shapeIsOptional, withoutModules } from './modules.js';
 import { bookingIssues, bookingSchema } from './booking.js';
 import { occupiesIssues, occupiesSchema } from './occupies.js';
 import { capacityIssues, capacitySchema, isLegacyCapacity, kindOf, rulesOf, viaIndexIssues, type Capacity } from './capacity.js';
@@ -734,6 +735,15 @@ export const columnRulesSchema = z
      */
     staff: z.literal(true).optional(),
     /**
+     * A text column in which people are mentioned: `@[Dana Whitlock](user:<id>)`
+     * names a staff member, who is told that they were mentioned, by whom and
+     * on which record — never the text. A save that names somebody who is not
+     * a person here is refused, and the text is kept. `about` is a link column
+     * of the same table: the notice then names the row it links to (a comment
+     * on a deal says the deal).
+     */
+    mentions: z.union([z.literal(true), z.object({ about: refSchema }).strict()]).optional(),
+    /**
      * A formula column over a total of its own row whose change is told
      * after the save commits (a stock level going low), so a rule or a
      * screen may act on it. Up to four on a table.
@@ -930,6 +940,8 @@ export const requiredTableSchema = z
       .regex(/^[a-z][a-z0-9-]{1,79}\/[a-z][a-z0-9-]*@[1-9]\d*$/, 'builtOn is <add-on key>/<shape name>@<version>')
       .optional(),
     part: z.string().regex(/^[a-z][a-z0-9_]*$/, 'a part of the shape').optional(),
+    /** The part of the app the table belongs to (see `modules.ts`): a role of that part loses its grant here while the part is off. */
+    module: moduleIdSchema.optional(),
     /**
      * What a person calls ONE row ("Category") and the table ("Categories"),
      * in every language the app speaks: a form's title and button, a page's
@@ -1231,6 +1243,8 @@ export const pageSchema = z
       .optional(),
     /** The page shows only while this feature's add-ons are there (see `addOns.features`). */
     feature: z.string().regex(/^[a-z][a-z0-9-]{0,39}$/, 'a feature id').optional(),
+    /** The part of the app the page belongs to: hidden and refused while it is off (see `modules.ts`). */
+    module: moduleIdSchema.optional(),
   })
   .strict();
 
@@ -1240,6 +1254,10 @@ export const roleSchema = z
   .object({
     key: z.string().regex(/^[a-z][a-z0-9-]*$/, 'role key must be a kebab-case identifier'),
     name: z.string().min(1).max(80),
+    /** The name in other languages, keyed by BCP 47 tag; `name` stays the English. Shown until the owner renames the role. */
+    names: roleNamesSchema.optional(),
+    /** The parts of the app the role belongs to: offered while any of them is on (see `modules.ts`). */
+    modules: z.array(moduleIdSchema).min(1).max(16).optional(),
     cloneFrom: z.string().optional(),
     // grant strings validated against the RBAC grammar at install time.
     permissions: z.array(z.string().min(1)).optional(),
@@ -2004,13 +2022,19 @@ export function appReferenceIssues(
   const index = tableIndex(m.requiredSchema.tables);
   const tables = new Map(m.requiredSchema.tables.map((t) => [t.ref, t]));
   const has = index.has;
+  /** Whether the rule at `path` is of a table that sits in a part whose feature needs `addOn`: the table is there only while the add-on is. */
+  const inPartOf = (path: (string | number)[], addOn: string): boolean => {
+    if (path[0] !== 'requiredSchema' || path[1] !== 'tables' || typeof path[2] !== 'number') return false;
+    const table = m.requiredSchema.tables[path[2]];
+    return table !== undefined && shapeIsOptional(m, table, addOn);
+  };
   /** A setting a rule reads must be there when the rule runs. */
   const settingIssue = (source: SettingSource, path: (string | number)[]) => {
     if ('addOn' in source) {
       if (shapeOf !== undefined) {
         if (source.addOn !== shapeOf.addOn) out.push({ path, message: `a shape reads only its own add-on's settings, not "${source.addOn}"` });
         else if (!shapeOf.settings.includes(source.setting)) out.push({ path, message: `"${source.addOn}" has no setting "${source.setting}"` });
-      } else if (!requiresAddOn(m.addOns, source.addOn)) {
+      } else if (!requiresAddOn(m.addOns, source.addOn) && !inPartOf(path, source.addOn)) {
         out.push({ path, message: `"${source.addOn}" is not required by the app (addOns.requires), so its setting may not be there` });
       }
     } else if (!has(source.table, source.column)) {
@@ -2471,6 +2495,13 @@ export function appReferenceIssues(
         out.push({ path: here('tableRef'), message: 'a table name is kept in a text column with maxLength' });
       }
       // A person's id is text on every database: a number or a uuid column would compare with nothing.
+      if (rules.mentions !== undefined) {
+        if (column.type !== 'text') out.push({ path: here('mentions'), message: `people are mentioned in a text column, and "${table.ref}.${column.ref}" is ${column.type}` });
+        if (table.private === true) out.push({ path: here('mentions'), message: 'a private table tells nobody of what is written in it: no mentions' });
+        const about = typeof rules.mentions === 'object' ? rules.mentions.about : undefined;
+        const link = about === undefined ? undefined : table.columns.find((candidate) => candidate.ref === about);
+        if (about !== undefined && (link === undefined || link.type !== 'fk')) out.push({ path: here('mentions', 'about'), message: `"${table.ref}.${about}" is not a link of this table` });
+      }
       if (rules.staff !== undefined && column.type !== 'text') {
         out.push({ path: here('staff'), message: 'a staff member is kept in a text column' });
       }
@@ -2626,8 +2657,11 @@ export function appReferenceIssues(
     }
     if (table.builtOn !== undefined && shapeOf === undefined) {
       const addOn = table.builtOn.split('/')[0]!;
-      if (!requiresAddOn(m.addOns, addOn)) {
-        out.push({ path: at('builtOn'), message: `"${addOn}" defines the shape, so the app requires it (addOns.requires)` });
+      if (!requiresAddOn(m.addOns, addOn) && !shapeIsOptional(m, table, addOn)) {
+        out.push({
+          path: at('builtOn'),
+          message: `"${addOn}" defines the shape, so the app requires it (addOns.requires), or the table sits in a module whose feature needs "${addOn}"`,
+        });
       }
     }
   });
@@ -3100,6 +3134,7 @@ export interface RequiredTableShape {
   adjust?: z.infer<typeof adjustSchema> | undefined;
   belongs?: z.infer<typeof belongsSchema> | undefined;
   private?: true | undefined;
+  module?: string | undefined;
 }
 
 /**
@@ -3161,6 +3196,14 @@ export const appManifestSchema = z
     frontends: z.array(frontendSchema).min(1),
     /** The add-ons the app needs, suggests, or needs for a feature (see `add-ons.ts`). */
     addOns: addOnsSchema.optional(),
+    /** The parts of the app its owner switches on and off (see `modules.ts`). */
+    modules: modulesSchema.optional(),
+    /**
+     * The app shows maps. Its install asks once, for the whole install,
+     * whether maps are shown (a map's pictures come from a map server); the
+     * first app that says this asks, and no later one asks again.
+     */
+    maps: z.literal(true).optional(),
   })
   .strict()
   .refine(capabilitiesNotContradictory, { ...CAPS_MESSAGE, path: [...CAPS_MESSAGE.path] })
@@ -3173,6 +3216,8 @@ export const appManifestSchema = z
       ctx.addIssue({ code: 'custom', message: issue.message, path: issue.path });
     }
     for (const issue of appSeedIssues(m)) ctx.addIssue({ code: 'custom', message: issue.message, path: issue.path });
+    for (const issue of moduleIssues(m)) ctx.addIssue({ code: 'custom', message: issue.message, path: issue.path });
+    for (const issue of leftOutIssues(m)) ctx.addIssue({ code: 'custom', message: issue.message, path: issue.path });
     // A calendar page's named columns, against the app's own tables.
     for (const issue of pageCalendarIssues(m.pages, tableIndex(m.requiredSchema.tables))) {
       ctx.addIssue({ code: 'custom', message: issue.message, path: issue.path });
@@ -3225,6 +3270,7 @@ export const addOnManifestSchema = z
   .refine(compatibilityWindowOrdered, { ...WINDOW_MESSAGE, path: [...WINDOW_MESSAGE.path] })
   .superRefine((m, ctx) => {
     for (const issue of installFloorIssues(m)) ctx.addIssue({ code: 'custom', message: issue.message, path: issue.path });
+    for (const issue of addOnModuleIssues(m)) ctx.addIssue({ code: 'custom', message: issue.message, path: issue.path });
     // Add-ons released before the floor keep the page refs they shipped with.
     if (m.pages !== undefined || compareSemver(m.compatibility.minAdminiumVersion, ADD_ON_INSTALL_FLOOR) >= 0) {
       for (const issue of addOnPageRefIssues(m)) ctx.addIssue({ code: 'custom', message: issue.message, path: issue.path });
@@ -3275,6 +3321,31 @@ export type RequiredColumn = z.infer<typeof requiredColumnSchema>;
 export type Manifest = AppManifest | AddOnManifest;
 
 export type { AddOnBlock };
+
+/**
+ * An app that installs without an add-on one of its tables is built on is
+ * installed with that table's module left out. What is left must be a whole
+ * manifest of its own: each such add-on is taken away in turn and the rest
+ * checked as the app is.
+ */
+function leftOutIssues(m: unknown): { path: (string | number)[]; message: string }[] {
+  const out: { path: (string | number)[]; message: string }[] = [];
+  const optional = [...optionalShapeAddOns(m)];
+  // Each alone, and all of them at once: a role of two such parts is gone only when both are.
+  const cases: [string, string[]][] = optional.map(([addOn, modules]) => [`"${addOn}"`, modules]);
+  if (optional.length > 1) cases.push([optional.map(([addOn]) => `"${addOn}"`).join(' and '), [...new Set(optional.flatMap(([, modules]) => modules))]]);
+  for (const [without, modules] of cases) {
+    const parsed = appManifestSchema.safeParse(withoutModules(m, modules));
+    if (parsed.success) continue;
+    for (const issue of parsed.error.issues.slice(0, 20)) {
+      out.push({
+        path: ['modules'],
+        message: `installed without ${without} (module ${modules.map((id) => `"${id}"`).join(', ')} left out): ${issue.path.map(String).join('.')}: ${issue.message}`,
+      });
+    }
+  }
+  return out;
+}
 
 /**
  * A word only a newer Adminium reads, under a floor that admits an older one:

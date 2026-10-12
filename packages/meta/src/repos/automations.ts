@@ -52,6 +52,8 @@ export interface Automation {
   managedBy: string | null;
   templateKey: string | null;
   contentHash: string | null;
+  /** The part of its app a shipped rule belongs to: not run while that part is off. */
+  module: string | null;
   createdAt: number;
   updatedAt: number;
 }
@@ -71,6 +73,7 @@ export interface CreateAutomationInput {
   managedBy?: string | null | undefined;
   templateKey?: string | null | undefined;
   contentHash?: string | null | undefined;
+  module?: string | null | undefined;
 }
 
 export interface UpdateAutomationInput {
@@ -108,6 +111,7 @@ function decode(row: Selectable<AdminiumAutomationsTable>): Automation {
     managedBy: row.managedBy ?? null,
     templateKey: row.templateKey ?? null,
     contentHash: row.contentHash ?? null,
+    module: row.module ?? null,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
@@ -157,11 +161,17 @@ export function automationsRepo(meta: MetaDb) {
         managedBy: input.managedBy ?? null,
         templateKey: input.templateKey ?? null,
         contentHash: input.contentHash ?? null,
+        ...(input.module === undefined || input.module === null ? {} : { module: input.module }),
         createdAt: at,
         updatedAt: at,
       };
       await db.insertInto('adminium_automations').values(row).execute();
       return decode(row as unknown as Selectable<AdminiumAutomationsTable>);
+    },
+
+    /** The part of its app a shipped rule belongs to. Not an edit: the rule's own fingerprint does not read it. */
+    async setModule(id: string, module: string | null): Promise<void> {
+      await db.updateTable('adminium_automations').set({ module }).where('id', '=', id).execute();
     },
 
     /** Newest first — the rule list's order (comp 217-233 is a recency list). */

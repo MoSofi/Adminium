@@ -3120,7 +3120,9 @@
       "advice": "Požádejte vedoucího, aby ji zapnul v {app} → Nastavení.",
       "signOut": "Odhlásit se",
       "noAccess": "Tento účet nemůže otevřít {app}.",
-      "noAccessAdvice": "Požádejte svého vedoucího o roli, která otevírá {app}."
+      "noAccessAdvice": "Požádejte svého vedoucího o roli, která otevírá {app}.",
+      "partsOff": "V aplikaci {app} pro vás není nic zapnuto.",
+      "partsOffAdvice": "Každá vaše role patří k vypnuté části aplikace {app}. Požádejte nadřízeného, aby ji zapnul nebo vám přidělil jinou roli."
     },
     "notFound": {
       "title": "Stránka nenalezena",
@@ -3411,5 +3413,52 @@
     "body": "Tato stránka funguje jen s {count, plural, one {doplňkem} few {doplňky} many {doplňky} other {doplňky}}, který tu aplikace zatím nemá, proto není v postranním panelu. Vrátí se, jakmile bude {count, plural, one {nainstalován a připojen} few {nainstalovány a připojeny} many {nainstalovány a připojeny} other {nainstalovány a připojeny}} k aplikaci.",
     "open": "Otevřít nastavení aplikace",
     "title": "{page} potřebuje doplněk"
+  },
+  "appParts": {
+    "title": "Části",
+    "help": "Vypněte části, které tato firma nepoužívá. Vypnutá část nemá stránky, pravidla ani role; její záznamy zůstávají.",
+    "onePage": "1 stránka",
+    "pages": "Stránek: {n}",
+    "oneRule": "1 zapnuté pravidlo",
+    "rules": "Zapnutých pravidel: {n}",
+    "roles": "Role: {roles}",
+    "leftOut": "Zatím není nastavena. Připojte {addOns} v oddílu Doplňky a část se doplní.",
+    "waiting": "Vypnuto, dokud nebude v oddílu Doplňky připojeno: {addOns}.",
+    "always": "Vždy zapnuto",
+    "needs": "Vyžaduje doplněk",
+    "switch": "{part}, zapnuto nebo vypnuto",
+    "on": "Zap.",
+    "off": "Vyp.",
+    "dialogClose": "Zavřít",
+    "cancel": "Zrušit",
+    "onDialog": {
+      "title": "Zapnout část {part}?",
+      "back": "Její stránky, pravidla a role jsou ihned zpět. Není potřeba aktualizace ani restart.",
+      "noCatchUp": "Co se stalo, když byla vypnutá, se nedohání: její pravidla neběžela a pro zmeškané se nespustí ani teď.",
+      "confirm": "Zapnout"
+    },
+    "offDialog": {
+      "title": "Vypnout část {part}?",
+      "stops": "Její stránky zmizí z nabídky, pravidla se zastaví a role nic neudělují, dokud ji znovu nezapnete.",
+      "stays": "Její záznamy zůstávají. Role jiné části, která je čte, je čte dál.",
+      "open": "Právě v ní otevřeno:",
+      "openRows": "Nedokončeno v {table}: {n}",
+      "oneRule": "1 zapnuté pravidlo se zastaví",
+      "rules": "Zastaví se zapnutá pravidla: {n}",
+      "oneStranded": "1 osoba nebude mít nic zapnuto",
+      "stranded": "Osob, které nebudou mít nic zapnuto: {n}",
+      "nothingOpen": "Právě v ní není nic otevřeno.",
+      "confirm": "Vypnout"
+    },
+    "installHelp": "Vyberte části aplikace {app}, se kterými začnete. Každou lze později zapnout nebo vypnout v nastavení aplikace.",
+    "installTick": "Začít s částí {part}",
+    "installAlways": "vždy zapnuto",
+    "installLeftOut": "Při této instalaci vynecháno: vyžaduje {addOns}. Zaškrtněte jej v oddílu Doplňky, nebo jej připojte později a část se doplní.",
+    "installNeeds": "Funguje s doplňkem {addOns}, který se nainstaluje s aplikací."
+  },
+  "installMaps": {
+    "title": "Mapy",
+    "tick": "Zobrazovat mapy (používá OpenFreeMap)",
+    "note": "prohlížeč každého člověka stahuje obrázky mapy z mapového serveru. Ten se dozví, na jakou oblast se díváte, a nic o vašich záznamech. Je to jeden přepínač pro všechny zdejší aplikace."
   }
 }

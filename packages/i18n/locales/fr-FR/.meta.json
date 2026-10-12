@@ -1899,6 +1899,46 @@
     "status": "mt",
     "srcHash": "7fd57c94c8dc"
   },
+  "automations.digest.addSection": {
+    "status": "mt",
+    "srcHash": "d10b3b78f3b6"
+  },
+  "automations.digest.chooseTable": {
+    "status": "mt",
+    "srcHash": "9cd9ec452dd6"
+  },
+  "automations.digest.conditions": {
+    "status": "mt",
+    "srcHash": "0e7d4ffde652"
+  },
+  "automations.digest.help": {
+    "status": "mt",
+    "srcHash": "d19afe3489c5"
+  },
+  "automations.digest.limit": {
+    "status": "mt",
+    "srcHash": "b3473249a6b6"
+  },
+  "automations.digest.owner": {
+    "status": "mt",
+    "srcHash": "d101fc0f2c90"
+  },
+  "automations.digest.removeSection": {
+    "status": "mt",
+    "srcHash": "93f67eaee2cc"
+  },
+  "automations.digest.sectionKey": {
+    "status": "mt",
+    "srcHash": "d5c77a1fe043"
+  },
+  "automations.digest.sendEmpty": {
+    "status": "mt",
+    "srcHash": "9d03d0f6957c"
+  },
+  "automations.digest.sendEmptyBody": {
+    "status": "mt",
+    "srcHash": "71ea415d8a9c"
+  },
   "automations.dur.ms": {
     "status": "mt",
     "srcHash": "72ba33f24d44"
@@ -2010,6 +2050,10 @@
   "automations.email.toFixed": {
     "status": "mt",
     "srcHash": "4ca7b9663ad2"
+  },
+  "automations.email.toStaff": {
+    "status": "mt",
+    "srcHash": "563ba97db9cc"
   },
   "automations.event.created": {
     "status": "mt",
@@ -2467,6 +2511,10 @@
     "status": "mt",
     "srcHash": "7c24d7dca708"
   },
+  "automations.node.digest.summary": {
+    "status": "src",
+    "srcHash": "9c69230944d2"
+  },
   "automations.node.document.summary": {
     "status": "mt",
     "srcHash": "6c0c11284068"
@@ -2555,6 +2603,26 @@
     "status": "src",
     "srcHash": "68f4145fee7d"
   },
+  "automations.notif.column": {
+    "status": "mt",
+    "srcHash": "563ba97db9cc"
+  },
+  "automations.notif.columnChoose": {
+    "status": "mt",
+    "srcHash": "a8b8d4dbb2e0"
+  },
+  "automations.notif.columnEmpty": {
+    "status": "mt",
+    "srcHash": "8b73bff65b16"
+  },
+  "automations.notif.columnNone": {
+    "status": "mt",
+    "srcHash": "159caf4b52b1"
+  },
+  "automations.notif.columnPick": {
+    "status": "mt",
+    "srcHash": "89b173633140"
+  },
   "automations.notif.roles": {
     "status": "mt",
     "srcHash": "128a496a5d62"
@@ -2566,6 +2634,14 @@
   "automations.notif.to": {
     "status": "mt",
     "srcHash": "b98cc23a0165"
+  },
+  "automations.notif.urgent": {
+    "status": "src",
+    "srcHash": "ecb26f46e394"
+  },
+  "automations.notif.urgentBody": {
+    "status": "mt",
+    "srcHash": "41e1dd5e700e"
   },
   "automations.notif.users": {
     "status": "mt",
@@ -2630,6 +2706,14 @@
   "automations.pick.createDesc": {
     "status": "mt",
     "srcHash": "2d88d902977c"
+  },
+  "automations.pick.digest": {
+    "status": "mt",
+    "srcHash": "ec985e045352"
+  },
+  "automations.pick.digestDesc": {
+    "status": "mt",
+    "srcHash": "53dd8463ab63"
   },
   "automations.pick.document": {
     "status": "mt",
@@ -2742,6 +2826,14 @@
   "automations.rec.column": {
     "status": "mt",
     "srcHash": "65ba00e95e60"
+  },
+  "automations.rec.name": {
+    "status": "mt",
+    "srcHash": "cb27f8edcf9e"
+  },
+  "automations.rec.nameHint": {
+    "status": "mt",
+    "srcHash": "776db387db7c"
   },
   "automations.rec.now": {
     "status": "mt",
@@ -3054,6 +3146,14 @@
   "automations.trig.onceBody": {
     "status": "mt",
     "srcHash": "53c2ff0b0e67"
+  },
+  "automations.trig.perSpell": {
+    "status": "mt",
+    "srcHash": "92bd32faad4c"
+  },
+  "automations.trig.perSpellBody": {
+    "status": "mt",
+    "srcHash": "aad969bf173a"
   },
   "automations.trig.record": {
     "status": "mt",
@@ -5967,6 +6067,10 @@
     "status": "mt",
     "srcHash": "b1cada541899"
   },
+  "common.nav.emptyPartsOff": {
+    "status": "mt",
+    "srcHash": "928c972080be"
+  },
   "common.nav.emptyWithheld": {
     "status": "mt",
     "srcHash": "1231b3ae81b1"
@@ -6099,6 +6203,10 @@
     "srcHash": "6df17c3ac00b",
     "status": "mt"
   },
+  "common.notifications.event.mention": {
+    "status": "mt",
+    "srcHash": "2198c2c3b139"
+  },
   "common.notifications.event.reportFailed": {
     "srcHash": "18092b4d8de1",
     "status": "mt"
@@ -6106,6 +6214,10 @@
   "common.notifications.event.reportReady": {
     "srcHash": "c22b1ff616c4",
     "status": "mt"
+  },
+  "common.notifications.event.ruleNotice": {
+    "status": "mt",
+    "srcHash": "08581d27e4c9"
   },
   "common.onboarding.completeBody": {
     "srcHash": "f952083bc23b",
@@ -6482,6 +6594,66 @@
   "common.projectAction.selected": {
     "status": "mt",
     "srcHash": "aaa5751cb0d3"
+  },
+  "common.quietHours.always": {
+    "status": "mt",
+    "srcHash": "a85754680d39"
+  },
+  "common.quietHours.copy": {
+    "status": "mt",
+    "srcHash": "6e4f89c26676"
+  },
+  "common.quietHours.daySwitch": {
+    "status": "mt",
+    "srcHash": "b0da043beb7d"
+  },
+  "common.quietHours.digestDay": {
+    "status": "mt",
+    "srcHash": "dda4609e66c5"
+  },
+  "common.quietHours.digestTime": {
+    "status": "mt",
+    "srcHash": "0855009c4672"
+  },
+  "common.quietHours.digestWhenRun": {
+    "status": "mt",
+    "srcHash": "0a452c96bcc4"
+  },
+  "common.quietHours.from": {
+    "status": "mt",
+    "srcHash": "6fe9e0a48629"
+  },
+  "common.quietHours.help": {
+    "status": "mt",
+    "srcHash": "fff865899c41"
+  },
+  "common.quietHours.nextDay": {
+    "status": "mt",
+    "srcHash": "b738402511fb"
+  },
+  "common.quietHours.none": {
+    "status": "mt",
+    "srcHash": "b74f30a6e38d"
+  },
+  "common.quietHours.title": {
+    "status": "mt",
+    "srcHash": "7ac0ea3da8d7"
+  },
+  "common.quietHours.to": {
+    "status": "mt",
+    "srcHash": "b74dafe49b73"
+  },
+  "common.quietHours.until": {
+    "status": "mt",
+    "srcHash": "b310f4d4d89b"
+  },
+  "common.quietHours.zone": {
+    "status": "mt",
+    "srcHash": "23dbfba3d79f"
+  },
+  "common.quietHours.zoneDefault": {
+    "status": "mt",
+    "srcHash": "837de91f61a2"
   },
   "common.reportBuilder.copySuffix": {
     "status": "mt",
@@ -7578,6 +7750,26 @@
   "common.states.offline.title": {
     "srcHash": "f4d9cea960b7",
     "status": "mt"
+  },
+  "common.states.partOff.body": {
+    "status": "mt",
+    "srcHash": "4b51ba8211c4"
+  },
+  "common.states.partOff.secondary": {
+    "status": "mt",
+    "srcHash": "e84712fbf4ee"
+  },
+  "common.states.partOff.title": {
+    "status": "mt",
+    "srcHash": "fec3a48f22a8"
+  },
+  "common.states.partsOff.body": {
+    "status": "mt",
+    "srcHash": "5aa9d5044b3d"
+  },
+  "common.states.partsOff.title": {
+    "status": "mt",
+    "srcHash": "23c8cc842395"
   },
   "common.states.rateLimited.body": {
     "srcHash": "94eeeca81fc5",
@@ -16775,6 +16967,14 @@
     "status": "mt",
     "srcHash": "b66a7e46605b"
   },
+  "project.kit.mapPlaces": {
+    "status": "mt",
+    "srcHash": "0cd3597453ab"
+  },
+  "project.kit.partFailed": {
+    "status": "mt",
+    "srcHash": "8b999f366750"
+  },
   "project.page.failed.title": {
     "status": "mt",
     "srcHash": "0e5023b89300"
@@ -18110,6 +18310,10 @@
   "roles.memberCount": {
     "status": "mt",
     "srcHash": "d44477454f93"
+  },
+  "roles.partsOff": {
+    "status": "mt",
+    "srcHash": "324136b3fd63"
   },
   "roles.permission.apiKeysManage": {
     "status": "mt",
@@ -19922,6 +20126,150 @@
   "studio.appAddOns.updateToo": {
     "status": "mt",
     "srcHash": "36478a3e3f31"
+  },
+  "studio.appParts.always": {
+    "status": "mt",
+    "srcHash": "531e4565609f"
+  },
+  "studio.appParts.cancel": {
+    "status": "mt",
+    "srcHash": "77dfd2135f4d"
+  },
+  "studio.appParts.dialogClose": {
+    "status": "mt",
+    "srcHash": "bbfa773e5a63"
+  },
+  "studio.appParts.help": {
+    "status": "mt",
+    "srcHash": "e9c638aa22d6"
+  },
+  "studio.appParts.installAlways": {
+    "status": "mt",
+    "srcHash": "5030b90a1fab"
+  },
+  "studio.appParts.installHelp": {
+    "status": "mt",
+    "srcHash": "04a792057cad"
+  },
+  "studio.appParts.installLeftOut": {
+    "status": "mt",
+    "srcHash": "3340844154ca"
+  },
+  "studio.appParts.installNeeds": {
+    "status": "mt",
+    "srcHash": "d2bcc8bd5168"
+  },
+  "studio.appParts.installTick": {
+    "status": "mt",
+    "srcHash": "42d7f8a2baa8"
+  },
+  "studio.appParts.leftOut": {
+    "status": "mt",
+    "srcHash": "6644cbb5caad"
+  },
+  "studio.appParts.needs": {
+    "status": "mt",
+    "srcHash": "c3468496be52"
+  },
+  "studio.appParts.off": {
+    "status": "mt",
+    "srcHash": "e3de5ab0ca4c"
+  },
+  "studio.appParts.offDialog.confirm": {
+    "status": "mt",
+    "srcHash": "d61b7f2364ca"
+  },
+  "studio.appParts.offDialog.nothingOpen": {
+    "status": "mt",
+    "srcHash": "816c4162ae90"
+  },
+  "studio.appParts.offDialog.oneRule": {
+    "status": "mt",
+    "srcHash": "5376e39670d3"
+  },
+  "studio.appParts.offDialog.oneStranded": {
+    "status": "mt",
+    "srcHash": "ffd8c72da2e7"
+  },
+  "studio.appParts.offDialog.open": {
+    "status": "mt",
+    "srcHash": "094024b3aea6"
+  },
+  "studio.appParts.offDialog.openRows": {
+    "status": "mt",
+    "srcHash": "71347689f8c1"
+  },
+  "studio.appParts.offDialog.rules": {
+    "status": "mt",
+    "srcHash": "d89b727c5c0a"
+  },
+  "studio.appParts.offDialog.stays": {
+    "status": "mt",
+    "srcHash": "466462f92815"
+  },
+  "studio.appParts.offDialog.stops": {
+    "status": "mt",
+    "srcHash": "c3b8466a6379"
+  },
+  "studio.appParts.offDialog.stranded": {
+    "status": "mt",
+    "srcHash": "6b6d2e497dae"
+  },
+  "studio.appParts.offDialog.title": {
+    "status": "mt",
+    "srcHash": "67a414652890"
+  },
+  "studio.appParts.on": {
+    "status": "mt",
+    "srcHash": "e0049a66519c"
+  },
+  "studio.appParts.onDialog.back": {
+    "status": "mt",
+    "srcHash": "1bce73e473bb"
+  },
+  "studio.appParts.onDialog.confirm": {
+    "status": "mt",
+    "srcHash": "bcdb919b512b"
+  },
+  "studio.appParts.onDialog.noCatchUp": {
+    "status": "mt",
+    "srcHash": "a93430b9271c"
+  },
+  "studio.appParts.onDialog.title": {
+    "status": "mt",
+    "srcHash": "24d8efcbd181"
+  },
+  "studio.appParts.onePage": {
+    "status": "src",
+    "srcHash": "efe4799012f6"
+  },
+  "studio.appParts.oneRule": {
+    "status": "mt",
+    "srcHash": "cc0bee788ab4"
+  },
+  "studio.appParts.pages": {
+    "status": "src",
+    "srcHash": "8722943fa2c9"
+  },
+  "studio.appParts.roles": {
+    "status": "mt",
+    "srcHash": "ca79c8a38164"
+  },
+  "studio.appParts.rules": {
+    "status": "mt",
+    "srcHash": "add3ad58b749"
+  },
+  "studio.appParts.switch": {
+    "status": "mt",
+    "srcHash": "24b1a65ec859"
+  },
+  "studio.appParts.title": {
+    "status": "mt",
+    "srcHash": "e374280917e6"
+  },
+  "studio.appParts.waiting": {
+    "status": "mt",
+    "srcHash": "0492b03efc65"
   },
   "studio.appPublicAccess.allow": {
     "status": "mt",
@@ -23158,6 +23506,18 @@
   "studio.hub.title": {
     "srcHash": "7b7fd33a5f83",
     "status": "mt"
+  },
+  "studio.installMaps.note": {
+    "status": "mt",
+    "srcHash": "4b3ff16e35bf"
+  },
+  "studio.installMaps.tick": {
+    "status": "mt",
+    "srcHash": "edfc41c0c9f5"
+  },
+  "studio.installMaps.title": {
+    "status": "mt",
+    "srcHash": "80071cd75107"
   },
   "studio.intent.analytics.description": {
     "srcHash": "628e62ccd9f0",
@@ -28579,6 +28939,14 @@
     "status": "mt",
     "srcHash": "9799c7f509c1"
   },
+  "studio.surfacePages.staff.partsOff": {
+    "status": "mt",
+    "srcHash": "5c921cd58410"
+  },
+  "studio.surfacePages.staff.partsOffAdvice": {
+    "status": "mt",
+    "srcHash": "4e4d0feaa381"
+  },
   "studio.surfacePages.staff.sideOff": {
     "status": "mt",
     "srcHash": "4feb79e4bafb"
@@ -29219,6 +29587,10 @@
     "status": "mt",
     "srcHash": "24dc5cc8d01e"
   },
+  "ui.formDialog.issue.mentionUnknown": {
+    "status": "mt",
+    "srcHash": "cbbe0281bb9b"
+  },
   "ui.formDialog.issue.notAllowed": {
     "status": "mt",
     "srcHash": "6ef3550191d8"
@@ -29258,6 +29630,10 @@
   "ui.formDialog.issue.tooLong": {
     "status": "mt",
     "srcHash": "d0103a9d10de"
+  },
+  "ui.formDialog.issue.tooManyMentions": {
+    "status": "mt",
+    "srcHash": "d4922396fef3"
   },
   "ui.formDialog.issue.tooShort": {
     "status": "mt",
@@ -29506,6 +29882,10 @@
   "ui.lists.name.us-states": {
     "status": "mt",
     "srcHash": "2e2de0d7be24"
+  },
+  "ui.mentions.people": {
+    "status": "mt",
+    "srcHash": "ef77680931ce"
   },
   "ui.pages.bulk.cancel": {
     "status": "mt",

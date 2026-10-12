@@ -24,5 +24,9 @@ export default {
   },
   "table": {
     "empty": "Keine Datensätze"
+  },
+  "kit": {
+    "partFailed": "Dieser Teil der Seite konnte nicht geladen werden. Laden Sie die Seite neu, um es erneut zu versuchen.",
+    "mapPlaces": "Orte"
   }
 } as const;
