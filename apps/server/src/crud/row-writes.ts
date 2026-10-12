@@ -119,6 +119,62 @@ export async function assertLinksReached(ctx: RowLimitContext | null, db: Db, ta
   }
 }
 
+/** Who is writing, as the link check needs them where no role limits their rows: what they read, and who they are. */
+export interface LinkWriter {
+  /** Whether the writer holds the read of a table at all. */
+  reads: (tableId: string) => boolean;
+  /** The person, or null for a key with no person behind it: nobody's rows are theirs. */
+  userId: string | null;
+  /** The business's calendar day, for a way that holds between two dates. */
+  today: () => Promise<string>;
+}
+
+/**
+ * Refuse a write whose link names a row of a table THE WRITER DOES NOT READ
+ * AT ALL, unless the row is theirs.
+ *
+ * `assertLinksReached` judges a link into a table the writer reads in part.
+ * Somebody who holds no read of the table was judged by nothing: a link is
+ * then a way to hang a row on a record they cannot open — a sign-off written
+ * against another crew's job stops the real one — and whatever the new row
+ * copies from that record is read through it.
+ *
+ * So, for a table that says whose its rows are (`belongs`, or private): a
+ * writer with no read of it may still name a row that is THEIRS by the
+ * table's own ways, and no other. One that is not theirs is refused exactly
+ * as a row that is not there. A table that says nothing of its rows is as it
+ * always was: its key is a key, to anybody who may write the linking row.
+ *
+ * Only for a link being SET by this write, as above.
+ */
+export async function assertLinksToUnreadTables(model: RowLimitContext['model'], connectionId: string, writer: LinkWriter, db: Db, tableId: string, values: Row, before: Row | null): Promise<void> {
+  const table = model.tables.find((candidate) => candidate.id === tableId);
+  if (table === undefined) return;
+  let own: RowLimitContext | null = null;
+  for (const link of linkTargets({ model } as RowLimitContext, table)) {
+    const target = model.tables.find((candidate) => candidate.id === link.tableId);
+    if (target === undefined || (target.belongs === undefined && target.private !== true)) continue;
+    const sent = link.columns.filter((column) => Object.prototype.hasOwnProperty.call(values, column));
+    if (sent.length === 0 || (before !== null && sent.every((column) => same(values[column], before[column])))) continue;
+    const whole = link.columns.map((column) => (Object.prototype.hasOwnProperty.call(values, column) ? values[column] : before?.[column]));
+    if (whole.some((value) => empty(value))) continue;
+    // A table they read, whole or in part, is the check above's.
+    if (writer.reads(link.tableId)) continue;
+    // Theirs by the table's own ways: asked as somebody held to their own rows there, and to nothing wider.
+    own ??= {
+      set: {
+        superAdmin: false,
+        rowLimits: { read: [{ limited: model.tables.map((one) => ({ grant: `table:${connectionId}:${one.id}:read`, reach: { reach: 'own' as const } })), unlimited: new Set<string>() }] },
+        reach: { userId: writer.userId, ledIds: [] },
+      },
+      connectionId,
+      model,
+      today: await writer.today(),
+    };
+    if (!(await reachesKey(own, db, link.tableId, link.keys, whole))) throw link.soft ? softLinkRefused(link.columns[0]!) : linkRefused();
+  }
+}
+
 /** The keys among `keys` of rows of a table the person reaches for a read; every key when nothing limits them there. */
 export async function reachedKeys(ctx: RowLimitContext | null, db: Db, tableId: string, key: string, keys: readonly unknown[]): Promise<Set<string>> {
   const all = new Set(keys.map((value) => String(value)));

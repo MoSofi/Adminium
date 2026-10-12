@@ -48,8 +48,8 @@ import { applyDerivedFields } from '../../crud/derive.js';
 import { applyMeasureMask, fetchMeasureValues } from '../../crud/measures.js';
 import { runList } from '../../crud/list.js';
 import { fetchVisible, rowRefinement, type RowAction, type RowLimitContext } from '../../crud/row-limit.js';
-import { limitProjections, rowLimitContextOf, rowTestOf } from '../../crud/row-limit-context.js';
-import { assertLinksReached, assertNoUnreachedChildren, assertStaffColumns, linkRefused, reachedKeys, type StaffWriteOptions } from '../../crud/row-writes.js';
+import { limitProjections, rowLimitContextOf, rowTestOf, venueDayOf } from '../../crud/row-limit-context.js';
+import { assertLinksReached, assertLinksToUnreadTables, assertNoUnreachedChildren, assertStaffColumns, linkRefused, reachedKeys, type LinkWriter, type StaffWriteOptions } from '../../crud/row-writes.js';
 import { applyLookupMask, fetchLookupValues } from '../../crud/lookups.js';
 import {
   resolveProjections,
@@ -61,6 +61,7 @@ import { staffInstants } from '../../crud/instants.js';
 import { renewedBy, renewForUndo, withRenewRetry } from '../../crud/code-renew.js';
 import { assertMovedFrom, assertWithinCreateLimit, assertWithinLimit, changesRow, createLimitOf, movedFromSeen, updateLimitOf, type UpdateLimit } from '../../rbac/update-limits.js';
 import { readLimitsOn } from '../../rbac/read-limits.js';
+import { permissionSetAllows } from '../../rbac/resolver.js';
 import { readableImage, readsHidden, refuseHiddenIn } from '../../crud/read-view.js';
 import {
   fetchByPk,
@@ -269,6 +270,8 @@ interface DataContext {
    */
   rows: RowLimitContext | null;
   readTable: ResolvedTable;
+  /** The caller as a link is judged by: which tables they read at all, and who they are (`crud/row-writes.ts`). */
+  writer: LinkWriter;
   /** Columns this caller may not read but may write: their update's `writable` or their create's `creatable` names them (a code typed once, never read back). */
   hiddenWritable: ReadonlySet<string>;
   /** The same for a row of another table written below this one (a child row a form adds). */
@@ -531,6 +534,8 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
      */
     const judgeWrite = async (ctx: DataContext, tableId: string, values: Row, before: Row | null, opts?: StaffWriteOptions, db: Kysely<SourceDatabase> = ctx.db): Promise<void> => {
       await assertLinksReached(ctx.rows, db, tableId, values, before);
+      // …and a link into a table they do not read at all names a row that is theirs, or none.
+      await assertLinksToUnreadTables(ctx.view.model, ctx.connectionId, ctx.writer, db, tableId, values, before);
       await assertStaffColumns(ctx.rows, meta, db, ctx.view.model, tableId, values, before, opts);
     };
 
@@ -622,6 +627,11 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         readView,
         readTable,
         rows: await rowLimitContextOf(meta, permissions, connectionId, view.model),
+        writer: {
+          reads: (tableId) => permissionSetAllows(permissions, `table:${connectionId}:${tableId}:read`),
+          userId: request.apiKeyPrincipal === null || request.apiKeyPrincipal === undefined ? ((request as unknown as { user?: { id?: string } }).user?.id ?? null) : null,
+          today: () => venueDayOf(meta, connectionId),
+        },
         hiddenWritable: new Set(hidden.filter((column) => writable?.writable.includes(column) === true || creatable?.writable.includes(column) === true)),
         hiddenCreatable: (tableId, column) => createLimitOf(permissions, connectionId, tableId)?.writable.includes(column) === true,
       };
@@ -1780,6 +1790,8 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
           readView: view,
           readTable: table,
           rows: await rowLimitContextOf(meta, await app.rbac.resolve(request), entry.connectionId, view.model),
+          // An undo puts back what was there: it names nothing new, and is judged as somebody who reads everything.
+          writer: { reads: () => true, userId: null, today: () => venueDayOf(meta, entry.connectionId) },
           hiddenWritable: new Set(),
         };
         if (takesNumberBack(undone, entry.action, entry.children)) {

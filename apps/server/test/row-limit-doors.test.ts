@@ -57,11 +57,11 @@ for (const [dialect, available] of ENGINES) {
     const download = (who: Who, id: string) => get(who, `exports/${id}/download`);
 
     /** Bring a CSV in to the deals as somebody, run the job, and answer the import as its owner sees it. */
-    const importDeals = async (who: Who, csv: string, options: Record<string, unknown>): Promise<{ id: string; status: string; stats: { total: number; inserted?: number; updated?: number; skipped?: number } | null; statusCode: number; body: string }> => {
+    const importDeals = async (who: Who, csv: string, options: Record<string, unknown>, table: string = deals()): Promise<{ id: string; status: string; stats: { total: number; inserted?: number; updated?: number; skipped?: number } | null; statusCode: number; body: string }> => {
       const uploaded = await call(who, 'POST', 'imports/upload?filename=deals.csv', csv, { 'content-type': 'text/csv' });
       expect(uploaded.statusCode, uploaded.body).toBe(201);
       const header = csv.split('\n')[0]!.split(',');
-      const made = await post(who, 'imports', { fileId: json<{ data: { fileId: string } }>(uploaded).data.fileId, connectionId: w.connectionId, table: deals(), mapping: { columns: header.map((name) => ({ from: name, to: name })) }, options: { skipInvalid: true, ...options } });
+      const made = await post(who, 'imports', { fileId: json<{ data: { fileId: string } }>(uploaded).data.fileId, connectionId: w.connectionId, table, mapping: { columns: header.map((name) => ({ from: name, to: name })) }, options: { skipInvalid: true, ...options } });
       if (made.statusCode !== 201) return { id: '', status: 'refused', stats: null, statusCode: made.statusCode, body: made.body };
       const id = json<{ data: { import: { id: string } } }>(made).data.import.id;
       const run = await post(who, `imports/${id}/run`);
@@ -94,7 +94,10 @@ for (const [dialect, available] of ENGINES) {
       for (const person of ['dana', 'omar'] as const) await w.give(person, 'rep');
       await w.give('mara', 'manager');
       await w.give('lena', 'reader');
-      for (const person of ['dana', 'mara', 'lena'] as const) await w.give(person, 'keeper');
+      // Brings quotes in, and reads no deal at all.
+      await w.role('quoter', { quotes: { actions: ['read', 'create', 'import'] } });
+      for (const person of ['kim', 'sam'] as const) await w.give(person, 'quoter');
+      for (const person of ['dana', 'mara', 'lena', 'kim', 'sam'] as const) await w.give(person, 'keeper');
     }, 120_000);
     afterAll(async () => {
       await w?.close();
@@ -156,6 +159,17 @@ for (const [dialect, available] of ENGINES) {
     });
 
     describe('a file brought in (I1, I2)', () => {
+      it('links no row into a table its requester does not read, but for a row that is theirs', async () => {
+        // Kim owns no deal; Sam owns deals 6 and 8. Neither reads the deals.
+        const kims = await importDeals('kim', 'id,deal_id,total\n901,3,1\n902,,1\n', { mode: 'insert' }, w.id('quotes'));
+        expect(kims.status, kims.body).not.toBe('refused');
+        const sams = await importDeals('sam', 'id,deal_id,total\n903,6,1\n904,3,1\n', { mode: 'insert' }, w.id('quotes'));
+        expect(sams.status, sams.body).not.toBe('refused');
+        // In: the quote on no deal, and the one on Sam's own. Out: the two hung on Omar's.
+        expect((await w.rows('SELECT id, deal_id FROM quotes WHERE id > 900 ORDER BY id')).map((row) => [Number(row['id']), row['deal_id'] === null ? null : Number(row['deal_id'])])).toEqual([[902, null], [903, 6]]);
+        await w.run('DELETE FROM quotes WHERE id > 900');
+      });
+
       it('changes only rows its requester reaches, and names only people and rows they may', async () => {
         // Deal 1 is Dana's; deal 3 is Omar's; 999 is nobody's row.
         const done = await importDeals('dana', 'id,title\n1,Renamed by Dana\n3,Not hers to rename\n', { mode: 'upsert', matchColumn: 'id' });

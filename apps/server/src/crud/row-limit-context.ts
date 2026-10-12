@@ -26,6 +26,12 @@ export async function rowLimitContextOf(
   return { set, connectionId, model, today: venueClock(now, zone).day };
 }
 
+/** The business's calendar day on a connection: the day a dated way (cover for a colleague) is judged on. */
+export async function venueDayOf(meta: MetaDb, connectionId: string, now: Date = new Date()): Promise<string> {
+  const zone = (await connectionTenantConfig(meta, connectionId))?.timezone ?? 'UTC';
+  return venueClock(now, zone).day;
+}
+
 /** The test for one table and action, or null when the person reaches every row (or nothing can limit them). */
 export function rowTestOf(rows: RowLimitContext | null, tableId: string, action: RowAction): RowTest | null {
   return rows === null ? null : rowLimitFor(rows, tableId, action);

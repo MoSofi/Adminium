@@ -51,6 +51,26 @@ Two things to know:
 
 Super Admin reaches every row and cannot be limited.
 
+## What a write may name
+
+A row is hung on another by a link, and a link could walk round a limit: a follow-up attached to
+a colleague's deal is a row made inside a record its writer cannot see. So a link is judged when
+it is written, for a table that says whose its rows are:
+
+- **Somebody who reads the linked table in part** may name a row they reach.
+- **Somebody who does not read the linked table at all** may name a row that is theirs by that
+  table's own ways, and no other. A fitter who reads no job cannot write a sign-off against a
+  job by its key; the app lets the sign-off find its job through the visit, which the fitter
+  does read.
+- **Somebody who reads the linked table whole** names any row, as ever.
+
+A link that is refused is refused exactly as a link to a row that is not there. Only a link this
+write sets is asked about: one the row already holds is left alone. A file brought in is judged
+the same way, row by row. A table that says nothing of its rows is not judged: its key is a key.
+
+When you design an app, give a role that must hang rows on a record a way to reach that record
+(a read with a limit, or a link through a row they do reach), or let a rule make the row.
+
 ## Teams
 
 **Settings → Team → Teams.** A team is a named set of people, and some of its members **lead**

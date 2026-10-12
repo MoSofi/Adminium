@@ -35,8 +35,8 @@ import type { ResolvedColumn, ResolvedTable, SnapshotView } from '../crud/identi
 import { tableRulesFor, type FieldIssues } from '../crud/column-rules.js';
 import type { Row } from '../crud/mask.js';
 import { assertNotPrivate, rowRefinement, writerReaches, type RowLimitContext } from '../crud/row-limit.js';
-import { rowLimitContextForUser, rowLimitContextOf, rowTestOf } from '../crud/row-limit-context.js';
-import { assertLinksReached, assertStaffColumns } from '../crud/row-writes.js';
+import { rowLimitContextForUser, rowLimitContextOf, rowTestOf, venueDayOf } from '../crud/row-limit-context.js';
+import { assertLinksReached, assertLinksToUnreadTables, assertStaffColumns, type LinkWriter } from '../crud/row-writes.js';
 import {
   HookFailedError,
   HookRejectedError,
@@ -57,7 +57,7 @@ import { loadSnapshotView } from '../data-io/snapshot-view.js';
 import { assertImportReadable, readViewOf } from '../crud/read-view.js';
 import { AppError, NotFoundError } from '../errors.js';
 import { scrubRefusal } from '../routes/data/refusal-scrub.js';
-import { resolvePermissionSet } from '../rbac/resolver.js';
+import { permissionSetAllows, resolvePermissionSet } from '../rbac/resolver.js';
 import { assertImportCreatable, createLimitOf, updateLimitOf } from '../rbac/update-limits.js';
 import type { FileStore } from '../files/store.js';
 import { widgetDataChannel, type RealtimeHub } from '../realtime/hub.js';
@@ -230,9 +230,20 @@ async function runImport(
    * be the one that matched.
    */
   let reach: RowLimitContext | null = null;
+  /** The requester as a link is judged by, where the file's table links into one they do not read and that says whose its rows are. */
+  let writer: LinkWriter | null = null;
   if (row.requestedBy !== null) {
     const permissions = await resolvePermissionSet(deps.meta, { kind: 'user', id: row.requestedBy, label: row.requestedBy });
     reach = await rowLimitContextOf(deps.meta, permissions, row.connectionId, view.model);
+    const unread = view.model.relations.some((relation) => {
+      if (relation.through !== null || relation.from.tableId !== table.id) return false;
+      const target = view.model.tables.find((candidate) => candidate.id === relation.to.tableId);
+      return target !== undefined && (target.belongs !== undefined || target.private === true) && !permissionSetAllows(permissions, `table:${row.connectionId}:${target.id}:read`);
+    });
+    if (unread) {
+      const requester = row.requestedBy;
+      writer = { reads: (tableId) => permissionSetAllows(permissions, `table:${row.connectionId}:${tableId}:read`), userId: requester, today: () => venueDayOf(deps.meta, row.connectionId) };
+    }
     readView = readViewOf(view, permissions);
     assertImportReadable(readView, table.id, row.mapping.columns, matchColumn, updateLimitOf(permissions, row.connectionId, table.id)?.writable ?? null);
     assertImportCreatable(createLimitOf(permissions, row.connectionId, table.id), table.id, row.mapping.columns);
@@ -240,7 +251,8 @@ async function runImport(
     // Nobody asked for it: it changes no row of a table that says whose its rows are, as a file nobody asked for holds none.
     reach = await rowLimitContextForUser(deps.meta, null, row.connectionId, view.model);
   }
-  const held = reach !== null && writerReaches(reach, table.id) !== null;
+  // Each row judged on its own: for somebody held to some rows of the table, and for somebody whose rows would link into a table they do not read.
+  const held = (reach !== null && writerReaches(reach, table.id) !== null) || writer !== null;
   const updateTest = rowTestOf(reach, table.id, 'update');
   if (held && matchResolved !== null && !(matchResolved.isPrimaryKey || table.table.columns.find((column) => column.name === matchResolved.name)?.isUnique === true)) {
     throw new Error(`Rows of ${table.name} are matched on a column no two rows share (its key, or a unique column): ${matchResolved.name} is neither.`);
@@ -249,6 +261,7 @@ async function runImport(
   const judge = async (values: Row, before: Row | null): Promise<void> => {
     if (!held) return;
     await assertLinksReached(reach, db as Kysely<SourceDatabase>, table.id, values, before);
+    if (writer !== null) await assertLinksToUnreadTables(view.model, row.connectionId, writer, db as Kysely<SourceDatabase>, table.id, values, before);
     await assertStaffColumns(reach, deps.meta, db as Kysely<SourceDatabase>, view.model, table.id, values, before);
   };
   /** The stored row a file's row matches, among the rows the requester's update reaches. */
