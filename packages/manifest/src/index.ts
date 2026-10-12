@@ -340,6 +340,7 @@ export {
   sampleSectionIssues,
   sampleBundleSchema,
   sampleDirective,
+  samplePeopleIn,
   sampleRowSchema,
   sampleValueSchema,
   type ByClock,

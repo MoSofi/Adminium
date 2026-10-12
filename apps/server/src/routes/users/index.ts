@@ -296,6 +296,17 @@ export const usersRoutes: FastifyPluginAsyncZod = async (app) => {
   }
 
   /** Locking yourself out is never the intent behind a click. */
+  /**
+   * A person an app's sample data made is the sample's: not renamed, given a
+   * password, suspended, deleted or re-roled by hand. Removing the sample
+   * data removes them.
+   */
+  function assertNotSample(user: User): void {
+    if (user.status === 'sample') {
+      throw new ConflictError('This is a sample person. Removing the app\'s sample data removes them.', 'CONFLICT', { reason: 'SAMPLE_PERSON' });
+    }
+  }
+
   function assertNotSelf(request: FastifyRequest, user: User, action: string): void {
     if (actingUserId(request) === user.id) {
       throw new ConflictError(`You cannot ${action} your own account.`, 'CONFLICT', {
@@ -405,6 +416,7 @@ export const usersRoutes: FastifyPluginAsyncZod = async (app) => {
     async (request) => {
       const user = await mustFindUser(request.params.id);
       await assertMayActOnAccount(request, user);
+      assertNotSample(user);
       const { name, email } = request.body;
       /** `null` when the body omits status or restates the current one. */
       const status =
@@ -477,6 +489,7 @@ export const usersRoutes: FastifyPluginAsyncZod = async (app) => {
       const user = await mustFindUser(request.params.id);
       const permanent = request.query.permanent === true;
       await assertMayActOnAccount(request, user);
+      assertNotSample(user);
       assertNotSelf(request, user, permanent ? 'delete' : 'suspend');
       await assertNotLastSuperAdmin(user);
 
@@ -523,6 +536,7 @@ export const usersRoutes: FastifyPluginAsyncZod = async (app) => {
     async (request) => {
       const user = await mustFindUser(request.params.id);
       await assertMayActOnAccount(request, user);
+      assertNotSample(user);
       const after = await resolveRoles(request.body.roleIds);
       const before = await roles.rolesForUser(user.id);
       await assertMayMintSuperAdmin(request, before, after);
@@ -555,6 +569,7 @@ export const usersRoutes: FastifyPluginAsyncZod = async (app) => {
     async (request) => {
       const user = await mustFindUser(request.params.id);
       await assertMayActOnAccount(request, user);
+      assertNotSample(user);
       if (user.status !== 'invited') {
         throw new ConflictError('This account has already been activated.', 'CONFLICT', {
           userId: user.id,

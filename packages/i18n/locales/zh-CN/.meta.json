@@ -7887,6 +7887,10 @@
     "status": "mt",
     "srcHash": "b8f6703e8800"
   },
+  "common.team.sampleNote": {
+    "status": "mt",
+    "srcHash": "ff123f883447"
+  },
   "common.team.search": {
     "status": "mt",
     "srcHash": "5d12419516ef"
@@ -7898,6 +7902,10 @@
   "common.team.status.invited": {
     "status": "mt",
     "srcHash": "53469df1c48f"
+  },
+  "common.team.status.sample": {
+    "status": "mt",
+    "srcHash": "cefec8f828a6"
   },
   "common.team.status.suspended": {
     "status": "mt",

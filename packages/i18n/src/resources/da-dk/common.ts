@@ -1760,9 +1760,11 @@ export default {
     },
     "rolesLocked": "Ændring af roller kræver rettigheden „Administrér roller“.",
     "search": "Søg efter navn eller e-mail",
+    "sampleNote": "{count} eksempelpersoner kom med en apps eksempeldata. De kan ikke logge ind og forsvinder, når eksempeldataene fjernes.",
     "status": {
       "active": "Aktiv",
       "invited": "Inviteret",
+      "sample": "Eksempelperson",
       "suspended": "Suspenderet"
     },
     "subtitle": "Hvem der har en konto på dette Adminium, og hvad hver enkelt kan.",

@@ -238,7 +238,7 @@ export function usersRepo(meta: MetaDb) {
         .select(['status', ({ fn }) => fn.countAll<number>().as('n')])
         .groupBy('status')
         .execute();
-      const counts: Record<UserStatus, number> = { active: 0, invited: 0, suspended: 0 };
+      const counts: Record<UserStatus, number> = { active: 0, invited: 0, suspended: 0, sample: 0 };
       for (const row of rows) {
         const parsed = userStatusSchema.safeParse(row.status);
         if (parsed.success) counts[parsed.data] = Number(row.n);

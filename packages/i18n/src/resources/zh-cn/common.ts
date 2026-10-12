@@ -1760,9 +1760,11 @@ export default {
     },
     "rolesLocked": "更改角色需要“管理角色”权限。",
     "search": "搜索姓名或邮箱",
+    "sampleNote": "{count} 位示例人员来自某个应用的示例数据。他们无法登录，移除示例数据时会一并移除。",
     "status": {
       "active": "活跃",
       "invited": "已邀请",
+      "sample": "示例人员",
       "suspended": "已暂停"
     },
     "subtitle": "谁在这份 Adminium 上拥有账户，以及他们各自可以做什么。",

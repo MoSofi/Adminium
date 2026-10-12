@@ -1760,9 +1760,11 @@ export default {
     },
     "rolesLocked": "Změna rolí vyžaduje oprávnění „Spravovat role“.",
     "search": "Hledat podle jména nebo e-mailu",
+    "sampleNote": "{count} ukázkových osob přišlo s ukázkovými daty aplikace. Nemohou se přihlásit a odstraněním ukázkových dat zmizí.",
     "status": {
       "active": "Aktivní",
       "invited": "Pozvaný(á)",
+      "sample": "Ukázková osoba",
       "suspended": "Pozastavený(á)"
     },
     "subtitle": "Kdo má účet v tomto Adminiu a co každý z nich smí.",

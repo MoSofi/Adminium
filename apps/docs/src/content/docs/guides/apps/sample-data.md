@@ -142,6 +142,19 @@ Adminium reads which tables those are from the add-on's own manifest: a table is
 total adds its rows up, it holds no total itself, and every action of the ledger that writes it
 writes only such tables. Such a row never fills the link to a posting's receipt.
 
+## Sample people
+
+An app whose rows belong to people (a deal has an owner, a visit has a crew) brings its sample
+people with it. Adding the sample data makes them as staff members marked **Sample person** on
+the Team page. A sample person cannot sign in, is never sent mail, and cannot be renamed,
+suspended, deleted or given another role by hand. They hold the app's own roles and sit in the
+sample's teams, so a manager's page shows a team and a rep's page shows that rep's rows.
+
+Removing the sample data removes them and their teams. A sample person one of your own records
+still names stays until that record names somebody else; adding the sample data again takes
+that person back instead of making a second one. If you already have a team called "Sales", the
+sample's team is made as "Sales (sample)" and yours is left alone.
+
 ## While it is loaded
 
 The app's own pages in the dashboard show **Sample data is loaded** at the top, with **Remove it**.

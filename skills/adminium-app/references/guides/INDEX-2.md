@@ -4,6 +4,7 @@
 
 | File | What it covers | Bytes |
 |---|---|---|
+| `references/guides/timed-moves--reminders-at-a-wall-time.md` | Reminders at a wall time | 1173 |
 | `references/guides/timed-moves--settings-a-moment-reads.md` | Settings a moment reads | 1274 |
 | `references/guides/timed-moves--a-hold-that-nobody-finishes.md` | A hold that nobody finishes | 1060 |
 | `references/guides/timed-moves--what-a-writer-is-told.md` | What a writer is told | 1166 |

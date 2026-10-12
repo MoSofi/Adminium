@@ -35,7 +35,8 @@ import type { Tone } from '@adminium/ui';
 
 import { api } from '../app/api.js';
 
-export type UserStatus = 'active' | 'invited' | 'suspended';
+/** `sample`: a person an app's sample data made. Listed and marked; never signs in, never edited by hand. */
+export type UserStatus = 'active' | 'invited' | 'suspended' | 'sample';
 
 /**
  * `invited` is NOT settable through PATCH — it is the invite route's outcome,
@@ -73,7 +74,7 @@ export interface UsersListReply {
   /** Pass back as `cursor` for the next page; `null` on the last page. */
   nextCursor: string | null;
   /** Whole-directory tallies — NOT page-scoped, so they survive paging. */
-  counts: { active: number; invited: number; suspended: number };
+  counts: { active: number; invited: number; suspended: number; sample?: number };
 }
 
 /**
@@ -187,6 +188,8 @@ export function userStatusTone(status: UserStatus): Tone {
       return 'warn';
     case 'suspended':
       return 'danger';
+    case 'sample':
+      return 'neutral';
   }
 }
 

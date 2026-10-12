@@ -1750,9 +1750,11 @@
     },
     "rolesLocked": "Zum Ändern von Rollen wird die Berechtigung „Rollen verwalten“ benötigt.",
     "search": "Name oder E-Mail suchen",
+    "sampleNote": "{count} Beispielpersonen stammen aus den Beispieldaten einer App. Sie können sich nicht anmelden und verschwinden, wenn die Beispieldaten entfernt werden.",
     "status": {
       "active": "Aktiv",
       "invited": "Eingeladen",
+      "sample": "Beispielperson",
       "suspended": "Gesperrt"
     },
     "subtitle": "Wer ein Konto in diesem Adminium hat und was die einzelnen Personen dürfen.",

@@ -1750,9 +1750,11 @@
     },
     "rolesLocked": "變更角色需要「管理角色」權限。",
     "search": "搜尋姓名或電子郵件",
+    "sampleNote": "{count} 位範例人員來自某個應用程式的範例資料。他們無法登入，移除範例資料時會一併移除。",
     "status": {
       "active": "啟用中",
       "invited": "已邀請",
+      "sample": "範例人員",
       "suspended": "已停權"
     },
     "subtitle": "誰在這個 Adminium 上擁有帳戶，以及他們各自可以做什麼。",

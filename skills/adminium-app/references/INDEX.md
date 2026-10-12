@@ -8,7 +8,7 @@ file. Every file is 8 KB or less.
 | Area | Files | Its index |
 |---|---|---|
 | projects | 10 | `references/projects/INDEX.md` |
-| guides | 162 | `references/guides/INDEX.md` |
+| guides | 163 | `references/guides/INDEX.md` |
 | install | 12 | `references/install/INDEX.md` |
-| manifest | 87 | `references/manifest/INDEX.md` |
+| manifest | 89 | `references/manifest/INDEX.md` |
 | cli | 25 | `references/cli/INDEX.md` |

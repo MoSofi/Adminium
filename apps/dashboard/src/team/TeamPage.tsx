@@ -83,7 +83,7 @@ import {
 } from './teamApi.js';
 
 /** Statuses offered in the filter, in the order the directory reads best. */
-const STATUS_FILTERS: readonly UserStatus[] = ['active', 'invited', 'suspended'];
+const STATUS_FILTERS: readonly UserStatus[] = ['active', 'invited', 'suspended', 'sample'];
 
 function statusLabel(status: UserStatus): string {
   switch (status) {
@@ -93,6 +93,8 @@ function statusLabel(status: UserStatus): string {
       return t('team.status.invited', 'Invited');
     case 'suspended':
       return t('team.status.suspended', 'Suspended');
+    case 'sample':
+      return t('team.status.sample', 'Sample person');
   }
 }
 
@@ -642,6 +644,15 @@ export function TeamPage(): ReactNode {
               )}
             </span>
           )}
+          {counts === null || (counts.sample ?? 0) === 0 ? null : (
+            <span className="w-full text-body-sm text-fg-subtle" data-testid="team-sample-note">
+              {t(
+                'team.sampleNote',
+                '{count} sample people came with an app’s sample data. They cannot sign in, and removing the sample data removes them.',
+                { count: counts.sample ?? 0 },
+              )}
+            </span>
+          )}
         </CardHeader>
         <CardBody className="p-0">
           {users.isPending ? (
@@ -834,6 +845,8 @@ export function TeamPage(): ReactNode {
  */
 function mayActOn(actor: { id: string; superAdmin: boolean } | null, user: UserDto): boolean {
   if (actor === null) return false;
+  // A sample person is the sample data's: nothing about them is changed by hand (the server refuses it too).
+  if (user.status === 'sample') return false;
   if (actor.superAdmin) return true;
   return !user.roles.some((role) => role.slug === 'super-admin');
 }

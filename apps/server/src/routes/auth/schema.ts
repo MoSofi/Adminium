@@ -10,7 +10,7 @@ export const authUserView = z.object({
   id: z.string(),
   email: z.string(),
   name: z.string(),
-  status: z.enum(['active', 'invited', 'suspended']),
+  status: z.enum(['active', 'invited', 'suspended', 'sample']),
   totpEnabled: z.boolean(),
   lastLoginAt: z.number().nullable(),
   createdAt: z.number(),

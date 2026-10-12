@@ -77,7 +77,9 @@
 | `references/manifest/public-access--limits-on-a-stranger-s-create.md` | Public access — Limits on a stranger's create | 3390 |
 | `references/manifest/public-access--publickeys.md` | Public access — publicKeys | 3463 |
 | `references/manifest/automations.md` | Automations | 5036 |
-| `references/manifest/sample-data.md` | Sample data | 7741 |
+| `references/manifest/sample-data.md` | Sample data | 975 |
+| `references/manifest/sample-data--sample-people.md` | Sample data — Sample people | 7738 |
+| `references/manifest/sample-data--sample-people-2.md` | Sample data — Sample people (part 2) | 1682 |
 | `references/manifest/seeds-and-widgets.md` | seeds and widgets | 440 |
 | `references/manifest/add-on-manifests.md` | Add-on manifests | 4354 |
 | `references/manifest/add-on-manifests--an-add-on-with-tables-of-its-own.md` | Add-on manifests — An add-on with tables of its own | 2488 |
@@ -85,6 +87,5 @@
 | `references/manifest/add-on-manifests--the-price-question.md` | Add-on manifests — The price question | 2004 |
 | `references/manifest/add-on-manifests--shapes.md` | Add-on manifests — Shapes | 2541 |
 | `references/manifest/add-on-manifests--steps-for-automations.md` | Add-on manifests — Steps for Automations | 2669 |
-| `references/manifest/add-on-manifests--what-an-add-on-tells-the-assistant.md` | Add-on manifests — What an add-on tells the assistant | 1646 |
 
 More: `references/manifest/INDEX-2.md`

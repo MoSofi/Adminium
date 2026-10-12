@@ -82,6 +82,7 @@ export const INSTALL_FLOOR_WORD_NAMES = [
   'config.tabs',
   'config.bulk',
   'sampleData.addOns',
+  'sampleData.people',
   'email.onlyWith',
   'email.onlyWithout',
   'outbox.pages.app',
@@ -131,6 +132,8 @@ export const WORD_FLOORS: Readonly<Partial<Record<ManifestWordName, string>>> = 
   'states.handOver': '0.3.27',
   // A total that is the newest child row's value, not a sum or a count (a deal's amount from its last sent quote).
   'rollup.latest': '0.3.27',
+  // Sample data that brings its own people and teams, and rows that name them.
+  'sampleData.people': '0.3.27',
 };
 
 /** Every word of `document` that needs the install floor, in document order. */
@@ -166,6 +169,9 @@ export function installFloorWords(document: unknown): ManifestWord[] {
     // An app has always had the other blocks: these two it has only since the install floor.
     if (document['automations'] !== undefined) out.push({ word: 'automations', path: 'automations' });
     if (isDoc(document['sampleData']) && document['sampleData']['addOns'] !== undefined) out.push({ word: 'sampleData.addOns', path: 'sampleData.addOns' });
+    for (const key of ['people', 'teams'] as const) {
+      if (isDoc(document['sampleData']) && document['sampleData'][key] !== undefined) out.push({ word: 'sampleData.people', path: `sampleData.${key}` });
+    }
     // A phone side: a server that does not know the side refuses the whole manifest.
     list(document['frontends']).forEach((frontend, f) => {
       if (isDoc(frontend) && frontend['side'] === 'mobile') out.push({ word: 'frontend.mobile', path: `frontends.${String(f)}.side` });

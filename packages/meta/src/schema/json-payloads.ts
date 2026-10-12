@@ -88,7 +88,11 @@ export const dirSchema = z.enum(['ltr', 'rtl']);
 
 // --- users / prefs ----------------------------------------------
 
-export const userStatusSchema = z.enum(['active', 'invited', 'suspended']);
+/**
+ * `sample`: a person an app's sample data made (plan 67). Never signs in, is
+ * never mailed, and goes when the sample is removed; nobody sets it by hand.
+ */
+export const userStatusSchema = z.enum(['active', 'invited', 'suspended', 'sample']);
 export type UserStatus = z.infer<typeof userStatusSchema>;
 
 /** Array of argon2id hashes. */

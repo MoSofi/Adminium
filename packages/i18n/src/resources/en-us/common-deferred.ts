@@ -531,9 +531,11 @@ export default {
     },
     "rolesLocked": "Changing roles needs the “Manage roles” permission.",
     "search": "Search name or email",
+    "sampleNote": "{count} sample people came with an app’s sample data. They cannot sign in, and removing the sample data removes them.",
     "status": {
       "active": "Active",
       "invited": "Invited",
+      "sample": "Sample person",
       "suspended": "Suspended"
     },
     "subtitle": "Who has an account on this Adminium, and what each of them can do.",

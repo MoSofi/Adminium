@@ -25,6 +25,7 @@
 | `references/guides/sample-data--adding-it.md` | Adding it | 3778 |
 | `references/guides/sample-data--sample-times-that-follow-the-calendar.md` | Sample times that follow the calendar | 2543 |
 | `references/guides/sample-data--rows-for-an-add-on-the-app-names.md` | Rows for an add-on the app names | 2223 |
+| `references/guides/sample-data--sample-people.md` | Sample people | 953 |
 | `references/guides/sample-data--while-it-is-loaded.md` | While it is loaded | 664 |
 | `references/guides/sample-data--removing-it.md` | Removing it | 1954 |
 | `references/guides/sample-data--on-uninstall.md` | On uninstall | 453 |
@@ -86,6 +87,5 @@
 | `references/guides/timed-moves--sample-data.md` | Sample data | 877 |
 | `references/guides/timed-moves--moves-that-wait-for-a-time.md` | Moves that wait for a time | 1130 |
 | `references/guides/timed-moves--late-moves.md` | Late moves | 1872 |
-| `references/guides/timed-moves--reminders-at-a-wall-time.md` | Reminders at a wall time | 1173 |
 
 More: `references/guides/INDEX-2.md`

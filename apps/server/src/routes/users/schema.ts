@@ -25,7 +25,7 @@ export type UserRoleRef = z.infer<typeof userRoleRef>;
 export const userDto = authUserView.extend({ roles: z.array(userRoleRef) });
 export type UserDto = z.infer<typeof userDto>;
 
-export const userStatusFilter = z.enum(['active', 'invited', 'suspended']);
+export const userStatusFilter = z.enum(['active', 'invited', 'suspended', 'sample']);
 
 export const userListQuery = z.object({
   /** Case-insensitive substring over name + email. */
@@ -47,6 +47,8 @@ export const userListReply = z.object({
     active: z.number(),
     invited: z.number(),
     suspended: z.number(),
+    /** People an app's sample data made: listed, marked, and in no other tally. */
+    sample: z.number(),
   }),
 });
 export type UserListReply = z.infer<typeof userListReply>;

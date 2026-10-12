@@ -127,7 +127,8 @@ async function deliverEmail(
   try {
     const user = await usersRepo(meta).findById(input.userId);
     // A suspended account keeps its prefs row but must stop receiving mail.
-    if (user === null || user.status === 'suspended') return;
+    // A sample person is nobody: nothing is ever mailed to one.
+    if (user === null || user.status === 'suspended' || user.status === 'sample') return;
     await enqueueEmail(
       { meta, ...(opts.logger === undefined ? {} : { logger: opts.logger }) },
       {

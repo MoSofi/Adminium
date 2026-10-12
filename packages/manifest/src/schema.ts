@@ -1439,6 +1439,44 @@ export const sampleDataSchema = z
         z.object({ file: z.string().regex(/^seeds\/[a-z0-9][a-z0-9._-]*\.json$/, 'a file in seeds/, ending .json') }).strict(),
       )
       .optional(),
+    /**
+     * The people of the sample business: a rep per pipeline, a crew per van.
+     * "Add sample data" makes each a staff member who cannot sign in and is
+     * marked a sample person, with one of the app's own roles; a sample row
+     * names one by key (`{"@person": "dana"}`, see `sample.ts`), and "Remove
+     * sample data" takes them away with their rows. A name is a person's
+     * name: data, written once, in no language.
+     */
+    people: z
+      .array(
+        z
+          .object({
+            key: z.string().regex(/^[a-z][a-z0-9_-]{0,39}$/, 'a short key: lower-case letters, digits, _ and -'),
+            name: z.string().min(1).max(120),
+            /** Shown beside the name; never mailed. Left out, or taken already, Adminium gives the person an address of its own. */
+            email: z.string().max(200).regex(/^[^@\s]+@[^@\s]+$/, 'an email address').optional(),
+            /** One of this app's roles, by its key. */
+            role: z.string().min(1).max(64).optional(),
+          })
+          .strict(),
+      )
+      .min(1)
+      .max(200)
+      .optional(),
+    /** Teams of sample people: `lead` reaches the rows of the `members` (and is one of the team). */
+    teams: z
+      .array(
+        z
+          .object({
+            name: z.string().min(1).max(60),
+            lead: z.string().min(1).max(40).optional(),
+            members: z.array(z.string().min(1).max(40)).min(1).max(200),
+          })
+          .strict(),
+      )
+      .min(1)
+      .max(50)
+      .optional(),
   })
   .strict();
 

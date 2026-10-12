@@ -22,6 +22,12 @@
  *   `{"@table": "<table>"}`    that table's stored name, for a column that
  *                               holds one (`rules.tableRef`): the name it has
  *                               on this install, whichever app made the table
+ *   `{"@person": "<key>"}`     one of the manifest's sample people
+ *                               (`sampleData.people`): the staff member made
+ *                               for that key. In a staff column (`rules.staff`)
+ *                               or another text column that holds a staff id,
+ *                               and anywhere inside a json value (a saved
+ *                               filter that names a rep)
  *
  * A `@day` may add `"@workdays": true`: its days count Monday to Friday, and
  * day 0 on a weekend is the Monday after — so "today's" busy day is never a
@@ -117,6 +123,7 @@ const directive = z.union([
   z.object({ '@t': z.record(z.string().regex(/^[a-z]{2}(-[A-Z]{2})?$/), z.string()).refine((m) => Object.keys(m).length > 0) }).strict(),
   z.object({ '@asset': label }).strict(),
   z.object({ '@table': z.string().regex(/^[a-z][a-z0-9_]*$/, 'a table') }).strict(),
+  z.object({ '@person': z.string().regex(/^[a-z][a-z0-9_-]{0,39}$/, 'a sample person\'s key') }).strict(),
 ]);
 
 const plain = z.union([z.string(), z.number(), z.boolean(), z.null()]);
@@ -206,6 +213,7 @@ export function sampleDirective(value: unknown):
   | { kind: 't'; texts: Record<string, string> }
   | { kind: 'asset'; label: string }
   | { kind: 'table'; ref: string }
+  | { kind: 'person'; key: string }
   | null {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return null;
   const record = value as Record<string, unknown>;
@@ -231,7 +239,20 @@ export function sampleDirective(value: unknown):
   }
   if (typeof record['@asset'] === 'string') return { kind: 'asset', label: record['@asset'] };
   if (typeof record['@table'] === 'string') return { kind: 'table', ref: record['@table'] };
+  if (typeof record['@person'] === 'string') return { kind: 'person', key: record['@person'] };
   return null;
+}
+
+/**
+ * Every sample person a value names: itself, or anywhere inside it when it
+ * is a json value (an object or a list that is no directive of its own).
+ */
+export function samplePeopleIn(value: unknown): string[] {
+  const found = sampleDirective(value);
+  if (found !== null) return found.kind === 'person' ? [found.key] : [];
+  if (Array.isArray(value)) return value.flatMap(samplePeopleIn);
+  if (typeof value === 'object' && value !== null) return Object.values(value as Record<string, unknown>).flatMap(samplePeopleIn);
+  return [];
 }
 
 /** An ISO-8601 duration in milliseconds. */
@@ -295,7 +316,8 @@ export function sampleBundleIssues(bundle: SampleBundle, manifest: Manifest): Sa
     if (table.own === true) issues.push({ path: `tables.${String(t)}.own`, message: '"own" marks a table of the app in its rows for an add-on; a manifest\'s own sample file takes none.' });
   });
   const declared = new Map<string, DeclaredTable>((manifest.requiredSchema?.tables ?? []).map((table) => [table.ref, table]));
-  issues.push(...rowIssues(bundle, declared, { names: new Set(declared.keys()), what: manifest.kind === 'add-on' ? 'add-on' : 'app', otherLabels: false, known: seedLabelsOf(manifest) }));
+  const people = new Set(((manifest.kind === 'app' ? (manifest.sampleData as { people?: { key: string }[] } | undefined)?.people : undefined) ?? []).map((person) => person.key));
+  issues.push(...rowIssues(bundle, declared, { names: new Set(declared.keys()), what: manifest.kind === 'add-on' ? 'add-on' : 'app', otherLabels: false, known: seedLabelsOf(manifest), people }));
   issues.push(...ledgerOrderIssues(bundle, manifest, declared));
   return issues;
 }
@@ -516,6 +538,8 @@ function rowIssues(
     otherLabels: boolean;
     /** Labels of rows that are there before the file's first: the manifest's own starting rows. */
     known?: ReadonlySet<string>;
+    /** The manifest's sample people, by key; absent where a file may name none (an app's rows for an add-on). */
+    people?: ReadonlySet<string>;
   },
 ): SampleIssue[] {
   const issues: SampleIssue[] = [];
@@ -644,6 +668,15 @@ function rowIssues(
           continue;
         }
         const found = sampleDirective(value);
+        // A sample person: one the manifest lists, in a column that can hold a staff member's id.
+        for (const key of samplePeopleIn(value)) {
+          if (opts.people === undefined) issues.push({ path: `${at}.${column}`, message: 'A sample person is named in the app\'s own sample file, not in its rows for an add-on.' });
+          else if (!opts.people.has(key)) issues.push({ path: `${at}.${column}`, message: `"${key}" is not one of the manifest's sample people (sampleData.people).` });
+        }
+        if (found?.kind === 'person') {
+          const holds = shape.columns.find((c) => c.ref === column);
+          if (holds?.type !== 'text') issues.push({ path: `${at}.${column}`, message: `"${table.ref}.${column}" is not a text column, so it cannot hold a staff member.` });
+        }
         if (found?.kind === 'table') {
           const holds = shape.columns.find((c) => c.ref === column);
           if (!opts.names.has(found.ref)) issues.push({ path: `${at}.${column}`, message: `"${found.ref}" is not a table this ${opts.what} declares.` });

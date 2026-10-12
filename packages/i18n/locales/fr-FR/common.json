@@ -1750,9 +1750,11 @@
     },
     "rolesLocked": "Modifier les rôles requiert la permission « Gérer les rôles ».",
     "search": "Rechercher un nom ou un e-mail",
+    "sampleNote": "{count} personnes d’exemple proviennent des données d’exemple d’une application. Elles ne peuvent pas se connecter et disparaissent avec les données d’exemple.",
     "status": {
       "active": "Actif",
       "invited": "Invité",
+      "sample": "Personne d’exemple",
       "suspended": "Suspendu"
     },
     "subtitle": "Qui possède un compte sur cet Adminium, et ce que chacun peut faire.",

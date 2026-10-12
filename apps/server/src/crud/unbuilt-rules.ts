@@ -159,6 +159,8 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   'states.handOver',
   // A total that is the newest child row's value, settled by the statement that settles a sum.
   'rollup.latest',
+  // Sample data's own people and teams: made as staff who cannot sign in, named by the sample's rows, removed with them.
+  'sampleData.people',
   // Rows read by the people they belong to and by nothing else: not in the view a rule, a public door, a kiosk's key or an owner's
   // code reads through, and refused by name as a file out, a file in, a scheduled report and a document.
   'table.private',
