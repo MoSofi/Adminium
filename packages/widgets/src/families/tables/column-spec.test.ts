@@ -2,6 +2,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  columnAlign,
   compareCellValues,
   dateOnlyValue,
   displayValueOf,
@@ -144,6 +145,15 @@ describe('compareCellValues — the string-mrr numeric sort fix (ia-mapping)', (
   it('integer logicalType counts as numeric even without semantics', () => {
     expect(isNumericColumn(spec({ name: 'seats', label: 'Seats', logicalType: 'integer' }))).toBe(true);
     expect(isNumericColumn(spec({ name: 'name', label: 'Name', logicalType: 'varchar' }))).toBe(false);
+  });
+});
+
+describe('columnAlign', () => {
+  it('end-aligns a plain number and start-aligns an FK chip over an integer id', () => {
+    expect(columnAlign(spec({ name: 'seats', label: 'Seats', logicalType: 'integer' }))).toBe('end');
+    const fk = { table: 'main.employees', column: 'id' };
+    expect(columnAlign(spec({ name: 'manager_id', label: 'Manager', logicalType: 'integer', fk }))).toBe('start');
+    expect(columnAlign(spec({ name: 'manager_id', label: 'Manager', logicalType: 'integer', fk, align: 'end' }))).toBe('end');
   });
 });
 
