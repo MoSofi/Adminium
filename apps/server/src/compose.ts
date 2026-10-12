@@ -260,7 +260,9 @@ import { pagesRoutes } from './routes/pages/index.js';
 import { projectRoutes } from './routes/project/index.js';
 import { permissionsRoutes } from './routes/permissions/index.js';
 import { rolesRoutes } from './routes/roles/index.js';
+import { rowsNaming } from './crud/rows-naming.js';
 import { teamsRoutes } from './routes/teams/index.js';
+import { rowReachRoutes } from './routes/teams/reach.js';
 import { scheduledReportsRoutes } from './routes/scheduled-reports/index.js';
 import { schemaDdlRoutes } from './routes/schema-ddl/index.js';
 import { installCustomerKey } from './public-api/customer-key.js';
@@ -2489,6 +2491,9 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       );
       await api.register(rolesRoutes);
       await api.register(teamsRoutes);
+      await api.register(rowReachRoutes({ meta, manager }));
+      // A person named in rows is not removed for good until those rows are somebody's: the users routes ask this.
+      api.decorate('rowsNamingUser', (userId: string) => rowsNaming(meta, manager, userId));
       await api.register(usersRoutes);
       await api.register(permissionsRoutes);
       await api.register(apiKeysRoutes);
