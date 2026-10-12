@@ -3,6 +3,7 @@
  * Zod schemas for the roles resource (naming: `<resource><Action><Part>`
  * consts, PascalCase inferred types).
  */
+import { rowLimitSchema } from '@adminium/meta';
 import { z } from 'zod';
 
 export const roleDto = z.object({
@@ -54,15 +55,30 @@ export const roleDeleteQuery = z.object({
 
 export const roleOkReply = z.object({ ok: z.literal(true) });
 
+/**
+ * Which rows a role's read, update and delete of a table reach, by the
+ * table's place in the matrix (`<connectionId>/<tableId>`): the person's own,
+ * their team's, the ones nobody owns yet, only while a column holds a value.
+ * A table that is not here reaches every row.
+ */
+export const roleRowsSchema = z.record(z.string().min(1).max(400), rowLimitSchema);
+
 export const rolePermissionsReply = z.object({
   roleId: z.string(),
   /** Grant strings expanded from the matrix rows. */
   grants: z.array(z.string()),
+  rows: roleRowsSchema,
 });
 export type RolePermissionsReply = z.infer<typeof rolePermissionsReply>;
 
 export const rolePermissionsPutBody = z.object({
   grants: z.array(z.string()).max(2000),
+  /**
+   * The row limits to change, table by table: a limit to set, or `null` to
+   * take one off. A table left out keeps the limit it has, so a client that
+   * knows nothing of row limits never widens a role by saving its matrix.
+   */
+  rows: z.record(z.string().min(1).max(400), rowLimitSchema.nullable()).optional(),
 });
 export type RolePermissionsPutBody = z.infer<typeof rolePermissionsPutBody>;
 

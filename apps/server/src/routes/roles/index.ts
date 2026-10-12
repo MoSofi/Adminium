@@ -52,6 +52,16 @@ function toDto(role: Role): RoleDto {
   };
 }
 
+/** The row limits a role's matrix rows carry, by table. */
+function rowLimitsOf(rows: readonly { resourceKind: string; resourceRef: string; actions: unknown }[]): Record<string, RowLimit> {
+  const out: Record<string, RowLimit> = {};
+  for (const row of rows) {
+    const limit = row.resourceKind === 'table' ? (row.actions as TableActions).rowLimit : undefined;
+    if (limit !== undefined) out[row.resourceRef] = limit;
+  }
+  return out;
+}
+
 /** `Custom Support Role` → `custom-support-role` (slug column is str(40)). */
 function slugify(name: string): string {
   const slug = name
@@ -227,7 +237,8 @@ export const rolesRoutes: FastifyPluginAsyncZod = async (app) => {
     },
     async (request) => {
       const role = await mustFindRole(request.params.id);
-      return { roleId: role.id, grants: grantsFromMatrixRows(await permissions.listForRole(role.id)) };
+      const held = await permissions.listForRole(role.id);
+      return { roleId: role.id, grants: grantsFromMatrixRows(held), rows: rowLimitsOf(held) };
     },
   );
 
@@ -280,6 +291,25 @@ export const rolesRoutes: FastifyPluginAsyncZod = async (app) => {
         const create = row.resourceKind === 'table' ? (row.actions as TableActions).createLimit : undefined;
         if (create !== undefined) creates.set(row.resourceRef, create);
       }
+      // What the editor changed of "which rows": set, or taken off; a table it did not send keeps its own.
+      const granted = new Set(rows.filter((row) => row.resourceKind === 'table').map((row) => row.resourceRef));
+      for (const [ref, limit] of Object.entries(request.body.rows ?? {})) {
+        if (limit === null || Object.keys(limit).length === 0) {
+          rowLimits.delete(ref);
+          continue;
+        }
+        if (!granted.has(ref)) {
+          throw new ValidationFailedError('A row limit narrows a grant: the role holds nothing on that table.', { fields: { rows: { code: 'not-granted', table: ref } } });
+        }
+        for (const [action, reach] of Object.entries(limit)) {
+          // "Every row" is the plain grant; it is written as a limit only to say "only while".
+          if (reach !== undefined && reach.reach === 'all' && reach.while === undefined) {
+            throw new ValidationFailedError('"Every row" is the grant itself: take the limit off, or say only while.', { fields: { rows: { code: 'all-without-while', table: ref, action } } });
+          }
+        }
+        rowLimits.set(ref, limit);
+      }
+      const beforeRows = rowLimitsOf(held);
       await meta.db.deleteFrom('adminium_role_permissions').where('roleId', '=', role.id).execute();
       for (const row of rows) {
         const limit = row.resourceKind === 'table' ? limits.get(row.resourceRef) : undefined;
@@ -298,13 +328,16 @@ export const rolesRoutes: FastifyPluginAsyncZod = async (app) => {
               };
         await permissions.grant(role.id, row.resourceKind, row.resourceRef, actions);
       }
-      const after = grantsFromMatrixRows(await permissions.listForRole(role.id));
+      const saved = await permissions.listForRole(role.id);
+      const after = grantsFromMatrixRows(saved);
+      const afterRows = rowLimitsOf(saved);
+      const rowsChanged = JSON.stringify(beforeRows) !== JSON.stringify(afterRows);
       await app.rbac.audit(request, {
         category: 'rbac',
         action: 'role.permission.change',
-        changes: { before: { grants: before }, after: { grants: after } },
+        changes: { before: { grants: before, ...(rowsChanged ? { rows: beforeRows } : {}) }, after: { grants: after, ...(rowsChanged ? { rows: afterRows } : {}) } },
       });
-      return { roleId: role.id, grants: after };
+      return { roleId: role.id, grants: after, rows: afterRows };
     },
   );
 
