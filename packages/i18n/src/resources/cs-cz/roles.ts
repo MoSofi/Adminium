@@ -116,6 +116,7 @@ export default {
   },
   "rows": {
     "locked": "Super Admin dosáhne na každý řádek.",
+    "saveFirst": "Nejprve uložte nebo zahoďte změny oprávnění.",
     "action": "Řádky",
     "actionLabel": {
       "read": "Číst",

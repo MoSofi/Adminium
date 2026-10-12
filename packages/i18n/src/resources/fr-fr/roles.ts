@@ -116,6 +116,7 @@ export default {
   },
   "rows": {
     "locked": "Super Admin atteint toutes les lignes.",
+    "saveFirst": "Enregistrez ou annulez d’abord les modifications des autorisations.",
     "action": "Lignes",
     "actionLabel": {
       "read": "Lire",

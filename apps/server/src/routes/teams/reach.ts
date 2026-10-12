@@ -27,6 +27,7 @@ import { rowsNaming } from '../../crud/rows-naming.js';
 import { loadSnapshotView } from '../../data-io/snapshot-view.js';
 import { ConflictError, ForbiddenError, NotFoundError, ValidationFailedError } from '../../errors.js';
 import { handOverRows } from '../../rbac/hand-over.js';
+import { rowReachIssue } from '../../rbac/row-limit-check.js';
 import { PERMISSIONS, grantMatches, grantsFromMatrixRows, isGranted } from '../../rbac/permissions.js';
 import { SUPER_ADMIN_SLUG } from '../../rbac/resolver.js';
 import { rowReachOfRow } from '../../rbac/row-limits.js';
@@ -96,15 +97,19 @@ export function rowReachRoutes(deps: { meta: MetaDb; manager: ConnectionManager 
   return async (app) => {
     const users = usersRepo(meta);
 
-    app.post('/roles/rows/preview', { preHandler: app.rbac.require(PERMISSIONS.rolesManage), schema: { body: previewBody, response: { 200: previewReply } } }, async (request) => {
+    app.post('/roles/rows/preview', { preHandler: app.rbac.require(PERMISSIONS.rolesManage), schema: { body: previewBody, response: { 200: previewReply } } }, async (request, reply) => {
       const { connectionId, table: tableId, userId, action, reach } = request.body;
       if ((await users.findById(userId)) === null) throw new NotFoundError('User not found.', { userId });
       const view = await loadSnapshotView(meta, connectionId);
       const table = view.model.tables.find((candidate) => candidate.id === tableId);
       if (table === undefined) throw new NotFoundError('Table not found.', { table: tableId });
-      // A private table's rows are its people's alone: no figure of it is worked out for anybody else.
-      if (table.private === true) throw new ValidationFailedError('A private table is read by its own people only.', { fields: { table: { code: 'private' } } });
-      if (table.belongs === undefined && reach.reach !== 'all') throw new ValidationFailedError('This table does not say whose its rows are.', { fields: { table: { code: 'no-belongs' } } });
+      // A count of a table's rows is a reading of them: only for somebody who reads the table themselves. Who edits roles
+      // and reads nothing here is told no figure of it.
+      await (app.rbac.require(`table:${connectionId}:${tableId}:read`) as unknown as (req: typeof request, rep: typeof reply) => Promise<void>)(request, reply);
+      // A private table's rows are its people's alone, and "only while" names a column everybody who reads the table sees:
+      // under a hidden one, the count would tell its values.
+      const wrong = rowReachIssue(view.model, tableId, reach);
+      if (wrong !== null) throw new ValidationFailedError(wrong.message, { fields: { table: { code: wrong.code, ...(wrong.column === undefined ? {} : { column: wrong.column }) } } });
       const led = reach.reach === 'team' ? await teamsRepo(meta).leadReach(userId) : { ids: [], capped: false };
       // The person, holding this one limit on this one table and nothing else.
       const set = {

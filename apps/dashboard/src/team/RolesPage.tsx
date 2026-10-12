@@ -476,8 +476,16 @@ export function RolesPage(): ReactNode {
                         <Button
                           variant="ghost"
                           size="sm"
-                          disabled={role.slug === SUPER_ADMIN_SLUG}
-                          title={role.slug === SUPER_ADMIN_SLUG ? t('roles:rows.locked', 'Super Admin reaches every row.') : undefined}
+                          // A save of the rows writes the role's grants as the server holds them: with boxes ticked and not yet
+                          // saved it would be working from one set and the matrix from another, and one would undo the other.
+                          disabled={role.slug === SUPER_ADMIN_SLUG || changed.length > 0}
+                          title={
+                            role.slug === SUPER_ADMIN_SLUG
+                              ? t('roles:rows.locked', 'Super Admin reaches every row.')
+                              : changed.length > 0
+                                ? t('roles:rows.saveFirst', 'Save or discard the permission changes first.')
+                                : undefined
+                          }
                           onClick={() => setLimiting(role)}
                           data-testid={`roles-rows-${role.slug}`}
                         >
@@ -874,9 +882,14 @@ function RoleRowsDialog(props: { role: RoleListItem; onClose: () => void; onSave
   const body = grants.data === undefined ? null : rowLimitsSave(grants.data, tables, draft);
   const dirty = body !== null && Object.keys(body.rows).length > 0;
 
+  const queryClient = useQueryClient();
   const save = useMutation({
     mutationFn: async () => {
-      if (body !== null) await putRoleRows(role.id, body);
+      if (body === null) return;
+      // The grants as they are NOW, not as they were when the dialog opened: a save sends the whole list, and one read
+      // minutes ago would take back whatever another admin has ticked since.
+      const fresh = await queryClient.fetchQuery({ ...roleGrantsQuery(role.id), staleTime: 0 });
+      await putRoleRows(role.id, rowLimitsSave(fresh, tables, draft));
     },
     onSuccess: props.onSaved,
   });
@@ -996,7 +1009,8 @@ function RoleRowsTableCard(props: {
                       disabled={props.disabled}
                       onChange={(event) => {
                         const value = event.target.value;
-                        if (value === 'all') props.onChange(action, null);
+                        // "Only while…" is a condition the app wrote: choosing every row keeps it (every row, only while), never drops it unsaid.
+                        if (value === 'all') props.onChange(action, reach?.while === undefined ? null : { reach: 'all', while: reach.while });
                         else if (value === 'own' || value === 'team') props.onChange(action, { ...(reach ?? {}), reach: value });
                       }}
                       data-testid={`roles-rows-${table.tableId}-${action}`}

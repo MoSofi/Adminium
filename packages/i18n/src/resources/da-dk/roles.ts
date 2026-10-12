@@ -116,6 +116,7 @@ export default {
   },
   "rows": {
     "locked": "Super Admin når alle rækker.",
+    "saveFirst": "Gem eller kassér først ændringerne i tilladelserne.",
     "action": "Rækker",
     "actionLabel": {
       "read": "Læse",

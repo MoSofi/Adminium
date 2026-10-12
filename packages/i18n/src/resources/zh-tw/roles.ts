@@ -116,6 +116,7 @@ export default {
   },
   "rows": {
     "locked": "超級管理員可存取每一列。",
+    "saveFirst": "請先儲存或捨棄對權限的變更。",
     "action": "資料列",
     "actionLabel": {
       "read": "讀取",

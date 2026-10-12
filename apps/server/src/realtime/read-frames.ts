@@ -64,7 +64,7 @@ const bare = (event: RealtimeEvent): RealtimeEvent => ({ ...event, data: { type:
  *
  *  - The row is theirs now: the frame.
  *  - It was theirs and is not any more (handed to a colleague): its key and
- *    no row, so their screen lets go of it.
+ *    no row, marked `gone`, so their screen lets go of it.
  *  - It is not theirs and was not: NOTHING. Not a key, not a "something
  *    changed": a colleague's work is not announced to them.
  *  - Whose it is cannot be told from the row alone — the table's people are
@@ -101,8 +101,9 @@ function forRowsReached(event: RealtimeEvent, permissions: PermissionSet, user: 
   };
   // The whole frame: a reach that asks nothing more of the row holds it as it is now.
   if (reaches.some((one) => one.while === undefined && holds(one, reach.after))) return event;
-  // It was theirs and is a colleague's now: its key, and no row.
-  if (reaches.some((one) => one.while === undefined && holds(one, reach.before))) return { ...event, data: { type: event.type, pk: (data as { pk?: unknown }).pk ?? null, row: null } };
+  // It was theirs and is a colleague's now: its key and no row, MARKED `gone`. Other frames carry a key and no row too (a file
+  // hung on a record): the mark is what tells a screen to let go of the row, and nothing else does.
+  if (reaches.some((one) => one.while === undefined && holds(one, reach.before))) return { ...event, data: { type: event.type, pk: (data as { pk?: unknown }).pk ?? null, row: null, gone: true } };
   // Theirs by its people, and whether it also holds the value the reach asks for is not told here: the screen asks again.
   if (reaches.some((one) => holds(one, reach.after) || holds(one, reach.before))) return bare(event);
   return null;

@@ -90,6 +90,9 @@ for (const [dialect, available] of ENGINES) {
       await call('lena', 'PATCH', `${table('followups')}/1`, { values: { owner_id: w.people.omar, note: 'Now Omar rings Harbour' } });
       const got = await stop();
       expect(shape(got['dana']!)).toEqual([['record.update', 1, null, null]]);
+      // Marked: a key with no row is also how "a file was attached" arrives, and only the mark tells her screen to let go of the row.
+      expect(got['dana']!.map((frame) => (frame as { gone?: unknown }).gone)).toEqual([true]);
+      expect(got['omar']!.map((frame) => (frame as { gone?: unknown }).gone)).toEqual([undefined]);
       expect(shape(got['omar']!)).toEqual([['record.update', 1, 'Now Omar rings Harbour', null]]);
       expect(shape(got['mara']!)).toEqual([['record.update', 1, 'Now Omar rings Harbour', null]]);
       await w.run(`UPDATE followups SET owner_id = '${w.people.dana}', note = 'Ring Harbour' WHERE id = 1`);

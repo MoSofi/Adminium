@@ -90,6 +90,8 @@ type PendingOp<T> = { kind: 'upsert'; item: T } | { kind: 'remove'; key: string 
  * refetch.
  */
 function keyOfLetGo(payload: StreamEventPayload): string | null {
+  // Only a frame the server marked: a key with no row is also how "a file was attached to this record" arrives, and that row stays.
+  if ((payload as { gone?: unknown }).gone !== true) return null;
   if (payload.row !== null && payload.row !== undefined) return null;
   const pk = payload.pk;
   if (pk === null || pk === undefined) return null;

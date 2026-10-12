@@ -116,6 +116,7 @@ export default {
   },
   "rows": {
     "locked": "超级管理员可访问每一行。",
+    "saveFirst": "请先保存或放弃对权限的更改。",
     "action": "行",
     "actionLabel": {
       "read": "读取",

@@ -116,6 +116,7 @@ export default {
   },
   "rows": {
     "locked": "Super Admin reaches every row.",
+    "saveFirst": "Save or discard the permission changes first.",
     "action": "Rows",
     "actionLabel": {
       "read": "Read",

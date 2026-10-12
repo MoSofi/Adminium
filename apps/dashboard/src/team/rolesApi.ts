@@ -424,6 +424,7 @@ export function withReach(limit: RowLimit | null | undefined, action: RowAction,
  * its table, so a table the role reaches only through a wider grant ("read
  * every record") is first given grants of its own for the actions being
  * limited: within one role, the table's own word stands over the wider one.
+ * A grant is only ever added for an action the role holds there already.
  */
 export function rowLimitsSave(
   grants: readonly string[],
@@ -436,11 +437,19 @@ export function rowLimitsSave(
     if (!(table.ref in draft)) continue;
     const limit = draft[table.ref] ?? null;
     if (JSON.stringify(limit) === JSON.stringify(table.limit)) continue;
-    rows[table.ref] = limit;
-    if (limit === null) continue;
-    for (const action of ROW_ACTIONS) {
-      if (limit[action] !== undefined) next.add(`table:${table.connectionId}:${table.tableId}:${action}`);
+    if (limit === null) {
+      rows[table.ref] = null;
+      continue;
     }
+    // Only an action the role already holds on the table is limited, and only that one is named for it: a limit kept for an
+    // action the role lost since (unticked in the matrix) is dropped here, never turned back into the grant.
+    const kept: RowLimit = {};
+    for (const action of ROW_ACTIONS) {
+      if (limit[action] === undefined || !table.granted[action]) continue;
+      kept[action] = limit[action];
+      next.add(`table:${table.connectionId}:${table.tableId}:${action}`);
+    }
+    rows[table.ref] = Object.keys(kept).length === 0 ? null : kept;
   }
   return { grants: [...next], rows };
 }

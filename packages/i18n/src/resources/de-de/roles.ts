@@ -116,6 +116,7 @@ export default {
   },
   "rows": {
     "locked": "Super Admin erreicht jede Zeile.",
+    "saveFirst": "Speichern oder verwerfen Sie zuerst die Änderungen an den Berechtigungen.",
     "action": "Zeilen",
     "actionLabel": {
       "read": "Lesen",

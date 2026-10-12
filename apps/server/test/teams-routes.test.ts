@@ -10,7 +10,8 @@
  */
 import BetterSqlite3 from 'better-sqlite3';
 import { afterEach, describe, expect, it } from 'vitest';
-import { auditRepo, createSqliteMetaDb, destroyMetaDb, firstRun, initMetaDb, permissionsRepo, rolesRepo, teamsRepo, usersRepo, type MetaDb, type Role, type TableActions, type User } from '@adminium/meta';
+import { applyClassification, parseDatabaseModel } from '@adminium/engine';
+import { auditRepo, connectionsRepo, createSqliteMetaDb, destroyMetaDb, firstRun, initMetaDb, overridesRepo, permissionsRepo, rolesRepo, snapshotsRepo, teamsRepo, usersRepo, type MetaDb, type Role, type TableActions, type User } from '@adminium/meta';
 
 import { buildServer, type AdminiumServer } from '../src/app.js';
 import { rbacPlugin } from '../src/plugins/rbac.js';
@@ -23,6 +24,8 @@ interface Ctx {
   meta: MetaDb;
   people: { ava: User; iris: User; liam: User; dana: User; sam: User; gone: User; sample: User };
   roles: { viewer: Role; custom: Role };
+  /** A connection Adminium has read, with one table that says whose its rows are. */
+  conn: string;
 }
 let ctx: Ctx;
 afterEach(async () => {
@@ -56,6 +59,27 @@ async function build(): Promise<Ctx> {
     gone: await make('Gone', null, 'suspended'),
     sample: await make('Sample Rep', null, 'sample'),
   };
+  // A row limit is taken only for a table that is there and says whose its rows are: a database as Adminium read it.
+  const conn = (await connectionsRepo(meta, { encrypt: (v: string) => v, decrypt: (v: string) => v }).create({ name: 'Main', engine: 'sqlite', introspectDsn: 'sqlite::memory:', dataDsn: 'sqlite::memory:' })).id;
+  const text = (name: string) => ({ name, logicalType: 'text', nullable: true });
+  const model = applyClassification(
+    parseDatabaseModel({
+      dialect: 'sqlite',
+      name: 'main',
+      defaultSchema: 'main',
+      schemas: ['main'],
+      tables: [
+        { schema: 'main', name: 'deals', primaryKey: ['id'], columns: [{ name: 'id', logicalType: 'integer', nullable: false, isPrimaryKey: true, default: { kind: 'autoincrement' } }, text('owner_id'), text('state')] },
+        { schema: 'main', name: 'other', primaryKey: ['id'], columns: [{ name: 'id', logicalType: 'integer', nullable: false, isPrimaryKey: true, default: { kind: 'autoincrement' } }, text('owner_id')] },
+      ],
+      relations: [],
+    }),
+  );
+  await snapshotsRepo(meta).create({ connectionId: conn, source: 'introspection', schema: model, checksum: 'c1' } as never);
+  for (const table of ['main.deals', 'main.other']) {
+    await overridesRepo(meta).create({ connectionId: conn, op: 'column.staff', tableName: table, columnName: 'owner_id', value: { staff: true }, origin: 'user' } as never);
+    await overridesRepo(meta).create({ connectionId: conn, op: 'table.belongs', tableName: table, columnName: null, value: { ways: [{ column: 'owner_id', set: 'team' }] }, origin: 'user' } as never);
+  }
   const app = await buildServer({ env: makeEnv(), logger: false, metaDb: meta });
   app.addHook('onRequest', async (request) => {
     const id = request.headers['x-test-user-id'];
@@ -73,7 +97,7 @@ async function build(): Promise<Ctx> {
     { prefix: '/api/v1' },
   );
   await app.ready();
-  return { app, meta, people, roles: { viewer: await builtin('viewer'), custom } };
+  return { app, meta, people, roles: { viewer: await builtin('viewer'), custom }, conn };
 }
 
 const call = (method: 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE', url: string, user: User, payload?: unknown) =>
@@ -148,12 +172,12 @@ describe('the people a writer may name', () => {
 });
 
 describe('a role\'s "which rows"', () => {
-  const TABLE = 'conn_1/main.deals';
-  const grant = (action: string) => `table:conn_1:main.deals:${action}`;
-  const grants = [grant('read'), grant('update')];
 
   it('is read with the matrix, set table by table, and kept by a save that does not mention it', async () => {
     ctx = await build();
+    const TABLE = `${ctx.conn}/main.deals`;
+    const grant = (action: string) => `table:${ctx.conn}:main.deals:${action}`;
+    const grants = [grant('read'), grant('update')];
     const { ava } = ctx.people;
     const url = `/roles/${ctx.roles.custom.id}/permissions`;
     const first = await call('PUT', url, ava, { grants, rows: { [TABLE]: { read: { reach: 'team', unowned: true }, update: { reach: 'own' } } } });
@@ -179,9 +203,12 @@ describe('a role\'s "which rows"', () => {
 
   it('refuses a limit on a table the role holds nothing on, and "every row" with no "only while"', async () => {
     ctx = await build();
+    const TABLE = `${ctx.conn}/main.deals`;
+    const grant = (action: string) => `table:${ctx.conn}:main.deals:${action}`;
+    const grants = [grant('read'), grant('update')];
     const { ava, iris } = ctx.people;
     const url = `/roles/${ctx.roles.custom.id}/permissions`;
-    const loose = await call('PUT', url, ava, { grants, rows: { 'conn_1/main.other': { read: { reach: 'own' } } } });
+    const loose = await call('PUT', url, ava, { grants, rows: { [`${ctx.conn}/main.other`]: { read: { reach: 'own' } } } });
     expect([loose.statusCode, loose.body.includes('not-granted')]).toEqual([422, true]);
     const all = await call('PUT', url, ava, { grants, rows: { [TABLE]: { read: { reach: 'all' } } } });
     expect([all.statusCode, all.body.includes('all-without-while')]).toEqual([422, true]);

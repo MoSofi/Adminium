@@ -19,10 +19,14 @@ import { permissionsRepo, rolesRepo, usersRepo, type Role, type TableActions, ty
 import { ConflictError, ForbiddenError, NotFoundError, ValidationFailedError } from '../../errors.js';
 import {
   PERMISSIONS,
+  grantMatches,
   grantsFromMatrixRows,
   matrixRowsFromGrants,
 } from '../../rbac/permissions.js';
+import type { EffectiveModel } from '../../connections/effective-schema.js';
+import { loadSnapshotView } from '../../data-io/snapshot-view.js';
 import { SUPER_ADMIN_SLUG } from '../../rbac/resolver.js';
+import { rowLimitIssue } from '../../rbac/row-limit-check.js';
 import {
   roleCreateBody,
   roleDeleteQuery,
@@ -260,6 +264,11 @@ export const rolesRoutes: FastifyPluginAsyncZod = async (app) => {
           slug: role.slug,
         });
       }
+      const models = new Map<string, EffectiveModel | null>();
+      const modelOf = async (connectionId: string): Promise<EffectiveModel | null> => {
+        if (!models.has(connectionId)) models.set(connectionId, await loadSnapshotView(meta, connectionId).then((view) => view.model, () => null));
+        return models.get(connectionId) ?? null;
+      };
       const { rows, invalid } = matrixRowsFromGrants(request.body.grants);
       if (invalid.length > 0) {
         throw new ValidationFailedError('One or more grants are outside the permission grammar.', {
@@ -301,13 +310,35 @@ export const rolesRoutes: FastifyPluginAsyncZod = async (app) => {
         if (!granted.has(ref)) {
           throw new ValidationFailedError('A row limit narrows a grant: the role holds nothing on that table.', { fields: { rows: { code: 'not-granted', table: ref } } });
         }
+        // The table itself: there, saying whose its rows are, not private, and told apart by a column everybody who reads it sees.
+        const [connectionId, ...rest] = ref.split('/');
+        const tableId = rest.join('/');
+        const model = connectionId === undefined || connectionId === '' ? null : await modelOf(connectionId);
+        const wrong = model === null ? ({ code: 'no-such-table', message: 'That table is not there.', action: '' } as const) : rowLimitIssue(model, tableId, limit);
+        if (wrong !== null) throw new ValidationFailedError(wrong.message, { fields: { rows: { code: wrong.code, table: ref, ...(wrong.action === '' ? {} : { action: wrong.action }), ...('column' in wrong && wrong.column !== undefined ? { column: wrong.column } : {}) } } });
+        const own = rows.find((row) => row.resourceKind === 'table' && row.resourceRef === ref)?.actions as TableActions | undefined;
         for (const [action, reach] of Object.entries(limit)) {
+          // A limit is stored on the table's own row and read from it: an action that row does not give is given, if at all, by a
+          // wider grant, which no limit here narrows. The screen would say "their own rows" and the role would reach every row.
+          if (reach !== undefined && own?.[action as 'read' | 'update' | 'delete'] !== true) {
+            throw new ValidationFailedError(`A row limit narrows an action the role is given on that table itself: it is not given "${action}" there.`, { fields: { rows: { code: 'action-not-granted', table: ref, action } } });
+          }
           // "Every row" is the plain grant; it is written as a limit only to say "only while".
           if (reach !== undefined && reach.reach === 'all' && reach.while === undefined) {
             throw new ValidationFailedError('"Every row" is the grant itself: take the limit off, or say only while.', { fields: { rows: { code: 'all-without-while', table: ref, action } } });
           }
         }
         rowLimits.set(ref, limit);
+      }
+      // A limited table whose own row this save takes away, while a wider grant still gives the action there: the limit would
+      // go with the row and the role reach every row, with nothing said. Refused, unless the limit is taken off by name.
+      for (const [ref, limit] of rowLimits) {
+        if (granted.has(ref) || request.body.rows?.[ref] === null) continue;
+        const [connectionId, ...rest] = ref.split('/');
+        const lifted = Object.keys(limit).filter((action) => request.body.grants.some((grant) => grantMatches(grant, `table:${connectionId ?? ''}:${rest.join('/')}:${action}`)));
+        if (lifted.length > 0) {
+          throw new ValidationFailedError('That table is held to some of its rows, and a wider grant would still give it: keep its own row, or take the row limit off first.', { fields: { rows: { code: 'limit-would-lift', table: ref, actions: lifted } } });
+        }
       }
       const beforeRows = rowLimitsOf(held);
       await meta.db.deleteFrom('adminium_role_permissions').where('roleId', '=', role.id).execute();

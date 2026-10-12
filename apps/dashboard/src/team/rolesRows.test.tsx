@@ -165,4 +165,16 @@ describe('what a save of row limits sends', () => {
     expect(withReach({ read: { reach: 'own' } }, 'read', null)).toBeNull();
     expect(withReach({ read: { reach: 'own' } }, 'update', { reach: 'team' })).toEqual({ read: { reach: 'own' }, update: { reach: 'team' } });
   });
+
+  it('gives a role back no action it no longer holds: a limit for one is dropped, never turned into the grant', () => {
+    // Update was unticked in the matrix since; the table still carries a limit for it.
+    const lost = table({ granted: { read: true, update: false, delete: false }, limit: { read: { reach: 'own' }, update: { reach: 'own' } } });
+    const grants = ['table:conn_1:main.deals:read'];
+    const saved = rowLimitsSave(grants, [lost], { [lost.ref]: { read: { reach: 'team' }, update: { reach: 'own' } } });
+    expect(saved.grants).toEqual(grants);
+    expect(saved.rows).toEqual({ [lost.ref]: { read: { reach: 'team' } } });
+    // Nothing held at all: the limit goes, and no grant is made.
+    const none = table({ granted: { read: false, update: false, delete: false }, limit: { read: { reach: 'own' } } });
+    expect(rowLimitsSave([], [none], { [none.ref]: { read: { reach: 'team' } } })).toEqual({ grants: [], rows: { [none.ref]: null } });
+  });
 });

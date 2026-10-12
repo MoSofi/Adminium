@@ -20,7 +20,7 @@ const staff = (ref: string) => ({ ref, type: 'text', maxLength: 36, nullable: tr
 
 const manifest = (): Record<string, unknown> => ({
   ...invoicingManifest([
-    { ref: 'deals', belongs: [{ column: 'owner_id', set: 'team' }], indexes: [['owner_id']], columns: [id, { ref: 'name', type: 'text', maxLength: 80 }, staff('owner_id'), { ref: 'state', type: 'text', maxLength: 10, default: 'open' }, staff('approved_by')] },
+    { ref: 'deals', belongs: [{ column: 'owner_id', set: 'team' }], indexes: [['owner_id']], columns: [id, { ref: 'name', type: 'text', maxLength: 80 }, staff('owner_id'), { ref: 'state', type: 'text', maxLength: 10, default: 'open' }, staff('approved_by'), { ref: 'api_token', type: 'text', maxLength: 80, nullable: true }] },
     { ref: 'notes', private: true, belongs: [{ column: 'manager_id' }, { column: 'rep_id' }], indexes: [['manager_id'], ['rep_id']], columns: [id, staff('manager_id'), staff('rep_id'), { ref: 'text', type: 'text', maxLength: 200 }] },
     { ref: 'plain', columns: [id, { ref: 'name', type: 'text', maxLength: 80 }] },
   ]),
@@ -128,6 +128,61 @@ for (const [dialect, reachable] of LEGS) {
       expect(await ask()).toEqual(['Boss']);
       await roles.removeFromUser(people['dana']!.id, boss.id);
       await roles.removeFromUser(people['dana']!.id, rep.id);
+    });
+
+    it('stores no row limit that would not hold, and takes none away by accident', async () => {
+      const roles = rolesRepo(h.meta);
+      const role = await roles.create({ slug: `held-${dialect}`, name: 'Held' });
+      const ref = (table: string) => `${h.connectionId}/${tableId(table)}`;
+      const grant = (table: string, action: string) => `table:${h.connectionId}:${tableId(table)}:${action}`;
+      const save = async (grants: string[], rows?: Record<string, unknown>) => {
+        const reply = await app.inject({ method: 'PUT', url: `/api/v1/roles/${role.id}/permissions`, headers: { cookie }, payload: { grants, ...(rows === undefined ? {} : { rows }) } });
+        const code = reply.statusCode === 200 ? 'ok' : ((reply.json() as { error?: { details?: { fields?: { rows?: { code?: string } } } } }).error?.details?.fields?.rows?.code ?? String(reply.statusCode));
+        return code;
+      };
+      const stored = async () => (await permissionsRepo(h.meta).listForRole(role.id)).flatMap((row) => ((row.actions as { rowLimit?: unknown }).rowLimit === undefined ? [] : [[row.resourceRef, (row.actions as { rowLimit?: unknown }).rowLimit]]));
+      // An action the table's own row does not give: a wider grant gives it, and no limit on the row would narrow that.
+      expect(await save([grant('deals', 'read'), `table:${h.connectionId}:*:update`], { [ref('deals')]: { update: { reach: 'own' } } })).toBe('action-not-granted');
+      // A table that cannot be held to rows: private, or silent about whose its rows are.
+      expect(await save([grant('notes', 'read')], { [ref('notes')]: { read: { reach: 'own' } } })).toBe('private');
+      expect(await save([grant('plain', 'read')], { [ref('plain')]: { read: { reach: 'own' } } })).toBe('no-belongs');
+      // "Only while" a column that is not there, or one not everybody who reads the table sees.
+      expect(await save([grant('deals', 'read')], { [ref('deals')]: { read: { reach: 'own', while: { column: 'nowhere', in: ['x'] } } } })).toBe('no-such-column');
+      expect(await save([grant('deals', 'read')], { [ref('deals')]: { read: { reach: 'own', while: { column: 'api_token', in: ['x'] } } } })).toBe('hidden-column');
+      expect(await stored()).toEqual([]);
+      // One that holds is stored.
+      expect(await save([grant('deals', 'read')], { [ref('deals')]: { read: { reach: 'own' } } })).toBe('ok');
+      expect(await stored()).toEqual([[ref('deals'), { read: { reach: 'own' } }]]);
+      // The table's own row traded for a grant of every table: the limit would go with the row, and the role read every deal.
+      expect(await save([`table:${h.connectionId}:*:read`])).toBe('limit-would-lift');
+      expect(await stored()).toEqual([[ref('deals'), { read: { reach: 'own' } }]]);
+      // Taken off by name, it is a choice: allowed.
+      expect(await save([`table:${h.connectionId}:*:read`], { [ref('deals')]: null })).toBe('ok');
+      expect(await stored()).toEqual([]);
+      // And a limited table simply no longer granted at all loses its limit with the grant: nothing is left to reach.
+      expect(await save([grant('deals', 'read')], { [ref('deals')]: { read: { reach: 'own' } } })).toBe('ok');
+      expect(await save([])).toBe('ok');
+    });
+
+    it('works a figure out only for somebody who reads the table, and by no column that is hidden', async () => {
+      const users = usersRepo(h.meta);
+      const roles = rolesRepo(h.meta);
+      people['rm'] = await users.create({ email: `rm-${dialect}@reach.dev`, name: 'rm', passwordHash: await adminPasswordHash(), status: 'active' });
+      const editsRoles = await roles.create({ slug: `edits-roles-${dialect}`, name: 'Edits roles' });
+      await permissionsRepo(h.meta).grant(editsRoles.id, 'system', 'roles.manage', { allowed: true });
+      await roles.assignToUser(people['rm']!.id, editsRoles.id);
+      const rm = await signedIn('rm');
+      const ask = (as: string, reach: Record<string, unknown>) => app.inject({ method: 'POST', url: '/api/v1/roles/rows/preview', headers: { cookie: as }, payload: { connectionId: h.connectionId, table: tableId('deals'), userId: people['ivy']!.id, reach } });
+      // Edits roles, reads no deal: no count of them, whatever is asked.
+      expect((await ask(rm, { reach: 'own' })).statusCode).toBe(403);
+      expect((await ask(rm, { reach: 'all', while: { column: 'state', in: ['won'] } })).statusCode).toBe(403);
+      // Given the read, the count is theirs to see.
+      await permissionsRepo(h.meta).grant(editsRoles.id, 'table', `${h.connectionId}/${tableId('deals')}`, { read: true, create: false, update: false, delete: false, export: false, import: false });
+      expect((await ask(rm, { reach: 'own' })).statusCode).toBe(200);
+      // Nobody, a Super Admin included, is counted rows by a secret column: the count would tell its values.
+      const secret = await ask(cookie, { reach: 'all', while: { column: 'api_token', in: ['abc'] } });
+      expect([secret.statusCode, secret.body.includes('hidden-column')]).toEqual([422, true]);
+      expect((await ask(cookie, { reach: 'all', while: { column: 'nowhere', in: ['abc'] } })).body).toContain('no-such-column');
     });
 
     const signedIn = async (name: string): Promise<string> => {
