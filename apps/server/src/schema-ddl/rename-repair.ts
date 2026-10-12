@@ -282,6 +282,36 @@ export function renamedInRule(op: string, value: unknown, from: string, to: stri
   }
 }
 
+/**
+ * A table's `belongs` with one column of a LISTING table renamed: the listing
+ * a way goes through (`through.table`) names its own columns — the link back,
+ * the person, the dates it holds from and to — and a rename of one of them
+ * must follow in every table that reads the listing. Left alone the way reads
+ * a column that is gone, and the row limit, which fails closed on a way it
+ * cannot read, hides every row that way reached.
+ *
+ * Not followed here: `person`, the staff column of the row a link points at.
+ * Which table that is takes the model to say; the test still fails closed.
+ */
+export function renamedInListing(value: unknown, table: string, from: string, to: string): unknown {
+  const rule = value as { ways?: Record<string, unknown>[] } | null;
+  if (rule === null || typeof rule !== 'object' || !Array.isArray(rule.ways)) return value;
+  let changed = false;
+  const ways = rule.ways.map((way) => {
+    const through = way['through'] as Record<string, unknown> | undefined;
+    if (through === undefined || through['table'] !== table) return way;
+    const next = { ...through };
+    for (const key of ['link', 'user', 'from', 'to'] as const) {
+      if (next[key] === from) {
+        next[key] = to;
+        changed = true;
+      }
+    }
+    return { ...way, through: next };
+  });
+  return changed ? { ...rule, ways } : value;
+}
+
 export async function repairAfterRename(input: RenameRepairInput): Promise<RenameRepairResult> {
   /*
    * ONE TRANSACTION, as the header has always said and the code never did:
@@ -410,6 +440,8 @@ async function repairIn(input: RenameRepairInput): Promise<RenameRepairResult> {
       let value: unknown = row.value;
       for (const rename of columnRenames) {
         if (rename.table === row.tableName) value = renamedInRule(row.op, value, rename.from, rename.to);
+        // Whose a row is may be read from ANOTHER table's columns: the listing a way goes through.
+        if (row.op === 'table.belongs') value = renamedInListing(value, rename.table, rename.from, rename.to);
       }
       if (value === row.value) continue;
       await meta.db
