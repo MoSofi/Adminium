@@ -44,4 +44,13 @@ describe('an update that stops keeping a table private', () => {
     const warned = await planOf(manifest('0.2.2', false));
     expect(warned).toEqual([{ table: 'notes', column: '', message: 'This version no longer keeps "notes" private. Its rows, read until now only by the people each belongs to, will be read by every role that is given the table.' }]);
   }, 240_000);
+
+  it('says the other way too: a table that was open and becomes private, and what stops reading it', async () => {
+    await h.close();
+    h = await installInvoicing('sqlite', manifest('0.2.0', false));
+    expect(await planOf(manifest('0.2.1', false))).toEqual([]);
+    const warned = await planOf(manifest('0.2.2', true));
+    expect(warned.map((warning) => warning.table)).toEqual(['notes']);
+    expect(warned[0]!.message).toContain('Rules, public entries, scheduled reports, exports and documents that read it stop working');
+  }, 240_000);
 });

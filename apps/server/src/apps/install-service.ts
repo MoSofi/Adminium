@@ -969,13 +969,19 @@ export function createAppInstallService(deps: AppRoutesDeps) {
     // A table the app kept private and this version does not: its rows, read until now by their own people alone,
     // open to every role that holds the table. The one way that mark comes off, so it is said before it happens.
     const privateNow = (await overridesRepo(deps.meta).listForConnection(connectionId, { status: 'active' })).filter((row) => row.op === 'table.private').map((row) => row.tableName);
-    if (privateNow.length > 0) {
-      const realNames = plan.names ?? (await appTablesRepo(deps.meta).realNames(connectionId, manifest.key));
-      for (const table of manifest.requiredSchema?.tables ?? []) {
-        if ((table as { private?: true }).private === true) continue;
-        const real = realNames[table.ref] ?? table.ref;
-        if (!privateNow.some((name) => name === real || name.endsWith(`.${real}`))) continue;
+    // The tables this app already has here: only for those is a mark "new" or "gone" (a table the install makes has no past).
+    const held = await appTablesRepo(deps.meta).realNames(connectionId, manifest.key);
+    for (const table of manifest.requiredSchema?.tables ?? []) {
+      const real = held[table.ref];
+      if (real === undefined) continue;
+      const was = privateNow.some((name) => name === real || name.endsWith(`.${real}`));
+      const is = (table as { private?: true }).private === true;
+      if (was && !is) {
         ruleWarnings.push({ table: table.ref, column: '', message: `This version no longer keeps "${table.ref}" private. Its rows, read until now only by the people each belongs to, will be read by every role that is given the table.` });
+      }
+      // …and the other way: whatever reads the table for somebody else stops the moment it is private.
+      if (!was && is) {
+        ruleWarnings.push({ table: table.ref, column: '', message: `This version makes "${table.ref}" private: its rows will be read only by the people each belongs to. Rules, public entries, scheduled reports, exports and documents that read it stop working, and no role reaches every row of it.` });
       }
     }
     const nameOf = (key: string) => appNames.get(key) ?? key;
