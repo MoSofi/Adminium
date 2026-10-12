@@ -20,8 +20,8 @@
 | `references/manifest/requiredschema--column-rules-2.md` | requiredSchema — Column rules (part 2) | 7261 |
 | `references/manifest/requiredschema--column-rules-3.md` | requiredSchema — Column rules (part 3) | 7849 |
 | `references/manifest/requiredschema--column-rules-4.md` | requiredSchema — Column rules (part 4) | 7786 |
-| `references/manifest/requiredschema--column-rules-5.md` | requiredSchema — Column rules (part 5) | 7658 |
-| `references/manifest/requiredschema--column-rules-6.md` | requiredSchema — Column rules (part 6) | 6880 |
+| `references/manifest/requiredschema--column-rules-5.md` | requiredSchema — Column rules (part 5) | 7559 |
+| `references/manifest/requiredschema--column-rules-6.md` | requiredSchema — Column rules (part 6) | 7310 |
 | `references/manifest/requiredschema--column-rules-7.md` | requiredSchema — Column rules (part 7) | 5692 |
 | `references/manifest/requiredschema--column-rules-8.md` | requiredSchema — Column rules (part 8) | 5541 |
 | `references/manifest/requiredschema--moments.md` | requiredSchema — Moments | 2748 |
@@ -80,8 +80,8 @@
 | `references/manifest/public-access--publickeys.md` | Public access — publicKeys | 3463 |
 | `references/manifest/automations.md` | Automations | 5036 |
 | `references/manifest/sample-data.md` | Sample data | 975 |
-| `references/manifest/sample-data--sample-people.md` | Sample data — Sample people | 7529 |
-| `references/manifest/sample-data--sample-people-2.md` | Sample data — Sample people (part 2) | 2471 |
+| `references/manifest/sample-data--sample-people.md` | Sample data — Sample people | 7697 |
+| `references/manifest/sample-data--sample-people-2.md` | Sample data — Sample people (part 2) | 2788 |
 | `references/manifest/seeds-and-widgets.md` | seeds and widgets | 2826 |
 | `references/manifest/add-on-manifests.md` | Add-on manifests | 4354 |
 | `references/manifest/add-on-manifests--an-add-on-with-tables-of-its-own.md` | Add-on manifests — An add-on with tables of its own | 2488 |

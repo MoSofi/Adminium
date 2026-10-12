@@ -2,6 +2,12 @@
 
 # Manifest spec: Sample data — Sample people
 
+Each set holds columns of the table, and may use directives. A set with `"@skip": true` leaves the
+row out altogether: a payment for a visit that has not happened yet.
+
+A row that lasts from one time to another (a stay) may carry `@byStay` instead, placing it by where
+the adding moment falls against its two times:
+
 ```json
 { "@label": "stay-4", "arrive": { "@day": -1, "@week": true }, "depart": { "@day": 2, "@week": true },
   "status": "booked",

@@ -117,6 +117,8 @@ export interface SoftLink {
   addOn: string;
   tableId: string | null;
   key: string | null;
+  /** What kind of value the add-on's key holds, where the model says: a value that could never be one is not asked of the database. */
+  keyType?: string;
 }
 
 /** What `details.fields` on a 422 carries: one issue per column. */
@@ -838,7 +840,14 @@ export function tableRulesFor(target: { view: SnapshotView; table: ResolvedTable
     const beside = lastFours.filter((last) => last.of === code.column).map((last) => last.column);
     if (beside.length > 0) code.last4 = beside;
   }
-  const addOnLinks: SoftLink[] = columns.flatMap((column) => (column.addOnLink === undefined ? [] : [{ column: column.name, addOn: column.addOnLink.addOn, tableId: column.addOnLink.tableId, key: column.addOnLink.key }]));
+  const keyTypeOf = (tableId: string | null, key: string | null): string | undefined =>
+    tableId === null || key === null ? undefined : target.view?.model?.tables?.find((table) => table.id === tableId)?.columns.find((column) => column.name === key)?.logicalType;
+  const addOnLinks: SoftLink[] = columns.flatMap((column) => {
+    if (column.addOnLink === undefined) return [];
+    const { addOn, tableId, key } = column.addOnLink;
+    const keyType = keyTypeOf(tableId, key);
+    return [{ column: column.name, addOn, tableId, key, ...(keyType === undefined ? {} : { keyType }) }];
+  });
   const readOnly = [
     ...ownRollups.map((r) => r.column),
     // The key of the row a "latest" took is Adminium's, like the value beside it.

@@ -85,6 +85,7 @@ export const INSTALL_FLOOR_WORD_NAMES = [
   'sampleData.people',
   'app.seeds',
   'table.occupies',
+  'sequence.sample',
   'email.onlyWith',
   'email.onlyWithout',
   'outbox.pages.app',
@@ -140,6 +141,8 @@ export const WORD_FLOORS: Readonly<Partial<Record<ManifestWordName, string>>> = 
   'app.seeds': '0.3.27',
   // A row takes a resource for a time: no two overlap, within the resource's hours.
   'table.occupies': '0.3.27',
+  // A running number the app's sample rows may take: the next real row follows them.
+  'sequence.sample': '0.3.27',
 };
 
 /** Every word of `document` that needs the install floor, in document order. */
@@ -220,6 +223,7 @@ export function installFloorWords(document: unknown): ManifestWord[] {
       }
       if (isDoc(rules['code']) && rules['code']['givenByLedger'] !== undefined) out.push({ word: 'code.givenByLedger', path: `${here}.code.givenByLedger` });
       if (isDoc(rules['rollup']) && rules['rollup']['capUnless'] !== undefined) out.push({ word: 'rollup.capUnless', path: `${here}.rollup.capUnless` });
+      if (isDoc(rules['sequence']) && rules['sequence']['sample'] !== undefined) out.push({ word: 'sequence.sample', path: `${here}.sequence.sample` });
       if (isDoc(rules['rollup']) && rules['rollup']['latest'] !== undefined) out.push({ word: 'rollup.latest', path: `${here}.rollup.latest` });
       if (isDoc(rules['lookup']) && isDoc(rules['lookup']['table'])) out.push({ word: 'column.addOnLink', path: `${here}.lookup.table` });
     });

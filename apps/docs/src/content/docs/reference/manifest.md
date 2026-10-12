@@ -713,6 +713,7 @@ A tax office expects an unbroken series of invoice numbers: none twice, none ski
 | `start` | The first number, at least 1. |
 | `startSetting` | The first number, read from a [setting](#values-from-elsewhere) when the row is made. Not with `start`. |
 | `scope` | A foreign key of the table: the series restarts for each row it points at (a deliverable's versions, v1, v2 …). |
+| `sample` | `true`: the app's [sample rows](#sample-data) may take numbers in the series, and the next real row follows them. For a series of the app's own (a job's `J-01`); never on a table built on an add-on's document. Needs Adminium 0.3.27. |
 
 `scope` and `startSetting` need `gapless`.
 
@@ -740,7 +741,7 @@ number twice, which MySQL's numbering also leans on.
 An import brings its own history: it keeps the numbers its rows carry, and a row that carries only
 the text, written as the table's prefix followed by digits, gets the number from those digits.
 The series then carries on after the largest. Sample rows spell a gapless number `null`, so they
-stay off the real series; see [Sample data](#sample-data).
+stay off the real series, unless the series is marked `sample`; see [Sample data](#sample-data).
 
 #### Values from elsewhere
 
@@ -3651,6 +3652,13 @@ A column numbered [without gaps](#numbers-without-gaps) is spelled `null` in eve
 `INV-S2041`), or empty. A sample row then
 stays off the real series: the first real invoice is still number one. Adding the sample is
 refused when a row leaves a gapless column out or gives it a number.
+
+A series marked `"sample": true` is the exception, for numbers that are the app's own and no tax
+document's (a job's `J-01`). Each sample row gives the column its number, with the `format` text
+written the table's way (`"code_seq": 7, "code": "J-07"`), or `null` for a row with no number.
+A number twice in one series is refused, and so is a text that does not match its number. The
+next real row takes the number after the largest, and goes on from there once the sample is
+removed.
 
 A value is plain JSON, or one of these directives:
 

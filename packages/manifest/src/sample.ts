@@ -676,9 +676,39 @@ function rowIssues(
       }
     }
     // A number Adminium gives without gaps: a sample row names it, empty, or the load numbers it into the real series.
-    const gapless = shape.columns.filter((column) => column.rules?.sequence?.gapless === true).map((column) => column.ref);
+    // One the app opened to its sample (`sequence.sample`) may instead be given its number: checked below, with the text written from it.
+    const gapless = shape.columns.filter((column) => column.rules?.sequence?.gapless === true && column.rules.sequence.sample !== true).map((column) => column.ref);
+    const numberedBySample = shape.columns.filter((column) => column.rules?.sequence?.gapless === true && column.rules.sequence.sample === true);
+    const taken = new Map<string, number>();
     for (const [r, row] of table.rows.entries()) {
       const at = `tables.${String(t)}.rows.${String(r)}`;
+      for (const numbered of numberedBySample) {
+        const column = numbered.ref;
+        const given = row[column];
+        if (given === null) continue;
+        if (typeof given !== 'number' || !Number.isInteger(given) || given < 1) {
+          const now = given === undefined ? 'this row leaves it out' : 'this row gives it something else';
+          issues.push({ path: `${at}.${column}`, message: `"${column}" is a running number, and ${now}. Write the row's number (1, 2, 3 …), or "${column}": null to give it none.` });
+          continue;
+        }
+        // One series per parent row when the number is scoped: the same number under two parents is two numbers.
+        const scope = numbered.rules?.sequence?.scope;
+        const key = `${column}\u0000${scope === undefined ? '' : JSON.stringify(row[scope] ?? null)}\u0000${String(given)}`;
+        const before = taken.get(key);
+        if (before !== undefined) issues.push({ path: `${at}.${column}`, message: `"${column}" ${String(given)} is row ${String(before)}'s number already.` });
+        else taken.set(key, r);
+        // The text people read is written with it: nothing writes it for a sample row.
+        const text = shape.columns.find((other) => other.rules?.format?.from === column);
+        const format = text?.rules?.format;
+        if (text === undefined || format === undefined) continue;
+        const written = row[text.ref];
+        const want = format.prefixSetting === undefined ? `${format.prefix ?? ''}${String(given).padStart(format.pad ?? 0, '0')}` : null;
+        if (typeof written !== 'string' || written === '') {
+          issues.push({ path: `${at}.${text.ref}`, message: `"${text.ref}" is the number as people read it${want === null ? '' : ` ("${want}")`}: a sample row that gives "${column}" writes it too.` });
+        } else if (want !== null && written !== want) {
+          issues.push({ path: `${at}.${text.ref}`, message: `"${text.ref}" is written from "${column}": for ${String(given)} it reads "${want}", not "${written}".` });
+        }
+      }
       for (const column of gapless) {
         if (row[column] !== null) {
           // Said as what to write: a model given only the reason left the key out, eight times running.

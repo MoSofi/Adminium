@@ -48,6 +48,8 @@ const app = (key: string, name: string): Doc => ({
           { ref: 'name', type: 'text', maxLength: 80, nullable: true },
           { ref: 'typed', type: 'text', maxLength: 40, nullable: true },
           { ref: 'item_id', type: 'int', nullable: true, rules: { addOnLink: { addOn: 'kit', table: 'items' }, lookup: { from: 'typed', table: { addOn: 'kit', table: 'items' }, column: 'sku' } } },
+          // The same link kept as text: taken where it reads as a key, and "no such row" where it could never be one.
+          { ref: 'item_text', type: 'text', maxLength: 64, nullable: true, rules: { addOnLink: { addOn: 'kit', table: 'items' } } },
         ],
       },
     ],
@@ -151,6 +153,13 @@ describe.each(LEGS)('a link into an add-on\'s table — %s', (dialect, available
     await writes().update({ target: at, pk: { id }, values: { item_id: 1 }, context: DESK, announce: async () => {} });
     await writes().update({ target: at, pk: { id }, values: { item_id: null }, context: DESK, announce: async () => {} });
     expect((await h.rows(`SELECT item_id FROM shop_lines WHERE id = ${String(id)}`))[0]!['item_id'] ?? null).toBeNull();
+    // A text link into keys that are whole numbers: "1" is row 1, "999" is no row, and a word is no row either —
+    // not the database's own error, which is what Postgres answers when a number column is compared with a word.
+    expect((await create('shop_lines', { name: 'By text', item_text: '1' }))['item_text']).toBe('1');
+    for (const word of ['999', 'bench-desk-runs', '1; drop', '1.5']) {
+      expect(await refusal(create('shop_lines', { name: 'A word', item_text: word })), word).toMatchObject({ code: 'VALIDATION_FAILED', statusCode: 422, details: { fields: { item_text: { code: 'not-found' } } } });
+    }
+    expect(Number((await h.rows(`SELECT COUNT(*) AS n FROM shop_lines WHERE name = 'A word'`))[0]!['n'])).toBe(0);
     // Rows made many at once are held to it row by row; an import keeps a link to a row that is gone.
     const many = await writes().check('create', at, DESK, [{ name: 'One', item_id: 1 }, { name: 'Two', item_id: 999 }]);
     expect(many.issues).toEqual([null, { item_id: { code: 'not-found' } }]);

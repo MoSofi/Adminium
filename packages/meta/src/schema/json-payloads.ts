@@ -1106,6 +1106,8 @@ export const overridePatchSchema = z.discriminatedUnion('op', [
        * `startSetting` reads the first number from a setting.
        */
       gapless: z.literal(true).optional(),
+      /** The app's sample rows may take numbers in the series; read by the manifest's check of a sample file, not by a write. */
+      sample: z.literal(true).optional(),
       startSetting: ruleSetting.optional(),
       scope: ruleColumn.optional(),
     }),

@@ -79,6 +79,7 @@ A tax office expects an unbroken series of invoice numbers: none twice, none ski
 | `start` | The first number, at least 1. |
 | `startSetting` | The first number, read from a [setting](https://docs.adminium.dev/reference/manifest/#values-from-elsewhere) when the row is made. Not with `start`. |
 | `scope` | A foreign key of the table: the series restarts for each row it points at (a deliverable's versions, v1, v2 …). |
+| `sample` | `true`: the app's [sample rows](https://docs.adminium.dev/reference/manifest/#sample-data) may take numbers in the series, and the next real row follows them. For a series of the app's own (a job's `J-01`); never on a table built on an add-on's document. Needs Adminium 0.3.27. |
 
 `scope` and `startSetting` need `gapless`.
 
@@ -106,7 +107,7 @@ number twice, which MySQL's numbering also leans on.
 An import brings its own history: it keeps the numbers its rows carry, and a row that carries only
 the text, written as the table's prefix followed by digits, gets the number from those digits.
 The series then carries on after the largest. Sample rows spell a gapless number `null`, so they
-stay off the real series; see [Sample data](https://docs.adminium.dev/reference/manifest/#sample-data).
+stay off the real series, unless the series is marked `sample`; see [Sample data](https://docs.adminium.dev/reference/manifest/#sample-data).
 
 #### Values from elsewhere
 
@@ -121,9 +122,3 @@ made:
 ```
 
 `from` is one of:
-
-| `from` | Reads |
-|---|---|
-| `"connection.currency"` | The connection's currency, a three-letter code. The column is `text` of at least 3 characters. |
-| `{ "table", "column" }` | A column of the app's one-row settings table. |
-| `{ "addOn", "setting" }` | A setting of an add-on. The app must require that add-on in [`addOns.requires`](https://docs.adminium.dev/reference/manifest/#add-ons), so the setting is always there. |

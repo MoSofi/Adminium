@@ -531,12 +531,16 @@ export const columnRulesSchema = z
      * A running number. `gapless` numbers are taken inside the write that
      * creates the row, so the series never skips or repeats (an invoice's);
      * `scope` numbers per parent row (a deliverable's versions v1, v2 …);
-     * `startSetting` reads the first number from a setting.
+     * `startSetting` reads the first number from a setting. `sample` lets the
+     * app's sample rows take numbers in the series (a job's J-01): the next
+     * real row follows them. Never a tax document's series, which no sample
+     * row may leave a hole in.
      */
     sequence: z
       .object({
         start: z.number().int().min(1).optional(),
         gapless: z.literal(true).optional(),
+        sample: z.literal(true).optional(),
         startSetting: settingSourceSchema.optional(),
         scope: refSchema.optional(),
       })
@@ -2154,6 +2158,11 @@ export function appReferenceIssues(
           if (column.nullable !== true) out.push({ path: here('sequence', 'gapless'), message: 'a numbered column is nullable: sample rows carry no number' });
         } else if (seq.scope !== undefined || seq.startSetting !== undefined) {
           out.push({ path: here('sequence'), message: 'scope and startSetting number without gaps: add gapless' });
+        }
+        if (seq.sample === true) {
+          if (seq.gapless !== true) out.push({ path: here('sequence', 'sample'), message: 'only a number without gaps is kept from sample rows: a plain running number needs no "sample"' });
+          // A document built on an add-on's shape is numbered for the tax office: a sample row removed later would leave a hole in it.
+          if (table.builtOn !== undefined) out.push({ path: here('sequence', 'sample'), message: `"${table.ref}" is built on an add-on's document: its numbers are never a sample row's` });
         }
         if (seq.startSetting !== undefined) settingIssue(seq.startSetting, here('sequence', 'startSetting'));
         if (seq.scope !== undefined) {

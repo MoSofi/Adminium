@@ -64,6 +64,13 @@ A column numbered [without gaps](https://docs.adminium.dev/reference/manifest/#n
 stays off the real series: the first real invoice is still number one. Adding the sample is
 refused when a row leaves a gapless column out or gives it a number.
 
+A series marked `"sample": true` is the exception, for numbers that are the app's own and no tax
+document's (a job's `J-01`). Each sample row gives the column its number, with the `format` text
+written the table's way (`"code_seq": 7, "code": "J-07"`), or `null` for a row with no number.
+A number twice in one series is refused, and so is a text that does not match its number. The
+next real row takes the number after the largest, and goes on from there once the sample is
+removed.
+
 A value is plain JSON, or one of these directives:
 
 | Directive | Value |
@@ -98,9 +105,3 @@ statuses match the time it is added at:
 | `before` | Columns merged into the row when its time is more than half an hour before the moment the sample is added. |
 | `around` | Columns merged when its time is within half an hour of it. |
 | `after` | Columns merged when its time is later. |
-
-Each set holds columns of the table, and may use directives. A set with `"@skip": true` leaves the
-row out altogether: a payment for a visit that has not happened yet.
-
-A row that lasts from one time to another (a stay) may carry `@byStay` instead, placing it by where
-the adding moment falls against its two times:

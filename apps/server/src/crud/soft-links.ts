@@ -37,11 +37,32 @@ export function inertLinkWritten(rules: Pick<TableRules, 'addOnLinks'> | null, v
   return linksWritten(rules, values).find((link) => link.tableId === null || link.key === null) ?? null;
 }
 
+/**
+ * Whether a value could be a key of this kind at all. A text column may link
+ * into an add-on whose keys are whole numbers: "12" finds row 12, and
+ * "bench-desk" names no row — said here, because Postgres does not answer
+ * that comparison with "no row" but with an error of its own.
+ */
+function couldBeKey(keyType: string | undefined, value: unknown): boolean {
+  if (keyType === 'integer' || keyType === 'bigint') {
+    if (typeof value === 'number') return Number.isSafeInteger(value);
+    if (typeof value === 'bigint') return true;
+    return typeof value === 'string' && /^-?\d{1,18}$/.test(value.trim());
+  }
+  if (keyType === 'decimal' || keyType === 'float') return typeof value === 'number' ? Number.isFinite(value) : typeof value === 'string' && /^-?\d+(\.\d+)?$/.test(value.trim());
+  if (keyType === 'uuid') return typeof value === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value.trim());
+  return true;
+}
+
 /** Each link whose value names no row of the add-on's table: a field issue a form can mark. */
 export async function softLinkIssues(db: Db, rules: Pick<TableRules, 'addOnLinks'> | null, values: Row): Promise<FieldIssues | null> {
   let issues: FieldIssues | null = null;
   for (const link of linksWritten(rules, values)) {
     if (link.tableId === null || link.key === null) continue;
+    if (!couldBeKey(link.keyType, values[link.column])) {
+      (issues ??= {})[link.column] = { code: 'not-found' };
+      continue;
+    }
     const found = await db
       .selectFrom(link.tableId as never)
       .select(sql<number>`1`.as('one'))
