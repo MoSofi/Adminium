@@ -1544,6 +1544,8 @@ export function createSampleDataService(deps: SampleDataDeps) {
     const files = filesRepo(deps.meta);
     /** The sample's own people and teams: made before its rows, taken away again if anything later fails. */
     let staff: SampleStaff = NO_STAFF;
+    /** Set once the rows are committed: from then on they name the people and the files, and nothing is taken back. */
+    let committed = false;
     try {
       for (const [label, asset] of Object.entries(bundle.assets)) {
         const { bytes, sha256: actual } = await filesOf(app).readVerifiedFile(app.key, app.version, asset.file);
@@ -2134,6 +2136,7 @@ export function createSampleDataService(deps: SampleDataDeps) {
         }
       });
 
+      committed = true;
       if (moves.length > 0 && pass.section !== undefined) {
         const posted = await makeMoves({ app, section: pass.section, moves, wrote, connectionId, handle, view, names, timeZone, refOf: (tableId) => storedTableRef(refIndex, tableId), opts, now });
         for (const [ref, n] of Object.entries(posted)) counts[ref] = (counts[ref] ?? 0) + n;
@@ -2179,8 +2182,12 @@ export function createSampleDataService(deps: SampleDataDeps) {
       await deps.publish?.(connectionId);
       return { counts, files: fileIds.size };
     } catch (error) {
-      for (const id of fileIds.values()) await files.markDeleted(id).catch(() => undefined);
-      await dropStaff(staff.people.map((one) => one.id), staff.teams.map((one) => one.id)).catch(() => undefined);
+      // After the commit the rows are in, and they name these people and files: a later step that failed (a counter
+      // moved on, the audit entry, telling the open screens) takes neither away. The error is still said.
+      if (!committed) {
+        for (const id of fileIds.values()) await files.markDeleted(id).catch(() => undefined);
+        await dropStaff(staff.people.map((one) => one.id), staff.teams.map((one) => one.id)).catch(() => undefined);
+      }
       throw error;
     }
   }
@@ -2205,6 +2212,7 @@ export function createSampleDataService(deps: SampleDataDeps) {
     const made: SampleStaff = { ids, people: [], teams: [] };
     try {
       const kept = new Map(listed.filter((row) => row.table_ref === PERSON_REF && row.label !== null).map((row) => [row.label as string, (JSON.parse(row.pk) as { id: string }).id]));
+      await dropOrphans(app, new Set(listed.filter((row) => row.table_ref === PERSON_REF).map((row) => (JSON.parse(row.pk) as { id: string }).id)));
       for (const person of people) {
         const before = kept.get(person.key);
         const held = before === undefined ? null : await users.findById(before);
@@ -2212,9 +2220,9 @@ export function createSampleDataService(deps: SampleDataDeps) {
           ids.set(person.key, held.id);
           continue;
         }
-        const wanted = person.email?.trim().toLowerCase();
+        // Never the address the manifest prints: that may be a real person's, who could then not be invited here.
         const own = `${person.key}.${app.key}@sample.invalid`;
-        const email = wanted !== undefined && (await users.findByEmail(wanted)) === null ? wanted : (await users.findByEmail(own)) === null ? own : `${person.key}.${app.key}.${newId('usr').slice(-8).toLowerCase()}@sample.invalid`;
+        const email = (await users.findByEmail(own)) === null ? own : `${person.key}.${app.key}.${newId('usr').slice(-8).toLowerCase()}@sample.invalid`;
         const user = await users.create({ email, name: person.name, passwordHash: null, status: 'sample' }, now);
         made.people.push({ id: user.id, label: person.key });
         ids.set(person.key, user.id);
@@ -2247,6 +2255,18 @@ export function createSampleDataService(deps: SampleDataDeps) {
     }
   }
 
+  /**
+   * Sample people of this app that no list names: an add that stopped between
+   * making them and entering them (a crash) left them behind, and nobody can
+   * remove a sample person by hand. Found by the address only this code
+   * gives, and taken away before the next add makes its own.
+   */
+  async function dropOrphans(app: SampleApp, listedIds: ReadonlySet<string>): Promise<void> {
+    const mine = new RegExp(`^[a-z0-9_-]+\\.${app.key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(\\.[a-z0-9]{1,12})?@sample\\.invalid$`);
+    const orphans = (await usersRepo(deps.meta).list({ status: 'sample', limit: 500 })).filter((user) => !listedIds.has(user.id) && mine.test(user.email));
+    await dropStaff(orphans.map((user) => user.id), []);
+  }
+
   /** Take sample people and teams away again: their roles and team places go with them. */
   async function dropStaff(people: readonly string[], teams: readonly string[]): Promise<void> {
     for (const id of teams) await teamsRepo(deps.meta).delete(id);
@@ -2264,14 +2284,39 @@ export function createSampleDataService(deps: SampleDataDeps) {
    * operator made and gave to a sample rep), or in a value of a row the
    * removal kept.
    */
-  async function peopleStillNamed(handle: DataHandle, view: SnapshotView, ids: readonly string[], keptValues: ReadonlySet<unknown>): Promise<Set<string>> {
+  async function peopleStillNamed(handle: DataHandle, view: SnapshotView, ids: readonly string[], keptValues: ReadonlySet<unknown>, connectionId?: string): Promise<Set<string>> {
     const named = new Set(ids.filter((id) => keptValues.has(id)));
     if (ids.length === 0) return named;
-    for (const table of view.model.tables) {
-      for (const column of table.columns) {
-        if (column.staff !== true) continue;
-        const rows = await asDb(handle.db).selectFrom(table.id as never).select(sql.ref(column.name).as('person')).distinct().where(sql.ref(column.name), 'in', ids as never).execute().catch(() => []);
-        for (const row of rows) named.add(String((row as { person: unknown }).person));
+    /** A column that could not be read says nothing: then everybody may still be named there, and nobody is taken away. */
+    const everybody = () => {
+      for (const id of ids) named.add(id);
+    };
+    const look = async (db: Kysely<SourceDatabase>, model: SnapshotView['model']): Promise<void> => {
+      for (const table of model.tables) {
+        for (const column of table.columns) {
+          if (column.staff !== true) continue;
+          try {
+            const rows = await db.selectFrom(table.id as never).select(sql.ref(column.name).as('person')).distinct().where(sql.ref(column.name), 'in', ids as never).execute();
+            for (const row of rows) named.add(String((row as { person: unknown }).person));
+          } catch {
+            everybody();
+          }
+        }
+      }
+    };
+    await look(asDb(handle.db), view.model);
+    // A sample person is a staff member of the whole server: a row of another connection may name them too.
+    const others = await deps.meta.db.selectFrom('adminium_connections').select(['id']).execute();
+    for (const other of others) {
+      if (other.id === connectionId) continue;
+      try {
+        // Never read: Adminium knows of no staff column there, so of nothing that could name anybody.
+        if ((await snapshotsRepo(deps.meta).latest(other.id)) === null) continue;
+        const theirs = await viewFor(other.id);
+        if (!theirs.model.tables.some((table) => table.columns.some((column) => column.staff === true))) continue;
+        await look(asDb((await deps.manager.data(other.id)).db), theirs.model);
+      } catch {
+        everybody();
       }
     }
     return named;
@@ -2565,7 +2610,7 @@ export function createSampleDataService(deps: SampleDataDeps) {
       if (only === undefined) {
         const idOf = (row: LedgerRow): string => (JSON.parse(row.pk) as { id: string }).id;
         const people = all.filter((entry) => entry.table_ref === PERSON_REF);
-        const named = await peopleStillNamed(handle, view, people.map(idOf), keptValues);
+        const named = await peopleStillNamed(handle, view, people.map(idOf), keptValues, connectionId);
         const gone = people.filter((entry) => !named.has(idOf(entry)));
         await dropStaff(gone.map(idOf), []);
         const forgotten = gone.map((entry) => entry.seq);

@@ -683,6 +683,7 @@ describe('a sample person', () => {
     }
     const after = (await usersRepo(ctx.meta).findById(dana.id))!;
     expect([after.name, after.status, after.passwordHash]).toEqual(['Dana Whitlock', 'sample', null]);
+    expect(await rolesRepo(ctx.meta).rolesForUser(dana.id)).toEqual([]);
   });
 
   it('gets no way in: no password link is minted for one', async () => {

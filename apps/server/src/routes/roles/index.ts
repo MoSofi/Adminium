@@ -343,6 +343,15 @@ export const rolesRoutes: FastifyPluginAsyncZod = async (app) => {
 
   // --- user-role assignment ----------------------------------------------------
 
+  /**
+   * A person an app's sample data made holds the roles the sample gave them
+   * and no other: given one by hand (Super Admin among them) they would
+   * count as a holder who can never sign in. Removing the sample removes them.
+   */
+  const assertNotSample = (user: { status: string }): void => {
+    if (user.status === 'sample') throw new ConflictError('This is a sample person. Removing the app\'s sample data removes them.', 'CONFLICT', { reason: 'SAMPLE_PERSON' });
+  };
+
   app.post(
     '/users/:id/roles',
     {
@@ -352,6 +361,7 @@ export const rolesRoutes: FastifyPluginAsyncZod = async (app) => {
     async (request) => {
       const user = await users.findById(request.params.id);
       if (user === null) throw new NotFoundError('User not found.', { userId: request.params.id });
+      assertNotSample(user);
       const role = await mustFindRole(request.body.roleId);
       // granted_by is the acting *user* id when the actor is a session user.
       const actingUserId =
@@ -392,6 +402,7 @@ export const rolesRoutes: FastifyPluginAsyncZod = async (app) => {
     async (request) => {
       const user = await users.findById(request.params.id);
       if (user === null) throw new NotFoundError('User not found.', { userId: request.params.id });
+      assertNotSample(user);
       const role = await mustFindRole(request.params.roleId);
       if (role.slug === SUPER_ADMIN_SLUG) {
         // Demoting a Super Admin is as much a super-admin-only power as

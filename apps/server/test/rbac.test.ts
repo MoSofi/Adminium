@@ -5,7 +5,7 @@
  * immediate grant/revoke effect, and the last-super-admin guard.
  */
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { auditRepo, destroyMetaDb } from '@adminium/meta';
+import { auditRepo, destroyMetaDb, rolesRepo, usersRepo } from '@adminium/meta';
 
 import { asUser, buildRbacTestApp, type RbacTestContext } from './rbac-helpers.js';
 
@@ -237,6 +237,23 @@ describe('roles routes', () => {
     const roles = (list.json() as { roles: { id: string; slug: string; memberCount: number }[] }).roles;
     expect(roles.find((role) => role.id === roleId)).toBeUndefined();
     expect(roles.find((role) => role.slug === 'viewer')?.memberCount).toBe(2);
+  });
+
+  it('gives a sample person no role by hand, and takes none: one made Super Admin would be a holder who can never sign in', async () => {
+    const superAdmin = asUser(ctx.users.superAdmin);
+    const dana = await usersRepo(ctx.meta).create({ email: 'dana.crm@sample.invalid', name: 'Dana Whitlock', passwordHash: null, status: 'sample' });
+    await rolesRepo(ctx.meta).assignToUser(dana.id, ctx.roles.viewer.id, null);
+    const tries = [
+      await ctx.app.inject({ method: 'POST', url: `/api/v1/users/${dana.id}/roles`, headers: superAdmin, payload: { roleId: ctx.roles.superAdmin.id } }),
+      await ctx.app.inject({ method: 'POST', url: `/api/v1/users/${dana.id}/roles`, headers: superAdmin, payload: { roleId: ctx.roles.admin.id } }),
+      await ctx.app.inject({ method: 'DELETE', url: `/api/v1/users/${dana.id}/roles/${ctx.roles.viewer.id}`, headers: superAdmin }),
+    ];
+    for (const reply of tries) {
+      expect(reply.statusCode, reply.body).toBe(409);
+      expect(reply.body).toContain('SAMPLE_PERSON');
+    }
+    // What the sample gave them, and nothing else.
+    expect((await rolesRepo(ctx.meta).rolesForUser(dana.id)).map((role) => role.slug)).toEqual(['viewer']);
   });
 
   it('refuses unassigning the last Super Admin, allows once another exists', async () => {

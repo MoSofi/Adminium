@@ -31,6 +31,8 @@ const TABLES = [
     columns: [id, { ref: 'name', type: 'text', maxLength: 80 }, { ref: 'owner_id', type: 'text', maxLength: 36, nullable: true, rules: { staff: true } }, { ref: 'made_by', type: 'text', maxLength: 36, nullable: true }],
   },
   { ref: 'views', columns: [id, { ref: 'name', type: 'text', maxLength: 80 }, { ref: 'filters', type: 'json' }] },
+  // A table the sample writes nothing into, whose rows may name a person all the same.
+  { ref: 'notes', columns: [id, { ref: 'text', type: 'text', maxLength: 80 }, { ref: 'author_id', type: 'text', maxLength: 36, nullable: true, rules: { staff: true } }] },
 ];
 
 const manifest = (): Record<string, unknown> => ({
@@ -97,9 +99,10 @@ for (const [dialect, reachable] of LEGS) {
       it('makes each a staff member who cannot sign in, with the app\'s role', async () => {
         const people = await s.sample();
         expect(people.map((user) => [user.name, user.email, user.status, user.passwordHash])).toEqual([
-          ['Dana Whitlock', 'dana@meridian.example', 'sample', null],
+          // Never the address the manifest prints: it may be a real person's, who could then not be invited here.
+          ['Dana Whitlock', 'dana.studio@sample.invalid', 'sample', null],
           ['Ivy Sandoval', 'ivy.studio@sample.invalid', 'sample', null],
-          ['Sam Okonjo', 'sam@meridian.example', 'sample', null],
+          ['Sam Okonjo', 'sam.studio@sample.invalid', 'sample', null],
         ]);
         const roles = rolesRepo(s.h.meta);
         expect((await roles.rolesForUser(people[0]!.id)).map((role) => role.slug)).toEqual(['studio-rep']);
@@ -180,6 +183,76 @@ for (const [dialect, reachable] of LEGS) {
       expect(again.find((user) => user.name === 'Dana Whitlock')!.id).toBe(dana);
       expect((await teams.members((await teams.findByName('Sales'))!.id)).length).toBe(3);
       expect(await teams.findByName('Sales (sample)')).toBeNull();
+    }, 240_000);
+
+    it('keeps the people when a step AFTER the rows are in fails: the rows name them', async () => {
+      const h = await installInvoicing(dialect, manifest(), undefined, { 'seeds/studio.sample.json': JSON.stringify(BUNDLE) });
+      harnesses.push(h);
+      // Telling the open screens is the last thing an add does, after its rows are committed.
+      const service = createSampleDataService({ meta: h.meta, manager: h.manager, store: createAppStore({ dataDir: h.dataDir }), files: memoryFiles, publish: async () => Promise.reject(new Error('nobody is listening')) });
+      const app = (await findSampleApp(h.meta, 'studio'))!;
+      await expect(service.add(app, { locale: 'en-US', userId: null, userLabel: 'test', now: Date.now() })).rejects.toThrow('nobody is listening');
+      const people = await usersRepo(h.meta).list({ status: 'sample', limit: 50 });
+      expect(people.length).toBe(3);
+      // Every row that names a person names one who is still there.
+      const named = (await h.rows(`SELECT owner_id FROM ${h.real('deals')} WHERE owner_id IS NOT NULL`)).map((row) => String(row['owner_id']));
+      expect(named.length).toBe(2);
+      for (const id of named) expect(people.map((user) => user.id)).toContain(id);
+      expect(await teamsRepo(h.meta).findByName('Sales')).not.toBeNull();
+    }, 240_000);
+
+    it('takes nobody away when it cannot read who is still named', async () => {
+      const h = await installInvoicing(dialect, manifest(), undefined, { 'seeds/studio.sample.json': JSON.stringify(BUNDLE) });
+      harnesses.push(h);
+      // The notes table (a staff column, no sample row) answers nothing: its read fails, as a table would behind a lost grant.
+      const deaf = new Proxy(h.manager, {
+        get(target, key) {
+          if (key !== 'data') {
+            const own = Reflect.get(target, key) as unknown;
+            return typeof own === 'function' ? (own as (...args: unknown[]) => unknown).bind(target) : own;
+          }
+          return async (connectionId: string) => {
+            const handle = await target.data(connectionId);
+            const db = new Proxy(handle.db as object, {
+              get(inner, name) {
+                const value = Reflect.get(inner, name) as unknown;
+                if (name !== 'selectFrom') return typeof value === 'function' ? (value as (...args: unknown[]) => unknown).bind(inner) : value;
+                return (table: unknown) => {
+                  if (String(table).includes('studio_notes')) throw new Error('permission denied for table studio_notes');
+                  return (value as (table: unknown) => unknown).call(inner, table);
+                };
+              },
+            });
+            return { ...handle, db };
+          };
+        },
+      });
+      const service = createSampleDataService({ meta: h.meta, manager: deaf as typeof h.manager, store: createAppStore({ dataDir: h.dataDir }), files: memoryFiles });
+      const app = (await findSampleApp(h.meta, 'studio'))!;
+      await service.add(app, { locale: 'en-US', userId: null, userLabel: 'test', now: Date.now() });
+      const done = await service.remove(app, { keepChanged: true, userId: null, userLabel: 'test' });
+      // The sample's rows are gone; its people are not, because nobody could say that no note names them.
+      expect(done.removed).toBe(4);
+      expect((await usersRepo(h.meta).list({ status: 'sample', limit: 50 })).length).toBe(3);
+      // Asked again by a server that can read the table, they go.
+      const hearing = createSampleDataService({ meta: h.meta, manager: h.manager, store: createAppStore({ dataDir: h.dataDir }), files: memoryFiles });
+      await hearing.add(app, { locale: 'en-US', userId: null, userLabel: 'test', now: Date.now() });
+      await hearing.remove(app, { keepChanged: true, userId: null, userLabel: 'test' });
+      expect(await usersRepo(h.meta).list({ status: 'sample', limit: 50 })).toEqual([]);
+    }, 240_000);
+
+    it('clears away a sample person no list names (an add that stopped half way) before it makes its own', async () => {
+      const s = await install(BUNDLE, async (h) => {
+        await usersRepo(h.meta).create({ email: 'dana.studio@sample.invalid', name: 'A leftover Dana', passwordHash: null, status: 'sample' });
+        await usersRepo(h.meta).create({ email: 'ghost.studio.ab12cd34@sample.invalid', name: 'A leftover ghost', passwordHash: null, status: 'sample' });
+        // Another app's sample person, and a real one: neither is this add's to touch.
+        await usersRepo(h.meta).create({ email: 'dana.clinic@sample.invalid', name: 'The clinic\'s Dana', passwordHash: null, status: 'sample' });
+        await usersRepo(h.meta).create({ email: 'real@studio.example', name: 'A real person', passwordHash: 'x', status: 'active' });
+      });
+      await s.add();
+      expect((await s.sample()).map((user) => user.name)).toEqual(['Dana Whitlock', 'Ivy Sandoval', 'Sam Okonjo', 'The clinic\'s Dana']);
+      expect((await s.byName('Dana Whitlock'))!.email).toBe('dana.studio@sample.invalid');
+      expect(await usersRepo(s.h.meta).findByEmail('real@studio.example')).not.toBeNull();
     }, 240_000);
 
     it('makes nobody when the rows cannot go in', async () => {
