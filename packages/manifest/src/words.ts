@@ -75,6 +75,7 @@ export const INSTALL_FLOOR_WORD_NAMES = [
   'column.codeLast4',
   'code.givenByLedger',
   'rollup.capUnless',
+  'rollup.latest',
   'roles.tables',
   'roles.writableFrom',
   'toolbar.links',
@@ -128,6 +129,8 @@ export const WORD_FLOORS: Readonly<Partial<Record<ManifestWordName, string>>> = 
   'roles.rows': '0.3.27',
   // A record's button that hands the row to anybody: the one write a role limited to its own rows names a colleague in.
   'states.handOver': '0.3.27',
+  // A total that is the newest child row's value, not a sum or a count (a deal's amount from its last sent quote).
+  'rollup.latest': '0.3.27',
 };
 
 /** Every word of `document` that needs the install floor, in document order. */
@@ -202,6 +205,7 @@ export function installFloorWords(document: unknown): ManifestWord[] {
       }
       if (isDoc(rules['code']) && rules['code']['givenByLedger'] !== undefined) out.push({ word: 'code.givenByLedger', path: `${here}.code.givenByLedger` });
       if (isDoc(rules['rollup']) && rules['rollup']['capUnless'] !== undefined) out.push({ word: 'rollup.capUnless', path: `${here}.rollup.capUnless` });
+      if (isDoc(rules['rollup']) && rules['rollup']['latest'] !== undefined) out.push({ word: 'rollup.latest', path: `${here}.rollup.latest` });
       if (isDoc(rules['lookup']) && isDoc(rules['lookup']['table'])) out.push({ word: 'column.addOnLink', path: `${here}.lookup.table` });
     });
   });

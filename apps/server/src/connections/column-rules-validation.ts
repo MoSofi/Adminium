@@ -663,7 +663,8 @@ export function columnRuleIssue(
 
     case 'column.rollup': {
       if (column.isGenerated || column.isPrimaryKey) return `${name} cannot hold a total.`;
-      if (!NUMERIC_TYPES.has(column.logicalType)) return `A total needs a number column; ${name} is ${column.logicalType}.`;
+      const latest = value['latest'] as Value | undefined;
+      if (latest === undefined && !NUMERIC_TYPES.has(column.logicalType)) return `A total needs a number column; ${name} is ${column.logicalType}.`;
       const parent = model.tables.find((candidate) => candidate.columns.includes(column));
       const child = model.tables.find((candidate) => candidate.id === String(value['from']));
       if (child === undefined) return `There is no table ${JSON.stringify(value['from'])} to add up.`;
@@ -677,7 +678,20 @@ export function columnRuleIssue(
           r.from.columns[0] === via,
       );
       if (!links) return `${JSON.stringify(via)} does not link ${child.name} back to this table.`;
-      if ((value['sum'] === undefined) === (value['count'] === undefined)) return 'A total adds up a column or counts rows, not both.';
+      if ([value['sum'], value['count'], latest].filter((kind) => kind !== undefined).length !== 1) return 'A total adds up a column, counts rows or takes the newest row\'s value: one of the three.';
+      if (latest !== undefined) {
+        if (value['times'] !== undefined || value['balance'] !== undefined || value['cap'] !== undefined || value['capUnless'] !== undefined) return 'The newest row\'s value takes nothing to multiply, no balance and no cap.';
+        if (!column.nullable) return `${name} is empty while no row qualifies, so it must allow empty.`;
+        for (const part of [latest['of'], latest['by']]) {
+          if (!child.columns.some((c) => c.name === String(part))) return `${child.name} has no column ${JSON.stringify(part)}.`;
+        }
+        if (latest['row'] !== undefined) {
+          const row = parent?.columns.find((c) => c.name === String(latest['row']));
+          if (row === undefined) return `${parent?.name ?? 'This table'} has no column ${JSON.stringify(latest['row'])} to hold the row's key.`;
+          if (row === column) return 'The row\'s key is kept in a column of its own.';
+          if (!row.nullable) return `${parent?.name}.${row.name} is empty while no row qualifies, so it must allow empty.`;
+        }
+      }
       if (value['count'] === true) {
         if (column.logicalType !== 'integer' && column.logicalType !== 'bigint') return `A count needs a whole-number column; ${name} is ${column.logicalType}.`;
         if (value['times'] !== undefined || value['balance'] !== undefined || value['cap'] !== undefined || value['capUnless'] !== undefined) return 'A count takes nothing to multiply, no balance and no cap.';

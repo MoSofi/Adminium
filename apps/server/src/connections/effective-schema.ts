@@ -122,6 +122,8 @@ export interface ColumnRollupRule {
   sum?: string;
   /** The child rows counted instead of a column added up. */
   count?: true;
+  /** Or the newest child row's value: `of` of the row whose `by` is greatest; `row`, a column of this table, holds that row's key. */
+  latest?: { of: string; by: string; row?: string };
   times?: string;
   /** A child row whose column holds a value is left out (a voided line). */
   unlessSet?: string;

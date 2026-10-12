@@ -2057,6 +2057,8 @@
         "rollupBalance": "og holder {balance} = {of} − {minus} − denne sum",
         "rollupCap": "En ændring, der ville bringe saldoen under nul, afvises.",
         "rollupCapUnless": "En ændring, der ville bringe saldoen under nul, afvises, medmindre {column} er slået til for rækken.",
+        "rollupLatest": "{of} fra den nyeste række i {from}, efter {by}",
+        "rollupLatestRow": "og gemmer den rækkes nøgle i {row}",
         "stampToday": "datoen",
         "stampClaim": "den indloggede persons {column}",
         "stampAddDays": "{date} plus {days} dage",

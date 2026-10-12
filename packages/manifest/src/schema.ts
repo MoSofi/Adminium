@@ -624,6 +624,15 @@ export const columnRulesSchema = z
         /** The child column to add up; or, instead, `count` the child rows. */
         sum: refSchema.optional(),
         count: z.literal(true).optional(),
+        /**
+         * Or, instead of a total, the newest child row's value: the column
+         * `of` of the row whose `by` (a date, a time or a number) is the
+         * greatest — a deal's amount is its last sent quote's total. A row
+         * whose `by` is empty is left out; of two rows with the same `by`,
+         * the one with the greater key. Empty while no row qualifies. With
+         * `row`, a plain column of this table (not a link) holds that row's key.
+         */
+        latest: z.object({ of: refSchema, by: refSchema, row: refSchema.optional() }).strict().optional(),
         /** Multiplied into `sum` per child row, e.g. `qty`. */
         times: refSchema.optional(),
         /** A child row whose column holds a value is left out — a voided line (`voided_at`). */
@@ -1527,14 +1536,62 @@ type RulePath = (...rest: (string | number)[]) => (string | number)[];
 /** Column types a count is kept in: a whole number. */
 const WHOLE_TYPES: readonly string[] = ['int', 'bigint'];
 
+/** What "the newest" may be read by: a moment, a day, or a number that only grows. */
+const LATEST_BY_TYPES: readonly string[] = ['timestamptz', 'timestamp', 'datetime', 'date', 'int', 'bigint', 'decimal'];
+
+/**
+ * The newest child row's value (`rollup.latest`): `of` and `by` are the
+ * child's columns, the value's column is this table's and may be empty (no
+ * row qualifies yet), of the type it copies; `row` is a plain column of this
+ * table that holds the child's key and nothing else decides.
+ */
+function rollupLatestIssues(
+  index: { column(table: string, ref: string): ShapeColumn | undefined },
+  table: ShapeTable,
+  column: ShapeColumn,
+  from: string,
+  latest: { of: string; by: string; row?: string | undefined },
+  decide: (table: string, column: string) => void,
+  here: RulePath,
+): ReferenceIssue[] {
+  const out: ReferenceIssue[] = [];
+  const of = index.column(from, latest.of);
+  const by = index.column(from, latest.by);
+  if (of === undefined) out.push({ path: here('rollup', 'latest', 'of'), message: `"${from}" has no column "${latest.of}"` });
+  else if (of.type !== column.type) out.push({ path: here('rollup', 'latest', 'of'), message: `"${from}.${latest.of}" is ${of.type} and "${table.ref}.${column.ref}" is ${column.type}: the newest row's value is kept in a column of its own type` });
+  if (by === undefined) out.push({ path: here('rollup', 'latest', 'by'), message: `"${from}" has no column "${latest.by}"` });
+  else if (!LATEST_BY_TYPES.includes(by.type)) out.push({ path: here('rollup', 'latest', 'by'), message: `"${from}.${latest.by}" is ${by.type}: the newest row is told by a date, a time or a number` });
+  if (column.nullable !== true) out.push({ path: here('rollup', 'latest'), message: `"${table.ref}.${column.ref}" is empty while no row qualifies: make it nullable` });
+  if (latest.row !== undefined) {
+    const row = index.column(table.ref, latest.row);
+    decide(table.ref, latest.row);
+    if (row === undefined) out.push({ path: here('rollup', 'latest', 'row'), message: `"${table.ref}" has no column "${latest.row}"` });
+    else {
+      if (latest.row === column.ref) out.push({ path: here('rollup', 'latest', 'row'), message: 'the row\'s key is kept in a column of its own' });
+      if (row.rules !== undefined) out.push({ path: here('rollup', 'latest', 'row'), message: `"${latest.row}" holds the key of the row Adminium took; it takes no rules of its own` });
+      if (row.nullable !== true) out.push({ path: here('rollup', 'latest', 'row'), message: `"${table.ref}.${latest.row}" is empty while no row qualifies: make it nullable` });
+      // Not a link: the database would refuse to delete the very row the column names, before Adminium could let go of it.
+      if (row.type === 'fk') {
+        out.push({ path: here('rollup', 'latest', 'row'), message: `"${table.ref}.${latest.row}" is a link: the key of the row Adminium took is kept as a plain column (the type of "${from}"'s key), so that row can still be deleted` });
+      } else if (!WHOLE_TYPES.includes(row.type) && row.type !== 'text' && row.type !== 'uuid') {
+        out.push({ path: here('rollup', 'latest', 'row'), message: `"${table.ref}.${latest.row}" holds a key of "${from}": a column of its key's type` });
+      }
+    }
+  }
+  return out;
+}
+
 /**
  * A total adds a column up (`sum`) or counts the rows (`count: true`), and a
  * count is a whole number with nothing multiplied into it and no balance.
  */
 function rollupCountIssues(r: NonNullable<ColumnRules['rollup']>, type: string, here: RulePath): ReferenceIssue[] {
   const out: ReferenceIssue[] = [];
-  if ((r.sum === undefined) === (r.count === undefined)) {
-    out.push({ path: here('rollup'), message: 'a total adds up `sum` or counts rows (`count: true`), not both' });
+  if ([r.sum, r.count, r.latest].filter((kind) => kind !== undefined).length !== 1) {
+    out.push({ path: here('rollup'), message: 'a total adds up `sum`, counts rows (`count: true`) or takes the newest row\'s value (`latest`): one of the three' });
+  }
+  if (r.latest !== undefined && (r.times !== undefined || r.balance !== undefined || r.cap !== undefined || r.capUnless !== undefined)) {
+    out.push({ path: here('rollup', 'latest'), message: 'the newest row\'s value takes no `times`, `balance` or `cap`' });
   }
   if (r.count === true) {
     if (r.times !== undefined || r.balance !== undefined || r.cap !== undefined) {
@@ -1557,6 +1614,7 @@ function totalsOf(table: ShapeTable): Map<string, Set<string>> {
     if (r === undefined) continue;
     out.set(column.ref, new Set([column.ref]));
     if (r.balance !== undefined) out.set(r.balance.column, new Set([column.ref]));
+    if (r.latest?.row !== undefined) out.set(r.latest.row, new Set([column.ref]));
   }
   const formulas = table.columns.filter((column) => column.rules?.formula !== undefined);
   for (let changed = true; changed; ) {
@@ -1589,7 +1647,7 @@ function rollupChainIssues(tables: readonly ShapeTable[]): ReferenceIssue[] {
     table.columns.forEach((column, c) => {
       const r = column.rules?.rollup;
       if (r === undefined) return;
-      const read = [r.sum, r.times, r.unlessSet, r.where?.column].filter((ref): ref is string => ref !== undefined);
+      const read = [r.sum, r.times, r.unlessSet, r.where?.column, r.latest?.of, r.latest?.by].filter((ref): ref is string => ref !== undefined);
       const childTotals = totals.get(r.from) ?? new Map<string, Set<string>>();
       const reads = new Set<string>();
       for (const ref of read) for (const total of childTotals.get(ref) ?? []) reads.add(`${r.from}.${total}`);
@@ -1715,7 +1773,7 @@ function followIssues(
       const rollup = c.rules?.rollup;
       if (rollup?.from !== table.ref) return false;
       // The link a total groups its rows by counts too: a copy that moves a row to another parent moves it between that table's totals.
-      return [rollup.via, rollup.sum, rollup.times, rollup.unlessSet, rollup.where?.column].some((ref) => ref !== undefined && written.has(ref));
+      return [rollup.via, rollup.sum, rollup.times, rollup.unlessSet, rollup.where?.column, rollup.latest?.of, rollup.latest?.by].some((ref) => ref !== undefined && written.has(ref));
     });
     if (reads) {
       out.push({ path: here('copy', 'follow'), message: `"${table.ref}" totals into "${other.ref}" too, so its copies cannot follow "${parent.ref}": a total "${other.ref}" keeps reads what the follow writes` });
@@ -1743,7 +1801,7 @@ function figureColumns(tables: readonly ShapeTable[]): (table: string) => Readon
       const rules = column.rules;
       if (rules?.formula !== undefined) for (const input of formulaColumns(rules.formula)) mark(table.ref, input);
       const r = rules?.rollup;
-      if (r !== undefined) for (const input of [r.sum, r.times]) if (input !== undefined) mark(r.from, input);
+      if (r !== undefined) for (const input of [r.sum, r.times, r.latest?.of]) if (input !== undefined) mark(r.from, input);
     }
   }
   for (let changed = true; changed; ) {
@@ -2123,6 +2181,7 @@ export function appReferenceIssues(
           for (const name of [...(r.sum === undefined ? [] : [r.sum]), ...(r.times === undefined ? [] : [r.times]), ...(r.unlessSet === undefined ? [] : [r.unlessSet])]) {
             if (!has(r.from, name)) out.push({ path: here('rollup'), message: `"${r.from}" has no column "${name}"` });
           }
+          if (r.latest !== undefined) out.push(...rollupLatestIssues(index, table, column, r.from, r.latest, decide, here));
           if (r.where !== undefined) {
             const filter = index.column(r.from, r.where.column);
             if (filter === undefined) out.push({ path: here('rollup', 'where'), message: `"${r.from}" has no column "${r.where.column}"` });

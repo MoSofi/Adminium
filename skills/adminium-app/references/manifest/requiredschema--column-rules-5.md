@@ -2,6 +2,16 @@
 
 # Manifest spec: requiredSchema — Column rules
 
+```json
+{ "ref": "hours", "type": "decimal", "scale": 2, "nullable": true,
+  "rules": { "formula": { "hoursBetween": ["started_at", "stopped_at"] } } }
+```
+
+09:15 → 11:45 is `2.50`; 22:30 → 01:15 the next day is `2.75`. The hours are exact and rounded
+once to the column's scale, like any formula, and they can be counted with further:
+`{ "mul": [{ "hoursBetween": ["started_at", "stopped_at"] }, "rate"] }` is the pay at a rate. An
+update that moves only the stop works the hours out again from the start as stored.
+
 - **The time that passed.** Hours are real elapsed time. A column that keeps a zone (Postgres
   `timestamptz`, MySQL `TIMESTAMP`) holds the moment itself. One that keeps none (MySQL `DATETIME`,
   which is what an app's `timestamptz` column becomes on MySQL, Postgres `timestamp`, and SQLite
@@ -117,7 +127,3 @@ made:
 | `"connection.currency"` | The connection's currency, a three-letter code. The column is `text` of at least 3 characters. |
 | `{ "table", "column" }` | A column of the app's one-row settings table. |
 | `{ "addOn", "setting" }` | A setting of an add-on. The app must require that add-on in [`addOns.requires`](https://docs.adminium.dev/reference/manifest/#add-ons), so the setting is always there. |
-
-The same three settings (the last two) are what `sequence.startSetting` and `format.prefixSetting`
-read. A column with a `default` rule is nullable: when there is nothing to read, it stays empty
-rather than taking a made-up value. An update never refills it.

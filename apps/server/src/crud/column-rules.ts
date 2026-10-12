@@ -334,6 +334,12 @@ export interface RollupInto {
   sum: string;
   /** The child rows are counted instead (the stored rule's `count`). */
   count?: true;
+  /**
+   * Not a total at all: the value of `of` in the child row whose `by` is
+   * greatest (an empty `by` is no row; equal ones go to the greater `key`,
+   * the child's own). `row` is the parent's column that holds that key.
+   */
+  latest?: { of: string; by: string; key: string; row?: string };
   times?: string;
   /** Child rows whose column holds a value are left out of the total. */
   unlessSet?: string;
@@ -829,6 +835,8 @@ export function tableRulesFor(target: { view: SnapshotView; table: ResolvedTable
   const addOnLinks: SoftLink[] = columns.flatMap((column) => (column.addOnLink === undefined ? [] : [{ column: column.name, addOn: column.addOnLink.addOn, tableId: column.addOnLink.tableId, key: column.addOnLink.key }]));
   const readOnly = [
     ...ownRollups.map((r) => r.column),
+    // The key of the row a "latest" took is Adminium's, like the value beside it.
+    ...ownRollups.flatMap((r) => (r.latest?.row === undefined ? [] : [r.latest.row])),
     ...balances.map((b) => b.column),
     ...formulas.map((f) => f.column),
     ...(perNight === undefined ? [] : [perNight.column]),
@@ -1061,7 +1069,7 @@ function modelRollups(model: { tables: readonly EffectiveTable[] }): Map<string,
   if (cached !== undefined) return cached;
   const out = new Map<string, RollupInto[]>();
   for (const table of model.tables) {
-    const totals = rollupsOf(table);
+    const totals = rollupsOf(table, model.tables);
     if (totals.length > 0) out.set(table.id, totals);
   }
   const all = [...out.values()].flat();
@@ -1071,7 +1079,7 @@ function modelRollups(model: { tables: readonly EffectiveTable[] }): Map<string,
       (above) =>
         above !== rollup &&
         above.child === rollup.parent &&
-        [above.sum, above.times, above.unlessSet, above.where?.column].some((column) => column !== undefined && column !== '' && moved.has(column)),
+        [above.sum, above.times, above.unlessSet, above.where?.column, above.latest?.of, above.latest?.by].some((column) => column !== undefined && column !== '' && moved.has(column)),
     );
   }
   ROLLUPS.set(model, out);
@@ -1079,15 +1087,20 @@ function modelRollups(model: { tables: readonly EffectiveTable[] }): Map<string,
 }
 
 /** A table's totals, as the writes to its child rows settle them; none for a table without a one-column key. */
-function rollupsOf(parent: EffectiveTable): RollupInto[] {
+function rollupsOf(parent: EffectiveTable, tables?: readonly EffectiveTable[]): RollupInto[] {
   if (parent.primaryKey?.length !== 1) return [];
+  /** A child's one-column key: what settles "the newest" between two rows of the same moment. */
+  const keyOf = (child: string): string | undefined => {
+    const key = tables?.find((table) => table.id === child)?.primaryKey;
+    return key?.length === 1 ? key[0] : undefined;
+  };
   const balances = balancesOf(parent);
   const formulas = formulasOf(parent);
   const currencyColumn = parent.columns.some((column) => column.name === 'currency') ? 'currency' : undefined;
   const siblings: RollupInto[] = [];
   for (const column of parent.columns) {
     if (column.rollup !== undefined) {
-      siblings.push(rollupOf(parent, column, column.rollup, balances, siblings, formulas, currencyColumn));
+      siblings.push(rollupOf(parent, column, column.rollup, balances, siblings, formulas, currencyColumn, keyOf(column.rollup.from)));
     }
   }
   return siblings;
@@ -1119,6 +1132,7 @@ function rollupOf(
   siblings: RollupInto[],
   formulas: ColumnFormula[],
   currencyColumn: string | undefined,
+  childKey?: string,
 ): RollupInto {
   const out: RollupInto = {
     parent: parent.id,
@@ -1128,6 +1142,7 @@ function rollupOf(
     via: rollup.via,
     sum: rollup.sum ?? '',
     ...(rollup.count === true ? { count: true as const } : {}),
+    ...(rollup.latest === undefined ? {} : { latest: { of: rollup.latest.of, by: rollup.latest.by, key: childKey ?? '', ...(rollup.latest.row === undefined ? {} : { row: rollup.latest.row }) } }),
     ...(rollup.times === undefined ? {} : { times: rollup.times }),
     ...(rollup.unlessSet === undefined ? {} : { unlessSet: rollup.unlessSet }),
     ...(rollup.where === undefined ? {} : { where: rollup.where }),

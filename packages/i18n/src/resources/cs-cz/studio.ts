@@ -2067,6 +2067,8 @@ export default {
         "rollupBalance": "a udržuje {balance} = {of} − {minus} − tento součet",
         "rollupCap": "Zápis, který by snížil zůstatek pod nulu, je odmítnut.",
         "rollupCapUnless": "Zápis, který by snížil zůstatek pod nulu, je odmítnut, pokud není u řádku zapnuto {column}.",
+        "rollupLatest": "{of} z nejnovějšího řádku v {from}, podle {by}",
+        "rollupLatestRow": "a klíč toho řádku drží v {row}",
         "stampToday": "datum",
         "stampClaim": "{column} přihlášené osoby",
         "stampAddDays": "{date} plus {days} dní",

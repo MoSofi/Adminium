@@ -2067,6 +2067,8 @@ export default {
         "rollupBalance": "ويحافظ على {balance} = {of} − {minus} − هذا المجموع",
         "rollupCap": "تُرفض أي كتابة تجعل الرصيد أقل من الصفر.",
         "rollupCapUnless": "تُرفض أي كتابة تجعل الرصيد أقل من الصفر، إلا إذا كان {column} مفعّلاً للصف.",
+        "rollupLatest": "{of} من أحدث صف في {from}، حسب {by}",
+        "rollupLatestRow": "ويحتفظ بمفتاح ذلك الصف في {row}",
         "stampToday": "التاريخ",
         "stampClaim": "{column} الخاص بالشخص المسجِّل دخوله",
         "stampAddDays": "{date} مضافًا إليه {days} يومًا",

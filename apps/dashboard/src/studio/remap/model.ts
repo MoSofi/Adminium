@@ -54,6 +54,8 @@ export interface EffectiveColumn extends ColumnModel {
     from: string;
     via: string;
     sum: string;
+    /** Not a total: the newest child row's value, and the column that holds that row's key. */
+    latest?: { of: string; by: string; row?: string };
     times?: string;
     unlessSet?: string;
     where?: { column: string; eq: string | number | boolean };

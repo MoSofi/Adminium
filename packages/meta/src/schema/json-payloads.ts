@@ -1251,6 +1251,11 @@ export const overridePatchSchema = z.discriminatedUnion('op', [
       /** What to add up; or `count: true` to count the child rows instead (one of the two). */
       sum: z.string().min(1).max(128).optional(),
       count: z.literal(true).optional(),
+      /** Or the newest child row's value: `of` of the row whose `by` is greatest; `row`, a column of this table, holds that row's key. */
+      latest: z
+        .object({ of: z.string().min(1).max(128), by: z.string().min(1).max(128), row: z.string().min(1).max(128).optional() })
+        .strict()
+        .optional(),
       /** Multiplied into `sum` per child row, e.g. a quantity. */
       times: z.string().min(1).max(128).optional(),
       /** A child row whose column holds a value is left out, e.g. a voided line. */
@@ -1272,7 +1277,7 @@ export const overridePatchSchema = z.discriminatedUnion('op', [
       cap: z.literal(true).optional(),
       /** With `cap`: not judged for a row whose yes/no column is true. */
       capUnless: z.object({ column: z.string().min(1).max(128) }).strict().optional(),
-    }).refine((v) => (v.sum === undefined) !== (v.count === undefined), { message: 'a total adds up `sum` or counts rows (`count: true`), not both' }),
+    }).refine((v) => [v.sum, v.count, v.latest].filter((kind) => kind !== undefined).length === 1, { message: 'a total adds up `sum`, counts rows (`count: true`) or takes the newest row\'s value (`latest`): one of the three' }),
   }),
   /*
    * A price worked out night by night from `from` to the day before `to`:

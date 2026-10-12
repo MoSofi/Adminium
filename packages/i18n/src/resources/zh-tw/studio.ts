@@ -2067,6 +2067,8 @@ export default {
         "rollupBalance": "並保持 {balance} = {of} − {minus} − 此合計",
         "rollupCap": "會使餘額低於零的寫入將被拒絕。",
         "rollupCapUnless": "會使餘額低於零的寫入將被拒絕，除非該列的 {column} 已開啟。",
+        "rollupLatest": "{from} 中依 {by} 最新一列的 {of}",
+        "rollupLatestRow": "並將該列的鍵存入 {row}",
         "stampToday": "當天日期",
         "stampClaim": "已登入者的 {column}",
         "stampAddDays": "{date} 加 {days} 天",

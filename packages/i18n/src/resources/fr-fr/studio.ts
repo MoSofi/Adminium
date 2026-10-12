@@ -2067,6 +2067,8 @@ export default {
         "rollupBalance": "et tient {balance} = {of} − {minus} − ce total",
         "rollupCap": "Une écriture qui ferait passer le solde sous zéro est refusée.",
         "rollupCapUnless": "Une écriture qui ferait passer le solde sous zéro est refusée, sauf si {column} est activé pour la ligne.",
+        "rollupLatest": "{of} de la ligne la plus récente de {from}, selon {by}",
+        "rollupLatestRow": "et conserve la clé de cette ligne dans {row}",
         "stampToday": "la date",
         "stampClaim": "{column} de la personne connectée",
         "stampAddDays": "{date} plus {days} jours",

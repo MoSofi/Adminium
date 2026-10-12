@@ -144,7 +144,7 @@ export function quotePlaceholders(view: SnapshotView, table: ResolvedTable, writ
   const rules = tableRulesFor({ view, table });
   const priced = new Set<string>([
     ...(rules?.formulas ?? []).filter((formula) => !joinsText(formula.expr)).flatMap((formula) => formula.reads),
-    ...(rules?.rollupsInto ?? []).flatMap((rollup) => [rollup.via, rollup.sum, rollup.times, rollup.unlessSet, rollup.where?.column].filter((c): c is string => typeof c === 'string')),
+    ...(rules?.rollupsInto ?? []).flatMap((rollup) => [rollup.via, rollup.sum, rollup.times, rollup.unlessSet, rollup.where?.column, rollup.latest?.of, rollup.latest?.by].filter((c): c is string => typeof c === 'string')),
     ...(rules?.copies ?? []).map((copy) => copy.via),
   ]);
   const needed = new Set([...requires, ...(rules?.checks ?? []).filter((check) => check.requiredByRule === true).map((check) => check.column)]);

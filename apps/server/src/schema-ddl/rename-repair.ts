@@ -184,6 +184,9 @@ export function renamedInRule(op: string, value: unknown, from: string, to: stri
     case 'column.rollup': {
       // The yes/no that lifts the cap is this table's; what is added up is the child's.
       const lift = rule['capUnless'] as Record<string, unknown> | undefined;
+      // So is the column that holds the key of the row a "latest" took.
+      const latest = rule['latest'] as Record<string, unknown> | undefined;
+      if (latest !== undefined && same(latest['row'])) return { ...rule, latest: { ...latest, row: to } };
       return lift !== undefined && same(lift['column']) ? { ...rule, capUnless: { ...lift, column: to } } : value;
     }
     case 'table.belongs': {

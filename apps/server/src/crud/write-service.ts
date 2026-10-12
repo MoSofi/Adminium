@@ -698,6 +698,10 @@ async function rollupStatement(
     ...(rollup.where === undefined ? [] : [sql`${sql.ref(rollup.where.column)} = ${bindValue(dialect, rollup.where.eq)}`]),
   ];
   const where = sql.join(conditions, sql` and `);
+  if (rollup.latest !== undefined) {
+    await latestStatement(db, dialect, rollup, rollup.latest, parentKey, where, read);
+    return;
+  }
   /*
    * SQLite adds decimals as floats: a line of 1.500 × 0.33 is a hair under
    * 0.495 there and rounds to 0.49, where Postgres and MySQL, adding exact
@@ -737,6 +741,74 @@ async function rollupStatement(
 }
 
 /**
+ * Set a parent's column to the newest child row's value — `rollup.latest`:
+ * `of` from the row whose `by` is greatest among the rows the rule keeps, and
+ * with `row` that row's key beside it; both empty while no row qualifies. A
+ * row whose `by` is empty is no candidate (a quote not sent yet), and of two
+ * rows with the same `by` the greater key wins, so the answer is one row on
+ * every engine. Read in the UPDATE itself, as a total is, so it sees what a
+ * sum would; MySQL's catch-up reads plainly first (see `rollupStatement`).
+ */
+async function latestStatement(
+  db: Db,
+  dialect: Dialect,
+  rollup: RollupInto,
+  latest: NonNullable<RollupInto['latest']>,
+  parentKey: unknown,
+  where: ReturnType<typeof sql>,
+  read: 'locking' | 'plain',
+): Promise<void> {
+  const order = latest.key === '' ? sql`${sql.ref(latest.by)} desc` : sql`${sql.ref(latest.by)} desc, ${sql.ref(latest.key)} desc`;
+  const newest = (column: string) => sql`(select ${sql.ref(column)} from ${sql.table(rollup.child)} where ${where} and ${sql.ref(latest.by)} is not null order by ${order} limit 1)`;
+  const takes = [{ into: rollup.column, from: latest.of }, ...(latest.row === undefined || latest.key === '' ? [] : [{ into: latest.row, from: latest.key }])];
+  const set: Record<string, unknown> = {};
+  for (const take of takes) {
+    set[take.into] = read === 'plain' && dialect === 'mysql' ? ((await sql<{ value: unknown }>`select ${newest(take.from)} as value`.execute(db)).rows[0]?.value ?? null) : newest(take.from);
+  }
+  await db
+    .updateTable(rollup.parent)
+    .set(set as never)
+    .where((eb) => eb(db.dynamic.ref(rollup.parentKey), '=', parentKey))
+    .execute();
+}
+
+/** Where a value falls among others of its kind: a moment or a day as its time, a number as itself. */
+function latestRank(value: unknown): number | string {
+  if (value instanceof Date) return value.getTime();
+  if (typeof value === 'number') return value;
+  if (typeof value === 'bigint') return Number(value);
+  const text = String(value);
+  if (/^-?\d+(\.\d+)?$/.test(text)) return Number(text);
+  // SQLite keeps a moment as text, with a space or a T, with or without a zone: read as UTC unless it names one.
+  // Postgres writes a zone as `+00`; a zone of hours alone is given its minutes.
+  const day = /^\d{4}-\d\d-\d\d$/.test(text);
+  const iso = day ? `${text}T00:00:00` : text.replace(' ', 'T').replace(/([+-]\d\d)$/, '$1:00');
+  const moment = Date.parse(!day && /[zZ]$|[+-]\d\d:?\d\d$/.test(iso) ? iso : `${iso}Z`);
+  return Number.isNaN(moment) ? text : moment;
+}
+
+/** The newest of `rows` by `by`, an empty `by` left out, the greater key breaking a tie; undefined when none is left. */
+export function latestOf(rows: readonly Row[], latest: { by: string; key: string }): Row | undefined {
+  let best: Row | undefined;
+  const beats = (a: unknown, b: unknown): number => {
+    const x = latestRank(a);
+    const y = latestRank(b);
+    return typeof x === 'number' && typeof y === 'number' ? x - y : String(x) < String(y) ? -1 : String(x) > String(y) ? 1 : 0;
+  };
+  for (const row of rows) {
+    const at = row[latest.by];
+    if (at === null || at === undefined) continue;
+    if (best === undefined) {
+      best = row;
+      continue;
+    }
+    const order = beats(at, best[latest.by]);
+    if (order > 0 || (order === 0 && latest.key !== '' && beats(row[latest.key], best[latest.key]) > 0)) best = row;
+  }
+  return best;
+}
+
+/**
  * Child rows as a change would leave them, by their key: what a quote of a
  * change that child rows follow adds up in place of the rows it never wrote.
  */
@@ -754,7 +826,8 @@ async function rollupOverlaid(db: Db, rollup: RollupInto, parentKey: unknown, pl
   const columns = [
     ...new Set([
       ...overlay.key,
-      ...(rollup.count === true ? [] : [rollup.sum]),
+      ...(rollup.count === true || rollup.latest !== undefined ? [] : [rollup.sum]),
+      ...(rollup.latest === undefined ? [] : [rollup.latest.of, rollup.latest.by, ...(rollup.latest.key === '' ? [] : [rollup.latest.key])]),
       ...(rollup.times === undefined ? [] : [rollup.times]),
       ...(rollup.unlessSet === undefined ? [] : [rollup.unlessSet]),
       ...(rollup.where === undefined ? [] : [rollup.where.column]),
@@ -767,6 +840,15 @@ async function rollupOverlaid(db: Db, rollup: RollupInto, parentKey: unknown, pl
     .map((row) => standing.get(idOf(row)) ?? row)
     .filter((row) => rollup.unlessSet === undefined || row[rollup.unlessSet] === null || row[rollup.unlessSet] === undefined)
     .filter((row) => rollup.where === undefined || sameValue(row[rollup.where.column], rollup.where.eq));
+  if (rollup.latest !== undefined) {
+    const newest = latestOf(rows, rollup.latest);
+    await db
+      .updateTable(rollup.parent)
+      .set({ [rollup.column]: newest?.[rollup.latest.of] ?? null, ...(rollup.latest.row === undefined || rollup.latest.key === '' ? {} : { [rollup.latest.row]: newest?.[rollup.latest.key] ?? null }) } as never)
+      .where((eb) => eb(db.dynamic.ref(rollup.parentKey), '=', parentKey))
+      .execute();
+    return;
+  }
   await db
     .updateTable(rollup.parent)
     .set({ [rollup.column]: rollupValue(rows, { sum: rollup.sum, times: rollup.times, count: rollup.count }, places) } as never)
@@ -1259,7 +1341,7 @@ function chainColumns(rollups: readonly RollupInto[]): Map<string, Set<string>> 
   const visit = (rollup: RollupInto, hop: number): void => {
     const columns = out.get(rollup.parent) ?? new Set<string>();
     const before = columns.size;
-    for (const column of [rollup.column, ...rollup.derived, ...rollup.balances.map((b) => b.column)]) columns.add(column);
+    for (const column of [rollup.column, ...(rollup.latest?.row === undefined ? [] : [rollup.latest.row]), ...rollup.derived, ...rollup.balances.map((b) => b.column)]) columns.add(column);
     out.set(rollup.parent, columns);
     if (hop + 1 >= CLIMB_HOPS || (columns.size === before && before > 0)) return;
     for (const climb of rollup.climbs) visit(climb, hop + 1);
@@ -2845,7 +2927,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
     const written = new Set(Object.keys(row));
     for (const formula of touchedFormulas(rules?.formulas ?? [], written)) written.add(formula.column);
     return rollups.some((rollup) =>
-      [rollup.sum, rollup.times, rollup.via, rollup.unlessSet, rollup.where?.column].some((column) => column !== undefined && written.has(column)),
+      [rollup.sum, rollup.times, rollup.via, rollup.unlessSet, rollup.where?.column, rollup.latest?.of, rollup.latest?.by].some((column) => column !== undefined && written.has(column)),
     );
   }
 

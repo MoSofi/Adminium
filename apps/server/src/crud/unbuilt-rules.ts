@@ -157,6 +157,8 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   'roles.rows',
   // A record's button that hands its row to anybody a role could not otherwise name.
   'states.handOver',
+  // A total that is the newest child row's value, settled by the statement that settles a sum.
+  'rollup.latest',
   // Rows read by the people they belong to and by nothing else: not in the view a rule, a public door, a kiosk's key or an owner's
   // code reads through, and refused by name as a file out, a file in, a scheduled report and a document.
   'table.private',

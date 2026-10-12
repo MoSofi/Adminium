@@ -849,7 +849,13 @@ export function ColumnInspector({ model, table, column, buffer, fieldError, shap
                 : {
                     key: rollupKey,
                     text: [
-                      rollup.times === undefined
+                      rollup.latest !== undefined
+                        ? t('studio:remap.rules.decided.rollupLatest', 'The {of} of its newest row in {from}, by {by}', {
+                            of: rollup.latest.of,
+                            by: rollup.latest.by,
+                            from: tableName(rollup.from),
+                          })
+                        : rollup.times === undefined
                         ? t('studio:remap.rules.decided.rollup', 'The total of {sum} over its rows in {from}', {
                             sum: rollup.sum,
                             from: tableName(rollup.from),
@@ -859,6 +865,9 @@ export function ColumnInspector({ model, table, column, buffer, fieldError, shap
                             times: rollup.times,
                             from: tableName(rollup.from),
                           }),
+                      rollup.latest?.row === undefined
+                        ? null
+                        : t('studio:remap.rules.decided.rollupLatestRow', 'and keeps that row’s key in {row}', { row: rollup.latest.row }),
                       rollup.where === undefined
                         ? null
                         : t('studio:remap.rules.decided.rollupWhere', 'counting only rows where {column} is {value}', {

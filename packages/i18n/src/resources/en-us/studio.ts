@@ -2067,6 +2067,8 @@ export default {
         "rollupBalance": "and keeps {balance} = {of} − {minus} − this total",
         "rollupCap": "A write that would take the balance below zero is refused.",
         "rollupCapUnless": "A write that would take the balance below zero is refused, unless {column} is on for the row.",
+        "rollupLatest": "The {of} of its newest row in {from}, by {by}",
+        "rollupLatestRow": "and keeps that row’s key in {row}",
         "stampToday": "the date",
         "stampClaim": "the signed-in person’s {column}",
         "stampAddDays": "{date} plus {days} days",
