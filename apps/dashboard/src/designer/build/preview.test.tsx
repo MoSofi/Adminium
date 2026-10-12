@@ -16,7 +16,7 @@ import type { DesignerEvent, DesignerEventBody, DesignerSession } from '../api.j
 import { idleCode } from './codeFiles.fixture.js';
 import { previewState, sideNamed } from './Preview.js';
 import { WorkArea } from './WorkArea.js';
-import { looksNow, sightFrom } from './sight.js';
+import { looksNow, previewShows, sightFrom } from './sight.js';
 import { foldTurns, type TurnView } from './turns.js';
 
 // The diagram is another test's; here the tab only has to open.
@@ -114,6 +114,7 @@ function turn(over: Partial<TurnView>): TurnView {
     turn: 1,
     text: 'x',
     attachments: [],
+    picked: null,
     reply: '',
     steps: [],
     stepCount: 0,
@@ -435,5 +436,20 @@ describe('the preview', () => {
     );
     await userEvent.click(screen.getByRole('button', { name: 'Keep looking at the page' }));
     expect(screen.queryByRole('alert')).toBeNull();
+  });
+});
+
+describe('whether a turn about to start will be shown its screen', () => {
+  it('is, on a side of the app’s own, and for an app that has no screen yet: its first one is the one most worth a look', () => {
+    previewShows('customer');
+    expect(looksNow()).toBe(true);
+    // The Dashboard tab of an app that has screens: nothing of the app's own to look at.
+    previewShows('dashboard');
+    expect(looksNow()).toBe(false);
+    // No screen yet, and no tab picked by hand: the preview turns to the first screen the turn makes.
+    previewShows('dashboard', true);
+    expect(looksNow()).toBe(true);
+    previewShows(null);
+    expect(looksNow()).toBe(false);
   });
 });

@@ -42,6 +42,8 @@ export interface DesignerSession {
   target: DesignerTarget;
   connectionId: string;
   model: string;
+  /** How hard the model is asked to work; absent at the model's own default. */
+  effort?: DesignerEffort;
   createdAt: number;
   updatedAt: number;
   turns: number;
@@ -99,12 +101,17 @@ export interface CatalogApp {
   monogram: string | null;
 }
 
+/** How hard a model is asked to work on a reply, the least first. Mirrors `RUN_EFFORTS` of the server. */
+export const DESIGNER_EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max'] as const;
+export type DesignerEffort = (typeof DESIGNER_EFFORTS)[number];
+
 export interface ModelConnection {
   id: string;
   provider: string;
   source: 'database' | 'environment';
   state: 'ok' | 'unreachable';
-  models: { id: string; label: string }[];
+  /** `efforts`: the levels the model takes, the least first; absent when it takes none. */
+  models: { id: string; label: string; efforts?: DesignerEffort[] }[];
 }
 
 export interface DesignerModels {
@@ -239,8 +246,29 @@ export type StepFacts = {
   look?: string;
 };
 
+/** One element of the previewed page, as the person pointed at it: what the screen said of it. */
+export interface DesignerPicked {
+  side: 'staff' | 'customer';
+  /** The page of that side it is on. */
+  path: string;
+  /** The window's width the page was drawn in; null when the screen did not say. */
+  page: number | null;
+  /** Its tag and first classes: `button btn primary`. */
+  part: string;
+  /** The words it shows, on one line. */
+  text: string;
+  /** Its name where it has one that is not its words. */
+  label: string;
+  /** What it sits in, nearest first. */
+  within: string[];
+  nth: number;
+  of: number;
+  width: number;
+  height: number;
+}
+
 export type DesignerEventBody =
-  | { kind: 'turn-started'; text: string; attachments?: Pick<DesignerAttachment, 'id' | 'label' | 'kind' | 'rows'>[] }
+  | { kind: 'turn-started'; text: string; attachments?: Pick<DesignerAttachment, 'id' | 'label' | 'kind' | 'rows'>[]; picked?: DesignerPicked }
   | { kind: 'text'; delta: string }
   | ({ kind: 'step'; id: string; tool: string; label: string; state: 'running' | 'done' | 'failed'; ms?: number; detail?: string } & StepFacts)
   | { kind: 'usage'; step: number; tokensIn: number; tokensOut: number; estimated: boolean; turnTokens: number }
@@ -283,6 +311,19 @@ export interface DesignerFiles {
   /** What has the app's folder right now. */
   busy: FolderHold | 'turn' | null;
   version: number | null;
+}
+/** Where some words are in the files, as they are on disk: by file (with its hash), by line. */
+export interface DesignerFileHit {
+  line: number;
+  col: number;
+  len: number;
+  text: string;
+  at: number;
+}
+export interface DesignerFilesFound {
+  files: { path: string; hash: string; hits: DesignerFileHit[] }[];
+  /** There were more places than are named. */
+  more: boolean;
 }
 export interface DesignerFilesSaved {
   applied: boolean;
@@ -363,8 +404,10 @@ async function addStyle(file: File): Promise<{ key: string; left: string[] }> {
   return body as { key: string; left: string[] };
 }
 
-async function uploadAttachment(sessionId: string, file: File, palette = ''): Promise<DesignerAttachment> {
-  const response = await fetch(`${BASE}/sessions/${sessionId}/attachments?filename=${encodeURIComponent(file.name === '' ? 'pasted' : file.name)}${palette === '' ? '' : `&palette=${palette}`}`, {
+/** `part`: the file is one part of a tall picture this session holds, cut for a model to read. */
+async function uploadAttachment(sessionId: string, file: Blob & { name?: string }, palette = '', part?: { of: string; part: number; parts: number }): Promise<DesignerAttachment> {
+  const name = file.name === undefined || file.name === '' ? 'pasted' : file.name;
+  const response = await fetch(`${BASE}/sessions/${sessionId}/attachments?filename=${encodeURIComponent(name)}${palette === '' ? '' : `&palette=${palette}`}${part === undefined ? '' : `&part_of=${part.of}&part=${String(part.part)}&parts=${String(part.parts)}`}`, {
     method: 'POST',
     credentials: 'same-origin',
     headers: { accept: 'application/json', 'content-type': 'application/octet-stream', ...csrfHeaders() },
@@ -402,15 +445,15 @@ export const designerApi = {
   testConnection: (draft: ConnectionDraft) => api.post<ConnectionTest>(`${BASE}/connections/test`, draft),
   saveConnection: (draft: ConnectionDraft & { model: string }) => api.put<ModelConnection>(`${BASE}/connections`, draft),
   session: (id: string) => api.get<SessionReply>(`${BASE}/sessions/${id}`),
-  patchSession: (id: string, patch: { title?: string; connectionId?: string; model?: string }) => api.patch<SessionReply>(`${BASE}/sessions/${id}`, patch),
+  patchSession: (id: string, patch: { title?: string; connectionId?: string; model?: string; /** `null`: back to the model's own default. */ effort?: DesignerEffort | null }) => api.patch<SessionReply>(`${BASE}/sessions/${id}`, patch),
   styles: () => api.get<{ styles: DesignerStyle[] }>(`${BASE}/styles`),
   addStyle,
   removeStyle: (key: string) => api.delete<{ removed: true }>(`${BASE}/styles/${encodeURIComponent(key)}`),
   stylePreviewUrl: (key: string) => `${BASE}/styles/${encodeURIComponent(key)}/preview`,
   setLook: (id: string, skill: string) => api.post<{ look: AppLook; version: { n: number; name: string } | null; applied: boolean }>(`${BASE}/sessions/${id}/look`, { skill }),
   /** `sees`: this page shows the preview and will say what it sees of each build. */
-  startTurn: (id: string, text: string, attachments: readonly string[] = [], sees = false) =>
-    api.post<{ turn: number }>(`${BASE}/sessions/${id}/turns`, { text, ...(attachments.length === 0 ? {} : { attachments }), ...(sees ? { sees: true } : {}) }),
+  startTurn: (id: string, text: string, attachments: readonly string[] = [], sees = false, picked: DesignerPicked | null = null) =>
+    api.post<{ turn: number }>(`${BASE}/sessions/${id}/turns`, { text, ...(attachments.length === 0 ? {} : { attachments }), ...(sees ? { sees: true } : {}), ...(picked === null ? {} : { picked }) }),
   /** What the preview saw of the app's screen, for the turn that built it. */
   sendSight: (id: string, sight: { side: 'staff' | 'customer'; width: number; faults: Record<string, string | number>[]; picture?: string; path?: string }) => api.post<{ kept: boolean }>(`${BASE}/sessions/${id}/sight`, sight),
   uploadAttachment,
@@ -427,6 +470,8 @@ export const designerApi = {
   /** The app's files a person may open and save by hand, in the groups the Code tab draws. */
   files: (id: string) => api.get<DesignerFiles>(`${BASE}/sessions/${id}/files`),
   /** A hand save: each file whole, with the hash it had when it was opened. All of them are written, or none. */
+  searchFiles: (id: string, find: { query: string; matchCase: boolean; wholeWord: boolean }) =>
+    api.get<DesignerFilesFound>(`${BASE}/sessions/${id}/files/search?q=${encodeURIComponent(find.query)}${find.matchCase ? '&case=1' : ''}${find.wholeWord ? '&word=1' : ''}`),
   saveFiles: (id: string, files: readonly { path: string; content: string; base: string }[]) => api.put<DesignerFilesSaved>(`${BASE}/sessions/${id}/files`, { files }),
   /** One of the app's files a person may open, whole, with the hash it has now. */
   fileContent: (id: string, path: string) => api.get<{ path: string; content: string; hash: string }>(`${BASE}/sessions/${id}/files/content?path=${encodeURIComponent(path)}`),
@@ -440,7 +485,7 @@ export const designerApi = {
   /** A one-use link that signs this project's local owner in from the system's browser, landing on `to` (a path). */
   browserLink: (to: string) => api.post<{ data: { url: string } }>('/api/v1/auth/design-link', { to }),
   setOwnerPassword: (input: { email: string; password: string }) => api.post<{ email: string }>(`${BASE}/owner-password`, input),
-  createSession: (input: { appKey?: string; name?: string; /** The session's title until the Designer names the app. */ title?: string; /** A style picked at the start. */ style?: string; target: DesignerTarget; connectionId: string; model: string; text?: string; /** With `text`: this page will show the preview and say what it sees. */ sees?: boolean }) =>
+  createSession: (input: { appKey?: string; name?: string; /** The session's title until the Designer names the app. */ title?: string; /** A style picked at the start. */ style?: string; target: DesignerTarget; connectionId: string; model: string; effort?: DesignerEffort; text?: string; /** With `text`: this page will show the preview and say what it sees. */ sees?: boolean }) =>
     api.post<{ session: DesignerSession; turn: number | null }>(`${BASE}/sessions`, input),
 };
 

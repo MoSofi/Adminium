@@ -79,6 +79,7 @@ export interface CodeNotice {
 }
 
 export interface CodeFiles {
+  sessionId: string;
   /** The tab has been opened once: the list is read from then on. */
   active: boolean;
   activate: () => void;
@@ -395,6 +396,7 @@ export function useCodeFiles(
   );
 
   return {
+      sessionId,
       active: st.active,
       activate,
       list: shown,

@@ -6,6 +6,7 @@
  * type-only copy (the dashboard may not import server code). The replies are
  * un-enveloped, like the assistant's.
  */
+import { RUN_EFFORTS } from '@adminium/llm';
 import { z } from 'zod';
 
 const target = z.enum(['auto', 'dashboard', 'web', 'mobile']);
@@ -17,6 +18,8 @@ export const designerSession = z.object({
   target,
   connectionId: z.string(),
   model: z.string(),
+  /** How hard the model is asked to work; absent at the model's own default. */
+  effort: z.enum(RUN_EFFORTS).optional(),
   createdAt: z.number(),
   updatedAt: z.number(),
   turns: z.number().int(),
@@ -71,6 +74,7 @@ export const designerSessionCreateBody = z.object({
   target: target.default('auto'),
   connectionId: z.string().max(64),
   model: z.string().min(1).max(200),
+  effort: z.enum(RUN_EFFORTS).optional(),
   /** A style picked at the start, a design skill's key; left out to let the Designer choose. */
   style: z.string().regex(/^[a-z][a-z0-9-]{1,39}$/).optional(),
   /** The first message. Without it the session opens with no turn: "Continue" on an app no session built. */
@@ -129,14 +133,32 @@ export const designerSessionPatchBody = z.object({
   title: z.string().min(1).max(80).optional(),
   connectionId: z.string().max(64).optional(),
   model: z.string().min(1).max(200).optional(),
+  /** `null` goes back to the model's own default. */
+  effort: z.enum(RUN_EFFORTS).nullable().optional(),
 });
 
 export const designerTurnBody = z.object({
   text: z.string().min(1).max(20_000),
   /** Files already uploaded to this session, by the ids the upload answered with. */
-  attachments: z.array(z.string().regex(/^att_[0-9a-f]{20}$/)).max(4).optional(),
+  attachments: z.array(z.string().regex(/^att_[0-9a-f]{20}$/)).max(8).optional(),
   /** The page that sends this shows the preview, and will say what it sees of each build. */
   sees: z.boolean().optional(),
+  /** The element of the preview the person pointed at, as the screen said it. The server holds each value to its shape, and refuses what is no element. */
+  picked: z
+    .object({
+      side: z.enum(['staff', 'customer']),
+      path: z.string().max(1000),
+      page: z.number().nullable().optional(),
+      part: z.string().max(300),
+      text: z.string().max(400).optional(),
+      label: z.string().max(400).optional(),
+      within: z.array(z.string().max(200)).max(8).optional(),
+      nth: z.number().optional(),
+      of: z.number().optional(),
+      width: z.number().optional(),
+      height: z.number().optional(),
+    })
+    .optional(),
 });
 
 /** What the preview saw of the app's screen: what is measurably broken on it, and a picture of it as a JPEG data address. */
@@ -162,6 +184,10 @@ export const designerAttachment = z.object({
 });
 export const designerAttachmentQuery = z.object({
   filename: z.string().min(1).max(300),
+  /** A part of a tall picture this session holds, as the page cut it for a model to read: the picture's id, which part (from 1, the top), and how many. */
+  part_of: z.string().regex(/^att_[0-9a-f]{20}$/).optional(),
+  part: z.coerce.number().int().min(1).max(8).optional(),
+  parts: z.coerce.number().int().min(2).max(8).optional(),
   /** A picture's colours as the page read them: `rrggbb:share` (share in thousandths), the most first. */
   palette: z
     .string()
@@ -209,6 +235,18 @@ export const designerFilesReply = z.object({
 });
 export const designerFileQuery = z.object({ path: designerFilePath });
 export const designerFileReply = z.object({ path: z.string(), content: z.string(), hash: designerFileHash });
+/** A search of those files: the words as they are (no pattern), and how they are held against the text. */
+export const designerFileSearchQuery = z.object({ q: z.string().min(1).max(200), case: z.enum(['1']).optional(), word: z.enum(['1']).optional() });
+export const designerFileSearchReply = z.object({
+  files: z.array(
+    z.object({
+      path: z.string(),
+      hash: designerFileHash,
+      hits: z.array(z.object({ line: z.number().int(), col: z.number().int(), len: z.number().int(), text: z.string(), at: z.number().int() })),
+    }),
+  ),
+  more: z.boolean(),
+});
 /** A hand save: each file whole, with the hash it had when the person opened it. */
 export const designerFilesSaveBody = z.object({
   files: z
@@ -277,7 +315,7 @@ export const designerModelsReply = z.object({
       source: z.enum(['database', 'environment']),
       /** `unreachable`: listing its models failed; the other connections still list. */
       state: z.enum(['ok', 'unreachable']),
-      models: z.array(z.object({ id: z.string(), label: z.string() })),
+      models: z.array(z.object({ id: z.string(), label: z.string(), /** The effort levels the model takes, the least first; absent when it takes none. */ efforts: z.array(z.enum(RUN_EFFORTS)).optional() })),
     }),
   ),
   /** The model a new session uses: the environment's selected one, else the saved setting's. */

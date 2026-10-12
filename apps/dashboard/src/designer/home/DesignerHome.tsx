@@ -106,13 +106,13 @@ export function DesignerHome(): ReactNode {
       if (model.picked === null) throw new Error('no model');
       // What is sent is what the menu shows: a choice this server does not offer (Mobile, picked before the server said it is a live one) is not sent.
       const target = chosen.id;
-      const base = { title: nameFromRequest(text), ...(style === null || target === 'dashboard' || target === 'mobile' ? {} : { style }), target, connectionId: model.picked.connectionId, model: model.picked.model };
+      const base = { title: nameFromRequest(text), ...(style === null || target === 'dashboard' || target === 'mobile' ? {} : { style }), target, connectionId: model.picked.connectionId, model: model.picked.model, ...(model.effort === null ? {} : { effort: model.effort }) };
       if (attach.files.length === 0 && made.current === null) return designerApi.createSession({ ...base, text: text.trim(), ...(seesPage() ? { sees: true } : {}) });
       // With files: the session first (they are kept in it), then the files, then the message that names them.
       // A file the server refuses, or a turn that does not start, stops here with its words: the message and the files stay
       // in the box, and the next send goes to the session already made instead of making another.
       // …unless the model or what to build was changed since: that session was made for the other, so a new one is.
-      const key = JSON.stringify([base.connectionId, base.model, base.target]);
+      const key = JSON.stringify([base.connectionId, base.model, base.target, base.effort ?? null]);
       if (made.current === null || made.current.key !== key) made.current = { key, reply: await designerApi.createSession(base) };
       const { reply } = made.current;
       await designerApi.startTurn(reply.session.id, text.trim(), await attach.upload(reply.session.id), seesPage());

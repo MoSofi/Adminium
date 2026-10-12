@@ -531,7 +531,7 @@ describe.skipIf(!canBuildSides)('Adminium Designer’s routes', { timeout: 120_0
     expect(readFileSync(join(root!, '.adminium', 'designer', 'sessions', session.id, 'transcript.jsonl'), 'utf8')).not.toContain(png.toString('base64'));
   });
 
-  it('send a picture’s bytes to a model that reads pictures, with the turn it came with and the next, then only its name', async () => {
+  it('send a picture’s bytes to a model that reads pictures, in every turn of the session from the one it came with; a tall one goes as its parts', async () => {
     const client = await server({ designer: true });
     script = [writesStarter];
     const session = (await client.call('POST', '/api/v1/designer/sessions', createBody())).body['session'] as { id: string };
@@ -554,7 +554,9 @@ describe.skipIf(!canBuildSides)('Adminium Designer’s routes', { timeout: 120_0
 
     await client.call('POST', `/api/v1/designer/sessions/${session.id}/turns`, { text: 'Make it look like this.', attachments: [file.id] });
     await finishedTurn(client, session.id, 2);
-    expect(lastUser()).toMatchObject({ content: 'Make it look like this.', images: [png.toString('base64')] });
+    expect(lastUser()).toMatchObject({ images: [png.toString('base64')] });
+    // The words first; then the picture's name and id, by which alone it can be put in the app.
+    expect(lastUser().content).toMatch(/^Make it look like this\.\n\nThe person attached a picture: "shot\.png" \(attachment att_[0-9a-f]{20}\)/);
 
     await client.call('POST', `/api/v1/designer/sessions/${session.id}/turns`, { text: 'A little warmer.' });
     await finishedTurn(client, session.id, 3);
@@ -562,8 +564,38 @@ describe.skipIf(!canBuildSides)('Adminium Designer’s routes', { timeout: 120_0
 
     await client.call('POST', `/api/v1/designer/sessions/${session.id}/turns`, { text: 'And the heading bigger.' });
     await finishedTurn(client, session.id, 4);
-    expect(JSON.stringify(asked.at(-1))).not.toContain(png.toString('base64'));
-    expect(JSON.stringify(asked.at(-1))).toContain('A picture the person attached earlier: \\"shot.png\\"');
+    // Two turns on, it still goes: the design a page is built from is not taken away from the model (owner ruling 2026-10-11).
+    expect(JSON.stringify(asked.at(-1))).toContain(png.toString('base64'));
+
+    // A tall picture: the page that attaches it sends the picture, then the parts it cut it into.
+    const upload = async (query: string, bytes: Buffer) =>
+      composed!.app.inject({ method: 'POST', url: `/api/v1/designer/sessions/${session.id}/attachments?${query}`, headers: { host: HOST, cookie: client.owner, 'content-type': 'application/octet-stream' }, payload: bytes });
+    const tall = Buffer.concat([png, Buffer.from(' whole')]);
+    const whole = ((await upload('filename=page.png', tall)).json() as { attachment: { id: string } }).attachment;
+    const top = Buffer.concat([png, Buffer.from(' top')]);
+    const foot = Buffer.concat([png, Buffer.from(' foot')]);
+    expect((await upload(`filename=pasted&part_of=${whole.id}&part=1&parts=2`, top)).statusCode).toBe(201);
+    expect((await upload(`filename=pasted&part_of=${whole.id}&part=2&parts=2`, foot)).statusCode).toBe(201);
+    // A part names its picture, its place and the count, all three or none.
+    expect((await upload(`filename=pasted&part_of=${whole.id}&part=1`, top)).statusCode).toBe(422);
+    await client.call('POST', `/api/v1/designer/sessions/${session.id}/turns`, { text: 'Build this page.', attachments: [whole.id] });
+    await finishedTurn(client, session.id, 5);
+    const sent = JSON.stringify(asked.at(-1));
+    expect(sent).toContain('The picture \\"page.png\\" is tall, so it comes as 2 parts');
+    expect(lastUser().images).toEqual([top.toString('base64'), foot.toString('base64')]);
+    expect(sent).not.toContain(tall.toString('base64'));
+  });
+
+  it('keep the effort a person chose with the session, and take it away again', async () => {
+    const client = await server({ designer: true });
+    script = [writesStarter];
+    const session = (await client.call('POST', '/api/v1/designer/sessions', createBody({ effort: 'high' }))).body['session'] as { id: string; effort?: string };
+    expect(session.effort).toBe('high');
+    const patched = await client.call('PATCH', `/api/v1/designer/sessions/${session.id}`, { effort: 'low' });
+    expect((patched.body['session'] as { effort?: string }).effort).toBe('low');
+    const cleared = await client.call('PATCH', `/api/v1/designer/sessions/${session.id}`, { effort: null });
+    expect(cleared.body['session'] as { effort?: string }).not.toHaveProperty('effort');
+    expect((await client.call('PATCH', `/api/v1/designer/sessions/${session.id}`, { effort: 'enormous' })).status).toBe(422);
   });
 
   it('goes on without a picture the model’s server refuses, and never sends that session a picture again', async () => {

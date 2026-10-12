@@ -14,7 +14,7 @@ import { ThemeProvider } from '@adminium/ui';
 
 import { installTestI18n } from '../../i18n/testing.js';
 import { jsonResponse } from '../../test/fixtures.js';
-import type { DesignerSession, PhoneStatus } from '../api.js';
+import type { DesignerPicked, DesignerSession, PhoneStatus } from '../api.js';
 import { Preview } from './Preview.js';
 import { usePreview, type PreviewModel } from './usePreview.js';
 
@@ -60,12 +60,16 @@ let mode: 'local' | 'live';
 let appThere: boolean;
 let fixes: string[];
 
+/** The elements the preview handed on as pointed at. */
+let pickedNow: DesignerPicked[];
+
 function Harness(): null | React.ReactElement {
-  model = usePreview(session, []);
+  model = usePreview(session, [], (element) => pickedNow.push(element));
   return <Preview preview={model} session={session} turns={[]} onFix={(message) => fixes.push(message)} compact={false} />;
 }
 
 beforeEach(() => {
+  pickedNow = [];
   tickets = [];
   refuse = () => false;
   session = SESSION;
@@ -344,6 +348,77 @@ describe('where the preview is', () => {
   });
 });
 
+describe('pointing at an element of the preview', () => {
+  const element = { part: 'button btn', text: 'Add to cart', label: '', within: ['div card'], nth: 1, of: 1, width: 120, height: 40 };
+  const canPick = (side: string, path: string) => ({ ...here(side, path), picks: true });
+  const pickedSaid = (side: string) => ({ type: 'adminium:side-picked', app: 'shop', side, path: '/menu', page: 1280, element });
+
+  it('can be done only on a side of the app’s own, once it has said where it is', async () => {
+    mount();
+    await onSide('customer');
+    const win = inside();
+    expect(model.canPick).toBe(false);
+    act(() => model.setPicking(true));
+    expect(model.picking).toBe(false);
+    expect(win.posted).toEqual([]);
+    // A screen built before screens could be pointed at says where it is and no more: it is not asked.
+    say(here('customer', '/menu', 'Menu'));
+    expect(model.canPick).toBe(false);
+    say(canPick('customer', '/menu'));
+    expect(model.canPick).toBe(true);
+    await onSide('dashboard');
+    expect(model.canPick).toBe(false);
+  });
+
+  it('asks the side to start, takes the element it says, and hands it on once', async () => {
+    mount();
+    await onSide('customer');
+    const win = inside();
+    say(canPick('customer', '/menu'));
+    // A screen cannot hand an element over while nobody is pointing.
+    say(pickedSaid('customer'));
+    expect(pickedNow).toEqual([]);
+
+    act(() => model.setPicking(true));
+    expect(model.picking).toBe(true);
+    expect(win.posted).toEqual([{ message: { type: 'adminium:host:pick', on: true }, origin: SITE }]);
+    // Not from another site, and not for another side.
+    say(pickedSaid('customer'), { origin: 'http://elsewhere.example' });
+    say(pickedSaid('staff'));
+    expect(pickedNow).toEqual([]);
+    say(pickedSaid('customer'));
+    expect(pickedNow).toEqual([{ side: 'customer', path: '/menu', page: 1280, ...element }]);
+    expect(model.picking).toBe(false);
+    say(pickedSaid('customer'));
+    expect(pickedNow).toHaveLength(1);
+  });
+
+  it('stops at a second press, at Escape on this page, at the side’s own word, and when the frame is opened again', async () => {
+    mount();
+    await onSide('customer');
+    const win = inside();
+    say(canPick('customer', '/'));
+    act(() => model.setPicking(true));
+    act(() => model.setPicking(false));
+    expect(model.picking).toBe(false);
+    expect(win.posted.map((entry) => (entry.message as { on?: boolean }).on)).toEqual([true, false]);
+
+    act(() => model.setPicking(true));
+    act(() => void window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' })));
+    expect(model.picking).toBe(false);
+    expect(win.posted.map((entry) => (entry.message as { on?: boolean }).on)).toEqual([true, false, true, false]);
+
+    act(() => model.setPicking(true));
+    say({ type: 'adminium:side-pick-ended', app: 'shop', side: 'customer' });
+    expect(model.picking).toBe(false);
+    expect(pickedNow).toEqual([]);
+
+    act(() => model.setPicking(true));
+    act(() => model.reload());
+    expect(model.picking).toBe(false);
+  });
+});
+
 describe('the phone side of the preview', () => {
   const ADDRESSES = [{ address: '192.168.1.20', name: 'en0' }];
   const stands = (phone: PhoneStatus['phone'], door: PhoneStatus['door'] = { state: 'off' }): PhoneStatus => ({ phone, door, addresses: ADDRESSES });
@@ -549,5 +624,86 @@ describe('the phone side of the preview', () => {
     inside();
     say({ type: 'adminium:side-error', app: 'shop', side: 'mobile', message: 'boom' });
     expect(screen.queryByRole('alert')).toBeNull();
+  });
+});
+
+describe('a picture of a part of the preview', () => {
+  const canShoot = (side: string, path: string) => ({ ...here(side, path), picks: true, shots: true });
+  const area = { left: 10, top: 20, width: 300, height: 200 };
+  // The first bytes of a JPEG, and a few more.
+  const picture = `data:image/jpeg;base64,${btoa(String.fromCharCode(0xff, 0xd8, 0xff, 0xe0, 1, 2, 3))}`;
+  const shotSaid = (side: string, id: number, over: Record<string, unknown> = { picture }) => ({ type: 'adminium:side-shot', app: 'shop', side, id, ...over });
+
+  it('can be taken only on a side of the app’s own that says it draws itself', async () => {
+    mount();
+    await onSide('customer');
+    expect(model.canShoot).toBe(false);
+    act(() => model.setShooting(true));
+    expect(model.shooting).toBe(false);
+    // A screen built before screens drew a part of themselves is not asked.
+    say({ ...here('customer', '/menu', 'Menu'), picks: true });
+    expect(model.canShoot).toBe(false);
+    say(canShoot('customer', '/menu'));
+    expect(model.canShoot).toBe(true);
+    await onSide('dashboard');
+    expect(model.canShoot).toBe(false);
+  });
+
+  it('asks the side for the part dragged over and takes its answer, to that asking only, as a file', async () => {
+    mount();
+    await onSide('customer');
+    const win = inside();
+    say(canShoot('customer', '/menu'));
+    act(() => model.setShooting(true));
+    expect(model.shooting).toBe(true);
+
+    let got: File | null | undefined;
+    act(() => void model.shoot(area).then((file) => (got = file)));
+    expect(win.posted).toEqual([{ message: { type: 'adminium:host:shot', id: 1, area }, origin: SITE }]);
+    // Not from another site, not for another side, not under another number.
+    say(shotSaid('customer', 1), { origin: 'http://elsewhere.example' });
+    say(shotSaid('staff', 1));
+    say(shotSaid('customer', 5));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(got).toBeUndefined();
+    say(shotSaid('customer', 1));
+    await waitFor(() => expect(got).toBeInstanceOf(File));
+    expect([got?.name, got?.type, got?.size]).toEqual(['screenshot.jpg', 'image/jpeg', 7]);
+
+    // A screen that says it drew nothing, and one that sends what is no JPEG, give no file.
+    got = undefined;
+    act(() => void model.shoot(area).then((file) => (got = file)));
+    say(shotSaid('customer', 2, {}));
+    await waitFor(() => expect(got).toBeNull());
+    got = undefined;
+    act(() => void model.shoot(area).then((file) => (got = file)));
+    say(shotSaid('customer', 3, { picture: `data:image/jpeg;base64,${btoa('<svg onload=1>')}` }));
+    await waitFor(() => expect(got).toBeNull());
+  });
+
+  it('stops at Escape and when the frame is opened again, and a picture awaited then never comes; pointing and dragging are one at a time', async () => {
+    mount();
+    await onSide('customer');
+    const win = inside();
+    say(canShoot('customer', '/'));
+    act(() => model.setShooting(true));
+    let got: File | null | undefined;
+    act(() => void model.shoot(area).then((file) => (got = file)));
+    act(() => void window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' })));
+    expect(model.shooting).toBe(false);
+    await waitFor(() => expect(got).toBeNull());
+    // Its answer, come late, is nobody's.
+    say(shotSaid('customer', 1));
+
+    act(() => model.setPicking(true));
+    act(() => model.setShooting(true));
+    expect([model.picking, model.shooting]).toEqual([false, true]);
+    expect(win.posted.filter((entry) => (entry.message as { type?: string }).type === 'adminium:host:pick').map((entry) => (entry.message as { on?: boolean }).on)).toEqual([true, false]);
+    act(() => model.setPicking(true));
+    expect([model.picking, model.shooting]).toEqual([true, false]);
+
+    act(() => model.setShooting(true));
+    act(() => model.reload());
+    expect(model.shooting).toBe(false);
   });
 });

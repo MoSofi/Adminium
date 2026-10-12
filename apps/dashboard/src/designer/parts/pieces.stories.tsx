@@ -21,6 +21,9 @@ const base: DesignerModelState = {
   canBuild: true,
   cannotBuildMessage: null,
   pick: () => undefined,
+  efforts: [],
+  effort: null,
+  pickEffort: () => undefined,
 };
 
 // Plain CSF objects: Storybook needs no types, and the dashboard does not depend on Storybook.

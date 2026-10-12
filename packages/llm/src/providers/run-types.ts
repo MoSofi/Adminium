@@ -12,6 +12,7 @@
  * `AbortController` only.
  */
 import type { ProviderId } from '../types.js';
+import type { RunEffort } from './types.js';
 
 /** One part of a message. */
 export type RunBlock =
@@ -59,6 +60,12 @@ export interface RunRequest {
   tools: RunTool[];
   model: string;
   maxTokens: number;
+  /**
+   * How hard the model is asked to work, for a model that takes the setting
+   * (`ModelInfo.efforts`). Left out, the model works at its provider's default.
+   * A provider with no such setting we send passes it over.
+   */
+  effort?: RunEffort;
   /** The caller's stop. Aborting it ends the run with a `ProviderError` of code `aborted`. */
   signal?: AbortSignal;
   /** How long to wait for the first byte of the reply. A local model may think for minutes. */
@@ -89,6 +96,8 @@ export interface RunResult {
    * answers it with an error result and the model tries again.
    */
   malformed: MalformedCall[];
+  /** For a log line, when the provider gave it: why it stopped in its own word, and what it sent that is not kept (thinking). Never shown to a model. */
+  detail?: string;
 }
 
 export interface ProviderRunner {

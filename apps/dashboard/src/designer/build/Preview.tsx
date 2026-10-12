@@ -22,6 +22,8 @@ import { AppFrame } from '../../apps/AppFrame.js';
 import { t } from '../../i18n/t.js';
 import { designerApi, type DesignerSession } from '../api.js';
 import { PhonePanel } from './PhonePanel.js';
+import { ShotOverlay } from './ShotOverlay.js';
+import type { ShotArea } from './shot.js';
 import { seesPage, sightFrom } from './sight.js';
 import type { TurnView } from './turns.js';
 import type { PreviewModel, PreviewSide } from './usePreview.js';
@@ -105,8 +107,41 @@ export function previewState(turns: readonly TurnView[]): { building: boolean; f
  * from the same {@link PreviewModel}; `compact` is a phone-wide window, where
  * the frame always fills.
  */
-export function Preview({ preview, session, turns, onFix, compact }: { preview: PreviewModel; session: DesignerSession; turns: readonly TurnView[]; onFix: (message: string) => void; compact: boolean }): ReactNode {
+export function Preview({
+  preview,
+  session,
+  turns,
+  onFix,
+  compact,
+  onShot,
+  onNotice,
+}: {
+  preview: PreviewModel;
+  session: DesignerSession;
+  turns: readonly TurnView[];
+  onFix: (message: string) => void;
+  compact: boolean;
+  /** A picture of a part of the page, dragged over by the person: for their next message. */
+  onShot?: (file: File) => void;
+  /** A word for the person, said as the page says such things. */
+  onNotice?: (text: string) => void;
+}): ReactNode {
   const { app, side, width, round, noPreview } = preview;
+  /** The part was dragged over and the page in the frame is drawing it. */
+  const [drawing, setDrawing] = useState(false);
+  const takeShot = (area: ShotArea): void => {
+    setDrawing(true);
+    void preview.shoot(area).then((file) => {
+      setDrawing(false);
+      // Stopped while it was drawn (Escape, another side): what comes late is not handed on.
+      if (!shootingNow.current) return;
+      preview.setShooting(false);
+      if (file === null) onNotice?.(t('designer:shot.failed', 'The page could not draw that part. Try again, or attach a picture of your own.'));
+      else onShot?.(file);
+    });
+  };
+  const shootingNow = useRef(preview.shooting);
+  shootingNow.current = preview.shooting;
   // The frame's own page has loaded (the dashboard then paints on its own); reset whenever its address changes.
   const [loadedFor, setLoadedFor] = useState<string | null>(null);
   const runningNow = useRef(preview.running);
@@ -183,11 +218,15 @@ export function Preview({ preview, session, turns, onFix, compact }: { preview: 
     : width === 'tablet'
       ? 'flex h-full w-[min(768px,100%)] overflow-hidden rounded-[16px] border border-border-strong bg-surface shadow-md'
       : 'adm-always-dark flex h-[min(720px,100%)] w-[360px] max-w-full rounded-[30px] bg-bg p-2 shadow-lg';
-  const screenBox = wide || width === 'tablet' ? 'flex min-h-0 min-w-0 flex-1' : 'flex min-h-0 min-w-0 flex-1 overflow-hidden rounded-[22px] bg-surface';
+  const screenBox = wide || width === 'tablet' ? 'relative flex min-h-0 min-w-0 flex-1' : 'relative flex min-h-0 min-w-0 flex-1 overflow-hidden rounded-[22px] bg-surface';
   const sized = (
     <div className={ground}>
       <div className={device}>
-        <div className={screenBox}>{frame}</div>
+        <div className={screenBox}>
+          {frame}
+          {/* Over the frame and nothing else, so the part dragged is said in the frame's own pixels. */}
+          {preview.shooting && (side === 'staff' || side === 'customer') ? <ShotOverlay drawing={drawing} onArea={takeShot} /> : null}
+        </div>
       </div>
     </div>
   );

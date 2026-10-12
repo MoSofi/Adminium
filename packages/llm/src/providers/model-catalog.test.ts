@@ -21,6 +21,7 @@ import {
   anthropicGeneration,
   ANTHROPIC_STATIC_MODELS,
   OPENAI_STATIC_MODELS,
+  anthropicEfforts,
   listAnthropicModels,
   listOllamaModels,
   listOpenAiCompatibleModels,
@@ -58,6 +59,34 @@ afterEach(() => {
 
 const BASE = 'https://api.example.test';
 
+describe('the effort levels a model takes', () => {
+  it('are read from the service\'s own list when it says, level by level', async () => {
+    const level = (supported: boolean) => ({ supported });
+    stubFetch({
+      data: [
+        { id: 'claude-sonnet-5-5', display_name: 'Claude Sonnet 5.5', capabilities: { effort: { supported: true, low: level(true), medium: level(true), high: level(true), xhigh: level(false), max: level(true) } } },
+        // Says it takes none: no level is offered, whatever its name suggests.
+        { id: 'claude-opus-9', capabilities: { effort: { supported: false } } },
+      ],
+    });
+    expect(await listAnthropicModels({ apiKey: 'k', baseUrl: BASE })).toEqual([
+      { id: 'claude-sonnet-5-5', label: 'Claude Sonnet 5.5', efforts: ['low', 'medium', 'high', 'max'] },
+      { id: 'claude-opus-9', label: 'claude-opus-9' },
+    ]);
+  });
+
+  it('are known by generation when the list does not say', () => {
+    expect(anthropicEfforts('claude-sonnet-5-5')).toEqual(['low', 'medium', 'high', 'xhigh', 'max']);
+    expect(anthropicEfforts('claude-opus-4-8')).toEqual(['low', 'medium', 'high', 'xhigh', 'max']);
+    expect(anthropicEfforts('claude-sonnet-4-6')).toEqual(['low', 'medium', 'high', 'max']);
+    expect(anthropicEfforts('claude-opus-4-5-20251101')).toEqual(['low', 'medium', 'high']);
+    // The field is refused by these: none is offered.
+    expect(anthropicEfforts('claude-haiku-4-5')).toEqual([]);
+    expect(anthropicEfforts('claude-3-5-sonnet-20241022')).toEqual([]);
+    expect(anthropicEfforts('my-gateway-model')).toEqual([]);
+  });
+});
+
 describe('listAnthropicModels', () => {
   it('maps display_name to the label and falls back to the id when it is absent', async () => {
     const calls = stubFetch({
@@ -69,9 +98,10 @@ describe('listAnthropicModels', () => {
     });
 
     expect(await listAnthropicModels({ apiKey: 'sk-ant-secret', baseUrl: BASE })).toEqual([
-      { id: 'claude-sonnet-9', label: 'Claude Sonnet 9' },
+      // The list said nothing of effort: the levels are those of the model's generation.
+      { id: 'claude-sonnet-9', label: 'Claude Sonnet 9', efforts: ['low', 'medium', 'high', 'xhigh', 'max'] },
       // A model with no display_name is still selectable — labelled by its id.
-      { id: 'claude-haiku-9', label: 'claude-haiku-9' },
+      { id: 'claude-haiku-9', label: 'claude-haiku-9', efforts: ['low', 'medium', 'high', 'xhigh', 'max'] },
     ]);
     expect(calls[0]?.url).toBe(`${BASE}/v1/models`);
     expect(headerOf(calls[0], 'x-api-key')).toBe('sk-ant-secret');

@@ -24,8 +24,10 @@ import { systemInfoQuery } from '../../app/capabilities.js';
 import { getDesktopApi } from '../../lib/desktop-runtime.js';
 import { createRealtimeClient } from '../../app/ws.js';
 import type { InstalledApp } from '../../studio/apps/appsApi.js';
-import { designerApi, type DesignerSession, type PhoneStatus } from '../api.js';
+import { designerApi, type DesignerPicked, type DesignerSession, type PhoneStatus } from '../api.js';
+import { pickEnded, pickedFrom } from './picked.js';
 import { isDesignerPath, locationFrom, tidyPagePath, visit, type VisitedPage } from './pagePath.js';
+import { SHOT_WAIT_MS, shotFrom, type ShotArea } from './shot.js';
 import { previewShows, seesPage, setSeesPage } from './sight.js';
 import type { TurnView } from './turns.js';
 
@@ -86,9 +88,21 @@ export interface PreviewModel {
   openTab: () => void;
   /** False where there is nowhere to open it. */
   canOpenTab: boolean;
+  /** Whether the side shown can be pointed at now: a side of the app's own that has said where it is, and that it can be. */
+  canPick: boolean;
+  /** The person is pointing: the next click in the frame picks an element and reaches nothing else. */
+  picking: boolean;
+  setPicking: (on: boolean) => void;
+  /** Whether the side shown can draw a part of itself now: a side of the app's own that has said where it is, and that it can. */
+  canShoot: boolean;
+  /** The person is dragging over the frame for a picture of a part of it. */
+  shooting: boolean;
+  setShooting: (on: boolean) => void;
+  /** The part dragged over, as a picture file drawn by the page in the frame; null when it drew none in time. */
+  shoot: (area: ShotArea) => Promise<File | null>;
 }
 
-export function usePreview(session: DesignerSession, turns: readonly TurnView[]): PreviewModel {
+export function usePreview(session: DesignerSession, turns: readonly TurnView[], onPicked?: (picked: DesignerPicked) => void): PreviewModel {
   const queryClient = useQueryClient();
   const info = useQuery(systemInfoQuery());
   const noPreview = info.data?.designer?.mode === 'live';
@@ -151,15 +165,24 @@ export function usePreview(session: DesignerSession, turns: readonly TurnView[])
   const path = paths[side];
   const to = `${prefix}${path}`;
   /** Which opening of which side last said where it is, and (a customer side) the window that said it. */
-  const [spoke, setSpoke] = useState<{ side: PreviewSide; round: number } | null>(null);
+  const [spoke, setSpoke] = useState<{ side: PreviewSide; round: number; picks: boolean; shots: boolean } | null>(null);
   const speaker = useRef<{ side: PreviewSide; round: number; window: MessageEventSource | null } | null>(null);
   const spoken = spoke !== null && spoke.side === side && spoke.round === round;
-  const said = useCallback((which: PreviewSide, opening: number, from: MessageEventSource | null): void => {
+  const said = useCallback((which: PreviewSide, opening: number, from: MessageEventSource | null, picks = false, shots = false): void => {
     speaker.current = { side: which, round: opening, window: from };
-    setSpoke((before) => (before !== null && before.side === which && before.round === opening ? before : { side: which, round: opening }));
+    setSpoke((before) => (before !== null && before.side === which && before.round === opening && before.picks === picks && before.shots === shots ? before : { side: which, round: opening, picks, shots }));
   }, []);
   const [visited, setVisited] = useState<VisitedPage[]>([{ path: '/', title: '' }]);
   const frame = useRef<HTMLIFrameElement | null>(null);
+  const [picking, setPickingState] = useState(false);
+  const pickingNow = useRef(false);
+  pickingNow.current = picking;
+  const onPickedNow = useRef(onPicked);
+  onPickedNow.current = onPicked;
+  const [shooting, setShootingState] = useState(false);
+  /** The picture asked of the frame and not yet answered: its number, and what its answer is handed to. */
+  const shotAsked = useRef<{ id: number; done: (file: File | null) => void } | null>(null);
+  const shotSeq = useRef(0);
 
   const ticket = useQuery({
     // (A phone app built again is another page to open: its stamp is part of what is asked for.)
@@ -212,10 +235,12 @@ export function usePreview(session: DesignerSession, turns: readonly TurnView[])
   // What this preview shows, for a turn about to start: only a side of the app's own can be looked at.
   // The frame is there whichever tab is open, so this holds on every tab.
   const showing = noPreview || app === null ? null : side;
+  // No screen of its own yet, and no tab picked by hand: the first screen a turn makes is the one this preview turns to.
+  const firstToCome = !noPreview && chosen === null && !sides.some((entry) => entry === 'staff' || entry === 'customer');
   useEffect(() => {
-    previewShows(showing);
+    previewShows(showing, firstToCome);
     return () => previewShows(null);
-  }, [showing]);
+  }, [showing, firstToCome]);
 
   const origin = ticket.data?.origin ?? null;
 
@@ -227,10 +252,27 @@ export function usePreview(session: DesignerSession, turns: readonly TurnView[])
       if (event.origin !== origin) return;
       // From a frame of this page, not from any window that happens to share the preview's address.
       if (!Array.from(document.querySelectorAll('iframe')).some((entry) => entry.contentWindow === event.source)) return;
+      // An element is taken only while the person is pointing: a screen cannot hand one over unasked.
+      const picked = pickedFrom(event.data, session.appKey, side);
+      if (picked !== null || pickEnded(event.data, session.appKey)) {
+        if (!pickingNow.current) return;
+        setPickingState(false);
+        if (picked !== null) onPickedNow.current?.(picked);
+        return;
+      }
+      // A picture is taken only as the answer to the one asking that waits: a screen cannot hand one over unasked.
+      const waiting = shotAsked.current;
+      const shot = waiting === null ? null : shotFrom(event.data, session.appKey, side, waiting.id);
+      if (waiting !== null && shot !== null) {
+        waiting.done(shot === false ? null : shot);
+        return;
+      }
       const location = locationFrom(event.data, session.appKey, side);
       if (location === null) return;
       setPath(side, location.path);
-      said(side, round, event.source);
+      // A screen built before screens could be pointed at does not say it can: it would hear the asking and do nothing.
+      const can = event.data as { picks?: unknown; shots?: unknown } | null;
+      said(side, round, event.source, can?.picks === true, can?.shots === true);
       if (side === 'customer') setVisited((pages) => visit(pages, location));
     };
     window.addEventListener('message', heard);
@@ -262,6 +304,94 @@ export function usePreview(session: DesignerSession, turns: readonly TurnView[])
   }, [onDashboard, round, setPath, said]);
   // What the dashboard's frame opens on: where that side was when it was opened, so a reload stays. Never read while it is open: a new address there would load the dashboard again.
   const dashboardSrc = useMemo(() => pathsNow.current.dashboard, [round, onDashboard]);
+
+  // Pointing is done by the page in the frame: it is asked to start and to stop, and a frame opened again has forgotten.
+  const canPick = !noPreview && (side === 'staff' || side === 'customer') && spoken && spoke.picks && origin !== null;
+  const tellPicking = useCallback(
+    (on: boolean): void => {
+      const there = speaker.current;
+      if (there === null || there.side !== side || there.round !== round || there.window === null || origin === null) return;
+      try {
+        (there.window as Window).postMessage({ type: 'adminium:host:pick', on }, origin);
+      } catch {
+        // A frame that is gone has nothing to stop.
+      }
+    },
+    [origin, side, round],
+  );
+  const setPicking = (on: boolean): void => {
+    if (on && !canPick) return;
+    // One at a time: the layer a picture is dragged on would take the click that picks.
+    if (on) setShootingState(false);
+    tellPicking(on);
+    setPickingState(on);
+  };
+  useEffect(() => setPickingState(false), [side, round]);
+
+  // A picture of a part of the page is drawn by the page in the frame too: it is asked for with the part, and answers under the asking's number.
+  const canShoot = !noPreview && (side === 'staff' || side === 'customer') && spoken && spoke.shots && origin !== null;
+  const setShooting = (on: boolean): void => {
+    if (on && !canShoot) return;
+    if (on && pickingNow.current) {
+      tellPicking(false);
+      setPickingState(false);
+    }
+    setShootingState(on);
+  };
+  const shoot = useCallback(
+    (area: ShotArea): Promise<File | null> => {
+      const there = speaker.current;
+      if (there === null || there.side !== side || there.round !== round || there.window === null || origin === null || shotAsked.current !== null) return Promise.resolve(null);
+      shotSeq.current += 1;
+      const id = shotSeq.current;
+      return new Promise((resolve) => {
+        // A screen that never answers (it was closed, it stopped) is not waited for.
+        const timer = window.setTimeout(() => done(null), SHOT_WAIT_MS);
+        const done = (file: File | null): void => {
+          if (shotAsked.current?.id !== id) return;
+          shotAsked.current = null;
+          window.clearTimeout(timer);
+          resolve(file);
+        };
+        shotAsked.current = { id, done };
+        try {
+          (there.window as Window).postMessage({ type: 'adminium:host:shot', id, area }, origin);
+        } catch {
+          done(null);
+        }
+      });
+    },
+    [origin, side, round],
+  );
+  // A frame opened again, or another side: the drag is over, and a picture still awaited will not come.
+  useEffect(
+    () => () => {
+      setShootingState(false);
+      shotAsked.current?.done(null);
+    },
+    [side, round],
+  );
+  useEffect(() => {
+    if (!shooting) return;
+    const key = (event: KeyboardEvent): void => {
+      if (event.key !== 'Escape') return;
+      setShootingState(false);
+      shotAsked.current?.done(null);
+    };
+    window.addEventListener('keydown', key);
+    return () => window.removeEventListener('keydown', key);
+  }, [shooting]);
+  // Escape ends it from this page too: the frame hears the key only while the pointer's last click was inside it.
+  useEffect(() => {
+    if (!picking) return;
+    const key = (event: KeyboardEvent): void => {
+      if (event.key !== 'Escape') return;
+      tellPicking(false);
+      setPickingState(false);
+    };
+    window.addEventListener('keydown', key);
+    return () => window.removeEventListener('keydown', key);
+  }, [picking, tellPicking]);
 
   const go = (next: string): void => {
     const there = speaker.current !== null && speaker.current.side === side && speaker.current.round === round ? speaker.current : null;
@@ -395,5 +525,12 @@ export function usePreview(session: DesignerSession, turns: readonly TurnView[])
     phoneError,
     openTab,
     canOpenTab,
+    canPick,
+    picking,
+    setPicking,
+    canShoot,
+    shooting,
+    setShooting,
+    shoot,
   };
 }

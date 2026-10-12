@@ -178,6 +178,22 @@ export default {
     "keptWindows": "auf diesem Computer, verschlüsselt von Windows. Er wird nicht in Ihr Projekt geschrieben, ein exportiertes oder geteiltes Projekt enthält also keinen.",
     "keptLinux": "auf diesem Computer, verschlüsselt vom Schlüsselspeicher Ihres Desktops. Er wird nicht in Ihr Projekt geschrieben, ein exportiertes oder geteiltes Projekt enthält also keinen."
   },
+  "effort": {
+    "label": "Aufwand: {effort}",
+    "menu": "Aufwand",
+    "default": "Standard",
+    "defaultLine": "Was das Modell von sich aus tut",
+    "low": "Niedrig",
+    "lowLine": "Am schnellsten und günstigsten",
+    "medium": "Mittel",
+    "mediumLine": "Ausgewogen zwischen Tempo und Sorgfalt",
+    "high": "Hoch",
+    "highLine": "Mehr Überlegung bei jedem Schritt",
+    "xhigh": "Sehr hoch",
+    "xhighLine": "Für schwierige Aufgaben; langsamer und teurer",
+    "max": "Maximal",
+    "maxLine": "Die meiste Überlegung; am langsamsten und teuersten"
+  },
   "provider": {
     "anthropic": "Anthropic",
     "openai": "OpenAI",
@@ -346,6 +362,9 @@ export default {
     "picturesDeclined": "Auf Bilder verzichtet",
     "picturesFailed": "Bilder konnten nicht hinzugefügt werden",
     "picturesRefused": "Keine Bilder hinzugefügt",
+    "ownPicturesAdding": "Ihre Bilder werden hinzugefügt",
+    "ownPicturesAdded": "Ihre Bilder hinzugefügt: {count}",
+    "ownPicturesFailed": "Ihre Bilder wurden nicht hinzugefügt",
     "naming": "Benennt die App",
     "named": "App {subject} genannt",
     "notNamed": "Die App wurde nicht benannt",
@@ -751,7 +770,23 @@ export default {
     "composerUnsaved": "Sie haben nicht gespeicherte Änderungen in {count, plural, one {# Datei} other {# Dateien}}. Der Designer sieht sie nicht.",
     "saveFirst": "Zuerst speichern",
     "sendAnyway": "Trotzdem senden",
-    "groupMobile": "Handy-App"
+    "groupMobile": "Handy-App",
+    "searchAll": "In allen Dateien suchen",
+    "searchResults": "Suchergebnisse",
+    "matchCase": "Groß-/Kleinschreibung beachten",
+    "wholeWord": "Ganzes Wort",
+    "searching": "Suche läuft…",
+    "searchFailed": "Die Dateien konnten nicht durchsucht werden.",
+    "noResults": "Keine Ergebnisse",
+    "resultCount": "{count, plural, one {# Ergebnis} other {# Ergebnisse}} in {files, plural, one {# Datei} other {# Dateien}}",
+    "resultsFirst": "Die ersten {count} Ergebnisse, in {files, plural, one {# Datei} other {# Dateien}}",
+    "resultLine": "Zeile {line}: {text}",
+    "find": "In dieser Datei suchen",
+    "findAt": "{at} von {count}",
+    "findCount": "{count} gefunden",
+    "findPrevious": "Vorheriges Ergebnis",
+    "findNext": "Nächstes Ergebnis",
+    "findClose": "Suche schließen"
   },
   "chat": {
     "copy": "Diese Nachricht kopieren",
@@ -868,5 +903,19 @@ export default {
     "show": "Code anzeigen",
     "open": "Auf einem Handy öffnen",
     "webNote": "Vom Browser gezeichnet: nah am Handy, aber nicht das Handy. Der Designer sieht sich diese Seite nicht an."
+  },
+  "pick": {
+    "button": "Element auf der Seite auswählen",
+    "hint": "Klicken Sie auf den Teil der Seite, der geändert werden soll. Esc beendet die Auswahl.",
+    "chip": "Ausgewähltes Element",
+    "remove": "Ausgewähltes Element entfernen",
+    "placeholder": "Schreiben Sie, was an diesem Element geändert werden soll…"
+  },
+  "shot": {
+    "button": "Bild von einem Teil der Seite aufnehmen",
+    "hint": "Ziehen Sie über den Teil der Seite, den Sie meinen. Esc beendet die Auswahl.",
+    "area": "Ziehen Sie über den Teil der Seite, von dem ein Bild aufgenommen werden soll",
+    "drawing": "Bild wird aufgenommen…",
+    "failed": "Die Seite konnte diesen Teil nicht zeichnen. Versuchen Sie es erneut oder hängen Sie ein eigenes Bild an."
   }
 } as const;

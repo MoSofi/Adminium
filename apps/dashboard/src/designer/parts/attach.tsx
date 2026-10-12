@@ -13,7 +13,7 @@ import { FileSpreadsheet, Paperclip, Type, X } from 'lucide-react';
 import { t } from '../../i18n/t.js';
 import { designerApi, type DesignerAttachment } from '../api.js';
 
-export const MAX_FILES = 4;
+export const MAX_FILES = 8;
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const MAX_CSV_BYTES = 10 * 1024 * 1024;
 const MAX_FONT_BYTES = 400 * 1024;
@@ -96,6 +96,71 @@ export async function paletteOf(file: Blob): Promise<string> {
   }
 }
 
+/**
+ * A tall picture, cut for a model to read. A provider shrinks a picture to fit
+ * its own longest side (about 1,500 px, and little more than a megapixel), so a
+ * whole page in one picture reaches the model a few hundred pixels wide: the
+ * words of its headings still read, its layout no longer does. Parts this size
+ * arrive as they are.
+ */
+export const PART_WIDTH = 1120;
+export const PART_HEIGHT = 1024;
+/** What two neighbours share, so nothing is cut through unseen. */
+export const PART_OVERLAP = 48;
+export const PARTS_MAX = 8;
+/** A picture no taller than this, once it is as wide as a part, goes whole. */
+const WHOLE_HEIGHT = 1400;
+
+/**
+ * Where to cut: the scale the picture is drawn at, and each part's top and
+ * height in the drawn picture. Null when the picture goes whole. A picture too
+ * tall for eight parts is drawn smaller until eight hold it.
+ */
+export function partPlan(width: number, height: number): { scale: number; width: number; parts: { top: number; height: number }[] } | null {
+  if (!(width > 0) || !(height > 0)) return null;
+  let scale = Math.min(1, PART_WIDTH / width);
+  if (height * scale <= WHOLE_HEIGHT) return null;
+  const step = PART_HEIGHT - PART_OVERLAP;
+  const most = PARTS_MAX * step + PART_OVERLAP;
+  if (height * scale > most) scale = most / height;
+  const drawn = Math.round(height * scale);
+  const count = Math.min(PARTS_MAX, Math.max(2, Math.ceil((drawn - PART_OVERLAP) / step)));
+  // The last part ends at the picture's foot, and is as tall as the others.
+  const parts = Array.from({ length: count }, (_, index) => ({ top: Math.max(0, Math.min(index * step, drawn - PART_HEIGHT)), height: Math.min(PART_HEIGHT, drawn) }));
+  return { scale, width: Math.max(1, Math.round(width * scale)), parts };
+}
+
+/** The parts of a tall picture, the top first, as JPEG files; empty when it goes whole, or when the browser cannot draw it. */
+export async function partsOf(file: Blob): Promise<Blob[]> {
+  try {
+    const bitmap = await createImageBitmap(file);
+    const plan = partPlan(bitmap.width, bitmap.height);
+    if (plan === null) {
+      bitmap.close();
+      return [];
+    }
+    const out: Blob[] = [];
+    for (const part of plan.parts) {
+      const canvas = document.createElement('canvas');
+      canvas.width = plan.width;
+      canvas.height = part.height;
+      const context = canvas.getContext('2d');
+      if (context === null) return [];
+      // White under it: a picture with a clear background would come out black as a JPEG.
+      context.fillStyle = '#ffffff';
+      context.fillRect(0, 0, canvas.width, canvas.height);
+      context.drawImage(bitmap, 0, part.top / plan.scale, bitmap.width, part.height / plan.scale, 0, 0, plan.width, part.height);
+      const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.88));
+      if (blob === null) return [];
+      out.push(blob);
+    }
+    bitmap.close();
+    return out;
+  } catch {
+    return [];
+  }
+}
+
 export function useAttach(): AttachState {
   const [files, setFiles] = useState<PendingFile[]>([]);
   const [refused, setRefused] = useState<string | null>(null);
@@ -155,7 +220,18 @@ export function useAttach(): AttachState {
     const ids: string[] = [];
     // The files as they were when the message was sent: one added while they go up waits for the next message.
     for (const entry of [...held.current]) {
-      if (entry.sent?.sessionId !== sessionId) entry.sent = { sessionId, id: (await designerApi.uploadAttachment(sessionId, entry.file, entry.kind === 'image' ? await paletteOf(entry.file) : '')).id };
+      if (entry.sent?.sessionId !== sessionId) {
+        entry.sent = { sessionId, id: (await designerApi.uploadAttachment(sessionId, entry.file, entry.kind === 'image' ? await paletteOf(entry.file) : '')).id };
+        if (entry.kind === 'image') {
+          // A tall picture goes up again as parts a model reads. One that fails is no reason to stop: without all of them the server sends the picture whole, as before.
+          const parts = await partsOf(entry.file);
+          try {
+            for (const [index, part] of parts.entries()) await designerApi.uploadAttachment(sessionId, part, '', { of: entry.sent.id, part: index + 1, parts: parts.length });
+          } catch {
+            // The picture itself is attached.
+          }
+        }
+      }
       ids.push(entry.sent.id);
     }
     return ids;

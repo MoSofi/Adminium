@@ -16,11 +16,16 @@ import {
   pageHref,
   pagePath,
   pathParams,
+  pickForFrame,
+  pickedOf,
   reportErrorsToFrame,
   reportRefusalsToFrame,
   reportSightToFrame,
   sampleRows,
   wantsDemo,
+  shootForFrame,
+  ruleText,
+  areaWithin,
   SideError,
 } from '../src/side/index.js';
 
@@ -769,7 +774,7 @@ describe('going from page to page', () => {
 
 describe('a side says where it is', () => {
   const now = (run: () => void): void => run();
-  const location = (path: string, title = '') => ({ type: 'adminium:side-location', app: 'shop', side: 'customer', path, title });
+  const location = (path: string, title = '') => ({ type: 'adminium:side-location', app: 'shop', side: 'customer', path, title, picks: true, shots: true });
   let shop: Awaited<ReturnType<typeof bundled>>;
   beforeAll(async () => {
     shop = await bundled('shop', 'customer');
@@ -870,9 +875,9 @@ describe('a staff side inside the dashboard', () => {
     page.told({ type: 'adminium:host:set', path: 'done' });
     expect(page.posted).toEqual([
       { type: 'adminium:surface:hello', v: 1, appKey: 'repairs', side: 'staff', path: '' },
-      { type: 'adminium:side-location', app: 'repairs', side: 'staff', path: '/', title: 'Items' },
+      { type: 'adminium:side-location', app: 'repairs', side: 'staff', path: '/', title: 'Items', picks: true, shots: true },
       // Followed, so not said back to the dashboard; the preview is still told where the side now is.
-      { type: 'adminium:side-location', app: 'repairs', side: 'staff', path: '/done', title: 'Items' },
+      { type: 'adminium:side-location', app: 'repairs', side: 'staff', path: '/done', title: 'Items', picks: true, shots: true },
     ]);
   });
 
@@ -882,5 +887,176 @@ describe('a staff side inside the dashboard', () => {
     staff.go('/done', {}, page.target);
     expect(page.posted).toEqual([]);
     expect(page.moves).toEqual(['push /apps/repairs/staff/done']);
+  });
+});
+
+describe('pointing at a part of the page', () => {
+  /** An element as the picker reads one: its tag, classes, words, box, and what it sits in. */
+  const el = (tag: string, over: Record<string, unknown> = {}): Record<string, unknown> => {
+    const made: Record<string, unknown> = {
+      tagName: tag.toUpperCase(),
+      className: '',
+      id: '',
+      innerText: '',
+      parentElement: null,
+      children: [],
+      getAttribute: (name: string) => ((over['attrs'] as Record<string, string> | undefined) ?? {})[name] ?? null,
+      getBoundingClientRect: () => ({ left: 40, top: 100, width: 120.4, height: 39.6 }),
+      ...over,
+    };
+    for (const child of made['children'] as Record<string, unknown>[]) child['parentElement'] = made;
+    return made;
+  };
+
+  it('says an element as facts: its tag and classes, its words on one line, what it sits in, which one it is, how large it is drawn', () => {
+    const button = el('button', { className: 'btn primary  "><script> lg', innerText: '  Add\n to   cart ' });
+    const card = el('div', { className: 'card', children: [el('h3'), el('button'), button] });
+    const grid = el('section', { className: 'menu-grid', children: [card] });
+    const root = el('div', { id: 'root', children: [grid] });
+    el('body', { children: [root] });
+    expect(pickedOf(button as unknown as Element)).toEqual({ part: 'button btn primary lg', text: 'Add to cart', label: '', within: ['div card', 'section menu-grid'], nth: 2, of: 2, width: 120, height: 40 });
+    // A picture has no words: its name is its `alt`. Long words are cut.
+    const img = el('img', { attrs: { alt: 'The house burger' } });
+    expect(pickedOf(img as unknown as Element)).toMatchObject({ part: 'img', text: '', label: 'The house burger', within: [], nth: 1, of: 1 });
+    expect(pickedOf(el('p', { innerText: 'x'.repeat(500) }) as unknown as Element).text).toHaveLength(160);
+  });
+
+  /** A page that can be pointed at: what listens on it, what was added to it, and what it said to its frame. */
+  const page = () => {
+    const heard = new Map<string, (event: unknown) => void>();
+    const onWindow = new Map<string, (event: unknown) => void>();
+    const added: { tag: string; removed: boolean }[] = [];
+    const posted: Record<string, unknown>[] = [];
+    const parent = { postMessage: (message: Record<string, unknown>) => void posted.push(message) };
+    const doc = {
+      documentElement: { clientWidth: 1280, appendChild: () => undefined },
+      createElement: (tag: string) => {
+        const made = { tag, removed: false, style: {} as Record<string, string>, textContent: '', setAttribute: () => undefined, appendChild: () => undefined, remove: () => void (made.removed = true) };
+        added.push(made);
+        return made;
+      },
+      addEventListener: (name: string, run: (event: unknown) => void) => void heard.set(name, run),
+      removeEventListener: (name: string) => void heard.delete(name),
+    };
+    const target = { document: doc, parent, location: { pathname: '/apps/repairs/customer/menu' }, addEventListener: (name: string, run: (event: unknown) => void) => void onWindow.set(name, run) };
+    const tell = (data: unknown, source: unknown = parent): void => onWindow.get('message')?.({ source, data });
+    const event = (over: Record<string, unknown>) => ({ prevented: false, stopped: false, preventDefault() { this.prevented = true; }, stopImmediatePropagation() { this.stopped = true; }, ...over });
+    return { heard, added, posted, target: target as unknown as Window, tell, event };
+  };
+
+  it('listens only in a dev bundle inside a frame: a packed app cannot be pointed at', () => {
+    const packed = page();
+    pickForFrame(packed.target, false);
+    pickForFrame(undefined, true);
+    packed.tell({ type: 'adminium:host:pick', on: true });
+    expect(packed.heard.size).toBe(0);
+  });
+
+  it('starts only at the framing page’s word, takes the click for itself, and says what was clicked', async () => {
+    const customer = await bundled('repairs', 'customer');
+    const p = page();
+    customer.pickForFrame(p.target, true);
+    // Another window's word starts nothing.
+    p.tell({ type: 'adminium:host:pick', on: true }, {});
+    expect(p.heard.size).toBe(0);
+    p.tell({ type: 'adminium:host:pick', on: true });
+    expect([...p.heard.keys()].sort()).toEqual(['click', 'dblclick', 'keydown', 'mousedown', 'mousemove', 'mouseup', 'pointerdown', 'pointerup', 'scroll']);
+
+    // The press is swallowed: no button of the screen sees it.
+    const press = p.event({ type: 'mousedown', target: el('button') });
+    p.heard.get('mousedown')?.(press);
+    expect(press).toMatchObject({ prevented: true, stopped: true });
+    // A click on the page's bare ground picks nothing, and pointing goes on.
+    const ground = p.event({ type: 'click', target: el('body') });
+    p.heard.get('click')?.(ground);
+    expect(ground).toMatchObject({ prevented: true, stopped: true });
+    expect(p.posted).toEqual([]);
+    expect(p.heard.size).toBe(9);
+
+    const click = p.event({ type: 'click', target: el('a', { className: 'cta', innerText: 'Order now' }) });
+    p.heard.get('click')?.(click);
+    // The link is not followed and no handler of the screen runs; the element is said, and pointing is over.
+    expect(click).toMatchObject({ prevented: true, stopped: true });
+    expect(p.posted).toEqual([
+      { type: 'adminium:side-picked', app: 'repairs', side: 'customer', path: '/menu', page: 1280, element: { part: 'a cta', text: 'Order now', label: '', within: [], nth: 1, of: 1, width: 120, height: 40 } },
+    ]);
+    expect(p.heard.size).toBe(0);
+    // The outline and the pointer's style are taken off the page (the outline's label goes with it).
+    expect(p.added.map((made) => [made.tag, made.removed])).toEqual([['div', true], ['div', false], ['style', true]]);
+  });
+
+  it('draws the part the framing page asks for, says it back under the asking’s number, and says so when it cannot', async () => {
+    const customer = await bundled('repairs', 'customer');
+    const p = page();
+    const asked: unknown[] = [];
+    let drawn: string | null = 'data:image/jpeg;base64,AAAA';
+    customer.shootForFrame(p.target, true, async (_doc, _view, area) => {
+      asked.push(area);
+      return drawn;
+    });
+    const area = { left: 10, top: 20, width: 300, height: 200 };
+    // Another window's word draws nothing, and neither does an asking with no number.
+    p.tell({ type: 'adminium:host:shot', id: 1, area }, {});
+    p.tell({ type: 'adminium:host:shot', area });
+    expect(asked).toEqual([]);
+    p.tell({ type: 'adminium:host:shot', id: 7, area });
+    // One at a time: a second asking while the first is drawn is not heard.
+    p.tell({ type: 'adminium:host:shot', id: 8, area });
+    await vi.waitFor(() => expect(p.posted).toHaveLength(1));
+    expect(asked).toEqual([area]);
+    expect(p.posted).toEqual([{ type: 'adminium:side-shot', app: 'repairs', side: 'customer', id: 7, picture: 'data:image/jpeg;base64,AAAA' }]);
+    drawn = null;
+    p.tell({ type: 'adminium:host:shot', id: 9, area });
+    await vi.waitFor(() => expect(p.posted).toHaveLength(2));
+    expect(p.posted[1]).toEqual({ type: 'adminium:side-shot', app: 'repairs', side: 'customer', id: 9 });
+  });
+
+  it('listens for a picture only in a dev bundle inside a frame', () => {
+    const packed = page();
+    shootForFrame(packed.target, false);
+    shootForFrame(undefined, true);
+    packed.tell({ type: 'adminium:host:shot', id: 1, area: { left: 0, top: 0, width: 100, height: 100 } });
+    expect(packed.posted).toEqual([]);
+  });
+
+  it('says a share of the window’s height in pixels in what a rule sets, and never in the name it goes by', () => {
+    const style = (selectorText: string, body: string, cssRules: unknown[] = []) => ({ cssText: `${selectorText} { ${body} }`, selectorText, style: { cssText: body }, cssRules });
+    // A class named for its height keeps its name: with another name nothing on the page carries it.
+    expect(ruleText(style('.h-\\[85vh\\]', 'height: 85vh;') as never, 800)).toBe('.h-\\[85vh\\] { height: 680px;  }');
+    expect(ruleText(style('.min-h-\\[calc\\(100vh-4rem\\)\\]', 'min-height: calc(100vh - 4rem);') as never, 800)).toContain('.min-h-\\[calc\\(100vh-4rem\\)\\] { min-height: calc(800px - 4rem);');
+    // Inside a group, and inside a condition written in the class's own block.
+    const nested = style('.md\\:h-\\[50dvh\\]', '', [{ cssText: '@media (width >= 48rem) { height: 50dvh; }', cssRules: [{ cssText: 'height: 50dvh;', style: { cssText: 'height: 50dvh;' } }] }]);
+    const layer = { cssText: '@layer utilities { … }', cssRules: [nested] };
+    expect(ruleText(layer as never, 800).replace(/\s+/g, ' ')).toBe('@layer utilities { .md\\:h-\\[50dvh\\] { @media (width >= 48rem) { height: 400px; } } }');
+    // What has no height to say is left as it is written.
+    expect(ruleText({ cssText: '@keyframes rise { 0% { top: 10vh; } }', cssRules: [] } as never, 800)).toBe('@keyframes rise { 0% { top: 10vh; } }');
+    expect(ruleText({ cssText: '@layer theme, base;' } as never, 800)).toBe('@layer theme, base;');
+  });
+
+  it('holds the part asked for inside the window, and takes a slip of the hand for none', () => {
+    expect(areaWithin({ left: 10.4, top: 20.6, width: 300, height: 200 }, 1280, 800)).toEqual({ left: 10, top: 21, width: 300, height: 200 });
+    expect(areaWithin({ left: -50, top: 700, width: 2000, height: 500 }, 1280, 800)).toEqual({ left: 0, top: 700, width: 1280, height: 100 });
+    expect(areaWithin({ left: 10, top: 10, width: 5, height: 300 }, 1280, 800)).toBeNull();
+    expect(areaWithin({ left: 1400, top: 10, width: 100, height: 100 }, 1280, 800)).toBeNull();
+    expect(areaWithin({ left: '0', top: 0, width: 100, height: 100 }, 1280, 800)).toBeNull();
+    expect(areaWithin({ left: 0, top: 0, width: Number.NaN, height: 100 }, 1280, 800)).toBeNull();
+    expect(areaWithin(null, 1280, 800)).toBeNull();
+  });
+
+  it('ends at the framing page’s word, and at Escape, which it says', async () => {
+    const customer = await bundled('repairs', 'customer');
+    const p = page();
+    customer.pickForFrame(p.target, true);
+    p.tell({ type: 'adminium:host:pick', on: true });
+    p.tell({ type: 'adminium:host:pick', on: false });
+    expect(p.heard.size).toBe(0);
+    expect(p.posted).toEqual([]);
+
+    p.tell({ type: 'adminium:host:pick', on: true });
+    p.heard.get('keydown')?.(p.event({ type: 'keydown', key: 'a' }));
+    expect(p.heard.size).toBe(9);
+    p.heard.get('keydown')?.(p.event({ type: 'keydown', key: 'Escape' }));
+    expect(p.heard.size).toBe(0);
+    expect(p.posted).toEqual([{ type: 'adminium:side-pick-ended', app: 'repairs', side: 'customer' }]);
   });
 });

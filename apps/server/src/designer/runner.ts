@@ -31,6 +31,7 @@
  * until it is answered. Stop answers every waiting card with "stopped".
  */
 import { ATTACHMENT_MAX_PER_MESSAGE, attachmentNote, type Attachment, type Attachments } from './attachments.js';
+import { cleanPicked, pickedNote } from './picked.js';
 import { requestTokens, type PromptOpts } from './prompt.js';
 import { randomBytes } from 'node:crypto';
 
@@ -42,6 +43,7 @@ import {
   type RunBlock,
   type RunMessage,
   type RunResult,
+  type RunEffort,
 } from '@adminium/llm';
 
 import { ConflictError, ForbiddenError, NotFoundError, ValidationFailedError } from '../errors.js';
@@ -68,12 +70,14 @@ export interface PipelineResult {
   version: { n: number; name: string } | null;
   /** Applied, and something is not as the files asked: a page written with nothing to show. */
   warnings?: string[];
+  /** A mark of what the server serves for the app after this: see `ToolOutcome.built`. */
+  built?: string;
 }
 
 export interface RunnerDeps {
   store: SessionStore;
   /** The model a session calls. */
-  runnerFor(session: DesignerSession): Promise<{ runner: ProviderRunner; maxTokens?: number }>;
+  runnerFor(session: DesignerSession): Promise<{ runner: ProviderRunner; maxTokens?: number; effort?: RunEffort }>;
   /** The tools a session's model may call. */
   tools(session: DesignerSession): DesignerTool[];
   /** What the model is told, and the transcript as it fits the model's window. */
@@ -107,7 +111,7 @@ export interface RunnerDeps {
   sight?(
     session: DesignerSession,
     opts: { since: number; signal: AbortSignal; /** Looked at once already this turn: said again only when the page has stopped (blank, or an error). */ again: boolean },
-  ): Promise<{ text: string; image?: { ref: string; mediaType: string; name: string }; /** Which side was looked at, and the page's own path there: for the event the person reads, never for the model. */ side?: 'staff' | 'customer'; path?: string } | null>;
+  ): Promise<{ text: string; image?: { ref: string; mediaType: string; name: string }; /** The pictures of the design the person attached, sent again beside the page so the two are compared. */ designs?: { ref: string; mediaType: string; name: string }[]; /** Which side was looked at, and the page's own path there: for the event the person reads, never for the model. */ side?: 'staff' | 'customer'; path?: string } | null>;
   /** Before the model is first asked in a turn: what the server itself settles with the person (a card), and files it makes sure are there. */
   opening?(session: DesignerSession, turn: TurnHandle): Promise<void>;
   /** What the person is told as the turn ends, in the Designer's own words: something they asked for that was left undone and unsaid. */
@@ -164,7 +168,7 @@ export interface DesignerRunner {
   /** Start a turn. 409 while another turn runs in this folder (reason `TURN_RUNNING`) or something else has it (`DESIGNER_BUSY`). */
   start(
     sessionId: string,
-    input: { text: string; by: Actor; attachments?: readonly string[]; /** The page that sent this shows the preview, and will say what it sees after a build. */ sees?: boolean; /** The folder, kept for this turn beforehand. */ claim?: TurnClaim },
+    input: { text: string; by: Actor; attachments?: readonly string[]; /** The page that sent this shows the preview, and will say what it sees after a build. */ sees?: boolean; /** The element of the preview the person pointed at, as the page sent it. */ picked?: unknown; /** The folder, kept for this turn beforehand. */ claim?: TurnClaim },
   ): Promise<{ turn: number }>;
   /**
    * Take the folder for something a person does from the page, at once or not
@@ -198,6 +202,19 @@ export interface DesignerRunner {
 /** Calls in a row whose arguments could not be read, before the turn gives up. */
 export const MAX_REPAIRS = 2;
 /** How many times a turn's model is sent back to errors it left behind. */
+/**
+ * A picture as a message carries it: a reference, never its bytes. A tall one goes as the parts the page cut it
+ * into, said in words first: a model is handed pictures with no label of their own, and would take five for five.
+ */
+export function pictureBlocks(file: Pick<Attachment, 'id' | 'label' | 'mediaType'>, parts: readonly Pick<Attachment, 'id' | 'label' | 'mediaType'>[]): RunBlock[] {
+  if (parts.length === 0) return [{ type: 'image', mediaType: file.mediaType, data: '', ref: file.id, name: file.label }];
+  const name = file.label.replace(/["\n]/g, ' ').slice(0, 120);
+  return [
+    { type: 'text', text: `\n(The picture "${name}" is tall, so it comes as ${String(parts.length)} parts, from its top to its bottom, in order. Each part begins a little above where the one before ended. Read them as one picture.)` },
+    ...parts.map((part) => ({ type: 'image' as const, mediaType: part.mediaType, data: '', ref: part.id, name: part.label })),
+  ];
+}
+
 export const MAX_NUDGES = 2;
 /** How many times a turn's model is sent back to what its screens lack as a design. */
 export const MAX_DESIGN_ROUNDS = 2;
@@ -210,7 +227,7 @@ export const TOOL_ALIASES: Readonly<Record<string, string>> = { set_look: 'set_s
 /** The waits before a provider that failed in passing (a 5xx, a 429, a dropped line) is asked again. */
 export const RETRY_WAITS_MS: readonly number[] = [2000, 6000];
 /** The tools that change, check or apply the app. */
-const ACTING: ReadonlySet<string> = new Set(['write_file', 'edit_file', 'delete_file', 'check_app', 'build_sides', 'apply_app', 'add_side', 'build_on_shape', 'post_to_ledger', 'set_style', 'add_ui_part', 'find_pictures']);
+const ACTING: ReadonlySet<string> = new Set(['write_file', 'edit_file', 'delete_file', 'check_app', 'build_sides', 'apply_app', 'add_side', 'build_on_shape', 'post_to_ledger', 'set_style', 'add_ui_part', 'find_pictures', 'use_pictures']);
 const PASSING: ReadonlySet<string> = new Set(['server', 'rate_limit', 'network', 'timeout']);
 
 /** Wait, unless the turn is stopped first. */
@@ -402,12 +419,16 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
     let tokensOut = 0;
     let unreadable = 0;
     let continued = false;
+    /** Whether a reply that came back with nothing in it was already asked for again. */
+    let widened = false;
     let nudges = 0;
     let designRounds = 0;
     /** When this turn last built or applied the app, and whether the page was already looked at. */
     let builtAt = 0;
     /** How often it built or applied, how often the page was looked at, and how many builds the last look had behind it. */
     let builds = 0;
+    /** The mark of what the last build of this turn made; null before the first, and after one that gave none. */
+    let lastBuilt: string | null = null;
     let looks = 0;
     let lookedAfter = 0;
     /** Whether this turn changed, checked or applied anything: only then is it held to the check. */
@@ -420,7 +441,9 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
     let triedWithout = false;
 
     try {
-      const { runner, maxTokens } = await deps.runnerFor(session);
+      const { runner, maxTokens, effort } = await deps.runnerFor(session);
+      /** What one reply may use. */
+      let room = maxTokens ?? DEFAULT_MAX_OUTPUT_TOKENS;
       let tools = deps.tools(session);
       await deps.opening?.(session, handle);
       for (;;) {
@@ -456,7 +479,8 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
               messages: request.messages,
               tools: tools.map((tool) => ({ name: tool.name, description: tool.description, inputSchema: tool.inputSchema })),
               model: session.model,
-              maxTokens: maxTokens ?? DEFAULT_MAX_OUTPUT_TOKENS,
+              maxTokens: room,
+              ...(effort === undefined ? {} : { effort }),
               signal,
               onEvent: (event) => {
                 if (event.type !== 'text') return;
@@ -510,8 +534,35 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
           log.emit(turn, { kind: 'spend', which: 'session-tokens', mark: limits.sessionTokens, used: sessionTokens });
         }
 
-        const assistant: RunMessage = { role: 'assistant', content: result.blocks.length > 0 ? result.blocks : [{ type: 'text', text: '' }] };
-        deps.store.appendMessage(session.id, turn, assistant);
+        // A reply with nothing in it is never stored: a provider refuses a conversation that holds an empty message,
+        // and every later request of the session would be refused with it (seen 2026-10-11, anthropic and openai).
+        const empty = !result.blocks.some((block) => block.type !== 'text' || block.text.trim() !== '');
+        if (empty && result.stop !== 'refused') {
+          // All of its room went on thinking, or it thought and then ended without a word or a call (seen 2026-10-11,
+          // claude-haiku-5-5 on a first message with pictures): asked once more, with twice the room when room was what ran out.
+          deps.log?.(`the Designer’s model answered with nothing in it (${result.stop}${result.detail === undefined ? '' : `; ${result.detail}`})`);
+          if (!widened) {
+            widened = true;
+            if (result.stop === 'max_tokens') room *= 2;
+            continue;
+          }
+          // A second time. After work was done, silence is taken as "finished" and the turn is held to its checks below;
+          // before any, there is nothing to show for the turn, and the person is told so.
+          if (result.stop === 'max_tokens' || !acted) {
+            log.emit(turn, {
+              kind: 'error',
+              code: 'empty',
+              message:
+                result.stop === 'max_tokens'
+                  ? 'The model used all the room it has for one reply before it wrote anything. Try again, or pick another model.'
+                  : 'The model ended its reply twice without writing or doing anything. Try again, or pick another model.',
+            });
+            outcome = 'failed';
+            break;
+          }
+        }
+        const assistant: RunMessage = { role: 'assistant', content: empty ? [] : result.blocks };
+        if (!empty) deps.store.appendMessage(session.id, turn, assistant);
 
         const calls = result.blocks.filter((block): block is Extract<RunBlock, { type: 'tool_call' }> => block.type === 'tool_call');
         if (calls.length === 0) {
@@ -567,7 +618,15 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
               if (seen.side !== undefined) log.emit(turn, { kind: 'sight', side: seen.side, path: seen.path ?? '/' });
               deps.store.appendMessage(session.id, turn, {
                 role: 'user',
-                content: [{ type: 'text', text: seen.text }, ...(seen.image === undefined ? [] : [{ type: 'image' as const, mediaType: seen.image.mediaType, data: '', ref: seen.image.ref, name: seen.image.name }])],
+                content: [
+                  { type: 'text', text: seen.text },
+                  ...(seen.image === undefined ? [] : [{ type: 'image' as const, mediaType: seen.image.mediaType, data: '', ref: seen.image.ref, name: seen.image.name }]),
+                  // Each named in words before it: a model is handed pictures with no label of their own.
+                  ...(seen.designs ?? []).flatMap((design) => [
+                    { type: 'text' as const, text: `\nThe design the person attached ("${design.name.replace(/["\n]/g, ' ').slice(0, 120)}"), to compare the page with:` },
+                    ...pictureBlocks({ id: design.ref, label: design.name, mediaType: design.mediaType as Attachment['mediaType'] }, deps.attachments?.partsOf(session.id, design.ref) ?? []),
+                  ]),
+                ],
               });
               continue;
             }
@@ -620,8 +679,15 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
             });
             results.push({ type: 'tool_result', callId: call.id, content: done.content, ...(done.isError === true ? { isError: true } : {}) });
             if (done.isError !== true && (call.name === 'apply_app' || call.name === 'build_sides')) {
-              builtAt = now();
-              builds += 1;
+              // build_sides and then apply_app is one build, made twice: the preview opens the page again after the
+              // first, and what the page then says of itself is older than the second. Counting from the second
+              // would throw that away and wait for a page that never opens again, so a build that made what the one
+              // before it made leaves the time as it is.
+              if (done.built === undefined || done.built !== lastBuilt) {
+                builtAt = now();
+                builds += 1;
+              }
+              lastBuilt = done.built ?? null;
             }
             // A tool that named the app moved its folder: the tools after it in this reply, and every later step, work in the new one.
             const stored = deps.store.read(session.id);
@@ -710,6 +776,9 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
       const attached = ids.map((id) => deps.attachments?.find(sessionId, id) ?? null);
       if (attached.some((entry) => entry === null)) throw new ValidationFailedError('One of the attached files is not in this session. Attach it again.', { reason: 'TURN_ATTACHMENTS' });
       const files = attached.filter((entry): entry is Attachment => entry !== null);
+      // The element the person pointed at: said by a page a model wrote, so held to its shape before a word of it is passed on.
+      const picked = input.picked === undefined ? null : cleanPicked(input.picked);
+      if (input.picked !== undefined && picked === null) throw new ValidationFailedError('The element you picked could not be read. Pick it again.', { reason: 'TURN_PICKED' });
       const turn = session.turns + 1;
       // Claimed before anything is awaited, so two starts cannot both pass the check above.
       const claim: Running = { sessionId, turn, controller: new AbortController(), by: input.by, cards: new Map(), done: Promise.resolve(), sees: input.sees === true };
@@ -728,6 +797,7 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
           content: [
             { type: 'text', text },
             ...(note === '' ? [] : [{ type: 'text' as const, text: `\n\n${note}` }]),
+            ...(picked === null ? [] : [{ type: 'text' as const, text: `\n\n${pickedNote(picked)}` }]),
             ...(edited.length === 0
               ? []
               : [
@@ -736,13 +806,14 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
                     text: `\n\n(Since your last turn the person changed these files by hand: ${JSON.stringify(edited)}. Read each one again before you change it, and keep what they changed unless this message asks otherwise.)`,
                   },
                 ]),
-            ...files.filter((file) => file.kind === 'image').map((file) => ({ type: 'image' as const, mediaType: file.mediaType, data: '', ref: file.id, name: file.label })),
+            ...files.filter((file) => file.kind === 'image').flatMap((file) => pictureBlocks(file, deps.attachments?.partsOf(sessionId, file.id) ?? [])),
           ],
         });
         events(sessionId).emit(turn, {
           kind: 'turn-started',
           text,
           ...(files.length === 0 ? {} : { attachments: files.map((file) => ({ id: file.id, label: file.label, kind: file.kind, ...(file.rows === undefined ? {} : { rows: file.rows }) })) }),
+          ...(picked === null ? {} : { picked }),
         });
         await deps.audit?.('designer.turn.started', updated, { turn, by: input.by.label });
         claim.done = loop(updated, turn, claim, input.by).finally(() => {

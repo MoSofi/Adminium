@@ -154,6 +154,11 @@ describe('the sights a server holds', () => {
 
 describe('what the model is told of the page', () => {
   const faults = ['Pictures that do not load and show as a broken frame: 2.'];
+  it('holds the page to the design the person attached, when that picture goes with it', () => {
+    const text = sightText({ side: 'customer', width: 1280, faults: [] }, 'evergreen', true, false, true) ?? '';
+    expect(text).toContain('and with the picture of the design the person attached, which is sent with this message');
+    expect(sightText({ side: 'customer', width: 1280, faults: [] }, 'evergreen', true) ?? '').not.toContain('the design the person attached');
+  });
   it('asks it to compare a picture with the brief and fix the worst of what it sees', () => {
     const text = sightText({ side: 'customer', width: 1280, faults }, 'crispy-bites', true) ?? '';
     expect(text).toContain('This picture is the customer page as it shows now, 1280 px wide');

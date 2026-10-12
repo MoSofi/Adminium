@@ -229,7 +229,7 @@ export function createSights(opts: { now?: () => number } = {}): Sights {
  * one, it is told what was measured. Null when there is nothing to say: no
  * picture it can read, and nothing measured.
  */
-export function sightText(sight: Pick<Sight, 'side' | 'width' | 'faults'> & { path?: string | null }, appKey: string, shown: boolean, again = false): string | null {
+export function sightText(sight: Pick<Sight, 'side' | 'width' | 'faults'> & { path?: string | null }, appKey: string, shown: boolean, again = false, designed = false): string | null {
   // Which page of the side it was, as an address and nothing more: the page's own word, tidied, and said as a name.
   const where = sight.path === undefined || sight.path === null ? '' : ` at ${sight.path}`;
   // A second word in the same turn is only for a page that stopped: said plainly, with nothing else.
@@ -240,5 +240,5 @@ export function sightText(sight: Pick<Sight, 'side' | 'width' | 'faults'> & { pa
   if (!shown) {
     return `The ${sight.side} page${where} was opened as a person would see it, ${String(sight.width)} px wide.${measured}\nFix each, then build_sides and apply_app.`;
   }
-  return `This picture is the ${sight.side} page${where} as it shows now, ${String(sight.width)} px wide (drawn with the system's fonts; a web font shows on the real page).${measured}\nLook at it as the person will, and compare it with the brief (apps/${appKey}/design.md): is the first screen whole, are the sections there and in order, does anything overlap, sit against an edge, come up empty or look unfinished? Name the three worst things you SEE and fix them, then build_sides and apply_app. If nothing is wrong, say so in one sentence and change nothing.`;
+  return `This picture is the ${sight.side} page${where} as it shows now, ${String(sight.width)} px wide (drawn with the system's fonts; a web font shows on the real page).${measured}\nLook at it as the person will, and compare it with the brief (apps/${appKey}/design.md)${designed ? ' and with the picture of the design the person attached, which is sent with this message: section by section from the top, is each one there, in its place, and laid out as the design lays it out (what is beside what, what lies over what, the weight of the headings, the shape of the cards, buttons and fields)?' : ''}: is the first screen whole, are the sections there and in order, does anything overlap, sit against an edge, come up empty or look unfinished? Name the three worst things you SEE and fix them, then build_sides and apply_app. If nothing is wrong, say so in one sentence and change nothing.`;
 }

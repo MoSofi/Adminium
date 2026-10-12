@@ -18,7 +18,7 @@ import type { DesignerSession } from '../src/designer/session-store.js';
 import type { NeedItem } from '../src/designer/needs.js';
 import { createPictureShelf, type FoundPicture, type PictureSource } from '../src/designer/pictures.js';
 import type { DesignerTool, ToolContext } from '../src/designer/tool-types.js';
-import { createDesignerTools, DESIGNER_REACT_VERSION, DESIGNER_TOOL_NAMES, keepSamplePictures, missingScreenPackages } from '../src/designer/tools.js';
+import { createDesignerTools, designSteps, DESIGNER_REACT_VERSION, DESIGNER_TOOL_NAMES, keepSamplePictures, missingScreenPackages } from '../src/designer/tools.js';
 import { runCli } from '../src/cli/run.js';
 import { addPhoneSide } from '../src/project/apps/scaffold-app.js';
 import { APP_VERSION } from '../src/version.js';
@@ -336,6 +336,10 @@ describe('the Designer’s tools', () => {
     expect(await run('edit_file', { path: 'apps/repairs/manifest/tables/jobs.json', old: '"jobs"', new: '"work"' })).toMatchObject({ label: 'Edited manifest/tables/jobs.json' });
     expect(readFileSync(join(root, 'apps/repairs/manifest/tables/jobs.json'), 'utf8')).toBe('{"ref": "work"}');
     expect((await run('edit_file', { path: 'apps/repairs/manifest/tables/jobs.json', old: 'nothing like it', new: 'x' })).content).toContain('is not in');
+    // The same words back change nothing, and are not called an edit: a model told "Edited" says it changed something.
+    const same = await run('edit_file', { path: 'apps/repairs/manifest/tables/jobs.json', old: '"work"', new: '"work"' });
+    expect(same).toMatchObject({ isError: true, label: 'Edited nothing' });
+    expect(same.content).toContain('are the same');
     writeFileSync(join(root, 'apps/repairs/twice.md'), 'a a');
     expect((await run('edit_file', { path: 'apps/repairs/twice.md', old: 'a', new: 'b' })).content).toContain('2 times');
     // The same words with other spacing are found; a miss shows the file as it is.
@@ -841,6 +845,66 @@ describe('the Designer’s tools', () => {
     expect((asked[0] as Extract<CardRequest, { type: 'pictures' }>).site).toBeUndefined();
   });
 
+  it('let a picture the person showed decide the look: no style is picked for the kind of business over it', async () => {
+    rmSync(join(root, 'apps/repairs/customer'), { recursive: true, force: true });
+    rmSync(join(root, 'apps/repairs/look.json'), { force: true });
+    const attachments = createAttachments(root);
+    attachments.add(session.id, { filename: 'the design.png', bytes: Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), Buffer.alloc(40, 1)]) });
+    // A restaurant by its words, which without a picture is given "Warm table".
+    const wrote = [{ turn: 1, message: { role: 'user', content: [{ type: 'text', text: 'A website for my Italian restaurant, from the design attached. I will provide the pictures later.' }] } }];
+    const mine = createDesignerTools(
+      { root, version: APP_VERSION, designer: () => ({ store: { messages: () => wrote } }) as never, skills: createSkills(), listAddOns: async () => [], attachments, newestVersion: async () => null, install: async () => null },
+      'repairs',
+    );
+    // What the screens need is asked on a card: none of it is taken here.
+    const signal = new AbortController().signal;
+    const ask = async (): Promise<CardAnswer> => ({ type: 'needs', accept: [] });
+    const added = await (mine.find((candidate) => candidate.name === 'add_side') as DesignerTool).run({ side: 'customer' }, { session, turn: 1, signal, ask, handle: { turn: 1, by: { id: null, label: 'x' }, signal, ask, events: createEventLog({ lastSeq: 0, append: () => undefined, publish: () => undefined }) } });
+    expect(JSON.parse(readFileSync(join(root, 'apps/repairs/look.json'), 'utf8'))).toMatchObject({ skill: 'clean' });
+    expect(added.content).toContain('a plain base and nothing more, because the person showed the design they want');
+    expect(added.content).not.toContain('picked for this kind of business');
+    // And they bring the pictures: nothing is looked for.
+    expect(added.content).toContain('do not call find_pictures');
+  });
+
+  it('put the person’s own pictures in the app: one for a page, one on a sample row, and nothing that is not a picture of theirs', async () => {
+    const attachments = createAttachments(root);
+    const png = (tail: string): Buffer => Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), Buffer.from(tail)]);
+    const villa = attachments.add(session.id, { filename: 'the villa.png', bytes: png('villa') });
+    const kitchen = attachments.add(session.id, { filename: 'kitchen.png', bytes: png('kitchen') });
+    const part = attachments.add(session.id, { filename: 'pasted', bytes: png('part'), partOf: { id: villa.id, part: 1, parts: 2 } });
+    const sheet = attachments.add(session.id, { filename: 'rows.csv', bytes: Buffer.from('a,b\n1,2\n') });
+    let reseeded = '';
+    const mine = createDesignerTools(
+      { root, version: APP_VERSION, designer: () => ({ store: { messages: () => [] } }) as never, skills: createSkills(), listAddOns: async () => [], attachments, newestVersion: async () => null, install: async () => null, pictures: { source: () => null, shelf: undefined as never, reseed: (key) => void (reseeded = key) } },
+      'repairs',
+    );
+    const call = (input: Record<string, unknown>) => (mine.find((candidate) => candidate.name === 'use_pictures') as DesignerTool).run(input, context());
+    const sample = JSON.parse(readFileSync(join(root, 'apps/repairs/seeds/sample.json'), 'utf8')) as { tables: { ref: string; rows: unknown[] }[] };
+    const table = (sample.tables[0] as { ref: string }).ref;
+
+    const done = await call({ pictures: [{ attachment: villa.id, for: 'page', name: 'Hero!' }, { attachment: kitchen.id, for: 'rows', table }, { attachment: part.id, for: 'page' }, { attachment: sheet.id, for: 'page' }, { attachment: 'att_00000000000000000000', for: 'page' }] });
+    expect(done.isError).toBeUndefined();
+    expect(done.content).toContain('2 of the person\'s pictures are in the app now.');
+    expect(done.content).toContain("import hero from '../../assets/pictures/hero.png'");
+    expect(done.content).toContain(`is the picture of sample row 1 of "${table}" (column "picture")`);
+    expect(done.content).toContain('it is a part of one');
+    expect(done.content).toContain('"rows.csv" is not a picture the person attached');
+    expect(done.content).toContain('there is no such attachment in this session');
+    expect(done.facts).toEqual({ outcome: 'added', count: 2 });
+    // The files are theirs, byte for byte; the row points at its picture; the table got its column; the rows are added again.
+    expect(readFileSync(join(root, 'apps/repairs/assets/pictures/hero.png')).equals(png('villa'))).toBe(true);
+    expect(readFileSync(join(root, 'apps/repairs/seeds/pictures', `${table}.png`)).equals(png('kitchen'))).toBe(true);
+    const after = JSON.parse(readFileSync(join(root, 'apps/repairs/seeds/sample.json'), 'utf8')) as { assets: Record<string, { file: string }>; tables: { rows: Record<string, unknown>[] }[] };
+    expect(after.tables[0]?.rows[0]?.['picture']).toEqual({ '@asset': `picture-own-${table}` });
+    expect(after.assets[`picture-own-${table}`]?.file).toBe(`seeds/pictures/${table}.png`);
+    expect(readFileSync(join(root, 'apps/repairs/manifest/tables', `${table}.json`), 'utf8')).toContain('"semantic": "image"');
+    expect(reseeded).toBe('repairs');
+
+    // Nothing of theirs named: said, and nothing written.
+    expect((await call({ pictures: [{ attachment: sheet.id, for: 'page' }] })).isError).toBe(true);
+  });
+
   it('use a font file the person attached: copied under a name of ours, written into fonts.css, never asked for as a package, and kept when the style changes', async () => {
     const attachments = createAttachments(root);
     const woff2 = Buffer.concat([Buffer.from('wOF2'), Buffer.alloc(60, 7)]);
@@ -1171,5 +1235,20 @@ describe('a file the person changed by hand', () => {
     expect(readFileSync(join(root, path), 'utf8')).toBe('{}');
     await tool('read_file').run({ path }, turn(2, [path]));
     expect(await tool('delete_file').run({ path }, turn(2, [path]))).not.toMatchObject({ isError: true });
+  });
+});
+
+describe('the order of the work after a side is added', () => {
+  it('looks for no picture when the person brings their own, and builds the sections of the picture they showed', () => {
+    const own = designSteps('evergreen', 'customer', { tailwind: true, icons: true, picture: true, colours: true, ownPictures: true });
+    expect(own).toContain('do not call find_pictures');
+    expect(own).not.toContain('call find_pictures ONCE');
+    expect(own).toContain('it is the design');
+    expect(own).toContain("the sections of the person's picture, each one, in its order");
+    // The step after it keeps its number and its words.
+    expect(own).toContain('\n3. Write apps/evergreen/manifest/access.json');
+    const plain = designSteps('evergreen', 'customer', { tailwind: true, icons: true, picture: false });
+    expect(plain).toContain('call find_pictures ONCE');
+    expect(plain).toContain('a header with the logo and links');
   });
 });

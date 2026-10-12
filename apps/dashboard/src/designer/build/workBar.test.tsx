@@ -60,6 +60,13 @@ function model(over: Partial<PreviewModel> = {}): PreviewModel {
     phoneError: null,
     openTab: vi.fn(),
     canOpenTab: true,
+    canPick: true,
+    picking: false,
+    setPicking: vi.fn(),
+    canShoot: true,
+    shooting: false,
+    setShooting: vi.fn(),
+    shoot: vi.fn(() => Promise.resolve(null)),
     ...over,
   };
 }
@@ -150,6 +157,61 @@ describe('the work bar', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Size: Desktop' }));
     await userEvent.click(within(await screen.findByRole('menu', { name: 'Size: Desktop' })).getByRole('menuitemradio', { name: 'Phone' }));
     expect(preview.setWidth).toHaveBeenCalledWith('phone');
+  });
+
+  it('has a switch for a picture of a part of the page on the app’s own sides: it starts and stops the drag, says how, and waits for the side to speak', async () => {
+    const preview = model({ side: 'customer' });
+    const { onNotice } = bar(0, preview);
+    const shot = screen.getByRole('button', { name: 'Take a picture of a part of the page' });
+    expect(shot.getAttribute('aria-pressed')).toBe('false');
+    await userEvent.click(shot);
+    expect(preview.setShooting).toHaveBeenCalledWith(true);
+    expect(onNotice).toHaveBeenCalledWith('Drag over the part of the page you mean. Esc stops.');
+    cleanup();
+
+    const dragging = model({ side: 'staff', shooting: true });
+    bar(4, dragging);
+    await userEvent.click(screen.getByRole('button', { name: 'Take a picture of a part of the page', pressed: true }));
+    expect(dragging.setShooting).toHaveBeenCalledWith(false);
+    cleanup();
+
+    // A side that has not said it can draw itself is not asked; the dashboard and a phone app have no such switch.
+    bar(0, model({ side: 'customer', canShoot: false }));
+    expect((screen.getByRole('button', { name: 'Take a picture of a part of the page' }) as HTMLButtonElement).disabled).toBe(true);
+    cleanup();
+    bar(0, model({ side: 'dashboard' }));
+    expect(screen.queryByRole('button', { name: 'Take a picture of a part of the page' })).toBeNull();
+  });
+
+  it('has a switch for pointing at an element on the app’s own sides: it starts and stops pointing, says how, and waits for the side to speak', async () => {
+    const preview = model({ side: 'customer' });
+    const { onNotice } = bar(0, preview);
+    const pick = screen.getByRole('button', { name: 'Pick an element on the page' });
+    expect(pick.getAttribute('aria-pressed')).toBe('false');
+    await userEvent.click(pick);
+    expect(preview.setPicking).toHaveBeenCalledWith(true);
+    expect(onNotice).toHaveBeenCalledWith('Click the part of the page you want changed. Esc stops.');
+    cleanup();
+
+    // While pointing it is pressed, and a second press stops it with nothing more said.
+    const pointing = model({ side: 'staff', picking: true });
+    const again = bar(4, pointing);
+    await userEvent.click(screen.getByRole('button', { name: 'Pick an element on the page', pressed: true }));
+    expect(pointing.setPicking).toHaveBeenCalledWith(false);
+    expect(again.onNotice).not.toHaveBeenCalled();
+    cleanup();
+
+    // A side that has not said where it is cannot be told to start.
+    bar(0, model({ side: 'customer', canPick: false }));
+    expect((screen.getByRole('button', { name: 'Pick an element on the page' }) as HTMLButtonElement).disabled).toBe(true);
+    cleanup();
+
+    // The dashboard is Adminium's own pages and a phone app has no such script: neither can be pointed at.
+    bar(0, model({ side: 'dashboard' }));
+    expect(screen.queryByRole('button', { name: 'Pick an element on the page' })).toBeNull();
+    cleanup();
+    bar(0, model({ side: 'mobile', sides: ['dashboard', 'mobile'] }));
+    expect(screen.queryByRole('button', { name: 'Pick an element on the page' })).toBeNull();
   });
 
   it('makes "seen as" its icon at level 3, which still says the words and the sentence', () => {

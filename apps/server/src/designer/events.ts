@@ -13,6 +13,7 @@
  * other event, so the order on the page is the order it happened in.
  */
 import type { DesignerCard } from './cards.js';
+import type { Picked } from './picked.js';
 
 export type TurnOutcome = 'done' | 'stopped' | 'limit' | 'failed' | 'not-applied';
 /** `turn-tokens` and `session-tokens` end no turn since D92; a session written before it may still hold them. */
@@ -21,7 +22,7 @@ export type LimitKind = 'steps' | 'turn-tokens' | 'session-tokens';
 export type SpendMark = 'turn-tokens' | 'session-tokens';
 
 export type DesignerEventBody =
-  | { kind: 'turn-started'; text: string; /** What the person attached to the message. */ attachments?: { id: string; label: string; kind: 'image' | 'csv' | 'font'; rows?: number }[] }
+  | { kind: 'turn-started'; text: string; /** What the person attached to the message. */ attachments?: { id: string; label: string; kind: 'image' | 'csv' | 'font'; rows?: number }[]; /** The element of the preview the message is about. */ picked?: Picked }
   | { kind: 'text'; delta: string }
   | {
       kind: 'step';

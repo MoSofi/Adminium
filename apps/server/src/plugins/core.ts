@@ -259,7 +259,8 @@ export const RATE_BUCKETS = {
    * Files attached to a Designer message: up to 10 MB each, so their own, tighter budget.
    * The limiter runs before the body is read; the route's own guard runs after.
    */
-  'designer-files': { max: 120, timeWindowMs: 3_600_000, keyBy: 'principal' },
+  // (A tall picture is sent with its parts: up to nine files for one.)
+  'designer-files': { max: 360, timeWindowMs: 3_600_000, keyBy: 'principal' },
   'file-bytes': { max: 30, timeWindowMs: 3_600_000, keyBy: 'principal' },
   /*
    * `POST /files` only.

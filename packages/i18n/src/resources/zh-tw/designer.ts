@@ -178,6 +178,22 @@ export default {
     "keptWindows": "儲存在這台電腦上，由 Windows 加密。它不會放進你的專案，因此你匯出或分享的專案不包含任何金鑰。",
     "keptLinux": "儲存在這台電腦上，由桌面的金鑰儲存區加密。它不會放進你的專案，因此你匯出或分享的專案不包含任何金鑰。"
   },
+  "effort": {
+    "label": "投入程度：{effort}",
+    "menu": "投入程度",
+    "default": "預設",
+    "defaultLine": "由模型自行決定",
+    "low": "低",
+    "lowLine": "最快、最省",
+    "medium": "中",
+    "mediumLine": "兼顧速度與細緻",
+    "high": "高",
+    "highLine": "每一步思考更多",
+    "xhigh": "超高",
+    "xhighLine": "適合困難的建置；較慢、較貴",
+    "max": "最高",
+    "maxLine": "思考最多；最慢、最貴"
+  },
   "provider": {
     "anthropic": "Anthropic",
     "openai": "OpenAI",
@@ -346,6 +362,9 @@ export default {
     "picturesDeclined": "未使用圖片",
     "picturesFailed": "無法加入圖片",
     "picturesRefused": "未加入圖片",
+    "ownPicturesAdding": "正在新增您的圖片",
+    "ownPicturesAdded": "已新增您的圖片：{count}",
+    "ownPicturesFailed": "未新增您的圖片",
     "naming": "正在為應用程式命名",
     "named": "已將應用程式命名為 {subject}",
     "notNamed": "應用程式未命名",
@@ -751,7 +770,23 @@ export default {
     "composerUnsaved": "你在 {count, plural, other {# 個檔案}}中有未儲存的變更。Designer 不會看到它們。",
     "saveFirst": "先儲存",
     "sendAnyway": "仍然傳送",
-    "groupMobile": "手機應用程式"
+    "groupMobile": "手機應用程式",
+    "searchAll": "在所有檔案中搜尋",
+    "searchResults": "搜尋結果",
+    "matchCase": "區分大小寫",
+    "wholeWord": "全字相符",
+    "searching": "正在搜尋…",
+    "searchFailed": "無法搜尋檔案。",
+    "noResults": "沒有結果",
+    "resultCount": "{files, plural, other {# 個檔案}}中有 {count, plural, other {# 筆結果}}",
+    "resultsFirst": "前 {count} 筆結果，位於 {files, plural, other {# 個檔案}}中",
+    "resultLine": "第 {line} 行：{text}",
+    "find": "在此檔案中尋找",
+    "findAt": "第 {at} 項，共 {count} 項",
+    "findCount": "找到 {count} 項",
+    "findPrevious": "上一個結果",
+    "findNext": "下一個結果",
+    "findClose": "關閉搜尋"
   },
   "chat": {
     "copy": "複製這則訊息",
@@ -868,5 +903,19 @@ export default {
     "show": "顯示 QR 碼",
     "open": "在手機上開啟",
     "webNote": "由瀏覽器繪製：接近手機，但不是手機。Designer 不會查看這一側。"
+  },
+  "pick": {
+    "button": "在頁面上選取元素",
+    "hint": "點選頁面上要修改的部分。按 Esc 停止。",
+    "chip": "已選取的元素",
+    "remove": "移除已選取的元素",
+    "placeholder": "說明要對這個元素做什麼修改…"
+  },
+  "shot": {
+    "button": "為頁面的一部分擷取圖片",
+    "hint": "在頁面上拖曳選出您指的部分。按 Esc 停止。",
+    "area": "拖曳選出要擷取的頁面部分",
+    "drawing": "正在擷取圖片…",
+    "failed": "頁面無法繪製這一部分。請再試一次，或附上您自己的圖片。"
   }
 } as const;

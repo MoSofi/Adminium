@@ -178,6 +178,22 @@ export default {
     "keptWindows": "på denne computer, krypteret af Windows. Den lægges ikke i dit projekt, så et projekt, du eksporterer eller deler, indeholder ingen.",
     "keptLinux": "på denne computer, krypteret af dit skrivebords nøglelager. Den lægges ikke i dit projekt, så et projekt, du eksporterer eller deler, indeholder ingen."
   },
+  "effort": {
+    "label": "Indsats: {effort}",
+    "menu": "Indsats",
+    "default": "Standard",
+    "defaultLine": "Det modellen gør af sig selv",
+    "low": "Lav",
+    "lowLine": "Hurtigst og billigst",
+    "medium": "Mellem",
+    "mediumLine": "En balance mellem fart og omhu",
+    "high": "Høj",
+    "highLine": "Mere omtanke i hvert trin",
+    "xhigh": "Ekstra høj",
+    "xhighLine": "Til svære opgaver; langsommere og dyrere",
+    "max": "Maks.",
+    "maxLine": "Mest omtanke; langsomst og dyrest"
+  },
   "provider": {
     "anthropic": "Anthropic",
     "openai": "OpenAI",
@@ -346,6 +362,9 @@ export default {
     "picturesDeclined": "Undværede billeder",
     "picturesFailed": "Kunne ikke tilføje billeder",
     "picturesRefused": "Ingen billeder tilføjet",
+    "ownPicturesAdding": "Tilføjer dine billeder",
+    "ownPicturesAdded": "Dine billeder tilføjet: {count}",
+    "ownPicturesFailed": "Dine billeder blev ikke tilføjet",
     "naming": "Navngiver appen",
     "named": "Navngav appen {subject}",
     "notNamed": "Appen blev ikke navngivet",
@@ -751,7 +770,23 @@ export default {
     "composerUnsaved": "Du har ændringer, der ikke er gemt, i {count, plural, one {# fil} other {# filer}}. Designeren kan ikke se dem.",
     "saveFirst": "Gem først",
     "sendAnyway": "Send alligevel",
-    "groupMobile": "Telefonapp"
+    "groupMobile": "Telefonapp",
+    "searchAll": "Søg i alle filer",
+    "searchResults": "Søgeresultater",
+    "matchCase": "Forskel på store og små bogstaver",
+    "wholeWord": "Helt ord",
+    "searching": "Søger…",
+    "searchFailed": "Filerne kunne ikke gennemsøges.",
+    "noResults": "Ingen resultater",
+    "resultCount": "{count, plural, one {# resultat} other {# resultater}} i {files, plural, one {# fil} other {# filer}}",
+    "resultsFirst": "De første {count} resultater, i {files, plural, one {# fil} other {# filer}}",
+    "resultLine": "Linje {line}: {text}",
+    "find": "Søg i denne fil",
+    "findAt": "{at} af {count}",
+    "findCount": "{count} fundet",
+    "findPrevious": "Forrige resultat",
+    "findNext": "Næste resultat",
+    "findClose": "Luk søgningen"
   },
   "chat": {
     "copy": "Kopiér denne besked",
@@ -868,5 +903,19 @@ export default {
     "show": "Vis koden",
     "open": "Åbn på en telefon",
     "webNote": "Tegnet af browseren: tæt på telefonen, men ikke telefonen. Designer ser ikke på denne side."
+  },
+  "pick": {
+    "button": "Vælg et element på siden",
+    "hint": "Klik på den del af siden, du vil have ændret. Esc stopper.",
+    "chip": "Valgt element",
+    "remove": "Fjern det valgte element",
+    "placeholder": "Skriv, hvad der skal ændres ved dette element…"
+  },
+  "shot": {
+    "button": "Tag et billede af en del af siden",
+    "hint": "Træk hen over den del af siden, du mener. Esc stopper.",
+    "area": "Træk hen over den del af siden, der skal tages et billede af",
+    "drawing": "Tager billedet…",
+    "failed": "Siden kunne ikke tegne den del. Prøv igen, eller vedhæft dit eget billede."
   }
 } as const;

@@ -7,7 +7,9 @@
  * it opens the build page with no model at all. The address bar follows the
  * customer side from page to page and takes a typed page with nothing loaded
  * again; a staff side reloaded on a deep page stays on it; each side keeps
- * the page it was on while another is looked at.
+ * the page it was on while another is looked at. An element of the screen
+ * can be pointed at: the click picks it, and reaches nothing of the screen.
+ * A part of it can be dragged over: its picture waits with the next message.
  *
  * No turn runs here. What a turn does to the preview is `designer.spec.ts`'s,
  * on the dashboard side, the only side its app has.
@@ -56,7 +58,7 @@ test.afterEach(async ({}, testInfo) => {
   }
 });
 
-test('the address follows a customer side and takes a typed page; a staff side reloaded on a deep page stays', async ({ page }, testInfo) => {
+test('the address follows a customer side and takes a typed page; a staff side reloaded on a deep page stays; an element can be pointed at', async ({ page }, testInfo) => {
   testInfo.setTimeout(240_000);
   const link = await project.design();
   await expect.poll(() => project.output(), { timeout: 60_000 }).toContain(`App "${APP_KEY}" installed from apps/${APP_KEY}.`);
@@ -146,4 +148,83 @@ test('the address follows a customer side and takes a typed page; a staff side r
   await sides.getByRole('radio', { name: 'Customer' }).click();
   await expect(customer.getByLabel('What do you need?')).toBeVisible({ timeout: 60_000 });
   await expect(address).toHaveValue('/request');
+
+  // Pointing at an element: the click picks it and reaches nothing of the screen. The link is not followed.
+  const pick = page.getByRole('button', { name: 'Pick an element on the page' });
+  await expect(pick).toBeEnabled({ timeout: 15_000 });
+  await pick.click();
+  await expect(pick).toHaveAttribute('aria-pressed', 'true');
+  await nav.getByRole('link', { name: 'On offer' }).click();
+  const chip = page.getByRole('group', { name: 'Picked element' });
+  await expect(chip).toContainText('On offer');
+  await expect(chip).toContainText('/request');
+  await expect(pick).toHaveAttribute('aria-pressed', 'false');
+  await expect(address).toHaveValue('/request');
+  await expect(customer.getByLabel('What do you need?')).toBeVisible();
+  // The chip waits above the box, where the person says what to change, and can be taken off.
+  await expect(page.getByRole('textbox', { name: 'Message to Adminium Designer' })).toBeFocused();
+  await chip.getByRole('button', { name: 'Take the picked element off' }).click();
+  await expect(chip).toHaveCount(0);
+
+  // Escape ends pointing with nothing picked, and the screen's own links work again.
+  await pick.click();
+  await expect(pick).toHaveAttribute('aria-pressed', 'true');
+  await page.keyboard.press('Escape');
+  await expect(pick).toHaveAttribute('aria-pressed', 'false');
+  await nav.getByRole('link', { name: 'On offer' }).click();
+  await expect(address).toHaveValue('/');
+  await expect(chip).toHaveCount(0);
+
+  // A picture of a part of the page: dragged over the frame, drawn by the page in it, and waiting with the next message.
+  const shot = page.getByRole('button', { name: 'Take a picture of a part of the page' });
+  await expect(shot).toBeEnabled();
+  await shot.click();
+  const layer = page.locator('[data-part="shot-overlay"]');
+  const over = await layer.boundingBox();
+  if (over === null) throw new Error('the layer a picture is dragged on is not there');
+  await page.mouse.move(over.x + 40, over.y + 30);
+  await page.mouse.down();
+  await page.mouse.move(over.x + 440, over.y + 260, { steps: 4 });
+  await page.mouse.up();
+  const files = page.getByRole('list', { name: 'Attached files' });
+  await expect(files.getByText('screenshot.jpg')).toBeVisible({ timeout: 20_000 });
+  await expect(shot).toHaveAttribute('aria-pressed', 'false');
+  await expect(layer).toHaveCount(0);
+  await expect(page.getByRole('textbox', { name: 'Message to Adminium Designer' })).toBeFocused();
+  // The part dragged over, at twice its size, with the page's own words and colours in it: not one flat colour.
+  const drawn = await files.locator('img').evaluate(async (img: HTMLImageElement) => {
+    await img.decode();
+    const canvas = document.createElement('canvas');
+    canvas.width = img.naturalWidth;
+    canvas.height = img.naturalHeight;
+    const context = canvas.getContext('2d');
+    context?.drawImage(img, 0, 0);
+    const data = context?.getImageData(0, 0, canvas.width, canvas.height).data ?? new Uint8ClampedArray();
+    const colours = new Set<number>();
+    for (let at = 0; at < data.length; at += 4 * 97) colours.add(((data[at] ?? 0) >> 4 << 8) | ((data[at + 1] ?? 0) >> 4 << 4) | ((data[at + 2] ?? 0) >> 4));
+    return { width: img.naturalWidth, height: img.naturalHeight, colours: colours.size };
+  });
+  expect([drawn.width, drawn.height]).toEqual([800, 460]);
+  expect(drawn.colours).toBeGreaterThan(2);
+  await files.getByRole('button', { name: 'Take screenshot.jpg off' }).click();
+
+  // Escape ends the drag with nothing taken.
+  await shot.click();
+  await expect(layer).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(shot).toHaveAttribute('aria-pressed', 'false');
+  await expect(layer).toHaveCount(0);
+  await expect(files).toHaveCount(0);
+
+  // A staff side, in the dashboard's own frame for an app, draws itself the same way.
+  await sides.getByRole('radio', { name: 'Staff' }).click();
+  await expect(shot).toBeEnabled({ timeout: 60_000 });
+  await shot.click();
+  const staffLayer = await layer.boundingBox();
+  if (staffLayer === null) throw new Error('the layer a picture is dragged on is not there');
+  await page.mouse.move(staffLayer.x + 300, staffLayer.y + 200);
+  await page.mouse.down();
+  await page.mouse.move(staffLayer.x + 20, staffLayer.y + 20, { steps: 4 });
+  await page.mouse.up();
+  await expect(files.getByText('screenshot.jpg')).toBeVisible({ timeout: 20_000 });
 });

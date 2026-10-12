@@ -8,7 +8,8 @@
  * Nothing here asks a server anything: each part is handed the model it would
  * be handed on the page, written out.
  */
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Tabs, TabsContent } from '@adminium/ui';
 
 import type { DesignerFiles, DesignerVersion } from '../api.js';
@@ -65,6 +66,13 @@ function previewOf(sides: readonly PreviewSide[], side: PreviewSide, seenAs: rea
     phoneError: null,
     openTab: noop,
     canOpenTab: true,
+    canPick: true,
+    picking: false,
+    setPicking: () => undefined,
+    canShoot: true,
+    shooting: false,
+    setShooting: () => undefined,
+    shoot: () => Promise.resolve(null),
   };
 }
 
@@ -207,13 +215,17 @@ function codeOf(over: Partial<CodeFiles>): CodeFiles {
 }
 
 function CodeFrame({ code }: { code: CodeFiles }): ReactNode {
+  // The search of every file asks the server; nothing is asked until words are typed.
+  const [client] = useState(() => new QueryClient());
   return (
-    <div className="flex h-[440px] w-[1059px] flex-col border border-border bg-surface">
-      <div className="flex min-h-[46px] items-center gap-3 border-b border-border px-3">
-        <CodeBarEnd code={code} />
+    <QueryClientProvider client={client}>
+      <div className="flex h-[440px] w-[1059px] flex-col border border-border bg-surface">
+        <div className="flex min-h-[46px] items-center gap-3 border-b border-border px-3">
+          <CodeBarEnd code={code} />
+        </div>
+        <CodeTab code={code} compact={false} onFix={noop} />
       </div>
-      <CodeTab code={code} compact={false} onFix={noop} />
-    </div>
+    </QueryClientProvider>
   );
 }
 

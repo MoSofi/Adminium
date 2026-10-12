@@ -520,12 +520,13 @@ One thing writes the project's folder at a time: a turn, a save, a change of sty
 to a version, or a [copy of a published app](#start-with-an-app). The others are refused until
 it is done, and a save is told to stop if it runs longer than a minute.
 
-The three addresses, each for someone who may use the Designer:
+The four addresses, each for someone who may use the Designer:
 
 | Address | What it does |
 |---|---|
 | `GET /api/v1/designer/sessions/:id/files` | The list, in groups, with each file's fingerprint, and what has the folder now |
 | `GET /api/v1/designer/sessions/:id/files/content?path=` | One file's text. The same 404 for a file that is not there and one that is not on the list |
+| `GET /api/v1/designer/sessions/:id/files/search?q=` | Every place some words are in the files of the list, by line. `case=1` holds capitals apart, `word=1` finds whole words only |
 | `PUT /api/v1/designer/sessions/:id/files` | A save: `{ "files": [{ "path", "content", "base" }] }`, where `base` is the fingerprint from the list |
 
 Like the Designer's other addresses they are for its own page, and are not part of the

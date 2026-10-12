@@ -178,6 +178,22 @@ export default {
     "keptWindows": "على هذا الحاسوب، مشفّرًا بواسطة Windows. لا يوضع في مشروعك، فالمشروع الذي تصدّره أو تشاركه لا يحمل أي مفتاح.",
     "keptLinux": "على هذا الحاسوب، مشفّرًا بواسطة مخزن مفاتيح سطح المكتب لديك. لا يوضع في مشروعك، فالمشروع الذي تصدّره أو تشاركه لا يحمل أي مفتاح."
   },
+  "effort": {
+    "label": "الجهد: {effort}",
+    "menu": "الجهد",
+    "default": "الافتراضي",
+    "defaultLine": "ما يفعله النموذج من تلقاء نفسه",
+    "low": "منخفض",
+    "lowLine": "الأسرع والأقل تكلفة",
+    "medium": "متوسط",
+    "mediumLine": "توازن بين السرعة والعناية",
+    "high": "مرتفع",
+    "highLine": "تفكير أكثر في كل خطوة",
+    "xhigh": "مرتفع جدًا",
+    "xhighLine": "للمهام الصعبة؛ أبطأ وأعلى تكلفة",
+    "max": "الأقصى",
+    "maxLine": "أكبر قدر من التفكير؛ الأبطأ والأعلى تكلفة"
+  },
   "provider": {
     "anthropic": "Anthropic",
     "openai": "OpenAI",
@@ -346,6 +362,9 @@ export default {
     "picturesDeclined": "تم الاستغناء عن الصور",
     "picturesFailed": "تعذّرت إضافة الصور",
     "picturesRefused": "لم تُضف أي صور",
+    "ownPicturesAdding": "جارٍ إضافة صورك",
+    "ownPicturesAdded": "تمت إضافة صورك: {count}",
+    "ownPicturesFailed": "لم تُضف صورك",
     "naming": "يسمّي التطبيق",
     "named": "سُمّي التطبيق {subject}",
     "notNamed": "لم يُسمَّ التطبيق",
@@ -751,7 +770,23 @@ export default {
     "composerUnsaved": "لديك تغييرات غير محفوظة في {count, plural, zero {# ملف} one {ملف واحد} two {ملفين} few {# ملفات} many {# ملفًا} other {# ملف}}. لن يراها Designer.",
     "saveFirst": "احفظ أولًا",
     "sendAnyway": "إرسال على أي حال",
-    "groupMobile": "تطبيق الهاتف"
+    "groupMobile": "تطبيق الهاتف",
+    "searchAll": "البحث في كل الملفات",
+    "searchResults": "نتائج البحث",
+    "matchCase": "مطابقة حالة الأحرف",
+    "wholeWord": "كلمة كاملة",
+    "searching": "جارٍ البحث…",
+    "searchFailed": "تعذّر البحث في الملفات.",
+    "noResults": "لا توجد نتائج",
+    "resultCount": "{count, plural, zero {# نتيجة} one {نتيجة واحدة} two {نتيجتان} few {# نتائج} many {# نتيجة} other {# نتيجة}} في {files, plural, zero {# ملف} one {ملف واحد} two {ملفين} few {# ملفات} many {# ملفًا} other {# ملف}}",
+    "resultsFirst": "أول {count} نتيجة، في {files, plural, zero {# ملف} one {ملف واحد} two {ملفين} few {# ملفات} many {# ملفًا} other {# ملف}}",
+    "resultLine": "السطر {line}: {text}",
+    "find": "البحث في هذا الملف",
+    "findAt": "{at} من {count}",
+    "findCount": "تم العثور على {count}",
+    "findPrevious": "النتيجة السابقة",
+    "findNext": "النتيجة التالية",
+    "findClose": "إغلاق البحث"
   },
   "chat": {
     "copy": "نسخ هذه الرسالة",
@@ -868,5 +903,19 @@ export default {
     "show": "عرض الرمز",
     "open": "فتح على هاتف",
     "webNote": "مرسوم بالمتصفح: قريب من الهاتف وليس الهاتف نفسه. المصمِّم لا ينظر إلى هذا الجانب."
+  },
+  "pick": {
+    "button": "اختر عنصرًا من الصفحة",
+    "hint": "انقر على الجزء الذي تريد تغييره في الصفحة. مفتاح Esc يوقف الاختيار.",
+    "chip": "العنصر المختار",
+    "remove": "أزل العنصر المختار",
+    "placeholder": "قل ما الذي تريد تغييره في هذا العنصر…"
+  },
+  "shot": {
+    "button": "التقاط صورة لجزء من الصفحة",
+    "hint": "اسحب فوق الجزء الذي تقصده من الصفحة. اضغط Esc للإيقاف.",
+    "area": "اسحب فوق الجزء المراد التقاط صورة له من الصفحة",
+    "drawing": "جارٍ التقاط الصورة…",
+    "failed": "تعذّر على الصفحة رسم هذا الجزء. حاول مرة أخرى أو أرفق صورة من عندك."
   }
 } as const;

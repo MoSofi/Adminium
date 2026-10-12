@@ -4,6 +4,7 @@ import type { CodeFiles } from './useCodeFiles.js';
 
 export function idleCode(over: Partial<CodeFiles> = {}): CodeFiles {
   return {
+    sessionId: 'ds_000000000000000000000000',
     active: false,
     activate: () => undefined,
     list: undefined,

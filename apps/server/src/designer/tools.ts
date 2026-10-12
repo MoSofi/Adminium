@@ -50,12 +50,13 @@ import { outsidePictureLines, outsidePictures } from '../project/apps/side-pictu
 import { rebuildApps } from '../project/build.js';
 import { findProject } from '../project/locate.js';
 import { runChild } from './child.js';
-import { csvLines, csvOf, isWoff2, type Attachments } from './attachments.js';
+import { csvLines, csvOf, imageTypeOf, isWoff2, type Attachments } from './attachments.js';
 import { FOLDED_MARK } from './fold.js';
 import type { AddOnGetter, AddOnLook } from './get-add-on.js';
 import type { RowLoader } from './load-rows.js';
 import { createJail, JailError, type Jail } from './jail.js';
 import { creditOf, downloadPicture, PICTURE_SHAPES, PICTURES_PER_CALL, PICTURES_PER_NEED, type FoundPicture, type PictureCredit, type PictureShape, type PictureShelf, type PictureSource } from './pictures.js';
+import { WANTS_OWN_PICTURES } from './prompt.js';
 import { createNeedsAsker, screenWants, type NeedsDeps } from './ask-needs.js';
 import { DESIGNER_REACT_VERSION, fixedVersion, ICONS_PACKAGE, listedPackages, TAILWIND_PACKAGE, UI_HELPER_PACKAGES, type Wanted } from './needs.js';
 import type { Designer } from './service.js';
@@ -242,7 +243,7 @@ function nearestIndex(skills: Skills, name: string): { skill: string; text: stri
 }
 
 /** What to do after a side is added: the order of the work, for the model. */
-export function designSteps(appKey: string, side: AppSide, opts: { tailwind: boolean; icons: boolean; picture: boolean; colours?: boolean }): string {
+export function designSteps(appKey: string, side: AppSide, opts: { tailwind: boolean; icons: boolean; picture: boolean; colours?: boolean; ownPictures?: boolean }): string {
   const app = `apps/${appKey}`;
   const how = opts.tailwind
     ? 'Tailwind is on: style with Tailwind classes in the screen, with the theme\'s names (bg-bg bg-surface bg-surface-2 bg-accent bg-accent-2 bg-band text-text text-muted text-accent text-accent-ink text-band-ink border-line font-display font-body rounded-theme shadow-theme), and put in design.css only what classes cannot say, as plain CSS with the theme\'s values. Never a palette colour of Tailwind\'s own (bg-red-500): the theme\'s names only. For a dialog, tabs, an accordion or form controls, add_ui_part copies ready ones into src/ui/.'
@@ -250,16 +251,16 @@ export function designSteps(appKey: string, side: AppSide, opts: { tailwind: boo
   const marks = opts.icons ? 'Icons: import each from "lucide-react" (import { Clock } from \'lucide-react\'), one size on a screen.' : 'Icons: a small inline SVG each. There is no icon package.';
   const first = opts.picture
     ? opts.colours
-      ? `The person showed a picture of the look they want, and its colours are already in the theme. Write the brief: ${app}/design.md, with the picture's sections in its order and its kind of layout (what is beside what, what is in a row, where the coloured band is).`
-      : `The person showed a picture of the look they want. Read its colours and call set_style with a "theme" FIRST: {"light": {"bg": the page's background, "surface": its cards, "text": its text, "accent": the colour of its buttons, "accent2": its second colour, "band": the colour of its coloured section}} as #rrggbb, and "radius" for its corners. Then write the brief: ${app}/design.md, with the picture's sections in its order.`
+      ? `The person showed a picture of the page they want: it is the design, and the style above is only where the theme's values start. Its colours are already in the theme. Write the brief: ${app}/design.md, with every section of the picture from the top, in its order, and for each how it is laid out (what is beside what, what lies over what, what is in a row, where the coloured band is), its background, its heading beside its body text, the shape of its buttons, cards and fields, and its words.`
+      : `The person showed a picture of the look they want. Read its colours and call set_style with a "theme" FIRST: {"light": {"bg": the page's background, "surface": its cards, "text": its text, "accent": the colour of its buttons, "accent2": its second colour, "band": the colour of its coloured section}} as #rrggbb, and "radius" for its corners. Then write the brief: ${app}/design.md, with every section of the picture from the top, in its order, and for each how it is laid out (what is beside what, what lies over what, what is in a row), its background, its heading beside its body text, the shape of its buttons, cards and fields, and its words. The picture is the design: the style above is only where the theme's values start.`
     : `Write the brief: ${app}/design.md. If the person named colours, call set_style with a "theme" that has them.`;
   return `Now, in this order:
 1. ${first} The brief says: who the page is for, the feeling in three words, the style and what you change in it, the sections of the first page in order, what the pictures show, the logo's idea.
 2. ${
     side === 'customer'
-      ? `Pictures: call find_pictures ONCE for every picture the brief names. For the page (the first screen, a strip of the place): "for": "page". For what is on offer, when people look at it before they choose (dishes, rooms, products): give that table a picture column ({ "ref": "picture", "type": "text", "semantic": "image", "nullable": true }) and ask "for": "rows" with the table and the column. Without find_pictures a page has only tiles.\n3. Write ${app}/manifest/access.json with what customers may read and add (a table with a picture column: list the column under "pictures", with "id" in "select"). `
+      ? `${opts.ownPictures === true ? 'Pictures: the person brings their own, so do not call find_pictures. Where a picture goes, draw an empty frame of the picture\'s shape in the theme\'s surface colour. For what is on offer (dishes, rooms, products, homes), give that table a picture column ({ "ref": "picture", "type": "text", "semantic": "image", "nullable": true }) so they can add each one in the dashboard, and show the empty frame for a row that has none.' : 'Pictures: call find_pictures ONCE for every picture the brief names. For the page (the first screen, a strip of the place): "for": "page". For what is on offer, when people look at it before they choose (dishes, rooms, products): give that table a picture column ({ "ref": "picture", "type": "text", "semantic": "image", "nullable": true }) and ask "for": "rows" with the table and the column. Without find_pictures a page has only tiles.'}\n3. Write ${app}/manifest/access.json with what customers may read and add (a table with a picture column: list the column under "pictures", with "id" in "select"). `
       : ''
-  }Read ${app}/${side}/src/App.tsx and write it again for this app's tables, keeping the way it loads, lists, sends and reports errors, and DESIGN it to the brief: ${side === 'customer' ? 'a header with the logo and links, a first screen that says what the business is, what is on offer, why to trust it, the form, a footer.' : 'the work first: a plain header, the list or board staff work from, clear status marks.'}
+  }Read ${app}/${side}/src/App.tsx and write it again for this app's tables, keeping the way it loads, lists, sends and reports errors, and DESIGN it to the brief: ${side === 'customer' ? (opts.picture ? 'the sections of the person\'s picture, each one, in its order and laid out as the picture lays it out; nothing it does not show.' : 'a header with the logo and links, a first screen that says what the business is, what is on offer, why to trust it, the form, a footer.') : 'the work first: a plain header, the list or board staff work from, clear status marks.'}
 ${side === 'customer' ? '4' : '3'}. Write ${app}/${side}/src/design.css for every class of your own.${side === 'customer' ? ` Write the logo at exactly ${app}/assets/logo.svg (a simple mark with a viewBox and its colour written as a value, e.g. the accent's #rrggbb: a picture shown with <img> cannot read var(--…); no text, no script, no outside address) and show it in the header: in ${side}/src/App.tsx, import logo from '../../assets/logo.svg', then <img className="logo" src={logo} alt="" />.` : ''}
 ${side === 'customer' ? '5' : '4'}. build_sides.
 ${how}
@@ -331,13 +332,20 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
     const all = styles();
     const said = personWords(ctx.session.id);
     const picked = ctx.session.style === undefined ? null : (all.find((skill) => skill.key === ctx.session.style) ?? null);
-    const pictures = (deps.attachments?.list(ctx.session.id) ?? []).filter((entry) => entry.kind === 'image');
+    const pictures = (deps.attachments?.list(ctx.session.id) ?? []).filter((entry) => entry.kind === 'image' && entry.partOf === undefined);
     const showedPicture = pictures.length > 0;
     // The colours of the picture they showed, read by the page that sent it: the same on every model, one that reads pictures or not.
     const fromPicture = pictures.map((entry) => themeFromPalette(entry.palette ?? [])).find((patch) => patch !== null) ?? null;
     let skill: DesignSkill | null = picked ?? styleNamed(all, said);
     let how = 'the person picked it';
     let words: string | undefined;
+    // A picture of the page they want decides the look: no style is picked for the kind of business over it
+    // (a real estate site drawn in black and white came out ivory, navy and serif, as "Classic hotel").
+    if (skill === null && showedPicture) {
+      skill = all.find((entry) => entry.key === DEFAULT_LOOK.skill) ?? null;
+      how = 'a plain base and nothing more, because the person showed the design they want: the picture decides the look, not this style. Take the colours, the corners and the fonts from the picture (set_style; request_package for a font it uses), and write none of this style’s own words about a look into the brief';
+      if (mentionsLook(said)) words = said;
+    }
     if (skill === null) {
       skill = styleForBusiness(all, said);
       how = 'picked for this kind of business. Tell the person in one sentence which style you took and that they can change it';
@@ -381,7 +389,7 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
     }
     const look = cleanLook({ skill: skill?.key ?? DEFAULT_LOOK.skill, words, ...(fromPicture === null ? {} : { theme: fromPicture }) });
     applyLook(deps.root, appKey, look, places);
-    return { look, how: fromPicture === null ? how : `${how}; its colours were read from the picture the person showed and are already set, so call set_style for a colour only where the picture clearly differs` };
+    return { look, how: fromPicture === null ? how : `${how}; colours were read from the picture the person showed by counting its pixels and are already set. A page full of photographs misleads that count: look at the picture's own buttons, backgrounds and text, and call set_style with a "theme" wherever they differ from what was set` };
   };
 
   /** A look in a few sentences, for the model. The person's words are data. */
@@ -789,6 +797,10 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
             if (loose.length === 1) piece = loose[0] as string;
             count = loose.length;
           }
+          // The same words back: the file would be written as it is and called edited, and the model would say it changed something.
+          if (count === 1 && (piece === before ? after : after.trim()) === piece) {
+            return refused(`"old" and "new" are the same, so ${path} was left as it is and nothing changed. Give in "new" the piece as it should read after the change.`, 'Edited nothing');
+          }
           if (count !== 1) {
             // With the file in the answer, the next call can be right without a read in between.
             const now = current.length <= SHOWN_ON_MISS ? ` The file is now:\n${current}` : ' Read the file and copy the piece exactly.';
@@ -939,6 +951,7 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
         const made = [...sides, ...(phone?.state === 'built' ? ['the phone app'] : [])];
         return text(made.length === 0 ? `The app has no screens of its own; nothing to build.${phoneLine}` : `Built: ${sides.join(', ')}.${phoneLine}`, made.length === 0 ? 'No screens to build' : `Built ${made.join(' and ')}`, {
           facts: { count: made.length },
+          built: `${app?.hash ?? ''}:${app?.sidesHash ?? ''}`,
         });
       },
     },
@@ -980,7 +993,7 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
           };
         }
         return result.ok
-          ? text('Applied. The app on this server is what the folder says.', 'Applied the app')
+          ? text('Applied. The app on this server is what the folder says.', 'Applied the app', result.built === undefined ? {} : { built: result.built })
           : { content: said || 'It was not applied.', label: 'Not applied', isError: true, detail: said.split('\n').slice(0, 3).join('\n') };
       },
     },
@@ -1136,7 +1149,7 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
         const icons = listedPackages(deps.root).has(ICONS_PACKAGE);
         const picture = (deps.attachments?.list(ctx.session.id) ?? []).some((entry) => entry.kind === 'image');
         const colours = (deps.attachments?.list(ctx.session.id) ?? []).some((entry) => entry.kind === 'image' && themeFromPalette(entry.palette ?? []) !== null);
-        const made = `${styleLine(readLook(deps.root, appKey) ?? look, how)}\n\n${needs.said}\n\n${designSteps(appKey, side, { tailwind, icons, picture, colours })}`;
+        const made = `${styleLine(readLook(deps.root, appKey) ?? look, how)}\n\n${needs.said}\n\n${designSteps(appKey, side, { tailwind, icons, picture, colours, ownPictures: WANTS_OWN_PICTURES.test(personWords(ctx.session.id)) })}`;
         if (written.length === 0) return text(`The ${side} side is already there: edit apps/${appKey}/${side}/src/App.tsx.\n${made}`, `The ${side} side is there`);
         return text(
           `Written:\n${written.map((file) => `- ${file}`).join('\n')}\nThe side is declared in app.json${side === 'staff' ? ', and each role may open it (app:@:staff)' : ''}.\n\n${made}`,
@@ -2034,6 +2047,150 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string): DesignerTo
       },
     },
     {
+      name: 'use_pictures',
+      description:
+        'Put pictures the person attached into the app: the only way one of theirs gets there (each one’s attachment id is in the message it came with). All of them in ONE call. "for": "page" copies a picture into the app for a screen to import (give "name", what it is on the page: "hero", "team"). "for": "rows" puts a picture on one sample row of a table people look at before they choose (give "table", and "row": which of its sample rows, counted from 1; left out, the rows are taken in order). Never for a picture that shows a design or a page to build: that one is looked at, not shown.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          pictures: {
+            type: 'array',
+            minItems: 1,
+            maxItems: 16,
+            items: {
+              type: 'object',
+              properties: {
+                attachment: { type: 'string', description: 'The attachment id, e.g. att_…' },
+                for: { type: 'string', enum: ['page', 'rows'] },
+                name: { type: 'string', description: 'For a page: a short name for the file, e.g. hero' },
+                table: { type: 'string', description: 'For rows: the table’s ref' },
+                column: { type: 'string', description: 'For rows: the picture column; left out, the table’s own' },
+                row: { type: 'integer', minimum: 1, description: 'For rows: which sample row, from 1' },
+              },
+              required: ['attachment', 'for'],
+              additionalProperties: false,
+            },
+          },
+        },
+        required: ['pictures'],
+        additionalProperties: false,
+      },
+      running: () => 'Adding your pictures',
+      run: async (input, ctx) => {
+        const none = (content: string): ToolOutcome => ({ ...refused(content, 'Your pictures were not added'), facts: { outcome: 'failed' } });
+        const nameless = unnamed(ctx);
+        if (nameless !== null) return nameless;
+        if (hasOwnBuild(deps.root, appKey)) return none('This app is a copy of a published one and keeps its own pictures in src/: add them there.');
+        const asked = Array.isArray(input['pictures']) ? (input['pictures'] as unknown[]).slice(0, 16) : [];
+        if (asked.length === 0) return none('Give "pictures": each with the "attachment" id and "for": "page" or "rows".');
+        const dir = join(deps.root, APPS_DIR, appKey);
+        const manifest = checkApp(deps.root, appKey, { version: deps.version }).manifest;
+        const tables = manifest !== null && manifest.kind === 'app' ? (manifest.requiredSchema?.tables ?? []) : [];
+        const bundleFile = join(dir, 'seeds', 'sample.json');
+        interface Bundle {
+          assets?: Record<string, unknown>;
+          tables?: { ref: string; rows: Record<string, unknown>[] }[];
+        }
+        /** The sample rows, read once and written once. */
+        const read: { bundle: Bundle | null } = { bundle: null };
+        const lines: string[] = [];
+        const problems: string[] = [];
+        const names = new Set<string>();
+        /** The next sample row of each table that takes a picture, when the model names none. */
+        const next = new Map<string, number>();
+        const addedColumns: string[] = [];
+        let added = 0;
+        let seeded = false;
+        for (const raw of asked) {
+          const item = (raw ?? {}) as Record<string, unknown>;
+          const id = typeof item['attachment'] === 'string' ? item['attachment'] : '';
+          const entry = deps.attachments?.find(ctx.session.id, id) ?? null;
+          if (entry === null) {
+            problems.push(`"${id.slice(0, 40)}": there is no such attachment in this session. A picture's id is in the message it came with.`);
+            continue;
+          }
+          const bytes = entry.kind === 'image' && entry.partOf === undefined ? (deps.attachments?.read(ctx.session.id, id) ?? null) : null;
+          // By its bytes again, whatever the list calls it: only a picture is ever written under pictures/.
+          const type = bytes === null ? null : imageTypeOf(bytes);
+          if (bytes === null || type === null) {
+            problems.push(`"${entry.label}" is not a picture the person attached${entry.partOf === undefined ? '' : ' (it is a part of one: give the picture’s own id)'}.`);
+            continue;
+          }
+          const ext = type === 'image/png' ? 'png' : type === 'image/webp' ? 'webp' : type === 'image/gif' ? 'gif' : 'jpg';
+          const rows = item['for'] === 'rows';
+          const wanted = typeof item['name'] === 'string' && item['name'].trim() !== '' ? item['name'] : rows && typeof item['table'] === 'string' ? item['table'] : entry.label.replace(/\.[a-z0-9]+$/i, '');
+          const base = wanted.toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '').replace(/^[^a-z]+/, '').slice(0, 28) || 'picture';
+          let name = base;
+          for (let n = 2; names.has(name); n += 1) name = `${base}-${String(n)}`;
+          const sha256 = createHash('sha256').update(bytes).digest('hex');
+          if (!rows) {
+            names.add(name);
+            mkdirSync(join(dir, 'assets', 'pictures'), { recursive: true });
+            writeFileSync(join(dir, 'assets', 'pictures', `${name}.${ext}`), bytes);
+            added += 1;
+            lines.push(`- "${entry.label}" is apps/${appKey}/assets/pictures/${name}.${ext} — in a screen: import ${name.replace(/-(.)/g, (_all, letter: string) => letter.toUpperCase())} from '../../assets/pictures/${name}.${ext}', then <img src={…} alt="…" /> with words that say what it shows.`);
+            continue;
+          }
+          const ref = typeof item['table'] === 'string' ? item['table'] : '';
+          const table = tables.find((candidate) => candidate.ref === ref) ?? tables.find((candidate) => ref.endsWith(`_${candidate.ref}`) && ref.slice(0, -candidate.ref.length - 1) === appKey.replace(/-/g, '_'));
+          if (table === undefined) {
+            problems.push(`"${entry.label}": there is no table "${ref.slice(0, 60)}" in this app${tables.length === 0 ? ' yet: write its file and check_app first' : ` (its tables: ${tables.map((candidate) => candidate.ref).join(', ')})`}.`);
+            continue;
+          }
+          const isPicture = (candidate: (typeof table.columns)[number] | undefined): boolean => candidate !== undefined && candidate.type === 'text' && 'semantic' in candidate && candidate.semantic === 'image';
+          let column = table.columns.find((candidate) => candidate.ref === item['column'] && isPicture(candidate))?.ref ?? table.columns.find((candidate) => isPicture(candidate))?.ref;
+          if (read.bundle === null) {
+            try {
+              read.bundle = JSON.parse(readFileSync(bundleFile, 'utf8')) as Bundle;
+            } catch {
+              problems.push(`"${entry.label}": apps/${appKey}/seeds/sample.json does not read, so no row of "${table.ref}" got it. Write the sample rows first (manifest/sample.json names the file), then call use_pictures again.`);
+              continue;
+            }
+          }
+          const bundle = read.bundle;
+          if (bundle === null) continue;
+          const sample = bundle.tables?.find((candidate) => candidate.ref === table.ref)?.rows ?? [];
+          const at = typeof item['row'] === 'number' && Number.isInteger(item['row']) && item['row'] >= 1 ? item['row'] : (next.get(table.ref) ?? 1);
+          const row = sample[at - 1];
+          if (row === undefined) {
+            problems.push(`"${entry.label}": "${table.ref}" has ${String(sample.length)} sample row(s) in seeds/sample.json, and there is no row ${String(at)}. Write a row for it first, then call use_pictures again.`);
+            continue;
+          }
+          if (column === undefined) {
+            // The table has no picture column: one is added here, rather than sending the model round for it.
+            const added = table.columns.some((candidate) => candidate.ref === 'picture') ? null : addPictureColumn(join(dir, 'manifest', 'tables', `${table.ref}.json`));
+            if (added === null && !addedColumns.includes(table.ref)) {
+              problems.push(`"${entry.label}": the table "${table.ref}" has no picture column. Add { "ref": "picture", "type": "text", "semantic": "image", "nullable": true } to its columns, check_app, then call use_pictures again.`);
+              continue;
+            }
+            if (added !== null) addedColumns.push(table.ref);
+            column = 'picture';
+          }
+          next.set(table.ref, at + 1);
+          names.add(name);
+          mkdirSync(join(dir, 'seeds', 'pictures'), { recursive: true });
+          writeFileSync(join(dir, 'seeds', 'pictures', `${name}.${ext}`), bytes);
+          const label = `picture-own-${name}`;
+          bundle.assets = { ...(bundle.assets ?? {}), [label]: { file: `seeds/pictures/${name}.${ext}`, sha256 } };
+          row[column] = { '@asset': label };
+          seeded = true;
+          added += 1;
+          lines.push(`- "${entry.label}" is the picture of sample row ${String(at)} of "${table.ref}" (column "${column}").`);
+        }
+        if (seeded && read.bundle !== null) {
+          writeFileSync(bundleFile, `${JSON.stringify(read.bundle, null, 2)}\n`);
+          deps.pictures?.reseed?.(appKey);
+        }
+        if (added === 0) return none(`No picture was put in the app.\n${problems.join('\n')}`);
+        for (const table of addedColumns) lines.push(`The table "${table}" had no picture column, so "picture" was added to its file (text, "semantic": "image").`);
+        return text(
+          `${String(added)} of the person's pictures ${added === 1 ? 'is' : 'are'} in the app now.\n${lines.join('\n')}${seeded ? '\nA row\'s picture is shown on the page with pictureUrl, as adminium-app/references/manifest/public-access--pictures.md says: the table\'s entry in access.json lists the column under "pictures", with "id" in its "select". Then check_app and apply_app: the sample rows take their pictures when the app is applied.' : '\nThen build_sides and apply_app.'}${problems.length === 0 ? '' : `\nNot added:\n${problems.join('\n')}`}\nSay to the person only what this result says was added.`,
+          `Added ${String(added)} of your pictures`,
+          { facts: { outcome: 'added', count: added } },
+        );
+      },
+    },
+    {
       name: 'ask_person',
       description: 'Ask the person a question, only when the answer changes what you build. Give "choices" when there are a few clear ones.',
       inputSchema: {
@@ -2214,6 +2371,7 @@ export const DESIGNER_TOOL_NAMES = [
   'read_attachment',
   'load_rows',
   'find_pictures',
+  'use_pictures',
   'ask_person',
   'request_package',
   'allow_picture_site',

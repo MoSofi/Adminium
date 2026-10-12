@@ -20,6 +20,7 @@ import type { DesignerFileGroup } from '../../api.js';
 import { CodeBarEnd } from '../CodeBar.js';
 import CodeTab from '../CodeTab.js';
 import { useCodeFiles, type CodeLock, type CodeNotice } from '../useCodeFiles.js';
+import { findHits } from './find.js';
 
 const ID = 'ds_000000000000000000000007';
 const BASE = `/api/v1/designer/sessions/${ID}`;
@@ -51,6 +52,7 @@ let listAnswer: (() => Response) | null;
 let contentAnswer: ((path: string) => Response | null) | null;
 /** What the server says to the next save; by default it writes the files and names a version. */
 let saveAnswer: ((files: { path: string; content: string; base: string }[]) => Response) | null;
+let searchAnswer: (() => Response) | null;
 let version: number;
 let notices: CodeNotice[];
 let fixes: string[];
@@ -90,6 +92,7 @@ beforeEach(() => {
   listAnswer = null;
   contentAnswer = null;
   saveAnswer = null;
+  searchAnswer = null;
   // This DOM lays nothing out, and an editor whose lines all measure 0 high cannot say which line is at a height: give it lines.
   vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
     const line = this.classList.contains('cm-line');
@@ -112,6 +115,15 @@ beforeEach(() => {
         if (scripted !== null) return Promise.resolve(scripted);
         const text = disk[path];
         return Promise.resolve(text === undefined ? jsonResponse(404, { error: { code: 'NOT_FOUND', message: 'There is no such file.', requestId: 'r' } }) : jsonResponse(200, { path, content: text, hash: hashOf(text) }));
+      }
+      if (url.startsWith(`${BASE}/files/search?`)) {
+        if (searchAnswer !== null) return Promise.resolve(searchAnswer());
+        const asked = new URL(url, 'http://x').searchParams;
+        const spec = { query: asked.get('q') ?? '', matchCase: asked.get('case') === '1', wholeWord: asked.get('word') === '1' };
+        const found = Object.keys(disk)
+          .map((path) => ({ path, hash: hashOf(disk[path] ?? ''), hits: findHits(disk[path] ?? '', spec).hits }))
+          .filter((file) => file.hits.length > 0);
+        return Promise.resolve(jsonResponse(200, { files: found, more: false }));
       }
       if (url === `${BASE}/files` && method === 'PUT') {
         const files = body?.files ?? [];
@@ -570,4 +582,107 @@ describe('the Code tab', () => {
     await screen.findByText('There are no files to change here yet.');
     expect((save() as HTMLButtonElement).disabled).toBe(true);
   });
+
+  const chosen = (): string => view().state.sliceDoc(view().state.selection.main.from, view().state.selection.main.to);
+  const marks = (): number => document.querySelectorAll('.cm-found').length;
+
+  it('looks for words in the open file: marks them, counts them, and goes from one to the next', async () => {
+    await open();
+    await openFile('Menu.tsx', '// the menu');
+    expect(screen.queryByRole('search', { name: 'Find in this file' })).toBeNull();
+    // The find key, anywhere in the tab.
+    fireEvent.keyDown(content(), { key: 'f', ctrlKey: true });
+    const bar = screen.getByRole('search', { name: 'Find in this file' });
+    const field = within(bar).getByRole('textbox', { name: 'Find in this file' });
+    await waitFor(() => expect(document.activeElement).toBe(field));
+    await userEvent.type(field, 'menu');
+    expect(marks()).toBe(2);
+    expect(chosen()).toBe('menu');
+    expect(within(bar).getByRole('status').textContent).toBe('1 of 2');
+    await userEvent.keyboard('{Enter}');
+    expect(chosen()).toBe('Menu');
+    expect(within(bar).getByRole('status').textContent).toBe('2 of 2');
+    await userEvent.keyboard('{Enter}');
+    expect(within(bar).getByRole('status').textContent).toBe('1 of 2');
+    await userEvent.click(within(bar).getByRole('button', { name: 'Previous result' }));
+    expect(within(bar).getByRole('status').textContent).toBe('2 of 2');
+
+    await userEvent.click(within(bar).getByRole('button', { name: 'Match case' }));
+    expect(within(bar).getByRole('button', { name: 'Match case' }).getAttribute('aria-pressed')).toBe('true');
+    expect(marks()).toBe(1);
+    await userEvent.click(within(bar).getByRole('button', { name: 'Whole word' }));
+    expect(marks()).toBe(1);
+    await userEvent.clear(field);
+    await userEvent.type(field, 'nothing like it');
+    expect(within(bar).getByRole('status').textContent).toBe('No results');
+    expect((within(bar).getByRole('button', { name: 'Next result' }) as HTMLButtonElement).disabled).toBe(true);
+
+    // Another file is looked through for the same words; Escape closes the bar and the marks go.
+    await userEvent.clear(field);
+    await userEvent.type(field, 'App');
+    await openFile('App.tsx', 'export function App');
+    expect(marks()).toBe(1);
+    field.focus();
+    await userEvent.keyboard('{Escape}');
+    expect(screen.queryByRole('search', { name: 'Find in this file' })).toBeNull();
+    expect(marks()).toBe(0);
+    // The button opens it again, looking for what is selected.
+    // Closing gave the editor the keyboard. This DOM tells of a selection change in the middle of the editor's own, so the editor is left first.
+    expect(view().hasFocus).toBe(true);
+    act(() => view().contentDOM.blur());
+    act(() => view().dispatch({ selection: { anchor: 7, head: 15 } }));
+    await userEvent.click(screen.getByRole('button', { name: 'Find in this file' }));
+    expect((within(screen.getByRole('search', { name: 'Find in this file' })).getByRole('textbox') as HTMLInputElement).value).toBe('function');
+    expect(marks()).toBe(1);
+  });
+
+  it('looks for words in every file: the places take the list’s place, and one opens its file at the place', async () => {
+    await open();
+    const all = within(screen.getByRole('search', { name: 'Search in all files' }));
+    await userEvent.type(all.getByRole('textbox'), 'menu');
+    const results = await screen.findByRole('region', { name: 'Search results' });
+    await within(results).findByText('3 results in 2 files');
+    expect(screen.queryByRole('navigation', { name: 'Files' })).toBeNull();
+    expect(within(results).getAllByRole('group').map((group) => group.getAttribute('aria-label'))).toEqual(['customer/App.tsx', 'customer/pages/Menu.tsx']);
+    expect(within(results).getAllByRole('button').map((button) => button.textContent)).toEqual(['2return <Menu />;', '1// the menu', '2…function Menu() {']);
+    expect(calls.filter((call) => call.url.includes('/files/search?')).map((call) => call.url)).toEqual([`${BASE}/files/search?q=menu`]);
+
+    await userEvent.click(within(results).getByRole('button', { name: 'Line 2: export function Menu() {' }));
+    await waitFor(() => expect(editorText()).toContain('// the menu'));
+    await waitFor(() => expect(chosen()).toBe('Menu'));
+    expect(view().state.doc.lineAt(view().state.selection.main.from).number).toBe(2);
+    // The editor looks for the same words: its bar is open with them, and every place in the file is marked.
+    expect((within(screen.getByRole('search', { name: 'Find in this file' })).getByRole('textbox') as HTMLInputElement).value).toBe('menu');
+    expect(marks()).toBe(2);
+    // A place in the file that is already shown.
+    await userEvent.click(within(results).getByRole('button', { name: 'Line 1: // the menu' }));
+    expect(view().state.doc.lineAt(view().state.selection.main.from).number).toBe(1);
+
+    // What was typed and not saved is what is searched, not the file on disk.
+    type('const menuOfMine = 1;\n');
+    await userEvent.click(all.getByRole('button', { name: 'Whole word' }));
+    await within(results).findByText('3 results in 2 files');
+    expect(within(results).queryByRole('button', { name: 'Line 1: const menuOfMine = 1;' })).toBeNull();
+    await userEvent.click(all.getByRole('button', { name: 'Whole word' }));
+    await within(results).findByText('4 results in 2 files');
+    expect(within(results).getByRole('button', { name: 'Line 1: const menuOfMine = 1;' })).toBeTruthy();
+
+    await userEvent.clear(all.getByRole('textbox'));
+    await userEvent.type(all.getByRole('textbox'), 'zebra');
+    await within(await screen.findByRole('region', { name: 'Search results' })).findByText('No results');
+    // Escape clears the search, and the files are back as they were.
+    await userEvent.keyboard('{Escape}');
+    expect(screen.queryByRole('region', { name: 'Search results' })).toBeNull();
+    expect(rows()).toContain('Menu.tsx *');
+  });
+
+  it('says when the files could not be searched, and searches again when asked', async () => {
+    await open();
+    searchAnswer = () => jsonResponse(422, { error: { code: 'VALIDATION_FAILED', message: 'no', requestId: 'r' } });
+    await userEvent.type(within(screen.getByRole('search', { name: 'Search in all files' })).getByRole('textbox'), 'menu');
+    await screen.findByText('The files could not be searched.', undefined, { timeout: 8000 });
+    searchAnswer = null;
+    await userEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    await screen.findByText('3 results in 2 files');
+  }, 15_000);
 });

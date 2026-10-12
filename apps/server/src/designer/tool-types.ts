@@ -37,6 +37,12 @@ export interface ToolOutcome {
   detail?: string;
   /** What the page words the line from, in its own language. */
   facts?: { count?: number; outcome?: 'added' | 'declined' | 'refused' | 'failed'; look?: string };
+  /**
+   * From a step that built or applied the app: a mark of what the server now
+   * serves for it (its manifest and its screens). The same mark as the build
+   * before means nothing new is served, and no page will open itself again.
+   */
+  built?: string;
 }
 
 export interface ToolContext {

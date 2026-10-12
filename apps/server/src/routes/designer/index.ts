@@ -8,6 +8,7 @@
  * server runs. Every route declares the `designer` rate bucket itself, so no
  * address pattern can take its limit away.
  */
+import { anthropicEfforts, type RunEffort } from '@adminium/llm';
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { basename, join } from 'node:path';
 
@@ -90,6 +91,8 @@ import {
   designerStartParams,
   designerFileQuery,
   designerFileReply,
+  designerFileSearchQuery,
+  designerFileSearchReply,
   designerFilesReply,
   designerFilesSaveBody,
   designerFilesSaveReply,
@@ -308,6 +311,8 @@ export function designerRoutes(deps: DesignerRoutesDeps): FastifyPluginAsyncZod 
           ...(request.body.title === undefined ? {} : { title: request.body.title, titled: true }),
           ...(request.body.connectionId === undefined ? {} : { connectionId: request.body.connectionId }),
           ...(request.body.model === undefined ? {} : { model: request.body.model }),
+          // `null` takes the level away: the model then works at its own default.
+          ...(request.body.effort === undefined ? {} : { effort: request.body.effort ?? undefined }),
         });
         return { session, waiting: runner.waiting(session.id), active: runner.active()?.sessionId === session.id, look: publicLook(session.appKey) };
       },
@@ -326,6 +331,7 @@ export function designerRoutes(deps: DesignerRoutesDeps): FastifyPluginAsyncZod 
           by: actorOf(request),
           ...(request.body.attachments === undefined ? {} : { attachments: request.body.attachments }),
           ...(request.body.sees === true ? { sees: true } : {}),
+          ...(request.body.picked === undefined ? {} : { picked: request.body.picked }),
         });
         return reply.code(202).send(started);
       },
@@ -367,7 +373,14 @@ export function designerRoutes(deps: DesignerRoutesDeps): FastifyPluginAsyncZod 
             .split(',')
             .filter((entry) => entry !== '')
             .map((entry) => ({ hex: `#${entry.slice(0, 6)}`, share: Math.min(1, Number(entry.slice(7)) / 1000) }));
-          const made = deps.attachments.add(session.id, { filename: request.query.filename, bytes: request.body, ...(palette.length === 0 ? {} : { palette }) });
+          const { part_of: whole, part, parts } = request.query;
+          if ((whole === undefined) !== (part === undefined) || (whole === undefined) !== (parts === undefined)) throw new ValidationFailedError('A part of a picture names its picture, which part it is and how many there are.', { reason: 'ATTACHMENT' });
+          const made = deps.attachments.add(session.id, {
+            filename: request.query.filename,
+            bytes: request.body,
+            ...(palette.length === 0 ? {} : { palette }),
+            ...(whole === undefined || part === undefined || parts === undefined ? {} : { partOf: { id: whole, part, parts } }),
+          });
           return await reply.code(201).send({ attachment: publicAttachment(made) });
         } catch (error) {
           if (error instanceof AttachmentError) throw new ValidationFailedError(error.message, { reason: error.reason });
@@ -565,6 +578,15 @@ export function designerRoutes(deps: DesignerRoutesDeps): FastifyPluginAsyncZod 
       { preHandler: guard, config: RATE, schema: { params: designerSessionParams, querystring: designerFileQuery, response: { 200: designerFileReply } } },
       async (request, reply) => reply.header('cache-control', 'no-store').send(await designer.readFile(request.params.id, request.query.path)),
     );
+    // The words a person looks for, in every file of the list. It reads and changes nothing.
+    app.get(
+      '/designer/sessions/:id/files/search',
+      { preHandler: guard, config: RATE, schema: { params: designerSessionParams, querystring: designerFileSearchQuery, response: { 200: designerFileSearchReply } } },
+      async (request, reply) =>
+        reply
+          .header('cache-control', 'no-store')
+          .send(await designer.searchFiles(request.params.id, request.query.q, { matchCase: request.query.case === '1', wholeWord: request.query.word === '1' })),
+    );
     app.put(
       '/designer/sessions/:id/files',
       {
@@ -716,6 +738,12 @@ export function designerRoutes(deps: DesignerRoutesDeps): FastifyPluginAsyncZod 
       },
     );
 
+    /** A model known only by its name (the list could not be read, or does not hold it), with the effort levels its name says it takes. */
+    const named = (provider: string, id: string): { id: string; label: string; efforts?: RunEffort[] } => {
+      const efforts = provider === 'anthropic' ? anthropicEfforts(id) : [];
+      return { id, label: id, ...(efforts.length === 0 ? {} : { efforts }) };
+    };
+
     // The models the picker lists: every connection with its models, the selected one, what is known to build.
     app.get('/designer/models', { preHandler: guard, config: RATE, schema: { response: { 200: designerModelsReply } } }, async () => {
       const all = await connections.list();
@@ -723,10 +751,10 @@ export function designerRoutes(deps: DesignerRoutesDeps): FastifyPluginAsyncZod 
         all.map(async (connection) => {
           try {
             const { models, source } = await connections.models(connection.id);
-            const withSelected = connection.model !== null && !models.some((model) => model.id === connection.model) ? [{ id: connection.model, label: connection.model }, ...models] : models;
+            const withSelected = connection.model !== null && !models.some((model) => model.id === connection.model) ? [named(connection.provider, connection.model), ...models] : models;
             return { id: connection.id, provider: connection.provider, source: connection.source, state: source === 'live' || withSelected.length > 0 ? ('ok' as const) : ('unreachable' as const), models: withSelected };
           } catch {
-            return { id: connection.id, provider: connection.provider, source: connection.source, state: 'unreachable' as const, models: connection.model === null ? [] : [{ id: connection.model, label: connection.model }] };
+            return { id: connection.id, provider: connection.provider, source: connection.source, state: 'unreachable' as const, models: connection.model === null ? [] : [named(connection.provider, connection.model)] };
           }
         }),
       );

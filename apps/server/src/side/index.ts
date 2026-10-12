@@ -246,6 +246,12 @@ export type PageFault =
   | { kind: 'loop'; count: number; path: string }
   | { kind: 'edge' };
 
+/** An element as its tag and its first classes: letters, digits and the marks a class name has. */
+function saidOf(el: Element, most = 3): string {
+  const classes = (typeof el.className === 'string' ? el.className : '').trim().split(/\s+/).filter((word) => /^[\w:./[\]%-]{1,40}$/.test(word)).slice(0, most).join(' ');
+  return `${el.tagName.toLowerCase().replace(/[^a-z0-9-]/g, '')}${classes === '' ? '' : ` ${classes}`}`;
+}
+
 /**
  * What a person would call broken on the page as it shows now, measured:
  * a part wider than the window, controls that lie over each other, a picture
@@ -265,11 +271,7 @@ export function pageFaults(
   const body = doc.body;
   if (body === null) return out;
   const width = doc.documentElement.clientWidth || view.innerWidth;
-  /** An element as its tag and its first classes: letters, digits and the marks a class name has. */
-  const said = (el: Element): string => {
-    const classes = (typeof el.className === 'string' ? el.className : '').trim().split(/\s+/).filter((word) => /^[\w:./[\]%-]{1,40}$/.test(word)).slice(0, 3).join(' ');
-    return `${el.tagName.toLowerCase().replace(/[^a-z0-9-]/g, '')}${classes === '' ? '' : ` ${classes}`}`;
-  };
+  const said = (el: Element): string => saidOf(el);
   if ((body.innerText ?? '').trim() === '' && body.querySelectorAll('img, svg, canvas, video').length === 0) return [{ kind: 'blank', ...(thrown === '' ? {} : { error: thrown }) }];
   // The page went on after an error of its own: a part of it is likely empty.
   if (thrown !== '' && !/ResizeObserver/i.test(thrown)) out.push({ kind: 'error', error: thrown });
@@ -314,33 +316,102 @@ export function pageFaults(
   return out.slice(0, 8);
 }
 
+/** A part of the window, in its own pixels from its top left corner. */
+export interface PageArea {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+}
+
+/** The most a picture of a part of the page may be, as the address it is sent as. */
+const SHOT_MAX_LENGTH = 2_400_000;
+/** A part smaller than this, either way, is a slip of the hand and no picture. */
+const SHOT_MIN = 8;
+
+/** The part of a window `width` by `height` that `area` names, held inside it; null when it names none. */
+export function areaWithin(area: unknown, width: number, height: number): PageArea | null {
+  const said = record(area);
+  const numbers = [said['left'], said['top'], said['width'], said['height']];
+  if (!numbers.every((value): value is number => typeof value === 'number' && Number.isFinite(value))) return null;
+  const left = Math.max(0, Math.round(numbers[0] as number));
+  const top = Math.max(0, Math.round(numbers[1] as number));
+  const right = Math.min(Math.round(width), Math.round((numbers[0] as number) + (numbers[2] as number)));
+  const bottom = Math.min(Math.round(height), Math.round((numbers[1] as number) + (numbers[3] as number)));
+  return right - left < SHOT_MIN || bottom - top < SHOT_MIN ? null : { left, top, width: right - left, height: bottom - top };
+}
+
+/** A rule of a stylesheet, of whatever kind, as far as this file reads one. */
+interface SheetRule {
+  cssText: string;
+  selectorText?: string;
+  style?: { cssText: string };
+  cssRules?: ArrayLike<SheetRule>;
+}
+
+/**
+ * A rule's text with every share of the window's height (`85vh`) said in
+ * pixels, in what the rule sets and never in what it is named by: a class
+ * like `.h-[85vh]` keeps its name, or nothing on the page would carry it and
+ * the part would be drawn with no height at all.
+ */
+export function ruleText(rule: SheetRule, windowHeight: number): string {
+  const inPixels = (text: string): string => text.replace(/(-?\d*\.?\d+)[dsl]?vh\b/g, (_all, share: string) => `${String(Math.round((Number(share) * windowHeight) / 100))}px`);
+  const inside = (): string => [...Array.from(rule.cssRules ?? [])].map((inner) => ruleText(inner, windowHeight)).join('\n');
+  // Rules that move through steps name each step by a share of the time, not by a selector: left as they are.
+  if (rule.cssText.startsWith('@keyframes') || rule.cssText.startsWith('@-webkit-keyframes')) return rule.cssText;
+  if (rule.style !== undefined && typeof rule.selectorText === 'string') return `${rule.selectorText} { ${inPixels(rule.style.cssText)} ${inside()} }`;
+  // What a rule sets inside a condition of its own (`@media` in a class's own block).
+  if (rule.style !== undefined && rule.cssRules === undefined && !rule.cssText.startsWith('@')) return inPixels(rule.style.cssText);
+  // A group (`@media`, `@supports`, `@layer`, `@container`): its own first line, and each rule in it.
+  const open = rule.cssText.indexOf('{');
+  if (rule.cssRules !== undefined && open > 0) return `${rule.cssText.slice(0, open)}{ ${inside()} }`;
+  return rule.cssText;
+}
+
 /**
  * A picture of the page as it shows, drawn in the page itself: its own
  * markup and styles laid into an SVG and painted on a canvas. Nothing is
  * asked of any server for it and nothing leaves the page but through the
  * caller. Pictures are drawn in small; web fonts are left out (the system's
  * stand in). Null where a browser will not paint it.
+ *
+ * With an `area` it is that part of the window as it shows now, wherever the
+ * page is scrolled to, and drawn sharp: a person dragged over it and means to
+ * show exactly that. What scrolls inside a box of its own is drawn from its
+ * top, and a part that sticks to the window's edge where the page has it.
  */
-export async function pagePicture(doc: Document = document, view: Window = window): Promise<string | null> {
+export async function pagePicture(doc: Document = document, view: Window = window, area?: PageArea): Promise<string | null> {
   try {
-    const width = Math.min(1440, doc.documentElement.clientWidth);
-    const height = Math.min(Math.max(doc.documentElement.scrollHeight, view.innerHeight), 3200);
-    if (width < 200 || height < 100) return null;
+    const part = area === undefined ? null : areaWithin(area, doc.documentElement.clientWidth, view.innerHeight);
+    if (area !== undefined && part === null) return null;
+    const width = part === null ? Math.min(1440, doc.documentElement.clientWidth) : doc.documentElement.clientWidth;
+    const height = part === null ? Math.min(Math.max(doc.documentElement.scrollHeight, view.innerHeight), 3200) : Math.max(doc.documentElement.scrollHeight, view.innerHeight);
+    if (part === null && (width < 200 || height < 100)) return null;
     const copy = doc.documentElement.cloneNode(true) as HTMLElement;
-    for (const el of [...copy.querySelectorAll('script, noscript, iframe, object, embed, video, audio, link, style, base')]) el.remove();
+    if (part !== null) {
+      // A part held to the window (a bar at its top, a button in its corner) is put where it shows now: the copy has no window to hold it to.
+      const shown = [...doc.documentElement.querySelectorAll('*')];
+      const copied = [...copy.querySelectorAll('*')];
+      shown.slice(0, 4000).forEach((el, index) => {
+        const twin = copied[index] as HTMLElement | undefined;
+        if (twin === undefined || twin.tagName !== el.tagName || view.getComputedStyle(el).position !== 'fixed') return;
+        const box = el.getBoundingClientRect();
+        twin.style.cssText += `;position:absolute !important;inset:auto !important;margin:0 !important;left:${String(box.left + view.scrollX)}px !important;top:${String(box.top + view.scrollY)}px !important;width:${String(box.width)}px !important;height:${String(box.height)}px !important;`;
+      });
+    }
+    for (const el of [...copy.querySelectorAll('script, noscript, iframe, object, embed, video, audio, link, style, base, [data-adminium-pick]')]) el.remove();
     // The styles as the page has them, with nothing in them that would be fetched.
     let css = '';
     for (const sheet of [...doc.styleSheets]) {
       try {
-        for (const rule of [...sheet.cssRules]) if (!rule.cssText.startsWith('@font-face') && !rule.cssText.startsWith('@import')) css += `${rule.cssText}\n`;
+        // In the whole page's picture a share of the window's height would be a share of the picture's: said in pixels there.
+        for (const rule of [...sheet.cssRules]) if (!rule.cssText.startsWith('@font-face') && !rule.cssText.startsWith('@import')) css += `${part === null ? ruleText(rule, view.innerHeight) : rule.cssText}\n`;
       } catch {
         // A stylesheet of another site: not read.
       }
     }
-    css = css
-      .replace(/url\(\s*(?!["']?data:)[^)]*\)/g, 'none')
-      // A share of the window's height means the window's, not this picture's.
-      .replace(/(-?\d*\.?\d+)[dsl]?vh\b/g, (_all, share: string) => `${String(Math.round((Number(share) * view.innerHeight) / 100))}px`);
+    css = css.replace(/url\(\s*(?!["']?data:)[^)]*\)/g, 'none');
     const style = doc.createElement('style');
     style.textContent = css;
     copy.querySelector('head')?.appendChild(style);
@@ -366,25 +437,32 @@ export async function pagePicture(doc: Document = document, view: Window = windo
     // What was typed into a control is not part of the picture.
     for (const el of [...copy.querySelectorAll('input, textarea')]) el.removeAttribute('value');
     const markup = new XMLSerializer().serializeToString(copy);
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${String(width)}" height="${String(height)}"><foreignObject x="0" y="0" width="100%" height="100%">${markup}</foreignObject></svg>`;
+    const svg =
+      part === null
+        ? `<svg xmlns="http://www.w3.org/2000/svg" width="${String(width)}" height="${String(height)}"><foreignObject x="0" y="0" width="100%" height="100%">${markup}</foreignObject></svg>`
+        : // A drawing the size of the window, so a rule that asks how wide the window is (`@media`, `vw`) is answered as the page
+          // itself is; the whole page laid out in it at its own width, and moved to where it is scrolled to.
+          `<svg xmlns="http://www.w3.org/2000/svg" width="${String(Math.max(view.innerWidth, width))}" height="${String(view.innerHeight)}"><foreignObject x="${String(-view.scrollX)}" y="${String(-view.scrollY)}" width="${String(width)}" height="${String(height)}">${markup}</foreignObject></svg>`;
     const drawn = doc.createElement('img');
     await new Promise<void>((resolve, reject) => {
       drawn.onload = () => resolve();
       drawn.onerror = () => reject(new Error('not drawn'));
       drawn.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
     });
-    const scale = Math.min(1, 900 / width);
+    // The page whole is drawn small, to be read at a glance; a part of it at twice its size, as far as that stays a picture a model reads whole.
+    const scale = part === null ? Math.min(1, 900 / width) : Math.min(2, 1600 / part.width, 1600 / part.height);
     const canvas = doc.createElement('canvas');
-    canvas.width = Math.round(width * scale);
-    canvas.height = Math.round(height * scale);
+    canvas.width = Math.max(1, Math.round((part === null ? width : part.width) * scale));
+    canvas.height = Math.max(1, Math.round((part === null ? height : part.height) * scale));
     const context = canvas.getContext('2d');
     if (context === null) return null;
     context.fillStyle = '#ffffff';
     context.fillRect(0, 0, canvas.width, canvas.height);
-    context.drawImage(drawn, 0, 0, canvas.width, canvas.height);
-    for (const quality of [0.72, 0.5, 0.35]) {
+    if (part === null) context.drawImage(drawn, 0, 0, canvas.width, canvas.height);
+    else context.drawImage(drawn, part.left, part.top, part.width, part.height, 0, 0, canvas.width, canvas.height);
+    for (const quality of part === null ? [0.72, 0.5, 0.35] : [0.9, 0.75, 0.5]) {
       const picture = canvas.toDataURL('image/jpeg', quality);
-      if (picture.length <= 900_000) return picture;
+      if (picture.length <= (part === null ? 900_000 : SHOT_MAX_LENGTH)) return picture;
     }
     return null;
   } catch {
@@ -1120,7 +1198,9 @@ export function watchAddress(
     waiting = true;
     later(() => {
       waiting = false;
-      parent.postMessage({ type: 'adminium:side-location', app: APP_KEY, side: SIDE, path: here(), title: plainLine(target.document?.title) }, '*');
+      // `picks`: this screen can be pointed at ({@link pickForFrame}). One built before that could not, and its preview offers no pointing.
+      // `shots`: it draws a part of itself when asked ({@link shootForFrame}). The same holds for a screen built before that.
+      parent.postMessage({ type: 'adminium:side-location', app: APP_KEY, side: SIDE, path: here(), title: plainLine(target.document?.title), picks: true, shots: true }, '*');
     });
   };
   frameSayers.set(target, (own) => {
@@ -1141,3 +1221,210 @@ export function watchAddress(
 }
 
 watchAddress();
+
+// ── pointing at a part of the page ───────────────────────────────────────────
+
+/** One element of the page, as the person pointed at it. Facts read from the page, never sentences. */
+export interface PickedElement {
+  /** Its tag and its first classes: `button btn primary`. */
+  part: string;
+  /** What it shows, on one line; empty when it shows no words. */
+  text: string;
+  /** Its name where it has one that is not its text (`aria-label`, `alt`, `placeholder`, `title`). */
+  label: string;
+  /** What it sits in, nearest first, each as its tag and first classes. */
+  within: string[];
+  /** Which one it is among the parts like it beside it, counted from 1, and how many there are. */
+  nth: number;
+  of: number;
+  /** How large it is drawn, in pixels. */
+  width: number;
+  height: number;
+}
+
+/** Words of the page as they are said to another page: one line, no control characters, cut at `most`. */
+function shortLine(value: unknown, most: number): string {
+  // eslint-disable-next-line no-control-regex -- control characters are exactly what is taken out
+  const line = (typeof value === 'string' ? value : '').replace(/[\u0000-\u001f\u007f-\u009f]/g, ' ').replace(/\s+/g, ' ').trim();
+  return line.length > most ? `${line.slice(0, most - 1)}…` : line;
+}
+
+/** The element as it is said to the page that frames this one. */
+export function pickedOf(el: Element): PickedElement {
+  const within: string[] = [];
+  for (let up = el.parentElement; up !== null && within.length < 4; up = up.parentElement) {
+    const tag = up.tagName.toLowerCase();
+    if (tag === 'body' || tag === 'html') break;
+    // The box a screen is mounted in says nothing of where the element is.
+    if (up.id === 'root' && up.parentElement?.tagName.toLowerCase() === 'body') break;
+    within.push(saidOf(up));
+  }
+  const part = saidOf(el, 6);
+  const beside = [...(el.parentElement?.children ?? [])].filter((other) => other.tagName === el.tagName);
+  const box = el.getBoundingClientRect();
+  const label = ['aria-label', 'alt', 'placeholder', 'title'].map((name) => el.getAttribute(name) ?? '').find((value) => value.trim() !== '') ?? '';
+  return {
+    part,
+    text: shortLine((el as HTMLElement).innerText ?? el.textContent, 160),
+    label: shortLine(label, 120),
+    within,
+    nth: Math.max(1, beside.indexOf(el) + 1),
+    of: Math.max(1, beside.length),
+    width: Math.round(box.width),
+    height: Math.round(box.height),
+  };
+}
+
+/**
+ * Point at a part of the page, for the page that frames this one.
+ *
+ * In a bundle `adminium dev` built, and only inside a frame: the framing page
+ * (the Designer's preview) says `adminium:host:pick` to start and to stop.
+ * While it is on, the element under the pointer is outlined, and a click is
+ * the person's answer and nothing else: it reaches no handler of the screen,
+ * follows no link and sends no form. What was clicked is said back
+ * (`adminium:side-picked`) as facts, and pointing is over; Escape ends it
+ * with nothing said but that it ended. A packed app never listens.
+ */
+export function pickForFrame(target: Window | undefined = framed(), dev: boolean = DEV): void {
+  if (!dev || target === undefined || typeof target.document === 'undefined') return;
+  const doc = target.document;
+  const parent = target.parent as { postMessage(message: unknown, origin: string): void };
+  let end: (() => void) | null = null;
+
+  const begin = (): void => {
+    if (end !== null || doc.documentElement === null) return;
+    const outline = doc.createElement('div');
+    outline.setAttribute('data-adminium-pick', '');
+    outline.style.cssText =
+      'position:fixed;z-index:2147483647;pointer-events:none;display:none;box-sizing:border-box;border:2px solid #2563eb;border-radius:3px;background:rgba(37,99,235,.12);';
+    const name = doc.createElement('div');
+    name.style.cssText =
+      'position:absolute;inset-inline-start:-2px;top:-22px;max-width:260px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;padding:2px 6px;border-radius:3px;background:#2563eb;color:#fff;font:600 11px/16px ui-sans-serif,system-ui,sans-serif;';
+    outline.appendChild(name);
+    const cursor = doc.createElement('style');
+    cursor.setAttribute('data-adminium-pick', '');
+    cursor.textContent = '*{cursor:crosshair !important}';
+    doc.documentElement.appendChild(outline);
+    doc.documentElement.appendChild(cursor);
+
+    /** The element an event is on, when it is a part of the page a person could mean. */
+    const meant = (event: Event): Element | null => {
+      const el = event.target as Element | null;
+      if (el === null || typeof el.getBoundingClientRect !== 'function' || typeof el.tagName !== 'string') return null;
+      const tag = el.tagName.toLowerCase();
+      return tag === 'html' || tag === 'body' ? null : el;
+    };
+    let over: Element | null = null;
+    const draw = (): void => {
+      if (over === null) {
+        outline.style.display = 'none';
+        return;
+      }
+      const box = over.getBoundingClientRect();
+      outline.style.display = 'block';
+      outline.style.left = `${String(box.left)}px`;
+      outline.style.top = `${String(box.top)}px`;
+      outline.style.width = `${String(box.width)}px`;
+      outline.style.height = `${String(box.height)}px`;
+      // Under the element's top edge when there is no room above it.
+      name.style.top = box.top < 24 ? '0' : '-22px';
+      name.textContent = over.tagName.toLowerCase();
+    };
+    const moved = (event: Event): void => {
+      over = meant(event);
+      draw();
+    };
+    /** The press and the release belong to pointing too: no button of the screen sees them. */
+    const swallow = (event: Event): void => {
+      event.stopImmediatePropagation();
+      if (event.type === 'mousedown') event.preventDefault();
+    };
+    const clicked = (event: Event): void => {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      const el = meant(event);
+      if (el === null) return;
+      end?.();
+      try {
+        parent.postMessage({ type: 'adminium:side-picked', app: APP_KEY, side: SIDE, path: pagePath(target.location.pathname), page: doc.documentElement.clientWidth, element: pickedOf(el) }, '*');
+      } catch {
+        // Pointing never breaks the page.
+      }
+    };
+    const key = (event: Event): void => {
+      if ((event as KeyboardEvent).key !== 'Escape') return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      end?.();
+      parent.postMessage({ type: 'adminium:side-pick-ended', app: APP_KEY, side: SIDE }, '*');
+    };
+    const heard: [string, (event: Event) => void][] = [
+      ['mousemove', moved],
+      ['scroll', draw],
+      ['pointerdown', swallow],
+      ['pointerup', swallow],
+      ['mousedown', swallow],
+      ['mouseup', swallow],
+      ['dblclick', swallow],
+      ['click', clicked],
+      ['keydown', key],
+    ];
+    for (const [type, run] of heard) doc.addEventListener(type, run, true);
+    end = (): void => {
+      end = null;
+      for (const [type, run] of heard) doc.removeEventListener(type, run, true);
+      outline.remove();
+      cursor.remove();
+    };
+  };
+
+  target.addEventListener('message', (event: MessageEvent) => {
+    if (event.source !== (parent as unknown)) return;
+    const said = record(event.data);
+    if (said['type'] !== 'adminium:host:pick') return;
+    if (said['on'] === true) begin();
+    else end?.();
+  });
+}
+
+pickForFrame();
+
+// ── a picture of a part of the page ──────────────────────────────────────────
+
+/**
+ * Draw a part of the page, for the page that frames this one.
+ *
+ * In a bundle `adminium dev` built, and only inside a frame: the framing page
+ * (the Designer's preview) says `adminium:host:shot` with the part a person
+ * dragged over, in this window's own pixels, and a number of its own. The
+ * part is drawn as it shows now ({@link pagePicture}) and said back
+ * (`adminium:side-shot`) under that number; with no picture when the browser
+ * will not draw it, so the asking page never waits for nothing. One at a
+ * time. A packed app never listens.
+ */
+export function shootForFrame(target: Window | undefined = framed(), dev: boolean = DEV, draw: typeof pagePicture = pagePicture): void {
+  if (!dev || target === undefined || typeof target.document === 'undefined') return;
+  const parent = target.parent as { postMessage(message: unknown, origin: string): void };
+  let drawing = false;
+  target.addEventListener('message', (event: MessageEvent) => {
+    if (event.source !== (parent as unknown)) return;
+    const said = record(event.data);
+    if (said['type'] !== 'adminium:host:shot') return;
+    const id = said['id'];
+    if (typeof id !== 'number' || !Number.isInteger(id) || drawing) return;
+    drawing = true;
+    void Promise.race([draw(target.document, target, said['area'] as PageArea), new Promise<null>((resolve) => setTimeout(() => resolve(null), 8000))])
+      .catch(() => null)
+      .then((picture) => {
+        drawing = false;
+        try {
+          parent.postMessage({ type: 'adminium:side-shot', app: APP_KEY, side: SIDE, id, ...(picture === null ? {} : { picture }) }, '*');
+        } catch {
+          // Drawing never breaks the page.
+        }
+      });
+  });
+}
+
+shootForFrame();

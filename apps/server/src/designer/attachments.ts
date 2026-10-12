@@ -23,9 +23,18 @@ export const ATTACHMENT_MAX_CSV_BYTES = 10 * 1024 * 1024;
 export const ATTACHMENT_MAX_CSV_ROWS = 20_000;
 /** The most a font file may be: what a style's own font may be. */
 export const ATTACHMENT_MAX_FONT_BYTES = 400 * 1024;
-export const ATTACHMENT_MAX_PER_MESSAGE = 4;
+/** Eight: a person who brings their own pictures for a page brings more than four (asked for 2026-10-11). */
+export const ATTACHMENT_MAX_PER_MESSAGE = 8;
 export const ATTACHMENT_MAX_PER_SESSION = 40;
 export const ATTACHMENT_MAX_SESSION_BYTES = 50 * 1024 * 1024;
+/**
+ * The most parts a tall picture is sent to a model as. A provider shrinks a
+ * picture to fit its own longest side, so a whole page in one picture reaches
+ * the model a few hundred pixels wide: its layout can no longer be read. The
+ * page that attaches it cuts it into parts a model reads whole, top to bottom;
+ * the server never decodes a picture, and keeps the parts beside the original.
+ */
+export const ATTACHMENT_MAX_PARTS = 8;
 /** What one picture is counted as, in every estimate: never its length. */
 export const IMAGE_TOKENS = 1500;
 
@@ -46,6 +55,10 @@ export interface Attachment {
   columns?: string[];
   /** A picture's colours, the most first, as the page that sent it read them. Data: a look may be read from them. */
   palette?: PaletteColour[];
+  /** A part of a tall picture: the picture's id, which part this is (from 1, the top) and how many there are. Sent to a model in the picture's place; never listed to the person. */
+  partOf?: string;
+  part?: number;
+  parts?: number;
 }
 
 export type AttachmentRefusal = 'TOO_LARGE' | 'NOT_ACCEPTED' | 'CSV_UNREADABLE' | 'CSV_TOO_MANY_ROWS' | 'SESSION_FULL' | 'EMPTY';
@@ -114,7 +127,9 @@ export function labelOf(filename: string): string {
 }
 
 export interface Attachments {
-  add(sessionId: string, input: { filename: string; bytes: Buffer; palette?: unknown }): Attachment;
+  add(sessionId: string, input: { filename: string; bytes: Buffer; palette?: unknown; partOf?: { id: string; part: number; parts: number } }): Attachment;
+  /** The parts a tall picture is sent as, the top first; empty unless every one of them is there. */
+  partsOf(sessionId: string, id: string): Attachment[];
   list(sessionId: string): Attachment[];
   find(sessionId: string, id: string): Attachment | null;
   /** The file's bytes; null when there is no such attachment in this session. */
@@ -160,10 +175,19 @@ export function createAttachments(root: string, opts: { now?: () => number } = {
       if (entry === undefined) return false;
       const dir = dirOf(sessionId);
       const index = join(dir, 'attachments.json');
-      writeFileSync(`${index}.tmp`, JSON.stringify(all.filter((candidate) => candidate.id !== id), null, 2), { mode: 0o600 });
+      // A picture's parts go with it.
+      const gone = all.filter((candidate) => candidate.id === id || candidate.partOf === id);
+      writeFileSync(`${index}.tmp`, JSON.stringify(all.filter((candidate) => !gone.includes(candidate)), null, 2), { mode: 0o600 });
       renameSync(`${index}.tmp`, index);
-      rmSync(join(dir, `${entry.id}.${EXT[entry.mediaType]}`), { force: true });
+      for (const each of gone) rmSync(join(dir, `${each.id}.${EXT[each.mediaType]}`), { force: true });
       return true;
+    },
+    partsOf(sessionId, id) {
+      const parts = list(sessionId)
+        .filter((entry) => entry.partOf === id && entry.kind === 'image' && typeof entry.part === 'number')
+        .sort((a, b) => (a.part ?? 0) - (b.part ?? 0));
+      const count = parts[0]?.parts ?? 0;
+      return count >= 2 && parts.length === count && parts.every((entry, index) => entry.part === index + 1 && entry.parts === count) ? parts : [];
     },
     add(sessionId, input) {
       const { bytes } = input;
@@ -193,14 +217,29 @@ export function createAttachments(root: string, opts: { now?: () => number } = {
         }
         entry = { kind: 'csv', mediaType: 'text/csv', rows: csv.rows.length, columns: csv.header.slice(0, 200).map((name) => name.slice(0, 120)) };
       }
-      const all = list(sessionId);
-      if (all.length >= ATTACHMENT_MAX_PER_SESSION || all.reduce((sum, each) => sum + each.bytes, 0) + bytes.length > ATTACHMENT_MAX_SESSION_BYTES) {
+      let all = list(sessionId);
+      const partOf = input.partOf;
+      let whole: Attachment | undefined;
+      if (partOf !== undefined) {
+        whole = ATTACHMENT_ID.test(partOf.id) ? all.find((candidate) => candidate.id === partOf.id) : undefined;
+        const fits = Number.isInteger(partOf.part) && Number.isInteger(partOf.parts) && partOf.parts >= 2 && partOf.parts <= ATTACHMENT_MAX_PARTS && partOf.part >= 1 && partOf.part <= partOf.parts;
+        if (image === null || whole === undefined || whole.kind !== 'image' || whole.partOf !== undefined || !fits) {
+          throw new AttachmentError('NOT_ACCEPTED', 'A part of a picture goes with a picture this session holds.');
+        }
+        // Sent again (a retry): the part it replaces goes.
+        const before = all.filter((candidate) => candidate.partOf === partOf.id && candidate.part === partOf.part);
+        for (const each of before) rmSync(join(dirOf(sessionId), `${each.id}.${EXT[each.mediaType]}`), { force: true });
+        all = all.filter((candidate) => !before.includes(candidate));
+      }
+      // A picture's parts are the picture again: they are held to the session's bytes, not counted as files of their own.
+      if ((partOf === undefined && all.filter((each) => each.partOf === undefined).length >= ATTACHMENT_MAX_PER_SESSION) || all.reduce((sum, each) => sum + each.bytes, 0) + bytes.length > ATTACHMENT_MAX_SESSION_BYTES) {
         throw new AttachmentError('SESSION_FULL', 'This session holds as many files as it can. Start a new session to attach more.');
       }
       const made: Attachment = {
         id: `att_${randomBytes(10).toString('hex')}`,
-        label: labelOf(input.filename),
+        label: whole === undefined || partOf === undefined ? labelOf(input.filename) : `${whole.label} (part ${String(partOf.part)} of ${String(partOf.parts)})`.slice(0, 160),
         ...entry,
+        ...(partOf === undefined ? {} : { partOf: partOf.id, part: partOf.part, parts: partOf.parts }),
         bytes: bytes.length,
         sha256: createHash('sha256').update(bytes).digest('hex'),
         at: now(),
@@ -243,6 +282,16 @@ export function csvLines(csv: { header: string[]; rows: string[][] }, from: numb
  */
 export function attachmentNote(attachments: Attachments, sessionId: string, ids: readonly string[]): string {
   const notes: string[] = [];
+  // Pictures are named with their ids: a model is handed a picture with no name on it, and can put one in the app only by its id.
+  const pictures = ids.flatMap((id) => {
+    const entry = attachments.find(sessionId, id);
+    return entry !== null && entry.kind === 'image' && entry.partOf === undefined ? [entry] : [];
+  });
+  if (pictures.length > 0) {
+    notes.push(
+      `The person attached ${pictures.length === 1 ? 'a picture' : `${String(pictures.length)} pictures, in this order`}: ${pictures.map((entry) => `"${entry.label.replace(/["\n]/g, ' ')}" (attachment ${entry.id})`).join(', ')}. A picture that shows a page or a design is the design to build: look at it, and do not show it. A picture meant for the app itself (a photo of a house, a dish, the place, a person) is put there with use_pictures and these ids, and in no other way: do not look for other pictures in its place, and never say one of theirs is in the app before use_pictures said so.`,
+    );
+  }
   for (const id of ids) {
     const entry = attachments.find(sessionId, id);
     if (entry !== null && entry.kind === 'font') {
