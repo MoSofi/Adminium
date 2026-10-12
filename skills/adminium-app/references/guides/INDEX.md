@@ -24,7 +24,7 @@
 | `references/guides/sample-data--overview.md` | Sample data | 414 |
 | `references/guides/sample-data--adding-it.md` | Adding it | 3778 |
 | `references/guides/sample-data--sample-times-that-follow-the-calendar.md` | Sample times that follow the calendar | 2543 |
-| `references/guides/sample-data--rows-for-an-add-on-the-app-names.md` | Rows for an add-on the app names | 2223 |
+| `references/guides/sample-data--rows-for-an-add-on-the-app-names.md` | Rows for an add-on the app names | 4975 |
 | `references/guides/sample-data--sample-people.md` | Sample people | 953 |
 | `references/guides/sample-data--while-it-is-loaded.md` | While it is loaded | 664 |
 | `references/guides/sample-data--removing-it.md` | Removing it | 1954 |

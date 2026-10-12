@@ -94,7 +94,8 @@ import { literalDefault, tableRulesFor } from '../crud/column-rules.js';
 import { countersPastTheTable, isUniqueViolation } from '../crud/decided-columns.js';
 import { labelColumnFor } from '../crud/labels.js';
 import { renderNow } from '../crud/instants.js';
-import { createWriteService, deleteRows, insertRow, type WriteContext, type WriteTarget } from '../crud/write-service.js';
+import { createWriteService, deleteRows, insertRow, type RecordWriteService, type WriteContext, type WriteTarget } from '../crud/write-service.js';
+import { ledgersOf } from '../ledgers/rules.js';
 import { fetchByPk, pkLabel } from '../crud/records.js';
 import { writeStores } from '../crud/write-stores.js';
 import { ConflictError, NotFoundError, ValidationFailedError } from '../errors.js';
@@ -126,6 +127,13 @@ export interface SampleDataDeps {
    * are not looked at.
    */
   storedRefs?: ((connectionId: string) => Promise<(tableId: string) => string>) | undefined;
+  /**
+   * The write service every save goes through, ledgers and all: what makes
+   * the moves an app's file asks of an add-on's rows (`moves`), so the
+   * add-on's ledger writes what follows a move itself. Absent: a file that
+   * asks for moves is refused before any of it is written.
+   */
+  writes?: (() => RecordWriteService) | undefined;
 }
 
 /** What an add is told. */
@@ -1354,6 +1362,170 @@ export function createSampleDataService(deps: SampleDataDeps) {
     return out;
   }
 
+  /**
+   * THE MOVES A SECTION ASKS FOR. An app's rows for an add-on are things with
+   * no history (an item, a receipt still a draft). What the add-on's ledger
+   * keeps (stock, a level, a movement) it writes itself: each move is a save
+   * of its own, made after the rows are committed, through the write service
+   * every save goes through — so the move is judged like anybody's, its
+   * posting runs, and the figures are the add-on's own.
+   *
+   * What the ledger wrote for those saves is then listed as the app's sample,
+   * so "Remove sample data" takes it with the rows that caused it. A move
+   * that is refused undoes the whole file: its rows, and what earlier moves
+   * of it posted, are taken out again, and the refusal is said.
+   */
+  async function makeMoves(input: {
+    app: SampleApp;
+    section: string;
+    moves: NonNullable<SampleBundle['moves']>;
+    wrote: readonly { ref: string; label: string | null; table: ResolvedTable; key: Row; seq: number }[];
+    connectionId: string;
+    handle: DataHandle;
+    view: SnapshotView;
+    names: Readonly<Record<string, string>>;
+    timeZone: string;
+    refOf: (tableId: string) => string;
+    opts: AddOptions;
+    now: number;
+  }): Promise<Record<string, number>> {
+    const { app, section, wrote, connectionId, handle, view, opts } = input;
+    const full = (deps.writes as () => RecordWriteService)();
+    const db = asDb(handle.db);
+    const context: WriteContext = { origin: 'import', hops: 0, actor: { kind: 'user', id: opts.userId, label: opts.userLabel }, request: null };
+    const firstSeq = wrote.reduce((least, row) => Math.min(least, row.seq), Number.MAX_SAFE_INTEGER);
+    try {
+      for (const move of input.moves) {
+        const rows = wrote.filter((row) => (move.ref !== undefined ? row.label === move.ref : row.ref === `${section}:${move.table ?? ''}`));
+        for (const row of rows) {
+          const column = tableRulesFor({ view, table: row.table })?.states?.column;
+          if (column === undefined) throw new ValidationFailedError(`"${row.ref}" has no states, so its rows make no move.`, { reason: 'SAMPLE_MOVE_REFUSED', table: row.ref });
+          await full.update({
+            target: { connectionId, view, table: row.table, db, dialect: handle.dialect, timezone: input.timeZone },
+            pk: row.key,
+            values: { [column]: move.to },
+            context,
+            announce: async () => undefined,
+          });
+        }
+      }
+      return await listPosted(input);
+    } catch (error) {
+      // Nothing of a file whose move was refused stays: what was posted so far is listed first, so it leaves with the rows.
+      await listPosted(input).catch(() => undefined);
+      await removeRows(app, { keepChanged: false, userId: opts.userId, userLabel: opts.userLabel }, (row) => row.seq >= firstSeq).catch(() => undefined);
+      const cause = error instanceof Error ? error.message : String(error);
+      throw new ValidationFailedError(`The sample rows of "${app.key}" for "${section}" were not added: a move they ask for was refused. ${cause}`, {
+        reason: 'SAMPLE_MOVE_REFUSED',
+        cause,
+        details: (error as { details?: unknown }).details,
+      });
+    }
+  }
+
+  /**
+   * What the add-on's ledgers wrote for the rows a file brought: the
+   * receipts that name one of them, and every row of a ledger table that
+   * names one of those receipts. Each is entered in the app's list as it
+   * stands, parents before the rows that point at them, so a removal runs
+   * them backwards. The file's own rows are hashed again (a move changed
+   * their state, a posting their average cost), and so is every row a total
+   * of which the new rows feed — in whichever list names it.
+   */
+  async function listPosted(input: Parameters<typeof makeMoves>[0]): Promise<Record<string, number>> {
+    const { app, section, wrote, connectionId, handle, view, names, now } = input;
+    const db = asDb(handle.db);
+    const counts: Record<string, number> = {};
+    const addOn = await findSampleOwner(deps.meta, section, 'add-on');
+    const ledgerTable = await ensureLedger(app, connectionId, handle);
+    const entries = await ledgerRows(handle, ledgerTable);
+    const listed = new Set(entries.map((entry) => `${entry.table_ref}\u0000${entry.pk}`));
+    let seq = entries.reduce((max, entry) => Math.max(max, entry.seq), 0);
+    const found: { ref: string; table: ResolvedTable; row: Row }[] = [];
+    for (const ledger of addOn === null || addOn.manifest.kind !== 'add-on' ? [] : ledgersOf(addOn.manifest as never)) {
+      const receipts = safeTable(view, names[`${section}:${ledger.receipts}`] ?? '');
+      if (receipts === null || receipts.primaryKey.length !== 1) continue;
+      const receiptKey = receipts.primaryKey[0] as string;
+      // The receipts that name a row this file wrote: as the row a posting is of, or as one of its lines.
+      const ids: unknown[] = [];
+      const byTable = new Map<string, string[]>();
+      for (const row of wrote) {
+        if (row.table.primaryKey.length !== 1) continue;
+        byTable.set(row.table.id, [...(byTable.get(row.table.id) ?? []), String(row.key[row.table.primaryKey[0] as string])]);
+      }
+      for (const [tableId, keys] of byTable) {
+        for (const [tableColumn, rowColumn] of [['source_table', 'source_row'], ['line_table', 'source_line']] as const) {
+          if (!receipts.columns.has(tableColumn) || !receipts.columns.has(rowColumn)) continue;
+          for (let i = 0; i < keys.length; i += 500) {
+            const rows = (await db
+              .selectFrom(receipts.id as never)
+              .selectAll()
+              .where(tableColumn as never, '=', input.refOf(tableId) as never)
+              .where(rowColumn as never, 'in', keys.slice(i, i + 500) as never)
+              .orderBy(receiptKey as never)
+              .execute()) as Row[];
+            for (const row of rows) {
+              if (ids.some((id) => String(id) === String(row[receiptKey]))) continue;
+              ids.push(row[receiptKey]);
+              found.push({ ref: `${section}:${ledger.receipts}`, table: receipts, row });
+            }
+          }
+        }
+      }
+      if (ids.length === 0) continue;
+      // Every row a plan added under one of those receipts, a table's parents among them first.
+      const added = Object.entries(ledger.writes)
+        .filter(([, scope]) => (scope as { insert?: unknown }).insert !== undefined)
+        .flatMap(([ref]) => {
+          const table = safeTable(view, names[`${section}:${ref}`] ?? '');
+          return table === null || !table.columns.has('receipt_id') ? [] : [{ ref, table }];
+        });
+      const order: typeof added = [];
+      const waiting = [...added];
+      while (waiting.length > 0) {
+        const at = waiting.findIndex((one) => !waiting.some((other) => other !== one && one.table.table?.columns.some((column) => column.references?.tableId === other.table.id) === true));
+        order.push(...waiting.splice(at === -1 ? 0 : at, 1));
+      }
+      for (const { ref, table } of order) {
+        for (let i = 0; i < ids.length; i += 500) {
+          const rows = (await db
+            .selectFrom(table.id as never)
+            .selectAll()
+            .where('receipt_id' as never, 'in', ids.slice(i, i + 500) as never)
+            .orderBy(table.primaryKey[0] as never)
+            .execute()) as Row[];
+          for (const row of rows) found.push({ ref: `${section}:${ref}`, table, row });
+        }
+      }
+    }
+    for (const { ref, table, row } of found) {
+      const key = Object.fromEntries(table.primaryKey.map((column) => [column, row[column]]));
+      const pk = canonicalJson(key);
+      if (listed.has(`${ref}\u0000${pk}`)) continue;
+      listed.add(`${ref}\u0000${pk}`);
+      const { rowHash, colHashes } = hashRow(row, table);
+      seq += 1;
+      await db
+        .insertInto(ledgerTable as never)
+        .values({ seq, table_ref: ref, pk, label: null, row_hash: rowHash, col_hashes: JSON.stringify({ ...colHashes, [LEDGER_DATES_AS_DAYS]: '1' }), created_at: now } as never)
+        .execute();
+      counts[ref] = (counts[ref] ?? 0) + 1;
+    }
+    // As they stand now: the file's own rows, and the keepers of every total the new rows feed.
+    for (const row of wrote) await rehashSampleRow(deps.meta, { connectionId, db, dialect: handle.dialect, table: row.table }, row.key);
+    const settled = new Set<string>();
+    for (const { table, row } of found) {
+      for (const rollup of tableRulesFor({ view, table })?.rollupsInto ?? []) {
+        const parent = safeTable(view, rollup.parent);
+        const via = row[rollup.via];
+        if (parent === null || via === null || via === undefined || settled.has(`${parent.id}\u0000${String(via)}`)) continue;
+        settled.add(`${parent.id}\u0000${String(via)}`);
+        await rehashSampleRow(deps.meta, { connectionId, db, dialect: handle.dialect, table: parent }, { [rollup.parentKey]: via });
+      }
+    }
+    return counts;
+  }
+
   async function addPass(app: SampleApp, pass: AddPass, opts: AddOptions): Promise<{ counts: Record<string, number>; files: number }> {
     const connectionId = await connectionOf(app);
     const bundle = pass.bundle;
@@ -1439,6 +1611,12 @@ export function createSampleDataService(deps: SampleDataDeps) {
       const total = bundle.tables.reduce((sum, table) => sum + (skipped.has(table.ref) ? 0 : table.rows.length), 0);
       const counts: Record<string, number> = {};
       const explicitKeys = new Set<string>();
+      /** The moves a section asks for once its rows are in, and the rows this add wrote that a move may name. */
+      const moves = pass.section === undefined ? [] : (bundle.moves ?? []);
+      if (moves.length > 0 && deps.writes === undefined) {
+        throw new ValidationFailedError(`The sample rows of "${app.key}" for "${pass.section ?? ''}" ask for moves, which this instance cannot make.`, { reason: 'SAMPLE_MOVES_UNAVAILABLE' });
+      }
+      const wrote: { ref: string; label: string | null; table: ResolvedTable; key: Row; seq: number }[] = [];
       let reused = 0;
       /** Rows taken from another app's sample rather than written. */
       let takenShared = 0;
@@ -1835,6 +2013,7 @@ export function createSampleDataService(deps: SampleDataDeps) {
               } as never)
               .execute();
             counts[table.ref] = (counts[table.ref] ?? 0) + 1;
+            if (moves.length > 0) wrote.push({ ref: table.ref, label, table: resolved, key, seq });
             done += 1;
             if (done % 25 === 0) opts.progress?.(20 + Math.round((done / total) * 70), `Wrote ${String(done)} of ${String(total)}`);
           }
@@ -1930,6 +2109,11 @@ export function createSampleDataService(deps: SampleDataDeps) {
             .execute();
         }
       });
+
+      if (moves.length > 0 && pass.section !== undefined) {
+        const posted = await makeMoves({ app, section: pass.section, moves, wrote, connectionId, handle, view, names, timeZone, refOf: (tableId) => storedTableRef(refIndex, tableId), opts, now });
+        for (const [ref, n] of Object.entries(posted)) counts[ref] = (counts[ref] ?? 0) + n;
+      }
 
       // A sample row is written with the number it was given (PO-1001): a series already counting is moved past it,
       // or the owner's next order would be handed a number the sample holds.

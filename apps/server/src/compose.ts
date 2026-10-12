@@ -851,6 +851,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       const installs = await addOnInstalls.fresh();
       return (tableId) => installs.refOf(connectionId, tableId);
     },
+    // The moves an app's file asks of an add-on's rows are saves like any other (the service is made further down).
+    writes: () => recordWrites,
     get files() {
       return storage;
     },

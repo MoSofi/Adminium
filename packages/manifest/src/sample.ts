@@ -168,6 +168,9 @@ export type ByStay = z.infer<typeof byStaySchema>;
 /** The keys of a row that are directives about the row, not columns. */
 export const ROW_DIRECTIVES: ReadonlySet<string> = new Set(['@label', '@byClock', '@byStay', '@onlyIfEmpty']);
 
+/** The most moves one file asks for. */
+export const SAMPLE_MOVES_MAX = 50;
+
 /** The weekdays a bundle's week anchor names. */
 export const SAMPLE_WEEKDAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const;
 
@@ -196,6 +199,21 @@ export const sampleBundleSchema = z
           .strict(),
       )
       .min(1),
+    /**
+     * In an app's rows for an add-on: changes of state made once the rows are in, each as a save of its own, in
+     * this order. Such a save is a real one, so what the add-on's ledger hands to a move (a receipt posted: stock
+     * in) is written by the add-on itself. One row by its label (`ref`), or every row this file wrote of a table.
+     */
+    moves: z
+      .array(
+        z
+          .object({ ref: label.optional(), table: z.string().min(1).optional(), to: z.string().min(1).max(80) })
+          .strict()
+          .refine((move) => (move.ref === undefined) !== (move.table === undefined), { message: 'a move names one row (`ref`) or one table (`table`), not both' }),
+      )
+      .min(1)
+      .max(SAMPLE_MOVES_MAX)
+      .optional(),
   })
   .strict();
 
@@ -315,6 +333,7 @@ export function sampleBundleIssues(bundle: SampleBundle, manifest: Manifest): Sa
   bundle.tables.forEach((table, t) => {
     if (table.own === true) issues.push({ path: `tables.${String(t)}.own`, message: '"own" marks a table of the app in its rows for an add-on; a manifest\'s own sample file takes none.' });
   });
+  if (bundle.moves !== undefined) issues.push({ path: 'moves', message: '"moves" are for an app\'s rows for an add-on (sampleData.addOns); a manifest\'s own sample file writes its rows as they should stand.' });
   const declared = new Map<string, DeclaredTable>((manifest.requiredSchema?.tables ?? []).map((table) => [table.ref, table]));
   const people = new Set(((manifest.kind === 'app' ? (manifest.sampleData as { people?: { key: string }[] } | undefined)?.people : undefined) ?? []).map((person) => person.key));
   issues.push(...rowIssues(bundle, declared, { names: new Set(declared.keys()), what: manifest.kind === 'add-on' ? 'add-on' : 'app', otherLabels: false, known: seedLabelsOf(manifest), people }));
@@ -461,6 +480,37 @@ export function ledgerCatalogueTables(addOn: AddOnManifest): ReadonlySet<string>
 }
 
 /**
+ * The tables a ledger writes that an app's file may still bring ROWS WITH NO
+ * HISTORY of: an item with no stock, an order still a draft. A table is one
+ * when a person may make its rows by hand (a role of the add-on is granted
+ * `create` on it), and it is not the receipt table. The row then leaves out
+ * every column the ledger keeps (`ledgerKeptColumns`) that it can be made
+ * without, and names no receipt.
+ * What only the ledger writes (a movement, a level, a reservation) comes only
+ * from the ledger: the file asks for it with `moves`, and the add-on writes it.
+ */
+export function ledgerBringableTables(addOn: AddOnManifest): ReadonlySet<string> {
+  const byHand = new Set<string>();
+  for (const role of (addOn as { roles?: readonly { permissions?: readonly string[] }[] }).roles ?? []) {
+    for (const permission of role.permissions ?? []) {
+      const [kind, table, action] = permission.split(':');
+      if (kind === 'table' && action === 'create' && table !== undefined) byHand.add(table.replace(/^@/, ''));
+    }
+  }
+  const out = new Set<string>();
+  for (const ledger of ledgersOf(addOn)) for (const ref of Object.keys(ledger.writes)) if (byHand.has(ref)) out.add(ref);
+  for (const ledger of ledgersOf(addOn)) out.delete(ledger.receipts);
+  return out;
+}
+
+/** The columns of a table that an add-on's ledgers keep: what a plan may change of a row that is there (`update.set`). */
+export function ledgerKeptColumns(addOn: AddOnManifest, ref: string): ReadonlySet<string> {
+  const out = new Set<string>();
+  for (const ledger of ledgersOf(addOn)) for (const column of (ledger.writes[ref] as { update?: { set?: readonly string[] } } | undefined)?.update?.set ?? []) out.add(column);
+  return out;
+}
+
+/**
  * An app's rows for an add-on it names (`sampleData.addOns.<key>.file`):
  * the file is for this app and that add-on, the app names the add-on, a
  * table marked `own` is the app's and links into the add-on, and — when the
@@ -484,6 +534,7 @@ export function sampleSectionIssues(bundle: SampleBundle, app: AppManifest, addO
   const theirs = addOn === undefined ? null : new Map<string, DeclaredTable>((addOn.requiredSchema?.tables ?? []).map((table) => [table.ref, table]));
   const declared = new Map<string, DeclaredTable>();
   const catalogue = addOn === undefined ? new Set<string>() : ledgerCatalogueTables(addOn);
+  const bringable = addOn === undefined ? new Set<string>() : ledgerBringableTables(addOn);
   const receipts = new Set(addOn === undefined ? [] : ledgersOf(addOn).map((ledger) => ledger.receipts));
   bundle.tables.forEach((table, t) => {
     const at = `tables.${String(t)}`;
@@ -502,7 +553,7 @@ export function sampleSectionIssues(bundle: SampleBundle, app: AppManifest, addO
     const shape = theirs.get(table.ref);
     // An add-on's history is its own to write: an app brings what a ledger counts, never what it counted.
     // What a ledger writes beside its books (which item a dish uses) is no history, and an app may bring it.
-    const ledger = addOn === undefined || catalogue.has(table.ref) ? undefined : ledgersOf(addOn).find((candidate) => candidate.receipts === table.ref || candidate.writes[table.ref] !== undefined);
+    const ledger = addOn === undefined || catalogue.has(table.ref) || bringable.has(table.ref) ? undefined : ledgersOf(addOn).find((candidate) => candidate.receipts === table.ref || candidate.writes[table.ref] !== undefined);
     if (shape === undefined) issues.push({ path: `${at}.ref`, message: `"${table.ref}" is not a table of "${key}". A table of the app itself is marked "own": true.` });
     else if (ledger !== undefined) issues.push({ path: `${at}.ref`, message: `"${table.ref}" is ${ledger.receipts === table.ref ? 'the receipt table' : 'a table'} of "${key}"'s ledger "${ledger.id}", which only postings write: an app's rows for an add-on hold none of its history.` });
     else {
@@ -514,12 +565,66 @@ export function sampleSectionIssues(bundle: SampleBundle, app: AppManifest, addO
           if (row[column.ref] !== undefined && row[column.ref] !== null) issues.push({ path: `${at}.rows.${String(r)}.${column.ref}`, message: `"${table.ref}.${column.ref}" names the receipt of a posting: an app's rows for an add-on are made by no posting, so leave it out.` });
         });
       }
+      // A row with no history: what the ledger keeps of it (an average cost, a status it moves) is the ledger's to write.
+      // But for a column a row cannot be made without (an order line's quantity, which a receipt later adjusts): that one a person types.
+      const needed = new Set(shape.columns.filter((column) => column.nullable !== true && column.default === undefined).map((column) => column.ref));
+      const kept = addOn === undefined || catalogue.has(table.ref) ? new Set<string>() : new Set([...ledgerKeptColumns(addOn, table.ref)].filter((column) => !needed.has(column)));
+      if (kept.size > 0) {
+        table.rows.forEach((row, r) => {
+          for (const column of kept) {
+            if (row[column] !== undefined) issues.push({ path: `${at}.rows.${String(r)}.${column}`, message: `"${table.ref}.${column}" is kept by "${key}"'s ledger: an app's row brings no history, so leave it out (a move asks the add-on to write it).` });
+          }
+        });
+      }
     }
   });
+  issues.push(...sampleMoveIssues(bundle, theirs));
   const twice = bundle.tables.map((table) => table.ref).filter((ref, i, all) => all.indexOf(ref) !== i);
   for (const ref of new Set(twice)) issues.push({ path: 'tables', message: `"${ref}" is listed twice.` });
   // A `@table` names a table of the app: the add-on's rows say which of the app's rows they belong to.
   issues.push(...rowIssues(bundle, declared, { names: new Set(own.keys()), what: 'app', otherLabels: true }));
+  return issues;
+}
+
+/**
+ * A section's `moves`: each names a labelled row, or a table, of the add-on's
+ * that this file itself writes, and a state that table has. Whether the move
+ * is one the table allows from where the row stands is judged when it is
+ * made, as for anybody's save.
+ */
+function sampleMoveIssues(bundle: SampleBundle, theirs: ReadonlyMap<string, DeclaredTable> | null): SampleIssue[] {
+  const issues: SampleIssue[] = [];
+  const tableOfLabel = new Map<string, string>();
+  const written = new Map<string, boolean>();
+  for (const table of bundle.tables) {
+    written.set(table.ref, table.own === true);
+    for (const row of table.rows) if (typeof row['@label'] === 'string') tableOfLabel.set(row['@label'], table.ref);
+  }
+  (bundle.moves ?? []).forEach((move, m) => {
+    const at = `moves.${String(m)}`;
+    const ref = move.table ?? (move.ref === undefined ? undefined : tableOfLabel.get(move.ref));
+    if (ref === undefined) {
+      issues.push({ path: `${at}.ref`, message: `No row of this file carries the label "${String(move.ref)}".` });
+      return;
+    }
+    if (!written.has(ref)) {
+      issues.push({ path: `${at}.table`, message: `This file writes no row of "${ref}": a move is of a row the file itself brings.` });
+      return;
+    }
+    if (written.get(ref) === true) {
+      issues.push({ path: at, message: `"${ref}" is the app's own table: a move is of a row of the add-on's, whose ledger then writes what follows.` });
+      return;
+    }
+    const shape = theirs?.get(ref);
+    if (shape === undefined) return; // checked when the add-on's manifest is at hand
+    const states = (shape as { states?: { column: string } }).states;
+    if (states === undefined) {
+      issues.push({ path: at, message: `"${ref}" has no states, so its rows make no move.` });
+      return;
+    }
+    const values = shape.columns.find((column) => column.ref === states.column)?.enum ?? [];
+    if (!values.includes(move.to)) issues.push({ path: `${at}.to`, message: `"${ref}" has no state "${move.to}".` });
+  });
   return issues;
 }
 
