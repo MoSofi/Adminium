@@ -25,6 +25,8 @@ import {
 import type { MetaDb } from '@adminium/meta';
 
 import { createAuditCoverageRegistry } from './audit/coverage.js';
+import { createRowCoverageRegistry } from './rbac/row-coverage.js';
+import { ROW_COVERAGE } from './rbac/row-coverage-table.js';
 import type { InstalledApps } from './apps/installed.js';
 import type { HostedSurface } from './cli/surfaces-root.js';
 import { hashPassword } from './auth/passwords.js';
@@ -441,6 +443,9 @@ export async function buildServer(opts: BuildServerOptions = {}) {
   // reaches every route in the tree, exactly as the schema check below does.
   const auditCoverage = createAuditCoverageRegistry();
   app.decorate('auditCoverage', auditCoverage);
+  // The same for row limits: every route says how it treats a person held to some rows (`rbac/row-coverage.ts`).
+  const rowCoverage = createRowCoverageRegistry(ROW_COVERAGE);
+  app.decorate('rowCoverage', rowCoverage);
 
   // Every /api route must declare a schema — no untyped routes.
   app.addHook('onRoute', (route) => {
@@ -455,6 +460,7 @@ export async function buildServer(opts: BuildServerOptions = {}) {
     // Records the mark, and THROWS on a malformed one — same boot-time failure
     // the unknown-rate-bucket check makes (plugins/core.ts).
     auditCoverage.record(route);
+    rowCoverage.record(route);
   });
 
   // U+0000 in a path parameter or the query string: one 400 before any route
