@@ -18087,6 +18087,154 @@
     "status": "mt",
     "srcHash": "c59828c39f12"
   },
+  "roles.rows.action": {
+    "status": "mt",
+    "srcHash": "52d0b35277ee"
+  },
+  "roles.rows.actionLabel.delete": {
+    "status": "mt",
+    "srcHash": "f6fdbe48dc54"
+  },
+  "roles.rows.actionLabel.read": {
+    "status": "mt",
+    "srcHash": "852b438f91ad"
+  },
+  "roles.rows.actionLabel.update": {
+    "status": "mt",
+    "srcHash": "64fbd995d3b6"
+  },
+  "roles.rows.belongs": {
+    "status": "mt",
+    "srcHash": "370259919394"
+  },
+  "roles.rows.capped": {
+    "status": "mt",
+    "srcHash": "893a59052fac"
+  },
+  "roles.rows.count": {
+    "status": "mt",
+    "srcHash": "9a88daea3835"
+  },
+  "roles.rows.empty.body": {
+    "status": "mt",
+    "srcHash": "c29fcdde6654"
+  },
+  "roles.rows.empty.title": {
+    "status": "mt",
+    "srcHash": "d160a8e69c19"
+  },
+  "roles.rows.failed": {
+    "status": "mt",
+    "srcHash": "bdb11dfa83a2"
+  },
+  "roles.rows.follows": {
+    "status": "mt",
+    "srcHash": "ff7ae5e9a7e9"
+  },
+  "roles.rows.intro": {
+    "status": "mt",
+    "srcHash": "5df8885c0fed"
+  },
+  "roles.rows.lifted": {
+    "status": "mt",
+    "srcHash": "1f37be9c34d9"
+  },
+  "roles.rows.loadFailed": {
+    "status": "mt",
+    "srcHash": "c48551e0ceb9"
+  },
+  "roles.rows.locked": {
+    "status": "mt",
+    "srcHash": "fa53bbea294a"
+  },
+  "roles.rows.private": {
+    "status": "mt",
+    "srcHash": "58298ce4303a"
+  },
+  "roles.rows.reach.all": {
+    "status": "mt",
+    "srcHash": "ad197f9c6e9b"
+  },
+  "roles.rows.reach.allWhile": {
+    "status": "mt",
+    "srcHash": "e5e9b016c656"
+  },
+  "roles.rows.reach.own": {
+    "status": "mt",
+    "srcHash": "52221061a1a1"
+  },
+  "roles.rows.reach.team": {
+    "status": "mt",
+    "srcHash": "b90daef019b0"
+  },
+  "roles.rows.reachLabel": {
+    "status": "mt",
+    "srcHash": "e97f34742864"
+  },
+  "roles.rows.samplePerson": {
+    "status": "mt",
+    "srcHash": "14069b7485b7"
+  },
+  "roles.rows.sentence.all": {
+    "status": "mt",
+    "srcHash": "2cfe87390744"
+  },
+  "roles.rows.sentence.allWhile": {
+    "status": "mt",
+    "srcHash": "ad197f9c6e9b"
+  },
+  "roles.rows.sentence.own": {
+    "status": "mt",
+    "srcHash": "5a50e778128a"
+  },
+  "roles.rows.sentence.team": {
+    "status": "mt",
+    "srcHash": "29c424e9943c"
+  },
+  "roles.rows.sentence.unowned": {
+    "status": "mt",
+    "srcHash": "356329f7d492"
+  },
+  "roles.rows.sentence.while": {
+    "status": "mt",
+    "srcHash": "75b7801cd982"
+  },
+  "roles.rows.title": {
+    "status": "mt",
+    "srcHash": "1e64ea1b7cb3"
+  },
+  "roles.rows.tryAs": {
+    "status": "mt",
+    "srcHash": "fe13dbcdf3e2"
+  },
+  "roles.rows.tryAsNone": {
+    "status": "mt",
+    "srcHash": "148ba2d23619"
+  },
+  "roles.rows.unowned": {
+    "status": "mt",
+    "srcHash": "356329f7d492"
+  },
+  "roles.rows.way.listing": {
+    "status": "mt",
+    "srcHash": "5955c9c090a4"
+  },
+  "roles.rows.way.listingDated": {
+    "status": "mt",
+    "srcHash": "b6cd27fb8f28"
+  },
+  "roles.rows.way.parent": {
+    "status": "mt",
+    "srcHash": "5bceca4233c0"
+  },
+  "roles.rows.way.person": {
+    "status": "mt",
+    "srcHash": "779ed156d49e"
+  },
+  "roles.rows.widened": {
+    "status": "mt",
+    "srcHash": "8b7f67dc9c29"
+  },
   "roles.saveFailed.title": {
     "status": "mt",
     "srcHash": "4c36562e8dc1"

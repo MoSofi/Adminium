@@ -113,5 +113,54 @@ export default {
   "apps": {
     "every": "打开所有应用的员工界面",
     "one": "打开 {app} 的员工界面"
+  },
+  "rows": {
+    "locked": "超级管理员可访问每一行。",
+    "action": "行",
+    "actionLabel": {
+      "read": "读取",
+      "update": "修改",
+      "delete": "删除"
+    },
+    "way": {
+      "person": "{column} 中的人员",
+      "listingDated": "当天在 {table} 中为它登记的任何人",
+      "listing": "在 {table} 中为它登记的任何人",
+      "parent": "能访问其所属{table}的人"
+    },
+    "follows": "跟随：{table}",
+    "belongs": "一行属于{ways}。",
+    "sentence": {
+      "all": "可访问每一行。",
+      "allWhile": "每一行",
+      "team": "仅属于此人的行，或属于其所带团队成员的行",
+      "own": "仅属于此人的行",
+      "unowned": "以及尚无人负责的行",
+      "while": "仅当 {column} 为 {values} 时"
+    },
+    "title": "“{role}”可访问哪些行",
+    "intro": "角色可以访问它能打开的表中的每一行，除非在此加以限制。只有当给某人该表的每个角色都受限时，限制才对此人生效。",
+    "loadFailed": "无法读取这些表。",
+    "empty": {
+      "title": "没有可限制的内容",
+      "body": "此角色可打开的表都没有说明行属于谁。"
+    },
+    "tryAs": "以此人身份试看",
+    "tryAsNone": "无",
+    "samplePerson": "{name}（示例）",
+    "failed": "无法保存行限制",
+    "private": "仅由每行所属的人员读取，其他人都不能读取。这里没有可选项。",
+    "reachLabel": "{action}：哪些行",
+    "reach": {
+      "all": "每一行",
+      "own": "自己的行",
+      "team": "自己的行和团队的行",
+      "allWhile": "每一行，仅当…"
+    },
+    "unowned": "以及尚无人负责的行",
+    "widened": "此角色通过范围更宽的权限打开该表。保存限制时，也会按名称把该表授予它。",
+    "count": "{name} 将看到 {total} 行中的 {reached} 行。",
+    "capped": "此人带领的人数超过了单个范围的上限，因此未统计其整个团队。",
+    "lifted": "{name} 还拥有 {roles}，该角色可访问每一行。此限制对其不生效。"
   }
 } as const;

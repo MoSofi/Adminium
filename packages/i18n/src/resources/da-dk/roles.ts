@@ -113,5 +113,54 @@ export default {
   "apps": {
     "every": "Åbn alle apps’ personaleskærme",
     "one": "Åbn personaleskærmene i {app}"
+  },
+  "rows": {
+    "locked": "Super Admin når alle rækker.",
+    "action": "Rækker",
+    "actionLabel": {
+      "read": "Læse",
+      "update": "Ændre",
+      "delete": "Slette"
+    },
+    "way": {
+      "person": "personen i {column}",
+      "listingDated": "enhver, der er opført for den i {table} den pågældende dag",
+      "listing": "enhver, der er opført for den i {table}",
+      "parent": "den, der kan nå dens {table}"
+    },
+    "follows": "Følger: {table}",
+    "belongs": "En række tilhører {ways}.",
+    "sentence": {
+      "all": "Når alle rækker.",
+      "allWhile": "Alle rækker",
+      "team": "Kun rækker, der tilhører denne person eller en i et team, personen leder",
+      "own": "Kun rækker, der tilhører denne person",
+      "unowned": "og rækker, som ingen ejer endnu",
+      "while": "kun så længe {column} er {values}"
+    },
+    "title": "Hvilke rækker “{role}” når",
+    "intro": "En rolle når alle rækker i en tabel, den må åbne, medmindre den begrænses her. En begrænsning gælder kun for en person, når alle roller, der giver personen tabellen, er begrænset.",
+    "loadFailed": "Tabellerne kunne ikke læses.",
+    "empty": {
+      "title": "Intet at begrænse",
+      "body": "Ingen tabel, som denne rolle må åbne, siger, hvem dens rækker tilhører."
+    },
+    "tryAs": "Prøv som",
+    "tryAsNone": "Ingen",
+    "samplePerson": "{name} (eksempel)",
+    "failed": "Rækkebegrænsningerne kunne ikke gemmes",
+    "private": "Læses af de personer, den enkelte række tilhører, og af ingen andre. Der er intet at vælge.",
+    "reachLabel": "{action}: hvilke rækker",
+    "reach": {
+      "all": "Alle rækker",
+      "own": "Egne rækker",
+      "team": "Egne rækker og teamets",
+      "allWhile": "Alle rækker, kun så længe…"
+    },
+    "unowned": "og rækker, som ingen ejer endnu",
+    "widened": "Denne rolle åbner tabellen gennem en bredere tilladelse. Når en begrænsning gemmes, får rollen også tabellen ved navn.",
+    "count": "{name} ville se {reached} af {total}.",
+    "capped": "Denne person leder flere, end én rækkevidde kan rumme, så hele teamet tælles ikke med.",
+    "lifted": "{name} har også {roles}, som giver alle rækker. Denne begrænsning gælder ikke for personen."
   }
 } as const;

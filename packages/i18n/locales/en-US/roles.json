@@ -103,5 +103,54 @@
   "apps": {
     "every": "Open every app’s staff screens",
     "one": "Open {app}’s staff screens"
+  },
+  "rows": {
+    "locked": "Super Admin reaches every row.",
+    "action": "Rows",
+    "actionLabel": {
+      "read": "Read",
+      "update": "Change",
+      "delete": "Delete"
+    },
+    "way": {
+      "person": "the person in {column}",
+      "listingDated": "anyone listed for it in {table} on the day",
+      "listing": "anyone listed for it in {table}",
+      "parent": "whoever reaches its {table}"
+    },
+    "follows": "Follows: {table}",
+    "belongs": "A row belongs to {ways}.",
+    "sentence": {
+      "all": "Reaches every row.",
+      "allWhile": "Every row",
+      "team": "Only rows that belong to this person, or to someone in a team they lead",
+      "own": "Only rows that belong to this person",
+      "unowned": "and rows nobody owns yet",
+      "while": "only while {column} is {values}"
+    },
+    "title": "Which rows “{role}” reaches",
+    "intro": "A role reaches every row of a table it may open, unless it is limited here. A limit holds for a person only when every role that gives them the table is limited.",
+    "loadFailed": "The tables could not be read.",
+    "empty": {
+      "title": "Nothing to limit",
+      "body": "No table this role may open says whose its rows are."
+    },
+    "tryAs": "Try it as",
+    "tryAsNone": "Nobody",
+    "samplePerson": "{name} (sample)",
+    "failed": "Could not save the row limits",
+    "private": "Read by the people each row belongs to, and by nobody else. There is nothing to choose.",
+    "reachLabel": "{action}: which rows",
+    "reach": {
+      "all": "Every row",
+      "own": "Their own rows",
+      "team": "Their own rows, and their team’s",
+      "allWhile": "Every row, only while…"
+    },
+    "unowned": "and rows nobody owns yet",
+    "widened": "This role opens the table through a wider permission. Saving a limit also gives it this table by name.",
+    "count": "{name} would see {reached} of {total}.",
+    "capped": "This person leads more people than one reach holds, so not all of their team is counted.",
+    "lifted": "{name} also holds {roles}, which gives every row. This limit does not hold for them."
   }
 }

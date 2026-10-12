@@ -113,5 +113,54 @@ export default {
   "apps": {
     "every": "Ouvrir les écrans du personnel de toutes les apps",
     "one": "Ouvrir les écrans du personnel de {app}"
+  },
+  "rows": {
+    "locked": "Super Admin atteint toutes les lignes.",
+    "action": "Lignes",
+    "actionLabel": {
+      "read": "Lire",
+      "update": "Modifier",
+      "delete": "Supprimer"
+    },
+    "way": {
+      "person": "la personne indiquée dans {column}",
+      "listingDated": "toute personne inscrite pour elle dans {table} ce jour-là",
+      "listing": "toute personne inscrite pour elle dans {table}",
+      "parent": "quiconque atteint son élément {table}"
+    },
+    "follows": "Suit : {table}",
+    "belongs": "Une ligne appartient à {ways}.",
+    "sentence": {
+      "all": "Atteint toutes les lignes.",
+      "allWhile": "Toutes les lignes",
+      "team": "Seulement les lignes qui appartiennent à cette personne, ou à quelqu’un d’une équipe qu’elle dirige",
+      "own": "Seulement les lignes qui appartiennent à cette personne",
+      "unowned": "et les lignes qui n’appartiennent encore à personne",
+      "while": "seulement tant que {column} vaut {values}"
+    },
+    "title": "Quelles lignes « {role} » atteint",
+    "intro": "Un rôle atteint toutes les lignes d’une table qu’il peut ouvrir, sauf s’il est limité ici. Une limite ne vaut pour une personne que si chaque rôle qui lui donne la table est limité.",
+    "loadFailed": "Impossible de lire les tables.",
+    "empty": {
+      "title": "Rien à limiter",
+      "body": "Aucune table que ce rôle peut ouvrir n’indique à qui appartiennent ses lignes."
+    },
+    "tryAs": "Essayer en tant que",
+    "tryAsNone": "Personne",
+    "samplePerson": "{name} (exemple)",
+    "failed": "Impossible d’enregistrer les limites de lignes",
+    "private": "Lue par les personnes à qui chaque ligne appartient, et par personne d’autre. Il n’y a rien à choisir.",
+    "reachLabel": "{action} : quelles lignes",
+    "reach": {
+      "all": "Toutes les lignes",
+      "own": "Ses propres lignes",
+      "team": "Ses propres lignes et celles de son équipe",
+      "allWhile": "Toutes les lignes, seulement tant que…"
+    },
+    "unowned": "et les lignes qui n’appartiennent encore à personne",
+    "widened": "Ce rôle ouvre la table par une autorisation plus large. Enregistrer une limite lui donne aussi cette table nommément.",
+    "count": "{name} verrait {reached} sur {total}.",
+    "capped": "Cette personne dirige plus de personnes qu’une portée n’en contient : toute son équipe n’est pas comptée.",
+    "lifted": "{name} a aussi {roles}, qui donne toutes les lignes. Cette limite ne vaut pas pour cette personne."
   }
 } as const;

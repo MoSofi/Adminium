@@ -8,7 +8,7 @@
  * with the two people they belong to.
  */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { auditRepo, rolesRepo, teamsRepo, usersRepo, type User } from '@adminium/meta';
+import { auditRepo, permissionsRepo, rolesRepo, teamsRepo, usersRepo, type User } from '@adminium/meta';
 
 import { loadSnapshotView } from '../src/data-io/snapshot-view.js';
 import { ADMIN_PASSWORD, adminPasswordHash, sessionCookie } from './auth-helpers.js';
@@ -91,6 +91,43 @@ for (const [dialect, reachable] of LEGS) {
       // Nobody signed in is told nothing.
       const anonymous = await app.inject({ method: 'POST', url: '/api/v1/roles/rows/preview', payload: { connectionId: h.connectionId, table: tableId('deals'), userId: people['dana']!.id, reach: { reach: 'own' } } });
       expect(anonymous.statusCode).toBe(401);
+    });
+
+    it('tells the role editor which tables a role can be limited on, how each says whose a row is, and what lifts a limit', async () => {
+      const roles = rolesRepo(h.meta);
+      const all = { read: true, create: true, update: true, delete: false, export: false, import: false };
+      const rep = await roles.create({ slug: `rep-${dialect}`, name: 'Rep' });
+      const boss = await roles.create({ slug: `boss-${dialect}`, name: 'Boss' });
+      const grant = permissionsRepo(h.meta).grant;
+      await grant(rep.id, 'table', `${h.connectionId}/${tableId('deals')}`, { ...all, rowLimit: { read: { reach: 'own' } } });
+      await grant(rep.id, 'table', `${h.connectionId}/${tableId('notes')}`, all);
+      await grant(rep.id, 'table', `${h.connectionId}/${tableId('plain')}`, all);
+      await grant(boss.id, 'table', `${h.connectionId}/${tableId('deals')}`, all);
+      const listed = await app.inject({ method: 'GET', url: `/api/v1/roles/${rep.id}/rows`, headers: { cookie } });
+      expect(listed.statusCode, listed.body).toBe(200);
+      const tables = (listed.json() as { tables: Record<string, unknown>[] }).tables;
+      // The table that says nothing of its rows is not there: there is nothing to choose.
+      expect(tables.map((table) => [table['tableId'] === tableId('deals') ? 'deals' : 'notes', table['private'], table['own']]).sort()).toEqual([
+        ['deals', false, true],
+        ['notes', true, true],
+      ]);
+      const deals = tables.find((table) => table['tableId'] === tableId('deals'))!;
+      expect(deals['ref']).toBe(`${h.connectionId}/${tableId('deals')}`);
+      expect(deals['ways']).toEqual([{ kind: 'person', column: 'owner_id', label: expect.any(String) }]);
+      expect(deals['granted']).toEqual({ read: true, update: true, delete: false });
+      expect(deals['limit']).toEqual({ read: { reach: 'own' } });
+
+      // Dana holds Rep alone: nothing lifts it. With Boss too, Boss reads every deal, so Rep's limit does not hold for her.
+      const ask = async () => {
+        const reply = await app.inject({ method: 'POST', url: '/api/v1/roles/rows/preview', headers: { cookie }, payload: { connectionId: h.connectionId, table: tableId('deals'), userId: people['dana']!.id, reach: { reach: 'own' }, roleId: rep.id } });
+        return (reply.json() as { liftedBy: string[] }).liftedBy;
+      };
+      await roles.assignToUser(people['dana']!.id, rep.id);
+      expect(await ask()).toEqual([]);
+      await roles.assignToUser(people['dana']!.id, boss.id);
+      expect(await ask()).toEqual(['Boss']);
+      await roles.removeFromUser(people['dana']!.id, boss.id);
+      await roles.removeFromUser(people['dana']!.id, rep.id);
     });
 
     it('will not remove for good a person rows still name, hands the rows over, then removes them', async () => {

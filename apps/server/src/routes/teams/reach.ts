@@ -16,7 +16,7 @@
  * touches a private table.
  */
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
-import { rowReachSchema, teamsRepo, usersRepo, type MetaDb } from '@adminium/meta';
+import { permissionsRepo, rolesRepo, rowLimitSchema, rowReachSchema, teamsRepo, usersRepo, type MetaDb, type TableActions } from '@adminium/meta';
 import { sql, type Kysely } from 'kysely';
 import { z } from 'zod';
 
@@ -26,7 +26,9 @@ import { rowLimitFor } from '../../crud/row-limit.js';
 import { handRowsOver, rowsNaming } from '../../crud/rows-naming.js';
 import { loadSnapshotView } from '../../data-io/snapshot-view.js';
 import { ConflictError, NotFoundError, ValidationFailedError } from '../../errors.js';
-import { PERMISSIONS } from '../../rbac/permissions.js';
+import { PERMISSIONS, grantMatches, grantsFromMatrixRows, isGranted } from '../../rbac/permissions.js';
+import { SUPER_ADMIN_SLUG } from '../../rbac/resolver.js';
+import { rowReachOfRow } from '../../rbac/row-limits.js';
 
 const previewBody = z.object({
   connectionId: z.string().min(1),
@@ -34,8 +36,46 @@ const previewBody = z.object({
   userId: z.string().min(1),
   action: z.enum(['read', 'update', 'delete']).default('read'),
   reach: rowReachSchema,
+  /** The role being edited: the person's OTHER roles are then asked whether one of them reaches every row anyway. */
+  roleId: z.string().min(1).optional(),
 });
-const previewReply = z.object({ reached: z.number(), total: z.number(), capped: z.boolean() });
+const previewReply = z.object({
+  reached: z.number(),
+  total: z.number(),
+  capped: z.boolean(),
+  /** Other roles this person holds that give the action on the table with no limit: with one of them, the limit does not hold for this person. */
+  liftedBy: z.array(z.string()),
+});
+
+/** How a table says whose a row is, for a screen to say in words. */
+const wayDto = z.union([
+  z.object({ kind: z.literal('person'), column: z.string(), label: z.string() }),
+  z.object({ kind: z.literal('listing'), table: z.string(), label: z.string(), dated: z.boolean() }),
+  z.object({ kind: z.literal('parent'), column: z.string(), table: z.string(), label: z.string() }),
+]);
+const roleRowsReply = z.object({
+  roleId: z.string(),
+  locked: z.boolean(),
+  tables: z.array(
+    z.object({
+      /** The table's place in the matrix: the key `PUT /roles/:id/permissions` takes a row limit by. */
+      ref: z.string(),
+      connectionId: z.string(),
+      connectionName: z.string(),
+      tableId: z.string(),
+      label: z.string(),
+      /** Read by its own people only, whatever a role says: nothing to choose. */
+      private: z.boolean(),
+      ways: z.array(wayDto),
+      /** Whether the role holds the action on this table at all. */
+      granted: z.object({ read: z.boolean(), update: z.boolean(), delete: z.boolean() }),
+      /** Whether one of the role's own grants names this table (a limit is stored on such a grant). */
+      own: z.boolean(),
+      limit: rowLimitSchema.nullable(),
+    }),
+  ),
+});
+const roleIdParams = z.object({ id: z.string() });
 
 const namedRows = z.object({
   named: z.array(z.object({ connectionId: z.string(), connectionName: z.string(), tableId: z.string(), tableLabel: z.string(), column: z.string(), rows: z.number(), private: z.boolean() })),
@@ -75,7 +115,71 @@ export function rowReachRoutes(deps: { meta: MetaDb; manager: ConnectionManager 
         return Number(((await query.executeTakeFirst()) as { n?: unknown } | undefined)?.n ?? 0);
       };
       const total = await count(false);
-      return { reached: test === null ? total : await count(true), total, capped: led.capped };
+      // The person's other roles, each asked alone: one that gives the action here with no limit lifts this one's.
+      const liftedBy: string[] = [];
+      for (const role of await rolesRepo(meta).rolesForUser(userId)) {
+        if (role.id === request.body.roleId) continue;
+        if (role.slug === SUPER_ADMIN_SLUG) {
+          liftedBy.push(role.name);
+          continue;
+        }
+        // Within one role a limit on the table stands over that role's own wider grant; only a role with no limit here lifts.
+        const permission = `table:${connectionId}:${tableId}:${action}`;
+        let gives = false;
+        let limited = false;
+        for (const row of await permissionsRepo(meta).listForRole(role.id)) {
+          if (!grantsFromMatrixRows([row]).some((grant) => grantMatches(grant, permission))) continue;
+          gives = true;
+          if (rowReachOfRow(row, action) !== null) limited = true;
+        }
+        if (gives && !limited) liftedBy.push(role.name);
+      }
+      return { reached: test === null ? total : await count(true), total, capped: led.capped, liftedBy };
+    });
+
+    app.get('/roles/:id/rows', { preHandler: app.rbac.require(PERMISSIONS.rolesManage), schema: { params: roleIdParams, response: { 200: roleRowsReply } } }, async (request) => {
+      const role = await rolesRepo(meta).findById(request.params.id);
+      if (role === null) throw new NotFoundError('Role not found.', { roleId: request.params.id });
+      const rows = await permissionsRepo(meta).listForRole(role.id);
+      const held = new Set(grantsFromMatrixRows(rows));
+      const tables = [];
+      for (const connection of await meta.db.selectFrom('adminium_connections').select(['id', 'name']).orderBy('createdAt', 'asc').execute()) {
+        const view = await loadSnapshotView(meta, connection.id).catch(() => null);
+        if (view === null) continue;
+        const labelOf = (id: string): string => {
+          const found = view.model.tables.find((candidate) => candidate.id === id);
+          return found?.label ?? found?.name ?? id;
+        };
+        for (const table of view.model.tables) {
+          if (table.belongs === undefined && table.private !== true) continue;
+          const ref = `${connection.id}/${table.id}`;
+          const granted = (action: string): boolean => isGranted(held, `table:${connection.id}:${table.id}:${action}`);
+          if (!granted('read') && !granted('update') && !granted('delete')) continue;
+          const ways = (table.belongs ?? []).flatMap((way): z.infer<typeof wayDto>[] => {
+            if ('through' in way) return [{ kind: 'listing' as const, table: way.through.table, label: labelOf(way.through.table), dated: way.through.from !== undefined || way.through.to !== undefined }];
+            if ('via' in way) {
+              const relation = view.model.relations.find((r) => r.through === null && r.from.tableId === table.id && r.from.columns.length === 1 && r.from.columns[0] === way.via);
+              return relation === undefined ? [] : [{ kind: 'parent' as const, column: way.via, table: relation.to.tableId, label: labelOf(relation.to.tableId) }];
+            }
+            const column = table.columns.find((candidate) => candidate.name === way.column);
+            return [{ kind: 'person' as const, column: way.column, label: column?.label ?? way.column }];
+          });
+          const stored = rows.find((row) => row.resourceKind === 'table' && row.resourceRef === ref);
+          tables.push({
+            ref,
+            connectionId: connection.id,
+            connectionName: connection.name,
+            tableId: table.id,
+            label: table.label ?? table.name,
+            private: table.private === true,
+            ways,
+            granted: { read: granted('read'), update: granted('update'), delete: granted('delete') },
+            own: stored !== undefined,
+            limit: stored === undefined ? null : ((stored.actions as TableActions).rowLimit ?? null),
+          });
+        }
+      }
+      return { roleId: role.id, locked: role.slug === SUPER_ADMIN_SLUG, tables };
     });
 
     const guarded = { preHandler: app.rbac.require(PERMISSIONS.usersManage) };
