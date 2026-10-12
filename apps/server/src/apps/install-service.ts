@@ -2478,9 +2478,10 @@ export function createAppInstallService(deps: AppRoutesDeps) {
     await deps.installed.refresh();
 
     const tableRecords = appTablesRepo(deps.meta);
-    let stage: 'add-ons' | 'tables' | 'pages' | 'finish' = 'add-ons';
+    let stage: 'add-ons' | 'tables' | 'pages' | 'seeds' | 'finish' = 'add-ons';
     let applied: { created: string[]; reused: string[] } | undefined;
     let writtenPages: Awaited<ReturnType<typeof writePages>>;
+    let seeded: { written: Record<string, number>; kept: string[] } | undefined;
     let addOnsDone: AddOnsDone | undefined;
     try {
       /*
@@ -2552,6 +2553,23 @@ export function createAppInstallService(deps: AppRoutesDeps) {
         tablesPlan?.plan.names,
         grantsPublicAccess,
       );
+      /*
+       * The rows its tables start with (`seeds`): after the rules, so each
+       * row gets its table's own defaults, copies, numbers and codes; into
+       * empty tables only, so "Install it again" after a stop adds none
+       * twice, and a table kept from an earlier install stays the owner's.
+       */
+      stage = 'seeds';
+      if (manifest.kind === 'app' && (manifest.seeds ?? []).length > 0 && connectionId !== undefined) {
+        const rows = await writeSeeds({
+          actor: { id: userId, label: userLabel, kind: actor.kind, superAdmin: actor.superAdmin, can: actor.can },
+          manifest,
+          connectionId,
+          names: tablesPlan?.plan.names ?? {},
+          readFile: async (path) => (await deps.store.readVerifiedFile(key, version, path)).bytes,
+        });
+        seeded = { written: rows.written, kept: rows.kept };
+      }
       stage = 'finish';
       await placeFromManifest(manifest, userId);
       await manifests.setStatus(rowId, 'installed');
@@ -2632,6 +2650,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
       ...(writtenPages?.roles === undefined ? {} : { roles: writtenPages.roles }),
       ...(writtenPages?.publicAccess === undefined ? {} : { publicAccess: writtenPages.publicAccess }),
       ...(writtenPages?.outbox === undefined ? {} : { outbox: writtenPages.outbox }),
+      ...(seeded === undefined ? {} : { seeds: seeded }),
       ...(addOnsDone === undefined ? {} : { addOns: addOnsDone }),
     };
   }
@@ -2894,6 +2913,33 @@ export function createAppInstallService(deps: AppRoutesDeps) {
       grant,
     );
 
+    /*
+     * Starting rows only for the tables THIS version brings: a table the
+     * version before already had is the owner's by now, empty or not. After
+     * the rules, as at install. The version has moved, so a row that is
+     * refused here is said in the log and stops nothing, as a page is.
+     */
+    let seeded: { written: Record<string, number>; kept: string[] } | undefined;
+    if (manifest.kind === 'app' && (manifest.seeds ?? []).length > 0 && connectionId !== null) {
+      const hadBefore = new Set(((installed.document as { requiredSchema?: { tables?: { ref: string }[] } }).requiredSchema?.tables ?? []).map((table) => table.ref));
+      const brought = new Set((manifest.requiredSchema?.tables ?? []).map((table) => table.ref).filter((ref) => !hadBefore.has(ref)));
+      if (brought.size > 0) {
+        try {
+          const rows = await writeSeeds({
+            actor: { id: userId, label: userLabel, kind: actor.kind, superAdmin: actor.superAdmin, can: actor.can },
+            manifest,
+            connectionId,
+            names: names ?? (await appTablesRepo(deps.meta).realNames(connectionId, key)),
+            readFile: async (path) => (await deps.store.readVerifiedFile(key, to, path)).bytes,
+            only: brought,
+          });
+          seeded = { written: rows.written, kept: rows.kept };
+        } catch (err) {
+          host.log.warn({ err, app: key, version: to }, 'the starting rows of the tables this version brings were not written');
+        }
+      }
+    }
+
     // D11: older versions go only AFTER the new one is recorded and served,
     // so a failure anywhere above leaves the running version on disk.
     const pruned: string[] = [];
@@ -2940,6 +2986,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
         ...(writtenPages?.roles === undefined ? {} : { roles: writtenPages.roles }),
         ...(writtenPages?.publicAccess === undefined ? {} : { publicAccess: writtenPages.publicAccess }),
         ...(writtenPages?.outbox === undefined ? {} : { outbox: writtenPages.outbox }),
+        ...(seeded === undefined ? {} : { seeds: seeded }),
         ...(addOnsDone === undefined ? {} : { addOns: addOnsDone }),
       },
       from,

@@ -94598,6 +94598,31 @@
                             ],
                             "additionalProperties": false
                           },
+                          "seeds": {
+                            "type": "object",
+                            "properties": {
+                              "written": {
+                                "type": "object",
+                                "propertyNames": {
+                                  "type": "string"
+                                },
+                                "additionalProperties": {
+                                  "type": "number"
+                                }
+                              },
+                              "kept": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              }
+                            },
+                            "required": [
+                              "written",
+                              "kept"
+                            ],
+                            "additionalProperties": false
+                          },
                           "addOns": {
                             "type": "object",
                             "properties": {
@@ -97247,6 +97272,31 @@
                       ],
                       "additionalProperties": false
                     },
+                    "seeds": {
+                      "type": "object",
+                      "properties": {
+                        "written": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {
+                            "type": "number"
+                          }
+                        },
+                        "kept": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      },
+                      "required": [
+                        "written",
+                        "kept"
+                      ],
+                      "additionalProperties": false
+                    },
                     "addOns": {
                       "type": "object",
                       "properties": {
@@ -98022,6 +98072,31 @@
                           "required": [
                             "defined",
                             "templates"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "seeds": {
+                          "type": "object",
+                          "properties": {
+                            "written": {
+                              "type": "object",
+                              "propertyNames": {
+                                "type": "string"
+                              },
+                              "additionalProperties": {
+                                "type": "number"
+                              }
+                            },
+                            "kept": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            }
+                          },
+                          "required": [
+                            "written",
+                            "kept"
                           ],
                           "additionalProperties": false
                         },

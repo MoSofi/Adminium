@@ -681,6 +681,12 @@ export const installedAppReply = z.object({
       }),
     })
     .optional(),
+  /**
+   * The app's starting rows (`seeds`) written now, by table, and the tables
+   * that already held a row and were left as they are. Absent for an app
+   * that declares none.
+   */
+  seeds: z.object({ written: z.record(z.string(), z.number()), kept: z.array(z.string()) }).optional(),
   /** The add-ons installed, updated or connected along with the app. Absent for an app that names none. */
   addOns: addOnsDoneReply.optional(),
 });

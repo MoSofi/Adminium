@@ -83,6 +83,7 @@ export const INSTALL_FLOOR_WORD_NAMES = [
   'config.bulk',
   'sampleData.addOns',
   'sampleData.people',
+  'app.seeds',
   'email.onlyWith',
   'email.onlyWithout',
   'outbox.pages.app',
@@ -134,6 +135,8 @@ export const WORD_FLOORS: Readonly<Partial<Record<ManifestWordName, string>>> = 
   'rollup.latest': '0.3.27',
   // Sample data that brings its own people and teams, and rows that name them.
   'sampleData.people': '0.3.27',
+  // An app's starting rows: written once by its install, into tables that are still empty.
+  'app.seeds': '0.3.27',
 };
 
 /** Every word of `document` that needs the install floor, in document order. */
@@ -172,6 +175,8 @@ export function installFloorWords(document: unknown): ManifestWord[] {
     for (const key of ['people', 'teams'] as const) {
       if (isDoc(document['sampleData']) && document['sampleData'][key] !== undefined) out.push({ word: 'sampleData.people', path: `sampleData.${key}` });
     }
+    // Starting rows: a release before the floor takes the block and writes none of it.
+    if (document['seeds'] !== undefined) out.push({ word: 'app.seeds', path: 'seeds' });
     // A phone side: a server that does not know the side refuses the whole manifest.
     list(document['frontends']).forEach((frontend, f) => {
       if (isDoc(frontend) && frontend['side'] === 'mobile') out.push({ word: 'frontend.mobile', path: `frontends.${String(f)}.side` });

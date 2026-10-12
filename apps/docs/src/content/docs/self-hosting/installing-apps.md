@@ -184,7 +184,8 @@ install was checked." The wizard runs the check again and shows the new one. Not
 
 MySQL cannot undo a table it has created, so no engine rolls an app install back. Adminium records
 each step instead. If one fails, the install answers `409` with the code `APP_INSTALL_INCOMPLETE`
-and names the step it stopped at: the tables, reading them back, the pages, or finishing. The
+and names the step it stopped at: the tables, reading them back, the pages, the app's starting
+rows (`seeds`), or finishing. The
 screen shows **The install stopped part way**, what was already made, and what the database said.
 
 **Nothing is removed.** **Try again** runs the same install again and finishes from where it

@@ -3145,6 +3145,7 @@ export const appManifestSchema = z
     for (const issue of appReferenceIssues(m)) {
       ctx.addIssue({ code: 'custom', message: issue.message, path: issue.path });
     }
+    for (const issue of appSeedIssues(m)) ctx.addIssue({ code: 'custom', message: issue.message, path: issue.path });
     // A calendar page's named columns, against the app's own tables.
     for (const issue of pageCalendarIssues(m.pages, tableIndex(m.requiredSchema.tables))) {
       ctx.addIssue({ code: 'custom', message: issue.message, path: issue.path });
@@ -3301,6 +3302,63 @@ const SEED_DIRECTIVES = new Set(['@t', '@ref']);
 
 /** The most rows one table is seeded with. */
 export const MAX_SEED_ROWS = 200;
+
+/** One seed's rows: how many, the one row directive, own columns, the two value directives. */
+function seedRowIssues(seed: { table: string; rows?: readonly Record<string, unknown>[] | undefined }, i: number, columns: ReadonlySet<string>): { path: (string | number)[]; message: string }[] {
+  const out: { path: (string | number)[]; message: string }[] = [];
+  if ((seed.rows?.length ?? 0) > MAX_SEED_ROWS) out.push({ path: ['seeds', i, 'rows'], message: `a table is seeded with at most ${String(MAX_SEED_ROWS)} rows` });
+  (seed.rows ?? []).forEach((row, r) => {
+    for (const [name, value] of Object.entries(row)) {
+      const at = ['seeds', i, 'rows', r, name];
+      if (name === '@label') {
+        if (typeof value !== 'string') out.push({ path: at, message: 'a label is text' });
+        continue;
+      }
+      if (name.startsWith('@')) {
+        out.push({ path: at, message: `a seed row takes "@label" and no other row directive, not "${name}"` });
+        continue;
+      }
+      if (!columns.has(name)) out.push({ path: at, message: `"${seed.table}" has no column "${name}"` });
+      if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+        const directive = Object.keys(value).find((key) => key.startsWith('@'));
+        if (directive !== undefined && !SEED_DIRECTIVES.has(directive)) {
+          out.push({ path: at, message: `a seed value is a plain value, {"@t": {…}} or {"@ref": "<label>"}, not "${directive}"` });
+        }
+      }
+    }
+  });
+  return out;
+}
+
+/**
+ * An app's starting rows: rows of a table of its own, written once by its
+ * install into a table that is still empty. Not of a table built on an
+ * add-on's shape (the add-on numbers those), not of a private table (nothing
+ * but its two people writes one), and never a staff member: who works here is
+ * not known where a manifest is written.
+ */
+export function appSeedIssues(m: { seeds?: readonly { table: string; rows?: readonly Record<string, unknown>[] | undefined }[] | undefined; requiredSchema?: { tables: readonly RequiredTableShape[] } | undefined }): { path: (string | number)[]; message: string }[] {
+  const out: { path: (string | number)[]; message: string }[] = [];
+  if (m.seeds === undefined) return out;
+  const byRef = new Map((m.requiredSchema?.tables ?? []).map((table) => [table.ref, table]));
+  m.seeds.forEach((seed, i) => {
+    const table = byRef.get(seed.table);
+    if (table === undefined) {
+      out.push({ path: ['seeds', i, 'table'], message: `"${seed.table}" is not one of this app's tables` });
+      return;
+    }
+    if (table.builtOn !== undefined) out.push({ path: ['seeds', i, 'table'], message: `"${seed.table}" is built on an add-on's shape, which numbers its own rows: a seed never fills it` });
+    if (table.private === true) out.push({ path: ['seeds', i, 'table'], message: `"${seed.table}" is private: only the people its rows belong to write it, so a seed never fills it` });
+    out.push(...seedRowIssues(seed, i, new Set(table.columns.map((column) => column.ref))));
+    const staff = new Set(table.columns.filter((column) => column.rules?.staff === true).map((column) => column.ref));
+    (seed.rows ?? []).forEach((row, r) => {
+      for (const [name, value] of Object.entries(row)) {
+        if (staff.has(name) && value !== null) out.push({ path: ['seeds', i, 'rows', r, name], message: `"${name}" holds a staff member, and a seed names none: leave it out` });
+      }
+    });
+  });
+  return out;
+}
 
 /**
  * Generated pages and code pages share one address space on a connection, so
@@ -3467,27 +3525,7 @@ function addOnInstallIssues(m: AddOnManifest): { path: (string | number)[]; mess
     if (ledger !== undefined) {
       out.push({ path: ['seeds', i, 'table'], message: `"${seed.table}" is ${ledger.receipts === seed.table ? 'the receipt table' : 'a table'} of the ledger "${ledger.id}", which only postings write: a seed never fills it` });
     }
-    if ((seed.rows?.length ?? 0) > MAX_SEED_ROWS) out.push({ path: ['seeds', i, 'rows'], message: `a table is seeded with at most ${String(MAX_SEED_ROWS)} rows` });
-    (seed.rows ?? []).forEach((row, r) => {
-      for (const [name, value] of Object.entries(row)) {
-        const at = ['seeds', i, 'rows', r, name];
-        if (name === '@label') {
-          if (typeof value !== 'string') out.push({ path: at, message: 'a label is text' });
-          continue;
-        }
-        if (name.startsWith('@')) {
-          out.push({ path: at, message: `a seed row takes "@label" and no other row directive, not "${name}"` });
-          continue;
-        }
-        if (!columns.has(name)) out.push({ path: at, message: `"${seed.table}" has no column "${name}"` });
-        if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
-          const directive = Object.keys(value).find((key) => key.startsWith('@'));
-          if (directive !== undefined && !SEED_DIRECTIVES.has(directive)) {
-            out.push({ path: at, message: `a seed value is a plain value, {"@t": {…}} or {"@ref": "<label>"}, not "${directive}"` });
-          }
-        }
-      }
-    });
+    out.push(...seedRowIssues(seed, i, columns));
   });
 
   // The settings table: one row, made from defaults, so every column must have one or may be empty.

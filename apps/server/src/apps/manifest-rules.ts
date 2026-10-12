@@ -55,7 +55,6 @@
  */
 import { createHash } from 'node:crypto';
 
-import { ValidationFailedError } from '../errors.js';
 import { parseDatabaseModel, parseEnumCheck, type ColumnModel, type DatabaseModel } from '@adminium/engine';
 import { shareCodeColumns, type BookingRule, type ColumnRules, type Manifest, type States } from '@adminium/manifest';
 import {
