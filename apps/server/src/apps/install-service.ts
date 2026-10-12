@@ -45,6 +45,7 @@ import {
 import { checkManifestPages, sha256Hex, type DatabaseModel } from '@adminium/engine';
 import {
   appTablesRepo,
+  overridesRepo,
   CUSTOMER_KEY_PURPOSE,
   auditRepo,
   connectionsRepo,
@@ -965,6 +966,18 @@ export function createAppInstallService(deps: AppRoutesDeps) {
       connectionId,
       plan.reuse.map((table) => ({ ref: table.ref, tableName: plan.names?.[table.ref] ?? table.ref })),
     );
+    // A table the app kept private and this version does not: its rows, read until now by their own people alone,
+    // open to every role that holds the table. The one way that mark comes off, so it is said before it happens.
+    const privateNow = (await overridesRepo(deps.meta).listForConnection(connectionId, { status: 'active' })).filter((row) => row.op === 'table.private').map((row) => row.tableName);
+    if (privateNow.length > 0) {
+      const realNames = plan.names ?? (await appTablesRepo(deps.meta).realNames(connectionId, manifest.key));
+      for (const table of manifest.requiredSchema?.tables ?? []) {
+        if ((table as { private?: true }).private === true) continue;
+        const real = realNames[table.ref] ?? table.ref;
+        if (!privateNow.some((name) => name === real || name.endsWith(`.${real}`))) continue;
+        ruleWarnings.push({ table: table.ref, column: '', message: `This version no longer keeps "${table.ref}" private. Its rows, read until now only by the people each belongs to, will be read by every role that is given the table.` });
+      }
+    }
     const nameOf = (key: string) => appNames.get(key) ?? key;
     return {
       plan,
