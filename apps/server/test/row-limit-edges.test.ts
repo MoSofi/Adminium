@@ -46,7 +46,7 @@ describe('the row test, at its edges', () => {
     const comments = table('comments', [text('author_id', true), int('parent_id')], { belongs: [{ column: 'author_id' }, { via: 'parent_id' }] });
     const built = sqlOf(context([comments], [link('comments', 'parent_id', 'comments')], ['comments']), 'comments')!;
     // One step up to the parent comment, and no further: its own writer, never the parent's parent.
-    expect(built.match(/exists/g) ?? []).toHaveLength(1);
+    expect(built.match(/ in \(select /g) ?? []).toHaveLength(1);
     expect(built.match(/"author_id"/g) ?? []).toHaveLength(2);
   });
 
@@ -55,7 +55,7 @@ describe('the row test, at its edges', () => {
     const b = table('b', [int('a_id'), text('owner_id', true)], { belongs: [{ column: 'owner_id' }, { via: 'a_id' }] });
     const built = sqlOf(context([a, b], [link('a', 'b_id', 'b'), link('b', 'a_id', 'a')], ['a']), 'a')!;
     // a → b (its owner, and not back to a).
-    expect(built.match(/exists/g) ?? []).toHaveLength(1);
+    expect(built.match(/ in \(select /g) ?? []).toHaveLength(1);
   });
 
   it('a row is reached through two links and not a third', () => {

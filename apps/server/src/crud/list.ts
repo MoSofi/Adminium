@@ -286,6 +286,8 @@ export interface RunListOptions {
 
 export async function runList(opts: RunListOptions): Promise<ListResult> {
   const { db, view, table, params, canReadPii, dialect, mandatory, mandatoryAs, exposeColumns, searchColumns, rowTest } = opts;
+  // The small sets the reader's row test asks about, worked out once for the page and its count.
+  await rowTest?.prepare?.(db);
   const lookups = opts.lookups ?? [];
   const measures = opts.measures ?? [];
   const derivedFields = opts.derivedFields ?? [];

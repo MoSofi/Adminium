@@ -56,7 +56,17 @@ type Bool = Expression<SqlBool>;
  * with the id of every table the expression selects from: MySQL refuses an
  * UPDATE or a DELETE whose own WHERE reads the table it writes.
  */
-export type RowTest = (db: Db, alias: string, reads?: Set<string>) => Bool;
+export type RowTest = ((db: Db, alias: string, reads?: Set<string>) => Bool) & {
+  /**
+   * Work out, before a list is read, the sets this test asks about that are
+   * small: the deals somebody is listed on, the owners they cover for. The
+   * test is then written with those values themselves. Only where it pays
+   * (MySQL, which reads a list by an index only for values it is given, and
+   * otherwise passes over every row to count them); absent elsewhere. A read
+   * that never calls it is as right, and slower.
+   */
+  prepare?: (db: Db) => Promise<void>;
+};
 
 export interface RowLimitContext {
   set: Pick<PermissionSet, 'superAdmin' | 'rowLimits' | 'reach'>;
@@ -88,6 +98,14 @@ export interface RowLimitContext {
  */
 const IDS_WRITTEN_OUT = 200;
 const IDS_BUDGET = 6000;
+/** The largest set worked out ahead of a read and written out in its test; a larger one stays a subquery. */
+const SET_WRITTEN_OUT = 500;
+
+/** The sets a test asks about, by the order it asks: worked out ahead (`known`), or gathered to be (`asked`). */
+interface Sets {
+  known: Map<number, readonly (string | number)[]>;
+  asked?: { at: number; values: () => Promise<unknown[]> }[];
+}
 
 const never = (): RawBuilder<SqlBool> => sql<SqlBool>`1 = 0`;
 const always = (): RawBuilder<SqlBool> => sql<SqlBool>`1 = 1`;
@@ -122,10 +140,14 @@ class Build {
   /** The ids this test has written out so far. */
   #written = 0;
 
+  /** How many sets this test has asked about so far: the same test asks in the same order every time it is built. */
+  #sets = 0;
+
   constructor(
     readonly db: Db,
     readonly ctx: RowLimitContext,
     readonly reads?: Set<string>,
+    readonly sets?: Sets,
   ) {}
 
   alias(): string {
@@ -178,6 +200,34 @@ class Build {
   }
 
   /**
+   * "`outer` is one of the values `column` holds in the rows of `table` that
+   * meet `conditions`" — none of which reads the outer row, so the database
+   * works the set out once for the whole read, where a test of each row in
+   * its turn is worked out once a row (a list's page then costs as many
+   * lookups as the rows it passes over). Two-valued: an outer row with no
+   * value, and an inner one with none, are no match rather than "unknown", so
+   * a test built of these means the same when it is negated.
+   */
+  within(outer: RawBuilder<unknown>, table: EffectiveTable, alias: string, column: string, conditions: readonly Bool[]): Bool {
+    this.reads?.add(table.id);
+    const at = this.#sets;
+    this.#sets += 1;
+    const key = this.ref(alias, column);
+    let sub = this.db.selectFrom(`${table.id} as ${alias}` as never).select(key.as('adm_key')).where(sql<SqlBool>`${key} is not null`);
+    for (const condition of conditions) sub = sub.where(condition);
+    // Worked out ahead and small: the values themselves, which an index is read by.
+    const known = this.sets?.known.get(at);
+    if (known !== undefined && this.#written + known.length <= IDS_BUDGET) {
+      if (known.length === 0) return never();
+      this.#written += known.length;
+      return sql<SqlBool>`(${outer} is not null and ${outer} in (${sql.join(known)}))`;
+    }
+    const distinct = sub.distinct().limit(SET_WRITTEN_OUT + 1);
+    this.sets?.asked?.push({ at, values: async () => (await distinct.execute()).map((row) => (row as { adm_key: unknown }).adm_key) });
+    return sql<SqlBool>`(${outer} is not null and ${outer} in ${sub})`;
+  }
+
+  /**
    * "The person this column names is one of `ids`" (or, with no ids asked
    * for, "this column names somebody"). The column is a staff column of
    * `table`; with `person`, a link to a row whose `person` column is one.
@@ -195,7 +245,7 @@ class Build {
   }
 
   /** The listing rows that count for this row today, as conditions on the listing's alias; null when the way cannot be read. */
-  listed(table: EffectiveTable, alias: string, way: Extract<BelongsWay, { through: unknown }>['through'], ids: readonly string[] | 'anybody'): { list: EffectiveTable; inner: string; conditions: Bool[] } | null {
+  listed(table: EffectiveTable, alias: string, way: Extract<BelongsWay, { through: unknown }>['through'], ids: readonly string[] | 'anybody'): { list: EffectiveTable; inner: string; conditions: Bool[]; on: string; own: Bool[] } | null {
     const list = this.table(way.table);
     const on = way.on ?? (table.primaryKey.length === 1 ? table.primaryKey[0] : undefined);
     if (list === undefined || on === undefined) return null;
@@ -204,15 +254,19 @@ class Build {
     const inner = this.alias();
     const who = this.someone(list, inner, way.user, way.person, ids);
     if (who === null) return null;
+    // `own`: what a listing row must be by itself, apart from which row of this table it is listed against.
+    const own: Bool[] = [who];
     const conditions: Bool[] = [sql<SqlBool>`${this.ref(inner, way.link)} = ${this.ref(alias, on)}`, who];
     // Between its two days, either of which may be left open.
     for (const [column, sign] of [[way.from, sql`<=`], [way.to, sql`>=`]] as const) {
       if (column === undefined) continue;
       // A day, compared with a day: a time of day, or a number, would sort against "today" in an engine's own way.
       if (this.kind(list, column) !== 'date') return null;
-      conditions.push(sql<SqlBool>`(${this.ref(inner, column)} is null or ${this.ref(inner, column)} ${sign} ${this.ctx.today})`);
+      const between = sql<SqlBool>`(${this.ref(inner, column)} is null or ${this.ref(inner, column)} ${sign} ${this.ctx.today})`;
+      conditions.push(between);
+      own.push(between);
     }
-    return { list, inner, conditions };
+    return { list, inner, conditions, on, own };
   }
 
   /** "One of `ids` belongs to this row", by any of the table's ways. */
@@ -224,14 +278,16 @@ class Build {
         const who = this.someone(table, alias, way.column, way.person, ids);
         if (who !== null) parts.push(who);
       } else if ('through' in way) {
+        // The rows these people are listed against, as one set: this row's value is in it or is not.
         const listing = this.listed(table, alias, way.through, ids);
-        if (listing !== null) parts.push(this.exists(listing.list, listing.inner, listing.conditions));
+        if (listing !== null) parts.push(this.within(this.ref(alias, listing.on), listing.list, listing.inner, way.through.link, listing.own));
       } else {
         // Whoever belongs to the row this link points at: followed a few links up, and never round a ring.
         const parent = steps >= BELONGS_VIA_MAX_STEPS ? null : this.target(table, way.via);
         if (parent === null || seen.has(parent.table.id)) continue;
         const inner = this.alias();
-        parts.push(this.exists(parent.table, inner, [sql<SqlBool>`${this.ref(inner, parent.key)} = ${this.ref(alias, way.via)}`, this.belongs(parent.table, inner, ids, steps + 1, new Set([...seen, table.id]))]));
+        // The parent rows these people belong to, as one set: a child's page is not one parent looked up a row.
+        parts.push(this.within(this.ref(alias, way.via), parent.table, inner, parent.key, [this.belongs(parent.table, inner, ids, steps + 1, new Set([...seen, table.id]))]));
       }
     }
     return any(parts);
@@ -349,11 +405,27 @@ export function rowLimitFor(ctx: RowLimitContext, tableId: string, action: RowAc
   if (ctx.nobody === true) return table.belongs !== undefined || table.private === true ? () => never() : null;
   const held = heldTo(ctx, table, action);
   if (held.length === 0) return null;
-  return (db, alias, reads) => {
-    const build = new Build(db, ctx, reads);
-    // Each list: any one role's whole test. Between the lists (the action's own, and the read under it): both.
-    return every(held.map((reaches) => any(reaches.map((reach) => build.role(table, alias, reach)))));
-  };
+  // Each list: any one role's whole test. Between the lists (the action's own, and the read under it): both.
+  const written = (build: Build, alias: string): Bool => every(held.map((reaches) => any(reaches.map((reach) => build.role(table, alias, reach)))));
+  let known: Sets['known'] | undefined;
+  const test: RowTest = (db, alias, reads) => written(new Build(db, ctx, reads, known === undefined ? undefined : { known }), alias);
+  if (ctx.model.dialect === 'mysql') {
+    test.prepare = async (db) => {
+      if (known !== undefined) return;
+      const asked: NonNullable<Sets['asked']> = [];
+      written(new Build(db, ctx, undefined, { known: new Map(), asked }), table.name);
+      const found = new Map<number, readonly (string | number)[]>();
+      await Promise.all(
+        asked.map(async (set) => {
+          const values = await set.values();
+          // Only a set of plain keys, and a small one: anything else stays the subquery it was.
+          if (values.length <= SET_WRITTEN_OUT && values.every((value) => typeof value === 'string' || typeof value === 'number')) found.set(set.at, values as (string | number)[]);
+        }),
+      );
+      known = found;
+    };
+  }
+  return test;
 }
 
 /** Whether this person is held to some rows of the table for the action. */
