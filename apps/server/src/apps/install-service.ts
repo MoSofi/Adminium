@@ -971,10 +971,17 @@ export function createAppInstallService(deps: AppRoutesDeps) {
     const privateNow = (await overridesRepo(deps.meta).listForConnection(connectionId, { status: 'active' })).filter((row) => row.op === 'table.private').map((row) => row.tableName);
     // The tables this app already has here: only for those is a mark "new" or "gone" (a table the install makes has no past).
     const held = await appTablesRepo(deps.meta).realNames(connectionId, manifest.key);
+    // The app's table by its own id: a table of the same name in another schema is somebody else's, and its mark says nothing here.
+    const read = privateNow.length === 0 ? null : await loadSnapshotView(deps.meta, connectionId).then((view) => view.model, () => null);
+    const idOf = (real: string): string | null => {
+      const named = (read?.tables ?? []).filter((one) => one.name === real);
+      return (named.length === 1 ? named[0] : named.find((one) => one.schema === read?.defaultSchema))?.id ?? null;
+    };
     for (const table of manifest.requiredSchema?.tables ?? []) {
       const real = held[table.ref];
       if (real === undefined) continue;
-      const was = privateNow.some((name) => name === real || name.endsWith(`.${real}`));
+      const own = idOf(real);
+      const was = privateNow.some((name) => name === real || (own !== null && name === own));
       const is = (table as { private?: true }).private === true;
       if (was && !is) {
         ruleWarnings.push({ table: table.ref, column: '', message: `This version no longer keeps "${table.ref}" private. Its rows, read until now only by the people each belongs to, will be read by every role that is given the table.` });

@@ -98,6 +98,18 @@ describe('the newest row\'s value (rollup.latest)', () => {
     expect(said(crm(({ deals }) => (rollupOf(deals)['latest']['row'] = 'may'))).join('\n')).toMatch(/holds a key of "quotes"/);
   });
 
+  it('holds that column to the key it names: a whole number is no place for a uuid, and a table with no one-column key names no row', () => {
+    // The quotes are keyed by a uuid, and the deal keeps a whole number: every write of the total would be refused by the database.
+    const uuidKey = ({ quotes }: { quotes: Record<string, any>[] }) => (quotes[0] = { ref: 'id', type: 'uuid', role: 'pk' });
+    expect(said(crm(uuidKey)).join('\n')).toMatch(/"deals\.quote_id" is int and the key of "quotes" is uuid/);
+    expect(said(crm((tables) => { uuidKey(tables); tables.deals[2] = { ref: 'quote_id', type: 'uuid', nullable: true }; }))).toEqual([]);
+    // A whole number of either width holds a whole-number key.
+    expect(said(crm(({ deals }) => (deals[2] = { ref: 'quote_id', type: 'bigint', nullable: true })))).toEqual([]);
+    expect(said(crm(({ deals }) => (deals[2] = { ref: 'quote_id', type: 'text', maxLength: 40, nullable: true }))).join('\n')).toMatch(/is text and the key of "quotes" is int/);
+    // No key of one column: there is nothing to keep.
+    expect(said(crm(({ quotes }) => (quotes[0] = { ref: 'id', type: 'int' }))).join('\n')).toMatch(/"quotes" has no key of one column/);
+  });
+
   it('keeps that key as a plain column, never a link: a link would stop the row it names being deleted', () => {
     expect(said(crm(({ deals }) => (deals[2] = { ref: 'quote_id', type: 'fk', references: 'quotes', nullable: true }))).join('\n')).toMatch(/is a link: the key of the row Adminium took is kept as a plain column/);
   });

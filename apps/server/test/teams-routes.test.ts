@@ -165,6 +165,20 @@ describe('the people a writer may name', () => {
     expect(((await call('GET', '/people?q=adminium.test', liam)).json() as { people: unknown[] }).people).toEqual([]);
   });
 
+  it('answers the first by name, however many came later and whoever else matched by address', async () => {
+    ctx = await build();
+    const { liam } = ctx.people;
+    const users = usersRepo(ctx.meta);
+    // An old account whose NAME matches, then a crowd of newer ones whose ADDRESS matches and whose name does not.
+    await users.create({ email: 'first@adminium.test', name: 'Zed Marlow', passwordHash: 'x', status: 'active' }, 1);
+    for (let n = 0; n < 12; n += 1) await users.create({ email: `marlow${String(n)}@adminium.test`, name: `Newcomer ${String(n).padStart(2, '0')}`, passwordHash: 'x', status: 'active' }, 1000 + n);
+    const byName = (await call('GET', '/people?q=marlow&limit=5', liam)).json() as { people: { name: string }[] };
+    expect(byName.people.map((person) => person.name)).toEqual(['Zed Marlow']);
+    // With nothing typed it is the first by name, not the newest made.
+    const firsts = (await call('GET', '/people?limit=3', liam)).json() as { people: { name: string }[] };
+    expect(firsts.people.map((person) => person.name)).toEqual(['Ava', 'Dana', 'Iris']);
+  });
+
   it('are not told to a request with no person behind it', async () => {
     ctx = await build();
     expect((await ctx.app.inject({ method: 'GET', url: '/api/v1/people' })).statusCode).toBe(401);

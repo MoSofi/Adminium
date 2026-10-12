@@ -128,17 +128,11 @@ export const teamsRoutes: FastifyPluginAsyncZod = async (app) => {
     if (keyed || (request as unknown as { user?: { id?: string } }).user?.id === undefined) throw new UnauthorizedError('UNAUTHENTICATED', 'The list of people needs a user session.');
     const limit = request.query.limit ?? 50;
     const q = request.query.q;
-    const found: User[] = [];
-    // Somebody who can be given a row: here already (active), or the sample's.
-    for (const status of ['active', 'sample'] as const) {
-      found.push(...(await users.list({ status, ...(q === undefined ? {} : { q }), limit })));
-    }
-    // By name only: the search above also reads addresses, and an address is not this route's to confirm.
-    const needle = q?.trim().toLowerCase() ?? '';
+    // Somebody who can be given a row: here already (active), or the sample's. By name only: an address is not this
+    // route's to confirm. Found, ordered and cut by one query, so the first matches by name are the ones answered.
+    const found = await users.named({ statuses: ['active', 'sample'], q, limit });
     const people = found
-      .filter((user) => needle === '' || user.name.toLowerCase().includes(needle))
       .sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id))
-      .slice(0, limit)
       .map((user) => ({ id: user.id, name: user.name, sample: user.status === 'sample' }));
     return { people };
   });

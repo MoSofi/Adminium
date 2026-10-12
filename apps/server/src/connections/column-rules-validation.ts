@@ -694,11 +694,21 @@ export function columnRuleIssue(
         for (const part of [latest['of'], latest['by']]) {
           if (!child.columns.some((c) => c.name === String(part))) return `${child.name} has no column ${JSON.stringify(part)}.`;
         }
+        // Of one kind with what it is kept in, and told apart by something that has an order: the database refuses the rest on every write.
+        const kindOf = (type: string): string => ((NUMERIC_TYPES as ReadonlySet<string>).has(type) ? 'number' : type.startsWith('timestamp') ? 'timestamp' : type);
+        const of = child.columns.find((c) => c.name === String(latest['of']))!;
+        if (kindOf(of.logicalType) !== kindOf(column.logicalType)) return `${child.name}.${of.name} is ${of.logicalType} and ${name} is ${column.logicalType}: the newest row's value is kept in a column of its own kind.`;
+        const by = child.columns.find((c) => c.name === String(latest['by']))!;
+        if (!['number', 'timestamp', 'date', 'time'].includes(kindOf(by.logicalType))) return `${child.name}.${by.name} is ${by.logicalType}: the newest row is told by a date, a time or a number.`;
         if (latest['row'] !== undefined) {
           const row = parent?.columns.find((c) => c.name === String(latest['row']));
           if (row === undefined) return `${parent?.name ?? 'This table'} has no column ${JSON.stringify(latest['row'])} to hold the row's key.`;
           if (row === column) return 'The row\'s key is kept in a column of its own.';
           if (!row.nullable) return `${parent?.name}.${row.name} is empty while no row qualifies, so it must allow empty.`;
+          // The key it names: one column, and of this column's kind.
+          const keys = child.columns.filter((c) => c.isPrimaryKey);
+          if (keys.length !== 1) return `${child.name} has no key of one column, so the row that was taken cannot be named.`;
+          if (kindOf(keys[0]!.logicalType) !== kindOf(row.logicalType)) return `${parent?.name}.${row.name} is ${row.logicalType} and the key of ${child.name} is ${keys[0]!.logicalType}: the row's key is kept in a column of that key's kind.`;
         }
       }
       if (value['count'] === true) {

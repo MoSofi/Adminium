@@ -12,6 +12,11 @@
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { installInvoicing, invoicingManifest, LEGS, writerFor, type InvoicingHarness } from './invoicing-install.helpers.js';
+import { parseDatabaseModel } from '@adminium/engine';
+import { overridesRepo, snapshotsRepo } from '@adminium/meta';
+
+import { columnRuleIssue } from '../src/connections/column-rules-validation.js';
+import { applyOverrides } from '../src/connections/effective-schema.js';
 import { latestOf } from '../src/crud/write-service.js';
 
 const id = { ref: 'id', type: 'int', role: 'pk' };
@@ -168,6 +173,23 @@ for (const [dialect, available] of LEGS) {
 
 describe('the newest of some rows, as a quote of a change works it out', () => {
   const pick = (rows: Record<string, unknown>[]) => latestOf(rows, { by: 'at', key: 'id' })?.['id'];
+
+  it('is judged on the server too, by kind: the value, what tells the newest, and the key it names', async () => {
+    const h = await installInvoicing('sqlite', manifest());
+    open = h;
+    const model = applyOverrides(parseDatabaseModel((await snapshotsRepo(h.meta).latest(h.connectionId))!.schema), await overridesRepo(h.meta).listForConnection(h.connectionId, { status: 'active' }));
+    const deals = model.tables.find((table) => table.name === h.real('deals'))!;
+    const quotes = model.tables.find((table) => table.name === h.real('quotes'))!;
+    const quoted = deals.columns.find((column) => column.name === 'quoted')!;
+    const judge = (latest: Record<string, unknown>, into = quoted) => columnRuleIssue('column.rollup', { from: quotes.id, via: 'deal_id', latest }, into, model, new Set());
+    expect(judge({ of: 'total', by: 'sent_at', row: 'quote_id' })).toBeNull();
+    // A moment kept in a number column, a newest told by a number of money (allowed) and by nothing with an order (refused).
+    expect(judge({ of: 'sent_at', by: 'sent_at' })).toMatch(/kept in a column of its own kind/);
+    expect(judge({ of: 'total', by: 'subtotal' })).toBeNull();
+    // The key it names is a whole number: a decimal column is of that kind, a moment is not.
+    expect(judge({ of: 'total', by: 'sent_at', row: 'typed' })).toBeNull();
+    expect(judge({ of: 'total', by: 'sent_at', row: 'nowhere' })).toMatch(/has no column "nowhere"/);
+  });
 
   it('reads a moment however the engine hands it back, and leaves out a row with none', () => {
     expect(pick([{ id: 1, at: '2026-07-01 09:00:00' }, { id: 2, at: new Date('2026-07-02T09:00:00Z') }, { id: 3, at: null }])).toBe(2);

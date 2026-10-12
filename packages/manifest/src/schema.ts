@@ -1584,7 +1584,7 @@ const LATEST_BY_TYPES: readonly string[] = ['timestamptz', 'timestamp', 'datetim
  * table that holds the child's key and nothing else decides.
  */
 function rollupLatestIssues(
-  index: { column(table: string, ref: string): ShapeColumn | undefined },
+  index: { column(table: string, ref: string): ShapeColumn | undefined; pk(table: string): ShapeColumn | undefined },
   table: ShapeTable,
   column: ShapeColumn,
   from: string,
@@ -1613,6 +1613,14 @@ function rollupLatestIssues(
         out.push({ path: here('rollup', 'latest', 'row'), message: `"${table.ref}.${latest.row}" is a link: the key of the row Adminium took is kept as a plain column (the type of "${from}"'s key), so that row can still be deleted` });
       } else if (!WHOLE_TYPES.includes(row.type) && row.type !== 'text' && row.type !== 'uuid') {
         out.push({ path: here('rollup', 'latest', 'row'), message: `"${table.ref}.${latest.row}" holds a key of "${from}": a column of its key's type` });
+      } else {
+        // Held to the key it names: a whole number against a uuid is refused by the database on every write of the total.
+        const key = index.pk(from);
+        if (key === undefined) {
+          out.push({ path: here('rollup', 'latest', 'row'), message: `"${from}" has no key of one column, so the row that was taken cannot be named: leave "row" out` });
+        } else if (!(WHOLE_TYPES.includes(row.type) && WHOLE_TYPES.includes(key.type)) && row.type !== key.type) {
+          out.push({ path: here('rollup', 'latest', 'row'), message: `"${table.ref}.${latest.row}" is ${row.type} and the key of "${from}" is ${key.type}: the key of the row Adminium took is kept in a column of that key's type` });
+        }
       }
     }
   }

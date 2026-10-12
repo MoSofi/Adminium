@@ -5,6 +5,7 @@
  * written: the rows were read only by the people each belongs to, and will
  * be read by every role that holds the table.
  */
+import { overridesRepo } from '@adminium/meta';
 import { afterAll, describe, expect, it } from 'vitest';
 
 import { sha512Integrity } from '../src/add-ons/store.js';
@@ -43,6 +44,14 @@ describe('an update that stops keeping a table private', () => {
     expect(await planOf(manifest('0.2.1', true))).toEqual([]);
     const warned = await planOf(manifest('0.2.2', false));
     expect(warned).toEqual([{ table: 'notes', column: '', message: 'This version no longer keeps "notes" private. Its rows, read until now only by the people each belongs to, will be read by every role that is given the table.' }]);
+  }, 240_000);
+
+  it('is not set off by a private table of the same name in another schema: that one is somebody else\'s', async () => {
+    await h.close();
+    h = await installInvoicing('sqlite', manifest('0.2.0', false));
+    // A table of the owner's own elsewhere, kept private by a rule of theirs: same name, another schema.
+    await overridesRepo(h.meta).create({ connectionId: h.connectionId, op: 'table.private', tableName: 'archive.studio_notes', columnName: null, value: { private: true }, origin: 'user' } as never);
+    expect(await planOf(manifest('0.2.1', false))).toEqual([]);
   }, 240_000);
 
   it('says the other way too: a table that was open and becomes private, and what stops reading it', async () => {
