@@ -492,13 +492,22 @@ export const usersRoutes: FastifyPluginAsyncZod = async (app) => {
       assertNotSample(user);
       assertNotSelf(request, user, permanent ? 'delete' : 'suspend');
       await assertNotLastSuperAdmin(user);
-      // Gone for good, their rows would be nobody's that a colleague limited to "their own" could reach:
-      // hand them to somebody first (`POST /users/:id/rows/hand-over`). A private table's rows stay where they are.
+      // Their rows go to whoever the caller names, now that every guard on the account has passed and before it changes:
+      // a hand-over the server then refused the removal for would be rows moved for nothing, and it cannot be undone.
+      const decorated = app as unknown as {
+        rowsNamingUser?: (userId: string) => Promise<{ total: number; named: unknown[]; private: boolean }>;
+        handUserRows?: (from: User, toId: string, audit: (entry: { action: string; changes: { before: Record<string, unknown>; after: Record<string, unknown> } }) => Promise<void>) => Promise<{ failed: unknown[] }>;
+      };
+      if (request.query.handTo !== undefined) {
+        if (decorated.handUserRows === undefined) throw new ConflictError('This server cannot hand rows over.', 'CONFLICT', { reason: 'HAND_OVER_UNAVAILABLE' });
+        await decorated.handUserRows(user, request.query.handTo, (entry) => app.rbac.audit(request, { category: 'rbac', ...entry }));
+      }
+      // Gone for good, the rows that are still theirs would be nobody's that a colleague limited to "their own" could
+      // reach. A private table's rows stay where they are, and are said only to be there.
       if (permanent) {
-        const naming = (app as unknown as { rowsNamingUser?: (userId: string) => Promise<{ total: number; named: unknown[] }> }).rowsNamingUser;
-        const held = naming === undefined ? null : await naming(user.id);
+        const held = decorated.rowsNamingUser === undefined ? null : await decorated.rowsNamingUser(user.id);
         if (held !== null && held.total > 0) {
-          throw new ConflictError('Rows still name this person. Hand them to somebody else first.', 'CONFLICT', { reason: 'HAS_ROWS', rows: held.total, named: held.named });
+          throw new ConflictError('Rows are still this person\'s. Hand them to somebody else as you remove them.', 'CONFLICT', { reason: 'HAS_ROWS', rows: held.total, named: held.named, private: held.private });
         }
       }
 

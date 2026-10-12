@@ -71,7 +71,6 @@ import {
   deleteUser,
   formatSince,
   formatStamp,
-  handRowsOver,
   namedRowsByTable,
   patchUser,
   resendInvite,
@@ -549,18 +548,17 @@ export function TeamPage(): ReactNode {
   // goes NULL, so the workspace loses the record of who changed what).
   // …and the rows that name them go to somebody first. Removed for good, the deals a person owned would be
   // nobody's that a colleague held to "their own rows" could reach; the server refuses the delete while any
-  // such row is left, so the dialog asks whom to hand them to and does the hand-over before the delete.
+  // such row is left, so the dialog asks whom to hand them to and names them in the delete itself.
   const namedRows = useQuery({ ...userRowsQuery(removing?.id ?? ''), enabled: removing !== null });
   const handTo = useQuery({ ...peopleQuery(), enabled: removing !== null && (namedRows.data?.total ?? 0) > 0 });
   const [takerId, setTakerId] = useState('');
   const owed = namedRows.data === undefined ? null : namedRowsByTable(namedRows.data);
   const remove = useMutation({
     mutationFn: async (user: UserDto) => {
-      if ((namedRows.data?.total ?? 0) > 0) {
-        if (takerId === '') throw new Error(t('team.remove.rows.needed', 'Choose who takes the rows first.'));
-        await handRowsOver(user.id, takerId);
-      }
-      await deleteUser(user.id, true);
+      const owes = (namedRows.data?.total ?? 0) > 0;
+      if (owes && takerId === '') throw new Error(t('team.remove.rows.needed', 'Choose who takes the rows first.'));
+      // One call: the server hands the rows over only once it has agreed to the removal.
+      await deleteUser(user.id, true, owes ? takerId : undefined);
     },
     onSuccess: async () => {
       setRemoving(null);
@@ -831,7 +829,7 @@ export function TeamPage(): ReactNode {
                 'This erases {name}’s account, their preferences and their sign-in sessions, and blanks their name from the record of settings they changed. Suspending instead keeps all of it and only stops them signing in. This cannot be undone.',
                 { name: removing.name },
               )}
-              {namedRows.data === undefined || owed === null || namedRows.data.named.length + namedRows.data.unreadable.length === 0 ? null : (
+              {namedRows.data === undefined || owed === null || namedRows.data.named.length + namedRows.data.unreadable.length === 0 && !namedRows.data.private ? null : (
                 <div className="mt-3 flex flex-col gap-2 rounded-lg border border-border p-3" data-testid="team-remove-rows">
                   {namedRows.data.total === 0 ? null : (
                     <>
@@ -858,14 +856,8 @@ export function TeamPage(): ReactNode {
                       </FormField>
                     </>
                   )}
-                  {owed.kept === 0 ? null : (
-                    <p data-testid="team-remove-rows-kept">
-                      {t(
-                        'team.remove.rows.kept',
-                        '{count, plural, one {# row of a private table stays as it is} other {# rows of private tables stay as they are}}: nobody else may read them.',
-                        { count: owed.kept },
-                      )}
-                    </p>
+                  {!owed.kept ? null : (
+                    <p data-testid="team-remove-rows-kept">{t('team.remove.rows.kept', 'Rows of private tables stay as they are: nobody else may read them.')}</p>
                   )}
                   {namedRows.data.unreadable.length === 0 ? null : (
                     <p data-testid="team-remove-rows-unreadable">

@@ -109692,9 +109692,6 @@
                           },
                           "rows": {
                             "type": "number"
-                          },
-                          "private": {
-                            "type": "boolean"
                           }
                         },
                         "required": [
@@ -109703,13 +109700,34 @@
                           "tableId",
                           "tableLabel",
                           "column",
-                          "rows",
-                          "private"
+                          "rows"
                         ],
                         "additionalProperties": false
                       }
                     },
+                    "private": {
+                      "type": "boolean"
+                    },
                     "unreadable": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "connectionId": {
+                            "type": "string"
+                          },
+                          "connectionName": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "connectionId",
+                          "connectionName"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "failed": {
                       "type": "array",
                       "items": {
                         "type": "object",
@@ -109734,6 +109752,7 @@
                   },
                   "required": [
                     "named",
+                    "private",
                     "unreadable",
                     "total"
                   ],
@@ -109806,9 +109825,6 @@
                           },
                           "rows": {
                             "type": "number"
-                          },
-                          "private": {
-                            "type": "boolean"
                           }
                         },
                         "required": [
@@ -109817,13 +109833,34 @@
                           "tableId",
                           "tableLabel",
                           "column",
-                          "rows",
-                          "private"
+                          "rows"
                         ],
                         "additionalProperties": false
                       }
                     },
+                    "private": {
+                      "type": "boolean"
+                    },
                     "unreadable": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "connectionId": {
+                            "type": "string"
+                          },
+                          "connectionName": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "connectionId",
+                          "connectionName"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "failed": {
                       "type": "array",
                       "items": {
                         "type": "object",
@@ -109848,6 +109885,7 @@
                   },
                   "required": [
                     "named",
+                    "private",
                     "unreadable",
                     "total"
                   ],
@@ -110442,6 +110480,16 @@
             },
             "in": "query",
             "name": "permanent",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 80
+            },
+            "in": "query",
+            "name": "handTo",
             "required": false
           },
           {

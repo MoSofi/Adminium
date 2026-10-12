@@ -202,8 +202,9 @@ export function userStatusTone(status: UserStatus): Tone {
  * then cannot explain. The screen therefore spends the flag deliberately — see
  * the note on `TeamPage`'s remove flow.
  */
-export function userDeletePath(id: string, permanent: boolean): string {
-  return permanent ? `/api/v1/users/${id}?permanent=true` : `/api/v1/users/${id}`;
+export function userDeletePath(id: string, permanent: boolean, handTo?: string): string {
+  const query = [...(permanent ? ['permanent=true'] : []), ...(handTo === undefined || handTo === '' ? [] : [`handTo=${encodeURIComponent(handTo)}`])];
+  return query.length === 0 ? `/api/v1/users/${id}` : `/api/v1/users/${id}?${query.join('&')}`;
 }
 
 // --- instant formatting ------------------------------------------------------
@@ -298,8 +299,13 @@ export function patchUser(id: string, patch: UserPatch): Promise<UserDto> {
   return api.patch<UserDto>(`/api/v1/users/${id}`, patch);
 }
 
-export function deleteUser(id: string, permanent: boolean): Promise<UserDeleteReply> {
-  return api.delete<UserDeleteReply>(userDeletePath(id, permanent));
+/**
+ * `handTo`: whom the rows that are this person's go to. The server hands them over itself, once every guard on the
+ * account has passed and before the account changes: a hand-over made first, by a call of its own, could not be
+ * taken back when the removal was then refused.
+ */
+export function deleteUser(id: string, permanent: boolean, handTo?: string): Promise<UserDeleteReply> {
+  return api.delete<UserDeleteReply>(userDeletePath(id, permanent, handTo));
 }
 
 export function setUserRoles(id: string, roleIds: readonly string[]): Promise<UserDto> {
@@ -361,10 +367,13 @@ export function removeTeamMember(teamId: string, userId: string): Promise<TeamDt
 // --- the rows that name a person -------------------------------------------------
 
 export interface NamedRows {
-  named: { connectionId: string; connectionName: string; tableId: string; tableLabel: string; column: string; rows: number; private: boolean }[];
+  /** The rows that are the person's, by table and column: never a private table's. */
+  named: { connectionId: string; connectionName: string; tableId: string; tableLabel: string; column: string; rows: number }[];
+  /** Whether rows of a private table name the person: said, never counted. */
+  private: boolean;
   /** Connections that could not be read: nothing is known of their rows. */
   unreadable: { connectionId: string; connectionName: string }[];
-  /** Rows a hand-over would move: everything but the private tables'. */
+  /** Rows a hand-over would move. */
   total: number;
 }
 
@@ -377,29 +386,20 @@ export function userRowsQuery(userId: string) {
     queryFn: async (): Promise<NamedRows> => {
       // Read field by field: an answer that is not this route's (an older server) is "nothing known", never a crash.
       const reply = await api.get<Partial<NamedRows>>(`/api/v1/users/${userId}/rows`);
-      return { named: reply.named ?? [], unreadable: reply.unreadable ?? [], total: reply.total ?? 0 };
+      return { named: reply.named ?? [], private: reply.private === true, unreadable: reply.unreadable ?? [], total: reply.total ?? 0 };
     },
   });
 }
 
-export function handRowsOver(userId: string, to: string): Promise<NamedRows> {
-  return api.post<NamedRows>(`/api/v1/users/${userId}/rows/hand-over`, { to });
-}
-
-/** The named rows as a hand-over dialog lists them: one line per table, the private ones apart. */
-export function namedRowsByTable(rows: NamedRows): { moved: { label: string; rows: number }[]; kept: number } {
+/** The named rows as a hand-over dialog lists them: one line per table, and whether a private table's rows stay behind. */
+export function namedRowsByTable(rows: NamedRows): { moved: { label: string; rows: number }[]; kept: boolean } {
   const moved = new Map<string, { label: string; rows: number }>();
-  let kept = 0;
   for (const one of rows.named) {
-    if (one.private) {
-      kept += one.rows;
-      continue;
-    }
     const key = `${one.connectionId}/${one.tableId}`;
     const held = moved.get(key) ?? { label: one.tableLabel, rows: 0 };
     held.rows += one.rows;
     moved.set(key, held);
   }
-  return { moved: [...moved.values()].sort((a, b) => b.rows - a.rows || a.label.localeCompare(b.label)), kept };
+  return { moved: [...moved.values()].sort((a, b) => b.rows - a.rows || a.label.localeCompare(b.label)), kept: rows.private };
 }
 

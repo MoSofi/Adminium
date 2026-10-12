@@ -67,11 +67,29 @@ old lead stops reaching them.
 
 ## When a person leaves
 
-Suspending an account changes nothing about its rows.
+Suspending an account changes nothing about its rows, unless you say who takes them.
 
-Deleting an account **permanently** first looks for rows that name the person. If there are any,
-the dialog lists them by table and asks who takes them; the rows are handed over, then the
-account is deleted. Until they are handed over, the delete is refused.
+Deleting an account **permanently** first looks for rows that are the person's. If there are
+any, the dialog lists them by table and asks who takes them. The removal names that person, and
+the server hands the rows over itself once it has agreed to the removal, so no row moves for a
+removal that is then refused. Without somebody to take them, the delete is refused.
+
+What counts and what moves is narrow on purpose:
+
+- **Only the columns that decide whose a row is**: the staff columns a table's own ways name. A
+  column that records who approved or who made a row is history. It is not counted, and it
+  keeps the leaver's name.
+- **Only as a person is suspended or removed.** While somebody is here their rows are theirs; a
+  single row changes hands through its table's own hand-over button, judged and recorded row by
+  row. A suspended person's rows can also be handed on afterwards
+  (`POST /api/v1/users/{id}/rows/hand-over`).
+- **Only to somebody who is here and can open them**: an active person whose roles read every
+  table a row of which would become theirs. Otherwise the hand-over is refused and says which
+  tables they cannot read. You may take the rows yourself.
+- **A Super Admin's rows** are handed on by a Super Admin only.
+- **One audit entry for each table**, with how many rows moved and to whom.
+- A database's rows move together or not at all. One that could be counted and not written is
+  named in the reply, apart from one that could not be read.
 
 ## Private tables
 
@@ -79,7 +97,8 @@ An app may mark a table **private**: its rows are read by the people each row be
 screen, and by nobody and nothing else. That includes Super Admin, rules, exports and imports,
 scheduled reports, documents, public entries, an owner's own code and the assistant's figures.
 A private table's rows are never handed over when a person leaves: a one-to-one stays with its
-two people. Only the app's own update can set or remove the mark, and the update's plan says
+two people. Whoever removes the person is told only that such rows exist, never how many or in
+which table. Only the app's own update can set or remove the mark, and the update's plan says
 when it does.
 
 ## What a row limit does not do

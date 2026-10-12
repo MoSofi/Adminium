@@ -49,10 +49,11 @@ const NAMED: NamedRows = {
   total: 8,
   unreadable: [],
   named: [
-    { connectionId: 'c1', connectionName: 'Main', tableId: 'main.crm_deals', tableLabel: 'Deals', column: 'owner_id', rows: 6, private: false },
-    { connectionId: 'c1', connectionName: 'Main', tableId: 'main.crm_follow_ups', tableLabel: 'Follow-ups', column: 'owner_id', rows: 2, private: false },
-    { connectionId: 'c1', connectionName: 'Main', tableId: 'main.crm_one_to_ones', tableLabel: 'One-to-ones', column: 'rep_id', rows: 3, private: true },
+    { connectionId: 'c1', connectionName: 'Main', tableId: 'main.crm_deals', tableLabel: 'Deals', column: 'owner_id', rows: 6 },
+    { connectionId: 'c1', connectionName: 'Main', tableId: 'main.crm_follow_ups', tableLabel: 'Follow-ups', column: 'owner_id', rows: 2 },
   ],
+  // A one-to-one names her too: said, and neither counted nor named.
+  private: true,
 };
 
 function installFetch(named: NamedRows = NAMED) {
@@ -144,7 +145,7 @@ describe('removing a person rows still name', () => {
     expect(rows.getByText('Dana Whitlock is named in 8 rows')).toBeTruthy();
     expect(rows.getByText('Deals: 6')).toBeTruthy();
     expect(rows.getByText('Follow-ups: 2')).toBeTruthy();
-    expect(rows.getByTestId('team-remove-rows-kept').textContent).toBe('3 rows of private tables stay as they are: nobody else may read them.');
+    expect(rows.getByTestId('team-remove-rows-kept').textContent).toBe('Rows of private tables stay as they are: nobody else may read them.');
     // She is not offered her own rows.
     const to = rows.getByTestId('team-remove-rows-to') as HTMLSelectElement;
     expect([...to.options].map((option) => option.textContent)).toEqual(['Choose a person…', 'Ava Owner', 'Sam Okonjo']);
@@ -155,12 +156,12 @@ describe('removing a person rows still name', () => {
     expect(calls).toEqual([]);
     await userEvent.selectOptions(to, sam.id);
     await userEvent.click(dialog.getByRole('button', { name: 'Delete permanently' }));
-    await waitFor(() => expect(calls.map((call) => call.key)).toEqual([`POST /api/v1/users/${dana.id}/rows/hand-over`, `DELETE /api/v1/users/${dana.id}?permanent=true`]));
-    expect(calls[0]!.body).toEqual({ to: sam.id });
+    // One call: the server hands the rows over once it has agreed to the removal, never before.
+    await waitFor(() => expect(calls.map((call) => call.key)).toEqual([`DELETE /api/v1/users/${dana.id}?permanent=true&handTo=${sam.id}`]));
   });
 
   it('asks nothing when no row names them, and deletes at once', async () => {
-    const calls = installFetch({ named: [], unreadable: [], total: 0 });
+    const calls = installFetch({ named: [], private: false, unreadable: [], total: 0 });
     renderTeam();
     const dialog = await openRemove();
     await userEvent.type(dialog.getByRole('textbox'), dana.email);
@@ -170,7 +171,7 @@ describe('removing a person rows still name', () => {
   });
 
   it('says so when a database could not be checked', async () => {
-    installFetch({ named: [], unreadable: [{ connectionId: 'c2', connectionName: 'Warehouse' }], total: 0 });
+    installFetch({ named: [], private: false, unreadable: [{ connectionId: 'c2', connectionName: 'Warehouse' }], total: 0 });
     renderTeam();
     const dialog = await openRemove();
     expect((await dialog.findByTestId('team-remove-rows-unreadable')).textContent).toBe('Could not check Warehouse. Rows there may still name this person.');
@@ -184,7 +185,7 @@ describe('the named rows, as the dialog lists them', () => {
         { label: 'Follow-ups', rows: 7 },
         { label: 'Deals', rows: 6 },
       ],
-      kept: 3,
+      kept: true,
     });
   });
 });

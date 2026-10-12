@@ -527,7 +527,7 @@ export default {
         "line": "{table}: {count}",
         "to": "Hand them to",
         "choose": "Choose a person…",
-        "kept": "{count, plural, one {# row of a private table stays as it is} other {# rows of private tables stay as they are}}: nobody else may read them.",
+        "kept": "Rows of private tables stay as they are: nobody else may read them.",
         "unreadable": "Could not check {names}. Rows there may still name this person."
       }
     },

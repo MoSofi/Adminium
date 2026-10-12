@@ -1756,7 +1756,7 @@ export default {
         "line": "{table}: {count}",
         "to": "Předat komu",
         "choose": "Vyberte osobu…",
-        "kept": "{count, plural, one {# řádek soukromé tabulky zůstává, jak je} few {# řádky soukromých tabulek zůstávají, jak jsou} other {# řádků soukromých tabulek zůstává, jak jsou}}: nikdo jiný je číst nesmí.",
+        "kept": "Řádky soukromých tabulek zůstávají, jak jsou: nikdo jiný je číst nesmí.",
         "unreadable": "Nepodařilo se zkontrolovat {names}. Řádky tam mohou tuto osobu stále uvádět."
       }
     },

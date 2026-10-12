@@ -1756,7 +1756,7 @@ export default {
         "line": "{table}：{count}",
         "to": "移交給",
         "choose": "選擇人員…",
-        "kept": "{count, plural, other {私人資料表中的 # 列維持原狀}}：其他人都不能讀取。",
+        "kept": "私人資料表中的列維持原狀：其他人都不能讀取。",
         "unreadable": "無法檢查 {names}。那裡的資料列可能仍提到此人。"
       }
     },

@@ -20,7 +20,7 @@ const staff = (ref: string) => ({ ref, type: 'text', maxLength: 36, nullable: tr
 
 const manifest = (): Record<string, unknown> => ({
   ...invoicingManifest([
-    { ref: 'deals', belongs: [{ column: 'owner_id', set: 'team' }], indexes: [['owner_id']], columns: [id, { ref: 'name', type: 'text', maxLength: 80 }, staff('owner_id'), { ref: 'state', type: 'text', maxLength: 10, default: 'open' }] },
+    { ref: 'deals', belongs: [{ column: 'owner_id', set: 'team' }], indexes: [['owner_id']], columns: [id, { ref: 'name', type: 'text', maxLength: 80 }, staff('owner_id'), { ref: 'state', type: 'text', maxLength: 10, default: 'open' }, staff('approved_by')] },
     { ref: 'notes', private: true, belongs: [{ column: 'manager_id' }, { column: 'rep_id' }], indexes: [['manager_id'], ['rep_id']], columns: [id, staff('manager_id'), staff('rep_id'), { ref: 'text', type: 'text', maxLength: 200 }] },
     { ref: 'plain', columns: [id, { ref: 'name', type: 'text', maxLength: 80 }] },
   ]),
@@ -130,33 +130,110 @@ for (const [dialect, reachable] of LEGS) {
       await roles.removeFromUser(people['dana']!.id, rep.id);
     });
 
-    it('will not remove for good a person rows still name, hands the rows over, then removes them', async () => {
+    const signedIn = async (name: string): Promise<string> => {
+      const login = await app.inject({ method: 'POST', url: '/api/v1/auth/login', remoteAddress: `10.9.${String(name.length)}.${String(name.charCodeAt(0))}`, payload: { email: people[name]!.email, password: ADMIN_PASSWORD } });
+      expect(login.statusCode, login.body).toBe(200);
+      return sessionCookie(login.headers['set-cookie']);
+    };
+    const owners = async () => (await h.rows(`SELECT owner_id FROM ${h.real('deals')} ORDER BY id`)).map((row) => row['owner_id']);
+    /** A role that reads the deals, given to whoever is to take some. */
+    const readsDeals = async (name: string) => {
+      const role = (await rolesRepo(h.meta).findBySlug(`reads-deals-${dialect}`)) ?? (await rolesRepo(h.meta).create({ slug: `reads-deals-${dialect}`, name: 'Reads deals' }));
+      await permissionsRepo(h.meta).grant(role.id, 'table', `${h.connectionId}/${tableId('deals')}`, { read: true, create: false, update: false, delete: false, export: false, import: false });
+      await rolesRepo(h.meta).assignToUser(people[name]!.id, role.id);
+    };
+
+    it('tells whoever manages people which rows are a person\'s: only the columns that decide it, and of a private table only that there are some', async () => {
       const dana = people['dana']!;
-      const named = (await app.inject({ method: 'GET', url: `/api/v1/users/${dana.id}/rows`, headers: { cookie } })).json() as { named: { tableId: string; column: string; rows: number; private: boolean }[]; total: number };
-      expect(named.total).toBe(2);
-      expect(named.named.map((one) => [one.tableId === tableId('deals') ? 'deals' : 'notes', one.column, one.rows, one.private]).sort()).toEqual([
-        ['deals', 'owner_id', 2, false],
-        ['notes', 'rep_id', 1, true],
-      ]);
+      // She approved a colleague's deal: history, which makes no row hers.
+      await h.rows(`UPDATE ${h.real('deals')} SET approved_by = '${dana.id}' WHERE name = 'd3'`);
+      const reply = await app.inject({ method: 'GET', url: `/api/v1/users/${dana.id}/rows`, headers: { cookie } });
+      const named = reply.json() as { named: { tableId: string; column: string; rows: number }[]; total: number; private: boolean };
+      expect(named.named.map((one) => [one.tableId === tableId('deals') ? 'deals' : 'other', one.column, one.rows])).toEqual([['deals', 'owner_id', 2]]);
+      expect([named.total, named.private]).toEqual([2, true]);
+      // Nothing of the one-to-one but that it is there: not its table, not how many.
+      expect(reply.body).not.toContain(tableId('notes'));
+      expect(reply.body).not.toContain('rep_id');
+    });
+
+    it('hands rows on only as a person is suspended or removed, to somebody here whose roles read them, and moves nothing it then refuses', async () => {
+      const dana = people['dana']!;
+      const before = await owners();
+      // Removed for good with her rows still hers: refused, and of the private table only that it names her.
       const refused = await app.inject({ method: 'DELETE', url: `/api/v1/users/${dana.id}?permanent=true`, headers: { cookie } });
-      expect([refused.statusCode, refused.body.includes('HAS_ROWS')]).toEqual([409, true]);
-      // Not to herself, not to somebody who is not here.
-      const to = (userId: string) => app.inject({ method: 'POST', url: `/api/v1/users/${dana.id}/rows/hand-over`, headers: { cookie }, payload: { to: userId } });
-      expect((await to(dana.id)).statusCode).toBe(422);
-      expect((await to(people['gone']!.id)).statusCode).toBe(409);
-      expect((await to('usr_nobody')).statusCode).toBe(404);
-      const moved = await to(people['sam']!.id);
-      expect(moved.statusCode, moved.body).toBe(200);
-      expect((moved.json() as { total: number }).total).toBe(2);
-      const owners = await h.rows(`SELECT name, owner_id FROM ${h.real('deals')} ORDER BY id`);
-      expect(owners.map((row) => row['owner_id'])).toEqual([people['sam']!.id, people['sam']!.id, people['sam']!.id, people['leo']!.id, null]);
-      // The one-to-one is not a colleague's to be given: it still names her.
-      expect(await h.rows(`SELECT rep_id FROM ${h.real('notes')}`)).toEqual([{ rep_id: dana.id }]);
-      const removed = await app.inject({ method: 'DELETE', url: `/api/v1/users/${dana.id}?permanent=true`, headers: { cookie } });
+      expect([refused.statusCode, refused.body.includes('HAS_ROWS'), refused.body.includes('"private":true'), refused.body.includes(tableId('notes'))]).toEqual([409, true, true, false]);
+      // While she is here her rows are hers: no hand-over on its own.
+      const still = await app.inject({ method: 'POST', url: `/api/v1/users/${dana.id}/rows/hand-over`, headers: { cookie }, payload: { to: people['sam']!.id } });
+      expect([still.statusCode, still.body.includes('STILL_HERE')]).toEqual([409, true]);
+      const removeTo = (userId: string) => app.inject({ method: 'DELETE', url: `/api/v1/users/${dana.id}?permanent=true&handTo=${userId}`, headers: { cookie } });
+      // Not to herself, not to somebody who is not here, not to nobody, not to somebody who could not open them.
+      expect((await removeTo(dana.id)).statusCode).toBe(422);
+      expect((await removeTo(people['gone']!.id)).body).toContain('NOT_ACTIVE');
+      expect((await removeTo('usr_nobody')).statusCode).toBe(404);
+      const closed = await removeTo(people['sam']!.id);
+      expect([closed.statusCode, closed.body.includes('TAKER_CANNOT_READ')]).toEqual([409, true]);
+      // Each refusal left her, and every row, as they were.
+      expect(await usersRepo(h.meta).findById(dana.id)).not.toBeNull();
+      expect(await owners()).toEqual(before);
+
+      await readsDeals('sam');
+      const removed = await removeTo(people['sam']!.id);
       expect(removed.statusCode, removed.body).toBe(200);
       expect(await usersRepo(h.meta).findById(dana.id)).toBeNull();
-      const entry = (await auditRepo(h.meta).list({ category: 'rbac' })).find((one) => one.action === 'user.rows.hand-over');
-      expect(JSON.stringify(entry)).toContain('"rows":2');
+      expect(await owners()).toEqual([people['sam']!.id, people['sam']!.id, people['sam']!.id, people['leo']!.id, null]);
+      // What she approved is history and still says so; the one-to-one is not a colleague's to be given.
+      expect((await h.rows(`SELECT approved_by FROM ${h.real('deals')} WHERE name = 'd3'`))[0]!['approved_by']).toBe(dana.id);
+      expect(await h.rows(`SELECT rep_id FROM ${h.real('notes')}`)).toEqual([{ rep_id: dana.id }]);
+      // One entry for the table, with how many and to whom.
+      const entries = (await auditRepo(h.meta).list({ category: 'rbac' })).filter((one) => one.action === 'user.rows.hand-over');
+      expect(entries.length).toBe(1);
+      expect(JSON.stringify(entries[0])).toContain(`"to":"${people['sam']!.id}"`);
+      expect(JSON.stringify(entries[0])).toContain('"rows":2');
+    });
+
+    it('hands a suspended person\'s rows on, as they are suspended or afterwards', async () => {
+      // Leo is suspended and his deal goes to Sam in the same call.
+      const suspended = await app.inject({ method: 'DELETE', url: `/api/v1/users/${people['leo']!.id}?handTo=${people['sam']!.id}`, headers: { cookie } });
+      expect(suspended.statusCode, suspended.body).toBe(200);
+      expect((await usersRepo(h.meta).findById(people['leo']!.id))!.status).toBe('suspended');
+      expect(await owners()).toEqual([people['sam']!.id, people['sam']!.id, people['sam']!.id, people['sam']!.id, null]);
+      // Sam is suspended with his rows still his; they are handed on afterwards, to Ivy.
+      await usersRepo(h.meta).updateStatus(people['sam']!.id, 'suspended');
+      await readsDeals('ivy');
+      const moved = await app.inject({ method: 'POST', url: `/api/v1/users/${people['sam']!.id}/rows/hand-over`, headers: { cookie }, payload: { to: people['ivy']!.id } });
+      expect(moved.statusCode, moved.body).toBe(200);
+      expect(moved.json()).toMatchObject({ total: 4, private: false, failed: [], named: [{ column: 'owner_id', rows: 4 }] });
+      expect(await owners()).toEqual([people['ivy']!.id, people['ivy']!.id, people['ivy']!.id, people['ivy']!.id, null]);
+    });
+
+    it('is closed to somebody who manages neither people nor roles, and a Super Admin\'s rows are a Super Admin\'s to hand on', async () => {
+      const users = usersRepo(h.meta);
+      const roles = rolesRepo(h.meta);
+      people['plain'] = await users.create({ email: `plain-${dialect}@reach.dev`, name: 'plain', passwordHash: await adminPasswordHash(), status: 'active' });
+      people['pm'] = await users.create({ email: `pm-${dialect}@reach.dev`, name: 'pm', passwordHash: await adminPasswordHash(), status: 'active' });
+      const managesPeople = await roles.create({ slug: `people-${dialect}`, name: 'People' });
+      await permissionsRepo(h.meta).grant(managesPeople.id, 'system', 'users.manage', { allowed: true });
+      await roles.assignToUser(people['pm']!.id, managesPeople.id);
+      const anyRole = (await roles.list())[0]!;
+      const plain = await signedIn('plain');
+      const tries = [
+        await app.inject({ method: 'GET', url: `/api/v1/roles/${anyRole.id}/rows`, headers: { cookie: plain } }),
+        await app.inject({ method: 'POST', url: '/api/v1/roles/rows/preview', headers: { cookie: plain }, payload: { connectionId: h.connectionId, table: tableId('deals'), userId: people['ivy']!.id, reach: { reach: 'own' } } }),
+        await app.inject({ method: 'GET', url: `/api/v1/users/${people['ivy']!.id}/rows`, headers: { cookie: plain } }),
+        await app.inject({ method: 'POST', url: `/api/v1/users/${people['gone']!.id}/rows/hand-over`, headers: { cookie: plain }, payload: { to: people['ivy']!.id } }),
+      ];
+      expect(tries.map((reply) => reply.statusCode)).toEqual([403, 403, 403, 403]);
+      // Somebody who manages people and is no Super Admin: a suspended Super Admin's rows are not theirs to move.
+      const pm = await signedIn('pm');
+      const root = await users.create({ email: `root2-${dialect}@reach.dev`, name: 'root2', passwordHash: null, status: 'suspended' });
+      await roles.assignToUser(root.id, (await roles.findBySlug('super-admin'))!.id);
+      await h.rows(`INSERT INTO ${h.real('deals')} (name, owner_id) VALUES ('root deal', '${root.id}')`);
+      const guarded = await app.inject({ method: 'POST', url: `/api/v1/users/${root.id}/rows/hand-over`, headers: { cookie: pm }, payload: { to: people['ivy']!.id } });
+      expect(guarded.statusCode, guarded.body).toBe(403);
+      expect((await h.rows(`SELECT owner_id FROM ${h.real('deals')} WHERE name = 'root deal'`))[0]!['owner_id']).toBe(root.id);
+      // A Super Admin may.
+      const allowed = await app.inject({ method: 'POST', url: `/api/v1/users/${root.id}/rows/hand-over`, headers: { cookie }, payload: { to: people['ivy']!.id } });
+      expect(allowed.statusCode, allowed.body).toBe(200);
     });
   });
 }

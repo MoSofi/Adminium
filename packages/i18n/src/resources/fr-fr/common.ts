@@ -1756,7 +1756,7 @@ export default {
         "line": "{table} : {count}",
         "to": "Les confier à",
         "choose": "Choisir une personne…",
-        "kept": "{count, plural, one {# ligne d’une table privée reste telle quelle} other {# lignes de tables privées restent telles quelles}} : personne d’autre ne peut les lire.",
+        "kept": "Les lignes des tables privées restent telles quelles : personne d’autre ne peut les lire.",
         "unreadable": "Impossible de vérifier {names}. Des lignes peuvent encore y mentionner cette personne."
       }
     },

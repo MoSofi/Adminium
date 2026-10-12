@@ -111,6 +111,13 @@ export const userDeleteQuery = z.object({
    * delete quietly erases history that the audit log then cannot explain.
    */
   permanent: boolFlag(),
+  /**
+   * Whom the rows that are this person's go to, as they are suspended or
+   * removed: handed over once every guard on the account has passed, and
+   * before the account changes. Absent: a removal for good is refused while
+   * rows are still theirs.
+   */
+  handTo: z.string().min(1).max(80).optional(),
 });
 export type UserDeleteQuery = z.infer<typeof userDeleteQuery>;
 

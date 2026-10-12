@@ -1756,7 +1756,7 @@ export default {
         "line": "{table}: {count}",
         "to": "Overdrag dem til",
         "choose": "Vælg en person…",
-        "kept": "{count, plural, one {# række i en privat tabel bliver, som den er} other {# rækker i private tabeller bliver, som de er}}: ingen andre må læse dem.",
+        "kept": "Rækker i private tabeller bliver, som de er: ingen andre må læse dem.",
         "unreadable": "Kunne ikke kontrollere {names}. Rækker dér kan stadig nævne denne person."
       }
     },

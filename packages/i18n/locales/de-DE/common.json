@@ -1746,7 +1746,7 @@
         "line": "{table}: {count}",
         "to": "Übergeben an",
         "choose": "Person wählen …",
-        "kept": "{count, plural, one {# Zeile einer privaten Tabelle bleibt, wie sie ist} other {# Zeilen privater Tabellen bleiben, wie sie sind}}: Niemand sonst darf sie lesen.",
+        "kept": "Zeilen privater Tabellen bleiben, wie sie sind: Niemand sonst darf sie lesen.",
         "unreadable": "{names} konnte nicht geprüft werden. Dort können Zeilen diese Person noch nennen."
       }
     },

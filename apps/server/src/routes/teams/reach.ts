@@ -23,9 +23,10 @@ import { z } from 'zod';
 import type { ConnectionManager, SourceDatabase } from '../../connections/manager.js';
 import { rowLimitContextOf } from '../../crud/row-limit-context.js';
 import { rowLimitFor } from '../../crud/row-limit.js';
-import { handRowsOver, rowsNaming } from '../../crud/rows-naming.js';
+import { rowsNaming } from '../../crud/rows-naming.js';
 import { loadSnapshotView } from '../../data-io/snapshot-view.js';
-import { ConflictError, NotFoundError, ValidationFailedError } from '../../errors.js';
+import { ConflictError, ForbiddenError, NotFoundError, ValidationFailedError } from '../../errors.js';
+import { handOverRows } from '../../rbac/hand-over.js';
 import { PERMISSIONS, grantMatches, grantsFromMatrixRows, isGranted } from '../../rbac/permissions.js';
 import { SUPER_ADMIN_SLUG } from '../../rbac/resolver.js';
 import { rowReachOfRow } from '../../rbac/row-limits.js';
@@ -78,8 +79,13 @@ const roleRowsReply = z.object({
 const roleIdParams = z.object({ id: z.string() });
 
 const namedRows = z.object({
-  named: z.array(z.object({ connectionId: z.string(), connectionName: z.string(), tableId: z.string(), tableLabel: z.string(), column: z.string(), rows: z.number(), private: z.boolean() })),
+  /** The rows that are the person's, by table and column: never a private table's. */
+  named: z.array(z.object({ connectionId: z.string(), connectionName: z.string(), tableId: z.string(), tableLabel: z.string(), column: z.string(), rows: z.number() })),
+  /** Whether rows of a private table name the person: said, never counted. */
+  private: z.boolean(),
   unreadable: z.array(z.object({ connectionId: z.string(), connectionName: z.string() })),
+  /** After a hand-over: connections whose rows could be counted and not moved. */
+  failed: z.array(z.object({ connectionId: z.string(), connectionName: z.string() })).optional(),
   total: z.number(),
 });
 const handOverBody = z.object({ to: z.string().min(1) });
@@ -192,18 +198,17 @@ export function rowReachRoutes(deps: { meta: MetaDb; manager: ConnectionManager 
     app.post('/users/:id/rows/hand-over', { ...guarded, schema: { params: userIdParams, body: handOverBody, response: { 200: namedRows } } }, async (request) => {
       const from = await users.findById(request.params.id);
       if (from === null) throw new NotFoundError('User not found.', { userId: request.params.id });
-      const to = await users.findById(request.body.to);
-      if (to === null) throw new NotFoundError('User not found.', { userId: request.body.to });
-      if (to.id === from.id) throw new ValidationFailedError('Hand the rows to somebody else.', { fields: { to: { code: 'same-person' } } });
-      // Somebody who can be given a row: here, or the sample's. Not a person who is suspended or has not arrived.
-      if (to.status !== 'active' && to.status !== 'sample') throw new ConflictError('That person cannot be given rows now.', 'CONFLICT', { reason: 'NOT_ACTIVE' });
-      const moved = await handRowsOver(meta, manager, from.id, to.id);
-      await app.rbac.audit(request, {
-        category: 'rbac',
-        action: 'user.rows.hand-over',
-        changes: { before: { userId: from.id }, after: { to: to.id, rows: moved.total, tables: moved.named.filter((one) => !one.private).map((one) => ({ connectionId: one.connectionId, table: one.tableId, column: one.column, rows: one.rows })) } },
-      });
-      return moved;
+      // A Super Admin's account is a Super Admin's to act on, here as on every other route about a person.
+      const roles = rolesRepo(meta);
+      if ((await roles.rolesForUser(from.id)).some((role) => role.slug === SUPER_ADMIN_SLUG)) {
+        const actorId = request.apiKeyPrincipal === null ? ((request as unknown as { user?: { id?: string } }).user?.id ?? null) : null;
+        if (actorId === null || !(await roles.rolesForUser(actorId)).some((role) => role.slug === SUPER_ADMIN_SLUG)) throw new ForbiddenError('Only a Super Admin can change a Super Admin account.');
+      }
+      // While a person is here their rows are theirs: a row changes hands through its own table, judged and recorded row by row.
+      if (from.status !== 'suspended') {
+        throw new ConflictError('Rows are handed on when a person is suspended or removed. Suspend them first, or hand the rows on as you remove them.', 'CONFLICT', { reason: 'STILL_HERE' });
+      }
+      return handOverRows({ meta, manager }, { from, toId: request.body.to, audit: (entry) => app.rbac.audit(request, { category: 'rbac', ...entry }) });
     });
   };
 }

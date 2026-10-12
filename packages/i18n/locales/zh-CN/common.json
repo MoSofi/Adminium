@@ -1746,7 +1746,7 @@
         "line": "{table}：{count}",
         "to": "移交给",
         "choose": "选择人员…",
-        "kept": "{count, plural, other {私有表中的 # 行保持原样}}：其他人都不能读取。",
+        "kept": "私有表中的行保持原样：其他人都不能读取。",
         "unreadable": "无法检查 {names}。那里的行可能仍提到此人。"
       }
     },
