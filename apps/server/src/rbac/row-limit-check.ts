@@ -15,7 +15,7 @@ import type { RowLimit, RowReach } from '@adminium/meta';
 import type { EffectiveModel } from '../connections/effective-schema.js';
 
 export interface RowLimitIssue {
-  code: 'no-such-table' | 'private' | 'no-belongs' | 'no-such-column' | 'hidden-column';
+  code: 'no-such-table' | 'private' | 'no-belongs' | 'no-such-column' | 'hidden-column' | 'not-a-staff-column';
   message: string;
   column?: string;
 }
@@ -33,6 +33,11 @@ export function rowReachIssue(model: EffectiveModel, tableId: string, reach: Row
     if (flags?.secret === true || column.masked === true || column.hidden === true || (column.masked === undefined && flags?.maskedByDefault === true)) {
       return { code: 'hidden-column', message: `"${reach.while.column}" is not shown to everybody who reads the table, so a limit cannot be told by it.`, column: reach.while.column };
     }
+  }
+  if (reach.by !== undefined) {
+    const column = table.columns.find((candidate) => candidate.name === reach.by);
+    if (column === undefined) return { code: 'no-such-column', message: `"${table.label ?? table.name}" has no column "${reach.by}".`, column: reach.by };
+    if (column.staff !== true) return { code: 'not-a-staff-column', message: `"${reach.by}" does not hold a staff member, so no row is anybody's by it.`, column: reach.by };
   }
   return null;
 }

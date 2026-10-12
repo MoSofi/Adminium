@@ -186,6 +186,15 @@ describe('a role’s rows', () => {
     expect(only({ crews: { rows: { read: { reach: 'all', while: { column: 'name', in: ['North'] } } } } }, [...rep.permissions, 'table:@crews:read']).filter((message) => message.includes('crews'))).toEqual([]);
   });
 
+  it('may be narrowed to the rows a staff column names the person in, and only by such a column', () => {
+    // Their own deals, and of those only the ones they own themselves (never one they merely help on).
+    expect(only({ deals: { rows: { read: own, update: { reach: 'own', by: 'owner_id' } } } }).filter((message) => message.includes('.by'))).toEqual([]);
+    expect(only({ deals: { rows: { read: { reach: 'own', by: 'nobody_id' } } } })).toContain('roles.0.limits.deals.rows.read.by: "deals" has no column "nobody_id"');
+    expect(only({ deals: { rows: { read: { reach: 'own', by: 'state' } } } }).join('\n')).toMatch(/roles\.0\.limits\.deals\.rows\.read\.by: "deals\.state" does not hold a staff member/);
+    // Every row has nobody to be by: said with `while`.
+    expect(only({ deals: { rows: { read: { reach: 'all', while: { column: 'state', in: ['won'] }, by: 'owner_id' } } } }).join('\n')).toMatch(/`by` narrows the person's own rows or their team's/);
+  });
+
   it('name a column and values the table has', () => {
     expect(only({ deals: { rows: { read: { reach: 'own', while: { column: 'stage', in: ['open'] } } } } })).toContain('roles.0.limits.deals.rows.read.while.column: "deals" has no column "stage"');
     expect(only({ deals: { rows: { read: { reach: 'own', while: { column: 'state', in: ['gone'] } } } } })).toContain('roles.0.limits.deals.rows.read.while.in: "gone" is not a value of "deals.state"');

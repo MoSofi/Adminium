@@ -294,6 +294,9 @@ class Build {
     else {
       const ids = reach.reach === 'team' ? [me, ...(who?.ledIds ?? [])] : [me];
       parts.push(any([this.belongs(table, alias, ids, 0, new Set()), ...(reach.unowned === true ? [this.unowned(table, alias, 0, new Set())] : [])]));
+      // …and only the rows this staff column names them in: of the notes on a deal they reach, the ones they wrote.
+      // A column that is not there, or holds no staff member, names nobody.
+      if (reach.by !== undefined) parts.push(this.someone(table, alias, reach.by, undefined, ids) ?? never());
     }
     if (reach.while !== undefined) parts.push(this.whilst(table, alias, reach.while));
     return every(parts);

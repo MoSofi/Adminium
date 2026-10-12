@@ -858,6 +858,7 @@ function reachSentence(reach: RowReach | null): string {
     ...(reach.while === undefined
       ? []
       : [t('roles:rows.sentence.while', 'only while {column} is {values}', { column: reach.while.column, values: anyOf(reach.while.in.map(String)) })]),
+    ...(reach.by === undefined ? [] : [t('roles:rows.sentence.by', 'and only the ones {column} names them in', { column: reach.by })]),
   ];
   return `${parts.join(', ')}.`;
 }
@@ -1015,7 +1016,8 @@ function RoleRowsTableCard(props: {
                       }}
                       data-testid={`roles-rows-${table.tableId}-${action}`}
                     >
-                      <option value="all">{t('roles:rows.reach.all', 'Every row')}</option>
+                      {/* "Only the ones a column names them in" is the app's own narrowing, and every row has no such thing: not offered over it. */}
+                      <option value="all" disabled={reach?.by !== undefined}>{t('roles:rows.reach.all', 'Every row')}</option>
                       <option value="own">{t('roles:rows.reach.own', 'Their own rows')}</option>
                       <option value="team">{t('roles:rows.reach.team', 'Their own rows, and their team’s')}</option>
                       {reach?.reach === 'all' ? <option value="all-while">{t('roles:rows.reach.allWhile', 'Every row, only while…')}</option> : null}

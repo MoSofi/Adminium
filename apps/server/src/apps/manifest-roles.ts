@@ -86,6 +86,7 @@ export function storedRowLimit(rows: NonNullable<RoleLimit['rows']>): RowLimit {
       reach: reach.reach,
       ...(reach.unowned === true ? { unowned: true as const } : {}),
       ...(reach.while === undefined ? {} : { while: { column: reach.while.column, in: [...reach.while.in] } }),
+      ...(reach.by === undefined ? {} : { by: reach.by }),
     };
   }
   return out;

@@ -2041,6 +2041,25 @@ declare `belongs`. A manifest is refused when a role holds a limit on a table of
 table keeps a stored total (a [`rollup`](#column-rules)), unless that table is reached `via` the
 very link the total adds up by.
 
+`by` narrows a reach of `own` or `team` to the rows a staff column of the table names the person
+in (with `team`, somebody they lead). It is for a table reached through a parent, where everybody
+on the parent reads every row and each changes only their own:
+
+```json
+"limits": { "notes": { "rows": {
+  "read":   { "reach": "own" },
+  "update": { "reach": "own", "by": "author_id" } } } }
+```
+
+A rep reads every note of the deals they reach, and changes the ones `author_id` names them in.
+The column must be a staff column (`rules.staff`).
+
+Apart from any limit, **the columns that decide whose a row is** (the staff columns the table's
+own `belongs` names) are changed only by somebody the stored row names in one of them, or who
+leads that person where the role's reach is `team`. Somebody who reaches the row another way (a
+helper listed on it, a cover, the owner of its parent) works on the row and cannot give it away
+or take it. A record's `handOver` button frees whom the row may go to, not who may hand it over.
+
 **`handOver`**, on one of a table's [`states.actions`](#states), marks the one write in which a
 person limited to their own rows may name a colleague: the button asks for a staff column and
 sets it to anybody.

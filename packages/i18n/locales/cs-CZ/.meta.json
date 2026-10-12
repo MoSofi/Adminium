@@ -18299,6 +18299,10 @@
     "status": "mt",
     "srcHash": "ad197f9c6e9b"
   },
+  "roles.rows.sentence.by": {
+    "status": "mt",
+    "srcHash": "f941ade6155c"
+  },
   "roles.rows.sentence.own": {
     "status": "mt",
     "srcHash": "5a50e778128a"

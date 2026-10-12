@@ -127,7 +127,8 @@
       "team": "Jen řádky, které patří této osobě nebo někomu z týmu, který vede",
       "own": "Jen řádky, které patří této osobě",
       "unowned": "a řádky, které zatím nikomu nepatří",
-      "while": "jen dokud je {column} {values}"
+      "while": "jen dokud je {column} {values}",
+      "by": "a jen ty, ve kterých je uvádí {column}"
     },
     "title": "Na které řádky dosáhne role „{role}“",
     "intro": "Role dosáhne na každý řádek tabulky, kterou smí otevřít, pokud ji tady neomezíte. Omezení pro člověka platí jen tehdy, když je omezená každá role, která mu tabulku dává.",

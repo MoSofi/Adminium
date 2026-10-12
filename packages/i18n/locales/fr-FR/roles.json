@@ -127,7 +127,8 @@
       "team": "Seulement les lignes qui appartiennent à cette personne, ou à quelqu’un d’une équipe qu’elle dirige",
       "own": "Seulement les lignes qui appartiennent à cette personne",
       "unowned": "et les lignes qui n’appartiennent encore à personne",
-      "while": "seulement tant que {column} vaut {values}"
+      "while": "seulement tant que {column} vaut {values}",
+      "by": "et seulement celles où {column} les désigne"
     },
     "title": "Quelles lignes « {role} » atteint",
     "intro": "Un rôle atteint toutes les lignes d’une table qu’il peut ouvrir, sauf s’il est limité ici. Une limite ne vaut pour une personne que si chaque rôle qui lui donne la table est limité.",

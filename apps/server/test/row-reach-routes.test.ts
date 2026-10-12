@@ -149,6 +149,9 @@ for (const [dialect, reachable] of LEGS) {
       // "Only while" a column that is not there, or one not everybody who reads the table sees.
       expect(await save([grant('deals', 'read')], { [ref('deals')]: { read: { reach: 'own', while: { column: 'nowhere', in: ['x'] } } } })).toBe('no-such-column');
       expect(await save([grant('deals', 'read')], { [ref('deals')]: { read: { reach: 'own', while: { column: 'api_token', in: ['x'] } } } })).toBe('hidden-column');
+      // "Only the ones a column names them in" takes a column that holds a staff member.
+      expect(await save([grant('deals', 'read')], { [ref('deals')]: { read: { reach: 'own', by: 'state' } } })).toBe('not-a-staff-column');
+      expect(await save([grant('deals', 'read')], { [ref('deals')]: { read: { reach: 'own', by: 'nowhere' } } })).toBe('no-such-column');
       expect(await stored()).toEqual([]);
       // One that holds is stored.
       expect(await save([grant('deals', 'read')], { [ref('deals')]: { read: { reach: 'own' } } })).toBe('ok');

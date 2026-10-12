@@ -67,8 +67,14 @@ export const rowReachSchema = z
     unowned: z.literal(true).optional(),
     /** Only rows whose column holds, now, one of these values. */
     while: z.object({ column: refSchema, in: z.array(scalarSchema).min(1).max(32) }).strict().optional(),
+    /**
+     * And only the rows this staff column of the table names the person in (with `team`, somebody they lead). For a
+     * table reached through a parent: "the notes of the deals they reach" to read, "the notes they wrote" to change.
+     */
+    by: refSchema.optional(),
   })
   .strict()
+  .refine((reach) => reach.reach !== 'all' || reach.by === undefined, { message: '`by` narrows the person\'s own rows or their team\'s: with every row, say `while`' })
   .refine((reach) => reach.reach !== 'all' || reach.while !== undefined, { message: 'a reach of every row is no limit: leave the action out, or say `while`' })
   .refine((reach) => reach.reach !== 'all' || reach.unowned === undefined, { message: 'every row includes the rows nobody owns' });
 export type RowReach = z.infer<typeof rowReachSchema>;
@@ -245,6 +251,11 @@ export function roleLimitIssues<C extends ColumnShape>(roles: readonly RoleShape
             if (!valueFits(found, value)) out.push({ path: at('rows', action, 'while', 'in'), message: `${JSON.stringify(value)} is not a value of "${ref}.${reach.while.column}"` });
           }
         }
+        if (reach.by !== undefined) {
+          const found = index.column(ref, reach.by);
+          if (found === undefined) out.push({ path: at('rows', action, 'by'), message: `"${ref}" has no column "${reach.by}"` });
+          else if ((found as { rules?: { staff?: boolean } }).rules?.staff !== true) out.push({ path: at('rows', action, 'by'), message: `"${ref}.${reach.by}" does not hold a staff member (rules.staff): \`by\` names the column that says who a row is by` });
+        }
       }
     }
     // A private table: every action the role holds there reaches the person's own rows, and no others.
@@ -253,7 +264,7 @@ export function roleLimitIssues<C extends ColumnShape>(roles: readonly RoleShape
       for (const action of ROW_LIMIT_ACTIONS) {
         if (!grants.has(`table:@${ref}:${action}`)) continue;
         const reach = limit?.rows?.[action];
-        if (reach === undefined || reach.reach !== 'own' || reach.unowned !== undefined || reach.while !== undefined) {
+        if (reach === undefined || reach.reach !== 'own' || reach.unowned !== undefined || reach.while !== undefined || reach.by !== undefined) {
           out.push({ path: ['roles', r, 'limits', ref, 'rows', action], message: `"${ref}" is private: the role's ${action} reaches the person's own rows only ({ "reach": "own" })` });
         }
       }

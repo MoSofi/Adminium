@@ -227,9 +227,32 @@ export async function assertStaffColumns(ctx: RowLimitContext | null, meta: Meta
   const refuse = (column: string, reason: string): never => {
     throw new ForbiddenError(`Your role may not put that person in ${column} on this table.`, 'COLUMN_FORBIDDEN', { table: tableId, column, reason });
   };
+  /*
+   * WHOSE THE ROW IS, AND WHO MAY SAY SO. The columns a table's own ways name
+   * decide whose a row is. Somebody who reaches a row another way — listed
+   * on it as a helper, covering for its owner, or through its parent — works
+   * on it, and does not give it away: only a person the stored row names in
+   * one of those columns (or who leads that person, where the writer's reach
+   * is their team's) changes one. A row that is nobody's is taken by whoever
+   * reaches the rows nobody owns. A record's hand-over button frees WHOM the
+   * row may go to, not who may hand it over.
+   */
+  const deciding = new Set((table.belongs ?? []).flatMap((way) => ('column' in way && way.person === undefined ? [way.column] : [])));
+  let holds: boolean | null = null;
+  const holdsItself = async (): Promise<boolean> => {
+    if (holds !== null) return holds;
+    if (before === null || reaches === null) return (holds = true);
+    if (reaches.some((reach) => reach.reach === 'all')) return (holds = true);
+    const people = [...deciding].map((column) => before[column]).filter((value) => !empty(value)).map((value) => String(value));
+    if (people.length === 0) return (holds = reaches.some((reach) => reach.unowned === true));
+    if (me !== null && people.includes(me)) return (holds = true);
+    if (reaches.some((reach) => reach.reach === 'team')) for (const person of people) if (await leads(person)) return (holds = true);
+    return (holds = false);
+  };
   for (const [column, value] of Object.entries(values)) {
     const found = table.columns.find((candidate) => candidate.name === column);
     if (found === undefined || (before !== null && same(value, before[column]))) continue;
+    if (deciding.has(column) && !(await holdsItself())) refuse(column, 'not-theirs-to-give');
     const rule = setRuleOf(table, column);
     // A link to a person's row: who that row holds is who is being named.
     const viaPerson = rule.person !== undefined && found.staff !== true;

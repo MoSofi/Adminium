@@ -137,7 +137,8 @@ export default {
       "team": "Only rows that belong to this person, or to someone in a team they lead",
       "own": "Only rows that belong to this person",
       "unowned": "and rows nobody owns yet",
-      "while": "only while {column} is {values}"
+      "while": "only while {column} is {values}",
+      "by": "and only the ones {column} names them in"
     },
     "title": "Which rows “{role}” reaches",
     "intro": "A role reaches every row of a table it may open, unless it is limited here. A limit holds for a person only when every role that gives them the table is limited.",

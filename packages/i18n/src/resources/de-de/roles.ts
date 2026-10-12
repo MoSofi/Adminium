@@ -137,7 +137,8 @@ export default {
       "team": "Nur Zeilen, die dieser Person gehören oder jemandem in einem Team, das sie leitet",
       "own": "Nur Zeilen, die dieser Person gehören",
       "unowned": "und Zeilen, die noch niemandem gehören",
-      "while": "nur solange {column} {values} ist"
+      "while": "nur solange {column} {values} ist",
+      "by": "und nur die, in denen {column} sie nennt"
     },
     "title": "Welche Zeilen „{role}“ erreicht",
     "intro": "Eine Rolle erreicht jede Zeile einer Tabelle, die sie öffnen darf, sofern sie hier nicht eingeschränkt wird. Eine Einschränkung gilt für eine Person nur, wenn jede Rolle, die ihr die Tabelle gibt, eingeschränkt ist.",

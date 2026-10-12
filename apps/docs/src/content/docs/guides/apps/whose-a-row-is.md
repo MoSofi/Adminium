@@ -64,6 +64,12 @@ it is written, for a table that says whose its rows are:
   does read.
 - **Somebody who reads the linked table whole** names any row, as ever.
 
+**Whose a row is, is not a helper's to change.** The columns that say whose a row is (a deal's
+owner) are changed only by a person the row itself names there, or by who leads them. Somebody
+listed on the deal as a helper, or covering for its owner, works on the deal and can neither take
+it nor give it away. And an app may hold a change to the rows a person wrote themselves: every
+note of a deal is read by everybody on the deal, and each note is changed by its writer.
+
 A link that is refused is refused exactly as a link to a row that is not there. Only a link this
 write sets is asked about: one the row already holds is left alone. A file brought in is judged
 the same way, row by row. A table that says nothing of its rows is not judged: its key is a key.

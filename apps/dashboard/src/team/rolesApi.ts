@@ -330,6 +330,8 @@ export interface RowReach {
   reach: 'own' | 'team' | 'all';
   unowned?: true;
   while?: { column: string; in: (string | number | boolean)[] };
+  /** And only the rows this staff column names them in: set by an app, kept through every edit here. */
+  by?: string;
 }
 export type RowAction = 'read' | 'update' | 'delete';
 export const ROW_ACTIONS: readonly RowAction[] = ['read', 'update', 'delete'];

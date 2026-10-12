@@ -100,10 +100,10 @@ function forRowsReached(event: RealtimeEvent, permissions: PermissionSet, user: 
     return (one.unowned === true && people.length === 0) || people.includes(user.id) || (one.reach === 'team' && people.some((person) => led.includes(person)));
   };
   // The whole frame: a reach that asks nothing more of the row holds it as it is now.
-  if (reaches.some((one) => one.while === undefined && holds(one, reach.after))) return event;
+  if (reaches.some((one) => one.while === undefined && one.by === undefined && holds(one, reach.after))) return event;
   // It was theirs and is a colleague's now: its key and no row, MARKED `gone`. Other frames carry a key and no row too (a file
   // hung on a record): the mark is what tells a screen to let go of the row, and nothing else does.
-  if (reaches.some((one) => one.while === undefined && holds(one, reach.before))) return { ...event, data: { type: event.type, pk: (data as { pk?: unknown }).pk ?? null, row: null, gone: true } };
+  if (reaches.some((one) => one.while === undefined && one.by === undefined && holds(one, reach.before))) return { ...event, data: { type: event.type, pk: (data as { pk?: unknown }).pk ?? null, row: null, gone: true } };
   // Theirs by its people, and whether it also holds the value the reach asks for is not told here: the screen asks again.
   if (reaches.some((one) => holds(one, reach.after) || holds(one, reach.before))) return bare(event);
   return null;

@@ -135,7 +135,8 @@ export type ReadLimit = z.infer<typeof readLimitSchema>;
 /**
  * How far one action on a table reaches, when it does not reach every row:
  * the person's own rows, those of the teams they lead, or every row — and,
- * on top, the rows nobody owns, and only while a column holds some value.
+ * on top, the rows nobody owns, only while a column holds some value, and
+ * only those a staff column of the row names them in (`by`).
  * Whose a row is, is the table's to say (`table.belongs`).
  */
 export const rowReachSchema = z
@@ -143,6 +144,8 @@ export const rowReachSchema = z
     reach: z.enum(['own', 'team', 'all']),
     unowned: z.literal(true).optional(),
     while: z.object({ column: z.string().min(1), in: z.array(z.union([z.string(), z.number(), z.boolean()])).min(1).max(32) }).strict().optional(),
+    /** And only the rows this staff column names them in (or, with `team`, somebody they lead): the notes they wrote, on deals they reach. */
+    by: z.string().min(1).max(64).optional(),
   })
   .strict();
 export type RowReach = z.infer<typeof rowReachSchema>;

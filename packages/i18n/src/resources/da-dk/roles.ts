@@ -137,7 +137,8 @@ export default {
       "team": "Kun rækker, der tilhører denne person eller en i et team, personen leder",
       "own": "Kun rækker, der tilhører denne person",
       "unowned": "og rækker, som ingen ejer endnu",
-      "while": "kun så længe {column} er {values}"
+      "while": "kun så længe {column} er {values}",
+      "by": "og kun dem, hvor {column} nævner dem"
     },
     "title": "Hvilke rækker “{role}” når",
     "intro": "En rolle når alle rækker i en tabel, den må åbne, medmindre den begrænses her. En begrænsning gælder kun for en person, når alle roller, der giver personen tabellen, er begrænset.",
