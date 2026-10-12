@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Whose a row is, as the server stores it (plan 67, A1): what a manifest's
+ * Whose a row is, as the server stores it: what a manifest's
  * staff column, `belongs`, `private` and a role's `rows` become at install,
  * what the effective model carries of them, what is refused against the live
  * tables, and what follows a renamed column.

@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * An app that says whose its rows are, installed on every engine (plan 67,
- * A1): its staff columns, each table's `belongs` with a listing's table made
+ * An app that says whose its rows are, installed on every engine: its staff columns, each table's `belongs` with a listing's table made
  * real, and each role's `rows` on the grant it narrows — then held to at
  * once, taken back when an update no longer declares them, and kept through
  * an owner's own save of the role.

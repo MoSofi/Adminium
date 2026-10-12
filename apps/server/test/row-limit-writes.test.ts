@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * What a write is held to when its writer reaches only some rows (plan 67,
- * A1; the matrix's D2–D4, D17–D25), against the whole server on every engine.
+ * What a write is held to when its writer reaches only some rows, against the whole server on every engine.
  *
  * A LINK a limited writer sets names a row they reach, or is refused as a
  * link to a row that is not there — each case compares the two answers.

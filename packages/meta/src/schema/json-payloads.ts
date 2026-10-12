@@ -89,7 +89,7 @@ export const dirSchema = z.enum(['ltr', 'rtl']);
 // --- users / prefs ----------------------------------------------
 
 /**
- * `sample`: a person an app's sample data made (plan 67). Never signs in, is
+ * `sample`: a person an app's sample data made. Never signs in, is
  * never mailed, and goes when the sample is removed; nobody sets it by hand.
  */
 export const userStatusSchema = z.enum(['active', 'invited', 'suspended', 'sample']);

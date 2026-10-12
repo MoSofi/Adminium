@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * AN APP'S SAMPLE ASKS AN ADD-ON FOR ITS STOCK (plan 67, ruling D).
+ * AN APP'S SAMPLE ASKS AN ADD-ON FOR ITS STOCK.
  *
  * An app that keeps its goods in an add-on wants its own goods in its sample:
  * a furniture firm's desks, not the add-on's own sample of clinic supplies.

@@ -470,7 +470,7 @@ export async function writeManifestRules(input: {
    * in the reply. Such a rule is the manifest's own fault — nothing of the
    * operator's stands in its way — and an app installed without it runs
    * without something it says it does (a quote's approval that remembers
-   * nothing, found by plan 67). A rule left out for the operator's sake (they
+   * nothing). A rule left out for the operator's sake (they
    * keep their own, a table is shared, a secret is theirs to show, an add-on
    * is not here) is still only skipped.
    */

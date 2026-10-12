@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * AN APP'S STARTING ROWS ARE WRITTEN BY ITS INSTALL (plan 67, question H).
+ * AN APP'S STARTING ROWS ARE WRITTEN BY ITS INSTALL.
  *
  * An app's manifest could always carry `seeds`, and an install took them and
  * wrote none: only an add-on's were written. An app whose rules read a

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * A SAMPLE ROW FILLS THE ONE ROW A TABLE ALREADY HOLDS (plan 67, candidate E11).
+ * A SAMPLE ROW FILLS THE ONE ROW A TABLE ALREADY HOLDS.
  *
  * An app's settings row is written by its install, with the columns' own
  * defaults. Its sample's settings row is "only if the table is empty", so it

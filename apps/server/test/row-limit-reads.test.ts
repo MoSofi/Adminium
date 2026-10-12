@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * A role whose rows are limited, held to it where a person reads a table and
- * where they name one row by its key (plan 67, A1; the matrix's D1, D5, D6,
- * D8–D11, D15, D16, D19–D23 start rows), against the whole server on every
+ * where they name one row by its key, against the whole server on every
  * engine. People sign in with a password: a rep, a manager, a crew member,
  * and somebody nothing limits.
  *

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * A RULE AN INSTALL CANNOT KEEP IS NOT LEFT OUT QUIETLY (plan 67, question G).
+ * A RULE AN INSTALL CANNOT KEEP IS NOT LEFT OUT QUIETLY.
  *
  * Two faults met by one app. A stamp that copies a column of the row when
  * something happens (how far under list a quote was when it was approved)

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The live frames of a table, as somebody whose role reaches only some of
- * its rows gets them (plan 67, A1; the matrix's T1), through the whole
+ * its rows gets them, through the whole
  * server's own hub and frame filter on every engine: the frame of a row of
  * theirs; a key with no row for one that was handed away; NOTHING for a
  * colleague's; and, where whose a row is cannot be told from the row (a

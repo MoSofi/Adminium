@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * A role whose rows are limited, held to it where a figure or a name is
- * taken from a table rather than a row listed (plan 67, A1; the matrix's D1
- * projections, D5, D6, D11, D12–D14, D16, S1, W1, M1, M2), against the whole
+ * taken from a table rather than a row listed, against the whole
  * server on every engine: a value looked up through a link, a count and a
  * sum over the rows that point at a record, the rows a record is linked to,
  * which days are taken, the search box, a dashboard card and its cache, and

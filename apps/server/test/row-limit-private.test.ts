@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * A private table (plan 67, A1; the matrix's X1, I1, R1, P1, U1, Y3, K2),
+ * A private table,
  * against the whole server on every engine: read on the screen by the people
  * its rows belong to, and by nothing else — not a file out or in, a report,
  * a document, a rule, an owner's code or a public door, and not the Super

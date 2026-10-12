@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * What a row limit costs a list (plan 67, T05 and T07): the 14-deal list and
+ * What a row limit costs a list: the 14-deal list and
  * a 50,000-row one, read through the whole server as somebody nothing limits
  * ("before": the query the server has always run) and as a rep, a manager
  * and a reader of a table that hangs off the limited one ("after").

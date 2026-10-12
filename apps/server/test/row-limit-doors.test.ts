@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * A role whose rows are limited, held to it at the side doors (plan 67, A1;
- * the matrix's X1–X4, I1, I2, P1, P3, F1–F3, A1, U1–U3, G1, H1), against the
+ * A role whose rows are limited, held to it at the side doors, against the
  * whole server on every engine: a file somebody exports and the files of
  * others, a file brought in, a document drawn of a record and one kept, a
  * file hung on a record, the audit log, a rule and its runs, the figures a

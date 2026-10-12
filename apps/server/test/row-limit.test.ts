@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Which rows a person reaches (plan 67, A1): the test `crud/row-limit.ts`
+ * Which rows a person reaches: the test `crud/row-limit.ts`
  * builds, run as SQL on a real database of every engine, for each way a
  * person belongs to a row and each way roles add up.
  *
