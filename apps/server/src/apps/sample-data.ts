@@ -94,7 +94,7 @@ import { literalDefault, tableRulesFor } from '../crud/column-rules.js';
 import { countersPastTheTable, isUniqueViolation } from '../crud/decided-columns.js';
 import { labelColumnFor } from '../crud/labels.js';
 import { renderNow } from '../crud/instants.js';
-import { createWriteService, deleteRows, insertRow, type RecordWriteService, type WriteContext, type WriteTarget } from '../crud/write-service.js';
+import { createWriteService, deleteRows, insertRow, updateRows, type RecordWriteService, type WriteContext, type WriteTarget } from '../crud/write-service.js';
 import { ledgersOf } from '../ledgers/rules.js';
 import { fetchByPk, pkLabel } from '../crud/records.js';
 import { writeStores } from '../crud/write-stores.js';
@@ -182,6 +182,8 @@ const PERSON_REF = '@person';
 const TEAM_REF = '@team';
 /** A row a removal kept, as its ledger entry remembers it: `@kept:<ref>`. */
 const KEPT_PREFIX = '@kept:';
+/** Columns a sample filled in a row that was already there (`@fillEmpty`): the entry holds what it wrote, by column. */
+const FILLED_PREFIX = '@filled:';
 /** The ledger's `table_ref` width. */
 const REF_WIDTH = 64;
 
@@ -1917,6 +1919,28 @@ export function createSampleDataService(deps: SampleDataDeps) {
                 const key = Object.fromEntries(resolved.primaryKey.map((column) => [column, existing[column]]));
                 const named = row['@label'];
                 if (typeof named === 'string') labels.set(named, resolved.primaryKey.length === 1 ? existing[resolved.primaryKey[0]!] : key);
+                /*
+                 * `@fillEmpty`: the row that is there takes the sample's values where it holds none — never over
+                 * a value. What was written is entered by column, so the removal empties again what nobody changed.
+                 */
+                if (row['@fillEmpty'] === true) {
+                  const empty = Object.keys(values).filter((column) => !resolved.primaryKey.includes(column) && resolved.columns.has(column) && values[column] !== null && values[column] !== undefined && (existing[column] === null || existing[column] === undefined));
+                  if (empty.length > 0) {
+                    const checked = await writes.check('create', target, context, [values], { capacity: 'unchecked' });
+                    const good = checked.rows[0];
+                    if (good === null || good === undefined) {
+                      throw new ValidationFailedError(`A sample row for "${table.ref}" was refused.`, { reason: 'SAMPLE_ROW_REFUSED', table: table.ref, issues: checked.issues[0] });
+                    }
+                    await updateRows(db, handle.dialect, resolved, Object.fromEntries(empty.map((column) => [column, (good as Row)[column]])) as never, key);
+                    const filled = (await fetchByPk(db, resolved, key)) as Row;
+                    const { colHashes } = hashRow(filled, resolved);
+                    seq += 1;
+                    await db
+                      .insertInto(ledger as never)
+                      .values({ seq, table_ref: `${FILLED_PREFIX}${table.ref}`, pk: canonicalJson(key), label: null, row_hash: '', col_hashes: JSON.stringify({ ...Object.fromEntries(empty.map((column) => [column, colHashes[column]])), [LEDGER_DATES_AS_DAYS]: '1' }), created_at: now } as never)
+                      .execute();
+                  }
+                }
                 done += 1;
                 continue;
               }
@@ -2480,6 +2504,19 @@ export function createSampleDataService(deps: SampleDataDeps) {
             const kept = parent === null || record[rollup.via] === null || record[rollup.via] === undefined ? undefined : await fetchByPk(db, parent, { [rollup.parentKey]: record[rollup.via] });
             if (parent !== null && kept !== undefined) await rehashSampleRow(deps.meta, { connectionId, db, dialect: handle.dialect, table: parent }, { [rollup.parentKey]: kept[rollup.parentKey] });
           }
+        }
+        // What the sample filled in a row that was the owner's before it (`@fillEmpty`): emptied again, column by column,
+        // where it still reads as the sample wrote it. A value somebody changed since is theirs, and stays.
+        for (const entry of only === undefined ? all.filter((one) => one.table_ref.startsWith(FILLED_PREFIX)) : []) {
+          removedSeqs.push(entry.seq);
+          const table = safeTable(view, names[entry.table_ref.slice(FILLED_PREFIX.length)] ?? entry.table_ref.slice(FILLED_PREFIX.length));
+          const key = entryKey(entry);
+          const current = table === null || key === null ? undefined : await fetchByPk(db, table, key);
+          if (table === null || key === null || current === undefined) continue;
+          const wrote = JSON.parse(entry.col_hashes) as Record<string, string>;
+          const { colHashes } = hashRow(current, table);
+          const back = Object.keys(wrote).filter((column) => column !== LEDGER_DATES_AS_DAYS && table.columns.has(column) && colHashes[column] === wrote[column]);
+          if (back.length > 0) await updateRows(db, handle.dialect, table, Object.fromEntries(back.map((column) => [column, null])) as never, key);
         }
         // The files' entries go too; a file a kept row still names stays in the library.
         if (only === undefined) for (const row of all.filter((entry) => entry.table_ref === FILE_REF)) removedSeqs.push(row.seq);

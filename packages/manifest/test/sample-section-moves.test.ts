@@ -105,3 +105,13 @@ describe('the moves a file asks for', () => {
     expect(sampleBundleIssues(own, kit()).map((issue) => issue.path)).toContain('moves');
   });
 });
+
+describe('a row that fills the one already there', () => {
+  const own = (row: Doc) => sampleBundleIssues(sampleBundleSchema.parse({ format: 'adminium.sample/1', app: 'ledger-kit', tables: [{ ref: 'accounts', rows: [row] }] }), kit()).map((issue) => `${issue.path}: ${issue.message}`).join('\n');
+
+  it('"@fillEmpty" goes with "@onlyIfEmpty", and is true or absent', () => {
+    expect(own({ '@onlyIfEmpty': true, '@fillEmpty': true, name: 'Flour' })).toBe('');
+    expect(own({ '@fillEmpty': true, name: 'Flour' })).toContain('"@fillEmpty" goes with "@onlyIfEmpty"');
+    expect(own({ '@onlyIfEmpty': true, '@fillEmpty': 'yes', name: 'Flour' })).toContain('"@fillEmpty" is true, or absent.');
+  });
+});

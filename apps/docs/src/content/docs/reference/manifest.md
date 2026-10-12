@@ -3653,6 +3653,12 @@ A row may also carry `"@onlyIfEmpty": true`, for a table that holds one row, suc
 settings. The row is added only when the table is empty. When the operator already has a row there,
 the sample leaves theirs alone, and a `@ref` to the sample row's label points at theirs.
 
+Add `"@fillEmpty": true` beside it when the row that is already there should still take the
+sample's values: a settings row the install wrote with its defaults ([`seeds`](#seeds-and-widgets))
+gets the sample's depot name and address in the columns it holds nothing in. A column that holds a
+value is never written over. "Remove sample data" empties those columns again where nobody
+changed them since, and leaves the row.
+
 A table of many rows the operator sets up themselves (a kitchen's opening hours, one row a
 weekday) takes `"onlyIfEmpty": true` on the table instead: its rows go in only when the table holds
 none, and otherwise all of them stay out. No row may `@ref` a row of such a table, since it may not

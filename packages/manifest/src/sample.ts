@@ -68,6 +68,10 @@
  * `"@onlyIfEmpty": true` is for a table that holds one row, the app's own
  * settings: the row is added only when the table has none, and otherwise its
  * `@label` names the row already there — the operator's own settings stay.
+ * With `"@fillEmpty": true` beside it, the row already there takes the
+ * sample's values in the columns it holds nothing in (a depot's name on a
+ * settings row the install wrote with its defaults): never over a value, and
+ * emptied again with the sample where nobody changed them since.
  *
  * AN APP'S ROWS FOR AN ADD-ON. An app that names an add-on may ship a second
  * file of the same format with a top-level `addOn`: rows of that add-on's
@@ -166,7 +170,7 @@ export const byStaySchema = z
 export type ByStay = z.infer<typeof byStaySchema>;
 
 /** The keys of a row that are directives about the row, not columns. */
-export const ROW_DIRECTIVES: ReadonlySet<string> = new Set(['@label', '@byClock', '@byStay', '@onlyIfEmpty']);
+export const ROW_DIRECTIVES: ReadonlySet<string> = new Set(['@label', '@byClock', '@byStay', '@onlyIfEmpty', '@fillEmpty']);
 
 /** The most moves one file asks for. */
 export const SAMPLE_MOVES_MAX = 50;
@@ -697,6 +701,11 @@ function rowIssues(
         if (column === '@onlyIfEmpty') {
           if (value !== true) issues.push({ path: `${at}.@onlyIfEmpty`, message: '"@onlyIfEmpty" is true, or absent.' });
           else if (table.onlyIfEmpty === true) issues.push({ path: `${at}.@onlyIfEmpty`, message: `"${table.ref}" is only for an empty table as a whole; a row of it says nothing more.` });
+          continue;
+        }
+        if (column === '@fillEmpty') {
+          if (value !== true) issues.push({ path: `${at}.@fillEmpty`, message: '"@fillEmpty" is true, or absent.' });
+          else if (row['@onlyIfEmpty'] !== true) issues.push({ path: `${at}.@fillEmpty`, message: '"@fillEmpty" goes with "@onlyIfEmpty": it says what to do with the row the table already holds.' });
           continue;
         }
         if (column === '@byStay') {
