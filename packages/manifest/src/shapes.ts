@@ -198,7 +198,7 @@ export function shapeConformanceIssues(
           const partColumns = new Set((childPart?.columns ?? []).map((column) => column.ref));
           return new Set((child?.columns ?? []).map((column) => column.ref).filter((ref) => !partColumns.has(ref)));
         };
-        for (const message of statesDifferences(mapStates(part.states, map), table.states, ownColumns)) mismatch(at('states'), message);
+        for (const message of statesDifferences(mapStates(part.states, map), table.states, ownColumns, ownColumns(table.ref))) mismatch(at('states'), message);
       }
     }
   });
@@ -239,6 +239,54 @@ export function mapRules(rules: ColumnRules | undefined, map: (ref: string) => s
   return out;
 }
 
+/**
+ * The app's moves without the conditions it added to a move the shape has.
+ *
+ * An app may hold a shape's move to MORE: a condition (`requires.where`) on a
+ * column the app itself added to the table — a quote is sent only once its
+ * discount is approved. It may never ask less than the shape (every condition
+ * of the shape's stays, as written), never read a column of the shape's in a
+ * condition of its own (the shape decides what its columns allow), and never
+ * add or drop a move. What is left after taking the app's own conditions out
+ * must be the shape's move exactly; a condition on a column that is not the
+ * app's is said here, by name.
+ */
+function withoutAddedConditions(
+  want: Readonly<Record<string, readonly unknown[]>>,
+  have: Readonly<Record<string, readonly unknown[]>>,
+  added: ReadonlySet<string>,
+  out: string[],
+): Record<string, unknown[]> {
+  type Move = { to?: unknown; requires?: { where?: readonly { column?: unknown }[] } & Record<string, unknown> } & Record<string, unknown>;
+  const asMove = (move: unknown): Move => (typeof move === 'string' ? { to: move } : (move as Move));
+  return Object.fromEntries(
+    Object.entries(have).map(([from, list]) => [
+      from,
+      list.map((given, at) => {
+        const own = asMove(given);
+        const shape = want[from]?.[at] === undefined ? undefined : asMove(want[from]![at]);
+        const where = own.requires?.where;
+        if (shape === undefined || where === undefined) return given;
+        const kept = new Set((shape.requires?.where ?? []).map((condition) => canonical(condition)));
+        const extra = where.filter((condition) => !kept.has(canonical(condition)));
+        if (extra.length === 0) return given;
+        const theirs = extra.filter((condition) => typeof condition.column !== 'string' || !added.has(condition.column));
+        if (theirs.length > 0) {
+          out.push(`a condition an app adds to the shape's move ${from} → ${String(own.to)} reads a column the app added, never ${theirs.map((condition) => String(condition.column)).join(', ')}`);
+          return given;
+        }
+        // The move as the shape wrote it: its own conditions, in its own order, and a string where it was one.
+        const rest = where.filter((condition) => kept.has(canonical(condition)));
+        const { where: _where, ...others } = own.requires ?? {};
+        const requires = { ...others, ...(rest.length === 0 ? {} : { where: rest }) };
+        const { requires: _requires, ...move } = own;
+        const back = { ...move, ...(Object.keys(requires).length === 0 ? {} : { requires }) };
+        return Object.keys(back).length === 1 && typeof want[from]![at] === 'string' ? back.to : back;
+      }),
+    ]),
+  );
+}
+
 /** A part's states with the part names they read replaced by the app's tables. */
 export function mapStates(states: States, map: (ref: string) => string): States {
   return {
@@ -260,8 +308,12 @@ export function mapStates(states: States, map: (ref: string) => string): States 
   };
 }
 
-/** How an app's states differ from the part's, beyond what an app may add. `ownColumns` are a child table's columns the app added. */
-function statesDifferences(want: States, have: States, ownColumns: (childRef: string) => ReadonlySet<string>): string[] {
+/**
+ * How an app's states differ from the part's, beyond what an app may add.
+ * `ownColumns` are a child table's columns the app added; `added`, the ones
+ * it added to this table.
+ */
+function statesDifferences(want: States, have: States, ownColumns: (childRef: string) => ReadonlySet<string>, added: ReadonlySet<string> = new Set()): string[] {
   const out: string[] = [];
   const same = (a: unknown, b: unknown) => canonical(a) === canonical(b);
   if (want.column !== have.column || want.initial !== have.initial) out.push('the state column and the first state are the shape\'s');
@@ -272,7 +324,9 @@ function statesDifferences(want: States, have: States, ownColumns: (childRef: st
         list.map((move) => (typeof move === 'string' ? { to: move } : { ...(move as object), roles: undefined })),
       ]),
     );
-  if (!same(moveList(want.moves), moveList(have.moves))) out.push('the moves between states are the shape\'s (an app may only keep a move for some roles)');
+  if (!same(moveList(want.moves), moveList(withoutAddedConditions(want.moves, have.moves, added, out)))) {
+    out.push('the moves between states are the shape\'s (an app may only keep a move for some roles, or hold it to a condition on a column it added)');
+  }
   if (want.lock !== undefined) {
     if (have.lock === undefined || !same(want.lock.when, have.lock.when)) out.push('the lock is the shape\'s');
     const missing = (want.lock.except ?? []).filter((ref) => !(have.lock?.except ?? []).includes(ref));

@@ -36,7 +36,7 @@
 | `references/manifest/requiredschema--postings.md` | requiredSchema — Postings | 3904 |
 | `references/manifest/requiredschema--a-price-an-add-on-lowers.md` | requiredSchema — A price an add-on lowers | 3110 |
 | `references/manifest/requiredschema--shared-tables.md` | requiredSchema — Shared tables | 1948 |
-| `references/manifest/requiredschema--tables-built-on-an-add-on-s-shape.md` | requiredSchema — Tables built on an add-on's shape | 3754 |
+| `references/manifest/requiredschema--tables-built-on-an-add-on-s-shape.md` | requiredSchema — Tables built on an add-on's shape | 4036 |
 | `references/manifest/option-lists.md` | Option lists | 851 |
 | `references/manifest/pages.md` | Pages | 5885 |
 | `references/manifest/pages--tab-words-filters-and-bulk-actions.md` | Pages — Tab words, filters and bulk actions | 2313 |
