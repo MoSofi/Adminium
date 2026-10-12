@@ -519,7 +519,17 @@ export default {
       "confirm": "Delete permanently",
       "prompt": "Type “{email}” to confirm",
       "title": "Delete account permanently",
-      "failed": "The account was not deleted"
+      "failed": "The account was not deleted",
+      "rows": {
+        "needed": "Choose who takes the rows first.",
+        "title": "{name} is named in {count, plural, one {# row} other {# rows}}",
+        "body": "Removed for good, those rows would be nobody’s. Choose who takes them.",
+        "line": "{table}: {count}",
+        "to": "Hand them to",
+        "choose": "Choose a person…",
+        "kept": "{count, plural, one {# row of a private table stays as it is} other {# rows of private tables stay as they are}}: nobody else may read them.",
+        "unreadable": "Could not check {names}. Rows there may still name this person."
+      }
     },
     "roles": {
       "unavailable": "Roles are not visible to your account, so none can be assigned here."
@@ -542,6 +552,28 @@ export default {
     "title": "Team",
     "twoFactorOn": "Two-factor authentication is on",
     "twoFactorShort": "2FA",
-    "actionFailed": "That change was not made"
+    "actionFailed": "That change was not made",
+    "teams": {
+      "title": "Teams",
+      "intro": "Where a role is held to “their team’s rows”, a team’s lead reaches the rows of everyone in it. A member reaches only their own.",
+      "failed": "The team was not changed",
+      "over": "{name} leads more than {max} people. Only the first {max} are reached.",
+      "newName": "New team name",
+      "create": "Add team",
+      "empty": "No teams yet.",
+      "deleteTitle": "Delete “{name}”?",
+      "deleteBody": "Its lead stops reaching the members’ rows. Nobody’s account and nobody’s rows are touched.",
+      "delete": "Delete team",
+      "memberCount": "{count, plural, one {# person} other {# people}}",
+      "rename": "Rename",
+      "noMembers": "Nobody is in this team yet.",
+      "leads": "Leads the team",
+      "removeLabel": "Remove {name} from {team}",
+      "remove": "Remove",
+      "addMemberLabel": "Person to add to {team}",
+      "addMember": "Add a person…",
+      "sample": "{name} (sample)",
+      "add": "Add"
+    }
   }
 } as const;

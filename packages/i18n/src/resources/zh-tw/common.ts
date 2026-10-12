@@ -1748,7 +1748,17 @@ export default {
       "confirm": "永久刪除",
       "prompt": "輸入「{email}」以確認",
       "title": "永久刪除帳戶",
-      "failed": "未刪除該帳戶"
+      "failed": "未刪除該帳戶",
+      "rows": {
+        "needed": "請先選擇由誰接手這些資料列。",
+        "title": "{name} 出現在 {count, plural, other {# 列}}中",
+        "body": "永久刪除後，這些資料列將不屬於任何人。請選擇由誰接手。",
+        "line": "{table}：{count}",
+        "to": "移交給",
+        "choose": "選擇人員…",
+        "kept": "{count, plural, other {私人資料表中的 # 列維持原狀}}：其他人都不能讀取。",
+        "unreadable": "無法檢查 {names}。那裡的資料列可能仍提到此人。"
+      }
     },
     "roles": {
       "unavailable": "你的帳戶無法檢視角色，因此無法在這裡指派任何角色。"
@@ -1771,7 +1781,29 @@ export default {
     "title": "團隊",
     "twoFactorOn": "已啟用兩步驟驗證",
     "twoFactorShort": "2FA",
-    "actionFailed": "未能完成此變更"
+    "actionFailed": "未能完成此變更",
+    "teams": {
+      "title": "團隊",
+      "intro": "當某個角色被限制為「其團隊的資料列」時，團隊負責人可存取團隊中每個人的資料列。成員只能存取自己的。",
+      "failed": "團隊未變更",
+      "over": "{name} 帶領的人數超過 {max}。只能存取前 {max} 人的資料列。",
+      "newName": "新團隊名稱",
+      "create": "新增團隊",
+      "empty": "尚無團隊。",
+      "deleteTitle": "刪除「{name}」？",
+      "deleteBody": "其負責人將無法再存取成員的資料列。任何人的帳號和資料列都不受影響。",
+      "delete": "刪除團隊",
+      "memberCount": "{count, plural, other {# 人}}",
+      "rename": "重新命名",
+      "noMembers": "這個團隊裡還沒有人。",
+      "leads": "帶領此團隊",
+      "removeLabel": "將 {name} 從 {team} 移除",
+      "remove": "移除",
+      "addMemberLabel": "要加入 {team} 的人員",
+      "addMember": "新增人員…",
+      "sample": "{name}（範例）",
+      "add": "新增"
+    }
   },
   "invoices": {
     "copySuffix": "{name}（副本）",

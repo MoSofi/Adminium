@@ -61,7 +61,8 @@ import { PageSurface } from '../shell/PageSurface.js';
 import { t } from '../i18n/t.js';
 import { useCommonWords } from '../i18n/commonWords.js';
 import { CopyButton } from '../studio/connect/CopyButton.js';
-import { rolesQuery, type RoleListItem } from './rolesApi.js';
+import { peopleQuery, rolesQuery, type RoleListItem } from './rolesApi.js';
+import { TeamsCard } from './TeamsCard.js';
 import {
   EMPTY_USER_FILTERS,
   TEAM_USERS_KEY,
@@ -70,9 +71,12 @@ import {
   deleteUser,
   formatSince,
   formatStamp,
+  handRowsOver,
+  namedRowsByTable,
   patchUser,
   resendInvite,
   setUserRoles,
+  userRowsQuery,
   userStatusTone,
   usersQuery,
   type UserDto,
@@ -543,10 +547,24 @@ export function TeamPage(): ReactNode {
   // mean two different things, and the confirm copy says what the extra one
   // costs (prefs, sessions and reset tokens CASCADE; `settings.updated_by`
   // goes NULL, so the workspace loses the record of who changed what).
+  // …and the rows that name them go to somebody first. Removed for good, the deals a person owned would be
+  // nobody's that a colleague held to "their own rows" could reach; the server refuses the delete while any
+  // such row is left, so the dialog asks whom to hand them to and does the hand-over before the delete.
+  const namedRows = useQuery({ ...userRowsQuery(removing?.id ?? ''), enabled: removing !== null });
+  const handTo = useQuery({ ...peopleQuery(), enabled: removing !== null && (namedRows.data?.total ?? 0) > 0 });
+  const [takerId, setTakerId] = useState('');
+  const owed = namedRows.data === undefined ? null : namedRowsByTable(namedRows.data);
   const remove = useMutation({
-    mutationFn: (user: UserDto) => deleteUser(user.id, true),
+    mutationFn: async (user: UserDto) => {
+      if ((namedRows.data?.total ?? 0) > 0) {
+        if (takerId === '') throw new Error(t('team.remove.rows.needed', 'Choose who takes the rows first.'));
+        await handRowsOver(user.id, takerId);
+      }
+      await deleteUser(user.id, true);
+    },
     onSuccess: async () => {
       setRemoving(null);
+      setTakerId('');
       await queryClient.invalidateQueries({ queryKey: TEAM_USERS_KEY });
     },
   });
@@ -751,6 +769,8 @@ export function TeamPage(): ReactNode {
         </CardBody>
       </Card>
 
+      <TeamsCard />
+
       {users.hasNextPage ? (
         <div className="flex justify-center">
           <Button
@@ -796,7 +816,11 @@ export function TeamPage(): ReactNode {
         <ConfirmModal
           open
           onOpenChange={(open) => {
-            if (!open) setRemoving(null);
+            if (!open) {
+              setRemoving(null);
+              setTakerId('');
+              remove.reset();
+            }
           }}
           data-testid="team-remove-confirm"
           title={t('team.remove.title', 'Delete account permanently')}
@@ -806,6 +830,51 @@ export function TeamPage(): ReactNode {
                 'team.remove.body',
                 'This erases {name}’s account, their preferences and their sign-in sessions, and blanks their name from the record of settings they changed. Suspending instead keeps all of it and only stops them signing in. This cannot be undone.',
                 { name: removing.name },
+              )}
+              {namedRows.data === undefined || owed === null || namedRows.data.named.length + namedRows.data.unreadable.length === 0 ? null : (
+                <div className="mt-3 flex flex-col gap-2 rounded-lg border border-border p-3" data-testid="team-remove-rows">
+                  {namedRows.data.total === 0 ? null : (
+                    <>
+                      <p className="font-semibold text-fg">
+                        {t('team.remove.rows.title', '{name} is named in {count, plural, one {# row} other {# rows}}', { name: removing.name, count: namedRows.data.total })}
+                      </p>
+                      <p>{t('team.remove.rows.body', 'Removed for good, those rows would be nobody’s. Choose who takes them.')}</p>
+                      <ul className="list-disc ps-5">
+                        {owed.moved.map((line) => (
+                          <li key={line.label}>{t('team.remove.rows.line', '{table}: {count}', { table: line.label, count: line.rows })}</li>
+                        ))}
+                      </ul>
+                      <FormField label={t('team.remove.rows.to', 'Hand them to')} required>
+                        <Select value={takerId} onChange={(event) => setTakerId(event.target.value)} data-testid="team-remove-rows-to">
+                          <option value="">{t('team.remove.rows.choose', 'Choose a person…')}</option>
+                          {(handTo.data ?? [])
+                            .filter((person) => person.id !== removing.id)
+                            .map((person) => (
+                              <option key={person.id} value={person.id}>
+                                {person.name}
+                              </option>
+                            ))}
+                        </Select>
+                      </FormField>
+                    </>
+                  )}
+                  {owed.kept === 0 ? null : (
+                    <p data-testid="team-remove-rows-kept">
+                      {t(
+                        'team.remove.rows.kept',
+                        '{count, plural, one {# row of a private table stays as it is} other {# rows of private tables stay as they are}}: nobody else may read them.',
+                        { count: owed.kept },
+                      )}
+                    </p>
+                  )}
+                  {namedRows.data.unreadable.length === 0 ? null : (
+                    <p data-testid="team-remove-rows-unreadable">
+                      {t('team.remove.rows.unreadable', 'Could not check {names}. Rows there may still name this person.', {
+                        names: namedRows.data.unreadable.map((one) => one.connectionName).join(', '),
+                      })}
+                    </p>
+                  )}
+                </div>
               )}
               {remove.error === null ? null : (
                 <Alert

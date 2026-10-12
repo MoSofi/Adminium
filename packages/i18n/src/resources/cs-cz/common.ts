@@ -1748,7 +1748,17 @@ export default {
       "confirm": "Trvale smazat",
       "prompt": "Pro potvrzení napište „{email}“",
       "title": "Trvale smazat účet",
-      "failed": "Účet nebyl smazán"
+      "failed": "Účet nebyl smazán",
+      "rows": {
+        "needed": "Nejdřív vyberte, kdo řádky převezme.",
+        "title": "{name} je uveden(a) v {count, plural, one {# řádku} other {# řádcích}}",
+        "body": "Po trvalém odstranění by tyto řádky nepatřily nikomu. Vyberte, kdo je převezme.",
+        "line": "{table}: {count}",
+        "to": "Předat komu",
+        "choose": "Vyberte osobu…",
+        "kept": "{count, plural, one {# řádek soukromé tabulky zůstává, jak je} few {# řádky soukromých tabulek zůstávají, jak jsou} other {# řádků soukromých tabulek zůstává, jak jsou}}: nikdo jiný je číst nesmí.",
+        "unreadable": "Nepodařilo se zkontrolovat {names}. Řádky tam mohou tuto osobu stále uvádět."
+      }
     },
     "roles": {
       "unavailable": "Role nejsou pro váš účet viditelné, takže zde žádnou nelze přiřadit."
@@ -1771,7 +1781,29 @@ export default {
     "title": "Tým",
     "twoFactorOn": "Dvoufázové ověření je zapnuté",
     "twoFactorShort": "2FA",
-    "actionFailed": "Tato změna nebyla provedena"
+    "actionFailed": "Tato změna nebyla provedena",
+    "teams": {
+      "title": "Týmy",
+      "intro": "Tam, kde je role omezena na „řádky svého týmu“, dosáhne vedoucí týmu na řádky všech jeho členů. Člen dosáhne jen na své vlastní.",
+      "failed": "Tým se nepodařilo změnit",
+      "over": "{name} vede víc než {max} lidí. Dosáhne jen na prvních {max}.",
+      "newName": "Název nového týmu",
+      "create": "Přidat tým",
+      "empty": "Zatím žádné týmy.",
+      "deleteTitle": "Smazat „{name}“?",
+      "deleteBody": "Vedoucí přestane dosahovat na řádky členů. Žádného účtu ani řádku se to nedotkne.",
+      "delete": "Smazat tým",
+      "memberCount": "{count, plural, one {# osoba} few {# osoby} other {# osob}}",
+      "rename": "Přejmenovat",
+      "noMembers": "V tomto týmu zatím nikdo není.",
+      "leads": "Vede tým",
+      "removeLabel": "Odebrat {name} z týmu {team}",
+      "remove": "Odebrat",
+      "addMemberLabel": "Osoba, která se přidá do týmu {team}",
+      "addMember": "Přidat osobu…",
+      "sample": "{name} (ukázka)",
+      "add": "Přidat"
+    }
   },
   "invoices": {
     "copySuffix": "{name} (kopie)",

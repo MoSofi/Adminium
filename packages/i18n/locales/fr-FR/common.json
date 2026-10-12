@@ -1738,7 +1738,17 @@
       "confirm": "Supprimer définitivement",
       "prompt": "Saisissez « {email} » pour confirmer",
       "title": "Supprimer définitivement le compte",
-      "failed": "Le compte n’a pas été supprimé"
+      "failed": "Le compte n’a pas été supprimé",
+      "rows": {
+        "needed": "Choisissez d’abord qui reprend les lignes.",
+        "title": "{name} est mentionné·e dans {count, plural, one {# ligne} other {# lignes}}",
+        "body": "Une fois le compte supprimé pour de bon, ces lignes ne seraient à personne. Choisissez qui les reprend.",
+        "line": "{table} : {count}",
+        "to": "Les confier à",
+        "choose": "Choisir une personne…",
+        "kept": "{count, plural, one {# ligne d’une table privée reste telle quelle} other {# lignes de tables privées restent telles quelles}} : personne d’autre ne peut les lire.",
+        "unreadable": "Impossible de vérifier {names}. Des lignes peuvent encore y mentionner cette personne."
+      }
     },
     "roles": {
       "unavailable": "Les rôles ne sont pas visibles pour votre compte : aucun ne peut donc être attribué ici."
@@ -1761,7 +1771,29 @@
     "title": "Équipe",
     "twoFactorOn": "L’authentification à deux facteurs est activée",
     "twoFactorShort": "2FA",
-    "actionFailed": "Cette modification n’a pas été effectuée"
+    "actionFailed": "Cette modification n’a pas été effectuée",
+    "teams": {
+      "title": "Équipes",
+      "intro": "Quand un rôle est limité aux « lignes de son équipe », le responsable d’une équipe atteint les lignes de tous ses membres. Un membre n’atteint que les siennes.",
+      "failed": "L’équipe n’a pas été modifiée",
+      "over": "{name} dirige plus de {max} personnes. Seules les {max} premières sont atteintes.",
+      "newName": "Nom de la nouvelle équipe",
+      "create": "Ajouter une équipe",
+      "empty": "Aucune équipe pour l’instant.",
+      "deleteTitle": "Supprimer « {name} » ?",
+      "deleteBody": "Son responsable n’atteint plus les lignes des membres. Aucun compte ni aucune ligne n’est touché.",
+      "delete": "Supprimer l’équipe",
+      "memberCount": "{count, plural, one {# personne} other {# personnes}}",
+      "rename": "Renommer",
+      "noMembers": "Personne n’est encore dans cette équipe.",
+      "leads": "Dirige l’équipe",
+      "removeLabel": "Retirer {name} de {team}",
+      "remove": "Retirer",
+      "addMemberLabel": "Personne à ajouter à {team}",
+      "addMember": "Ajouter une personne…",
+      "sample": "{name} (exemple)",
+      "add": "Ajouter"
+    }
   },
   "invoices": {
     "copySuffix": "{name} (copie)",

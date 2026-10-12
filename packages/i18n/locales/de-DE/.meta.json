@@ -7863,6 +7863,38 @@
     "status": "mt",
     "srcHash": "cd2eee2ffd7e"
   },
+  "common.team.remove.rows.body": {
+    "status": "mt",
+    "srcHash": "6c1f415d2705"
+  },
+  "common.team.remove.rows.choose": {
+    "status": "mt",
+    "srcHash": "e16fd51f4df3"
+  },
+  "common.team.remove.rows.kept": {
+    "status": "mt",
+    "srcHash": "2305abc4c8f2"
+  },
+  "common.team.remove.rows.line": {
+    "status": "src",
+    "srcHash": "ce602a816c81"
+  },
+  "common.team.remove.rows.needed": {
+    "status": "mt",
+    "srcHash": "842bc9e52291"
+  },
+  "common.team.remove.rows.title": {
+    "status": "mt",
+    "srcHash": "346612fa9705"
+  },
+  "common.team.remove.rows.to": {
+    "status": "mt",
+    "srcHash": "1403ba216c64"
+  },
+  "common.team.remove.rows.unreadable": {
+    "status": "mt",
+    "srcHash": "fe0af8ddf01d"
+  },
   "common.team.remove.title": {
     "status": "mt",
     "srcHash": "c70512ee2dd2"
@@ -7914,6 +7946,86 @@
   "common.team.subtitle": {
     "status": "mt",
     "srcHash": "d96589005b64"
+  },
+  "common.team.teams.add": {
+    "status": "mt",
+    "srcHash": "61cc55aa0453"
+  },
+  "common.team.teams.addMember": {
+    "status": "mt",
+    "srcHash": "8629ea1b62ec"
+  },
+  "common.team.teams.addMemberLabel": {
+    "status": "mt",
+    "srcHash": "4b0f5842f891"
+  },
+  "common.team.teams.create": {
+    "status": "mt",
+    "srcHash": "046c3ad7b2ee"
+  },
+  "common.team.teams.delete": {
+    "status": "mt",
+    "srcHash": "a9661e7d084d"
+  },
+  "common.team.teams.deleteBody": {
+    "status": "mt",
+    "srcHash": "99631518ccb6"
+  },
+  "common.team.teams.deleteTitle": {
+    "status": "mt",
+    "srcHash": "99967ef05961"
+  },
+  "common.team.teams.empty": {
+    "status": "mt",
+    "srcHash": "9210826956ae"
+  },
+  "common.team.teams.failed": {
+    "status": "mt",
+    "srcHash": "95ccfbbf50fa"
+  },
+  "common.team.teams.intro": {
+    "status": "mt",
+    "srcHash": "5777c71cfd50"
+  },
+  "common.team.teams.leads": {
+    "status": "mt",
+    "srcHash": "fc18f8cc807f"
+  },
+  "common.team.teams.memberCount": {
+    "status": "mt",
+    "srcHash": "82b265c87785"
+  },
+  "common.team.teams.newName": {
+    "status": "mt",
+    "srcHash": "999fc5c415eb"
+  },
+  "common.team.teams.noMembers": {
+    "status": "mt",
+    "srcHash": "0050b74d3fa7"
+  },
+  "common.team.teams.over": {
+    "status": "mt",
+    "srcHash": "f5dcea9a13aa"
+  },
+  "common.team.teams.remove": {
+    "status": "mt",
+    "srcHash": "e963907dac5c"
+  },
+  "common.team.teams.removeLabel": {
+    "status": "mt",
+    "srcHash": "240765cbfe2f"
+  },
+  "common.team.teams.rename": {
+    "status": "mt",
+    "srcHash": "d3f4cb898fbe"
+  },
+  "common.team.teams.sample": {
+    "status": "mt",
+    "srcHash": "14069b7485b7"
+  },
+  "common.team.teams.title": {
+    "status": "src",
+    "srcHash": "cbfd44d9c70c"
   },
   "common.team.title": {
     "status": "src",

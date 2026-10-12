@@ -1738,7 +1738,17 @@
       "confirm": "永久删除",
       "prompt": "输入“{email}”以确认",
       "title": "永久删除账户",
-      "failed": "未删除该账户"
+      "failed": "未删除该账户",
+      "rows": {
+        "needed": "请先选择由谁接手这些行。",
+        "title": "{name} 出现在 {count, plural, other {# 行}}中",
+        "body": "永久删除后，这些行将不属于任何人。请选择由谁接手。",
+        "line": "{table}：{count}",
+        "to": "移交给",
+        "choose": "选择人员…",
+        "kept": "{count, plural, other {私有表中的 # 行保持原样}}：其他人都不能读取。",
+        "unreadable": "无法检查 {names}。那里的行可能仍提到此人。"
+      }
     },
     "roles": {
       "unavailable": "你的账户无法查看角色，因此这里无法分配任何角色。"
@@ -1761,7 +1771,29 @@
     "title": "团队",
     "twoFactorOn": "已开启双重验证",
     "twoFactorShort": "2FA",
-    "actionFailed": "未能完成此更改"
+    "actionFailed": "未能完成此更改",
+    "teams": {
+      "title": "团队",
+      "intro": "当某个角色被限制为“其团队的行”时，团队负责人可访问团队中每个人的行。成员只能访问自己的行。",
+      "failed": "团队未更改",
+      "over": "{name} 带领的人数超过 {max}。只能访问前 {max} 人的行。",
+      "newName": "新团队名称",
+      "create": "添加团队",
+      "empty": "还没有团队。",
+      "deleteTitle": "删除“{name}”？",
+      "deleteBody": "其负责人将不再能访问成员的行。任何人的账号和行都不会受到影响。",
+      "delete": "删除团队",
+      "memberCount": "{count, plural, other {# 人}}",
+      "rename": "重命名",
+      "noMembers": "这个团队里还没有人。",
+      "leads": "带领该团队",
+      "removeLabel": "将 {name} 从 {team} 移除",
+      "remove": "移除",
+      "addMemberLabel": "要加入 {team} 的人员",
+      "addMember": "添加人员…",
+      "sample": "{name}（示例）",
+      "add": "添加"
+    }
   },
   "invoices": {
     "copySuffix": "{name}（副本）",

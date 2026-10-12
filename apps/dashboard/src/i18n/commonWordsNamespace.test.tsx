@@ -35,7 +35,7 @@ const KEY = new RegExp(`['"](?:common:)?((?:${GROUPS})\\.[A-Za-z0-9_.]+)['"]`, '
 const SCREENS: Readonly<Record<string, readonly string[]>> = {
   'about/AboutPage.tsx': ['about/DesktopAboutSections.tsx'],
   'kb/KnowledgeBasePage.tsx': ['kb/articles.ts'],
-  'team/TeamPage.tsx': [],
+  'team/TeamPage.tsx': ['team/TeamsCard.tsx'],
   'account/SecurityPage.tsx': [],
   'desktop/updates.tsx': [],
   'pages/builders/PageBuilderBinding.tsx': [],

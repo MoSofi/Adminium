@@ -1748,7 +1748,17 @@ export default {
       "confirm": "Slet permanent",
       "prompt": "Skriv „{email}“ for at bekræfte",
       "title": "Slet kontoen permanent",
-      "failed": "Kontoen blev ikke slettet"
+      "failed": "Kontoen blev ikke slettet",
+      "rows": {
+        "needed": "Vælg først, hvem der overtager rækkerne.",
+        "title": "{name} er nævnt i {count, plural, one {# række} other {# rækker}}",
+        "body": "Når kontoen er slettet for altid, ville de rækker ikke tilhøre nogen. Vælg, hvem der overtager dem.",
+        "line": "{table}: {count}",
+        "to": "Overdrag dem til",
+        "choose": "Vælg en person…",
+        "kept": "{count, plural, one {# række i en privat tabel bliver, som den er} other {# rækker i private tabeller bliver, som de er}}: ingen andre må læse dem.",
+        "unreadable": "Kunne ikke kontrollere {names}. Rækker dér kan stadig nævne denne person."
+      }
     },
     "roles": {
       "unavailable": "Roller er ikke synlige for din konto, så ingen kan tildeles her."
@@ -1771,7 +1781,29 @@ export default {
     "title": "Team",
     "twoFactorOn": "Tofaktorgodkendelse er slået til",
     "twoFactorShort": "2FA",
-    "actionFailed": "Ændringen blev ikke foretaget"
+    "actionFailed": "Ændringen blev ikke foretaget",
+    "teams": {
+      "title": "Teams",
+      "intro": "Når en rolle er begrænset til “sit teams rækker”, når et teams leder rækkerne for alle i teamet. Et medlem når kun sine egne.",
+      "failed": "Teamet blev ikke ændret",
+      "over": "{name} leder flere end {max} personer. Kun de første {max} nås.",
+      "newName": "Navn på nyt team",
+      "create": "Tilføj team",
+      "empty": "Ingen teams endnu.",
+      "deleteTitle": "Slet “{name}”?",
+      "deleteBody": "Lederen når ikke længere medlemmernes rækker. Ingen konto og ingen række berøres.",
+      "delete": "Slet team",
+      "memberCount": "{count, plural, one {# person} other {# personer}}",
+      "rename": "Omdøb",
+      "noMembers": "Der er ingen i dette team endnu.",
+      "leads": "Leder teamet",
+      "removeLabel": "Fjern {name} fra {team}",
+      "remove": "Fjern",
+      "addMemberLabel": "Person, der skal føjes til {team}",
+      "addMember": "Tilføj en person…",
+      "sample": "{name} (eksempel)",
+      "add": "Tilføj"
+    }
   },
   "invoices": {
     "copySuffix": "{name} (kopi)",

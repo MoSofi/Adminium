@@ -30,7 +30,7 @@
  * projection plus `roleIds`; neither ever carries `passwordHash`,
  * `totpSecretEncrypted` or `recoveryCodes`.
  */
-import { infiniteQueryOptions } from '@tanstack/react-query';
+import { infiniteQueryOptions, queryOptions } from '@tanstack/react-query';
 import type { Tone } from '@adminium/ui';
 
 import { api } from '../app/api.js';
@@ -305,3 +305,101 @@ export function deleteUser(id: string, permanent: boolean): Promise<UserDeleteRe
 export function setUserRoles(id: string, roleIds: readonly string[]): Promise<UserDto> {
   return api.put<UserDto>(`/api/v1/users/${id}/roles`, { roleIds: [...roleIds] });
 }
+
+// --- teams ---------------------------------------------------------------------
+
+export interface TeamMemberDto {
+  userId: string;
+  name: string;
+  email: string;
+  status: UserStatus;
+  /** A lead reaches the rows of everyone in the team, where a role is held to "their team's rows". */
+  lead: boolean;
+}
+
+export interface TeamDto {
+  id: string;
+  name: string;
+  members: TeamMemberDto[];
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface TeamsReply {
+  teams: TeamDto[];
+  /** The most people one person's reach holds; `over` names who leads more than that. */
+  reachMax: number;
+  over: { userId: string; name: string }[];
+}
+
+export const TEAMS_KEY = ['teams'] as const;
+
+export function teamsQuery() {
+  return queryOptions({ queryKey: TEAMS_KEY, queryFn: () => api.get<TeamsReply>('/api/v1/teams') });
+}
+
+export function createTeam(name: string): Promise<TeamDto> {
+  return api.post<TeamDto>('/api/v1/teams', { name });
+}
+
+export function renameTeam(id: string, name: string): Promise<TeamDto> {
+  return api.patch<TeamDto>(`/api/v1/teams/${id}`, { name });
+}
+
+export function deleteTeam(id: string): Promise<unknown> {
+  return api.delete<unknown>(`/api/v1/teams/${id}`);
+}
+
+export function setTeamMember(teamId: string, userId: string, lead: boolean): Promise<TeamDto> {
+  return api.put<TeamDto>(`/api/v1/teams/${teamId}/members/${userId}`, { lead });
+}
+
+export function removeTeamMember(teamId: string, userId: string): Promise<TeamDto> {
+  return api.delete<TeamDto>(`/api/v1/teams/${teamId}/members/${userId}`);
+}
+
+// --- the rows that name a person -------------------------------------------------
+
+export interface NamedRows {
+  named: { connectionId: string; connectionName: string; tableId: string; tableLabel: string; column: string; rows: number; private: boolean }[];
+  /** Connections that could not be read: nothing is known of their rows. */
+  unreadable: { connectionId: string; connectionName: string }[];
+  /** Rows a hand-over would move: everything but the private tables'. */
+  total: number;
+}
+
+export function userRowsQuery(userId: string) {
+  return queryOptions({
+    queryKey: ['users', 'rows', userId] as const,
+    // Asked afresh each time the dialog opens: a count from an hour ago is not what is about to be orphaned.
+    staleTime: 0,
+    gcTime: 0,
+    queryFn: async (): Promise<NamedRows> => {
+      // Read field by field: an answer that is not this route's (an older server) is "nothing known", never a crash.
+      const reply = await api.get<Partial<NamedRows>>(`/api/v1/users/${userId}/rows`);
+      return { named: reply.named ?? [], unreadable: reply.unreadable ?? [], total: reply.total ?? 0 };
+    },
+  });
+}
+
+export function handRowsOver(userId: string, to: string): Promise<NamedRows> {
+  return api.post<NamedRows>(`/api/v1/users/${userId}/rows/hand-over`, { to });
+}
+
+/** The named rows as a hand-over dialog lists them: one line per table, the private ones apart. */
+export function namedRowsByTable(rows: NamedRows): { moved: { label: string; rows: number }[]; kept: number } {
+  const moved = new Map<string, { label: string; rows: number }>();
+  let kept = 0;
+  for (const one of rows.named) {
+    if (one.private) {
+      kept += one.rows;
+      continue;
+    }
+    const key = `${one.connectionId}/${one.tableId}`;
+    const held = moved.get(key) ?? { label: one.tableLabel, rows: 0 };
+    held.rows += one.rows;
+    moved.set(key, held);
+  }
+  return { moved: [...moved.values()].sort((a, b) => b.rows - a.rows || a.label.localeCompare(b.label)), kept };
+}
+

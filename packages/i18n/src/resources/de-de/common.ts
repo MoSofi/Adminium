@@ -1748,7 +1748,17 @@ export default {
       "confirm": "Endgültig löschen",
       "prompt": "Geben Sie „{email}“ zur Bestätigung ein",
       "title": "Konto endgültig löschen",
-      "failed": "Das Konto wurde nicht gelöscht"
+      "failed": "Das Konto wurde nicht gelöscht",
+      "rows": {
+        "needed": "Wähle zuerst, wer die Zeilen übernimmt.",
+        "title": "{name} wird in {count, plural, one {# Zeile} other {# Zeilen}} genannt",
+        "body": "Nach dem endgültigen Löschen würden diese Zeilen niemandem gehören. Wähle, wer sie übernimmt.",
+        "line": "{table}: {count}",
+        "to": "Übergeben an",
+        "choose": "Person wählen …",
+        "kept": "{count, plural, one {# Zeile einer privaten Tabelle bleibt, wie sie ist} other {# Zeilen privater Tabellen bleiben, wie sie sind}}: Niemand sonst darf sie lesen.",
+        "unreadable": "{names} konnte nicht geprüft werden. Dort können Zeilen diese Person noch nennen."
+      }
     },
     "roles": {
       "unavailable": "Rollen sind für Ihr Konto nicht sichtbar, daher können hier keine zugewiesen werden."
@@ -1771,7 +1781,29 @@ export default {
     "title": "Team",
     "twoFactorOn": "Zwei-Faktor-Authentifizierung ist aktiviert",
     "twoFactorShort": "2FA",
-    "actionFailed": "Diese Änderung wurde nicht vorgenommen"
+    "actionFailed": "Diese Änderung wurde nicht vorgenommen",
+    "teams": {
+      "title": "Teams",
+      "intro": "Wo eine Rolle auf „die Zeilen ihres Teams“ beschränkt ist, erreicht die Leitung eines Teams die Zeilen aller Mitglieder. Ein Mitglied erreicht nur die eigenen.",
+      "failed": "Das Team wurde nicht geändert",
+      "over": "{name} leitet mehr als {max} Personen. Nur die ersten {max} werden erreicht.",
+      "newName": "Name des neuen Teams",
+      "create": "Team hinzufügen",
+      "empty": "Noch keine Teams.",
+      "deleteTitle": "„{name}“ löschen?",
+      "deleteBody": "Die Leitung erreicht die Zeilen der Mitglieder nicht mehr. Kein Konto und keine Zeile wird angetastet.",
+      "delete": "Team löschen",
+      "memberCount": "{count, plural, one {# Person} other {# Personen}}",
+      "rename": "Umbenennen",
+      "noMembers": "In diesem Team ist noch niemand.",
+      "leads": "Leitet das Team",
+      "removeLabel": "{name} aus {team} entfernen",
+      "remove": "Entfernen",
+      "addMemberLabel": "Person, die zu {team} hinzugefügt wird",
+      "addMember": "Person hinzufügen …",
+      "sample": "{name} (Beispiel)",
+      "add": "Hinzufügen"
+    }
   },
   "invoices": {
     "copySuffix": "{name} (Kopie)",
