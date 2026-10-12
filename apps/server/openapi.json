@@ -301,7 +301,8 @@
                               "enum": [
                                 "active",
                                 "invited",
-                                "suspended"
+                                "suspended",
+                                "sample"
                               ]
                             },
                             "totpEnabled": {
@@ -450,7 +451,8 @@
                               "enum": [
                                 "active",
                                 "invited",
-                                "suspended"
+                                "suspended",
+                                "sample"
                               ]
                             },
                             "totpEnabled": {
@@ -576,7 +578,8 @@
                               "enum": [
                                 "active",
                                 "invited",
-                                "suspended"
+                                "suspended",
+                                "sample"
                               ]
                             },
                             "totpEnabled": {
@@ -1142,7 +1145,8 @@
                               "enum": [
                                 "active",
                                 "invited",
-                                "suspended"
+                                "suspended",
+                                "sample"
                               ]
                             },
                             "totpEnabled": {
@@ -1250,7 +1254,8 @@
                               "enum": [
                                 "active",
                                 "invited",
-                                "suspended"
+                                "suspended",
+                                "sample"
                               ]
                             },
                             "totpEnabled": {
@@ -1877,7 +1882,8 @@
                               "enum": [
                                 "active",
                                 "invited",
-                                "suspended"
+                                "suspended",
+                                "sample"
                               ]
                             },
                             "totpEnabled": {
@@ -3589,7 +3595,8 @@
                               "enum": [
                                 "active",
                                 "invited",
-                                "suspended"
+                                "suspended",
+                                "sample"
                               ]
                             },
                             "totpEnabled": {
@@ -107600,11 +107607,191 @@
                       "items": {
                         "type": "string"
                       }
+                    },
+                    "rows": {
+                      "type": "object",
+                      "propertyNames": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 400
+                      },
+                      "additionalProperties": {
+                        "type": "object",
+                        "properties": {
+                          "read": {
+                            "type": "object",
+                            "properties": {
+                              "reach": {
+                                "type": "string",
+                                "enum": [
+                                  "own",
+                                  "team",
+                                  "all"
+                                ]
+                              },
+                              "unowned": {
+                                "type": "boolean",
+                                "enum": [
+                                  true
+                                ]
+                              },
+                              "while": {
+                                "type": "object",
+                                "properties": {
+                                  "column": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "in": {
+                                    "minItems": 1,
+                                    "maxItems": 32,
+                                    "type": "array",
+                                    "items": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string"
+                                        },
+                                        {
+                                          "type": "number"
+                                        },
+                                        {
+                                          "type": "boolean"
+                                        }
+                                      ]
+                                    }
+                                  }
+                                },
+                                "required": [
+                                  "column",
+                                  "in"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "required": [
+                              "reach"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "update": {
+                            "type": "object",
+                            "properties": {
+                              "reach": {
+                                "type": "string",
+                                "enum": [
+                                  "own",
+                                  "team",
+                                  "all"
+                                ]
+                              },
+                              "unowned": {
+                                "type": "boolean",
+                                "enum": [
+                                  true
+                                ]
+                              },
+                              "while": {
+                                "type": "object",
+                                "properties": {
+                                  "column": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "in": {
+                                    "minItems": 1,
+                                    "maxItems": 32,
+                                    "type": "array",
+                                    "items": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string"
+                                        },
+                                        {
+                                          "type": "number"
+                                        },
+                                        {
+                                          "type": "boolean"
+                                        }
+                                      ]
+                                    }
+                                  }
+                                },
+                                "required": [
+                                  "column",
+                                  "in"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "required": [
+                              "reach"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "delete": {
+                            "type": "object",
+                            "properties": {
+                              "reach": {
+                                "type": "string",
+                                "enum": [
+                                  "own",
+                                  "team",
+                                  "all"
+                                ]
+                              },
+                              "unowned": {
+                                "type": "boolean",
+                                "enum": [
+                                  true
+                                ]
+                              },
+                              "while": {
+                                "type": "object",
+                                "properties": {
+                                  "column": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "in": {
+                                    "minItems": 1,
+                                    "maxItems": 32,
+                                    "type": "array",
+                                    "items": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string"
+                                        },
+                                        {
+                                          "type": "number"
+                                        },
+                                        {
+                                          "type": "boolean"
+                                        }
+                                      ]
+                                    }
+                                  }
+                                },
+                                "required": [
+                                  "column",
+                                  "in"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "required": [
+                              "reach"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "additionalProperties": false
+                      }
                     }
                   },
                   "required": [
                     "roleId",
-                    "grants"
+                    "grants",
+                    "rows"
                   ],
                   "additionalProperties": false
                 }
@@ -107626,6 +107813,192 @@
                     "type": "array",
                     "items": {
                       "type": "string"
+                    }
+                  },
+                  "rows": {
+                    "type": "object",
+                    "propertyNames": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 400
+                    },
+                    "additionalProperties": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "read": {
+                              "type": "object",
+                              "properties": {
+                                "reach": {
+                                  "type": "string",
+                                  "enum": [
+                                    "own",
+                                    "team",
+                                    "all"
+                                  ]
+                                },
+                                "unowned": {
+                                  "type": "boolean",
+                                  "enum": [
+                                    true
+                                  ]
+                                },
+                                "while": {
+                                  "type": "object",
+                                  "properties": {
+                                    "column": {
+                                      "type": "string",
+                                      "minLength": 1
+                                    },
+                                    "in": {
+                                      "minItems": 1,
+                                      "maxItems": 32,
+                                      "type": "array",
+                                      "items": {
+                                        "anyOf": [
+                                          {
+                                            "type": "string"
+                                          },
+                                          {
+                                            "type": "number"
+                                          },
+                                          {
+                                            "type": "boolean"
+                                          }
+                                        ]
+                                      }
+                                    }
+                                  },
+                                  "required": [
+                                    "column",
+                                    "in"
+                                  ],
+                                  "additionalProperties": false
+                                }
+                              },
+                              "required": [
+                                "reach"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "update": {
+                              "type": "object",
+                              "properties": {
+                                "reach": {
+                                  "type": "string",
+                                  "enum": [
+                                    "own",
+                                    "team",
+                                    "all"
+                                  ]
+                                },
+                                "unowned": {
+                                  "type": "boolean",
+                                  "enum": [
+                                    true
+                                  ]
+                                },
+                                "while": {
+                                  "type": "object",
+                                  "properties": {
+                                    "column": {
+                                      "type": "string",
+                                      "minLength": 1
+                                    },
+                                    "in": {
+                                      "minItems": 1,
+                                      "maxItems": 32,
+                                      "type": "array",
+                                      "items": {
+                                        "anyOf": [
+                                          {
+                                            "type": "string"
+                                          },
+                                          {
+                                            "type": "number"
+                                          },
+                                          {
+                                            "type": "boolean"
+                                          }
+                                        ]
+                                      }
+                                    }
+                                  },
+                                  "required": [
+                                    "column",
+                                    "in"
+                                  ],
+                                  "additionalProperties": false
+                                }
+                              },
+                              "required": [
+                                "reach"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "delete": {
+                              "type": "object",
+                              "properties": {
+                                "reach": {
+                                  "type": "string",
+                                  "enum": [
+                                    "own",
+                                    "team",
+                                    "all"
+                                  ]
+                                },
+                                "unowned": {
+                                  "type": "boolean",
+                                  "enum": [
+                                    true
+                                  ]
+                                },
+                                "while": {
+                                  "type": "object",
+                                  "properties": {
+                                    "column": {
+                                      "type": "string",
+                                      "minLength": 1
+                                    },
+                                    "in": {
+                                      "minItems": 1,
+                                      "maxItems": 32,
+                                      "type": "array",
+                                      "items": {
+                                        "anyOf": [
+                                          {
+                                            "type": "string"
+                                          },
+                                          {
+                                            "type": "number"
+                                          },
+                                          {
+                                            "type": "boolean"
+                                          }
+                                        ]
+                                      }
+                                    }
+                                  },
+                                  "required": [
+                                    "column",
+                                    "in"
+                                  ],
+                                  "additionalProperties": false
+                                }
+                              },
+                              "required": [
+                                "reach"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
                     }
                   }
                 },
@@ -107662,11 +108035,191 @@
                       "items": {
                         "type": "string"
                       }
+                    },
+                    "rows": {
+                      "type": "object",
+                      "propertyNames": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 400
+                      },
+                      "additionalProperties": {
+                        "type": "object",
+                        "properties": {
+                          "read": {
+                            "type": "object",
+                            "properties": {
+                              "reach": {
+                                "type": "string",
+                                "enum": [
+                                  "own",
+                                  "team",
+                                  "all"
+                                ]
+                              },
+                              "unowned": {
+                                "type": "boolean",
+                                "enum": [
+                                  true
+                                ]
+                              },
+                              "while": {
+                                "type": "object",
+                                "properties": {
+                                  "column": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "in": {
+                                    "minItems": 1,
+                                    "maxItems": 32,
+                                    "type": "array",
+                                    "items": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string"
+                                        },
+                                        {
+                                          "type": "number"
+                                        },
+                                        {
+                                          "type": "boolean"
+                                        }
+                                      ]
+                                    }
+                                  }
+                                },
+                                "required": [
+                                  "column",
+                                  "in"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "required": [
+                              "reach"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "update": {
+                            "type": "object",
+                            "properties": {
+                              "reach": {
+                                "type": "string",
+                                "enum": [
+                                  "own",
+                                  "team",
+                                  "all"
+                                ]
+                              },
+                              "unowned": {
+                                "type": "boolean",
+                                "enum": [
+                                  true
+                                ]
+                              },
+                              "while": {
+                                "type": "object",
+                                "properties": {
+                                  "column": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "in": {
+                                    "minItems": 1,
+                                    "maxItems": 32,
+                                    "type": "array",
+                                    "items": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string"
+                                        },
+                                        {
+                                          "type": "number"
+                                        },
+                                        {
+                                          "type": "boolean"
+                                        }
+                                      ]
+                                    }
+                                  }
+                                },
+                                "required": [
+                                  "column",
+                                  "in"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "required": [
+                              "reach"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "delete": {
+                            "type": "object",
+                            "properties": {
+                              "reach": {
+                                "type": "string",
+                                "enum": [
+                                  "own",
+                                  "team",
+                                  "all"
+                                ]
+                              },
+                              "unowned": {
+                                "type": "boolean",
+                                "enum": [
+                                  true
+                                ]
+                              },
+                              "while": {
+                                "type": "object",
+                                "properties": {
+                                  "column": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "in": {
+                                    "minItems": 1,
+                                    "maxItems": 32,
+                                    "type": "array",
+                                    "items": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string"
+                                        },
+                                        {
+                                          "type": "number"
+                                        },
+                                        {
+                                          "type": "boolean"
+                                        }
+                                      ]
+                                    }
+                                  }
+                                },
+                                "required": [
+                                  "column",
+                                  "in"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "required": [
+                              "reach"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "additionalProperties": false
+                      }
                     }
                   },
                   "required": [
                     "roleId",
-                    "grants"
+                    "grants",
+                    "rows"
                   ],
                   "additionalProperties": false
                 }
@@ -107790,7 +108343,8 @@
                       "enum": [
                         "active",
                         "invited",
-                        "suspended"
+                        "suspended",
+                        "sample"
                       ]
                     },
                     "totpEnabled": {
@@ -107905,6 +108459,1331 @@
         }
       }
     },
+    "/api/v1/teams": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "teams": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "members": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "userId": {
+                                  "type": "string"
+                                },
+                                "name": {
+                                  "type": "string"
+                                },
+                                "email": {
+                                  "type": "string"
+                                },
+                                "status": {
+                                  "type": "string",
+                                  "enum": [
+                                    "active",
+                                    "invited",
+                                    "suspended",
+                                    "sample"
+                                  ]
+                                },
+                                "lead": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": [
+                                "userId",
+                                "name",
+                                "email",
+                                "status",
+                                "lead"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "createdAt": {
+                            "type": "number"
+                          },
+                          "updatedAt": {
+                            "type": "number"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name",
+                          "members",
+                          "createdAt",
+                          "updatedAt"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "reachMax": {
+                      "type": "number"
+                    },
+                    "over": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "userId": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "userId",
+                          "name"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "teams",
+                    "reachMax",
+                    "over"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 80
+                  }
+                },
+                "required": [
+                  "name"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "members": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "userId": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "email": {
+                            "type": "string"
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "active",
+                              "invited",
+                              "suspended",
+                              "sample"
+                            ]
+                          },
+                          "lead": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "userId",
+                          "name",
+                          "email",
+                          "status",
+                          "lead"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "createdAt": {
+                      "type": "number"
+                    },
+                    "updatedAt": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "members",
+                    "createdAt",
+                    "updatedAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/teams/{id}": {
+      "patch": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 80
+                  }
+                },
+                "required": [
+                  "name"
+                ]
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "members": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "userId": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "email": {
+                            "type": "string"
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "active",
+                              "invited",
+                              "suspended",
+                              "sample"
+                            ]
+                          },
+                          "lead": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "userId",
+                          "name",
+                          "email",
+                          "status",
+                          "lead"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "createdAt": {
+                      "type": "number"
+                    },
+                    "updatedAt": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "members",
+                    "createdAt",
+                    "updatedAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    }
+                  },
+                  "required": [
+                    "ok"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/teams/{id}/members/{userId}": {
+      "put": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "lead": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "lead"
+                ]
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "userId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "members": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "userId": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "email": {
+                            "type": "string"
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "active",
+                              "invited",
+                              "suspended",
+                              "sample"
+                            ]
+                          },
+                          "lead": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "userId",
+                          "name",
+                          "email",
+                          "status",
+                          "lead"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "createdAt": {
+                      "type": "number"
+                    },
+                    "updatedAt": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "members",
+                    "createdAt",
+                    "updatedAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "userId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "members": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "userId": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "email": {
+                            "type": "string"
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "active",
+                              "invited",
+                              "suspended",
+                              "sample"
+                            ]
+                          },
+                          "lead": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "userId",
+                          "name",
+                          "email",
+                          "status",
+                          "lead"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "createdAt": {
+                      "type": "number"
+                    },
+                    "updatedAt": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "members",
+                    "createdAt",
+                    "updatedAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/people": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 120
+            },
+            "in": "query",
+            "name": "q",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200
+            },
+            "in": "query",
+            "name": "limit",
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "people": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "sample": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name",
+                          "sample"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "people"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/roles/rows/preview": {
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "connectionId": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "table": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 300
+                  },
+                  "userId": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "action": {
+                    "default": "read",
+                    "type": "string",
+                    "enum": [
+                      "read",
+                      "update",
+                      "delete"
+                    ]
+                  },
+                  "reach": {
+                    "type": "object",
+                    "properties": {
+                      "reach": {
+                        "type": "string",
+                        "enum": [
+                          "own",
+                          "team",
+                          "all"
+                        ]
+                      },
+                      "unowned": {
+                        "type": "boolean",
+                        "enum": [
+                          true
+                        ]
+                      },
+                      "while": {
+                        "type": "object",
+                        "properties": {
+                          "column": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "in": {
+                            "minItems": 1,
+                            "maxItems": 32,
+                            "type": "array",
+                            "items": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "number"
+                                },
+                                {
+                                  "type": "boolean"
+                                }
+                              ]
+                            }
+                          }
+                        },
+                        "required": [
+                          "column",
+                          "in"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "reach"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "roleId": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "connectionId",
+                  "table",
+                  "userId",
+                  "reach"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "reached": {
+                      "type": "number"
+                    },
+                    "total": {
+                      "type": "number"
+                    },
+                    "capped": {
+                      "type": "boolean"
+                    },
+                    "liftedBy": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "required": [
+                    "reached",
+                    "total",
+                    "capped",
+                    "liftedBy"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/roles/{id}/rows": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "roleId": {
+                      "type": "string"
+                    },
+                    "locked": {
+                      "type": "boolean"
+                    },
+                    "tables": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "ref": {
+                            "type": "string"
+                          },
+                          "connectionId": {
+                            "type": "string"
+                          },
+                          "connectionName": {
+                            "type": "string"
+                          },
+                          "tableId": {
+                            "type": "string"
+                          },
+                          "label": {
+                            "type": "string"
+                          },
+                          "private": {
+                            "type": "boolean"
+                          },
+                          "ways": {
+                            "type": "array",
+                            "items": {
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "kind": {
+                                      "type": "string",
+                                      "enum": [
+                                        "person"
+                                      ]
+                                    },
+                                    "column": {
+                                      "type": "string"
+                                    },
+                                    "label": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "kind",
+                                    "column",
+                                    "label"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "kind": {
+                                      "type": "string",
+                                      "enum": [
+                                        "listing"
+                                      ]
+                                    },
+                                    "table": {
+                                      "type": "string"
+                                    },
+                                    "label": {
+                                      "type": "string"
+                                    },
+                                    "dated": {
+                                      "type": "boolean"
+                                    }
+                                  },
+                                  "required": [
+                                    "kind",
+                                    "table",
+                                    "label",
+                                    "dated"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "kind": {
+                                      "type": "string",
+                                      "enum": [
+                                        "parent"
+                                      ]
+                                    },
+                                    "column": {
+                                      "type": "string"
+                                    },
+                                    "table": {
+                                      "type": "string"
+                                    },
+                                    "label": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "kind",
+                                    "column",
+                                    "table",
+                                    "label"
+                                  ],
+                                  "additionalProperties": false
+                                }
+                              ]
+                            }
+                          },
+                          "granted": {
+                            "type": "object",
+                            "properties": {
+                              "read": {
+                                "type": "boolean"
+                              },
+                              "update": {
+                                "type": "boolean"
+                              },
+                              "delete": {
+                                "type": "boolean"
+                              }
+                            },
+                            "required": [
+                              "read",
+                              "update",
+                              "delete"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "own": {
+                            "type": "boolean"
+                          },
+                          "limit": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "read": {
+                                    "type": "object",
+                                    "properties": {
+                                      "reach": {
+                                        "type": "string",
+                                        "enum": [
+                                          "own",
+                                          "team",
+                                          "all"
+                                        ]
+                                      },
+                                      "unowned": {
+                                        "type": "boolean",
+                                        "enum": [
+                                          true
+                                        ]
+                                      },
+                                      "while": {
+                                        "type": "object",
+                                        "properties": {
+                                          "column": {
+                                            "type": "string",
+                                            "minLength": 1
+                                          },
+                                          "in": {
+                                            "minItems": 1,
+                                            "maxItems": 32,
+                                            "type": "array",
+                                            "items": {
+                                              "anyOf": [
+                                                {
+                                                  "type": "string"
+                                                },
+                                                {
+                                                  "type": "number"
+                                                },
+                                                {
+                                                  "type": "boolean"
+                                                }
+                                              ]
+                                            }
+                                          }
+                                        },
+                                        "required": [
+                                          "column",
+                                          "in"
+                                        ],
+                                        "additionalProperties": false
+                                      }
+                                    },
+                                    "required": [
+                                      "reach"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  "update": {
+                                    "type": "object",
+                                    "properties": {
+                                      "reach": {
+                                        "type": "string",
+                                        "enum": [
+                                          "own",
+                                          "team",
+                                          "all"
+                                        ]
+                                      },
+                                      "unowned": {
+                                        "type": "boolean",
+                                        "enum": [
+                                          true
+                                        ]
+                                      },
+                                      "while": {
+                                        "type": "object",
+                                        "properties": {
+                                          "column": {
+                                            "type": "string",
+                                            "minLength": 1
+                                          },
+                                          "in": {
+                                            "minItems": 1,
+                                            "maxItems": 32,
+                                            "type": "array",
+                                            "items": {
+                                              "anyOf": [
+                                                {
+                                                  "type": "string"
+                                                },
+                                                {
+                                                  "type": "number"
+                                                },
+                                                {
+                                                  "type": "boolean"
+                                                }
+                                              ]
+                                            }
+                                          }
+                                        },
+                                        "required": [
+                                          "column",
+                                          "in"
+                                        ],
+                                        "additionalProperties": false
+                                      }
+                                    },
+                                    "required": [
+                                      "reach"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  "delete": {
+                                    "type": "object",
+                                    "properties": {
+                                      "reach": {
+                                        "type": "string",
+                                        "enum": [
+                                          "own",
+                                          "team",
+                                          "all"
+                                        ]
+                                      },
+                                      "unowned": {
+                                        "type": "boolean",
+                                        "enum": [
+                                          true
+                                        ]
+                                      },
+                                      "while": {
+                                        "type": "object",
+                                        "properties": {
+                                          "column": {
+                                            "type": "string",
+                                            "minLength": 1
+                                          },
+                                          "in": {
+                                            "minItems": 1,
+                                            "maxItems": 32,
+                                            "type": "array",
+                                            "items": {
+                                              "anyOf": [
+                                                {
+                                                  "type": "string"
+                                                },
+                                                {
+                                                  "type": "number"
+                                                },
+                                                {
+                                                  "type": "boolean"
+                                                }
+                                              ]
+                                            }
+                                          }
+                                        },
+                                        "required": [
+                                          "column",
+                                          "in"
+                                        ],
+                                        "additionalProperties": false
+                                      }
+                                    },
+                                    "required": [
+                                      "reach"
+                                    ],
+                                    "additionalProperties": false
+                                  }
+                                },
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          }
+                        },
+                        "required": [
+                          "ref",
+                          "connectionId",
+                          "connectionName",
+                          "tableId",
+                          "label",
+                          "private",
+                          "ways",
+                          "granted",
+                          "own",
+                          "limit"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "roleId",
+                    "locked",
+                    "tables"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/users/{id}/rows": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "named": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "connectionId": {
+                            "type": "string"
+                          },
+                          "connectionName": {
+                            "type": "string"
+                          },
+                          "tableId": {
+                            "type": "string"
+                          },
+                          "tableLabel": {
+                            "type": "string"
+                          },
+                          "column": {
+                            "type": "string"
+                          },
+                          "rows": {
+                            "type": "number"
+                          },
+                          "private": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "connectionId",
+                          "connectionName",
+                          "tableId",
+                          "tableLabel",
+                          "column",
+                          "rows",
+                          "private"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "unreadable": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "connectionId": {
+                            "type": "string"
+                          },
+                          "connectionName": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "connectionId",
+                          "connectionName"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "total": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "named",
+                    "unreadable",
+                    "total"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/users/{id}/rows/hand-over": {
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "to": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "to"
+                ]
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "named": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "connectionId": {
+                            "type": "string"
+                          },
+                          "connectionName": {
+                            "type": "string"
+                          },
+                          "tableId": {
+                            "type": "string"
+                          },
+                          "tableLabel": {
+                            "type": "string"
+                          },
+                          "column": {
+                            "type": "string"
+                          },
+                          "rows": {
+                            "type": "number"
+                          },
+                          "private": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "connectionId",
+                          "connectionName",
+                          "tableId",
+                          "tableLabel",
+                          "column",
+                          "rows",
+                          "private"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "unreadable": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "connectionId": {
+                            "type": "string"
+                          },
+                          "connectionName": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "connectionId",
+                          "connectionName"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "total": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "named",
+                    "unreadable",
+                    "total"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/users": {
       "get": {
         "parameters": [
@@ -107923,7 +109802,8 @@
               "enum": [
                 "active",
                 "invited",
-                "suspended"
+                "suspended",
+                "sample"
               ]
             },
             "in": "query",
@@ -107985,7 +109865,8 @@
                             "enum": [
                               "active",
                               "invited",
-                              "suspended"
+                              "suspended",
+                              "sample"
                             ]
                           },
                           "totpEnabled": {
@@ -108066,12 +109947,16 @@
                         },
                         "suspended": {
                           "type": "number"
+                        },
+                        "sample": {
+                          "type": "number"
                         }
                       },
                       "required": [
                         "active",
                         "invited",
-                        "suspended"
+                        "suspended",
+                        "sample"
                       ],
                       "additionalProperties": false
                     }
@@ -108147,7 +110032,8 @@
                           "enum": [
                             "active",
                             "invited",
-                            "suspended"
+                            "suspended",
+                            "sample"
                           ]
                         },
                         "totpEnabled": {
@@ -108277,7 +110163,8 @@
                       "enum": [
                         "active",
                         "invited",
-                        "suspended"
+                        "suspended",
+                        "sample"
                       ]
                     },
                     "totpEnabled": {
@@ -108403,7 +110290,8 @@
                       "enum": [
                         "active",
                         "invited",
-                        "suspended"
+                        "suspended",
+                        "sample"
                       ]
                     },
                     "totpEnabled": {
@@ -108526,7 +110414,8 @@
                               "enum": [
                                 "active",
                                 "invited",
-                                "suspended"
+                                "suspended",
+                                "sample"
                               ]
                             },
                             "totpEnabled": {
@@ -108641,7 +110530,8 @@
                           "enum": [
                             "active",
                             "invited",
-                            "suspended"
+                            "suspended",
+                            "sample"
                           ]
                         },
                         "totpEnabled": {

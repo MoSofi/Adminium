@@ -131,6 +131,7 @@ Forty-eight namespaces. Counts are operations, not paths.
 | `/api/v1/onboarding/*` | 2 | The first-run checklist |
 | `/api/v1/option-lists/*` | 5 | Named sets of answers a column accepts, written once and pointed at by as many columns as need them. Reading one needs only a session — a create dialog has to render the choices to anyone who may add a row — while writing needs the same grant that points a column at a list. The built-in lists live in code and are served with their labels in the caller's locale; editing one makes an ordinary copy rather than changing it. Deleting a list a column still names is refused with 409 and the columns using it. |
 | `/api/v1/pages/*` | 15 | Pages and dashboards — layout, config, nav order, shared views, and what a template needs from a table (with a new table drafted to fit when none does) |
+| `/api/v1/people` | 1 | Names and ids of staff, for picking somebody (an owner, a hand-over) |
 | `/api/v1/permissions` | 1 | The permission catalog every role is built from |
 | `/api/v1/project/*` | 9 | A project folder on the server that runs one — which pages and schema customizations differ from the deployed files, settling a page changed on both sides, the changed copies `adminium pull --from` writes into the project, running the project’s actions, the built files of its own pages and widgets, and what Studio shows about the project |
 | `/api/v1/public/*` | 32 | The scoped public API for customer- and staff-facing pages (off by default) |
@@ -140,7 +141,7 @@ Forty-eight namespaces. Counts are operations, not paths.
 | `/api/v1/public-scopes/*` | 4 | Define what a public key may read — resources, columns, filters and time zone |
 | `/api/v1/readyz` | 1 | Readiness — per-dependency verdicts, 503 when a dependency is down |
 | `/api/v1/report-documents/*` | 9 | Report templates and reports — the block documents behind the report builder, the starters, duplicates, and building a report from a template |
-| `/api/v1/roles/*` | 6 | RBAC roles and their permission sets |
+| `/api/v1/roles/*` | 8 | RBAC roles, their permission sets, and which rows each reaches |
 | `/api/v1/scheduled-reports/*` | 4 | Recurring exports delivered on a schedule |
 | `/api/v1/schema-import` | 1 | Parse a schema file (SQL, Prisma, Drizzle, the JSON IR, …) into the IR |
 | `/api/v1/search` | 1 | Cross-resource search for the command palette |
@@ -149,7 +150,8 @@ Forty-eight namespaces. Counts are operations, not paths.
 | `/api/v1/storage/*` | 8 | Where uploaded and generated files are stored — configure destinations (this server’s disk, an S3-compatible bucket, a WebDAV server), test one, choose the default, and move existing files between them |
 | `/api/v1/surfaces/*` | 6 | Hosted app surfaces — placement in the dashboard, and attaching your own domains |
 | `/api/v1/system` | 1 | Version and instance information |
-| `/api/v1/users/*` | 9 | People in the workspace — invite, suspend, delete, assign roles |
+| `/api/v1/teams/*` | 6 | Teams and who leads them: a lead reaches the rows of the people in the team |
+| `/api/v1/users/*` | 11 | People in the workspace — invite, suspend, delete, assign roles |
 | `/api/v1/widget-data/*` | 3 | The queries widgets run, singly and in batches |
 | `/api/v1/words` | 1 | What staff are told of the rows a screen shows, in an add-on's stock words — in, low or out for up to sixty rows of a table named as it is stored, and for a caller who reads the add-on's stock tables the figure behind the word: the exact count, the batch and its expiry, the line that runs out first, and whether stock or the day's portions bind |
 
@@ -648,6 +650,12 @@ PATCH /api/v1/pages/{pageId}/views/{viewId}
 DELETE /api/v1/pages/{pageId}/views/{viewId}
 ```
 
+### `/people`
+
+```http
+GET /api/v1/people
+```
+
 ### `/permissions`
 
 ```http
@@ -771,6 +779,8 @@ PATCH /api/v1/roles/{id}
 DELETE /api/v1/roles/{id}
 GET /api/v1/roles/{id}/permissions
 PUT /api/v1/roles/{id}/permissions
+POST /api/v1/roles/rows/preview
+GET /api/v1/roles/{id}/rows
 ```
 
 ### `/scheduled-reports`
@@ -848,12 +858,25 @@ PUT /api/v1/surfaces/domains
 GET /api/v1/system/info
 ```
 
+### `/teams`
+
+```http
+GET /api/v1/teams
+POST /api/v1/teams
+PATCH /api/v1/teams/{id}
+DELETE /api/v1/teams/{id}
+PUT /api/v1/teams/{id}/members/{userId}
+DELETE /api/v1/teams/{id}/members/{userId}
+```
+
 ### `/users`
 
 ```http
 POST /api/v1/users/{id}/roles
 PUT /api/v1/users/{id}/roles
 DELETE /api/v1/users/{id}/roles/{roleId}
+GET /api/v1/users/{id}/rows
+POST /api/v1/users/{id}/rows/hand-over
 GET /api/v1/users
 POST /api/v1/users
 GET /api/v1/users/{id}

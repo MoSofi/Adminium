@@ -2,6 +2,13 @@
 
 # Manifest spec: Sample data — Sample people
 
+```json
+{ "@label": "stay-4", "arrive": { "@day": -1, "@week": true }, "depart": { "@day": 2, "@week": true },
+  "status": "booked",
+  "@byStay": { "from": "arrive", "to": "depart", "times": { "from": "15:00", "to": "11:00" },
+               "during": { "status": "in_house" }, "after": { "status": "departed" } } }
+```
+
 | Field | Rule |
 |---|---|
 | `from`, `to` | The arrival and the departure: columns the row sets, or `@day`s. |

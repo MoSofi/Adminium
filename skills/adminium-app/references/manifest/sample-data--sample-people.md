@@ -21,7 +21,7 @@ they are, and a sample row names one with [`{ "@person": "<key>" }`](https://doc
 | Field | Rule |
 |---|---|
 | `people` | 1–200 of `{ "key", "name", "email"?, "role"? }`. `key` is lower-case letters, digits, `_` and `-`, at most 40, and listed once. `role` is the key of one of this app's own [`roles`](https://docs.adminium.dev/reference/manifest/#roles). `email` is shown beside the name and never mailed; where it is left out, or somebody already has it, Adminium gives the person an address of its own (`dana.crm@sample.invalid`). |
-| `teams` | 1–50 of `{ "name", "lead"?, "members" }`: the people of one team, by key. `lead` leads it, so a role limited to its team's rows reaches the members' rows. A team name the operator already uses is left to them: the sample's team is made beside it as "Sales (sample)". |
+| `teams` | 1–50 of `{ "name", "lead"?, "members" }`: the people of one team, by key. `lead` leads it, so a role limited to [its team's rows](https://docs.adminium.dev/reference/manifest/#whose-a-row-is) reaches the members' rows. A team name the operator already uses is left to them: the sample's team is made beside it as "Sales (sample)". |
 
 "Add sample data" makes each person a staff member marked as a **sample person**: no password and
 no way to get one, nothing is ever mailed to them, and nothing about them is changed by hand. They
@@ -69,7 +69,7 @@ A value is plain JSON, or one of these directives:
 | Directive | Value |
 |---|---|
 | `{ "@ref": "<label>" }` | The key of an earlier row with that label. In an add-on's sample it may also be the label of one of the add-on's `seeds` rows (a unit the install wrote). |
-| `{ "@person": "<key>" }` | One of the manifest's [sample people](https://docs.adminium.dev/reference/manifest/#sample-people): the staff member made for that key. In a staff column (`rules.staff`) or another text column that holds a staff member's id, and anywhere inside a json value (a saved filter that names a rep). Only in the app's own sample file, not in its rows for an add-on. |
+| `{ "@person": "<key>" }` | One of the manifest's [sample people](https://docs.adminium.dev/reference/manifest/#sample-people): the staff member made for that key. In a [staff column](https://docs.adminium.dev/reference/manifest/#whose-a-row-is) or another text column that holds a staff member's id, and anywhere inside a json value (a saved filter that names a rep). Only in the app's own sample file, not in its rows for an add-on. |
 | `{ "@ago": "PT19M" }` | An ISO 8601 duration before now. |
 | `{ "@in": "PT20M", "@grid": 15 }` | An ISO 8601 duration after now. With `@grid`, rounded up to the next step of that many minutes on the venue's own clock, counted from its midnight (never past the next midnight): the first pickup slot at least 20 minutes away. |
 | `{ "@in": "PT20M", "@slot": "orders" }` | The first open time of that table's [slot limit](https://docs.adminium.dev/reference/manifest/#slot-limits) at least that far ahead: its hours, closures and pauses, on its grid, with room left after the sample's own rows placed so far; on the next open day when today has none, looking two weeks ahead, else the plain `@in` time. Not with `@grid`. |
@@ -104,10 +104,3 @@ row out altogether: a payment for a visit that has not happened yet.
 
 A row that lasts from one time to another (a stay) may carry `@byStay` instead, placing it by where
 the adding moment falls against its two times:
-
-```json
-{ "@label": "stay-4", "arrive": { "@day": -1, "@week": true }, "depart": { "@day": 2, "@week": true },
-  "status": "booked",
-  "@byStay": { "from": "arrive", "to": "depart", "times": { "from": "15:00", "to": "11:00" },
-               "during": { "status": "in_house" }, "after": { "status": "departed" } } }
-```

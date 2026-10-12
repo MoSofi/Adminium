@@ -137,7 +137,7 @@ const DESCRIPTIONS = {
   'report-documents':
     'Report templates and reports — the block documents behind the report builder, the starters, ' +
     'duplicates, and building a report from a template',
-  roles: 'RBAC roles and their permission sets',
+  roles: 'RBAC roles, their permission sets, and which rows each reaches',
   'scheduled-reports': 'Recurring exports delivered on a schedule',
   'schema-import': 'Parse a schema file (SQL, Prisma, Drizzle, the JSON IR, …) into the IR',
   search: 'Cross-resource search for the command palette',
@@ -148,6 +148,8 @@ const DESCRIPTIONS = {
     'window — checking a database for an Adminium store already in it and adopting that store',
   system: 'Version and instance information',
   users: 'People in the workspace — invite, suspend, delete, assign roles',
+  teams: 'Teams and who leads them: a lead reaches the rows of the people in the team',
+  people: 'Names and ids of staff, for picking somebody (an owner, a hand-over)',
   'widget-data': 'The queries widgets run, singly and in batches',
   words:
     'What staff are told of the rows a screen shows, in an add-on\'s stock words — in, low or out for ' +

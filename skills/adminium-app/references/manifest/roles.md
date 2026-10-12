@@ -21,7 +21,7 @@
 | `permissions` | no | Grants, in the forms below. |
 | `cloneFrom` | no | The key of another of this app's roles, whose grants this role also gets, and its `limits`. |
 | `screensOnly` | no | `true`: people with this role open the app's own screens and never the dashboard. |
-| `limits` | no | Per table ref, what the role's `update` there may change, and what its `read` there shows. See below. |
+| `limits` | no | Per table ref, what the role's `update` there may change, what its `read` there shows, and which [rows](https://docs.adminium.dev/reference/manifest/#whose-a-row-is) its read, update and delete reach. See below. |
 
 A manifest cannot know the real table names or page ids, so it grants through placeholders:
 

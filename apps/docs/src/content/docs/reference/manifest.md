@@ -1986,6 +1986,69 @@ currency, who is signed in, and `access`: which of `read`, `create`, `update` an
 hold on each of the app's tables, and the app's roles they hold. A staff screen uses it to leave
 out a button whose write would be refused; the data API still checks every write.
 
+## Whose a row is
+
+A role can be held to some rows of a table (see [Whose a row is](/guides/apps/whose-a-row-is/)).
+Five words say how. They need Adminium 0.3.27.
+
+**A staff column** holds a staff member's id. It is a text column, and the only kind of column
+a person is read from:
+
+```json
+{ "ref": "owner_id", "type": "text", "maxLength": 36, "nullable": true, "rules": { "staff": true } }
+```
+
+**`belongs`**, on a table, lists the ways a person belongs to one of its rows. Any one is enough:
+
+```json
+"belongs": [
+  { "column": "owner_id", "set": "team" },
+  { "through": { "table": "deal_members", "link": "deal_id", "user": "user_id" } },
+  { "through": { "table": "covers", "link": "owner_id", "on": "owner_id", "user": "cover_id", "from": "starts_on", "to": "ends_on" } },
+  { "via": "company_id" }
+]
+```
+
+| Way | Fields |
+|---|---|
+| a column | `column`: a staff column of this table. `set` says whom a writer limited on the table may put there: `self` (the default: only themselves), `team` (somebody in a team they lead) or `anyone`. With `person`, `column` is instead a link to a row of the app, and `person` names the staff column on that row (a ticket's `assignee_id` to an agent's `user_id`). |
+| a listing | `through`: `table` lists people against rows; `link` is the listing's column that equals this row's key, or this row's `on` column when it is not the key; `user` is the listing's staff column (or, with `person`, a link to a row that holds one). `from` and `to` are date columns of the listing: the listing counts from the first to the second, by the business's day, and either may be empty. |
+| a parent | `via`: a link of this table. Whoever reaches the row it points at reaches this one. |
+
+A row is reached through at most two links (`via` of a table that is itself reached `via`
+another). The listing a way goes through cannot itself be reached through the table it lists
+for. Each staff column a way names, and each link a `via` follows, should be first in one of the
+table's [`indexes`](#tables): a limited list is as fast as an unlimited one with the index, and
+several times slower without it.
+
+**`private`**, on a table, with a `belongs` of plain staff columns only (no `via`, `through` or
+`person`): its rows are read by their own people and by nothing else. Nothing may be reached
+through a private table, no total of its rows is kept elsewhere, and it is not exported,
+imported, reported on a schedule, drawn into a document, read by a rule or handed to an owner's
+code. An update of the app is the only thing that sets or removes the mark.
+
+**`rows`**, in a role's [`limits`](#roles) for a table, says which rows its read, update and
+delete reach, each on its own:
+
+```json
+"limits": { "deals": { "rows": { "read": { "reach": "team", "unowned": true }, "update": { "reach": "own" } } } }
+```
+
+`reach` is `own`, `team` or `all`; `unowned: true` adds the rows nobody belongs to; `while`
+(`{ "column", "in": [...] }`) holds the reach to rows whose column has one of those values now,
+and `all` is written only with a `while`. An action left out reaches every row. The table must
+declare `belongs`. A manifest is refused when a role holds a limit on a table of which another
+table keeps a stored total (a [`rollup`](#column-rules)), unless that table is reached `via` the
+very link the total adds up by.
+
+**`handOver`**, on one of a table's [`states.actions`](#states), marks the one write in which a
+person limited to their own rows may name a colleague: the button asks for a staff column and
+sets it to anybody.
+
+```json
+{ "id": "hand-over", "label": { "en-US": "Hand over" }, "set": {}, "in": ["open"], "ask": ["owner_id"], "handOver": true }
+```
+
 ## Roles
 
 `roles` declares roles the app brings, such as a cashier and a manager. Each is installed as
@@ -2007,7 +2070,7 @@ out a button whose write would be refused; the data API still checks every write
 | `permissions` | no | Grants, in the forms below. |
 | `cloneFrom` | no | The key of another of this app's roles, whose grants this role also gets, and its `limits`. |
 | `screensOnly` | no | `true`: people with this role open the app's own screens and never the dashboard. |
-| `limits` | no | Per table ref, what the role's `update` there may change, and what its `read` there shows. See below. |
+| `limits` | no | Per table ref, what the role's `update` there may change, what its `read` there shows, and which [rows](#whose-a-row-is) its read, update and delete reach. See below. |
 
 A manifest cannot know the real table names or page ids, so it grants through placeholders:
 
@@ -3482,7 +3545,7 @@ they are, and a sample row names one with [`{ "@person": "<key>" }`](#sample-dat
 | Field | Rule |
 |---|---|
 | `people` | 1–200 of `{ "key", "name", "email"?, "role"? }`. `key` is lower-case letters, digits, `_` and `-`, at most 40, and listed once. `role` is the key of one of this app's own [`roles`](#roles). `email` is shown beside the name and never mailed; where it is left out, or somebody already has it, Adminium gives the person an address of its own (`dana.crm@sample.invalid`). |
-| `teams` | 1–50 of `{ "name", "lead"?, "members" }`: the people of one team, by key. `lead` leads it, so a role limited to its team's rows reaches the members' rows. A team name the operator already uses is left to them: the sample's team is made beside it as "Sales (sample)". |
+| `teams` | 1–50 of `{ "name", "lead"?, "members" }`: the people of one team, by key. `lead` leads it, so a role limited to [its team's rows](#whose-a-row-is) reaches the members' rows. A team name the operator already uses is left to them: the sample's team is made beside it as "Sales (sample)". |
 
 "Add sample data" makes each person a staff member marked as a **sample person**: no password and
 no way to get one, nothing is ever mailed to them, and nothing about them is changed by hand. They
@@ -3530,7 +3593,7 @@ A value is plain JSON, or one of these directives:
 | Directive | Value |
 |---|---|
 | `{ "@ref": "<label>" }` | The key of an earlier row with that label. In an add-on's sample it may also be the label of one of the add-on's `seeds` rows (a unit the install wrote). |
-| `{ "@person": "<key>" }` | One of the manifest's [sample people](#sample-people): the staff member made for that key. In a staff column (`rules.staff`) or another text column that holds a staff member's id, and anywhere inside a json value (a saved filter that names a rep). Only in the app's own sample file, not in its rows for an add-on. |
+| `{ "@person": "<key>" }` | One of the manifest's [sample people](#sample-people): the staff member made for that key. In a [staff column](#whose-a-row-is) or another text column that holds a staff member's id, and anywhere inside a json value (a saved filter that names a rep). Only in the app's own sample file, not in its rows for an add-on. |
 | `{ "@ago": "PT19M" }` | An ISO 8601 duration before now. |
 | `{ "@in": "PT20M", "@grid": 15 }` | An ISO 8601 duration after now. With `@grid`, rounded up to the next step of that many minutes on the venue's own clock, counted from its midnight (never past the next midnight): the first pickup slot at least 20 minutes away. |
 | `{ "@in": "PT20M", "@slot": "orders" }` | The first open time of that table's [slot limit](#slot-limits) at least that far ahead: its hours, closures and pauses, on its grid, with room left after the sample's own rows placed so far; on the next open day when today has none, looking two weeks ahead, else the plain `@in` time. Not with `@grid`. |
