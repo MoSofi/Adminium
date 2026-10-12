@@ -596,8 +596,10 @@ export function columnRuleIssue(
         const issue = table === undefined ? null : momentStampIssue(set as Value, table, model);
         if (issue !== null) return issue;
       }
+      // A copy writes what the column it copies holds: judged by that column below, never as a person's name.
+      const copied = typeof set === 'object' && set !== null && 'copy' in set;
       // A `byOrigin` side's word that is a stamp word writes what that word means (`today`: a date).
-      const words = momentous
+      const words = momentous || copied
         ? []
         : typeof set === 'object' && set !== null && 'byOrigin' in set
           ? Object.values((set as { byOrigin: Record<string, unknown> }).byOrigin).map(String)
@@ -613,7 +615,14 @@ export function columnRuleIssue(
       if (typeof set === 'object' && set !== null && 'copy' in set) {
         const source = String((set as { copy: unknown }).copy);
         if (source === column.name) return `A stamp copies another column, not ${name} itself.`;
-        if (table?.columns.some((c) => c.name === source) !== true) return `${table?.name ?? 'This table'} has no column ${JSON.stringify(source)} to copy.`;
+        const from = table?.columns.find((c) => c.name === source);
+        if (from === undefined) return `${table?.name ?? 'This table'} has no column ${JSON.stringify(source)} to copy.`;
+        // A copy lands in a column of its source's kind: a number in a number, a moment in a moment, text in text.
+        // (SQLite reports a date and a moment as text, so text there copies into text of any meaning.)
+        const kind = (type: LogicalType): string => (NUMERIC_TYPES.has(type) ? 'a number' : NOW_TYPES.has(type) ? 'a date or a time' : TEXTUAL_TYPES.has(type) || type === 'enum' ? 'text' : type);
+        if (kind(from.logicalType) !== kind(column.logicalType)) {
+          return `A stamp copies a column into one of its own kind; ${JSON.stringify(source)} is ${kind(from.logicalType)} and ${name} is ${kind(column.logicalType)}.`;
+        }
       }
       if (dated) {
         const days = (set as { addDays: Value }).addDays;

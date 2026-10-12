@@ -55,6 +55,7 @@
  */
 import { createHash } from 'node:crypto';
 
+import { ValidationFailedError } from '../errors.js';
 import { parseDatabaseModel, parseEnumCheck, type ColumnModel, type DatabaseModel } from '@adminium/engine';
 import { shareCodeColumns, type BookingRule, type ColumnRules, type Manifest, type States } from '@adminium/manifest';
 import {
@@ -76,6 +77,7 @@ import { canonicalJson } from './sample-data.js';
 import { mapTableRefs } from './real-refs.js';
 import { adjustRuleIssue, belongsRuleIssue, bookingRuleIssue, capacityRuleIssue, columnRuleIssue, keptColumnIssue, postingsRuleIssue, statesRuleIssue } from '../connections/column-rules-validation.js';
 import { applyOverrides, columnsShown } from '../connections/effective-schema.js';
+import { ValidationFailedError } from '../errors.js';
 import { shareCodesOn, type ShareCodes } from '../public-api/share-codes.js';
 import { roleSlugFor } from './manifest-roles.js';
 
@@ -463,9 +465,21 @@ export async function writeManifestRules(input: {
   manifest: Manifest;
   connectionId: string;
   createdBy: string | null;
+  /**
+   * Stop on a rule this server judges wrong for a table the install itself
+   * made (`RuleRefusedError`), instead of leaving it out and saying so only
+   * in the reply. Such a rule is the manifest's own fault — nothing of the
+   * operator's stands in its way — and an app installed without it runs
+   * without something it says it does (a quote's approval that remembers
+   * nothing, found by plan 67). A rule left out for the operator's sake (they
+   * keep their own, a table is shared, a secret is theirs to show, an add-on
+   * is not here) is still only skipped.
+   */
+  refuse?: boolean;
 }): Promise<RulesResult> {
   const { meta, manifest, connectionId } = input;
   const result: RulesResult = { written: 0, skipped: [], removed: 0, lists: [] };
+  const refused: RuleSkip[] = [];
   if (!ownsBlocks(manifest)) return result;
 
   // ── option lists ──────────────────────────────────────────────────────
@@ -641,6 +655,11 @@ export async function writeManifestRules(input: {
     if (!wanted.has(target)) return;
     wanted.delete(target);
     const skip = (reason: string) => result.skipped.push({ table: rule.table, column: rule.column, op: rule.op, reason });
+    /** Judged wrong for the table as it is: on a table this install made, nobody's doing but the manifest's. */
+    const judged = (reason: string) => {
+      skip(reason);
+      if (record.state === 'created') refused.push({ table: rule.table, column: rule.column, op: rule.op, reason });
+    };
     // The live-model check every nested ref gets: a table this install does
     // not have is never stored, whatever op names it.
     if ((rule.missing ?? []).length > 0) {
@@ -688,7 +707,7 @@ export async function writeManifestRules(input: {
     const tableLevel = TABLE_OPS.has(rule.op);
     const column: ColumnModel | undefined = table.columns.find((c) => c.name === rule.column);
     if (!tableLevel && column === undefined) {
-      skip(`"${table.name}" has no column "${rule.column}".`);
+      judged(`"${table.name}" has no column "${rule.column}".`);
       return;
     }
     const request = {
@@ -704,13 +723,13 @@ export async function writeManifestRules(input: {
       validateOverrideInput(request);
     } catch (error) {
       if (error instanceof MetaValidationError) {
-        skip(error.message);
+        judged(error.message);
         return;
       }
       throw error;
     }
     if (rule.op === 'table.keyField' && !table.columns.some((c) => c.name === rule.value['column'])) {
-      skip(`"${table.name}" has no column "${String(rule.value['column'])}".`);
+      judged(`"${table.name}" has no column "${String(rule.value['column'])}".`);
       return;
     }
     if (rule.op === 'table.private') {
@@ -718,7 +737,7 @@ export async function writeManifestRules(input: {
     } else if (rule.op === 'table.belongs') {
       const issue = belongsRuleIssue(rule.value, table, model);
       if (issue !== null) {
-        skip(issue);
+        judged(issue);
         return;
       }
     } else if (rule.op === 'table.capacity' || rule.op === 'table.booking' || rule.op === 'table.states' || rule.op === 'table.postings' || rule.op === 'table.adjust') {
@@ -734,7 +753,7 @@ export async function writeManifestRules(input: {
                 : statesRuleIssue;
       const issue = check(rule.value, table, model);
       if (issue !== null) {
-        skip(issue);
+        judged(issue);
         return;
       }
     } else if (!NAMING_OPS.has(rule.op) && rule.op !== 'column.enumLabels' && rule.op !== 'column.pii' && rule.op !== 'column.secret' && column !== undefined) {
@@ -746,7 +765,7 @@ export async function writeManifestRules(input: {
         knownLists,
       );
       if (issue !== null) {
-        skip(issue);
+        judged(issue);
         return;
       }
     }
@@ -840,7 +859,20 @@ export async function writeManifestRules(input: {
     for (const rule of desired.filter((r) => r.ref === record.ref && readsKept(r.op))) await place(record, kept, rule);
     await appTablesRepo(meta).setRules(record.id, kept);
   }
+  if (input.refuse === true && refused.length > 0) throw new RuleRefusedError(manifest.key, refused);
   return result;
+}
+
+/** A rule of a manifest that this server judged wrong for a table the install itself made. */
+export class RuleRefusedError extends ValidationFailedError {
+  constructor(key: string, rules: readonly RuleSkip[]) {
+    const first = rules[0]!;
+    const where = first.column === '' ? first.table : `${first.table}.${first.column}`;
+    super(
+      `"${key}" cannot be installed as it is written: ${rules.length === 1 ? 'a rule' : `${String(rules.length)} rules`} of its manifest cannot be kept on its own tables. ${where} (${first.op}): ${first.reason}`,
+      { reason: 'RULE_REFUSED', rules: rules.map((rule) => ({ table: rule.table, column: rule.column, op: rule.op, reason: rule.reason })) },
+    );
+  }
 }
 
 /** What stops being guaranteed when a shape's rule is switched off — the kind of promise it keeps. */

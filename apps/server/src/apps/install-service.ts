@@ -1488,7 +1488,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
       const rules =
         connectionId === null
           ? undefined
-          : await writeManifestRules({ meta: deps.meta, manifest, connectionId, createdBy: userId });
+          : await writeManifestRules({ meta: deps.meta, manifest, connectionId, createdBy: userId, refuse: strict });
       if (rules !== undefined && rules.skipped.length > 0) {
         host.log.info({ skipped: rules.skipped, app: manifest.key }, 'app rules skipped');
       }
