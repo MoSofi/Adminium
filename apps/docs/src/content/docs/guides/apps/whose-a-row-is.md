@@ -70,6 +70,13 @@ listed on the deal as a helper, or covering for its owner, works on the deal and
 it nor give it away. And an app may hold a change to the rows a person wrote themselves: every
 note of a deal is read by everybody on the deal, and each note is changed by its writer.
 
+**A new row is somebody's.** Somebody held to their own rows (or their team's) names a person as
+they make a row: left empty, the row would be nobody's, and they could not open it again. The
+save is refused and says which field is missing. Three cases need no name: a role whose reach
+includes *rows nobody owns yet* (an inbox, a shared view), a table whose owner column Adminium
+fills with the writer (a stamp on create), and somebody nothing limits. An API key is nobody, so
+under a role held to its own rows it makes no row of such a table.
+
 A link that is refused is refused exactly as a link to a row that is not there. Only a link this
 write sets is asked about: one the row already holds is left alone. A file brought in is judged
 the same way, row by row. A table that says nothing of its rows is not judged: its key is a key.

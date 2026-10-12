@@ -249,6 +249,24 @@ export async function assertStaffColumns(ctx: RowLimitContext | null, meta: Meta
     if (reaches.some((reach) => reach.reach === 'team')) for (const person of people) if (await leads(person)) return (holds = true);
     return (holds = false);
   };
+  /*
+   * A NEW ROW IS SOMEBODY'S. A row made with nobody in any column that says
+   * whose it is, is nobody's: its own writer could not read it back, and
+   * everybody whose reach includes the rows nobody owns would. So a writer
+   * held to some rows names somebody as they make one — unless their reach
+   * includes the rows nobody owns (an inbox, a shared view), or a rule of the
+   * table puts the writer there itself. Told as a field that is missing, so
+   * a form marks it.
+   */
+  if (before === null && reaches !== null && deciding.size > 0 && !reaches.some((reach) => reach.reach === 'all' || reach.unowned === true)) {
+    const filledByRule = (column: string): boolean => {
+      const stamp = table.columns.find((candidate) => candidate.name === column)?.stamp as { set?: unknown; on?: unknown } | undefined;
+      return stamp?.set === 'user-id' && stamp.on === 'create';
+    };
+    if (![...deciding].some((column) => !empty(values[column]) || filledByRule(column))) {
+      throw new ValidationFailedError('Say whose this is: a row that is nobody\'s is one you could not open again.', { fields: { [[...deciding][0]!]: { code: 'required' } } });
+    }
+  }
   for (const [column, value] of Object.entries(values)) {
     const found = table.columns.find((candidate) => candidate.name === column);
     if (found === undefined || (before !== null && same(value, before[column]))) continue;

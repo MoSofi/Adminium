@@ -41,15 +41,21 @@ for (const [dialect, available] of ENGINES) {
       // A follow-up hangs under its deal, and says who it is by.
       await w.belongs('followups', [{ via: 'deal_id' }]);
       await w.role('rep', {
-        deals: { actions: ['read', 'update'], rows: { read: OWN, update: OWN } },
+        deals: { actions: ['read', 'create', 'update'], rows: { read: OWN, update: OWN } },
         followups: { actions: ['read', 'update', 'delete'], rows: { read: OWN, update: { reach: 'own', by: 'owner_id' }, delete: { reach: 'own', by: 'owner_id' } } },
       });
       await w.role('manager', {
-        deals: { actions: ['read', 'update'], rows: { read: TEAM, update: TEAM } },
+        deals: { actions: ['read', 'create', 'update'], rows: { read: TEAM, update: TEAM } },
         followups: { actions: ['read', 'update'], rows: { read: TEAM, update: { reach: 'team', by: 'owner_id' } } },
       });
+      // Picks from the rows nobody owns, and may leave one there.
+      await w.role('inbox', { deals: { actions: ['read', 'create', 'update'], rows: { read: { reach: 'own', unowned: true }, update: { reach: 'own', unowned: true } } } });
+      // Makes deals and is held to no rows at all.
+      await w.role('editor', { deals: { actions: ['read', 'create', 'update'] } });
       for (const person of ['dana', 'omar'] as const) await w.give(person, 'rep');
       await w.give('mara', 'manager');
+      await w.give('kim', 'inbox');
+      await w.give('lena', 'editor');
     }, 120_000);
     afterAll(async () => {
       await w?.close();
@@ -106,6 +112,52 @@ for (const [dialect, available] of ENGINES) {
         expect(moved.statusCode, moved.body).toBe(200);
         expect(await one('SELECT owner_id FROM deals WHERE id = 1')).toEqual({ owner_id: w.people.omar });
         await w.run(`UPDATE deals SET owner_id = '${w.people.dana}', amount = 12000 WHERE id = 1`);
+      });
+    });
+
+    describe('a new row', () => {
+      const deal = (key: number, over: Record<string, unknown> = {}) => ({ id: key, title: `Deal ${String(key)}`, state: 'open', amount: 100, big: false, company_id: 1, ...over });
+      const post = async (who: PersonName, values: Record<string, unknown>): Promise<Reply> =>
+        w.app.inject({ method: 'POST', url: `/api/v1/data/${w.connectionId}/${w.id('deals')}`, headers: { cookie: await as(who) }, payload: { values } });
+      const owner = async (key: number): Promise<unknown> => (await w.rows(`SELECT owner_id FROM deals WHERE id = ${String(key)}`))[0]?.['owner_id'];
+
+      it('is somebody\'s: a writer held to their own rows names its owner, and is told which field is missing', async () => {
+        // Nobody named: the deal would be nobody's, and Dana could not open it again.
+        for (const values of [deal(3001), deal(3002, { owner_id: null }), deal(3003, { owner_id: '' })]) {
+          const refused = await post('dana', values);
+          expect(refused.statusCode, refused.body).toBe(422);
+          expect((JSON.parse(refused.body) as { error: { details: { fields: Record<string, { code: string }> } } }).error.details.fields).toEqual({ owner_id: { code: 'required' } });
+        }
+        expect(await w.rows('SELECT id FROM deals WHERE id BETWEEN 3001 AND 3003')).toEqual([]);
+        // Herself: made, and hers to read back.
+        const made = await post('dana', deal(3004, { owner_id: w.people.dana }));
+        expect(made.statusCode, made.body).toBeLessThan(300);
+        expect((await call('dana', 'GET', `${w.id('deals')}/3004`)).statusCode).toBe(200);
+        // A manager held to her team's rows: the same, and she may name one of her people.
+        expect((await post('mara', deal(3005))).statusCode).toBe(422);
+        expect((await post('mara', deal(3006, { owner_id: w.people.omar }))).statusCode).toBeLessThan(300);
+        await w.run('DELETE FROM deals WHERE id BETWEEN 3001 AND 3006');
+      });
+
+      it('may be nobody\'s for a writer whose reach includes those, and for one nothing limits', async () => {
+        const free = await post('kim', deal(3011));
+        expect(free.statusCode, free.body).toBeLessThan(300);
+        expect(await owner(3011)).toBeNull();
+        expect((await call('kim', 'GET', `${w.id('deals')}/3011`)).statusCode).toBe(200);
+        const plain = await post('lena', deal(3012));
+        expect(plain.statusCode, plain.body).toBeLessThan(300);
+        expect(await owner(3012)).toBeNull();
+        await w.run('DELETE FROM deals WHERE id IN (3011, 3012)');
+      });
+
+      it('needs no name where a rule of the table puts its writer there', async () => {
+        // The owner column is stamped with whoever makes the row.
+        await w.stamp('deals', 'owner_id', { set: 'user-id', on: 'create' });
+        const made = await post('dana', deal(3021));
+        expect(made.statusCode, made.body).toBeLessThan(300);
+        expect(await owner(3021)).toBe(w.people.dana);
+        await w.stamp('deals', 'owner_id', null);
+        await w.run('DELETE FROM deals WHERE id = 3021');
       });
     });
   });

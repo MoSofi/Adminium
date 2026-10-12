@@ -189,12 +189,12 @@ for (const [dialect, available] of ENGINES) {
         await w.run(`UPDATE deals SET owner_id = '${w.people.dana}' WHERE id = 1`);
       });
 
-      it('a new row with no owner is made, and its maker is told its key alone', async () => {
+      it('a new row with no owner is not made by somebody held to their own rows: it would be nobody\'s, and not theirs to open again', async () => {
         const key = fresh();
-        const made = await call('dana', 'POST', 'deals', { values: deal(key) });
-        expect(made.statusCode, made.body).toBeLessThan(300);
-        expect(json<{ data: Record<string, unknown> }>(made).data).toEqual({ id: key, _handedOver: true });
-        expect(await one(`SELECT owner_id FROM deals WHERE id = ${String(key)}`)).toEqual({ owner_id: null });
+        const refused = await call('dana', 'POST', 'deals', { values: deal(key) });
+        expect(refused.statusCode, refused.body).toBe(422);
+        expect(json<{ error: { details: { fields: unknown } } }>(refused).error.details.fields).toEqual({ owner_id: { code: 'required' } });
+        expect(await w.rows(`SELECT id FROM deals WHERE id = ${String(key)}`)).toEqual([]);
       });
 
       it('in a private table: one of the two is the writer, and the other somebody they lead — for the owner of the workspace too', async () => {
@@ -222,9 +222,10 @@ for (const [dialect, available] of ENGINES) {
         // Row by row, new rows: each held as a row made on its own.
         const made = await call('dana', 'POST', 'deals/one-by-one', { creates: [deal(fresh(), { owner_id: w.people.dana }), deal(fresh(), { owner_id: w.people.omar }), deal(fresh())] });
         const created = json<{ results: { ok: boolean; data?: Record<string, unknown>; error?: { code: string } }[] }>(made).results;
-        expect(created.map((result) => result.ok)).toEqual([true, false, true]);
-        expect(created[1]!.error!.code).toBe('COLUMN_FORBIDDEN');
-        expect(created[2]!.data).toEqual({ id: next, _handedOver: true });
+        // Her own: made. A colleague's: not hers to name. Nobody's: not hers to make.
+        expect(created.map((result) => result.ok)).toEqual([true, false, false]);
+        expect(created.map((result) => result.error?.code)).toEqual([undefined, 'COLUMN_FORBIDDEN', 'VALIDATION_FAILED']);
+        expect(await w.rows(`SELECT id FROM deals WHERE id = ${String(next)}`)).toEqual([]);
       });
 
       it('in one batch: the rows out of reach leave it before anything is done, the rest are changed, and the undo puts them back', async () => {
@@ -436,7 +437,7 @@ for (const [dialect, available] of ENGINES) {
     });
 
     describe('a key', () => {
-      it('names nobody: a row it makes has no owner it could give, and it is told the key alone', async () => {
+      it('names nobody, so under a role held to its own rows it makes no row: there is nobody for the row to be', async () => {
         const { apiKeysRepo, rolesRepo } = await import('@adminium/meta');
         const { generateApiKey } = await import('../src/rbac/api-keys.js');
         const token = generateApiKey();
@@ -445,8 +446,8 @@ for (const [dialect, available] of ENGINES) {
         const named = await post(deal(fresh(), { owner_id: w.people.dana }));
         expect(named.statusCode, named.body).toBe(403);
         const bare = await post(deal(fresh()));
-        expect(bare.statusCode, bare.body).toBeLessThan(300);
-        expect(json<{ data: Record<string, unknown> }>(bare).data).toEqual({ id: next, _handedOver: true });
+        expect(bare.statusCode, bare.body).toBe(422);
+        expect(await w.rows(`SELECT id FROM deals WHERE id = ${String(next)}`)).toEqual([]);
         // …and it changes no row: it reaches none.
         const patched = await w.app.inject({ method: 'PATCH', url: `/api/v1/data/${w.connectionId}/deals/1`, headers: { authorization: `Bearer ${token.key}` }, payload: { values: { title: 'By a key' } } });
         expect(patched.statusCode).toBe(404);

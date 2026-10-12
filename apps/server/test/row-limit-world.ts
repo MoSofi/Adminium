@@ -158,6 +158,8 @@ export interface World {
   signIn: (person: PersonName) => Promise<Signed>;
   /** Replace how people belong to a table's rows. */
   belongs: (table: TableName, ways: BelongsWay[] | null) => Promise<void>;
+  /** Give a column a stamp rule (who made the row, written by Adminium), or take it off with null. */
+  stamp: (table: TableName, column: string, rule: Record<string, unknown> | null) => Promise<void>;
   /** Mark a table private, or not. */
   private: (table: TableName, on: boolean) => Promise<void>;
   /** A records page over a table, which these roles may open: what the search box looks through. */
@@ -283,6 +285,10 @@ export async function world(dialect: Dialect, opts: { staticRoot?: string } = {}
     if (ways !== null) await overrides.create({ connectionId: connection.id, op: 'table.belongs', tableName: id(table), value: { ways: real(ways) }, origin: 'user' });
   };
   for (const [table, ways] of Object.entries(BELONGS)) await belongs(table as TableName, ways);
+  const stamp = async (table: TableName, column: string, rule: Record<string, unknown> | null): Promise<void> => {
+    await meta.db.deleteFrom('adminium_schema_overrides').where('connectionId', '=', connection.id).where('op', '=', 'column.stamp' as never).where('tableName', '=', id(table)).where('columnName', '=', column).execute();
+    if (rule !== null) await overrides.create({ connectionId: connection.id, op: 'column.stamp', tableName: id(table), columnName: column, value: rule, origin: 'user' } as never);
+  };
   const setPrivate = async (table: TableName, on: boolean): Promise<void> => {
     await meta.db.deleteFrom('adminium_schema_overrides').where('connectionId', '=', connection.id).where('op', '=', 'table.private' as never).where('tableName', '=', id(table)).execute();
     if (on) await overrides.create({ connectionId: connection.id, op: 'table.private', tableName: id(table), value: { private: true }, origin: 'user' });
@@ -388,6 +394,7 @@ export async function world(dialect: Dialect, opts: { staticRoot?: string } = {}
       return { id: people[person], cookie };
     },
     belongs,
+    stamp,
     private: setPrivate,
     page: async (table, slugs) => {
       const made = await pagesRepo(meta).create({ connectionId: connection.id, slug: table, type: 'page-crud', title: table, navGroup: 'manage', config: { source: { table: id(table) } }, createdBy: ownerId });
