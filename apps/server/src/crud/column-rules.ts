@@ -557,11 +557,15 @@ function implicitFillFor(column: EffectiveColumn, dialect: Dialect | undefined):
    *
    * SQLite is the same case by another road: `current_timestamp` there IS
    * UTC, whatever the server's zone, so a table Adminium did not make (its own
-   * DDL writes `datetime('now', 'localtime')`) read a new row hours off. Only a
-   * column typed as a timestamp: an integer one filled with `unixepoch()` is a
-   * count of seconds and has no zone to get wrong.
+   * DDL writes `datetime('now', 'localtime')`) read a new row hours off. Only
+   * where the introspector marked the default as UTC text: a column filled
+   * with `unixepoch()` holds a count of seconds, and one filled with
+   * `datetime('now', 'localtime')` is right already; text written into the
+   * first would break it. A model read before the mark existed has none, and
+   * is left as it was until the schema is read again.
    */
-  if ((dialect === 'mysql' || dialect === 'sqlite') && column.logicalType === 'timestamp' && column.default?.kind === 'now') {
+  const fromDatabase = column.default?.kind === 'now' ? column.default : null;
+  if (fromDatabase !== null && column.logicalType === 'timestamp' && (dialect === 'mysql' || (dialect === 'sqlite' && fromDatabase.utc === true))) {
     return { ...base, kind: 'now', onUpdate: semantic === 'updated-at' };
   }
   if (column.default !== null) return null;
