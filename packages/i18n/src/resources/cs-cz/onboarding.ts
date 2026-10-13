@@ -112,7 +112,7 @@ export default {
       "timeout": "Adminium svá data přesunulo, ale ještě se nevrátilo. Jsou v bezpečí v nové databázi — za chvíli tuto stránku načtěte znovu."
     },
     "pinned": {
-      "body": "Tato instance byla spuštěna s nakonfigurovaným meta úložištěm, takže není co přesouvat. Změnit to můžete později v nastavení Studia.",
+      "body": "Tato instance byla spuštěna s nakonfigurovaným meta úložištěm, takže není co přesouvat.",
       "title": "Data Adminia už mají svůj domov"
     },
     "sameDb": {

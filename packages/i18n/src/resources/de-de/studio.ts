@@ -1203,6 +1203,11 @@ export default {
     }
   },
   "meta": {
+    "checking": "Es wird geprüft, wo Adminium seine eigenen Tabellen hält…",
+    "keep": {
+      "description": "Dort, wo Adminium seine eigenen Tabellen jetzt hält. Nichts wird verschoben, und in Ihre Datenbank wird nicht geschrieben.",
+      "title": "In der Datei auf diesem Rechner belassen"
+    },
     "move": {
       "copying": "Adminiums Tabellen werden verschoben …",
       "copyingBody": "Jede adminium_-Tabelle wird in die neue Datenbank kopiert. Ihre Quelldaten bleiben unberührt, und es wird erst umgeschaltet, wenn die Kopie geprüft ist.",
@@ -1228,6 +1233,9 @@ export default {
       "ok": "Kompatibel — Schreiben ✓ · DDL ✓",
       "test": "Verbindung testen",
       "title": "Separate Datenbank"
+    },
+    "settled": {
+      "body": "Adminium hält seine eigenen Tabellen dort, wo sie jetzt sind, und dieser Schritt verschiebt sie nicht. Hier gibt es nichts zu wählen."
     },
     "subtitle": "Seiten, Rollen, Audit-Log und Einstellungen liegen in Tabellen mit adminium_-Präfix — nie mit Ihren Daten vermischt.",
     "testFailed": "Verbindung fehlgeschlagen.",

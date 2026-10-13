@@ -1203,6 +1203,11 @@ export default {
     }
   },
   "meta": {
+    "checking": "Tjekker, hvor Adminium har sine egne tabeller…",
+    "keep": {
+      "description": "Der, hvor Adminium har sine egne tabeller nu. Intet flyttes, og der skrives ikke til din database.",
+      "title": "Behold det i filen på denne maskine"
+    },
     "move": {
       "copying": "Flytter Adminiums tabeller …",
       "copyingBody": "Kopierer hver adminium_-tabel til den nye database. Dine kildedata røres ikke, og der skiftes først over, når kopien er verificeret.",
@@ -1228,6 +1233,9 @@ export default {
       "ok": "Kompatibel — skrivning ✓ · DDL ✓",
       "test": "Test forbindelse",
       "title": "Separat database"
+    },
+    "settled": {
+      "body": "Adminium har sine egne tabeller, hvor de er nu, og dette trin flytter dem ikke. Der er intet at vælge her."
     },
     "subtitle": "Sider, roller, auditlog og indstillinger bor i tabeller med adminium_-præfiks — aldrig blandet med dine data.",
     "testFailed": "Forbindelsen mislykkedes.",

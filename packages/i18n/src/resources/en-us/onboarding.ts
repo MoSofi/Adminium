@@ -112,7 +112,7 @@ export default {
       "timeout": "Adminium moved its data but has not come back yet. It is safe in the new database — reload this page in a moment."
     },
     "pinned": {
-      "body": "This instance was started with its meta store configured, so there is nothing to move. You can change it later from Studio settings.",
+      "body": "This instance was started with its meta store configured, so there is nothing to move.",
       "title": "Adminium’s data already has a home"
     },
     "sameDb": {

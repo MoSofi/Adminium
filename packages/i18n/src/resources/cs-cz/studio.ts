@@ -1203,6 +1203,11 @@ export default {
     }
   },
   "meta": {
+    "checking": "Zjišťuje se, kde má Adminium své tabulky…",
+    "keep": {
+      "description": "Tam, kde má Adminium své tabulky teď. Nic se nepřesouvá a do vaší databáze se nezapisuje.",
+      "title": "Ponechat v souboru na tomto počítači"
+    },
     "move": {
       "copying": "Přesouvání tabulek Adminia…",
       "copyingBody": "Kopírují se všechny tabulky adminium_ do nové databáze. Vašich zdrojových dat se to nedotkne a k přepnutí dojde až po ověření kopie.",
@@ -1228,6 +1233,9 @@ export default {
       "ok": "Kompatibilní — zápis ✓ · DDL ✓",
       "test": "Otestovat připojení",
       "title": "Samostatná databáze"
+    },
+    "settled": {
+      "body": "Adminium má své tabulky tam, kde jsou teď, a tento krok je nepřesouvá. Není zde co vybírat."
     },
     "subtitle": "Stránky, role, auditní log a nastavení žijí v tabulkách s předponou adminium_ — nikdy se nemíchají s vašimi daty.",
     "testFailed": "Připojení se nezdařilo.",

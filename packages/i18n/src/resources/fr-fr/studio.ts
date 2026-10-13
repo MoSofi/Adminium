@@ -1203,6 +1203,11 @@ export default {
     }
   },
   "meta": {
+    "checking": "Vérification de l’emplacement des tables d’Adminium…",
+    "keep": {
+      "description": "Là où Adminium garde ses propres tables aujourd’hui. Rien n’est déplacé, et rien n’est écrit dans votre base.",
+      "title": "Les garder dans le fichier sur cette machine"
+    },
     "move": {
       "copying": "Déplacement des tables d’Adminium…",
       "copyingBody": "Copie de chaque table adminium_ vers la nouvelle base. Vos données sources ne sont pas touchées, et rien n’est basculé tant que la copie n’est pas vérifiée.",
@@ -1228,6 +1233,9 @@ export default {
       "ok": "Compatible — écriture ✓ · DDL ✓",
       "test": "Tester la connexion",
       "title": "Base de données séparée"
+    },
+    "settled": {
+      "body": "Adminium garde ses propres tables là où elles sont, et cette étape ne les déplace pas. Il n’y a rien à choisir ici."
     },
     "subtitle": "Pages, rôles, journal d’audit et paramètres vivent dans des tables préfixées adminium_ — jamais mêlés à vos données.",
     "testFailed": "Échec de la connexion.",

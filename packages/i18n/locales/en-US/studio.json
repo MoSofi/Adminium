@@ -1193,6 +1193,11 @@
     }
   },
   "meta": {
+    "checking": "Checking where Adminium keeps its own tables…",
+    "keep": {
+      "description": "Where Adminium keeps its own tables now. Nothing is moved, and your database is not written to.",
+      "title": "Keep it in the file on this machine"
+    },
     "move": {
       "copying": "Moving Adminium’s tables…",
       "copyingBody": "Copying every adminium_ table into the new database. Your source data is not touched, and nothing is switched over until the copy is verified.",
@@ -1218,6 +1223,9 @@
       "ok": "Compatible — write ✓ · DDL ✓",
       "test": "Test connection",
       "title": "Separate database"
+    },
+    "settled": {
+      "body": "Adminium keeps its own tables where they are now, and this step does not move them. There is nothing to choose here."
     },
     "subtitle": "Pages, roles, audit log and settings live in adminium_-prefixed tables — never mixed into your data.",
     "testFailed": "Connection failed.",

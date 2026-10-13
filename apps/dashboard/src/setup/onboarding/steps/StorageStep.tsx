@@ -142,7 +142,7 @@ export function StorageStep({
         )}
         body={t(
           'onboarding:meta.pinned.body',
-          'This instance was started with its meta store configured, so there is nothing to move. You can change it later from Studio settings.',
+          'This instance was started with its meta store configured, so there is nothing to move.',
         )}
       />
     );

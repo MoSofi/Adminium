@@ -136,7 +136,8 @@ test.describe('LLM enrichment — BYO round-trip (golden e2e)', () => {
     await page.getByRole('button', { name: 'Continue', exact: true }).click();
 
     // Step 5 — meta placement: a writable sqlite file → same-db card is enabled.
-    await page.getByRole('radio', { name: /Same database/ }).click();
+    // Nothing to pick: the store stays where the first-run wizard left it unless another answer is chosen.
+    await expect(page.getByRole('heading', { name: 'Where should Adminium keep its own tables?' })).toBeVisible();
     await page.getByRole('button', { name: 'Continue', exact: true }).click();
 
     // Step 6 — Enrich with AI → the BYO copy-paste path.
@@ -253,7 +254,8 @@ test.describe('LLM enrichment — BYO round-trip (golden e2e)', () => {
     await page.getByRole('button', { name: 'Continue', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'Choose your tables' })).toBeVisible();
     await page.getByRole('button', { name: 'Continue', exact: true }).click();
-    await page.getByRole('radio', { name: /Same database/ }).click();
+    // Nothing to pick: the store stays where the first-run wizard left it unless another answer is chosen.
+    await expect(page.getByRole('heading', { name: 'Where should Adminium keep its own tables?' })).toBeVisible();
     await page.getByRole('button', { name: 'Continue', exact: true }).click();
 
     // BYO path with the same locale set the golden carries.
@@ -377,7 +379,8 @@ test.describe('the enrich step configures its own provider', () => {
     await page.getByRole('button', { name: 'Continue', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'Choose your tables' })).toBeVisible();
     await page.getByRole('button', { name: 'Continue', exact: true }).click();
-    await page.getByRole('radio', { name: /Same database/ }).click();
+    // Nothing to pick: the store stays where the first-run wizard left it unless another answer is chosen.
+    await expect(page.getByRole('heading', { name: 'Where should Adminium keep its own tables?' })).toBeVisible();
     await page.getByRole('button', { name: 'Continue', exact: true }).click();
 
     // Step 6 — no provider on this instance, so the direct card is off.

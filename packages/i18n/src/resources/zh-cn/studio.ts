@@ -1203,6 +1203,11 @@ export default {
     }
   },
   "meta": {
+    "checking": "正在检查 Adminium 存放自身数据表的位置…",
+    "keep": {
+      "description": "Adminium 目前存放自身数据表的位置。不会移动任何内容，也不会写入你的数据库。",
+      "title": "保留在这台机器上的文件中"
+    },
     "move": {
       "copying": "正在迁移 Adminium 的数据表…",
       "copyingBody": "正在将每张 adminium_ 表复制到新数据库。你的源数据不会被改动，只有在校验通过后才会切换。",
@@ -1228,6 +1233,9 @@ export default {
       "ok": "兼容——写入 ✓ · DDL ✓",
       "test": "测试连接",
       "title": "单独的数据库"
+    },
+    "settled": {
+      "body": "Adminium 的自身数据表保留在当前位置，此步骤不会移动它们。这里没有需要选择的内容。"
     },
     "subtitle": "页面、角色、审计日志和设置存放在以 adminium_ 为前缀的表中——绝不混入你的数据。",
     "testFailed": "连接失败。",

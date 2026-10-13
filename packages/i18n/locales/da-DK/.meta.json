@@ -23707,6 +23707,18 @@
     "status": "src",
     "srcHash": "cba2fb9c3015"
   },
+  "studio.meta.checking": {
+    "status": "mt",
+    "srcHash": "0c59cf224b81"
+  },
+  "studio.meta.keep.description": {
+    "status": "mt",
+    "srcHash": "eb0d937618fb"
+  },
+  "studio.meta.keep.title": {
+    "status": "mt",
+    "srcHash": "b253f1b3b78a"
+  },
   "studio.meta.move.copying": {
     "status": "mt",
     "srcHash": "e8ed6fb45335"
@@ -23786,6 +23798,10 @@
   "studio.meta.separate.title": {
     "srcHash": "5a9e32c92294",
     "status": "mt"
+  },
+  "studio.meta.settled.body": {
+    "status": "mt",
+    "srcHash": "c19c60a23867"
   },
   "studio.meta.subtitle": {
     "srcHash": "eb780da3a4c2",
