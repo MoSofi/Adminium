@@ -438,7 +438,7 @@ export default {
     "someRefused": "{refused} sur {count, plural, one {# modification} other {# modifications}} ne peuvent pas être faites.",
     "changedSince": "Cela a changé depuis qu’on vous l’a montré. Regardez à nouveau avant de confirmer.",
     "fix": "Demander à {name} de corriger",
-    "fixAsk": "Une partie ne peut pas être faite. Propose-le à nouveau sans ceci :\n{reasons}",
+    "fixAsk": "Une partie ne peut pas être faite. Corrige ces points et propose-le à nouveau, avec les noms de colonnes de la table ; ne retire que ce qui est impossible :\n{reasons}",
     "send": {
       "template": "Modèle",
       "subject": "Objet",
@@ -492,7 +492,16 @@ export default {
       "builtIn": "Un e-mail intégré se modifie sur son propre écran.",
       "notCampaign": "Seule une campagne peut être envoyée à des personnes.",
       "noRecipients": "Personne ne recevrait cet e-mail.",
-      "notLive": "Un brouillon est activé par une personne avant de pouvoir être envoyé."
+      "notLive": "Un brouillon est activé par une personne avant de pouvoir être envoyé.",
+      "fields": "Refusé : {reasons}.",
+      "field": {
+        "invalid": "« {column} » n’accepte pas cette valeur",
+        "notAllowed": "« {column} » ne peut pas être défini ici",
+        "outOfRange": "« {column} » est hors limites",
+        "required": "« {column} » doit avoir une valeur",
+        "tooLong": "« {column} » est trop long",
+        "unknown": "il n’y a pas de colonne « {column} »"
+      }
     },
     "row": {
       "untitled": "Sans titre",

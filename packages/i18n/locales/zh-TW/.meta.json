@@ -1423,6 +1423,34 @@
     "status": "mt",
     "srcHash": "0de8c5f8d30d"
   },
+  "assistant.proposal.refused.field.invalid": {
+    "status": "mt",
+    "srcHash": "c2accc0d5c04"
+  },
+  "assistant.proposal.refused.field.notAllowed": {
+    "status": "mt",
+    "srcHash": "12ae8a6f6330"
+  },
+  "assistant.proposal.refused.field.outOfRange": {
+    "status": "mt",
+    "srcHash": "281933cdb837"
+  },
+  "assistant.proposal.refused.field.required": {
+    "status": "mt",
+    "srcHash": "ff626538355e"
+  },
+  "assistant.proposal.refused.field.tooLong": {
+    "status": "mt",
+    "srcHash": "a59408848808"
+  },
+  "assistant.proposal.refused.field.unknown": {
+    "status": "mt",
+    "srcHash": "066b2dc1cf05"
+  },
+  "assistant.proposal.refused.fields": {
+    "status": "mt",
+    "srcHash": "7c6e4173cda7"
+  },
   "assistant.proposal.refused.generic": {
     "status": "mt",
     "srcHash": "a8440c357d52"

@@ -438,7 +438,7 @@ export default {
     "someRefused": "{refused} z {count, plural, one {# změny} few {# změn} other {# změn}} nelze provést.",
     "changedSince": "Od chvíle, kdy vám to bylo ukázáno, se to změnilo. Před potvrzením se podívejte znovu.",
     "fix": "Požádat {name}, ať to opraví",
-    "fixAsk": "Část z toho nelze provést. Navrhni to znovu bez těchto:\n{reasons}",
+    "fixAsk": "Část z toho nelze provést. Oprav tyto body a navrhni to znovu s vlastními názvy sloupců tabulky; vynech jen to, co nelze provést vůbec:\n{reasons}",
     "send": {
       "template": "Šablona",
       "subject": "Předmět",
@@ -492,7 +492,16 @@ export default {
       "builtIn": "Vestavěný e-mail se mění na vlastní obrazovce.",
       "notCampaign": "Lidem lze odeslat jen kampaň.",
       "noRecipients": "Tento e-mail by nikdo nedostal.",
-      "notLive": "Koncept musí před odesláním zapnout člověk."
+      "notLive": "Koncept musí před odesláním zapnout člověk.",
+      "fields": "Odmítnuto: {reasons}.",
+      "field": {
+        "invalid": "„{column}“ tuto hodnotu nepřijímá",
+        "notAllowed": "„{column}“ zde nelze nastavit",
+        "outOfRange": "„{column}“ je mimo rozsah",
+        "required": "„{column}“ potřebuje hodnotu",
+        "tooLong": "„{column}“ je příliš dlouhé",
+        "unknown": "sloupec „{column}“ neexistuje"
+      }
     },
     "row": {
       "untitled": "Bez názvu",

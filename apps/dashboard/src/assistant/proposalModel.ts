@@ -128,8 +128,33 @@ export function doneTitle(actions: readonly AssistantProposalAction[], done: num
   return t('assistant:proposal.done.mixed', '{count, plural, one {# change} other {# changes}} made.', { count: done });
 }
 
+/** One refused column, said as what is wrong with it. One literal key a reason, so each is in the catalogue. */
+function fieldReason(field: { column: string; code: string }): string {
+  const column = field.column;
+  switch (field.code) {
+    case 'required':
+      return t('assistant:proposal.refused.field.required', '“{column}” needs a value', { column });
+    case 'unknown':
+      return t('assistant:proposal.refused.field.unknown', 'there is no column “{column}”', { column });
+    case 'too-long':
+      return t('assistant:proposal.refused.field.tooLong', '“{column}” is too long', { column });
+    case 'out-of-range':
+    case 'too-small':
+    case 'too-large':
+      return t('assistant:proposal.refused.field.outOfRange', '“{column}” is out of range', { column });
+    case 'not-allowed':
+      return t('assistant:proposal.refused.field.notAllowed', '“{column}” cannot be set here', { column });
+    default:
+      return t('assistant:proposal.refused.field.invalid', '“{column}” does not take that value', { column });
+  }
+}
+
 /** A refusal in this app's words where it has them; the server route's own sentence otherwise. */
-export function refusalText(refused: { code: string; message: string }, name: string): string {
+export function refusalText(refused: { code: string; message: string; fields?: readonly { column: string; code: string }[] }, name: string): string {
+  // The route named columns: which, and what is wrong with each, is the whole of what can be acted on.
+  if (refused.fields !== undefined && refused.fields.length > 0) {
+    return t('assistant:proposal.refused.fields', 'Refused: {reasons}.', { reasons: refused.fields.map(fieldReason).join('; ') });
+  }
   switch (refused.code) {
     case 'SWITCHED_OFF':
       return t('assistant:proposal.refused.switchedOff', 'This is switched off for {name} in this workspace.', { name });
@@ -235,5 +260,6 @@ export function fixRequest(proposal: AssistantProposal, name: string): string {
   const reasons = proposal.actions
     .map((action, index) => (action.refused === null ? null : `${String(index + 1)}. ${labelOf(action).label}: ${refusalText(action.refused, name)}`))
     .filter((line): line is string => line !== null);
-  return t('assistant:proposal.fixAsk', 'Some of that cannot be done. Propose it again without these:\n{reasons}', { reasons: reasons.join('\n') });
+  // "Without these" was the wrong thing to ask for a row that lacks a value: it asks for the row to be dropped.
+  return t('assistant:proposal.fixAsk', 'Some of that cannot be done. Put these right and propose it again, using the table’s own column names; leave out only what cannot be done at all:\n{reasons}', { reasons: reasons.join('\n') });
 }

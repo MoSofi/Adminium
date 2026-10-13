@@ -428,7 +428,7 @@
     "someRefused": "{count, plural, other {#}} 項變更中有 {refused} 項無法執行。",
     "changedSince": "自向你顯示後，此內容已有變化。確認前請再看一次。",
     "fix": "請 {name} 修正",
-    "fixAsk": "其中一部分無法執行。請去掉以下內容後重新提議：\n{reasons}",
+    "fixAsk": "其中一部分無法執行。請改正以下各項後重新提議，並使用資料表本身的欄位名稱；只去掉完全無法執行的內容：\n{reasons}",
     "send": {
       "template": "範本",
       "subject": "主旨",
@@ -482,7 +482,16 @@
       "builtIn": "內建郵件需在其自己的頁面上變更。",
       "notCampaign": "只有行銷郵件可以傳送給人員。",
       "noRecipients": "沒有人會收到這封郵件。",
-      "notLive": "草稿需由人開啟後才能傳送。"
+      "notLive": "草稿需由人開啟後才能傳送。",
+      "fields": "已拒絕：{reasons}。",
+      "field": {
+        "invalid": "「{column}」不接受這個值",
+        "notAllowed": "此處不能設定「{column}」",
+        "outOfRange": "「{column}」超出範圍",
+        "required": "「{column}」需要一個值",
+        "tooLong": "「{column}」太長",
+        "unknown": "沒有「{column}」這個欄位"
+      }
     },
     "row": {
       "untitled": "未命名",

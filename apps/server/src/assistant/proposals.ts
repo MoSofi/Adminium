@@ -51,8 +51,8 @@ export type ProposalState = 'unchecked' | 'open' | 'refused' | 'superseded' | 'e
 export interface ProposalRefusal {
   code: string;
   message: string;
-  /** The columns a route named, when it named any. */
-  fields?: string[];
+  /** The columns a route named, when it named any, each with the route's own reason (`required`, `invalid`, `unknown`, …). */
+  fields?: { column: string; code: string }[];
 }
 
 export type ProposalPreview =
@@ -211,12 +211,23 @@ function clip(row: unknown): Record<string, unknown> {
 
 /** A route's refusal, read from its error envelope. */
 function refusalOf(reply: DoorReply): ProposalRefusal {
-  const error = (reply.body as { error?: { code?: unknown; message?: unknown; details?: { fields?: unknown } } } | null)?.error;
-  const fields = error?.details?.fields;
+  const error = (reply.body as { error?: { code?: unknown; message?: unknown; details?: { fields?: unknown; column?: unknown } } } | null)?.error;
+  const code = typeof error?.code === 'string' ? error.code : `HTTP_${String(reply.status)}`;
+  const named = error?.details?.fields;
+  // Which column, and why: "Some values were refused" alone leaves a person, and the model
+  // asked to put it right, with nothing to act on.
+  const fields: { column: string; code: string }[] =
+    typeof named === 'object' && named !== null
+      ? Object.entries(named as Record<string, unknown>)
+          .slice(0, 20)
+          .map(([column, issue]) => ({ column, code: typeof (issue as { code?: unknown } | null)?.code === 'string' ? (issue as { code: string }).code : 'invalid' }))
+      : code === 'UNKNOWN_IDENTIFIER' && typeof error?.details?.column === 'string'
+        ? [{ column: error.details.column, code: 'unknown' }]
+        : [];
   return {
-    code: typeof error?.code === 'string' ? error.code : `HTTP_${String(reply.status)}`,
+    code,
     message: typeof error?.message === 'string' ? error.message : 'The server refused this.',
-    ...(typeof fields === 'object' && fields !== null ? { fields: Object.keys(fields).slice(0, 20) } : {}),
+    ...(fields.length > 0 ? { fields } : {}),
   };
 }
 

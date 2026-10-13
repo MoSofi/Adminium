@@ -428,7 +428,7 @@
     "someRefused": "{refused} von {count, plural, one {# Änderung} other {# Änderungen}} können nicht gemacht werden.",
     "changedSince": "Das hat sich geändert, seit es dir gezeigt wurde. Sieh es dir vor dem Bestätigen noch einmal an.",
     "fix": "{name} bitten, das zu korrigieren",
-    "fixAsk": "Ein Teil davon geht nicht. Schlage es ohne diese noch einmal vor:\n{reasons}",
+    "fixAsk": "Ein Teil davon geht nicht. Korrigiere diese Punkte und schlage es noch einmal vor, mit den eigenen Spaltennamen der Tabelle; lass nur weg, was gar nicht geht:\n{reasons}",
     "send": {
       "template": "Vorlage",
       "subject": "Betreff",
@@ -482,7 +482,16 @@
       "builtIn": "Eine eingebaute Mail wird auf ihrer eigenen Seite geändert.",
       "notCampaign": "Nur eine Kampagne kann an Personen gesendet werden.",
       "noRecipients": "Niemand würde diese Mail bekommen.",
-      "notLive": "Ein Entwurf wird von einer Person eingeschaltet, bevor er gesendet werden kann."
+      "notLive": "Ein Entwurf wird von einer Person eingeschaltet, bevor er gesendet werden kann.",
+      "fields": "Abgelehnt: {reasons}.",
+      "field": {
+        "invalid": "„{column}“ nimmt diesen Wert nicht an",
+        "notAllowed": "„{column}“ kann hier nicht gesetzt werden",
+        "outOfRange": "„{column}“ liegt außerhalb des Bereichs",
+        "required": "„{column}“ braucht einen Wert",
+        "tooLong": "„{column}“ ist zu lang",
+        "unknown": "es gibt keine Spalte „{column}“"
+      }
     },
     "row": {
       "untitled": "Ohne Titel",

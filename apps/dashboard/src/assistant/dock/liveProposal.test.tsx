@@ -142,7 +142,7 @@ describe('what a card says, worked out from the proposal alone', () => {
     expect(referencesText(gone.actions)).toBe('Other rows refer to this: 2 in orders, 1 in notes. They go or change with it, as on the page’s own delete.');
     expect(referencesText(parsed(open([change('1', 'a', 'b')])).actions)).toBeNull();
     const part = parsed(open([change('1', 'sent', 'paid'), refusedChange('9', 'You may not change total on invoices.')]));
-    expect(fixRequest(part, 'Milo')).toBe('Some of that cannot be done. Propose it again without these:\n2. 9: You may not change total on invoices.');
+    expect(fixRequest(part, 'Milo')).toBe('Some of that cannot be done. Put these right and propose it again, using the table’s own column names; leave out only what cannot be done at all:\n2. 9: You may not change total on invoices.');
   });
 
   it('reads nothing that is not a proposal, and keeps only what it knows of one', () => {
@@ -267,6 +267,24 @@ describe('a proposal that waits for a yes', () => {
     expect(screen.getByRole('button', { name: 'Change 1 row' })).toBeTruthy();
     await userEvent.setup().click(screen.getByRole('button', { name: 'Ask Milo to fix this' }));
     expect(props.onAsk).toHaveBeenCalledWith(expect.stringContaining('2. INV-9: You may not change total on invoices.'));
+  });
+
+  it('names the column a refused row was refused for and why, on the card and in what is sent back', async () => {
+    const row = (fields: { column: string; code: string }[], message: string, code: string) => ({ do: 'row.create', connectionId: 'c1', table: 'main.products', values: {}, refused: { code, message, fields } });
+    const { props } = show(
+      open([
+        row([{ column: 'is_active', code: 'required' }], 'Some values were refused.', 'VALIDATION_FAILED'),
+        row([{ column: 'active', code: 'unknown' }], 'Unknown column "active" on main.products.', 'UNKNOWN_IDENTIFIER'),
+      ]),
+    );
+    expect(screen.getByText('Refused: “is_active” needs a value.')).toBeTruthy();
+    expect(screen.getByText('Refused: there is no column “active”.')).toBeTruthy();
+    expect(screen.queryByText('Some values were refused.')).toBeNull();
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Ask Milo to fix this' }));
+    const asked = (props.onAsk as ReturnType<typeof vi.fn>).mock.calls[0]![0] as string;
+    expect(asked).toContain('Put these right and propose it again');
+    expect(asked).toContain('1. New row: Refused: “is_active” needs a value.');
+    expect(asked).not.toContain('without these');
   });
 
   it('draws what changed since it was shown, from the refusal itself, and writes nothing', async () => {

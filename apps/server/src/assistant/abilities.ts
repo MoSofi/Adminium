@@ -14,8 +14,10 @@
 import type { AssistantActionKind } from '@adminium/llm';
 import { settingsRepo } from '@adminium/meta';
 
+import { requiredOnCreate } from '../crud/column-rules.js';
 import { PERMISSIONS } from '../rbac/permissions.js';
 import { dataPageOf } from './data-page.js';
+import { viewOrError } from './tools/schema.js';
 import type { AssistantToolDeps } from './types.js';
 
 export interface ProposableKinds {
@@ -82,9 +84,23 @@ export async function proposableKindsFor(deps: AssistantToolDeps): Promise<Propo
     if (await deps.can(`table:${page.connectionId}:${page.table}:${row.action}`)) kinds.push(row.kind);
   }
   if (kinds.length === 0) return none;
+  // What a new row must carry, said before the first try: a model that guesses a column's name
+  // ("active" for "is_active") is refused, drops it, and is then refused for leaving it out.
+  let needs = '';
+  if (kinds.includes('row.create')) {
+    const found = await viewOrError(deps, page.connectionId);
+    if (!('error' in found)) {
+      try {
+        const required = requiredOnCreate({ view: found.view, table: found.view.table(page.table) });
+        if (required.length > 0) needs = ` A new row must give a value for each of: ${required.map((name) => JSON.stringify(name)).join(', ')}. Use the table's own column names, exactly as describe_schema spells them.`;
+      } catch {
+        // A table this person's view does not hold: the check says so when a row is proposed.
+      }
+    }
+  }
   return {
     kinds,
     maxActions,
-    where: `Rows can be proposed on this page's own table only: connectionId ${JSON.stringify(page.connectionId)}, table ${JSON.stringify(page.table)}.`,
+    where: `Rows can be proposed on this page's own table only: connectionId ${JSON.stringify(page.connectionId)}, table ${JSON.stringify(page.table)}.${needs}`,
   };
 }

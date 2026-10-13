@@ -1438,6 +1438,28 @@ function filledColumns(rules: TableRules): Set<string> {
 }
 
 /**
+ * The columns a NEW row must be given a value for, as far as can be told
+ * before it is tried: an admin's "required", and a NOT NULL column nothing
+ * fills (no default, not generated, not a key the database counts, not one of
+ * Adminium's own fills). The write itself is still the judge (a trigger may
+ * fill what looks empty); this is what somebody proposing a row is told
+ * beforehand, so the first try is not the one that finds out.
+ */
+export function requiredOnCreate(target: { view: SnapshotView; table: ResolvedTable }): string[] {
+  const rules = tableRulesFor(target);
+  const filled = rules === null ? new Set<string>() : filledColumns(rules);
+  const byRule = new Set((rules?.checks ?? []).filter((check) => check.requiredByRule === true).map((check) => check.column));
+  const out: string[] = [];
+  for (const column of target.table.table.columns) {
+    const shown = target.table.columns.get(column.name);
+    if (shown === undefined || shown.secret || shown.unreadable === true) continue;
+    if (column.isGenerated || filled.has(column.name)) continue;
+    if (byRule.has(column.name) || (!column.nullable && column.default === null)) out.push(column.name);
+  }
+  return out;
+}
+
+/**
  * The columns nobody is asked for when another column says they are needed:
  * the filled ones, but for a copy that only fills what a write leaves out.
  * With nothing to copy such a column is still empty, and a person is the one

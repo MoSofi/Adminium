@@ -428,7 +428,7 @@
     "someRefused": "{refused} of {count, plural, one {# change} other {# changes}} cannot be made.",
     "changedSince": "This changed since you were shown it. Look again before confirming.",
     "fix": "Ask {name} to fix this",
-    "fixAsk": "Some of that cannot be done. Propose it again without these:\n{reasons}",
+    "fixAsk": "Some of that cannot be done. Put these right and propose it again, using the table’s own column names; leave out only what cannot be done at all:\n{reasons}",
     "send": {
       "template": "Template",
       "subject": "Subject",
@@ -482,7 +482,16 @@
       "builtIn": "A built-in mail is changed on its own screen.",
       "notCampaign": "Only a campaign can be sent to people.",
       "noRecipients": "Nobody would get this mail.",
-      "notLive": "A draft is switched on by a person before it can be sent."
+      "notLive": "A draft is switched on by a person before it can be sent.",
+      "fields": "Refused: {reasons}.",
+      "field": {
+        "invalid": "“{column}” does not take that value",
+        "notAllowed": "“{column}” cannot be set here",
+        "outOfRange": "“{column}” is out of range",
+        "required": "“{column}” needs a value",
+        "tooLong": "“{column}” is too long",
+        "unknown": "there is no column “{column}”"
+      }
     },
     "row": {
       "untitled": "Untitled",

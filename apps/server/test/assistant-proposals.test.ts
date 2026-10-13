@@ -24,6 +24,7 @@ import { documentColumns, normalizeDocument } from '../src/email/document.js';
 import { executeAssistantTurn } from '../src/jobs/assistant-turn.js';
 import { matrixRowsFromGrants } from '../src/rbac/permissions.js';
 import { permissionSetAllows, resolvePermissionSet } from '../src/rbac/resolver.js';
+import { describeSchemaTool } from '../src/assistant/tools/schema.js';
 import { legs, person, signIn, stack, turnAs, type Stack } from './assistant-lodge.helpers.js';
 import { makeScriptedClient } from './llm-fixtures.js';
 
@@ -273,6 +274,28 @@ for (const [dialect, available] of legs) {
       const mine = await proposed(all, [{ do: 'row.delete', connectionId: s.connectionId, table: s.table.stays, id: '1' }]);
       const asPlanner = await check(night, mine);
       expect(asPlanner.status).toBe(404);
+    });
+
+    it('says which column a refused row was refused for, and tells the model beforehand what a new row needs', async () => {
+      await switches({ create: true });
+      // The model guessed a column's name, as it does when asked in plain words…
+      const guessed = await proposed(all, [{ do: 'row.create', connectionId: s.connectionId, table: s.table.stays, values: { name: 'Bo', arrive: '2026-12-01', depart: '2026-12-03' } }]);
+      const first = (await check(all, guessed)).proposal.actions![0]!.refused as { code: string; fields?: { column: string; code: string }[] };
+      expect(first.fields, JSON.stringify(first)).toEqual([{ column: 'name', code: 'unknown' }]);
+      // …then left the column out, and the row lacks what it must hold.
+      const dropped = await proposed(all, [{ do: 'row.create', connectionId: s.connectionId, table: s.table.stays, values: { arrive: '2026-12-01', depart: '2026-12-03' } }]);
+      const second = (await check(all, dropped)).proposal.actions![0]!.refused as { code: string; fields?: { column: string; code: string }[] };
+      expect(second.fields, JSON.stringify(second)).toEqual([{ column: 'guest_name', code: 'required' }]);
+      expect(await statusOf('Bo')).toBeUndefined();
+
+      // What it is told before it proposes anything: the columns a new stay must give, by their own names.
+      const told = await on(all.id);
+      expect(told.system).toContain('A new row must give a value for each of: "arrive", "depart", "guest_name".');
+      const schema = await describeSchemaTool.run({ connectionId: s.connectionId, tables: [s.table.stays] }, told.deps);
+      expect((schema.result as { tables: { requiredForNewRow: string[] }[] }).tables[0]!.requiredForNewRow).toEqual(['arrive', 'depart', 'guest_name']);
+      // Someone who may not add a row is not told what one needs.
+      await switches({ create: true, change: true });
+      expect((await on(night.id)).system).not.toContain('A new row must give');
     });
 
     it('holds the switches and the cap as they are when it is checked', async () => {

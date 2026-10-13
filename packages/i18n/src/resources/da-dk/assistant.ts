@@ -438,7 +438,7 @@ export default {
     "someRefused": "{refused} af {count, plural, one {# ændring} other {# ændringer}} kan ikke laves.",
     "changedSince": "Dette har ændret sig, siden du fik det vist. Se igen, før du bekræfter.",
     "fix": "Bed {name} om at rette dette",
-    "fixAsk": "Noget af det kan ikke lade sig gøre. Foreslå det igen uden disse:\n{reasons}",
+    "fixAsk": "Noget af det kan ikke lade sig gøre. Ret disse, og foreslå det igen med tabellens egne kolonnenavne; udelad kun det, der slet ikke kan lade sig gøre:\n{reasons}",
     "send": {
       "template": "Skabelon",
       "subject": "Emne",
@@ -492,7 +492,16 @@ export default {
       "builtIn": "En indbygget mail ændres på sin egen skærm.",
       "notCampaign": "Kun en kampagne kan sendes til personer.",
       "noRecipients": "Ingen ville få denne mail.",
-      "notLive": "Et udkast slås til af en person, før det kan sendes."
+      "notLive": "Et udkast slås til af en person, før det kan sendes.",
+      "fields": "Afvist: {reasons}.",
+      "field": {
+        "invalid": "“{column}” kan ikke have den værdi",
+        "notAllowed": "“{column}” kan ikke sættes her",
+        "outOfRange": "“{column}” er uden for området",
+        "required": "“{column}” skal have en værdi",
+        "tooLong": "“{column}” er for lang",
+        "unknown": "der er ingen kolonne “{column}”"
+      }
     },
     "row": {
       "untitled": "Uden titel",

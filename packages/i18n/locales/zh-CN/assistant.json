@@ -428,7 +428,7 @@
     "someRefused": "{count, plural, other {#}} 项更改中有 {refused} 项无法执行。",
     "changedSince": "自向你展示后，此内容已发生变化。确认前请再看一遍。",
     "fix": "让 {name} 修正",
-    "fixAsk": "其中一部分无法执行。请去掉以下内容后重新提议：\n{reasons}",
+    "fixAsk": "其中一部分无法执行。请改正以下各项后重新提议，并使用表自身的列名；只去掉完全无法执行的内容：\n{reasons}",
     "send": {
       "template": "模板",
       "subject": "主题",
@@ -482,7 +482,16 @@
       "builtIn": "内置邮件需在其自己的页面上更改。",
       "notCampaign": "只有营销邮件可以发送给人员。",
       "noRecipients": "没有人会收到这封邮件。",
-      "notLive": "草稿需由人开启后才能发送。"
+      "notLive": "草稿需由人开启后才能发送。",
+      "fields": "已拒绝：{reasons}。",
+      "field": {
+        "invalid": "“{column}”不接受这个值",
+        "notAllowed": "此处不能设置“{column}”",
+        "outOfRange": "“{column}”超出范围",
+        "required": "“{column}”需要一个值",
+        "tooLong": "“{column}”太长",
+        "unknown": "没有“{column}”这一列"
+      }
     },
     "row": {
       "untitled": "未命名",
