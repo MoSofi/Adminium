@@ -18,11 +18,13 @@ import {
 } from '@adminium/ui';
 import { entityFromTable, plainTableName } from '../../lib/names.js';
 import { useMaybeT } from '../../lib/i18n.js';
+import { useBoundPlaces } from '../page-crud/controls/use-bound-places.js';
 import { Pencil, Plus, Trash2 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 
 import { RecordFormDialog } from '../page-crud/RecordFormDialog.js';
 import type { ControlOption } from '../page-crud/controls/index.js';
+import type { ColumnFacts } from '../page-crud/field-mapping.js';
 import type { FormRelationFact } from '../../page-config/index.js';
 import { isDeletePreview } from '../page-crud/crud-api.js';
 import type {
@@ -209,6 +211,12 @@ export interface PageRecordProps {
   entityName?: string | undefined;
   /** `config.keyField` — hero headline column; falls back to the display value. */
   keyField?: string | null | undefined;
+  /**
+   * What the server says a column HOLDS, for the columns whose edit field
+   * depends on it: a place gets the place field, an area the drawing of one.
+   * Only those columns: this page's edit form otherwise reads its stored spec.
+   */
+  fieldFacts?: ColumnFacts | undefined;
   /** `config.readOnly` — no write affordance anywhere on the page. */
   readOnly?: boolean | undefined;
   /** `config.detail.tabs`. */
@@ -961,9 +969,12 @@ export function PageRecord({
   locale,
   currency,
   labels,
+  fieldFacts,
   testId,
 }: PageRecordProps) {
   const t = useMaybeT();
+  // One search function for as long as the table is the same: a field's search is not started again by a draw.
+  const places = useBoundPlaces(api);
   const queue = useToastQueue();
   const entity = entityName ?? entityFromTable(source.table);
 
@@ -1430,6 +1441,8 @@ export function PageRecord({
           errors={editErrors}
           lookup={api.lookup?.bind(api)}
           availability={api.availability?.bind(api)}
+          places={places}
+          {...(fieldFacts === undefined ? {} : { facts: fieldFacts })}
           onSubmit={handleUpdate}
           {...(labels?.close === undefined ? {} : { labels: { close: labels.close } })}
         />

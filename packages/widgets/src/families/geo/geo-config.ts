@@ -6,15 +6,15 @@ import { widgetSharedConfigSchema } from '../../registry/shared-config.js';
 
 /**
  * `geo` family config schemas + deterministic demo generators — PURE module
- * (zod + geo-lib + shared-config only; no React component code, **no Leaflet**).
+ * (zod + geo-lib + shared-config only; no React component code, **no map engine**).
  *
  * WHY THIS EXISTS: the registry metadata graph reaches this family through
  * `geo-track.definitions.ts`, which imports these schemas and `demoData`
  * generators. If they lived in the component files, the definitions module would
  * statically import a `.tsx` — and `registry/index.ts` statically imports every
- * definitions module, so Leaflet, @adminium/ui and the map markup would all land
+ * definitions module, so MapLibre, @adminium/ui and the map markup would all land
  * in the EAGER registry chunk, on every page, whether or not a map is placed.
- * That is exactly what acceptance #3 forbids ("Leaflet code is absent unless
+ * That is exactly what acceptance #3 forbids ("map engine code is absent unless
  * map-bubble is placed"). The components load only through
  * `lazy(() => import('./geo-track-components.js'))`; the component files
  * re-export these symbols so barrel/story/test import points stay one-per-widget.
@@ -39,6 +39,11 @@ export const mapBubbleConfigSchema = widgetSharedConfigSchema.extend({
    */
   latColumn: z.string().default('lat'),
   lngColumn: z.string().default('lng'),
+  /**
+   * ONE place column (`{ lat, lng, by }`) in the pair's stead: what the
+   * `geo.place-column` rule emits for a column whose rule says it is a place.
+   */
+  placeColumn: z.string().optional(),
   nameField: z.string().default('name'),
   codeField: z.string().default('code'),
   /**
@@ -52,7 +57,8 @@ export const mapBubbleConfigSchema = widgetSharedConfigSchema.extend({
   valueFormat: z.enum(['plain', 'compact', 'currency', 'percent']).default('compact'),
   /** annex config `initialZoom/center`. */
   initialCenter: latLngSchema.optional(),
-  initialZoom: z.number().int().min(1).max(18).default(DEFAULT_ZOOM),
+  /** Without one (and without a centre) the map fits its points. */
+  initialZoom: z.number().int().min(1).max(18).optional(),
   /** Clicking a marker flies the map to it (annex). */
   flyToOnClick: z.boolean().default(true),
   /**
@@ -194,5 +200,5 @@ export function initialView(config: Pick<MapBubbleConfig, 'initialCenter' | 'ini
   center: readonly [number, number];
   zoom: number;
 } {
-  return { center: config.initialCenter ?? DEFAULT_CENTER, zoom: config.initialZoom };
+  return { center: config.initialCenter ?? DEFAULT_CENTER, zoom: config.initialZoom ?? DEFAULT_ZOOM };
 }

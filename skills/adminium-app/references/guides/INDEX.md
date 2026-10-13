@@ -8,7 +8,8 @@
 | `references/guides/manifest-by-task--add-a-table.md` | Add a table | 2907 |
 | `references/guides/manifest-by-task--link-two-tables.md` | Link two tables | 2004 |
 | `references/guides/manifest-by-task--a-choice-column.md` | A choice column | 1243 |
-| `references/guides/manifest-by-task--add-a-dashboard-page.md` | Add a dashboard page | 3042 |
+| `references/guides/manifest-by-task--add-a-dashboard-page.md` | Add a dashboard page | 3201 |
+| `references/guides/manifest-by-task--a-board-with-its-own-columns.md` | A board with its own columns | 3460 |
 | `references/guides/manifest-by-task--buttons-on-a-record-page.md` | Buttons on a record page | 1587 |
 | `references/guides/manifest-by-task--add-a-role.md` | Add a role | 2153 |
 | `references/guides/manifest-by-task--let-customers-read-or-add.md` | Let customers read or add | 2783 |
@@ -86,6 +87,5 @@
 | `references/guides/timed-moves--three-cases.md` | Three cases | 2280 |
 | `references/guides/timed-moves--sample-data.md` | Sample data | 877 |
 | `references/guides/timed-moves--moves-that-wait-for-a-time.md` | Moves that wait for a time | 1130 |
-| `references/guides/timed-moves--late-moves.md` | Late moves | 1872 |
 
 More: `references/guides/INDEX-2.md`

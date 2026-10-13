@@ -63,7 +63,24 @@ export function listParams(query: RecordsQuery): CrudListParams {
     limit: Math.min(Math.max(Math.trunc(query.limit ?? DEFAULT_LIMIT), 1), MAX_LIMIT),
     offset: Math.max(Math.trunc(query.offset ?? 0), 0),
     count: 'estimated',
+    ...(query.measures === undefined || query.measures.length === 0 ? {} : { compute: measuresParam(query.measures) }),
   };
+}
+
+/** Kit measures as the data routes' `compute`: a count of the linking rows, or a sum or an average of one of their columns. */
+function measuresParam(measures: NonNullable<RecordsQuery['measures']>): string {
+  return JSON.stringify({
+    measures: measures.map((measure) => ({
+      id: measure.as,
+      table: measure.table,
+      fkColumn: measure.via,
+      fn: measure.fn,
+      ...(measure.fn === 'count' || measure.of === undefined ? {} : { of: { terms: [{ sign: 'plus', factors: [measure.of] }] } }),
+      ...(measure.where === undefined || Object.keys(measure.where).length === 0
+        ? {}
+        : { where: Object.entries(measure.where).map(([column, value]) => ({ column, in: Array.isArray(value) ? value : [value] })) }),
+    })),
+  });
 }
 
 const asError = (error: unknown): Error => (error instanceof Error ? error : new Error(String(error)));
@@ -76,7 +93,9 @@ export function useRecords<R extends AnyRecord = AnyRecord>(
   const connectionId = useConnection(database);
   const params = listParams(query as RecordsQuery);
   const result = useQuery({
-    queryKey: ['data', connectionId, table, 'project-list', params] as const,
+    // A list with measures is read again when ANY table changes, as a widget's figures are: what it counts lives in
+    // another table, and a frame of that table names only itself (`api/realtime.ts`).
+    queryKey: (params.compute === undefined ? ['data', connectionId, table, 'project-list', params] : ['widget-data', 'project-list', connectionId, table, params]) as readonly unknown[],
     queryFn: () => createCrudApi(connectionId, table).list(params),
     placeholderData: keepPreviousData,
   });

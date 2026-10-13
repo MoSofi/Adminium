@@ -28,6 +28,7 @@ export type AssistantPlaceGuard =
   | 'studio'
   | 'users.manage'
   | 'roles.manage'
+  | 'settings.manage'
   | 'connections.manage'
   | 'automations.manage'
   | 'api-keys.manage'
@@ -66,6 +67,7 @@ export const ASSISTANT_PLACES: readonly AssistantPlace[] = Object.freeze([
   { path: '/settings/roles', guard: 'roles.manage', name: 'Roles', what: 'What each role may view, create, change and delete, table by table and column by column; who may use the assistant.' },
   { path: '/settings/defaults', guard: 'none', name: 'Global defaults', what: 'Workspace-wide appearance and language defaults.' },
   { path: '/settings/translations', guard: 'none', name: 'Languages & translations', what: 'Change any wording in the product, choose which languages people can pick, add a language.' },
+  { path: '/settings/maps', guard: 'settings.manage', name: 'Maps', what: 'Whether maps are shown and whether routes follow roads; which map server and routing server are asked, and what each of them learns.' },
   { path: '/studio', guard: 'connections.manage', name: 'Data connections', what: 'Connect a database, rename, pause or delete a connection, read its schema again, its regional settings (currency, time zone).' },
   { path: '/studio/pages', guard: 'pages.manage', name: 'Pages', what: 'Create, edit, reorder, hide and delete pages; a page\'s columns, filters, layout and place in the sidebar.' },
   { path: '/studio/documents', guard: 'manifests.manage', name: 'Document mappings', what: 'Which table and columns an invoice or other document is drawn from, and its numbering.' },

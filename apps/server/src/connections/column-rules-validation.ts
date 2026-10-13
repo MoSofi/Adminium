@@ -168,7 +168,9 @@ export function columnRuleIssue(
     | 'column.plainText'
     | 'column.customerKey'
     | 'column.staff'
-    | 'column.mentions',
+    | 'column.mentions'
+    | 'column.place'
+    | 'column.area',
   raw: unknown,
   column: ColumnModel,
   model: DatabaseModel,
@@ -497,6 +499,19 @@ export function columnRuleIssue(
     case 'column.mentions': {
       if (column.isGenerated || column.isPrimaryKey) return `${name} is not text people write.`;
       return TEXTUAL_TYPES.has(column.logicalType) ? null : `People are mentioned in text; ${name} is ${column.logicalType}.`;
+    }
+
+    case 'column.place':
+    case 'column.area': {
+      // Kept whole, as JSON: the server reads and checks the value, and hands it back as an object on every database.
+      const what = op === 'column.place' ? 'A place' : 'An area';
+      if (column.isGenerated || column.isPrimaryKey) return `${name} cannot hold ${what.toLowerCase()}.`;
+      // SQLite has no JSON type: a json column of an app's is made as TEXT there and reported as `text`, so there a text column is one.
+      const holdsJson = column.logicalType === 'json' || (model.dialect === 'sqlite' && column.logicalType === 'text');
+      if (!holdsJson) return `${what} is kept in a json column; ${name} is ${column.logicalType}.`;
+      const other = op === 'column.place' ? 'column.area' : 'column.place';
+      if ((related?.rules ?? []).some((rule) => rule.op === other && rule.columnName === column.name)) return `${name} holds a place or an area, not both.`;
+      return null;
     }
 
     case 'column.staff': {

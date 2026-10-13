@@ -674,7 +674,7 @@ jobs:
             test -d "$PKG/node_modules/@adminium/$dep" || {
               echo "::error::bundled @adminium/$dep is missing from the published CLI"; exit 1; }
           done
-          for lib in react react-dom lucide-react leaflet @radix-ui @dnd-kit @tanstack; do
+          for lib in react react-dom lucide-react maplibre-gl @maplibre @radix-ui @dnd-kit @tanstack; do
             if [ -e "$PKG/node_modules/$lib" ]; then
               echo "::error::the published CLI installed $lib, a dashboard-only library"; exit 1
             fi

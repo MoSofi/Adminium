@@ -17,7 +17,8 @@ export interface ImportMapping {
 }
 
 export interface ImportOptions {
-  mode?: 'insert' | 'upsert';
+  /** `upsert` and `skip` match each line on `matchColumn`: one updates the row that is already here, the other leaves it. */
+  mode?: 'insert' | 'upsert' | 'skip';
   matchColumn?: string | null;
   skipInvalid?: boolean;
 }
@@ -27,6 +28,8 @@ export interface ImportStats {
   inserted?: number;
   updated?: number;
   skipped?: number;
+  /** Lines of a `skip` import left alone because their row was already here: part of `skipped`. */
+  alreadyHere?: number;
 }
 
 export type ImportStatus = 'validating' | 'ready' | 'running' | 'succeeded' | 'failed' | 'cancelled';
@@ -55,6 +58,29 @@ export interface UploadPreview {
   columns: string[];
   sampleRows: string[][];
   totalRows: number;
+  delimiter?: 'comma' | 'tab' | 'semicolon';
+}
+
+/** One line of the file as the import would treat it (`GET /imports/:id/preview`). */
+export interface ImportPreviewLineDto {
+  row: number;
+  status: 'new' | 'here' | 'refused';
+  code?: string;
+  column?: string;
+  message?: string;
+  /** `here` only because this earlier line of the same file would have made its row. */
+  earlierLine?: number;
+}
+
+export interface ImportPreviewDto {
+  total: number;
+  /** How many lines were judged: the counts are of these. */
+  judged: number;
+  capped: boolean;
+  counts: { new: number; here: number; refused: number };
+  /** The table has hooks, which run only when the import runs. */
+  hooksNotRun: boolean;
+  lines: ImportPreviewLineDto[];
 }
 
 export interface ValidationIssueDto {
@@ -188,9 +214,10 @@ export interface JobDto {
 // --- client ----------------------------------------------------------------------
 
 /** Raw `text/csv` upload — the one non-JSON call in the SPA (route contract). */
-async function uploadImportFile(file: File): Promise<UploadPreview> {
+/** `header: 'none'` says every row of the file is data (rows pasted without their column names). */
+async function uploadImportFile(file: File, opts: { header?: 'first-row' | 'none' } = {}): Promise<UploadPreview> {
   const response = await fetch(
-    `/api/v1/imports/upload?filename=${encodeURIComponent(file.name === '' ? 'upload.csv' : file.name)}`,
+    `/api/v1/imports/upload?filename=${encodeURIComponent(file.name === '' ? 'upload.csv' : file.name)}${opts.header === 'none' ? '&header=none' : ''}`,
     {
       method: 'POST',
       credentials: 'same-origin',
@@ -241,6 +268,14 @@ export const dataIoApi = {
     api.post<{ data: { import: ImportDto; jobId: string } }>(
       `/api/v1/imports/${encodeURIComponent(id)}/run`,
     ),
+
+  /** What running a ready import would do with each line; writes nothing. */
+  previewImport: async (id: string, page: { offset?: number; limit?: number } = {}) =>
+    (
+      await api.get<{ data: ImportPreviewDto }>(
+        `/api/v1/imports/${encodeURIComponent(id)}/preview?offset=${page.offset ?? 0}&limit=${page.limit ?? 100}`,
+      )
+    ).data,
 
   getImport: async (id: string) =>
     (await api.get<{ data: ImportDto }>(`/api/v1/imports/${encodeURIComponent(id)}`)).data,

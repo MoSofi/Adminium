@@ -41,6 +41,12 @@ export const FIELD_ISSUE_CODES = [
   'reserved',
   'mention-unknown',
   'too-many-mentions',
+  'place-unreadable',
+  'place-short-link',
+  'place-out-of-range',
+  'place-unknown',
+  'area-unreadable',
+  'area-too-large',
 ] as const;
 
 export type FieldIssueCode = (typeof FIELD_ISSUE_CODES)[number];
@@ -109,6 +115,19 @@ export function fieldIssueMessage(t: Translate, issue: FieldIssue): string {
       return t('ui:formDialog.issue.mentionUnknown', 'Somebody mentioned here is not a person who signs in. Type @ and choose them from the list.');
     case 'too-many-mentions':
       return t('ui:formDialog.issue.tooManyMentions', 'Too many people are mentioned here. Mention fewer.');
+    // A place or an area the server could not take. These words load with the map's own (`ui:widgets`).
+    case 'place-unreadable':
+      return t('ui:widgets.geo.place.issue.unreadable', 'This could not be read as a place. Choose a town from the list, or paste coordinates such as 30.0444, 31.2357.');
+    case 'place-short-link':
+      return t('ui:widgets.geo.place.issue.shortLink', 'A short link does not say where it leads, and it is not followed. Open it, then paste the full link or the coordinates.');
+    case 'place-out-of-range':
+      return t('ui:widgets.geo.place.issue.outOfRange', 'These coordinates are not on the map. Latitude runs from -90 to 90, longitude from -180 to 180.');
+    case 'place-unknown':
+      return t('ui:widgets.geo.place.issue.unknown', 'This town is not in the list any more. Choose it again.');
+    case 'area-unreadable':
+      return t('ui:widgets.geo.area.issue.unreadable', 'This could not be read as an area. Draw it again.');
+    case 'area-too-large':
+      return t('ui:widgets.geo.area.issue.tooLarge', 'This area has too many points. Draw it with fewer.');
     // A discount code spelled like a voucher's or a gift card's: a typed value starting so would be taken for one of those.
     case 'reserved':
       return t('ui:formDialog.issue.reserved', 'A discount code cannot start like a voucher or a gift card code.');

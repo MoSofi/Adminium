@@ -6,6 +6,7 @@ import {
   formatEnvErrorTable,
   loadEnv,
   parseImageHostSource,
+  parseServerOrigin,
   SELF_ORIGIN_SENTINEL,
 } from '../src/config/env.js';
 
@@ -64,6 +65,9 @@ describe('loadEnv — valid input', () => {
       // answer stored elsewhere (config.json), so "unset" must stay
       // distinguishable from "off" or the mirror would overwrite what it mirrors.
       ADMINIUM_DESKTOP_SINGLE_USER: undefined,
+      // Where maps and routes come from. Named, so a map works with no key; `off` is the operator's no.
+      ADMINIUM_MAP_SERVER: 'https://tiles.openfreemap.org',
+      ADMINIUM_ROUTING_SERVER: 'https://router.project-osrm.org',
     });
   });
 
@@ -352,6 +356,70 @@ describe('loadEnv — the `self` sentinel', () => {
         makeStderr(),
       ),
     ).toThrow(EnvValidationError);
+  });
+});
+
+describe('loadEnv — the map server and the routing server', () => {
+  it('takes one origin, or off, and tidies its spelling', () => {
+    const env = loadEnv(
+      { ADMINIUM_SECRET: SECRET, ADMINIUM_MAP_SERVER: ' HTTPS://Tiles.Example.com:8443/ ', ADMINIUM_ROUTING_SERVER: 'http://osrm.internal:5000' },
+      makeStderr(),
+    );
+    expect(env.ADMINIUM_MAP_SERVER).toBe('https://tiles.example.com:8443');
+    // Called by the server, never by a browser: a plain-http host on the office network is fine.
+    expect(env.ADMINIUM_ROUTING_SERVER).toBe('http://osrm.internal:5000');
+    const off = loadEnv({ ADMINIUM_SECRET: SECRET, ADMINIUM_MAP_SERVER: 'OFF', ADMINIUM_ROUTING_SERVER: 'off' }, makeStderr());
+    expect(off.ADMINIUM_MAP_SERVER).toBe('off');
+    expect(off.ADMINIUM_ROUTING_SERVER).toBe('off');
+    // A map server on this machine may be plain http: a browser treats loopback as safe.
+    expect(loadEnv({ ADMINIUM_SECRET: SECRET, ADMINIUM_MAP_SERVER: 'http://localhost:8080' }, makeStderr()).ADMINIUM_MAP_SERVER).toBe('http://localhost:8080');
+  });
+
+  it('refuses what would widen the policy or is not an origin', () => {
+    for (const value of [
+      'https://*.example.com',
+      'https://tiles.example.com/styles',
+      'https://user:pass@tiles.example.com',
+      'https://tiles.example.com?key=1',
+      'http://tiles.example.com',
+      'tiles.example.com',
+      'https:',
+      "https://a.example.com 'unsafe-inline'",
+      'https://a.example.com; script-src *',
+      'ftp://tiles.example.com',
+    ]) {
+      expect(parseServerOrigin(value), value).toBeNull();
+      expect(() => loadEnv({ ADMINIUM_SECRET: SECRET, ADMINIUM_MAP_SERVER: value }, makeStderr()), value).toThrow(EnvValidationError);
+    }
+    for (const value of ['https://osrm.example.com/route', 'osrm.internal', 'https://u:p@osrm.example.com']) {
+      expect(() => loadEnv({ ADMINIUM_SECRET: SECRET, ADMINIUM_ROUTING_SERVER: value }, makeStderr()), value).toThrow(EnvValidationError);
+    }
+  });
+
+  it('takes a host of letters, digits, dots and hyphens only: nothing that ends a policy’s source or starts another', () => {
+    // Each of these would be written into the content policy as part of a host.
+    const marks = [';', ',', "'", '"', '\\', '%', '%3B', ' ', '\t', '\n', '\u00a0', '|', '<', '>', '(', '{', '$', '!', '=', '+', '~', '`', '^', '&', '_'];
+    for (const mark of marks) {
+      for (const value of [`https://a${mark}b.example.com`, `https://tiles.example.com${mark}`, `https://a.example.com${mark}script-src`, `https://tiles.example.com:8443${mark}`, `https://tiles.example.com:84${mark}43`]) {
+        // Blanks around the whole address are not part of it (an env file's stray space).
+        if (value.trim() !== value) continue;
+        expect(parseServerOrigin(value), JSON.stringify(value)).toBeNull();
+        expect(parseServerOrigin(value, { plainHttp: true }), JSON.stringify(value)).toBeNull();
+        expect(() => loadEnv({ ADMINIUM_SECRET: SECRET, ADMINIUM_MAP_SERVER: value }, makeStderr()), JSON.stringify(value)).toThrow(EnvValidationError);
+        expect(() => loadEnv({ ADMINIUM_SECRET: SECRET, ADMINIUM_ROUTING_SERVER: value }, makeStderr()), JSON.stringify(value)).toThrow(EnvValidationError);
+      }
+    }
+    for (const value of ['https://a;b,c', 'https://a;b,c:443', "https://a'b", 'https://a"b', 'https://a\\b', 'https://a%b', 'https://tiles.example.com:', 'https://tiles.example.com:80a', 'https://tiles.example.com:99999', 'https://[::1', 'https://::1', 'https://[example.com]']) {
+      expect(parseServerOrigin(value), value).toBeNull();
+      expect(() => loadEnv({ ADMINIUM_SECRET: SECRET, ADMINIUM_ROUTING_SERVER: value }, makeStderr()), value).toThrow(EnvValidationError);
+    }
+    // What an operator does write is still taken: a name, an address, a port, IPv6 in its brackets.
+    expect(parseServerOrigin('https://tiles-1.example.com:8443/')).toBe('https://tiles-1.example.com:8443');
+    expect(parseServerOrigin('https://10.0.0.7')).toBe('https://10.0.0.7');
+    expect(parseServerOrigin('https://[2001:db8::1]:8080')).toBe('https://[2001:db8::1]:8080');
+    expect(parseServerOrigin('http://[::1]:8080')).toBe('http://[::1]:8080');
+    expect(parseServerOrigin('http://osrm.internal:5000', { plainHttp: true })).toBe('http://osrm.internal:5000');
+    expect(parseServerOrigin('https://xn--bcher-kva.example')).toBe('https://xn--bcher-kva.example');
   });
 });
 

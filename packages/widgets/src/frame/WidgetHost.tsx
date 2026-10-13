@@ -132,7 +132,7 @@ export function WidgetHost({
 }: WidgetHostProps) {
   const map = registry ?? widgetRegistry;
   // The offline asset policy, applied BEFORE the map is read — resolving the id
-  // is what keeps the map chunk (and Leaflet behind it) from ever being imported
+  // is what keeps the map chunk (and MapLibre behind it) from ever being imported
   // in the desktop shell. Identity online, so self-host/Cloud are untouched. A
   // custom `registry` that lacks the fallback target renders widget-missing
   // rather than the map: in an offline runtime that is the conservative answer,

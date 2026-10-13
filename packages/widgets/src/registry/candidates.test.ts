@@ -517,3 +517,35 @@ describe('emitted candidate configs are valid against their own widget schema', 
     expect(offenders).toEqual([]);
   });
 });
+
+describe('emitCandidates — a place column (geo.place-column)', () => {
+  /** A table with one column whose RULE says it is a place: nothing in its type or name does. */
+  function customers(place: boolean): CandidateTableInput {
+    const input = build(
+      'public.customers',
+      [
+        { name: 'id', logicalType: 'integer', semantic: 'pk-id', isPrimaryKey: true },
+        { name: 'name', logicalType: 'varchar', semantic: 'plain' },
+        { name: 'where_at', logicalType: 'json', semantic: 'plain' },
+        { name: 'credit', logicalType: 'decimal', semantic: 'money' },
+      ],
+      { displayColumn: 'name' },
+    );
+    if (!place) return input;
+    return { ...input, table: { ...input.table, columns: input.table.columns.map((column) => (column.name === 'where_at' ? { ...column, place: true as const } : column)) } };
+  }
+
+  it('offers the map bound to that ONE column, where the lat/lng pair would be', () => {
+    const map = emitCandidates(customers(true).table, customers(true).classified, ctx).find((c) => c.rule === 'geo.place-column');
+    expect(map?.widget).toBe('map-bubble');
+    expect(map?.shape).toBe('geo-points');
+    expect(map?.binding).toMatchObject({ shape: 'geo-points', select: ['name', 'where_at', 'credit'] });
+    expect(map?.config).toMatchObject({ nameField: 'name', placeColumn: 'where_at', metrics: ['credit'] });
+    // The config it emits is one the widget takes.
+    expect(validateConfigAgainst(widgetRegistry.get('map-bubble')!, map?.config ?? {}).warnings).toEqual([]);
+  });
+
+  it('offers nothing for the same json column without the rule', () => {
+    expect(emitCandidates(customers(false).table, customers(false).classified, ctx).filter((c) => c.family === 'geo')).toEqual([]);
+  });
+});

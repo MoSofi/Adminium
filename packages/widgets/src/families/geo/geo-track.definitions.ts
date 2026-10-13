@@ -14,10 +14,10 @@ import type { WidgetDefinition } from '../../registry/types.js';
  * TRACK COMM-GEO — `geo` family registry metadata (annex). Metadata only: the map
  * components load through the `geo-track-components` barrel via `lazy(() =>
  * import(...))`, so the family stays in ONE lazy chunk and the registry metadata
- * never eagerly pulls the component code — let alone Leaflet — into the shared
+ * never eagerly pulls the component code — let alone MapLibre — into the shared
  * bundle (acceptance #3, gated by qa/chunk-budget.test.ts, which walks the
  * transitive static-import graph from this module and asserts it never reaches
- * 'leaflet'). Schemas + `demoData` come from the PURE `geo-config.ts` for the same
+ * 'maplibre-gl'). Schemas + `demoData` come from the PURE `geo-config.ts` for the same
  * reason.
  *
  * The GREEN LOOP spreads `geoTrackDefinitions` into the registry map. Widget ids

@@ -17,12 +17,15 @@
  *  - A calendar's columns (`calendar: {start, end?, title?, category?}`) name
  *    columns, which keep their names; they are handed to the composition as
  *    they are (`calendarOf`).
+ *  - A board's columns (`board: {column, columnsFrom?, title?, totals?}`) name
+ *    columns too; the table its columns come from is a short name, handed to
+ *    the composition as the real table (`boardOf`).
  *
  * The plan checks the same form against the manifest's own declarations
  * (`formIssues`), so an app whose form names a column it never declared is
  * refused before anything is written — never a form silently dropped.
  */
-import { pageSourceTable, type CalendarColumns, type DatabaseModel } from '@adminium/engine';
+import { boardColumnsOf, pageSourceTable, type BoardColumns, type CalendarColumns, type DatabaseModel } from '@adminium/engine';
 import { z } from 'zod';
 import { capacityCountsSchema, countsJoinSchema, filterNodeSchema, pageLayoutSchema, parseCrudDefaultFilters, parseCrudForm, type CrudFormConfig, type PageLayout } from '@adminium/engine/config';
 import { pageBulkSchema, pageFiltersSchema, pageTabsSchema, type Manifest } from '@adminium/manifest';
@@ -173,6 +176,29 @@ export function calendarOf(page: ManifestPage): CalendarColumns | null {
     ...(title === undefined ? {} : { title }),
     ...(category === undefined ? {} : { category }),
   };
+}
+
+/**
+ * What a board page's columns are (`config.board`), or null when it names
+ * none: the rows of a table its cards link to, or the values of an enum.
+ *
+ * A column keeps its name; the table the columns come from is the app's short
+ * name, and the board reads that table through the data routes, so it is
+ * handed on as the real table's id in this connection.
+ *
+ * `names` is the install's own record of the app's tables. A short name it
+ * does not hold is no table of the app's here (one never made, or dropped),
+ * and it is NOT looked for by that name in the connection: a table of
+ * somebody else's that happens to have the name would become the board's
+ * columns. The board is then not built, and the page says so. Only with no
+ * record at all (a page written with no install behind it) are the short
+ * name and the real one the same.
+ */
+export function boardOf(page: ManifestPage, model: DatabaseModel, names: Readonly<Record<string, string>> | undefined): BoardColumns | null {
+  return boardColumnsOf(page.config?.['board'], (short) => {
+    const real = names === undefined ? short : names[short];
+    return real === undefined ? undefined : model.tables.find((table) => table.name === real)?.id;
+  });
 }
 
 /**

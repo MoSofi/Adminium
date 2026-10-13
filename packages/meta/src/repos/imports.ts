@@ -28,7 +28,7 @@ export interface ImportMapping {
 }
 
 export interface ImportOptions {
-  mode?: 'insert' | 'upsert' | undefined;
+  mode?: 'insert' | 'upsert' | 'skip' | undefined;
   matchColumn?: string | null | undefined;
   skipInvalid?: boolean | undefined;
 }
@@ -38,6 +38,7 @@ export interface ImportStats {
   inserted?: number | undefined;
   updated?: number | undefined;
   skipped?: number | undefined;
+  alreadyHere?: number | undefined;
 }
 
 export interface DataImport {

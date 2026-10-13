@@ -113,6 +113,8 @@ export type RuleOp =
   | 'column.customerKey'
   | 'column.staff'
   | 'column.mentions'
+  | 'column.place'
+  | 'column.area'
   | 'table.belongs'
   | 'table.private'
   | 'table.capacity'
@@ -251,6 +253,8 @@ export function opsForRules(appKey: string, rules: ColumnRules): { op: RuleOp; v
   if (rules.customerKey !== undefined) out.push({ op: 'column.customerKey', value: { ...rules.customerKey } });
   if (rules.staff === true) out.push({ op: 'column.staff', value: { staff: true } });
   if (rules.mentions !== undefined) out.push({ op: 'column.mentions', value: { mentions: rules.mentions === true ? true : { about: rules.mentions.about } } });
+  if (rules.place === true) out.push({ op: 'column.place', value: { place: true } });
+  if (rules.area === true) out.push({ op: 'column.area', value: { area: true } });
   return out;
 }
 

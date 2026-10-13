@@ -587,6 +587,10 @@ export interface EffectiveColumn extends ColumnModel {
   staff?: true;
   /** `column.mentions`: people are mentioned in this text; `about` is the link to the record a mention there is about. */
   mentions?: true | { about: string };
+  /** `column.place`: the column holds a position on the map (`{ lat, lng, by }`), read and checked on every write. */
+  place?: true;
+  /** `column.area`: the column holds an area on the map (a GeoJSON polygon). */
+  area?: true;
   /** `column.announce`: a change of this formula column is told after the save. */
   announce?: true;
   /** `column.codeLast4`: the last four characters of the code in `of`. */
@@ -987,7 +991,43 @@ export function applyCompositionOverrides(
   model: DatabaseModel,
   overrides: readonly SchemaOverride[],
 ): DatabaseModel {
-  return applyYesNoColumns(applyColumnOptionValues(applyColumnSemanticOverrides(model, overrides), overrides), overrides);
+  return applyGeoColumns(applyYesNoColumns(applyColumnOptionValues(applyColumnSemanticOverrides(model, overrides), overrides), overrides), overrides);
+}
+
+/**
+ * A column called a place or an area (`column.place`, `column.area`), on the
+ * model a page is composed from — the composition path's half of those two
+ * cases in {@link applyOverrides}.
+ *
+ * A reader's model said so and the generator never heard: it parses the
+ * snapshot, where the column is only JSON (TEXT on SQLite). So no map was
+ * offered over a place column, and a generated list and form left the column
+ * out altogether, as they leave out any JSON.
+ */
+export function applyGeoColumns(model: DatabaseModel, overrides: readonly SchemaOverride[]): DatabaseModel {
+  const marked = new Map<string, 'place' | 'area'>();
+  for (const row of overrides) {
+    if (row.status !== 'active' || row.columnName === null) continue;
+    const op = row.op as string;
+    if (op === 'column.place') marked.set(`${row.tableName}\u0000${row.columnName}`, 'place');
+    else if (op === 'column.area') marked.set(`${row.tableName}\u0000${row.columnName}`, 'area');
+  }
+  if (marked.size === 0) return model;
+
+  let changed = false;
+  const tables = model.tables.map((table) => {
+    let touched = false;
+    const columns = table.columns.map((column) => {
+      const kind = marked.get(`${table.id}\u0000${column.name}`);
+      if (kind === undefined) return column;
+      touched = true;
+      return kind === 'place' ? { ...column, place: true as const } : { ...column, area: true as const };
+    });
+    if (!touched) return table;
+    changed = true;
+    return { ...table, columns };
+  });
+  return changed ? { ...model, tables } : model;
 }
 
 /**
@@ -1480,6 +1520,16 @@ export function applyOverrides(
         const column = columnOf(table, row.columnName);
         const said = (value as { mentions?: unknown }).mentions;
         if (column !== undefined) column.mentions = typeof said === 'object' && said !== null ? { about: String((said as { about: unknown }).about) } : true;
+        break;
+      }
+      case 'column.place': {
+        const column = columnOf(table, row.columnName);
+        if (column !== undefined) column.place = true;
+        break;
+      }
+      case 'column.area': {
+        const column = columnOf(table, row.columnName);
+        if (column !== undefined) column.area = true;
         break;
       }
       case 'table.belongs': {

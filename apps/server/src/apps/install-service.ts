@@ -173,6 +173,8 @@ export interface AppRoutesDeps {
   files?: AppFiles | undefined;
   /** The live installed set; refreshed after every install and uninstall. */
   installed: InstalledApps;
+  /** Told when an install answers whether maps are shown, so the answer counts at once. */
+  mapsAnswered?: (() => void) | undefined;
   /** Encrypt/decrypt closures over `ADMINIUM_SECRET`; routes never see the key. */
   credentialCrypto: { encrypt(v: string): string; decrypt(v: string): string };
   /**
@@ -2612,6 +2614,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
       // Maps, asked once for the whole install by the first app that shows them: shown unless the installer said no.
       if (manifest.kind === 'app' && manifest.maps === true && (await settingsRepo(deps.meta).get('maps.enabled')) === null) {
         await settingsRepo(deps.meta).set('maps.enabled', input.maps ?? true, { updatedBy: userId });
+        deps.mapsAnswered?.();
       }
       await manifests.setStatus(rowId, 'installed');
       // The add-ons' earlier versions, kept while the install could still stop.

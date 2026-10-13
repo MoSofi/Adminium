@@ -2546,6 +2546,11 @@
       "heading": "Dokumentzuordnungen",
       "body": "Legen Sie fest, aus welcher Tabelle eine Rechnung, eine Quittung oder ein Kontoauszug erstellt wird, was die Erstellung auslöst und an wen sie per E-Mail geht.",
       "cta": "Dokumentzuordnungen öffnen"
+    },
+    "mapsCard": {
+      "heading": "Karten",
+      "body": "Ob Karten angezeigt werden, welche Server gefragt werden und was jeder von ihnen erfährt.",
+      "cta": "Karten öffnen"
     }
   },
   "source": {
@@ -3459,6 +3464,35 @@
   "installMaps": {
     "title": "Karten",
     "tick": "Karten anzeigen (nutzt OpenFreeMap)",
-    "note": "der Browser jeder Person lädt die Kartenbilder vom Kartenserver. Dieser erfährt, welches Gebiet angesehen wird, und nichts über Ihre Datensätze. Dies ist ein Schalter für alle Apps hier."
+    "note": "der Browser jeder Person lädt die Kartenbilder vom Kartenserver. Dieser erfährt, welches Gebiet angesehen wird, und nichts über Ihre Datensätze. Dies ist ein Schalter für alle Apps hier.",
+    "tickHost": "Karten anzeigen (nutzt {host})"
+  },
+  "settingsMaps": {
+    "title": "Karten",
+    "subtitle": "Ob Karten angezeigt werden und welche Server gefragt werden.",
+    "saveFailed": "Das konnte nicht gespeichert werden. Versuchen Sie es erneut.",
+    "loadFailed": "Diese Einstellungen konnten nicht gelesen werden. Laden Sie die Seite neu.",
+    "reload": {
+      "title": "Karten sind an. Laden Sie neu, um sie zu sehen.",
+      "body": "Eine Seite, die geöffnet war, während Karten aus waren, darf den Kartenserver nicht fragen. Laden Sie sie neu, hier und in anderen offenen Tabs.",
+      "cta": "Diese Seite neu laden"
+    },
+    "maps": {
+      "heading": "Karten anzeigen",
+      "sees": "Eine Karte wird aus Bildern des Teils der Welt gezeichnet, der gerade zu sehen ist. Der Browser jedes Teammitglieds lädt sie vom Kartenserver; dieser erfährt die Internetadresse der Person und das Gebiet, das sie angesehen hat. Ein Datensatz, ein Name oder die Lage Ihrer Markierungen wird ihm nie gesendet.",
+      "server": "Kartenserver: {host}. Festgelegt von den Betreibern dieses Servers mit ADMINIUM_MAP_SERVER. Hier lässt er sich nicht ändern.",
+      "serverNone": "Kartenserver: keiner.",
+      "off": "Sind Karten aus, erscheint anstelle einer Karte eine Liste derselben Orte, und kein fremder Server wird gefragt.",
+      "whyDesktop": "Die Desktop-App arbeitet ohne Internet und zeigt keine Karte von außen. Anstelle einer Karte erscheint eine Liste.",
+      "whyEnvOff": "Die Betreiber dieses Servers haben Karten dafür ausgeschaltet (ADMINIUM_MAP_SERVER=off), daher bewirkt dieser Schalter nichts."
+    },
+    "routes": {
+      "heading": "Routen entlang von Straßen",
+      "sees": "Solange dies an ist, fragt dieser Server den Routingserver nach dem Weg zwischen den Stopps einer Route und sendet ihm die Positionen der Stopps in ihrer Reihenfolge. Er erfährt die Adresse dieses Servers, nie die eines Teammitglieds, einen Namen oder einen Datensatz.",
+      "server": "Routingserver: {host}. Festgelegt von den Betreibern dieses Servers mit ADMINIUM_ROUTING_SERVER.",
+      "serverNone": "Routingserver: keiner.",
+      "off": "Ist dies aus, sind Entfernungen gerade Linien, die auf diesem Server berechnet und mit „etwa“ gekennzeichnet werden. Nach außen wird nichts gefragt.",
+      "whyEnvOff": "Die Betreiber dieses Servers haben den Routingserver ausgeschaltet (ADMINIUM_ROUTING_SERVER=off oder alle Aufrufe nach außen mit ADMINIUM_NETWORK_FEATURES=off), daher bewirkt dieser Schalter nichts."
+    }
   }
 }

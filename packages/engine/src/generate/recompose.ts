@@ -28,6 +28,7 @@ import {
   crudDisplayColumns,
   emitCandidates,
   isRegisteredWidgetId,
+  type BoardColumns,
   type CandidateContext,
 } from '@adminium/widgets/generate';
 
@@ -36,6 +37,7 @@ import { isTableBoundTemplate } from '../config-schema/table-bound.js';
 import type { DatabaseModel } from '../schema-model.js';
 import { buildArchetypeEnvelope } from './archetype.js';
 import { buildCrudEnvelope } from './crud.js';
+import { boardColumnsProblem } from './board-columns.js';
 import { bindableSet } from './fit.js';
 import { applyCalendarColumns, calendarColumnsProblem, calendarEntry, calendarTitleThrough, type CalendarColumns } from './calendar-columns.js';
 import { TITLE_THROUGH_TEMPLATES, applyTitleThrough, titleThroughEntry } from './title-through.js';
@@ -65,6 +67,13 @@ export interface RecomposeContext {
    * rule's own choice. Ignored by every other template.
    */
   calendar?: CalendarColumns | undefined;
+  /**
+   * What a `page-board`'s columns are, as an app's page names them
+   * (`./board-columns.ts`): the rows of a table its cards link to, or the
+   * values of an enum. Absent ⇒ the board rule's own choice, the table's
+   * workflow enum. Ignored by every other template.
+   */
+  board?: BoardColumns | undefined;
 }
 
 export interface RecomposeResult {
@@ -131,10 +140,16 @@ export function composeRequestedPage(
     return { bindable: true, reason: '', envelope: { ...envelope, id: ctx.id } };
   }
 
+  const board = template === 'page-board' ? ctx.board : undefined;
+  if (board !== undefined) {
+    const problem = boardColumnsProblem(entry, board, candidateModel);
+    if (problem !== null) return { envelope: null, bindable: true, reason: problem };
+  }
   const candidateCtx: CandidateContext = {
     connectionId: ctx.connectionId,
     model: candidateModel,
     isRegistered,
+    ...(board === undefined ? {} : { board }),
   };
   let composedEntry = entry;
   let through: ReturnType<typeof titleThroughEntry> | null = null;

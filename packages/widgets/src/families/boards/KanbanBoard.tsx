@@ -19,6 +19,7 @@ import { useMaybeT } from '../../lib/i18n.js';
 
 import {
   BoardLiveRegion,
+  BoardRefusalNotice,
   DraggableCard,
   DroppableCell,
   announcementsFromTemplates,
@@ -171,6 +172,7 @@ export function KanbanBoard({
   return (
     <div dir={dir} data-widget="kanban-board" data-testid={testId} className="flex h-full flex-col">
       <BoardLiveRegion message={message} />
+      <BoardRefusalNotice refusal={moves.refusal} onDismiss={moves.dismissRefusal} />
       <DndContext
         sensors={sensors}
         collisionDetection={closestCorners}
@@ -182,7 +184,13 @@ export function KanbanBoard({
         <div className="flex h-full min-h-0 flex-1 items-stretch gap-3 overflow-x-auto p-3">
           {columns.map((column) => {
             const columnCards = cards.filter((card) => moves.cellKeyOf(card) === column.id);
-            const overWip = column.wip !== undefined && columnCards.length > column.wip;
+            // The count somebody made of ALL the column's cards, moved by the cards a drop has just put in or taken
+            // out and whose save that count has not seen yet; without one, the cards given.
+            const held =
+              column.count === undefined
+                ? columnCards.length
+                : Math.max(0, column.count + columnCards.length - cards.filter((card) => card.column === column.id).length);
+            const overWip = column.wip !== undefined && held > column.wip;
             return (
               <section
                 key={column.id}
@@ -190,24 +198,29 @@ export function KanbanBoard({
                 className="flex w-72 shrink-0 flex-col rounded-xl bg-surface-2/60"
               >
                 <header className="flex items-center gap-2 px-3 py-2.5">
-                  <span aria-hidden="true" className={`size-2.5 rounded-full ${DOT_TONE[column.tone]}`} />
-                  <span className="text-body-sm font-semibold text-fg">{column.label}</span>
+                  <span aria-hidden="true" className={`size-2.5 shrink-0 rounded-full ${DOT_TONE[column.tone]}`} />
+                  <span className="min-w-0 truncate text-body-sm font-semibold text-fg">{column.label}</span>
                   <span
                     data-part="column-count"
                     className={
-                      'ms-1 inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1.5 font-mono text-[10.5px] font-bold tabular-nums ' +
+                      'ms-1 inline-flex h-[18px] min-w-[18px] shrink-0 items-center justify-center rounded-full px-1.5 font-mono text-[10.5px] font-bold tabular-nums ' +
                       (overWip ? 'bg-danger text-accent-fg' : 'bg-surface-3 text-fg-muted')
                     }
                   >
-                    {column.wip === undefined ? columnCards.length : `${columnCards.length}/${column.wip}`}
+                    {column.wip === undefined ? held : `${held}/${column.wip}`}
                   </span>
+                  {column.total === undefined ? null : (
+                    <span data-part="column-total" className="ms-auto min-w-0 truncate font-mono text-[11px] font-semibold tabular-nums text-fg-muted">
+                      {column.total}
+                    </span>
+                  )}
                   {allowAdd && (
                     <button
                       type="button"
                       data-part="column-add"
                       onClick={() => onAdd?.(column.id)}
                       aria-label={labels?.addLabel ?? t('ui:widgets.boards.addCard', 'Add card')}
-                      className="ms-auto flex size-6 items-center justify-center rounded-md text-fg-muted hover:bg-surface-3 hover:text-fg focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent"
+                      className={`${column.total === undefined ? 'ms-auto' : ''} flex size-6 shrink-0 items-center justify-center rounded-md text-fg-muted hover:bg-surface-3 hover:text-fg focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent`}
                     >
                       <Plus className="size-4" aria-hidden="true" />
                     </button>

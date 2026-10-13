@@ -62,6 +62,14 @@ describe('uploadImportFile', () => {
     expect(preview).toEqual({ fileId: 'file_1', columns: [] });
   });
 
+  it('says when no row of the file holds the column names, and nothing otherwise', async () => {
+    const fetchMock = stubFetch(200, { data: { fileId: 'file_1', columns: ['Column 1'] } });
+    await dataIoApi.uploadImportFile(csvFile('pasted.csv'), { header: 'none' });
+    expect(String(fetchMock.mock.calls[0]?.[0])).toBe('/api/v1/imports/upload?filename=pasted.csv&header=none');
+    await dataIoApi.uploadImportFile(csvFile('pasted.csv'), { header: 'first-row' });
+    expect(String(fetchMock.mock.calls[1]?.[0])).toBe('/api/v1/imports/upload?filename=pasted.csv');
+  });
+
   it('carries the CSRF token — without it every CSV import 403s at the upload step', async () => {
     setCsrfToken('csrf_abc');
     const fetchMock = stubFetch(200, { data: { fileId: 'file_1' } });
@@ -133,6 +141,16 @@ describe('the JSON calls', () => {
     const run = stubFetch(200, { data: { import: { id: 'imp 1' }, jobId: 'job_1' } });
     await dataIoApi.runImport('imp 1');
     expect(String(run.mock.calls[0]?.[0])).toBe('/api/v1/imports/imp%201/run');
+  });
+
+  it('asks for a page of an import\'s preview, the first hundred lines unless told otherwise', async () => {
+    const preview = { total: 2, judged: 2, capped: false, counts: { new: 1, here: 1, refused: 0 }, hooksNotRun: false, lines: [{ row: 1, status: 'new' }] };
+    const fetchMock = stubFetch(200, { data: preview });
+    expect(await dataIoApi.previewImport('imp 1')).toEqual(preview);
+    expect(String(fetchMock.mock.calls[0]?.[0])).toBe('/api/v1/imports/imp%201/preview?offset=0&limit=100');
+    expect((fetchMock.mock.calls[0]?.[1] as RequestInit | undefined)?.method ?? 'GET').toBe('GET');
+    await dataIoApi.previewImport('imp_1', { offset: 200, limit: 50 });
+    expect(String(fetchMock.mock.calls[1]?.[0])).toBe('/api/v1/imports/imp_1/preview?offset=200&limit=50');
   });
 
   it('unwraps the envelope on every read', async () => {

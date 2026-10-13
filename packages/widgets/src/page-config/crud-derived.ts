@@ -39,8 +39,9 @@ import { WORKING_SCALE } from './decimal.js';
  *
  * WHAT IS NOT HERE, deliberately: no expression string and no formula field
  * (there is no evaluator in the lockfile and both written precedents in this
- * tree refuse one), no filter inside a fold, no multi-hop measure, no
- * date/text `min`/`max`. Each is in the plan's refusal catalogue with the
+ * tree refuse one), no filter inside a fold beyond `where`'s equality tests
+ * (a column is one of a few literals), no multi-hop measure, no date/text
+ * `min`/`max`. Each is in the plan's refusal catalogue with the
  * reason and the price.
  *
  * SCHEMA VS PARSER. {@link crudDerivedConfigSchema} validates SHAPE — keys,
@@ -126,6 +127,12 @@ export const MAX_DERIVED_FIELDS = 8;
 export const MAX_MEASURE_TERMS = 3;
 /** `qty × rate × discount_pct` is three factors; four is headroom. */
 export const MAX_TERM_FACTORS = 4;
+/** Tests one measure's `where` may AND together: a state, a kind and an owner is three. */
+export const MAX_MEASURE_WHERE = 3;
+/** Values one test may list. */
+export const MAX_MEASURE_WHERE_VALUES = 20;
+/** The longest text value a test compares with. */
+export const MAX_MEASURE_WHERE_TEXT = 200;
 /** Branches in one conditional field. */
 export const MAX_FIELD_CASES = 4;
 /** Expression depth: `mul(measure, div(col, lit))` — the tax ask — is 3. */
@@ -167,6 +174,24 @@ export const measureBodySchema = z.strictObject({
 });
 export type MeasureBody = z.infer<typeof measureBodySchema>;
 
+/**
+ * One test a folded row must pass: its `column` holds one of `in`.
+ *
+ * Equality against a short list of literals and nothing else — no ranges, no
+ * patterns, no `or`, no `not`: "the open deals of this stage" is the ask, and
+ * each further operator is a way to probe a column a value at a time. The
+ * values are bound parameters; a column is a snapshot identifier.
+ */
+export const measureWhereSchema = z.strictObject({
+  /** A column of the REFERENCING table. */
+  column: identifierSchema,
+  in: z
+    .array(z.union([z.string().max(MAX_MEASURE_WHERE_TEXT), z.number().finite(), z.boolean()]))
+    .min(1)
+    .max(MAX_MEASURE_WHERE_VALUES),
+});
+export type MeasureWhere = z.infer<typeof measureWhereSchema>;
+
 export const measureSchema = z.strictObject({
   id: aliasSchema,
   /** The REFERENCING table, qualified ("public.invoice_items"). */
@@ -176,6 +201,15 @@ export const measureSchema = z.strictObject({
   fn: measureFnSchema,
   of: measureBodySchema.optional(),
   emptyAs: measureEmptySchema.optional(),
+  /**
+   * Which rows of the referencing table are folded: those passing EVERY test
+   * (`state` is `open` AND `kind` is one of two). Absent ⇒ every row linked.
+   * It narrows the fold inside its one subquery — no further query is bought,
+   * so it does not count toward {@link MAX_MEASURES}; its own width is capped
+   * here. A column the reader may not read refuses the whole measure
+   * server-side (`null` + `_masked`), never an unfiltered number.
+   */
+  where: z.array(measureWhereSchema).min(1).max(MAX_MEASURE_WHERE).optional(),
 });
 export type Measure = z.infer<typeof measureSchema>;
 
@@ -301,6 +335,7 @@ export const DERIVED_REFUSAL_CODES = [
   'DERIVED_MEASURE_BODY_FORBIDDEN',
   'DERIVED_MEASURE_FACTOR_FORBIDDEN',
   'DERIVED_MEASURE_SHAPE_FORBIDDEN',
+  'DERIVED_MEASURE_WHERE_REPEATED',
   'DERIVED_UNKNOWN_MEASURE',
   'DERIVED_UNKNOWN_FIELD',
   'DERIVED_SELF_REFERENCE',
@@ -458,6 +493,16 @@ export function parseCrudDerived(
 
 function checkMeasureBody(measure: Measure): DerivedRefusal | null {
   const { id, fn, of } = measure;
+  const tested = (measure.where ?? []).map((test) => test.column);
+  if (new Set(tested).size !== tested.length) {
+    return {
+      code: 'DERIVED_MEASURE_WHERE_REPEATED',
+      id,
+      // Two tests of one column are an AND of two lists — the rows in both —
+      // which nobody means; one list says it.
+      message: `Measure \`${id}\`: \`where\` tests a column once — list its values in one \`in\`.`,
+    };
+  }
   if (fn === 'count') {
     if (of !== undefined) {
       return {

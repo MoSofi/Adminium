@@ -16,6 +16,11 @@ import {
 
 export const importsUploadQuery = z.object({
   filename: z.string().trim().min(1).max(260).default('upload.csv'),
+  /**
+   * Whether the first row holds the column names (`first-row`) or every row
+   * is data (`none`: the columns are then named `Column 1`, `Column 2`, …).
+   */
+  header: z.enum(['first-row', 'none']).default('first-row'),
 });
 
 export const importsUploadReply = z.object({
@@ -30,6 +35,8 @@ export const importsUploadReply = z.object({
     sampleRows: z.array(z.array(z.string())),
     /** Data rows in the file (header excluded). */
     totalRows: z.number(),
+    /** What parted the fields of the text as it was sent: a file's commas, a pasted sheet's tabs, or semicolons. */
+    delimiter: z.enum(['comma', 'tab', 'semicolon']).optional(),
   }),
 });
 
@@ -99,4 +106,42 @@ export const importsGetReply = z.object({ data: importView });
 
 export const importsListQuery = z.object({
   limit: z.coerce.number().int().min(1).max(200).default(50),
+});
+
+// --- preview ---------------------------------------------------------------------
+
+/** How many lines of a file one preview judges: the counts are of these, and the reply says when there are more. */
+export const PREVIEW_LINE_CAP = 2000;
+
+export const importsPreviewQuery = z.object({
+  offset: z.coerce.number().int().min(0).default(0),
+  limit: z.coerce.number().int().min(1).max(200).default(100),
+});
+
+/** One line of the file as the import would treat it. */
+export const previewLineView = z.object({
+  /** The line's number among the file's data rows, from 1. */
+  row: z.number(),
+  /** `new`: a row would be made. `here`: it matches a row (updated by an `upsert`, left alone by a `skip`). `refused`: not written. */
+  status: z.enum(['new', 'here', 'refused']),
+  code: z.string().optional(),
+  column: z.string().optional(),
+  message: z.string().optional(),
+  /** For a line that is `here` only because an earlier line of the same file would have made its row: that line's number. */
+  earlierLine: z.number().optional(),
+});
+export type PreviewLineView = z.infer<typeof previewLineView>;
+
+export const importsPreviewReply = z.object({
+  data: z.object({
+    /** Data rows in the file. */
+    total: z.number(),
+    /** How many of them were judged: at most {@link PREVIEW_LINE_CAP}. */
+    judged: z.number(),
+    capped: z.boolean(),
+    counts: z.object({ new: z.number(), here: z.number(), refused: z.number() }),
+    /** True when the table has hooks for these writes: they run when the import runs, never for a preview. */
+    hooksNotRun: z.boolean(),
+    lines: z.array(previewLineView),
+  }),
 });

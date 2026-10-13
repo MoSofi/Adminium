@@ -8,6 +8,7 @@
  */
 
 import { mkdtempSync, rmSync } from 'node:fs';
+import { Transform } from 'node:stream';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -23,8 +24,10 @@ import {
   type DatabaseAdapter,
   type DatabaseModel,
 } from '@adminium/engine/adapter';
-import { jobsRepo, newId, pagesRepo, viewsRepo, type Job, type JobsRepo, type User } from '@adminium/meta';
+import { importsRepo, jobsRepo, newId, pagesRepo, viewsRepo, type Job, type JobsRepo, type User } from '@adminium/meta';
 
+import { createWriteService, type RecordWriteService } from '../src/crud/write-service.js';
+import { writeStores } from '../src/crud/write-stores.js';
 import { parseCsv } from '../src/data-io/csv.js';
 import { type FileStore } from '../src/files/store.js';
 import { createTestFileStore } from './helpers/file-store.js';
@@ -173,22 +176,50 @@ describe('data-io routes + jobs (fake adapter)', () => {
   let registry: JobRegistry;
   let jobs: JobsRepo;
   const hub = new RealtimeHub();
+  let writes: RecordWriteService;
+  const hooks = { on: false, ran: 0 };
+  /** How many bytes of stored files have been read (see the store in `beforeAll`). */
+  let bytesRead = 0;
 
   beforeAll(async () => {
     dataDir = mkdtempSync(join(tmpdir(), 'adminium-dataio-'));
-    storage = createTestFileStore({ dataDir });
+    const stored = createTestFileStore({ dataDir });
+    // The same store, counting the bytes a reader takes of a file: a reader that stops early is seen to.
+    storage = {
+      ...stored,
+      read: async (file) => {
+        const counted = new Transform({
+          transform(chunk: Buffer, _encoding, done) {
+            bytesRead += chunk.byteLength;
+            done(null, chunk);
+          },
+        });
+        return (await stored.read(file)).pipe(counted);
+      },
+    };
     t = await buildDataTestApp({
       registry: makeFakeRegistry(seedSqlite()),
       extraRoutes: async (api, ctx) => {
         jobs = jobsRepo(ctx.meta);
         const enqueue = (input: Parameters<JobsRepo['enqueue']>[0]) => jobs.enqueue(input);
         await api.register(exportsRoutes({ meta: ctx.meta, manager: ctx.manager, storage, enqueue }));
-        await api.register(importsRoutes({ meta: ctx.meta, manager: ctx.manager, storage, enqueue }));
+        // One write service for the routes and the job, with a project's hooks a test can switch on.
+        writes = createWriteService({
+          ...writeStores(ctx.meta),
+          hooks: () => ({
+            wants: async () => hooks.on,
+            before: async () => {
+              hooks.ran += 1;
+            },
+            after: async () => {},
+          }),
+        });
+        await api.register(importsRoutes({ meta: ctx.meta, manager: ctx.manager, storage, enqueue, writes }));
       },
     });
     registry = createJobRegistry();
     registerExportRunHandler(registry, { meta: t.meta, manager: t.manager, storage });
-    registerImportRunHandler(registry, { meta: t.meta, manager: t.manager, storage, hub });
+    registerImportRunHandler(registry, { meta: t.meta, manager: t.manager, storage, hub, writes });
 
     connId = await createConnectionViaApi(t, 'postgres://fake@fake-host:5432/fakedb');
     await introspectViaApi(t, connId);
@@ -216,10 +247,10 @@ describe('data-io routes + jobs (fake adapter)', () => {
     rmSync(dataDir, { recursive: true, force: true });
   });
 
-  async function upload(user: User, body: string, filename = 'customers.csv') {
+  async function upload(user: User, body: string, filename = 'customers.csv', query = '') {
     return t.app.inject({
       method: 'POST',
-      url: `/api/v1/imports/upload?filename=${encodeURIComponent(filename)}`,
+      url: `/api/v1/imports/upload?filename=${encodeURIComponent(filename)}${query}`,
       headers: { ...asUser(user), 'content-type': 'text/csv' },
       payload: body,
     });
@@ -722,5 +753,162 @@ describe('data-io routes + jobs (fake adapter)', () => {
     } finally {
       unsubscribe();
     }
+  });
+
+  // --- paste, match and preview (last: they add rows the tests above count) ---
+
+  /** Make an import of an upload as the editor, and leave it ready. */
+  async function ready(fileId: string, columns: [string, string | null][], options: Record<string, unknown>, user: User = t.users.editor) {
+    return t.app.inject({
+      method: 'POST',
+      url: '/api/v1/imports',
+      headers: asUser(user),
+      payload: { fileId, connectionId: connId, table: 'main.customers', mapping: { columns: columns.map(([from, to]) => ({ from, to })) }, options },
+    });
+  }
+  const companies = async (): Promise<Record<string, unknown>> => {
+    const list = await t.app.inject({ method: 'GET', url: `/api/v1/data/${connId}/main.customers?order=customer_id.asc&limit=100`, headers: asUser(t.users.admin) });
+    return Object.fromEntries((list.json() as { data: Record<string, unknown>[] }).data.map((row) => [row.customer_id, row.company_name]));
+  };
+
+  it('takes rows pasted with tabs, or parted by semicolons, as it takes a comma file', async () => {
+    // (As the admin: the editor's ten imports an hour are spent by the tests around this one.)
+    const comma = (await upload(t.users.admin, 'Customer Id,Company\nT1,"Tab, Co"\nT2,Plain\n')).json().data as { columns: string[]; sampleRows: string[][]; totalRows: number; delimiter: string };
+    for (const [mark, name] of [['\t', 'tab'], [';', 'semicolon']] as const) {
+      const res = await upload(t.users.admin, `Customer Id${mark}Company\r\nT1${mark}"Tab, Co"\r\nT2${mark}Plain\r\n`, 'pasted.csv');
+      expect(res.statusCode, res.body).toBe(201);
+      const data = res.json().data as typeof comma & { fileId: string };
+      expect([data.columns, data.sampleRows, data.totalRows, data.delimiter]).toEqual([comma.columns, comma.sampleRows, comma.totalRows, name]);
+      expect(comma.delimiter).toBe('comma');
+      // Stored as comma CSV: the validate step, which reads the stored file with commas, finds the same two columns and rows.
+      const made = await ready(data.fileId, [['Customer Id', 'customer_id'], ['Company', 'company_name']], {}, t.users.admin);
+      expect(made.statusCode, made.body).toBe(201);
+      expect((made.json().data as { report: { total: number; valid: number } }).report).toMatchObject({ total: 2, valid: 2 });
+    }
+  });
+
+  it('names the columns by their place when no row holds their names, previews the lines and brings them in', async () => {
+    const res = await upload(t.users.editor, 'P1\tPasted One\nP2\tPasted Two\n', 'pasted.csv', '&header=none');
+    expect(res.statusCode, res.body).toBe(201);
+    const data = res.json().data as { fileId: string; columns: string[]; sampleRows: string[][]; totalRows: number };
+    expect([data.columns, data.sampleRows, data.totalRows]).toEqual([['Column 1', 'Column 2'], [['P1', 'Pasted One'], ['P2', 'Pasted Two']], 2]);
+    const made = await ready(data.fileId, [['Column 1', 'customer_id'], ['Column 2', 'company_name']], { mode: 'insert' });
+    expect(made.statusCode, made.body).toBe(201);
+    const id = (made.json().data as { import: { id: string } }).import.id;
+    // No match column: every line is new.
+    const preview = await t.app.inject({ method: 'GET', url: `/api/v1/imports/${id}/preview`, headers: asUser(t.users.editor) });
+    expect(preview.statusCode, preview.body).toBe(200);
+    expect((preview.json().data as { counts: unknown; lines: { status: string }[] }).counts).toEqual({ new: 2, here: 0, refused: 0 });
+    await t.app.inject({ method: 'POST', url: `/api/v1/imports/${id}/run`, headers: asUser(t.users.editor) });
+    await runNextJob(jobs, registry);
+    expect(await companies()).toMatchObject({ P1: 'Pasted One', P2: 'Pasted Two' });
+  });
+
+  it('leaves a line whose row is already here as it is (skip), and says so before it runs', async () => {
+    const before = await companies();
+    const up = await upload(t.users.editor, 'Customer Id,Company,Credit\nALFKI,Changed?,1\nNEW01,New One,5\nNEW02,Bad,xx\nNEW01,Twice,6\n', 'skip.csv');
+    const made = await ready((up.json().data as { fileId: string }).fileId, [['Customer Id', 'customer_id'], ['Company', 'company_name'], ['Credit', 'credit_limit']], { mode: 'skip', matchColumn: 'customer_id' });
+    expect(made.statusCode, made.body).toBe(201);
+    const id = (made.json().data as { import: { id: string } }).import.id;
+
+    const preview = await t.app.inject({ method: 'GET', url: `/api/v1/imports/${id}/preview`, headers: asUser(t.users.editor) });
+    expect(preview.statusCode, preview.body).toBe(200);
+    const told = preview.json().data as { total: number; judged: number; capped: boolean; hooksNotRun: boolean; counts: unknown; lines: { row: number; status: string; code?: string; column?: string; earlierLine?: number }[] };
+    expect([told.total, told.judged, told.capped, told.hooksNotRun]).toEqual([4, 4, false, false]);
+    expect(told.counts).toEqual({ new: 1, here: 2, refused: 1 });
+    expect(told.lines).toMatchObject([
+      { row: 1, status: 'here' },
+      { row: 2, status: 'new' },
+      { row: 3, status: 'refused', code: 'BAD_NUMBER', column: 'credit_limit' },
+      { row: 4, status: 'here', earlierLine: 2 },
+    ]);
+    // Asking wrote nothing.
+    expect(await companies()).toEqual(before);
+    // Somebody else's import is not there to preview, whatever they hold.
+    expect((await t.app.inject({ method: 'GET', url: `/api/v1/imports/${id}/preview`, headers: asUser(t.users.admin) })).statusCode).toBe(404);
+
+    await t.app.inject({ method: 'POST', url: `/api/v1/imports/${id}/run`, headers: asUser(t.users.editor) });
+    await runNextJob(jobs, registry);
+    const view = (await t.app.inject({ method: 'GET', url: `/api/v1/imports/${id}`, headers: asUser(t.users.editor) })).json().data as { stats: Record<string, number> };
+    // The lines already here are part of `skipped`, and no error: the report holds the bad number alone.
+    expect(view.stats).toEqual({ total: 4, inserted: 1, updated: 0, skipped: 3, alreadyHere: 2 });
+    expect(await companies()).toEqual({ ...before, NEW01: 'New One' });
+    const report = parseCsv((await t.app.inject({ method: 'GET', url: `/api/v1/imports/${id}/error-report`, headers: asUser(t.users.editor) })).body).slice(1).filter((line) => line.length > 1);
+    expect(report.map((line) => [line[0], line[2]])).toEqual([['3', 'BAD_NUMBER']]);
+    // Run, it is no longer there to preview.
+    expect((await t.app.inject({ method: 'GET', url: `/api/v1/imports/${id}/preview`, headers: asUser(t.users.editor) })).statusCode).toBe(409);
+  });
+
+  it('runs no hook for a preview, and says that the run will', async () => {
+    hooks.on = true;
+    try {
+      const up = await upload(t.users.admin, 'Customer Id,Company\nALFKI,Hooked rename\nHOOK1,Hooked new\n', 'hooked.csv');
+      const made = await ready((up.json().data as { fileId: string }).fileId, [['Customer Id', 'customer_id'], ['Company', 'company_name']], { mode: 'upsert', matchColumn: 'customer_id' }, t.users.admin);
+      expect(made.statusCode, made.body).toBe(201);
+      const id = (made.json().data as { import: { id: string } }).import.id;
+      const preview = await t.app.inject({ method: 'GET', url: `/api/v1/imports/${id}/preview`, headers: asUser(t.users.admin) });
+      expect(preview.statusCode, preview.body).toBe(200);
+      expect(preview.json().data).toMatchObject({ hooksNotRun: true, counts: { new: 1, here: 1, refused: 0 } });
+      expect(hooks.ran).toBe(0);
+      await t.app.inject({ method: 'POST', url: `/api/v1/imports/${id}/run`, headers: asUser(t.users.admin) });
+      await runNextJob(jobs, registry);
+      // Once for the update and once for the new row.
+      expect(hooks.ran).toBe(2);
+      expect(await companies()).toMatchObject({ ALFKI: 'Hooked rename', HOOK1: 'Hooked new' });
+    } finally {
+      hooks.on = false;
+    }
+  });
+
+  it('takes a paste of two hundred thousand lines with no header row', async () => {
+    // More lines than a function takes arguments: their widths are not handed to one call.
+    const res = await upload(t.users.admin, 'x\n'.repeat(200_000), 'long-paste.csv', '&header=none');
+    expect(res.statusCode, res.body.slice(0, 300)).toBe(201);
+    expect(res.json().data).toMatchObject({ columns: ['Column 1'], totalRows: 200_000 });
+    const wide = await upload(t.users.admin, `a\n${'b,c,d\n'.repeat(150_000)}e,f\n`, 'ragged-paste.csv', '&header=none');
+    expect(wide.statusCode, wide.body.slice(0, 300)).toBe(201);
+    expect(wide.json().data).toMatchObject({ columns: ['Column 1', 'Column 2', 'Column 3'], totalRows: 150_002 });
+  });
+
+  it('reads no more of a long file for a preview than the lines it judges', async () => {
+    const lines = 40_000;
+    const body = `Customer Id,Company\n${Array.from({ length: lines }, (_, at) => `L${String(at).padStart(6, '0')},A company with a name of some length ${String(at)}`).join('\n')}\n`;
+    const up = await upload(t.users.admin, body, 'long.csv');
+    expect(up.statusCode, up.body).toBe(201);
+    // Left ready as its validation leaves it (written here, not asked for: the ten imports an hour are spent by the tests above).
+    const imports = importsRepo(t.meta);
+    const made = await imports.create({
+      connectionId: connId,
+      tableName: 'main.customers',
+      requestedBy: t.users.admin.id,
+      fileId: (up.json().data as { fileId: string }).fileId,
+      mapping: { columns: [{ from: 'Customer Id', to: 'customer_id' }, { from: 'Company', to: 'company_name' }] },
+      options: { mode: 'insert' },
+    });
+    await imports.markReady(made.id, { total: lines });
+    const id = made.id;
+
+    bytesRead = 0;
+    const preview = await t.app.inject({ method: 'GET', url: `/api/v1/imports/${id}/preview?limit=3`, headers: asUser(t.users.admin) });
+    expect(preview.statusCode, preview.body).toBe(200);
+    const told = preview.json().data as { total: number; judged: number; capped: boolean; counts: unknown; lines: { row: number; status: string }[] };
+    // The whole file's count is the one its validation took; the lines judged are the first two thousand.
+    expect([told.total, told.judged, told.capped]).toEqual([lines, 2_000, true]);
+    expect(told.counts).toEqual({ new: 2_000, here: 0, refused: 0 });
+    expect(told.lines).toEqual([1, 2, 3].map((row) => ({ row, status: 'new' })));
+    // Two thousand of forty thousand lines: a twentieth of the file, and what the stream had in hand when it was let go.
+    expect(bytesRead).toBeGreaterThan(0);
+    expect(bytesRead).toBeLessThan(Buffer.byteLength(body) / 4);
+    // A later page judges the same lines and reads no further.
+    bytesRead = 0;
+    const page = (await t.app.inject({ method: 'GET', url: `/api/v1/imports/${id}/preview?offset=1998&limit=5`, headers: asUser(t.users.admin) })).json().data as typeof told;
+    expect([page.total, page.judged, page.lines.map((line) => line.row)]).toEqual([lines, 2_000, [1999, 2000]]);
+    expect(bytesRead).toBeLessThan(Buffer.byteLength(body) / 4);
+  });
+
+  it('rejects a skip that names no match column', async () => {
+    const up = await upload(t.users.editor, 'Customer Id\nZ1\n', 'skip-none.csv');
+    const made = await ready((up.json().data as { fileId: string }).fileId, [['Customer Id', 'customer_id']], { mode: 'skip' });
+    expect(made.statusCode).toBe(422);
   });
 });

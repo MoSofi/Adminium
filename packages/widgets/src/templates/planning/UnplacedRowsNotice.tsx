@@ -17,8 +17,13 @@
  *
  * Shown only when rows arrived and NONE could be placed. A few undated rows
  * among many dated ones is a table with gaps, not a page that looks broken,
- * and a hint on every such calendar would be noise. It never names a count,
- * which also keeps it free of per-locale plural rules.
+ * and a hint on every such calendar would be noise. It names no count.
+ *
+ * ONE EXCEPTION, the board whose columns are another table's rows: there a
+ * card on no column is not a gap in the data but a card that has gone missing
+ * from a pipeline (its stage row was deleted, or lies past the columns that
+ * are read), so that board says how many there are whenever there are any
+ * (`PageBoard`, with a plural per locale).
  */
 
 export interface UnplacedRowsNoticeProps {

@@ -141,6 +141,10 @@ export default defineConfig({
               ],
             },
             {
+              label: 'Data',
+              items: [{ label: 'Bring in a file', link: '/guides/data/bring-in-a-file/' }],
+            },
+            {
               label: 'Edit your schema',
               items: [
                 {
@@ -198,6 +202,7 @@ export default defineConfig({
                 { label: 'Whose a row is', link: '/guides/apps/whose-a-row-is/' },
                 { label: 'Parts of an app', link: '/guides/apps/parts/' },
                 { label: 'Telling the person on the row', link: '/guides/apps/telling-people/' },
+                { label: 'Maps, places and routes', link: '/guides/apps/maps/' },
                 { label: 'Building an app’s screens', link: '/guides/apps/building-a-side/' },
                 { label: 'A phone app for an app', link: '/guides/apps/phone-app/' },
                 { label: 'An app’s public access', link: '/guides/apps/public-access/' },

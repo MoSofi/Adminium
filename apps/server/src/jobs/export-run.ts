@@ -208,7 +208,7 @@ async function runExport(
     : NO_DERIVED;
   const columns: WriterColumn[] = definition.legacy
     ? [
-        ...definition.columns.map((column) => ({ key: column.key, header: column.key, numeric: false })),
+        ...definition.columns.map((column) => ({ key: column.key, header: column.key, numeric: false, place: column.place })),
         ...derived.measures.map((measure) => ({ key: measure.alias, header: measure.alias, numeric: false })),
         ...derived.fields.map((field) => ({ key: field.id, header: field.id, numeric: false })),
       ]
@@ -216,6 +216,7 @@ async function runExport(
         key: column.key,
         header: column.header,
         numeric: column.numeric,
+        place: column.place,
       }));
   const projection = definition.legacy
     ? {

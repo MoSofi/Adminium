@@ -67,6 +67,8 @@
               "column.customerKey",
               "column.staff",
               "column.mentions",
+              "column.place",
+              "column.area",
               "table.belongs",
               "table.private",
               "relation.add",

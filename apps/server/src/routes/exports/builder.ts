@@ -40,7 +40,7 @@ import type { ResolvedTable, SnapshotView } from '../../crud/identifiers.js';
 import { loadSnapshotView } from '../../data-io/snapshot-view.js';
 import { readViewFor } from '../../crud/read-view.js';
 import { filtersToWhere, resolveExportDefinition } from '../../export/definition.js';
-import { cellText, createRowWriter, maskedKeysOf } from '../../export/writer.js';
+import { cellText, createRowWriter, csvValue, maskedKeysOf } from '../../export/writer.js';
 import { auditExempt } from '../../audit/coverage.js';
 import { ForbiddenError, NotFoundError } from '../../errors.js';
 import {
@@ -321,13 +321,14 @@ export async function registerBuilderRoutes(
         key: column.key,
         header: column.header,
         numeric: column.numeric,
+        place: column.place,
       }));
       const writer = createRowWriter(format === 'json' ? 'json' : 'csv', columns, {
         headerRow: source.options?.headerRow,
       });
       const rows = page.data.map((record) => {
         const masked = maskedKeysOf(record);
-        return columns.map((column) => cellText(record[column.key], masked.has(column.key)));
+        return columns.map((column) => cellText(csvValue(record[column.key], column), masked.has(column.key)));
       });
       const raw: string[] = [];
       const headerLine = writer.headerLine();

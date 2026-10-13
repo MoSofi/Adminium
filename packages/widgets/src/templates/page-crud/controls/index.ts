@@ -46,9 +46,14 @@ import {
   TitleControl,
   UrlControl,
 } from './text.js';
+import { AreaControl, PlaceControl } from './place.js';
 import type { ControlEntry } from './types.js';
 
 export type { ControlEntry, ControlOption, ControlProps } from './types.js';
+
+/** A place's and an area's fields: chosen by the column's own mark, as the mentions box is. */
+export const PLACE_ENTRY: ControlEntry = { component: PlaceControl };
+export const AREA_ENTRY: ControlEntry = { component: AreaControl };
 
 /** The box of a text people are mentioned in: chosen by the column's own mark, not by the page. */
 export const MENTIONS_ENTRY: ControlEntry = { component: MentionsControl };

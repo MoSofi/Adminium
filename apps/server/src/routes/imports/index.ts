@@ -15,6 +15,19 @@
  * - `GET  /imports` / `GET /imports/:id` — mine (or all with
  *   {@link IMPORTS_MANAGE_PERMISSION}, fail-closed until the key lands).
  * - `GET  /imports/:id/error-report` — the failure-rows CSV.
+ * - `GET  /imports/:id/preview` — what running a `ready` import would do with
+ *   each line (new, already here, refused), judged by the job's own judge
+ *   (`data-io/import-judge.ts`) as the requester's roles stand now. It writes
+ *   nothing, and answers only the import's requester.
+ *
+ * An import that MATCHES its lines to stored rows (`skip`, `upsert`) says, a
+ * line at a time, which values the table holds. So it is made, previewed and
+ * run only by somebody who holds the table's `read` as well as its `import`,
+ * and never matched on a column they see masked.
+ *
+ * The upload takes a file's commas, a pasted sheet's tabs, or semicolons, and
+ * stores anything but commas re-written as comma CSV: the job and every other
+ * reader of a stored file read one shape.
  */
 import { assertNotPrivate } from '../../crud/row-limit.js';
 import type { FastifyRequest } from 'fastify';
@@ -33,7 +46,10 @@ import type { ConnectionManager } from '../../connections/manager.js';
 import { privilegeRefusal, writeRefused } from '../../connections/privileges.js';
 import { SnapshotView, type ResolvedTable } from '../../crud/identifiers.js';
 import { coerceCell } from '../../data-io/coerce.js';
-import { parseCsv } from '../../data-io/csv.js';
+import { createCsvParser, parseCsv, serializeCsvRow, sniffDelimiter } from '../../data-io/csv.js';
+import { assertMatchReadable, openImportJudge, type EarlierLines, type ImportLine, type LineVerdict } from '../../data-io/import-judge.js';
+import { canReadPii } from '../../crud/mask.js';
+import type { RecordWriteService } from '../../crud/write-service.js';
 import { loadSnapshotView } from '../../data-io/snapshot-view.js';
 import { requestReadsWhole } from '../../crud/row-reach-request.js';
 import { assertImportReadable, readViewOf } from '../../crud/read-view.js';
@@ -48,6 +64,7 @@ import {
 import type { ByteLocation, FileStore } from '../../files/store.js';
 import { IMPORT_RUN_KIND } from '../../jobs/import-run.js';
 import {
+  PREVIEW_LINE_CAP,
   REPORT_ISSUE_CAP,
   UPLOAD_SAMPLE_ROWS,
   importIdParams,
@@ -56,10 +73,13 @@ import {
   importsGetReply,
   importsListQuery,
   importsListReply,
+  importsPreviewQuery,
+  importsPreviewReply,
   importsRunReply,
   importsUploadQuery,
   importsUploadReply,
   type ImportView,
+  type PreviewLineView,
   type ValidationIssueView,
   type ValidationReport,
 } from './schema.js';
@@ -76,7 +96,13 @@ export interface ImportsRoutesDeps {
   storage: FileStore;
   /** `app.jobs.enqueue` in compose; a jobsRepo-backed stub in tests. */
   enqueue: (input: EnqueueJobInput) => Promise<Job>;
+  /** The write service the import job writes through: a preview is judged by the same rules. */
+  writes?: RecordWriteService | undefined;
 }
+
+const DELIMITER_NAMES = { ',': 'comma', '\t': 'tab', ';': 'semicolon' } as const;
+/** How many lines a preview hands the judge at a time: one match lookup each. */
+const PREVIEW_BATCH = 200;
 
 function requireUserId(request: FastifyRequest): string {
   const user = (request as unknown as { user?: { id?: string } }).user;
@@ -187,6 +213,47 @@ export function importsRoutes(deps: ImportsRoutesDeps): FastifyPluginAsyncZod {
     return text;
   }
 
+  /**
+   * The header and the first `cap` lines of a stored file, read as a stream
+   * that is let go once it has them: a preview of a 30 MB file reads its
+   * first two thousand lines, not the file. `more` says a line came after
+   * them; with `countAll` the rest is read too, only to be counted (an
+   * import whose validation left no count).
+   */
+  async function firstLines(file: ByteLocation, cap: number, countAll: boolean): Promise<{ header: string[] | undefined; data: string[][]; more: boolean; counted: number }> {
+    const stream = await storage.read(file);
+    stream.setEncoding('utf8');
+    const parser = createCsvParser();
+    let header: string[] | undefined;
+    const data: string[][] = [];
+    let counted = 0;
+    /** Takes one record; false once nothing more is wanted of the file. */
+    const take = (record: string[]): boolean => {
+      if (header === undefined) {
+        header = record;
+        return true;
+      }
+      if (record.length === 1 && record[0]?.trim() === '') return true;
+      counted += 1;
+      if (data.length < cap) data.push(record);
+      return countAll || counted <= cap;
+    };
+    let wanted = true;
+    try {
+      for await (const chunk of stream) {
+        for (const record of parser.write(chunk as string)) {
+          wanted = take(record);
+          if (!wanted) break;
+        }
+        if (!wanted) break;
+      }
+      if (wanted) for (const record of parser.end()) if (!take(record)) break;
+    } finally {
+      stream.destroy();
+    }
+    return { header, data, more: counted > cap, counted };
+  }
+
   return async (app) => {
     // Raw CSV bodies, this plugin's scope only.
     app.addContentTypeParser('text/csv', { parseAs: 'buffer' }, (_request, body, done) => {
@@ -206,14 +273,25 @@ export function importsRoutes(deps: ImportsRoutesDeps): FastifyPluginAsyncZod {
           throw new ValidationFailedError('Send the CSV file as a raw `text/csv` body.', {});
         }
         const text = body.toString('utf8');
-        const rows = parseCsv(text);
-        const header = rows[0];
+        // A file's commas, a pasted sheet's tabs, or semicolons: told from the first line.
+        const delimiter = sniffDelimiter(text);
+        const rows = parseCsv(text, delimiter);
+        const headless = request.query.header === 'none';
+        const notBlank = (record: string[]) => !(record.length === 1 && record[0]?.trim() === '');
+        let header = rows[0];
+        if (headless) {
+          // Every row is data: the columns are named by their place.
+          // (Counted in a loop: a paste has more lines than one call takes arguments.)
+          const width = rows.reduce((widest, record) => (notBlank(record) && record.length > widest ? record.length : widest), 0);
+          if (width === 0) throw new ValidationFailedError('There are no rows to bring in.', {});
+          header = Array.from({ length: width }, (_, index) => `Column ${index + 1}`);
+        }
         if (header === undefined || header.every((cell) => cell.trim() === '')) {
           throw new ValidationFailedError('The file has no header row.', {});
         }
-        const dataRows = rows
-          .slice(1)
-          .filter((record) => !(record.length === 1 && record[0]?.trim() === ''));
+        const dataRows = (headless ? rows : rows.slice(1)).filter(notBlank);
+        // Stored as comma CSV with a header row, whatever was sent: the job and the validate step read one shape.
+        const stored = headless || delimiter !== ',' ? Buffer.from([header, ...(headless ? rows : rows.slice(1))].map(serializeCsvRow).join(''), 'utf8') : body;
 
         const fileId = newId('file');
         const written = await storage.write({
@@ -221,7 +299,7 @@ export function importsRoutes(deps: ImportsRoutesDeps): FastifyPluginAsyncZod {
           kind: 'import',
           filename: request.query.filename,
           mime: 'text/csv; charset=utf-8',
-          bytes: body,
+          bytes: stored,
         });
         const file = await files.create({
           id: fileId,
@@ -252,6 +330,7 @@ export function importsRoutes(deps: ImportsRoutesDeps): FastifyPluginAsyncZod {
             columns: header,
             sampleRows: dataRows.slice(0, UPLOAD_SAMPLE_ROWS),
             totalRows: dataRows.length,
+            delimiter: DELIMITER_NAMES[delimiter],
           },
         });
       },
@@ -263,6 +342,7 @@ export function importsRoutes(deps: ImportsRoutesDeps): FastifyPluginAsyncZod {
       async (request, reply) => {
         const userId = requireUserId(request);
         const { fileId, connectionId, table: tableParam, mapping, options } = request.body;
+        const mode = options.mode ?? 'insert';
 
         const connection = await manager.mustFind(connectionId);
         const view = await loadSnapshotView(meta, connectionId);
@@ -294,25 +374,29 @@ export function importsRoutes(deps: ImportsRoutesDeps): FastifyPluginAsyncZod {
         const rights = await manager.tablePrivileges(connection);
         if (
           writeRefused(rights, table.id, 'create') ||
-          ((options.mode ?? 'insert') === 'upsert' && writeRefused(rights, table.id, 'update'))
+          (mode === 'upsert' && writeRefused(rights, table.id, 'update'))
         ) {
           throw privilegeRefusal(table);
         }
-        // As this person reads the table: a column their role does not read is no match key, and no column brought in unless their update names it.
+        // Matching says which values the table holds: it is for somebody who reads the table.
+        assertMatchReadable(await request.can(`table:${connectionId}:${table.id}:read`), mode, connectionId, table.id);
+        // As this person reads the table: a column their role does not read, or sees masked, is no match key, and no column brought in unless their update names it.
         const permissions = await app.rbac.resolve(request);
         assertImportReadable(
           readViewOf(view, permissions),
           table.id,
           mapping.columns,
-          (options.mode ?? 'insert') === 'upsert' ? (options.matchColumn ?? null) : null,
+          mode === 'insert' ? null : (options.matchColumn ?? null),
           updateLimitOf(permissions, connectionId, table.id)?.writable ?? null,
+          await canReadPii(request, connectionId, table.id),
         );
         // An import makes new rows: held to what the role's create may give one.
         assertImportCreatable(createLimitOf(permissions, connectionId, table.id), table.id, mapping.columns);
-        if ((options.mode ?? 'insert') === 'upsert') {
+        // `upsert` and `skip` both match each line to a row: they differ in what a matched line does.
+        if (mode !== 'insert') {
           const match = options.matchColumn ?? null;
           if (match === null) {
-            throw new ValidationFailedError('Upsert mode requires `options.matchColumn`.', {});
+            throw new ValidationFailedError(`${mode === 'upsert' ? 'Upsert' : 'Skip'} mode requires \`options.matchColumn\`.`, {});
           }
           const matchResolved = view.column(table, match); // 422 on unknown/secret
           // The match column must actually be IMPORTED — otherwise every row's
@@ -323,7 +407,7 @@ export function importsRoutes(deps: ImportsRoutesDeps): FastifyPluginAsyncZod {
           );
           if (!matchMapped) {
             throw new ValidationFailedError(
-              'Upsert mode requires `options.matchColumn` to be one of the mapped target columns.',
+              `${mode === 'upsert' ? 'Upsert' : 'Skip'} mode requires \`options.matchColumn\` to be one of the mapped target columns.`,
               { matchColumn: match },
             );
           }
@@ -396,6 +480,92 @@ export function importsRoutes(deps: ImportsRoutesDeps): FastifyPluginAsyncZod {
           changes: { after: { importId: row.id, jobId: job.id } },
         });
         return reply.status(202).send({ data: { import: toView(row), jobId: job.id } });
+      },
+    );
+
+    app.get(
+      '/imports/:id/preview',
+      { schema: { params: importIdParams, querystring: importsPreviewQuery, response: { 200: importsPreviewReply } } },
+      async (request) => {
+        const userId = requireUserId(request);
+        const row = await imports.findById(request.params.id);
+        // Its requester's alone: what each line matches is told as that one person reaches the rows, and to nobody else.
+        if (row === null || row.requestedBy !== userId) throw new NotFoundError(`Import ${request.params.id} not found.`);
+        if (row.status !== 'ready') {
+          throw new ConflictError(`Import is ${row.status}.`, 'CONFLICT', { status: row.status });
+        }
+        const connection = await manager.mustFind(row.connectionId);
+        const view = await loadSnapshotView(meta, row.connectionId);
+        const table = view.table(row.tableName);
+        assertNotPrivate(table, 'no file is brought in to it');
+        // The grant as it stands now, as the run checks it again.
+        const permission = `table:${row.connectionId}:${table.id}:import`;
+        if (!(await request.can(permission))) {
+          throw new ForbiddenError('You do not have import access to this table.', 'TABLE_FORBIDDEN', { permission });
+        }
+        if (connection.readOnly || table.readOnly) {
+          throw new ForbiddenError(
+            connection.readOnly ? 'This connection is read-only — Adminium never writes to it.' : 'This table has no primary key (or is a view) and is read-only.',
+            'READ_ONLY_MODE',
+            connection.readOnly ? { connectionId: row.connectionId } : { table: table.id },
+          );
+        }
+        const upload = await files.findById(row.fileId);
+        if (upload === null || upload.deletedAt !== null) throw new NotFoundError(`Upload ${row.fileId} not found.`);
+
+        // The job's own judge, opened as the requester's roles stand NOW; what refuses the whole import refuses the preview.
+        const judge = await openImportJudge({ meta, manager, writes: deps.writes }, row, userId);
+        // The first lines only, however long the file: its whole count is the one its validation took.
+        const known = row.stats?.total;
+        const { header, data, more, counted } = await firstLines(upload, PREVIEW_LINE_CAP, known === undefined);
+        if (header === undefined) throw new ValidationFailedError('The file is empty.', {});
+        const mapped = judge.mapping(header);
+        const judged = data.length;
+        const total = more ? Math.max(known ?? counted, judged + 1) : judged;
+
+        const counts = { new: 0, here: 0, refused: 0 };
+        const lines: PreviewLineView[] = [];
+        const { offset, limit } = request.query;
+        const told = (rowNumber: number, verdict: Pick<LineVerdict, 'status'> & { code?: string; column?: string; message?: string; earlierLine?: number }): void => {
+          counts[verdict.status] += 1;
+          if (rowNumber <= offset || rowNumber > offset + limit) return;
+          lines.push({
+            row: rowNumber,
+            status: verdict.status,
+            ...(verdict.status === 'refused' ? { code: verdict.code, message: verdict.message, ...(verdict.column === undefined || verdict.column === '' ? {} : { column: verdict.column }) } : {}),
+            ...(verdict.earlierLine === undefined ? {} : { earlierLine: verdict.earlierLine }),
+          });
+        };
+        // The lines this preview called new, by match value: a later line with the same value finds the row the first would make.
+        const earlier: EarlierLines = new Map();
+        // …and their keys: a later line with the key of one of them is refused, as the database would refuse it.
+        const earlierKeys = new Map<string, number>();
+        for (let at = 0; at < judged; at += PREVIEW_BATCH) {
+          const batch: ImportLine[] = [];
+          const unread = new Map<number, { code: string; column: string; message: string }>();
+          for (let index = at; index < Math.min(judged, at + PREVIEW_BATCH); index += 1) {
+            const parsed = judge.parse(mapped, data[index]!, index + 1);
+            if (parsed.line !== null) batch.push(parsed.line);
+            else unread.set(index + 1, parsed.issues[0]!);
+          }
+          // No hook runs, and no number is claimed: nothing is written anywhere.
+          const verdicts = await judge.lines(batch, { hooks: false, earlier, earlierKeys });
+          const byRow = new Map(batch.map((line, index) => [line.rowNumber, verdicts[index]!]));
+          for (let rowNumber = at + 1; rowNumber <= Math.min(judged, at + PREVIEW_BATCH); rowNumber += 1) {
+            const cell = unread.get(rowNumber);
+            told(rowNumber, cell !== undefined ? { status: 'refused', ...cell } : byRow.get(rowNumber)!);
+          }
+        }
+        return {
+          data: {
+            total,
+            judged,
+            capped: total > judged,
+            counts,
+            hooksNotRun: judge.hooked.create || judge.hooked.update,
+            lines,
+          },
+        };
       },
     );
 

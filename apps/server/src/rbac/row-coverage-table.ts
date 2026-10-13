@@ -284,6 +284,7 @@ export const ROW_COVERAGE: Readonly<Record<string, RowMark>> = {
   'POST /api/v1/imports': rows('own', 'An import and its file are its requester\'s; nothing of a source table is read until it runs.'),
   'GET /api/v1/imports/:id': rows('own', 'An import and its file are its requester\'s; nothing of a source table is read until it runs.'),
   'GET /api/v1/imports/:id/error-report': rows('own', 'The requester\'s own file.'),
+  'GET /api/v1/imports/:id/preview': rows(['sub', 'link'], 'What the import job would do with each line, judged by the job\'s own judge as the requester alone: a line matches only rows they reach, one that matches a row outside them is told only that the value is taken, and nothing is written; a private table is refused.'),
   'POST /api/v1/imports/:id/run': rows(['sub', 'link'], 'The import job matches and changes only rows its requester reaches, each row\'s links and people judged as a write; a private table is refused.'),
   'POST /api/v1/imports/upload': rows('own', 'An import and its file are its requester\'s; nothing of a source table is read until it runs.'),
   // --- /invoices
@@ -441,6 +442,12 @@ export const ROW_COVERAGE: Readonly<Record<string, RowMark>> = {
   'PUT /api/v1/settings/security': noRows('Workspace settings.'),
   'GET /api/v1/settings/telemetry': noRows('Workspace settings.'),
   'PUT /api/v1/settings/telemetry': noRows('Workspace settings.'),
+  'GET /api/v1/geo/places': noRows('Towns from the place list this server ships: a public gazetteer, no row of any table.'),
+  'GET /api/v1/geo/places/:id': noRows('One town of the shipped place list.'),
+  'POST /api/v1/geo/places/match': noRows('The towns of addresses the caller sends, looked up in the shipped place list.'),
+  'POST /api/v1/geo/route': noRows('The way between positions the caller sends; reads no row.'),
+  'GET /api/v1/settings/maps': noRows('Workspace settings.'),
+  'PUT /api/v1/settings/maps': noRows('Workspace settings.'),
   'GET /api/v1/settings/workspace': noRows('Workspace settings.'),
   // --- /setup
   'POST /api/v1/setup/adopt': noRows('First-run setup.'),

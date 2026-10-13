@@ -2,12 +2,12 @@
 /**
  * Shared helpers for the `geo` family (annex) — the seeded PRNG the demo
  * generators use, the `geo-points` envelope reader, the bubble radius scale, the
- * theme-following Carto tile URLs, and the binding → event-source read.
+ * theme-following map style address, and the binding → event-source read.
  *
- * PURE AND FRAMEWORK-LIGHT: no React, no DOM, and — load-bearing — **no
- * Leaflet**. `geo-config.ts` imports this module and `geo-track.definitions.ts`
+ * PURE AND FRAMEWORK-LIGHT: no React, no DOM, and — load-bearing — **no map
+ * engine**. `geo-config.ts` imports this module and `geo-track.definitions.ts`
  * imports that, so anything reachable from here lands in the registry's EAGER
- * metadata graph. Leaflet is reachable from exactly one module in this package
+ * metadata graph. MapLibre is reachable from exactly one module in this package
  * (`MapBubble.tsx`, through a dynamic `import()` inside an effect); see the map
  * dependency tests in `qa/chunk-budget.test.ts`, which walk the transitive
  * static-import graph from every definitions module to prove it.
@@ -45,6 +45,14 @@ export interface GeoPoint {
   code?: string | undefined;
   lat?: number | undefined;
   lng?: number | undefined;
+  /**
+   * How the position is known, for a point read from a place column: `town`
+   * is the middle of a town (the place is somewhere in it), `exact` a spot a
+   * person gave. Absent for a plain lat/lng pair.
+   */
+  by?: 'town' | 'exact' | undefined;
+  /** The town's id in the server's place list, where the place names one. */
+  placeId?: number | undefined;
   values: Record<string, number>;
 }
 
@@ -54,6 +62,11 @@ export interface GeoFieldConfig {
   codeField: string;
   latField: string;
   lngField: string;
+  /**
+   * ONE place column (`{ lat, lng, by }`) in the pair's stead: set by the
+   * `geo.place-column` rule. Read before the pair when a raw row carries it.
+   */
+  placeField?: string | undefined;
   /** Metric columns to lift into `values`; empty → every other finite number. */
   metricFields: readonly string[];
 }
@@ -81,7 +94,7 @@ function valuesOf(cell: unknown): Record<string, number> {
 }
 
 /** Field names that are never metrics, however numeric the column looks. */
-const NEVER_METRIC = new Set(['id', 'lat', 'lng', 'latitude', 'longitude', 'code', 'name', 'values']);
+const NEVER_METRIC = new Set(['id', 'lat', 'lng', 'latitude', 'longitude', 'code', 'name', 'values', 'placeId']);
 
 /**
  * Read a `geo-points` payload.
@@ -100,8 +113,12 @@ export function geoPointsOf(data: unknown, fields: GeoFieldConfig): GeoPoint[] {
   const rows = rawRowsOf(data);
   return rows.flatMap((row): GeoPoint[] => {
     const explicit = valuesOf(row['values']);
-    const lat = finite(row[fields.latField]);
-    const lng = finite(row[fields.lngField]);
+    // A raw row's place column holds the pair and how it is known. The
+    // server's own `{ points }` envelope has already lifted both.
+    const place = fields.placeField === undefined ? undefined : placeOf(row[fields.placeField]);
+    const lat = place?.lat ?? finite(row[fields.latField]);
+    const lng = place?.lng ?? finite(row[fields.lngField]);
+    const by = place?.by ?? byOf(row['by']);
     const code = str(row[fields.codeField]);
     const name = str(row[fields.nameField]) ?? code ?? '';
 
@@ -121,10 +138,33 @@ export function geoPointsOf(data: unknown, fields: GeoFieldConfig): GeoPoint[] {
         ...(code === undefined ? {} : { code }),
         ...(lat === undefined ? {} : { lat }),
         ...(lng === undefined ? {} : { lng }),
+        ...(by === undefined || lat === undefined || lng === undefined ? {} : { by }),
+        ...(by === undefined || typeof row['placeId'] !== 'number' ? {} : { placeId: row['placeId'] }),
         values,
       },
     ];
   });
+}
+
+function byOf(value: unknown): 'town' | 'exact' | undefined {
+  return value === 'town' || value === 'exact' ? value : undefined;
+}
+
+/** A place column's value (an object, or the JSON text one engine hands back). */
+function placeOf(cell: unknown): { lat: number; lng: number; by: 'town' | 'exact' | undefined } | undefined {
+  let value = cell;
+  if (typeof value === 'string') {
+    try {
+      value = JSON.parse(value) as unknown;
+    } catch {
+      return undefined;
+    }
+  }
+  if (typeof value !== 'object' || value === null) return undefined;
+  const { lat, lng, by } = value as { lat?: unknown; lng?: unknown; by?: unknown };
+  const a = finite(lat);
+  const b = finite(lng);
+  return a === undefined || b === undefined ? undefined : { lat: a, lng: b, by: byOf(by) };
 }
 
 /** Rows from either envelope: the `{ points }`, or a raw `{ rows }` select. */
@@ -149,7 +189,7 @@ function pickMetrics(row: Record<string, unknown>, metricFields: readonly string
 
 /** Every finite numeric column that isn't a coordinate/identity column. */
 function inferMetrics(row: Record<string, unknown>, fields: GeoFieldConfig): Record<string, number> {
-  const skip = new Set([...NEVER_METRIC, fields.nameField, fields.codeField, fields.latField, fields.lngField]);
+  const skip = new Set([...NEVER_METRIC, fields.nameField, fields.codeField, fields.latField, fields.lngField, fields.placeField ?? 'by']);
   const out: Record<string, number> = {};
   for (const [key, value] of Object.entries(row)) {
     if (skip.has(key)) continue;
@@ -218,17 +258,15 @@ export function maxMetric(points: readonly GeoPoint[], metric: string): number {
 // ── map chrome ──────────────────────────────────────────────────────────────
 
 /**
- * Carto Positron / Dark Matter raster tiles — the annex's "theme-following Carto
- * light/dark tiles". Swapped live through @adminium/ui's `subscribeTheme`, whose
- * own docblock names this exact case ("for Leaflet tile swaps").
+ * The style a map is drawn from: the map server's light or dark one, by the
+ * theme. THE SERVER'S ADDRESS IS NEVER WRITTEN IN THIS BUNDLE. It arrives with
+ * the session (`bootstrap.maps.server`) and is null while maps are switched
+ * off, when no map is built and nothing outside is asked. Every address inside
+ * a style (pictures, letters, signs) is on the same server.
  */
-export const CARTO_TILES: Readonly<Record<'light' | 'dark', string>> = {
-  light: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
-  dark: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
-};
-
-/** Carto's required attribution (their tiles, OSM's data). Rendered in the map. */
-export const CARTO_ATTRIBUTION = '© OpenStreetMap contributors © CARTO';
+export function mapStyleUrl(server: string, theme: 'light' | 'dark'): string {
+  return `${server.replace(/\/+$/, '')}/styles/${theme === 'dark' ? 'dark' : 'positron'}`;
+}
 
 /** Default view when config names no center: the whole world, roughly framed. */
 export const DEFAULT_CENTER: readonly [number, number] = [20, 0];

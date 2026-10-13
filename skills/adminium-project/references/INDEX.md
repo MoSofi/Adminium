@@ -44,7 +44,7 @@ file. Every file is 8 KB or less.
 | `references/projects/pages-and-widgets--pages.md` | Pages | 2357 |
 | `references/projects/pages-and-widgets--starting-from-a-generated-page.md` | Starting from a generated page | 1275 |
 | `references/projects/pages-and-widgets--widgets.md` | Widgets | 1619 |
-| `references/projects/pages-and-widgets--the-ui-kit.md` | The UI kit | 4451 |
+| `references/projects/pages-and-widgets--the-ui-kit.md` | The UI kit | 7686 |
 | `references/projects/pages-and-widgets--react-and-other-packages.md` | React and other packages | 1085 |
 | `references/projects/pages-and-widgets--building-and-deploying.md` | Building and deploying | 752 |
 | `references/projects/deploy--overview.md` | Deploy a project | 731 |

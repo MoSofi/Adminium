@@ -33,6 +33,8 @@ half-configured and fail later.
 | `ADMINIUM_STATIC_ROOT` | No | *(auto-detected)* | Serve the dashboard build from this directory instead of the auto-detected copy. |
 | `ADMINIUM_SURFACES_DIR` | No | *(unset)* | Directory of built app surfaces, served at `/apps/<app>/<side>/`. Unset means this instance hosts no apps. See below. |
 | `ADMINIUM_CSP_IMG_HOSTS` | No | *(unset)* | CSV of extra origins pictures may load from — for app data that links images hosted elsewhere. Named hosts only: **no bare `*`**, no scheme on its own. See below. |
+| `ADMINIUM_MAP_SERVER` | No | `https://tiles.openfreemap.org` | Where maps' pictures come from: one `https://` origin, or `off` for no maps on this install. See below. |
+| `ADMINIUM_ROUTING_SERVER` | No | `https://router.project-osrm.org` | The OSRM server asked for routes along roads, once that is switched on in Settings → Maps; or `off`. See below. |
 | `ADMINIUM_TELEMETRY` | No | *(unset)* | Overrides the consent screen's answer. Unset = let it stand; telemetry is opt-in either way. |
 | `ADMINIUM_NETWORK_FEATURES` | No | `on` | `off` on air-gapped installs — the UI stops offering webhooks, OAuth, and provider-API AI, and the server asks adminium.dev for no list of add-ons or apps. |
 | `ADMINIUM_DESIGNER` | No | `off` | `live` lets a Super Admin switch [Adminium Designer](/projects/designer/#on-a-server-people-reach) on for this server, in Settings → AI. Anything else, and its routes do not exist. `adminium design` needs no variable. |
@@ -331,7 +333,7 @@ ADMINIUM_PUBLIC_API_ORIGINS='self'
 ## `ADMINIUM_CSP_IMG_HOSTS`
 
 Adminium's Content-Security-Policy lets pages load pictures from Adminium itself
-and nowhere else (plus the map tiles its map widgets draw). That is right for
+and nowhere else (plus, while maps are on, [the map server](#adminium_map_server)). That is right for
 the dashboard's own assets, and it is one header on everything the server sends
 — including the app surfaces it hosts. So when your data links images kept
 somewhere else, the browser refuses them and the app shows broken pictures: a
@@ -544,6 +546,62 @@ It does not govern the update check, which has its own consent
 
 → [Telemetry](/self-hosting/telemetry/)
 
+## `ADMINIUM_MAP_SERVER`
+
+One origin, or `off`. Default `https://tiles.openfreemap.org`.
+
+A map is drawn in each viewer's **browser** from pictures of the part of the world on screen,
+and this is the server they come from. It learns the viewer's IP address and the area they
+looked at; it is never sent a row or a name from your data.
+
+```bash
+ADMINIUM_MAP_SERVER=https://tiles.example.com   # your own
+ADMINIUM_MAP_SERVER=off                         # no maps on this install
+```
+
+While maps are on, this origin is added to `connect-src` and `img-src` of the
+Content-Security-Policy, and to nothing else. It is there on every reply, the sign-in page's
+too, because the dashboard is one page loaded before sign-in; so the origin can be read by
+somebody who is not signed in, and should be a server you do not mind naming. While maps are
+off, the policy names no outside server at all. Maps are off when this is `off`, in the desktop app, or when **Settings → Maps →
+Show maps** is switched off; `off` here cannot be overridden from the dashboard.
+
+It must be a scheme and a host, with an optional port: no path, no `*`, no name and password.
+`http://` is taken only for `localhost`, `127.0.0.1` and `[::1]`, for a tile server on your own
+machine while developing. Anything else fails the start with the reason.
+
+The address is deliberately not editable in Settings: it goes into the policy every staff
+browser obeys, and an address somebody could type there would open that policy to any server.
+A project's `.env` cannot set it either on a host that opens folders it did not make (the
+desktop app).
+
+→ [Maps, places and routes](/guides/apps/maps/)
+
+## `ADMINIUM_ROUTING_SERVER`
+
+One origin, or `off`. Default `https://router.project-osrm.org`.
+
+The [OSRM](https://project-osrm.org/) server your **Adminium server** asks for a route along
+roads. It is asked only after somebody switches **Settings → Maps → Routes along roads** on;
+until then, and with `off`, the way between stops is straight lines marked as estimates and
+nothing is sent anywhere. What is sent is the ordered positions of a route's stops, and nothing
+else.
+
+```bash
+ADMINIUM_ROUTING_SERVER=http://osrm.internal:5000   # your own, on a private network
+ADMINIUM_ROUTING_SERVER=off                          # straight-line estimates only
+```
+
+It is called by the server, never by a browser, so it is not in the Content-Security-Policy and
+may be plain `http://` on a private network. In production a loopback address (`localhost`,
+`127.0.0.1`) is refused, as it is for a webhook: name the machine by its network name.
+[`ADMINIUM_NETWORK_FEATURES=off`](#adminium_network_features) switches it off too.
+
+The default is the OSRM project's public demo server: fine for trying routes out, with no
+promise of being there. Adminium asks it at most once a second and keeps each answer for a day.
+
+→ [Maps, places and routes](/guides/apps/maps/#routes-along-roads)
+
 ## `ADMINIUM_NETWORK_FEATURES`
 
 Accepts `on`, `true`, `1` (and `off`, `false`, `0`). Default `on`.
@@ -554,8 +612,8 @@ an air-gapped install is promised it will not make. So the server reports what
 you told it, and the UI adapts.
 
 Set it `off` on an install with no outbound network. Features that need the
-internet — webhooks, OAuth integrations, provider-API AI enrichment — then say so
-up front instead of being discovered one timeout at a time. Nothing is hidden:
+internet — webhooks, OAuth integrations, provider-API AI enrichment, routes along
+roads — then say so up front instead of being discovered one timeout at a time. Nothing is hidden:
 each surface explains why it is unavailable.
 
 It is also the one setting that stops a **new install** asking adminium.dev for what it offers.
@@ -573,10 +631,13 @@ exactly the same.
 ```bash
 ADMINIUM_NETWORK_FEATURES=off
 ADMINIUM_TELEMETRY=off
+ADMINIUM_MAP_SERVER=off
 ```
 
 Together with `ADMINIUM_TELEMETRY=off` and `updates.checkEnabled` left at its
-default, that is a complete no-phone-home configuration.
+default, that is a complete no-phone-home configuration for the server.
+`ADMINIUM_MAP_SERVER=off` is the line for the browsers: without it a staff
+member who opens a map fetches its pictures from the map server.
 
 ## The `ADMINIUM_AI_*` block
 

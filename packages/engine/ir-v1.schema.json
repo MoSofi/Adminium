@@ -256,6 +256,14 @@
                   "default": false,
                   "type": "boolean"
                 },
+                "place": {
+                  "type": "boolean",
+                  "const": true
+                },
+                "area": {
+                  "type": "boolean",
+                  "const": true
+                },
                 "enumRef": {
                   "default": null,
                   "anyOf": [

@@ -22,7 +22,7 @@ import {
   type ZodTypeProvider,
 } from 'fastify-type-provider-zod';
 
-import type { MetaDb } from '@adminium/meta';
+import { settingsRepo, type MetaDb } from '@adminium/meta';
 
 import { createAuditCoverageRegistry } from './audit/coverage.js';
 import { createRowCoverageRegistry } from './rbac/row-coverage.js';
@@ -556,6 +556,8 @@ export async function buildServer(opts: BuildServerOptions = {}) {
   // `staticRoot` rides along so core can hash the served index.html's inline
   // scripts into the CSP allowance (plugins/core.ts).
   await app.register(corePlugin, { env, staticRoot: opts.staticRoot });
+  // Whether maps are on is a setting: without a store, nobody has answered and they are.
+  if (opts.metaDb !== undefined && opts.metaDb !== null) app.maps.attach(settingsRepo(opts.metaDb));
   await app.register(authPlugin, {
     env,
     metaDb: opts.metaDb ?? null,

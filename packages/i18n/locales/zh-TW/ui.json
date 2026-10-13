@@ -689,6 +689,8 @@
         "emptyBody": "依泳道欄位與狀態欄位將記錄分組以建立格線。"
       },
       "addCard": "新增卡片",
+      "notMoved": "{title} 未移動。",
+      "dismissNotice": "關閉",
       "grip": "拖曳以移動卡片",
       "pointsUnit": "點",
       "laneSummary": "Σ{points} 點 · {count}",
@@ -772,9 +774,46 @@
         "description": "地圖上的圓形標記依所選指標縮放，並附上排名靠前地點的清單。",
         "emptyTitle": "沒有位置",
         "emptyBody": "包含緯度與經度的列會在這裡顯示為地圖標記。",
-        "mapUnavailableLabel": "地圖無法載入。排名清單顯示的是相同資料。",
+        "mapUnavailableLabel": "無法連上地圖。以下是清單。",
         "regionsLabel": "熱門區域",
-        "metricLabel": "指標"
+        "metricLabel": "指標",
+        "mapsOffLabel": "地圖已關閉。以下是清單。",
+        "mapsOffLink": "開啟「設定 → 地圖」",
+        "mapLabel": "地圖",
+        "zoomIn": "放大",
+        "zoomOut": "縮小",
+        "byTown": "依城鎮",
+        "pinMoveHint": "拖曳到確切位置。使用鍵盤：按 Enter 拿起圖釘，用方向鍵移動，按 Enter 保留該位置，按 Esc 放回原處。",
+        "sharedTown": "{count, plural, other {有 # 個地點}}只知道在這個城鎮",
+        "stopsLabel": "停靠點",
+        "placesLabel": "地點",
+        "areasLabel": "區域",
+        "legAbout": "距上一站約 {distance}",
+        "legExact": "距上一站 {distance}",
+        "legUnknown": "距上一站的距離不明",
+        "openInMaps": "在我的地圖 App 中開啟",
+        "cornerLabel": "第 {number} 個角",
+        "areaChangeHint": "拖曳一個角即可移動。選取一個角可移除它，或在它後面加一個角。",
+        "areaDrawHint": "點按地圖加入區域的各個角，然後封閉圖形。",
+        "areaAddCornerHere": "在地圖中央加一個角",
+        "areaClose": "封閉圖形",
+        "areaInsertCorner": "在這個角後面加一個角",
+        "areaRemoveCorner": "移除這個角",
+        "areaRestart": "重新開始",
+        "areaDone": "完成",
+        "areaPickHint": "在地圖或清單中選取一個區域來修改。",
+        "areaNew": "畫一個新區域",
+        "areaChange": "修改",
+        "areaUnnamed": "區域 {number}",
+        "areaPoints": "{count, plural, other {# 個點}}",
+        "areaPiecesHint": "此區域有一個洞或由多個部分組成。修改此輪廓時，它們維持不變。「重新開始」會用一個新圖形取代整個區域。",
+        "listMore": "{count, plural, other {還有 # 個}}",
+        "saidCornerAdded": "已新增一個角。{count, plural, other {共 # 個角}}。",
+        "saidShapeClosed": "圖形已封閉。",
+        "saidPinKept": "圖釘已保留在 {position}。",
+        "saidPinPicked": "已拿起圖釘。用方向鍵移動，然後按 Enter 保留該位置，或按 Esc 放回原處。",
+        "saidPinBack": "圖釘已回到原處。",
+        "saidPinRefused": "新位置未被保留。圖釘已回到原處。"
       },
       "mapChoroplethGrid": {
         "description": "依數值著色的區域方塊——適用於只有區域代碼、沒有座標的資料表。",
@@ -783,6 +822,38 @@
         "legendLowLabel": "低",
         "legendHighLabel": "高",
         "chartLabel": "區域分佈"
+      },
+      "place": {
+        "pinName": "這個地點",
+        "placeholder": "輸入城鎮，或貼上座標或地圖連結",
+        "searching": "正在尋找…",
+        "noTown": "沒有這個名稱的城鎮。換個寫法試試，或貼上座標。",
+        "searchFailed": "目前無法查詢城鎮清單。請再試一次，或貼上座標。",
+        "whereIAm": "我現在的位置",
+        "byTown": "依城鎮：{name}",
+        "exact": "確切位置：{position}",
+        "exactNamed": "確切位置：{name}（{position}）",
+        "pending": "儲存時讀取：{text}",
+        "none": "尚無地點",
+        "clear": "清除",
+        "whereError": "這部裝置沒有提供所在位置。請檢查瀏覽器是否可使用你的位置。",
+        "issue": {
+          "unreadable": "無法把它讀成一個地點。請從清單中選一個城鎮，或貼上座標，例如 30.0444, 31.2357。",
+          "shortLink": "短網址沒有寫明指向哪裡，系統也不會去開啟它。請先開啟它，再貼上完整連結或座標。",
+          "outOfRange": "這些座標不在地圖上。緯度從 -90 到 90，經度從 -180 到 180。",
+          "unknown": "這個城鎮已不在清單中。請重新選擇。"
+        }
+      },
+      "area": {
+        "points": "區域 · {count, plural, other {# 個點}}",
+        "unreadable": "已儲存的值不是一個區域。畫一個來取代它。",
+        "none": "尚無區域",
+        "clear": "清除",
+        "mapsOff": "區域要在地圖上畫，而地圖已關閉。已儲存的區域維持不變。",
+        "issue": {
+          "unreadable": "無法把它讀成一個區域。請重新畫。",
+          "tooLarge": "這個區域的點太多。請用更少的點來畫。"
+        }
       }
     },
     "domain": {
@@ -1847,6 +1918,8 @@
     "board": {
       "invalidLayout": "此看板儲存的版面配置無效。請重新產生頁面或重設其版面配置。",
       "noRowsTitle": "還沒有卡片",
+      "noColumnsTitle": "尚無欄",
+      "noColumnsBody": "此看板的欄來自某個資料表的列，而該資料表還沒有列。新增一列，它就會以一欄顯示在這裡。",
       "noRowsBody": "資料表中一有列，卡片就會顯示在這裡。"
     },
     "calendar": {
@@ -1955,6 +2028,8 @@
       "unplaced": {
         "calendar": "此資料表中還沒有任何列帶有日期，因此行事曆為空。列一旦有了日期就會顯示在這裡。",
         "board": "此資料表中還沒有任何列帶有狀態，因此看板為空。列一旦有了狀態就會顯示在這裡。",
+        "boardColumns": "此資料表中還沒有任何列位於看板的某一欄中，因此看板為空。列一旦被放入某一欄就會顯示在這裡。",
+        "boardColumnsSome": "{count, plural, other {有 # 列不在看板的任何一欄中，因此未顯示在這裡。}}",
         "scheduler": "此資料表中還沒有任何列同時帶有人員、日期和班別類型，因此排班表為空。列一旦三者齊全就會顯示在這裡。"
       }
     }

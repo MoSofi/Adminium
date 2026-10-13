@@ -18,6 +18,7 @@ import { useMaybeT } from '../../lib/i18n.js';
 
 import {
   BoardLiveRegion,
+  BoardRefusalNotice,
   DraggableCard,
   DroppableCell,
   announcementsFromTemplates,
@@ -221,6 +222,7 @@ export function KanbanSwimlaneGrid({
   return (
     <div dir={dir} data-widget="kanban-swimlane-grid" data-testid={testId} className="flex h-full flex-col overflow-auto">
       <BoardLiveRegion message={message} />
+      <BoardRefusalNotice refusal={moves.refusal} onDismiss={moves.dismissRefusal} />
       <DndContext
         sensors={sensors}
         collisionDetection={closestCorners}

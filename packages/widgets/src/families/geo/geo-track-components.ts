@@ -6,11 +6,11 @@
  * (one lazy chunk for the family). Mirrors the media/communication
  * `*-components.ts` convention.
  *
- * Leaflet is NOT reachable from here either: `MapBubble.tsx` imports it
+ * MapLibre is NOT reachable from here either: `MapBubble.tsx` imports it
  * dynamically inside its mount effect, so it gets its own chunk, fetched when a
- * bubble map actually mounts (acceptance #3 — "Leaflet code is absent unless
+ * map is actually drawn (acceptance #3 — "map engine code is absent unless
  * map-bubble is placed"). A page that places only `map-choropleth-grid` pulls
- * this chunk without pulling Leaflet.
+ * this chunk without pulling MapLibre.
  */
 export { MapBubbleWidget } from './MapBubble.js';
 export { MapChoroplethGridWidget } from './MapChoroplethGrid.js';

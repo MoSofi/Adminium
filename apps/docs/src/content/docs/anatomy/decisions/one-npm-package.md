@@ -8,7 +8,7 @@ description: The internal packages ship inside the flagship tarball rather than 
 Adminium's source is twenty-one workspaces. Up to `0.2.9` that meant fourteen
 of them were published to npm, and installing the CLI downloaded all fourteen
 plus everything each one declared: about 245 packages and 220 MB, including
-React, Radix and Leaflet — browser libraries the server never loads, pulled in
+React, Radix and MapLibre — browser libraries the server never loads, pulled in
 because the package that *registers* widgets also declares what *renders* them.
 
 That is a poor trade in three directions at once. It is slower to install, it

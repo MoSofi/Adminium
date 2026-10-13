@@ -8,7 +8,7 @@
  */
 import type { QueryClient } from '@tanstack/react-query';
 import { useQuery } from '@tanstack/react-query';
-import { Suspense, lazy, use, useSyncExternalStore, type ComponentType, type ReactElement } from 'react';
+import { Suspense, lazy, use, useMemo, useSyncExternalStore, type ComponentType, type ReactElement } from 'react';
 import {
   Outlet,
   createRootRouteWithContext,
@@ -182,6 +182,11 @@ function RootComponent() {
   // destroys the Translations editor's own unsaved buffer on every save.
   useSyncExternalStore(subscribeI18nRevision, getI18nRevision, getI18nRevision);
 
+  // Where maps come from is the session's answer: no server until it is known.
+  // A new object only when the session is read again: this is context.
+  const maps = boot.data?.maps;
+  const runtimeEnv = useMemo(() => (maps === undefined ? widgetRuntimeEnv : { ...widgetRuntimeEnv, maps }), [maps]);
+
   return (
     <ThemeProvider
       resolveDir={resolveLocaleDir}
@@ -209,9 +214,10 @@ function RootComponent() {
                 mounts through a WidgetHost under this Outlet — generated pages,
                 the dashboard builder's canvas, the palette's previews — and each
                 one reads this context to decide whether a `map-*` id may load a
-                map engine. One provider below any of them is a page that can
-                still pull Leaflet in the desktop shell. */}
-            <WidgetRuntimeProvider env={widgetRuntimeEnv}>
+                map engine, and from which map server (the session says). One
+                provider below any of them is a page that can still pull the
+                map engine in the desktop shell. */}
+            <WidgetRuntimeProvider env={runtimeEnv}>
               {/* Who a text box that takes mentions may name: asked for as the writer types after an @. */}
               <PeopleSourceProvider value={peopleByName}>
                 <Outlet />

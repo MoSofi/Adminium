@@ -33,6 +33,7 @@ export default {
     { area: 'guides', page: 'guides/apps/shared-menu.md' },
     { area: 'guides', page: 'guides/apps/emails.md' },
     { area: 'guides', page: 'guides/apps/public-access.md' },
+    { area: 'guides', page: 'guides/apps/maps.md' },
     { area: 'install', page: 'self-hosting/installing-apps.md', flat: true },
     { area: 'manifest', page: 'reference/manifest.md', flat: true },
     { area: 'cli', page: 'reference/cli.md', flat: true },

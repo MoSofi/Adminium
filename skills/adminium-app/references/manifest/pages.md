@@ -25,7 +25,7 @@ and appears in the app's own sidebar section.
 | `titles` | no | The title in other languages, keyed by BCP 47 tag, each 1–120 characters. The sidebar shows the operator's language until the operator renames the page. |
 | `nav` | yes | `{ "group", "icon", "order" }`. `group` is 1–80 characters, `icon` a [Lucide](https://lucide.dev/icons/) icon name (1–60 characters), `order` an integer. |
 | `bindings` | no | Which of the app's tables the page reads: an object from a page-local name to a `requiredSchema` table ref. |
-| `config` | no | Page configuration: a `form` for a record page, a `layout` for `page-dashboard`, a `calendar` for `page-calendar`. |
+| `config` | no | Page configuration: a `form` for a record page, a `layout` for `page-dashboard`, a `calendar` for `page-calendar`, a `board` for `page-board`. |
 | `feature` | no | The id of one of the app's [`addOns.features`](https://docs.adminium.dev/reference/manifest/#add-ons). Until every add-on the feature requires is installed, attached to the app and switched on there, the page leaves the sidebar and is listed apart, with the add-ons it needs. |
 | `module` | no | The [part](https://docs.adminium.dev/reference/manifest/#parts) of the app the page belongs to. While that part is off the page leaves the sidebar and its address answers `409` `PART_OFF`. Needs Adminium 0.3.28. |
 
@@ -66,27 +66,45 @@ The manifest is refused when a name is not a column of the right table and type.
 the first date Adminium finds. On a page with a `form`, **Add event** and a click on an empty day
 open that form, with the day filled in.
 
-**Links that open a list filtered.** A link in a layout (a metric card's `href`, the toolbar's
-`link`) may open a records page on some of its rows: `/p/<page ref>?f.<column>=<op>:<value>`, with
-one `f.` piece per column, up to 8. "Overdue" leads to
-`/p/studio-invoices?f.status=eq:sent&f.due_on=before:today`, and the page shows a chip for each
-piece.
+`config.board` says what the columns of a `page-board` are. It needs
+`"minAdminiumVersion": "0.3.28"`.
 
-| Piece | Rows it keeps |
-|---|---|
-| `eq:<v>`, `neq:<v>`, `in:<a,b>` | The value, not the value, or one of up to 50 values. |
-| `gt:`, `gte:`, `lt:`, `lte:` | A number, or a day. |
-| `before:<day>`, `after:<day>` | A date or time before or after that day. |
-| `before:now`, `after:now` | A time before or after this moment. |
-| `month:this`, `month:last` | A date or time in this or last month. |
-| `set`, `unset` | Has a value, or has none. |
+```json
+"config": { "board": {
+  "column": "stage_id",
+  "columnsFrom": { "table": "stages", "label": "name", "order": "position" },
+  "title": "name",
+  "totals": [{ "column": "amount", "fn": "sum" }],
+  "only": { "state": "open" }
+} }
+```
 
-A day is `YYYY-MM-DD`, `today`, or a whole number of days from it: `today-30`, `today+7` (at most
-3660 either way). Days are the venue's: on a time column a day is the whole day where the venue
-is. `now` is for time columns only. The pieces are worked out on the server when the page opens,
-so `today` is always the day it is read. A piece the column cannot take (an unknown column, a
-personal column the reader may not see, `gt` on a yes/no, a value that is not a number) is left
-out, and its chip says so; the page never fails.
+| Field | Required | Rule |
+|---|---|---|
+| `column` | yes | The column of the page's table a card is placed by. With `columnsFrom` it is a link (`"type": "fk"`) to that table. Without `columnsFrom` it is an `enum` column, and the board's columns are its values. |
+| `columnsFrom` | no | `{ "table", "label", "order" }`: the table of the app whose rows are the board's columns, the column of it a board column is headed with, and the column the board's columns are ordered by. `order` may be left out; the columns are then in the order of their key. |
+| `title` | no | The column of the page's table a card is titled with. Left out: the table's own title column. |
+| `totals` | no | One or two `{ "column", "fn" }`: a number or money column of the page's table, and `sum` or `avg`. Each column's header shows the figure beside its count. |
+| `only` | no | Which rows of the page's table are cards on the board: one to three `"column": value` or `"column": [values]` (up to 20 values each). A row is a card when every column named holds its value, or one of its values. Left out: every row. |
 
-**Updates.** A page nobody has edited is rebuilt when the app is updated. A page the operator
-edited is left as they left it. Uninstalling an app does not delete its pages.
+With `columnsFrom` the board draws one column for each row of that table, a row with no card
+too, and reads them when the page opens. A row added, renamed, moved or removed there changes the
+board for everybody looking at it, with no update of the app. A card whose link is empty is on no
+column. Dropping a card on a column saves that row's key in the card's link, as any save of the
+record would: where a role's limit or a state rule refuses the save, the card goes back and the
+board shows the reason.
+
+The count and the totals in a column's header are worked out on the server, over the rows the
+person may read: a rep held to their own deals sees the count and the worth of their own. Money
+is shown in the install's currency. A board draws the first 200 cards of its table; the count is
+of all of them. It draws at most 100 columns.
+
+`only` makes the board a board of some of its table's rows: `"only": { "state": "open" }` is the
+open deals, `"only": { "kind": ["new", "renewal"], "hot": true }` the hot deals of two kinds. It
+holds for the cards and for the headers alike, so a column's count and totals are of the cards
+`only` keeps. A column of `only` is an `enum`, a `bool`, a link (`fk`, by the key it holds),
+`text` or a whole number (`int`, `bigint`) of the page's table, and not the board's own `column`;
+a value of an `enum` is one of its values. A role that may not read a column `only` names (it is
+not among the role's `readable` columns, or it is personal data the role may not read) gets
+neither the cards nor the figures: the headers show no count and no total, never those of every
+row. So name a column every role that opens the board may read.

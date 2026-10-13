@@ -420,6 +420,27 @@ export const bootstrapReply = z.object({
     partOffPages: z.array(bootstrapNavItem).optional(),
     /** The reader holds roles, and every one is of a part that is switched off: nothing is on for them. */
     partsOff: z.literal(true).optional(),
+    /**
+     * Whether maps are shown, and from where. `server` is the map server's
+     * origin and is null whenever maps are off: this reply carries the
+     * address only while a map may be drawn, and the files the dashboard
+     * ships with never hold it.
+     *
+     * That is not to say a signed-out page cannot learn it. While maps are
+     * on, the content policy of EVERY reply names the map server's host,
+     * signed in or not, and it has to: the dashboard is one document, loaded
+     * before sign-in, and that document's policy is the one a map is drawn
+     * under after sign-in with no reload. The host is no secret (it is the
+     * operator's choice of map server). With maps off, nothing names it.
+     *
+     * `routing` says whether a route between stops may follow roads (asked
+     * by the server).
+     */
+    maps: z.object({
+      enabled: z.boolean(),
+      server: z.string().nullable(),
+      routing: z.boolean(),
+    }),
     /** Only on a server that runs a project folder (`adminium start` in a project, `adminium dev`). */
     project: bootstrapProject.optional(),
   }),

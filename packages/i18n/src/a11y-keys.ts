@@ -11,7 +11,7 @@
  *   pnpm --filter @adminium/i18n gen:a11y-keys
  */
 
-/** `namespace:key` — 2955 entries. */
+/** `namespace:key` — 2970 entries. */
 export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'addOns:failed.title',
   'addOns:noBundle.title',
@@ -785,6 +785,8 @@ export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'dataio:exports.createFailed',
   'dataio:import.allValid',
   'dataio:import.inconsistent',
+  'dataio:import.matchUnmapped',
+  'dataio:import.previewFailed',
   'dataio:import.progressLabel',
   'dataio:import.runFailed',
   'dataio:import.skipTarget',
@@ -2355,6 +2357,11 @@ export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'studio:settingsHub.subtitle',
   'studio:settingsHub.superAdminOnlyTitle',
   'studio:settingsHub.title',
+  'studio:settingsMaps.loadFailed',
+  'studio:settingsMaps.reload.title',
+  'studio:settingsMaps.saveFailed',
+  'studio:settingsMaps.subtitle',
+  'studio:settingsMaps.title',
   'studio:source.dsn.label',
   'studio:source.dsn.quickFill',
   'studio:source.engine.label',
@@ -2634,6 +2641,7 @@ export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'ui:templates.settings.title',
   'ui:widgets.boards.addCard',
   'ui:widgets.boards.boardCard.emptyTitle',
+  'ui:widgets.boards.dismissNotice',
   'ui:widgets.boards.inlineComposeCard.addLabel',
   'ui:widgets.boards.inlineComposeCard.cancelLabel',
   'ui:widgets.boards.inlineComposeCard.openLabel',
@@ -2880,11 +2888,18 @@ export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'ui:widgets.forms.tableInclusionChecklist.pii',
   'ui:widgets.forms.toggleSwitchList.emptyTitle',
   'ui:widgets.forms.validationIssuesList.emptyTitle',
+  'ui:widgets.geo.mapBubble.areaChange',
+  'ui:widgets.geo.mapBubble.areasLabel',
+  'ui:widgets.geo.mapBubble.byTown',
+  'ui:widgets.geo.mapBubble.cornerLabel',
   'ui:widgets.geo.mapBubble.emptyTitle',
   'ui:widgets.geo.mapBubble.metricLabel',
+  'ui:widgets.geo.mapBubble.placesLabel',
   'ui:widgets.geo.mapBubble.regionsLabel',
+  'ui:widgets.geo.mapBubble.stopsLabel',
   'ui:widgets.geo.mapChoroplethGrid.chartLabel',
   'ui:widgets.geo.mapChoroplethGrid.emptyTitle',
+  'ui:widgets.geo.place.placeholder',
   'ui:widgets.kpi.gaugeArc.emptyTitle',
   'ui:widgets.kpi.periodComparison.periodALabel',
   'ui:widgets.kpi.periodComparison.periodBLabel',

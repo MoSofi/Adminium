@@ -41,6 +41,7 @@ import { screensOnlyError } from '../../apps/screens-only.js';
 import { UnauthorizedError } from '../../errors.js';
 import { loadAppParts, partIsOn } from '../../rbac/app-parts.js';
 import { PERMISSIONS } from '../../rbac/permissions.js';
+import { MAPS_OFF } from '../../geo/map-policy.js';
 import type { AuthContext } from '../../plugins/auth.js';
 import { csrfSigningKey, issueCsrfToken } from '../../security/csrf.js';
 import { toUserView } from '../auth/handlers.js';
@@ -855,6 +856,8 @@ export async function bootstrapHandler(
     if (typeof request.can !== 'function' || (await request.can(`app:${key}:staff`))) mayOpenStaff.add(key);
   }
   const hostedApps = everyHosted.filter((entry) => mayOpenStaff.has(entry.appKey));
+  // A harness that mounts this route without the core plugin shows no map.
+  const maps = request.server.hasDecorator('maps') ? await request.server.maps.read() : MAPS_OFF;
 
   return {
     data: {
@@ -916,6 +919,7 @@ export async function bootstrapHandler(
         // After the apps: an add-on is what an app is extended with.
         ...buildAddOnSections({ addOns: sectionAddOns, appItems, codePages: addOnNav.pages, locale: prefs.locale }),
       ],
+      maps: { enabled: maps.enabled, server: maps.server, routing: maps.routing },
       ...(project === null ? {} : { project }),
     },
   };

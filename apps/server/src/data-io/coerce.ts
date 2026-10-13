@@ -72,6 +72,9 @@ export function coerceCell(raw: string, column: ResolvedColumn): CoercionResult 
     return { ok: false, code: 'REQUIRED', message: `${column.name} is required` };
   }
 
+  // A place takes what a save takes (`31.2,29.9`, a map link, `{"placeId": 360630}`): the write reads and judges it.
+  if (column.geo === 'place') return { ok: true, value: text };
+
   switch (column.logicalType) {
     case 'integer':
     case 'bigint': {

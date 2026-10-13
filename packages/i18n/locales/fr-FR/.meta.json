@@ -9443,13 +9443,85 @@
     "status": "mt",
     "srcHash": "40e97450f6ec"
   },
+  "dataio.import.matchHint": {
+    "status": "mt",
+    "srcHash": "a0d527e805cf"
+  },
+  "dataio.import.matchLabel": {
+    "status": "mt",
+    "srcHash": "26c00f280642"
+  },
+  "dataio.import.matchNone": {
+    "status": "mt",
+    "srcHash": "ebc044beabe1"
+  },
+  "dataio.import.matchUnmapped": {
+    "status": "mt",
+    "srcHash": "7a092c442893"
+  },
   "dataio.import.notATable": {
     "status": "mt",
     "srcHash": "f78a1d0ad6c2"
   },
+  "dataio.import.nothingToBring": {
+    "status": "mt",
+    "srcHash": "85fc302a01ff"
+  },
+  "dataio.import.pasteFirstRow": {
+    "status": "mt",
+    "srcHash": "c6a76afc55db"
+  },
+  "dataio.import.pasteLabel": {
+    "status": "mt",
+    "srcHash": "0cfe489c807c"
+  },
+  "dataio.import.pasteUse": {
+    "status": "mt",
+    "srcHash": "6990d8bb8a5f"
+  },
+  "dataio.import.previewCapped": {
+    "status": "mt",
+    "srcHash": "dcad12064d9c"
+  },
+  "dataio.import.previewEarlier": {
+    "status": "mt",
+    "srcHash": "10f4f536dcb5"
+  },
+  "dataio.import.previewFailed": {
+    "status": "mt",
+    "srcHash": "dc9fbc26e3e0"
+  },
+  "dataio.import.previewHere": {
+    "status": "mt",
+    "srcHash": "5ce1f7f8a80d"
+  },
+  "dataio.import.previewHooksNotRun": {
+    "status": "mt",
+    "srcHash": "0c4e8049e111"
+  },
+  "dataio.import.previewLine": {
+    "status": "mt",
+    "srcHash": "a859116ed67e"
+  },
+  "dataio.import.previewNew": {
+    "status": "mt",
+    "srcHash": "6403f2b7eb2a"
+  },
+  "dataio.import.previewRefused": {
+    "status": "mt",
+    "srcHash": "735ec50d7d93"
+  },
+  "dataio.import.previewShowMore": {
+    "status": "mt",
+    "srcHash": "25911d48e023"
+  },
   "dataio.import.progressLabel": {
     "status": "mt",
     "srcHash": "50565ad0d156"
+  },
+  "dataio.import.reviewAlreadyHere": {
+    "status": "mt",
+    "srcHash": "5ea53686a37e"
   },
   "dataio.import.run": {
     "status": "mt",
@@ -9510,6 +9582,18 @@
   "dataio.import.validationSummary": {
     "status": "mt",
     "srcHash": "1d32ac6df79b"
+  },
+  "dataio.import.whenHereLabel": {
+    "status": "mt",
+    "srcHash": "d7ca1f4886c1"
+  },
+  "dataio.import.whenHereSkip": {
+    "status": "mt",
+    "srcHash": "682d185f387e"
+  },
+  "dataio.import.whenHereUpdate": {
+    "status": "mt",
+    "srcHash": "b8f35d6c7c8a"
   },
   "designer.apps.continue": {
     "status": "mt",
@@ -23515,6 +23599,10 @@
     "status": "mt",
     "srcHash": "edfc41c0c9f5"
   },
+  "studio.installMaps.tickHost": {
+    "status": "mt",
+    "srcHash": "d3c06406394b"
+  },
   "studio.installMaps.title": {
     "status": "mt",
     "srcHash": "80071cd75107"
@@ -28175,6 +28263,18 @@
     "status": "mt",
     "srcHash": "57c9502a7d7d"
   },
+  "studio.settingsHub.mapsCard.body": {
+    "status": "mt",
+    "srcHash": "dec0ec4d2618"
+  },
+  "studio.settingsHub.mapsCard.cta": {
+    "status": "mt",
+    "srcHash": "1e54690b2199"
+  },
+  "studio.settingsHub.mapsCard.heading": {
+    "status": "mt",
+    "srcHash": "80071cd75107"
+  },
   "studio.settingsHub.pagesCard.body": {
     "status": "mt",
     "srcHash": "c86309ff9216"
@@ -28342,6 +28442,86 @@
   "studio.settingsHub.translationsCard.heading": {
     "status": "mt",
     "srcHash": "8a85cce88b15"
+  },
+  "studio.settingsMaps.loadFailed": {
+    "status": "mt",
+    "srcHash": "3a25898d1096"
+  },
+  "studio.settingsMaps.maps.heading": {
+    "status": "mt",
+    "srcHash": "126155993dee"
+  },
+  "studio.settingsMaps.maps.off": {
+    "status": "mt",
+    "srcHash": "a221be5af59f"
+  },
+  "studio.settingsMaps.maps.sees": {
+    "status": "mt",
+    "srcHash": "0104a09997cb"
+  },
+  "studio.settingsMaps.maps.server": {
+    "status": "mt",
+    "srcHash": "351e3b523797"
+  },
+  "studio.settingsMaps.maps.serverNone": {
+    "status": "mt",
+    "srcHash": "2169b1fe802f"
+  },
+  "studio.settingsMaps.maps.whyDesktop": {
+    "status": "mt",
+    "srcHash": "f7b2fa8b0141"
+  },
+  "studio.settingsMaps.maps.whyEnvOff": {
+    "status": "mt",
+    "srcHash": "dea1829db8ad"
+  },
+  "studio.settingsMaps.reload.body": {
+    "status": "mt",
+    "srcHash": "8c9f9d6eb555"
+  },
+  "studio.settingsMaps.reload.cta": {
+    "status": "mt",
+    "srcHash": "1cc58907b745"
+  },
+  "studio.settingsMaps.reload.title": {
+    "status": "mt",
+    "srcHash": "a97f24bcdd8d"
+  },
+  "studio.settingsMaps.routes.heading": {
+    "status": "mt",
+    "srcHash": "ac53cf94092e"
+  },
+  "studio.settingsMaps.routes.off": {
+    "status": "mt",
+    "srcHash": "65aa88ac91ed"
+  },
+  "studio.settingsMaps.routes.sees": {
+    "status": "mt",
+    "srcHash": "e4a2029b2cf7"
+  },
+  "studio.settingsMaps.routes.server": {
+    "status": "mt",
+    "srcHash": "2ce9f1eba91b"
+  },
+  "studio.settingsMaps.routes.serverNone": {
+    "status": "mt",
+    "srcHash": "f19ee0682045"
+  },
+  "studio.settingsMaps.routes.whyEnvOff": {
+    "status": "mt",
+    "srcHash": "94ecf44500f9"
+  },
+  "studio.settingsMaps.saveFailed": {
+    "status": "mt",
+    "srcHash": "3f1776c8613e"
+  },
+  "studio.settingsMaps.subtitle": {
+    "status": "mt",
+    "srcHash": "386a531563c8"
+  },
+  "studio.settingsMaps.title": {
+    "status": "mt",
+    "srcHash": "80071cd75107"
   },
   "studio.source.dsn.helper": {
     "srcHash": "4de3a937fe87",
@@ -30143,6 +30323,14 @@
     "status": "mt",
     "srcHash": "00212c6295c1"
   },
+  "ui.templates.board.noColumnsBody": {
+    "status": "mt",
+    "srcHash": "32c513e11a5f"
+  },
+  "ui.templates.board.noColumnsTitle": {
+    "status": "mt",
+    "srcHash": "af852f381290"
+  },
   "ui.templates.board.noRowsBody": {
     "status": "mt",
     "srcHash": "6d31905bc79d"
@@ -31175,6 +31363,14 @@
     "status": "mt",
     "srcHash": "9c52839a101d"
   },
+  "ui.templates.planning.unplaced.boardColumns": {
+    "status": "mt",
+    "srcHash": "c06e9359b431"
+  },
+  "ui.templates.planning.unplaced.boardColumnsSome": {
+    "status": "mt",
+    "srcHash": "6fb9c8ba37a6"
+  },
   "ui.templates.planning.unplaced.calendar": {
     "status": "mt",
     "srcHash": "8c7ba34d5f5a"
@@ -31459,6 +31655,10 @@
     "srcHash": "bb8b28390233",
     "status": "mt"
   },
+  "ui.widgets.boards.dismissNotice": {
+    "status": "mt",
+    "srcHash": "70afe9eff3f2"
+  },
   "ui.widgets.boards.grip": {
     "srcHash": "bb981cb4f9f8",
     "status": "mt"
@@ -31510,6 +31710,10 @@
   "ui.widgets.boards.laneSummary": {
     "status": "src",
     "srcHash": "bf27a547e5ff"
+  },
+  "ui.widgets.boards.notMoved": {
+    "status": "mt",
+    "srcHash": "671050a01b6d"
   },
   "ui.widgets.boards.pointsUnit": {
     "status": "src",
@@ -34419,6 +34623,102 @@
     "srcHash": "91d9ae73e8bf",
     "status": "mt"
   },
+  "ui.widgets.geo.area.clear": {
+    "status": "mt",
+    "srcHash": "719ea396ad92"
+  },
+  "ui.widgets.geo.area.issue.tooLarge": {
+    "status": "mt",
+    "srcHash": "a4432324036c"
+  },
+  "ui.widgets.geo.area.issue.unreadable": {
+    "status": "mt",
+    "srcHash": "f7347fe9ab21"
+  },
+  "ui.widgets.geo.area.mapsOff": {
+    "status": "mt",
+    "srcHash": "6dcd23c8ab0d"
+  },
+  "ui.widgets.geo.area.none": {
+    "status": "mt",
+    "srcHash": "7388ba8c4e7f"
+  },
+  "ui.widgets.geo.area.points": {
+    "status": "mt",
+    "srcHash": "d860ba2b5452"
+  },
+  "ui.widgets.geo.area.unreadable": {
+    "status": "mt",
+    "srcHash": "ca3e0f4a94c6"
+  },
+  "ui.widgets.geo.mapBubble.areaAddCornerHere": {
+    "status": "mt",
+    "srcHash": "b54988a8c406"
+  },
+  "ui.widgets.geo.mapBubble.areaChange": {
+    "status": "mt",
+    "srcHash": "64fbd995d3b6"
+  },
+  "ui.widgets.geo.mapBubble.areaChangeHint": {
+    "status": "mt",
+    "srcHash": "3409e811aa34"
+  },
+  "ui.widgets.geo.mapBubble.areaClose": {
+    "status": "mt",
+    "srcHash": "187f43fc21b2"
+  },
+  "ui.widgets.geo.mapBubble.areaDone": {
+    "status": "mt",
+    "srcHash": "e9b450d14bc2"
+  },
+  "ui.widgets.geo.mapBubble.areaDrawHint": {
+    "status": "mt",
+    "srcHash": "b73ddefd4c89"
+  },
+  "ui.widgets.geo.mapBubble.areaInsertCorner": {
+    "status": "mt",
+    "srcHash": "0a25df8cc7ca"
+  },
+  "ui.widgets.geo.mapBubble.areaNew": {
+    "status": "mt",
+    "srcHash": "152080a11b0b"
+  },
+  "ui.widgets.geo.mapBubble.areaPickHint": {
+    "status": "mt",
+    "srcHash": "e9cb49e0fa59"
+  },
+  "ui.widgets.geo.mapBubble.areaPiecesHint": {
+    "status": "mt",
+    "srcHash": "4bd16ddf167a"
+  },
+  "ui.widgets.geo.mapBubble.areaPoints": {
+    "status": "src",
+    "srcHash": "3b4644c886f9"
+  },
+  "ui.widgets.geo.mapBubble.areaRemoveCorner": {
+    "status": "mt",
+    "srcHash": "3decf91ff2cb"
+  },
+  "ui.widgets.geo.mapBubble.areaRestart": {
+    "status": "mt",
+    "srcHash": "b6fffc5ab71c"
+  },
+  "ui.widgets.geo.mapBubble.areaUnnamed": {
+    "status": "mt",
+    "srcHash": "46f9c23cfe87"
+  },
+  "ui.widgets.geo.mapBubble.areasLabel": {
+    "status": "mt",
+    "srcHash": "14ce09a8dd4e"
+  },
+  "ui.widgets.geo.mapBubble.byTown": {
+    "status": "mt",
+    "srcHash": "a6fd5908380b"
+  },
+  "ui.widgets.geo.mapBubble.cornerLabel": {
+    "status": "mt",
+    "srcHash": "41e99da9a7c9"
+  },
   "ui.widgets.geo.mapBubble.description": {
     "srcHash": "55d85242b25f",
     "status": "mt"
@@ -34431,17 +34731,97 @@
     "srcHash": "26abd933c2d7",
     "status": "mt"
   },
+  "ui.widgets.geo.mapBubble.legAbout": {
+    "status": "mt",
+    "srcHash": "b2a5d8931efc"
+  },
+  "ui.widgets.geo.mapBubble.legExact": {
+    "status": "mt",
+    "srcHash": "7afa354a7561"
+  },
+  "ui.widgets.geo.mapBubble.legUnknown": {
+    "status": "mt",
+    "srcHash": "4e49ae3e38dc"
+  },
+  "ui.widgets.geo.mapBubble.listMore": {
+    "status": "mt",
+    "srcHash": "46bab6ec2318"
+  },
+  "ui.widgets.geo.mapBubble.mapLabel": {
+    "status": "mt",
+    "srcHash": "ab478f3efc84"
+  },
   "ui.widgets.geo.mapBubble.mapUnavailableLabel": {
-    "srcHash": "42d7e581a5eb",
-    "status": "mt"
+    "status": "mt",
+    "srcHash": "bfd879406a83"
+  },
+  "ui.widgets.geo.mapBubble.mapsOffLabel": {
+    "status": "mt",
+    "srcHash": "c76b5c6734ca"
+  },
+  "ui.widgets.geo.mapBubble.mapsOffLink": {
+    "status": "mt",
+    "srcHash": "7d5fdfe4faa4"
   },
   "ui.widgets.geo.mapBubble.metricLabel": {
     "srcHash": "b2bb7604c825",
     "status": "mt"
   },
+  "ui.widgets.geo.mapBubble.openInMaps": {
+    "status": "mt",
+    "srcHash": "4048a2d3dfe5"
+  },
+  "ui.widgets.geo.mapBubble.pinMoveHint": {
+    "status": "mt",
+    "srcHash": "7a72dbdab010"
+  },
+  "ui.widgets.geo.mapBubble.placesLabel": {
+    "status": "mt",
+    "srcHash": "0cd3597453ab"
+  },
   "ui.widgets.geo.mapBubble.regionsLabel": {
     "srcHash": "d2c3f4c254a4",
     "status": "mt"
+  },
+  "ui.widgets.geo.mapBubble.saidCornerAdded": {
+    "status": "mt",
+    "srcHash": "31735451fdd3"
+  },
+  "ui.widgets.geo.mapBubble.saidPinBack": {
+    "status": "mt",
+    "srcHash": "80e1f3c4ee77"
+  },
+  "ui.widgets.geo.mapBubble.saidPinKept": {
+    "status": "mt",
+    "srcHash": "e540fb6f39bb"
+  },
+  "ui.widgets.geo.mapBubble.saidPinPicked": {
+    "status": "mt",
+    "srcHash": "97e2c94fcd13"
+  },
+  "ui.widgets.geo.mapBubble.saidPinRefused": {
+    "status": "mt",
+    "srcHash": "a76dc0700b0a"
+  },
+  "ui.widgets.geo.mapBubble.saidShapeClosed": {
+    "status": "mt",
+    "srcHash": "950f5bc02b12"
+  },
+  "ui.widgets.geo.mapBubble.sharedTown": {
+    "status": "mt",
+    "srcHash": "8852ca9976a2"
+  },
+  "ui.widgets.geo.mapBubble.stopsLabel": {
+    "status": "mt",
+    "srcHash": "0e648419ea80"
+  },
+  "ui.widgets.geo.mapBubble.zoomIn": {
+    "status": "mt",
+    "srcHash": "4fc05f2763ba"
+  },
+  "ui.widgets.geo.mapBubble.zoomOut": {
+    "status": "mt",
+    "srcHash": "a4ae4b24a1f5"
   },
   "ui.widgets.geo.mapChoroplethGrid.chartLabel": {
     "srcHash": "47685dd25b24",
@@ -34466,6 +34846,74 @@
   "ui.widgets.geo.mapChoroplethGrid.legendLowLabel": {
     "srcHash": "a124947cbd2d",
     "status": "mt"
+  },
+  "ui.widgets.geo.place.byTown": {
+    "status": "mt",
+    "srcHash": "96876493ba0b"
+  },
+  "ui.widgets.geo.place.clear": {
+    "status": "mt",
+    "srcHash": "719ea396ad92"
+  },
+  "ui.widgets.geo.place.exact": {
+    "status": "mt",
+    "srcHash": "f74e896c7413"
+  },
+  "ui.widgets.geo.place.exactNamed": {
+    "status": "mt",
+    "srcHash": "d786623c2d3b"
+  },
+  "ui.widgets.geo.place.issue.outOfRange": {
+    "status": "mt",
+    "srcHash": "569b6f2a5157"
+  },
+  "ui.widgets.geo.place.issue.shortLink": {
+    "status": "mt",
+    "srcHash": "2002f5ed7f6f"
+  },
+  "ui.widgets.geo.place.issue.unknown": {
+    "status": "mt",
+    "srcHash": "25c5344f6319"
+  },
+  "ui.widgets.geo.place.issue.unreadable": {
+    "status": "mt",
+    "srcHash": "7dc3f27f005d"
+  },
+  "ui.widgets.geo.place.noTown": {
+    "status": "mt",
+    "srcHash": "e9cc109832c9"
+  },
+  "ui.widgets.geo.place.none": {
+    "status": "mt",
+    "srcHash": "b5366c7509e0"
+  },
+  "ui.widgets.geo.place.pending": {
+    "status": "mt",
+    "srcHash": "63694f1be397"
+  },
+  "ui.widgets.geo.place.pinName": {
+    "status": "mt",
+    "srcHash": "5e367cff1328"
+  },
+  "ui.widgets.geo.place.placeholder": {
+    "status": "mt",
+    "srcHash": "f4de979aef71"
+  },
+  "ui.widgets.geo.place.searchFailed": {
+    "status": "mt",
+    "srcHash": "71d49c8ba646"
+  },
+  "ui.widgets.geo.place.searching": {
+    "status": "mt",
+    "srcHash": "5e65f10e67be"
+  },
+  "ui.widgets.geo.place.whereError": {
+    "status": "mt",
+    "srcHash": "e42df8ad9375"
+  },
+  "ui.widgets.geo.place.whereIAm": {
+    "status": "mt",
+    "srcHash": "fa157c9ab413"
   },
   "ui.widgets.kpi.autoInsights.description": {
     "srcHash": "542b50ffe6fc",

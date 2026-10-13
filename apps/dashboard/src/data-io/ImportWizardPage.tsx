@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Import Wizard — the four-step flow on the `page-wizard` template shell:
- * Upload (target picker + `upload-dropzone`) → Map columns
- * (`column-mapping-table`, auto-match, "Don't import") → Validate
+ * Upload (target picker + `upload-dropzone`, or rows pasted from a
+ * spreadsheet) → Map columns (`column-mapping-table`, auto-match, "Don't
+ * import", and the column lines are matched on) → Validate
  * (`validation-issues-list`, NON-BLOCKING: invalid rows are counted as
- * rows-to-skip, never a wall) → Import & review (job progress via the jobs API
+ * rows-to-skip, never a wall; and the server's preview of each line: new,
+ * already here, or refused) → Import & review (job progress via the jobs API
  * polled + a `jobs:<id>` realtime subscription, then the review numbers).
  *
  * NUMBER CONSISTENCY IS AN INVARIANT: imported = created + updated + skipped
@@ -18,7 +20,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Alert, Button, ProgressBar, Select, Spinner } from '@adminium/ui';
+import { Alert, Badge, Button, Checkbox, ProgressBar, Select, Spinner, Textarea } from '@adminium/ui';
 import {
   ColumnMappingTableWidget,
   PageWizard,
@@ -40,6 +42,8 @@ import {
   importQuery,
   jobQuery,
   type ImportDto,
+  type ImportPreviewDto,
+  type ImportPreviewLineDto,
   type UploadPreview,
   type ValidationReportDto,
 } from './api.js';
@@ -54,7 +58,12 @@ export interface ImportTarget {
 export interface ImportWizardPageProps {
   /** Pre-resolved target (the `page-wizard` binding passes the envelope's). */
   initialTarget?: ImportTarget | undefined;
+  /** The target column lines are matched on, chosen already (the kit's `matchOn`); the person may still change it. */
+  matchOn?: string | undefined;
 }
+
+/** How many lines of the preview are asked for at a time. */
+const PREVIEW_PAGE = 100;
 
 type StepId = 'upload' | 'map' | 'validate' | 'run';
 
@@ -85,7 +94,7 @@ export function statsConsistent(stats: {
   return stats.total === (stats.inserted ?? 0) + (stats.updated ?? 0) + (stats.skipped ?? 0);
 }
 
-export function ImportWizardPage({ initialTarget }: ImportWizardPageProps) {
+export function ImportWizardPage({ initialTarget, matchOn: initialMatchOn }: ImportWizardPageProps) {
   const queryClient = useQueryClient();
   const boot = useQuery({ ...bootstrapQuery(), enabled: false });
 
@@ -96,9 +105,21 @@ export function ImportWizardPage({ initialTarget }: ImportWizardPageProps) {
   const [uploadError, setUploadError] = useState<string | null>(null);
   // from → to; SKIP_TARGET = explicit "Don't import"; absent = undecided.
   const mappingRef = useRef<Record<string, string>>({});
+  // The target columns the mapping brings in now: what a line can be matched on.
+  const [mappedTargets, setMappedTargets] = useState<string[]>([]);
+  const [pasted, setPasted] = useState('');
+  const [firstRowNames, setFirstRowNames] = useState(true);
+  const [matchOn, setMatchOn] = useState(initialMatchOn ?? '');
+  const [whenHere, setWhenHere] = useState<'skip' | 'upsert'>('skip');
+  const [linePreview, setLinePreview] = useState<ImportPreviewDto | null>(null);
+  const [previewLines, setPreviewLines] = useState<ImportPreviewLineDto[]>([]);
+  const [previewError, setPreviewError] = useState<string | null>(null);
   const [importRow, setImportRow] = useState<ImportDto | null>(null);
   const [report, setReport] = useState<ValidationReportDto | null>(null);
   const [jobId, setJobId] = useState<string | null>(null);
+  // The import on screen, readable by an answer that arrives late: "Show more" for one the person went back from is dropped.
+  const importIdRef = useRef<string | null>(null);
+  importIdRef.current = importRow?.id ?? null;
 
   const navItems = useMemo(
     () => (boot.data === undefined ? [] : flattenNav(boot.data.nav)),
@@ -134,7 +155,8 @@ export function ImportWizardPage({ initialTarget }: ImportWizardPageProps) {
   // --- upload -------------------------------------------------------------------
 
   const uploadMutation = useMutation({
-    mutationFn: (file: File) => dataIoApi.uploadImportFile(file),
+    mutationFn: (upload: { file: File; header?: 'first-row' | 'none' }) =>
+      dataIoApi.uploadImportFile(upload.file, upload.header === 'none' ? { header: 'none' } : {}),
     onSuccess: (data) => {
       setPreview(data);
       setUploadError(null);
@@ -176,6 +198,9 @@ export function ImportWizardPage({ initialTarget }: ImportWizardPageProps) {
   // The widget shows its own matches before anyone opens a picker, but tells
   // us about a mapping only when one changes. Start from what it shows, or a
   // file whose headers already match would import no columns.
+  const targetsOf = (mapping: Record<string, string>): string[] => [
+    ...new Set(Object.values(mapping).filter((to) => to !== '' && to !== SKIP_TARGET)),
+  ];
   useEffect(() => {
     if (step !== 'map' || mappingConfig === null) return;
     mappingRef.current = Object.fromEntries(
@@ -183,13 +208,25 @@ export function ImportWizardPage({ initialTarget }: ImportWizardPageProps) {
         .filter((row) => row.target !== '')
         .map((row) => [row.column, row.target]),
     );
+    setMappedTargets(targetsOf(mappingRef.current));
   }, [step, mappingConfig, mappingData]);
 
   const onMappingEvent = useCallback((event: WidgetEvent) => {
     if (event.type !== 'mutate' || event.intent !== 'update') return;
     const mapping = (event.values as { mapping?: Record<string, string> }).mapping;
-    if (mapping !== undefined) mappingRef.current = mapping;
+    if (mapping !== undefined) {
+      mappingRef.current = mapping;
+      setMappedTargets(targetsOf(mapping));
+    }
   }, []);
+
+  // A match column is one the mapping brings in. One it does not bring in (a page named it and no
+  // column of the file is mapped to it, or its mapping was taken away) cannot be matched on — and
+  // is not quietly read as "every line is new": the step says so, and waits for the person to map
+  // it or to choose something else to match on.
+  const matchUnmapped = matchOn !== '' && !mappedTargets.includes(matchOn);
+  const matchColumn = matchUnmapped ? '' : matchOn;
+  const matchLabel = target?.columns.find((column) => column.key === matchOn)?.label ?? matchOn;
 
   // --- validate ---------------------------------------------------------------------
 
@@ -200,20 +237,59 @@ export function ImportWizardPage({ initialTarget }: ImportWizardPageProps) {
         const to = mappingRef.current[from];
         return { from, to: to === undefined || to === '' || to === SKIP_TARGET ? null : to };
       });
-      return dataIoApi.createImport({
+      const reply = await dataIoApi.createImport({
         fileId: preview.fileId,
         connectionId: target.connectionId,
         table: target.table,
         mapping: { columns },
-        options: { mode: 'insert', skipInvalid: true },
+        options: matchColumn === '' ? { mode: 'insert', skipInvalid: true } : { mode: whenHere, matchColumn, skipInvalid: true },
       });
+      // What the import would do with each line, asked before anything is written. The import stands without it.
+      try {
+        return { reply, lines: await dataIoApi.previewImport(reply.data.import.id, { offset: 0, limit: PREVIEW_PAGE }), failed: null };
+      } catch (error) {
+        return { reply, lines: null, failed: error instanceof Error ? error.message : String(error) };
+      }
     },
-    onSuccess: (reply) => {
+    onSuccess: ({ reply, lines, failed }) => {
       setImportRow(reply.data.import);
       setReport(reply.data.report);
+      setLinePreview(lines);
+      setPreviewLines(lines?.lines ?? []);
+      setPreviewError(failed);
       setStep('validate');
     },
   });
+
+  const moreLines = useMutation({
+    mutationFn: async () => {
+      if (importRow === null) throw new Error('nothing to preview');
+      const id = importRow.id;
+      return { id, page: await dataIoApi.previewImport(id, { offset: previewLines.length, limit: PREVIEW_PAGE }) };
+    },
+    onMutate: () => setPreviewError(null),
+    onSuccess: ({ id, page }) => {
+      // An answer for an import the person has gone back from: its lines are not this import's.
+      if (importIdRef.current !== id) return;
+      setLinePreview(page);
+      setPreviewLines((shown) => [...shown, ...page.lines.filter((line) => !shown.some((had) => had.row === line.row))]);
+    },
+    onError: (error: unknown) => {
+      // Said in the same warning as a first look that failed; the lines already shown stay.
+      setPreviewError(error instanceof Error ? error.message : String(error));
+    },
+  });
+
+  // Whether running would write anything at all: no row passed validation, or every line that was
+  // looked at is refused or is already here and left as it is. Not known when the lines could not
+  // be looked at, or when only the first of them were: the run is then offered as before.
+  const nothingToBring =
+    report !== null &&
+    (report.valid === 0 ||
+      (linePreview !== null &&
+        !linePreview.capped &&
+        linePreview.counts.new === 0 &&
+        (importRow?.options.mode !== 'upsert' || linePreview.counts.here === 0)));
 
   const issuesData = useMemo(() => {
     if (report === null) return { rows: [], total: 0 };
@@ -324,10 +400,42 @@ export function ImportWizardPage({ initialTarget }: ImportWizardPageProps) {
               hint={t('dataio:import.dropHint', 'CSV up to 32 MB — the first row must be the header')}
               onFiles={(files) => {
                 const file = files[0];
-                if (file !== undefined) uploadMutation.mutate(file);
+                if (file !== undefined) uploadMutation.mutate({ file });
               }}
               testId="import-upload"
             />
+            <div className="flex min-w-0 flex-col gap-2" data-testid="import-paste">
+              <label className="flex flex-col gap-1.5">
+                <span className="text-body-sm font-medium text-fg">
+                  {t('dataio:import.pasteLabel', 'Or paste rows copied from a spreadsheet')}
+                </span>
+                <Textarea
+                  value={pasted}
+                  rows={4}
+                  disabled={target === null || uploadMutation.isPending}
+                  onChange={(event) => setPasted(event.target.value)}
+                />
+              </label>
+              <label className="flex items-start gap-2 text-body-sm text-fg">
+                <Checkbox className="mt-0.5" checked={firstRowNames} onCheckedChange={(next) => setFirstRowNames(next === true)} />
+                <span>{t('dataio:import.pasteFirstRow', 'The first row holds the column names')}</span>
+              </label>
+              <div>
+                <Button
+                  variant="secondary"
+                  disabled={target === null || uploadMutation.isPending || pasted.trim() === ''}
+                  onClick={() =>
+                    uploadMutation.mutate({
+                      file: new File([pasted], 'pasted.csv', { type: 'text/csv' }),
+                      header: firstRowNames ? 'first-row' : 'none',
+                    })
+                  }
+                  data-testid="import-paste-use"
+                >
+                  {t('dataio:import.pasteUse', 'Use these rows')}
+                </Button>
+              </div>
+            </div>
             {uploadMutation.isPending ? <Spinner size="sm" /> : null}
           </div>
         );
@@ -348,6 +456,51 @@ export function ImportWizardPage({ initialTarget }: ImportWizardPageProps) {
               instanceId="import-wizard-mapping"
               onEvent={onMappingEvent}
             />
+            <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start">
+              <label className="flex min-w-0 max-w-md flex-1 flex-col gap-1.5">
+                <span className="text-body-sm font-medium text-fg">{t('dataio:import.matchLabel', 'Match on')}</span>
+                <Select value={matchUnmapped ? matchOn : matchColumn} onChange={(event) => setMatchOn(event.currentTarget.value)} data-testid="import-match-on">
+                  <option value="">{t('dataio:import.matchNone', 'Nothing: every line is new')}</option>
+                  {/* The choice as it stands, though nothing is mapped to it: shown, so it can be seen and changed. */}
+                  {matchUnmapped ? <option value={matchOn}>{matchLabel}</option> : null}
+                  {mappedTargets.map((key) => (
+                    <option key={key} value={key}>
+                      {target?.columns.find((column) => column.key === key)?.label ?? key}
+                    </option>
+                  ))}
+                </Select>
+                {matchColumn !== '' ? (
+                  <span className="text-caption text-fg-muted">
+                    {t(
+                      'dataio:import.matchHint',
+                      'A line whose value in this column is already in the table is not added a second time.',
+                    )}
+                  </span>
+                ) : null}
+              </label>
+              {matchColumn !== '' ? (
+                <label className="flex min-w-0 max-w-md flex-1 flex-col gap-1.5">
+                  <span className="text-body-sm font-medium text-fg">
+                    {t('dataio:import.whenHereLabel', 'Lines already here')}
+                  </span>
+                  <Select
+                    value={whenHere}
+                    onChange={(event) => setWhenHere(event.currentTarget.value === 'upsert' ? 'upsert' : 'skip')}
+                    data-testid="import-when-here"
+                  >
+                    <option value="skip">{t('dataio:import.whenHereSkip', 'Leave them as they are')}</option>
+                    <option value="upsert">{t('dataio:import.whenHereUpdate', 'Update them')}</option>
+                  </Select>
+                </label>
+              ) : null}
+            </div>
+            {matchUnmapped ? (
+              <Alert
+                tone="warn"
+                data-testid="import-match-unmapped"
+                title={t('dataio:import.matchUnmapped', 'Lines cannot be matched on {column}: no column of the file is mapped to it.', { column: matchLabel })}
+              />
+            ) : null}
             {validateMutation.isError ? (
               <Alert
                 tone="danger"
@@ -378,6 +531,102 @@ export function ImportWizardPage({ initialTarget }: ImportWizardPageProps) {
               instanceId="import-wizard-issues"
               onEvent={() => undefined}
             />
+            {previewError !== null ? (
+              <Alert
+                tone="warn"
+                title={t('dataio:import.previewFailed', 'The lines could not be looked at before the import.')}
+                body={previewError}
+              />
+            ) : null}
+            {nothingToBring ? (
+              <p className="text-body-sm font-medium text-fg" data-testid="import-nothing">
+                {t('dataio:import.nothingToBring', 'Nothing here would be brought in.')}
+              </p>
+            ) : null}
+            {linePreview !== null ? (
+              <div className="flex min-w-0 flex-col gap-3" data-testid="import-preview">
+                <div className={`grid gap-3 ${importRow?.options.matchColumn ? 'grid-cols-3' : 'grid-cols-2'}`}>
+                  {(
+                    [
+                      ['new', t('dataio:import.previewNew', 'New'), linePreview.counts.new],
+                      // With nothing to match on, no line can be here already.
+                      ...(importRow?.options.matchColumn
+                        ? ([['here', t('dataio:import.previewHere', 'Already here'), linePreview.counts.here]] as const)
+                        : []),
+                      ['refused', t('dataio:import.previewRefused', 'Refused'), linePreview.counts.refused],
+                    ] as const
+                  ).map(([kind, label, value]) => (
+                    <div key={kind} className="min-w-0 rounded-lg border border-border bg-surface p-3" data-count={kind}>
+                      <div className="text-caption font-bold uppercase tracking-wide text-fg-subtle [overflow-wrap:anywhere]">
+                        {label}
+                      </div>
+                      <div className="font-mono text-title text-fg tabular-nums">{value}</div>
+                    </div>
+                  ))}
+                </div>
+                {linePreview.capped ? (
+                  <p className="text-body-sm text-fg-muted">
+                    {t(
+                      'dataio:import.previewCapped',
+                      'Only the first {judged} of {total} lines were looked at. The rest are judged when the import runs.',
+                      { judged: linePreview.judged, total: linePreview.total },
+                    )}
+                  </p>
+                ) : null}
+                {linePreview.hooksNotRun ? (
+                  <p className="text-body-sm text-fg-muted">
+                    {t(
+                      'dataio:import.previewHooksNotRun',
+                      'This project’s own code also checks rows of this table. It runs only when the import runs, so it may still refuse a line shown here.',
+                    )}
+                  </p>
+                ) : null}
+                <ul className="flex min-w-0 flex-col divide-y divide-border rounded-lg border border-border">
+                  {previewLines.map((line) => (
+                    <li
+                      key={line.row}
+                      className="flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1 px-3 py-2 text-body-sm"
+                      data-line={line.row}
+                      data-status={line.status}
+                    >
+                      <span className="font-mono text-fg-muted tabular-nums">
+                        {t('dataio:import.previewLine', 'Line {row}', { row: line.row })}
+                      </span>
+                      <Badge tone={line.status === 'new' ? 'pos' : line.status === 'here' ? 'neutral' : 'danger'}>
+                        {line.status === 'new'
+                          ? t('dataio:import.previewNew', 'New')
+                          : line.status === 'here'
+                            ? t('dataio:import.previewHere', 'Already here')
+                            : t('dataio:import.previewRefused', 'Refused')}
+                      </Badge>
+                      {line.status === 'refused' ? (
+                        <span className="min-w-0 text-fg [overflow-wrap:anywhere]">
+                          {line.column !== undefined && line.message?.startsWith(`${line.column}:`) !== true
+                            ? `${line.column}: ${line.message ?? line.code ?? ''}`
+                            : (line.message ?? line.code ?? '')}
+                        </span>
+                      ) : line.earlierLine !== undefined ? (
+                        <span className="min-w-0 text-fg-muted">
+                          {t('dataio:import.previewEarlier', 'Same as line {line}', { line: line.earlierLine })}
+                        </span>
+                      ) : null}
+                    </li>
+                  ))}
+                </ul>
+                {previewLines.length < linePreview.judged ? (
+                  <div>
+                    <Button
+                      variant="ghost"
+                      onClick={() => moreLines.mutate()}
+                      disabled={moreLines.isPending}
+                      data-testid="import-preview-more"
+                    >
+                      {t('dataio:import.previewShowMore', 'Show more')}
+                    </Button>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
           </div>
         );
       case 'run': {
@@ -412,6 +661,13 @@ export function ImportWizardPage({ initialTarget }: ImportWizardPageProps) {
                     </div>
                   ))}
                 </div>
+                {(stats.alreadyHere ?? 0) > 0 ? (
+                  <p className="text-body-sm text-fg-muted" data-testid="import-already-here">
+                    {t('dataio:import.reviewAlreadyHere', 'Already here, left as they were: {count}', {
+                      count: stats.alreadyHere ?? 0,
+                    })}
+                  </p>
+                ) : null}
                 {!consistent ? (
                   <Alert
                     tone="danger"
@@ -455,7 +711,7 @@ export function ImportWizardPage({ initialTarget }: ImportWizardPageProps) {
             </Button>
             <Button
               onClick={() => validateMutation.mutate()}
-              disabled={validateMutation.isPending}
+              disabled={validateMutation.isPending || matchUnmapped}
               data-testid="wizard-validate"
             >
               {validateMutation.isPending
@@ -472,7 +728,7 @@ export function ImportWizardPage({ initialTarget }: ImportWizardPageProps) {
             </Button>
             <Button
               onClick={() => runMutation.mutate()}
-              disabled={runMutation.isPending || importRow === null}
+              disabled={runMutation.isPending || importRow === null || nothingToBring}
               data-testid="wizard-run"
             >
               {report !== null && report.invalid > 0

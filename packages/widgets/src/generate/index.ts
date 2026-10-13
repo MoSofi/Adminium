@@ -49,6 +49,7 @@ export {
   emitCandidates,
   emitModelCandidates,
   humanize,
+  namedBoardColumn,
   /*
    * The requirement PREDICATES, forwarded for `@adminium/engine`'s
    * `templateFit`. A template's requirement is a property of the rule
@@ -64,6 +65,9 @@ export {
   personFk,
   projectFk,
   withSemantic,
+  type BoardColumns,
+  type BoardOnly,
+  type BoardTotalFn,
   type CandidateColumn,
   type CandidateContext,
   type CandidateRelation,

@@ -45,6 +45,8 @@ export function makeBootstrap(overrides: Partial<BootstrapData> = {}): Bootstrap
     version: '0.0.0',
     configVersion: 42,
     llm: { enabled: false },
+    // As a fresh install answers: maps on, from the default map server, routes as straight lines.
+    maps: { enabled: true, server: 'https://tiles.openfreemap.org', routing: false },
     ...overrides,
   };
 }

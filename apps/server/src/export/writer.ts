@@ -21,6 +21,7 @@
 
 import { CRLF, EXPORT_BOM, serializeCsvRow } from '../data-io/csv.js';
 import type { Row } from '../crud/mask.js';
+import { placeCellText } from '../geo/values.js';
 
 /** What a masked cell reads as in a builder-made file (D6). */
 export const MASKED_CELL = '•••••';
@@ -40,6 +41,8 @@ export interface WriterColumn {
   header: string;
   /** Whether a plain decimal string may be written as a JSON number. */
   numeric: boolean;
+  /** A place column: a CSV cell is `lat,lng`. JSON Lines keeps the whole object. */
+  place?: true | undefined;
 }
 
 export interface RowWriterOptions {
@@ -93,6 +96,11 @@ function jsonCell(value: unknown, column: WriterColumn, masked: boolean): string
   return JSON.stringify(text);
 }
 
+/** A place as a spreadsheet can hold it, and as an import reads it back; every other value as it is. */
+export function csvValue(value: unknown, column: Pick<WriterColumn, 'place'>): unknown {
+  return column.place === true ? (placeCellText(value) ?? value) : value;
+}
+
 export function createRowWriter(
   format: ExportWriterFormat,
   columns: readonly WriterColumn[],
@@ -108,10 +116,10 @@ export function createRowWriter(
       preamble: () => EXPORT_BOM,
       headerLine: () => (headerRow ? serializeCsvRow(columns.map((column) => column.header)) : null),
       line: (record) => {
-        if (legacy) return serializeCsvRow(columns.map((column) => record[column.key]));
+        if (legacy) return serializeCsvRow(columns.map((column) => csvValue(record[column.key], column)));
         const masked = maskedKeysOf(record);
         return serializeCsvRow(
-          columns.map((column) => (masked.has(column.key) ? MASKED_CELL : record[column.key])),
+          columns.map((column) => (masked.has(column.key) ? MASKED_CELL : csvValue(record[column.key], column))),
         );
       },
     };

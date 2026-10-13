@@ -143,6 +143,8 @@ function toCandidateTable(model: DatabaseModel, table: TableModel): CandidateTab
       isPrimaryKey: column.isPrimaryKey,
       isUnique: column.isUnique,
       isGenerated: column.isGenerated,
+      ...(column.place === true ? { place: true as const } : {}),
+      ...(column.area === true ? { area: true as const } : {}),
       defaultKind: column.default?.kind ?? null,
       isArray: column.isArray,
       maxLength: column.maxLength,

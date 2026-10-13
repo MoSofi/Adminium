@@ -36,7 +36,8 @@ list with a form), `page-board` (cards in columns, by a status), `page-calendar`
   `doing`, `review`, `blocked`, `on_hold`, `done`, `completed`, `closed`, `cancelled`, `archived`,
   `active`, `paused`, `shipped`. A status of `received`, `baking`, `ready` gives no board. Use
   those words as the values and say your own in `rules.enumLabels`
-  (`"in_progress": { "en-US": "Baking" }`), or use `page-crud`.
+  (`"in_progress": { "en-US": "Baking" }`), or name the board's columns yourself
+  ([A board with its own columns](https://docs.adminium.dev/guides/apps/manifest-by-task/#a-board-with-its-own-columns)), or use `page-crud`.
 - **A calendar needs a date.** `page-calendar` plots by the table's `date` or `timestamptz`
   columns, or by the ones `config.calendar` names.
 - **A page whose table cannot back its template is created empty.** The check does not see it. The

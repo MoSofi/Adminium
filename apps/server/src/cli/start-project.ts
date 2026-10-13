@@ -97,6 +97,9 @@ export const HOST_DECIDED_ENV: readonly string[] = [
   'ADMINIUM_TRUST_PROXY',
   'ADMINIUM_TRUSTED_PROXIES',
   'ADMINIUM_DESIGNER',
+  // Written into every staff browser's content security policy, or called by the server: not a folder's to choose.
+  'ADMINIUM_MAP_SERVER',
+  'ADMINIUM_ROUTING_SERVER',
   'ADMINIUM_PROJECT_MODE',
   'ADMINIUM_PROJECT_DIR',
   'ADMINIUM_DESKTOP_PROJECT',

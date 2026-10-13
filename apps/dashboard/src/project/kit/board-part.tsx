@@ -6,6 +6,9 @@
  *
  * On a narrow screen the columns keep their width and the board scrolls
  * sideways inside its own box, so the page itself never does.
+ *
+ * A move whose save the page's `onMove` rejects puts the card back, and the
+ * board says why above its columns (and aloud), in the rejection's words.
  */
 
 import { useMemo, type ReactNode } from 'react';
@@ -14,7 +17,15 @@ import type { BoardProps } from '@adminium/server/ui';
 
 export default function BoardPart({ columns, cards, onMove, onOpen, emptyTitle, emptyDescription }: BoardProps): ReactNode {
   const columnDefs = useMemo<ColumnDef[]>(
-    () => columns.map((column) => ({ id: column.id, label: column.label, tone: column.tone ?? 'neutral', ...(column.limit === undefined ? {} : { wip: column.limit }) })),
+    () =>
+      columns.map((column) => ({
+        id: column.id,
+        label: column.label,
+        tone: column.tone ?? 'neutral',
+        ...(column.limit === undefined ? {} : { wip: column.limit }),
+        ...(column.count === undefined ? {} : { count: column.count }),
+        ...(column.total === undefined ? {} : { total: column.total }),
+      })),
     [columns],
   );
   const cardData = useMemo<BoardCardData[]>(

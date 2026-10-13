@@ -61,6 +61,8 @@ const COLUMN_OPS: ReadonlySet<string> = new Set([
   'column.customerKey',
   'column.staff',
   'column.mentions',
+  'column.place',
+  'column.area',
 ]);
 
 export interface SchemaOverride {

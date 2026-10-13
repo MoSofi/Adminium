@@ -113,6 +113,9 @@ export const INSTALL_FLOOR_WORD_NAMES = [
   'automations.stepName',
   'automations.many',
   'column.mentions',
+  'column.place',
+  'column.area',
+  'config.board',
 ] as const;
 export type ManifestWordName = (typeof INSTALL_FLOOR_WORD_NAMES)[number];
 
@@ -173,6 +176,11 @@ export const WORD_FLOORS: Readonly<Partial<Record<ManifestWordName, string>>> = 
   'automations.many': '0.3.28',
   // A text column in which people are mentioned.
   'column.mentions': '0.3.28',
+  // A json column that holds a position on the map, read and checked on every write; one that holds an area.
+  'column.place': '0.3.28',
+  'column.area': '0.3.28',
+  // A board whose columns an app names: the rows of a table, or the values of an enum it picks.
+  'config.board': '0.3.28',
 };
 
 /** Every word of `document` that needs the install floor, in document order. */
@@ -251,6 +259,8 @@ export function installFloorWords(document: unknown): ManifestWord[] {
       if (rules['tableRef'] !== undefined) out.push({ word: 'column.tableRef', path: `${here}.tableRef` });
       if (rules['staff'] !== undefined) out.push({ word: 'column.staff', path: `${here}.staff` });
       if (rules['mentions'] !== undefined) out.push({ word: 'column.mentions', path: `${here}.mentions` });
+      if (rules['place'] !== undefined) out.push({ word: 'column.place', path: `${here}.place` });
+      if (rules['area'] !== undefined) out.push({ word: 'column.area', path: `${here}.area` });
       for (const key of ['announce', 'plainText', 'customerKey', 'codeLast4'] as const) {
         if (rules[key] !== undefined) out.push({ word: `column.${key}`, path: `${here}.${key}` });
       }
@@ -281,7 +291,7 @@ export function installFloorWords(document: unknown): ManifestWord[] {
       }
     });
   });
-  // A dashboard's second toolbar link, a ranking's named pair, a record page's tab words, a list's bulk action.
+  // A dashboard's second toolbar link, a ranking's named pair, a record page's tab words, a list's bulk action, a board's columns.
   list(document['pages']).forEach((page, p) => {
     const config = isDoc(page) && isDoc(page['config']) ? page['config'] : {};
     const here = `pages.${String(p)}.config`;
@@ -289,6 +299,7 @@ export function installFloorWords(document: unknown): ManifestWord[] {
     if (toolbar['links'] !== undefined) out.push({ word: 'toolbar.links', path: `${here}.layout.toolbar.links` });
     if (config['tabs'] !== undefined) out.push({ word: 'config.tabs', path: `${here}.tabs` });
     if (config['bulk'] !== undefined) out.push({ word: 'config.bulk', path: `${here}.bulk` });
+    if (config['board'] !== undefined) out.push({ word: 'config.board', path: `${here}.board` });
   });
   // An email block sent only with, or without, a variable; an add-on's links into its app; rows found by a table-and-row pair.
   const outbox = isDoc(document['outbox']) ? document['outbox'] : {};

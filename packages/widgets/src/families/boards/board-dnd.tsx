@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { KeyboardEvent as ReactKeyboardEvent, ReactNode } from 'react';
 import { useDraggable, useDroppable } from '@dnd-kit/core';
+import { X } from 'lucide-react';
 import { useMaybeT } from '../../lib/i18n.js';
 
 import type { BoardCardData } from './board-lib.js';
@@ -60,7 +61,17 @@ export interface BoardAnnouncements {
   over: (title: string, cell: string) => string;
   moved: (title: string, cell: string) => string;
   returned: (title: string) => string;
-  failed: (title: string) => string;
+  /** `reason`: why the save was refused, in the words of whoever refused it, when it said. */
+  failed: (title: string, reason?: string) => string;
+}
+
+/** A sentence, and the reason after it when there is one. */
+const withReason = (sentence: string, reason: string | undefined): string => (reason === undefined ? sentence : `${sentence} ${reason}`);
+
+/** Why a save was refused, as the rejection says it; undefined when it says nothing a person could read. */
+export function refusalReasonOf(error: unknown): string | undefined {
+  const message = error instanceof Error ? error.message : typeof error === 'string' ? error : undefined;
+  return message === undefined || message.trim() === '' ? undefined : message;
 }
 
 export const defaultBoardAnnouncements: BoardAnnouncements = {
@@ -68,7 +79,7 @@ export const defaultBoardAnnouncements: BoardAnnouncements = {
   over: (title, cell) => `${title} is over ${cell}.`,
   moved: (title, cell) => `Moved ${title} to ${cell}.`,
   returned: (title) => `${title} returned to its original position.`,
-  failed: (title) => `Could not move ${title}; it was returned to its original position.`,
+  failed: (title, reason) => withReason(`Could not move ${title}; it was returned to its original position.`, reason),
 };
 
 /**
@@ -84,8 +95,8 @@ export function useBoardAnnouncements(overrides?: Partial<BoardAnnouncements>): 
     over: (title, cell) => t('ui:widgets.boards.a11y.over', '{title} is over {cell}.', { title, cell }),
     moved: (title, cell) => t('ui:widgets.boards.a11y.moved', 'Moved {title} to {cell}.', { title, cell }),
     returned: (title) => t('ui:widgets.boards.a11y.returned', '{title} returned to its original position.', { title }),
-    failed: (title) =>
-      t('ui:widgets.boards.a11y.failed', 'Could not move {title}; it was returned to its original position.', { title }),
+    failed: (title, reason) =>
+      withReason(t('ui:widgets.boards.a11y.failed', 'Could not move {title}; it was returned to its original position.', { title }), reason),
     ...overrides,
   };
 }
@@ -109,7 +120,7 @@ export function announcementsFromTemplates(templates: {
   if (templates.over !== undefined) out.over = (title, cell) => fill(templates.over!, title, cell);
   if (templates.moved !== undefined) out.moved = (title, cell) => fill(templates.moved!, title, cell);
   if (templates.returned !== undefined) out.returned = (title) => fill(templates.returned!, title);
-  if (templates.failed !== undefined) out.failed = (title) => fill(templates.failed!, title);
+  if (templates.failed !== undefined) out.failed = (title, reason) => withReason(fill(templates.failed!, title), reason);
   return out;
 }
 
@@ -153,6 +164,21 @@ export interface BoardMoves {
   commit: () => void;
   /** Keyboard: cancel the grab, leaving the card where it was. */
   cancel: () => void;
+  /**
+   * The last move whose save was refused: the card went back, and this is why.
+   * Kept until it is dismissed or another move is made, so a person who was
+   * looking at the card they dropped can read what a live region only says.
+   */
+  refusal: BoardMoveRefusal | null;
+  dismissRefusal: () => void;
+}
+
+/** A move that did not hold. */
+export interface BoardMoveRefusal {
+  cardId: string;
+  title: string;
+  /** Why, in the words of whoever refused it; undefined when it gave none. */
+  reason: string | undefined;
 }
 
 /** The optimistic-move + keyboard-grab state machine (see file header). */
@@ -166,6 +192,7 @@ export function useBoardMoves({
 }: UseBoardMovesArgs): BoardMoves {
   const [overrides, setOverrides] = useState<Record<string, string>>({});
   const [grab, setGrab] = useState<{ cardId: string; targetKey: string } | null>(null);
+  const [refusal, setRefusal] = useState<BoardMoveRefusal | null>(null);
 
   const byId = useMemo(() => {
     const map = new Map<string, BoardCardData>();
@@ -217,17 +244,21 @@ export function useBoardMoves({
       const fromCellKey = settledKeyOf(card);
       if (fromCellKey === toCellKey) return;
       setOverrides((prev) => ({ ...prev, [cardId]: toCellKey }));
+      setRefusal(null);
       ref.current.announce(ref.current.announcements.moved(card.title, ref.current.cellLabel(toCellKey)));
       const result = ref.current.onCommit(cardId, fromCellKey, toCellKey);
       if (result && typeof (result as Promise<unknown>).then === 'function') {
-        (result as Promise<unknown>).then(undefined, () => {
+        (result as Promise<unknown>).then(undefined, (error: unknown) => {
           // Rollback: restore the settled key (drop the optimistic override).
           setOverrides((prev) => {
             const next = { ...prev };
             if (next[cardId] === toCellKey) delete next[cardId];
             return next;
           });
-          ref.current.announce(ref.current.announcements.failed(card.title));
+          // Said twice, on purpose: aloud for a screen reader, and on the board for whoever is looking at it.
+          const reason = refusalReasonOf(error);
+          setRefusal({ cardId, title: card.title, reason });
+          ref.current.announce(ref.current.announcements.failed(card.title, reason));
         });
       }
     },
@@ -276,7 +307,38 @@ export function useBoardMoves({
     previewTo,
     commit,
     cancel,
+    refusal,
+    dismissRefusal: () => setRefusal(null),
   };
+}
+
+/**
+ * The card that went back, and why: a line above the board, where the page's
+ * other notices are, until it is dismissed or the next move is made. Not a
+ * live region of its own — the board's one region has already said it.
+ */
+export function BoardRefusalNotice({ refusal, onDismiss }: { refusal: BoardMoveRefusal | null; onDismiss: () => void }) {
+  const t = useMaybeT();
+  if (refusal === null) return null;
+  return (
+    <div
+      data-part="board-move-refused"
+      className="mx-3 mt-3 flex items-start gap-2 rounded-md border border-danger/40 bg-danger-soft px-3 py-2 text-body-sm text-fg"
+    >
+      <p className="min-w-0 flex-1">
+        <span className="font-semibold">{t('ui:widgets.boards.notMoved', '{title} was not moved.', { title: refusal.title })}</span>
+        {refusal.reason === undefined ? null : <span data-part="board-move-refused-reason"> {refusal.reason}</span>}
+      </p>
+      <button
+        type="button"
+        onClick={onDismiss}
+        aria-label={t('ui:widgets.boards.dismissNotice', 'Dismiss')}
+        className="flex size-6 shrink-0 items-center justify-center rounded-md text-fg-muted hover:bg-surface-3 hover:text-fg focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent"
+      >
+        <X className="size-4" aria-hidden="true" />
+      </button>
+    </div>
+  );
 }
 
 /**

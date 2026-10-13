@@ -51,13 +51,16 @@ if (namers.length > 0) {
 
 /*
  * The same for the four screens' groups of `common` (`COMMON_DEFERRED_GROUPS`):
- * the dashboard builder, the knowledge base, About and Team. A bare key
- * (`about.title`) reads `common`, so both spellings are refused.
+ * the dashboard builder, the knowledge base, About and Team, and since then
+ * quiet hours, the security page and the changelog. A bare key
+ * (`about.title`) reads `common`, so both spellings are refused. The group
+ * `reports` is deferred too and is NOT in the pattern: `reports.manage` is a
+ * permission's name, which the first paint may well carry.
  */
-const DEFERRED_COMMON_KEY = /['"`](?:common:)?(builder|kb|about|team)\.[A-Za-z]/;
+const DEFERRED_COMMON_KEY = /['"`](?:common:)?(builder|kb|about|team|quietHours|security|changelog)\.[A-Za-z]/;
 const commonNamers = refs.filter((ref) => DEFERRED_COMMON_KEY.test(readFileSync(join(root, 'dist', ref), 'utf8')));
 if (commonNamers.length > 0) {
-  console.error(`check-entry-budget: FAIL — the entry names a builder / kb / about / team key of common (${commonNamers.join(', ')}).`);
+  console.error(`check-entry-budget: FAIL — the entry names a key of a deferred group of common (${commonNamers.join(', ')}).`);
   console.error('Those words load with their screens: read them in lazy code that waits for them (i18n/commonWords.ts).');
   process.exit(1);
 }

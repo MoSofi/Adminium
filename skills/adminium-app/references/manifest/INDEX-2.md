@@ -4,6 +4,8 @@
 
 | File | What it covers | Bytes |
 |---|---|---|
+| `references/manifest/sample-data--sample-people.md` | Sample data — Sample people | 7697 |
+| `references/manifest/sample-data--sample-people-2.md` | Sample data — Sample people (part 2) | 2788 |
 | `references/manifest/seeds-and-widgets.md` | seeds and widgets | 2826 |
 | `references/manifest/add-on-manifests.md` | Add-on manifests | 4354 |
 | `references/manifest/add-on-manifests--an-add-on-with-tables-of-its-own.md` | Add-on manifests — An add-on with tables of its own | 2488 |

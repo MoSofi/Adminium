@@ -220,11 +220,14 @@ describe('security headers', () => {
      */
     expect(csp).toContain("frame-ancestors 'self'");
     expect(csp).toContain("object-src 'none'");
-    // Basemap tiles (packages/widgets geo-lib CARTO_TILES) must be loadable.
-    expect(csp).toContain("img-src 'self' data: blob: https://*.basemaps.cartocdn.com");
+    // Maps are on until somebody says no, so the map server is the one outside
+    // host, in the two directives a map needs and at their END (maps-policy.test.ts
+    // pins every way it leaves).
+    expect(csp).toContain("img-src 'self' data: blob: https://tiles.openfreemap.org;");
+    expect(csp).not.toContain('cartocdn');
     // WebSocket allowance is pinned to the SERVING host, not bare schemes — a
     // scheme source would let an XSS foothold open a socket to any origin.
-    expect(csp).toContain("connect-src 'self' ws://localhost:80 wss://localhost:80");
+    expect(csp).toContain("connect-src 'self' ws://localhost:80 wss://localhost:80 https://tiles.openfreemap.org;");
     expect(csp).not.toMatch(/connect-src[^;]*(?:^|\s)wss?:(?:\s|;|$)/);
     // http:// loopback LAN origins must keep working.
     expect(csp).not.toContain('upgrade-insecure-requests');
@@ -237,14 +240,14 @@ describe('security headers', () => {
     /*
      * Hosted app surfaces are served under this same header, so an operator
      * whose menu or product pictures live on another host names that host. The
-     * built-ins stay first and untouched — the basemap allowance must survive
-     * any operator list — and the default case pins the directive's END so an
-     * unset variable cannot quietly widen it.
+     * built-ins stay first and untouched, the map server (maps are on here)
+     * comes last, and the default case pins the directive's END so an unset
+     * variable cannot quietly widen it.
      */
     fixture = await buildAuthApp();
     const plain = await fixture.app.inject({ method: 'GET', url: '/api/v1/healthz' });
     expect(String(plain.headers['content-security-policy'])).toContain(
-      "img-src 'self' data: blob: https://*.basemaps.cartocdn.com;",
+      "img-src 'self' data: blob: https://tiles.openfreemap.org;",
     );
     await fixture.destroy();
 
@@ -256,7 +259,7 @@ describe('security headers', () => {
     const res = await fixture.app.inject({ method: 'GET', url: '/api/v1/healthz' });
     const csp = String(res.headers['content-security-policy']);
     expect(csp).toContain(
-      "img-src 'self' data: blob: https://*.basemaps.cartocdn.com https://images.unsplash.com https://*.cdn.example.com;",
+      "img-src 'self' data: blob: https://images.unsplash.com https://*.cdn.example.com https://tiles.openfreemap.org;",
     );
     // A site added while the server runs (the Designer, after a person's yes) is in the next reply, after the ones it started with.
     expect(fixture.app.pictureHosts.covers('images.unsplash.com')).toBe(true);
@@ -267,7 +270,7 @@ describe('security headers', () => {
     expect(fixture.app.pictureHosts.add('https://picsum.photos')).toBe(true);
     const later = await fixture.app.inject({ method: 'GET', url: '/api/v1/healthz' });
     expect(String(later.headers['content-security-policy'])).toContain(
-      "img-src 'self' data: blob: https://*.basemaps.cartocdn.com https://images.unsplash.com https://*.cdn.example.com https://picsum.photos;",
+      "img-src 'self' data: blob: https://images.unsplash.com https://*.cdn.example.com https://picsum.photos https://tiles.openfreemap.org;",
     );
     // Only img-src moved. A host named for pictures reaches nothing else.
     expect(csp).toContain("default-src 'self';");

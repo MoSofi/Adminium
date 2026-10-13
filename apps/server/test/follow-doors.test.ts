@@ -11,7 +11,7 @@
  */
 import { Readable } from 'node:stream';
 
-import { connectionTenantConfig, filesRepo, importsRepo, rolesRepo, usersRepo } from '@adminium/meta';
+import { connectionTenantConfig, filesRepo, importsRepo, permissionsRepo, rolesRepo, usersRepo } from '@adminium/meta';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { createWriteService } from '../src/crud/write-service.js';
@@ -230,6 +230,10 @@ describe.each(LEGS)('rows others follow, through every door — %s', (dialect, a
     const file = await filesRepo(h!.meta).create({ filename: 'groups.csv', mime: 'text/csv', sizeBytes: csv.length, sha256: 'x', kind: 'upload' });
     const imports = importsRepo(h!.meta);
     const user = await usersRepo(h!.meta).create({ email: 'importer@tours.dev', name: 'Importer', passwordHash: 'x' });
+    // An import that matches its lines to stored rows is run for somebody who reads the table, as the routes would have made it.
+    const reads = (await rolesRepo(h!.meta).findBySlug('import-reader')) ?? (await rolesRepo(h!.meta).create({ slug: 'import-reader', name: 'Import reader' }));
+    await permissionsRepo(h!.meta).grant(reads.id, 'table', `${h!.connectionId}/${w.targetOf('groups').table.id}`, { read: true, create: true, update: true, delete: false, export: false, import: true } as never);
+    await rolesRepo(h!.meta).assignToUser(user.id, reads.id);
     const job = await imports.create({
       connectionId: h!.connectionId,
       tableName: w.targetOf('groups').table.id,

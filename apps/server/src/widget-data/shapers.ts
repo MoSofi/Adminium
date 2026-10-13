@@ -25,6 +25,7 @@ import type { ResolvedColumn } from '../crud/identifiers.js';
 import { applyLookupMask } from '../crud/lookups.js';
 import { maskRows, type Row } from '../crud/mask.js';
 import { wallTimeToInstant } from '../crud/venue-time.js';
+import { readGeoValue } from '../geo/values.js';
 import { widgetDataChannel } from '../realtime/hub.js';
 import { choiceWordsOf } from './choice-words.js';
 import {
@@ -108,6 +109,14 @@ export interface GeoPoint {
   code?: string;
   lat?: number;
   lng?: number;
+  /**
+   * Only for a point read from a place column: how its position is known.
+   * `town` is the middle of a town from the place list (`placeId`), so the pin
+   * means "somewhere in this town"; `exact` is a point a person gave.
+   */
+  by?: 'town' | 'exact';
+  /** The town's id in the place list, where the place names one. */
+  placeId?: number;
   /** Metric name → value; the map's metric switcher tabs through these. */
   values: Record<string, number>;
 }
@@ -404,6 +413,8 @@ export interface GeoColumnRoles {
   code: ResolvedColumn | null;
   lat: ResolvedColumn | null;
   lng: ResolvedColumn | null;
+  /** One place column in the pair's stead. */
+  place?: ResolvedColumn;
   metrics: ResolvedColumn[];
 }
 
@@ -419,12 +430,17 @@ export interface GeoColumnRoles {
  * an integer FIPS/ISO number). Consequences worth knowing: coordinates stored
  * as integers read as a region code (select a real-typed view column instead),
  * and `[name, someInt, someFloat]`-style projections are read code-first.
+ *
+ * A third form names ONE place column (`column.place`) where the pair would
+ * be: `[name, place, ...metrics]`. The column's rule says so, not its type,
+ * and each point then carries how its position is known (`by`).
  */
 export function geoColumnRoles(columns: readonly ResolvedColumn[]): GeoColumnRoles | null {
   const [name, ...rest] = columns;
   if (name === undefined) return null;
   const first = rest[0];
   const second = rest[1];
+  if (first?.geo === 'place') return { name, code: null, lat: null, lng: null, place: first, metrics: rest.slice(1) };
   const coordinate =
     first !== undefined &&
     second !== undefined &&
@@ -738,8 +754,11 @@ export function shapeRows(input: ShapeInput): ShapedPayload {
       const roles = geoColumnRoles(compiled.selectedColumns);
       if (roles === null) throw new Error('shaper: geo-points needs a name column (compiler bug)');
       const points = maskedRowsOf(compiled, rows, canReadPii).flatMap((row): GeoPoint[] => {
-        const lat = roles.lat === null ? undefined : finiteNumber(row[roles.lat.name]);
-        const lng = roles.lng === null ? undefined : finiteNumber(row[roles.lng.name]);
+        // A place column holds the pair, and how it is known. A row with no place (or a masked one) is dropped below.
+        const place = roles.place === undefined ? undefined : (readGeoValue(row[roles.place.name]) as { lat?: unknown; lng?: unknown; by?: unknown; placeId?: unknown } | null);
+        const lat = place !== undefined ? finiteNumber(place?.lat) : roles.lat === null ? undefined : finiteNumber(row[roles.lat.name]);
+        const lng = place !== undefined ? finiteNumber(place?.lng) : roles.lng === null ? undefined : finiteNumber(row[roles.lng.name]);
+        const by = place?.by === 'town' || place?.by === 'exact' ? place.by : undefined;
         const rawCode = roles.code === null ? null : row[roles.code.name];
         const code = rawCode === null || rawCode === undefined ? undefined : String(rawCode);
         // A row with neither coordinates nor a region code cannot be placed by
@@ -757,6 +776,8 @@ export function shapeRows(input: ShapeInput): ShapedPayload {
             ...(code === undefined ? {} : { code }),
             ...(lat === undefined ? {} : { lat }),
             ...(lng === undefined ? {} : { lng }),
+            ...(by === undefined || lat === undefined || lng === undefined ? {} : { by }),
+            ...(by === undefined || typeof place?.placeId !== 'number' ? {} : { placeId: place.placeId }),
             values,
           },
         ];

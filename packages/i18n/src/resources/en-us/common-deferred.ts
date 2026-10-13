@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * GENERATED MIRROR of ../../../locales/en-US/common.json (its builder, kb, about, team, quietHours groups: en-US's deferred part of `common`) — do not edit by hand.
+ * GENERATED MIRROR of ../../../locales/en-US/common.json (its builder, kb, about, team, quietHours, security, reports, changelog groups: en-US's deferred part of `common`) — do not edit by hand.
  * The JSON file is the canonical hand-authored bundle;
  * this TS mirror exists so the runtime can bundle a namespace (en-US's eager
  * ones) or chunk-split it (every other locale, and en-US's deferred `studio`)
@@ -592,5 +592,124 @@ export default {
     "digestWhenRun": "The day each one is made",
     "digestTime": "At",
     "always": "Always tell me, also in quiet hours"
+  },
+  "security": {
+    "password": {
+      "changedBody": "Use the new password the next time you sign in. Other devices stay signed in — end those sessions if you want them out.",
+      "changed": "Password changed",
+      "confirm": "Confirm new password",
+      "current": "Current password",
+      "failed": "Could not change your password",
+      "helper": "At least 8 characters.",
+      "mismatch": "The two passwords do not match.",
+      "new": "New password",
+      "submit": "Change password",
+      "title": "Password"
+    },
+    "sessions": {
+      "expires": "Expires {at}",
+      "failedBody": "This list is the only place that shows where your account is signed in, so treat an empty one as unknown rather than as none.",
+      "failed": "Could not read your sessions",
+      "ip": "IP {ip}",
+      "loading": "Looking for other signed-in devices…",
+      "noIp": "No IP recorded",
+      "revokeBody": "The session ends immediately and whoever is using it has to sign in again.",
+      "revokeFailed": "Could not sign that device out",
+      "revokeTitle": "Sign this device out",
+      "revoke": "Sign out",
+      "seenUnknown": "Last seen: unknown",
+      "seen": "Last seen {since}",
+      "thisDevice": "This device",
+      "title": "Signed in",
+      "unknownDevice": "Unrecognised device"
+    },
+    "subtitle": "Your password, your second factor, and everywhere you are signed in.",
+    "title": "Security",
+    "twoFactor": {
+      "activateFailed": "That code was not accepted",
+      "activate": "Turn on two-factor",
+      "body": "An authenticator app generates a 6-digit code that Adminium asks for after your password.",
+      "code": "Code from your app",
+      "copyKey": "Copy setup key",
+      "copyLink": "Copy setup link",
+      "disableBody": "Your account goes back to password-only, and your recovery codes stop working.",
+      "disableConfirm": "Turn it off",
+      "disableFailed": "Could not turn off two-factor",
+      "disablePassword": "Your password",
+      "disableTitle": "Turn off two-factor authentication",
+      "disable": "Turn off two-factor",
+      "enrollFailed": "Could not start setup",
+      "enroll": "Set up two-factor",
+      "hide": "Hide setup key",
+      "off": "Off",
+      "on": "On",
+      "recovery": {
+        "body": "Each code signs you in once if you lose your authenticator. They are shown only now.",
+        "copy": "Copy codes",
+        "title": "Save your recovery codes"
+      },
+      "reveal": "Show setup key",
+      "secretHelper": "Paste the setup link into your authenticator, or type the key in by hand.",
+      "secret": "Setup key",
+      "title": "Two-factor authentication"
+    }
+  },
+  "reports": {
+    "title": "Scheduled reports",
+    "subtitle": "Recurring data snapshots of a page, delivered as in-app notifications.",
+    "new": "New report",
+    "loadFailed": "Could not load scheduled reports.",
+    "saveFailed": "Could not save this report.",
+    "nextRun": "Next run",
+    "emptyTitle": "No scheduled reports yet",
+    "emptyBody": "Create one to get a recurring data snapshot of any table page.",
+    "createTitle": "New scheduled report",
+    "editTitle": "Edit scheduled report",
+    "nameLabel": "Name",
+    "namePlaceholder": "e.g. Weekly revenue",
+    "pageLabel": "Page",
+    "pagePlaceholder": "Choose a page…",
+    "frequencyLabel": "Frequency",
+    "frequency": {
+      "daily": "Daily",
+      "weekly": "Weekly",
+      "monthly": "Monthly"
+    },
+    "dayOfWeekLabel": "Day",
+    "dayOfMonthLabel": "Day of month",
+    "timeLabel": "Time",
+    "timezoneLabel": "Timezone",
+    "formatLabel": "Delivery",
+    "formatHint": "Data snapshot (PDF/PNG rendering arrives in a later release) — each run produces a CSV snapshot and an in-app notification.",
+    "recipientsLabel": "Recipients",
+    "recipientsHint": "Stored with the report. Email delivery arrives in a later release — runs notify you in-app for now.",
+    "deliveryBadge": "CSV snapshot",
+    "delete": "Delete",
+    "create": "Create",
+    "cadence": {
+      "daily": "Daily at {time} ({zone})",
+      "weekly": "Weekly · {day} at {time} ({zone})",
+      "monthly": "Monthly · day {day} at {time} ({zone})"
+    }
+  },
+  "changelog": {
+    "title": "Changelog",
+    "subtitle": "Product updates & releases.",
+    "allReleases": "All releases",
+    "tag": {
+      "new": "New",
+      "improved": "Improved",
+      "fixed": "Fixed",
+      "security": "Security"
+    },
+    "filter": {
+      "all": "All",
+      "label": "Filter changes by type"
+    },
+    "empty": {
+      "title": "Nothing under this filter",
+      "body": "No release has carried a change of this kind yet.",
+      "clear": "Show all changes"
+    }
   }
 } as const;

@@ -86,6 +86,9 @@ export interface FormColumnFactReply {
   enumTones?: Record<string, string> | undefined;
   /** People are mentioned in this text. */
   mentions?: true | undefined;
+  /** The column holds a position on the map (`{ lat, lng, by }`), or an area (a GeoJSON polygon). */
+  place?: true | undefined;
+  area?: true | undefined;
 }
 
 /** The reply's array, keyed by column name — the shape the form reads. */
@@ -99,6 +102,8 @@ function factsByColumn(block: ColumnFactsReply | undefined): ColumnFacts {
       required: column.required,
       ...(column.requiredWhen === undefined ? {} : { requiredWhen: column.requiredWhen }),
       ...(column.mentions === true ? { mentions: true as const } : {}),
+      ...(column.place === true ? { place: true as const } : {}),
+      ...(column.area === true ? { area: true as const } : {}),
       writable: column.writable,
       ...(column.insertable === undefined ? {} : { insertable: column.insertable }),
       ...(column.updatable === undefined ? {} : { updatable: column.updatable }),

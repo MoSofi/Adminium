@@ -689,6 +689,8 @@
         "emptyBody": "Seskupte záznamy podle pole dráhy a pole stavu, abyste sestavili mřížku."
       },
       "addCard": "Přidat kartu",
+      "notMoved": "Kartu {title} se nepodařilo přesunout.",
+      "dismissNotice": "Zavřít",
       "grip": "Přetažením přesunete kartu",
       "pointsUnit": "b.",
       "laneSummary": "Σ{points} b. · {count}",
@@ -772,9 +774,46 @@
         "description": "Mapa s kruhovými značkami, jejichž velikost určuje zvolená metrika, spolu se žebříčkem nejvýznamnějších míst.",
         "emptyTitle": "Žádná místa",
         "emptyBody": "Řádky se zeměpisnou šířkou a délkou se zde zobrazí jako značky na mapě.",
-        "mapUnavailableLabel": "Mapu se nepodařilo načíst. Žebříček zobrazuje stejná data.",
+        "mapUnavailableLabel": "Mapu se nepodařilo načíst. Tady je seznam.",
         "regionsLabel": "Nejvýznamnější regiony",
-        "metricLabel": "Metrika"
+        "metricLabel": "Metrika",
+        "mapsOffLabel": "Mapy jsou vypnuté. Tady je seznam.",
+        "mapsOffLink": "Otevřít Nastavení → Mapy",
+        "mapLabel": "Mapa",
+        "zoomIn": "Přiblížit",
+        "zoomOut": "Oddálit",
+        "byTown": "podle města",
+        "pinMoveHint": "Přetáhněte na přesné místo. Na klávesnici: Enter špendlík zvedne, šipky s ním pohybují, Enter místo potvrdí a Esc ho vrátí zpět.",
+        "sharedTown": "{count, plural, one {# místo je známé} few {# místa jsou známá} many {# místa je známo} other {# míst je známo}} jen podle tohoto města",
+        "stopsLabel": "Zastávky",
+        "placesLabel": "Místa",
+        "areasLabel": "Oblasti",
+        "legAbout": "asi {distance} od předchozí zastávky",
+        "legExact": "{distance} od předchozí zastávky",
+        "legUnknown": "vzdálenost od předchozí zastávky není známá",
+        "openInMaps": "Otevřít v mé aplikaci s mapami",
+        "cornerLabel": "Roh {number}",
+        "areaChangeHint": "Roh přesunete přetažením. Vyberte roh, chcete-li ho odebrat nebo za něj přidat další.",
+        "areaDrawHint": "Kliknutím do mapy přidejte rohy oblasti a pak tvar uzavřete.",
+        "areaAddCornerHere": "Přidat roh doprostřed mapy",
+        "areaClose": "Uzavřít tvar",
+        "areaInsertCorner": "Přidat roh za tento",
+        "areaRemoveCorner": "Odebrat tento roh",
+        "areaRestart": "Začít znovu",
+        "areaDone": "Hotovo",
+        "areaPickHint": "Vyberte oblast na mapě nebo v seznamu, chcete-li ji změnit.",
+        "areaNew": "Nakreslit novou oblast",
+        "areaChange": "Změnit",
+        "areaUnnamed": "Oblast {number}",
+        "areaPoints": "{count, plural, one {# bod} few {# body} many {# bodu} other {# bodů}}",
+        "areaPiecesHint": "Tato oblast má díru nebo více částí. Ty zůstávají beze změny, zatímco upravujete tento obrys. „Začít znovu“ nahradí celou oblast jedním novým tvarem.",
+        "listMore": "a {count, plural, one {# další} few {# další} many {# dalšího} other {# dalších}}",
+        "saidCornerAdded": "Roh přidán. {count, plural, one {# roh} few {# rohy} many {# rohu} other {# rohů}}.",
+        "saidShapeClosed": "Tvar uzavřen.",
+        "saidPinKept": "Špendlík zůstal na {position}.",
+        "saidPinPicked": "Špendlík zvednut. Posuňte ho šipkami a pak stiskněte Enter pro potvrzení místa, nebo Esc pro vrácení zpět.",
+        "saidPinBack": "Špendlík je zpět na původním místě.",
+        "saidPinRefused": "Nové místo se neuložilo. Špendlík je zpět na původním místě."
       },
       "mapChoroplethGrid": {
         "description": "Dlaždice regionů obarvené podle hodnoty – pro tabulky s kódy regionů, ale bez souřadnic.",
@@ -783,6 +822,38 @@
         "legendLowLabel": "Nízká",
         "legendHighLabel": "Vysoká",
         "chartLabel": "Rozpad podle regionů"
+      },
+      "place": {
+        "pinName": "Toto místo",
+        "placeholder": "Napište město, nebo vložte souřadnice či odkaz na mapu",
+        "searching": "Hledám…",
+        "noTown": "Město s tímto názvem tu není. Zkuste jiný zápis, nebo vložte souřadnice.",
+        "searchFailed": "Seznamu měst se teď nepodařilo zeptat. Zkuste to znovu, nebo vložte souřadnice.",
+        "whereIAm": "Kde právě jsem",
+        "byTown": "Podle města: {name}",
+        "exact": "Přesné místo: {position}",
+        "exactNamed": "Přesné místo: {name} ({position})",
+        "pending": "Přečte se při uložení: {text}",
+        "none": "Zatím žádné místo",
+        "clear": "Vymazat",
+        "whereError": "Zařízení nesdělilo, kde je. Zkontrolujte, zda prohlížeč smí používat vaši polohu.",
+        "issue": {
+          "unreadable": "Tohle se nepodařilo přečíst jako místo. Vyberte město ze seznamu, nebo vložte souřadnice, například 30.0444, 31.2357.",
+          "shortLink": "Zkrácený odkaz neříká, kam vede, a neotevírá se. Otevřete ho a pak vložte celý odkaz nebo souřadnice.",
+          "outOfRange": "Tyto souřadnice na mapě nejsou. Zeměpisná šířka je od -90 do 90, délka od -180 do 180.",
+          "unknown": "Toto město už v seznamu není. Vyberte ho znovu."
+        }
+      },
+      "area": {
+        "points": "Oblast · {count, plural, one {# bod} few {# body} many {# bodu} other {# bodů}}",
+        "unreadable": "Uložená hodnota není oblast. Nakreslete oblast, která ji nahradí.",
+        "none": "Zatím žádná oblast",
+        "clear": "Vymazat",
+        "mapsOff": "Oblast se kreslí do mapy a mapy jsou vypnuté. Uložená oblast zůstává tak, jak je.",
+        "issue": {
+          "unreadable": "Tohle se nepodařilo přečíst jako oblast. Nakreslete ji znovu.",
+          "tooLarge": "Tato oblast má příliš mnoho bodů. Nakreslete ji s méně body."
+        }
       }
     },
     "domain": {
@@ -1847,6 +1918,8 @@
     "board": {
       "invalidLayout": "Uložené rozvržení této nástěnky je neplatné. Znovu vygenerujte stránku nebo obnovte její rozvržení.",
       "noRowsTitle": "Zatím žádné karty",
+      "noColumnsTitle": "Zatím žádné sloupce",
+      "noColumnsBody": "Tato tabule bere své sloupce z řádků tabulky a ta tabulka zatím žádné řádky nemá. Přidejte jeden a objeví se tu jako sloupec.",
       "noRowsBody": "Karty se tu objeví, jakmile bude mít tabulka řádky."
     },
     "calendar": {
@@ -1955,6 +2028,8 @@
       "unplaced": {
         "calendar": "Žádný řádek této tabulky zatím nemá datum, proto je kalendář prázdný. Řádek se tu objeví, jakmile ho bude mít.",
         "board": "Žádný řádek této tabulky zatím nemá stav, proto je tabule prázdná. Řádek se tu objeví, jakmile ho bude mít.",
+        "boardColumns": "Žádný řádek této tabulky zatím není v žádném sloupci tabule, proto je tabule prázdná. Řádek se tu objeví, jakmile bude do některého zařazen.",
+        "boardColumnsSome": "{count, plural, one {# řádek není v žádném sloupci tabule, proto se tu nezobrazuje.} few {# řádky nejsou v žádném sloupci tabule, proto se tu nezobrazují.} many {# řádku není v žádném sloupci tabule, proto se tu nezobrazuje.} other {# řádků není v žádném sloupci tabule, proto se tu nezobrazují.}}",
         "scheduler": "Žádný řádek této tabulky zatím nemá osobu, datum a typ směny, proto je rozvrh prázdný. Řádek se tu objeví, jakmile bude mít všechny tři."
       }
     }

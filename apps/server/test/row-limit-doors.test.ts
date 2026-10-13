@@ -10,9 +10,10 @@
  * and Lena's two that she covers); Mara, who leads Dana and Omar, reaches
  * 1, 2, 3, 4, 5 and 9. Lena's role limits nothing.
  */
-import { auditRepo, automationRunsRepo, documentProfilesRepo, documentsRepo, snapshotsRepo } from '@adminium/meta';
+import { auditRepo, automationRunsRepo, documentProfilesRepo, documentsRepo, overridesRepo, snapshotsRepo } from '@adminium/meta';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
+import { parseCsv } from '../src/data-io/csv.js';
 import { createDocumentPipeline } from '../src/documents/compose.js';
 import { createConnectionStatsCollector } from '../src/llm/stats-collector.js';
 import { ENGINES, world, type PersonName, type World } from './row-limit-world.js';
@@ -70,6 +71,44 @@ for (const [dialect, available] of ENGINES) {
       const view = json<{ data: { status: string; stats: { total: number } | null } }>(await get(who, `imports/${id}`)).data;
       return { id, status: view.status, stats: view.stats, statusCode: 202, body: '' };
     };
+
+    type PreviewLine = { row: number; status: 'new' | 'here' | 'refused'; code?: string; column?: string; message?: string; earlierLine?: number };
+    type Preview = { total: number; judged: number; capped: boolean; counts: { new: number; here: number; refused: number }; hooksNotRun: boolean; lines: PreviewLine[] };
+    /** Make an import of a CSV and leave it ready to run: its id, or the refusal. */
+    const readyImport = async (who: Who, csv: string, options: Record<string, unknown>, table: string = deals()): Promise<{ id: string; statusCode: number; body: string }> => {
+      const uploaded = await call(who, 'POST', 'imports/upload?filename=deals.csv', csv, { 'content-type': 'text/csv' });
+      expect(uploaded.statusCode, uploaded.body).toBe(201);
+      const header = csv.split('\n')[0]!.split(',');
+      const made = await post(who, 'imports', { fileId: json<{ data: { fileId: string } }>(uploaded).data.fileId, connectionId: w.connectionId, table, mapping: { columns: header.map((name) => ({ from: name, to: name })) }, options: { skipInvalid: true, ...options } });
+      return { id: made.statusCode === 201 ? json<{ data: { import: { id: string } } }>(made).data.import.id : '', statusCode: made.statusCode, body: made.body };
+    };
+    const previewOf = async (who: Who, id: string, query = ''): Promise<Preview> => {
+      const res = await get(who, `imports/${id}/preview${query}`);
+      expect(res.statusCode, res.body).toBe(200);
+      return json<{ data: Preview }>(res).data;
+    };
+    /** Run a ready import, and answer its figures and the lines its report says it refused, as [line, code]. */
+    const ranImport = async (who: Who, id: string): Promise<{ status: string; stats: { total: number; inserted?: number; updated?: number; skipped?: number; alreadyHere?: number } | null; refused: [number, string][] }> => {
+      expect((await post(who, `imports/${id}/run`)).statusCode).toBe(202);
+      await w.jobs();
+      const view = json<{ data: { status: string; stats: { total: number } | null; errorReportFileId: string | null } }>(await get(who, `imports/${id}`)).data;
+      const refused = new Map<number, string>();
+      if (view.errorReportFileId !== null) {
+        for (const line of parseCsv((await get(who, `imports/${id}/error-report`)).body).slice(1)) if (line.length > 1 && !refused.has(Number(line[0]))) refused.set(Number(line[0]), line[2]!);
+      }
+      return { status: view.status, stats: view.stats, refused: [...refused.entries()] };
+    };
+    /** A preview and the run that followed it say the same of every line. */
+    const expectAgreed = (preview: Preview, ran: Awaited<ReturnType<typeof ranImport>>, mode: 'skip' | 'upsert' | 'insert'): void => {
+      expect(ran.status).toBe('succeeded');
+      expect(preview.lines.filter((line) => line.status === 'refused').map((line) => [line.row, line.code])).toEqual(ran.refused);
+      expect(ran.stats?.inserted ?? 0).toBe(preview.counts.new);
+      expect(mode === 'skip' ? (ran.stats?.alreadyHere ?? 0) : (ran.stats?.updated ?? 0)).toBe(preview.counts.here);
+      expect((ran.stats?.skipped ?? 0) - (ran.stats?.alreadyHere ?? 0)).toBe(preview.counts.refused);
+      expect(ran.stats?.total).toBe((ran.stats?.inserted ?? 0) + (ran.stats?.updated ?? 0) + (ran.stats?.skipped ?? 0));
+    };
+    const countOf = async (statement: string): Promise<number> => Number(Object.values((await w.rows(statement))[0]!)[0]);
+    const metaCount = async (table: 'adminium_imports' | 'adminium_files' | 'adminium_audit_log' | 'adminium_jobs'): Promise<number> => Number((await w.meta.db.selectFrom(table as never).select((eb) => eb.fn.countAll().as('n')).executeTakeFirstOrThrow() as { n: unknown }).n);
 
     const upload = (who: Who, query: Record<string, string>) => call(who, 'POST', `files?${new URLSearchParams({ connectionId: w.connectionId, ...query }).toString()}`, PDF, { 'content-type': 'application/pdf' });
     const fileOn = async (who: Who, record: number | null, filename: string): Promise<string> => {
@@ -195,6 +234,103 @@ for (const [dialect, available] of ENGINES) {
         // Refused where it is asked for, or failed when it runs: either way no row is written.
         expect(['refused', 'failed']).toContain(done.status);
         expect(Number((await w.rows('SELECT amount FROM deals WHERE id = 3'))[0]!['amount'])).toBe(8000);
+      });
+
+      it('is previewed line by line for somebody nothing limits, and then does what the preview said', async () => {
+        // A rule of the table's own: no deal above a million.
+        const rule = await overridesRepo(w.meta).create({ connectionId: w.connectionId, op: 'column.validation', tableName: deals(), columnName: 'amount', value: { max: 1_000_000 }, origin: 'user' });
+        try {
+          // Deal 1 is here; 201 is new; a bad number; a rule's no; and 201 again, which the second line made.
+          const csv = 'id,title,state,amount,big\n1,Deal 1 again,open,10,0\n201,Brand new,open,10,0\n202,Bad number,open,abc,0\n203,Too big,open,5000000,0\n201,Twice,open,11,0\n';
+          for (const mode of ['skip', 'upsert'] as const) {
+            const made = await readyImport('lena', csv, { mode, matchColumn: 'id' });
+            expect(made.statusCode, made.body).toBe(201);
+            const before = [await countOf('SELECT COUNT(*) FROM deals'), await metaCount('adminium_imports'), await metaCount('adminium_files'), await metaCount('adminium_audit_log'), await metaCount('adminium_jobs')];
+            const preview = await previewOf('lena', made.id);
+            // Nothing is written by asking: no row of the table, no import, no file, no entry, no job.
+            expect([await countOf('SELECT COUNT(*) FROM deals'), await metaCount('adminium_imports'), await metaCount('adminium_files'), await metaCount('adminium_audit_log'), await metaCount('adminium_jobs')]).toEqual(before);
+            expect((await w.rows('SELECT title FROM deals WHERE id = 1'))[0]!['title']).toBe('Deal 1');
+            expect([preview.total, preview.judged, preview.capped, preview.hooksNotRun]).toEqual([5, 5, false, false]);
+            expect(preview.counts).toEqual({ new: 1, here: 2, refused: 2 });
+            expect(preview.lines.map((line) => [line.row, line.status, line.code ?? null, line.earlierLine ?? null])).toEqual([
+              [1, 'here', null, null],
+              [2, 'new', null, null],
+              [3, 'refused', 'BAD_NUMBER', null],
+              [4, 'refused', 'REFUSED', null],
+              [5, 'here', null, 2],
+            ]);
+            expect(preview.lines[2]!.column).toBe('amount');
+            expect(preview.lines[3]!.column).toBe('amount');
+            // A page of it: the counts are of the whole file, the lines of the page.
+            const page = await previewOf('lena', made.id, '?offset=3&limit=1');
+            expect([page.counts, page.lines.map((line) => line.row)]).toEqual([preview.counts, [4]]);
+
+            expectAgreed(preview, await ranImport('lena', made.id), mode);
+            const stored = Object.fromEntries((await w.rows('SELECT id, title, amount FROM deals WHERE id IN (1, 201, 202, 203) ORDER BY id')).map((row) => [Number(row['id']), [row['title'], Number(row['amount'])]]));
+            // Left as they were, or updated: the one difference between the two.
+            expect(stored).toEqual(mode === 'skip' ? { 1: ['Deal 1', 12000], 201: ['Brand new', 10] } : { 1: ['Deal 1 again', 10], 201: ['Twice', 11] });
+            // Run once, it is no longer there to preview.
+            expect((await get('lena', `imports/${made.id}/preview`)).statusCode).toBe(409);
+            await w.run('DELETE FROM deals WHERE id > 200');
+            await w.run(`UPDATE deals SET title = 'Deal 1', amount = 12000 WHERE id = 1`);
+          }
+        } finally {
+          await overridesRepo(w.meta).delete(rule.id);
+        }
+      });
+
+      it('is previewed for somebody held to their own rows as the run then treats each line', async () => {
+        // Deal 1 is Dana's; deal 3 is Omar's, which she does not reach; 301 is new and hers; 302 is new, in Omar's name.
+        const csv = `id,title,owner_id,state,amount,big\n1,Deal 1,${w.people.dana},open,12000,0\n3,Not hers,${w.people.dana},open,1,0\n301,Hers,${w.people.dana},open,10,0\n302,His,${w.people.omar},open,10,0\n`;
+        for (const mode of ['skip', 'upsert'] as const) {
+          const made = await readyImport('dana', csv, { mode, matchColumn: 'id' });
+          expect(made.statusCode, made.body).toBe(201);
+          const preview = await previewOf('dana', made.id);
+          expect(preview.lines.map((line) => [line.row, line.status, line.code ?? null])).toEqual([
+            [1, 'here', null],
+            [2, 'refused', 'ALREADY_EXISTS'],
+            [3, 'new', null],
+            [4, 'refused', preview.lines[3]!.code ?? null],
+          ]);
+          // The value is taken, and that is all she is told: nothing of Omar's row, as the database's own refusal told her before.
+          expect(preview.lines[1]!.message).toBe('A row with this value already exists.');
+          expect(JSON.stringify(preview)).not.toMatch(/Deal 3|8000|Omar/i);
+          expect(JSON.stringify(preview)).not.toContain(w.people.omar);
+
+          // Answered to nobody but its requester: not to Lena, who opens the import itself, nor to Mara.
+          expect((await get('lena', `imports/${made.id}`)).statusCode).toBe(200);
+          for (const other of ['lena', 'mara', 'owner'] as const) expect((await get(other, `imports/${made.id}/preview`)).statusCode).toBe(404);
+
+          const ran = await ranImport('dana', made.id);
+          expectAgreed(preview, ran, mode);
+          expect((await w.rows('SELECT id FROM deals WHERE id IN (301, 302)')).map((row) => Number(row['id']))).toEqual([301]);
+          expect((await w.rows('SELECT title, amount FROM deals WHERE id = 3')).map((row) => [row['title'], Number(row['amount'])])).toEqual([['Deal 3', 8000]]);
+          await w.run('DELETE FROM deals WHERE id > 300');
+        }
+      });
+
+      it('is not previewed on a column two rows could share for somebody held to some rows, nor of a private table', async () => {
+        // One refusal for the whole import, as the run refuses it: not a line at a time.
+        const shared = await readyImport('dana', 'title,amount\nDeal 3,1\n', { mode: 'skip', matchColumn: 'title' });
+        if (shared.statusCode === 201) {
+          const refused = await get('dana', `imports/${shared.id}/preview`);
+          expect(refused.statusCode, refused.body).toBe(422);
+          expect(refused.body).not.toContain('8000');
+          expect((await ranImport('dana', shared.id)).status).toBe('failed');
+        }
+        expect(await countOf(`SELECT COUNT(*) FROM deals WHERE title = 'Deal 3'`)).toBe(1);
+
+        const made = await readyImport('lena', 'id,title\n3,Deal 3\n', { mode: 'skip', matchColumn: 'id' });
+        expect(made.statusCode, made.body).toBe(201);
+        await w.private('deals', true);
+        try {
+          const refused = await get('lena', `imports/${made.id}/preview`);
+          expect(refused.statusCode).toBeGreaterThanOrEqual(400);
+          expect(refused.body).not.toContain('"lines"');
+        } finally {
+          await w.private('deals', false);
+        }
+        expect((await previewOf('lena', made.id)).counts).toEqual({ new: 0, here: 1, refused: 0 });
       });
 
       it('and its report of refused rows are opened by another person only when nothing limits them on its table', async () => {

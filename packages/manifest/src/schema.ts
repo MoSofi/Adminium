@@ -30,6 +30,7 @@ import { capacityIssues, capacitySchema, isLegacyCapacity, kindOf, rulesOf, viaI
 import { appDocumentIssues, appDocumentSchema, mappingIssues, type AppDocument } from './documents.js';
 import { formulaColumns, formulaExprSchema, tableFormulaIssues } from './formula.js';
 import { lookUpIssues, lookUpSchema, type LookUp, type LookUpTable } from './look-up.js';
+import { pageBoardIssues } from './page-board.js';
 import { pageCalendarIssues } from './page-calendar.js';
 import { pageConfigIssues } from './page-config.js';
 import { emailTemplateSchema, outboxIssues, outboxProducerSchema, outboxSchema } from './outbox.js';
@@ -743,6 +744,20 @@ export const columnRulesSchema = z
      * on a deal says the deal).
      */
     mentions: z.union([z.literal(true), z.object({ about: refSchema }).strict()]).optional(),
+    /**
+     * A json column that holds a position on the map: `{ lat, lng, by }`,
+     * where `by` says how it is known. `"town"` is the middle of a town from
+     * Adminium's own list of places (`placeId`), filled in by the server, so
+     * it is never more than "somewhere in this town"; `"exact"` is a point a
+     * person gave (typed, pasted, or dropped on the map). Every write is read
+     * and checked; a value that is not a position is refused.
+     */
+    place: z.literal(true).optional(),
+    /**
+     * A json column that holds an area on the map: a GeoJSON `Polygon` or
+     * `MultiPolygon`, with closed rings, at most 2,000 points and 64 KB.
+     */
+    area: z.literal(true).optional(),
     /**
      * A formula column over a total of its own row whose change is told
      * after the save commits (a stock level going low), so a rule or a
@@ -2505,6 +2520,16 @@ export function appReferenceIssues(
       if (rules.staff !== undefined && column.type !== 'text') {
         out.push({ path: here('staff'), message: 'a staff member is kept in a text column' });
       }
+      // A position and an area are kept whole, as JSON: two number columns or a text column are not one.
+      if (rules.place !== undefined && column.type !== 'json') {
+        out.push({ path: here('place'), message: `a place is kept in a json column, and "${table.ref}.${column.ref}" is ${column.type}` });
+      }
+      if (rules.area !== undefined && column.type !== 'json') {
+        out.push({ path: here('area'), message: `an area is kept in a json column, and "${table.ref}.${column.ref}" is ${column.type}` });
+      }
+      if (rules.place !== undefined && rules.area !== undefined) {
+        out.push({ path: here('area'), message: 'a column holds a place or an area, not both' });
+      }
       if (rules.plainText !== undefined && column.type !== 'text') {
         out.push({ path: here('plainText'), message: 'plain text is a rule of a text column' });
       }
@@ -3222,6 +3247,10 @@ export const appManifestSchema = z
     for (const issue of pageCalendarIssues(m.pages, tableIndex(m.requiredSchema.tables))) {
       ctx.addIssue({ code: 'custom', message: issue.message, path: issue.path });
     }
+    // A board page's named columns, against the app's own tables.
+    for (const issue of pageBoardIssues(m.pages, tableIndex(m.requiredSchema.tables))) {
+      ctx.addIssue({ code: 'custom', message: issue.message, path: issue.path });
+    }
     // A records page's tab words, filters and bulk actions, against the app's own tables.
     for (const issue of pageConfigIssues(m.pages, tableIndex(m.requiredSchema.tables))) {
       ctx.addIssue({ code: 'custom', message: issue.message, path: issue.path });
@@ -3538,7 +3567,7 @@ function addOnInstallIssues(m: AddOnManifest): { path: (string | number)[]; mess
   // `addOn.ledgers` is typed loosely in the contracts package (it cannot see these words); it is checked in full here.
   const ledgers = m.addOn.ledgers === undefined ? [] : parsedLedgers(m.addOn.ledgers, out);
   out.push(...appReferenceIssues({ ...m, requiredSchema: m.requiredSchema ?? { tables: [] }, ledgers, codePages: (m.addOn.pages ?? []).map((page) => page.ref) }));
-  if (m.pages !== undefined) out.push(...pageCalendarIssues(m.pages, tableIndex(tables)), ...pageConfigIssues(m.pages, tableIndex(tables)));
+  if (m.pages !== undefined) out.push(...pageCalendarIssues(m.pages, tableIndex(tables)), ...pageBoardIssues(m.pages, tableIndex(tables)), ...pageConfigIssues(m.pages, tableIndex(tables)));
 
   // The look-up is typed loosely in the contracts package: its tables and columns are checked here.
   if (m.addOn.lookUp !== undefined) {

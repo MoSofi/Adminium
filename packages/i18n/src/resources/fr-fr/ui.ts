@@ -699,6 +699,8 @@ export default {
         "emptyBody": "Regroupez les enregistrements par un champ de couloir et un champ de statut pour construire la grille."
       },
       "addCard": "Ajouter une carte",
+      "notMoved": "La carte {title} n’a pas été déplacée.",
+      "dismissNotice": "Fermer",
       "grip": "Glisser pour déplacer la carte",
       "pointsUnit": "pts",
       "laneSummary": "Σ{points} pts · {count}",
@@ -782,9 +784,46 @@ export default {
         "description": "Une carte dont les marqueurs circulaires sont dimensionnés selon la métrique choisie, accompagnée d’un classement des principaux lieux.",
         "emptyTitle": "Aucun lieu",
         "emptyBody": "Les lignes comportant une latitude et une longitude apparaissent ici sous forme de marqueurs.",
-        "mapUnavailableLabel": "La carte n’a pas pu être chargée. Le classement présente les mêmes données.",
+        "mapUnavailableLabel": "La carte n’a pas pu être jointe. Voici la liste.",
         "regionsLabel": "Principales régions",
-        "metricLabel": "Métrique"
+        "metricLabel": "Métrique",
+        "mapsOffLabel": "Les cartes sont désactivées. Voici la liste.",
+        "mapsOffLink": "Ouvrir Paramètres → Cartes",
+        "mapLabel": "Carte",
+        "zoomIn": "Zoom avant",
+        "zoomOut": "Zoom arrière",
+        "byTown": "par ville",
+        "pinMoveHint": "Faites glisser jusqu’à l’endroit exact. Au clavier : Entrée saisit le repère, les touches fléchées le déplacent, Entrée garde l’endroit et Échap le remet en place.",
+        "sharedTown": "{count, plural, one {# lieu n’est connu} other {# lieux ne sont connus}} que par cette ville",
+        "stopsLabel": "Arrêts",
+        "placesLabel": "Lieux",
+        "areasLabel": "Zones",
+        "legAbout": "environ {distance} depuis l’arrêt précédent",
+        "legExact": "{distance} depuis l’arrêt précédent",
+        "legUnknown": "distance depuis l’arrêt précédent inconnue",
+        "openInMaps": "Ouvrir dans mon appli de cartes",
+        "cornerLabel": "Sommet {number}",
+        "areaChangeHint": "Faites glisser un sommet pour le déplacer. Choisissez un sommet pour le retirer ou en ajouter un après lui.",
+        "areaDrawHint": "Cliquez sur la carte pour ajouter les sommets de la zone, puis fermez la forme.",
+        "areaAddCornerHere": "Ajouter un sommet au centre de la carte",
+        "areaClose": "Fermer la forme",
+        "areaInsertCorner": "Ajouter un sommet après celui-ci",
+        "areaRemoveCorner": "Retirer ce sommet",
+        "areaRestart": "Recommencer",
+        "areaDone": "Terminé",
+        "areaPickHint": "Choisissez une zone sur la carte ou dans la liste pour la modifier.",
+        "areaNew": "Dessiner une nouvelle zone",
+        "areaChange": "Modifier",
+        "areaUnnamed": "Zone {number}",
+        "areaPoints": "{count, plural, one {# point} other {# points}}",
+        "areaPiecesHint": "Cette zone a un trou ou plusieurs parties. Ils restent tels quels pendant que vous modifiez ce contour. « Recommencer » remplace toute la zone par une seule nouvelle forme.",
+        "listMore": "et {count, plural, one {# autre} other {# autres}}",
+        "saidCornerAdded": "Sommet ajouté. {count, plural, one {# sommet} other {# sommets}}.",
+        "saidShapeClosed": "Forme fermée.",
+        "saidPinKept": "Repère gardé à {position}.",
+        "saidPinPicked": "Repère saisi. Déplacez-le avec les touches fléchées, puis appuyez sur Entrée pour garder l’endroit ou sur Échap pour le remettre en place.",
+        "saidPinBack": "Le repère est revenu à sa place.",
+        "saidPinRefused": "Le nouvel endroit n’a pas été gardé. Le repère est revenu à sa place."
       },
       "mapChoroplethGrid": {
         "description": "Des tuiles de régions teintées selon la valeur — pour les tables comportant des codes de région mais pas de coordonnées.",
@@ -793,6 +832,38 @@ export default {
         "legendLowLabel": "Faible",
         "legendHighLabel": "Élevé",
         "chartLabel": "Répartition régionale"
+      },
+      "place": {
+        "pinName": "Ce lieu",
+        "placeholder": "Saisissez une ville, ou collez des coordonnées ou un lien de carte",
+        "searching": "Recherche…",
+        "noTown": "Aucune ville de ce nom. Essayez une autre orthographe, ou collez des coordonnées.",
+        "searchFailed": "La liste des villes n’a pas pu être interrogée pour l’instant. Réessayez, ou collez des coordonnées.",
+        "whereIAm": "Là où je suis",
+        "byTown": "Par ville : {name}",
+        "exact": "Endroit exact : {position}",
+        "exactNamed": "Endroit exact : {name} ({position})",
+        "pending": "Lu à l’enregistrement : {text}",
+        "none": "Pas encore de lieu",
+        "clear": "Effacer",
+        "whereError": "Cet appareil n’a pas indiqué où il se trouve. Vérifiez que le navigateur peut utiliser votre position.",
+        "issue": {
+          "unreadable": "Ceci n’a pas pu être lu comme un lieu. Choisissez une ville dans la liste, ou collez des coordonnées telles que 30.0444, 31.2357.",
+          "shortLink": "Un lien court ne dit pas où il mène, et il n’est pas suivi. Ouvrez-le, puis collez le lien complet ou les coordonnées.",
+          "outOfRange": "Ces coordonnées ne sont pas sur la carte. La latitude va de -90 à 90, la longitude de -180 à 180.",
+          "unknown": "Cette ville n’est plus dans la liste. Choisissez-la de nouveau."
+        }
+      },
+      "area": {
+        "points": "Zone · {count, plural, one {# point} other {# points}}",
+        "unreadable": "La valeur enregistrée n’est pas une zone. Dessinez-en une pour la remplacer.",
+        "none": "Pas encore de zone",
+        "clear": "Effacer",
+        "mapsOff": "Une zone se dessine sur la carte, et les cartes sont désactivées. La zone enregistrée est conservée telle quelle.",
+        "issue": {
+          "unreadable": "Ceci n’a pas pu être lu comme une zone. Dessinez-la de nouveau.",
+          "tooLarge": "Cette zone a trop de points. Dessinez-la avec moins de points."
+        }
       }
     },
     "domain": {
@@ -1857,6 +1928,8 @@ export default {
     "board": {
       "invalidLayout": "La disposition enregistrée de ce tableau est invalide. Régénérez la page ou réinitialisez sa disposition.",
       "noRowsTitle": "Aucune carte pour l’instant",
+      "noColumnsTitle": "Pas encore de colonnes",
+      "noColumnsBody": "Ce tableau prend ses colonnes dans les lignes d’une table, et cette table n’a pas encore de lignes. Ajoutez-en une et elle apparaît ici comme colonne.",
       "noRowsBody": "Les cartes apparaissent ici dès que la table contient des lignes."
     },
     "calendar": {
@@ -1965,6 +2038,8 @@ export default {
       "unplaced": {
         "calendar": "Aucune ligne de cette table n’a encore de date, le calendrier est donc vide. Une ligne apparaît ici dès qu’elle en a une.",
         "board": "Aucune ligne de cette table n’a encore de statut, le tableau est donc vide. Une ligne apparaît ici dès qu’elle en a un.",
+        "boardColumns": "Aucune ligne de cette table n’est encore dans l’une des colonnes du tableau, le tableau est donc vide. Une ligne apparaît ici dès qu’elle est placée dans l’une d’elles.",
+        "boardColumnsSome": "{count, plural, one {# ligne n’est dans aucune des colonnes du tableau ; elle n’est donc pas affichée ici.} other {# lignes ne sont dans aucune des colonnes du tableau ; elles ne sont donc pas affichées ici.}}",
         "scheduler": "Aucune ligne de cette table n’a encore de personne, de date et de type de poste, le planning est donc vide. Une ligne apparaît ici dès qu’elle a les trois."
       }
     }

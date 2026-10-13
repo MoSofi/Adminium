@@ -452,6 +452,10 @@ for (const [dialect, reachable] of LEGS) {
 
     it('asked once whether maps are shown, and keeps the answer for the whole install', async () => {
       expect(await settingsRepo(s.meta).get('maps.enabled')).toBe(false);
+      // The answer counts at once: the next reply's policy names no map server.
+      const after = await s.app.inject({ method: 'GET', url: '/api/v1/bootstrap', headers: { cookie: s.cookie['owner']! } });
+      expect(String(after.headers['content-security-policy'])).not.toContain('openfreemap');
+      expect((after.json() as { data: { maps?: { server: string | null } } }).data.maps?.server).toBeNull();
       // Answered: a later check of an app that shows maps does not ask again.
       const again = await s.app.inject({ method: 'POST', url: '/api/v1/apps/plan', headers: { cookie: s.cookie['owner']! }, payload: { key: 'desk', version: '0.1.0', connectionId: s.connectionId } });
       expect(again.statusCode, again.body).toBe(200);

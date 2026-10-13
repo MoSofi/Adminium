@@ -35,6 +35,8 @@ export interface InlineComposeCardProps {
   defaultOpen?: boolean | undefined;
   /** Keep the composer open after a successful add, for rapid entry. */
   keepOpen?: boolean | undefined;
+  /** Nothing can be added just now (a board whose columns are not there yet): the composer is shown and takes nothing. */
+  disabled?: boolean | undefined;
   onAdd?: ((title: string) => void) | undefined;
   onCancel?: (() => void) | undefined;
   testId?: string | undefined;
@@ -47,6 +49,7 @@ export function InlineComposeCard({
   openLabel,
   defaultOpen = false,
   keepOpen = true,
+  disabled = false,
   onAdd,
   onCancel,
   testId,
@@ -70,7 +73,7 @@ export function InlineComposeCard({
     const title = draft.trim();
     // A whitespace-only draft is not a card: committing it would insert a
     // titleless row the board renders as "#1".
-    if (title === '') return;
+    if (title === '' || disabled) return;
     onAdd?.(title);
     setDraft('');
     if (keepOpen) inputRef.current?.focus();
@@ -84,8 +87,9 @@ export function InlineComposeCard({
         data-widget="inline-compose-card"
         data-testid={testId}
         data-part="compose-open"
+        disabled={disabled}
         onClick={() => setOpen(true)}
-        className="flex w-full items-center gap-1.5 rounded-lg border border-dashed border-border px-3 py-2 text-body-sm text-fg-muted hover:border-accent hover:bg-accent-soft hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+        className="flex w-full items-center gap-1.5 rounded-lg border border-dashed border-border px-3 py-2 text-body-sm text-fg-muted hover:border-accent hover:bg-accent-soft hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:border-border disabled:hover:bg-transparent disabled:hover:text-fg-muted"
       >
         <Plus aria-hidden="true" className="size-4" />
         {resolvedOpenLabel}
@@ -125,7 +129,7 @@ export function InlineComposeCard({
         className="w-full rounded-md border border-border bg-surface px-2 py-1.5 text-body-sm text-fg placeholder:text-fg-subtle focus-visible:outline-2 focus-visible:-outline-offset-1 focus-visible:outline-accent"
       />
       <div className="flex items-center gap-1.5">
-        <Button size="sm" variant="primary" data-part="compose-add" disabled={draft.trim() === ''} onClick={commit}>
+        <Button size="sm" variant="primary" data-part="compose-add" disabled={disabled || draft.trim() === ''} onClick={commit}>
           {resolvedAddLabel}
         </Button>
         <Button size="sm" variant="ghost" data-part="compose-cancel" onClick={close}>

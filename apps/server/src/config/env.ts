@@ -84,6 +84,66 @@ export function parseImageHostSource(value: string): string | null {
   return `${scheme.toLowerCase()}://${wildcard}${labels.join('.')}${port === undefined ? '' : `:${port}`}`;
 }
 
+/** What `ADMINIUM_MAP_SERVER` and `ADMINIUM_ROUTING_SERVER` say when the operator wants none. */
+export const MAP_SERVER_OFF = 'off';
+export const DEFAULT_MAP_SERVER = 'https://tiles.openfreemap.org';
+export const DEFAULT_ROUTING_SERVER = 'https://router.project-osrm.org';
+
+const LOOPBACK_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]']);
+/** A server's host as the URL parser hands it back: a name or an IPv4 address, or an IPv6 address in its brackets. */
+const SERVER_HOST = /^(?:[a-z0-9.-]+|\[[0-9a-f:.]+\])$/;
+
+/**
+ * One server's origin (`https://host[:port]`) as it is written into a header
+ * or called, or `null` when it is not one.
+ *
+ * Refused: a path, a query, a wildcard, a name and password, a host with
+ * anything in it but letters, digits, dots and hyphens (or an IPv6 address in
+ * brackets), a port that is not digits, and anything that is not http(s). `http://` is for a server on this machine only, unless
+ * `plainHttp` says the address is called by the server and never by a browser
+ * (a routing server on the office network).
+ */
+export function parseServerOrigin(value: string, opts: { plainHttp?: boolean } = {}): string | null {
+  const text = value.trim();
+  // (A backslash is a slash to the URL parser: it is refused as written, not read as a path's start.)
+  if (!/^https?:\/\/[^\s*@/?#\\]+\/?$/i.test(text)) return null;
+  let url: URL;
+  try {
+    url = new URL(text);
+  } catch {
+    return null;
+  }
+  if (url.username !== '' || url.password !== '' || url.pathname !== '/' || url.search !== '' || url.hash !== '') return null;
+  // The origin is written into the content policy, where `;` ends a directive, `,` a policy and a quote
+  // starts a keyword. A URL may hold all three in its host, so the host is held to what a name or an
+  // address is made of, and the port to digits.
+  if (!SERVER_HOST.test(url.hostname)) return null;
+  const authority = text.replace(/^https?:\/\//i, '').replace(/\/$/, '');
+  const port = authority.startsWith('[') ? authority.slice(authority.indexOf(']') + 1) : authority.slice(authority.includes(':') ? authority.indexOf(':') : authority.length);
+  if (port !== '' && !/^:\d{1,5}$/.test(port)) return null;
+  if (url.protocol === 'http:' && opts.plainHttp !== true && !LOOPBACK_HOSTS.has(url.hostname)) return null;
+  return url.origin;
+}
+
+function serverOriginVar(fallback: string, opts: { plainHttp?: boolean }, problem: string) {
+  return z.preprocess(
+    emptyToUndefined,
+    z
+      .string()
+      .optional()
+      .transform((value, ctx) => {
+        if (value === undefined) return fallback;
+        if (value.trim().toLowerCase() === MAP_SERVER_OFF) return MAP_SERVER_OFF;
+        const origin = parseServerOrigin(value, opts);
+        if (origin === null) {
+          ctx.addIssue({ code: 'custom', message: problem });
+          return z.NEVER;
+        }
+        return origin;
+      }),
+  );
+}
+
 export const envSchema = z.object({
   ADMINIUM_SECRET: z
     .string({ error: 'is required' })
@@ -596,6 +656,31 @@ export const envSchema = z.object({
         return hosts;
       }),
   ),
+  /*
+   * Where maps come from. A map on a page makes each staff BROWSER fetch map
+   * pictures from this server, so its origin is written into the content
+   * security policy, and only while maps are on (geo/map-policy.ts). That is
+   * why it is one named origin and an environment value: an address typed in
+   * the dashboard and put in `connect-src` would be a door any settings admin
+   * could open for every staff browser. `off` means no maps on this install,
+   * whatever the setting says.
+   */
+  ADMINIUM_MAP_SERVER: serverOriginVar(
+    DEFAULT_MAP_SERVER,
+    {},
+    'must be off or one https:// origin with no path, e.g. https://tiles.example.com (http:// only for this machine)',
+  ),
+  /*
+   * Where the SERVER asks for a route along roads, and only once somebody
+   * switched routing on in Settings → Maps. Never called by a browser, so a
+   * plain-http host on the office network is fine. `off` means straight-line
+   * estimates only.
+   */
+  ADMINIUM_ROUTING_SERVER: serverOriginVar(
+    DEFAULT_ROUTING_SERVER,
+    { plainHttp: true },
+    'must be off or one http(s):// origin with no path, e.g. http://osrm.internal:5000',
+  ),
 })
   .superRefine((env, ctx) => {
     if (env.ADMINIUM_TRUSTED_PROXIES !== undefined && !env.ADMINIUM_TRUST_PROXY) {
@@ -675,6 +760,8 @@ const ENV_HINTS: Record<string, string> = {
     'CSV of exact origins allowed to reach /api/v1/public, plus the literal `self` for surfaces this instance hosts itself — unset means the public API is not registered at all; must be disjoint from ADMINIUM_CORS_ORIGINS',
   ADMINIUM_CSP_IMG_HOSTS:
     'CSV of image origins the dashboard and hosted app surfaces may load pictures from, e.g. https://images.example.com — a leading *. covers subdomains; no bare *, scheme alone or path',
+  ADMINIUM_MAP_SERVER: `off, or the one origin map pictures come from (default ${DEFAULT_MAP_SERVER})`,
+  ADMINIUM_ROUTING_SERVER: `off, or the origin of an OSRM routing server (default ${DEFAULT_ROUTING_SERVER}; asked only when routing is switched on)`,
 };
 
 export class EnvValidationError extends Error {

@@ -172,6 +172,97 @@ describe('kanban-board keyboard move (drives the same optimistic path as a point
   });
 });
 
+describe('kanban-board: a column whose cards somebody else counted', () => {
+  const COUNTED: ColumnDef[] = [
+    { id: '1', label: 'Lead', tone: 'neutral', count: 340, total: '€12,400' },
+    { id: '2', label: 'Proposal', tone: 'accent', count: 0, total: '€0' },
+    { id: '3', label: 'Closing', tone: 'pos' },
+  ];
+  const countOf = (column: string): string | null | undefined =>
+    document.querySelector(`[data-board-column="${column}"] [data-part="column-count"]`)?.textContent;
+  const totalOf = (column: string): string | null | undefined =>
+    document.querySelector(`[data-board-column="${column}"] [data-part="column-total"]`)?.textContent;
+
+  it('heads each column with the count and the total it was given, not the number of cards listed', () => {
+    render(<KanbanBoard cards={[card('a', '1'), card('b', '1')]} columns={COUNTED} />);
+    expect(countOf('1')).toBe('340');
+    expect(totalOf('1')).toBe('€12,400');
+    // A column with no card is drawn, with its own count and total.
+    expect(countOf('2')).toBe('0');
+    expect(totalOf('2')).toBe('€0');
+    // No count given: the cards listed, as before, and no total.
+    expect(countOf('3')).toBe('0');
+    expect(totalOf('3')).toBeUndefined();
+  });
+
+  it('moves the count with a card that was just dropped, until the next count is in', () => {
+    render(<KanbanBoard cards={[card('a', '1'), card('b', '1')]} columns={COUNTED} onCardMove={() => new Promise(() => undefined)} />);
+    const el = grabCardEl('Card a');
+    fireEvent.keyDown(el, { key: ' ' });
+    fireEvent.keyDown(el, { key: 'ArrowRight' });
+    fireEvent.keyDown(el, { key: 'Enter' });
+    expect(countOf('1')).toBe('339');
+    expect(countOf('2')).toBe('1');
+  });
+
+  it('reads a card’s column from a number as from a word, and from nothing else', () => {
+    expect(toBoardCard({ id: 7, name: 'Harbour', stage_id: 3 }, 0, { columnField: 'stage_id', titleField: 'name' }).column).toBe('3');
+    expect(toBoardCard({ id: 8, name: 'Dental', stage_id: '3' }, 0, { columnField: 'stage_id', titleField: 'name' }).column).toBe('3');
+    expect(toBoardCard({ id: 9, name: 'Nobody', stage_id: null }, 0, { columnField: 'stage_id', titleField: 'name' }).column).toBe('');
+    expect(toBoardCard({ id: 9, name: 'Odd', stage_id: { id: 3 } }, 0, { columnField: 'stage_id', titleField: 'name' }).column).toBe('');
+  });
+});
+
+describe('kanban-board: a move whose save is refused', () => {
+  const refuse = async (onMove: () => Promise<unknown>, dir: 'ltr' | 'rtl' = 'ltr') => {
+    const view = render(<KanbanBoard cards={[card('1', dir === 'rtl' ? 'in_progress' : 'todo')]} columns={COLUMNS} dir={dir} onCardMove={onMove} />);
+    const el = grabCardEl('Card 1');
+    fireEvent.keyDown(el, { key: ' ' });
+    fireEvent.keyDown(el, { key: 'ArrowRight' });
+    await act(async () => {
+      fireEvent.keyDown(el, { key: 'Enter' });
+      await Promise.resolve();
+    });
+    return view;
+  };
+
+  it('puts the card back, and says why on the board and aloud', async () => {
+    const { container } = await refuse(() => Promise.reject(new Error('A won deal cannot be moved.')));
+    await waitFor(() => expect(within(screen.getByTestId('column-drop-todo')).getByRole('button', { name: 'Card 1' })).toBeTruthy());
+    const notice = container.querySelector('[data-part="board-move-refused"]')!;
+    expect(notice.textContent).toContain('Card 1 was not moved.');
+    expect(notice.textContent).toContain('A won deal cannot be moved.');
+    const live = container.querySelector('[data-board-liveregion]')!.textContent ?? '';
+    expect(live).toContain('Could not move Card 1');
+    expect(live).toContain('A won deal cannot be moved.');
+  });
+
+  it('says only that it went back when the refusal gives no reason, and the line can be dismissed', async () => {
+    const { container } = await refuse(() => Promise.reject(new Error('')));
+    await waitFor(() => expect(container.querySelector('[data-part="board-move-refused"]')).not.toBeNull());
+    expect(container.querySelector('[data-part="board-move-refused-reason"]')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Dismiss' }));
+    expect(container.querySelector('[data-part="board-move-refused"]')).toBeNull();
+  });
+
+  it('the next move clears the line', async () => {
+    const onMove = vi.fn().mockRejectedValueOnce(new Error('Not yours.')).mockResolvedValue({});
+    const { container } = await refuse(onMove);
+    await waitFor(() => expect(container.querySelector('[data-part="board-move-refused"]')).not.toBeNull());
+    const el = grabCardEl('Card 1');
+    fireEvent.keyDown(el, { key: ' ' });
+    fireEvent.keyDown(el, { key: 'ArrowRight' });
+    fireEvent.keyDown(el, { key: 'Enter' });
+    expect(container.querySelector('[data-part="board-move-refused"]')).toBeNull();
+  });
+
+  it('is the same under RTL: back in its column, the reason said', async () => {
+    const { container } = await refuse(() => Promise.reject(new Error('Not yours.')), 'rtl');
+    await waitFor(() => expect(within(screen.getByTestId('column-drop-in_progress')).getByRole('button', { name: 'Card 1' })).toBeTruthy());
+    expect(container.querySelector('[data-part="board-move-refused"]')!.textContent).toContain('Not yours.');
+  });
+});
+
 describe('kanban-board RTL', () => {
   it('applies dir=rtl and maps ArrowRight to the previous (logical) column', () => {
     const onMove = vi.fn();

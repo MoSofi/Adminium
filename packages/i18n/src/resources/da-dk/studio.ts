@@ -2556,6 +2556,11 @@ export default {
       "heading": "Dokumenttilknytninger",
       "body": "Angiv, hvilken tabel en faktura, en kvittering eller en kontooversigt oprettes fra, hvad der udløser den, og hvem den sendes til pr. e-mail.",
       "cta": "Åbn dokumenttilknytninger"
+    },
+    "mapsCard": {
+      "heading": "Kort",
+      "body": "Om kort vises, hvilke servere der spørges, og hvad hver af dem får at vide.",
+      "cta": "Åbn kort"
     }
   },
   "source": {
@@ -3469,6 +3474,35 @@ export default {
   "installMaps": {
     "title": "Kort",
     "tick": "Vis kort (bruger OpenFreeMap)",
-    "note": "hver persons browser henter kortets billeder fra kortserveren. Den får at vide, hvilket område der ses på, og intet om dine poster. Det er én kontakt for alle apps her."
+    "note": "hver persons browser henter kortets billeder fra kortserveren. Den får at vide, hvilket område der ses på, og intet om dine poster. Det er én kontakt for alle apps her.",
+    "tickHost": "Vis kort (bruger {host})"
+  },
+  "settingsMaps": {
+    "title": "Kort",
+    "subtitle": "Om kort vises, og hvilke servere der spørges.",
+    "saveFailed": "Dette kunne ikke gemmes. Prøv igen.",
+    "loadFailed": "Disse indstillinger kunne ikke læses. Genindlæs siden.",
+    "reload": {
+      "title": "Kort er slået til. Genindlæs for at se dem.",
+      "body": "En side, der var åben, mens kort var slået fra, må ikke spørge kortserveren. Genindlæs den, her og i andre åbne faner.",
+      "cta": "Genindlæs denne side"
+    },
+    "maps": {
+      "heading": "Vis kort",
+      "sees": "Et kort tegnes af billeder af den del af verden, der er på skærmen. Hver medarbejders browser henter dem fra kortserveren, som får personens internetadresse og det område, de kiggede på, at vide. Den får aldrig tilsendt en post, et navn eller hvor dine nåle står.",
+      "server": "Kortserver: {host}. Angivet af den, der driver denne server, med ADMINIUM_MAP_SERVER. Den kan ikke ændres her.",
+      "serverNone": "Kortserver: ingen.",
+      "off": "Når kort er slået fra, vises en liste over de samme steder, hvor kortet ville være, og ingen ekstern server spørges.",
+      "whyDesktop": "Skrivebordsappen virker uden internet og viser intet kort udefra. En liste vises, hvor kortet ville være.",
+      "whyEnvOff": "Den, der driver denne server, har slået kort fra for den (ADMINIUM_MAP_SERVER=off), så denne kontakt gør ingenting."
+    },
+    "routes": {
+      "heading": "Ruter langs veje",
+      "sees": "Mens dette er slået til, spørger denne server ruteserveren om vejen mellem en rutes stop og sender den stoppenes positioner i rækkefølge. Den får denne servers adresse at vide, aldrig en medarbejders, et navn eller en post.",
+      "server": "Ruteserver: {host}. Angivet af den, der driver denne server, med ADMINIUM_ROUTING_SERVER.",
+      "serverNone": "Ruteserver: ingen.",
+      "off": "Når dette er slået fra, er afstande rette linjer, der beregnes på denne server og mærkes “cirka”. Der spørges ikke om noget udefra.",
+      "whyEnvOff": "Den, der driver denne server, har slået ruteserveren fra (ADMINIUM_ROUTING_SERVER=off, eller alle kald udadtil med ADMINIUM_NETWORK_FEATURES=off), så denne kontakt gør ingenting."
+    }
   }
 } as const;

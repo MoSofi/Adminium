@@ -2556,6 +2556,11 @@ export default {
       "heading": "Document mappings",
       "body": "Say which table an invoice, a receipt or a statement is drawn from, what draws it, and who it is emailed to.",
       "cta": "Open document mappings"
+    },
+    "mapsCard": {
+      "heading": "Maps",
+      "body": "Whether maps are shown, which servers are asked, and what each of them learns.",
+      "cta": "Open maps"
     }
   },
   "source": {
@@ -3469,6 +3474,35 @@ export default {
   "installMaps": {
     "title": "Maps",
     "tick": "Show maps (uses OpenFreeMap)",
-    "note": "each person’s browser fetches the map’s pictures from the map server. It learns which area is looked at, and nothing about your records. This is one switch for every app here."
+    "note": "each person’s browser fetches the map’s pictures from the map server. It learns which area is looked at, and nothing about your records. This is one switch for every app here.",
+    "tickHost": "Show maps (uses {host})"
+  },
+  "settingsMaps": {
+    "title": "Maps",
+    "subtitle": "Whether maps are shown, and which servers are asked.",
+    "saveFailed": "This could not be saved. Try again.",
+    "loadFailed": "These settings could not be read. Reload the page.",
+    "reload": {
+      "title": "Maps are on. Reload to see them.",
+      "body": "A page that was open while maps were off may not ask the map server. Reload it, here and in other open tabs.",
+      "cta": "Reload this page"
+    },
+    "maps": {
+      "heading": "Show maps",
+      "sees": "A map is drawn from pictures of the part of the world on screen. Each staff member’s browser fetches them from the map server, which learns that person’s internet address and the area they looked at. It is never sent a record, a name or where your pins are.",
+      "server": "Map server: {host}. Set by whoever runs this server, with ADMINIUM_MAP_SERVER. It cannot be changed here.",
+      "serverNone": "Map server: none.",
+      "off": "With maps off, a list of the same places is shown where a map would be, and no outside server is asked.",
+      "whyDesktop": "The desktop app works without the internet and shows no outside map. A list is shown where a map would be.",
+      "whyEnvOff": "Whoever runs this server switched maps off for it (ADMINIUM_MAP_SERVER=off), so this switch does nothing."
+    },
+    "routes": {
+      "heading": "Routes along roads",
+      "sees": "While this is on, this server asks the routing server for the way between a route’s stops, and sends it the stops’ positions in order. It learns this server’s address, never a staff member’s, a name or a record.",
+      "server": "Routing server: {host}. Set by whoever runs this server, with ADMINIUM_ROUTING_SERVER.",
+      "serverNone": "Routing server: none.",
+      "off": "With this off, distances are straight lines worked out on this server and marked “about”. Nothing is asked outside.",
+      "whyEnvOff": "Whoever runs this server switched the routing server off (ADMINIUM_ROUTING_SERVER=off, or all outside calls with ADMINIUM_NETWORK_FEATURES=off), so this switch does nothing."
+    }
   }
 } as const;

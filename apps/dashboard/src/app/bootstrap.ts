@@ -325,6 +325,13 @@ export interface BootstrapData {
   /** Every role the reader holds is of a part of an app that is switched off: nothing is on for them. */
   partsOff?: true;
   /**
+   * Whether maps are shown and from where. `server` is the map server's
+   * origin, null whenever maps are off (the operator, the desktop app or
+   * Settings → Maps said no): draw no map then. `routing` says whether a
+   * route between stops may follow roads. Absent from an older server.
+   */
+  maps?: { enabled: boolean; server: string | null; routing: boolean };
+  /**
    * The project folder this server runs, absent on every other server. Read
    * through `project/client.ts`.
    */

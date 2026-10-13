@@ -87,6 +87,7 @@ import {
 } from 'lucide-react';
 
 import { ApiError } from '../../app/api.js';
+import { bootstrapQuery } from '../../app/bootstrap.js';
 import { t } from '../../i18n/t.js';
 import { addOnCatalogQuery, downloadAddOn, getAddOnJob } from '../add-ons/addOnsApi.js';
 import { connectionsQuery } from '../hub/ConnectionsHub.js';
@@ -572,7 +573,9 @@ export function InstallAppWizard({ onClose, preselected, quick = false, onMoreCh
             busy={busy}
           />
         )}
-        {plan.maps === true ? <MapsInstallCard checked={showMaps} onChange={setShowMaps} /> : null}
+        {plan.maps === true ? (
+          <MapsInstallCard checked={showMaps} onChange={setShowMaps} server={queryClient.getQueryData(bootstrapQuery().queryKey)?.maps?.server} />
+        ) : null}
         {plan.sampleData === true ? <SampleInstallCard checked={addSample} onChange={setAddSample} withAddOns={addOnRows.length > 0} /> : null}
       </div>
     ) : null;

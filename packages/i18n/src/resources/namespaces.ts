@@ -217,8 +217,14 @@ export const UI_DEFERRED_GROUPS = ['widgets', 'templates', 'pages'] as const;
  * The same contract: nothing on the first paint and nothing on the server
  * reads a key in these groups (the entry-budget check refuses a build whose
  * entry names one).
+ *
+ * `security`, `reports` and `changelog` joined on 2026-10-13: the words of
+ * `/account/security` and the password card, of Scheduled Reports and of the
+ * changelog page, each read by one lazy screen (the card by two) and by
+ * nothing else. `reports.manage` on the server is a permission's name, not
+ * a key of the group.
  */
-export const COMMON_DEFERRED_GROUPS = ['builder', 'kb', 'about', 'team', 'quietHours'] as const;
+export const COMMON_DEFERRED_GROUPS = ['builder', 'kb', 'about', 'team', 'quietHours', 'security', 'reports', 'changelog'] as const;
 
 /** The namespaces en-US delivers in two parts, and the groups of each that come later. */
 export const DEFERRED_GROUPS = { ui: UI_DEFERRED_GROUPS, common: COMMON_DEFERRED_GROUPS } as const;

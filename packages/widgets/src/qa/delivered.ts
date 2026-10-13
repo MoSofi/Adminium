@@ -66,8 +66,8 @@ const DELIVERED_ARRAYS: readonly (readonly WidgetDefinition[])[] = [
   // inline-compose-card)
   boardsTrackDefinitions,
   // geo (TRACK COMM-GEO — M7 Wave 4; the last family to open. Importing this
-  // array does NOT pull Leaflet: it is metadata only, and the map component
-  // dynamically imports Leaflet inside its mount effect — acceptance #3.)
+  // array does NOT pull MapLibre: it is metadata only, and the map component
+  // dynamically imports MapLibre inside its mount effect — acceptance #3.)
   geoTrackDefinitions,
   // media (Track MEDIA — M7 Wave 3; the file-browser exit criterion)
   mediaTrackDefinitions,

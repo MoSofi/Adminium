@@ -40,6 +40,15 @@
  * the unmask grant, or a SECRET column at all — resolves to `null` and is
  * listed in the row's `_masked` marker. Malformed specs and unknown
  * identifiers stay hard 422s: page-author mistakes that must surface.
+ *
+ * WHICH ROWS ARE FOLDED. A measure's `where` (at most three `column in
+ * (values)` tests, ANDed) narrows the fold inside the same subquery, beside
+ * the link test and the reader's row test. A tested column is one more column
+ * that reaches the subquery, so it joins the refusal check above exactly as a
+ * folded one does: a count narrowed by a column the reader may not read would
+ * say which of its values exist, a row at a time. Every value is a bound
+ * parameter, compared with a column whose type can take it — a value of the
+ * wrong type is a 422 here, never a database error there.
  */
 
 import { sql, type ExpressionBuilder, type Kysely, type RawBuilder } from 'kysely';
@@ -54,13 +63,21 @@ import {
   type Measure,
   type MeasureEmpty,
   type MeasureFn,
+  type MeasureWhere,
 } from '@adminium/engine/config';
 
 import { ValidationFailedError } from '../errors.js';
 import type { SourceDatabase } from '../connections/manager.js';
-import type { ResolvedTable, SnapshotView } from './identifiers.js';
+import type { ResolvedColumn, ResolvedTable, SnapshotView } from './identifiers.js';
 import { piiAllows, type PiiAccess, type Row } from './mask.js';
 import type { RowTest } from './row-limit.js';
+
+/** One resolved test of a measure's `where`: a snapshot-owned column name and the values to bind. */
+export interface ResolvedMeasureTest {
+  column: string;
+  /** As the engine binds them; empty ⇒ no row can pass (every value named is one the column cannot hold). */
+  values: (string | number | boolean)[];
+}
 
 /** One resolved term of a fold body: snapshot-owned column names only. */
 export interface ResolvedTerm {
@@ -79,6 +96,8 @@ export interface ResolvedMeasure {
   fn: MeasureFn;
   /** Empty for `count`; otherwise the fold body, in emission order. */
   terms: ResolvedTerm[];
+  /** The rows folded: those passing every test. Empty ⇒ every row linked. */
+  where: ResolvedMeasureTest[];
   /** Decimal string applied to the RESULT after the fetch, or null. */
   factor: string | null;
   emptyAs: MeasureEmpty;
@@ -120,6 +139,58 @@ function inboundFk(
   if (best !== undefined) return best.to.columns[0] as string;
   const mirror = refTable.table.columns.find((column) => column.name === fkColumn)?.references;
   return mirror != null && mirror.tableId === base.id ? mirror.column : null;
+}
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * The values of one `where` test as the engine binds them against `column`.
+ *
+ * Equality is asked only of a type that answers it the same on all three
+ * engines, and only with a value that type can hold: a whole number for an
+ * integer, a number for a decimal, yes or no for a boolean, text for text, an
+ * enum or a uuid. Anything else is the author's mistake, named (422) — bound
+ * as it came, Postgres would raise on `integer = 'open'` and fail the whole
+ * list read. A native enum takes only its own labels (Postgres raises on any
+ * other), so a value it does not have is dropped: it could match no row.
+ */
+function boundTestValues(view: SnapshotView, table: ResolvedTable, column: ResolvedColumn, test: MeasureWhere): (string | number | boolean)[] {
+  const refuse = (expected: string): never => {
+    throw new ValidationFailedError(
+      `\`where\` on ${JSON.stringify(column.name)} of ${table.id} takes ${expected}.`,
+      { table: table.id, column: column.name, type: column.logicalType },
+    );
+  };
+  const every = (fits: (value: string | number | boolean) => boolean): boolean => test.in.every(fits);
+  switch (column.logicalType) {
+    case 'integer':
+    case 'bigint':
+      if (!every((value) => typeof value === 'number' && Number.isSafeInteger(value))) refuse('whole numbers');
+      return [...test.in];
+    case 'decimal':
+    case 'float':
+      if (!every((value) => typeof value === 'number')) refuse('numbers');
+      return [...test.in];
+    case 'boolean':
+      if (!every((value) => typeof value === 'boolean')) refuse('true or false');
+      // better-sqlite3 binds no boolean; SQLite keeps one as 1 or 0 (`bindable` in crud/filters.ts).
+      return view.model.dialect === 'sqlite' ? test.in.map((value) => (value === true ? 1 : 0)) : [...test.in];
+    case 'uuid':
+      if (!every((value) => typeof value === 'string' && UUID.test(value))) refuse('uuids');
+      return [...test.in];
+    case 'text':
+    case 'varchar':
+      if (!every((value) => typeof value === 'string')) refuse('text');
+      return [...test.in];
+    case 'enum': {
+      if (!every((value) => typeof value === 'string')) refuse('text');
+      const ref = table.table.columns.find((candidate) => candidate.name === column.name)?.enumRef ?? null;
+      const labels = ref === null ? undefined : view.model.enums.find((candidate) => candidate.id === ref)?.values;
+      return labels === undefined ? [...test.in] : test.in.filter((value) => labels.includes(value as string));
+    }
+    default:
+      return refuse('no test: only a whole number, a number, a yes/no, text, an enum or a uuid column is compared');
+  }
 }
 
 export interface ResolveMeasuresOptions {
@@ -201,6 +272,24 @@ export async function resolveMeasures(opts: ResolveMeasuresOptions): Promise<Res
       terms.push({ sign: term.sign, factors });
     }
 
+    /*
+     * The tested columns, resolved as a factor is: unknown or secret is the
+     * author's 422; one this reader's role does not show, or masked without
+     * the grant, refuses the measure. Refused — not answered unfiltered, which
+     * would show the open deals' header a figure of every deal, and not
+     * answered filtered, which would say whether a hidden column holds a
+     * value.
+     */
+    const where: ResolvedMeasureTest[] = [];
+    for (const test of spec.where ?? []) {
+      const hidden = refTable.columns.get(test.column);
+      const column = hidden?.unreadable === true ? hidden : view.column(refTable, test.column);
+      maskedTouched ||= column.masked;
+      unreadTouched ||= column.unreadable === true;
+      // A hidden column's type is the reader's to learn as little as its values.
+      where.push({ column: column.name, values: column.unreadable === true ? [] : boundTestValues(view, refTable, column, test) });
+    }
+
     let reason: MeasureRefusal['reason'] | null = null;
     if (secretTouched) reason = 'secret-column';
     else if (unreadTouched) reason = 'masked-column';
@@ -216,6 +305,7 @@ export async function resolveMeasures(opts: ResolveMeasuresOptions): Promise<Res
       toColumn,
       fn: spec.fn,
       terms,
+      where,
       factor: spec.of?.factor ?? null,
       emptyAs: emptyPolicyOf(spec),
       refused: reason !== null,
@@ -293,7 +383,15 @@ export function measureSelections(
           '=',
           dynamic.ref(`${base.name}.${measure.toColumn}`),
         );
-      return (measure.rowTest == null ? folded : folded.where(measure.rowTest(db, alias))).as(measure.alias);
+      // Each test is `alias.column in (?, …)`: the column a snapshot identifier, every value bound.
+      const tested = measure.where.reduce(
+        (query, test) =>
+          test.values.length === 0
+            ? query.where(sql<boolean>`1 = 0`)
+            : query.where(sql<boolean>`${dynamic.ref(`${alias}.${test.column}`)} in (${sql.join(test.values.map((value) => sql.val(value)))})`),
+        folded,
+      );
+      return (measure.rowTest == null ? tested : tested.where(measure.rowTest(db, alias))).as(measure.alias);
     });
 }
 

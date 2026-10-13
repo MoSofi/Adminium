@@ -54,12 +54,46 @@ Worth stating explicitly, because "off" should mean off:
 | Telemetry | **No** |
 | License / activation check | **No — there is none** |
 | Fonts, icons, assets | **No** — all bundled, no CDN |
+| Looking a town up by name | **No** — the list of places ships with Adminium |
+| Map pictures | **Yes, from each viewer's browser, while maps are on.** See below. |
+| Routes along roads | Only if switched on in Settings → Maps. See below. |
 | Your source database | Yes, obviously |
 | Your meta store | Yes |
 | An LLM provider | Only if **you** configured a key, and never on the [BYO path](/guides/llm-assist/byo-prompt/) |
 | Update check | Only if enabled |
 
 An air-gapped Adminium is a supported configuration, not a workaround.
+
+### Maps
+
+Maps are the one thing here that is **on until you turn it off**, so it is said plainly.
+
+**Map pictures.** A page that draws a map makes the **browser of the person looking at it**
+fetch that map's pictures from the map server (`https://tiles.openfreemap.org` unless you set
+[`ADMINIUM_MAP_SERVER`](/self-hosting/env-vars/#adminium_map_server)). The screens that do it:
+a dashboard or page with a map widget, a record or a form with a place or an area on it, and
+Settings → Maps (its preview). The map server learns the viewer's IP address and which part of
+the world they looked at. It is never sent a row, a name, or where your pins are. Your Adminium
+server itself sends it nothing.
+
+Turn it off for everybody in **Settings → Maps → Show maps**, or for the install with
+`ADMINIUM_MAP_SERVER=off`. While it is off, the Content-Security-Policy names no outside server,
+so no page can fetch from one. The desktop app shows no outside map.
+
+While maps are on, that policy names the map server's host on every page the server sends, the
+sign-in page included: the dashboard is one page, loaded before anybody signs in, and its
+policy is the one a map is later drawn under. So somebody who is not signed in can read which
+map server you chose, which is no secret. The dashboard's files never hold the address: the
+server hands it to the dashboard only while maps are on, and with maps off nothing names it.
+
+**Routes along roads.** Off by default. Once somebody switches **Settings → Maps → Routes along
+roads** on, your **server** asks the routing server (`https://router.project-osrm.org` unless
+you set [`ADMINIUM_ROUTING_SERVER`](/self-hosting/env-vars/#adminium_routing_server)) for a
+route when a page shows one. It is sent the ordered positions of the route's stops: no name, no
+row, and not the viewer's address. Turn it off with the same switch, with
+`ADMINIUM_ROUTING_SERVER=off`, or with `ADMINIUM_NETWORK_FEATURES=off`.
+
+→ [Maps, places and routes](/guides/apps/maps/)
 
 ## The AGPL and the About screen
 

@@ -3366,6 +3366,33 @@
                             true
                           ]
                         },
+                        "maps": {
+                          "type": "object",
+                          "properties": {
+                            "enabled": {
+                              "type": "boolean"
+                            },
+                            "server": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "routing": {
+                              "type": "boolean"
+                            }
+                          },
+                          "required": [
+                            "enabled",
+                            "server",
+                            "routing"
+                          ],
+                          "additionalProperties": false
+                        },
                         "project": {
                           "type": "object",
                           "properties": {
@@ -3589,7 +3616,8 @@
                         "pausedPages",
                         "unavailableApps",
                         "appSections",
-                        "disabledAppPages"
+                        "disabledAppPages",
+                        "maps"
                       ],
                       "additionalProperties": false
                     }
@@ -21349,6 +21377,19 @@
             "in": "query",
             "name": "filename",
             "required": false
+          },
+          {
+            "schema": {
+              "default": "first-row",
+              "type": "string",
+              "enum": [
+                "first-row",
+                "none"
+              ]
+            },
+            "in": "query",
+            "name": "header",
+            "required": false
           }
         ],
         "responses": {
@@ -21391,6 +21432,14 @@
                         },
                         "totalRows": {
                           "type": "number"
+                        },
+                        "delimiter": {
+                          "type": "string",
+                          "enum": [
+                            "comma",
+                            "tab",
+                            "semicolon"
+                          ]
                         }
                       },
                       "required": [
@@ -21478,7 +21527,8 @@
                         "type": "string",
                         "enum": [
                           "insert",
-                          "upsert"
+                          "upsert",
+                          "skip"
                         ]
                       },
                       "matchColumn": {
@@ -21578,7 +21628,8 @@
                                   "type": "string",
                                   "enum": [
                                     "insert",
-                                    "upsert"
+                                    "upsert",
+                                    "skip"
                                   ]
                                 },
                                 "matchColumn": {
@@ -21629,6 +21680,11 @@
                                       "maximum": 9007199254740991
                                     },
                                     "skipped": {
+                                      "type": "integer",
+                                      "minimum": -9007199254740991,
+                                      "maximum": 9007199254740991
+                                    },
+                                    "alreadyHere": {
                                       "type": "integer",
                                       "minimum": -9007199254740991,
                                       "maximum": 9007199254740991
@@ -21849,7 +21905,8 @@
                                 "type": "string",
                                 "enum": [
                                   "insert",
-                                  "upsert"
+                                  "upsert",
+                                  "skip"
                                 ]
                               },
                               "matchColumn": {
@@ -21900,6 +21957,11 @@
                                     "maximum": 9007199254740991
                                   },
                                   "skipped": {
+                                    "type": "integer",
+                                    "minimum": -9007199254740991,
+                                    "maximum": 9007199254740991
+                                  },
+                                  "alreadyHere": {
                                     "type": "integer",
                                     "minimum": -9007199254740991,
                                     "maximum": 9007199254740991
@@ -22063,7 +22125,8 @@
                                   "type": "string",
                                   "enum": [
                                     "insert",
-                                    "upsert"
+                                    "upsert",
+                                    "skip"
                                   ]
                                 },
                                 "matchColumn": {
@@ -22114,6 +22177,11 @@
                                       "maximum": 9007199254740991
                                     },
                                     "skipped": {
+                                      "type": "integer",
+                                      "minimum": -9007199254740991,
+                                      "maximum": 9007199254740991
+                                    },
+                                    "alreadyHere": {
                                       "type": "integer",
                                       "minimum": -9007199254740991,
                                       "maximum": 9007199254740991
@@ -22187,6 +22255,143 @@
                       "required": [
                         "import",
                         "jobId"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/imports/{id}/preview": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "default": 0,
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "in": "query",
+            "name": "offset",
+            "required": false
+          },
+          {
+            "schema": {
+              "default": 100,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200
+            },
+            "in": "query",
+            "name": "limit",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "total": {
+                          "type": "number"
+                        },
+                        "judged": {
+                          "type": "number"
+                        },
+                        "capped": {
+                          "type": "boolean"
+                        },
+                        "counts": {
+                          "type": "object",
+                          "properties": {
+                            "new": {
+                              "type": "number"
+                            },
+                            "here": {
+                              "type": "number"
+                            },
+                            "refused": {
+                              "type": "number"
+                            }
+                          },
+                          "required": [
+                            "new",
+                            "here",
+                            "refused"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "hooksNotRun": {
+                          "type": "boolean"
+                        },
+                        "lines": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "row": {
+                                "type": "number"
+                              },
+                              "status": {
+                                "type": "string",
+                                "enum": [
+                                  "new",
+                                  "here",
+                                  "refused"
+                                ]
+                              },
+                              "code": {
+                                "type": "string"
+                              },
+                              "column": {
+                                "type": "string"
+                              },
+                              "message": {
+                                "type": "string"
+                              },
+                              "earlierLine": {
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "row",
+                              "status"
+                            ],
+                            "additionalProperties": false
+                          }
+                        }
+                      },
+                      "required": [
+                        "total",
+                        "judged",
+                        "capped",
+                        "counts",
+                        "hooksNotRun",
+                        "lines"
                       ],
                       "additionalProperties": false
                     }
@@ -22283,7 +22488,8 @@
                               "type": "string",
                               "enum": [
                                 "insert",
-                                "upsert"
+                                "upsert",
+                                "skip"
                               ]
                             },
                             "matchColumn": {
@@ -22334,6 +22540,11 @@
                                   "maximum": 9007199254740991
                                 },
                                 "skipped": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                "alreadyHere": {
                                   "type": "integer",
                                   "minimum": -9007199254740991,
                                   "maximum": 9007199254740991
@@ -83402,6 +83613,18 @@
                                     true
                                   ]
                                 },
+                                "place": {
+                                  "type": "boolean",
+                                  "enum": [
+                                    true
+                                  ]
+                                },
+                                "area": {
+                                  "type": "boolean",
+                                  "enum": [
+                                    true
+                                  ]
+                                },
                                 "requiredWhen": {
                                   "type": "object",
                                   "properties": {
@@ -83654,6 +83877,18 @@
                                         "type": "boolean"
                                       },
                                       "mentions": {
+                                        "type": "boolean",
+                                        "enum": [
+                                          true
+                                        ]
+                                      },
+                                      "place": {
+                                        "type": "boolean",
+                                        "enum": [
+                                          true
+                                        ]
+                                      },
+                                      "area": {
                                         "type": "boolean",
                                         "enum": [
                                           true
@@ -84162,6 +84397,18 @@
                                         true
                                       ]
                                     },
+                                    "place": {
+                                      "type": "boolean",
+                                      "enum": [
+                                        true
+                                      ]
+                                    },
+                                    "area": {
+                                      "type": "boolean",
+                                      "enum": [
+                                        true
+                                      ]
+                                    },
                                     "requiredWhen": {
                                       "type": "object",
                                       "properties": {
@@ -84366,6 +84613,18 @@
                                 "type": "boolean"
                               },
                               "mentions": {
+                                "type": "boolean",
+                                "enum": [
+                                  true
+                                ]
+                              },
+                              "place": {
+                                "type": "boolean",
+                                "enum": [
+                                  true
+                                ]
+                              },
+                              "area": {
                                 "type": "boolean",
                                 "enum": [
                                   true
@@ -87968,6 +88227,545 @@
         }
       }
     },
+    "/api/v1/geo/places": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 120
+            },
+            "in": "query",
+            "name": "q",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 80
+            },
+            "in": "query",
+            "name": "country",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 20
+            },
+            "in": "query",
+            "name": "limit",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z]{2,3}(?:[-_][A-Za-z0-9]{2,8})*$"
+            },
+            "in": "query",
+            "name": "language",
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "plainName": {
+                            "type": "string"
+                          },
+                          "country": {
+                            "type": "string"
+                          },
+                          "countryName": {
+                            "type": "string"
+                          },
+                          "region": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "lat": {
+                            "type": "number"
+                          },
+                          "lng": {
+                            "type": "number"
+                          },
+                          "population": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name",
+                          "plainName",
+                          "country",
+                          "countryName",
+                          "region",
+                          "lat",
+                          "lng",
+                          "population"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/geo/places/{id}": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z]{2,3}(?:[-_][A-Za-z0-9]{2,8})*$"
+            },
+            "in": "query",
+            "name": "language",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "plainName": {
+                          "type": "string"
+                        },
+                        "country": {
+                          "type": "string"
+                        },
+                        "countryName": {
+                          "type": "string"
+                        },
+                        "region": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "lat": {
+                          "type": "number"
+                        },
+                        "lng": {
+                          "type": "number"
+                        },
+                        "population": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name",
+                        "plainName",
+                        "country",
+                        "countryName",
+                        "region",
+                        "lat",
+                        "lng",
+                        "population"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/geo/places/match": {
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "items": {
+                    "minItems": 1,
+                    "maxItems": 200,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "town": {
+                          "type": "string",
+                          "maxLength": 200
+                        },
+                        "region": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "maxLength": 200
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "country": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "maxLength": 80
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "town"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "language": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z]{2,3}(?:[-_][A-Za-z0-9]{2,8})*$"
+                  }
+                },
+                "required": [
+                  "items"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "anyOf": [
+                          {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "integer",
+                                "minimum": -9007199254740991,
+                                "maximum": 9007199254740991
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "plainName": {
+                                "type": "string"
+                              },
+                              "country": {
+                                "type": "string"
+                              },
+                              "countryName": {
+                                "type": "string"
+                              },
+                              "region": {
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "lat": {
+                                "type": "number"
+                              },
+                              "lng": {
+                                "type": "number"
+                              },
+                              "population": {
+                                "type": "integer",
+                                "minimum": -9007199254740991,
+                                "maximum": 9007199254740991
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "name",
+                              "plainName",
+                              "country",
+                              "countryName",
+                              "region",
+                              "lat",
+                              "lng",
+                              "population"
+                            ],
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/geo/route": {
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "stops": {
+                    "minItems": 2,
+                    "maxItems": 50,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "lat": {
+                          "type": "number",
+                          "minimum": -90,
+                          "maximum": 90
+                        },
+                        "lng": {
+                          "type": "number",
+                          "minimum": -180,
+                          "maximum": 180
+                        },
+                        "by": {
+                          "type": "string",
+                          "enum": [
+                            "town",
+                            "exact"
+                          ]
+                        },
+                        "placeId": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 9007199254740991
+                        }
+                      },
+                      "required": [
+                        "lat",
+                        "lng"
+                      ],
+                      "additionalProperties": false
+                    }
+                  }
+                },
+                "required": [
+                  "stops"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "source": {
+                          "type": "string",
+                          "enum": [
+                            "straight",
+                            "server"
+                          ]
+                        },
+                        "fellBack": {
+                          "type": "boolean",
+                          "enum": [
+                            true
+                          ]
+                        },
+                        "legs": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "distanceM": {
+                                "anyOf": [
+                                  {
+                                    "type": "integer",
+                                    "minimum": -9007199254740991,
+                                    "maximum": 9007199254740991
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "durationS": {
+                                "anyOf": [
+                                  {
+                                    "type": "integer",
+                                    "minimum": -9007199254740991,
+                                    "maximum": 9007199254740991
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "estimate": {
+                                "type": "boolean"
+                              },
+                              "unknown": {
+                                "type": "boolean",
+                                "enum": [
+                                  true
+                                ]
+                              }
+                            },
+                            "required": [
+                              "distanceM",
+                              "durationS",
+                              "estimate"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "line": {
+                          "type": "object",
+                          "properties": {
+                            "type": {
+                              "type": "string",
+                              "enum": [
+                                "LineString"
+                              ]
+                            },
+                            "coordinates": {
+                              "type": "array",
+                              "items": {
+                                "type": "array",
+                                "prefixItems": [
+                                  {
+                                    "type": "number"
+                                  },
+                                  {
+                                    "type": "number"
+                                  }
+                                ]
+                              }
+                            }
+                          },
+                          "required": [
+                            "type",
+                            "coordinates"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "required": [
+                        "source",
+                        "legs"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/widget-data/query": {
       "post": {
         "requestBody": {
@@ -90297,6 +91095,175 @@
                       "required": [
                         "telemetry",
                         "updateCheck"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/settings/maps": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "enabled": {
+                          "type": "boolean"
+                        },
+                        "routing": {
+                          "type": "boolean"
+                        },
+                        "mapServer": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "mapServerOff": {
+                          "type": "boolean"
+                        },
+                        "routingServer": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "routingServerOff": {
+                          "type": "boolean"
+                        },
+                        "runtime": {
+                          "type": "string",
+                          "enum": [
+                            "self-host",
+                            "desktop"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "enabled",
+                        "routing",
+                        "mapServer",
+                        "mapServerOff",
+                        "routingServer",
+                        "routingServerOff",
+                        "runtime"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "enabled": {
+                    "type": "boolean"
+                  },
+                  "routing": {
+                    "type": "boolean"
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "enabled": {
+                          "type": "boolean"
+                        },
+                        "routing": {
+                          "type": "boolean"
+                        },
+                        "mapServer": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "mapServerOff": {
+                          "type": "boolean"
+                        },
+                        "routingServer": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "routingServerOff": {
+                          "type": "boolean"
+                        },
+                        "runtime": {
+                          "type": "string",
+                          "enum": [
+                            "self-host",
+                            "desktop"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "enabled",
+                        "routing",
+                        "mapServer",
+                        "mapServerOff",
+                        "routingServer",
+                        "routingServerOff",
+                        "runtime"
                       ],
                       "additionalProperties": false
                     }

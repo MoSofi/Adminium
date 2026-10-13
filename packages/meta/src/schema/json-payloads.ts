@@ -1492,6 +1492,9 @@ export const overridePatchSchema = z.discriminatedUnion('op', [
   z.object({ op: z.literal('column.staff'), value: z.object({ staff: z.literal(true) }).strict() }),
   /* A text column in which people are mentioned; `about` is the link to the record a mention there is about (a comment's deal). */
   z.object({ op: z.literal('column.mentions'), value: z.object({ mentions: z.union([z.literal(true), z.object({ about: ruleColumn }).strict()]) }).strict() }),
+  /* A json column that holds a position on the map (`{ lat, lng, by }`), and one that holds an area (a GeoJSON polygon). */
+  z.object({ op: z.literal('column.place'), value: z.object({ place: z.literal(true) }).strict() }),
+  z.object({ op: z.literal('column.area'), value: z.object({ area: z.literal(true) }).strict() }),
   /* How a person belongs to a row of the table, each way with its table names as the real tables' ids. */
   z.object({ op: z.literal('table.belongs'), value: z.object({ ways: z.array(storedBelongsWay).min(1).max(6) }).strict() }),
   /* Rows read by the people they belong to, and by nobody and nothing else. */
@@ -2299,7 +2302,8 @@ export const importMappingSchema = z.object({
   columns: z.array(z.object({ from: z.string(), to: z.string().nullable() })),
 });
 export const importOptionsSchema = z.object({
-  mode: z.enum(['insert', 'upsert']).optional(),
+  /** `skip` matches as `upsert` does and leaves a line that is already here as it is. */
+  mode: z.enum(['insert', 'upsert', 'skip']).optional(),
   matchColumn: z.string().nullish(),
   skipInvalid: z.boolean().optional(),
 });
@@ -2308,6 +2312,8 @@ export const importStatsSchema = z.object({
   inserted: z.number().int().optional(),
   updated: z.number().int().optional(),
   skipped: z.number().int().optional(),
+  /** The lines of a `skip` import left alone because their row was already here: part of `skipped`. */
+  alreadyHere: z.number().int().optional(),
 });
 export const importStatusSchema = z.enum(['validating', 'ready', 'running', 'succeeded', 'failed', 'cancelled']);
 

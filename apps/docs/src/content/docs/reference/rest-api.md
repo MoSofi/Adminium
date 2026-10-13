@@ -119,9 +119,10 @@ Forty-eight namespaces. Counts are operations, not paths.
 | `/api/v1/events` | 1 | Server-sent events — the fallback when a WebSocket cannot be established |
 | `/api/v1/exports/*` | 7 | Queued exports of a whole result set, and their downloads |
 | `/api/v1/files/*` | 11 | Uploaded files and record attachments — upload, list, download (with Range and ETag), attach to a record, rename, move to trash and restore |
+| `/api/v1/geo/*` | 4 | Places and routes, for anybody signed in. Towns found by name from a list that ships with the server (no other site is asked, with maps on or off), one town by its id, the towns of up to 200 addresses at once, and the legs between 2 to 50 stops: straight-line estimates unless routes along roads are switched on in Settings → Maps |
 | `/api/v1/healthz` | 1 | Liveness |
 | `/api/v1/i18n/*` | 13 | Runtime translations — locales, keys, bundles, import/export, format errors |
-| `/api/v1/imports/*` | 6 | CSV/spreadsheet imports — upload, dry run, run, error report |
+| `/api/v1/imports/*` | 7 | CSV/spreadsheet imports — upload, dry run, run, error report |
 | `/api/v1/invoices/*` | 10 | Invoice templates and invoices — the documents, their language variations, the starters, duplicates, and building an invoice from a template |
 | `/api/v1/jobs/*` | 4 | Background jobs — enqueue, poll, cancel |
 | `/api/v1/ledgers/*` | 4 | The rules that hand rows to an add-on's ledger (stock, gift cards) — which tables post into it, whether each rule runs, how many rows hold something under it and how many saves wait to be worked out; the tables and columns a new rule may be drawn from; making the ledger's items from a table's rows; and recording the saves let through while the add-on could not be asked. Reading needs a session and the connection; the two runs need the grant that changes what a table's columns mean. A rule itself is stored under /connections/:id/tables/:table/postings. |
@@ -145,7 +146,7 @@ Forty-eight namespaces. Counts are operations, not paths.
 | `/api/v1/scheduled-reports/*` | 4 | Recurring exports delivered on a schedule |
 | `/api/v1/schema-import` | 1 | Parse a schema file (SQL, Prisma, Drizzle, the JSON IR, …) into the IR |
 | `/api/v1/search` | 1 | Cross-resource search for the command palette |
-| `/api/v1/settings/*` | 10 | Instance settings — defaults, branding, email, security, telemetry, workspace |
+| `/api/v1/settings/*` | 12 | Instance settings — defaults, branding, email, security, telemetry, workspace |
 | `/api/v1/setup/*` | 4 | First-boot super-admin creation, whether setup is still open, and — in that same window — checking a database for an Adminium store already in it and adopting that store |
 | `/api/v1/storage/*` | 8 | Where uploaded and generated files are stored — configure destinations (this server’s disk, an S3-compatible bucket, a WebDAV server), test one, choose the default, and move existing files between them |
 | `/api/v1/surfaces/*` | 6 | Hosted app surfaces — placement in the dashboard, and attaching your own domains |
@@ -504,6 +505,15 @@ POST /api/v1/files/{id}/detach
 POST /api/v1/files/{id}/restore
 ```
 
+### `/geo`
+
+```http
+GET /api/v1/geo/places
+GET /api/v1/geo/places/{id}
+POST /api/v1/geo/places/match
+POST /api/v1/geo/route
+```
+
 ### `/healthz`
 
 ```http
@@ -535,6 +545,7 @@ POST /api/v1/imports/upload
 GET /api/v1/imports
 POST /api/v1/imports
 POST /api/v1/imports/{id}/run
+GET /api/v1/imports/{id}/preview
 GET /api/v1/imports/{id}
 GET /api/v1/imports/{id}/error-report
 ```
@@ -820,6 +831,8 @@ GET /api/v1/settings/security
 PUT /api/v1/settings/security
 GET /api/v1/settings/telemetry
 PUT /api/v1/settings/telemetry
+GET /api/v1/settings/maps
+PUT /api/v1/settings/maps
 GET /api/v1/settings/email
 PUT /api/v1/settings/email
 ```

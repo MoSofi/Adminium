@@ -34,7 +34,7 @@ import {
   type PageEnvelope,
   type QueryDescriptor,
 } from '@adminium/engine/config';
-import { calendarChoicesInstanceId, type WidgetDataState } from '@adminium/widgets';
+import { boardColumnsInstanceId, calendarChoicesInstanceId, type WidgetDataState } from '@adminium/widgets';
 
 import {
   WIDGET_DATA_KEY_ROOT,
@@ -88,6 +88,10 @@ export function extractPlanningBindings(page: PageEnvelope): PlanningBindings {
     // never date-windowed (the window targets the calendar's own id).
     const choices = item.config['choicesBinding'];
     if (choices !== undefined) add(calendarChoicesInstanceId(item.i), choices);
+    // A board over an enum the page named counts and totals each value with a
+    // second query (`boardColumns.ts`): same batch, its own instance id.
+    const columns = item.config['columnsBinding'];
+    if (columns !== undefined) add(boardColumnsInstanceId(item.i), columns);
   }
   return { requests, invalid };
 }

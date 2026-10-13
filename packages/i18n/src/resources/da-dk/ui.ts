@@ -699,6 +699,8 @@ export default {
         "emptyBody": "Gruppér poster efter et bane-felt og et status-felt for at opbygge gitteret."
       },
       "addCard": "Tilføj kort",
+      "notMoved": "{title} blev ikke flyttet.",
+      "dismissNotice": "Luk",
       "grip": "Træk for at flytte kortet",
       "pointsUnit": "pt.",
       "laneSummary": "Σ{points} pt. · {count}",
@@ -782,9 +784,46 @@ export default {
         "description": "Et kort med cirkelmarkører, hvis størrelse følger den valgte måling, sammen med en rangliste over de største steder.",
         "emptyTitle": "Ingen lokationer",
         "emptyBody": "Rækker med bredde- og længdegrad vises her som kortmarkører.",
-        "mapUnavailableLabel": "Kortet kunne ikke indlæses. Ranglisten viser de samme data.",
+        "mapUnavailableLabel": "Kortet kunne ikke nås. Her er listen.",
         "regionsLabel": "Førende regioner",
-        "metricLabel": "Måling"
+        "metricLabel": "Måling",
+        "mapsOffLabel": "Kort er slået fra. Her er listen.",
+        "mapsOffLink": "Åbn Indstillinger → Kort",
+        "mapLabel": "Kort",
+        "zoomIn": "Zoom ind",
+        "zoomOut": "Zoom ud",
+        "byTown": "efter by",
+        "pinMoveHint": "Træk til det præcise sted. Med tastaturet: Enter tager nålen op, piletasterne flytter den, Enter beholder stedet, og Esc sætter den tilbage.",
+        "sharedTown": "{count, plural, one {# sted kendes} other {# steder kendes}} kun ved denne by",
+        "stopsLabel": "Stop",
+        "placesLabel": "Steder",
+        "areasLabel": "Områder",
+        "legAbout": "cirka {distance} fra forrige stop",
+        "legExact": "{distance} fra forrige stop",
+        "legUnknown": "afstand fra forrige stop ukendt",
+        "openInMaps": "Åbn i min kort-app",
+        "cornerLabel": "Hjørne {number}",
+        "areaChangeHint": "Træk et hjørne for at flytte det. Vælg et hjørne for at fjerne det eller tilføje et efter det.",
+        "areaDrawHint": "Klik på kortet for at tilføje områdets hjørner, og luk derefter figuren.",
+        "areaAddCornerHere": "Tilføj et hjørne midt på kortet",
+        "areaClose": "Luk figuren",
+        "areaInsertCorner": "Tilføj et hjørne efter dette",
+        "areaRemoveCorner": "Fjern dette hjørne",
+        "areaRestart": "Start forfra",
+        "areaDone": "Færdig",
+        "areaPickHint": "Vælg et område på kortet eller i listen for at ændre det.",
+        "areaNew": "Tegn et nyt område",
+        "areaChange": "Ændr",
+        "areaUnnamed": "Område {number}",
+        "areaPoints": "{count, plural, one {# punkt} other {# punkter}}",
+        "areaPiecesHint": "Dette område har et hul eller flere dele. De bliver, som de er, mens du ændrer dette omrids. “Start forfra” erstatter hele området med én ny figur.",
+        "listMore": "og {count, plural, one {# mere} other {# flere}}",
+        "saidCornerAdded": "Hjørne tilføjet. {count, plural, one {# hjørne} other {# hjørner}}.",
+        "saidShapeClosed": "Figuren er lukket.",
+        "saidPinKept": "Nålen er beholdt ved {position}.",
+        "saidPinPicked": "Nålen er taget op. Flyt den med piletasterne, og tryk så på Enter for at beholde stedet eller Esc for at sætte den tilbage.",
+        "saidPinBack": "Nålen er tilbage, hvor den var.",
+        "saidPinRefused": "Det nye sted blev ikke gemt. Nålen er tilbage, hvor den var."
       },
       "mapChoroplethGrid": {
         "description": "Regionsfelter tonet efter værdi – til tabeller med regionskoder, men uden koordinater.",
@@ -793,6 +832,38 @@ export default {
         "legendLowLabel": "Lav",
         "legendHighLabel": "Høj",
         "chartLabel": "Regional fordeling"
+      },
+      "place": {
+        "pinName": "Dette sted",
+        "placeholder": "Skriv en by, eller indsæt koordinater eller et kortlink",
+        "searching": "Søger…",
+        "noTown": "Ingen by med det navn. Prøv en anden stavemåde, eller indsæt koordinater.",
+        "searchFailed": "Listen over byer kunne ikke spørges lige nu. Prøv igen, eller indsæt koordinater.",
+        "whereIAm": "Hvor jeg er",
+        "byTown": "Efter by: {name}",
+        "exact": "Præcist sted: {position}",
+        "exactNamed": "Præcist sted: {name} ({position})",
+        "pending": "Læses, når du gemmer: {text}",
+        "none": "Intet sted endnu",
+        "clear": "Ryd",
+        "whereError": "Enheden oplyste ikke, hvor den er. Tjek, at browseren må bruge din placering.",
+        "issue": {
+          "unreadable": "Dette kunne ikke læses som et sted. Vælg en by på listen, eller indsæt koordinater som 30.0444, 31.2357.",
+          "shortLink": "Et kort link siger ikke, hvor det fører hen, og det følges ikke. Åbn det, og indsæt derefter det fulde link eller koordinaterne.",
+          "outOfRange": "Disse koordinater er ikke på kortet. Breddegraden går fra -90 til 90, længdegraden fra -180 til 180.",
+          "unknown": "Denne by er ikke længere på listen. Vælg den igen."
+        }
+      },
+      "area": {
+        "points": "Område · {count, plural, one {# punkt} other {# punkter}}",
+        "unreadable": "Den gemte værdi er ikke et område. Tegn et for at erstatte den.",
+        "none": "Intet område endnu",
+        "clear": "Ryd",
+        "mapsOff": "Et område tegnes på kortet, og kort er slået fra. Det gemte område bevares, som det er.",
+        "issue": {
+          "unreadable": "Dette kunne ikke læses som et område. Tegn det igen.",
+          "tooLarge": "Dette område har for mange punkter. Tegn det med færre."
+        }
       }
     },
     "domain": {
@@ -1857,6 +1928,8 @@ export default {
     "board": {
       "invalidLayout": "Denne tavles gemte layout er ugyldigt. Generér siden igen, eller nulstil dens layout.",
       "noRowsTitle": "Ingen kort endnu",
+      "noColumnsTitle": "Ingen kolonner endnu",
+      "noColumnsBody": "Denne tavle tager sine kolonner fra rækkerne i en tabel, og den tabel har ingen rækker endnu. Tilføj en, så vises den her som en kolonne.",
       "noRowsBody": "Kort vises her, så snart tabellen har rækker."
     },
     "calendar": {
@@ -1965,6 +2038,8 @@ export default {
       "unplaced": {
         "calendar": "Ingen af tabellens rækker har en dato endnu, så kalenderen er tom. En række vises her, så snart den har en.",
         "board": "Ingen af tabellens rækker har en status endnu, så tavlen er tom. En række vises her, så snart den har en.",
+        "boardColumns": "Ingen af tabellens rækker står i en af tavlens kolonner endnu, så tavlen er tom. En række vises her, så snart den er sat i en.",
+        "boardColumnsSome": "{count, plural, one {# række står ikke i nogen af tavlens kolonner og vises derfor ikke her.} other {# rækker står ikke i nogen af tavlens kolonner og vises derfor ikke her.}}",
         "scheduler": "Ingen af tabellens rækker har en person, en dato og en vagttype endnu, så planen er tom. En række vises her, så snart den har alle tre."
       }
     }

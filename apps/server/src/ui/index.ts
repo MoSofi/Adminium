@@ -316,6 +316,34 @@ export interface RecordsQuery<R extends AnyRecord = AnyRecord> {
   /** 50 when unset, 200 at most. */
   limit?: number;
   offset?: number;
+  /**
+   * Figures for each row, worked out by the server from the rows of another
+   * table that link to it: how many there are, or the sum or the average of
+   * one of their columns (a stage's deals, and what they are worth). Each is
+   * on the row under its `as`, over the rows the person signed in may see.
+   * Twelve at most.
+   */
+  measures?: readonly RecordMeasure[];
+}
+
+/** A figure for each row of a list, from the rows of another table that link to it. */
+export interface RecordMeasure {
+  /** The name the figure has on each row: letters, digits and `_`. */
+  as: string;
+  /** The table whose rows are counted or totalled. */
+  table: string;
+  /** Its column that links to the table being listed. */
+  via: string;
+  fn: 'count' | 'sum' | 'avg';
+  /** The column summed or averaged. Not for `count`. */
+  of?: string;
+  /**
+   * Which of those rows are counted or totalled: the ones whose every column
+   * named holds its value, or one of its values (`{ state: 'open' }`,
+   * `{ kind: ['new', 'renewal'] }`). Three columns at most, twenty values
+   * each. A column the person signed in may not read leaves the figure empty.
+   */
+  where?: Readonly<Record<string, string | number | boolean | readonly (string | number | boolean)[]>>;
 }
 
 export interface QueryState {
@@ -374,6 +402,14 @@ export interface BoardColumn {
   tone?: 'neutral' | 'accent' | 'pos' | 'warn' | 'danger' | 'info';
   /** A limit on the cards in the column, shown beside its count. */
   limit?: number;
+  /**
+   * How many cards the column holds in all, shown in place of the number of
+   * `cards` given for it: give it when the cards are a list that stops at a
+   * limit (a `measures` count of `useRecords` is one).
+   */
+  count?: number;
+  /** A figure for the column, already formatted ("€12,400"), shown beside its count. */
+  total?: string;
 }
 
 /** A card of a board. */
@@ -401,7 +437,8 @@ export interface BoardProps {
   /**
    * A card was dropped in another column (by drag, or by the keyboard: space
    * to pick up, arrows, enter). Return the save's promise: when it rejects,
-   * the card goes back where it was.
+   * the card goes back where it was, and the board says why above its
+   * columns, in the rejection's own words (an `Error`'s message).
    */
   onMove?: (cardId: string, fromColumn: string, toColumn: string) => void | Promise<unknown>;
   /** A card was opened (click, or enter on it). */
@@ -418,6 +455,13 @@ export interface ImportWizardProps {
   table: string;
   /** The columns a file's columns can be mapped to: each one's name in the table, and what to call it. */
   columns: readonly { key: string; label?: string }[];
+  /**
+   * The column (one of `columns`, by its key) lines are matched on, chosen
+   * already: a line whose value is in the table is then left as it is, or
+   * updated, as the person picks. They can still change it. Without it every
+   * line is new until they choose a column.
+   */
+  matchOn?: string;
 }
 
 /** A place on a map. */
@@ -430,6 +474,42 @@ export interface MapPoint {
   value?: number;
   /** Returned to `onSelect`, so the page knows which record was picked. */
   id?: string;
+  /**
+   * How the position is known, as a place column says it: `town` is the
+   * middle of a town (the place is somewhere in it), `exact` a spot a person
+   * gave. A pin known by its town is drawn hollow and says "by town"; several
+   * in one town are drawn in a ring around it so each can be picked.
+   */
+  by?: 'town' | 'exact';
+}
+
+/** An area on a map: a GeoJSON `Polygon` or `MultiPolygon`, positions as `[lng, lat]`. */
+export type MapAreaGeometry = { type: 'Polygon'; coordinates: number[][][] } | { type: 'MultiPolygon'; coordinates: number[][][][] };
+
+export interface MapArea {
+  id: string;
+  /** Its name in the list beside the map. */
+  name?: string;
+  geometry: MapAreaGeometry;
+  tone?: 'neutral' | 'accent' | 'pos' | 'warn' | 'danger' | 'info';
+}
+
+/** One leg of a route, as `POST /api/v1/geo/route` answers it. */
+export interface MapRouteLeg {
+  distanceM: number | null;
+  durationS: number | null;
+  /** A straight line and not a road: said as "about". */
+  estimate: boolean;
+  /** Both ends are known only as the same town: said as "unknown", never 0. */
+  unknown?: true;
+}
+
+/** The way through the points, in their order. */
+export interface MapRoute {
+  /** The road, as a GeoJSON `LineString`. Without one, straight dashed legs are drawn. */
+  line?: { type: 'LineString'; coordinates: number[][] };
+  /** One leg between each two neighbours: one fewer than the points. */
+  legs: readonly MapRouteLeg[];
 }
 
 export interface MapViewProps {
@@ -440,6 +520,33 @@ export interface MapViewProps {
   zoom?: number;
   /** A pin or its row in the list was picked. */
   onSelect?: (point: MapPoint) => void;
+  /**
+   * A pin was dragged to the exact spot (with the keyboard: Enter picks a
+   * focused pin up, the arrow keys move it, Enter keeps the spot and Escape
+   * puts it back). Giving this turns dragging on; save `{ lat, lng }` into
+   * the place column and it is stored as an exact place.
+   *
+   * Return the promise of the save. When it is refused, or when the point
+   * has not moved once it settles (nothing was saved, or the points were not
+   * read again), the pin goes back to where it was.
+   */
+  onPlace?: (point: MapPoint, at: { lat: number; lng: number }) => void | Promise<unknown>;
+  /** Areas drawn as filled outlines, and named in the list. */
+  areas?: readonly MapArea[];
+  /**
+   * An area was drawn (`id` is null) or changed. Giving this turns drawing
+   * on: click to add corners, close the shape, drag or remove a corner.
+   *
+   * A new shape is a `Polygon`. A changed one keeps the kind it had: only the
+   * outer ring of its (first) polygon is changed on the map, and its holes
+   * and the further polygons of a `MultiPolygon` come back as they were. So
+   * save the whole `geometry` as it is handed over.
+   */
+  onAreaChange?: (id: string | null, geometry: MapAreaGeometry) => void | Promise<unknown>;
+  /** The way through `points`, in their order: stops are numbered and each leg's length is listed. */
+  route?: MapRoute;
+  /** The unit a route's legs are said in. Default `km`. */
+  units?: 'km' | 'mi';
   /** What `value` is, as the list's heading (such as "Open deals"). */
   valueLabel?: string;
   /** Shown when there is no point to place. */

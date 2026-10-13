@@ -33,7 +33,7 @@ import {
   optionsForColumn,
   unchangedField,
 } from './field-mapping.js';
-import { CONTROL_COMPONENTS, MENTIONS_ENTRY, type ControlOption } from './controls/index.js';
+import { AREA_ENTRY, CONTROL_COMPONENTS, MENTIONS_ENTRY, PLACE_ENTRY, type ControlOption } from './controls/index.js';
 import { relationColumnShape } from './controls/reference-chips.js';
 import type { ColumnFact, ColumnFacts, ListOptionsResolver } from './field-mapping.js';
 import type { CrudApi, CrudRow } from './crud-api.js';
@@ -215,6 +215,8 @@ export interface RecordFormProps {
    * strikes nothing out, which is the honest picture of "not checked".
    */
   availability?: CrudApi['availability'] | undefined;
+  /** Towns for a place field's suggestions (CrudApi.places); absent ⇒ none are offered. */
+  places?: CrudApi['places'] | undefined;
   /** The record being edited — what a calendar excludes from that read. */
   recordId?: string | undefined;
   /**
@@ -348,6 +350,7 @@ export function RecordForm({
   listOptions,
   lookup,
   availability,
+  places,
   recordId,
   onSubmit,
   formId,
@@ -817,7 +820,9 @@ export function RecordForm({
     }
 
     // A text people are mentioned in takes the box that offers them, whichever text control the page chose for it.
-    const entry = fact?.mentions === true && relationId === null ? MENTIONS_ENTRY : (CONTROL_COMPONENTS[control as keyof typeof CONTROL_COMPONENTS] ?? CONTROL_COMPONENTS.text);
+    // A place and an area likewise: the column's rule says what it holds, and no stored control draws a map.
+    const marked = relationId !== null ? undefined : fact?.place === true ? PLACE_ENTRY : fact?.area === true ? AREA_ENTRY : fact?.mentions === true ? MENTIONS_ENTRY : undefined;
+    const entry = marked ?? CONTROL_COMPONENTS[control as keyof typeof CONTROL_COMPONENTS] ?? CONTROL_COMPONENTS.text;
     const Control = entry.component;
 
     const required = relationId === null && (overrides.required === true || isRequired(column, fact, values, mode === 'edit' ? initialValues : undefined));
@@ -853,6 +858,7 @@ export function RecordForm({
       ...(maxFileBytes === undefined ? {} : { maxFileBytes }),
       ...(locale === undefined ? {} : { locale }),
       ...(availability === undefined ? {} : { availability }),
+      ...(places === undefined ? {} : { places }),
       ...(recordId === undefined ? {} : { recordId }),
       // Read-only, and only one control asks for them: a calendar scoped by
       // another field has to know what that field currently says.

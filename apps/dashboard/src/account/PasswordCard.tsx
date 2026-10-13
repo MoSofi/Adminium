@@ -33,8 +33,11 @@ import {
 
 import { changePassword } from './securityApi.js';
 import { t } from '../i18n/t.js';
+import { useCommonWords } from '../i18n/commonWords.js';
 
 export function PasswordCard(): ReactNode {
+  // This screen's words load with it, not with the first paint.
+  useCommonWords();
   const [current, setCurrent] = useState('');
   const [next, setNext] = useState('');
   const [confirm, setConfirm] = useState('');

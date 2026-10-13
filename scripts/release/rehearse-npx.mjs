@@ -25,7 +25,7 @@
  *   - every `@adminium/*` / `@adminiumjs/*` package came from the local tarball
  *     or from inside it (`inBundle`), none from registry.npmjs.org;
  *   - the bundled packages are exactly the ones server-runtime-deps.json lists;
- *   - no dashboard-only library (React, Radix, Leaflet, …) was installed;
+ *   - no dashboard-only library (React, Radix, MapLibre, …) was installed;
  *   - every dependency the flagship declares loads from inside the installed
  *     package, where the server loads it from, and React does not;
  * and it prints the installed size.
@@ -87,7 +87,7 @@ const FLAGSHIP_NAME = '@adminiumjs/adminium';
 const RUNTIME_DEPS = JSON.parse(readFileSync(join(ROOT, 'scripts/release/server-runtime-deps.json'), 'utf8'));
 
 /** Dashboard-only libraries that must never be installed with the CLI. */
-const BROWSER_ONLY = [/^react$/, /^react-dom$/, /^lucide-react$/, /^leaflet$/, /^@radix-ui\//, /^@dnd-kit\//, /^@tanstack\//, /^d3-/];
+const BROWSER_ONLY = [/^react$/, /^react-dom$/, /^lucide-react$/, /^maplibre-gl$/, /^@maplibre\//, /^@radix-ui\//, /^@dnd-kit\//, /^@tanstack\//, /^d3-/];
 
 const argv = process.argv.slice(2);
 const has = (flag) => argv.includes(flag);

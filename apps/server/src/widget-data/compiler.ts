@@ -913,7 +913,7 @@ function assertShapeRules(descriptor: QueryDescriptor): void {
       }
     } else if (selectCount < 2) {
       reject(
-        'Shape "geo-points" requires `select: [nameColumn, latColumn, lngColumn, ...metricColumns]` or `[nameColumn, codeColumn, ...metricColumns]`.',
+        'Shape "geo-points" requires `select: [nameColumn, latColumn, lngColumn, ...metricColumns]`, `[nameColumn, placeColumn, ...metricColumns]` or `[nameColumn, codeColumn, ...metricColumns]`.',
         { selected: selectCount },
       );
     }

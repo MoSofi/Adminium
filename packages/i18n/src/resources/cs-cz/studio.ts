@@ -2556,6 +2556,11 @@ export default {
       "heading": "Mapování dokumentů",
       "body": "Určete, ze které tabulky se vytváří faktura, stvrzenka nebo výpis, co je spouští a komu se posílají e-mailem.",
       "cta": "Otevřít mapování dokumentů"
+    },
+    "mapsCard": {
+      "heading": "Mapy",
+      "body": "Zda se zobrazují mapy, kterých serverů se systém ptá a co se každý z nich dozví.",
+      "cta": "Otevřít mapy"
     }
   },
   "source": {
@@ -3469,6 +3474,35 @@ export default {
   "installMaps": {
     "title": "Mapy",
     "tick": "Zobrazovat mapy (používá OpenFreeMap)",
-    "note": "prohlížeč každého člověka stahuje obrázky mapy z mapového serveru. Ten se dozví, na jakou oblast se díváte, a nic o vašich záznamech. Je to jeden přepínač pro všechny zdejší aplikace."
+    "note": "prohlížeč každého člověka stahuje obrázky mapy z mapového serveru. Ten se dozví, na jakou oblast se díváte, a nic o vašich záznamech. Je to jeden přepínač pro všechny zdejší aplikace.",
+    "tickHost": "Zobrazovat mapy (používá {host})"
+  },
+  "settingsMaps": {
+    "title": "Mapy",
+    "subtitle": "Zda se zobrazují mapy a kterých serverů se systém ptá.",
+    "saveFailed": "Nepodařilo se uložit. Zkuste to znovu.",
+    "loadFailed": "Toto nastavení se nepodařilo načíst. Načtěte stránku znovu.",
+    "reload": {
+      "title": "Mapy jsou zapnuté. Načtěte stránku znovu, abyste je viděli.",
+      "body": "Stránka, která byla otevřená, když byly mapy vypnuté, se mapového serveru ptát nesmí. Načtěte ji znovu, tady i na dalších otevřených kartách.",
+      "cta": "Načíst stránku znovu"
+    },
+    "maps": {
+      "heading": "Zobrazovat mapy",
+      "sees": "Mapa se kreslí z obrázků té části světa, která je právě na obrazovce. Prohlížeč každého člena týmu je stahuje z mapového serveru, který se dozví internetovou adresu této osoby a oblast, na kterou se dívala. Nikdy se mu neposílá záznam, jméno ani poloha vašich značek.",
+      "server": "Mapový server: {host}. Nastavuje ho provozovatel tohoto serveru pomocí ADMINIUM_MAP_SERVER. Tady ho změnit nelze.",
+      "serverNone": "Mapový server: žádný.",
+      "off": "Když jsou mapy vypnuté, místo mapy se zobrazí seznam stejných míst a žádného vnějšího serveru se systém neptá.",
+      "whyDesktop": "Desktopová aplikace funguje bez internetu a žádnou vnější mapu nezobrazuje. Místo mapy se zobrazí seznam.",
+      "whyEnvOff": "Provozovatel tohoto serveru na něm mapy vypnul (ADMINIUM_MAP_SERVER=off), takže tento přepínač nic nedělá."
+    },
+    "routes": {
+      "heading": "Trasy po silnicích",
+      "sees": "Dokud je to zapnuté, ptá se tento server směrovacího serveru na cestu mezi zastávkami trasy a posílá mu polohy zastávek v pořadí. Směrovací server se dozví adresu tohoto serveru, nikdy adresu člena týmu, jméno ani záznam.",
+      "server": "Směrovací server: {host}. Nastavuje ho provozovatel tohoto serveru pomocí ADMINIUM_ROUTING_SERVER.",
+      "serverNone": "Směrovací server: žádný.",
+      "off": "Když je to vypnuté, vzdálenosti jsou přímé čáry spočítané na tomto serveru a označené „asi“. Nikoho venku se systém neptá.",
+      "whyEnvOff": "Provozovatel tohoto serveru směrovací server vypnul (ADMINIUM_ROUTING_SERVER=off, nebo všechna volání ven pomocí ADMINIUM_NETWORK_FEATURES=off), takže tento přepínač nic nedělá."
+    }
   }
 } as const;

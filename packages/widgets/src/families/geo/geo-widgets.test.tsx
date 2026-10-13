@@ -6,17 +6,14 @@
  *
  * TWO SUITES CARRY REAL WEIGHT HERE:
  *
- *  1. THE DEGRADATION CONTRACT (acceptance #3). Leaflet builds FINE under
- *     happy-dom — it reaches `data-map-status="ready"` with a real
- *     `.leaflet-container`, and left alone these tests would quietly construct
- *     live maps pointed at a tile CDN. So the environment is not the test: the
- *     `unavailable` suite MOCKS the dynamic `import('leaflet')` into a rejection,
- *     which is the only way to actually enter the catch blocks that back
- *     MapBubble's "DEGRADES, NEVER CRASHES" header (a blocked tile CDN, an
- *     offline build, a failed chunk fetch). Delete those catches and that suite
- *     goes red — which is the point. The static-import/graph half of acceptance
- *     #3 is asserted in qa/chunk-budget.test.ts, which can see the module graph;
- *     this half asserts the runtime consequence.
+ *  1. THE THREE STATES (acceptance #3, and the map's own header). MapLibre is
+ *     MOCKED, because the environment is not the test: happy-dom has no WebGL,
+ *     so a real import would only ever prove "the constructor throws". The
+ *     mock is a fake library whose map the test drives — its style arrives,
+ *     or its first request fails. With maps off the mock must never
+ *     be touched at all: no import, no map built. The static-import/graph half
+ *     of acceptance #3 is asserted in qa/chunk-budget.test.ts, which can see
+ *     the module graph; this half asserts the runtime consequence.
  *
  * 2. THE LTR ISLAND. Geography does not mirror: the map canvas must stay
  *  `dir="ltr"` under an RTL host, while the chrome around it mirrors through
@@ -24,26 +21,139 @@
  *  on WHICH utilities express the layout (happy-dom computes no geometry), plus
  *  a hard ban on physical-direction utilities.
  */
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { useState, type ReactNode } from 'react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 /*
-  THE LEAFLET STUB — the load-bearing fixture of this file.
+  THE MAPLIBRE STUB — the load-bearing fixture of this file.
 
-  `MapBubble` reaches Leaflet through a dynamic `import('leaflet')` inside its
-  mount effect, and happy-dom is perfectly capable of building a real map from
-  it: without this mock the suite constructs live maps against
-  basemaps.cartocdn.com AFTER each test body returns, and every `try/catch` in
-  the widget stays unexecuted — the whole `unavailable` contract could be deleted
-  with the suite still green.
-
-  Rejecting the import is precisely the production failure the widget promises to
-  survive (blocked tile CDN, offline desktop build, failed chunk fetch), so it is
-  what the map tests below run against.
+  `MapBubble` reaches MapLibre through a dynamic `import('maplibre-gl')` inside
+  its mount effect, and only while the runtime names a map server. `fake.mode`
+  hands over a library just big enough to drive. `fake.imports` and `fake.maps`
+  count every touch, which is how "maps off asks for nothing" is a test and not
+  a hope. (The chunk that cannot be fetched at all — the import itself
+  rejecting — is `map-bubble-chunk.test.tsx`: a module once imported stays
+  imported, so one file cannot hold both.)
 */
-vi.mock('leaflet', () => {
-  throw new Error('leaflet chunk unavailable');
+const fake = vi.hoisted(() => {
+  type Handler = (event: Record<string, unknown>) => void;
+  class FakeMap {
+    handlers = new Map<string, Handler[]>();
+    sources = new Map<string, { data: unknown; setData: (data: unknown) => void }>();
+    layers: string[] = [];
+    removed = false;
+    fitted: unknown[] = [];
+    styles: string[] = [];
+    touchZoomRotate = { disableRotation: (): void => undefined };
+    constructor(public options: { container: HTMLElement; style: string; locale?: Record<string, string> }) {
+      state.maps.push(this);
+      this.styles.push(options.style);
+    }
+    on(type: string, handler: Handler): this {
+      this.handlers.set(type, [...(this.handlers.get(type) ?? []), handler]);
+      return this;
+    }
+    fire(type: string, event: Record<string, unknown> = {}): void {
+      for (const handler of this.handlers.get(type) ?? []) handler(event);
+    }
+    addControl(): this {
+      return this;
+    }
+    getSource(id: string): unknown {
+      return this.sources.get(id);
+    }
+    addSource(id: string, source: { data: unknown }): void {
+      const held = { data: source.data, setData: (data: unknown): void => void (held.data = data) };
+      this.sources.set(id, held);
+    }
+    addLayer(layer: { id: string }): void {
+      this.layers.push(layer.id);
+    }
+    getLayer(id: string): unknown {
+      return this.layers.includes(id) ? { id } : undefined;
+    }
+    setPaintProperty(): void {}
+    getCanvas(): { style: Record<string, string> } {
+      return { style: {} };
+    }
+    // One pixel is a hundredth of a degree, y growing south.
+    project(at: { lng: number; lat: number }): { x: number; y: number } {
+      return { x: at.lng * 100, y: -at.lat * 100 };
+    }
+    unproject(point: [number, number]): { lng: number; lat: number } {
+      return { lng: point[0] / 100 || 0, lat: -point[1] / 100 || 0 };
+    }
+    fitBounds(bounds: unknown): void {
+      this.fitted.push(bounds);
+    }
+    jumpTo(view: unknown): void {
+      this.fitted.push(view);
+    }
+    flyTo(): void {}
+    getZoom(): number {
+      return 3;
+    }
+    getCenter(): { lng: number; lat: number } {
+      return { lng: 10, lat: 20 };
+    }
+    setStyle(style: string): void {
+      this.styles.push(style);
+    }
+    queryRenderedFeatures(): unknown[] {
+      return [];
+    }
+    remove(): void {
+      this.removed = true;
+    }
+  }
+  class FakeMarker {
+    at = { lng: 0, lat: 0 };
+    element: HTMLElement;
+    constructor(public options: { element: HTMLElement; offset?: [number, number]; draggable?: boolean }) {
+      this.element = options.element;
+    }
+    setLngLat(at: [number, number] | { lng: number; lat: number }): this {
+      this.at = Array.isArray(at) ? { lng: at[0], lat: at[1] } : at;
+      return this;
+    }
+    getLngLat(): { lng: number; lat: number } {
+      return this.at;
+    }
+    addTo(map: FakeMap): this {
+      map.options.container.append(this.element);
+      (this.element as HTMLElement & { marker?: FakeMarker }).marker = this;
+      return this;
+    }
+    getElement(): HTMLElement {
+      return this.element;
+    }
+    handlers = new Map<string, (() => void)[]>();
+    on(type: string, handler: () => void): this {
+      this.handlers.set(type, [...(this.handlers.get(type) ?? []), handler]);
+      return this;
+    }
+    /** What the library does when a drag starts or ends. */
+    fire(type: string): void {
+      for (const handler of this.handlers.get(type) ?? []) handler();
+    }
+    remove(): void {
+      this.element.remove();
+    }
+  }
+  const state = {
+    imports: 0,
+    maps: [] as FakeMap[],
+    library: { Map: FakeMap, Marker: FakeMarker, NavigationControl: class {}, setWorkerUrl: (): void => undefined },
+  };
+  return state;
 });
+
+vi.mock('maplibre-gl', () => {
+  fake.imports += 1;
+  return fake.library;
+});
+vi.mock('maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url', () => ({ default: '/maplibre-worker.js' }));
 
 import { MapBubble, MapBubbleWidget } from './MapBubble.js';
 import { MapChoroplethGrid } from './MapChoroplethGrid.js';
@@ -56,18 +166,40 @@ import {
 import {
   BUBBLE_MAX_RADIUS,
   BUBBLE_MIN_RADIUS,
-  CARTO_TILES,
   bubbleRadius,
   geoPointsOf,
   localeOf,
+  mapStyleUrl,
   maxMetric,
   metricKeysOf,
   plottablePoints,
   sourceOf,
 } from './geo-lib.js';
 import { mapBubbleDefinition, mapChoroplethGridDefinition } from './geo-track.definitions.js';
+import { WidgetRuntimeProvider } from '../../frame/WidgetRuntimeContext.js';
+import type { WidgetRuntimeEnv } from '../../registry/offline.js';
 
 afterEach(cleanup);
+beforeEach(() => {
+  fake.imports = 0;
+  fake.maps.length = 0;
+});
+
+const MAP_SERVER = 'https://maps.example.test';
+const MAPS_ON: WidgetRuntimeEnv = { runtime: 'browser', offlineAssets: false, maps: { server: MAP_SERVER, routing: false } };
+
+/** A runtime whose session names a map server: maps are on. */
+function withMaps(node: ReactNode, env: WidgetRuntimeEnv = MAPS_ON) {
+  return <WidgetRuntimeProvider env={env}>{node}</WidgetRuntimeProvider>;
+}
+
+const statusOf = (container: HTMLElement): string | null | undefined => container.querySelector('[data-widget="map-bubble"]')?.getAttribute('data-map-status');
+
+/** The one fake map a test built, once the mount effect's imports have settled. */
+async function builtMap(): Promise<(typeof fake.maps)[number]> {
+  await waitFor(() => expect(fake.maps).toHaveLength(1));
+  return fake.maps[0]!;
+}
 
 /** Every physical-direction Tailwind utility the RTL policy bans. */
 const PHYSICAL =
@@ -225,9 +357,27 @@ describe('geo-lib misc', () => {
     expect(localeOf('ar-EG')).toBe('ar-EG');
   });
 
-  it('serves theme-matched Carto basemaps ("theme-following tiles")', () => {
-    expect(CARTO_TILES.light).toContain('light_all');
-    expect(CARTO_TILES.dark).toContain('dark_all');
+  it('names the map server\'s light or dark style, by the theme', () => {
+    expect(mapStyleUrl('https://maps.example.test', 'light')).toBe('https://maps.example.test/styles/positron');
+    expect(mapStyleUrl('https://maps.example.test/', 'dark')).toBe('https://maps.example.test/styles/dark');
+  });
+
+  it('reads a place column: the pair, and how the position is known', () => {
+    const rows = [
+      { name: 'Ana', where: { lat: -22.9, lng: -47.06, by: 'town', placeId: 3467865 } },
+      { name: 'Omar', where: JSON.stringify({ lat: 30.1, lng: 31.3, by: 'exact' }) },
+      { name: 'Nobody', where: null },
+    ];
+    const points = geoPointsOf({ rows }, { ...FIELDS, placeField: 'where' });
+    expect(points).toEqual([
+      { name: 'Ana', lat: -22.9, lng: -47.06, by: 'town', values: {} },
+      { name: 'Omar', lat: 30.1, lng: 31.3, by: 'exact', values: {} },
+    ]);
+  });
+
+  it('keeps `by` from the server\'s own points envelope', () => {
+    const points = geoPointsOf({ points: [{ name: 'Ana', lat: 1, lng: 2, by: 'town', placeId: 7, values: { n: 1 } }] }, FIELDS);
+    expect(points).toEqual([{ name: 'Ana', lat: 1, lng: 2, by: 'town', placeId: 7, values: { n: 1 } }]);
   });
 });
 
@@ -245,64 +395,298 @@ describe('map-bubble', () => {
     expect(screen.getByText('No locations')).toBeTruthy();
   });
 
-  /**
-   * The load-bearing degradation test. The Leaflet import is stubbed into a
-   * rejection (see the mock at the top), standing in for every real-world way
-   * the map can fail: a blocked tile CDN, an offline desktop build, a failed
-   * chunk fetch. The widget must still be USEFUL — hence a real ranked list, not
-   * a spinner — and must never throw into the WidgetFrame error boundary.
-   */
-  it('renders the ranked list and does not crash when Leaflet cannot build a map', () => {
-    const { container } = render(<MapBubble points={CITY_POINTS} format={(v) => `${v}`} />);
+  it('renders the ranked list whatever becomes of the map', () => {
+    const { container } = render(withMaps(<MapBubble points={CITY_POINTS} format={(v) => `${v}`} />));
     expect(container.querySelector('[data-widget="map-bubble"]')).not.toBeNull();
     const rows = [...container.querySelectorAll('[data-part="geo-ranking-row"]')];
     // Ranked by the active metric (`users`), descending.
     expect(rows.map((row) => row.textContent)).toEqual(['1.Tokyo900', '2.Lagos200', '3.Oslo50']);
   });
 
-  /**
-   * The assertion the header's "DEGRADES, NEVER CRASHES" guarantee actually
-   * rests on, and the reason the mock exists: the handshake fails, the widget
-   * flips to `unavailable`, and it SAYS SO — pointing the reader at the ranked
-   * list that carries the same data. Deleting the catch blocks in MapBubble.tsx
-   * turns this red (the status would stay `idle` and the notice never render).
-   *
-   * `await`ed, not synchronous: the status flips a microtask later, when the
-   * rejected `import('leaflet')` settles — a synchronous assertion here would
-   * pass whether or not the widget handled anything at all.
-   */
-  it('flips to data-map-status="unavailable" and shows the notice when the Leaflet chunk fails', async () => {
-    const { container } = render(<MapBubble points={CITY_POINTS} mapUnavailableLabel="Map unavailable." />);
-    await waitFor(() =>
-      expect(container.querySelector('[data-widget="map-bubble"]')?.getAttribute('data-map-status')).toBe('unavailable'),
-    );
-    expect(container.querySelector('[data-part="map-unavailable"]')?.textContent).toBe('Map unavailable.');
-    // Still useful with no map: the same data, as real focusable text.
-    expect(container.querySelectorAll('[data-part="geo-ranking-row"]')).toHaveLength(3);
-    expect(container.querySelector('.leaflet-container')).toBeNull();
+  // ── state (a): maps on, the server answers ────────────────────────────────
+
+  it('draws the map from the session\'s server in the theme\'s style, a pin for each point', async () => {
+    const { container } = render(withMaps(<MapBubble points={CITY_POINTS} />));
+    const map = await builtMap();
+    expect(map.options.style).toBe(`${MAP_SERVER}/styles/positron`);
+    expect(statusOf(container)).toBe('idle');
+    act(() => map.fire('style.load'));
+    expect(statusOf(container)).toBe('ready');
+    expect(container.querySelectorAll('[data-part="map-pin"]')).toHaveLength(3);
+    expect(container.querySelector('[data-part="map-unavailable"]')).toBeNull();
+    // No start was given: the view fits the points.
+    expect(map.fitted).toEqual([[[3.4, 6.5], [139.7, 59.9]]]);
   });
 
-  /**
-   * The empty→populated path. The mount effect early-returns when the container
-   * is absent, and the empty branch renders `EmptyState` INSTEAD of the canvas —
-   * so a mount-only effect would never see the container appear and the widget
-   * would sit at `idle` forever: a silent blank box next to a populated ranked
-   * list, with not even the `unavailable` notice to explain it.
-   */
-  it('builds the map when points arrive after an empty first render', async () => {
-    const { container, rerender } = render(<MapBubble points={[]} />);
+  // ── state (b): maps on, the server cannot be reached ──────────────────────
+
+  it('shows the list and the notice when the style cannot be fetched', async () => {
+    const { container } = render(withMaps(<MapBubble points={CITY_POINTS} mapUnavailableLabel="Map unavailable." />));
+    const map = await builtMap();
+    act(() => map.fire('error', { error: new Error('Failed to fetch') }));
+    expect(statusOf(container)).toBe('unavailable');
+    expect(container.querySelector('[data-part="map-unavailable"]')?.textContent).toBe('Map unavailable.');
     expect(container.querySelector('[data-part="map-canvas"]')).toBeNull();
-    rerender(<MapBubble points={CITY_POINTS} />);
-    // Reaches a RESOLVED status (here `unavailable`, since the chunk is stubbed
-    // as failing) rather than being stuck at the initial `idle`.
-    await waitFor(() =>
-      expect(container.querySelector('[data-widget="map-bubble"]')?.getAttribute('data-map-status')).toBe('unavailable'),
-    );
+    expect(map.removed).toBe(true);
+  });
+
+  it('gives up when the style arrived and every map picture fails', async () => {
+    const { container } = render(withMaps(<MapBubble points={CITY_POINTS} />));
+    const map = await builtMap();
+    act(() => map.fire('style.load'));
+    act(() => map.fire('error', { tile: {}, sourceId: 'openmaptiles' }));
+    expect(statusOf(container)).toBe('ready');
+    act(() => map.fire('error', { tile: {}, sourceId: 'openmaptiles' }));
+    expect(statusOf(container)).toBe('unavailable');
+  });
+
+  it('keeps the map when one picture fails after others arrived', async () => {
+    const { container } = render(withMaps(<MapBubble points={CITY_POINTS} />));
+    const map = await builtMap();
+    act(() => map.fire('style.load'));
+    act(() => map.fire('data', { dataType: 'source', tile: {} }));
+    act(() => map.fire('error', { tile: {} }));
+    act(() => map.fire('error', { tile: {} }));
+    expect(statusOf(container)).toBe('ready');
+  });
+
+  // ── state (c): maps off ───────────────────────────────────────────────────
+
+  /**
+   * No provider is the same as "the session names no server". The mock counts
+   * every import and every map built; both stay at zero, after the effects
+   * have had their turn — the map code is not even asked for.
+   */
+  it('maps off: the list and "switched off", and the map library is never touched', async () => {
+    const { container } = render(<MapBubble points={CITY_POINTS} />);
+    await act(async () => {
+      await new Promise((done) => setTimeout(done, 20));
+    });
+    expect(statusOf(container)).toBe('off');
+    expect(container.querySelector('[data-part="map-off"]')?.textContent).toBe('Maps are switched off. Here is the list.');
+    expect(container.querySelector('[data-part="map-off-link"]')).toBeNull();
+    expect(container.querySelector('[data-part="map-canvas"]')).toBeNull();
+    expect(container.querySelectorAll('[data-part="geo-ranking-row"]')).toHaveLength(3);
+    expect(fake.imports).toBe(0);
+    expect(fake.maps).toHaveLength(0);
+  });
+
+  it('maps off: somebody who may change it gets the way to Settings → Maps', () => {
+    const env: WidgetRuntimeEnv = { runtime: 'browser', offlineAssets: false, maps: { server: null, routing: false, settingsHref: '/settings/maps' } };
+    const { container } = render(withMaps(<MapBubble points={CITY_POINTS} />, env));
+    expect(container.querySelector('[data-part="map-off-link"]')?.getAttribute('href')).toBe('/settings/maps');
+  });
+
+  it('the desktop app draws no map even when the session names a server', async () => {
+    const { container } = render(withMaps(<MapBubble points={CITY_POINTS} />, { ...MAPS_ON, runtime: 'desktop' }));
+    await act(async () => {
+      await new Promise((done) => setTimeout(done, 20));
+    });
+    expect(statusOf(container)).toBe('off');
+    expect(fake.imports).toBe(0);
+    expect(fake.maps).toHaveLength(0);
+  });
+
+  it('follows the switch: a server that goes away takes the map with it', async () => {
+    const { container, rerender } = render(withMaps(<MapBubble points={CITY_POINTS} />));
+    const map = await builtMap();
+    act(() => map.fire('style.load'));
+    rerender(withMaps(<MapBubble points={CITY_POINTS} />, { runtime: 'browser', offlineAssets: false, maps: { server: null, routing: false } }));
+    expect(statusOf(container)).toBe('off');
+    expect(map.removed).toBe(true);
+  });
+
+  // ── what the map draws ────────────────────────────────────────────────────
+
+  const TOWN_POINTS = [
+    { name: 'Ana', lat: -22.9, lng: -47.06, by: 'town' as const, values: { n: 1 } },
+    { name: 'Bia', lat: -22.9, lng: -47.06, by: 'town' as const, values: { n: 1 } },
+    { name: 'Caio', lat: -23.5, lng: -46.6, by: 'exact' as const, values: { n: 1 } },
+  ];
+
+  it('marks pins known by their town, spreads those that share it, and says so in the list', async () => {
+    const { container } = render(withMaps(<MapBubble points={TOWN_POINTS} listOrder="given" showValues={false} />));
+    const map = await builtMap();
+    act(() => map.fire('style.load'));
+    const pins = [...container.querySelectorAll<HTMLElement & { marker?: { options: { offset?: [number, number] } } }>('[data-part="map-pin"]')];
+    expect(pins.map((pin) => pin.dataset['by'])).toEqual(['town', 'town', undefined]);
+    expect(pins[0]?.getAttribute('aria-label')).toBe('Ana · by town');
+    // Two on one position: drawn apart, on opposite sides of it.
+    const [first, second, third] = pins.map((pin) => pin.marker?.options.offset);
+    expect(first).toEqual([0, -16]);
+    expect(second).toEqual([0, 16]);
+    expect(third).toEqual([0, 0]);
+    const rows = [...container.querySelectorAll('[data-part="geo-ranking"] > li')];
+    expect(rows.map((row) => row.querySelector('[data-part="geo-by-town"]')?.textContent)).toEqual(['by town', 'by town', undefined]);
+    expect(rows[0]?.querySelector('[data-part="geo-row-note"]')?.textContent).toBe('2 places are known only by this town');
+    expect(rows[2]?.querySelector('[data-part="geo-row-note"]')).toBeNull();
+  });
+
+  it('a pin picked up, moved with the arrow keys and kept with Enter is handed over as an exact spot', async () => {
+    const onPlace = vi.fn();
+    const { container } = render(withMaps(<MapBubble points={[TOWN_POINTS[2]!]} onPlace={onPlace} />));
+    const map = await builtMap();
+    act(() => map.fire('style.load'));
+    const pin = container.querySelector<HTMLElement>('[data-part="map-pin"]')!;
+    // Enter picks the pin up; until then the arrow keys are for going from pin to pin.
+    fireEvent.keyDown(pin, { key: 'Enter' });
+    fireEvent.keyDown(pin, { key: 'ArrowRight' });
+    fireEvent.keyDown(pin, { key: 'ArrowUp' });
+    expect(onPlace).not.toHaveBeenCalled();
+    fireEvent.keyDown(pin, { key: 'Enter' });
+    expect(onPlace).toHaveBeenCalledTimes(1);
+    const [point, at] = onPlace.mock.calls[0] as [{ name: string }, { lat: number; lng: number }];
+    expect(point.name).toBe('Caio');
+    // Four pixels east and four north, at a hundredth of a degree a pixel.
+    expect(at.lng).toBeCloseTo(-46.56, 6);
+    expect(at.lat).toBeCloseTo(-23.46, 6);
+  });
+
+  it('a pin cannot be moved unless the caller takes the new spot', async () => {
+    const onSelect = vi.fn();
+    const { container } = render(withMaps(<MapBubble points={[TOWN_POINTS[2]!]} onSelect={onSelect} />));
+    const map = await builtMap();
+    act(() => map.fire('style.load'));
+    const pin = container.querySelector<HTMLElement & { marker?: { options: { draggable?: boolean } } }>('[data-part="map-pin"]')!;
+    expect(pin.marker?.options.draggable).toBe(false);
+    fireEvent.click(pin);
+    expect(onSelect).toHaveBeenCalledWith(expect.objectContaining({ name: 'Caio' }));
+  });
+
+  it('numbers a route\'s stops and words each leg: about, exact, unknown — never 0', async () => {
+    const stops = [
+      { name: 'Depot', lat: -23.5, lng: -46.6, values: {} },
+      { name: 'Ana', lat: -22.9, lng: -47.06, by: 'town' as const, values: {} },
+      { name: 'Bia', lat: -22.9, lng: -47.06, by: 'town' as const, values: {} },
+      { name: 'Caio', lat: -22.7, lng: -47.6, values: {} },
+    ];
+    const route = {
+      legs: [
+        { distanceM: 81_240, durationS: null, estimate: true },
+        { distanceM: null, durationS: null, estimate: true, unknown: true as const },
+        { distanceM: 61_900, durationS: 3_100, estimate: false },
+      ],
+    };
+    const { container } = render(<MapBubble points={stops} route={route} />);
+    const rows = [...container.querySelectorAll('[data-part="geo-ranking"] > li')];
+    expect(rows.map((row) => row.querySelector('[data-part="geo-ranking-row"]')?.textContent)).toEqual(['1.Depot', '2.Anaby town', '3.Biaby town', '4.Caio']);
+    const notes = rows.map((row) => row.querySelector('[data-part="geo-row-note"]')?.textContent ?? null);
+    expect(notes[0]).toBeNull();
+    expect(notes[1]).toBe('about 81.2 km from the stop before · 2 places are known only by this town');
+    expect(notes[2]).toBe('distance from the stop before unknown · 2 places are known only by this town');
+    expect(notes[3]).toBe('61.9 km from the stop before');
+    expect(container.querySelector('[data-part="geo-ranking"]')?.getAttribute('aria-label')).toBe('Stops');
+  });
+
+  it('says a route\'s legs in miles when asked', () => {
+    const stops = [
+      { name: 'A', lat: 1, lng: 1, values: {} },
+      { name: 'B', lat: 2, lng: 2, values: {} },
+    ];
+    const { container } = render(<MapBubble points={stops} units="mi" route={{ legs: [{ distanceM: 16_093.44, durationS: null, estimate: false }] }} />);
+    expect(container.querySelectorAll('[data-part="geo-row-note"]')[0]?.textContent).toBe('10 mi from the stop before');
+  });
+
+  it('draws a route without a line of its own as straight dashed legs', async () => {
+    const stops = [
+      { name: 'A', lat: 1, lng: 2, values: {} },
+      { name: 'B', lat: 3, lng: 4, values: {} },
+    ];
+    const { container } = render(withMaps(<MapBubble points={stops} route={{ legs: [{ distanceM: 10, durationS: null, estimate: true }] }} />));
+    const map = await builtMap();
+    act(() => map.fire('style.load'));
+    expect(map.sources.get('adminium-route')?.data).toMatchObject({
+      features: [{ geometry: { type: 'LineString', coordinates: [[2, 1], [4, 3]] }, properties: { dashed: true } }],
+    });
+    expect([...container.querySelectorAll('[data-part="map-pin"]')].map((pin) => pin.textContent)).toEqual(['1', '2']);
+  });
+
+  const SQUARE = { type: 'Polygon' as const, coordinates: [[[0, 0], [1, 0], [1, 1], [0, 1], [0, 0]]] };
+
+  it('names the areas in the list when there is no map', () => {
+    const { container } = render(<MapBubble points={[]} areas={[{ id: 'north', name: 'North round', geometry: SQUARE }, { id: 'x', geometry: SQUARE }]} />);
+    const rows = [...container.querySelectorAll('[data-part="geo-areas"] > li')];
+    expect(rows.map((row) => row.textContent)).toEqual(['North round4 points', 'Area 24 points']);
+    expect(container.querySelector('[data-part="area-tools"]')).toBeNull();
+  });
+
+  it('draws an area: clicks add corners, closing hands the polygon over', async () => {
+    const onAreaChange = vi.fn();
+    const { container } = render(withMaps(<MapBubble points={[]} areas={[]} onAreaChange={onAreaChange} />));
+    const map = await builtMap();
+    act(() => map.fire('style.load'));
+    const close = container.querySelector<HTMLButtonElement>('[data-part="area-close"]')!;
+    expect(close.disabled).toBe(true);
+    act(() => map.fire('click', { lngLat: { lng: 0, lat: 0 }, point: { x: 0, y: 0 } }));
+    act(() => map.fire('click', { lngLat: { lng: 1, lat: 0 }, point: { x: 0, y: 0 } }));
+    expect(close.disabled).toBe(true);
+    act(() => map.fire('click', { lngLat: { lng: 1, lat: 1 }, point: { x: 0, y: 0 } }));
+    expect(container.querySelectorAll('[data-part="map-corner"]')).toHaveLength(3);
+    expect(onAreaChange).not.toHaveBeenCalled();
+    fireEvent.click(container.querySelector<HTMLButtonElement>('[data-part="area-close"]')!);
+    expect(onAreaChange).toHaveBeenCalledWith(null, { type: 'Polygon', coordinates: [[[0, 0], [1, 0], [1, 1], [0, 0]]] });
+  });
+
+  it('a new area the caller keeps is the one the next change is made to; one it takes away takes the drawing with it', async () => {
+    const changes: [string | null, number][] = [];
+    function Host() {
+      const [areas, setAreas] = useState<{ id: string; geometry: typeof SQUARE }[]>([]);
+      return withMaps(
+        <>
+          <MapBubble
+            points={[]}
+            areas={areas}
+            onAreaChange={(id, geometry) => {
+              changes.push([id, geometry.coordinates[0]!.length - 1]);
+              setAreas([{ id: 'kept', geometry: geometry as typeof SQUARE }]);
+            }}
+          />
+          <button type="button" onClick={() => setAreas([])}>
+            clear
+          </button>
+        </>,
+      );
+    }
+    const { container } = render(<Host />);
+    const map = await builtMap();
+    act(() => map.fire('style.load'));
+    for (const [lng, lat] of [[0, 0], [1, 0], [1, 1]]) act(() => map.fire('click', { lngLat: { lng, lat }, point: { x: 0, y: 0 } }));
+    fireEvent.click(container.querySelector<HTMLButtonElement>('[data-part="area-close"]')!);
+    expect(changes).toEqual([[null, 3]]);
+    // The caller gave it an id: moving a corner now changes that area, and makes no second one.
+    fireEvent.keyDown(container.querySelectorAll<HTMLElement>('[data-part="map-corner"]')[0]!, { key: 'ArrowRight' });
+    expect(changes).toEqual([[null, 3], ['kept', 3]]);
+    // The caller cleared it: the corners go, and drawing starts afresh.
+    fireEvent.click(screen.getByText('clear'));
+    expect(container.querySelectorAll('[data-part="map-corner"]')).toHaveLength(0);
+    expect(container.querySelector('[data-part="area-close"]')).not.toBeNull();
+  });
+
+  it('changes an area: a corner moved or removed hands the new polygon over; three corners stay', async () => {
+    const onAreaChange = vi.fn();
+    const { container } = render(withMaps(<MapBubble points={[]} areas={[{ id: 'north', geometry: SQUARE }]} onAreaChange={onAreaChange} />));
+    const map = await builtMap();
+    act(() => map.fire('style.load'));
+    const corners = (): HTMLElement[] => [...container.querySelectorAll<HTMLElement>('[data-part="map-corner"]')];
+    expect(corners()).toHaveLength(4);
+    fireEvent.keyDown(corners()[1]!, { key: 'ArrowRight' });
+    expect(onAreaChange).toHaveBeenLastCalledWith('north', { type: 'Polygon', coordinates: [[[0, 0], [1.04, 0], [1, 1], [0, 1], [0, 0]]] });
+    fireEvent.keyDown(corners()[3]!, { key: 'Delete' });
+    expect(corners()).toHaveLength(3);
+    expect(onAreaChange).toHaveBeenLastCalledWith('north', { type: 'Polygon', coordinates: [[[0, 0], [1.04, 0], [1, 1], [0, 0]]] });
+    // A shape keeps three corners.
+    fireEvent.keyDown(corners()[0]!, { key: 'Delete' });
+    expect(corners()).toHaveLength(3);
+    expect(onAreaChange).toHaveBeenCalledTimes(2);
+    // "Start again" clears the drawing and tells the caller nothing until a new shape is closed.
+    fireEvent.click(container.querySelector<HTMLButtonElement>('[data-part="area-restart"]')!);
+    expect(corners()).toHaveLength(0);
+    expect(onAreaChange).toHaveBeenCalledTimes(2);
   });
 
   it('keeps the map canvas a fixed-LTR island — geography never mirrors', () => {
-    const { container } = render(<MapBubble points={CITY_POINTS} />);
-    const canvasWrap = container.querySelector('[data-part="map-canvas"]')?.parentElement;
+    const { container } = render(withMaps(<MapBubble points={CITY_POINTS} />));
+    const canvasWrap = container.querySelector('[data-part="map-canvas"]')?.closest('[dir]');
     // A mirrored world map is a WRONG map, not a localized one: flipping it puts
     // Japan west of Portugal. So the island is pinned regardless of host dir.
     expect(canvasWrap?.getAttribute('dir')).toBe('ltr');
@@ -314,11 +698,11 @@ describe('map-bubble', () => {
     // that the chrome mirrors by CSS resolving logical properties — and that the
     // LTR island is pinned structurally, not re-derived per direction.
     const widgetHtml = (dir: 'ltr' | 'rtl'): string => {
-      const { container } = render(
+      const { container } = render(withMaps(
         <div dir={dir}>
           <MapBubble points={CITY_POINTS} />
         </div>,
-      );
+      ));
       const html = (container.querySelector('[data-widget="map-bubble"]') as HTMLElement).outerHTML;
       cleanup();
       return html;
@@ -327,7 +711,7 @@ describe('map-bubble', () => {
   });
 
   it('uses no physical-direction utility anywhere in the tree', () => {
-    const { container } = render(<MapBubble points={CITY_POINTS} />);
+    const { container } = render(withMaps(<MapBubble points={TOWN_POINTS} areas={[{ id: 'a', geometry: SQUARE }]} onAreaChange={() => undefined} />));
     const offenders = allClassNames(container).filter((name) => PHYSICAL.test(name));
     expect(offenders).toEqual([]);
   });
@@ -622,5 +1006,275 @@ describe('geo chrome localization (ui:widgets.geo.*)', () => {
     cleanup();
     render(<MapBubble points={[]} />);
     expect(screen.getByText('No locations')).toBeTruthy();
+  });
+});
+
+// ── the map, after its review ───────────────────────────────────────────────
+
+describe('map-bubble — shapes of several pieces, late areas, numbering, the list, a save that fails, the keyboard', () => {
+  const SQUARE = { type: 'Polygon' as const, coordinates: [[[0, 0], [1, 0], [1, 1], [0, 1], [0, 0]]] };
+  const OUTER = [[0, 0], [4, 0], [4, 4], [0, 4], [0, 0]];
+  const HOLE = [[1, 1], [2, 1], [2, 2], [1, 1]];
+  const ISLAND = [[[10, 10], [11, 10], [11, 11], [10, 10]]];
+  const PIECES = { type: 'MultiPolygon' as const, coordinates: [[OUTER, HOLE], ISLAND] };
+  const CAIO = { name: 'Caio', lat: -23.5, lng: -46.6, by: 'exact' as const, values: { n: 1 } };
+
+  type PinElement = HTMLElement & { marker?: { at: { lng: number; lat: number }; fire: (type: string) => void; setLngLat: (at: [number, number]) => unknown } };
+  const pinsOf = (container: HTMLElement): PinElement[] => [...container.querySelectorAll<PinElement>('[data-part="map-pin"]')];
+  const cornersOf = (container: HTMLElement): HTMLElement[] => [...container.querySelectorAll<HTMLElement>('[data-part="map-corner"]')];
+  const saidOf = (container: HTMLElement): string | null | undefined => container.querySelector('[data-part="map-said"]')?.textContent;
+  const draftOf = (map: (typeof fake.maps)[number]): unknown => (map.sources.get('adminium-draft')?.data as { features: { geometry: unknown }[] }).features[0]?.geometry;
+
+  // ── 1: a hole and a second piece are kept, and drawn ──────────────────────
+
+  it('a corner moved in a shape with a hole and a second piece keeps both, and draws them while it is changed', async () => {
+    const onAreaChange = vi.fn();
+    const { container } = render(withMaps(<MapBubble points={[]} areas={[{ id: 'a', geometry: PIECES }]} onAreaChange={onAreaChange} />));
+    const map = await builtMap();
+    act(() => map.fire('style.load'));
+    expect(cornersOf(container)).toHaveLength(4);
+    // The whole shape is on the map while it is changed, not its first ring alone.
+    expect(draftOf(map)).toEqual(PIECES);
+    expect(container.querySelector('[data-part="area-pieces-hint"]')).not.toBeNull();
+    fireEvent.keyDown(cornersOf(container)[1]!, { key: 'ArrowRight' });
+    const changed = { type: 'MultiPolygon', coordinates: [[[[0, 0], [4.04, 0], [4, 4], [0, 4], [0, 0]], HOLE], ISLAND] };
+    expect(onAreaChange).toHaveBeenLastCalledWith('a', changed);
+    expect(draftOf(map)).toEqual(changed);
+  });
+
+  it('"Start again" replaces the whole shape with one new polygon', async () => {
+    const onAreaChange = vi.fn();
+    const { container } = render(withMaps(<MapBubble points={[]} areas={[{ id: 'a', geometry: PIECES }]} onAreaChange={onAreaChange} />));
+    const map = await builtMap();
+    act(() => map.fire('style.load'));
+    fireEvent.click(container.querySelector<HTMLButtonElement>('[data-part="area-restart"]')!);
+    for (const [lng, lat] of [[0, 0], [1, 0], [1, 1]]) act(() => map.fire('click', { lngLat: { lng, lat }, point: { x: 0, y: 0 } }));
+    fireEvent.click(container.querySelector<HTMLButtonElement>('[data-part="area-close"]')!);
+    expect(onAreaChange).toHaveBeenLastCalledWith('a', { type: 'Polygon', coordinates: [[[0, 0], [1, 0], [1, 1], [0, 0]]] });
+  });
+
+  // ── 3: one area that arrives after the first render ───────────────────────
+
+  it('the one area that arrives late is the one that is changed, not the start of a second', async () => {
+    const onAreaChange = vi.fn();
+    const { container, rerender } = render(withMaps(<MapBubble points={[]} areas={[]} onAreaChange={onAreaChange} />));
+    const map = await builtMap();
+    act(() => map.fire('style.load'));
+    expect(cornersOf(container)).toHaveLength(0);
+    rerender(withMaps(<MapBubble points={[]} areas={[{ id: 'late', geometry: SQUARE }]} onAreaChange={onAreaChange} />));
+    expect(cornersOf(container)).toHaveLength(4);
+    fireEvent.keyDown(cornersOf(container)[1]!, { key: 'ArrowRight' });
+    expect(onAreaChange).toHaveBeenLastCalledWith('late', { type: 'Polygon', coordinates: [[[0, 0], [1.04, 0], [1, 1], [0, 1], [0, 0]]] });
+  });
+
+  it('one area that is not being changed has a "Change" of its own', async () => {
+    const two = [{ id: 'a', geometry: SQUARE }, { id: 'b', geometry: SQUARE }];
+    const { container, rerender } = render(withMaps(<MapBubble points={[]} areas={two} onAreaChange={() => undefined} />));
+    const map = await builtMap();
+    act(() => map.fire('style.load'));
+    rerender(withMaps(<MapBubble points={[]} areas={[two[0]!]} onAreaChange={() => undefined} />));
+    expect(cornersOf(container)).toHaveLength(0);
+    fireEvent.click(container.querySelector<HTMLButtonElement>('[data-part="area-change"]')!);
+    expect(cornersOf(container)).toHaveLength(4);
+  });
+
+  // ── 6: a stop keeps its number, with or without a position ────────────────
+
+  it('numbers a pin as its row in the list is numbered, when a stop before it has no position', async () => {
+    const stops = [
+      { name: 'Depot', lat: 1, lng: 1, values: {} },
+      { name: 'Nowhere yet', values: {} },
+      { name: 'Last', lat: 3, lng: 3, values: {} },
+    ];
+    const legs = [{ distanceM: null, durationS: null, estimate: true, unknown: true as const }, { distanceM: null, durationS: null, estimate: true, unknown: true as const }];
+    const { container } = render(withMaps(<MapBubble points={stops} route={{ legs }} />));
+    const map = await builtMap();
+    act(() => map.fire('style.load'));
+    expect(pinsOf(container).map((pin) => pin.textContent)).toEqual(['1', '3']);
+    expect(pinsOf(container).map((pin) => pin.getAttribute('aria-label'))).toEqual(['1. Depot', '3. Last']);
+    expect([...container.querySelectorAll('[data-part="geo-ranking-row"]')].map((row) => row.textContent)).toEqual(['1.Depot', '2.Nowhere yet', '3.Last']);
+  });
+
+  // ── 7: distances in the reader's language ─────────────────────────────────
+
+  it('writes a distance as the reader’s language does, with no locale handed to it', async () => {
+    const { createI18n } = await import('@adminium/i18n');
+    const { I18nProvider } = await import('@adminium/i18n/react');
+    const i18n = await createI18n({ locale: 'de_DE', loadBundle: async () => null });
+    const stops = [
+      { name: 'A', lat: 1, lng: 1, values: {} },
+      { name: 'B', lat: 2, lng: 2, values: {} },
+    ];
+    const { container } = render(
+      <I18nProvider i18n={i18n}>
+        <MapBubble points={stops} route={{ legs: [{ distanceM: 81_240, durationS: null, estimate: false }] }} />
+      </I18nProvider>,
+    );
+    // German writes the decimal with a comma.
+    expect(container.querySelector('[data-part="geo-row-note"]')?.textContent).toContain('81,2 km');
+  });
+
+  // ── 8: a long list in its given order ─────────────────────────────────────
+
+  it('lists the first 200 of the points it was given and says how many more there are, with a pin for every one', async () => {
+    const many = Array.from({ length: 205 }, (_, index) => ({ name: `P${String(index)}`, lat: index / 10, lng: index / 10, values: {} }));
+    const { container } = render(withMaps(<MapBubble points={many} listOrder="given" showValues={false} />));
+    const map = await builtMap();
+    act(() => map.fire('style.load'));
+    expect(container.querySelectorAll('[data-part="geo-ranking-row"]')).toHaveLength(200);
+    expect(container.querySelector('[data-part="geo-list-more"]')?.textContent).toBe('and 5 more');
+    expect(pinsOf(container)).toHaveLength(205);
+  });
+
+  it('says nothing of more when the list holds every point', () => {
+    const { container } = render(<MapBubble points={[CAIO]} listOrder="given" />);
+    expect(container.querySelector('[data-part="geo-list-more"]')).toBeNull();
+  });
+
+  // ── 10: a pin whose new spot is not kept goes back ────────────────────────
+
+  /** Pick the pin up, move it one step east, and keep it. */
+  function moveWithKeys(pin: HTMLElement): void {
+    fireEvent.keyDown(pin, { key: 'Enter' });
+    fireEvent.keyDown(pin, { key: 'ArrowRight' });
+    fireEvent.keyDown(pin, { key: 'Enter' });
+  }
+
+  it('a pin goes back when the save is refused', async () => {
+    const onPlace = vi.fn(() => Promise.reject(new Error('no')));
+    const { container } = render(withMaps(<MapBubble points={[CAIO]} onPlace={onPlace} />));
+    const map = await builtMap();
+    act(() => map.fire('style.load'));
+    const pin = pinsOf(container)[0]!;
+    moveWithKeys(pin);
+    expect(onPlace).toHaveBeenCalledTimes(1);
+    expect(pin.marker?.at.lng).toBeCloseTo(-46.56, 6);
+    await waitFor(() => expect(pin.marker?.at).toEqual({ lng: -46.6, lat: -23.5 }));
+    await waitFor(() => expect(saidOf(container)).toBe('The new spot was not kept. The pin is back where it was.'));
+  });
+
+  it('a dragged pin goes back when the caller changes nothing', async () => {
+    const onPlace = vi.fn();
+    const { container } = render(withMaps(<MapBubble points={[CAIO]} onPlace={onPlace} />));
+    const map = await builtMap();
+    act(() => map.fire('style.load'));
+    const pin = pinsOf(container)[0]!;
+    pin.marker?.setLngLat([-40, -20]);
+    act(() => pin.marker?.fire('dragend'));
+    expect(onPlace).toHaveBeenCalledWith(expect.objectContaining({ name: 'Caio' }), { lat: -20, lng: -40 });
+    await waitFor(() => expect(pin.marker?.at).toEqual({ lng: -46.6, lat: -23.5 }));
+  });
+
+  it('a pin whose new spot the caller keeps stays there, and the view does not jump to it', async () => {
+    function Host() {
+      const [at, setAt] = useState({ lat: CAIO.lat, lng: CAIO.lng });
+      return withMaps(<MapBubble points={[{ ...CAIO, ...at }]} onPlace={async (_point, next) => setAt(next)} />);
+    }
+    const { container } = render(<Host />);
+    const map = await builtMap();
+    act(() => map.fire('style.load'));
+    const fits = map.fitted.length;
+    await act(async () => moveWithKeys(pinsOf(container)[0]!));
+    await waitFor(() => expect(pinsOf(container)[0]?.marker?.at.lng).toBeCloseTo(-46.56, 6));
+    await act(async () => {
+      await new Promise((done) => setTimeout(done, 400));
+    });
+    expect(pinsOf(container)[0]?.marker?.at.lng).toBeCloseTo(-46.56, 6);
+    expect(map.fitted).toHaveLength(fits);
+    expect(saidOf(container)).toBe('Pin kept at -23.50000, -46.56000.');
+  });
+
+  it('after a save that fails, the next real change to the places is fitted again', async () => {
+    const onPlace = vi.fn(() => Promise.reject(new Error('no')));
+    const { container, rerender } = render(withMaps(<MapBubble points={[CAIO]} onPlace={onPlace} />));
+    const map = await builtMap();
+    act(() => map.fire('style.load'));
+    const pin = pinsOf(container)[0]!;
+    moveWithKeys(pin);
+    await waitFor(() => expect(pin.marker?.at).toEqual({ lng: -46.6, lat: -23.5 }));
+    const fits = map.fitted.length;
+    rerender(withMaps(<MapBubble points={[CAIO, { name: 'Dora', lat: 10, lng: 10, values: { n: 1 } }]} onPlace={onPlace} />));
+    expect(map.fitted).toHaveLength(fits + 1);
+  });
+
+  // ── 17: the keyboard, and what is said ────────────────────────────────────
+
+  it('the pins are one tab stop: the arrow keys go from pin to pin in the list’s order', async () => {
+    const { container } = render(withMaps(<MapBubble points={CITY_POINTS} />));
+    const map = await builtMap();
+    act(() => map.fire('style.load'));
+    const pins = pinsOf(container);
+    expect(pins.map((pin) => pin.tabIndex)).toEqual([0, -1, -1]);
+    pins[0]!.focus();
+    fireEvent.keyDown(pins[0]!, { key: 'ArrowRight' });
+    expect(document.activeElement).toBe(pins[1]);
+    expect(pins.map((pin) => pin.tabIndex)).toEqual([-1, 0, -1]);
+    fireEvent.keyDown(pins[1]!, { key: 'End' });
+    expect(document.activeElement).toBe(pins[2]);
+    fireEvent.keyDown(pins[2]!, { key: 'ArrowDown' });
+    expect(document.activeElement).toBe(pins[0]);
+    fireEvent.keyDown(pins[0]!, { key: 'ArrowLeft' });
+    expect(document.activeElement).toBe(pins[2]);
+  });
+
+  it('a pin is moved only once it is picked up: Enter picks it up, the arrows move it, Escape puts it back — each said', async () => {
+    const onPlace = vi.fn();
+    const { container } = render(withMaps(<MapBubble points={[CAIO]} onPlace={onPlace} />));
+    const map = await builtMap();
+    act(() => map.fire('style.load'));
+    const pin = pinsOf(container)[0]!;
+    // Not picked up: an arrow key moves nothing.
+    fireEvent.keyDown(pin, { key: 'ArrowRight' });
+    expect(pin.marker?.at).toEqual({ lng: -46.6, lat: -23.5 });
+    fireEvent.keyDown(pin, { key: ' ' });
+    expect(saidOf(container)).toBe('Pin picked up. Move it with the arrow keys, then press Enter to keep the spot or Escape to put it back.');
+    fireEvent.keyDown(pin, { key: 'ArrowRight' });
+    expect(pin.marker?.at.lng).toBeCloseTo(-46.56, 6);
+    fireEvent.keyDown(pin, { key: 'Escape' });
+    expect(pin.marker?.at).toEqual({ lng: -46.6, lat: -23.5 });
+    expect(saidOf(container)).toBe('The pin is back where it was.');
+    expect(onPlace).not.toHaveBeenCalled();
+  });
+
+  it('says each corner as it is added, and that the shape is closed', async () => {
+    const { container } = render(withMaps(<MapBubble points={[]} areas={[]} onAreaChange={() => undefined} />));
+    const map = await builtMap();
+    act(() => map.fire('style.load'));
+    expect(saidOf(container)).toBe('');
+    act(() => map.fire('click', { lngLat: { lng: 0, lat: 0 }, point: { x: 0, y: 0 } }));
+    expect(saidOf(container)).toBe('Corner added. 1 corner.');
+    act(() => map.fire('click', { lngLat: { lng: 1, lat: 0 }, point: { x: 0, y: 0 } }));
+    act(() => map.fire('click', { lngLat: { lng: 1, lat: 1 }, point: { x: 0, y: 0 } }));
+    expect(saidOf(container)).toBe('Corner added. 3 corners.');
+    fireEvent.click(container.querySelector<HTMLButtonElement>('[data-part="area-close"]')!);
+    expect(saidOf(container)).toBe('Shape closed.');
+    expect(container.querySelector('[data-part="map-said"]')?.getAttribute('role')).toBe('status');
+  });
+
+  it('a notice that is read aloud is in the page before its words are', async () => {
+    const { renderToString } = await import('react-dom/server');
+    // As first drawn, before any effect: the notice is there and says nothing yet.
+    const first = document.createElement('div');
+    first.append(document.createRange().createContextualFragment(renderToString(<MapBubble points={CITY_POINTS} />)));
+    expect(first.querySelector('[data-part="map-off"]')).not.toBeNull();
+    expect(first.querySelector('[data-part="map-off"]')?.textContent).toBe('');
+    const { container } = render(<MapBubble points={CITY_POINTS} />);
+    expect(container.querySelector('[data-part="map-off"]')?.textContent).toBe('Maps are switched off. Here is the list.');
+  });
+
+  it('the way to Settings goes through the host when it gives one, and is a plain link otherwise', () => {
+    const env: WidgetRuntimeEnv = { runtime: 'browser', offlineAssets: false, maps: { server: null, routing: false, settingsHref: '/settings/maps' } };
+    const onSettingsOpen = vi.fn();
+    const { container } = render(withMaps(<MapBubble points={CITY_POINTS} onSettingsOpen={onSettingsOpen} />, env));
+    const link = container.querySelector<HTMLAnchorElement>('[data-part="map-off-link"]')!;
+    expect(link.getAttribute('href')).toBe('/settings/maps');
+    const click = new MouseEvent('click', { bubbles: true, cancelable: true });
+    act(() => void link.dispatchEvent(click));
+    expect(onSettingsOpen).toHaveBeenCalledWith('/settings/maps');
+    expect(click.defaultPrevented).toBe(true);
+    // A click meant for a new tab is the browser's.
+    const held = new MouseEvent('click', { bubbles: true, cancelable: true, metaKey: true });
+    act(() => void link.dispatchEvent(held));
+    expect(onSettingsOpen).toHaveBeenCalledTimes(1);
   });
 });

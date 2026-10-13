@@ -228,6 +228,51 @@ describe('the shared alias namespace (D26)', () => {
   });
 });
 
+describe('which rows a measure folds (`where`)', () => {
+  const COUNT = { id: 'open', table: 'public.deals', fkColumn: 'stage_id', fn: 'count' as const };
+
+  it('takes one to three tests, each a column and one to twenty values: text, numbers, yes or no', () => {
+    const parsed = parseCrudDerived({
+      measures: [
+        { ...COUNT, where: [{ column: 'state', in: ['open'] }, { column: 'weight', in: [1, 2.5] }, { column: 'hot', in: [true, false] }] },
+        { ...SUM_MEASURE, id: 'worth', where: [{ column: 'state', in: Array.from({ length: 20 }, (_, n) => `s${String(n)}`) }] },
+      ],
+    });
+    expect(parsed.ok).toBe(true);
+    if (parsed.ok) expect(parsed.value.measures[0]?.where).toEqual([{ column: 'state', in: ['open'] }, { column: 'weight', in: [1, 2.5] }, { column: 'hot', in: [true, false] }]);
+  });
+
+  it('refuses none, a fourth, no value, a twenty-first, and a value that is no literal', () => {
+    const test = { column: 'state', in: ['open'] };
+    const malformed = (where: unknown) => refusalOf({ measures: [{ ...COUNT, where }] } as CrudDerivedConfigInput)?.code;
+    expect(malformed([])).toBe('DERIVED_MALFORMED');
+    expect(malformed([test, { column: 'a', in: [1] }, { column: 'b', in: [1] }, { column: 'c', in: [1] }])).toBe('DERIVED_MALFORMED');
+    expect(malformed([{ column: 'state', in: [] }])).toBe('DERIVED_MALFORMED');
+    expect(malformed([{ column: 'state', in: Array.from({ length: 21 }, (_, n) => n) }])).toBe('DERIVED_MALFORMED');
+    expect(malformed([{ column: 'state', in: [null] }])).toBe('DERIVED_MALFORMED');
+    expect(malformed([{ column: 'state', in: [['open']] }])).toBe('DERIVED_MALFORMED');
+    expect(malformed([{ column: 'state', in: ['x'.repeat(201)] }])).toBe('DERIVED_MALFORMED');
+    // No operator but "is one of": a range or a pattern is a way to read a column a value at a time.
+    expect(malformed([{ column: 'state', in: ['open'], op: 'neq' }])).toBe('DERIVED_MALFORMED');
+    expect(malformed([{ column: 'amount', gt: 100 }])).toBe('DERIVED_MALFORMED');
+    expect(malformed({ state: 'open' })).toBe('DERIVED_MALFORMED');
+  });
+
+  it('refuses a column tested twice in one measure, by name', () => {
+    const refusal = refusalOf({ measures: [{ ...COUNT, where: [{ column: 'state', in: ['open'] }, { column: 'state', in: ['won'] }] }] });
+    expect(refusal).toMatchObject({ code: 'DERIVED_MEASURE_WHERE_REPEATED', id: 'open' });
+  });
+
+  it('buys no subquery: twelve measures, each with three tests, are still twelve', () => {
+    const measures = Array.from({ length: MAX_MEASURES }, (_, n) => ({
+      ...COUNT,
+      id: `m${String(n)}`,
+      where: [{ column: 'a', in: [1] }, { column: 'b', in: [1] }, { column: 'c', in: [1] }],
+    }));
+    expect(parseCrudDerived({ measures }).ok).toBe(true);
+  });
+});
+
 describe('measure bodies', () => {
   it('refuses an `of` body on count', () => {
     const refusal = refusalOf({ measures: [{ ...SUM_MEASURE, id: 'items', fn: 'count' }] });

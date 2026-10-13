@@ -1,16 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-import { useMaybeT } from '../../lib/i18n.js';
-import { EmptyState, SegmentedControl, subscribeTheme } from '@adminium/ui';
+import { useMaybeI18n, useMaybeT } from '../../lib/i18n.js';
+import { Button, EmptyState, SegmentedControl, subscribeTheme } from '@adminium/ui';
 import { MapPin } from 'lucide-react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import {
-  CARTO_ATTRIBUTION,
-  CARTO_TILES,
-  DEFAULT_CENTER,
-  DEFAULT_ZOOM,
   bubbleRadius,
   localeOf,
+  mapStyleUrl,
   maxMetric,
   metricKeysOf,
   metricValue,
@@ -20,60 +17,91 @@ import {
 import type { GeoPoint } from './geo-lib.js';
 import { geoPointsOf } from './geo-lib.js';
 import type { MapBubbleConfig } from './geo-config.js';
+import type { MapEngine, Scene, ScenePin } from './map-engine.js';
+import type { MapLibreModule } from './maplibre-module.js';
+import {
+  addCorner,
+  boundsOf,
+  canClose,
+  cornersOf,
+  formatDistance,
+  hasOtherPieces,
+  insertCorner,
+  isAppleDevice,
+  legDistance,
+  mapsAppHref,
+  moveCorner,
+  pointCount,
+  removeCorner,
+  spreadPins,
+  straightLine,
+  withOuterRing,
+  MIN_CORNERS,
+  SETTLE_MS,
+} from './map-shapes.js';
+import type { AreaGeometry, Corner, DistanceUnits, MapArea, MapRoute } from './map-shapes.js';
+import { coordinateText } from './place-value.js';
+import { StatusNote } from './StatusNote.js';
+import { useWidgetRuntimeEnv } from '../../frame/WidgetRuntimeContext.js';
 import { formatMetricValue, formatOptionsOf } from '../../lib/format.js';
+import { mapServerOf } from '../../registry/map-server.js';
 import type { WidgetProps } from '../../registry/types.js';
 
 // Config schema + deterministic demo payload live in the pure `geo-config`
 // module so the registry metadata graph never eagerly pulls this component (or
-// Leaflet) into the eager chunk (acceptance #3); re-exported here so the family
-// barrel, stories, and tests keep one import point per widget.
+// the map engine) into the eager chunk (acceptance #3); re-exported here so the
+// family barrel, stories, and tests keep one import point per widget.
 export { mapBubbleConfigSchema, mapBubbleDemoData } from './geo-config.js';
 export type { MapBubbleConfig };
 
 /**
- * `map-bubble` (annex) — a Leaflet map with theme-following Carto light/dark
- * tiles, circle markers sized by the active metric, tooltips, flyTo on click,
- * and metric tabs. Pairs with `ranked-entity-list`; the built-in top-N companion
- * is the same ranking, rendered inline.
+ * `map-bubble` (annex) — a MapLibre map drawn from the install's map server in
+ * its light or dark style, pins sized by the active metric, and a list of the
+ * same places beside it. It also draws what the kit's `MapView` asks for:
+ * pins known only by their town, a pin dragged to the exact spot, areas (and
+ * the drawing of one), and a route through the points.
  *
- * ── THIS FILE IS THE ONLY PLACE LEAFLET EXISTS (acceptance #3) ──────────────
- * "Leaflet code is absent unless `map-bubble` is placed." Two boundaries enforce
- * it, and `qa/chunk-budget.test.ts` asserts both:
+ * ── THREE STATES, NEVER A BLANK FRAME ──────────────────────────────────────
+ *  a. Maps are on and the map server answers: the map, with the list.
+ *  b. Maps are on and the server cannot be reached (offline, blocked, down):
+ *     the list, under "The map could not be reached. Here is the list."
+ *  c. Maps are off (the session names no server: switched off in Settings →
+ *     Maps, by the operator, or this is the desktop app): the list, under
+ *     "Maps are switched off". NOTHING outside is asked and no map code is
+ *     fetched — the effect below returns before its `import()`.
+ * The list is drawn from the same data in all three, so the widget is still
+ * useful, and still readable by a screen reader, with no map at all.
  *
- *   1. This module is reachable ONLY through `geo-track-components.ts`, which
- *      `geo-track.definitions.ts` reaches by `lazy(() => import(...))`. So no
- *      static-import path runs from the registry metadata to here.
- *   2. Leaflet itself is loaded by a dynamic `import()` INSIDE the mount effect
- *      — not a static import of this module. So Leaflet is not even in the geo
- *      family's own chunk: it is fetched when a MapBubble actually mounts, which
- *      is what the acceptance criterion literally asks for. (A static import
- *      here would satisfy "not in the eager chunk" but would still ship Leaflet
- *      to a page that placed only `map-choropleth-grid`, its familymate.)
+ * ── THIS FILE IS THE ONLY PLACE MAPLIBRE EXISTS (acceptance #3) ─────────────
+ * Two boundaries enforce it, and `qa/chunk-budget.test.ts` asserts both:
+ *
+ *   1. This module is reachable ONLY through `geo-track-components.ts` (by
+ *      `lazy(() => import(...))` from the definitions) and `kit-map.ts` (by the
+ *      kit's own dynamic import). No static-import path runs from the registry
+ *      metadata to here.
+ *   2. MapLibre, its stylesheet, its worker and `map-engine.ts` (the code that
+ *      drives it) are loaded by a dynamic `import()` INSIDE the mount effect.
+ *      So they are in chunks of their own, fetched when a map is actually
+ *      drawn — never by a page that placed only `map-choropleth-grid`, and
+ *      never while maps are off.
  *
  * That same dynamic import is what makes the widget SSR-safe: effects never run
- * on the server, so Leaflet — which touches `window`/`document` at module scope —
- * is never evaluated there. The render path below is pure JSX and renders the
- * chrome + the ranked list with no map at all.
+ * on the server, so MapLibre is never evaluated there.
  *
- * ── DEGRADES, NEVER CRASHES ────────────────────────────────────────────────
- * Every step of the Leaflet handshake is inside a try/catch that flips the map
- * to `unavailable`: an offline/blocked CDN, a jsdom-class environment with no
- * layout, a failed chunk fetch. The ranked list is rendered from the same data
- * either way, so the widget is still USEFUL (and still accessible) with no map —
- * this is why the list is not merely a screen-reader fallback.
+ * ── THE MAP SERVER'S ADDRESS IS NOT IN THE BUNDLE ──────────────────────────
+ * It comes with the session (`bootstrap.maps.server`), through the widget
+ * runtime (`registry/offline.ts`). The server's content policy allows that
+ * one origin only while maps are on, so the bundle and the policy can never
+ * disagree about where a browser may go.
  *
  * ── RTL ────────────────────────────────────────────────────────────────────
  * The map canvas is a fixed-LTR island (the same policy as the gantt timeline
  * and the choropleth tilegram): geography does not mirror — flipping it would
- * put Japan west of Portugal. The chrome around it (metric tabs, ranked list,
- * legend) is logical-property flow and mirrors normally.
+ * put Japan west of Portugal. The chrome around it (metric tabs, the list, the
+ * drawing buttons) is logical-property flow and mirrors normally. Arabic and
+ * Hebrew names on the map itself are joined and ordered by MapLibre.
  */
 
-/** The Leaflet surface this widget uses — structural, so no `any` leaks in. */
-type LeafletModule = typeof import('leaflet');
-type LeafletMap = import('leaflet').Map;
-type LeafletLayerGroup = import('leaflet').LayerGroup;
-type LeafletTileLayer = import('leaflet').TileLayer;
 
 export interface MapBubbleProps {
   points: readonly GeoPoint[];
@@ -81,12 +109,44 @@ export interface MapBubbleProps {
   metrics?: readonly string[] | undefined;
   /** Already-translated tab labels, keyed by metric name. */
   metricLabels?: Readonly<Record<string, string>> | undefined;
+  /** Where the map starts, as `[lat, lng]`. Without one, it fits what it draws. */
   center?: readonly [number, number] | undefined;
   zoom?: number | undefined;
   flyToOnClick?: boolean | undefined;
   topN?: number | undefined;
+  /** `given` lists the points in their given order (a route's stops), up to `listMax`; `ranked` the top N by the metric. */
+  listOrder?: 'ranked' | 'given' | undefined;
+  /** How many rows a list in its given order shows before "and n more". Every point still has its pin. Default 200. */
+  listMax?: number | undefined;
+  /** False hides the figure beside each name (pins that count nothing). */
+  showValues?: boolean | undefined;
   format?: ((value: number) => string) | undefined;
   onSelect?: ((point: GeoPoint) => void) | undefined;
+  /**
+   * A pin was dragged (or picked up, moved with the arrow keys and kept) to an
+   * exact spot. Turns dragging on. Return the promise of the save: when it is
+   * refused, or when the point has not moved once it settles, the pin goes
+   * back to where it was.
+   */
+  onPlace?: ((point: GeoPoint, at: { lat: number; lng: number }) => unknown) | undefined;
+  /** Areas drawn as filled outlines. */
+  areas?: readonly MapArea[] | undefined;
+  /**
+   * An area was drawn (`id` null) or changed. Turns drawing on. A new shape is
+   * a `Polygon`; a changed one keeps the kind it had, with its holes and its
+   * further polygons as they were (only the outer ring of the first is changed here).
+   */
+  onAreaChange?: ((id: string | null, geometry: AreaGeometry) => unknown) | undefined;
+  /** The way through the points, in their order: stops are numbered and joined. */
+  route?: MapRoute | undefined;
+  units?: DistanceUnits | undefined;
+  /**
+   * Where Settings → Maps is, for a reader who may change it: the "switched
+   * off" notice then links there. The host knows who may; the map does not.
+   */
+  settingsHref?: string | undefined;
+  /** The host's own way to open that page (its router). Without one the notice is a plain link. */
+  onSettingsOpen?: ((href: string) => void) | undefined;
   emptyTitle?: string | undefined;
   emptyBody?: string | undefined;
   mapUnavailableLabel?: string | undefined;
@@ -101,16 +161,71 @@ function currentTheme(): 'light' | 'dark' {
   return document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
 }
 
+/** A finger is the pointer: the list offers the device's own maps app. */
+function useCoarsePointer(): boolean {
+  const [coarse, setCoarse] = useState(false);
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return undefined;
+    const query = window.matchMedia('(pointer: coarse)');
+    const read = (): void => setCoarse(query.matches);
+    read();
+    query.addEventListener?.('change', read);
+    return () => query.removeEventListener?.('change', read);
+  }, []);
+  return coarse;
+}
+
+/** The area being drawn or changed. */
+interface AreaDraft {
+  /** The area's id; null for one that is new. */
+  id: string | null;
+  corners: Corner[];
+  closed: boolean;
+  selected: number | null;
+  /**
+   * The shape the corners were taken from. Its holes and its further polygons
+   * are kept, and drawn, while its outer ring is changed. Null for a shape
+   * that is new, or started again.
+   */
+  source: AreaGeometry | null;
+}
+
+/** The size of a pin that stands for a place and counts nothing. */
+const PLAIN_PIN_RADIUS = 9;
+
+const NEW_DRAFT: AreaDraft = { id: null, corners: [], closed: false, selected: null, source: null };
+
+/** How many rows a list in its given order shows. */
+export const LIST_MAX = 200;
+
+function draftOf(area: MapArea): AreaDraft {
+  const corners = cornersOf(area.geometry);
+  return { id: area.id, corners, closed: corners.length >= MIN_CORNERS, selected: null, source: area.geometry };
+}
+
+/** `idle` until the style arrives; `unavailable` once the map server counts as unreachable. */
+type MapStatus = 'idle' | 'ready' | 'unavailable';
+
 export function MapBubble({
   points,
   metrics,
   metricLabels,
-  center = DEFAULT_CENTER,
-  zoom = DEFAULT_ZOOM,
+  center,
+  zoom,
   flyToOnClick = true,
   topN = 5,
+  listOrder,
+  listMax = LIST_MAX,
+  showValues = true,
   format = String,
   onSelect,
+  onPlace,
+  areas,
+  onAreaChange,
+  route,
+  units = 'km',
+  settingsHref: settingsHrefProp,
+  onSettingsOpen,
   emptyTitle,
   emptyBody,
   mapUnavailableLabel,
@@ -119,157 +234,360 @@ export function MapBubble({
   testId,
 }: MapBubbleProps) {
   const t = useMaybeT();
-  const locale = localeOf(localeProp);
+  // Distances are written as the reader's language writes them, unless the caller names another.
+  const language = useMaybeI18n()?.locale;
+  const locale = localeOf(localeProp ?? language?.replace('_', '-'));
+  const env = useWidgetRuntimeEnv();
+  const server = mapServerOf(env);
+  const settingsHref = settingsHrefProp ?? env.maps?.settingsHref;
+  const coarse = useCoarsePointer();
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const leafletRef = useRef<LeafletModule | null>(null);
-  const mapRef = useRef<LeafletMap | null>(null);
-  const markersRef = useRef<LeafletLayerGroup | null>(null);
-  const tilesRef = useRef<LeafletTileLayer | null>(null);
-  const [mapStatus, setMapStatus] = useState<'idle' | 'ready' | 'unavailable'>('idle');
+  const engineRef = useRef<MapEngine | null>(null);
+  const [status, setStatus] = useState<MapStatus>('idle');
 
   const keys = metrics !== undefined && metrics.length > 0 ? metrics : metricKeysOf(points);
   const [metric, setMetric] = useState<string | undefined>(undefined);
   const activeMetric = metric !== undefined && keys.includes(metric) ? metric : keys[0];
 
-  // Latest render inputs, readable from the Leaflet callbacks without making
-  // them a dependency of the mount effect (which must run exactly once — a
-  // re-created map loses pan/zoom and refetches every tile).
-  const drawRef = useRef({ points, activeMetric, flyToOnClick, format, onSelect });
-  drawRef.current = { points, activeMetric, flyToOnClick, format, onSelect };
-
-  /** (Re)draw the circle markers for the current points + metric. */
-  const drawMarkers = useCallback(() => {
-    const L = leafletRef.current;
-    const layer = markersRef.current;
-    const map = mapRef.current;
-    if (L === null || layer === null || map === null) return;
-    const { points: current, activeMetric: active, flyToOnClick: fly, format: fmt, onSelect: select } = drawRef.current;
-
-    layer.clearLayers();
-    if (active === undefined) return;
-    const plottable = plottablePoints(current);
-    const max = maxMetric(plottable, active);
-
-    for (const point of plottable) {
-      const value = metricValue(point, active);
-      const marker = L.circleMarker([point.lat as number, point.lng as number], {
-        radius: bubbleRadius(value, max),
-        // Token-driven, not raw hex: the SVG marker inherits `--accent` through
-        // the CSS custom property, so it re-tints with the theme/accent axes
-        // exactly like every other surface.
-        color: 'var(--accent)',
-        fillColor: 'var(--accent)',
-        fillOpacity: 0.35,
-        weight: 1.5,
-      });
-      marker.bindTooltip(`${point.name}: ${fmt(value)}`, { direction: 'top' });
-      marker.on('click', () => {
-        if (fly) map.flyTo([point.lat as number, point.lng as number], Math.max(map.getZoom(), 5));
-        select?.(point);
-      });
-      marker.addTo(layer);
+  const shownAreas = useMemo(() => areas ?? [], [areas]);
+  const editable = onAreaChange !== undefined;
+  // One area (a record's own) is ready to change at once; with none, drawing
+  // starts on the first click; among several, the person picks one.
+  const [draft, setDraft] = useState<AreaDraft | null>(() =>
+    !editable ? null : shownAreas.length === 0 ? NEW_DRAFT : shownAreas.length === 1 ? draftOf(shownAreas[0]!) : null,
+  );
+  const activeDraft = editable ? draft : null;
+  const draftRef = useRef(draft);
+  draftRef.current = draft;
+  // What a screen reader is told as the map is worked: the region is in the
+  // page from the start, empty, and each thing that happens is put into it.
+  const [said, setSaid] = useState('');
+  const tRef = useRef(t);
+  tRef.current = t;
+  // What the caller did with the shape it was handed: a new area comes back
+  // with an id (the next change is to THAT area, not one more new one), and an
+  // area taken away (the field was cleared) takes its drawing with it.
+  const knownAreas = useRef(shownAreas.map((area) => area.id));
+  useEffect(() => {
+    const before = knownAreas.current;
+    const now = shownAreas.map((area) => area.id);
+    knownAreas.current = now;
+    const current = draftRef.current;
+    if (!editable || current === null) return;
+    if (current.id === null) {
+      const born = now.filter((id) => !before.includes(id));
+      if (current.closed && born.length === 1) setDraft({ ...current, id: born[0]! });
+      // Nothing drawn yet and the one area has arrived (a record that loaded
+      // after the map did): that area is the one to change, not a second.
+      else if (current.corners.length === 0 && shownAreas.length === 1) setDraft(draftOf(shownAreas[0]!));
+    } else if (!now.includes(current.id)) {
+      setDraft(now.length === 0 ? NEW_DRAFT : null);
     }
+  }, [shownAreas, editable]);
+  const movable = onPlace !== undefined;
+  const formatRef = useRef(format);
+  formatRef.current = format;
+
+  const order = listOrder ?? (route === undefined ? 'ranked' : 'given');
+  const plottable = useMemo(() => plottablePoints(points), [points]);
+  const spread = useMemo(() => spreadPins(plottable.map((point) => ({ lat: point.lat as number, lng: point.lng as number }))), [plottable]);
+  // A stop's number is its place among the points it was given: the list
+  // numbers every row, so a pin after a stop with no position keeps its own.
+  const stopOf = useMemo(() => plottable.map((point) => points.indexOf(point)), [plottable, points]);
+
+  /** A leg's length in words; null where there is no leg to speak of. */
+  const legText = (stop: number): string | null => {
+    if (route === undefined || stop === 0) return null;
+    const distance = legDistance(route.legs[stop - 1], units);
+    if (distance.kind === 'unknown') return t('ui:widgets.geo.mapBubble.legUnknown', 'distance from the stop before unknown');
+    const figure = formatDistance(distance, locale);
+    return distance.kind === 'about'
+      ? t('ui:widgets.geo.mapBubble.legAbout', 'about {distance} from the stop before', { distance: figure })
+      : t('ui:widgets.geo.mapBubble.legExact', '{distance} from the stop before', { distance: figure });
+  };
+
+  const byTownLabel = t('ui:widgets.geo.mapBubble.byTown', 'by town');
+
+  // ── the scene the engine draws ─────────────────────────────────────────────
+  const scene = useMemo<Scene>(() => {
+    const max = activeMetric === undefined ? 0 : maxMetric(plottable, activeMetric);
+    const pins: ScenePin[] = plottable.map((point, index) => {
+      const value = activeMetric === undefined ? 0 : metricValue(point, activeMetric);
+      const town = point.by === 'town';
+      const stop = (stopOf[index] ?? index) + 1;
+      const parts = [route === undefined ? point.name : `${stop}. ${point.name}`];
+      if (showValues && route === undefined && activeMetric !== undefined) parts[0] = `${parts[0]}: ${formatRef.current(value)}`;
+      if (town) parts.push(byTownLabel);
+      if (movable) parts.push(t('ui:widgets.geo.mapBubble.pinMoveHint', 'Drag to the exact spot. With the keyboard: Enter picks the pin up, the arrow keys move it, Enter keeps the spot and Escape puts it back.'));
+      return {
+        key: String(index),
+        lat: point.lat as number,
+        lng: point.lng as number,
+        dx: spread[index]?.dx ?? 0,
+        dy: spread[index]?.dy ?? 0,
+        // Pins that count nothing are all one modest size; a figure sizes a bubble.
+        radius: showValues ? bubbleRadius(value, max) : PLAIN_PIN_RADIUS,
+        label: parts.join(' · '),
+        hollow: town,
+        ...(route === undefined ? {} : { number: stop }),
+        movable,
+      };
+    });
+    const line =
+      route === undefined
+        ? null
+        : route.line !== undefined && route.line.coordinates.length >= 2
+          ? { coordinates: route.line.coordinates, dashed: false }
+          : { coordinates: straightLine(plottable.map((point) => ({ lat: point.lat as number, lng: point.lng as number }))).coordinates, dashed: true };
+    return {
+      pins,
+      areas: shownAreas
+        .filter((area) => activeDraft === null || area.id !== activeDraft.id)
+        .map((area) => ({ id: area.id, geometry: area.geometry, tone: area.tone ?? 'accent' })),
+      line,
+      editor:
+        activeDraft === null
+          ? null
+          : {
+              corners: activeDraft.corners,
+              closed: activeDraft.closed,
+              selected: activeDraft.selected,
+              shape: activeDraft.closed ? withOuterRing(activeDraft.source, activeDraft.corners) : null,
+              cornerLabel: (number) => t('ui:widgets.geo.mapBubble.cornerLabel', 'Corner {number}', { number: String(number) }),
+            },
+    };
+    // `format` is read through a ref: a new function identity alone is not a new scene.
+  }, [plottable, spread, stopOf, activeMetric, route, showValues, movable, shownAreas, activeDraft, byTownLabel, t]);
+
+  // Latest inputs, readable from the engine's callbacks without making them a
+  // dependency of the mount effect (which must not rebuild a live map: a
+  // re-created map loses the view and fetches every picture again).
+  const live = useRef({ plottable, scene, flyToOnClick, onSelect, onPlace, onAreaChange, center, zoom, shownAreas, route });
+  live.current = { plottable, scene, flyToOnClick, onSelect, onPlace, onAreaChange, center, zoom, shownAreas, route };
+  /** Set while a drag is being saved: the view must not jump to re-fit it. */
+  const keepView = useRef(false);
+  /**
+   * Let the view follow the places again once a save has settled. A save that
+   * changed the places used the hold up already; one that was refused, or
+   * changed nothing that is fitted (a corner moved), would keep it for ever
+   * and the next real change would not be fitted.
+   */
+  const releaseView = useCallback((saved: unknown) => {
+    const settled = (): void => {
+      setTimeout(() => {
+        keepView.current = false;
+      }, SETTLE_MS);
+    };
+    Promise.resolve(saved).then(settled, settled);
   }, []);
 
-  // Build the map once the canvas exists. `hasPoints` is in the deps because the
-  // empty branch below returns an `EmptyState` INSTEAD of the container div, so
-  // on a first render with no points `containerRef.current` is null and this
-  // bails; without the dep it would never re-run when the data arrived, and the
-  // widget would sit at `idle` — a silent blank box, not even the `unavailable`
-  // notice — beside a populated ranked list.
-  const hasPoints = points.length > 0;
-  useEffect(() => {
-    let cancelled = false;
-    const container = containerRef.current;
-    if (container === null || typeof window === 'undefined') return undefined;
+  /** A change to the shape being drawn; a closed shape is handed to the caller. */
+  const changeDraft = useCallback((change: (draft: AreaDraft) => AreaDraft) => {
+    const current = draftRef.current;
+    if (current === null) return;
+    const next = change(current);
+    if (next === current) return;
+    draftRef.current = next;
+    setDraft(next);
+    if (next.closed && !current.closed) setSaid(tRef.current('ui:widgets.geo.mapBubble.saidShapeClosed', 'Shape closed.'));
+    else if (!next.closed && next.corners.length > current.corners.length) {
+      setSaid(tRef.current('ui:widgets.geo.mapBubble.saidCornerAdded', 'Corner added. {count, plural, one {# corner} other {# corners}}.', { count: next.corners.length }));
+    }
+    if (!next.closed || next.corners === current.corners) return;
+    // The ring that was changed goes back into the shape it came from: its holes and its other polygons stay.
+    const shape = withOuterRing(next.source, next.corners);
+    if (shape === null) return;
+    keepView.current = true;
+    let saved: unknown;
+    try {
+      saved = live.current.onAreaChange?.(next.id, shape);
+    } finally {
+      releaseView(saved);
+    }
+  }, [releaseView]);
 
+  const words = useMemo(
+    () => ({
+      'NavigationControl.ZoomIn': t('ui:widgets.geo.mapBubble.zoomIn', 'Zoom in'),
+      'NavigationControl.ZoomOut': t('ui:widgets.geo.mapBubble.zoomOut', 'Zoom out'),
+      'Map.Title': t('ui:widgets.geo.mapBubble.mapLabel', 'Map'),
+    }),
+    [t],
+  );
+  const wordsRef = useRef(words);
+  wordsRef.current = words;
+
+  // The canvas is in the tree only while there is something to draw on it and
+  // a server to draw it from; the effect below follows both.
+  const hasCanvas = points.length > 0 || shownAreas.length > 0 || editable;
+  const drawsMap = server !== null && hasCanvas && status !== 'unavailable';
+
+  useEffect(() => {
+    const container = containerRef.current;
+    // Maps off: no import, no request, no map. See the file header, state (c).
+    if (server === null || !hasCanvas || container === null || typeof window === 'undefined') return undefined;
+    let cancelled = false;
     let unsubscribe: (() => void) | undefined;
+    setStatus('idle');
+
+    const giveUp = (): void => {
+      if (cancelled) return;
+      engineRef.current?.destroy();
+      engineRef.current = null;
+      setStatus('unavailable');
+    };
 
     void (async () => {
-      let L: LeafletModule;
+      let lib: MapLibreModule;
+      let engines: typeof import('./map-engine.js');
       try {
-        // THE Leaflet boundary — see the file header. Nothing else in this
-        // package may name 'leaflet'.
-        L = await import('leaflet');
-        // Leaflet's stylesheet positions the tile panes; without it the map is a
-        // pile of stacked images. Separately guarded: a bundler/test runner that
-        // stubs CSS must not take the map down with it.
+        // THE MapLibre boundary — see the file header. Nothing else in this
+        // package may name 'maplibre-gl'.
+        [lib, engines] = await Promise.all([import('maplibre-gl'), import('./map-engine.js')]);
+        // MapLibre's worker, built into this app and served from its own
+        // origin. Separately guarded, like the stylesheet: a runner with no
+        // bundler must not take the map down with it.
         try {
-          await import('leaflet/dist/leaflet.css');
+          const worker = await import('maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url');
+          lib.setWorkerUrl(worker.default);
+        } catch {
+          /* No bundler (vitest): MapLibre looks beside its own module. */
+        }
+        try {
+          await import('maplibre-gl/dist/maplibre-gl.css');
         } catch {
           /* CSS stubbed (vitest) or inlined by the host — the map still works. */
         }
       } catch {
-        if (!cancelled) setMapStatus('unavailable');
+        giveUp();
         return;
       }
       if (cancelled) return;
 
       try {
-        const map = L.map(container, {
-          center: [center[0], center[1]],
-          zoom,
-          // The widget lives in a scrolling dashboard grid: grabbing the page
-          // scroll to zoom a map the user only scrolled PAST is hostile, so
-          // zoom is on the +/- control and ⌘/ctrl+wheel, not the raw wheel.
-          scrollWheelZoom: false,
-          attributionControl: true,
+        const now = live.current;
+        const engine = engines.createMapEngine(lib, container, {
+          style: mapStyleUrl(server, currentTheme()),
+          center: now.center,
+          zoom: now.zoom,
+          words: wordsRef.current,
+          handlers: {
+            onStatus: (next) => {
+              if (cancelled) return;
+              if (next === 'unavailable') giveUp();
+              else setStatus('ready');
+            },
+            onPinPick: (key) => {
+              const point = live.current.plottable[Number(key)];
+              if (point === undefined) return;
+              if (live.current.flyToOnClick) engine.flyTo({ lat: point.lat as number, lng: point.lng as number });
+              live.current.onSelect?.(point);
+            },
+            onPinPlace: (key, at) => {
+              const point = live.current.plottable[Number(key)];
+              if (point === undefined) return;
+              keepView.current = true;
+              setSaid(tRef.current('ui:widgets.geo.mapBubble.saidPinKept', 'Pin kept at {position}.', { position: coordinateText(at) }));
+              return live.current.onPlace?.(point, at);
+            },
+            onPinMove: (_key, what) =>
+              setSaid(
+                what === 'picked'
+                  ? tRef.current('ui:widgets.geo.mapBubble.saidPinPicked', 'Pin picked up. Move it with the arrow keys, then press Enter to keep the spot or Escape to put it back.')
+                  : what === 'back'
+                    ? tRef.current('ui:widgets.geo.mapBubble.saidPinBack', 'The pin is back where it was.')
+                    : tRef.current('ui:widgets.geo.mapBubble.saidPinRefused', 'The new spot was not kept. The pin is back where it was.'),
+              ),
+            onPinSettled: () => {
+              keepView.current = false;
+            },
+            onMapPick: (corner) => changeDraft((current) => (current.closed ? current : { ...current, corners: addCorner(current.corners, corner) })),
+            onAreaPick: (id) => {
+              if (live.current.onAreaChange === undefined) return;
+              const area = live.current.shownAreas.find((candidate) => candidate.id === id);
+              if (area !== undefined) setDraft((current) => (current !== null && !current.closed && current.corners.length > 0 ? current : draftOf(area)));
+            },
+            onCornerPick: (index) =>
+              changeDraft((current) =>
+                // The first corner, picked while drawing, closes the shape.
+                !current.closed && index === 0 && canClose(current.corners) ? { ...current, corners: [...current.corners], closed: true, selected: null } : { ...current, selected: current.selected === index ? null : index },
+              ),
+            onCornerMove: (index, corner) => changeDraft((current) => ({ ...current, corners: moveCorner(current.corners, index, corner), selected: index })),
+            onCornerRemove: (index) =>
+              changeDraft((current) => {
+                const corners = removeCorner(current.corners, index, current.closed);
+                return corners.length === current.corners.length ? current : { ...current, corners, selected: null };
+              }),
+          },
         });
-        const tiles = L.tileLayer(CARTO_TILES[currentTheme()], { attribution: CARTO_ATTRIBUTION, maxZoom: 18 });
-        tiles.addTo(map);
-        const markers = L.layerGroup().addTo(map);
+        engineRef.current = engine;
+        engine.draw(now.scene);
+        const bounds = boundsOf(
+          now.plottable.map((point) => ({ lat: point.lat as number, lng: point.lng as number })),
+          now.shownAreas,
+          now.route?.line,
+        );
+        if (bounds !== null) engine.fit(bounds);
 
-        leafletRef.current = L;
-        mapRef.current = map;
-        tilesRef.current = tiles;
-        markersRef.current = markers;
-
-        // The annex's "theme-following Carto light/dark tiles". `subscribeTheme`
-        // fires AFTER ThemeProvider stamps <html> (so `currentTheme()` above and
-        // this agree), and its own docblock names this exact case ("for Leaflet
-        // tile swaps"). It hands over the whole resolved axis set; only the
-        // light/dark mode changes the basemap.
+        // The style follows the theme. `subscribeTheme` fires AFTER
+        // ThemeProvider stamps <html>, so `currentTheme()` above and this
+        // agree; an accent change alone repaints the areas and the route.
+        let theme = currentTheme();
         unsubscribe = subscribeTheme((resolved) => {
-          tilesRef.current?.setUrl(CARTO_TILES[resolved.theme === 'dark' ? 'dark' : 'light']);
+          const next = resolved.theme === 'dark' ? 'dark' : 'light';
+          if (next === theme) {
+            engine.repaint();
+            return;
+          }
+          theme = next;
+          engine.setStyle(mapStyleUrl(server, next));
         });
-
-        setMapStatus('ready');
-        drawMarkers();
       } catch {
-        if (!cancelled) setMapStatus('unavailable');
+        // No WebGL, no layout (a jsdom-class environment): the list stands in.
+        giveUp();
       }
     })();
 
     return () => {
       cancelled = true;
       unsubscribe?.();
-      try {
-        mapRef.current?.remove();
-      } catch {
-        /* Already torn down. */
-      }
-      mapRef.current = null;
-      markersRef.current = null;
-      tilesRef.current = null;
-      leafletRef.current = null;
+      engineRef.current?.destroy();
+      engineRef.current = null;
     };
-    // MOUNT-ONLY EXCEPT FOR `hasPoints`, ON PURPOSE. `center`/`zoom` are the
-    // INITIAL view (annex config `initialZoom/center`): re-running this on a
-    // config change would tear the map down and rebuild it, yanking the view out
-    // from under a user who has panned and refetching every tile. Live inputs
-    // reach Leaflet through `drawRef` + the redraw effect below instead, which
-    // is why they are deliberately absent here. `hasPoints` is the one exception
-    // — it gates whether the container is in the tree at all (see above), and it
-    // flips at most once from false, so it can never re-create a live map.
-  }, [hasPoints]);
+    // ONLY THE SERVER AND WHETHER THERE IS A CANVAS, ON PURPOSE. `center`/`zoom`
+    // are the INITIAL view: re-running this on a config change would tear the
+    // map down and rebuild it under a user who has panned. Live inputs reach
+    // the engine through `live` + the redraw effect below instead.
+  }, [server, hasCanvas, changeDraft]);
 
-  // Redraw when the data or the active metric changes (annex: "metric tabs" —
-  // switching re-sizes every bubble). No-ops until the map is ready.
+  // Redraw when the scene changes. No-ops until the map is there.
   useEffect(() => {
-    if (mapStatus === 'ready') drawMarkers();
-  }, [points, activeMetric, mapStatus, drawMarkers]);
+    engineRef.current?.draw(scene);
+  }, [scene, status]);
 
-  if (points.length === 0) {
+  // Fit again when the places themselves change (a town was typed, rows
+  // arrived) — and not when the change is the person's own drag.
+  const fitKey = useMemo(
+    () => `${plottable.map((point) => `${point.lat},${point.lng}`).join(';')}|${shownAreas.map((area) => `${area.id}:${pointCount(area.geometry)}`).join(';')}`,
+    [plottable, shownAreas],
+  );
+  const fittedKey = useRef(fitKey);
+  useEffect(() => {
+    if (fittedKey.current === fitKey) return;
+    fittedKey.current = fitKey;
+    if (keepView.current) {
+      keepView.current = false;
+      return;
+    }
+    const bounds = boundsOf(
+      plottable.map((point) => ({ lat: point.lat as number, lng: point.lng as number })),
+      shownAreas,
+      route?.line,
+    );
+    if (bounds !== null) engineRef.current?.fit(bounds);
+  }, [fitKey, plottable, shownAreas, route]);
+
+  if (!hasCanvas) {
     return (
       <EmptyState
         compact
@@ -280,74 +598,272 @@ export function MapBubble({
     );
   }
 
-  const ranked =
-    topN > 0 && activeMetric !== undefined
-      ? [...points]
-          .map((point) => ({ point, value: metricValue(point, activeMetric) }))
-          .sort((a, b) => b.value - a.value || a.point.name.localeCompare(b.point.name, locale))
-          .slice(0, topN)
-      : [];
+  const given = order === 'given';
+  // A list in its given order stops at `listMax` rows and says how many more there are; every point still has its pin.
+  const shownMax = Math.max(0, Math.floor(listMax));
+  const more = given ? Math.max(0, points.length - shownMax) : 0;
+  const listed =
+    given
+      ? points.slice(0, shownMax).map((point, index) => ({ point, value: activeMetric === undefined ? 0 : metricValue(point, activeMetric), stop: index }))
+      : topN > 0 && activeMetric !== undefined
+        ? [...points]
+            .map((point, index) => ({ point, value: metricValue(point, activeMetric), stop: index }))
+            .sort((a, b) => b.value - a.value || a.point.name.localeCompare(b.point.name, locale))
+            .slice(0, topN)
+        : [];
+  const sharedOf = (point: GeoPoint): number => {
+    const at = plottable.indexOf(point);
+    return at === -1 ? 1 : (spread[at]?.shared ?? 1);
+  };
+  const apple = typeof navigator !== 'undefined' && isAppleDevice(navigator.userAgent, navigator.maxTouchPoints);
+  const listLabel =
+    regionsLabel ??
+    (route !== undefined
+      ? t('ui:widgets.geo.mapBubble.stopsLabel', 'Stops')
+      : given
+        ? t('ui:widgets.geo.mapBubble.placesLabel', 'Places')
+        : t('ui:widgets.geo.mapBubble.regionsLabel', 'Top regions'));
 
   return (
     <div
       data-widget="map-bubble"
       data-testid={testId}
-      data-map-status={mapStatus}
-      className="flex h-full flex-col gap-3 px-[var(--widget-pad)] pb-[var(--widget-pad)]"
+      data-map-status={server === null ? 'off' : status}
+      className="flex h-full min-w-0 flex-col gap-3 px-[var(--widget-pad)] pb-[var(--widget-pad)]"
     >
       {keys.length > 1 && (
         <SegmentedControl
           data-part="metric-tabs"
-          aria-label={regionsLabel ?? t('ui:widgets.geo.mapBubble.metricLabel', 'Metric')}
+          aria-label={t('ui:widgets.geo.mapBubble.metricLabel', 'Metric')}
           options={keys.map((key) => ({ value: key, label: metricLabels?.[key] ?? key }))}
           value={activeMetric}
           onValueChange={setMetric}
         />
       )}
 
-      <div className="flex min-h-0 flex-1 flex-wrap items-stretch gap-3">
-        {/* THE LTR ISLAND. Geography never mirrors — a flipped world
-            map is a wrong map, not a localized one. */}
-        <div dir="ltr" className="relative min-h-[12rem] min-w-[16rem] flex-[2] overflow-hidden rounded-lg border border-border">
-          <div ref={containerRef} data-part="map-canvas" className="size-full" />
-          {mapStatus === 'unavailable' && (
-            <p
-              data-part="map-unavailable"
-              className="absolute inset-0 flex items-center justify-center bg-surface-2 p-4 text-center text-caption text-fg-muted"
-            >
-              {mapUnavailableLabel ??
-                t('ui:widgets.geo.mapBubble.mapUnavailableLabel', 'The map could not be loaded. The ranked list below shows the same data.')}
-            </p>
+      {/* What happens on the map, for a screen reader: in the page from the start, filled as things happen. */}
+      <p data-part="map-said" role="status" className="sr-only">
+        {said}
+      </p>
+
+      {server === null ? (
+        <StatusNote data-part="map-off" className="rounded-lg border border-border bg-surface-2 px-3 py-2 text-body-sm text-fg-muted">
+          {t('ui:widgets.geo.mapBubble.mapsOffLabel', 'Maps are switched off. Here is the list.')}
+          {settingsHref !== undefined && (
+            <>
+              {' '}
+              <a
+                href={settingsHref}
+                data-part="map-off-link"
+                className="font-medium text-accent underline underline-offset-2"
+                onClick={(event) => {
+                  // The host's router, when it gave one: a plain link loads the whole app again.
+                  // A click meant for a new tab or window is left to the browser.
+                  if (onSettingsOpen === undefined || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+                  event.preventDefault();
+                  onSettingsOpen(settingsHref);
+                }}
+              >
+                {t('ui:widgets.geo.mapBubble.mapsOffLink', 'Open Settings → Maps')}
+              </a>
+            </>
+          )}
+        </StatusNote>
+      ) : status === 'unavailable' ? (
+        <StatusNote data-part="map-unavailable" className="rounded-lg border border-border bg-surface-2 px-3 py-2 text-body-sm text-fg-muted">
+          {mapUnavailableLabel ?? t('ui:widgets.geo.mapBubble.mapUnavailableLabel', 'The map could not be reached. Here is the list.')}
+        </StatusNote>
+      ) : null}
+
+      {drawsMap && activeDraft !== null && (
+        <div data-part="area-tools" className="flex flex-wrap items-center gap-2">
+          <p className="min-w-0 flex-1 basis-48 text-caption text-fg-muted">
+            {activeDraft.closed
+              ? t('ui:widgets.geo.mapBubble.areaChangeHint', 'Drag a corner to move it. Pick a corner to remove it or to add one after it.')
+              : t('ui:widgets.geo.mapBubble.areaDrawHint', 'Click the map to add the corners of the area, then close the shape.')}
+            {activeDraft.closed && hasOtherPieces(activeDraft.source) && (
+              <span data-part="area-pieces-hint">
+                {' '}
+                {t(
+                  'ui:widgets.geo.mapBubble.areaPiecesHint',
+                  'This area has a hole or more than one piece. Those stay as they are while you change this outline. “Start again” replaces the whole area with one new shape.',
+                )}
+              </span>
+            )}
+          </p>
+          {!activeDraft.closed && (
+            <>
+              <Button
+                type="button"
+                size="sm"
+                variant="secondary"
+                data-part="area-add-corner"
+                onClick={() => {
+                  const at = engineRef.current?.center();
+                  if (at !== undefined) changeDraft((current) => ({ ...current, corners: addCorner(current.corners, at) }));
+                }}
+              >
+                {t('ui:widgets.geo.mapBubble.areaAddCornerHere', 'Add a corner at the middle of the map')}
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="primary"
+                data-part="area-close"
+                disabled={!canClose(activeDraft.corners)}
+                onClick={() => changeDraft((current) => ({ ...current, corners: [...current.corners], closed: true, selected: null }))}
+              >
+                {t('ui:widgets.geo.mapBubble.areaClose', 'Close the shape')}
+              </Button>
+            </>
+          )}
+          {activeDraft.closed && (
+            <>
+              <Button
+                type="button"
+                size="sm"
+                variant="secondary"
+                data-part="area-insert-corner"
+                disabled={activeDraft.selected === null}
+                onClick={() =>
+                  changeDraft((current) => (current.selected === null ? current : { ...current, corners: insertCorner(current.corners, current.selected), selected: current.selected + 1 }))
+                }
+              >
+                {t('ui:widgets.geo.mapBubble.areaInsertCorner', 'Add a corner after this one')}
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="secondary"
+                data-part="area-remove-corner"
+                disabled={activeDraft.selected === null || activeDraft.corners.length <= MIN_CORNERS}
+                onClick={() =>
+                  changeDraft((current) => (current.selected === null ? current : { ...current, corners: removeCorner(current.corners, current.selected, true), selected: null }))
+                }
+              >
+                {t('ui:widgets.geo.mapBubble.areaRemoveCorner', 'Remove this corner')}
+              </Button>
+            </>
+          )}
+          {activeDraft.corners.length > 0 && (
+            <Button type="button" size="sm" variant="ghost" data-part="area-restart" onClick={() => setDraft({ ...NEW_DRAFT, id: activeDraft.id })}>
+              {t('ui:widgets.geo.mapBubble.areaRestart', 'Start again')}
+            </Button>
+          )}
+          {shownAreas.length > 1 && (
+            <Button type="button" size="sm" variant="ghost" data-part="area-done" onClick={() => setDraft(null)}>
+              {t('ui:widgets.geo.mapBubble.areaDone', 'Done')}
+            </Button>
           )}
         </div>
+      )}
+      {drawsMap && editable && activeDraft === null && (
+        <div data-part="area-tools" className="flex flex-wrap items-center gap-2">
+          <p className="min-w-0 flex-1 basis-48 text-caption text-fg-muted">{t('ui:widgets.geo.mapBubble.areaPickHint', 'Pick an area on the map or in the list to change it.')}</p>
+          <Button type="button" size="sm" variant="secondary" data-part="area-new" onClick={() => setDraft(NEW_DRAFT)}>
+            {t('ui:widgets.geo.mapBubble.areaNew', 'Draw a new area')}
+          </Button>
+        </div>
+      )}
 
-        {/* The annex's ranked companion ("pairs with ranked-entity-list"), and
-            the map's accessible equivalent: an SVG of circles is unreadable to a
-            screen reader, so the same ranking is real, focusable text. */}
-        {ranked.length > 0 && (
-          <ol
-            data-part="geo-ranking"
-            aria-label={regionsLabel ?? t('ui:widgets.geo.mapBubble.regionsLabel', 'Top regions')}
-            className="min-w-40 flex-1 space-y-1.5"
-          >
-            {ranked.map(({ point, value }, index) => (
-              <li key={point.name}>
-                <button
-                  type="button"
-                  data-part="geo-ranking-row"
-                  onClick={() => onSelect?.(point)}
-                  className="flex w-full items-center justify-between gap-3 rounded-md px-2 py-1 text-start text-body-sm hover:bg-surface-2/60 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent"
-                >
-                  <span className="flex min-w-0 items-center gap-1.5">
-                    <MapPin aria-hidden="true" className="size-3 shrink-0 text-fg-subtle" />
-                    <span className="text-fg-subtle tabular-nums">{index + 1}.</span>
-                    <span className="truncate text-fg-muted">{point.name}</span>
-                  </span>
-                  <span className="shrink-0 font-medium tabular-nums text-fg">{format(value)}</span>
-                </button>
-              </li>
-            ))}
-          </ol>
+      <div className="flex min-h-0 min-w-0 flex-1 flex-wrap items-stretch gap-3">
+        {/* THE LTR ISLAND. Geography never mirrors — a flipped world
+            map is a wrong map, not a localized one. */}
+        {drawsMap && (
+          <div dir="ltr" className="relative min-h-[20rem] min-w-0 flex-[2] basis-64 overflow-hidden rounded-lg border border-border">
+            {/* The map's own stylesheet makes its container `position: relative`,
+                so the box that fills the frame is this one and the map fills it. */}
+            <div className="absolute inset-0">
+              <div ref={containerRef} data-part="map-canvas" className="size-full" />
+            </div>
+          </div>
+        )}
+
+        {(listed.length > 0 || more > 0 || shownAreas.length > 0) && (
+        <div className="flex min-w-0 flex-1 basis-40 flex-col gap-3">
+          {/* The list: the map's companion, its stand-in when there is no map,
+              and its accessible equivalent — a canvas of pins is unreadable to a
+              screen reader, so the same places are real, focusable text. */}
+          {listed.length > 0 && (
+            <ol data-part="geo-ranking" aria-label={listLabel} className="min-w-0 space-y-1.5">
+              {listed.map(({ point, value, stop }, index) => {
+                const shared = point.by === 'town' ? sharedOf(point) : 1;
+                const leg = legText(stop);
+                const placed = point.lat !== undefined && point.lng !== undefined;
+                return (
+                  <li key={`${stop}:${point.name}`} className="min-w-0">
+                    <button
+                      type="button"
+                      data-part="geo-ranking-row"
+                      onClick={() => onSelect?.(point)}
+                      className="flex w-full min-w-0 items-center justify-between gap-3 rounded-md px-2 py-1 text-start text-body-sm hover:bg-surface-2/60 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent"
+                    >
+                      <span className="flex min-w-0 items-center gap-1.5">
+                        <MapPin aria-hidden="true" className="size-3 shrink-0 text-fg-subtle" />
+                        <span className="text-fg-subtle tabular-nums">{index + 1}.</span>
+                        <span className="truncate text-fg-muted">{point.name}</span>
+                        {point.by === 'town' && (
+                          <span data-part="geo-by-town" className="shrink-0 rounded-sm border border-dashed border-border px-1 text-caption text-fg-subtle">
+                            {byTownLabel}
+                          </span>
+                        )}
+                      </span>
+                      {showValues && route === undefined && <span className="shrink-0 font-medium tabular-nums text-fg">{format(value)}</span>}
+                    </button>
+                    {(shared > 1 || leg !== null) && (
+                      <p data-part="geo-row-note" className="px-2 ps-7 text-caption text-fg-subtle">
+                        {[
+                          leg,
+                          shared > 1
+                            ? t('ui:widgets.geo.mapBubble.sharedTown', '{count, plural, one {# place is} other {# places are}} known only by this town', { count: shared })
+                            : null,
+                        ]
+                          .filter((part) => part !== null)
+                          .join(' · ')}
+                      </p>
+                    )}
+                    {coarse && placed && (
+                      <a
+                        data-part="geo-maps-app"
+                        href={mapsAppHref({ lat: point.lat as number, lng: point.lng as number, name: point.name }, apple)}
+                        className="ms-7 inline-block px-2 py-1 text-caption font-medium text-accent underline underline-offset-2"
+                      >
+                        {t('ui:widgets.geo.mapBubble.openInMaps', 'Open in my maps app')}
+                      </a>
+                    )}
+                  </li>
+                );
+              })}
+            </ol>
+          )}
+          {more > 0 && (
+            <p data-part="geo-list-more" className="px-2 text-caption text-fg-subtle">
+              {t('ui:widgets.geo.mapBubble.listMore', 'and {count, plural, one {# more} other {# more}}', { count: more })}
+            </p>
+          )}
+
+          {shownAreas.length > 0 && (
+            <ul data-part="geo-areas" aria-label={t('ui:widgets.geo.mapBubble.areasLabel', 'Areas')} className="min-w-0 space-y-1.5">
+              {shownAreas.map((area, index) => {
+                const name = area.name ?? t('ui:widgets.geo.mapBubble.areaUnnamed', 'Area {number}', { number: String(index + 1) });
+                const count = t('ui:widgets.geo.mapBubble.areaPoints', '{count, plural, one {# point} other {# points}}', { count: pointCount(area.geometry) });
+                return (
+                  <li key={area.id} className="flex min-w-0 items-center justify-between gap-3 px-2 py-1 text-body-sm">
+                    <span className="min-w-0 truncate text-fg-muted">{name}</span>
+                    <span className="flex shrink-0 items-center gap-2 text-caption text-fg-subtle">
+                      {count}
+                      {drawsMap && editable && activeDraft?.id !== area.id && (
+                        <Button type="button" size="sm" variant="ghost" data-part="area-change" aria-label={`${t('ui:widgets.geo.mapBubble.areaChange', 'Change')}: ${name}`} onClick={() => setDraft(draftOf(area))}>
+                          {t('ui:widgets.geo.mapBubble.areaChange', 'Change')}
+                        </Button>
+                      )}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
         )}
       </div>
     </div>
@@ -360,6 +876,7 @@ export function MapBubbleWidget({ config, data, onEvent }: WidgetProps<MapBubble
     codeField: config.codeField,
     latField: config.latColumn,
     lngField: config.lngColumn,
+    placeField: config.placeColumn,
     metricFields: config.metrics,
   });
   const opts = formatOptionsOf(config);
@@ -372,8 +889,8 @@ export function MapBubbleWidget({ config, data, onEvent }: WidgetProps<MapBubble
       metricLabels={config.metricLabels}
       flyToOnClick={config.flyToOnClick}
       topN={config.topN}
-      zoom={config.initialZoom}
       format={(value) => formatMetricValue(value, config.valueFormat, opts)}
+      {...(config.initialZoom === undefined ? {} : { zoom: config.initialZoom })}
       {...(config.initialCenter === undefined ? {} : { center: config.initialCenter })}
       {...(config.emptyTitle === undefined ? {} : { emptyTitle: config.emptyTitle })}
       {...(config.emptyBody === undefined ? {} : { emptyBody: config.emptyBody })}

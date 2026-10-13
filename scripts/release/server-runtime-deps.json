@@ -56,8 +56,8 @@
     "@dnd-kit/modifiers",
     "@dnd-kit/utilities",
     "@tanstack/react-table",
-    "leaflet",
     "lucide-react",
+    "maplibre-gl",
     "react"
   ]
 }

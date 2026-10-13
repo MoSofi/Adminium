@@ -72,6 +72,8 @@ export interface ControlProps extends SlotInjected {
    * owns the form.
    */
   siblings?: Readonly<Record<string, unknown>> | undefined;
+  /** The server's list of towns, for a place field; absent ⇒ no suggestions, coordinates and links still go. */
+  places?: CrudApi['places'] | undefined;
   /** Which instants are already taken; absent ⇒ nothing is struck through. */
   availability?: CrudApi['availability'] | undefined;
   /**

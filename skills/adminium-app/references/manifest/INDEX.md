@@ -17,7 +17,7 @@
 | `references/manifest/requiredschema--columns.md` | requiredSchema — Columns | 7808 |
 | `references/manifest/requiredschema--columns-2.md` | requiredSchema — Columns (part 2) | 652 |
 | `references/manifest/requiredschema--column-rules.md` | requiredSchema — Column rules | 7546 |
-| `references/manifest/requiredschema--column-rules-2.md` | requiredSchema — Column rules (part 2) | 7037 |
+| `references/manifest/requiredschema--column-rules-2.md` | requiredSchema — Column rules (part 2) | 7609 |
 | `references/manifest/requiredschema--column-rules-3.md` | requiredSchema — Column rules (part 3) | 6264 |
 | `references/manifest/requiredschema--column-rules-4.md` | requiredSchema — Column rules (part 4) | 7755 |
 | `references/manifest/requiredschema--column-rules-5.md` | requiredSchema — Column rules (part 5) | 7393 |
@@ -37,10 +37,12 @@
 | `references/manifest/requiredschema--postings.md` | requiredSchema — Postings | 3904 |
 | `references/manifest/requiredschema--a-price-an-add-on-lowers.md` | requiredSchema — A price an add-on lowers | 3110 |
 | `references/manifest/requiredschema--shared-tables.md` | requiredSchema — Shared tables | 1948 |
+| `references/manifest/requiredschema--tables-built-on-an-add-on-s-shape.md` | requiredSchema — Tables built on an add-on's shape | 4202 |
 | `references/manifest/parts.md` | Parts | 5026 |
-| `references/manifest/maps.md` | Maps | 4473 |
+| `references/manifest/maps.md` | Maps | 4741 |
 | `references/manifest/option-lists.md` | Option lists | 851 |
-| `references/manifest/pages.md` | Pages | 6117 |
+| `references/manifest/pages.md` | Pages | 7750 |
+| `references/manifest/pages-2.md` | Pages (part 2) | 2208 |
 | `references/manifest/pages--tab-words-filters-and-bulk-actions.md` | Pages — Tab words, filters and bulk actions | 2313 |
 | `references/manifest/pages--navgroups.md` | Pages — navGroups | 789 |
 | `references/manifest/frontends.md` | Frontends | 2774 |
@@ -86,7 +88,5 @@
 | `references/manifest/automations--a-summary-for-each-person.md` | Automations — A summary for each person | 1807 |
 | `references/manifest/automations--a-row-a-step-makes.md` | Automations — A row a step makes | 2591 |
 | `references/manifest/sample-data.md` | Sample data | 975 |
-| `references/manifest/sample-data--sample-people.md` | Sample data — Sample people | 7697 |
-| `references/manifest/sample-data--sample-people-2.md` | Sample data — Sample people (part 2) | 2788 |
 
 More: `references/manifest/INDEX-2.md`

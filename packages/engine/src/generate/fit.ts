@@ -46,6 +46,7 @@ import {
   personFk,
   scoreArchetypes,
   shiftTypeColumn,
+  type BoardColumns,
   type CandidateContext,
   type CandidateTableInput,
   type CandidateView,
@@ -158,7 +159,7 @@ interface RoleDescriptor {
   role: FitRole;
   wants: FitWants;
   /** The registry's own predicate: the column playing this part, or null. */
-  satisfiedBy: (view: CandidateView) => string | null;
+  satisfiedBy: (view: CandidateView, board?: BoardColumns | undefined) => string | null;
   /**
    * Semantics that put a column out of the OFFER, even though tagging it would
    * technically satisfy the role.
@@ -229,7 +230,7 @@ const STATUS: RoleDescriptor = {
     // satisfies the rule at full strength rather than at its margin.
     enumValues: ['todo', 'in_progress', 'blocked', 'done'],
   },
-  satisfiedBy: (view) => boardStatus(view)?.column.name ?? null,
+  satisfiedBy: (view, board) => boardStatus(view, board)?.column.name ?? null,
 };
 
 /**
@@ -381,6 +382,12 @@ function taggableFor(
 export interface TemplateFitOptions {
   /** Widget-registry membership test; defaults to the checked-in mirror. */
   isRegistered?: ((widgetId: string) => boolean) | undefined;
+  /**
+   * What a `page-board`'s columns are, when the page names them (an app's
+   * `config.board`): the fit is then the fit of THAT board — a table with no
+   * workflow enum carries a board whose columns are another table's rows.
+   */
+  board?: BoardColumns | undefined;
 }
 
 /** A connection id is part of every query descriptor; fit composes none. */
@@ -389,11 +396,12 @@ const FIT_CONNECTION = 'fit';
 function requirementsFor(
   template: string,
   entry: CandidateTableInput,
+  board?: BoardColumns | undefined,
 ): FitRequirement[] {
   const view = buildCandidateView(entry.table, entry.classified);
   return (REPAIRABLE[template] ?? []).map((descriptor) => ({
     role: descriptor.role,
-    satisfiedBy: descriptor.satisfiedBy(view),
+    satisfiedBy: descriptor.satisfiedBy(view, board),
     taggable: taggableFor(descriptor, entry),
     wants: descriptor.wants,
     optional: false,
@@ -440,10 +448,12 @@ export function templateFit(
   }
 
   const isRegistered = opts.isRegistered ?? isRegisteredWidgetId;
+  const board = template === 'page-board' ? opts.board : undefined;
   const ctx: CandidateContext = {
     connectionId: FIT_CONNECTION,
     model: set.candidateModel,
     isRegistered,
+    ...(board === undefined ? {} : { board }),
   };
   const candidates = emitCandidates(entry.table, entry.classified, ctx);
   const composed = composeTemplate(template, candidates.map(toTemplateCandidate), { isRegistered });
@@ -468,7 +478,7 @@ export function templateFit(
     bindable: true,
     satisfied: composed.page !== null,
     unfilled,
-    requirements: requirementsFor(template, entry),
+    requirements: requirementsFor(template, entry, board),
     reason: '',
   };
 }

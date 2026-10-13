@@ -108,6 +108,8 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   'config.tabs',
   // A list's own bulk action: one row of a child table for each row ticked, offered to who may make it.
   'config.bulk',
+  // A board's columns as its page names them: the rows of a table its cards link to, or an enum's values, written to the page at install.
+  'config.board',
   // The rules an app or an add-on ships: bound to its install, the owner's once they change one.
   'automations',
   // An add-on's stock words, and a public entry they answer: in, low or out for the rows a page asks about.
@@ -154,6 +156,9 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   'column.staff',
   // Text in which people are mentioned: each one named is somebody who signs in, and is told after the save.
   'column.mentions',
+  // A position on the map and an area, each in a json column: read, checked and made alike on every write.
+  'column.place',
+  'column.area',
   // Whose a row is, and a role whose read, update or delete reaches only some rows: the test every read and write of a row carries.
   'table.belongs',
   'roles.rows',

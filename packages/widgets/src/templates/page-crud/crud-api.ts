@@ -21,6 +21,7 @@
  */
 
 import type { TabularExportFormat } from '../../lib/export.js';
+import type { PlaceSuggestion } from '../../families/geo/place-value.js';
 
 export type CrudRow = Record<string, unknown>;
 
@@ -281,6 +282,12 @@ export interface CrudApi {
     resourceValue?: string | undefined;
     exclude?: string | undefined;
   }): Promise<{ taken: string[]; capped: boolean }>;
+  /**
+   * Towns by the start of a name, from the server's own place list and in the
+   * reader's language: what a place field suggests as somebody types.
+   * Optional: without it the field still takes coordinates and a map link.
+   */
+  places?(query: string): Promise<PlaceSuggestion[]>;
   /** Bulk update/delete — one transaction, one undo token (optional). */
   bulk?(action: 'update' | 'delete', ids: readonly unknown[], values?: CrudRow): Promise<CrudBulkResult>;
   /**

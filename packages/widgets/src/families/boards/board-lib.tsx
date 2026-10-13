@@ -78,6 +78,14 @@ export interface ColumnDef {
   tone: Tone;
   /** Optional work-in-progress limit (annex `wipLimits`). */
   wip?: number | undefined;
+  /**
+   * How many cards the column holds, as whoever counted them all says. Shown
+   * in place of the number of cards given: a list stops at its limit, and a
+   * column of 340 deals must not read "200".
+   */
+  count?: number | undefined;
+  /** A figure for the column, already formatted ("€12,400"), shown beside the count. */
+  total?: string | undefined;
 }
 
 /** A swimlane row (annex `laneDefs`). */
@@ -191,11 +199,21 @@ export function ownerInitials(owner: string | undefined, locale?: string): strin
   return getInitials(owner, locale);
 }
 
+/** A column's id as a row holds it: a word, or a key that may be a number; anything else is no column (`''`). */
+export function boardKeyOf(value: unknown): string {
+  if (typeof value === 'string') return value;
+  return (typeof value === 'number' && Number.isFinite(value)) || typeof value === 'bigint' ? String(value) : '';
+}
+
 /**
  * Normalize an untrusted record-list row into a `BoardCardData`. `columnField`
  * / `laneField` / `titleField` name the source columns (record-list). A row
  * missing the column value is bucketed under `''` (an "unassigned" column the
  * caller can surface or hide).
+ *
+ * The column value is a word (an enum's) or a key (a link to the row that is
+ * the card's column, which is a number as often as not): both are read as the
+ * column's id.
  */
 export function toBoardCard(
   row: Record<string, unknown>,
@@ -208,7 +226,7 @@ export function toBoardCard(
     // The answer names the column a row is opened by; a table keyed `order_id` has no `id`.
     id: String((fields.keyField === undefined ? undefined : row[fields.keyField]) ?? row['id'] ?? row['_id'] ?? index),
     title: str(row[fields.titleField]) ?? str(row['title']) ?? `#${index + 1}`,
-    column: str(row[fields.columnField]) ?? '',
+    column: boardKeyOf(row[fields.columnField]),
     lane: fields.laneField === undefined ? undefined : (str(row[fields.laneField]) ?? ''),
     tag: str(row['tag']),
     tagTone: boardToneOf(row['tagTone'], 'accent'),

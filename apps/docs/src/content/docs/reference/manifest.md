@@ -388,6 +388,8 @@ change or delete is theirs from then on.
 | `addOnLink` | `{ "addOn", "table" }` | A link to a row of a table an add-on keeps: an order line's stock item, a payment's gift card. No foreign key is made, so the app installs whether or not the add-on is there. The add-on is one the manifest names under [`addOns`](#add-ons). While it is not installed, or not connected to this app, the link is inert: a value sent for it is refused (`POSTING_REFUSED`, reason `add-on-unavailable`, with the column) and the rows keep what they named. While it is there, a value must be the key of a row of that table, or the column is refused `not-found`. An empty link is always taken, and an import keeps whatever it names. A `lookup` on the same column may name the same table as `{ "addOn", "table" }`: a typed code then fills the link. A [`default`](#values-from-elsewhere) may fill it from a column of the app's settings row that carries the same `addOnLink` (same add-on, same table, same type), and from nowhere else: `"default": { "from": { "table": "settings", "column": "supplies_place_id" } }`. Such a default never refuses a save: it is left empty while the add-on is not there for the app, and when the row the setting names is gone. It needs `minAdminiumVersion` 0.3.19 or later. |
 | `plainText` | `true` or `{ "digits"?, "max"? }` | On a `text` column shown to people who did not write it: a name, the message on a card, a note to the kitchen. Letters, spaces and sentence punctuation only: no web address, no email address, no `@` handle, no path. `true` is a name (no digits, up to 80 characters); an object is a note with up to `digits` digits and `max` characters. It is the column's own rule, so it holds every way of writing the row: a staff save, an import, a guest's entry (which may be stricter still). Refused as `plain-text` on the column. |
 | `mentions` | `true` or `{ "about": link }` | On a `text` column people write to each other in (a note, a comment). Its box offers the people who sign in as the writer types `@`, and the text keeps each one named as `@[Name](usr_…)`. A save that names somebody who does not sign in here is refused by the column, with nothing written. After the save each person **newly** named is told who mentioned them and on which record, never what was written; one who cannot open that record gets the same notice with no link. The record is named only when the writer can read it. A mention in a row saved under another record's form tells the people a new row names; a change to such a row tells nobody. A text that already names somebody who has since left can still be edited. `about` is a link of the table: a mention in a comment is about the deal the comment is on, and that is the record the notice names and opens. Not on a [private](#whose-a-row-is) table. Needs `minAdminiumVersion` `0.3.28`. |
+| `place` | `true` | On a `json` column: a position on the map, kept as `{ "lat", "lng", "by" }` where `by` is `"town"` or `"exact"`. Every write is read and made alike; a value that is not a position is refused by the column. See [A place and an area](#a-place-and-an-area). Needs Adminium 0.3.28. |
+| `area` | `true` | On a `json` column: an area on the map, kept as a GeoJSON `Polygon` or `MultiPolygon`. See [A place and an area](#a-place-and-an-area). Needs Adminium 0.3.28. |
 | `customerKey` | `{ "of": "<address column>" }` | On a `text` column of 64 characters that may be empty: a keyed hash of the address in `of`, made by Adminium whenever that address is written and by nobody else (a value sent for it is dropped; a guest's entry may not list it). The same address gives the same key however it is spelled, and another key in another database. It says "the same customer" to whatever counts per customer, without keeping who. An empty address has no key. |
 | `codeLast4` | `{ "of": "<code column>" }` | On a `text` column that may be empty: the last four characters of the code in `of` (a column with `code`), cut by Adminium whenever that code is made — on a new row, when a collision makes it again, when a change of hands renews it. No writer's value is kept. It is what a list and a receipt show of a gift card; a code another column keeps the last four of is a **money code**, never shown in a list or a form. From Adminium 0.3.19. |
 | `perNight` | `{ "from", "to", "rate", "adjust"? }` | A price worked out night by night: a stay's room total. See [Prices by the night](#prices-by-the-night). |
@@ -1779,6 +1781,61 @@ A shared table's real rows are the venue's: the second app's [sample data](#samp
 its demo rows for it out (`skipWhenShared`). A table has `shape` or [`builtOn`](#tables-built-on-an-add-ons-shape),
 never both. See [A menu two apps share](/guides/apps/shared-menu/).
 
+### Tables built on an add-on's shape
+
+An add-on can define a **shape**: a set of named parts, each with its columns, the rules Adminium
+keeps on them and its states. The Invoices & Receipts add-on defines `invoice@1`, whose parts are a
+`document`, its `lines` and its `payments`. An app builds its own tables on it:
+
+```json
+{ "ref": "invoices", "builtOn": "invoices/invoice@1", "part": "document",
+  "columns": [ … every column of the part, then the app's own … ],
+  "states": { … the part's states … } }
+```
+
+`builtOn` is `<add-on key>/<shape name>@<version>`. The app must require that add-on in
+[`addOns.requires`](#add-ons), or put the table in a [part](#parts) whose feature needs the add-on:
+the part is then left out of an install without it. `builtOn` is not the table's [`shape`](#tables) field: that lets two
+apps share one table, while two apps built on one add-on's shape each get tables of their own.
+
+The table **spells out** every column of its part, with the part's type, nullability, enum values,
+`maxLength`, `scale`, `unique`, `default` and rules, and the part's `states`. So every check of the
+app reads its own manifest alone. Where a part's column refers to another part (`"references":
+"document"`), the app's column refers to its own table built on that part (`"references":
+"invoices"`), and a rule that names a part (a rollup's `from: "lines"`) names the app's table
+instead.
+
+What the app may add to a part, and nothing else:
+
+- columns of its own, with any rules;
+- a label, and the rules that label or narrow a part's column: `enumLabels`, `personal`,
+  `validation`, `required`, `requiredWhen`, `options`, `notAfter` and `notBefore`;
+- a `copy` in front of a column the part fills with a `default` (a client's own tax rate before the
+  add-on's default rate): the part's default still answers when the copy comes back empty;
+- in the states: more `lock.except` columns (its own columns that stay writable), `roles` on a
+  move, a condition added to a move the part has (`requires.where` on a column the app itself
+  added: a quote is sent only while its own `may_send` is 1; the part's own conditions stay as
+  written, a condition of the app's never reads a column of the part's, and the app adds no
+  move), more tables in `children`, more columns in a child's `clearOnCreate`, and on a child the
+  part ties to the state a `release` and `lockLinked` entries naming only columns the app added
+  to that child (a line's own `time_entry_id`), never the part's. A `release` the part has is
+  kept as it is, and a `lockLinked` entry it has keeps at least its columns.
+
+Everything else, from a column's type to a rule that decides a value or a move, is the part's own.
+
+The install checks each table against the shape of the add-on it will really run on: the installed
+add-on, or the version the install brings with the app. A column dropped or retyped, or a rule
+changed, refuses the install or update `409` `SHAPE_MISMATCH`, naming the column, before anything
+is written. The app pins the shape's version: `invoice@1` is checked against the add-on's
+`invoice@1`, whatever else a newer add-on ships beside it. An add-on update that no longer has a
+shape version an installed app is built on is refused `409` `ADD_ON_SHAPE_IN_USE`; update the app
+first. The tables themselves are the app's: two apps built on one shape get two sets of tables.
+
+When the shape sends email, the app sends it too: its [`outbox`](#outbox) has a kind and a
+producer for every kind the shape's outbox sends. The shape's document profiles (an invoice, a
+receipt) are made for the app's tables when it is installed; see [Documents](#documents). For the
+whole story, see [Building on an add-on](/guides/building-on-an-add-on/).
+
 ## Parts
 
 An app can be cut into **parts** its owner switches on and off: a business that sends no crews out
@@ -1857,60 +1914,76 @@ fetched by each person's browser from a map server, so whether maps are shown is
 the whole install. The install check of the **first** app that says this asks, with the tick on;
 once somebody has answered, no later install asks again. Needs Adminium 0.3.28.
 
-### Tables built on an add-on's shape
+Until somebody answers, maps are shown: the core's own map widget works on a fresh install. The
+answer is changed in **Settings → Maps**, and the operator can switch maps off for the install
+whatever it says ([`ADMINIUM_MAP_SERVER=off`](/self-hosting/env-vars/#adminium_map_server)).
+[Maps, places and routes](/guides/apps/maps/) says what a map asks of which server.
 
-An add-on can define a **shape**: a set of named parts, each with its columns, the rules Adminium
-keeps on them and its states. The Invoices & Receipts add-on defines `invoice@1`, whose parts are a
-`document`, its `lines` and its `payments`. An app builds its own tables on it:
+### A place and an area
+
+Two [column rules](#column-rules), each on a `json` column. A column takes one of them, not
+both. They need Adminium 0.3.28.
 
 ```json
-{ "ref": "invoices", "builtOn": "invoices/invoice@1", "part": "document",
-  "columns": [ … every column of the part, then the app's own … ],
-  "states": { … the part's states … } }
+{ "ref": "spot", "type": "json", "nullable": true, "rules": { "place": true } },
+{ "ref": "zone", "type": "json", "nullable": true, "rules": { "area": true } }
 ```
 
-`builtOn` is `<add-on key>/<shape name>@<version>`. The app must require that add-on in
-[`addOns.requires`](#add-ons), or put the table in a [part](#parts) whose feature needs the add-on:
-the part is then left out of an install without it. `builtOn` is not the table's [`shape`](#tables) field: that lets two
-apps share one table, while two apps built on one add-on's shape each get tables of their own.
+**A place** is kept as one object, or `null`:
 
-The table **spells out** every column of its part, with the part's type, nullability, enum values,
-`maxLength`, `scale`, `unique`, `default` and rules, and the part's `states`. So every check of the
-app reads its own manifest alone. Where a part's column refers to another part (`"references":
-"document"`), the app's column refers to its own table built on that part (`"references":
-"invoices"`), and a rule that names a part (a rollup's `from: "lines"`) names the app's table
-instead.
+| Field | |
+|---|---|
+| `lat`, `lng` | The position, in degrees. |
+| `by` | `"town"` or `"exact"`: how the position is known. |
+| `placeId` | The town's id in Adminium's list of places. Always there for `by: "town"`; on an exact point it names the town the point is in. |
+| `name` | The town's name as the list has it; or, on an exact point with no `placeId`, a label the writer gave (up to 200 characters). |
+| `country` | Two letters, upper case. |
 
-What the app may add to a part, and nothing else:
+**What a pin by town means.** `by: "town"` is the middle of a town, not an address: "somewhere
+in Cairo". It is what an app has when all it was given is a town's name. Adminium fills the
+position in itself from its list (`placeId`), whatever position the writer sent beside it, so a
+point nobody measured can never be stored as a town's or the other way round. A map draws such
+a pin differently from an exact one, a distance from it is an estimate, and the way between two
+stops known only as the same town is answered as unknown, never as zero. If your app needs the
+door, ask for an exact point.
 
-- columns of its own, with any rules;
-- a label, and the rules that label or narrow a part's column: `enumLabels`, `personal`,
-  `validation`, `required`, `requiredWhen`, `options`, `notAfter` and `notBefore`;
-- a `copy` in front of a column the part fills with a `default` (a client's own tax rate before the
-  add-on's default rate): the part's default still answers when the copy comes back empty;
-- in the states: more `lock.except` columns (its own columns that stay writable), `roles` on a
-  move, a condition added to a move the part has (`requires.where` on a column the app itself
-  added: a quote is sent only while its own `may_send` is 1; the part's own conditions stay as
-  written, a condition of the app's never reads a column of the part's, and the app adds no
-  move), more tables in `children`, more columns in a child's `clearOnCreate`, and on a child the
-  part ties to the state a `release` and `lockLinked` entries naming only columns the app added
-  to that child (a line's own `time_entry_id`), never the part's. A `release` the part has is
-  kept as it is, and a `lockLinked` entry it has keeps at least its columns.
+Every way of writing the row takes the same things for a place (a staff save, an import, a
+rule's step, a public entry that may write the column), and stores them alike:
 
-Everything else, from a column's type to a rule that decides a value or a move, is the part's own.
+| Given | Kept as |
+|---|---|
+| `{ "placeId": 360630 }` | `{ "lat": 30.06263, "lng": 31.24967, "by": "town", "placeId": 360630, "name": "Cairo", "country": "EG" }` |
+| `{ "lat": 30.0444, "lng": 31.2357 }` | `{ "lat": 30.0444, "lng": 31.2357, "by": "exact" }` |
+| `"30.0444,31.2357"` or `"geo:30.0444,31.2357"` | The same exact point. |
+| A map link with the position written in it | The same exact point. Read from the link's text: Google Maps (`@lat,lng`, `?q=`, `ll=`, a pin's `!3d…!4d…`), OpenStreetMap (`#map=zoom/lat/lng`, `mlat`/`mlon`), Apple Maps (`ll=`). |
 
-The install checks each table against the shape of the add-on it will really run on: the installed
-add-on, or the version the install brings with the app. A column dropped or retyped, or a rule
-changed, refuses the install or update `409` `SHAPE_MISMATCH`, naming the column, before anything
-is written. The app pins the shape's version: `invoice@1` is checked against the add-on's
-`invoice@1`, whatever else a newer add-on ships beside it. An add-on update that no longer has a
-shape version an installed app is built on is refused `409` `ADD_ON_SHAPE_IN_USE`; update the app
-first. The tables themselves are the app's: two apps built on one shape get two sets of tables.
+Adminium never opens a pasted link. A short link (`maps.app.goo.gl/…`), which says nothing
+until it is followed, is refused.
 
-When the shape sends email, the app sends it too: its [`outbox`](#outbox) has a kind and a
-producer for every kind the shape's outbox sends. The shape's document profiles (an invoice, a
-receipt) are made for the app's tables when it is installed; see [Documents](#documents). For the
-whole story, see [Building on an add-on](/guides/building-on-an-add-on/).
+A value that is not one of these is refused with `422`, the column named in `details.fields`
+with one of:
+
+| Code | |
+|---|---|
+| `place-unreadable` | Not a position: free text, a link with no position in it, `by: "town"` without a `placeId`. |
+| `place-short-link` | A link that would have to be followed to say where it points. |
+| `place-out-of-range` | A latitude beyond ±90 or a longitude beyond ±180. |
+| `place-unknown` | A `placeId` the list of places does not have. |
+
+**An area** is kept as a GeoJSON geometry, or `null`: a `Polygon` or a `MultiPolygon`, with
+positions east first (`[lng, lat]`). A `Feature` wrapping one is taken and kept as the bare
+geometry; a height after a position is dropped. Every ring is closed (its last position is its
+first) and has at least four positions; the whole shape has at most 2,000 positions and 64 KB.
+Refused with `area-unreadable` (not such a shape, an open ring, a position off the map) or
+`area-too-large`.
+
+Both are read back as objects on every database, in a list, on a record and through the
+dashboard's own routes. An export to CSV writes a place as `lat,lng`, which an import reads
+back as an exact point (JSON Lines keeps the whole object), and an area as its JSON.
+
+A map widget takes its points from a place column: a `geo-points` query that selects a name,
+then the place column, then any numbers to show (`"select": ["name", "spot", "visits"]`). Each
+point says how it is known (`by`), and a row with no place is left off the map.
 
 ## Option lists
 
@@ -1959,7 +2032,7 @@ and appears in the app's own sidebar section.
 | `titles` | no | The title in other languages, keyed by BCP 47 tag, each 1–120 characters. The sidebar shows the operator's language until the operator renames the page. |
 | `nav` | yes | `{ "group", "icon", "order" }`. `group` is 1–80 characters, `icon` a [Lucide](https://lucide.dev/icons/) icon name (1–60 characters), `order` an integer. |
 | `bindings` | no | Which of the app's tables the page reads: an object from a page-local name to a `requiredSchema` table ref. |
-| `config` | no | Page configuration: a `form` for a record page, a `layout` for `page-dashboard`, a `calendar` for `page-calendar`. |
+| `config` | no | Page configuration: a `form` for a record page, a `layout` for `page-dashboard`, a `calendar` for `page-calendar`, a `board` for `page-board`. |
 | `feature` | no | The id of one of the app's [`addOns.features`](#add-ons). Until every add-on the feature requires is installed, attached to the app and switched on there, the page leaves the sidebar and is listed apart, with the add-ons it needs. |
 | `module` | no | The [part](#parts) of the app the page belongs to. While that part is off the page leaves the sidebar and its address answers `409` `PART_OFF`. Needs Adminium 0.3.28. |
 
@@ -1999,6 +2072,56 @@ The manifest is refused when a name is not a column of the right table and type.
 `calendar`, a table with a booking rule is plotted by the booking's `start`; any other table by
 the first date Adminium finds. On a page with a `form`, **Add event** and a click on an empty day
 open that form, with the day filled in.
+
+`config.board` says what the columns of a `page-board` are. It needs
+`"minAdminiumVersion": "0.3.28"`.
+
+```json
+"config": { "board": {
+  "column": "stage_id",
+  "columnsFrom": { "table": "stages", "label": "name", "order": "position" },
+  "title": "name",
+  "totals": [{ "column": "amount", "fn": "sum" }],
+  "only": { "state": "open" }
+} }
+```
+
+| Field | Required | Rule |
+|---|---|---|
+| `column` | yes | The column of the page's table a card is placed by. With `columnsFrom` it is a link (`"type": "fk"`) to that table. Without `columnsFrom` it is an `enum` column, and the board's columns are its values. |
+| `columnsFrom` | no | `{ "table", "label", "order" }`: the table of the app whose rows are the board's columns, the column of it a board column is headed with, and the column the board's columns are ordered by. `order` may be left out; the columns are then in the order of their key. |
+| `title` | no | The column of the page's table a card is titled with. Left out: the table's own title column. |
+| `totals` | no | One or two `{ "column", "fn" }`: a number or money column of the page's table, and `sum` or `avg`. Each column's header shows the figure beside its count. |
+| `only` | no | Which rows of the page's table are cards on the board: one to three `"column": value` or `"column": [values]` (up to 20 values each). A row is a card when every column named holds its value, or one of its values. Left out: every row. |
+
+With `columnsFrom` the board draws one column for each row of that table, a row with no card
+too, and reads them when the page opens. A row added, renamed, moved or removed there changes the
+board for everybody looking at it, with no update of the app. A card whose link is empty is on no
+column. Dropping a card on a column saves that row's key in the card's link, as any save of the
+record would: where a role's limit or a state rule refuses the save, the card goes back and the
+board shows the reason.
+
+The count and the totals in a column's header are worked out on the server, over the rows the
+person may read: a rep held to their own deals sees the count and the worth of their own. Money
+is shown in the install's currency. A board draws the first 200 cards of its table; the count is
+of all of them. It draws at most 100 columns.
+
+`only` makes the board a board of some of its table's rows: `"only": { "state": "open" }` is the
+open deals, `"only": { "kind": ["new", "renewal"], "hot": true }` the hot deals of two kinds. It
+holds for the cards and for the headers alike, so a column's count and totals are of the cards
+`only` keeps. A column of `only` is an `enum`, a `bool`, a link (`fk`, by the key it holds),
+`text` or a whole number (`int`, `bigint`) of the page's table, and not the board's own `column`;
+a value of an `enum` is one of its values. A role that may not read a column `only` names (it is
+not among the role's `readable` columns, or it is personal data the role may not read) gets
+neither the cards nor the figures: the headers show no count and no total, never those of every
+row. So name a column every role that opens the board may read.
+
+The manifest is refused when `column` is not a link to `columnsFrom.table` (or, with no
+`columnsFrom`, not an `enum`), when a name is not a column of the right table, when a total is not
+a number or money column, when `only` names the board's own `column`, a column of another type
+or a value its column cannot hold, and on a page that is not a `page-board`. Without `board`, a board's
+columns are the values of the workflow column Adminium finds, as described under
+[A board with its own columns](/guides/apps/manifest-by-task/#a-board-with-its-own-columns).
 
 **Links that open a list filtered.** A link in a layout (a metric card's `href`, the toolbar's
 `link`) may open a records page on some of its rows: `/p/<page ref>?f.<column>=<op>:<value>`, with

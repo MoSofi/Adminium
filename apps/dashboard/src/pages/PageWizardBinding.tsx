@@ -7,10 +7,16 @@
  * pre-resolved; source-less documents (the common seeded shape — the
  * wizard picks its own target) start at the table picker.
  */
+import { use } from 'react';
+
 import { ImportWizardPage, type ImportTarget } from '../data-io/ImportWizardPage.js';
+import { dataIoMessagesReady } from '../data-io/dataIoMessages.js';
 import type { PageTemplateProps } from './template-types.js';
 
 export function PageWizardBinding({ page }: PageTemplateProps) {
+  // The wizard's words are a deferred namespace: waited for here as the `/imports` route waits for them, or a
+  // translated locale would paint the wizard in English.
+  use(dataIoMessagesReady());
   let initialTarget: ImportTarget | undefined;
   const table = page.source?.table;
   const connectionId = page.source?.connectionId;

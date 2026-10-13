@@ -565,6 +565,8 @@ export default {
         "emptyBody": "Group records by a lane field and a status field to build the grid."
       },
       "addCard": "Add card",
+      "notMoved": "{title} was not moved.",
+      "dismissNotice": "Dismiss",
       "grip": "Drag to move card",
       "pointsUnit": "pts",
       "laneSummary": "Σ{points} pts · {count}",
@@ -648,9 +650,46 @@ export default {
         "description": "A map whose circle markers are sized by the metric you choose, alongside a ranked list of the top places.",
         "emptyTitle": "No locations",
         "emptyBody": "Rows with latitude and longitude values appear here as map markers.",
-        "mapUnavailableLabel": "The map could not be loaded. The ranked list below shows the same data.",
+        "mapUnavailableLabel": "The map could not be reached. Here is the list.",
         "regionsLabel": "Top regions",
-        "metricLabel": "Metric"
+        "metricLabel": "Metric",
+        "mapsOffLabel": "Maps are switched off. Here is the list.",
+        "mapsOffLink": "Open Settings → Maps",
+        "mapLabel": "Map",
+        "zoomIn": "Zoom in",
+        "zoomOut": "Zoom out",
+        "byTown": "by town",
+        "pinMoveHint": "Drag to the exact spot. With the keyboard: Enter picks the pin up, the arrow keys move it, Enter keeps the spot and Escape puts it back.",
+        "sharedTown": "{count, plural, one {# place is} other {# places are}} known only by this town",
+        "stopsLabel": "Stops",
+        "placesLabel": "Places",
+        "areasLabel": "Areas",
+        "legAbout": "about {distance} from the stop before",
+        "legExact": "{distance} from the stop before",
+        "legUnknown": "distance from the stop before unknown",
+        "openInMaps": "Open in my maps app",
+        "cornerLabel": "Corner {number}",
+        "areaChangeHint": "Drag a corner to move it. Pick a corner to remove it or to add one after it.",
+        "areaDrawHint": "Click the map to add the corners of the area, then close the shape.",
+        "areaAddCornerHere": "Add a corner at the middle of the map",
+        "areaClose": "Close the shape",
+        "areaInsertCorner": "Add a corner after this one",
+        "areaRemoveCorner": "Remove this corner",
+        "areaRestart": "Start again",
+        "areaDone": "Done",
+        "areaPickHint": "Pick an area on the map or in the list to change it.",
+        "areaNew": "Draw a new area",
+        "areaChange": "Change",
+        "areaUnnamed": "Area {number}",
+        "areaPoints": "{count, plural, one {# point} other {# points}}",
+        "areaPiecesHint": "This area has a hole or more than one piece. Those stay as they are while you change this outline. “Start again” replaces the whole area with one new shape.",
+        "listMore": "and {count, plural, one {# more} other {# more}}",
+        "saidCornerAdded": "Corner added. {count, plural, one {# corner} other {# corners}}.",
+        "saidShapeClosed": "Shape closed.",
+        "saidPinKept": "Pin kept at {position}.",
+        "saidPinPicked": "Pin picked up. Move it with the arrow keys, then press Enter to keep the spot or Escape to put it back.",
+        "saidPinBack": "The pin is back where it was.",
+        "saidPinRefused": "The new spot was not kept. The pin is back where it was."
       },
       "mapChoroplethGrid": {
         "description": "Region tiles tinted by value — for tables that carry region codes but no coordinates.",
@@ -659,6 +698,38 @@ export default {
         "legendLowLabel": "Low",
         "legendHighLabel": "High",
         "chartLabel": "Regional breakdown"
+      },
+      "place": {
+        "pinName": "This place",
+        "placeholder": "Type a town, or paste coordinates or a map link",
+        "searching": "Looking…",
+        "noTown": "No town by that name. Try another spelling, or paste coordinates.",
+        "searchFailed": "The town list could not be asked just now. Try again, or paste coordinates.",
+        "whereIAm": "Where I am",
+        "byTown": "By town: {name}",
+        "exact": "Exact spot: {position}",
+        "exactNamed": "Exact spot: {name} ({position})",
+        "pending": "Read when you save: {text}",
+        "none": "No place yet",
+        "clear": "Clear",
+        "whereError": "This device did not say where it is. Check that the browser may use your location.",
+        "issue": {
+          "unreadable": "This could not be read as a place. Choose a town from the list, or paste coordinates such as 30.0444, 31.2357.",
+          "shortLink": "A short link does not say where it leads, and it is not followed. Open it, then paste the full link or the coordinates.",
+          "outOfRange": "These coordinates are not on the map. Latitude runs from -90 to 90, longitude from -180 to 180.",
+          "unknown": "This town is not in the list any more. Choose it again."
+        }
+      },
+      "area": {
+        "points": "Area · {count, plural, one {# point} other {# points}}",
+        "unreadable": "The stored value is not an area. Draw one to replace it.",
+        "none": "No area yet",
+        "clear": "Clear",
+        "mapsOff": "An area is drawn on the map, and maps are switched off. The area that is stored is kept as it is.",
+        "issue": {
+          "unreadable": "This could not be read as an area. Draw it again.",
+          "tooLarge": "This area has too many points. Draw it with fewer."
+        }
       }
     },
     "domain": {
@@ -1711,6 +1782,8 @@ export default {
     "board": {
       "invalidLayout": "This board’s stored layout is invalid. Regenerate the page or reset its layout.",
       "noRowsTitle": "No cards yet",
+      "noColumnsTitle": "No columns yet",
+      "noColumnsBody": "This board takes its columns from the rows of a table, and that table has no rows yet. Add one and it appears here as a column.",
       "noRowsBody": "Cards appear here as soon as the table has rows."
     },
     "calendar": {
@@ -1819,6 +1892,8 @@ export default {
       "unplaced": {
         "calendar": "None of this table’s rows has a date yet, so the calendar is empty. A row appears here as soon as it has one.",
         "board": "None of this table’s rows has a status yet, so the board is empty. A row appears here as soon as it has one.",
+        "boardColumns": "None of this table’s rows is in one of the board’s columns yet, so the board is empty. A row appears here as soon as it is put in one.",
+        "boardColumnsSome": "{count, plural, one {# row is in none of the board’s columns, so it is not shown here.} other {# rows are in none of the board’s columns, so they are not shown here.}}",
         "scheduler": "None of this table’s rows has a person, a date and a shift type yet, so the schedule is empty. A row appears here as soon as it has all three."
       }
     }

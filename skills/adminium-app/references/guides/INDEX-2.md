@@ -4,6 +4,7 @@
 
 | File | What it covers | Bytes |
 |---|---|---|
+| `references/guides/timed-moves--late-moves.md` | Late moves | 1872 |
 | `references/guides/timed-moves--reminders-at-a-wall-time.md` | Reminders at a wall time | 1173 |
 | `references/guides/timed-moves--settings-a-moment-reads.md` | Settings a moment reads | 1274 |
 | `references/guides/timed-moves--a-hold-that-nobody-finishes.md` | A hold that nobody finishes | 1060 |
@@ -84,3 +85,11 @@
 | `references/guides/public-access--origins.md` | Origins | 853 |
 | `references/guides/public-access--the-customer-domain.md` | The customer domain | 464 |
 | `references/guides/public-access--rate-limits.md` | Rate limits | 984 |
+| `references/guides/maps--overview.md` | Maps, places and routes | 367 |
+| `references/guides/maps--what-works-with-nothing-set-up.md` | What works with nothing set up | 702 |
+| `references/guides/maps--the-map-server.md` | The map server | 1337 |
+| `references/guides/maps--turning-maps-off.md` | Turning maps off | 697 |
+| `references/guides/maps--a-place-by-town-or-exact.md` | A place: by town or exact | 2698 |
+| `references/guides/maps--an-area.md` | An area | 496 |
+
+More: `references/guides/INDEX-3.md`

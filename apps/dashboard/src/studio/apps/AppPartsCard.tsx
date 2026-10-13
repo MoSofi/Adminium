@@ -269,7 +269,22 @@ export function PartsInstallCard({
  * The install check's "Maps" card: asked once, for the whole install, by the
  * first app that shows maps. Ticked unless the installer says otherwise.
  */
-export function MapsInstallCard({ checked, onChange }: { checked: boolean; onChange: (next: boolean) => void }) {
+export function MapsInstallCard({
+  checked,
+  onChange,
+  server,
+}: {
+  checked: boolean;
+  onChange: (next: boolean) => void;
+  /** The map server this install uses, as the session says it; absent while maps are off (it is not said then). */
+  server?: string | null | undefined;
+}) {
+  let host: string | null = null;
+  try {
+    host = server === null || server === undefined ? null : new URL(server).host;
+  } catch {
+    host = null;
+  }
   return (
     <section className="rounded-[14px] border border-border bg-surface p-[18px] shadow-sm" data-testid="install-maps">
       <h3 className="mb-[11px] flex items-center gap-[9px]">
@@ -279,7 +294,9 @@ export function MapsInstallCard({ checked, onChange }: { checked: boolean; onCha
       <label className="flex cursor-pointer items-start gap-2.5">
         <Checkbox checked={checked} onCheckedChange={(next) => onChange(next === true)} />
         <span className="text-[12.5px] leading-[1.5] text-fg-muted">
-          <span className="font-bold text-fg">{t('studio:installMaps.tick', 'Show maps (uses OpenFreeMap)')}</span>
+          <span className="font-bold text-fg">
+            {host === null ? t('studio:installMaps.tick', 'Show maps (uses OpenFreeMap)') : t('studio:installMaps.tickHost', 'Show maps (uses {host})', { host })}
+          </span>
           {' — '}
           {t(
             'studio:installMaps.note',

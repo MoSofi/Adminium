@@ -153,6 +153,8 @@ import {
 } from './decided-columns.js';
 import type { ResolvedColumn, ResolvedTable } from './identifiers.js';
 import type { Row } from './mask.js';
+import { defaultPlaces, type Places } from '../geo/places.js';
+import { areaValueOf, placeValueOf } from '../geo/values.js';
 import { fetchByPk } from './records.js';
 import { venueLocalValue } from './venue-time.js';
 import { priceValues, repricedBy } from './per-night.js';
@@ -1690,7 +1692,7 @@ export interface RecordWriteService {
     target: WriteTarget,
     context: WriteContext,
     rows: readonly Row[],
-    opts?: Pick<BeforeEachOptions, 'capacity'>,
+    opts?: Pick<BeforeEachOptions, 'capacity' | 'quote'>,
   ): Promise<{ rows: (CheckedRow | null)[]; issues: (FieldIssues | null)[] }>;
   create(input: CreateRecordInput): Promise<Row>;
   /** A create with its child rows, every row or none; or a quote of one (`write-tree.ts`). */
@@ -1807,6 +1809,8 @@ export interface RecordWriteService {
 export interface WriteServiceOptions {
   /** Read on every write, so a reload swaps the hooks for the next one. */
   hooks?: (() => RecordHooks) | undefined;
+  /** The place list a town in a place column is read from; the one this server ships unless a test says otherwise. */
+  places?: Places | undefined;
   /**
    * The add-ons a table's postings hand rows to: whether each rule is live
    * now, and the code that plans its rows. A server with no add-on runtime
@@ -2196,6 +2200,24 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
     return softLinkIssues(target.db, rules, values);
   }
 
+  /**
+   * The place and area columns this write gives, each as its column keeps it
+   * (`geo/values.ts`), and the ones refused. Null when the write gives none:
+   * every other table pays one look at its columns.
+   */
+  async function geoValues(target: WriteTarget, values: Row): Promise<{ values: Row; issues: FieldIssues | null } | null> {
+    let out: Row | null = null;
+    let issues: FieldIssues | null = null;
+    for (const [name, column] of target.table.columns) {
+      if (column.geo === undefined || !Object.prototype.hasOwnProperty.call(values, name)) continue;
+      const judged = column.geo === 'place' ? await placeValueOf(values[name], opts.places ?? defaultPlaces()) : areaValueOf(values[name]);
+      out ??= { ...values };
+      if (judged.ok) out[name] = judged.value;
+      else (issues ??= {})[name] = { code: judged.code };
+    }
+    return out === null ? null : { values: out, issues };
+  }
+
   async function checkAllOrThrow(
     rules: TableRules | null,
     action: WriteAction,
@@ -2206,8 +2228,11 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
     mapError: ((error: unknown) => never) | undefined,
   ): Promise<CheckedRow> {
     const judged = judgedBy(rules, target, context);
+    // A place and an area are made alike before anything judges or stores them, whoever wrote them.
+    const geo = action === 'delete' ? null : await geoValues(target, values);
+    if (geo !== null) values = geo.values;
     const issues = mergeIssues(
-      mergeIssues(checkRow(judged, action, values, { dialect: target.dialect, stored, columns: target.table.columns }), await boundIssues(rules, action, target, context, values, stored)),
+      mergeIssues(mergeIssues(geo?.issues ?? null, checkRow(judged, action, values, { dialect: target.dialect, stored, columns: target.table.columns })), await boundIssues(rules, action, target, context, values, stored)),
       mergeIssues(await linkIssues(rules, action, target, context, values, mapError, stored), action === 'delete' ? null : reservedIssue(rules, values)),
     );
     // What the check read of the stored row goes with the values, for the statement to hold it to.
@@ -3587,7 +3612,10 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
           out.push(null);
           continue;
         }
-        const values = await formulate(rules, action, target, prepared, null, context.origin);
+        const formulated = await formulate(rules, action, target, prepared, null, context.origin);
+        // A place and an area as their columns keep them: a line of a file is read as a save is.
+        const geo = action === 'delete' ? null : await geoValues(target, formulated);
+        const values = geo?.values ?? formulated;
         // Judged again as it will be written: a row made in a state its table starts in reaches that state's point without being sent it.
         const [late] = action === 'delete' ? [null] : await refuseBatch({ target, rules, action, context, rows: [{ values }], history: checkOpts?.capacity === 'unchecked' });
         if (late != null) {
@@ -3596,10 +3624,17 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
           continue;
         }
         const issue = mergeIssues(
-          mergeIssues(checkRow(judgedBy(rules, target, context), action, values, { dialect: target.dialect, columns: target.table.columns }), await boundIssues(rules, action, target, context, values, null)),
+          mergeIssues(mergeIssues(geo?.issues ?? null, checkRow(judgedBy(rules, target, context), action, values, { dialect: target.dialect, columns: target.table.columns })), await boundIssues(rules, action, target, context, values, null)),
           mergeIssues(await linkIssues(rules, action, target, context, values), action === 'delete' ? null : reservedIssue(rules, values)),
         );
         issues.push(issue);
+        if (issue === null && checkOpts?.quote === true) {
+          // Rows judged and never written (an import's preview): no number is claimed for them.
+          const carried = await carry(rules, action, target, context, brand(await unclaimedNumbers(rules, target, values)), null, clock);
+          quoteOnly(carried);
+          out.push(carried);
+          continue;
+        }
         out.push(issue === null ? await carry(rules, action, target, context, await numbered(rules, action, target, context, brand(values)), null, clock) : null);
       }
       return { rows: out, issues };
@@ -4714,7 +4749,10 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
        */
       const prepare = async (values: Row, record: Row | null): Promise<{ values: CheckedRow; issues: FieldIssues | null }> => {
         if (!withRules) return { values: brand(values), issues: null };
-        const worked = await formulate(rules, action, target, values, record, context.origin);
+        const formulated = await formulate(rules, action, target, values, record, context.origin);
+        // A place and an area as their columns keep them, on this way of writing a row too.
+        const geo = action === 'delete' ? null : await geoValues(target, formulated);
+        const worked = geo?.values ?? formulated;
         // Judged again as it will be written: a point reached only by a default, a stamp or a formula is a point all the same.
         if (action !== 'delete') {
           const [late] = await refuseBatch({ target, rules: rulesOf(target), action, context, rows: [{ values: worked, record }], history: beforeOpts?.capacity === 'unchecked' });
@@ -4722,7 +4760,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         }
         const judged = judgedBy(rules, target, context);
         const issues = mergeIssues(
-          mergeIssues(checkRow(judged, action, worked, { dialect: target.dialect, stored: record, columns: target.table.columns }), await boundIssues(rules, action, target, context, worked, record)),
+          mergeIssues(mergeIssues(geo?.issues ?? null, checkRow(judged, action, worked, { dialect: target.dialect, stored: record, columns: target.table.columns })), await boundIssues(rules, action, target, context, worked, record)),
           mergeIssues(await linkIssues(rules, action, target, context, worked, undefined, record), action === 'delete' ? null : reservedIssue(rules, worked)),
         );
         // A refused row is not written, so it is given no number.

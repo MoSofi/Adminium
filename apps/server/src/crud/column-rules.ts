@@ -103,7 +103,15 @@ export type IssueCode =
   | 'plain-text'
   | 'not-found'
   // A discount code that starts as a voucher's or a card's code does.
-  | 'reserved';
+  | 'reserved'
+  // A place that is not a position, is off the map, names a town the list does not have, or is a link that says nothing until followed.
+  | 'place-unreadable'
+  | 'place-out-of-range'
+  | 'place-unknown'
+  | 'place-short-link'
+  // An area that is not a closed polygon on the map, or is larger than a column keeps.
+  | 'area-unreadable'
+  | 'area-too-large';
 
 /** `n` carries the bound a message needs ("Use at most {n} characters"). */
 export interface FieldIssue {

@@ -7,7 +7,7 @@
  * tarball, with their dependency lists removed (publish-npm.mjs). So the CLI's
  * own manifest has to name every third-party package that code loads. Taking
  * the union of what those packages declare would overshoot: `@adminium/widgets`
- * declares React, Radix, Leaflet and lucide-react for the dashboard, and the
+ * declares React, Radix, MapLibre and lucide-react for the dashboard, and the
  * server only reads two plain subpaths of it.
  *
  * So this traces the BUILT code: every static import and every string-literal

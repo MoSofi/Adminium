@@ -699,6 +699,8 @@ export default {
         "emptyBody": "Gruppieren Sie Datensätze nach einem Bahnen- und einem Statusfeld, um das Raster zu erstellen."
       },
       "addCard": "Karte hinzufügen",
+      "notMoved": "{title} wurde nicht verschoben.",
+      "dismissNotice": "Schließen",
       "grip": "Zum Verschieben ziehen",
       "pointsUnit": "Pkt.",
       "laneSummary": "Σ{points} Pkt. · {count}",
@@ -782,9 +784,46 @@ export default {
         "description": "Eine Karte, deren Kreismarkierungen sich nach der gewählten Kennzahl skalieren, samt Rangliste der wichtigsten Orte.",
         "emptyTitle": "Keine Standorte",
         "emptyBody": "Zeilen mit Breiten- und Längengrad erscheinen hier als Kartenmarkierungen.",
-        "mapUnavailableLabel": "Die Karte konnte nicht geladen werden. Die Rangliste zeigt dieselben Daten.",
+        "mapUnavailableLabel": "Die Karte war nicht erreichbar. Hier ist die Liste.",
         "regionsLabel": "Top-Regionen",
-        "metricLabel": "Kennzahl"
+        "metricLabel": "Kennzahl",
+        "mapsOffLabel": "Karten sind ausgeschaltet. Hier ist die Liste.",
+        "mapsOffLink": "Einstellungen → Karten öffnen",
+        "mapLabel": "Karte",
+        "zoomIn": "Vergrößern",
+        "zoomOut": "Verkleinern",
+        "byTown": "nach Ort",
+        "pinMoveHint": "Auf die genaue Stelle ziehen. Mit der Tastatur: Die Eingabetaste nimmt die Markierung auf, die Pfeiltasten bewegen sie, die Eingabetaste behält die Stelle bei und Esc setzt sie zurück.",
+        "sharedTown": "{count, plural, one {# Ort ist} other {# Orte sind}} nur über diesen Ort bekannt",
+        "stopsLabel": "Stopps",
+        "placesLabel": "Orte",
+        "areasLabel": "Gebiete",
+        "legAbout": "etwa {distance} vom vorigen Stopp",
+        "legExact": "{distance} vom vorigen Stopp",
+        "legUnknown": "Entfernung vom vorigen Stopp unbekannt",
+        "openInMaps": "In meiner Karten-App öffnen",
+        "cornerLabel": "Ecke {number}",
+        "areaChangeHint": "Ziehen Sie eine Ecke, um sie zu verschieben. Wählen Sie eine Ecke, um sie zu entfernen oder eine danach einzufügen.",
+        "areaDrawHint": "Klicken Sie auf die Karte, um die Ecken des Gebiets zu setzen, und schließen Sie dann die Form.",
+        "areaAddCornerHere": "Ecke in der Kartenmitte hinzufügen",
+        "areaClose": "Form schließen",
+        "areaInsertCorner": "Ecke nach dieser hinzufügen",
+        "areaRemoveCorner": "Diese Ecke entfernen",
+        "areaRestart": "Neu beginnen",
+        "areaDone": "Fertig",
+        "areaPickHint": "Wählen Sie ein Gebiet auf der Karte oder in der Liste, um es zu ändern.",
+        "areaNew": "Neues Gebiet zeichnen",
+        "areaChange": "Ändern",
+        "areaUnnamed": "Gebiet {number}",
+        "areaPoints": "{count, plural, one {# Punkt} other {# Punkte}}",
+        "areaPiecesHint": "Dieses Gebiet hat ein Loch oder besteht aus mehreren Teilen. Diese bleiben, wie sie sind, während Sie diesen Umriss ändern. „Neu beginnen“ ersetzt das ganze Gebiet durch eine neue Form.",
+        "listMore": "und {count, plural, one {# weiterer} other {# weitere}}",
+        "saidCornerAdded": "Ecke hinzugefügt. {count, plural, one {# Ecke} other {# Ecken}}.",
+        "saidShapeClosed": "Form geschlossen.",
+        "saidPinKept": "Markierung bei {position} beibehalten.",
+        "saidPinPicked": "Markierung aufgenommen. Bewegen Sie sie mit den Pfeiltasten und drücken Sie dann die Eingabetaste, um die Stelle beizubehalten, oder Esc, um sie zurückzusetzen.",
+        "saidPinBack": "Die Markierung ist wieder an ihrer alten Stelle.",
+        "saidPinRefused": "Die neue Stelle wurde nicht übernommen. Die Markierung ist wieder an ihrer alten Stelle."
       },
       "mapChoroplethGrid": {
         "description": "Nach Wert eingefärbte Regionskacheln – für Tabellen mit Regionscodes, aber ohne Koordinaten.",
@@ -793,6 +832,38 @@ export default {
         "legendLowLabel": "Niedrig",
         "legendHighLabel": "Hoch",
         "chartLabel": "Regionale Aufschlüsselung"
+      },
+      "place": {
+        "pinName": "Dieser Ort",
+        "placeholder": "Ort eingeben oder Koordinaten bzw. einen Kartenlink einfügen",
+        "searching": "Suche…",
+        "noTown": "Kein Ort mit diesem Namen. Versuchen Sie eine andere Schreibweise oder fügen Sie Koordinaten ein.",
+        "searchFailed": "Die Ortsliste konnte gerade nicht abgefragt werden. Versuchen Sie es noch einmal oder fügen Sie Koordinaten ein.",
+        "whereIAm": "Mein Standort",
+        "byTown": "Nach Ort: {name}",
+        "exact": "Genaue Stelle: {position}",
+        "exactNamed": "Genaue Stelle: {name} ({position})",
+        "pending": "Wird beim Speichern gelesen: {text}",
+        "none": "Noch kein Ort",
+        "clear": "Leeren",
+        "whereError": "Dieses Gerät hat seinen Standort nicht mitgeteilt. Prüfen Sie, ob der Browser Ihren Standort verwenden darf.",
+        "issue": {
+          "unreadable": "Das ließ sich nicht als Ort lesen. Wählen Sie einen Ort aus der Liste oder fügen Sie Koordinaten wie 30.0444, 31.2357 ein.",
+          "shortLink": "Ein Kurzlink sagt nicht, wohin er führt, und wird nicht aufgerufen. Öffnen Sie ihn und fügen Sie dann den vollständigen Link oder die Koordinaten ein.",
+          "outOfRange": "Diese Koordinaten liegen nicht auf der Karte. Die Breite reicht von -90 bis 90, die Länge von -180 bis 180.",
+          "unknown": "Dieser Ort steht nicht mehr in der Liste. Wählen Sie ihn erneut."
+        }
+      },
+      "area": {
+        "points": "Gebiet · {count, plural, one {# Punkt} other {# Punkte}}",
+        "unreadable": "Der gespeicherte Wert ist kein Gebiet. Zeichnen Sie eines, um ihn zu ersetzen.",
+        "none": "Noch kein Gebiet",
+        "clear": "Leeren",
+        "mapsOff": "Ein Gebiet wird auf der Karte gezeichnet, und Karten sind ausgeschaltet. Das gespeicherte Gebiet bleibt, wie es ist.",
+        "issue": {
+          "unreadable": "Das ließ sich nicht als Gebiet lesen. Zeichnen Sie es erneut.",
+          "tooLarge": "Dieses Gebiet hat zu viele Punkte. Zeichnen Sie es mit weniger."
+        }
       }
     },
     "domain": {
@@ -1857,6 +1928,8 @@ export default {
     "board": {
       "invalidLayout": "Das gespeicherte Layout dieses Boards ist ungültig. Generieren Sie die Seite neu oder setzen Sie das Layout zurück.",
       "noRowsTitle": "Noch keine Karten",
+      "noColumnsTitle": "Noch keine Spalten",
+      "noColumnsBody": "Dieses Board nimmt seine Spalten aus den Zeilen einer Tabelle, und diese Tabelle hat noch keine Zeilen. Fügen Sie eine hinzu, dann erscheint sie hier als Spalte.",
       "noRowsBody": "Karten erscheinen hier, sobald die Tabelle Zeilen hat."
     },
     "calendar": {
@@ -1965,6 +2038,8 @@ export default {
       "unplaced": {
         "calendar": "Noch keine Zeile dieser Tabelle hat ein Datum, deshalb ist der Kalender leer. Eine Zeile erscheint hier, sobald sie eines hat.",
         "board": "Noch keine Zeile dieser Tabelle hat einen Status, deshalb ist das Board leer. Eine Zeile erscheint hier, sobald sie einen hat.",
+        "boardColumns": "Noch keine Zeile dieser Tabelle steht in einer der Spalten des Boards, deshalb ist das Board leer. Eine Zeile erscheint hier, sobald sie in eine gesetzt wird.",
+        "boardColumnsSome": "{count, plural, one {# Zeile steht in keiner der Spalten des Boards und wird deshalb hier nicht angezeigt.} other {# Zeilen stehen in keiner der Spalten des Boards und werden deshalb hier nicht angezeigt.}}",
         "scheduler": "Noch keine Zeile dieser Tabelle hat eine Person, ein Datum und eine Schichtart, deshalb ist der Plan leer. Eine Zeile erscheint hier, sobald sie alle drei hat."
       }
     }

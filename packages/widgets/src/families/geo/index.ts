@@ -7,7 +7,7 @@
  * and tests. Registry metadata lives in `geo-track.definitions.ts`; schemas +
  * demo generators in `geo-config.ts`.
  *
- * Note that importing this barrel does NOT pull Leaflet: `MapBubble.tsx` loads
+ * Note that importing this barrel does NOT pull MapLibre: `MapBubble.tsx` loads
  * it dynamically inside its mount effect (acceptance #3).
  */
 export {
@@ -29,14 +29,13 @@ export {
 export {
   BUBBLE_MAX_RADIUS,
   BUBBLE_MIN_RADIUS,
-  CARTO_ATTRIBUTION,
-  CARTO_TILES,
   DEFAULT_CENTER,
   DEFAULT_ZOOM,
   GEO_DEMO_EPOCH,
   bubbleRadius,
   geoPointsOf,
   localeOf,
+  mapStyleUrl,
   maxMetric,
   metricKeysOf,
   metricValue,
@@ -47,6 +46,8 @@ export {
   type GeoPoint,
 } from './geo-lib.js';
 export { initialView } from './geo-config.js';
+export * from './map-shapes.js';
+export * from './place-value.js';
 export {
   geoTrackDefinitions,
   mapBubbleDefinition,

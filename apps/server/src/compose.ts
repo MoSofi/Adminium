@@ -274,6 +274,7 @@ import { optionListsRoutes } from './routes/option-lists/index.js';
 import { schemaRoutes } from './routes/schema/index.js';
 import { schemaImportRoutes } from './routes/schema-import/index.js';
 import { searchRoutes } from './routes/search/index.js';
+import { geoRoutes } from './routes/geo/index.js';
 import { storageRoutes } from './routes/storage/index.js';
 import { i18nRoutes } from './routes/i18n/index.js';
 import { settingsRoutes } from './routes/settings/index.js';
@@ -1794,7 +1795,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       // via the poll schedule below.
       const enqueueDataIo = (input: EnqueueJobInput) => jobs.enqueue(input);
       await api.register(exportsRoutes({ meta, manager, storage, enqueue: enqueueDataIo }));
-      await api.register(importsRoutes({ meta, manager, storage, enqueue: enqueueDataIo }));
+      await api.register(importsRoutes({ meta, manager, storage, enqueue: enqueueDataIo, writes: recordWrites }));
       await api.register(notificationsRoutes({ meta, hub: jobs.hub }));
       await api.register(scheduledReportsRoutes({ meta }));
       // `onRulesChanged` is what keeps the matcher's in-memory index honest:
@@ -1856,6 +1857,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       // ⌘K global search: pages by title + records via the crud quick-search
       // path, RBAC/PII-filtered like the data routes.
       await api.register(searchRoutes({ manager, meta }));
+      // Towns by name from the list this server ships, and the way between stops.
+      await api.register(geoRoutes({ meta }));
       await api.register(widgetDataRoutes({ manager, meta, cache: widgetDataCache }));
       await api.register(
         // `emailKey` is passed explicitly rather than letting the route derive it
@@ -1998,6 +2001,9 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
         store: appStore,
         files: appFiles,
         installed: installedApps,
+        mapsAnswered: () => {
+          if (app.hasDecorator('maps')) app.maps.drop();
+        },
         credentialCrypto: addOnCredentialCryptoFromSecret(env.ADMINIUM_SECRET),
         // An install may not shadow a surface the operator deployed by hand:
         // those own registered routes the installed-app hook yields to, so it

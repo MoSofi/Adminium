@@ -78,6 +78,8 @@ Everything is environment-driven, validated once at boot.
 | `ADMINIUM_CORS_ORIGINS` | Comma-separated allowed origins |
 | `ADMINIUM_BRIDGE_ORIGINS` | Origins allowed to hand this instance a connection string (`--bridge`) |
 | `ADMINIUM_NETWORK_FEATURES` | `off` on air-gapped installs — the UI stops offering webhooks/OAuth |
+| `ADMINIUM_MAP_SERVER` | Where maps' pictures come from (default `https://tiles.openfreemap.org`); `off` for no maps |
+| `ADMINIUM_ROUTING_SERVER` | The OSRM server asked for routes along roads, once switched on in Settings (default `https://router.project-osrm.org`); `off` for straight-line estimates only |
 | `ADMINIUM_TELEMETRY` | `off` by default |
 
 A missing or malformed value fails the boot with the fix printed, rather than

@@ -51,7 +51,7 @@ import { BUILTIN_NAV_GROUP_KEYS } from '@adminium/add-on-contracts';
 import { newId, overridesRepo, pagesRepo, snapshotsRepo, type MetaDb } from '@adminium/meta';
 
 import { ownsBlocks } from './owns-blocks.js';
-import { bindForm, bindLayout, bindListConfig, calendarOf } from './manifest-page-config.js';
+import { bindForm, bindLayout, bindListConfig, boardOf, calendarOf } from './manifest-page-config.js';
 import { applyCompositionOverrides, applyOverrides, withEffectiveLabels } from '../connections/effective-schema.js';
 import { SnapshotView } from '../crud/identifiers.js';
 import { isUntouched, stamped } from '../pages/generated-stamp.js';
@@ -73,6 +73,8 @@ export interface ManifestPageSkip {
     | 'PAGE_LAYOUT_INVALID'
     // Created, plotted by the columns Adminium picks rather than the ones it named.
     | 'PAGE_CALENDAR_INVALID'
+    // Created, with the columns Adminium finds rather than the ones it named.
+    | 'PAGE_BOARD_INVALID'
     | 'PAGE_FILTERS_INVALID'
     | 'PAGE_DEFAULT_FILTERS_INVALID'
     | 'PAGE_TABS_INVALID'
@@ -275,7 +277,9 @@ export async function materialiseManifestPages(input: MaterialiseInput): Promise
       const booked = composed?.view.table(tableId).table.booking?.start;
       const hinted = booked === undefined ? undefined : { start: booked };
       const named = calendarOf(page);
-      let built = composeRequestedPage(model, tableId, template, { ...context, calendar: named ?? hinted });
+      // A board is drawn with the columns the app names: the rows of a table its cards link to, or an enum's values.
+      const board = template === 'page-board' ? boardOf(page, model, input.names) : null;
+      let built = composeRequestedPage(model, tableId, template, { ...context, calendar: named ?? hinted, ...(board === null ? {} : { board }) });
       if (built.envelope === null && named !== null) {
         result.warnings.push({
           page: page.ref,
@@ -283,6 +287,14 @@ export async function materialiseManifestPages(input: MaterialiseInput): Promise
           message: `${built.reason}, so it plots by the columns Adminium picks`,
         });
         built = composeRequestedPage(model, tableId, template, { ...context, calendar: hinted });
+      }
+      if (built.envelope === null && board !== null) {
+        result.warnings.push({
+          page: page.ref,
+          reason: 'PAGE_BOARD_INVALID',
+          message: `${built.reason}, so its columns are the ones Adminium finds`,
+        });
+        built = composeRequestedPage(model, tableId, template, context);
       }
       if (built.envelope === null) {
         result.warnings.push({

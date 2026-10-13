@@ -699,6 +699,8 @@ export default {
         "emptyBody": "按泳道字段和状态字段对记录分组以构建网格。"
       },
       "addCard": "添加卡片",
+      "notMoved": "{title} 未移动。",
+      "dismissNotice": "关闭",
       "grip": "拖动以移动卡片",
       "pointsUnit": "点",
       "laneSummary": "Σ{points} 点 · {count}",
@@ -782,9 +784,46 @@ export default {
         "description": "地图上的圆形标记按所选指标缩放，并附带排名靠前地点的列表。",
         "emptyTitle": "没有位置",
         "emptyBody": "包含纬度和经度的行会在这里显示为地图标记。",
-        "mapUnavailableLabel": "地图无法加载。排名列表显示的是相同数据。",
+        "mapUnavailableLabel": "无法连接地图。以下是列表。",
         "regionsLabel": "热门区域",
-        "metricLabel": "指标"
+        "metricLabel": "指标",
+        "mapsOffLabel": "地图已关闭。以下是列表。",
+        "mapsOffLink": "打开“设置 → 地图”",
+        "mapLabel": "地图",
+        "zoomIn": "放大",
+        "zoomOut": "缩小",
+        "byTown": "按城镇",
+        "pinMoveHint": "拖到确切位置。使用键盘：按回车拿起图钉，用方向键移动，按回车保留该位置，按 Esc 放回原处。",
+        "sharedTown": "{count, plural, other {有 # 个地点}}只知道在这个城镇",
+        "stopsLabel": "站点",
+        "placesLabel": "地点",
+        "areasLabel": "区域",
+        "legAbout": "距上一站约 {distance}",
+        "legExact": "距上一站 {distance}",
+        "legUnknown": "距上一站的距离未知",
+        "openInMaps": "在我的地图应用中打开",
+        "cornerLabel": "第 {number} 个角",
+        "areaChangeHint": "拖动一个角可移动它。选中一个角可删除它，或在它后面加一个角。",
+        "areaDrawHint": "点击地图添加区域的各个角，然后闭合图形。",
+        "areaAddCornerHere": "在地图中心加一个角",
+        "areaClose": "闭合图形",
+        "areaInsertCorner": "在这个角后面加一个角",
+        "areaRemoveCorner": "删除这个角",
+        "areaRestart": "重新开始",
+        "areaDone": "完成",
+        "areaPickHint": "在地图或列表中选一个区域来修改。",
+        "areaNew": "画一个新区域",
+        "areaChange": "修改",
+        "areaUnnamed": "区域 {number}",
+        "areaPoints": "{count, plural, other {# 个点}}",
+        "areaPiecesHint": "此区域有一个洞或由多个部分组成。修改此轮廓时，它们保持不变。“重新开始”会用一个新图形替换整个区域。",
+        "listMore": "{count, plural, other {还有 # 个}}",
+        "saidCornerAdded": "已添加一个角。{count, plural, other {共 # 个角}}。",
+        "saidShapeClosed": "图形已闭合。",
+        "saidPinKept": "图钉已保留在 {position}。",
+        "saidPinPicked": "已拿起图钉。用方向键移动，然后按回车保留该位置，或按 Esc 放回原处。",
+        "saidPinBack": "图钉已回到原处。",
+        "saidPinRefused": "新位置未被保留。图钉已回到原处。"
       },
       "mapChoroplethGrid": {
         "description": "按数值着色的区域方块——适用于只有区域代码、没有坐标的表。",
@@ -793,6 +832,38 @@ export default {
         "legendLowLabel": "低",
         "legendHighLabel": "高",
         "chartLabel": "区域细分"
+      },
+      "place": {
+        "pinName": "这个地点",
+        "placeholder": "输入城镇，或粘贴坐标或地图链接",
+        "searching": "正在查找…",
+        "noTown": "没有这个名字的城镇。换个写法试试，或粘贴坐标。",
+        "searchFailed": "暂时无法查询城镇列表。请重试，或粘贴坐标。",
+        "whereIAm": "我现在的位置",
+        "byTown": "按城镇：{name}",
+        "exact": "确切位置：{position}",
+        "exactNamed": "确切位置：{name}（{position}）",
+        "pending": "保存时读取：{text}",
+        "none": "还没有地点",
+        "clear": "清除",
+        "whereError": "这台设备没有给出所在位置。请检查浏览器是否可以使用你的位置。",
+        "issue": {
+          "unreadable": "无法把它读成一个地点。请从列表中选一个城镇，或粘贴坐标，例如 30.0444, 31.2357。",
+          "shortLink": "短链接没有写明指向哪里，系统也不会去打开它。请先打开它，再粘贴完整链接或坐标。",
+          "outOfRange": "这些坐标不在地图上。纬度从 -90 到 90，经度从 -180 到 180。",
+          "unknown": "这个城镇已不在列表中。请重新选择。"
+        }
+      },
+      "area": {
+        "points": "区域 · {count, plural, other {# 个点}}",
+        "unreadable": "已存的值不是一个区域。画一个来替换它。",
+        "none": "还没有区域",
+        "clear": "清除",
+        "mapsOff": "区域要在地图上画，而地图已关闭。已存的区域保持不变。",
+        "issue": {
+          "unreadable": "无法把它读成一个区域。请重新画。",
+          "tooLarge": "这个区域的点太多。请用更少的点来画。"
+        }
       }
     },
     "domain": {
@@ -1857,6 +1928,8 @@ export default {
     "board": {
       "invalidLayout": "此看板保存的布局无效。请重新生成页面或重置其布局。",
       "noRowsTitle": "还没有卡片",
+      "noColumnsTitle": "还没有列",
+      "noColumnsBody": "此看板的列来自某个表的行，而该表还没有行。添加一行，它就会作为一列显示在这里。",
       "noRowsBody": "表中一有行，卡片就会显示在这里。"
     },
     "calendar": {
@@ -1965,6 +2038,8 @@ export default {
       "unplaced": {
         "calendar": "此表中还没有任何行带有日期，因此日历为空。行一旦有了日期就会显示在这里。",
         "board": "此表中还没有任何行带有状态，因此看板为空。行一旦有了状态就会显示在这里。",
+        "boardColumns": "此表中还没有任何行位于看板的某一列中，因此看板为空。行一旦被放入某一列就会显示在这里。",
+        "boardColumnsSome": "{count, plural, other {有 # 行不在看板的任何一列中，因此未显示在这里。}}",
         "scheduler": "此表中还没有任何行同时带有人员、日期和班次类型，因此排班表为空。行一旦三者齐全就会显示在这里。"
       }
     }

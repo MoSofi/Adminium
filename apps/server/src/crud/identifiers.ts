@@ -42,6 +42,8 @@ export interface ResolvedColumn {
    * and refused by name as a masked one is (403 `COLUMN_FORBIDDEN`).
    */
   unreadable?: true;
+  /** The column holds a position on the map (`column.place`) or an area (`column.area`): kept as JSON, read back as an object. */
+  geo?: 'place' | 'area';
 }
 
 export interface ResolvedTable {
@@ -75,6 +77,7 @@ function resolveTable(table: EffectiveTable, readable?: ReadonlySet<string>, lin
       masked: policy.masked.has(column.name),
       secret: hidden || policy.secret.has(column.name),
       textish: TEXTISH.has(column.logicalType),
+      ...(column.place === true ? { geo: 'place' as const } : column.area === true ? { geo: 'area' as const } : {}),
       ...(hidden && !policy.secret.has(column.name) ? { unreadable: true as const } : {}),
     });
   }

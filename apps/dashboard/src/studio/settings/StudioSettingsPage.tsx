@@ -20,7 +20,7 @@
  * forbidden state for everyone else — so it is hidden from plain admins.
  */
 import { useQuery, useQueryClient, useSuspenseQueries, useSuspenseQuery } from '@tanstack/react-query';
-import { useLocation } from '@tanstack/react-router';
+import { useLocation, useNavigate } from '@tanstack/react-router';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import {
   Blocks,
@@ -33,6 +33,7 @@ import {
   Languages,
   ListChecks,
   Mail,
+  MapPinned,
   ShieldCheck,
   Sparkles,
   TriangleAlert,
@@ -58,6 +59,7 @@ import {
 } from '@adminium/ui';
 
 import { bootstrapQuery, holdsSystemAction } from '../../app/bootstrap.js';
+import { MapsSettingsPage } from './MapsSettingsPage.js';
 import {
   BRANDING_QUERY_KEY,
   deleteBrandingLogo,
@@ -1525,9 +1527,22 @@ export interface StudioSettingsPageProps {
   onOpenPublicApi: () => void;
   /** `/studio/settings/project`: the project folder this server runs (super admins). */
   onOpenProject?: (() => void) | undefined;
+  /** Never set on the hub: see {@link StudioSettingsOrMapsProps}. */
+  maps?: undefined;
 }
 
-export function StudioSettingsPage({
+/**
+ * What the router mounts from this chunk: the hub, or — for `/settings/maps`,
+ * with `maps` — the Maps page, which rides in the hub's chunk so that it adds
+ * no lazy ref of its own to everybody's first load.
+ */
+export type StudioSettingsOrMapsProps = StudioSettingsPageProps | { maps: true };
+
+export function StudioSettingsPage(props: StudioSettingsOrMapsProps): ReactNode {
+  return props.maps === true ? <MapsSettingsPage /> : <StudioSettingsHub {...props} />;
+}
+
+function StudioSettingsHub({
   onOpenGlobalDefaults,
   onOpenTranslations,
   onOpenAiSettings,
@@ -1539,6 +1554,7 @@ export function StudioSettingsPage({
   onOpenPublicApi,
   onOpenProject,
 }: StudioSettingsPageProps): ReactNode {
+  const navigate = useNavigate();
   const { data: bootstrap } = useSuspenseQuery(bootstrapQuery());
   const isSuperAdmin = bootstrap.roles.includes(SUPER_ADMIN_ROLE);
   const holds = (action: Parameters<typeof holdsSystemAction>[1]) => holdsSystemAction(bootstrap, action);
@@ -1617,6 +1633,17 @@ export function StudioSettingsPage({
             )}
             cta={t('studio:settingsHub.aiCard.cta', 'Open AI settings')}
             onOpen={onOpenAiSettings}
+          />
+        ) : null}
+
+        {/* Maps (/settings/maps): its routes check `settings.manage`. */}
+        {holds('settings.manage') ? (
+          <LinkRow
+            icon={<MapPinned />}
+            heading={t('studio:settingsHub.mapsCard.heading', 'Maps')}
+            body={t('studio:settingsHub.mapsCard.body', 'Whether maps are shown, which servers are asked, and what each of them learns.')}
+            cta={t('studio:settingsHub.mapsCard.cta', 'Open maps')}
+            onOpen={() => void navigate({ to: '/settings/maps' })}
           />
         ) : null}
 

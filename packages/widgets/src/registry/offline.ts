@@ -4,13 +4,13 @@
  *
  * The maps row, in full:
  *
- * > Leaflet is **never loaded** in desktop runtime; the geo widget family renders
+ * > The map engine is **never loaded** in desktop runtime; the geo widget family renders
  * > its designed fallback, the choropleth/tilegram grid. The widget registry
  * > resolves `map-*` widgets to `choropleth-grid` when `runtime === "desktop"` or
  * > `offlineAssets === true`.
  *
  * WHY THE REGISTRY AND NOT THE WIDGET. `map-bubble`'s component already degrades
- * on its own — it catches a failed `await import('leaflet')` and renders the
+ * on its own — it catches a failed `await import('maplibre-gl')` and renders the
  * ranked companion list under a "map unavailable" notice. That is the right
  * behavior for a self-host box whose CDN is briefly unreachable, and the wrong
  * one for the desktop app: the chunk fetch and the tile requests would still be
@@ -18,7 +18,12 @@
  * where a working visual belongs, and the guarantee would depend on a component's
  * catch block rather than on the app never asking for a map. Resolving one id to
  * another BEFORE the lazy ref is read means the map chunk is never imported, so
- * Leaflet is not loaded — it is not even requested.
+ * the engine is not loaded — it is not even requested.
+ *
+ * MAPS SWITCHED OFF IS A DIFFERENT THING, and is not this rule. Whether maps
+ * are shown, and from which server, comes with the session ({@link WidgetMapsEnv},
+ * from `bootstrap.maps`). With no server a placed map stays a map widget: it
+ * shows its list and says maps are switched off, and loads no engine either.
  *
  * `map-*` IS A PREFIX RULE, NOT A TWO-ENTRY TABLE, and that is deliberate: the
  * annex family is open, and a future `map-heat`/`map-routes` would otherwise ship
@@ -43,13 +48,25 @@ export interface WidgetRuntimeEnv {
    * test is the case that exercises it without an Electron shell.
    */
   offlineAssets: boolean;
+  /** Whether maps are shown, and from where. Absent means off. */
+  maps?: WidgetMapsEnv | undefined;
+}
+
+/** `bootstrap.maps`, as the widgets read it. */
+export interface WidgetMapsEnv {
+  /** The map server's origin; null whenever maps are off. Never written in the bundle. */
+  server: string | null;
+  /** A route between stops may follow roads. */
+  routing: boolean;
+  /** Where Settings → Maps is, for a reader who may change it; absent for everybody else. */
+  settingsHref?: string | undefined;
 }
 
 /**
- * What every surface without a provider gets: the plain browser. Self-host and
- * Cloud serve the identical bundle and are online by definition, so this is the
- * honest default rather than a placeholder — and it is why an un-wrapped test or
- * story still renders the real map.
+ * What every surface without a provider gets: the plain browser, with no map
+ * server named. A map needs a server's address and this bundle holds none, so
+ * an un-wrapped test or story shows a map widget's list and its "switched off"
+ * notice, and asks nothing outside.
  */
 export const DEFAULT_WIDGET_RUNTIME_ENV: WidgetRuntimeEnv = { runtime: 'browser', offlineAssets: false };
 

@@ -118,6 +118,7 @@ import type { FastifyRequest } from 'fastify';
 import fp from 'fastify-plugin';
 
 import type { Env } from '../config/env.js';
+import { createMapPolicy, MAPS_OFF, withMapServer } from '../geo/map-policy.js';
 import { createPictureHosts } from '../config/picture-hosts.js';
 import { ForbiddenError, RateLimitedError } from '../errors.js';
 import {
@@ -155,6 +156,10 @@ export interface RateBucket {
  * - `search` — `GET /search` (60/min, row 5): each request fans out parallel
  *  ILIKE queries over up to 20 tables, the cheapest DoS lever of the
  *  unbucketed routes.
+ * - `import-preview` — `GET /imports/:id/preview` (30/min): each page judges
+ *  up to 2,000 lines of a file against its table. Its own bucket: a wizard
+ *  paging through a preview spends none of the search box's budget (which
+ *  place typing shares), and the other way round.
  *
  * - `api` — the row-1 general default, 300/min, applied to every other `/api/`
  *  route that does not match a narrower rule. Read the ip-fallback paragraph in
@@ -224,6 +229,7 @@ export const RATE_BUCKETS = {
   'auth-password-forgot': { max: 3, timeWindowMs: 3_600_000, keyBy: 'ip' },
   'auth-password-reset': { max: 5, timeWindowMs: 60_000, keyBy: 'ip' },
   search: { max: 60, timeWindowMs: 60_000, keyBy: 'principal' },
+  'import-preview': { max: 30, timeWindowMs: 60_000, keyBy: 'principal' },
   api: { max: 300, timeWindowMs: 60_000, keyBy: 'principal' },
   'app-shell': { max: 900, timeWindowMs: 60_000, keyBy: 'principal' },
   'widget-data': { max: 120, timeWindowMs: 60_000, keyBy: 'principal' },
@@ -254,6 +260,13 @@ export const RATE_BUCKETS = {
    * it is saved: every call reads an add-on's tables, and a try runs its code.
    */
   'price-try': { max: 60, timeWindowMs: 60_000, keyBy: 'principal' },
+  /*
+   * The towns of a batch of addresses (up to 200 a call, each a walk of the
+   * place list), and the way between stops (which, with routing switched on,
+   * may be one question to the routing server): each far under `api`.
+   */
+  'geo-match': { max: 30, timeWindowMs: 60_000, keyBy: 'principal' },
+  'geo-route': { max: 30, timeWindowMs: 60_000, keyBy: 'principal' },
   'codes-make': { max: 30, timeWindowMs: 60_000, keyBy: 'principal' },
   /*
    * Files attached to a Designer message: up to 10 MB each, so their own, tighter budget.
@@ -363,6 +376,11 @@ const AUTO_BUCKETS: readonly {
   // an image column needs, and the content route's own grant check is the
   // real bound on who may ask.
   { methods: ['GET'], pattern: /\/files\/:id\/content$/, bucket: 'api' },
+  // A page of an import's preview judges up to 2,000 lines of its file against
+  // the table each time it is asked: real work per request, and a wizard asks
+  // for a few pages, not hundreds. A budget of its own, so it and the search
+  // box never spend each other's.
+  { methods: ['GET'], pattern: /\/imports\/:id\/preview$/, bucket: 'import-preview' },
   // The CREATE side only. `POST /imports/:id/run` is not double-charged: it
   // can only fire on an import this bucket already paid for, and only while
   // that import is `ready` (the route 409s otherwise), so charging it too
@@ -548,21 +566,14 @@ export const corePlugin = fp<CorePluginOptions>(
           'script-src': ["'self'", ...(await inlineScriptHashes(staticRoot))],
           // Runtime style injection (chart/table libraries set style attrs).
           'style-src': ["'self'", "'unsafe-inline'"],
-          // The map widgets' basemap tiles load from the Carto CDN
-          // (packages/widgets geo-lib.ts CARTO_TILES) — without this
-          // allowance every deployed MapBubble renders over a blank basemap.
-          // Then the operator's own image hosts, appended and never replacing
-          // the built-ins: hosted app surfaces render picture URLs from the
+          // The operator's own image hosts, appended and never replacing the
+          // built-ins: hosted app surfaces render picture URLs from the
           // operator's tables (a menu, a product list), and this one header is
           // what a surface at /apps/* is served under. Named hosts only — see
           // ADMINIUM_CSP_IMG_HOSTS in config/env.ts for why never a scheme.
-          'img-src': [
-            "'self'",
-            'data:',
-            'blob:',
-            'https://*.basemaps.cartocdn.com',
-            ...(env.ADMINIUM_CSP_IMG_HOSTS ?? []),
-          ],
+          // No map host here: the map server is added per reply, further
+          // down, and only while maps are on.
+          'img-src': ["'self'", 'data:', 'blob:', ...(env.ADMINIUM_CSP_IMG_HOSTS ?? [])],
           'font-src': ["'self'", 'data:'],
           // Same-HOST WebSocket only. Bare `ws:`/`wss:` scheme sources would
           // authorize a socket to ANY origin — an XSS foothold could
@@ -606,6 +617,23 @@ export const corePlugin = fp<CorePluginOptions>(
       if (added.length === 0) return payload;
       const policy = reply.getHeader('content-security-policy');
       if (typeof policy === 'string') reply.header('content-security-policy', policy.replace(/img-src 'self'[^;]*/, (found) => `${found} ${added.join(' ')}`));
+      return payload;
+    });
+
+    /*
+     * The map server, the same way and for the same reason: whether maps are
+     * on is a setting somebody can change while the server runs. While they
+     * are on, its origin is in `connect-src` and `img-src`; while they are
+     * off (the environment, the desktop app, or the setting), the policy
+     * names no outside host at all. A setting that cannot be read is an off.
+     */
+    const maps = createMapPolicy(env);
+    app.decorate('maps', maps);
+    app.addHook('onSend', async (_request, reply, payload) => {
+      const policy = reply.getHeader('content-security-policy');
+      if (typeof policy !== 'string') return payload;
+      const state = await maps.read().catch(() => MAPS_OFF);
+      if (state.server !== null) reply.header('content-security-policy', withMapServer(policy, state.server));
       return payload;
     });
 

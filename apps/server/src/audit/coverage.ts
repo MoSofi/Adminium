@@ -239,6 +239,9 @@ export const AUDIT_COVERAGE: Readonly<Record<string, AuditMark>> = {
   'PUT /api/v1/settings/branding': audited('rbac'), // settings.branding.update
   'PUT /api/v1/settings/security': audited('rbac'), // settings.security.update
   'PUT /api/v1/settings/telemetry': audited('rbac'), // settings.telemetry.update
+  'PUT /api/v1/settings/maps': audited('rbac'), // settings.maps.update
+  'POST /api/v1/geo/places/match': auditExempt('The towns of up to 200 addresses, looked up in the shipped place list: read-only, a POST only for its body.'),
+  'POST /api/v1/geo/route': auditExempt('The legs between stops the caller sends: nothing is stored, a POST only for its body.'),
   'POST /api/v1/branding/logo': audited('rbac'), // settings.branding.logo.update
   'DELETE /api/v1/branding/logo': audited('rbac'), // settings.branding.logo.remove
   // Email documents: every write is

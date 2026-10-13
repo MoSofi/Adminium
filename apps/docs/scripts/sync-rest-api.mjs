@@ -94,6 +94,11 @@ const DESCRIPTIONS = {
     'test sends of the on-screen document, and export/import of a bundle',
   events: 'Server-sent events — the fallback when a WebSocket cannot be established',
   exports: 'Queued exports of a whole result set, and their downloads',
+  geo:
+    'Places and routes, for anybody signed in. Towns found by name from a list that ships ' +
+    'with the server (no other site is asked, with maps on or off), one town by its id, the ' +
+    'towns of up to 200 addresses at once, and the legs between 2 to 50 stops: straight-line ' +
+    'estimates unless routes along roads are switched on in Settings → Maps',
   healthz: 'Liveness',
   i18n: 'Runtime translations — locales, keys, bundles, import/export, format errors',
   imports: 'CSV/spreadsheet imports — upload, dry run, run, error report',
