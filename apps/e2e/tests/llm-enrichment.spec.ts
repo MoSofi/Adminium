@@ -399,7 +399,7 @@ test.describe('the enrich step configures its own provider', () => {
     await expect(page.getByRole('heading', { name: 'AI provider', exact: true })).toBeVisible();
     await expectNoBlockingViolations(page, 'enrich step, provider form open (light)', testInfo);
 
-    await page.getByRole('radio', { name: /Models running locally through Ollama/ }).click();
+    await page.getByRole('radio', { name: /Models run through your own Ollama/ }).click();
     await expect(page.getByRole('heading', { name: /Configure Ollama/ })).toBeVisible();
     await page.getByLabel(/^Model/).fill('llama3.1');
     await page.getByRole('button', { name: 'Save provider' }).click();
