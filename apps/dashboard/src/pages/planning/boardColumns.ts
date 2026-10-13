@@ -19,13 +19,21 @@
  * query of the page's batch (`planningData.ts`), a group per value.
  *
  * ── FRESHNESS ──────────────────────────────────────────────────────────────
- * The columns read lives under the `['widget-data', pageId, …]` key. Every
- * `table:*` frame invalidates the `['widget-data']` prefix
- * (`api/realtime.ts`), and so does the page after a save of its own
- * (`PageRenderer`): a stage added, renamed, reordered or removed, a card
- * saved by anybody, and a local drop all re-read the columns with no reload —
- * one request each, since the key is built from values and not from a
+ * The columns read lives under the `['widget-data', pageId, …]` key, beside
+ * the cards' batch. It is read again after a save made on this page
+ * (`PageRenderer` invalidates the `['widget-data']` prefix), and when a frame
+ * says the cards' table or the columns' table changed (`boardLive.ts`
+ * subscribes the page to both tables' `widget-data:` channels): a stage
+ * added, renamed, reordered or removed, a card saved by a colleague, and a
+ * local drop all re-read the columns with no reload — one request for a
+ * burst of frames, since the key is built from values and not from a
  * function.
+ *
+ * ── MORE ROWS THAN COLUMNS ─────────────────────────────────────────────────
+ * A board draws the first `BOARD_COLUMNS_LIMIT` rows of the table. One row
+ * more is asked for, so that a table with more is known to have more and the
+ * board says so (`more`); a card of a stage past the last column is on no
+ * column, and counted among the cards that are not shown.
  */
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useMemo } from 'react';
@@ -80,6 +88,8 @@ export function boardReadOf(page: PageEnvelope): BoardRead | null {
   const item = layout.data.items.find((candidate) => BOARD_WIDGETS.includes(candidate.widget));
   if (item === undefined) return null;
   const cfg = boardItemConfigOf(item.config);
+  // A board whose stored `only` cannot be trusted is not drawn (`PageBoard` says why): nothing is asked for it.
+  if (cfg.onlyInvalid) return null;
   const counted = item.config['columnsBinding'] !== undefined;
   if (cfg.columnsFrom === undefined && !counted) return null;
   return {
@@ -118,7 +128,7 @@ interface TotalFormat {
   currency: string | undefined;
 }
 
-/** How each total is written: money in the connection's currency when the column is money, a plain number otherwise. */
+/** How each total is written: money when the column is money — in the column's own currency, else the connection's — a plain number otherwise. */
 function totalFormats(totals: readonly BoardTotal[], columns: readonly FormColumnFactReply[] | undefined, currency: string | undefined): TotalFormat[] {
   return totals.map((total) => {
     const spec = columns?.find((column) => column.spec.name === total.column)?.spec as
@@ -126,7 +136,8 @@ function totalFormats(totals: readonly BoardTotal[], columns: readonly FormColum
       | undefined;
     const money = spec?.semantic === 'money' || spec?.format === 'currency' || spec?.display?.kind === 'currency';
     const own = typeof spec?.display?.currency === 'string' ? spec.display.currency : typeof spec?.currency === 'string' ? spec.currency : undefined;
-    return { label: typeof spec?.label === 'string' ? spec.label : total.column, money, currency: currency ?? own };
+    // The column's own currency first: a table priced in dollars on a connection kept in euros totals in dollars.
+    return { label: typeof spec?.label === 'string' ? spec.label : total.column, money, currency: own ?? currency };
   });
 }
 
@@ -155,7 +166,8 @@ export function columnsFromRows(rows: readonly Record<string, unknown>[], read: 
   const from = read.from;
   if (from === undefined) return [];
   const out: BoardColumnRow[] = [];
-  for (const row of rows) {
+  // One row more than a board draws was asked for, to know there are more: it is not drawn.
+  for (const row of rows.slice(0, BOARD_COLUMNS_LIMIT)) {
     const key = row[from.key];
     if (typeof key !== 'string' && typeof key !== 'number') continue;
     const label = row[from.label];
@@ -185,9 +197,9 @@ export function columnsFromGroups(data: unknown, read: BoardRead, formats: reado
 }
 
 /**
- * The key the columns read is kept under. Under the widget-data prefix on
- * purpose (see the header): a frame of either table, and a save here, re-read
- * it. It names EVERYTHING the request is built from — the columns' table, the
+ * The key the columns read is kept under. Under the widget-data prefix, and
+ * the page's id, on purpose (see the header): a frame of either table, and a
+ * save here, re-read it. It names EVERYTHING the request is built from — the columns' table, the
  * key and the label it selects, its order and its measures — so a board that
  * is changed to take another key or another label from the same table reads
  * again, and is never drawn from the answer to the request it used to make.
@@ -231,7 +243,8 @@ export function useBoardColumns(
         select: [...new Set([target.key, target.label])],
         order: [{ column: target.order ?? target.key, dir: 'asc' }],
         ...(compute === undefined ? {} : { compute }),
-        limit: BOARD_COLUMNS_LIMIT,
+        // One more than is drawn: a table with more rows than that is then known to have more.
+        limit: BOARD_COLUMNS_LIMIT + 1,
       });
     },
   });
@@ -245,7 +258,12 @@ export function useBoardColumns(
     if (read.from !== undefined) {
       if (query.isPending) return { status: 'loading' };
       if (query.isError) return { status: 'error', error: query.error, refetch };
-      return { status: 'success', columns: columnsFromRows(query.data.data, read, formats, opts.locale), refetch };
+      return {
+        status: 'success',
+        columns: columnsFromRows(query.data.data, read, formats, opts.locale),
+        ...(query.data.data.length > BOARD_COLUMNS_LIMIT ? { more: true } : {}),
+        refetch,
+      };
     }
     // An enum board draws its columns without the counts; they join it when they arrive, and their failure costs only them.
     if (groups?.status !== 'success' || narrowed) return undefined;

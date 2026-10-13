@@ -31,11 +31,12 @@
  * writes the column row's own key.
  */
 import { useMaybeT } from '../../lib/i18n.js';
-import { useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 
 import { KanbanBoard } from '../../families/boards/KanbanBoard.js';
 import { KanbanSwimlaneGrid } from '../../families/boards/KanbanSwimlaneGrid.js';
 import { InlineComposeCard } from '../../families/boards/InlineComposeCard.js';
+import { refusalReasonOf, type BoardAddRefusal } from '../../families/boards/board-dnd.js';
 import {
   boardRowsOf,
   resolveColumns,
@@ -106,6 +107,8 @@ export interface BoardColumnRow {
 export interface BoardColumnsState {
   status: 'loading' | 'success' | 'error';
   columns?: readonly BoardColumnRow[] | undefined;
+  /** The table has more rows than a board draws as columns: `columns` are the first of them, and the board says so. */
+  more?: boolean | undefined;
   error?: unknown;
   refetch?: (() => void) | undefined;
 }
@@ -164,6 +167,13 @@ interface BoardItemConfig {
   totals: BoardTotal[];
   /** Which cards are on the board: a card passes every test. The host asks each column's count and totals of these cards. */
   only: BoardOnlyTest[];
+  /**
+   * The stored `only` cannot be read as written, or says something the cards'
+   * own query does not: the board is not drawn. Reading what could be read of
+   * it would head each column with a figure of cards the board does not list
+   * (or list cards its headers do not count).
+   */
+  onlyInvalid: boolean;
 }
 
 /** One test a card passes to be on its board: its `column` holds one of `in`. */
@@ -207,19 +217,52 @@ function totalsOf(config: Record<string, unknown>): BoardTotal[] {
   return out.slice(0, 2);
 }
 
-function onlyOf(config: Record<string, unknown>): BoardOnlyTest[] {
+const isOnlyValue = (value: unknown): value is string | number | boolean => typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean';
+
+/**
+ * The stored `only`, whole or not at all: null when any part of it cannot be
+ * read (it is not a list, a test names no column, lists no value or a value
+ * that is none). A test dropped in silence would leave the headers counting
+ * cards the board was told to leave out.
+ */
+function onlyOf(config: Record<string, unknown>): BoardOnlyTest[] | null {
   const raw = config['only'];
-  if (!Array.isArray(raw)) return [];
+  if (raw === undefined) return [];
+  if (!Array.isArray(raw)) return null;
   const out: BoardOnlyTest[] = [];
   for (const entry of raw) {
-    if (typeof entry !== 'object' || entry === null) continue;
+    if (typeof entry !== 'object' || entry === null) return null;
     const column = configString(entry as Record<string, unknown>, 'column');
     const values = (entry as Record<string, unknown>)['in'];
-    if (column === undefined || !Array.isArray(values)) continue;
-    const listed = values.filter((value): value is string | number | boolean => typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean');
-    if (listed.length > 0) out.push({ column, in: listed });
+    if (column === undefined || !Array.isArray(values) || values.length === 0 || !values.every(isOnlyValue)) return null;
+    out.push({ column, in: [...values] });
   }
   return out;
+}
+
+/**
+ * Whether the cards' own query (`binding.filters`) asks every test of `only`,
+ * value for value. The two are written together by whoever composes the board;
+ * a board whose headers are asked one thing and whose cards another is not
+ * drawn. A board with no stored query (a demo) has nothing to disagree with.
+ */
+function cardsAskOnly(config: Record<string, unknown>, only: readonly BoardOnlyTest[]): boolean {
+  const binding = config['binding'];
+  if (only.length === 0 || typeof binding !== 'object' || binding === null) return true;
+  const filters = (binding as Record<string, unknown>)['filters'];
+  const asked = Array.isArray(filters) ? (filters as { column?: unknown; op?: unknown; value?: unknown }[]) : [];
+  return only.every((test) =>
+    asked.some(
+      (filter) =>
+        typeof filter === 'object' &&
+        filter !== null &&
+        filter.column === test.column &&
+        filter.op === 'in' &&
+        Array.isArray(filter.value) &&
+        filter.value.length === test.in.length &&
+        test.in.every((value, index) => (filter.value as unknown[])[index] === value),
+    ),
+  );
 }
 
 /** Accepts both `columns: ['todo', …]` (engine) and `columnDefs: [{id…}]`. */
@@ -258,6 +301,7 @@ export function onlyDefaultsOf(only: readonly BoardOnlyTest[]): Record<string, s
 }
 
 export function boardItemConfigOf(config: Record<string, unknown>): BoardItemConfig {
+  const only = onlyOf(config);
   return {
     statusColumn: configString(config, 'statusColumn', 'columnField') ?? 'status',
     laneColumn: configString(config, 'laneColumn', 'laneField'),
@@ -270,7 +314,8 @@ export function boardItemConfigOf(config: Record<string, unknown>): BoardItemCon
     allowAdd: config['allowAdd'] === true,
     columnsFrom: columnsFromOf(config),
     totals: totalsOf(config),
-    only: onlyOf(config),
+    only: only ?? [],
+    onlyInvalid: only === null || !cardsAskOnly(config, only),
   };
 }
 
@@ -348,6 +393,9 @@ function BoardSlot({
   locale,
   dir,
   labels,
+  addRefusal,
+  onDismissAddRefusal,
+  trackAdd,
 }: {
   item: LayoutItem;
   state: WidgetDataState;
@@ -357,6 +405,11 @@ function BoardSlot({
   locale: string | undefined;
   dir: 'ltr' | 'rtl';
   labels: PageBoardLabels | undefined;
+  /** An add that was refused, the composer's or a column's own: shown on the board. */
+  addRefusal: BoardAddRefusal | null;
+  onDismissAddRefusal: () => void;
+  /** Follows an insert to its answer: a refusal becomes `addRefusal`. */
+  trackAdd: TrackAdd;
 }) {
   const t = useMaybeT();
   const raw = itemConfigOf(item);
@@ -371,6 +424,8 @@ function BoardSlot({
         ? { status: 'loading' }
         : { status: 'error', error: boardColumns.error, ...(boardColumns.refetch === undefined ? {} : { refetch: boardColumns.refetch }) };
   const read = boardColumns?.status === 'success' ? boardColumns.columns : undefined;
+  // The cards were read and the columns' table could not be: the error is of THAT table, and says so.
+  const columnsFailed = fromTable && cardsState.status === 'success' && boardColumns.status === 'error';
   const rows = useMemo(() => boardRowsOf(state.data), [state.data]);
   const dateKind = planningDateKindOf(state.data, cfg.dateColumn);
   const answered = state.data as { key?: unknown } | null | undefined;
@@ -476,12 +531,36 @@ function BoardSlot({
     ...(emptyTitle === undefined ? {} : { emptyTitle, emptyBody }),
   };
 
+  if (cfg.onlyInvalid) {
+    // Not drawn at all: a board of every row, or one whose headers count other cards than it lists, would be read as the real one.
+    return (
+      <p role="alert" className="p-6 text-body-sm text-fg-muted" data-testid="page-board-invalid-only">
+        {t(
+          'ui:templates.board.invalidOnly',
+          'This board is set to show only some of its table’s rows, and that setting cannot be read, so the board is not drawn. Regenerate the page.',
+        )}
+      </p>
+    );
+  }
+
+  const errorMessage =
+    state.status !== 'error'
+      ? undefined
+      : columnsFailed
+        ? [
+            t('ui:templates.board.columnsError', 'This board’s columns could not be read from {table}.', { table: cfg.columnsFrom?.table ?? '' }),
+            messageOf(state.error),
+          ]
+            .filter((part) => part !== undefined)
+            .join(' ')
+        : messageOf(state.error);
+
   return (
     <WidgetFrame
       state={frameState}
       frameless
       skeleton="block"
-      errorMessage={state.status === 'error' ? messageOf(state.error) : undefined}
+      errorMessage={errorMessage}
       onRetry={state.refetch}
       refetching={state.isRefetching === true}
       testId={`board-slot-${item.i}`}
@@ -500,6 +579,17 @@ function BoardSlot({
               'ui:templates.planning.unplaced.boardColumnsSome',
               '{count, plural, one {# row is in none of the board’s columns, so it is not shown here.} other {# rows are in none of the board’s columns, so they are not shown here.}}',
               { count: unplaced },
+            )}
+          />
+        ) : null}
+        {state.status === 'success' && fromTable && boardColumns.more === true && columns.length > 0 ? (
+          // The columns' table has more rows than a board draws: said, so a stage past the last one is not just missing.
+          <UnplacedRowsNotice
+            testId="board-columns-cut"
+            message={t(
+              'ui:templates.board.columnsCut',
+              '{count, plural, one {Showing the first column only: the table this board takes its columns from has more rows.} other {Showing the first # columns: the table this board takes its columns from has more rows.}}',
+              { count: columns.length },
             )}
           />
         ) : null}
@@ -530,6 +620,8 @@ function BoardSlot({
               labels={boardLabels}
               onCardMove={(cardId, _from, to) => mutate(cardId, moveValues(to.column, to.lane))}
               onCardOpen={openCard}
+              addRefusal={addRefusal}
+              onDismissAddRefusal={onDismissAddRefusal}
             />
           ) : (
             <KanbanBoard
@@ -541,16 +633,21 @@ function BoardSlot({
               labels={boardLabels}
               onCardMove={(cardId, _from, toColumn) => mutate(cardId, moveValues(toColumn))}
               onCardOpen={openCard}
+              addRefusal={addRefusal}
+              onDismissAddRefusal={onDismissAddRefusal}
               onAdd={(columnId) => {
                 if (source === null || onEvent === undefined) return;
-                void onEvent(item.i, {
-                  type: 'mutate',
-                  intent: 'insert',
-                  connectionId: source.connectionId,
-                  table: source.table,
-                  // A board of some of its rows: the card is given what puts it among them.
-                  values: { ...onlyDefaultsOf(cfg.only), [cfg.statusColumn]: valueOf(columnId) },
-                });
+                // Followed to its answer: a refused insert is said on the board (`addRefusal`), never dropped.
+                trackAdd(
+                  onEvent(item.i, {
+                    type: 'mutate',
+                    intent: 'insert',
+                    connectionId: source.connectionId,
+                    table: source.table,
+                    // A board of some of its rows: the card is given what puts it among them.
+                    values: { ...onlyDefaultsOf(cfg.only), [cfg.statusColumn]: valueOf(columnId) },
+                  }),
+                ).catch(() => undefined);
               }}
             />
           )}
@@ -566,6 +663,7 @@ function ComposeSlot({
   boardColumns,
   onEvent,
   labels,
+  trackAdd,
 }: {
   item: LayoutItem;
   /** The board item the composer inserts into (defaults ride its config). */
@@ -573,6 +671,7 @@ function ComposeSlot({
   boardColumns: BoardColumnsState | undefined;
   onEvent: PageBoardProps['onEvent'];
   labels: PageBoardLabels | undefined;
+  trackAdd: TrackAdd;
 }) {
   const raw = itemConfigOf(item);
   const boardRaw = board === undefined ? {} : itemConfigOf(board);
@@ -590,7 +689,8 @@ function ComposeSlot({
   // The columns are another table's rows, and they are not there (still being
   // read, could not be read, or none yet): a card added now would be in no
   // column, and so on no board. Nothing is added until there is one to be in.
-  const noColumnYet = boardCfg.columnsFrom !== undefined && boardColumns !== undefined && firstRow === undefined;
+  // A board that is not drawn (its `only` cannot be read) takes no card either: what would put one on it is not known.
+  const noColumnYet = boardCfg.onlyInvalid || (boardCfg.columnsFrom !== undefined && boardColumns !== undefined && firstRow === undefined);
 
   return (
     <InlineComposeCard
@@ -602,26 +702,34 @@ function ComposeSlot({
       testId={`compose-slot-${item.i}`}
       disabled={noColumnYet}
       onAdd={(title) => {
-        if (source === null || onEvent === undefined || noColumnYet) return;
-        void onEvent(item.i, {
-          type: 'mutate',
-          intent: 'insert',
-          connectionId: source.connectionId,
-          table: source.table,
-          // Column defaults first (annex) — the typed title and the board's
-          // first-column status can never be clobbered by stale defaults.
-          values: {
-            // A board of some of its rows: the card is given what puts it among them, unless the composer says otherwise.
-            ...onlyDefaultsOf(boardCfg.only),
-            ...(firstColumn === undefined ? {} : { [boardCfg.statusColumn]: boardCfg.columnsFrom === undefined ? String(firstColumn) : firstColumn }),
-            ...defaults,
-            [titleField]: title,
-          },
-        });
+        if (source === null || onEvent === undefined || noColumnYet) return undefined;
+        // Handed back, followed to its answer: the composer keeps the typed title until the insert holds, and a
+        // refusal is said on the board (`addRefusal`).
+        return trackAdd(
+          onEvent(item.i, {
+            type: 'mutate',
+            intent: 'insert',
+            connectionId: source.connectionId,
+            table: source.table,
+            // The composer's stored defaults FIRST (annex): what puts the card on this board — the column it starts
+            // in and each single value of `only` — and the typed title are written after them, so a default left in
+            // a stored config can clobber none of the three. A card added with another value would be on no board.
+            values: {
+              ...defaults,
+              ...onlyDefaultsOf(boardCfg.only),
+              ...(firstColumn === undefined ? {} : { [boardCfg.statusColumn]: boardCfg.columnsFrom === undefined ? String(firstColumn) : firstColumn }),
+              [titleField]: title,
+            },
+          }),
+          title,
+        );
       }}
     />
   );
 }
+
+/** Follows an insert to its answer; rejects as the insert did, so whoever asked can keep what was typed. */
+type TrackAdd = (result: void | Promise<unknown>, title?: string) => Promise<unknown>;
 
 function messageOf(error: unknown): string | undefined {
   if (error instanceof Error && error.message !== '') return error.message;
@@ -646,6 +754,16 @@ export function PageBoard({
   const parsed = useMemo(() => parseTemplateConfig(config), [config]);
   const resolvedStates = useTemplateStates(parsed.layout, states);
   const boardItem = parsed.layout.items.find((item) => BOARD_WIDGET_IDS.has(item.widget));
+  // A card that was not added, the composer's or a column's own button's: said on the board until dismissed or the next add.
+  const [addRefusal, setAddRefusal] = useState<BoardAddRefusal | null>(null);
+  const trackAdd = useCallback<TrackAdd>((result, title) => {
+    setAddRefusal(null);
+    return Promise.resolve(result).then(undefined, (error: unknown) => {
+      setAddRefusal({ title, reason: refusalReasonOf(error) });
+      throw error;
+    });
+  }, []);
+  const dismissAddRefusal = useCallback(() => setAddRefusal(null), []);
 
   if (parsed.invalid) {
     return (
@@ -676,11 +794,14 @@ export function PageBoard({
               locale={locale}
               dir={dir}
               labels={labels}
+              addRefusal={addRefusal}
+              onDismissAddRefusal={dismissAddRefusal}
+              trackAdd={trackAdd}
             />
           );
         }
         if (item.widget === COMPOSE_WIDGET_ID) {
-          return <ComposeSlot item={item} board={boardItem} boardColumns={boardColumns} onEvent={onEvent} labels={labels} />;
+          return <ComposeSlot item={item} board={boardItem} boardColumns={boardColumns} onEvent={onEvent} labels={labels} trackAdd={trackAdd} />;
         }
         return (
           <WidgetHost

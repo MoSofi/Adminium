@@ -192,6 +192,68 @@ export const measureWhereSchema = z.strictObject({
 });
 export type MeasureWhere = z.infer<typeof measureWhereSchema>;
 
+/** What a `where` test reads of the column it compares with. */
+export interface MeasureTestColumn {
+  /** The engine's logical type (`integer`, `text`, `enum`, …). */
+  logicalType: string;
+  /** A Postgres array: never compared. */
+  isArray?: boolean | undefined;
+  /** The column's native type as the database names it (`smallint`, `integer`), where it is known. */
+  dbType?: string | undefined;
+}
+
+const MEASURE_TEST_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const INT2_MAX = 32_767;
+const INT4_MAX = 2_147_483_647;
+
+/**
+ * Why a `where` test's values cannot be compared with `column`, or null when
+ * they can: the words that finish "… takes ___".
+ *
+ * ONE table, read in two places so they cannot disagree: the server, when it
+ * binds a measure's `where` (a mismatch is a 422 there, never a database
+ * error), and whoever stores such a test ahead of time (a board's `only`, at
+ * install) — a test stored that the server would refuse makes every later read
+ * fail.
+ *
+ * Equality is asked only of a type that answers it the same on every engine,
+ * and only with a value that type can hold: a whole number for an integer, a
+ * number for a decimal, yes or no for a boolean, text for text, an enum or a
+ * uuid. A column that holds a list is not compared at all. On Postgres a whole
+ * number is also held to the column's own width (`dialect`): past it the
+ * database raises instead of matching no row.
+ */
+export function measureTestProblem(
+  column: MeasureTestColumn,
+  values: readonly (string | number | boolean)[],
+  dialect?: string | undefined,
+): string | null {
+  if (column.isArray === true) return 'no test: a column that holds a list is not compared';
+  const every = (fits: (value: string | number | boolean) => boolean): boolean => values.every(fits);
+  switch (column.logicalType) {
+    case 'integer':
+    case 'bigint': {
+      if (!every((value) => typeof value === 'number' && Number.isSafeInteger(value))) return 'whole numbers';
+      if (dialect !== 'postgres' || column.logicalType === 'bigint') return null;
+      const max = /^(?:smallint|int2|smallserial)$/i.test(column.dbType ?? '') ? INT2_MAX : INT4_MAX;
+      return every((value) => (value as number) <= max && (value as number) >= -max - 1) ? null : `whole numbers from ${String(-max - 1)} to ${String(max)}`;
+    }
+    case 'decimal':
+    case 'float':
+      return every((value) => typeof value === 'number') ? null : 'numbers';
+    case 'boolean':
+      return every((value) => typeof value === 'boolean') ? null : 'true or false';
+    case 'uuid':
+      return every((value) => typeof value === 'string' && MEASURE_TEST_UUID.test(value)) ? null : 'uuids';
+    case 'text':
+    case 'varchar':
+    case 'enum':
+      return every((value) => typeof value === 'string') ? null : 'text';
+    default:
+      return 'no test: only a whole number, a number, a yes/no, text, an enum or a uuid column is compared';
+  }
+}
+
 export const measureSchema = z.strictObject({
   id: aliasSchema,
   /** The REFERENCING table, qualified ("public.invoice_items"). */

@@ -40,6 +40,9 @@ import { ConnectionManager } from '../src/connections/manager.js';
 import { registerAdapters } from '../src/connections/register-adapters.js';
 import { createApplyService } from '../src/llm/apply-service.js';
 import { createRunService } from '../src/llm/run-service.js';
+import { permissionSetAllows, resolvePermissionSet } from '../src/rbac/resolver.js';
+import { authorizeChannel, widgetDataChannel, type RealtimeEvent } from '../src/realtime/hub.js';
+import { orderedSink, readLimitedFrames } from '../src/realtime/read-frames.js';
 import { packageTarball } from './app-bundle-helpers.js';
 import { adminPasswordHash, ADMIN_PASSWORD, sessionCookie } from './auth-helpers.js';
 import { makeEnv, TEST_SECRET } from './helpers.js';
@@ -91,6 +94,8 @@ const MANIFEST = {
         belongs: [{ column: 'owner_id', set: 'team' }],
         indexes: [['owner_id'], ['stage_id']],
       },
+      // Tasks by a phase a task may not have yet: the rows with none are on no column.
+      { ref: 'tasks', columns: [id, { ref: 'name', type: 'text', maxLength: 80 }, { ref: 'phase', type: 'enum', enum: ['todo', 'doing', 'done'], nullable: true }] },
     ],
   },
   pages: [
@@ -138,6 +143,14 @@ const MANIFEST = {
       bindings: { rows: 'deals' },
       config: { board: { column: 'state', title: 'name', totals: [{ column: 'amount', fn: 'sum' }], only: { hot: true } } },
     },
+    {
+      ref: 'crm-tasks',
+      template: 'page-board',
+      title: { key: 't', fallback: 'Tasks' },
+      nav: { group: 'records', icon: 'square-kanban', order: 5 },
+      bindings: { rows: 'tasks' },
+      config: { board: { column: 'phase', title: 'name' } },
+    },
   ],
   roles: [
     {
@@ -160,6 +173,18 @@ const MANIFEST = {
       permissions: ['table:@deals:read', 'table:@stages:read', 'page:@crm-open:view'],
       limits: { deals: { readable: ['id', 'name', 'stage_id', 'amount'] } },
     },
+    {
+      // Reads the stages, and no deal at all.
+      key: 'porter',
+      name: 'Porter',
+      permissions: ['table:@stages:read'],
+    },
+    {
+      // Reads every deal, and not the table the pipeline's columns are the rows of.
+      key: 'teller',
+      name: 'Teller',
+      permissions: ['table:@deals:read'],
+    },
   ],
   frontends: [{ side: 'staff', kind: 'spa', entry: 'index.html' }],
 };
@@ -167,6 +192,7 @@ const MANIFEST = {
 interface Stack {
   app: AdminiumServer;
   meta: MetaDb;
+  manager: ConnectionManager;
   connectionId: string;
   run: (statement: string) => Promise<void>;
   rows: (statement: string) => Promise<Record<string, unknown>[]>;
@@ -273,6 +299,7 @@ async function stack(dialect: Dialect): Promise<Stack> {
   return {
     app,
     meta,
+    manager,
     connectionId: connection.id,
     run: async (statement) => {
       await sql.raw(statement).execute(handle.db);
@@ -293,7 +320,7 @@ async function stack(dialect: Dialect): Promise<Stack> {
 for (const [dialect, available] of ENGINES) {
   describe.skipIf(!available)(`a board whose columns are rows of a table [${dialect}]`, () => {
     let s: Stack;
-    const people = {} as Record<'mara' | 'dana' | 'omar' | 'cleo' | 'owner', { id: string; cookie: string }>;
+    const people = {} as Record<'mara' | 'dana' | 'omar' | 'cleo' | 'pat' | 'tess' | 'owner', { id: string; cookie: string }>;
     const data = (path: string) => `/api/v1/data/${s.connectionId}/${path}`;
     const get = (who: keyof typeof people, path: string) => s.app.inject({ method: 'GET', url: data(path), headers: { cookie: people[who].cookie } });
     const patch = (who: keyof typeof people, path: string, values: Record<string, unknown>) =>
@@ -317,8 +344,8 @@ for (const [dialect, available] of ENGINES) {
       s = await stack(dialect);
       const users = usersRepo(s.meta);
       const hash = await adminPasswordHash();
-      const roles = { mara: 'crm-manager', dana: 'crm-rep', omar: 'crm-rep', cleo: 'crm-clerk' } as const;
-      for (const name of ['mara', 'dana', 'omar', 'cleo'] as const) {
+      const roles = { mara: 'crm-manager', dana: 'crm-rep', omar: 'crm-rep', cleo: 'crm-clerk', pat: 'crm-porter', tess: 'crm-teller' } as const;
+      for (const name of ['mara', 'dana', 'omar', 'cleo', 'pat', 'tess'] as const) {
         const user = await users.create({ email: `${name}@firm.test`, name, passwordHash: hash });
         await rolesRepo(s.meta).assignToUser(user.id, (await rolesRepo(s.meta).findBySlug(roles[name]))!.id);
         people[name] = { id: user.id, cookie: '' };
@@ -327,7 +354,7 @@ for (const [dialect, available] of ENGINES) {
       await teamsRepo(s.meta).setMember(north.id, people.mara.id, true);
       await teamsRepo(s.meta).setMember(north.id, people.dana.id, false);
       await teamsRepo(s.meta).setMember(north.id, people.omar.id, false);
-      for (const name of ['mara', 'dana', 'omar', 'cleo'] as const) people[name].cookie = await signIn(s.app, `${name}@firm.test`);
+      for (const name of ['mara', 'dana', 'omar', 'cleo', 'pat', 'tess'] as const) people[name].cookie = await signIn(s.app, `${name}@firm.test`);
       // The owner holds every grant, the one to read personal data among them.
       people.owner = { id: '', cookie: await signIn(s.app, 'owner@firm.test') };
       // The stages' order is their `position`, not their key: Qualified (2) comes before Lead (1)'s key order would put it.
@@ -349,6 +376,9 @@ for (const [dialect, available] of ENGINES) {
       // Deals 1, 2 and 4 are hot; deals 1 and 3 are in the north.
       await s.run(`UPDATE crm_deals SET hot = ${dialect === 'postgres' ? 'TRUE' : '1'} WHERE id IN (1, 2, 4)`);
       await s.run(`UPDATE crm_deals SET region = 'north' WHERE id IN (1, 3)`);
+      // Tasks: five to do, three being done, one done — and four with no phase yet.
+      const phases = [...Array<string>(5).fill("'todo'"), ...Array<string>(3).fill("'doing'"), "'done'", ...Array<string>(4).fill('NULL')];
+      await s.run(`INSERT INTO crm_tasks (name, phase) VALUES ${phases.map((phase, index) => `('Task ${String(index + 1)}', ${phase})`).join(', ')}`);
     }, 180_000);
     afterAll(async () => {
       await s?.close();
@@ -611,7 +641,8 @@ for (const [dialect, available] of ENGINES) {
       const filters = [{ column: 'hot', op: 'in', value: [true] }];
       expect(board.config).toMatchObject({ statusColumn: 'state', columns: ['open', 'won', 'lost'], only: [{ column: 'hot', in: [true] }] });
       expect((board.config['binding'] as { filters?: unknown }).filters).toEqual(filters);
-      expect((board.config['columnsBinding'] as { filters?: unknown }).filters).toEqual(filters);
+      // The counting query asks the cards' condition, and the enum's own values: no group for a row with none.
+      expect((board.config['columnsBinding'] as { filters?: unknown }).filters).toEqual([...filters, { column: 'state', op: 'in', value: ['open', 'won', 'lost'] }]);
       const groups = async (who: keyof typeof people): Promise<[string, number, number][]> => {
         const result = await cards(who, board, 'columnsBinding');
         expect(result.ok, JSON.stringify(result)).toBe(true);
@@ -622,6 +653,56 @@ for (const [dialect, available] of ENGINES) {
       expect(await groups('dana')).toEqual([['open', 1, 100], ['won', 1, 300]]);
       const listed = await cards('dana', board);
       expect((listed.result?.rows ?? []).map((row) => String(row['name'])).sort()).toEqual(['Deal 1', 'Deal 2']);
+    });
+
+    it('an enum board counts every value that has cards, however many rows have no value at all', async () => {
+      const board = await storedBoard('crm-tasks');
+      expect(board.config).toMatchObject({ statusColumn: 'phase', columns: ['todo', 'doing', 'done'] });
+      const result = await cards('owner', board, 'columnsBinding');
+      expect(result.ok, JSON.stringify(result)).toBe(true);
+      // The four rows with no phase made a fourth group, bigger than "done": cut at three groups, "done" read 0 over its card.
+      // One figure a group (no totals on this board): it is the group's `value`.
+      const counted = (result.result?.items ?? []) as { key: string; value?: number; values?: Record<string, number> }[];
+      expect(counted.map((item): [string, number] => [String(item.key), Number(item.values?.['cards'] ?? item.value)]).sort((a, b) => a[0].localeCompare(b[0]))).toEqual([
+        ['doing', 3],
+        ['done', 1],
+        ['todo', 5],
+      ]);
+      // The cards themselves are every task: the ones with no phase are listed, and are on no column.
+      expect((await cards('owner', board)).result?.rows).toHaveLength(13);
+    });
+
+    it('refuses a whole number past the column’s width where the database would raise, and counts none where it would not', async () => {
+      const read = await measured('mara', [{ id: 'm', fn: 'count', where: [{ column: 'id', in: [3_000_000_000] }] }]);
+      if (dialect === 'postgres') {
+        // An int4 column: bound as it came, Postgres raises and the whole read is a 500.
+        expect(read.status, read.body).toBe(422);
+        expect((JSON.parse(read.body) as { error: { code: string; message: string } }).error).toMatchObject({
+          code: 'VALIDATION_FAILED',
+          message: expect.stringContaining('takes whole numbers from -2147483648 to 2147483647'),
+        });
+      } else {
+        expect(read.status, read.body).toBe(200);
+        expect(read.rows.map((row) => row['m'])).toEqual(read.rows.map(() => 0));
+      }
+      // Within the width it is compared, on every engine.
+      expect((await measured('mara', [{ id: 'm', fn: 'count', where: [{ column: 'id', in: [2_147_483_647] }] }])).status).toBe(200);
+    });
+
+    it('decides who may be answered before it judges the values: a refused measure is null, never a 422 that names a type', async () => {
+      const mistyped = [{ id: 'm', fn: 'count', where: [{ column: 'region', in: [7] }] }];
+      // Whoever may read the column is told the author's mistake.
+      expect((await measured('owner', mistyped)).status).toBe(422);
+      // A rep, for whom `region` is masked: no figure, and nothing about what the column takes.
+      const rep = await measured('dana', mistyped);
+      expect(rep.status, rep.body).toBe(200);
+      for (const row of rep.rows) expect([row['m'], row['_masked']]).toEqual([null, expect.arrayContaining(['m'])]);
+      // Somebody who reads the stages and no deal at all: the same, whatever is sent.
+      const porter = await measured('pat', [{ id: 'm', fn: 'count', where: [{ column: 'state', in: [1] }] }]);
+      expect(porter.status, porter.body).toBe(200);
+      expect(porter.rows.length).toBeGreaterThan(0);
+      for (const row of porter.rows) expect([row['m'], row['_masked']]).toEqual([null, expect.arrayContaining(['m'])]);
+      expect((await measured('mara', [{ id: 'm', fn: 'count', where: [{ column: 'state', in: [1] }] }])).status).toBe(422);
     });
 
     it('a stage added to the table is a column of the next read, with no update of the app', async () => {
@@ -658,6 +739,62 @@ for (const [dialect, available] of ENGINES) {
       const missing = await patch('dana', `${s.table.deals}/3`, { stage_id: 2 });
       expect(missing.statusCode, missing.body).toBe(404);
       expect((await s.rows(`SELECT stage_id FROM crm_deals WHERE id = 3`)).map((row) => Number(row['stage_id']))).toEqual([1]);
+    });
+
+    it('a colleague’s change is told on the table’s own channel to whoever reads that table, and to nobody else', async () => {
+      // What a board page follows: the channel of its cards' table, and of the table its columns are the rows of.
+      const stages = widgetDataChannel(s.connectionId, s.table.stages);
+      const deals = widgetDataChannel(s.connectionId, s.table.deals);
+      const frameFor = readLimitedFrames(s.meta);
+      type Frame = { type: string; pk: Record<string, unknown> | null; row: Record<string, unknown> | null; changed?: true };
+      const got = new Map<string, Frame[]>();
+      const offs: (() => void)[] = [];
+      /** As the server's own gateway does it: the door first, then every frame through the subscriber's filter. */
+      const follow = async (who: 'dana' | 'omar' | 'tess' | 'pat', channel: string): Promise<boolean> => {
+        const user = { id: people[who].id };
+        const allowed = await authorizeChannel(user, channel, { can: async (_user, permission) => permissionSetAllows(await resolvePermissionSet(s.meta, { kind: 'user', id: user.id, label: user.id }), permission) });
+        got.set(`${who} ${channel}`, []);
+        // Subscribed whatever the door said, to show the filter holds on its own too: a role taken away mid-session.
+        offs.push(s.app.realtime.subscribe(channel, orderedSink(await frameFor(user, channel), (event: RealtimeEvent) => got.get(`${who} ${channel}`)!.push(event.data as Frame))));
+        return allowed;
+      };
+      // The door: by the reader's own grant on THAT table. Reading the cards opens nothing of the columns' table, and the other way round.
+      expect(await follow('dana', stages)).toBe(true);
+      expect(await follow('tess', stages)).toBe(false);
+      expect(await follow('pat', stages)).toBe(true);
+      expect(await follow('dana', deals)).toBe(true);
+      expect(await follow('omar', deals)).toBe(true);
+      expect(await follow('pat', deals)).toBe(false);
+      // And the same door over HTTP, for the transport that falls back to a stream.
+      const refused = await s.app.inject({ method: 'GET', url: `/api/v1/events?channels=${encodeURIComponent(stages)}`, headers: { cookie: people.tess.cookie } });
+      expect(refused.statusCode, refused.body).toBe(403);
+
+      // A manager adds a stage, and renames one of Omar's deals.
+      const made = await s.app.inject({ method: 'POST', url: data(s.table.stages), headers: { cookie: people.mara.cookie }, payload: { values: { name: 'Review', position: 9 } } });
+      expect(made.statusCode, made.body).toBe(201);
+      expect((await patch('mara', `${s.table.deals}/4`, { name: 'Deal 4, renamed' })).statusCode).toBe(200);
+      // Each frame is judged after its publisher returns: let the judging finish.
+      for (let turn = 0; turn < 20; turn += 1) await new Promise((resolve) => setTimeout(resolve, 5));
+      for (const off of offs) off();
+
+      // The new stage: to whoever reads the stages, whole. To the one who does not: nothing.
+      for (const who of ['dana', 'pat']) {
+        expect(got.get(`${who} ${stages}`)!.map((frame) => [frame.type, frame.row?.['name']]), who).toEqual([['record.create', 'Review']]);
+      }
+      expect(got.get(`tess ${stages}`)).toEqual([]);
+      // The deal: to the rep it belongs to, and not to the rep it does not; and nothing to who reads no deal.
+      expect(got.get(`omar ${deals}`)!.map((frame) => [frame.type, frame.row?.['name']])).toEqual([['record.update', 'Deal 4, renamed']]);
+      expect(got.get(`dana ${deals}`)).toEqual([]);
+      expect(got.get(`pat ${deals}`)).toEqual([]);
+    });
+
+    // Last: it adds a column and reads the schema again.
+    it.skipIf(dialect !== 'postgres')('refuses a test of a column that holds a list, which the database could not compare', async () => {
+      await s.run(`ALTER TABLE crm_deals ADD COLUMN tags text[]`);
+      await runIntrospection({ manager: s.manager, meta: s.meta, connectionId: s.connectionId });
+      const read = await measured('owner', [{ id: 'm', fn: 'count', where: [{ column: 'tags', in: ['a'] }] }]);
+      expect(read.status, read.body).toBe(422);
+      expect((JSON.parse(read.body) as { error: { message: string } }).error.message).toContain('a column that holds a list is not compared');
     });
   });
 }

@@ -591,5 +591,29 @@ for (const [dialect, available] of ENGINES) {
       const report = (await call('owner', 'GET', `imports/${id}/error-report`)).body;
       for (const code of ['place-unreadable', 'place-short-link', 'place-unknown', 'area-unreadable']) expect(report, code).toContain(code);
     });
+
+    it('never searches a place or an area as text, and refuses to order rows by one', async () => {
+      // Rows 1 to 5 of the import: places known `exact` and by `town`, and one area (a `Polygon`).
+      const list = async (query: string): Promise<Reply> => call('owner', 'GET', `${table()}?limit=100&${query}`);
+      const names = (res: Reply): string[] => json<{ data: Record<string, unknown>[] }>(res).data.map((row) => String(row['name'])).sort();
+      // What a place and an area are KEPT as is no text of the row: on SQLite the column is TEXT, and a search for a
+      // word of the stored JSON found every row with a position.
+      for (const word of ['exact', 'town', 'Polygon', 'coordinates', 'lat']) {
+        const found = await list(`q=${word}`);
+        expect(found.statusCode, found.body).toBe(200);
+        expect(names(found), word).toEqual(word === 'town' ? ['By town'] : []);
+      }
+      // The search itself works: by the row's own text.
+      expect(names(await list('q=area'))).toEqual(['With area']);
+      // No order: a plain `json` column on Postgres has no ordering operator, and the others would sort the JSON's spelling.
+      for (const [column, what] of [['spot', 'a place'], ['zone', 'an area']] as const) {
+        for (const dir of ['asc', 'desc']) {
+          const res = await list(`order=${column}.${dir}`);
+          expect(res.statusCode, res.body).toBe(422);
+          expect(json<{ error: { code: string; message: string } }>(res).error).toMatchObject({ code: 'VALIDATION_FAILED', message: `Rows cannot be ordered by "${column}": it holds ${what} on the map.` });
+        }
+      }
+      expect((await list('order=name.asc')).statusCode).toBe(200);
+    });
   });
 }

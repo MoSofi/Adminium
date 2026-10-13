@@ -700,6 +700,8 @@ export default {
       },
       "addCard": "Karte hinzufügen",
       "notMoved": "{title} wurde nicht verschoben.",
+      "notAdded": "{title} wurde nicht hinzugefügt.",
+      "cardNotAdded": "Die Karte wurde nicht hinzugefügt.",
       "dismissNotice": "Schließen",
       "grip": "Zum Verschieben ziehen",
       "pointsUnit": "Pkt.",
@@ -1930,6 +1932,9 @@ export default {
       "noRowsTitle": "Noch keine Karten",
       "noColumnsTitle": "Noch keine Spalten",
       "noColumnsBody": "Dieses Board nimmt seine Spalten aus den Zeilen einer Tabelle, und diese Tabelle hat noch keine Zeilen. Fügen Sie eine hinzu, dann erscheint sie hier als Spalte.",
+      "invalidOnly": "Dieses Board soll nur einen Teil der Zeilen seiner Tabelle zeigen, und diese Einstellung lässt sich nicht lesen. Deshalb wird das Board nicht angezeigt. Generieren Sie die Seite neu.",
+      "columnsError": "Die Spalten dieses Boards konnten nicht aus {table} gelesen werden.",
+      "columnsCut": "{count, plural, one {Es wird nur die erste Spalte angezeigt: Die Tabelle, aus der dieses Board seine Spalten nimmt, hat mehr Zeilen.} other {Es werden die ersten # Spalten angezeigt: Die Tabelle, aus der dieses Board seine Spalten nimmt, hat mehr Zeilen.}}",
       "noRowsBody": "Karten erscheinen hier, sobald die Tabelle Zeilen hat."
     },
     "calendar": {

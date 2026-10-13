@@ -690,6 +690,8 @@
       },
       "addCard": "Add card",
       "notMoved": "{title} was not moved.",
+      "notAdded": "{title} was not added.",
+      "cardNotAdded": "The card was not added.",
       "dismissNotice": "Dismiss",
       "grip": "Drag to move card",
       "pointsUnit": "pts",
@@ -1920,6 +1922,9 @@
       "noRowsTitle": "No cards yet",
       "noColumnsTitle": "No columns yet",
       "noColumnsBody": "This board takes its columns from the rows of a table, and that table has no rows yet. Add one and it appears here as a column.",
+      "invalidOnly": "This board is set to show only some of its table’s rows, and that setting cannot be read, so the board is not drawn. Regenerate the page.",
+      "columnsError": "This board’s columns could not be read from {table}.",
+      "columnsCut": "{count, plural, one {Showing the first column only: the table this board takes its columns from has more rows.} other {Showing the first # columns: the table this board takes its columns from has more rows.}}",
       "noRowsBody": "Cards appear here as soon as the table has rows."
     },
     "calendar": {

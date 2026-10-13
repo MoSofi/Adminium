@@ -484,8 +484,10 @@ function usePageAdapters(page: PageEnvelope, slug: string): PageTemplateAdapters
           });
         })
         .catch(() => {
-          // Failed mutations surface through the template's own form/error
-          // handling; the host-level fallback stays silent here.
+          // Nothing is said HERE: the refusal travels on the promise handed
+          // back below, and whoever asked says it — a form beside its field, a
+          // board where the card went back or was not added. A caller that
+          // drops that promise drops the reason with it.
         });
       return promise;
     },

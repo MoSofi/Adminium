@@ -93,8 +93,9 @@ export function useRecords<R extends AnyRecord = AnyRecord>(
   const connectionId = useConnection(database);
   const params = listParams(query as RecordsQuery);
   const result = useQuery({
-    // A list with measures is read again when ANY table changes, as a widget's figures are: what it counts lives in
-    // another table, and a frame of that table names only itself (`api/realtime.ts`).
+    // A list with measures is kept beside the widgets' figures: what it counts lives in ANOTHER table, so it is read
+    // again after any save made through the kit (`useMutation` below invalidates this prefix), whichever table that
+    // save was of. Nothing subscribes a kit list to a table's changes: a colleague's save shows at its next read.
     queryKey: (params.compute === undefined ? ['data', connectionId, table, 'project-list', params] : ['widget-data', 'project-list', connectionId, table, params]) as readonly unknown[],
     queryFn: () => createCrudApi(connectionId, table).list(params),
     placeholderData: keepPreviousData,

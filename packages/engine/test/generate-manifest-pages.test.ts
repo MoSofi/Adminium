@@ -164,6 +164,9 @@ describe('a board whose columns a page names', () => {
         { fn: 'count', alias: 'cards' },
         { fn: 'avg', column: 'amount', alias: 'total0' },
       ],
+      // The enum's own values, and so no group for the rows with none: one more group than the limit cut the smallest real one.
+      filters: [{ column: 'tier', op: 'in', value: ['bronze', 'silver', 'gold'] }],
+      limit: 3,
     });
   });
 
@@ -182,13 +185,16 @@ describe('a board whose columns a page names', () => {
     const byTier = composeRequestedPage(model, 'public.deals', 'page-board', { ...CONTEXT, board: { column: 'tier', only: [{ column: 'stage_id', in: [2] }] } });
     const tiers = (byTier.envelope?.['config'] as { layout: { items: { widget: string; config: Record<string, unknown> }[] } }).layout.items.find((candidate) => candidate.widget === 'kanban-board');
     expect((tiers?.config['binding'] as { filters?: unknown }).filters).toEqual([{ column: 'stage_id', op: 'in', value: [2] }]);
-    expect((tiers?.config['columnsBinding'] as { filters?: unknown }).filters).toEqual([{ column: 'stage_id', op: 'in', value: [2] }]);
+    expect((tiers?.config['columnsBinding'] as { filters?: unknown }).filters).toEqual([
+      { column: 'stage_id', op: 'in', value: [2] },
+      { column: 'tier', op: 'in', value: ['bronze', 'silver', 'gold'] },
+    ]);
 
     // A board that names no `only` carries none: every row, as before.
     const whole = composeRequestedPage(model, 'public.deals', 'page-board', { ...CONTEXT, board: { column: 'tier' } });
     const all = (whole.envelope?.['config'] as { layout: { items: { widget: string; config: Record<string, unknown> }[] } }).layout.items.find((candidate) => candidate.widget === 'kanban-board');
     expect((all?.config['binding'] as { filters?: unknown }).filters).toBeUndefined();
-    expect((all?.config['columnsBinding'] as { filters?: unknown }).filters).toBeUndefined();
+    expect((all?.config['columnsBinding'] as { filters?: unknown }).filters).toEqual([{ column: 'tier', op: 'in', value: ['bronze', 'silver', 'gold'] }]);
     expect(all?.config['only']).toBeUndefined();
   });
 
@@ -205,6 +211,22 @@ describe('a board whose columns a page names', () => {
     expect(built({ column: 'tier', only: [{ column: 'tier', in: ['gold'] }] }).reason).toBe("deals.tier is what the board's columns are, so it cannot also choose its cards");
     expect(built(boardColumnsOf({ column: 'tier', only: { stage_id: { eq: 2 } } }, () => undefined)!).reason).toBe("deals.stage_id is given no value to choose the board's cards by");
     expect(built({ column: 'tier', only: [{ column: 'state', in: ['open'] }] }).envelope).toBeNull();
+  });
+
+  it('refuses an only whose value the real column cannot be compared with, naming the column and what it takes', () => {
+    const model = modelFromRequiredSchema({ requiredSchema: SALES });
+    const reason = (only: { column: string; in: (string | number | boolean)[] }[]) => composeRequestedPage(model, 'public.deals', 'page-board', { ...CONTEXT, board: { column: 'tier', only } }).reason;
+    // A link to a table keyed by a whole number: text installs, and then every read of the board's columns is refused.
+    expect(reason([{ column: 'stage_id', in: ['7'] }])).toBe('deals.stage_id takes whole numbers, so "7" cannot choose the board\'s cards');
+    expect(reason([{ column: 'stage_id', in: [2, 2.5] }])).toBe('deals.stage_id takes whole numbers, so 2.5 cannot choose the board\'s cards');
+    expect(reason([{ column: 'name', in: [3] }])).toBe('deals.name takes text, so 3 cannot choose the board\'s cards');
+    expect(reason([{ column: 'amount', in: ['much'] }])).toBe('deals.amount takes numbers, so "much" cannot choose the board\'s cards');
+    expect(reason([{ column: 'stage_id', in: [7] }])).toBe('');
+    // On Postgres a whole number is held to the column's own width.
+    const postgres = { ...model, dialect: 'postgres' as const };
+    expect(composeRequestedPage(postgres, 'public.deals', 'page-board', { ...CONTEXT, board: { column: 'tier', only: [{ column: 'stage_id', in: [3_000_000_000] }] } }).reason).toBe(
+      'deals.stage_id takes whole numbers from -2147483648 to 2147483647, so 3000000000 cannot choose the board\'s cards',
+    );
   });
 
   it('says why a table cannot be the board it was asked for', () => {

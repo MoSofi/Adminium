@@ -23,7 +23,7 @@ const OWN = { reach: 'own' } as const;
 
 type Who = PersonName | 'owner';
 type Reply = { statusCode: number; body: string };
-type PreviewLine = { row: number; status: 'new' | 'here' | 'refused'; code?: string; column?: string; message?: string; earlierLine?: number };
+type PreviewLine = { row: number; status: 'new' | 'here' | 'refused'; code?: string; column?: string; message?: string; earlierLine?: number; label?: string };
 type Preview = { total: number; judged: number; capped: boolean; counts: { new: number; here: number; refused: number }; hooksNotRun: boolean; lines: PreviewLine[] };
 type Ran = { status: string; stats: { total: number; inserted?: number; updated?: number; skipped?: number; alreadyHere?: number } | null; refused: [number, string][] };
 type Refusal = { error: { code: string; message: string; details?: Record<string, unknown> } };
@@ -129,6 +129,39 @@ for (const [dialect, available] of ENGINES) {
         await w.take('sam', 'bringer');
         await w.give('sam', 'desk');
       }
+    });
+
+    it('says which line each one is: the match value as the file has it, else its first mapped cell', async () => {
+      const long = 'x'.repeat(300);
+      // Matched on the id: each line is named by the id typed in the file, a refused one too.
+      const csv = `title,id,state,amount,big\n  Is three here?  ,3,open,1,0\nNew one,411,open,1,0\nBad amount,412,open,twelve,0\n`;
+      const matched = await readyImport('sam', csv, { mode: 'skip', matchColumn: 'id' });
+      expect(matched.statusCode, matched.body).toBe(201);
+      expect((await previewOf('sam', matched.id)).lines.map((line) => [line.row, line.status, line.label])).toEqual([
+        [1, 'here', '3'],
+        [2, 'new', '411'],
+        [3, 'refused', '412'],
+      ]);
+      // Matched on nothing: the first mapped cell of the line, trimmed, and no longer than 120 characters.
+      const plain = await readyImport('sam', `title,state,amount,big\n  Spaced out  ,open,1,0\n${long},open,1,0\n,open,1,0\n`, { mode: 'insert' });
+      expect(plain.statusCode, plain.body).toBe(201);
+      const lines = (await previewOf('sam', plain.id)).lines;
+      expect(lines[0]!.label).toBe('Spaced out');
+      expect(lines[1]!.label).toHaveLength(120);
+      expect(lines[1]!.label).toBe('x'.repeat(120));
+      // A line whose cell is empty has no label, rather than an empty one.
+      expect('label' in lines[2]!).toBe(false);
+      // A column the mapping leaves out is not what a line is named by.
+      const uploaded = await call('sam', 'POST', 'imports/upload?filename=lines.csv', 'note,title,state,amount,big\nnot this,This one,open,1,0\n', { 'content-type': 'text/csv' });
+      const made = await post('sam', 'imports', {
+        fileId: json<{ data: { fileId: string } }>(uploaded).data.fileId,
+        connectionId: w.connectionId,
+        table: deals(),
+        mapping: { columns: [{ from: 'note', to: null }, ...['title', 'state', 'amount', 'big'].map((name) => ({ from: name, to: name }))] },
+        options: { skipInvalid: true, mode: 'insert' },
+      });
+      expect(made.statusCode, made.body).toBe(201);
+      expect((await previewOf('sam', json<{ data: { import: { id: string } } }>(made).data.import.id)).lines[0]!.label).toBe('This one');
     });
 
     it('matches on no column its requester sees masked, as a filter by one is refused', async () => {

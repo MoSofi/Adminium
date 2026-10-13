@@ -7,8 +7,10 @@
  * never sees them — `usePlanningStates` extracts the layout's descriptors,
  * runs the ONE deduped `POST /api/v1/widget-data/batch`, and hands the
  * per-instance states to the template (unbound items keep deterministic demo
- * data). WS `widget-data:*`/`table:*` invalidations refetch — which is what
- * confirms (or unwinds) the board's optimistic card moves.
+ * data). The page is read again after a save of its own (`PageRenderer`), and
+ * when a frame says its cards' table — or the table its columns are the rows
+ * of — changed (`planning/boardLive.ts`): a colleague's move, a stage added.
+ * The read after a save is what lets go of the board's optimistic card moves.
  *
  * A board that names its columns (an app's `config.board`) reads them from the
  * server too — the rows of a table, or an enum's values, each with the count
@@ -19,12 +21,13 @@
  * `record-open` → `/p/$slug/r/$id`, where this binding mounts the shared
  * planning record drawer (the page-crud detail pattern).
  */
+import { useTheme } from '@adminium/ui';
 import { PageBoard } from '@adminium/widgets';
-
 
 import { getI18nInstance, t } from '../i18n/t.js';
 import { EmptyLayoutNotice, layoutIsEmpty } from './planning/EmptyLayoutNotice.js';
 import { useBoardColumns } from './planning/boardColumns.js';
+import { useBoardLive } from './planning/boardLive.js';
 import { PlanningRecordDrawer } from './planning/PlanningRecordDrawer.js';
 import { usePlanningStates } from './planning/planningData.js';
 import { LinkFilterBar, LinkNarrowingGate, useLinkNarrowing, useNarrowedPage } from './linkNarrowing.js';
@@ -38,6 +41,11 @@ export function PageBoardBinding({ page, adapters, recordId, columnFacts, curren
   // The board's columns as the server answers them, for a board that names them; undefined for any other.
   // Under a link's narrowing the cards are some of the table's, and a count of all of them would head the wrong list.
   const boardColumns = useBoardColumns(page, { states, formColumns, currency, locale: getI18nInstance()?.language ?? 'en-US', narrowed: view.key !== undefined });
+  // A colleague's change to the cards' table or the columns' table reads the page again, once for a burst.
+  useBoardLive(page);
+  // The page's direction, as the shell resolved it for the person's language: the board lays its columns out by it
+  // (the first one at the start side) and its arrow keys read it. Unsaid, a board is left to right on any page.
+  const { dir } = useTheme();
 
   // An empty layout renders an empty grid — nothing at all. A page created
   // without a table is the way in; the notice names the missing binding.
@@ -57,6 +65,7 @@ export function PageBoardBinding({ page, adapters, recordId, columnFacts, curren
         {...(currency === undefined ? {} : { currency })}
         config={page.config}
         states={states}
+        dir={dir}
         {...(boardColumns === undefined ? {} : { boardColumns })}
         labels={{
           addLabel: t('board.addCard', 'Add card'),

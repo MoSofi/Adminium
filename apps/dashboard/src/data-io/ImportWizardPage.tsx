@@ -13,10 +13,19 @@
  * — asserted here in the component; a mismatch renders the inconsistency
  * warning instead of silently pretty-printing wrong math.
  *
- * Target selection rides the nav tree: picking a table page lazily fetches
+ * Target selection rides the nav tree — the owner's own pages and each
+ * installed app's, under the app's name: picking a table page lazily fetches
  * its envelope (`pageQuery`) and reads `source.connectionId`/`source.table` +
  * `config.columns[]` — no admin-only schema endpoint involved, so the wizard
- * works for anyone holding the per-table import grant.
+ * works for anyone holding the per-table import grant. Who holds that grant is
+ * not told to the browser (neither the session's reply nor a page's says it),
+ * so every table page the person sees is offered and the server's refusal is
+ * said in words, by the page's name.
+ *
+ * Once the lines have been looked at (and all of them were), the step's
+ * summary and its Run button speak from that look and the chosen mode: the
+ * type check alone counts a line that is already here as one "ready to
+ * import", and would contradict the preview beside it.
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -33,7 +42,8 @@ import {
   type WidgetEvent,
 } from '@adminium/widgets';
 
-import { bootstrapQuery, flattenNav, type NavItem } from '../app/bootstrap.js';
+import { ApiError } from '../app/api.js';
+import { appSectionsOf, bootstrapQuery, flattenNav, type BootstrapData, type NavItem } from '../app/bootstrap.js';
 import { createRealtimeClient } from '../app/ws.js';
 import { pageQuery } from '../api/pages.js';
 import { t } from '../i18n/t.js';
@@ -65,6 +75,15 @@ export interface ImportWizardPageProps {
 /** How many lines of the preview are asked for at a time. */
 const PREVIEW_PAGE = 100;
 
+/**
+ * The footer's buttons. The assistant's button floats over the page's bottom
+ * end corner, where they are: while it is drawn the shell sets `--toast-lift`
+ * (its 48 px and a gap — what lifts the toasts clear of it), and the buttons
+ * keep that much room at the end side; without it, none. From 1440 px up the
+ * page's column ends short of the button, and no room is needed.
+ */
+const FOOTER_ACTIONS = 'flex min-w-0 flex-wrap items-center justify-end gap-2 max-[1439px]:pe-[var(--toast-lift,0px)]';
+
 type StepId = 'upload' | 'map' | 'validate' | 'run';
 
 const STEP_IDS: readonly StepId[] = ['upload', 'map', 'validate', 'run'];
@@ -84,6 +103,48 @@ function targetColumnsOf(config: Record<string, unknown>): { key: string; label?
   return out;
 }
 
+/** A page over a table: a page of an add-on's own code, or one bound to no table, is nothing to import into. */
+const isTablePage = (item: NavItem): boolean => item.addOnPage === undefined && item.sourceTable !== null && item.sourceTable !== '';
+
+/** The table pages a person may pick: their own first, then each installed app's under its name. */
+export function importTargetGroups(bootstrap: BootstrapData | undefined): { key: string; label: string | null; items: NavItem[] }[] {
+  if (bootstrap === undefined) return [];
+  const seen = new Set<string>();
+  const fresh = (items: NavItem[]): NavItem[] =>
+    items.filter((item) => {
+      if (!isTablePage(item) || seen.has(item.pageId)) return false;
+      seen.add(item.pageId);
+      return true;
+    });
+  const groups = [{ key: '', label: null as string | null, items: fresh(flattenNav(bootstrap.nav)) }];
+  for (const section of appSectionsOf(bootstrap)) {
+    groups.push({ key: `${section.kind ?? 'app'}:${section.appKey}`, label: section.label, items: fresh(section.groups.flatMap((group) => group.items)) });
+  }
+  return groups.filter((group) => group.items.length > 0);
+}
+
+/** One group of the type check's issues: its title in words, and a line of the file as its example. */
+function issueWords(issue: { row: number; column: string; code: string; message: string; value: string }, column: string): { title: string; desc: string } {
+  const title =
+    issue.code === 'REQUIRED'
+      ? t('dataio:import.issueRequired', '{column}: empty, and a value is needed', { column })
+      : issue.code === 'BAD_NUMBER'
+        ? t('dataio:import.issueBadNumber', '{column}: not a number', { column })
+        : issue.code === 'BAD_BOOLEAN'
+          ? t('dataio:import.issueBadBoolean', '{column}: not a yes or a no', { column })
+          : issue.code === 'BAD_DATE'
+            ? t('dataio:import.issueBadDate', '{column}: not a date', { column })
+            : issue.code === 'BAD_JSON'
+              ? t('dataio:import.issueBadJson', '{column}: not valid JSON', { column })
+              : // A code this screen has no sentence for: what the server said of it.
+                t('dataio:import.issueOther', '{column}: {message}', { column, message: issue.message });
+  const desc =
+    issue.value.trim() === ''
+      ? t('dataio:import.issueExampleLine', 'For example on line {row}.', { row: issue.row })
+      : t('dataio:import.issueExample', 'For example “{value}”, on line {row}.', { value: issue.value, row: issue.row });
+  return { title, desc };
+}
+
 /** The wizard invariant — exported for tests. */
 export function statsConsistent(stats: {
   total: number;
@@ -100,7 +161,9 @@ export function ImportWizardPage({ initialTarget, matchOn: initialMatchOn }: Imp
 
   const [step, setStep] = useState<StepId>('upload');
   const [target, setTarget] = useState<ImportTarget | null>(initialTarget ?? null);
-  const [targetError, setTargetError] = useState<string | null>(null);
+  // The page the target was picked by: what the picker shows, and what a refusal names.
+  const [targetPageId, setTargetPageId] = useState('');
+  const [targetError, setTargetError] = useState<{ title: string; body?: string } | null>(null);
   const [preview, setPreview] = useState<UploadPreview | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
   // from → to; SKIP_TARGET = explicit "Don't import"; absent = undecided.
@@ -121,35 +184,50 @@ export function ImportWizardPage({ initialTarget, matchOn: initialMatchOn }: Imp
   const importIdRef = useRef<string | null>(null);
   importIdRef.current = importRow?.id ?? null;
 
-  const navItems = useMemo(
-    () => (boot.data === undefined ? [] : flattenNav(boot.data.nav)),
-    [boot.data],
-  );
+  const targetGroups = useMemo(() => importTargetGroups(boot.data), [boot.data]);
+  const navItems = useMemo(() => targetGroups.flatMap((group) => group.items), [targetGroups]);
+  // A target that came resolved (the `page-wizard` binding's) is shown by the page of its table, when there is one.
+  const chosenPage =
+    navItems.find((item) => item.pageId === targetPageId) ??
+    (target === null || targetPageId !== ''
+      ? undefined
+      : navItems.find((item) => item.sourceTable === target.table && (item.connectionId ?? target.connectionId) === target.connectionId));
+  const targetName = chosenPage === undefined ? (target?.table ?? '') : t(chosenPage.labelKey, chosenPage.fallback);
 
   // --- target picker (upload step) --------------------------------------------
 
   const pickTarget = useCallback(
     async (item: NavItem) => {
       setTargetError(null);
-      const doc = await queryClient.ensureQueryData(pageQuery(item.pageId));
-      const table = doc.status === 'ok' ? doc.page.source.table : null;
-      const connectionId = doc.status === 'ok' ? doc.page.source.connectionId : null;
-      if (
-        doc.status !== 'ok' ||
-        doc.page.template !== 'page-crud' ||
-        typeof table !== 'string' ||
-        table === '' ||
-        typeof connectionId !== 'string'
-      ) {
+      // The page picked, then the other pages of its table: a board or a calendar over a table is not its list, and
+      // the list (the page that says which columns the table has) is what the person meant by it.
+      const candidates = [
+        item,
+        ...navItems.filter(
+          (other) => other.pageId !== item.pageId && typeof item.sourceTable === 'string' && other.sourceTable === item.sourceTable && (other.connectionId ?? null) === (item.connectionId ?? null),
+        ),
+      ];
+      try {
+        for (const candidate of candidates) {
+          const doc = await queryClient.ensureQueryData(pageQuery(candidate.pageId));
+          if (doc.status !== 'ok' || doc.page.template !== 'page-crud') continue;
+          const { table, connectionId } = doc.page.source;
+          if (typeof table !== 'string' || table === '' || typeof connectionId !== 'string') continue;
+          setTarget({ connectionId, table, columns: targetColumnsOf(doc.page.config) });
+          setTargetPageId(candidate.pageId);
+          return;
+        }
+      } catch (error) {
         setTarget(null);
-        setTargetError(
-          t('dataio:import.notATable', 'That page is not a table — pick a table page to import into.'),
-        );
+        setTargetPageId('');
+        setTargetError({ title: t('dataio:import.targetFailed', 'That page could not be opened.'), ...(error instanceof Error && error.message !== '' ? { body: error.message } : {}) });
         return;
       }
-      setTarget({ connectionId, table, columns: targetColumnsOf(doc.page.config) });
+      setTarget(null);
+      setTargetPageId('');
+      setTargetError({ title: t('dataio:import.notATable', 'That page is not a table — pick a table page to import into.') });
     },
-    [queryClient],
+    [queryClient, navItems],
   );
 
   // --- upload -------------------------------------------------------------------
@@ -261,6 +339,26 @@ export function ImportWizardPage({ initialTarget, matchOn: initialMatchOn }: Imp
     },
   });
 
+  // A refusal of the table's rights, in the reader's words and by the page's name; anything else as the server said it.
+  const validateError = ((): string | null => {
+    if (!validateMutation.isError) return null;
+    const error = validateMutation.error;
+    if (error instanceof ApiError && error.code === 'TABLE_FORBIDDEN') {
+      const permission = (error.details as { permission?: unknown } | null | undefined)?.permission;
+      if (typeof permission === 'string' && permission.endsWith(':import')) {
+        return t('dataio:import.noImportRight', 'You do not hold the right to import into {table}. Ask an administrator for it.', { table: targetName });
+      }
+      if (typeof permission === 'string' && permission.endsWith(':read')) {
+        return t(
+          'dataio:import.noReadToMatch',
+          'Matching lines against the rows already there needs the right to read {table}. Match on nothing, or ask an administrator for it.',
+          { table: targetName },
+        );
+      }
+    }
+    return error instanceof Error && error.message !== '' ? error.message : t('dataio:import.validateFailed', 'Validation failed.');
+  })();
+
   const moreLines = useMutation({
     mutationFn: async () => {
       if (importRow === null) throw new Error('nothing to preview');
@@ -291,6 +389,50 @@ export function ImportWizardPage({ initialTarget, matchOn: initialMatchOn }: Imp
         linePreview.counts.new === 0 &&
         (importRow?.options.mode !== 'upsert' || linePreview.counts.here === 0)));
 
+  // What the lines' look says the run would do, when every line was looked at: the only whole-file figures that
+  // know a line is already here. Null when the look failed or covered the first lines only — the type check's
+  // figures then stand, being the only ones of the whole file.
+  const judged = linePreview !== null && !linePreview.capped ? linePreview.counts : null;
+  const updates = importRow?.options.mode === 'upsert';
+  const judgedSummary =
+    judged === null
+      ? null
+      : updates && judged.here > 0
+        ? judged.new > 0
+          ? t(
+              'dataio:import.summaryNewAndUpdate',
+              '{created, plural, one {# new line will be brought in} other {# new lines will be brought in}}, and {updated, plural, one {# line already here updated.} other {# lines already here updated.}}',
+              { created: judged.new, updated: judged.here },
+            )
+          : t('dataio:import.summaryUpdateOnly', '{count, plural, one {# line already here will be updated.} other {# lines already here will be updated.}}', { count: judged.here })
+        : judged.new > 0
+          ? t('dataio:import.summaryNew', '{count, plural, one {# new line will be brought in.} other {# new lines will be brought in.}}', { count: judged.new })
+          : '';
+  // What happens to the lines the run does not write.
+  const judgedRest =
+    judged === null
+      ? ''
+      : [
+          !updates && judged.here > 0 ? t('dataio:import.restHere', '{count} already here will be left as they are', { count: judged.here }) : '',
+          judged.refused > 0 ? t('dataio:import.restRefused', '{count} refused', { count: judged.refused }) : '',
+        ]
+          .filter((part) => part !== '')
+          .join(' · ');
+  const runLabel = ((): string => {
+    if (judged !== null && !nothingToBring) {
+      if (updates && judged.here > 0) {
+        return judged.new > 0
+          ? t('dataio:import.runNewAndUpdate', 'Bring in {created, plural, one {# new line} other {# new lines}} and update {updated}', { created: judged.new, updated: judged.here })
+          : t('dataio:import.runUpdateOnly', '{count, plural, one {Update # line} other {Update # lines}}', { count: judged.here });
+      }
+      return t('dataio:import.runNew', '{count, plural, one {Bring in # new line} other {Bring in # new lines}}', { count: judged.new });
+    }
+    return judged === null && report !== null && report.invalid > 0
+      ? t('dataio:import.runSkipping', 'Import {valid} rows (skip {invalid})', { valid: report.valid, invalid: report.invalid })
+      : t('dataio:import.run', 'Run import');
+  })();
+
+  const targetColumns = target?.columns;
   const issuesData = useMemo(() => {
     if (report === null) return { rows: [], total: 0 };
     // Aggregate row-level issues into (column, code) triage lines.
@@ -299,7 +441,7 @@ export function ImportWizardPage({ initialTarget, matchOn: initialMatchOn }: Imp
       const key = `${issue.column}:${issue.code}`;
       const existing = grouped.get(key);
       if (existing !== undefined) existing.count += 1;
-      else grouped.set(key, { title: `${issue.column}: ${issue.code}`, desc: issue.message, count: 1 });
+      else grouped.set(key, { ...issueWords(issue, targetColumns?.find((column) => column.key === issue.column)?.label ?? issue.column), count: 1 });
     }
     const rows = [...grouped.values()].map((row) => ({ severity: 'warn', ...row }));
     if (report.invalid === 0) {
@@ -311,7 +453,7 @@ export function ImportWizardPage({ initialTarget, matchOn: initialMatchOn }: Imp
       });
     }
     return { rows, total: rows.length };
-  }, [report]);
+  }, [report, targetColumns]);
 
   // --- run ----------------------------------------------------------------------------
 
@@ -372,25 +514,29 @@ export function ImportWizardPage({ initialTarget, matchOn: initialMatchOn }: Imp
                 {t('dataio:import.targetLabel', 'Target table')}
               </span>
               <Select
-                value=""
+                value={chosenPage?.pageId ?? ''}
+                data-testid="import-target"
                 onChange={(event) => {
                   const item = navItems.find((nav) => nav.pageId === event.currentTarget.value);
                   if (item !== undefined) void pickTarget(item);
                 }}
               >
+                {/* A target that is no page of the list (the binding's own table) is named by its table: there is no page to name it by. */}
                 <option value="">
-                  {target === null
-                    ? t('dataio:import.targetPlaceholder', 'Choose a table page…')
-                    : target.table}
+                  {target === null || chosenPage !== undefined ? t('dataio:import.targetPlaceholder', 'Choose a table page…') : target.table}
                 </option>
-                {navItems.map((item) => (
-                  <option key={item.pageId} value={item.pageId}>
-                    {item.fallback}
-                  </option>
-                ))}
+                {targetGroups.map((group) => {
+                  const options = group.items.map((item) => (
+                    <option key={item.pageId} value={item.pageId}>
+                      {t(item.labelKey, item.fallback)}
+                    </option>
+                  ));
+                  // The owner's own pages stand first, under no heading; an app's under its name.
+                  return group.label === null ? options : <optgroup key={group.key} label={group.label}>{options}</optgroup>;
+                })}
               </Select>
             </label>
-            {targetError !== null ? <Alert tone="warn" title={targetError} /> : null}
+            {targetError !== null ? <Alert tone="warn" title={targetError.title} {...(targetError.body === undefined ? {} : { body: targetError.body })} /> : null}
             {uploadError !== null ? <Alert tone="danger" title={uploadError} /> : null}
             <UploadDropzone
               accept=".csv,text/csv"
@@ -501,16 +647,7 @@ export function ImportWizardPage({ initialTarget, matchOn: initialMatchOn }: Imp
                 title={t('dataio:import.matchUnmapped', 'Lines cannot be matched on {column}: no column of the file is mapped to it.', { column: matchLabel })}
               />
             ) : null}
-            {validateMutation.isError ? (
-              <Alert
-                tone="danger"
-                title={
-                  validateMutation.error instanceof Error
-                    ? validateMutation.error.message
-                    : t('dataio:import.validateFailed', 'Validation failed.')
-                }
-              />
-            ) : null}
+            {validateError !== null ? <Alert tone="danger" title={validateError} /> : null}
           </div>
         );
       case 'validate':
@@ -518,13 +655,32 @@ export function ImportWizardPage({ initialTarget, matchOn: initialMatchOn }: Imp
           <Spinner size="md" />
         ) : (
           <div className="flex min-h-0 flex-col gap-3">
-            <p className="text-body-sm text-fg" data-testid="validation-summary">
-              {t(
-                'dataio:import.validationSummary',
-                '{valid} of {total} rows ready to import — {invalid} will be skipped.',
-                { valid: report.valid, total: report.total, invalid: report.invalid },
-              )}
-            </p>
+            {judgedSummary === null ? (
+              <p className="text-body-sm text-fg" data-testid="validation-summary">
+                {t(
+                  'dataio:import.validationSummary',
+                  '{valid} of {total} rows ready to import — {invalid} will be skipped.',
+                  { valid: report.valid, total: report.total, invalid: report.invalid },
+                )}
+              </p>
+            ) : (
+              // Every line was looked at: what the run would do, in the look's own figures.
+              <div className="flex min-w-0 flex-col gap-0.5">
+                <p className="text-body-sm font-medium text-fg" data-testid="validation-summary">
+                  {judgedSummary === '' ? (
+                    // No line would be written: that is the summary.
+                    <span data-testid="import-nothing">{t('dataio:import.nothingToBring', 'Nothing here would be brought in.')}</span>
+                  ) : (
+                    judgedSummary
+                  )}
+                </p>
+                {judgedRest === '' ? null : (
+                  <p className="text-body-sm text-fg-muted [overflow-wrap:anywhere]" data-testid="validation-rest">
+                    {judgedRest}
+                  </p>
+                )}
+              </div>
+            )}
             <ValidationIssuesListWidget
               config={validationIssuesListConfigSchema.parse({})}
               data={issuesData}
@@ -538,7 +694,7 @@ export function ImportWizardPage({ initialTarget, matchOn: initialMatchOn }: Imp
                 body={previewError}
               />
             ) : null}
-            {nothingToBring ? (
+            {nothingToBring && judgedSummary !== '' ? (
               <p className="text-body-sm font-medium text-fg" data-testid="import-nothing">
                 {t('dataio:import.nothingToBring', 'Nothing here would be brought in.')}
               </p>
@@ -599,6 +755,12 @@ export function ImportWizardPage({ initialTarget, matchOn: initialMatchOn }: Imp
                             ? t('dataio:import.previewHere', 'Already here')
                             : t('dataio:import.previewRefused', 'Refused')}
                       </Badge>
+                      {/* Which row of the file this is, in the file's own words: on a narrow screen it takes the line under the mark. */}
+                      {line.label === undefined || line.label === '' ? null : (
+                        <span data-part="line-label" title={line.label} dir="auto" className="min-w-0 max-w-full basis-full truncate font-medium text-fg sm:max-w-[40%] sm:basis-auto">
+                          {line.label}
+                        </span>
+                      )}
                       {line.status === 'refused' ? (
                         <span className="min-w-0 text-fg [overflow-wrap:anywhere]">
                           {line.column !== undefined && line.message?.startsWith(`${line.column}:`) !== true
@@ -705,7 +867,7 @@ export function ImportWizardPage({ initialTarget, matchOn: initialMatchOn }: Imp
         return null; // uploading advances automatically
       case 'map':
         return (
-          <>
+          <div data-part="wizard-actions" className={FOOTER_ACTIONS}>
             <Button variant="ghost" onClick={() => setStep('upload')}>
               {t('dataio:back', 'Back')}
             </Button>
@@ -718,11 +880,11 @@ export function ImportWizardPage({ initialTarget, matchOn: initialMatchOn }: Imp
                 ? t('dataio:import.validating', 'Validating…')
                 : t('dataio:import.toValidate', 'Validate')}
             </Button>
-          </>
+          </div>
         );
       case 'validate':
         return (
-          <>
+          <div data-part="wizard-actions" className={FOOTER_ACTIONS}>
             <Button variant="ghost" onClick={() => setStep('map')}>
               {t('dataio:back', 'Back')}
             </Button>
@@ -731,14 +893,9 @@ export function ImportWizardPage({ initialTarget, matchOn: initialMatchOn }: Imp
               disabled={runMutation.isPending || importRow === null || nothingToBring}
               data-testid="wizard-run"
             >
-              {report !== null && report.invalid > 0
-                ? t('dataio:import.runSkipping', 'Import {valid} rows (skip {invalid})', {
-                    valid: report.valid,
-                    invalid: report.invalid,
-                  })
-                : t('dataio:import.run', 'Run import')}
+              {runLabel}
             </Button>
-          </>
+          </div>
         );
       case 'run':
         return null;

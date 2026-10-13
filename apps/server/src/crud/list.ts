@@ -92,6 +92,13 @@ export function parseOrder(
       }
       // Masked columns are rejected in `order`.
       const column = view.readableColumn(table, name, canReadPii);
+      // A place or an area has no order: it is JSON, and a plain `json` column on Postgres has no ordering operator at all.
+      if (column.geo !== undefined) {
+        throw new ValidationFailedError(
+          `Rows cannot be ordered by ${JSON.stringify(column.name)}: it holds ${column.geo === 'place' ? 'a place' : 'an area'} on the map.`,
+          { table: table.id, column: column.name },
+        );
+      }
       keys.push({ column: column.name, dir });
     }
     if (keys.length > MAX_SORT_KEYS) {

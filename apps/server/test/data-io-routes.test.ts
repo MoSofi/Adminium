@@ -895,7 +895,7 @@ describe('data-io routes + jobs (fake adapter)', () => {
     // The whole file's count is the one its validation took; the lines judged are the first two thousand.
     expect([told.total, told.judged, told.capped]).toEqual([lines, 2_000, true]);
     expect(told.counts).toEqual({ new: 2_000, here: 0, refused: 0 });
-    expect(told.lines).toEqual([1, 2, 3].map((row) => ({ row, status: 'new' })));
+    expect(told.lines).toEqual([1, 2, 3].map((row) => ({ row, status: 'new', label: `L${String(row - 1).padStart(6, '0')}` })));
     // Two thousand of forty thousand lines: a twentieth of the file, and what the stream had in hand when it was let go.
     expect(bytesRead).toBeGreaterThan(0);
     expect(bytesRead).toBeLessThan(Buffer.byteLength(body) / 4);

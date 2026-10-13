@@ -14,6 +14,7 @@
  */
 
 import type { BoardColumns, BoardOnly, BoardTotalFn, CandidateTableInput } from '@adminium/widgets/generate';
+import { measureTestProblem } from '@adminium/widgets/page-config';
 
 const NUMERIC_TYPES: ReadonlySet<string> = new Set(['integer', 'bigint', 'decimal', 'float']);
 
@@ -22,6 +23,8 @@ export function boardColumnsProblem(
   entry: CandidateTableInput,
   board: BoardColumns,
   model: readonly CandidateTableInput[],
+  /** The database's engine, where it is known: Postgres holds a whole number to its column's width. */
+  dialect?: string | undefined,
 ): string | null {
   const columns = new Map(entry.table.columns.map((column) => [column.name, column]));
   const table = entry.table.name;
@@ -49,6 +52,23 @@ export function boardColumnsProblem(
     if (!columns.has(test.column)) return `${table} has no column ${test.column} to choose the board's cards by`;
     if (test.in.length === 0) return `${table}.${test.column} is given no value to choose the board's cards by`;
     if (test.column === board.column) return `${table}.${test.column} is what the board's columns are, so it cannot also choose its cards`;
+    /*
+     * Each value against the REAL column, by the table the server reads when
+     * it binds the test (`measureTestProblem`). A value the column cannot be
+     * compared with — text on a link keyed by a whole number — would install
+     * and then make every read of the board's columns a refusal.
+     */
+    const tested = columns.get(test.column) as NonNullable<ReturnType<typeof columns.get>>;
+    const native = (tested as { dbType?: unknown }).dbType;
+    const shape = { logicalType: tested.logicalType, isArray: tested.isArray, ...(typeof native === 'string' ? { dbType: native } : {}) };
+    const takes = measureTestProblem(shape, test.in, dialect);
+    if (takes !== null) {
+      // The first value that is the trouble, so the sentence names it.
+      const culprit = test.in.find((value) => measureTestProblem(shape, [value], dialect) !== null) ?? test.in[0];
+      return takes.startsWith('no test')
+        ? `${table}.${test.column} cannot choose the board's cards: ${takes.slice('no test: '.length)}`
+        : `${table}.${test.column} takes ${takes}, so ${JSON.stringify(culprit)} cannot choose the board's cards`;
+    }
   }
   return null;
 }

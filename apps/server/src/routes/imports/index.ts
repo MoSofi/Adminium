@@ -64,6 +64,7 @@ import {
 import type { ByteLocation, FileStore } from '../../files/store.js';
 import { IMPORT_RUN_KIND } from '../../jobs/import-run.js';
 import {
+  PREVIEW_LABEL_MAX,
   PREVIEW_LINE_CAP,
   REPORT_ISSUE_CAP,
   UPLOAD_SAMPLE_ROWS,
@@ -526,12 +527,21 @@ export function importsRoutes(deps: ImportsRoutesDeps): FastifyPluginAsyncZod {
         const counts = { new: 0, here: 0, refused: 0 };
         const lines: PreviewLineView[] = [];
         const { offset, limit } = request.query;
+        // Which cell names a line to the person who typed it: the one the lines are matched on, else the first one mapped.
+        const matchOn = row.options.matchColumn;
+        const labelAt = (mapped.find((target) => target.column.name === matchOn) ?? [...mapped].sort((a, b) => a.index - b.index)[0])?.index;
+        const labelOf = (rowNumber: number): string | undefined => {
+          const cell = labelAt === undefined ? '' : (data[rowNumber - 1]?.[labelAt] ?? '').trim();
+          return cell === '' ? undefined : [...cell].slice(0, PREVIEW_LABEL_MAX).join('');
+        };
         const told = (rowNumber: number, verdict: Pick<LineVerdict, 'status'> & { code?: string; column?: string; message?: string; earlierLine?: number }): void => {
           counts[verdict.status] += 1;
           if (rowNumber <= offset || rowNumber > offset + limit) return;
+          const label = labelOf(rowNumber);
           lines.push({
             row: rowNumber,
             status: verdict.status,
+            ...(label === undefined ? {} : { label }),
             ...(verdict.status === 'refused' ? { code: verdict.code, message: verdict.message, ...(verdict.column === undefined || verdict.column === '' ? {} : { column: verdict.column }) } : {}),
             ...(verdict.earlierLine === undefined ? {} : { earlierLine: verdict.earlierLine }),
           });

@@ -700,6 +700,8 @@ export default {
       },
       "addCard": "添加卡片",
       "notMoved": "{title} 未移动。",
+      "notAdded": "{title} 未添加。",
+      "cardNotAdded": "卡片未添加。",
       "dismissNotice": "关闭",
       "grip": "拖动以移动卡片",
       "pointsUnit": "点",
@@ -1930,6 +1932,9 @@ export default {
       "noRowsTitle": "还没有卡片",
       "noColumnsTitle": "还没有列",
       "noColumnsBody": "此看板的列来自某个表的行，而该表还没有行。添加一行，它就会作为一列显示在这里。",
+      "invalidOnly": "此看板被设置为只显示其数据表中的部分行，但该设置无法读取，因此看板未显示。请重新生成此页面。",
+      "columnsError": "无法从 {table} 读取此看板的列。",
+      "columnsCut": "{count, plural, other {仅显示前 # 列：此看板取列的数据表还有更多行。}}",
       "noRowsBody": "表中一有行，卡片就会显示在这里。"
     },
     "calendar": {

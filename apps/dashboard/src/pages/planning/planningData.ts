@@ -22,9 +22,12 @@
  * filters to the PRIMARY item's descriptor (the server drops the filter
  *   while the param is unset).
  * - **fetching**: one `POST /api/v1/widget-data/batch` per page mount under
- *   `['widget-data', pageId, 'planning', params]`; WS `widget-data:*` /
- *   `table:*` invalidations refetch automatically — which is also what
- *   reconciles the boards' and matrix's optimistic overrides after a write.
+ *   `['widget-data', pageId, 'planning', params]`. It is read again after a
+ *   save made on the page (`PageRenderer` invalidates the `['widget-data']`
+ *   prefix) — which is what reconciles the boards' and matrix's optimistic
+ *   overrides after a write. Nothing here subscribes to a table's changes: a
+ *   board page does that itself (`boardLive.ts`), a calendar and a scheduler
+ *   show a colleague's change at their next read.
  */
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useMemo } from 'react';
@@ -176,7 +179,7 @@ export function usePlanningStates(
   const query = useQuery({
     // Distinct key tail: the (disabled) dashboard hook observes
     // ['widget-data', pageId, params] on the same page — the shared
-    // ['widget-data'] prefix keeps WS invalidations covering both.
+    // ['widget-data'] prefix keeps one invalidation covering both.
     queryKey: [WIDGET_DATA_KEY_ROOT, page.id, 'planning', params, ...(narrowing === undefined ? [] : [narrowing])] as const,
     enabled: requests.length > 0,
     staleTime: 0,

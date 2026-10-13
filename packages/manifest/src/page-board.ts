@@ -156,9 +156,23 @@ export function pageBoardIssues<C extends ColumnShape>(pages: readonly PageShape
         continue;
       }
       const values = pageBoardOnlyValues(written);
-      // A link holds the key of the row it points at: a whole number or text, whichever that table is keyed by.
+      /*
+       * A link holds the key of the row it points at: a whole number or text,
+       * whichever that table is keyed by. Where the table is one of the app's
+       * own its key is known, and a value of the other kind is refused here:
+       * installed, the server could not compare it with the column, and every
+       * read of the board's columns would fail. A link to a table the manifest
+       * cannot see takes either, and the install judges it by the real column.
+       */
+      const linked = tested.type !== 'fk' || tested.references === undefined ? undefined : index.table(tested.references);
+      const key = linked === undefined ? undefined : (index.pk(linked.ref) ?? index.column(linked.ref, 'id'));
       const fits = (value: string | number | boolean): boolean =>
-        tested.type === 'fk' ? typeof value === 'string' || (typeof value === 'number' && Number.isInteger(value)) : valueFits(tested, value);
+        tested.type !== 'fk'
+          ? valueFits(tested, value)
+          : key === undefined
+            ? typeof value === 'string' || (typeof value === 'number' && Number.isInteger(value))
+            : valueFits({ ref: key.ref, type: key.type }, value);
+      const whole = key !== undefined && (key.type === 'int' || key.type === 'bigint');
       for (const value of values) {
         if (fits(value)) continue;
         out.push({
@@ -166,7 +180,9 @@ export function pageBoardIssues<C extends ColumnShape>(pages: readonly PageShape
           message:
             tested.type === 'enum' && typeof value === 'string'
               ? `"${value}" is not one of the values of "${table}.${name}" (${(tested.enum ?? []).join(', ')})`
-              : `${JSON.stringify(value)} is not a value "${table}.${name}" (${tested.type}) can hold`,
+              : key !== undefined && linked !== undefined
+                ? `${JSON.stringify(value)} is not a value "${table}.${name}" can hold: it links to "${linked.ref}", whose key is ${whole ? 'a whole number' : 'text'}`
+                : `${JSON.stringify(value)} is not a value "${table}.${name}" (${tested.type}) can hold`,
         });
       }
       if (new Set(values).size !== values.length) out.push({ path: at('only', name), message: `"${name}" lists a value twice` });

@@ -11,13 +11,14 @@ import {
 } from '@dnd-kit/core';
 import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core';
 import { Plus } from 'lucide-react';
-import { useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import type { KeyboardEvent as ReactKeyboardEvent } from 'react';
 
 import { BoardCard } from './BoardCard.js';
 import { useMaybeT } from '../../lib/i18n.js';
 
 import {
+  BoardAddRefusalNotice,
   BoardLiveRegion,
   BoardRefusalNotice,
   DraggableCard,
@@ -25,10 +26,12 @@ import {
   announcementsFromTemplates,
   silentDndAnnouncements,
   useBoardAnnouncements,
+  refusalReasonOf,
+  useAnnounceAddRefusal,
   useBoardMoves,
   useLiveRegion,
 } from './board-dnd.js';
-import type { BoardAnnouncements, MoveResult } from './board-dnd.js';
+import type { BoardAddRefusal, BoardAnnouncements, MoveResult } from './board-dnd.js';
 import { boardRowsOf, resolveColumns, toBoardCard } from './board-lib.js';
 import type { BoardCardData, ColumnDef } from './board-lib.js';
 import type { KanbanBoardConfig } from './boards-config.js';
@@ -84,7 +87,15 @@ export interface KanbanBoardProps {
   /** Fired on a committed move; return a promise to enable rollback-on-reject. */
   onCardMove?: ((cardId: string, fromColumn: string, toColumn: string) => MoveResult) | undefined;
   onCardOpen?: ((cardId: string) => void) | undefined;
-  onAdd?: ((columnId: string) => void) | undefined;
+  /** Add a card to a column; return the save's promise so a refused add is said on the board instead of lost. */
+  onAdd?: ((columnId: string) => MoveResult) | undefined;
+  /**
+   * An add somebody else made for this board and that was refused (a composer
+   * beside it): shown where a refused move is, and said aloud. The board's own
+   * "add" button reports through the same line.
+   */
+  addRefusal?: BoardAddRefusal | null | undefined;
+  onDismissAddRefusal?: (() => void) | undefined;
   testId?: string | undefined;
 }
 
@@ -98,17 +109,26 @@ export function KanbanBoard({
   onCardMove,
   onCardOpen,
   onAdd,
+  addRefusal,
+  onDismissAddRefusal,
   testId,
 }: KanbanBoardProps) {
   const t = useMaybeT();
   const [activeId, setActiveId] = useState<string | null>(null);
   const { message, announce } = useLiveRegion();
+  // An add from a column's own button that was refused; the host's (a composer's) comes in `addRefusal`.
+  const [ownAddRefusal, setOwnAddRefusal] = useState<BoardAddRefusal | null>(null);
+  const notAdded = ownAddRefusal ?? addRefusal ?? null;
+  useAnnounceAddRefusal(notAdded, announce);
   const announcements: BoardAnnouncements = useBoardAnnouncements(labels?.announcements);
 
   const columnById = new Map(columns.map((column) => [column.id, column]));
   const labelOf = (columnId: string): string => columnById.get(columnId)?.label ?? columnId;
 
+  // The board's own element: a keyboard move is followed inside it (the column in view, the focus on the card).
+  const root = useRef<HTMLDivElement>(null);
   const moves = useBoardMoves({
+    root,
     cards,
     naturalCellKey: (card) => card.column,
     cellLabel: labelOf,
@@ -138,6 +158,14 @@ export function KanbanBoard({
     const over = event.over;
     if (over === null) return;
     moves.requestMove(String(event.active.id), String(over.id));
+  };
+
+  const addTo = (columnId: string): void => {
+    setOwnAddRefusal(null);
+    const result = onAdd?.(columnId);
+    if (result && typeof (result as Promise<unknown>).then === 'function') {
+      (result as Promise<unknown>).then(undefined, (error: unknown) => setOwnAddRefusal({ title: undefined, reason: refusalReasonOf(error) }));
+    }
   };
 
   const onCardKeyDown = (event: ReactKeyboardEvent<HTMLElement>, card: BoardCardData): void => {
@@ -170,9 +198,16 @@ export function KanbanBoard({
   };
 
   return (
-    <div dir={dir} data-widget="kanban-board" data-testid={testId} className="flex h-full flex-col">
+    <div ref={root} dir={dir} data-widget="kanban-board" data-testid={testId} className="flex h-full flex-col">
       <BoardLiveRegion message={message} />
       <BoardRefusalNotice refusal={moves.refusal} onDismiss={moves.dismissRefusal} />
+      <BoardAddRefusalNotice
+        refusal={notAdded}
+        onDismiss={() => {
+          setOwnAddRefusal(null);
+          onDismissAddRefusal?.();
+        }}
+      />
       <DndContext
         sensors={sensors}
         collisionDetection={closestCorners}
@@ -181,15 +216,22 @@ export function KanbanBoard({
         onDragEnd={onDragEnd}
         onDragCancel={() => setActiveId(null)}
       >
-        <div className="flex h-full min-h-0 flex-1 items-stretch gap-3 overflow-x-auto p-3">
+        <div data-board-scroller="" className="flex h-full min-h-0 flex-1 items-stretch gap-3 overflow-x-auto p-3">
           {columns.map((column) => {
             const columnCards = cards.filter((card) => moves.cellKeyOf(card) === column.id);
             // The count somebody made of ALL the column's cards, moved by the cards a drop has just put in or taken
-            // out and whose save that count has not seen yet; without one, the cards given.
+            // out and whose save has not answered yet: once it has, the next count has the move in it already, and
+            // moving it again would count the card twice. Without a count, the cards given.
+            const saving = cards.filter((card) => moves.isSaving(card.id));
             const held =
               column.count === undefined
                 ? columnCards.length
-                : Math.max(0, column.count + columnCards.length - cards.filter((card) => card.column === column.id).length);
+                : Math.max(
+                    0,
+                    column.count +
+                      saving.filter((card) => moves.cellKeyOf(card) === column.id).length -
+                      saving.filter((card) => card.column === column.id).length,
+                  );
             const overWip = column.wip !== undefined && held > column.wip;
             return (
               <section
@@ -218,7 +260,7 @@ export function KanbanBoard({
                     <button
                       type="button"
                       data-part="column-add"
-                      onClick={() => onAdd?.(column.id)}
+                      onClick={() => addTo(column.id)}
                       aria-label={labels?.addLabel ?? t('ui:widgets.boards.addCard', 'Add card')}
                       className={`${column.total === undefined ? 'ms-auto' : ''} flex size-6 shrink-0 items-center justify-center rounded-md text-fg-muted hover:bg-surface-3 hover:text-fg focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent`}
                     >
@@ -278,9 +320,10 @@ function sourceOf(config: KanbanBoardConfig): { connectionId?: string | undefine
 }
 
 export function KanbanBoardWidget({ config, data, onEvent }: WidgetProps<KanbanBoardConfig>) {
-  const rows = boardRowsOf(data);
-  const cards = rows.map((row, index) =>
-    toBoardCard(row, index, { columnField: config.columnField, titleField: config.titleField }),
+  // One array for one answer: the board lets go of a saved move when NEW cards arrive, and tells by the array.
+  const cards = useMemo(
+    () => boardRowsOf(data).map((row, index) => toBoardCard(row, index, { columnField: config.columnField, titleField: config.titleField })),
+    [data, config.columnField, config.titleField],
   );
   const columns = resolveColumns(cards, config.columnDefs);
   const source = sourceOf(config);
@@ -313,15 +356,15 @@ export function KanbanBoardWidget({ config, data, onEvent }: WidgetProps<KanbanB
       onCardOpen={(cardId) => {
         onEvent({ type: 'record-open', connectionId: source.connectionId, table: source.table, recordId: cardId });
       }}
-      onAdd={(columnId) => {
+      onAdd={(columnId) =>
         onEvent({
           type: 'mutate',
           intent: 'insert',
           connectionId: source.connectionId,
           table: source.table,
           values: { [config.columnField]: columnId },
-        });
-      }}
+        })
+      }
     />
   );
 }

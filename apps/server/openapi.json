@@ -22375,6 +22375,9 @@
                               },
                               "earlierLine": {
                                 "type": "number"
+                              },
+                              "label": {
+                                "type": "string"
                               }
                             },
                             "required": [

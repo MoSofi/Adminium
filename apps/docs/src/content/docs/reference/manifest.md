@@ -2096,22 +2096,27 @@ open that form, with the day filled in.
 
 With `columnsFrom` the board draws one column for each row of that table, a row with no card
 too, and reads them when the page opens. A row added, renamed, moved or removed there changes the
-board for everybody looking at it, with no update of the app. A card whose link is empty is on no
-column. Dropping a card on a column saves that row's key in the card's link, as any save of the
+board for everybody looking at it who may read that table, about a second later, with no update of
+the app; so does a card a colleague saves. A card whose link is empty is on no column. Dropping a card on a column saves that row's key in the card's link, as any save of the
 record would: where a role's limit or a state rule refuses the save, the card goes back and the
 board shows the reason.
 
 The count and the totals in a column's header are worked out on the server, over the rows the
 person may read: a rep held to their own deals sees the count and the worth of their own. Money
-is shown in the install's currency. A board draws the first 200 cards of its table; the count is
-of all of them. It draws at most 100 columns.
+is shown in the column's own currency when it has one, else in the install's. A board draws the
+first 200 cards of its table; the count is of all of them. It draws the first 100 rows of
+`columnsFrom.table` as columns, and says so when that table has more.
 
 `only` makes the board a board of some of its table's rows: `"only": { "state": "open" }` is the
 open deals, `"only": { "kind": ["new", "renewal"], "hot": true }` the hot deals of two kinds. It
 holds for the cards and for the headers alike, so a column's count and totals are of the cards
 `only` keeps. A column of `only` is an `enum`, a `bool`, a link (`fk`, by the key it holds),
 `text` or a whole number (`int`, `bigint`) of the page's table, and not the board's own `column`;
-a value of an `enum` is one of its values. A role that may not read a column `only` names (it is
+a value of an `enum` is one of its values, and a value of a link is of the kind the table it links
+to is keyed by: a whole number for an `int` or `bigint` key, text for any other. A card added on
+the board is given each value `only` names alone (`"state": "open"`, not a list), so it is on the
+board; where the table's own rules refuse that value for a new row, the add is refused and the
+board says why. A role that may not read a column `only` names (it is
 not among the role's `readable` columns, or it is personal data the role may not read) gets
 neither the cards nor the figures: the headers show no count and no total, never those of every
 row. So name a column every role that opens the board may read.
@@ -2119,8 +2124,11 @@ row. So name a column every role that opens the board may read.
 The manifest is refused when `column` is not a link to `columnsFrom.table` (or, with no
 `columnsFrom`, not an `enum`), when a name is not a column of the right table, when a total is not
 a number or money column, when `only` names the board's own `column`, a column of another type
-or a value its column cannot hold, and on a page that is not a `page-board`. Without `board`, a board's
-columns are the values of the workflow column Adminium finds, as described under
+or a value its column cannot hold, and on a page that is not a `page-board`. The install checks the
+same against the tables as they really are: a board that cannot be built as named is not built as
+another one. Its page is created empty and the install reports why (`PAGE_BOARD_INVALID`).
+Without `board`, a board's columns are the values of the workflow column Adminium finds, as
+described under
 [A board with its own columns](/guides/apps/manifest-by-task/#a-board-with-its-own-columns).
 
 **Links that open a list filtered.** A link in a layout (a metric card's `href`, the toolbar's

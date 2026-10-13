@@ -690,6 +690,8 @@
       },
       "addCard": "新增卡片",
       "notMoved": "{title} 未移動。",
+      "notAdded": "{title} 未新增。",
+      "cardNotAdded": "卡片未新增。",
       "dismissNotice": "關閉",
       "grip": "拖曳以移動卡片",
       "pointsUnit": "點",
@@ -1920,6 +1922,9 @@
       "noRowsTitle": "還沒有卡片",
       "noColumnsTitle": "尚無欄",
       "noColumnsBody": "此看板的欄來自某個資料表的列，而該資料表還沒有列。新增一列，它就會以一欄顯示在這裡。",
+      "invalidOnly": "此看板設定為只顯示其資料表中的部分列，但該設定無法讀取，因此看板未顯示。請重新產生此頁面。",
+      "columnsError": "無法從 {table} 讀取此看板的欄。",
+      "columnsCut": "{count, plural, other {僅顯示前 # 欄：此看板取欄的資料表還有更多列。}}",
       "noRowsBody": "資料表中一有列，卡片就會顯示在這裡。"
     },
     "calendar": {

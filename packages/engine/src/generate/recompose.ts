@@ -142,7 +142,7 @@ export function composeRequestedPage(
 
   const board = template === 'page-board' ? ctx.board : undefined;
   if (board !== undefined) {
-    const problem = boardColumnsProblem(entry, board, candidateModel);
+    const problem = boardColumnsProblem(entry, board, candidateModel, model.dialect);
     if (problem !== null) return { envelope: null, bindable: true, reason: problem };
   }
   const candidateCtx: CandidateContext = {

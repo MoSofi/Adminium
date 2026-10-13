@@ -690,6 +690,8 @@
       },
       "addCard": "Ajouter une carte",
       "notMoved": "La carte {title} n’a pas été déplacée.",
+      "notAdded": "La carte {title} n’a pas été ajoutée.",
+      "cardNotAdded": "La carte n’a pas été ajoutée.",
       "dismissNotice": "Fermer",
       "grip": "Glisser pour déplacer la carte",
       "pointsUnit": "pts",
@@ -1920,6 +1922,9 @@
       "noRowsTitle": "Aucune carte pour l’instant",
       "noColumnsTitle": "Pas encore de colonnes",
       "noColumnsBody": "Ce tableau prend ses colonnes dans les lignes d’une table, et cette table n’a pas encore de lignes. Ajoutez-en une et elle apparaît ici comme colonne.",
+      "invalidOnly": "Ce tableau ne doit afficher qu’une partie des lignes de sa table, et ce réglage est illisible ; le tableau n’est donc pas affiché. Régénérez la page.",
+      "columnsError": "Les colonnes de ce tableau n’ont pas pu être lues depuis {table}.",
+      "columnsCut": "{count, plural, one {Seule la première colonne est affichée : la table dont ce tableau tire ses colonnes compte davantage de lignes.} other {Seules les # premières colonnes sont affichées : la table dont ce tableau tire ses colonnes compte davantage de lignes.}}",
       "noRowsBody": "Les cartes apparaissent ici dès que la table contient des lignes."
     },
     "calendar": {

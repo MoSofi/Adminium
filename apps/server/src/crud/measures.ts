@@ -64,6 +64,7 @@ import {
   type MeasureEmpty,
   type MeasureFn,
   type MeasureWhere,
+  measureTestProblem,
 } from '@adminium/engine/config';
 
 import { ValidationFailedError } from '../errors.js';
@@ -141,55 +142,40 @@ function inboundFk(
   return mirror != null && mirror.tableId === base.id ? mirror.column : null;
 }
 
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
 /**
  * The values of one `where` test as the engine binds them against `column`.
  *
- * Equality is asked only of a type that answers it the same on all three
- * engines, and only with a value that type can hold: a whole number for an
- * integer, a number for a decimal, yes or no for a boolean, text for text, an
- * enum or a uuid. Anything else is the author's mistake, named (422) — bound
- * as it came, Postgres would raise on `integer = 'open'` and fail the whole
- * list read. A native enum takes only its own labels (Postgres raises on any
- * other), so a value it does not have is dropped: it could match no row.
+ * What a column of each type is compared with is the shared table
+ * (`measureTestProblem`, read by whoever stores such a test ahead of time
+ * too, so a board's `only` that installs is one this accepts): a whole number
+ * for an integer — on Postgres within the column's own width, past which the
+ * database raises — a number for a decimal, yes or no for a boolean, text for
+ * text, an enum or a uuid, and nothing at all for a column that holds a list.
+ * Anything else is the author's mistake, named (422) — bound as it came,
+ * Postgres would raise on `integer = 'open'` and fail the whole list read. A
+ * native enum takes only its own labels (Postgres raises on any other), so a
+ * value it does not have is dropped: it could match no row.
  */
 function boundTestValues(view: SnapshotView, table: ResolvedTable, column: ResolvedColumn, test: MeasureWhere): (string | number | boolean)[] {
-  const refuse = (expected: string): never => {
+  const stored = table.table.columns.find((candidate) => candidate.name === column.name);
+  const takes = measureTestProblem({ logicalType: column.logicalType, isArray: stored?.isArray, dbType: stored?.dbType }, test.in, view.model.dialect);
+  if (takes !== null) {
     throw new ValidationFailedError(
-      `\`where\` on ${JSON.stringify(column.name)} of ${table.id} takes ${expected}.`,
+      `\`where\` on ${JSON.stringify(column.name)} of ${table.id} takes ${takes}.`,
       { table: table.id, column: column.name, type: column.logicalType },
     );
-  };
-  const every = (fits: (value: string | number | boolean) => boolean): boolean => test.in.every(fits);
+  }
   switch (column.logicalType) {
-    case 'integer':
-    case 'bigint':
-      if (!every((value) => typeof value === 'number' && Number.isSafeInteger(value))) refuse('whole numbers');
-      return [...test.in];
-    case 'decimal':
-    case 'float':
-      if (!every((value) => typeof value === 'number')) refuse('numbers');
-      return [...test.in];
     case 'boolean':
-      if (!every((value) => typeof value === 'boolean')) refuse('true or false');
       // better-sqlite3 binds no boolean; SQLite keeps one as 1 or 0 (`bindable` in crud/filters.ts).
       return view.model.dialect === 'sqlite' ? test.in.map((value) => (value === true ? 1 : 0)) : [...test.in];
-    case 'uuid':
-      if (!every((value) => typeof value === 'string' && UUID.test(value))) refuse('uuids');
-      return [...test.in];
-    case 'text':
-    case 'varchar':
-      if (!every((value) => typeof value === 'string')) refuse('text');
-      return [...test.in];
     case 'enum': {
-      if (!every((value) => typeof value === 'string')) refuse('text');
-      const ref = table.table.columns.find((candidate) => candidate.name === column.name)?.enumRef ?? null;
+      const ref = stored?.enumRef ?? null;
       const labels = ref === null ? undefined : view.model.enums.find((candidate) => candidate.id === ref)?.values;
       return labels === undefined ? [...test.in] : test.in.filter((value) => labels.includes(value as string));
     }
     default:
-      return refuse('no test: only a whole number, a number, a yes/no, text, an enum or a uuid column is compared');
+      return [...test.in];
   }
 }
 
@@ -280,14 +266,13 @@ export async function resolveMeasures(opts: ResolveMeasuresOptions): Promise<Res
      * answered filtered, which would say whether a hidden column holds a
      * value.
      */
-    const where: ResolvedMeasureTest[] = [];
+    const tested: { column: ResolvedColumn; test: MeasureWhere }[] = [];
     for (const test of spec.where ?? []) {
       const hidden = refTable.columns.get(test.column);
       const column = hidden?.unreadable === true ? hidden : view.column(refTable, test.column);
       maskedTouched ||= column.masked;
       unreadTouched ||= column.unreadable === true;
-      // A hidden column's type is the reader's to learn as little as its values.
-      where.push({ column: column.name, values: column.unreadable === true ? [] : boundTestValues(view, refTable, column, test) });
+      tested.push({ column, test });
     }
 
     let reason: MeasureRefusal['reason'] | null = null;
@@ -297,6 +282,18 @@ export async function resolveMeasures(opts: ResolveMeasuresOptions): Promise<Res
     else if (baseMaskedTouched && !(await piiAllows(canReadPii, table.id))) reason = 'masked-column';
     else if (!(await canReadTable(refTable.id))) reason = 'table-read';
     if (reason !== null) onRefusal?.({ alias: spec.id, table: refTable.id, reason });
+
+    /*
+     * The values are judged against the column's type only AFTER the refusal
+     * is decided, and only for a measure that will be asked. A refused one
+     * compiles to nothing, and its answer is `null` whatever was sent: a 422
+     * that names the type of a column the reader is not shown (hidden, masked,
+     * or of a table they may not read) would tell them what it holds.
+     */
+    const where: ResolvedMeasureTest[] = tested.map(({ column, test }) => ({
+      column: column.name,
+      values: reason !== null ? [] : boundTestValues(view, refTable, column, test),
+    }));
 
     measures.push({
       alias: spec.id,

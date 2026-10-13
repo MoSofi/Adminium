@@ -25,7 +25,7 @@ import {
   kanbanSwimlaneGridConfigSchema,
   kanbanSwimlaneGridDemoData,
 } from './KanbanSwimlaneGrid.js';
-import { announcementsFromTemplates } from './board-dnd.js';
+import { SETTLED_OVERRIDE_WAIT_MS, announcementsFromTemplates } from './board-dnd.js';
 import { kanbanBoardDefinition, kanbanSwimlaneGridDefinition } from './boards-track.definitions.js';
 import { humanizeEnum, resolveColumns, sumPoints, toBoardCard } from './board-lib.js';
 import type { BoardCardData, ColumnDef, LaneDef } from './board-lib.js';
@@ -260,6 +260,128 @@ describe('kanban-board: a move whose save is refused', () => {
     const { container } = await refuse(() => Promise.reject(new Error('Not yours.')), 'rtl');
     await waitFor(() => expect(within(screen.getByTestId('column-drop-in_progress')).getByRole('button', { name: 'Card 1' })).toBeTruthy());
     expect(container.querySelector('[data-part="board-move-refused"]')!.textContent).toContain('Not yours.');
+  });
+});
+
+describe('kanban-board: answers that arrive late, and saves that have answered', () => {
+  const COUNTED: ColumnDef[] = [
+    { id: 'todo', label: 'To do', tone: 'neutral', count: 10 },
+    { id: 'in_progress', label: 'In progress', tone: 'accent', count: 4 },
+    { id: 'done', label: 'Done', tone: 'pos', count: 0 },
+  ];
+  const countOf = (column: string): string | null | undefined =>
+    document.querySelector(`[data-board-column="${column}"] [data-part="column-count"]`)?.textContent;
+  const step = (title: string): void => {
+    const el = grabCardEl(title);
+    fireEvent.keyDown(el, { key: ' ' });
+    fireEvent.keyDown(el, { key: 'ArrowRight' });
+    fireEvent.keyDown(el, { key: 'Enter' });
+  };
+  /** A save whose answer the test gives when it chooses. */
+  const deferred = () => {
+    let resolve!: (value: unknown) => void;
+    let reject!: (error: unknown) => void;
+    const promise = new Promise<unknown>((yes, no) => {
+      resolve = yes;
+      reject = no;
+    });
+    return { promise, resolve, reject };
+  };
+
+  it('a refusal of an earlier move says nothing once the card has been moved again', async () => {
+    const first = deferred();
+    const second = deferred();
+    const onMove = vi.fn().mockReturnValueOnce(first.promise).mockReturnValueOnce(second.promise);
+    const { container } = render(<KanbanBoard cards={[card('1', 'todo')]} columns={COLUMNS} onCardMove={onMove} />);
+    step('Card 1'); // todo → in_progress
+    step('Card 1'); // in_progress → done, before the first has answered
+    expect(onMove).toHaveBeenNthCalledWith(2, '1', 'in_progress', 'done');
+    await act(async () => {
+      first.reject(new Error('Not yours.'));
+      await Promise.resolve();
+    });
+    // The card is in Done: nothing says it "went back", on the board or aloud.
+    expect(within(screen.getByTestId('column-drop-done')).getByRole('button', { name: 'Card 1' })).toBeTruthy();
+    expect(container.querySelector('[data-part="board-move-refused"]')).toBeNull();
+    expect(container.querySelector('[data-board-liveregion]')!.textContent).not.toContain('Could not move');
+    // The latest move's own refusal is still said.
+    await act(async () => {
+      second.reject(new Error('Closed.'));
+      await Promise.resolve();
+    });
+    await waitFor(() => expect(container.querySelector('[data-part="board-move-refused"]')!.textContent).toContain('Closed.'));
+    expect(within(screen.getByTestId('column-drop-todo')).getByRole('button', { name: 'Card 1' })).toBeTruthy();
+  });
+
+  it('lets go of a saved move with the next cards to arrive, whatever they say', async () => {
+    const save = deferred();
+    const cards = [card('1', 'todo')];
+    const { rerender } = render(<KanbanBoard cards={cards} columns={COLUMNS} onCardMove={() => save.promise} />);
+    step('Card 1');
+    // Cards that arrive BEFORE the save has answered do not undo the drop.
+    rerender(<KanbanBoard cards={[card('1', 'todo')]} columns={COLUMNS} onCardMove={() => save.promise} />);
+    expect(within(screen.getByTestId('column-drop-in_progress')).getByRole('button', { name: 'Card 1' })).toBeTruthy();
+    await act(async () => {
+      save.resolve({});
+      await Promise.resolve();
+    });
+    // Saved, and the server kept the card where it was (a rule of its own): the next cards are the truth.
+    rerender(<KanbanBoard cards={[card('1', 'todo')]} columns={COLUMNS} onCardMove={() => save.promise} />);
+    expect(within(screen.getByTestId('column-drop-todo')).getByRole('button', { name: 'Card 1' })).toBeTruthy();
+    expect(within(screen.getByTestId('column-drop-in_progress')).queryByRole('button')).toBeNull();
+  });
+
+  it('lets go of a saved move after a short wait when no new cards ever arrive', async () => {
+    vi.useFakeTimers();
+    try {
+      const cards = [card('1', 'todo')];
+      render(<KanbanBoard cards={cards} columns={COLUMNS} onCardMove={() => Promise.resolve({})} />);
+      step('Card 1');
+      await act(async () => {
+        await Promise.resolve();
+      });
+      expect(within(screen.getByTestId('column-drop-in_progress')).getByRole('button', { name: 'Card 1' })).toBeTruthy();
+      act(() => {
+        vi.advanceTimersByTime(SETTLED_OVERRIDE_WAIT_MS);
+      });
+      expect(within(screen.getByTestId('column-drop-todo')).getByRole('button', { name: 'Card 1' })).toBeTruthy();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('moves a counted column by a dropped card only until its save has answered: the next count has the move in it', async () => {
+    const save = deferred();
+    const cards = [card('a', 'todo'), card('b', 'todo')];
+    const { rerender } = render(<KanbanBoard cards={cards} columns={COUNTED} onCardMove={() => save.promise} />);
+    step('Card a');
+    expect([countOf('todo'), countOf('in_progress')]).toEqual(['9', '5']);
+    await act(async () => {
+      save.resolve({});
+      await Promise.resolve();
+    });
+    // The columns are read again before the cards are: their counts already hold the move.
+    const recounted = COUNTED.map((column) => (column.id === 'todo' ? { ...column, count: 9 } : column.id === 'in_progress' ? { ...column, count: 5 } : column));
+    rerender(<KanbanBoard cards={cards} columns={recounted} onCardMove={() => save.promise} />);
+    expect([countOf('todo'), countOf('in_progress')]).toEqual(['9', '5']);
+    // And the card is still where it was dropped until its own read is in.
+    expect(within(screen.getByTestId('column-drop-in_progress')).getByRole('button', { name: 'Card a' })).toBeTruthy();
+  });
+
+  it('says on the board and aloud when a column’s "add" is refused', async () => {
+    const onAdd = vi.fn(() => Promise.reject(new Error('State must start as Open.')));
+    const { container } = render(<KanbanBoard cards={[card('1', 'todo')]} columns={COLUMNS} allowAdd onAdd={onAdd} />);
+    await act(async () => {
+      fireEvent.click(document.querySelector<HTMLButtonElement>('[data-board-column="done"] [data-part="column-add"]')!);
+      await Promise.resolve();
+    });
+    await waitFor(() => expect(container.querySelector('[data-part="board-add-refused"]')).not.toBeNull());
+    const notice = container.querySelector('[data-part="board-add-refused"]')!;
+    expect(notice.textContent).toContain('The card was not added.');
+    expect(notice.textContent).toContain('State must start as Open.');
+    expect(container.querySelector('[data-board-liveregion]')!.textContent).toContain('The card was not added. State must start as Open.');
+    fireEvent.click(within(notice as HTMLElement).getByRole('button', { name: 'Dismiss' }));
+    expect(container.querySelector('[data-part="board-add-refused"]')).toBeNull();
   });
 });
 

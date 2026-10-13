@@ -1476,7 +1476,13 @@ const boardsNamed: CandidateRule = {
                           ...totals.map((total, index) => ({ fn: total.fn, column: total.column, alias: `total${String(index)}` })),
                         ],
                         groupBy: [status.name],
-                        ...filters,
+                        /*
+                         * The enum's own values and no other group. The groups come back biggest first and
+                         * stop at `limit`, one for each value: rows with NO value (or one the enum has since
+                         * lost) made one group more, and the smallest real one was cut — its column then
+                         * read 0 over the cards drawn in it. `in` leaves a row with no value out as well.
+                         */
+                        filters: [...(filters.filters ?? []), { column: status.name, op: 'in' as const, value: [...status.enumValues] }],
                         limit: Math.max(status.enumValues.length, 1),
                       }),
                     }),
@@ -1498,6 +1504,12 @@ const boardsNamed: CandidateRule = {
   },
 };
 
+/** A column a map may name its pins by or size them with: one a reader may be shown, and none of `taken` (the position itself). */
+const nameable =
+  (taken: ReadonlySet<string>) =>
+  (c: ViewColumn): boolean =>
+    !c.secret && !taken.has(c.name);
+
 /** Annex — "paired `lat`/`lng` … numeric columns → `map-bubble`". */
 const geoMapBubble: CandidateRule = {
   id: 'geo.lat-lng-pair',
@@ -1511,8 +1523,7 @@ const geoMapBubble: CandidateRule = {
     // display column, status, money… — so the pair was never the second and
     // third, every row was read as a region with a code, and the map drew
     // nothing: the coordinates were not even asked for.
-    const pair = new Set([lat.name, lng.name]);
-    const usable = (c: ViewColumn) => !c.secret && !pair.has(c.name);
+    const usable = nameable(new Set([lat.name, lng.name]));
     const display = view.columns.find((c) => c.name === view.displayColumn && usable(c));
     const name = (display ?? view.columns.find((c) => c.isPrimaryKey && usable(c)) ?? view.columns.find(usable))?.name;
     if (name === undefined) return [];
@@ -1552,11 +1563,17 @@ const geoPlaceColumn: CandidateRule = {
   match(view, ctx) {
     const place = view.columns.find((c) => c.place === true && !c.secret);
     if (place === undefined) return [];
-    const name = view.displayColumn ?? view.columns.find((c) => c.isPrimaryKey)?.name ?? view.columns.find((c) => c.name !== place.name)?.name;
+    // What a pin is called: a column a reader may be shown, and never the place itself (the pair rule's test). The
+    // table's display column first; failing that its key, or the first column that is — an opaque uuid only when
+    // there is nothing else to call a pin by.
+    const usable = nameable(new Set([place.name]));
+    const display = view.columns.find((c) => c.name === view.displayColumn && usable(c));
+    const others = [...view.columns.filter((c) => c.isPrimaryKey && usable(c)), ...view.columns.filter((c) => !c.isPrimaryKey && usable(c))];
+    const name = (display ?? others.find((c) => c.logicalType !== 'uuid') ?? others[0])?.name;
     if (name === undefined) return [];
     // What sizes the pins: the table's own figures, a few of them.
     const metrics = withSemantic(view, 'money', 'score', 'percent', 'duration')
-      .filter((c) => !c.secret && c.name !== name)
+      .filter((c) => usable(c) && c.name !== name)
       .slice(0, 3)
       .map((c) => c.name);
     return [

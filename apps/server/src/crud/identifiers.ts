@@ -76,7 +76,8 @@ function resolveTable(table: EffectiveTable, readable?: ReadonlySet<string>, lin
       isPrimaryKey: column.isPrimaryKey,
       masked: policy.masked.has(column.name),
       secret: hidden || policy.secret.has(column.name),
-      textish: TEXTISH.has(column.logicalType),
+      // A place or an area is JSON whatever the engine keeps it in (TEXT, on SQLite): never searched as text.
+      textish: TEXTISH.has(column.logicalType) && column.place !== true && column.area !== true,
       ...(column.place === true ? { geo: 'place' as const } : column.area === true ? { geo: 'area' as const } : {}),
       ...(hidden && !policy.secret.has(column.name) ? { unreadable: true as const } : {}),
     });

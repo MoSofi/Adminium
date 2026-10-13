@@ -41,8 +41,8 @@
 | `references/manifest/parts.md` | Parts | 5026 |
 | `references/manifest/maps.md` | Maps | 4741 |
 | `references/manifest/option-lists.md` | Option lists | 851 |
-| `references/manifest/pages.md` | Pages | 7750 |
-| `references/manifest/pages-2.md` | Pages (part 2) | 2208 |
+| `references/manifest/pages.md` | Pages | 7113 |
+| `references/manifest/pages-2.md` | Pages (part 2) | 3612 |
 | `references/manifest/pages--tab-words-filters-and-bulk-actions.md` | Pages — Tab words, filters and bulk actions | 2313 |
 | `references/manifest/pages--navgroups.md` | Pages — navGroups | 789 |
 | `references/manifest/frontends.md` | Frontends | 2774 |

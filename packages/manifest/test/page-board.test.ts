@@ -157,6 +157,26 @@ describe('a board page names its columns', () => {
     expect(issuesOf({ column: 'stage_id', columnsFrom: FROM, only: { state: ['open', 'open'] } })).toEqual([{ path: at('state'), message: '"state" lists a value twice' }]);
   });
 
+  it('refuses a link’s value of the wrong kind for the key of the table it links to, where that table is the app’s own', () => {
+    const at = 'pages.0.config.board.only.company_id';
+    // `companies` is keyed by a whole number: text there installs, and then the server cannot compare it with the column.
+    expect(issuesOf({ column: 'stage_id', columnsFrom: FROM, only: { company_id: '7' } })).toEqual([
+      { path: at, message: '"7" is not a value "deals.company_id" can hold: it links to "companies", whose key is a whole number' },
+    ]);
+    expect(issuesOf({ column: 'stage_id', columnsFrom: FROM, only: { company_id: [4, 'nine'] } }).map((issue) => issue.path)).toEqual([at]);
+    expect(issuesOf({ column: 'stage_id', columnsFrom: FROM, only: { company_id: 7 } })).toEqual([]);
+    // A table keyed by text takes text, and no number.
+    const textKeyed = (only: unknown) => {
+      const m = manifest({ column: 'stage_id', columnsFrom: FROM, only });
+      const companies = m.requiredSchema.tables.find((t) => t.ref === 'companies')!;
+      companies.columns = [{ ref: 'id', type: 'id', role: 'pk' }, { ref: 'name', type: 'text', maxLength: 80 }];
+      const result = validateManifest(m);
+      return result.ok ? [] : result.issues;
+    };
+    expect(textKeyed({ company_id: 'acme' })).toEqual([]);
+    expect(textKeyed({ company_id: 7 })).toEqual([{ path: at, message: '7 is not a value "deals.company_id" can hold: it links to "companies", whose key is text' }]);
+  });
+
   it('refuses an only of no column, of a fourth, of no value, of more than twenty, or of a value that is none', () => {
     const paths = (only: unknown) => issuesOf({ column: 'stage_id', columnsFrom: FROM, only }).map((issue) => issue.path);
     expect(paths({})).toEqual(['pages.0.config.board.only']);

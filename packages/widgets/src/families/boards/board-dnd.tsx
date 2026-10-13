@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { KeyboardEvent as ReactKeyboardEvent, ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
+import type { KeyboardEvent as ReactKeyboardEvent, ReactNode, RefObject } from 'react';
 import { useDraggable, useDroppable } from '@dnd-kit/core';
 import { X } from 'lucide-react';
 import { useMaybeT } from '../../lib/i18n.js';
@@ -142,6 +142,49 @@ interface UseBoardMovesArgs {
   onCommit: (cardId: string, fromCellKey: string, toCellKey: string) => MoveResult;
   announce: (message: string) => void;
   announcements: BoardAnnouncements;
+  /**
+   * The board's own element. With it, a keyboard move is followed: the cell a
+   * grabbed card is over is scrolled into view inside the board's scroller
+   * (`data-board-scroller`), and the card is focused again once it is drawn
+   * where it was dropped, or put back.
+   */
+  root?: RefObject<HTMLElement | null> | undefined;
+}
+
+/** Room kept between a cell scrolled into view and the scroller's edge. */
+const FOLLOW_MARGIN = 12;
+
+/** How far to scroll along one axis so `[from, to]` is inside `[start, end]`; the start side wins when it cannot fit. */
+function followDelta(from: number, to: number, start: number, end: number, startIsFar: boolean): number {
+  const margin = to - from + FOLLOW_MARGIN * 2 <= end - start ? FOLLOW_MARGIN : 0;
+  const before = from - margin - start;
+  const after = to + margin - end;
+  if (to - from > end - start) return startIsFar ? after : before;
+  if (before < 0) return before;
+  if (after > 0) return after;
+  return 0;
+}
+
+/**
+ * Scrolls `scroller` — and nothing else, never the page — so `target` is in
+ * view. The position is set, not animated: there is no motion to reduce, and
+ * the next arrow press reads a scroller that is already where it will be.
+ */
+export function scrollCellIntoView(scroller: HTMLElement, target: Element): void {
+  const box = scroller.getBoundingClientRect();
+  const cell = target.getBoundingClientRect();
+  const rtl = typeof getComputedStyle === 'function' && getComputedStyle(scroller).direction === 'rtl';
+  const dx = followDelta(cell.left, cell.right, box.left, box.right, rtl);
+  const dy = followDelta(cell.top, cell.bottom, box.top, box.bottom, false);
+  if (dx !== 0) scroller.scrollLeft += dx;
+  if (dy !== 0) scroller.scrollTop += dy;
+}
+
+/** A board's element for a card or a cell, by its id: read by attribute, so no id needs escaping. */
+function boardElement(root: HTMLElement | null | undefined, attribute: 'data-board-card' | 'data-board-cell', id: string): HTMLElement | null {
+  if (root === null || root === undefined) return null;
+  for (const el of root.querySelectorAll<HTMLElement>(`[${attribute}]`)) if (el.getAttribute(attribute) === id) return el;
+  return null;
 }
 
 export interface BoardMoves {
@@ -171,6 +214,12 @@ export interface BoardMoves {
    */
   refusal: BoardMoveRefusal | null;
   dismissRefusal: () => void;
+  /**
+   * Whether the card sits where a drop put it and its save has not answered
+   * yet. A count somebody else made of a column is moved by these cards only:
+   * once the save has answered, the next count already has the move in it.
+   */
+  isSaving: (cardId: string) => boolean;
 }
 
 /** A move that did not hold. */
@@ -181,6 +230,13 @@ export interface BoardMoveRefusal {
   reason: string | undefined;
 }
 
+/**
+ * How long an override whose save has answered is kept when no new `cards`
+ * arrive: a read that comes back the same as the last one is the same array,
+ * so nothing else would ever let go of it.
+ */
+export const SETTLED_OVERRIDE_WAIT_MS = 5_000;
+
 /** The optimistic-move + keyboard-grab state machine (see file header). */
 export function useBoardMoves({
   cards,
@@ -189,6 +245,7 @@ export function useBoardMoves({
   onCommit,
   announce,
   announcements,
+  root,
 }: UseBoardMovesArgs): BoardMoves {
   const [overrides, setOverrides] = useState<Record<string, string>>({});
   const [grab, setGrab] = useState<{ cardId: string; targetKey: string } | null>(null);
@@ -201,20 +258,80 @@ export function useBoardMoves({
   }, [cards]);
 
   // Latest-values ref so the stable callbacks below never read stale state.
-  const ref = useRef({ overrides, grab, byId, naturalCellKey, cellLabel, onCommit, announce, announcements });
-  ref.current = { overrides, grab, byId, naturalCellKey, cellLabel, onCommit, announce, announcements };
+  const ref = useRef({ overrides, grab, byId, naturalCellKey, cellLabel, onCommit, announce, announcements, root });
+  ref.current = { overrides, grab, byId, naturalCellKey, cellLabel, onCommit, announce, announcements, root };
+
+  /*
+   * The card to focus once it is drawn in `cellKey`. A card that changes cell
+   * is a NEW element — the one that had the focus is gone, and the focus with
+   * it, to the page's body — so a keyboard drop would leave its person nowhere.
+   */
+  const refocus = useRef<{ cardId: string; cellKey: string } | null>(null);
+  useEffect(() => {
+    const wanted = refocus.current;
+    if (wanted === null) return;
+    const board = ref.current.root?.current;
+    const el = boardElement(board, 'data-board-card', wanted.cardId);
+    const active = typeof document === 'undefined' ? null : document.activeElement;
+    // The card is gone, or the person has gone on to something else: nothing is taken from them.
+    if (el === null || (active !== null && active !== document.body && active !== el && board?.contains(active) !== true)) {
+      refocus.current = null;
+      return;
+    }
+    const cell = el.closest('[data-board-cell]');
+    if (cell?.getAttribute('data-board-cell') !== wanted.cellKey) return;
+    refocus.current = null;
+    // Where the card is, in view: after a cancel the board is still scrolled to the cell the card was held over,
+    // and the focus would be on a card nobody can see.
+    const scroller = el.closest<HTMLElement>('[data-board-scroller]');
+    if (scroller !== null) scrollCellIntoView(scroller, cell.closest('[data-board-column]') ?? cell);
+    if (active !== el) el.focus();
+  });
+
+  // While a card is grabbed, the cell it is over is in view: on a narrow screen it is otherwise moved blind.
+  const overKey = grab?.targetKey ?? null;
+  useEffect(() => {
+    if (overKey === null) return;
+    const cell = boardElement(ref.current.root?.current, 'data-board-cell', overKey);
+    const scroller = cell?.closest<HTMLElement>('[data-board-scroller]') ?? null;
+    if (cell === null || scroller === null) return;
+    scrollCellIntoView(scroller, cell.closest('[data-board-column]') ?? cell);
+  }, [overKey]);
 
   const settledKeyOf = useCallback((card: BoardCardData): string => {
     return ref.current.overrides[card.id] ?? ref.current.naturalCellKey(card);
   }, []);
 
-  // Reconcile optimistic overrides against fresh server data: once an incoming
-  // card's NATURAL cell key reaches its override target the move is confirmed,
-  // so the override is dropped and the card falls back to server truth (it must
-  // not permanently mask later refetches). A rejected move is unwound by the
-  // rollback path in `requestMove`; this handles the committed/superseded case
-  // and prunes overrides for cards that have disappeared.
+  /*
+   * Per card: the number of its latest move, and whether that move's save has
+   * answered ("settled"). Kept in refs — the answers arrive in promise
+   * callbacks, which must read what is true now — with `rerender` for the one
+   * thing drawn from them (`isSaving`).
+   */
+  const sequence = useRef(new Map<string, number>());
+  const settled = useRef(new Set<string>());
+  const settleTimers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
+  const [, rerender] = useReducer((count: number) => count + 1, 0);
+
+  const letGo = useCallback((cardId: string) => {
+    const timer = settleTimers.current.get(cardId);
+    if (timer !== undefined) clearTimeout(timer);
+    settleTimers.current.delete(cardId);
+    settled.current.delete(cardId);
+  }, []);
+
+  // Reconcile optimistic overrides against fresh server data. An override is
+  // dropped — and the card falls back to server truth — when the incoming
+  // card's NATURAL cell key has reached it (the move is confirmed), when the
+  // card has disappeared, and when its save has ANSWERED: whatever the cards
+  // that arrive after that say, they are what the server holds. Waiting for
+  // the cell to equal the override instead left a card where it was dropped
+  // for good whenever the server answered yes and kept another value (a rule
+  // of its own, a colleague's move in between). A rejected move is unwound by
+  // the rollback path in `requestMove`.
   useEffect(() => {
+    // Read once, outside the updater: an updater may be run twice, and must answer the same both times.
+    const saved = new Set(settled.current);
     setOverrides((prev) => {
       const ids = Object.keys(prev);
       if (ids.length === 0) return prev;
@@ -222,14 +339,24 @@ export function useBoardMoves({
       const next = { ...prev };
       for (const id of ids) {
         const card = ref.current.byId.get(id);
-        if (card === undefined || ref.current.naturalCellKey(card) === prev[id]) {
+        if (card === undefined || saved.has(id) || ref.current.naturalCellKey(card) === prev[id]) {
           delete next[id];
           changed = true;
         }
       }
       return changed ? next : prev;
     });
-  }, [cards]);
+    for (const id of saved) letGo(id);
+  }, [cards, letGo]);
+
+  // Nothing is written after the board is gone.
+  useEffect(() => {
+    const timers = settleTimers.current;
+    return () => {
+      for (const timer of timers.values()) clearTimeout(timer);
+      timers.clear();
+    };
+  }, []);
 
   // The grabbed card never relocates during a grab — it stays at its settled
   // cell (focus stability); the target cell is the highlight only.
@@ -243,26 +370,62 @@ export function useBoardMoves({
       if (card === undefined) return;
       const fromCellKey = settledKeyOf(card);
       if (fromCellKey === toCellKey) return;
+      // This move is the card's latest: an answer to an earlier one is about a place the card has since left.
+      const move = (sequence.current.get(cardId) ?? 0) + 1;
+      sequence.current.set(cardId, move);
+      const latest = (): boolean => sequence.current.get(cardId) === move;
+      letGo(cardId);
       setOverrides((prev) => ({ ...prev, [cardId]: toCellKey }));
       setRefusal(null);
       ref.current.announce(ref.current.announcements.moved(card.title, ref.current.cellLabel(toCellKey)));
       const result = ref.current.onCommit(cardId, fromCellKey, toCellKey);
       if (result && typeof (result as Promise<unknown>).then === 'function') {
-        (result as Promise<unknown>).then(undefined, (error: unknown) => {
-          // Rollback: restore the settled key (drop the optimistic override).
-          setOverrides((prev) => {
-            const next = { ...prev };
-            if (next[cardId] === toCellKey) delete next[cardId];
-            return next;
-          });
-          // Said twice, on purpose: aloud for a screen reader, and on the board for whoever is looking at it.
-          const reason = refusalReasonOf(error);
-          setRefusal({ cardId, title: card.title, reason });
-          ref.current.announce(ref.current.announcements.failed(card.title, reason));
-        });
+        (result as Promise<unknown>).then(
+          () => {
+            if (!latest()) return;
+            // Saved. The override is let go of with the next cards to arrive, whatever they say — or, when a read
+            // comes back the same as the last one and so no new cards ever arrive, after a short wait.
+            settled.current.add(cardId);
+            settleTimers.current.set(
+              cardId,
+              setTimeout(() => {
+                if (!latest() || !settled.current.has(cardId)) return;
+                letGo(cardId);
+                setOverrides((prev) => {
+                  if (!(cardId in prev)) return prev;
+                  const next = { ...prev };
+                  delete next[cardId];
+                  return next;
+                });
+              }, SETTLED_OVERRIDE_WAIT_MS),
+            );
+            rerender();
+          },
+          (error: unknown) => {
+            // An earlier move of a card that has been moved again since: the card is not where this answer is about,
+            // so it is put nowhere and nothing is said — "it went back" would be read beside a card that did not.
+            if (!latest()) return;
+            // The card goes back as a new element: if the focus is on it now (or was lost with it), it follows it back.
+            const board = ref.current.root?.current;
+            const active = typeof document === 'undefined' ? null : document.activeElement;
+            if (board !== null && board !== undefined && (active === null || active === document.body || active === boardElement(board, 'data-board-card', cardId))) {
+              refocus.current = { cardId, cellKey: fromCellKey };
+            }
+            // Rollback: restore the settled key (drop the optimistic override).
+            setOverrides((prev) => {
+              const next = { ...prev };
+              if (next[cardId] === toCellKey) delete next[cardId];
+              return next;
+            });
+            // Said twice, on purpose: aloud for a screen reader, and on the board for whoever is looking at it.
+            const reason = refusalReasonOf(error);
+            setRefusal({ cardId, title: card.title, reason });
+            ref.current.announce(ref.current.announcements.failed(card.title, reason));
+          },
+        );
       }
     },
-    [settledKeyOf],
+    [settledKeyOf, letGo],
   );
 
   const grabCard = useCallback(
@@ -287,6 +450,7 @@ export function useBoardMoves({
     const current = ref.current.grab;
     if (current === null) return;
     setGrab(null);
+    refocus.current = { cardId: current.cardId, cellKey: current.targetKey };
     requestMove(current.cardId, current.targetKey);
   }, [requestMove]);
 
@@ -294,8 +458,10 @@ export function useBoardMoves({
     const current = ref.current.grab;
     if (current === null) return;
     setGrab(null);
+    const card = ref.current.byId.get(current.cardId);
+    if (card !== undefined) refocus.current = { cardId: current.cardId, cellKey: settledKeyOf(card) };
     ref.current.announce(ref.current.announcements.returned(titleOf(current.cardId)));
-  }, [titleOf]);
+  }, [titleOf, settledKeyOf]);
 
   return {
     cellKeyOf,
@@ -309,7 +475,45 @@ export function useBoardMoves({
     cancel,
     refusal,
     dismissRefusal: () => setRefusal(null),
+    isSaving: (cardId) => cardId in overrides && !settled.current.has(cardId),
   };
+}
+
+/** An add that did not hold: the card's title when one was typed, and why. */
+export interface BoardAddRefusal {
+  title: string | undefined;
+  /** Why, in the words of whoever refused it; undefined when it gave none. */
+  reason: string | undefined;
+}
+
+/** The sentence for a card that was not added. */
+function useAddRefusalSentence(): (refusal: BoardAddRefusal) => string {
+  const t = useMaybeT();
+  return (refusal) =>
+    refusal.title === undefined
+      ? t('ui:widgets.boards.cardNotAdded', 'The card was not added.')
+      : t('ui:widgets.boards.notAdded', '{title} was not added.', { title: refusal.title });
+}
+
+/**
+ * Says a refused add aloud, once, through the board's one live region: the
+ * line on the board (`BoardAddRefusalNotice`) is for whoever is looking.
+ */
+export function useAnnounceAddRefusal(refusal: BoardAddRefusal | null | undefined, announce: (message: string) => void): void {
+  const sentence = useAddRefusalSentence();
+  const latest = useRef({ sentence, announce });
+  latest.current = { sentence, announce };
+  useEffect(() => {
+    if (refusal === null || refusal === undefined) return;
+    latest.current.announce(withReason(latest.current.sentence(refusal), refusal.reason));
+  }, [refusal]);
+}
+
+/** The card that was not added, and why: the same line, in the same place, as a card that went back. */
+export function BoardAddRefusalNotice({ refusal, onDismiss }: { refusal: BoardAddRefusal | null | undefined; onDismiss: () => void }) {
+  const sentence = useAddRefusalSentence();
+  if (refusal === null || refusal === undefined) return null;
+  return <RefusalLine part="board-add-refused" sentence={sentence(refusal)} reason={refusal.reason} onDismiss={onDismiss} />;
 }
 
 /**
@@ -321,13 +525,26 @@ export function BoardRefusalNotice({ refusal, onDismiss }: { refusal: BoardMoveR
   const t = useMaybeT();
   if (refusal === null) return null;
   return (
+    <RefusalLine
+      part="board-move-refused"
+      sentence={t('ui:widgets.boards.notMoved', '{title} was not moved.', { title: refusal.title })}
+      reason={refusal.reason}
+      onDismiss={onDismiss}
+    />
+  );
+}
+
+/** One refusal, above the board: what did not hold, why, and a way to put the line away. */
+function RefusalLine({ part, sentence, reason, onDismiss }: { part: string; sentence: string; reason: string | undefined; onDismiss: () => void }) {
+  const t = useMaybeT();
+  return (
     <div
-      data-part="board-move-refused"
+      data-part={part}
       className="mx-3 mt-3 flex items-start gap-2 rounded-md border border-danger/40 bg-danger-soft px-3 py-2 text-body-sm text-fg"
     >
       <p className="min-w-0 flex-1">
-        <span className="font-semibold">{t('ui:widgets.boards.notMoved', '{title} was not moved.', { title: refusal.title })}</span>
-        {refusal.reason === undefined ? null : <span data-part="board-move-refused-reason"> {refusal.reason}</span>}
+        <span className="font-semibold">{sentence}</span>
+        {reason === undefined ? null : <span data-part={`${part}-reason`}> {reason}</span>}
       </p>
       <button
         type="button"

@@ -113,6 +113,9 @@ export const importsListQuery = z.object({
 /** How many lines of a file one preview judges: the counts are of these, and the reply says when there are more. */
 export const PREVIEW_LINE_CAP = 2000;
 
+/** How long a preview line's `label` may be, in characters. */
+export const PREVIEW_LABEL_MAX = 120;
+
 export const importsPreviewQuery = z.object({
   offset: z.coerce.number().int().min(0).default(0),
   limit: z.coerce.number().int().min(1).max(200).default(100),
@@ -129,6 +132,12 @@ export const previewLineView = z.object({
   message: z.string().optional(),
   /** For a line that is `here` only because an earlier line of the same file would have made its row: that line's number. */
   earlierLine: z.number().optional(),
+  /**
+   * Which line of the file this is, in the file's own words: the value typed in the column the lines are matched
+   * on, else the line's first mapped cell. Trimmed, at most {@link PREVIEW_LABEL_MAX} characters; absent when that
+   * cell is empty. It is the requester's own upload read back to them, and nothing of the table.
+   */
+  label: z.string().optional(),
 });
 export type PreviewLineView = z.infer<typeof previewLineView>;
 

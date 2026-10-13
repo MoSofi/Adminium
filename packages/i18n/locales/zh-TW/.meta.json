@@ -9423,6 +9423,38 @@
     "status": "mt",
     "srcHash": "419b6f7a5dce"
   },
+  "dataio.import.issueBadBoolean": {
+    "status": "mt",
+    "srcHash": "a06669610814"
+  },
+  "dataio.import.issueBadDate": {
+    "status": "mt",
+    "srcHash": "f12b821e4c76"
+  },
+  "dataio.import.issueBadJson": {
+    "status": "mt",
+    "srcHash": "12adfdbc7b77"
+  },
+  "dataio.import.issueBadNumber": {
+    "status": "mt",
+    "srcHash": "7402e2f48178"
+  },
+  "dataio.import.issueExample": {
+    "status": "mt",
+    "srcHash": "bb292a6071a7"
+  },
+  "dataio.import.issueExampleLine": {
+    "status": "mt",
+    "srcHash": "f739d9fc7115"
+  },
+  "dataio.import.issueOther": {
+    "status": "mt",
+    "srcHash": "1b17805904fc"
+  },
+  "dataio.import.issueRequired": {
+    "status": "mt",
+    "srcHash": "045ba0556ef5"
+  },
   "dataio.import.kpiCreated": {
     "status": "mt",
     "srcHash": "accf40c89baa"
@@ -9458,6 +9490,14 @@
   "dataio.import.matchUnmapped": {
     "status": "mt",
     "srcHash": "7a092c442893"
+  },
+  "dataio.import.noImportRight": {
+    "status": "mt",
+    "srcHash": "09b5b58a15c7"
+  },
+  "dataio.import.noReadToMatch": {
+    "status": "mt",
+    "srcHash": "87f367c6dc78"
   },
   "dataio.import.notATable": {
     "status": "mt",
@@ -9519,6 +9559,14 @@
     "status": "mt",
     "srcHash": "50565ad0d156"
   },
+  "dataio.import.restHere": {
+    "status": "mt",
+    "srcHash": "b5708f3fefd3"
+  },
+  "dataio.import.restRefused": {
+    "status": "mt",
+    "srcHash": "cf5a35a3a262"
+  },
   "dataio.import.reviewAlreadyHere": {
     "status": "mt",
     "srcHash": "5ea53686a37e"
@@ -9531,9 +9579,21 @@
     "status": "mt",
     "srcHash": "ec025fbd1926"
   },
+  "dataio.import.runNew": {
+    "status": "mt",
+    "srcHash": "dbdc9f33ba73"
+  },
+  "dataio.import.runNewAndUpdate": {
+    "status": "mt",
+    "srcHash": "66a287477385"
+  },
   "dataio.import.runSkipping": {
     "status": "mt",
     "srcHash": "48373b3e39d2"
+  },
+  "dataio.import.runUpdateOnly": {
+    "status": "mt",
+    "srcHash": "1d93ccf0fa07"
   },
   "dataio.import.running": {
     "status": "mt",
@@ -9558,6 +9618,22 @@
   "dataio.import.stepValidate": {
     "status": "mt",
     "srcHash": "6752f198b564"
+  },
+  "dataio.import.summaryNew": {
+    "status": "mt",
+    "srcHash": "262accc196d7"
+  },
+  "dataio.import.summaryNewAndUpdate": {
+    "status": "mt",
+    "srcHash": "f27a2574d51d"
+  },
+  "dataio.import.summaryUpdateOnly": {
+    "status": "mt",
+    "srcHash": "44686e591bd8"
+  },
+  "dataio.import.targetFailed": {
+    "status": "mt",
+    "srcHash": "9454a9a0ef93"
   },
   "dataio.import.targetLabel": {
     "status": "mt",
@@ -30319,9 +30395,21 @@
     "srcHash": "9ac0b366494f",
     "status": "mt"
   },
+  "ui.templates.board.columnsCut": {
+    "status": "mt",
+    "srcHash": "a01282e576b1"
+  },
+  "ui.templates.board.columnsError": {
+    "status": "mt",
+    "srcHash": "d55e93676db5"
+  },
   "ui.templates.board.invalidLayout": {
     "status": "mt",
     "srcHash": "00212c6295c1"
+  },
+  "ui.templates.board.invalidOnly": {
+    "status": "mt",
+    "srcHash": "d1b81f700d2f"
   },
   "ui.templates.board.noColumnsBody": {
     "status": "mt",
@@ -31655,6 +31743,10 @@
     "srcHash": "bb8b28390233",
     "status": "mt"
   },
+  "ui.widgets.boards.cardNotAdded": {
+    "status": "mt",
+    "srcHash": "fc188704328d"
+  },
   "ui.widgets.boards.dismissNotice": {
     "status": "mt",
     "srcHash": "70afe9eff3f2"
@@ -31710,6 +31802,10 @@
   "ui.widgets.boards.laneSummary": {
     "srcHash": "bf27a547e5ff",
     "status": "mt"
+  },
+  "ui.widgets.boards.notAdded": {
+    "status": "mt",
+    "srcHash": "478752e2d016"
   },
   "ui.widgets.boards.notMoved": {
     "status": "mt",

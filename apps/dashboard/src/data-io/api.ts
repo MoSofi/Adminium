@@ -70,6 +70,8 @@ export interface ImportPreviewLineDto {
   message?: string;
   /** `here` only because this earlier line of the same file would have made its row. */
   earlierLine?: number;
+  /** Which line this is, in the file's own words: its match value, else its first mapped cell (at most 120 characters). */
+  label?: string;
 }
 
 export interface ImportPreviewDto {

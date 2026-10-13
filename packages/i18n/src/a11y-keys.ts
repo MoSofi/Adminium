@@ -11,7 +11,7 @@
  *   pnpm --filter @adminium/i18n gen:a11y-keys
  */
 
-/** `namespace:key` — 2970 entries. */
+/** `namespace:key` — 2982 entries. */
 export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'addOns:failed.title',
   'addOns:noBundle.title',
@@ -785,16 +785,28 @@ export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'dataio:exports.createFailed',
   'dataio:import.allValid',
   'dataio:import.inconsistent',
+  'dataio:import.issueBadBoolean',
+  'dataio:import.issueBadDate',
+  'dataio:import.issueBadJson',
+  'dataio:import.issueBadNumber',
+  'dataio:import.issueOther',
+  'dataio:import.issueRequired',
   'dataio:import.matchUnmapped',
+  'dataio:import.notATable',
   'dataio:import.previewFailed',
   'dataio:import.progressLabel',
+  'dataio:import.run',
   'dataio:import.runFailed',
+  'dataio:import.runNew',
+  'dataio:import.runNewAndUpdate',
+  'dataio:import.runSkipping',
+  'dataio:import.runUpdateOnly',
   'dataio:import.skipTarget',
   'dataio:import.stepMap',
   'dataio:import.stepRun',
   'dataio:import.stepUpload',
   'dataio:import.stepValidate',
-  'dataio:import.validateFailed',
+  'dataio:import.targetFailed',
   'designer:apps.continueApp',
   'designer:apps.newSessionApp',
   'designer:arch.access',

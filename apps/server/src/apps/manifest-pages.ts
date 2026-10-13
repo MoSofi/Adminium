@@ -73,7 +73,7 @@ export interface ManifestPageSkip {
     | 'PAGE_LAYOUT_INVALID'
     // Created, plotted by the columns Adminium picks rather than the ones it named.
     | 'PAGE_CALENDAR_INVALID'
-    // Created, with the columns Adminium finds rather than the ones it named.
+    // Created empty: the board it named cannot be built, and no other board is built in its place.
     | 'PAGE_BOARD_INVALID'
     | 'PAGE_FILTERS_INVALID'
     | 'PAGE_DEFAULT_FILTERS_INVALID'
@@ -289,14 +289,21 @@ export async function materialiseManifestPages(input: MaterialiseInput): Promise
         built = composeRequestedPage(model, tableId, template, { ...context, calendar: hinted });
       }
       if (built.envelope === null && board !== null) {
+        /*
+         * The board the app named cannot be built — and no other board is
+         * built in its place. Composed again with the columns Adminium finds
+         * (the table's workflow enum), a board of the OPEN deals by stage
+         * became one of every deal by state: a different board under the same
+         * name, with nothing on screen to say so. The page is made empty, as
+         * one whose table cannot back its template is, and the reason is
+         * reported.
+         */
         result.warnings.push({
           page: page.ref,
           reason: 'PAGE_BOARD_INVALID',
-          message: `${built.reason}, so its columns are the ones Adminium finds`,
+          message: `${built.reason}, so the page was created empty`,
         });
-        built = composeRequestedPage(model, tableId, template, context);
-      }
-      if (built.envelope === null) {
+      } else if (built.envelope === null) {
         result.warnings.push({
           page: page.ref,
           reason: 'PAGE_UNFIT',

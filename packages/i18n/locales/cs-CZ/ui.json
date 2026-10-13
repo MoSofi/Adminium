@@ -690,6 +690,8 @@
       },
       "addCard": "Přidat kartu",
       "notMoved": "Kartu {title} se nepodařilo přesunout.",
+      "notAdded": "Kartu {title} se nepodařilo přidat.",
+      "cardNotAdded": "Kartu se nepodařilo přidat.",
       "dismissNotice": "Zavřít",
       "grip": "Přetažením přesunete kartu",
       "pointsUnit": "b.",
@@ -1920,6 +1922,9 @@
       "noRowsTitle": "Zatím žádné karty",
       "noColumnsTitle": "Zatím žádné sloupce",
       "noColumnsBody": "Tato tabule bere své sloupce z řádků tabulky a ta tabulka zatím žádné řádky nemá. Přidejte jeden a objeví se tu jako sloupec.",
+      "invalidOnly": "Tato tabule má zobrazovat jen některé řádky své tabulky a toto nastavení nelze přečíst, proto se tabule nezobrazí. Vygenerujte stránku znovu.",
+      "columnsError": "Sloupce této tabule se nepodařilo načíst z tabulky {table}.",
+      "columnsCut": "{count, plural, one {Zobrazuje se jen první sloupec: tabulka, ze které tato tabule bere sloupce, má více řádků.} few {Zobrazují se první # sloupce: tabulka, ze které tato tabule bere sloupce, má více řádků.} many {Zobrazuje se prvních # sloupce: tabulka, ze které tato tabule bere sloupce, má více řádků.} other {Zobrazuje se prvních # sloupců: tabulka, ze které tato tabule bere sloupce, má více řádků.}}",
       "noRowsBody": "Karty se tu objeví, jakmile bude mít tabulka řádky."
     },
     "calendar": {

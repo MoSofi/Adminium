@@ -690,6 +690,8 @@
       },
       "addCard": "Tilføj kort",
       "notMoved": "{title} blev ikke flyttet.",
+      "notAdded": "{title} blev ikke tilføjet.",
+      "cardNotAdded": "Kortet blev ikke tilføjet.",
       "dismissNotice": "Luk",
       "grip": "Træk for at flytte kortet",
       "pointsUnit": "pt.",
@@ -1920,6 +1922,9 @@
       "noRowsTitle": "Ingen kort endnu",
       "noColumnsTitle": "Ingen kolonner endnu",
       "noColumnsBody": "Denne tavle tager sine kolonner fra rækkerne i en tabel, og den tabel har ingen rækker endnu. Tilføj en, så vises den her som en kolonne.",
+      "invalidOnly": "Denne tavle skal kun vise nogle af rækkerne i sin tabel, og den indstilling kan ikke læses, så tavlen vises ikke. Generér siden igen.",
+      "columnsError": "Tavlens kolonner kunne ikke læses fra {table}.",
+      "columnsCut": "{count, plural, one {Kun den første kolonne vises: tabellen, som tavlen henter sine kolonner fra, har flere rækker.} other {De første # kolonner vises: tabellen, som tavlen henter sine kolonner fra, har flere rækker.}}",
       "noRowsBody": "Kort vises her, så snart tabellen har rækker."
     },
     "calendar": {

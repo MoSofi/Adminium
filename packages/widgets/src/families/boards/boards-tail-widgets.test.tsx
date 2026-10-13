@@ -12,7 +12,7 @@
  * composer's Enter/Escape machine and its whitespace guard, and the
  * annex-mandated INSERT-intent contract.
  */
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { BoardCard, BoardCardWidget, boardCardOf } from './BoardCard.js';
@@ -188,6 +188,40 @@ describe('inline-compose-card (annex)', () => {
     fireEvent.change(screen.getByRole('textbox'), { target: { value: '  Padded  ' } });
     fireEvent.click(document.querySelector('[data-part="compose-add"]') as HTMLElement);
     expect(onAdd).toHaveBeenCalledWith('Padded');
+  });
+
+  it('keeps the typed title until the save holds, and after it is refused', async () => {
+    let reject!: (error: unknown) => void;
+    let resolve!: (value: unknown) => void;
+    const onAdd = vi
+      .fn()
+      .mockImplementationOnce(() => new Promise((_, no) => (reject = no)))
+      .mockImplementationOnce(() => new Promise((yes) => (resolve = yes)));
+    render(<InlineComposeCard defaultOpen onAdd={onAdd} />);
+    const input = screen.getByRole('textbox') as HTMLInputElement;
+    fireEvent.change(input, { target: { value: 'New deal' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+    // Sent, not answered: still there, and not sent twice.
+    expect(input.value).toBe('New deal');
+    expect(input.readOnly).toBe(true);
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(onAdd).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      reject(new Error('Refused.'));
+      await Promise.resolve();
+    });
+    // Refused: the title is kept, to be sent again.
+    expect(input.value).toBe('New deal');
+    expect(input.readOnly).toBe(false);
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(onAdd).toHaveBeenCalledTimes(2);
+    await act(async () => {
+      resolve({});
+      await Promise.resolve();
+    });
+    // Held: cleared, and open for the next one.
+    expect(input.value).toBe('');
+    expect(document.querySelector('[data-part="compose-card"]')).not.toBeNull();
   });
 
   it('disables Add while the draft is empty', () => {
