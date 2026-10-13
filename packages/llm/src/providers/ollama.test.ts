@@ -120,6 +120,15 @@ describe('createOllamaClient.listModels', () => {
     ]);
   });
 
+  it('marks a model Ollama runs on another host as remote', async () => {
+    stubFetch(jsonResponse({ models: [{ name: 'gemma4:31b-cloud', remote_host: 'https://ollama.com:443' }, { name: 'qwen2.5', remote_host: '' }] }));
+    const models = await createOllamaClient({ provider: 'ollama' }).listModels();
+    expect(models).toEqual([
+      { id: 'gemma4:31b-cloud', label: 'gemma4:31b-cloud', remote: true },
+      { id: 'qwen2.5', label: 'qwen2.5' },
+    ]);
+  });
+
   it('propagates a failure (no static fallback for local models)', async () => {
     stubFetch(jsonResponse({}, 500));
     const client = createOllamaClient({ provider: 'ollama' });

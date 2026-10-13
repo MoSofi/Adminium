@@ -90,6 +90,11 @@ export interface ModelInfo {
    * none, or when its provider has no such setting we send.
    */
   efforts?: RunEffort[];
+  /**
+   * True when a LOCAL provider runs this model somewhere else (an Ollama
+   * `:cloud` model runs on ollama.com). What is sent to it leaves the machine.
+   */
+  remote?: boolean;
 }
 
 /** How hard a model is asked to work on a reply, the least first. */

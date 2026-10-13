@@ -650,6 +650,18 @@ export function readErrorKind(raw: Record<string, unknown> | null): AssistantErr
   return kind === 'too-long' || kind === 'model-format' || kind === 'setup' || kind === 'budget' ? kind : null;
 }
 
+/** The two provider failures worded for the person: nothing answers at the address, or the model is not there. */
+export type AssistantProviderFailure = 'unreachable' | 'no-model';
+
+/** Which worded provider failure a provider's own code is; `null` for one shown in the provider's words alone. */
+export function providerFailureOf(code: unknown): AssistantProviderFailure | null {
+  return code === 'network' ? 'unreachable' : code === 'not_found' ? 'no-model' : null;
+}
+
+export function readProviderFailure(raw: Record<string, unknown> | null): AssistantProviderFailure | null {
+  return raw === null || raw.kind !== 'provider' ? null : providerFailureOf(raw.code);
+}
+
 /**
  * When a used-up day starts again, read from wherever the server said so: a
  * failed turn's error, the mark beside the answer that used the last of the

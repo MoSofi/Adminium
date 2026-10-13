@@ -170,7 +170,10 @@
     "modelFormatAsk": "Tento model neodpovídá tak, jak asistent {name} potřebuje. Požádejte správce, aby vybral jiný model.",
     "setup": "Tuto stránku se teď nepodařilo přečíst. Zeptejte se znovu.",
     "busy": "Na vaší poslední otázce se ještě pracuje. Počkejte na ni, nebo ji nejdřív zastavte.",
-    "budget": "Zastavilo se to v půli: dnešní příděl je vyčerpán."
+    "budget": "Zastavilo se to v půli: dnešní příděl je vyčerpán.",
+    "unreachable": "Na adrese modelu nic neodpovídá. Zkontrolujte, že běží, a zkuste to znovu.",
+    "noModel": "Model tam není: poskytovatel ho nemá. Vyberte jiný model v Nastavení → AI.",
+    "noModelAsk": "Model tam není: poskytovatel ho nemá. Požádejte správce, aby vybral jiný model."
   },
   "invoiceTemplate": {
     "action1": "Zobrazit jinou ukázku",

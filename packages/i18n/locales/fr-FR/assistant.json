@@ -170,7 +170,10 @@
     "modelFormatAsk": "Ce modèle ne répond pas de la manière dont {name} a besoin. Demandez à un administrateur de choisir un autre modèle.",
     "setup": "Cette page n’a pas pu être lue pour l’instant. Reposez votre question.",
     "busy": "Votre dernière question est encore en cours. Attendez-la ou arrêtez-la d’abord.",
-    "budget": "Cela s’est arrêté en cours de route : le quota du jour est épuisé."
+    "budget": "Cela s’est arrêté en cours de route : le quota du jour est épuisé.",
+    "unreachable": "Rien ne répond à l’adresse du modèle. Vérifiez qu’il est lancé, puis réessayez.",
+    "noModel": "Le modèle est introuvable : son fournisseur ne l’a pas. Choisissez un autre modèle dans Paramètres → IA.",
+    "noModelAsk": "Le modèle est introuvable : son fournisseur ne l’a pas. Demandez à un administrateur d’en choisir un autre."
   },
   "invoiceTemplate": {
     "action1": "Voir un autre échantillon",

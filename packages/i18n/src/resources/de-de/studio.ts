@@ -2211,6 +2211,7 @@ export default {
       "modelPlaceholder": "Modell auswählen…",
       "modelStatic": "Eine bewährte Liste; geben Sie nach dem Speichern eine eigene ID ein, um sie zu aktualisieren.",
       "noKeyBody": "Ollama läuft lokal, es verlässt also nichts diesen Rechner.",
+      "noKeyRemoteBody": "Dies ist ein Ollama-Cloud-Modell: Ollama führt es auf eigenen Servern aus, was dem Modell übergeben wird, verlässt also diesen Rechner.",
       "noKeyTitle": "Kein API-Schlüssel nötig"
     },
     "history": {
@@ -2240,7 +2241,7 @@ export default {
       "networkDisabledBody": "Dieses Adminium ist ohne ausgehenden Internetzugang konfiguriert und kann keine Anbieter-API erreichen. Nutzen Sie unten den Kopieren-und-Einfügen-Weg — er braucht weder Schlüssel noch Netzwerk.",
       "networkDisabledTitle": "Direkte KI-Anbieter sind in dieser Installation deaktiviert",
       "ollama": {
-        "desc": "Modelle laufen lokal über Ollama — kein Schlüssel, keine Cloud.",
+        "desc": "Modelle, die über Ihr eigenes Ollama laufen — kein Schlüssel.",
         "label": "Ollama (lokal)"
       },
       "openai": {
@@ -2300,7 +2301,9 @@ export default {
       "noTool": "Dieses Modell hat geantwortet, ohne das bereitgestellte Werkzeug zu benutzen. {name} würde raten, statt Ihre Daten zu lesen. Wählen Sie ein anderes Modell.",
       "wrongValue": "Dieses Modell hat das Werkzeug benutzt und dann etwas anderes gemeldet. Wählen Sie ein anderes Modell.",
       "provider": "Das Modell hat nicht geantwortet: {message}",
-      "error": "Der Test konnte nicht ausgeführt werden. Versuchen Sie es erneut."
+      "error": "Der Test konnte nicht ausgeführt werden. Versuchen Sie es erneut.",
+      "unreachable": "Unter der Adresse des Modells antwortet nichts. Prüfen Sie, ob es läuft. ({message})",
+      "noModel": "Das Modell ist nicht vorhanden: Der Anbieter hat es nicht. Wählen Sie ein anderes Modell. ({message})"
     },
     "allowance": {
       "title": "Tageskontingent",

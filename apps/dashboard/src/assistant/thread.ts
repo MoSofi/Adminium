@@ -18,10 +18,12 @@ import {
   isTooLong,
   readAnswer,
   readErrorKind,
+  readProviderFailure,
   readResetsAt,
   readErrorMessage,
   readResult,
   type AssistantAnswer,
+  type AssistantProviderFailure,
   type AssistantAsk,
   type AssistantContext,
   type AssistantErrorKind,
@@ -49,6 +51,8 @@ export interface ThreadTurn {
   tooLong: boolean;
   /** A failure this app has its own words for; `null` for one it shows in the server's. */
   errorKind: AssistantErrorKind | null;
+  /** A provider failure this app words itself; the provider's own text is then shown beneath it. */
+  providerFailure: AssistantProviderFailure | null;
   /** When today's allowance starts again, if this is the turn that used the last of it. */
   usedUpUntil: number | null;
   /** What the turn read, forgot, offers next and points at; `null` on a turn that recorded none. */
@@ -88,6 +92,7 @@ export function toThreadTurn(view: AssistantTurnView, pickedLabels: string[]): T
     errorMessage: readErrorMessage(view.error),
     tooLong: isTooLong(view.error),
     errorKind: readErrorKind(view.error),
+    providerFailure: readProviderFailure(view.error),
     usedUpUntil: readResetsAt(view.answer) ?? (readErrorKind(view.error) === 'budget' ? readResetsAt(view.error) : null),
     answer: readAnswer(view.answer),
     context: view.context,

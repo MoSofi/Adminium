@@ -108,6 +108,8 @@ export interface LlmAssistantTestResult {
   failure: 'format' | 'no-tool' | 'wrong-value' | 'provider' | null;
   /** The provider's own sentence when the provider is what failed. */
   message: string | null;
+  /** The provider failure's own code, when it gave one. */
+  code?: string | null;
 }
 
 /** The four switches on what the assistant may do beyond reading. */
@@ -143,6 +145,8 @@ export interface AssistantSettings {
 export interface LlmModelInfo {
   id: string;
   label: string;
+  /** True for a model its provider runs somewhere else: what it reads leaves this machine. */
+  remote?: boolean;
 }
 
 /** `GET /models` — the active provider's models + whether they are live or static. */

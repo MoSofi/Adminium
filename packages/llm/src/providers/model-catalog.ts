@@ -207,7 +207,7 @@ export async function listOpenAiCompatibleModels(opts: CatalogFetchOptions): Pro
 }
 
 interface OllamaTagsResponse {
-  models?: { name?: string }[];
+  models?: { name?: string; remote_host?: unknown }[];
 }
 
 /** `GET {baseUrl}/api/tags`; no static fallback — propagates `ProviderError` on failure. */
@@ -218,6 +218,7 @@ export async function listOllamaModels(opts: CatalogFetchOptions): Promise<Model
     ...(opts.timeoutMs !== undefined ? { timeoutMs: opts.timeoutMs } : {}),
   });
   return (json.models ?? [])
-    .filter((m): m is { name: string } => typeof m.name === 'string')
-    .map((m) => ({ id: m.name, label: m.name }));
+    .filter((m): m is { name: string; remote_host?: unknown } => typeof m.name === 'string')
+    // Ollama gives a model it runs on another host that host's address.
+    .map((m) => ({ id: m.name, label: m.name, ...(typeof m.remote_host === 'string' && m.remote_host !== '' ? { remote: true } : {}) }));
 }

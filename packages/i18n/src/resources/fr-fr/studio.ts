@@ -2211,6 +2211,7 @@ export default {
       "modelPlaceholder": "Sélectionner un modèle…",
       "modelStatic": "Une liste éprouvée ; saisissez un identifiant personnalisé après l’enregistrement pour l’actualiser.",
       "noKeyBody": "Ollama tourne localement, donc rien ne quitte cette machine.",
+      "noKeyRemoteBody": "Ceci est un modèle cloud d’Ollama : Ollama l’exécute sur ses propres serveurs, donc ce qui est donné au modèle quitte cette machine.",
       "noKeyTitle": "Aucune clé API requise"
     },
     "history": {
@@ -2240,7 +2241,7 @@ export default {
       "networkDisabledBody": "Cet Adminium est configuré sans accès Internet sortant : il ne peut joindre aucune API de fournisseur. Utilisez l'aller-retour copier-coller ci-dessous — ni clé ni réseau requis.",
       "networkDisabledTitle": "Les fournisseurs IA directs sont désactivés sur cette installation",
       "ollama": {
-        "desc": "Modèles exécutés localement via Ollama — sans clé, sans cloud.",
+        "desc": "Des modèles exécutés par votre propre Ollama — sans clé.",
         "label": "Ollama (local)"
       },
       "openai": {
@@ -2300,7 +2301,9 @@ export default {
       "noTool": "Ce modèle a répondu sans utiliser l’outil fourni. {name} devinerait au lieu de lire vos données. Choisissez un autre modèle.",
       "wrongValue": "Ce modèle a utilisé l’outil puis a rapporté autre chose. Choisissez un autre modèle.",
       "provider": "Le modèle n’a pas répondu : {message}",
-      "error": "Le test n’a pas pu être exécuté. Réessayez."
+      "error": "Le test n’a pas pu être exécuté. Réessayez.",
+      "unreachable": "Rien ne répond à l’adresse du modèle. Vérifiez qu’il est lancé. ({message})",
+      "noModel": "Le modèle est introuvable : son fournisseur ne l’a pas. Choisissez un autre modèle. ({message})"
     },
     "allowance": {
       "title": "Quota quotidien",

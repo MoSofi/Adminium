@@ -380,7 +380,7 @@ export function llmRoutes(deps: LlmRoutesDeps): FastifyPluginAsyncZod {
         } catch (error) {
           if (error instanceof ProviderNotConfiguredError) throw new ConflictError(error.message, 'CONFLICT');
           if (error instanceof ProviderError) {
-            return { ok: false, model: null, rounds: 0, latencyMs: 0, failure: 'provider' as const, message: error.message };
+            return { ok: false, model: null, rounds: 0, latencyMs: 0, failure: 'provider' as const, message: error.message, code: error.code };
           }
           throw error;
         }

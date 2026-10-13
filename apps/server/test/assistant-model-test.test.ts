@@ -49,7 +49,7 @@ describe('testing a model with the assistant', () => {
 
   it('says so when it is the provider that failed, in the provider`s words', async () => {
     const { result } = await test([{ throw: new ProviderError({ provider: 'ollama', code: 'network', message: 'ollama: connection refused' }) }]);
-    expect(result).toMatchObject({ ok: false, failure: 'provider', message: 'ollama: connection refused' });
+    expect(result).toMatchObject({ ok: false, failure: 'provider', message: 'ollama: connection refused', code: 'network' });
   });
 
   it('never makes more provider calls than its cap, whatever the model does', async () => {

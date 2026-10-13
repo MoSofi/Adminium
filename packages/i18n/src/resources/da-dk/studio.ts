@@ -2211,6 +2211,7 @@ export default {
       "modelPlaceholder": "Vælg en model…",
       "modelStatic": "En gennemprøvet liste; skriv et brugerdefineret id efter at have gemt for at opdatere den.",
       "noKeyBody": "Ollama kører lokalt, så intet forlader denne maskine.",
+      "noKeyRemoteBody": "Dette er en Ollama-cloudmodel: Ollama kører den på sine egne servere, så det, modellen får, forlader denne maskine.",
       "noKeyTitle": "Ingen API-nøgle nødvendig"
     },
     "history": {
@@ -2240,7 +2241,7 @@ export default {
       "networkDisabledBody": "Dette Adminium er konfigureret uden udgående internetadgang og kan ikke nå en udbyder-API. Brug kopier-indsæt-turen nedenfor — den kræver hverken nøgle eller netværk.",
       "networkDisabledTitle": "Direkte AI-udbydere er slået fra i denne installation",
       "ollama": {
-        "desc": "Modeller kører lokalt via Ollama — ingen nøgle, ingen sky.",
+        "desc": "Modeller kørt gennem din egen Ollama — ingen nøgle.",
         "label": "Ollama (lokal)"
       },
       "openai": {
@@ -2300,7 +2301,9 @@ export default {
       "noTool": "Denne model svarede uden at bruge det værktøj, den fik. {name} ville gætte i stedet for at læse dine data. Vælg en anden model.",
       "wrongValue": "Denne model brugte værktøjet og meldte så noget andet. Vælg en anden model.",
       "provider": "Modellen svarede ikke: {message}",
-      "error": "Testen kunne ikke køres. Prøv igen."
+      "error": "Testen kunne ikke køres. Prøv igen.",
+      "unreachable": "Intet svarer på modellens adresse. Tjek, at den kører. ({message})",
+      "noModel": "Modellen findes ikke: udbyderen har den ikke. Vælg en anden model. ({message})"
     },
     "allowance": {
       "title": "Daglig kvote",

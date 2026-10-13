@@ -170,7 +170,10 @@
     "modelFormatAsk": "Denne model svarer ikke på den måde, {name} har brug for. Bed en administrator om at vælge en anden model.",
     "setup": "Denne side kunne ikke læses lige nu. Prøv at spørge igen.",
     "busy": "Dit seneste spørgsmål er stadig i gang. Vent på det, eller stop det først.",
-    "budget": "Dette stoppede undervejs: dagens kvote er brugt op."
+    "budget": "Dette stoppede undervejs: dagens kvote er brugt op.",
+    "unreachable": "Intet svarer på modellens adresse. Tjek, at den kører, og prøv igen.",
+    "noModel": "Modellen findes ikke: udbyderen har den ikke. Vælg en anden model under Indstillinger → AI.",
+    "noModelAsk": "Modellen findes ikke: udbyderen har den ikke. Bed en administrator om at vælge en anden model."
   },
   "invoiceTemplate": {
     "action1": "Se en anden prøve",

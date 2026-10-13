@@ -2211,6 +2211,7 @@ export default {
       "modelPlaceholder": "Vyberte model…",
       "modelStatic": "Ověřený seznam; po uložení zadejte vlastní ID pro obnovení.",
       "noKeyBody": "Ollama běží lokálně, takže nic neopouští tento počítač.",
+      "noKeyRemoteBody": "Toto je cloudový model Ollama: Ollama ho spouští na vlastních serverech, takže to, co model dostane, opouští tento počítač.",
       "noKeyTitle": "Klíč API není potřeba"
     },
     "history": {
@@ -2240,7 +2241,7 @@ export default {
       "networkDisabledBody": "Toto Adminium je nastaveno bez odchozího přístupu k internetu, takže nemůže oslovit API poskytovatele. Použijte níže kolečko kopírovat-vložit — nepotřebuje klíč ani síť.",
       "networkDisabledTitle": "Přímí AI poskytovatelé jsou v této instalaci vypnuti",
       "ollama": {
-        "desc": "Modely běžící lokálně přes Ollama — bez klíče, bez cloudu.",
+        "desc": "Modely spouštěné přes vaši vlastní Ollamu — bez klíče.",
         "label": "Ollama (lokálně)"
       },
       "openai": {
@@ -2300,7 +2301,9 @@ export default {
       "noTool": "Tento model odpověděl, aniž použil nástroj, který dostal. Asistent {name} by hádal, místo aby četl vaše data. Vyberte jiný model.",
       "wrongValue": "Tento model nástroj použil a pak ohlásil něco jiného. Vyberte jiný model.",
       "provider": "Model neodpověděl: {message}",
-      "error": "Test se nepodařilo spustit. Zkuste to znovu."
+      "error": "Test se nepodařilo spustit. Zkuste to znovu.",
+      "unreachable": "Na adrese modelu nic neodpovídá. Zkontrolujte, že běží. ({message})",
+      "noModel": "Model tam není: poskytovatel ho nemá. Vyberte jiný model. ({message})"
     },
     "allowance": {
       "title": "Denní příděl",

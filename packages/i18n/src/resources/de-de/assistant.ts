@@ -180,7 +180,10 @@ export default {
     "modelFormatAsk": "Dieses Modell antwortet nicht so, wie {name} es braucht. Bitten Sie einen Administrator, ein anderes Modell zu wählen.",
     "setup": "Diese Seite konnte gerade nicht gelesen werden. Fragen Sie noch einmal.",
     "busy": "Ihre letzte Frage wird noch bearbeitet. Warten Sie darauf oder halten Sie sie zuerst an.",
-    "budget": "Das wurde mittendrin angehalten: Das heutige Kontingent ist aufgebraucht."
+    "budget": "Das wurde mittendrin angehalten: Das heutige Kontingent ist aufgebraucht.",
+    "unreachable": "Unter der Adresse des Modells antwortet nichts. Prüfen Sie, ob es läuft, und versuchen Sie es erneut.",
+    "noModel": "Das Modell ist nicht vorhanden: Der Anbieter hat es nicht. Wählen Sie unter Einstellungen → KI ein anderes Modell.",
+    "noModelAsk": "Das Modell ist nicht vorhanden: Der Anbieter hat es nicht. Bitten Sie einen Administrator, ein anderes Modell zu wählen."
   },
   "invoiceTemplate": {
     "action1": "Anderes Beispiel ansehen",

@@ -807,6 +807,14 @@
     "status": "mt",
     "srcHash": "e211c7b36efd"
   },
+  "assistant.error.noModel": {
+    "status": "mt",
+    "srcHash": "ed214b738cc1"
+  },
+  "assistant.error.noModelAsk": {
+    "status": "mt",
+    "srcHash": "32f6ec849fa9"
+  },
   "assistant.error.setup": {
     "status": "mt",
     "srcHash": "7e6255361dc5"
@@ -822,6 +830,10 @@
   "assistant.error.tryAgain": {
     "status": "mt",
     "srcHash": "042c862e4467"
+  },
+  "assistant.error.unreachable": {
+    "status": "mt",
+    "srcHash": "ea27b94760b2"
   },
   "assistant.general.blurb": {
     "status": "mt",
@@ -26959,6 +26971,10 @@
     "status": "mt",
     "srcHash": "69ad5d440615"
   },
+  "studio.settingsAi.assistantTest.noModel": {
+    "status": "mt",
+    "srcHash": "76905cf7bcdf"
+  },
   "studio.settingsAi.assistantTest.noTool": {
     "status": "mt",
     "srcHash": "3b33cab59601"
@@ -26974,6 +26990,10 @@
   "studio.settingsAi.assistantTest.running": {
     "status": "mt",
     "srcHash": "899a3d71f713"
+  },
+  "studio.settingsAi.assistantTest.unreachable": {
+    "status": "mt",
+    "srcHash": "60d363f731eb"
   },
   "studio.settingsAi.assistantTest.wrongValue": {
     "status": "mt",
@@ -27146,6 +27166,10 @@
   "studio.settingsAi.field.noKeyBody": {
     "srcHash": "bee0cb485bf6",
     "status": "mt"
+  },
+  "studio.settingsAi.field.noKeyRemoteBody": {
+    "status": "mt",
+    "srcHash": "e19a61ebf7a1"
   },
   "studio.settingsAi.field.noKeyTitle": {
     "srcHash": "8d44d06a8e08",

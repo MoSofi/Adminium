@@ -77,8 +77,20 @@ export function failureText(turn: ThreadTurn, name: string, canConfigure: boolea
       // The bar across the window says when it starts again; this is the turn's own line.
       return t('assistant:error.budget', 'This stopped part way: today’s allowance is used up.');
     default:
+      // The two a person can act on are worded; the provider's own text stands under them.
+      if (turn.providerFailure === 'unreachable') return t('assistant:error.unreachable', 'Nothing answers at the model’s address. Check that it is running, then try again.');
+      if (turn.providerFailure === 'no-model') {
+        return canConfigure
+          ? t('assistant:error.noModel', 'The model is not there: its provider does not have it. Choose another model in Settings → AI.')
+          : t('assistant:error.noModelAsk', 'The model is not there: its provider does not have it. Ask an administrator to choose another model.');
+      }
       return turn.errorMessage ?? t('assistant:error.generic', 'That did not work. Try asking again.');
   }
+}
+
+/** The provider's own words, kept under a failure this app worded itself; `null` when they ARE the sentence. */
+export function failureDetail(turn: ThreadTurn): string | null {
+  return turn.errorKind === null && turn.providerFailure !== null ? turn.errorMessage : null;
 }
 
 export function TurnView({
@@ -197,6 +209,7 @@ export function TurnView({
           <div className="min-w-0 flex-1 overflow-hidden rounded-[16px] border border-border bg-surface pt-4 shadow-menu">
             <Warning
               text={failureText(turn, name, canConfigure)}
+              {...(failureDetail(turn) === null ? {} : { detail: failureDetail(turn) as string })}
               {...(onRetry === null || turn.errorKind === 'model-format' || turn.errorKind === 'budget'
                 ? {}
                 : {

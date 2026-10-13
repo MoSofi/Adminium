@@ -2211,6 +2211,7 @@ export default {
       "modelPlaceholder": "选择一个模型…",
       "modelStatic": "一份经过验证的列表；保存后输入自定义 ID 可刷新它。",
       "noKeyBody": "Ollama 在本地运行，因此没有任何内容离开这台机器。",
+      "noKeyRemoteBody": "这是 Ollama 云端模型：Ollama 在自己的服务器上运行它，因此交给模型的内容会离开这台机器。",
       "noKeyTitle": "无需 API 密钥"
     },
     "history": {
@@ -2240,7 +2241,7 @@ export default {
       "networkDisabledBody": "此 Adminium 配置为无出站网络访问，无法连接服务商 API。请使用下方的复制粘贴往返方式——无需密钥，也无需联网。",
       "networkDisabledTitle": "此安装已关闭直连 AI 服务商",
       "ollama": {
-        "desc": "通过 Ollama 在本地运行模型——无需密钥，无需云端。",
+        "desc": "通过你自己的 Ollama 运行的模型 — 无需密钥。",
         "label": "Ollama（本地）"
       },
       "openai": {
@@ -2300,7 +2301,9 @@ export default {
       "noTool": "此模型没有使用给它的工具就回答了。{name} 会靠猜，而不是读取你的数据。请换一个模型。",
       "wrongValue": "此模型用了工具，却报告了别的内容。请换一个模型。",
       "provider": "模型没有回答：{message}",
-      "error": "测试无法运行。请重试。"
+      "error": "测试无法运行。请重试。",
+      "unreachable": "模型的地址没有任何响应。请确认它正在运行。（{message}）",
+      "noModel": "模型不存在：提供方没有它。请选择其他模型。（{message}）"
     },
     "allowance": {
       "title": "每日额度",
