@@ -56,6 +56,51 @@ describe('the rule format the assistant is told', () => {
   });
 });
 
+describe('what a rule`s diff compares', () => {
+  const project = (artefact: Record<string, unknown>): string[] => automationContext.document!.projectForDiff(artefact);
+  const trigger = (extra: Record<string, unknown> = {}) => ({ kind: 'record', event: 'created', connectionId: 'conn_1', table: 'main.customers', ...extra });
+  const notify = (body: string, id = 'n2') => ({ id, kind: 'action', title: 'Notify admins', action: { kind: 'notification', to: { roles: ['role_admin'] }, title: 'New customer', body } });
+  const rule = (extra: { trigger?: Record<string, unknown>; nodes?: unknown[]; description?: string } = {}) => ({
+    name: 'Notify admins of new customers',
+    description: extra.description ?? null,
+    trigger: extra.trigger ?? trigger(),
+    graph: { version: 1, nodes: [{ id: 'n1', kind: 'trigger', title: 'New customer' }, ...(extra.nodes ?? [notify('A customer was added.')])] },
+  });
+  const before = project(rule());
+  const added = (after: string[]): string[] => after.filter((line) => !before.includes(line));
+
+  it('reads as the rule: its trigger, then each step with what it holds', () => {
+    expect(before).toContain('trigger: record created in main.customers');
+    expect(before).toContain('step: notification "Notify admins"');
+    expect(before).toContain('  body: A customer was added.');
+    // Ids are not what a rule says: the same rule renumbered compares equal.
+    expect(project(rule({ nodes: [notify('A customer was added.', 'step_9')] }))).toEqual(before);
+  });
+
+  it('shows a condition added to the trigger: "only when the loyalty tier is gold" was "+0 −0"', () => {
+    const gold = project(rule({ trigger: trigger({ when: [{ left: { field: 'loyalty_tier' }, op: 'is', right: 'gold' }] }) }));
+    expect(added(gold)).toEqual(['  when: loyalty_tier is "gold"']);
+    expect(before.filter((line) => !gold.includes(line))).toEqual([]);
+  });
+
+  it('shows a filter step`s condition, a description, and words past a step`s 160th character', () => {
+    const filtered = project(rule({ nodes: [{ id: 'n2', kind: 'condition', title: 'Only gold', condition: { left: { field: 'loyalty_tier' }, op: 'is', right: 'gold' } }, notify('A customer was added.', 'n3')] }));
+    expect(filtered).toContain('step: condition "Only gold"');
+    expect(filtered).toContain('  condition: loyalty_tier is "gold"');
+    expect(added(project(rule({ description: 'Tells the admins.' })))).toEqual(['description: Tells the admins.']);
+    const long = `${'A customer was added to the shop’s list, and this sentence runs on so that it is longer than the old cut. '.repeat(2).trim()}`;
+    expect(added(project(rule({ nodes: [notify(`${long} Look at their first order.`)] }))).join('|')).toContain('Look at their first order.');
+  });
+
+  it('never shows a webhook`s sealed header, and its being there is not a change', () => {
+    const hook = (sealed: Record<string, unknown>) => project(rule({ nodes: [{ id: 'n2', kind: 'action', title: 'Call out', action: { kind: 'webhook', url: 'https://example.com/hook', method: 'POST', headerName: 'X-Key', ...sealed } }] }));
+    const stored = hook({ headerValueEncrypted: 'v1:c2VhbGVk', headerValueSet: true });
+    expect(stored.join('\n')).not.toContain('c2VhbGVk');
+    expect(stored).toEqual(hook({ headerValueEncrypted: null }));
+    expect(stored).toContain('step: webhook "Call out"');
+  });
+});
+
 const base = MANIFEST.requiredSchema.tables;
 /** The guest house, with its guests: a stay links to the guest it is for. */
 const INN = {

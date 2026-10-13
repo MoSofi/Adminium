@@ -30,7 +30,7 @@ import { starterCards } from '../../report-documents/starters.js';
 import { connectionsSection, countLabel, documentNamesSection, readableConnections, tablesSummary } from '../page-facts.js';
 import { aggregateTool } from '../tools/aggregate.js';
 import type { AssistantArtefactCheck, AssistantContextAdapter, AssistantDetailRow, AssistantDocument, AssistantResample } from '../types.js';
-import { blockVocabulary, clip, jsonSchemaOf } from './format.js';
+import { blockVocabulary, clip, diffPieces, jsonSchemaOf } from './format.js';
 
 const BLOCK_MEANINGS: Readonly<Record<string, string>> = {
   heading: 'a section heading',
@@ -102,7 +102,7 @@ function str(value: unknown): string {
   return typeof value === 'string' ? value : '';
 }
 
-/** Kicker, title, subtitle, then one line per block — the diff's canonical form. */
+/** Kicker, title, subtitle, then every block with what it holds — the diff's canonical form. */
 function projectForDiff(artefact: Record<string, unknown>): string[] {
   const body = bodyOf(artefact);
   if (body === null) return [];
@@ -111,10 +111,28 @@ function projectForDiff(artefact: Record<string, unknown>): string[] {
     `title: ${str(body.reportTitle)}`,
     `subtitle: ${str(body.subtitle)}`,
   ];
-  for (const block of blocksOf(artefact)) {
-    lines.push(`block: ${str(block.block) || str(block.kind) || '?'} "${clip(str(block.title), 60)}" (${str(block.w) || 'full'})`);
-  }
+  for (const block of blocksOf(artefact)) lines.push(...linesOfBlock(block));
   return lines;
+}
+
+/** What a block's own line already says, and its `id`, which a redraft may renumber without changing anything. */
+const HEAD_FIELDS: readonly string[] = ['id', 'block', 'kind', 'title', 'w'];
+
+/**
+ * One block as lines: its kind, title and width, then everything it holds —
+ * a figure, a chart point, a table row or a sentence a line.
+ *
+ * It used to be the first line alone, so a KPI that went from 3 to 4, a chart
+ * with another bar and a rewritten paragraph all compared as "+0 −0" against
+ * the open report. A block that is drawn says nothing about `show`; a hidden
+ * one says so.
+ */
+function linesOfBlock(block: Record<string, unknown>): string[] {
+  const held = Object.fromEntries(Object.entries(block).filter(([key, value]) => !HEAD_FIELDS.includes(key) && !(key === 'show' && value === true)));
+  return [
+    `block: ${str(block.block) || str(block.kind) || '?'} "${str(block.title)}" (${str(block.w) || 'full'})`,
+    ...diffPieces(held).map((entry) => `  ${entry.label}: ${entry.piece}`),
+  ];
 }
 
 /** The blocks a descriptor can fill — the ones that hold figures. */

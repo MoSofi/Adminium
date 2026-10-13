@@ -631,6 +631,35 @@ describe('what each page will accept as a draft', () => {
     expect(lines).toContain('  email.heading: Welcome');
   });
 
+  it('projects every word of a block, so a changed paragraph is a changed line', async () => {
+    const email = await setup({ context: 'email', user: 'admin' });
+    const project = async (blocks: unknown[]): Promise<string[]> => {
+      const outcome = await email.adapter.document!.acceptArtefact({ kind: 'template', name: 'Shipped', locale: 'en_US', document: { subject: 'Shipped', blocks } }, email.deps);
+      expect(outcome.ok, JSON.stringify(outcome)).toBe(true);
+      return outcome.ok ? email.adapter.document!.projectForDiff(outcome.artefact) : [];
+    };
+    const button = { block: 'email.button', data: { label: 'Track my order', url: 'https://example.com/a' } };
+    const before = await project([{ block: 'email.text', data: { paras: ['Your order has shipped. Thank you for choosing us!'] } }, button]);
+    const after = await project([{ block: 'email.text', data: { paras: ['Your order has shipped. Thank you for choosing us!', 'Delivery usually takes 3 to 5 working days.'] } }, button]);
+
+    // A text block keeps its words in `paras`: they are in the projection, a sentence a line.
+    expect(before).toContain('  email.text: Your order has shipped.');
+    expect(before).toContain('    paras: Thank you for choosing us!');
+    // One sentence added to it is exactly one line more, and nothing else moves.
+    expect(after.filter((line) => !before.includes(line))).toEqual(['    paras: Delivery usually takes 3 to 5 working days.']);
+    expect(before.filter((line) => !after.includes(line))).toEqual([]);
+
+    // What a block holds beside its headline is compared too: a button sent somewhere else is a change.
+    expect(before).toContain('  email.button: Track my order');
+    const moved = await project([{ block: 'email.text', data: { paras: ['Your order has shipped. Thank you for choosing us!'] } }, { ...button, data: { ...button.data, url: 'https://example.com/b' } }]);
+    expect(moved.filter((line) => !before.includes(line))).toEqual(['    url: https://example.com/b']);
+
+    // A sentence past the 80th character used to be clipped away with the rest of its line.
+    const long = `${'A long opening that runs well past eighty characters before it reaches its end, '.repeat(2).trim()} and stops.`;
+    const tail = await project([{ block: 'email.heading', data: { text: `${long} Then one more.` } }]);
+    expect(tail.join('\n')).toContain('Then one more.');
+  });
+
   it('refuses an invoice that names no real template, or mints its own number', async () => {
     const template = await makeInvoiceTemplate('Consulting');
     const invoices = await setup({ context: 'invoices', user: 'admin' });
@@ -702,6 +731,56 @@ describe('what each page will accept as a draft', () => {
     const details = report.adapter.document!.details(outcome.artefact);
     expect(details.find((row) => row.kind === 'sourcesChosen')?.args.sources).toContain('counts every order');
     expect(details.map((row) => row.kind)).toContain('notPublished');
+  });
+
+  it('projects everything an invoice holds, so a changed note or due date is a changed line', async () => {
+    const template = await makeInvoiceTemplate('Diffed');
+    const invoices = await setup({ context: 'invoices', user: 'admin' });
+    const project = async (body: Record<string, unknown>): Promise<string[]> => {
+      const outcome = await invoices.adapter.document!.acceptArtefact({ basedOn: template.id, name: 'March', body: { customerName: 'Company 1', items: [{ id: 'i1', desc: 'Work', qty: '2', rate: '100.00' }], due: '2026-04-30', notes: 'Thank you. Pay by transfer.', ...body } }, invoices.deps);
+      expect(outcome.ok, JSON.stringify(outcome)).toBe(true);
+      return outcome.ok ? invoices.adapter.document!.projectForDiff(outcome.artefact) : [];
+    };
+    const before = await project({});
+    const added = (after: string[]): string[] => after.filter((line) => !before.includes(line));
+
+    expect(before).toContain('customer: Company 1');
+    expect(before.some((line) => /^ {2}Work · 2(\.0+)? · 100(\.0+)?$/.test(line)), before.join('\n')).toBe(true);
+    // What used to be left out: everything after the items and the section switches.
+    expect(added(await project({ due: '2026-05-15' }))).toEqual(['  due: 2026-05-15']);
+    expect(added(await project({ notes: 'Thank you. Pay by transfer. Late payments carry a fee.' }))).toEqual(['  notes: Late payments carry a fee.']);
+    // An item renumbered by a redraft is the same item.
+    expect(await project({ items: [{ id: 'x9', desc: 'Work', qty: '2', rate: '100.00' }] })).toEqual(before);
+  });
+
+  it('projects what a report block holds, so a changed figure is a changed line', async () => {
+    const report = await setup({ context: 'report', user: 'admin' });
+    const project = async (blocks: unknown[]): Promise<string[]> => {
+      const outcome = await report.adapter.document!.acceptArtefact({ name: 'Order mix', body: { reportTitle: 'Order mix', blocks } }, report.deps);
+      expect(outcome.ok, JSON.stringify(outcome)).toBe(true);
+      return outcome.ok ? report.adapter.document!.projectForDiff(outcome.artefact) : [];
+    };
+    const kpi = (value: string) => ({ id: 'b1', kind: 'kpi', title: 'Totals', w: 'full', show: true, kpis: [{ label: 'Orders', value }] });
+    const bar = (points: { label: string; value: number }[]) => ({ id: 'b2', kind: 'bar', title: 'By status', w: 'half', show: true, series: points });
+    const note = (text: string) => ({ id: 'b3', kind: 'text', title: 'Note', w: 'full', show: true, text });
+    const before = await project([kpi('3'), bar([{ label: 'shipped', value: 2 }]), note('Counted from orders. Cancelled ones are left out.')]);
+
+    // A block is its own line, then what it holds: a figure, a point and a sentence a line.
+    expect(before).toContain('block: kpi "Totals" (full)');
+    expect(before.some((line) => /^ {2}kpis: Orders · 3\b/.test(line))).toBe(true);
+    expect(before).toContain('  series: shipped · 2');
+    expect(before).toContain('  text: Cancelled ones are left out.');
+    // A block that is drawn says nothing of `show`, and no line carries a block's id.
+    expect(before.join('\n')).not.toMatch(/show|b[123]/);
+
+    const added = (after: string[]): string[] => after.filter((line) => !before.includes(line));
+    // The same blocks, titles and widths with other contents used to compare as "+0 −0".
+    expect(added(await project([kpi('4'), bar([{ label: 'shipped', value: 2 }]), note('Counted from orders. Cancelled ones are left out.')])).join('|')).toMatch(/^ {2}kpis: Orders · 4/);
+    expect(added(await project([kpi('3'), bar([{ label: 'shipped', value: 2 }, { label: 'pending', value: 1 }]), note('Counted from orders. Cancelled ones are left out.')]))).toEqual(['  series: pending · 1']);
+    expect(added(await project([kpi('3'), bar([{ label: 'shipped', value: 2 }]), note('Counted from orders. Cancelled ones are left out. Refunds too.')]))).toEqual(['  text: Refunds too.']);
+    // A hidden block says so; ids renumbered by a redraft change nothing.
+    expect(added(await project([{ ...kpi('3'), show: false }, bar([{ label: 'shipped', value: 2 }]), note('Counted from orders. Cancelled ones are left out.')]))).toEqual(['  show: false']);
+    expect(await project([{ ...kpi('3'), id: 'x1' }, { ...bar([{ label: 'shipped', value: 2 }]), id: 'x2' }, { ...note('Counted from orders. Cancelled ones are left out.'), id: 'x3' }])).toEqual(before);
   });
 
   it('refuses a report source that names a block the report does not have', async () => {

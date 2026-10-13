@@ -46,7 +46,7 @@ import { connectionsSection, countLabel, documentNamesSection, readableConnectio
 import type { AssistantArtefactCheck, AssistantContextAdapter, AssistantDocument, AssistantToolDeps } from '../types.js';
 import { addressColumnsOf } from '../tools/rule-parts.js';
 import { ruleFormat } from './automation-format.js';
-import { clip } from './format.js';
+import { diffPieces } from './format.js';
 
 const artefactSchema = z.object({
   name: z.string().min(1).max(120),
@@ -75,35 +75,85 @@ function addressColumnsLine(view: SnapshotView, tableId: string): string {
   return names.length === 0 ? `No column of ${tableId}, or of a row it links to, does: use typed addresses, or say that there is nobody to write to.` : `The columns that do: ${names.join(', ')}.`;
 }
 
-function triggerLine(trigger: unknown): string {
-  const value = (typeof trigger === 'object' && trigger !== null ? trigger : {}) as Record<string, unknown>;
+function recordOf(value: unknown): Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
+}
+
+/** A webhook's sealed header: the server's to write, never shown, and absent from a draft. */
+const SEALED: readonly string[] = ['headerValueEncrypted', 'headerValueSet'];
+
+/**
+ * A part of a rule as the diff reads it: a condition as one sentence
+ * (`loyalty_tier is "gold"`), and without ids (a redraft renumbers them) or
+ * the sealed header.
+ */
+function readable(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(readable);
+  if (typeof value !== 'object' || value === null) return value;
+  const record = value as Record<string, unknown>;
+  if ('left' in record && 'op' in record) return conditionText(record);
+  return Object.fromEntries(
+    Object.entries(record)
+      .filter(([key]) => key !== 'id' && !SEALED.includes(key))
+      .map(([key, entry]) => [key, readable(entry)]),
+  );
+}
+
+function conditionText(condition: Record<string, unknown>): string {
+  const left = recordOf(condition.left);
+  const subject = typeof left.field === 'string' ? left.field : JSON.stringify(readable(condition.left));
+  return `${subject} ${String(condition.op)}${condition.right === undefined ? '' : ` ${JSON.stringify(condition.right)}`}`;
+}
+
+/** `rest` without the keys its head line already says. */
+function held(value: Record<string, unknown>, said: readonly string[]): string[] {
+  const rest = Object.fromEntries(Object.entries(value).filter(([key]) => !said.includes(key)));
+  return diffPieces(readable(rest)).map((entry) => `  ${entry.label}: ${entry.piece}`);
+}
+
+/** The trigger's line, then everything else it holds: its conditions, its schedule, what it runs for. */
+function triggerLines(trigger: unknown): string[] {
+  // Parsed, so a draft and a stored rule carry the same defaults and compare equal where they are.
+  const parsed = automationTriggerSchema.safeParse(trigger);
+  const value = recordOf(parsed.success ? parsed.data : trigger);
   if (value.kind === 'record') {
     const changed = typeof value.changedColumn === 'string' && value.changedColumn !== '' ? ` (${value.changedColumn} changed)` : '';
-    return `trigger: record ${String(value.event)} in ${String(value.table)}${changed}`;
+    return [`trigger: record ${String(value.event)} in ${String(value.table)}${changed}`, ...held(value, ['kind', 'event', 'table', 'changedColumn'])];
   }
-  return `trigger: schedule ${JSON.stringify(value.schedule ?? {})}`;
+  return ['trigger: schedule', ...held(value, ['kind'])];
 }
 
-function nodeLine(node: Record<string, unknown>): string {
-  const kind = String(node.kind);
-  const title = clip(typeof node.title === 'string' ? node.title : '', 60);
-  if (kind === 'action') {
-    const action = (typeof node.action === 'object' && node.action !== null ? node.action : {}) as Record<string, unknown>;
-    return `step: ${String(action.kind)} "${title}" ${clip(JSON.stringify(action), 160)}`;
+/**
+ * One step as lines: what it is and its title, then everything it holds.
+ *
+ * EVERYTHING, and none of it clipped. A step used to be one line cut at 160
+ * characters, a filter step said nothing of its condition, and the trigger's
+ * own conditions were not in the projection at all: "only when the loyalty
+ * tier is gold" on an open rule compared as "+0 −0".
+ */
+function nodeLines(node: Record<string, unknown>): string[] {
+  const title = typeof node.title === 'string' ? node.title : '';
+  if (node.kind === 'action') {
+    const action = recordOf(node.action);
+    return [`step: ${String(action.kind)} "${title}"`, ...held({ ...node, ...action }, ['id', 'kind', 'title', 'action'])];
   }
-  if (kind === 'condition' || kind === 'branch') return `step: ${kind} "${title}" ${clip(JSON.stringify(node.condition ?? {}), 160)}`;
-  if (kind === 'wait') return `step: wait "${title}" ${String(node.amount)} ${String(node.unit)}`;
-  return `step: ${kind} "${title}"`;
+  // A branch's own steps follow as steps of their own: here it is its condition and its two labels.
+  const branches = Array.isArray(node.branches) ? { branches: node.branches.map((branch) => Object.fromEntries(Object.entries(recordOf(branch)).filter(([key]) => key !== 'nodes'))) } : {};
+  return [`step: ${String(node.kind)} "${title}"`, ...held({ ...node, ...branches }, ['id', 'kind', 'title'])];
 }
 
-/** Name, trigger, then one line per step — the diff's canonical form. */
+/** Name, description, trigger, then every step with what it holds — the diff's canonical form. */
 function projectForDiff(artefact: Record<string, unknown>): string[] {
-  const lines = [`name: ${typeof artefact.name === 'string' ? artefact.name : ''}`, triggerLine(artefact.trigger)];
+  const lines = [
+    `name: ${typeof artefact.name === 'string' ? artefact.name : ''}`,
+    `description: ${typeof artefact.description === 'string' ? artefact.description : ''}`,
+    ...triggerLines(artefact.trigger),
+  ];
   const parsed = automationGraphSchema.safeParse(artefact.graph);
   if (!parsed.success) return lines;
   for (const node of flattenNodes(parsed.data)) {
     if (node.kind === 'trigger') continue;
-    lines.push(nodeLine(node as unknown as Record<string, unknown>));
+    lines.push(...nodeLines(node as unknown as Record<string, unknown>));
   }
   return lines;
 }
@@ -348,7 +398,7 @@ const automationDocument: AssistantDocument = {
   async baseForDiff(basedOn, deps) {
     const rule = await automationsRepo(deps.meta).findById(basedOn);
     if (rule === null) return null;
-    return projectForDiff({ name: rule.name, trigger: rule.trigger, graph: rule.graph });
+    return projectForDiff({ name: rule.name, description: rule.description, trigger: rule.trigger, graph: rule.graph });
   },
 
   details() {
