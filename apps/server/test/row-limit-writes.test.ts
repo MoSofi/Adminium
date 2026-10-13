@@ -453,5 +453,19 @@ for (const [dialect, available] of ENGINES) {
         expect(patched.statusCode).toBe(404);
       });
     });
+
+    describe('a change that says what it saw', () => {
+      it('is made while a yes-or-no column still holds what the screen showed, and refused once it does not', async () => {
+        // Deal 1 is Dana's and is not `big`. A tick box seen as it is: the change goes through (SQLite used to answer 500 here).
+        const seenRight = await call('dana', 'PATCH', 'deals/1', { values: { title: 'Seen as it is' }, seen: { big: false } });
+        expect(seenRight.statusCode, seenRight.body).toBe(200);
+        // Seen as ticked, which it is not: somebody changed it, or the screen is stale.
+        const seenWrong = await call('dana', 'PATCH', 'deals/1', { values: { title: 'Seen wrongly' }, seen: { big: true } });
+        expect(seenWrong.statusCode, seenWrong.body).toBe(409);
+        expect(json<{ error: { code: string } }>(seenWrong).error.code).toBe('ROW_CHANGED');
+        expect(await w.rows('SELECT title FROM deals WHERE id = 1')).toEqual([{ title: 'Seen as it is' }]);
+        await w.run(`UPDATE deals SET title = 'Deal 1' WHERE id = 1`);
+      });
+    });
   });
 }

@@ -571,7 +571,8 @@ export async function updateRows(
           for (const [column, value] of Object.entries(expected ?? {})) {
             const resolved = table.columns.get(column);
             // A moment read back as a Date: on MySQL, spelled as the column holds it.
-            const bound = resolved?.logicalType === 'timestamptz' ? bindWriteValue(resolved, value, dialect) : value;
+            // …and a yes or no as the engine binds one (SQLite takes no boolean: a `seen` tick box answered 500 there).
+            const bound = resolved?.logicalType === 'timestamptz' ? bindWriteValue(resolved, value, dialect) : bindValue(dialect, value);
             out = out.where((eb) => (bound === null || bound === undefined ? eb(eb.ref(column as never), 'is', null) : eb(eb.ref(column as never), '=', bound as never)));
           }
           return stillRequired === undefined ? out : stillRequired(out);
