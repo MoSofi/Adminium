@@ -62,7 +62,9 @@ export function registerSseRoute(
       const raw = [request.query.channels, request.query.topics]
         .filter((v): v is string => typeof v === 'string' && v.length > 0)
         .join(',');
-      const channels = [...new Set(raw.split(',').map((c) => c.trim()).filter((c) => c.length > 0))];
+      const asked = [...new Set(raw.split(',').map((c) => c.trim()).filter((c) => c.length > 0))];
+      // A table named as an app's config names it is the same channel as its full id.
+      const channels = [...new Set(await Promise.all(asked.map(async (channel) => (await deps.canonicalChannel?.(channel)) ?? channel)))];
       if (channels.length === 0) {
         throw new ValidationFailedError('at least one channel is required (?channels=a,b)');
       }

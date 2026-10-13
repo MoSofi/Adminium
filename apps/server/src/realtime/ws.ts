@@ -179,15 +179,17 @@ export function registerWsRoute(app: FastifyInstance, deps: RealtimeGatewayDeps)
           send({ op: 'error', code: 'LIMIT_EXCEEDED', channel });
           return;
         }
-        if (!(await authorizeChannel(user, channel, deps))) {
+        // A table named as an app's config names it is the same channel as its full id; the client keeps the name it asked by.
+        const heard = (await deps.canonicalChannel?.(channel)) ?? channel;
+        if (!(await authorizeChannel(user, heard, deps))) {
           send({ op: 'error', code: 'FORBIDDEN', channel });
           return;
         }
         // As this subscriber reads the channel's table: the columns their role does not show taken out.
-        const shown = (await deps.frameFor?.(user, channel)) ?? null;
+        const shown = (await deps.frameFor?.(user, heard)) ?? null;
         subscriptions.set(
           channel,
-          deps.hub.subscribe(channel, orderedSink(shown, (event) => send(event))),
+          deps.hub.subscribe(heard, orderedSink(shown, (event) => send(event))),
         );
         send({ op: 'subscribed', channel });
       };

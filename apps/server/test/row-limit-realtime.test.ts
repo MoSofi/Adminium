@@ -13,7 +13,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { widgetDataChannel, type RealtimeEvent } from '../src/realtime/hub.js';
-import { orderedSink, readLimitedFrames } from '../src/realtime/read-frames.js';
+import { canonicalChannels, orderedSink, readLimitedFrames } from '../src/realtime/read-frames.js';
 import { ENGINES, world, type PersonName, type TableName, type World } from './row-limit-world.js';
 
 const OWN = { reach: 'own' } as const;
@@ -74,6 +74,18 @@ for (const [dialect, available] of ENGINES) {
     }, 120_000);
     afterAll(async () => {
       await w?.close();
+    });
+
+    it('hears a table by the name an app\'s config gives it, as by its full id', async () => {
+      const canonical = canonicalChannels(w.meta);
+      const full = widgetDataChannel(w.connectionId, w.id('followups'));
+      // An app's own screen knows `followups`; the hub publishes under the id (`main.followups`, `public.followups`…).
+      expect(await canonical(widgetDataChannel(w.connectionId, 'followups'))).toBe(full);
+      expect(await canonical(full)).toBe(full);
+      // A table that is not there, a connection that is not there, another kind of channel: as asked, for the checks after to refuse.
+      expect(await canonical(widgetDataChannel(w.connectionId, 'no_such_table'))).toBe(widgetDataChannel(w.connectionId, 'no_such_table'));
+      expect(await canonical('widget-data:conn_nowhere:followups')).toBe('widget-data:conn_nowhere:followups');
+      expect(await canonical('config-changed')).toBe('config-changed');
     });
 
     it('a row of a colleague is told to nobody it is not theirs to read', async () => {

@@ -138,6 +138,14 @@ export interface ChannelAuthDeps {
    * their roles are then; null: send them as they are.
    */
   frameFor?(user: RealtimeUser, channel: string): Promise<((event: RealtimeEvent) => Promise<RealtimeEvent | null>) | null>;
+  /**
+   * A channel as the hub publishes it. A table's frames go out under its full
+   * id (`main.crm_deals`, `public.crm_deals`); an app's own screen knows the
+   * table by the name its config gives (`crm_deals`), and asks by that. This
+   * answers the id's channel for either spelling, and the channel unchanged
+   * for anything it does not know (the checks that follow refuse it).
+   */
+  canonicalChannel?(channel: string): Promise<string>;
 }
 
 /**

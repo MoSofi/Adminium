@@ -33,7 +33,7 @@ import type { ConnectionManager } from '../connections/manager.js';
 import type { DsnCrypto } from '@adminium/meta';
 
 import type { FileStore } from '../files/store.js';
-import { readLimitedFrames } from '../realtime/read-frames.js';
+import { canonicalChannels, readLimitedFrames } from '../realtime/read-frames.js';
 import { EMAIL_CAMPAIGN_RUN_KIND, registerEmailCampaignRunHandler } from './email-campaign-run.js';
 import {
   EMAIL_SEND_JOB_KIND,
@@ -290,6 +290,8 @@ export async function registerJobsAndRealtime(
     getJobOwner: async (jobId) => jobOwnerId(await jobs.findById(jobId)),
     // A table a subscriber's role reads only in part: its frames without the other columns.
     frameFor: readLimitedFrames(meta),
+    // A table asked for by the name an app's config gives it is heard on its full id's channel.
+    canonicalChannel: canonicalChannels(meta),
   };
 
   await app.register(websocket, {

@@ -21,13 +21,31 @@ import { loadSnapshotView } from '../data-io/snapshot-view.js';
 import { permissionSetAllows, resolvePermissionSet, type PermissionSet } from '../rbac/resolver.js';
 import { rowReachesOf, type RowReach } from '../rbac/row-limits.js';
 import { readLimitOf } from '../rbac/read-limits.js';
-import { frameReachOf, parseChannel, widgetDataReadPermission, type RealtimeEvent, type RealtimeUser } from './hub.js';
+import { frameReachOf, parseChannel, widgetDataChannel, widgetDataReadPermission, type RealtimeEvent, type RealtimeUser } from './hub.js';
 
 /** A subscriber's frame of a channel as they may read it now; null: not theirs any more (not sent). */
 export type FrameFilter = (event: RealtimeEvent) => Promise<RealtimeEvent | null>;
 
 /** A subscriber's frames of a channel, or null to send them as they are (a channel that carries no row). */
 export type FrameFor = (user: RealtimeUser, channel: string) => Promise<FrameFilter | null>;
+
+/**
+ * A table's channel under the table's full id, however the subscriber spelled
+ * the table: by its id, or by its bare name as an app's config gives it. A
+ * table the connection does not have, or a channel of another kind, comes
+ * back as it was asked.
+ */
+export function canonicalChannels(meta: MetaDb): (channel: string) => Promise<string> {
+  return async (channel) => {
+    const parsed = parseChannel(channel);
+    if (parsed?.kind !== 'widget-data') return channel;
+    try {
+      return widgetDataChannel(parsed.connectionId, (await loadSnapshotView(meta, parsed.connectionId)).table(parsed.table).id);
+    } catch {
+      return channel;
+    }
+  };
+}
 
 export function readLimitedFrames(meta: MetaDb): FrameFor {
   return async (user, channel) => {
