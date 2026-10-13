@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * AN APP'S STARTING ROWS (`seeds`): what the manifest check accepts and what
- * it refuses. Until 0.3.27 an app's `seeds` were taken and never read: no
+ * it refuses. Until 0.3.28 an app's `seeds` were taken and never read: no
  * check looked at them and no install wrote them.
  */
 import { describe, expect, it } from 'vitest';
@@ -10,7 +10,7 @@ import { MAX_SEED_ROWS, installFloorWords, validateManifest } from '../src/index
 
 const id = { ref: 'id', type: 'int', role: 'pk' };
 
-function app(seeds: unknown, floor = '0.3.27'): Record<string, unknown> {
+function app(seeds: unknown, floor = '0.3.28'): Record<string, unknown> {
   return {
     kind: 'app',
     manifestVersion: 1,

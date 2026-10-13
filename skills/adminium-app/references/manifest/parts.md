@@ -5,7 +5,7 @@
 An app can be cut into **parts** its owner switches on and off: a business that sends no crews out
 switches "Jobs on site" off and never sees its pages, its roles or its rules. The screens say
 "parts"; the manifest word is `modules`. A manifest that uses it sets
-`compatibility.minAdminiumVersion` to `0.3.27` or later. An add-on declares none.
+`compatibility.minAdminiumVersion` to `0.3.28` or later. An add-on declares none.
 
 ```json
 "modules": [
@@ -40,9 +40,10 @@ there.
 - a role that belongs to the part holds **nothing on the part's tables** while it is off.
 
 **What it does not mean.** The tables and their rows stay. A role of *another* part that is
-granted one of those tables goes on reading and writing it: an account manager still sees a won
-deal's job while "Jobs on site" has no page. So a grant on a table lapses with the table's part
-only for a role that is itself of that part.
+granted one of those tables goes on **reading** it: an account manager still sees a won deal's
+job while "Jobs on site" has no page. Nobody writes it: a part that is off is stopped, so a
+grant to create, change, delete or import its rows holds for no role until it is on again. So a
+table's read grant lapses with the table's part only for a role that is itself of that part.
 
 Switching a part on needs no update and no restart. Nothing that happened while it was off is
 caught up: its rules did not run for those changes and do not run for them later. The app's own

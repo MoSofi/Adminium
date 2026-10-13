@@ -43,7 +43,7 @@ const seeds = (withUnits: boolean, lateLabel = 'Late'): Record<string, unknown>[
 const manifest = (version: string, withUnits = false, lateLabel = 'Late'): Record<string, unknown> => ({
   ...invoicingManifest(tables(withUnits)),
   version,
-  compatibility: { minAdminiumVersion: '0.3.27' },
+  compatibility: { minAdminiumVersion: '0.3.28' },
   pages: [{ ref: 'studio-reasons', template: 'page-crud', title: { key: 't', fallback: 'Reasons' }, nav: { group: 'library', icon: 'list', order: 1 }, bindings: { rows: 'reasons' } }],
   seeds: seeds(withUnits, lateLabel),
 });

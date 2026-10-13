@@ -46,11 +46,25 @@ export function zoneFor(schedule: Pick<NotificationSchedule, 'timezone'> | null,
 }
 
 /**
- * The moment the quiet hours a person is in at `at` end, or null when they
- * are in none. The window that started yesterday and runs past midnight
- * counts as much as today's.
+ * The moment a person's quiet hours end, for somebody in them at `at`; null
+ * when they are in none. Where one window ends as the next begins (Friday
+ * evening into a Saturday that is quiet all day), the end is the end of the
+ * last of them: what is held is not sent into another quiet hour. Followed
+ * through at most eight windows, so a week that is quiet throughout still
+ * has an end.
  */
 export function quietUntil(schedule: Pick<NotificationSchedule, 'timezone' | 'quiet'> | null, fallbackZone: string | null | undefined, at: number): number | null {
+  let end = windowEnd(schedule, fallbackZone, at);
+  for (let turn = 0; end !== null && turn < 8; turn += 1) {
+    const next = windowEnd(schedule, fallbackZone, end);
+    if (next === null || next <= end) break;
+    end = next;
+  }
+  return end;
+}
+
+/** The end of the one window a person is in at `at`: today's, or the one that started yesterday and runs past midnight. */
+function windowEnd(schedule: Pick<NotificationSchedule, 'timezone' | 'quiet'> | null, fallbackZone: string | null | undefined, at: number): number | null {
   const quiet = schedule?.quiet ?? null;
   if (quiet === null) return null;
   const timezone = zoneFor(schedule, fallbackZone);

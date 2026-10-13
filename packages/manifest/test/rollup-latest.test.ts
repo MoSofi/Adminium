@@ -12,7 +12,7 @@ const id = { ref: 'id', type: 'int', role: 'pk' };
 
 type Change = (tables: { deals: Record<string, any>[]; quotes: Record<string, any>[] }) => void;
 
-function crm(change: Change = () => {}, floor = '0.3.27'): Record<string, unknown> {
+function crm(change: Change = () => {}, floor = '0.3.28'): Record<string, unknown> {
   const deals: Record<string, any>[] = [
     id,
     { ref: 'quoted', type: 'decimal', scale: 2, nullable: true, rules: { rollup: { from: 'quotes', via: 'deal_id', latest: { of: 'total', by: 'sent_at', row: 'quote_id' } } } },

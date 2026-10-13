@@ -419,7 +419,9 @@ export function rowLimitFor(ctx: RowLimitContext, tableId: string, action: RowAc
         asked.map(async (set) => {
           const values = await set.values();
           // Only a set of plain keys, and a small one: anything else stays the subquery it was.
-          if (values.length <= SET_WRITTEN_OUT && values.every((value) => typeof value === 'string' || typeof value === 'number')) found.set(set.at, values as (string | number)[]);
+          // …and a whole number only when it is one this runtime holds exactly: a key past 2^53 comes back rounded.
+          const plain = (value: unknown): boolean => typeof value === 'string' || (typeof value === 'number' && (!Number.isInteger(value) || Number.isSafeInteger(value)));
+          if (values.length <= SET_WRITTEN_OUT && values.every(plain)) found.set(set.at, values as (string | number)[]);
         }),
       );
       known = found;

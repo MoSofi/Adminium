@@ -28,7 +28,7 @@ const bookings = (occupies: unknown, more: Record<string, unknown> = {}) => ({
   ...more,
 });
 
-function app(table: Record<string, unknown>, floor = '0.3.27'): Record<string, unknown> {
+function app(table: Record<string, unknown>, floor = '0.3.28'): Record<string, unknown> {
   return {
     kind: 'app',
     manifestVersion: 1,
@@ -118,7 +118,7 @@ describe('a table whose rows take a resource for a time', () => {
   it('asks for the release that runs it', () => {
     const doc = app(bookings({ resource: 'space_id', day: 'day' }));
     expect(installFloorWords(doc).map((found) => found.word)).toContain('table.occupies');
-    expect(said(app(bookings({ resource: 'space_id', day: 'day' }), '0.3.26'))).toContain('0.3.27');
+    expect(said(app(bookings({ resource: 'space_id', day: 'day' }), '0.3.26'))).toContain('0.3.28');
     expect(installFloorWords(app(bookings(undefined))).map((found) => found.word)).not.toContain('table.occupies');
   });
 });

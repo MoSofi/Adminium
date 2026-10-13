@@ -9,4 +9,5 @@ own clock, and the day and time their summaries are sent. A notice that arrives 
 in the app at once and its email waits for the hours to end; so does a rule's email to a person.
 `"urgent": true` on a notice is not held (a change to today's day sheet), and neither is a kind
 of notice the person marked "always tell me". A person who chose no time zone is read on the
-business's.
+business's. Where one window ends as the next begins (Friday evening into a Saturday that is
+quiet all day), what is held waits for the end of the last of them.

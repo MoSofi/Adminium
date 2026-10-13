@@ -2,6 +2,22 @@
 
 # Manifest spec: requiredSchema — Column rules
 
+| Field | Rule |
+|---|---|
+| `where` | `{ "column", "eq" }`: only child rows whose column equals the value are added up (`voided` is `false`). The value must fit the column, and the column must not be nullable: a row left empty would drop out of the total unseen. |
+| `balance` | `{ "column", "of", "minus"? }`: a second column of this row, kept as `of − minus… − total` (`balance = fee − waived − paid`). `minus` lists up to 4 columns. Every column named is a number column of this table, and the balance is a column of its own, with no rules of its own. |
+| `cap` | `true`: a child write that would take the balance below zero is refused. It needs a `balance` on the same rollup, or a balance elsewhere on the row whose `minus` lists this total (a write-off is capped by the balance it lowers). |
+| `capUnless` | `{ "column" }`, with `cap`: a yes/no column of the same row that lifts the cap while it is on (a stock level a shop sells from whether or not the count is right). The column is never empty. A balance guarded by two capped totals is lifted only when both name the same column. |
+| `latest` | `{ "of", "by", "row"? }`, in place of `sum` and `count`: the column holds the value of `of` in the newest child row, the one whose `by` (a date, a time or a number) is the greatest (a deal's amount is the total of its last sent quote: `{ "from": "quotes", "via": "deal_id", "latest": { "of": "total", "by": "sent_at", "row": "quote_id" } }`). A row whose `by` is empty is left out; of two rows with the same `by`, the one with the greater key is taken; `where` and `unlessSet` leave rows out as they do of a total. The column is nullable (it is empty while no row qualifies) and of the type of `of`. `row` names a nullable column of this table that Adminium fills with the key of the row it took: a plain column of the key's type, not a link (a link would stop that row being deleted), with no rules of its own. No `times`, `balance` or `cap`. Kept in the statement that writes the child row, like a total, and it climbs like one: a line added to the quote that counts moves the deal. Needs Adminium 0.3.28. |
+
+```json
+{ "ref": "paid", "type": "money", "default": 0,
+  "rules": { "rollup": { "from": "payments", "via": "visit_id", "sum": "amount",
+                         "where": { "column": "voided", "eq": false },
+                         "balance": { "column": "balance", "of": "fee", "minus": ["waived"] },
+                         "cap": true } } }
+```
+
 `of` may be another total of the row, so money given back is capped by money taken: two totals
 over the same payments, `taken` (`where` `kind` `taken`) and `given_back` (`where` `kind`
 `given_back`, `balance: { "column": "refundable", "of": "taken" }`, `cap: true`). A refund past what
@@ -83,33 +99,3 @@ An expression is a number, a column of the same row by its ref (`"qty"`), or one
 | `{ "join": [part, part, …] }` | Text: 2–8 parts, each a column of the row or a piece of text, joined in order. The whole formula, of a `text` column; see [Joined text](https://docs.adminium.dev/reference/manifest/#joined-text). |
 
 A condition is one of:
-
-| Condition | Holds when |
-|---|---|
-| `{ "eq": [column, value] }`, `{ "neq": [column, value] }` | The column equals, or does not equal, a string, number or boolean. The column may be of any type (an enum, a bool). `neq` does not hold for an empty column. |
-| `{ "gt": [a, b] }`, `{ "gte": … }`, `{ "lt": … }`, `{ "lte": … }` | `a` is greater, greater or equal, less, or less or equal than `b`. A comparison with an empty side does not hold. |
-| `{ "isNull": column }` | The column is empty. |
-| `{ "and": [c, c, …] }`, `{ "or": [c, c, …] }` | All, or any, of 2–8 conditions. |
-
-```json
-{ "if": [{ "eq": ["discount_kind", "percent"] },
-         { "mul": ["qty", "rate", { "sub": [1, { "div": [{ "coalesce": ["discount", 0] }, 100] }] }] },
-         { "sub": [{ "mul": ["qty", "rate"] }, { "coalesce": ["discount", 0] }] }] }
-```
-
-How a formula is worked out:
-
-- **Exactly.** Every value is read from its decimal text as an exact fraction, and nothing goes
-  through a floating-point number. `1 ÷ 3 × 3` is exactly 1, and a total is the same on Postgres,
-  MySQL and SQLite to the last minor unit.
-- **Rounded once**, half away from zero, to the column's [scale](https://docs.adminium.dev/reference/manifest/#decimal-places). A formula
-  column with no `scale` rounds to 0 places when it is an `int` or `bigint`, and to 4 when it is a
-  decimal. `round` inside a formula rounds that part early, where the arithmetic calls for it (a
-  tax rounded before it is added).
-- **Empty in, empty out.** An empty column makes the result empty unless `coalesce` says what to
-  read instead: a draft line with no rate yet has no amount, rather than an amount of 0 that looks
-  like a price.
-- **On every write.** A create works out every formula; an update works out the ones whose inputs
-  it changed, reading the stored row with the new values over it. A formula that reads another
-  formula column is worked out after it. A formula that reads a [rollup](https://docs.adminium.dev/reference/manifest/#totals-and-balances)
-  total is worked out again whenever the total moves.

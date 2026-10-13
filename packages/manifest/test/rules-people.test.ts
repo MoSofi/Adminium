@@ -27,7 +27,7 @@ function sales(): Record<string, unknown> {
     license: 'AGPL-3.0-only',
     description: { key: 'mft.sales.desc', fallback: 'Sales.' },
     categories: ['operations'],
-    compatibility: { minAdminiumVersion: '0.3.27', engines: ['postgres', 'mysql', 'sqlite'] },
+    compatibility: { minAdminiumVersion: '0.3.28', engines: ['postgres', 'mysql', 'sqlite'] },
     navGroups: [{ key: 'sales', label: en('Sales'), order: 1 }],
     requiredSchema: {
       prefixed: true,

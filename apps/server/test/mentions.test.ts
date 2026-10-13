@@ -11,7 +11,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { mentionedIn } from '../src/crud/mentions.js';
 import { LEGS, said, wholeServer, type WholeServer } from './whole-server.helpers.js';
 
-vi.mock('../src/version.js', () => ({ APP_VERSION: '0.3.27' }));
+vi.mock('../src/version.js', () => ({ APP_VERSION: '0.3.28' }));
 
 const id = { ref: 'id', type: 'int', role: 'pk' };
 const page = (ref: string, table: string, order: number) => ({ ref, template: 'page-crud', title: { key: `t.${ref}`, fallback: ref }, nav: { group: 'sales', icon: 'list', order }, bindings: { rows: table } });
@@ -27,7 +27,7 @@ function sales(): Record<string, unknown> {
     license: 'AGPL-3.0-only',
     description: { key: 'mft.sales.desc', fallback: 'Sales.' },
     categories: ['operations'],
-    compatibility: { minAdminiumVersion: '0.3.27', engines: ['postgres', 'mysql', 'sqlite'] },
+    compatibility: { minAdminiumVersion: '0.3.28', engines: ['postgres', 'mysql', 'sqlite'] },
     navGroups: [{ key: 'sales', label: { 'en-US': 'Sales' }, order: 1 }],
     requiredSchema: {
       prefixed: true,
@@ -152,6 +152,30 @@ for (const [dialect, reachable] of LEGS) {
       // The same on a change: the row keeps what it held.
       expect(said(await s.change('dana', 'deals', atrium, { notes: 'Now @[Ghost](usr_01NOBODYATALL00000000)' }))).toBe('422 VALIDATION_FAILED');
       expect(String((await s.rows(`select notes from sales_deals where id = ${String(atrium)}`))[0]!['notes'])).toContain('delivers');
+    });
+
+    it('lets a text that names somebody who has since left be edited, and names nobody new who is not here', async () => {
+      // Sam is in the deal's notes already; he is suspended, and Dana fixes a word.
+      await s.meta.db.updateTable('adminium_users').set({ status: 'suspended' }).where('id', '=', s.ids['sam']!).execute();
+      expect(said(await s.change('dana', 'deals', atrium, { notes: `Ask ${at('ivy')} about the terms. ${at('dana')} to follow up. ${at('sam')} delivers on the 12th.` }))).toBe('ok');
+      // Naming him anew, in a text that did not hold him, is refused.
+      expect(said(await s.make('dana', 'comments', { deal_id: atrium, body: `${at('sam')} are you there?` }))).toBe('422 VALIDATION_FAILED');
+      await s.meta.db.updateTable('adminium_users').set({ status: 'active' }).where('id', '=', s.ids['sam']!).execute();
+    });
+
+    it('names the record only when its writer reads it: a comment on a deal the writer cannot open says "a deal" and no more', async () => {
+      // Noor reads deals, but Atrium is Dana's. He hangs a comment on it by its number and mentions Sam.
+      const before = (await notices('sam')).length;
+      const made = await s.make('noor', 'comments', { deal_id: atrium, body: `${at('sam')} what is this one?` });
+      // Whether the write is his to make is the table's own affair; where it is made, the notice gives the deal's name away to nobody.
+      if (made.statusCode === 201) {
+        const told = await notices('sam');
+        expect(told).toHaveLength(before + 1);
+        expect(told[0]!.body).not.toContain('Atrium');
+        expect(told[0]).toMatchObject({ title: 'Noor mentioned you', actionUrl: null });
+      } else {
+        expect(await notices('sam')).toHaveLength(before);
+      }
     });
 
     it('offers the people who may be named by name, to anybody signed in', async () => {

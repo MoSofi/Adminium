@@ -231,10 +231,10 @@ the database.
 | `part` | with `builtOn` | snake_case: which part of the shape the table is (`document`, `lines`, `payments`). Only a table with `builtOn` has one. |
 | `capacity` | no | A limit on how much of a pool the table's rows may take (a time slot, a ticket type, a room type's nights), or a list of up to three; see [Capacity](#capacity). |
 | `booking` | no | Rows that book a person's time, never overlapping; see [Booking](#booking). A table has `capacity` or `booking`, not both. |
-| `occupies` | no | Rows that take a resource for a time (a room for an hour, a van for a day), never overlapping; see [A resource and a time](#a-resource-and-a-time). A table has one of `capacity`, `booking` and `occupies`. Needs Adminium 0.3.27. |
+| `occupies` | no | Rows that take a resource for a time (a room for an hour, a van for a day), never overlapping; see [A resource and a time](#a-resource-and-a-time). A table has one of `capacity`, `booking` and `occupies`. Needs Adminium 0.3.28. |
 | `states` | no | The states a row moves through, what is locked in each, and the child tables tied to them; see [States](#states). |
 | `unique` | no | 1–8 sets of 2–4 columns no two rows may hold the same values in together; see [Columns unique together](#columns-unique-together). |
-| `module` | no | The [part](#parts) of the app the table belongs to. Needs Adminium 0.3.27. |
+| `module` | no | The [part](#parts) of the app the table belongs to. Needs Adminium 0.3.28. |
 
 `label`, `labelPlural`, `keyField` and every column `label` are installed as the operator's own
 labels would be. The operator can rename anything; a name they changed is theirs, and a later
@@ -387,7 +387,7 @@ change or delete is theirs from then on.
 | `lookup` | `{ "from", "table", "column", "where"?, "scope"? }` | A foreign key filled from a code a person types into another column: a discount code, a presale code. See [Typed codes](#typed-codes). |
 | `addOnLink` | `{ "addOn", "table" }` | A link to a row of a table an add-on keeps: an order line's stock item, a payment's gift card. No foreign key is made, so the app installs whether or not the add-on is there. The add-on is one the manifest names under [`addOns`](#add-ons). While it is not installed, or not connected to this app, the link is inert: a value sent for it is refused (`POSTING_REFUSED`, reason `add-on-unavailable`, with the column) and the rows keep what they named. While it is there, a value must be the key of a row of that table, or the column is refused `not-found`. An empty link is always taken, and an import keeps whatever it names. A `lookup` on the same column may name the same table as `{ "addOn", "table" }`: a typed code then fills the link. A [`default`](#values-from-elsewhere) may fill it from a column of the app's settings row that carries the same `addOnLink` (same add-on, same table, same type), and from nowhere else: `"default": { "from": { "table": "settings", "column": "supplies_place_id" } }`. Such a default never refuses a save: it is left empty while the add-on is not there for the app, and when the row the setting names is gone. It needs `minAdminiumVersion` 0.3.19 or later. |
 | `plainText` | `true` or `{ "digits"?, "max"? }` | On a `text` column shown to people who did not write it: a name, the message on a card, a note to the kitchen. Letters, spaces and sentence punctuation only: no web address, no email address, no `@` handle, no path. `true` is a name (no digits, up to 80 characters); an object is a note with up to `digits` digits and `max` characters. It is the column's own rule, so it holds every way of writing the row: a staff save, an import, a guest's entry (which may be stricter still). Refused as `plain-text` on the column. |
-| `mentions` | `true` or `{ "about": link }` | On a `text` column people write to each other in (a note, a comment). Its box offers the people who sign in as the writer types `@`, and the text keeps each one named as `@[Name](usr_…)`. A save that names somebody who does not sign in here is refused by the column, with nothing written. After the save each person **newly** named is told who mentioned them and on which record, never what was written; one who cannot open that record gets the same notice with no link. `about` is a link of the table: a mention in a comment is about the deal the comment is on, and that is the record the notice names and opens. Not on a [private](#whose-a-row-is) table. Needs `minAdminiumVersion` `0.3.27`. |
+| `mentions` | `true` or `{ "about": link }` | On a `text` column people write to each other in (a note, a comment). Its box offers the people who sign in as the writer types `@`, and the text keeps each one named as `@[Name](usr_…)`. A save that names somebody who does not sign in here is refused by the column, with nothing written. After the save each person **newly** named is told who mentioned them and on which record, never what was written; one who cannot open that record gets the same notice with no link. The record is named only when the writer can read it. A mention in a row saved under another record's form tells the people a new row names; a change to such a row tells nobody. A text that already names somebody who has since left can still be edited. `about` is a link of the table: a mention in a comment is about the deal the comment is on, and that is the record the notice names and opens. Not on a [private](#whose-a-row-is) table. Needs `minAdminiumVersion` `0.3.28`. |
 | `customerKey` | `{ "of": "<address column>" }` | On a `text` column of 64 characters that may be empty: a keyed hash of the address in `of`, made by Adminium whenever that address is written and by nobody else (a value sent for it is dropped; a guest's entry may not list it). The same address gives the same key however it is spelled, and another key in another database. It says "the same customer" to whatever counts per customer, without keeping who. An empty address has no key. |
 | `codeLast4` | `{ "of": "<code column>" }` | On a `text` column that may be empty: the last four characters of the code in `of` (a column with `code`), cut by Adminium whenever that code is made — on a new row, when a collision makes it again, when a change of hands renews it. No writer's value is kept. It is what a list and a receipt show of a gift card; a code another column keeps the last four of is a **money code**, never shown in a list or a form. From Adminium 0.3.19. |
 | `perNight` | `{ "from", "to", "rate", "adjust"? }` | A price worked out night by night: a stay's room total. See [Prices by the night](#prices-by-the-night). |
@@ -503,7 +503,7 @@ that would take the balance below zero: what a visit's fee, its payments and its
 | `balance` | `{ "column", "of", "minus"? }`: a second column of this row, kept as `of − minus… − total` (`balance = fee − waived − paid`). `minus` lists up to 4 columns. Every column named is a number column of this table, and the balance is a column of its own, with no rules of its own. |
 | `cap` | `true`: a child write that would take the balance below zero is refused. It needs a `balance` on the same rollup, or a balance elsewhere on the row whose `minus` lists this total (a write-off is capped by the balance it lowers). |
 | `capUnless` | `{ "column" }`, with `cap`: a yes/no column of the same row that lifts the cap while it is on (a stock level a shop sells from whether or not the count is right). The column is never empty. A balance guarded by two capped totals is lifted only when both name the same column. |
-| `latest` | `{ "of", "by", "row"? }`, in place of `sum` and `count`: the column holds the value of `of` in the newest child row, the one whose `by` (a date, a time or a number) is the greatest (a deal's amount is the total of its last sent quote: `{ "from": "quotes", "via": "deal_id", "latest": { "of": "total", "by": "sent_at", "row": "quote_id" } }`). A row whose `by` is empty is left out; of two rows with the same `by`, the one with the greater key is taken; `where` and `unlessSet` leave rows out as they do of a total. The column is nullable (it is empty while no row qualifies) and of the type of `of`. `row` names a nullable column of this table that Adminium fills with the key of the row it took: a plain column of the key's type, not a link (a link would stop that row being deleted), with no rules of its own. No `times`, `balance` or `cap`. Kept in the statement that writes the child row, like a total, and it climbs like one: a line added to the quote that counts moves the deal. Needs Adminium 0.3.27. |
+| `latest` | `{ "of", "by", "row"? }`, in place of `sum` and `count`: the column holds the value of `of` in the newest child row, the one whose `by` (a date, a time or a number) is the greatest (a deal's amount is the total of its last sent quote: `{ "from": "quotes", "via": "deal_id", "latest": { "of": "total", "by": "sent_at", "row": "quote_id" } }`). A row whose `by` is empty is left out; of two rows with the same `by`, the one with the greater key is taken; `where` and `unlessSet` leave rows out as they do of a total. The column is nullable (it is empty while no row qualifies) and of the type of `of`. `row` names a nullable column of this table that Adminium fills with the key of the row it took: a plain column of the key's type, not a link (a link would stop that row being deleted), with no rules of its own. No `times`, `balance` or `cap`. Kept in the statement that writes the child row, like a total, and it climbs like one: a line added to the quote that counts moves the deal. Needs Adminium 0.3.28. |
 
 ```json
 { "ref": "paid", "type": "money", "default": 0,
@@ -715,7 +715,7 @@ A tax office expects an unbroken series of invoice numbers: none twice, none ski
 | `start` | The first number, at least 1. |
 | `startSetting` | The first number, read from a [setting](#values-from-elsewhere) when the row is made. Not with `start`. |
 | `scope` | A foreign key of the table: the series restarts for each row it points at (a deliverable's versions, v1, v2 …). |
-| `sample` | `true`: the app's [sample rows](#sample-data) may take numbers in the series, and the next real row follows them. For a series of the app's own (a job's `J-01`); never on a table built on an add-on's document. Needs Adminium 0.3.27. |
+| `sample` | `true`: the app's [sample rows](#sample-data) may take numbers in the series, and the next real row follows them. For a series of the app's own (a job's `J-01`); never on a table built on an add-on's document. Needs Adminium 0.3.28. |
 
 `scope` and `startSetting` need `gapless`.
 
@@ -1268,7 +1268,7 @@ strip of days, for a kind.
 two counted rows of one resource overlap. A showroom bay booked from two to three is not booked
 again at half past two; a demo van is out once a day. It has no kinds of visit, nobody to pick, no
 grid and no window. Use `booking` when people are booked for visits, and `occupies` for everything
-else that can be taken twice by mistake. Needs Adminium 0.3.27.
+else that can be taken twice by mistake. Needs Adminium 0.3.28.
 
 ```json
 "occupies": {
@@ -1784,7 +1784,7 @@ never both. See [A menu two apps share](/guides/apps/shared-menu/).
 An app can be cut into **parts** its owner switches on and off: a business that sends no crews out
 switches "Jobs on site" off and never sees its pages, its roles or its rules. The screens say
 "parts"; the manifest word is `modules`. A manifest that uses it sets
-`compatibility.minAdminiumVersion` to `0.3.27` or later. An add-on declares none.
+`compatibility.minAdminiumVersion` to `0.3.28` or later. An add-on declares none.
 
 ```json
 "modules": [
@@ -1819,9 +1819,10 @@ there.
 - a role that belongs to the part holds **nothing on the part's tables** while it is off.
 
 **What it does not mean.** The tables and their rows stay. A role of *another* part that is
-granted one of those tables goes on reading and writing it: an account manager still sees a won
-deal's job while "Jobs on site" has no page. So a grant on a table lapses with the table's part
-only for a role that is itself of that part.
+granted one of those tables goes on **reading** it: an account manager still sees a won deal's
+job while "Jobs on site" has no page. Nobody writes it: a part that is off is stopped, so a
+grant to create, change, delete or import its rows holds for no role until it is on again. So a
+table's read grant lapses with the table's part only for a role that is itself of that part.
 
 Switching a part on needs no update and no restart. Nothing that happened while it was off is
 caught up: its rules did not run for those changes and do not run for them later. The app's own
@@ -1854,7 +1855,7 @@ another table that reads the link column, for instance, is refused with "install
 `"maps": true` at the top of an app's manifest says the app shows maps. A map's pictures are
 fetched by each person's browser from a map server, so whether maps are shown is one switch for
 the whole install. The install check of the **first** app that says this asks, with the tick on;
-once somebody has answered, no later install asks again. Needs Adminium 0.3.27.
+once somebody has answered, no later install asks again. Needs Adminium 0.3.28.
 
 ### Tables built on an add-on's shape
 
@@ -1960,7 +1961,7 @@ and appears in the app's own sidebar section.
 | `bindings` | no | Which of the app's tables the page reads: an object from a page-local name to a `requiredSchema` table ref. |
 | `config` | no | Page configuration: a `form` for a record page, a `layout` for `page-dashboard`, a `calendar` for `page-calendar`. |
 | `feature` | no | The id of one of the app's [`addOns.features`](#add-ons). Until every add-on the feature requires is installed, attached to the app and switched on there, the page leaves the sidebar and is listed apart, with the add-ons it needs. |
-| `module` | no | The [part](#parts) of the app the page belongs to. While that part is off the page leaves the sidebar and its address answers `409` `PART_OFF`. Needs Adminium 0.3.27. |
+| `module` | no | The [part](#parts) of the app the page belongs to. While that part is off the page leaves the sidebar and its address answers `409` `PART_OFF`. Needs Adminium 0.3.28. |
 
 **Templates.** A table-bound template reads one table: `page-crud`, `page-board`,
 `page-calendar`, `page-scheduler`, `page-directory`, `page-master-detail`, `page-queue-inbox`,
@@ -2116,7 +2117,7 @@ out a button whose write would be refused; the data API still checks every write
 ## Whose a row is
 
 A role can be held to some rows of a table (see [Whose a row is](/guides/apps/whose-a-row-is/)).
-Five words say how. They need Adminium 0.3.27.
+Five words say how. They need Adminium 0.3.28.
 
 **A staff column** holds a staff member's id. It is a text column, and the only kind of column
 a person is read from:
@@ -2213,8 +2214,8 @@ sets it to anybody.
 |---|---|---|
 | `key` | yes | kebab-case. The full `<key>-<role key>` must fit in 40 characters. |
 | `name` | yes | 1–80 characters. The English name. |
-| `names` | no | The name in other languages, keyed by BCP 47 tag (`{ "de-DE": "Kassierer" }`), each 1–80 characters. A reader sees their own language until the owner renames the role; a renamed role is shown as the owner wrote it, in every language. Needs Adminium 0.3.27. |
-| `modules` | no | 1–16 ids of the [parts](#parts) of the app the role belongs to. The role is offered while any of them is on. Needs Adminium 0.3.27. |
+| `names` | no | The name in other languages, keyed by BCP 47 tag (`{ "de-DE": "Kassierer" }`), each 1–80 characters. A reader sees their own language until the owner renames the role; a renamed role is shown as the owner wrote it, in every language. Needs Adminium 0.3.28. |
+| `modules` | no | 1–16 ids of the [parts](#parts) of the app the role belongs to. The role is offered while any of them is on. Needs Adminium 0.3.28. |
 | `permissions` | no | Grants, in the forms below. |
 | `cloneFrom` | no | The key of another of this app's roles, whose grants this role also gets, and its `limits`. |
 | `screensOnly` | no | `true`: people with this role open the app's own screens and never the dashboard. |
@@ -2426,7 +2427,7 @@ invoice, receipt or statement, drawn by an add-on that renders documents. Up to 
 | `mapping` | yes | From each of the add-on's slots (letters, digits and `_`, starting with a letter) to where its value comes from. See below. |
 | `statement` | no | Makes the document a statement. See below. |
 | `feature` | no | One of the app's [`addOns.features`](#add-ons). |
-| `module` | no | The [part](#parts) of the app the document belongs to: it is not drawn while that part is off. Needs Adminium 0.3.27. |
+| `module` | no | The [part](#parts) of the app the document belongs to: it is not drawn while that part is off. Needs Adminium 0.3.28. |
 | `requestValues` | no | 1–8 slots the app's own screen may fill when it asks for the document (a label sheet's `count`). Each must be a slot the entry does not map; when the add-on is attached, its outline must have the slot, with no default, holding a number or a text. See below. |
 | `where` | no | `{ "column", "in": [...] }`: only rows whose column holds one of 1–16 values have this document (a `receipt` for `payments.kind` `taken`, not for money given back). Asked for another row, the render answers `409` `DOCUMENT_NOT_FOR_ROW`; an email that would carry it goes without it. |
 
@@ -2924,7 +2925,7 @@ the update's check, which sends `"publicAccess": true` to `POST /api/v1/apps/{ke
 | `methods` | yes | At least one of `GET`, `POST`, `PATCH`. `PATCH` needs a `claim`, a `claimedBy` that is not `optional`, or a `visibleWith`. |
 | `kind` | no | `records` (the default) or `availability`. |
 | `key` | no | The browser key that serves the entry: `customer` (the default) or a name in [`publicKeys`](#publickeys). |
-| `module` | no | The [part](#parts) of the app the entry belongs to: while that part is off the entry answers as one that is not there. Needs Adminium 0.3.27. |
+| `module` | no | The [part](#parts) of the app the entry belongs to: while that part is off the entry answers as one that is not there. Needs Adminium 0.3.28. |
 | `select` | no | The columns a response carries. Default: every column the app declares for the table. An entry with `claimedBy` must list them. |
 | `writable` | no | The columns a create or change may set. Never a column whose value Adminium decides. |
 | `writableValues` | no | `{ "<column>": [1–32 values] }`: the only values a browser may write into a writable column, on a create or a change. Each value must fit the column. |
@@ -3596,7 +3597,7 @@ claims `by: "token"`, and every entry on it is `GET` only, reaching the rest thr
 
 ## Automations
 
-`automations` lists up to 24 rules (more than 12 needs `minAdminiumVersion` `0.3.27`) an app or an add-on brings with it: "when a stock point falls
+`automations` lists up to 24 rules (more than 12 needs `minAdminiumVersion` `0.3.28`) an app or an add-on brings with it: "when a stock point falls
 to its reorder level, write a request and tell the managers". A rule is written the way the
 [rules page](/guides/automations/) stores one, a trigger and then a flow of steps. A manifest
 that uses it sets `compatibility.minAdminiumVersion` to `0.3.18` or later.
@@ -3623,7 +3624,7 @@ that uses it sets `compatibility.minAdminiumVersion` to `0.3.18` or later.
 | `name`, `description` | One text, or one per language with `en-US` among them. The install keeps the one the workspace speaks. So for a step's `title` and `sub`, and a notice's `title` and `body`. |
 | `enabled` | Whether the rule is switched on when it is first installed. After that the owner's switch stands. |
 | `trigger` | `{ "kind": "record", "event", "table", "changedColumn"?, "when"? }` with `event` one of `created`, `updated`, `deleted`; or `{ "kind": "schedule", "schedule", "forEach"? }`. A schedule is `{ "kind": "interval", "everyMinutes" }` (`"5"`, `"10"`, `"15"`, `"30"`, `"60"`) or `daily`, `weekly` (with `dayOfWeek`, 0 = Sunday) or `monthly` (with `dayOfMonth`, 1–28) at a `time` such as `"17:00"`. `forEach` is `{ "table", "where", "once" }`: the rows a run visits. |
-| `module` | Optional. The [part](#parts) of the app the rule belongs to: it starts no run while that part is off. Needs Adminium 0.3.27. |
+| `module` | Optional. The [part](#parts) of the app the rule belongs to: it starts no run while that part is off. Needs Adminium 0.3.28. |
 | `graph` | `{ "version": 1, "nodes" }`: up to 40 steps with unique ids, the trigger first and only once. A step is a `trigger`, an `action`, a `condition`, a `wait` (up to 30 days), a `stop`, or a `branch` with two branches of up to 20 steps. |
 
 A step's action is one of six:
@@ -3657,7 +3658,7 @@ for the end of their quiet hours like a notice does.
 `"per-spell"`: once for each time the row **starts** to meet the conditions. A deal that has gone
 quiet is told to its owner once; when somebody works on it and it goes quiet again a month later,
 its owner is told again. Adminium keeps, for each rule and row, whether the row met the conditions
-at the last look. A rule whose `forEach` is changed starts every spell afresh.
+at the last look. A rule whose `forEach` is changed ends every spell, so a row that still matches is told once more.
 
 ### Quiet hours and urgent
 
@@ -3666,7 +3667,8 @@ own clock, and the day and time their summaries are sent. A notice that arrives 
 in the app at once and its email waits for the hours to end; so does a rule's email to a person.
 `"urgent": true` on a notice is not held (a change to today's day sheet), and neither is a kind
 of notice the person marked "always tell me". A person who chose no time zone is read on the
-business's.
+business's. Where one window ends as the next begins (Friday evening into a Saturday that is
+quiet all day), what is held waits for the end of the last of them.
 
 ### A summary for each person
 
@@ -3685,7 +3687,9 @@ chose none). When it is sent, each section is read **as that person**: the rows 
 `owner` staff column names them, that meet `where`, among the rows their roles reach and with the
 columns their roles show. A manager who reads every deal still gets a summary of their own; a
 person who lost the role between the run and the send gets none; a person with nothing in any
-section gets no email unless `"sendEmpty": true`.
+section gets no email unless `"sendEmpty": true`. A summary that is waiting for its hour is not sent
+once its rule is switched off or deleted, or its part is off. `{{count.<section>}}` is how many rows
+there are, also when the section lists fewer.
 
 The template draws each section with a rows block that names it, `{ "block": "email.rows",
 "data": { "section": "open", "row": { "title": "{{row.name}}" }, "empty": "…" } }`, and may read
@@ -3772,7 +3776,7 @@ are listed on the Team page under their own status and are in no other count. "R
 data" takes them and their teams away, but for a person a row that stays still names (a deal the
 operator made and gave to a sample rep): that person stays until the row names somebody else, and
 the next "Add sample data" takes them back instead of making a second one. An add-on's manifest
-takes neither field. Needs Adminium 0.3.27.
+takes neither field. Needs Adminium 0.3.28.
 
 The file uses the `adminium.sample/1` format:
 
@@ -3932,8 +3936,8 @@ is seeded with at most 200 rows.
   [private](#whose-a-row-is) table, and a value in a column that holds a staff member (a manifest
   does not know who works here; leave the column out).
 
-An app's `seeds` are read from Adminium 0.3.27 on, so a manifest that has them sets
-`compatibility.minAdminiumVersion` to `0.3.27` or later; earlier releases accepted the block and
+An app's `seeds` are read from Adminium 0.3.28 on, so a manifest that has them sets
+`compatibility.minAdminiumVersion` to `0.3.28` or later; earlier releases accepted the block and
 wrote nothing. An add-on's `seeds` are described under [Add-on manifests](#add-on-manifests).
 
 `widgets` (a list of `{ "id", "entry" }`) are accepted by the schema, but this release does not act

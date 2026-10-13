@@ -18,8 +18,8 @@
 |---|---|---|
 | `key` | yes | kebab-case. The full `<key>-<role key>` must fit in 40 characters. |
 | `name` | yes | 1–80 characters. The English name. |
-| `names` | no | The name in other languages, keyed by BCP 47 tag (`{ "de-DE": "Kassierer" }`), each 1–80 characters. A reader sees their own language until the owner renames the role; a renamed role is shown as the owner wrote it, in every language. Needs Adminium 0.3.27. |
-| `modules` | no | 1–16 ids of the [parts](https://docs.adminium.dev/reference/manifest/#parts) of the app the role belongs to. The role is offered while any of them is on. Needs Adminium 0.3.27. |
+| `names` | no | The name in other languages, keyed by BCP 47 tag (`{ "de-DE": "Kassierer" }`), each 1–80 characters. A reader sees their own language until the owner renames the role; a renamed role is shown as the owner wrote it, in every language. Needs Adminium 0.3.28. |
+| `modules` | no | 1–16 ids of the [parts](https://docs.adminium.dev/reference/manifest/#parts) of the app the role belongs to. The role is offered while any of them is on. Needs Adminium 0.3.28. |
 | `permissions` | no | Grants, in the forms below. |
 | `cloneFrom` | no | The key of another of this app's roles, whose grants this role also gets, and its `limits`. |
 | `screensOnly` | no | `true`: people with this role open the app's own screens and never the dashboard. |

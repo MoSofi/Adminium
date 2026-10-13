@@ -35,7 +35,7 @@ import { adminPasswordHash, ADMIN_PASSWORD, sessionCookie } from './auth-helpers
 import { makeEnv, TEST_SECRET } from './helpers.js';
 
 // The server says the version it was built at; the words tried here are read from the release to come.
-vi.mock('../src/version.js', () => ({ APP_VERSION: '0.3.27' }));
+vi.mock('../src/version.js', () => ({ APP_VERSION: '0.3.28' }));
 
 type Dialect = 'sqlite' | 'postgres' | 'mysql';
 const POSTGRES_URL = process.env.TEST_POSTGRES_URL || undefined;
@@ -62,7 +62,7 @@ function desk(): Record<string, unknown> {
     license: 'AGPL-3.0-only',
     description: { key: 'mft.desk.desc', fallback: 'A desk.' },
     categories: ['operations'],
-    compatibility: { minAdminiumVersion: '0.3.27', engines: ['postgres', 'mysql', 'sqlite'] },
+    compatibility: { minAdminiumVersion: '0.3.28', engines: ['postgres', 'mysql', 'sqlite'] },
     modules: [
       { id: 'front', label: { 'en-US': 'Front desk', 'de-DE': 'Empfang' }, default: 'always' },
       { id: 'jobs', label: en('Jobs on site'), default: 'off' },
@@ -86,8 +86,8 @@ function desk(): Record<string, unknown> {
       ],
     },
     roles: [
-      // A role of another part that is granted the jobs: it goes on reading them while "Jobs on site" is off.
-      { key: 'agent', name: 'Agent', modules: ['front'], permissions: ['app:@:staff', 'table:@tickets:read', 'table:@tickets:create', 'table:@jobs:read', 'page:@desk-tickets:view'] },
+      // A role of another part that is granted the jobs: it goes on reading them while "Jobs on site" is off, and makes none.
+      { key: 'agent', name: 'Agent', modules: ['front'], permissions: ['app:@:staff', 'table:@tickets:read', 'table:@tickets:create', 'table:@jobs:read', 'table:@jobs:create', 'page:@desk-tickets:view'] },
       { key: 'fitter', name: 'Fitter', names: { 'de-DE': 'Monteur' }, modules: ['jobs'], permissions: ['table:@jobs:read', 'table:@jobs:create', 'table:@jobs:update', 'page:@desk-jobs:view'] },
       { key: 'dispatcher', name: 'Dispatcher', modules: ['jobs', 'fleet'], permissions: ['table:@jobs:read', 'table:@vans:read', 'page:@desk-jobs:view', 'page:@desk-vans:view'] },
       // Opens the app's own screens and never the dashboard.
@@ -326,8 +326,12 @@ for (const [dialect, reachable] of LEGS) {
       expect(said(await list('dispatcher', 'vans'))).toBe('ok');
       expect(said(await list('dispatcher', 'jobs'))).toBe('403 TABLE_FORBIDDEN');
       expect((await bootstrap('dispatcher')).partsOff).toBeUndefined();
-      // The agent is of the front desk and is granted the jobs: the table stays readable to them.
+      // The agent is of the front desk and is granted the jobs: the table stays readable to them…
       expect(said(await list('agent', 'jobs'))).toBe('ok');
+      // …and is written by nobody while its part is off: the agent may make a job only while jobs are done here at all.
+      const before = (await s.rows('select id from desk_jobs')).length;
+      expect(said(await make('agent', 'jobs', { title: 'Made while the part is off' }))).toBe('403 TABLE_FORBIDDEN');
+      expect((await s.rows('select id from desk_jobs')).length).toBe(before);
     });
 
     it('keeps a person of the app’s own screens out of the dashboard while their part is off, and tells them on those screens', async () => {

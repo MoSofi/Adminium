@@ -2,6 +2,19 @@
 
 # Manifest spec: requiredSchema — Column rules
 
+```json
+{ "ref": "checked_in_at", "type": "timestamptz", "nullable": true,
+  "rules": { "stamp": { "set": "now", "on": { "column": "status", "values": ["checked_in"] } } } }
+```
+
+| Field | Rule |
+|---|---|
+| `set` | What is written; see the table below. |
+| `on` | When: `"create"`; `{ "column", "values" }`, another column of the table and 1–16 values it must change to; `{ "column", "filled": true }`, the moment another column, a nullable one, is first filled; `{ "columns": [...] }`, whenever one of 1–8 other columns changes (a create sets them all); or a list of 2–3 of these, any of which writes the stamp. |
+| `clearOnBack` | `true`: emptied again when a move marked [`undo`](https://docs.adminium.dev/reference/manifest/#undo-of-a-move) takes the row back out of a state the stamp watches (the time an order was marked ready, when the kitchen undoes the Ready). The column is nullable, the stamp watches the table's state column, and some `undo` move leaves one of the states it watches. |
+
+What a stamp writes:
+
 | `set` | Writes | Column |
 |---|---|---|
 | `"now"` | The moment. | `timestamptz` |

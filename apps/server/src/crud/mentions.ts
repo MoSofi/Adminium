@@ -54,16 +54,20 @@ export function mentionColumns(table: Pick<EffectiveTable, 'columns'>): Marked[]
 
 /**
  * Judge the people a write names in its text. `values` is what the writer
- * sent; a column not sent names nobody new.
+ * sent; a column not sent names nobody new. `before` is the stored row, or
+ * null for a new one: somebody the text named already is not judged again, so
+ * a note that mentions a colleague who has since left can still be edited.
  */
-export async function assertMentions(meta: MetaDb, table: Pick<EffectiveTable, 'columns'> | undefined, values: Row): Promise<void> {
+export async function assertMentions(meta: MetaDb, table: Pick<EffectiveTable, 'columns'> | undefined, values: Row, before: Row | null = null): Promise<void> {
   if (table === undefined) return;
   const users = usersRepo(meta);
   for (const column of mentionColumns(table)) {
     if (!(column.name in values)) continue;
     const named = mentionedIn(values[column.name]);
     if (named.length > MENTIONS_MAX) throw new ValidationFailedError('Some values were refused.', { fields: { [column.name]: { code: 'too-many-mentions', max: MENTIONS_MAX } } });
+    const already = new Set(before === null ? [] : mentionedIn(before[column.name]));
     for (const id of named) {
+      if (already.has(id)) continue;
       const user = await users.findById(id);
       // Somebody who signs in, or one of the sample's people; nobody removed or suspended.
       if (user === null || (user.status !== 'active' && user.status !== 'sample')) throw new ValidationFailedError('Some values were refused.', { fields: { [column.name]: { code: 'mention-unknown' } } });
@@ -128,12 +132,22 @@ export async function tellMentioned(deps: MentionDeps, write: MentionWrite): Pro
     if (meant === null) continue;
     const { db } = await deps.manager.data(write.connectionId);
     const source = db as Kysely<SourceDatabase>;
+    // Whether somebody's roles read the record meant: its table, and this row among the rows they reach.
+    const opensIt = async (person: { id: string; name: string }): Promise<boolean> => {
+      const set = await resolvePermissionSet(meta, { kind: 'user', id: person.id, label: person.name });
+      if (!permissionSetAllows(set, `table:${write.connectionId}:${meant.table.id}:read`)) return false;
+      const reach = await rowLimitContextOf(meta, set, write.connectionId, write.view.model, new Date(at));
+      return reach === null || (await fetchVisible(reach, source, meant.table, meant.pk, 'read')) !== undefined;
+    };
     // The record's name as its table shows it, never a masked column; its key when it has none.
     const labelColumn = labelColumnFor(write.view, meant.table);
     const row = meant.table === write.table && column.about === null ? write.after : await fetchByPk(source, meant.table, meant.pk);
     if (row === undefined) continue;
     const label = labelColumn !== null && row[labelColumn] !== null && row[labelColumn] !== undefined && String(row[labelColumn]).trim() !== '' ? String(row[labelColumn]) : pkLabel(meant.table, meant.pk);
-    const where = `${meant.table.table.label ?? meant.table.table.name}: ${label}`;
+    // The record is named by the writer, to people who may not read it: so only a record the writer reads is named.
+    // A comment hung on a deal its writer cannot open says "a deal", and no more.
+    const tableName = meant.table.table.label ?? meant.table.table.name;
+    const where = (await opensIt(write.writer)) ? `${tableName}: ${label}` : tableName;
     const page = (await pagesRepo(meta).listForConnection(write.connectionId)).find((candidate) => candidate.isEnabled && sourceTableOf(candidate.config) === meant.table.id);
     const keys = Object.values(meant.pk);
     const recordId = keys.length === 1 ? String(keys[0]) : JSON.stringify(keys);
@@ -143,12 +157,7 @@ export async function tellMentioned(deps: MentionDeps, write: MentionWrite): Pro
       const user = await usersRepo(meta).findById(id);
       if (user === null || user.status !== 'active') continue;
       // A way in only for somebody who can open the record: their roles read the table, and this row is one they reach.
-      const set = await resolvePermissionSet(meta, { kind: 'user', id: user.id, label: user.name });
-      let opens = permissionSetAllows(set, `table:${write.connectionId}:${meant.table.id}:read`);
-      if (opens) {
-        const reach = await rowLimitContextOf(meta, set, write.connectionId, write.view.model, new Date(at));
-        if (reach !== null) opens = (await fetchVisible(reach, source, meant.table, meant.pk, 'read')) !== undefined;
-      }
+      const opens = await opensIt(user);
       await notify(
         meta,
         {

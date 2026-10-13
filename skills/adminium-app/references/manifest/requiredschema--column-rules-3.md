@@ -2,6 +2,18 @@
 
 # Manifest spec: requiredSchema — Column rules
 
+The [outbox's](https://docs.adminium.dev/reference/manifest/#outbox) own columns that Adminium writes (`status`, `sentAt`, `error`,
+`skipReason`, `approvedBy`, `effectAt` and `effectError`) take none of these rules, nor `options`,
+`validation`, `required`, `requiredWhen`, `notAfter` or `notBefore`: a stamp of who approved a
+message would race Adminium for the column, and a rule that refuses a value would refuse what
+Adminium writes, so every message the desk makes would be refused, or stuck. Its `to` and
+`language`, which Adminium writes when it looks the address up, take none that decide a value, nor
+`options`, `required` or `requiredWhen` (a desk leaves `to` empty to have it looked up); a
+`validation` of the address a person types is fine. Nor may another column's rule read one of them
+where the read could refuse Adminium's write: a note `requiredWhen` the status is `sent`, a `formula`
+worked out from `effectAt`, a `notBefore` bound on `sentAt`. The install names the column, and a
+Studio save refuses the same rules on an installed outbox's columns.
+
 Every name a rule uses is checked against the manifest: `copy.via` must be a foreign key of the
 table, `rollup.via` must point back at this table, and so on. `normalize` is for `text` columns
 only.
@@ -74,19 +86,3 @@ either (an order sent by email needs an address: its supplier's, or one typed on
 
 A rollup can also filter its child rows, keep a balance beside the total, and refuse a change
 that would take the balance below zero: what a visit's fee, its payments and its write-offs need.
-
-| Field | Rule |
-|---|---|
-| `where` | `{ "column", "eq" }`: only child rows whose column equals the value are added up (`voided` is `false`). The value must fit the column, and the column must not be nullable: a row left empty would drop out of the total unseen. |
-| `balance` | `{ "column", "of", "minus"? }`: a second column of this row, kept as `of − minus… − total` (`balance = fee − waived − paid`). `minus` lists up to 4 columns. Every column named is a number column of this table, and the balance is a column of its own, with no rules of its own. |
-| `cap` | `true`: a child write that would take the balance below zero is refused. It needs a `balance` on the same rollup, or a balance elsewhere on the row whose `minus` lists this total (a write-off is capped by the balance it lowers). |
-| `capUnless` | `{ "column" }`, with `cap`: a yes/no column of the same row that lifts the cap while it is on (a stock level a shop sells from whether or not the count is right). The column is never empty. A balance guarded by two capped totals is lifted only when both name the same column. |
-| `latest` | `{ "of", "by", "row"? }`, in place of `sum` and `count`: the column holds the value of `of` in the newest child row, the one whose `by` (a date, a time or a number) is the greatest (a deal's amount is the total of its last sent quote: `{ "from": "quotes", "via": "deal_id", "latest": { "of": "total", "by": "sent_at", "row": "quote_id" } }`). A row whose `by` is empty is left out; of two rows with the same `by`, the one with the greater key is taken; `where` and `unlessSet` leave rows out as they do of a total. The column is nullable (it is empty while no row qualifies) and of the type of `of`. `row` names a nullable column of this table that Adminium fills with the key of the row it took: a plain column of the key's type, not a link (a link would stop that row being deleted), with no rules of its own. No `times`, `balance` or `cap`. Kept in the statement that writes the child row, like a total, and it climbs like one: a line added to the quote that counts moves the deal. Needs Adminium 0.3.27. |
-
-```json
-{ "ref": "paid", "type": "money", "default": 0,
-  "rules": { "rollup": { "from": "payments", "via": "visit_id", "sum": "amount",
-                         "where": { "column": "voided", "eq": false },
-                         "balance": { "column": "balance", "of": "fee", "minus": ["waived"] },
-                         "cap": true } } }
-```

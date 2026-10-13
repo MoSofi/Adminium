@@ -20,7 +20,7 @@ const manifest = (version: string, keepPrivate: boolean): Record<string, unknown
     { ref: 'plain', columns: [id, { ref: 'name', type: 'text', maxLength: 80 }] },
   ]),
   version,
-  compatibility: { minAdminiumVersion: '0.3.27' },
+  compatibility: { minAdminiumVersion: '0.3.28' },
   pages: [{ ref: 'studio-plain', template: 'page-crud', title: { key: 't', fallback: 'Plain' }, nav: { group: 'library', icon: 'list', order: 1 }, bindings: { rows: 'plain' } }],
 });
 

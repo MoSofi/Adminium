@@ -53,6 +53,12 @@ export interface AutomationRunsRoutesDeps {
 }
 
 /** The comp's list window (D22). */
+/** A step of a run as it is shown: without the row it made, which is kept for the steps after it and for nobody's eyes. */
+function withoutMade<S extends { made?: unknown }>(step: S): Omit<S, 'made'> {
+  const { made: _made, ...shown } = step;
+  return shown;
+}
+
 export const RUNS_WINDOW_MS = 7 * DAY_MS;
 export const RUNS_PAGE_SIZE = 50;
 
@@ -193,7 +199,7 @@ export function automationRunsRoutes(deps: AutomationRunsRoutesDeps): FastifyPlu
           return {
             run: {
               ...row(run, ruleNames),
-              trace: run.trace === null ? null : { ...run.trace, steps: run.trace.steps.map((step) => ({ ...step, log: null })) },
+              trace: run.trace === null ? null : { ...run.trace, steps: run.trace.steps.map((step) => ({ ...withoutMade(step), log: null })) },
               triggerEvent: { ...withoutValues(run.triggerEvent), record: null, snapshot: null },
               error: run.error === null ? null : 'This run failed. What it read is not shown: your role reads only some rows of its table.',
             },
@@ -202,7 +208,9 @@ export function automationRunsRoutes(deps: AutomationRunsRoutesDeps): FastifyPlu
         return {
           run: {
             ...row(run, ruleNames),
-            trace: run.trace,
+            // The rows its steps made are kept for the run's own later steps, and are nobody's to read here: a reader
+            // of this run need not read the table a step wrote to, nor every column of it.
+            trace: run.trace === null ? null : { ...run.trace, steps: run.trace.steps.map(withoutMade) },
             triggerEvent: withoutValues(run.triggerEvent),
             error: run.error,
           },

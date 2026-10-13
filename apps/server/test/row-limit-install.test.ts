@@ -30,7 +30,7 @@ function manifest(version: string, over: { limits?: Record<string, unknown>; bel
     license: 'AGPL-3.0-only',
     description: { key: 'd', fallback: 'Sales.' },
     categories: ['operations'],
-    compatibility: { minAdminiumVersion: '0.3.27' },
+    compatibility: { minAdminiumVersion: '0.3.28' },
     requiredSchema: {
       prefixed: true,
       tables: [

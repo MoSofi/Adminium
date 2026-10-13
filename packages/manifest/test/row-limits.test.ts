@@ -68,7 +68,7 @@ function manifest(over: { tables?: Doc[]; roles?: unknown[]; floor?: string; ext
     license: 'AGPL-3.0-only',
     description: { key: 'd', fallback: 'Sales.' },
     categories: ['operations'],
-    compatibility: { minAdminiumVersion: over.floor ?? '0.3.27' },
+    compatibility: { minAdminiumVersion: over.floor ?? '0.3.28' },
     requiredSchema: { tables: over.tables ?? tables() },
     pages: [{ ref: 'crm-deals', template: 'page-crud', title: { key: 't', fallback: 'Deals' }, nav: { group: 'library', icon: 'list', order: 1 }, bindings: { rows: 'deals' } }],
     roles: over.roles ?? [rep, manager, accounts],
@@ -90,15 +90,15 @@ describe('whose a row is', () => {
     expect(messages(manifest())).toEqual([]);
   });
 
-  it('is four words of 0.3.27, each found where it is written', () => {
+  it('is four words of 0.3.28, each found where it is written', () => {
     const words = installFloorWords(manifest()).filter((found) => ['column.staff', 'table.belongs', 'table.private', 'roles.rows'].includes(found.word));
     expect(words).toContainEqual({ word: 'column.staff', path: 'requiredSchema.tables.0.columns.1.rules.staff' });
     expect(words).toContainEqual({ word: 'table.belongs', path: 'requiredSchema.tables.0.belongs' });
     expect(words).toContainEqual({ word: 'table.private', path: 'requiredSchema.tables.10.private' });
     expect(words).toContainEqual({ word: 'roles.rows', path: 'roles.0.limits.deals.rows' });
-    for (const word of ['column.staff', 'table.belongs', 'table.private', 'roles.rows'] as const) expect(WORD_FLOORS[word]).toBe('0.3.27');
+    for (const word of ['column.staff', 'table.belongs', 'table.private', 'roles.rows'] as const) expect(WORD_FLOORS[word]).toBe('0.3.28');
     // An older floor is told which release reads them.
-    expect(messages(manifest({ floor: '0.3.26' })).some((message) => message.includes('0.3.27'))).toBe(true);
+    expect(messages(manifest({ floor: '0.3.26' })).some((message) => message.includes('0.3.28'))).toBe(true);
     // A grant on an add-on's table carries the word too.
     const grant = { ...accounts, tables: [{ addOn: 'invoices', table: 'invoices', actions: ['read'], limit: { rows: { read: { reach: 'all', while: { column: 'status', in: ['sent'] } } } } }] };
     expect(installFloorWords(manifest({ roles: [grant] }))).toContainEqual({ word: 'roles.rows', path: 'roles.0.tables.0.limit.rows' });
@@ -111,7 +111,7 @@ describe('whose a row is', () => {
     expect(messages(withActions([give]))).toEqual([]);
     expect(messages(withActions([{ id: 'win', label: 'Won', move: { to: 'won' }, ask: ['owner_id'], handOver: true }]))).toEqual([]);
     expect(installFloorWords(withActions([{ id: 'win', label: 'Won', move: { to: 'won' } }, give]))).toContainEqual({ word: 'states.handOver', path: 'requiredSchema.tables.0.states.actions.1.handOver' });
-    expect(WORD_FLOORS['states.handOver']).toBe('0.3.27');
+    expect(WORD_FLOORS['states.handOver']).toBe('0.3.28');
     // Only `true`, and only on a button that writes the row: a link to a page hands nothing over.
     expect(messages(withActions([{ ...give, handOver: false }]))).not.toEqual([]);
     expect(messages(withActions([{ id: 'open', label: 'Open', link: { page: 'crm-deals', param: 'deal' }, in: ['open'], handOver: true }]))).not.toEqual([]);
@@ -313,7 +313,7 @@ describe('an add-on', () => {
     const kit = structuredClone(KIT) as unknown as Record<string, unknown>;
     const result = validateManifest({
       ...kit,
-      compatibility: { minAdminiumVersion: '0.3.27' },
+      compatibility: { minAdminiumVersion: '0.3.28' },
       requiredSchema: { prefixed: true, tables: [...KIT.requiredSchema.tables, { ref: 'notes', columns: [id, staff('owner_id')], belongs: [{ column: 'owner_id' }], private: true }] },
     });
     const said = result.ok ? [] : result.issues.map((issue) => `${issue.path}: ${issue.message}`);

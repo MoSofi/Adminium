@@ -2,6 +2,32 @@
 
 # Manifest spec: requiredSchema — Column rules
 
+| Field | Rule |
+|---|---|
+| `from`, `to` | Two different `date` columns of the row: the first night, and the day after the last. |
+| `rate` | `{ "via", "column" }`: a foreign key of the row, and the number column of the row it points at that holds the base rate. Never a secret or personal column. |
+| `adjust` | Optional. `table` holds the adjustments; `add` is the number added to a night (negative for a discount) and `name` the `text` a night's line is tagged with. |
+| `of` | Optional. `{ "via", "column" }`: this row's nights are a part of another row's price by the night (a credit for the nights a stay did not use): `via` a foreign key of this row, `column` that row's priced column. While that row's rates are the ones it was priced at, the part is today's price exactly; after they changed, it is scaled to what the row was charged, and never more than it. That column may not itself be a part. |
+| `adjust.match` | Which adjustments apply to a night. `via`: a foreign key to what `rate.via` points at (empty on a row: every type). `weekdays`: a `text` column of at least 27 characters listing nights like `fri,sat` (empty: every night). `from`, `to`: `date` columns, the first and last night it applies on, both included (empty: open). |
+| `adjust.where` | `{ "column", "eq" }`: only adjustments whose column holds the value (`active` is `true`). The column may not be nullable. |
+
+The column is a `decimal`, `money`, `int` or `bigint`, and a table has one such price. A create
+always works it out. A change works it out again only when it writes the dates or the rate's link
+to something new, so rates edited later never re-price a stay already booked, and a form that
+sends the whole row back keeps the booked price. An import keeps a figure it brings and works out
+one it leaves out. Formulas read the price (a subtotal, the tax, the total), so they run after it.
+
+The nights themselves are worked out, never stored: a dry run answers them (`date`, `rate`,
+`base`, `tags`), staff read them at `GET /api/v1/data/<connection>/<table>/<id>/nightly`, and a
+[document](https://docs.adminium.dev/reference/manifest/#documents) can list them. When the rates changed after the stay was priced, the lines
+come back as one line equal to the stored figure, so a folio never prints lines that disagree with
+its total. A rate rule that cannot be read refuses the write `409` `NIGHTLY_RATE_UNREADABLE`.
+
+#### Typed codes
+
+A `lookup` fills a foreign key from a code a person types: a discount code on an order, a presale
+code on a ticket. The browser never names the codes row itself; Adminium finds it.
+
 ```json
 { "ref": "promo_code", "type": "text", "maxLength": 32, "nullable": true },
 { "ref": "promo_id", "type": "fk", "references": "promo_codes", "nullable": true,
@@ -64,16 +90,3 @@ in the change's reply, and only to staff who may read the table.
 
 A stamp writes a value when a row is created, or when another column changes to one of a list of
 values: the time a patient checked in, who took a payment.
-
-```json
-{ "ref": "checked_in_at", "type": "timestamptz", "nullable": true,
-  "rules": { "stamp": { "set": "now", "on": { "column": "status", "values": ["checked_in"] } } } }
-```
-
-| Field | Rule |
-|---|---|
-| `set` | What is written; see the table below. |
-| `on` | When: `"create"`; `{ "column", "values" }`, another column of the table and 1–16 values it must change to; `{ "column", "filled": true }`, the moment another column, a nullable one, is first filled; `{ "columns": [...] }`, whenever one of 1–8 other columns changes (a create sets them all); or a list of 2–3 of these, any of which writes the stamp. |
-| `clearOnBack` | `true`: emptied again when a move marked [`undo`](https://docs.adminium.dev/reference/manifest/#undo-of-a-move) takes the row back out of a state the stamp watches (the time an order was marked ready, when the kitchen undoes the Ready). The column is nullable, the stamp watches the table's state column, and some `undo` move leaves one of the states it watches. |
-
-What a stamp writes:

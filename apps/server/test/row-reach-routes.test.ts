@@ -24,7 +24,7 @@ const manifest = (): Record<string, unknown> => ({
     { ref: 'notes', private: true, belongs: [{ column: 'manager_id' }, { column: 'rep_id' }], indexes: [['manager_id'], ['rep_id']], columns: [id, staff('manager_id'), staff('rep_id'), { ref: 'text', type: 'text', maxLength: 200 }] },
     { ref: 'plain', columns: [id, { ref: 'name', type: 'text', maxLength: 80 }] },
   ]),
-  compatibility: { minAdminiumVersion: '0.3.27' },
+  compatibility: { minAdminiumVersion: '0.3.28' },
   pages: [{ ref: 'studio-deals', template: 'page-crud', title: { key: 't', fallback: 'Deals' }, nav: { group: 'library', icon: 'list', order: 1 }, bindings: { rows: 'deals' } }],
 });
 

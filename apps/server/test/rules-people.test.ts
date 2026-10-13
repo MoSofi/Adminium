@@ -15,11 +15,12 @@
 import { automationsRepo, rolesRepo } from '@adminium/meta';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
+import { forgetSpellsIfChosenAnew } from '../src/automations/schedule.js';
 import { quietUntil } from '../src/notifications/quiet.js';
 import { LEGS, said, wholeServer, type WholeServer } from './whole-server.helpers.js';
 
 // The server says the version it was built at; the words tried here are read from the release to come.
-vi.mock('../src/version.js', () => ({ APP_VERSION: '0.3.27' }));
+vi.mock('../src/version.js', () => ({ APP_VERSION: '0.3.28' }));
 
 const en = (text: string) => ({ 'en-US': text });
 const id = { ref: 'id', type: 'int', role: 'pk' };
@@ -39,7 +40,7 @@ function sales(): Record<string, unknown> {
     license: 'AGPL-3.0-only',
     description: { key: 'mft.sales.desc', fallback: 'Sales.' },
     categories: ['operations'],
-    compatibility: { minAdminiumVersion: '0.3.27', engines: ['postgres', 'mysql', 'sqlite'] },
+    compatibility: { minAdminiumVersion: '0.3.28', engines: ['postgres', 'mysql', 'sqlite'] },
     navGroups: [{ key: 'sales', label: en('Sales'), order: 1 }],
     requiredSchema: {
       prefixed: true,
@@ -110,7 +111,7 @@ function sales(): Record<string, unknown> {
         name: en('Each person’s open deals'),
         enabled: true,
         trigger: { kind: 'schedule', schedule: { kind: 'interval', everyMinutes: '60' } },
-        graph: flow(node('sum', { kind: 'digest', templateKey: 'sales-week', to: { roles: ['rep', 'manager'] }, sections: [{ key: 'open', table: 'deals', owner: 'owner_id', where: [{ left: { field: 'state' }, op: 'is', right: 'open' }], orderBy: { column: 'name' } }] })),
+        graph: flow(node('sum', { kind: 'digest', templateKey: 'sales-week', to: { roles: ['rep', 'manager'] }, sections: [{ key: 'open', table: 'deals', owner: 'owner_id', where: [{ left: { field: 'state' }, op: 'is', right: 'open' }], orderBy: { column: 'name' }, limit: 1 }] })),
       },
       {
         key: 'enquiry-in',
@@ -149,6 +150,17 @@ describe('quiet hours, on a person’s own clock', () => {
     expect(quietUntil(evening, null, at('2026-10-13T17:00:00Z'))).toBeNull();
     expect(quietUntil(evening, null, at('2026-10-14T17:00:00Z'))).toBeNull();
     expect(quietUntil(null, 'Europe/Berlin', at('2026-10-12T17:00:00Z'))).toBeNull();
+  });
+
+  it('holds through windows that touch: Friday evening into a weekend that is quiet all day ends on Monday', () => {
+    const weekend = { timezone: 'UTC', quiet: { '5': { from: '19:00', to: '08:00' }, '6': { from: '00:00', to: '00:00' }, '0': { from: '00:00', to: '00:00' } } };
+    // Friday 16 October 2026, 20:00: not sent at 08:00 on Saturday, which is quiet too.
+    expect(new Date(quietUntil(weekend, null, at('2026-10-16T20:00:00Z'))!).toISOString()).toBe('2026-10-19T00:00:00.000Z');
+    // A week that is quiet throughout still has an end.
+    const always = { timezone: 'UTC', quiet: Object.fromEntries(['0', '1', '2', '3', '4', '5', '6'].map((day) => [day, { from: '00:00', to: '00:00' }])) };
+    const end = quietUntil(always, null, at('2026-10-16T20:00:00Z'))!;
+    expect(end).toBeGreaterThan(at('2026-10-17T00:00:00Z'));
+    expect(end).toBeLessThan(at('2026-10-27T00:00:00Z'));
   });
 
   it('reads the hours on the business’s clock for a person who chose no zone of their own', () => {
@@ -214,8 +226,10 @@ for (const [dialect, reachable] of LEGS) {
 
     it('holds a notice’s email to the end of the reader’s quiet hours, and lets an urgent one through', async () => {
       await s.emails();
-      // Quiet all day, every day, on her own clock: from midnight to the next midnight.
-      const always = Object.fromEntries(['0', '1', '2', '3', '4', '5', '6'].map((day) => [day, { from: '00:00', to: '00:00' }]));
+      // Quiet from two hours ago until two hours from now, on her own clock, whatever day it is.
+      const clock = (ms: number): string => new Date(ms).toISOString().slice(11, 16);
+      const ends = Math.floor((Date.now() + 2 * 3_600_000) / 60_000) * 60_000;
+      const always = Object.fromEntries(['0', '1', '2', '3', '4', '5', '6'].map((day) => [day, { from: clock(Date.now() - 2 * 3_600_000), to: clock(ends) }]));
       const saved = await s.send('dana', 'PUT', '/api/v1/me/notification-schedule', { timezone: 'UTC', quiet: always, digestDay: null, digestTime: null });
       expect(saved.statusCode, saved.body).toBe(200);
       expect((await s.get('dana', '/api/v1/me/notification-schedule')).json().data).toMatchObject({ timezone: 'UTC', quiet: always });
@@ -226,11 +240,9 @@ for (const [dialect, reachable] of LEGS) {
       await s.jobs({ except: ['digest.send'] });
       const held = (await s.emails()).filter((mail) => mail.to === 'dana@sales.test');
       expect(held).toHaveLength(1);
-      // Held to the next midnight on her clock; the notice itself is in the bell already.
-      const midnight = new Date(before);
-      midnight.setUTCHours(24, 0, 0, 0);
+      // Held to the end of her quiet hours; the notice itself is in the bell already.
       expect(held[0]!.runAt).toBeGreaterThan(before);
-      expect(Math.abs(held[0]!.runAt - midnight.getTime())).toBeLessThan(120_000);
+      expect(held[0]!.runAt).toBe(ends);
       expect((await notices('dana')).filter((title) => title === 'A follow-up on your deal')).toHaveLength(2);
 
       // Urgent: at once, quiet hours or not.
@@ -293,9 +305,10 @@ for (const [dialect, reachable] of LEGS) {
       // Dana: her two open deals and nobody else's. Ivy reads every deal, and is still sent only her own.
       const dana = mails.find((mail) => mail.to === 'dana@sales.test')!;
       expect(dana.subject).toBe('Your open deals, Dana');
+      // It says how many there are, and lists as many as the section allows: one.
       expect(dana.text).toContain('2 open.');
       expect(dana.text).toContain('Atrium');
-      expect(dana.text).toContain('Mews');
+      expect(dana.text).not.toContain('Mews');
       expect(dana.text).not.toContain('Yard');
       const ivy = mails.find((mail) => mail.to === 'ivy@sales.test')!;
       expect(ivy.text).toContain('1 open.');
@@ -318,6 +331,36 @@ for (const [dialect, reachable] of LEGS) {
       await rolesRepo(s.meta).assignToUser(s.ids['ivy']!, (await rolesRepo(s.meta).findBySlug('sales-manager'))!.id);
     });
 
+    it('sends no summary once its rule is switched off, though the summary was queued before', async () => {
+      await s.emails();
+      await s.tick();
+      await s.jobs({ except: ['digest.send'] });
+      const rule = (await automationsRepo(s.meta).listManagedBy('sales', s.connectionId)).find((one) => one.templateKey === 'weekly')!;
+      await automationsRepo(s.meta).update(rule.id, { enabled: false });
+      await s.jobs({ all: true });
+      expect((await s.emails()).filter((mail) => mail.templateKey === 'sales-week')).toEqual([]);
+      await automationsRepo(s.meta).update(rule.id, { enabled: true });
+    });
+
+    it('tells of a row again after the rule’s conditions change, in a spell with a number of its own', async () => {
+      const rule = (await automationsRepo(s.meta).listManagedBy('sales', s.connectionId)).find((one) => one.templateKey === 'quiet-deal')!;
+      const told = async () => (await notices('dana')).filter((title) => title === 'Quiet: Atrium').length;
+      const before = await told();
+      const runsBefore = (await runsOf('quiet-deal')).length;
+      // Atrium is quiet and has been told. The rule now chooses its rows differently.
+      const changed = { ...rule.trigger, forEach: { ...(rule.trigger as { forEach: Record<string, unknown> }).forEach, where: [{ left: { field: 'quiet' }, op: 'is', right: 1 }, { left: { field: 'state' }, op: 'is', right: 'open' }] } } as typeof rule.trigger;
+      await forgetSpellsIfChosenAnew(s.meta, rule.id, rule.trigger, changed);
+      await automationsRepo(s.meta).update(rule.id, { trigger: changed });
+      await s.tick();
+      await s.jobs({ except: ['digest.send'] });
+      // Told once more, by a new run: the spell before it kept its number.
+      expect(await told()).toBe(before + 1);
+      expect((await runsOf('quiet-deal')).length).toBeGreaterThan(runsBefore);
+      await s.tick();
+      await s.jobs({ except: ['digest.send'] });
+      expect(await told()).toBe(before + 1);
+    });
+
     it('makes a contact, a deal for them and, after a wait, a follow-up on that deal, in one rule', async () => {
       expect(said(await s.make('cole', 'enquiries', { name: 'Nordwind' }))).toBe('ok');
       await s.jobs({ except: ['digest.send'] });
@@ -329,6 +372,13 @@ for (const [dialect, reachable] of LEGS) {
       expect(waiting.status).toBe('waiting');
       expect(waiting.trace).toContain('"name":"contact"');
       expect(waiting.trace).toContain('"name":"deal"');
+      // Kept for the run's own later steps, and shown to nobody: a reader of the run need not read the tables it wrote to.
+      const rule = (await automationsRepo(s.meta).listManagedBy('sales', s.connectionId)).find((one) => one.templateKey === 'enquiry-in')!;
+      const runId = (await s.meta.db.selectFrom('adminium_automation_runs').select(['id']).where('automationId', '=', rule.id).execute()).at(-1)!.id;
+      const shown = await s.get('owner', `/api/v1/automation-runs/${runId}`);
+      expect(shown.statusCode, shown.body).toBe(200);
+      expect(shown.body).not.toContain('"made"');
+      expect(shown.body).not.toContain('Deal for Nordwind');
       expect(await s.rows(`select id from sales_follow_ups where deal_id = ${String(deal['id'])}`)).toEqual([]);
       // It comes back as a new job, with nothing but its trace to remember by.
       await s.jobs({ all: true, except: ['digest.send'] });

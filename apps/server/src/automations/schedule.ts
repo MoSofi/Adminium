@@ -222,11 +222,13 @@ async function runOneSchedule(input: {
 
   if (perSpell) {
     const spells = automationSpellsRepo(deps.meta);
-    for (const start of await spells.settle(rule.id, [...matching.keys()], { at: now, complete: !capped })) {
+    const starts = await spells.settle(rule.id, [...matching.keys()], { at: now, complete: !capped });
+    for (const [at, start] of starts.entries()) {
       const found = matching.get(start.rowKey)!;
       const started = await claim({ deps, rule, now, table, row: found.row, pk: found.pk, tick: undefined, spell: start.spell }).catch(async (error: unknown) => {
-        // The run was not made: the spell is as it was, so the next tick starts it again.
-        await spells.undoStart(rule.id, start);
+        // No run was made for this row, nor will one be for the rows after it in this tick: each of their
+        // spells is as it was, so the next tick starts them again. Left open, they would never be told.
+        for (const unrun of starts.slice(at)) await spells.undoStart(rule.id, unrun);
         throw error;
       });
       if (started) runsStarted += 1;

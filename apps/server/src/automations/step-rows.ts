@@ -20,7 +20,7 @@
 import type { AutomationGraph, AutomationNode, AutomationTraceStep } from '@adminium/meta';
 
 import type { ResolvedTable } from '../crud/identifiers.js';
-import type { Row } from '../crud/mask.js';
+import { keptCodeColumnsOf, type Row } from '../crud/mask.js';
 import { ActionFailure } from './actions/types.js';
 import type { TokenMap } from './templating.js';
 
@@ -51,9 +51,11 @@ function asText(value: unknown): string {
 /** What a named step keeps of the row it made: every column a rule may read, as text. */
 export function madeRowOf(name: string, table: ResolvedTable, pk: Record<string, unknown>, row: Row, standIn = false): MadeRow {
   const values: Record<string, string> = {};
+  // A code that opens something (a share link, a voucher) is kept nowhere but its own row.
+  const codes = keptCodeColumnsOf(table);
   for (const [column, resolved] of table.columns) {
     // What the product hides from the rule's author is not handed on to the next step either.
-    if (resolved.secret || resolved.masked) continue;
+    if (resolved.secret || resolved.masked || codes.has(column)) continue;
     const text = asText(row[column]);
     if (text.length <= 4000) values[column] = text;
   }

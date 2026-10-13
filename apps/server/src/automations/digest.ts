@@ -27,6 +27,7 @@
 import { z } from 'zod';
 import {
   automationDigestSectionSchema,
+  automationsRepo,
   connectionTenantConfig,
   jobsRepo,
   notificationSchedulesRepo,
@@ -49,7 +50,7 @@ import { recipientLocale } from '../i18n/server-i18n.js';
 import type { JobHandlerContext, JobRegistry } from '../jobs/registry.js';
 import { digestAt } from '../notifications/quiet.js';
 import { valueForms } from '../outbox/sender.js';
-import { offeredRoles } from '../rbac/app-parts.js';
+import { offeredRoles, rulePartOff } from '../rbac/app-parts.js';
 import { permissionSetAllows, resolvePermissionSet } from '../rbac/resolver.js';
 import { ActionFailure, type ActionContext, type ActionResult } from './actions/types.js';
 import { toRecordFilterAll } from './relative-time.js';
@@ -135,7 +136,7 @@ export interface DigestSendDeps {
   secret?: string | undefined;
 }
 
-export type DigestOutcome = { sent: true; rows: Record<string, number> } | { sent: false; why: 'gone' | 'away' | 'no-role' | 'nothing' | 'no-template' | 'no-email' };
+export type DigestOutcome = { sent: true; rows: Record<string, number> } | { sent: false; why: 'gone' | 'away' | 'no-role' | 'rule-off' | 'nothing' | 'no-template' | 'no-email' };
 
 /** Read one person's summary as that person, and queue its email. */
 export async function sendDigest(deps: DigestSendDeps, payload: DigestSendPayload, now: number = Date.now()): Promise<DigestOutcome> {
@@ -146,6 +147,10 @@ export async function sendDigest(deps: DigestSendDeps, payload: DigestSendPayloa
   // Still one of the people the step writes to: a role taken away since, or one whose part of its app is now off, ends it.
   const held = await offeredRoles(meta, await rolesRepo(meta).rolesForUser(user.id));
   if (!held.some((role) => payload.roles.includes(role.id))) return { sent: false, why: 'no-role' };
+  // A summary may wait days for the hour its reader chose. A rule deleted or switched off since, or one of a part
+  // of its app that is off now, writes to nobody.
+  const rule = await automationsRepo(meta).findById(payload.ruleId);
+  if (rule === null || !rule.enabled || (await rulePartOff(meta, rule))) return { sent: false, why: 'rule-off' };
 
   // As a rule reads (a private table is not in the view), then as this person reads: their rows, their columns.
   const whole = await loadSnapshotView(meta, payload.connectionId, { forOthers: true });
@@ -158,10 +163,15 @@ export async function sendDigest(deps: DigestSendDeps, payload: DigestSendPayloa
   const forms = valueForms({ locale: formatTag(null, locale), zone: tenant?.timezone ?? 'UTC', currency: tenant?.currency ?? null, now });
 
   const listed = new Map<string, Record<string, string>[]>();
+  const counts: Record<string, number> = {};
   for (const section of payload.sections) {
-    listed.set(section.key, await sectionRows({ section, view, whole, set, reach, db, dialect, userId: user.id, connectionId: payload.connectionId, madeAt: payload.madeAt, forms }));
+    // A section that cannot be read as this person (it sorts or chooses by a column their roles do not show)
+    // lists nothing for them: their other sections, and everybody else's summary, are not lost with it.
+    const read = await sectionRows({ section, view, whole, set, reach, db, dialect, userId: user.id, connectionId: payload.connectionId, madeAt: payload.madeAt, forms }).catch(() => ({ rows: [], total: 0 }));
+    listed.set(section.key, read.rows);
+    // How many there are, not how many of them the e-mail lists.
+    counts[section.key] = read.total;
   }
-  const counts = Object.fromEntries([...listed].map(([key, rows]) => [key, rows.length]));
   if (!payload.sendEmpty && [...listed.values()].every((rows) => rows.length === 0)) return { sent: false, why: 'nothing' };
 
   const template = await resolveRuleTemplate(meta, payload.templateKey, locale);
@@ -205,16 +215,17 @@ async function sectionRows(input: {
   connectionId: string;
   madeAt: number;
   forms: ReturnType<typeof valueForms>;
-}): Promise<Record<string, string>[]> {
+}): Promise<{ rows: Record<string, string>[]; total: number }> {
   const { section, view, whole, set, reach, db, dialect, userId, connectionId, madeAt, forms } = input;
+  const none = { rows: [], total: 0 };
   // A table that is not there (or is private), or one the person's roles do not read: the section lists nothing.
   const base = whole.linkTable(section.table);
-  if (base === null) return [];
-  if (!permissionSetAllows(set, `table:${connectionId}:${base.id}:read`)) return [];
+  if (base === null) return none;
+  if (!permissionSetAllows(set, `table:${connectionId}:${base.id}:read`)) return none;
   const table = readTableOf(view, base);
   const owner = base.table.columns.find((column: { name: string }) => column.name === section.owner) as { staff?: boolean } | undefined;
   // The owner column must still hold a staff member, and be one the person's roles show: a hidden one would say who by its rows.
-  if (owner?.staff !== true || table.columns.get(section.owner)?.unreadable === true) return [];
+  if (owner?.staff !== true || table.columns.get(section.owner)?.unreadable === true) return none;
   const theirs: RecordFilter = { column: section.owner, op: 'eq', value: userId };
   const where = toRecordFilterAll(section.where, { table: base, dialect, now: madeAt });
   const mandatory: RecordFilter = where === null ? theirs : { and: [where, theirs] };
@@ -223,13 +234,14 @@ async function sectionRows(input: {
     db,
     view,
     table,
-    params: { limit: section.limit, count: 'none', ...(section.orderBy === null ? {} : { order: `${section.orderBy.column}.${section.orderBy.dir}` }) },
+    params: { limit: section.limit, count: 'exact', ...(section.orderBy === null ? {} : { order: `${section.orderBy.column}.${section.orderBy.dir}` }) },
     canReadPii: false,
     dialect,
     mandatory,
+    countMandatory: true,
     ...(rowTest === null ? {} : { rowTest }),
   });
-  return page.data.map((row) => {
+  const rows = page.data.map((row) => {
     const own = base.columns.has('currency') ? row['currency'] : null;
     const currency = typeof own === 'string' && /^[A-Za-z]{3}$/.test(own.trim()) ? own.trim().toUpperCase() : null;
     const out: Record<string, string> = {};
@@ -247,6 +259,7 @@ async function sectionRows(input: {
     }
     return out;
   });
+  return { rows, total: 'page' in page && typeof page.page.total === 'number' ? page.page.total : rows.length };
 }
 
 export function registerDigestSendHandler(registry: JobRegistry, deps: DigestSendDeps): void {

@@ -37,7 +37,7 @@ const TABLES = [
 
 const manifest = (): Record<string, unknown> => ({
   ...invoicingManifest(TABLES),
-  compatibility: { minAdminiumVersion: '0.3.27' },
+  compatibility: { minAdminiumVersion: '0.3.28' },
   pages: [{ ref: 'studio-deals', template: 'page-crud', title: { key: 't', fallback: 'Deals' }, nav: { group: 'library', icon: 'list', order: 1 }, bindings: { rows: 'deals' } }],
   roles: [
     { key: 'rep', name: 'Rep', permissions: ['table:@deals:read', 'page:@studio-deals:view'], limits: { deals: { rows: { read: { reach: 'own' } } } } },

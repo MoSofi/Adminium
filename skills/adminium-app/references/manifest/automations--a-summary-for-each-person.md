@@ -19,7 +19,9 @@ chose none). When it is sent, each section is read **as that person**: the rows 
 `owner` staff column names them, that meet `where`, among the rows their roles reach and with the
 columns their roles show. A manager who reads every deal still gets a summary of their own; a
 person who lost the role between the run and the send gets none; a person with nothing in any
-section gets no email unless `"sendEmpty": true`.
+section gets no email unless `"sendEmpty": true`. A summary that is waiting for its hour is not sent
+once its rule is switched off or deleted, or its part is off. `{{count.<section>}}` is how many rows
+there are, also when the section lists fewer.
 
 The template draws each section with a rows block that names it, `{ "block": "email.rows",
 "data": { "section": "open", "row": { "title": "{{row.name}}" }, "empty": "…" } }`, and may read

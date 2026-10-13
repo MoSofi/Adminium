@@ -28,7 +28,7 @@ const manifest = (): Record<string, unknown> => ({
     },
     { ref: 'things', columns: [id, { ref: 'name', type: 'text', maxLength: 80 }] },
   ]),
-  compatibility: { minAdminiumVersion: '0.3.27' },
+  compatibility: { minAdminiumVersion: '0.3.28' },
   pages: [{ ref: 'studio-things', template: 'page-crud', title: { key: 't', fallback: 'Things' }, nav: { group: 'library', icon: 'list', order: 1 }, bindings: { rows: 'things' } }],
   seeds: [{ table: 'settings', rows: [{}] }],
   sampleData: { file: 'seeds/studio.json' },

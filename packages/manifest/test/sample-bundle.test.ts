@@ -201,7 +201,7 @@ describe('a running number the sample may take', () => {
     ],
     ...more,
   });
-  const doc = (table: Record<string, unknown>, floor = '0.3.27') => {
+  const doc = (table: Record<string, unknown>, floor = '0.3.28') => {
     const base = valid() as { requiredSchema: { tables: unknown[] }; compatibility: Record<string, unknown> };
     return { ...base, compatibility: { ...base.compatibility, minAdminiumVersion: floor }, requiredSchema: { ...base.requiredSchema, tables: [...base.requiredSchema.tables, { ref: 'sites', columns: [id] }, table] } };
   };
@@ -246,14 +246,14 @@ describe('a running number the sample may take', () => {
   it('is refused on a plain running number, and asks for the release that reads it', () => {
     expect(said(jobs({ sample: true }))).toContain('only a number without gaps is kept from sample rows');
     expect(said(jobs({ gapless: true, sample: true }))).toBe('');
-    expect(said(jobs({ gapless: true, sample: true }), '0.3.26')).toContain('0.3.27');
+    expect(said(jobs({ gapless: true, sample: true }), '0.3.26')).toContain('0.3.28');
   });
 
   it('is never an add-on document\'s number: a sample taken out would leave a hole in a tax series', () => {
     const base = valid() as { compatibility: Record<string, unknown>; requiredSchema: { tables: { ref: string; columns: { ref: string; rules?: { sequence?: Record<string, unknown> } }[] }[] } };
     const number = base.requiredSchema.tables.find((table) => table.ref === 'invoices')!.columns.find((column) => column.ref === 'number_seq')!;
     number.rules!.sequence = { ...number.rules!.sequence, sample: true };
-    const result = validateManifest({ ...base, compatibility: { ...base.compatibility, minAdminiumVersion: '0.3.27' } });
+    const result = validateManifest({ ...base, compatibility: { ...base.compatibility, minAdminiumVersion: '0.3.28' } });
     expect(result.ok ? '' : result.issues.map((issue) => issue.message).join('\n')).toContain('"invoices" is built on an add-on\'s document: its numbers are never a sample row\'s');
   });
 });

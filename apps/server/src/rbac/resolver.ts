@@ -94,7 +94,9 @@ export async function resolveForRoles(meta: MetaDb, roles: readonly Role[]): Pro
      * An app's roles are suspended with it: they grant nothing until it is
      * switched back on, and nothing about them is deleted. The same for a
      * role whose parts are all off; and a role of a part holds nothing on
-     * that part's tables while the part is off.
+     * that part's tables while the part is off. A role of ANOTHER part goes
+     * on reading them (a won deal's job is still a fact) and writes none of
+     * them: a part that is off is stopped, for everybody.
      */
     const parts = await loadAppParts(meta, [...new Set(roles.flatMap((role) => (role.appKey === null ? [] : [role.appKey])))]);
     const closed = await tablesOfPartsOff(meta, parts);
@@ -110,10 +112,12 @@ export async function resolveForRoles(meta: MetaDb, roles: readonly Role[]): Pro
       rowsByRole.push(rows);
       for (const row of await permissions.listForRole(role.id)) {
         if (row.resourceKind === 'table' && lapsed.some((table) => refNamesTable(row.resourceRef, table.connectionId, table.table, table.schema))) continue;
+        const stopped = row.resourceKind === 'table' && closed.some((table) => refNamesTable(row.resourceRef, table.connectionId, table.table, table.schema));
         const limit = limitOfRow(row);
         const read = readLimitOfRow(row);
         const create = createLimitOfRow(row);
         for (const grant of grantsFromMatrixRows([row])) {
+          if (stopped && WRITES.test(grant)) continue;
           grants.add(grant);
           if (limit !== null && grant.endsWith(':update')) limited.push({ grant, limit });
           else unlimited.add(grant);
@@ -155,6 +159,9 @@ function rowLimitsOf(roles: readonly RoleRowsDraft[]): { rowLimits?: RowLimits }
  * Resolve the acting principal's permission set. Unknown role ids (e.g. an
  * API key whose role was deleted) resolve to the empty set — deny.
  */
+/** A table grant that changes rows: what nobody holds on a table of a part that is off. */
+const WRITES = /:(create|update|delete|import)$/;
+
 export async function resolvePermissionSet(meta: MetaDb, principal: RbacPrincipal): Promise<PermissionSet> {
   const roles = rolesRepo(meta);
   if (principal.kind === 'api-key') {

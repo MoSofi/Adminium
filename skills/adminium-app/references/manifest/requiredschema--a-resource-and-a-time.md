@@ -8,7 +8,7 @@
 two counted rows of one resource overlap. A showroom bay booked from two to three is not booked
 again at half past two; a demo van is out once a day. It has no kinds of visit, nobody to pick, no
 grid and no window. Use `booking` when people are booked for visits, and `occupies` for everything
-else that can be taken twice by mistake. Needs Adminium 0.3.27.
+else that can be taken twice by mistake. Needs Adminium 0.3.28.
 
 ```json
 "occupies": {

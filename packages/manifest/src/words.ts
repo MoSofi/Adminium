@@ -137,42 +137,42 @@ export const WORD_FLOORS: Readonly<Partial<Record<ManifestWordName, string>>> = 
   'frontend.mobile': '0.3.26',
   // Whose a row is: a column that holds a staff member, the ways people belong to a table's rows,
   // a table read by those people alone, and a role whose read, update or delete reaches only some rows.
-  'column.staff': '0.3.27',
-  'table.belongs': '0.3.27',
-  'table.private': '0.3.27',
-  'roles.rows': '0.3.27',
+  'column.staff': '0.3.28',
+  'table.belongs': '0.3.28',
+  'table.private': '0.3.28',
+  'roles.rows': '0.3.28',
   // A record's button that hands the row to anybody: the one write a role limited to its own rows names a colleague in.
-  'states.handOver': '0.3.27',
+  'states.handOver': '0.3.28',
   // A total that is the newest child row's value, not a sum or a count (a deal's amount from its last sent quote).
-  'rollup.latest': '0.3.27',
+  'rollup.latest': '0.3.28',
   // Sample data that brings its own people and teams, and rows that name them.
-  'sampleData.people': '0.3.27',
+  'sampleData.people': '0.3.28',
   // An app's starting rows: written once by its install, into tables that are still empty.
-  'app.seeds': '0.3.27',
+  'app.seeds': '0.3.28',
   // A row takes a resource for a time: no two overlap, within the resource's hours.
-  'table.occupies': '0.3.27',
+  'table.occupies': '0.3.28',
   // A running number the app's sample rows may take: the next real row follows them.
-  'sequence.sample': '0.3.27',
+  'sequence.sample': '0.3.28',
   // The parts of an app its owner switches on and off, and everything that names one.
-  'app.modules': '0.3.27',
+  'app.modules': '0.3.28',
   // A role's name in other languages.
-  'roles.names': '0.3.27',
+  'roles.names': '0.3.28',
   // The app shows maps: its install asks whether they are shown.
-  'app.maps': '0.3.27',
+  'app.maps': '0.3.28',
   // A rule that tells the person a staff column of its record names.
-  'automations.staffRecipient': '0.3.27',
+  'automations.staffRecipient': '0.3.28',
   // A row visited once for each spell it matches.
-  'automations.perSpell': '0.3.27',
+  'automations.perSpell': '0.3.28',
   // A notice told at once, also in a person's quiet hours.
-  'automations.urgent': '0.3.27',
+  'automations.urgent': '0.3.28',
   // A summary for each person, of the rows that are theirs.
-  'automations.digest': '0.3.27',
+  'automations.digest': '0.3.28',
   // A row a step makes, read by a later step.
-  'automations.stepName': '0.3.27',
+  'automations.stepName': '0.3.28',
   // More rules than a manifest could ship before (twelve).
-  'automations.many': '0.3.27',
+  'automations.many': '0.3.28',
   // A text column in which people are mentioned.
-  'column.mentions': '0.3.27',
+  'column.mentions': '0.3.28',
 };
 
 /** Every word of `document` that needs the install floor, in document order. */

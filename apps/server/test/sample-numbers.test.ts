@@ -33,7 +33,7 @@ const manifest = (): Record<string, unknown> => ({
       ],
     },
   ]),
-  compatibility: { minAdminiumVersion: '0.3.27' },
+  compatibility: { minAdminiumVersion: '0.3.28' },
   pages: [{ ref: 'studio-jobs', template: 'page-crud', title: { key: 't', fallback: 'Jobs' }, nav: { group: 'library', icon: 'list', order: 1 }, bindings: { rows: 'jobs' } }],
   sampleData: { file: 'seeds/studio.json' },
 });

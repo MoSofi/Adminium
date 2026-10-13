@@ -29,7 +29,7 @@ are listed on the Team page under their own status and are in no other count. "R
 data" takes them and their teams away, but for a person a row that stays still names (a deal the
 operator made and gave to a sample rep): that person stays until the row names somebody else, and
 the next "Add sample data" takes them back instead of making a second one. An add-on's manifest
-takes neither field. Needs Adminium 0.3.27.
+takes neither field. Needs Adminium 0.3.28.
 
 The file uses the `adminium.sample/1` format:
 

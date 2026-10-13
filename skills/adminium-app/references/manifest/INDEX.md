@@ -17,13 +17,13 @@
 | `references/manifest/requiredschema--columns.md` | requiredSchema — Columns | 7808 |
 | `references/manifest/requiredschema--columns-2.md` | requiredSchema — Columns (part 2) | 652 |
 | `references/manifest/requiredschema--column-rules.md` | requiredSchema — Column rules | 7546 |
-| `references/manifest/requiredschema--column-rules-2.md` | requiredSchema — Column rules (part 2) | 7852 |
-| `references/manifest/requiredschema--column-rules-3.md` | requiredSchema — Column rules (part 3) | 7674 |
-| `references/manifest/requiredschema--column-rules-4.md` | requiredSchema — Column rules (part 4) | 7357 |
-| `references/manifest/requiredschema--column-rules-5.md` | requiredSchema — Column rules (part 5) | 7462 |
-| `references/manifest/requiredschema--column-rules-6.md` | requiredSchema — Column rules (part 6) | 7669 |
-| `references/manifest/requiredschema--column-rules-7.md` | requiredSchema — Column rules (part 7) | 6233 |
-| `references/manifest/requiredschema--column-rules-8.md` | requiredSchema — Column rules (part 8) | 5541 |
+| `references/manifest/requiredschema--column-rules-2.md` | requiredSchema — Column rules (part 2) | 7037 |
+| `references/manifest/requiredschema--column-rules-3.md` | requiredSchema — Column rules (part 3) | 6264 |
+| `references/manifest/requiredschema--column-rules-4.md` | requiredSchema — Column rules (part 4) | 7755 |
+| `references/manifest/requiredschema--column-rules-5.md` | requiredSchema — Column rules (part 5) | 7393 |
+| `references/manifest/requiredschema--column-rules-6.md` | requiredSchema — Column rules (part 6) | 7212 |
+| `references/manifest/requiredschema--column-rules-7.md` | requiredSchema — Column rules (part 7) | 7811 |
+| `references/manifest/requiredschema--column-rules-8.md` | requiredSchema — Column rules (part 8) | 6569 |
 | `references/manifest/requiredschema--moments.md` | requiredSchema — Moments | 2748 |
 | `references/manifest/requiredschema--capacity.md` | requiredSchema — Capacity | 7647 |
 | `references/manifest/requiredschema--capacity-2.md` | requiredSchema — Capacity (part 2) | 5558 |
@@ -37,7 +37,7 @@
 | `references/manifest/requiredschema--postings.md` | requiredSchema — Postings | 3904 |
 | `references/manifest/requiredschema--a-price-an-add-on-lowers.md` | requiredSchema — A price an add-on lowers | 3110 |
 | `references/manifest/requiredschema--shared-tables.md` | requiredSchema — Shared tables | 1948 |
-| `references/manifest/parts.md` | Parts | 4887 |
+| `references/manifest/parts.md` | Parts | 5026 |
 | `references/manifest/maps.md` | Maps | 4473 |
 | `references/manifest/option-lists.md` | Option lists | 851 |
 | `references/manifest/pages.md` | Pages | 6117 |
@@ -81,9 +81,9 @@
 | `references/manifest/public-access--publickeys.md` | Public access — publicKeys | 3463 |
 | `references/manifest/automations.md` | Automations | 4296 |
 | `references/manifest/automations--the-person-on-the-row.md` | Automations — The person on the row | 962 |
-| `references/manifest/automations--once-per-spell.md` | Automations — Once per spell | 653 |
-| `references/manifest/automations--quiet-hours-and-urgent.md` | Automations — Quiet hours and urgent | 707 |
-| `references/manifest/automations--a-summary-for-each-person.md` | Automations — A summary for each person | 1609 |
+| `references/manifest/automations--once-per-spell.md` | Automations — Once per spell | 691 |
+| `references/manifest/automations--quiet-hours-and-urgent.md` | Automations — Quiet hours and urgent | 856 |
+| `references/manifest/automations--a-summary-for-each-person.md` | Automations — A summary for each person | 1807 |
 | `references/manifest/automations--a-row-a-step-makes.md` | Automations — A row a step makes | 2591 |
 | `references/manifest/sample-data.md` | Sample data | 975 |
 | `references/manifest/sample-data--sample-people.md` | Sample data — Sample people | 7697 |

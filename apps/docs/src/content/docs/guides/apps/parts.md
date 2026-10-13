@@ -46,10 +46,10 @@ in the dashboard or on the app's own screens, instead of an empty page.
 
 **The records stay.** Nothing is deleted and no table is dropped.
 
-**Other parts keep reading them.** A role of a part that is *on* and is granted a table of a part
-that is *off* still reads and writes it. An account manager goes on seeing a won deal's job after
-"Jobs on site" is switched off. What lapses is only what the part's *own* roles hold on the part's
-tables.
+**Other parts keep reading them, and nobody writes them.** A role of a part that is *on* and is
+granted a table of a part that is *off* still reads it. An account manager goes on seeing a won
+deal's job after "Jobs on site" is switched off. It does not write it: no role creates, changes,
+deletes or imports rows of a part that is off.
 
 So "off" hides a part and stops what it does. It is not a way to lock data away: for that, change
 what the roles are granted, or hold a role to [some rows](/guides/apps/whose-a-row-is/).

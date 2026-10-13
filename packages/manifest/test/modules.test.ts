@@ -14,7 +14,7 @@ const id = { ref: 'id', type: 'int', role: 'pk' };
 const en = (text: string) => ({ 'en-US': text });
 const page = (ref: string, table: string, more: Doc = {}) => ({ ref, template: 'page-crud', title: { key: `t.${ref}`, fallback: ref }, nav: { group: 'library', icon: 'list', order: 1 }, bindings: { rows: table }, ...more });
 
-function app(change: (m: Doc) => void = () => undefined, floor = '0.3.27'): Doc {
+function app(change: (m: Doc) => void = () => undefined, floor = '0.3.28'): Doc {
   const m: Doc = {
     kind: 'app',
     manifestVersion: 1,
@@ -92,7 +92,7 @@ describe('modules: the vocabulary', () => {
     const words = installFloorWords(app()).map((found) => found.word);
     expect(words).toContain('app.modules');
     expect(words).toContain('roles.names');
-    expect(messages(app(undefined, '0.3.26')).join('\n')).toContain('"app.modules" is read by Adminium 0.3.27 and later');
+    expect(messages(app(undefined, '0.3.26')).join('\n')).toContain('"app.modules" is read by Adminium 0.3.28 and later');
   });
 
   it('refuses a module declared twice, a feature the app does not have, and a name that is no module', () => {
@@ -121,7 +121,7 @@ describe('modules: the vocabulary', () => {
   });
 
   it('refuses the words in an add-on', () => {
-    const addOn = { ...addOnManifest(), compatibility: { minAdminiumVersion: '0.3.27' }, requiredSchema: { prefixed: true, tables: [{ ref: 'notes', module: 'selling', columns: [id] }] } };
+    const addOn = { ...addOnManifest(), compatibility: { minAdminiumVersion: '0.3.28' }, requiredSchema: { prefixed: true, tables: [{ ref: 'notes', module: 'selling', columns: [id] }] } };
     expect(messages(addOn).join('\n')).toContain('an add-on declares no module');
   });
 });

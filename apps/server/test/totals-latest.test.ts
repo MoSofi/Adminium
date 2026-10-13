@@ -22,7 +22,7 @@ import { latestOf } from '../src/crud/write-service.js';
 const id = { ref: 'id', type: 'int', role: 'pk' };
 
 function manifest(): Record<string, unknown> {
-  return { ...invoicingManifest(tables()), compatibility: { minAdminiumVersion: '0.3.27' } };
+  return { ...invoicingManifest(tables()), compatibility: { minAdminiumVersion: '0.3.28' } };
 }
 
 function tables(): Record<string, unknown>[] {

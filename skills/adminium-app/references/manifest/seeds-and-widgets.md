@@ -39,8 +39,8 @@ is seeded with at most 200 rows.
   [private](https://docs.adminium.dev/reference/manifest/#whose-a-row-is) table, and a value in a column that holds a staff member (a manifest
   does not know who works here; leave the column out).
 
-An app's `seeds` are read from Adminium 0.3.27 on, so a manifest that has them sets
-`compatibility.minAdminiumVersion` to `0.3.27` or later; earlier releases accepted the block and
+An app's `seeds` are read from Adminium 0.3.28 on, so a manifest that has them sets
+`compatibility.minAdminiumVersion` to `0.3.28` or later; earlier releases accepted the block and
 wrote nothing. An add-on's `seeds` are described under [Add-on manifests](https://docs.adminium.dev/reference/manifest/#add-on-manifests).
 
 `widgets` (a list of `{ "id", "entry" }`) are accepted by the schema, but this release does not act

@@ -8,7 +8,7 @@
 | `methods` | yes | At least one of `GET`, `POST`, `PATCH`. `PATCH` needs a `claim`, a `claimedBy` that is not `optional`, or a `visibleWith`. |
 | `kind` | no | `records` (the default) or `availability`. |
 | `key` | no | The browser key that serves the entry: `customer` (the default) or a name in [`publicKeys`](https://docs.adminium.dev/reference/manifest/#publickeys). |
-| `module` | no | The [part](https://docs.adminium.dev/reference/manifest/#parts) of the app the entry belongs to: while that part is off the entry answers as one that is not there. Needs Adminium 0.3.27. |
+| `module` | no | The [part](https://docs.adminium.dev/reference/manifest/#parts) of the app the entry belongs to: while that part is off the entry answers as one that is not there. Needs Adminium 0.3.28. |
 | `select` | no | The columns a response carries. Default: every column the app declares for the table. An entry with `claimedBy` must list them. |
 | `writable` | no | The columns a create or change may set. Never a column whose value Adminium decides. |
 | `writableValues` | no | `{ "<column>": [1–32 values] }`: the only values a browser may write into a writable column, on a create or a change. Each value must fit the column. |

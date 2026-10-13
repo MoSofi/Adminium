@@ -2,6 +2,37 @@
 
 # Manifest spec: requiredSchema — Column rules
 
+| Field | Rule |
+|---|---|
+| `gapless` | `true`. The column is an `int` or `bigint`, and nullable. |
+| `start` | The first number, at least 1. |
+| `startSetting` | The first number, read from a [setting](https://docs.adminium.dev/reference/manifest/#values-from-elsewhere) when the row is made. Not with `start`. |
+| `scope` | A foreign key of the table: the series restarts for each row it points at (a deliverable's versions, v1, v2 …). |
+| `sample` | `true`: the app's [sample rows](https://docs.adminium.dev/reference/manifest/#sample-data) may take numbers in the series, and the next real row follows them. For a series of the app's own (a job's `J-01`); never on a table built on an add-on's document. Needs Adminium 0.3.28. |
+
+`scope` and `startSetting` need `gapless`.
+
+The number is the largest the table holds (for `scope`, the largest for that parent row) plus one,
+and never less than the start. It is taken inside the transaction that inserts the row, so an
+insert that fails takes its number back with it and the next create takes the same one. Two
+creates at once never read the same largest number. When one is still taking the next number, the
+other may be answered `409` `NUMBER_BUSY`, to try again. A number a writer sends is dropped, from
+every writer but an import. A numbered row's create is never undone: undo is refused `409`, since a
+number once taken stays taken; void the row instead.
+
+`format` writes the number as text in the same statement:
+
+| Field | Rule |
+|---|---|
+| `from` | The row's numbered column (one with a `gapless` sequence). |
+| `prefix` | Up to 12 letters, digits and `- _ / .` (`INV-`). |
+| `prefixSetting` | The prefix, read from a [setting](https://docs.adminium.dev/reference/manifest/#values-from-elsewhere) when the row is made. Not with `prefix`. A change applies to the next number. |
+| `pad` | The digits are padded with zeros to this many (0–12). |
+
+The `format` column is `text` and nullable, and its `maxLength` must hold the prefix and the
+padding. Give the text a `unique` constraint, as the example does: a second guard against a
+number twice, which MySQL's numbering also leans on.
+
 An import brings its own history: it keeps the numbers its rows carry, and a row that carries only
 the text, written as the table's prefix followed by digits, gets the number from those digits.
 The series then carries on after the largest. Sample rows spell a gapless number `null`, so they
@@ -88,29 +119,3 @@ the column holds their sum.
                 "match": { "via": "room_type_id", "weekdays": "weekdays", "from": "from_date", "to": "to_date" },
                 "add": "amount", "name": "name", "where": { "column": "active", "eq": true } } } } }
 ```
-
-| Field | Rule |
-|---|---|
-| `from`, `to` | Two different `date` columns of the row: the first night, and the day after the last. |
-| `rate` | `{ "via", "column" }`: a foreign key of the row, and the number column of the row it points at that holds the base rate. Never a secret or personal column. |
-| `adjust` | Optional. `table` holds the adjustments; `add` is the number added to a night (negative for a discount) and `name` the `text` a night's line is tagged with. |
-| `of` | Optional. `{ "via", "column" }`: this row's nights are a part of another row's price by the night (a credit for the nights a stay did not use): `via` a foreign key of this row, `column` that row's priced column. While that row's rates are the ones it was priced at, the part is today's price exactly; after they changed, it is scaled to what the row was charged, and never more than it. That column may not itself be a part. |
-| `adjust.match` | Which adjustments apply to a night. `via`: a foreign key to what `rate.via` points at (empty on a row: every type). `weekdays`: a `text` column of at least 27 characters listing nights like `fri,sat` (empty: every night). `from`, `to`: `date` columns, the first and last night it applies on, both included (empty: open). |
-| `adjust.where` | `{ "column", "eq" }`: only adjustments whose column holds the value (`active` is `true`). The column may not be nullable. |
-
-The column is a `decimal`, `money`, `int` or `bigint`, and a table has one such price. A create
-always works it out. A change works it out again only when it writes the dates or the rate's link
-to something new, so rates edited later never re-price a stay already booked, and a form that
-sends the whole row back keeps the booked price. An import keeps a figure it brings and works out
-one it leaves out. Formulas read the price (a subtotal, the tax, the total), so they run after it.
-
-The nights themselves are worked out, never stored: a dry run answers them (`date`, `rate`,
-`base`, `tags`), staff read them at `GET /api/v1/data/<connection>/<table>/<id>/nightly`, and a
-[document](https://docs.adminium.dev/reference/manifest/#documents) can list them. When the rates changed after the stay was priced, the lines
-come back as one line equal to the stored figure, so a folio never prints lines that disagree with
-its total. A rate rule that cannot be read refuses the write `409` `NIGHTLY_RATE_UNREADABLE`.
-
-#### Typed codes
-
-A `lookup` fills a foreign key from a code a person types: a discount code on an order, a presale
-code on a ticket. The browser never names the codes row itself; Adminium finds it.

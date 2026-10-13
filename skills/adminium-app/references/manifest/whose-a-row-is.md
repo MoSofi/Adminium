@@ -3,7 +3,7 @@
 # Manifest spec: Whose a row is
 
 A role can be held to some rows of a table (see [Whose a row is](https://docs.adminium.dev/guides/apps/whose-a-row-is/)).
-Five words say how. They need Adminium 0.3.27.
+Five words say how. They need Adminium 0.3.28.
 
 **A staff column** holds a staff member's id. It is a text column, and the only kind of column
 a person is read from:

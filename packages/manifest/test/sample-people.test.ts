@@ -10,7 +10,7 @@ import { installFloorWords, sampleBundleIssues, sampleBundleSchema, sampleDirect
 
 const id = { ref: 'id', type: 'int', role: 'pk' };
 
-function crm(change: (sample: Record<string, any>, doc: Record<string, any>) => void = () => {}, floor = '0.3.27'): Record<string, any> {
+function crm(change: (sample: Record<string, any>, doc: Record<string, any>) => void = () => {}, floor = '0.3.28'): Record<string, any> {
   const doc: Record<string, any> = {
     kind: 'app',
     manifestVersion: 1,

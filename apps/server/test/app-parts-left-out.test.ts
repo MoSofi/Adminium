@@ -42,7 +42,7 @@ const page = (ref: string, table: string, module: string) => ({ ref, template: '
 function crm(): Doc {
   return appManifest('crm', {
     version: '0.2.0',
-    compatibility: { minAdminiumVersion: '0.3.27', engines: ['postgres', 'mysql', 'sqlite'] },
+    compatibility: { minAdminiumVersion: '0.3.28', engines: ['postgres', 'mysql', 'sqlite'] },
     addOns: {
       suggests: [{ key: 'invoices', range: '>=1.1.0', reason: en('Quotes are made by this add-on.'), checked: true }],
       features: [{ id: 'quotes', label: en('Quotes'), requires: ['invoices'] }],

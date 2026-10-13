@@ -543,7 +543,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
       await assertLinksToUnreadTables(ctx.view.model, ctx.connectionId, ctx.writer, db, tableId, values, before);
       await assertStaffColumns(ctx.rows, meta, db, ctx.view.model, tableId, values, before, opts);
       // …and each person its text mentions is somebody who signs in here.
-      await assertMentions(meta, ctx.view.model.tables.find((candidate) => candidate.id === tableId), values);
+      await assertMentions(meta, ctx.view.model.tables.find((candidate) => candidate.id === tableId), values, before);
     };
 
     /**
@@ -805,18 +805,31 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         origin: 'dashboard',
         files: deps.files,
       });
-      // The people this save newly mentions are told, once it is saved; a notice that fails is not the save's failure.
+      if (after !== null && action !== 'delete') await tellMentionsOf(request, ctx, ctx.table, before, after);
+    }
+
+    /** The people a saved row newly mentions are told, once it is saved; a notice that fails is not the save's failure. */
+    async function tellMentionsOf(request: FastifyRequest, ctx: DataContext, table: ResolvedTable, before: Row | null, after: Row): Promise<void> {
       const writer = request.user;
-      if (after !== null && action !== 'delete' && writer !== undefined && writer !== null && mentionColumns(ctx.table.table).length > 0) {
-        try {
-          await tellMentioned(
-            { meta, manager, hub: deps.hub },
-            { connectionId: ctx.connectionId, view: ctx.view, table: ctx.table, before, after, writer: { id: writer.id, name: writer.name }, origin: await linkOrigin(meta, request) },
-          );
-        } catch (error) {
-          request.log.warn({ err: error }, 'mentions: telling the people named failed');
-        }
+      if (writer === undefined || writer === null || mentionColumns(table.table).length === 0) return;
+      try {
+        await tellMentioned(
+          { meta, manager, hub: deps.hub },
+          { connectionId: ctx.connectionId, view: ctx.view, table, before, after, writer: { id: writer.id, name: writer.name }, origin: await linkOrigin(meta, request) },
+        );
+      } catch (error) {
+        request.log.warn({ err: error }, 'mentions: telling the people named failed');
       }
+    }
+
+    /**
+     * The same for rows saved under another record's form (a comment written
+     * as a line of its deal). A NEW line tells everybody it names. A line
+     * that was changed tells nobody: what it held before is not in hand here,
+     * and telling everybody again on every edit would be worse than silence.
+     */
+    async function tellChildMentions(request: FastifyRequest, ctx: DataContext, events: readonly ChildEvent[]): Promise<void> {
+      for (const event of events) if (event.action === 'create' && event.row !== null) await tellMentionsOf(request, ctx, event.table, null, event.row);
     }
 
     /**
@@ -3296,6 +3309,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
             if (told === undefined && !pricedBy(tree.outcome.adjusted)) undoToken = await issueUndo(request, ctx, 'create', [], [created], [], [], tree.links, tree.children);
             await tellPostings(app, { connectionId: ctx.connectionId, view: ctx.view, postings: tree.outcome.postings, origin: 'dashboard', request });
             for (const event of tree.events) publishChildWrite(app, { connectionId: ctx.connectionId, ...event });
+            await tellChildMentions(request, ctx, tree.events);
             await auditLinks(request, ctx, recordRef(ctx, pk), tree.links);
             const once = onceFor(ctx.connectionId, request.user?.id ?? null, tree.outcome.rows.map((made) => ({ table: made.node.target.table, row: made.record })));
             return reply.status(201).send({ data: staffRow(ctx.dialect, created, ctx.readTable, ctx.unmasked), undoToken, ...(told === undefined ? {} : { postings: told }), ...(once === undefined ? {} : { once }), ...(await pricedAs(request, ctx, tree.outcome.adjusted, tree.outcome.rows)), ...(await paidAs(request, ctx, treeRows(tree.outcome), tree.outcome.postings)) });
@@ -3408,6 +3422,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         undoToken = await issueUndo(request, ctx, 'create', [], [inserted], [], [], written, childWrites);
         await afterMutation(request, ctx, 'create', recordRef(ctx, pk), null, inserted);
         for (const event of childEvents) publishChildWrite(app, { connectionId: ctx.connectionId, ...event });
+        await tellChildMentions(request, ctx, childEvents);
         await auditLinks(request, ctx, recordRef(ctx, pk), written);
         await writes.afterEach('create', ctx.target, context, [{ record: inserted, before: null }]);
         // The reply is the row as stored, its own totals settled after the commit.
@@ -3713,6 +3728,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
               if (result.postings === undefined && !pricedBy(result.adjusted)) undoToken = await issueUndo(request, ctx, 'update', [before], [after], Object.keys(result.values), [], [], childWrites, [...(result.effects ?? []), ...childEffects]);
               await afterMutation(request, ctx, 'update', recordRef(ctx, pk), before, after);
               for (const event of childEvents) publishChildWrite(app, { connectionId: ctx.connectionId, ...event });
+              await tellChildMentions(request, ctx, childEvents);
               // The rows the record's and its child rows' moves moved too, as changes of their own.
               await announceEffects(app, { connectionId: ctx.connectionId, view: ctx.view, effects: [...(result.effects ?? []), ...childEffects], origin: 'dashboard', request });
               await tellPostings(app, { connectionId: ctx.connectionId, view: ctx.view, postings: result.postings, origin: 'dashboard', request });
@@ -3801,6 +3817,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
       );
       await afterMutation(request, ctx, 'update', recordRef(ctx, pk), before, after);
       for (const event of childEvents) publishChildWrite(app, { connectionId: ctx.connectionId, ...event });
+      await tellChildMentions(request, ctx, childEvents);
       // The rows the record's and its child rows' moves moved too, as changes of their own.
       await announceEffects(app, { connectionId: ctx.connectionId, view: ctx.view, effects: effected, origin: 'dashboard', request });
       await auditLinks(request, ctx, recordRef(ctx, pk), written);

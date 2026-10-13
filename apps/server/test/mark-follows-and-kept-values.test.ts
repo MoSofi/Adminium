@@ -60,7 +60,7 @@ const manifest = (): Record<string, unknown> => ({
       states: { column: 'status', initial: 'draft', moves: { draft: ['sent'], sent: ['accepted'] } },
     },
   ]),
-  compatibility: { minAdminiumVersion: '0.3.27' },
+  compatibility: { minAdminiumVersion: '0.3.28' },
   pages: [{ ref: 'studio-quotes', template: 'page-crud', title: { key: 't', fallback: 'Quotes' }, nav: { group: 'library', icon: 'list', order: 1 }, bindings: { rows: 'quotes' } }],
   roles: [
     {

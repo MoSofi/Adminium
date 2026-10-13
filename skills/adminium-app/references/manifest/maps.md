@@ -5,7 +5,7 @@
 `"maps": true` at the top of an app's manifest says the app shows maps. A map's pictures are
 fetched by each person's browser from a map server, so whether maps are shown is one switch for
 the whole install. The install check of the **first** app that says this asks, with the tick on;
-once somebody has answered, no later install asks again. Needs Adminium 0.3.27.
+once somebody has answered, no later install asks again. Needs Adminium 0.3.28.
 
 ### Tables built on an add-on's shape
 

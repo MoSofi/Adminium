@@ -83,9 +83,15 @@ export function automationSpellsRepo(meta: MetaDb) {
       return rows.map((row) => ({ rowKey: row.rowKey, spell: row.spell, open: readBool(row.open), lastTick: row.lastTick }));
     },
 
-    /** Forget every spell of a rule: its conditions changed, so "matching again" means something else now. */
+    /**
+     * End every spell of a rule: its conditions changed, so "matching again"
+     * means something else now. Ended, not deleted: a row that still matches
+     * starts its NEXT spell, with a number no run of the rule has used. Counted
+     * from 1 again it would ask for a run that was made long ago, be refused
+     * as a repeat, and never be told again.
+     */
     async clear(automationId: string): Promise<void> {
-      await db.deleteFrom('adminium_automation_spells').where('automationId', '=', automationId).execute();
+      await db.updateTable('adminium_automation_spells').set({ open: writeBool(meta, false) }).where('automationId', '=', automationId).execute();
     },
   };
 }

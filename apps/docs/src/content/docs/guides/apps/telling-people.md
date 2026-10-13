@@ -6,7 +6,7 @@ description: Rules that tell a record's own person, once per spell, at once or a
 An app that gives each record to a person (a deal to its owner, a job to its fitter) can tell
 that person, and only that person, when something about the record changes. Everything here is
 written in the app's [manifest](/reference/manifest/#automations) and needs
-`minAdminiumVersion` `0.3.27`.
+`minAdminiumVersion` `0.3.28`.
 
 ## Tell the owner, not the whole role
 
