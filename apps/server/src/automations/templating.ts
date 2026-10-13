@@ -87,7 +87,7 @@ export interface TokenContext {
 }
 
 /** A code no staff member reads (`code.hiddenFromStaff`): the link an order's or a quote's own e-mail carries, and nothing else does. */
-const codeKeptFromStaff = (table: ResolvedTable, name: string): boolean => table.table.columns.find((candidate) => candidate.name === name)?.code?.hiddenFromStaff === true;
+const codeKeptFromStaff = (table: ResolvedTable, name: string): boolean => (table.table as ResolvedTable['table'] | undefined)?.columns?.find((candidate) => candidate.name === name)?.code?.hiddenFromStaff === true;
 
 /**
  * Every token a run can resolve, as strings — the map handed to
