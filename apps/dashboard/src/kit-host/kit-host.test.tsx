@@ -50,14 +50,14 @@ async function box(props: Partial<MentionsProps> = {}): Promise<{ onChange: Retu
 describe('the door', () => {
   it('says its contract and the parts it has', () => {
     expect(contract).toBe(KIT_CONTRACT);
-    expect(parts).toEqual(['mentions', 'board']);
+    expect(parts).toEqual(['mentions', 'board', 'map']);
   });
 
   it('refuses a part that is not built yet, and one it never heard of, by name', async () => {
-    const notYet = await mount('map', host, {}).catch((error: unknown) => error);
+    const notYet = await mount('import', host, {}).catch((error: unknown) => error);
     expect(notYet).toBeInstanceOf(KitPartUnavailableError);
     expect((notYet as KitPartUnavailableError).code).toBe('KIT_PART_NOT_YET');
-    expect((notYet as Error).message).toContain('"map" is not available');
+    expect((notYet as Error).message).toContain('"import" is not available');
     const unknown = await mount('toString' as never, host, {} as never).catch((error: unknown) => error);
     expect((unknown as KitPartUnavailableError).code).toBe('KIT_PART_UNKNOWN');
     expect(host.childElementCount).toBe(0);

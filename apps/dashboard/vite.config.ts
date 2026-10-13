@@ -60,6 +60,29 @@ function kitManifest(): Plugin {
 }
 
 /**
+ * A library's own sheet, held under the kit's wrapper: a stylesheet imported
+ * with `?kit-scoped` (the map library's, by src/kit-host/parts/map.tsx) has
+ * every rule of it put inside `.adm-kit { … }`, so `.maplibregl-map` becomes
+ * `.adm-kit .maplibregl-map` and the sheet, like every sheet of the kit,
+ * styles nothing of the app's own page. `@keyframes` cannot stand inside a
+ * rule, so they are lifted out; they are names, and paint nothing alone.
+ */
+const KIT_SCOPED = /\.css\?kit-scoped$/;
+const KEYFRAMES = /@keyframes\s+[\w-]+\s*\{(?:[^{}]*\{[^{}]*\})*[^{}]*\}/g;
+
+function kitScopedSheet(): Plugin {
+  return {
+    name: 'adminium-kit-scoped-sheet',
+    enforce: 'pre',
+    transform(code, id) {
+      if (!KIT_SCOPED.test(id)) return null;
+      const frames = code.match(KEYFRAMES) ?? [];
+      return { code: `${frames.join('\n')}\n.adm-kit {\n${code.replace(KEYFRAMES, '')}\n}\n`, map: null };
+    },
+  };
+}
+
+/**
  * Backend the dev server proxies to. Defaults to :4600, so nothing changes
  * without the override — it exists so the live source can be pointed at an
  * alternate instance (the throwaway `e2e-app` on :4620, a colleague's box)
@@ -68,7 +91,7 @@ function kitManifest(): Plugin {
 const API_HOST = process.env.ADMINIUM_DEV_API ?? '127.0.0.1:4600';
 
 export default defineConfig({
-  plugins: [react(), tailwindcss(), kitManifest()],
+  plugins: [react(), kitScopedSheet(), tailwindcss(), kitManifest()],
   server: {
     port: Number(process.env.ADMINIUM_DEV_PORT ?? 5173),
     proxy: {

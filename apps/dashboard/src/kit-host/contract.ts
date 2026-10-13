@@ -19,7 +19,7 @@ export const KIT_CONTRACT = 1;
 export type KitPartName = 'mentions' | 'board' | 'map' | 'import';
 
 /** The parts a mount can draw today. The others are named so that adding one changes no signature. */
-export const KIT_PARTS_AVAILABLE: readonly KitPartName[] = ['mentions', 'board'];
+export const KIT_PARTS_AVAILABLE: readonly KitPartName[] = ['mentions', 'board', 'map'];
 
 /** One language's words, part by part: `ns:key` to its text (./words/, written by scripts/gen-kit-words.mjs). */
 export type KitWords = Record<KitPartName, Record<string, string>>;
@@ -151,19 +151,147 @@ export interface BoardProps extends KitCommonProps {
   ariaLabel?: string | undefined;
 }
 
+/** Whether maps are on in this Adminium and where they come from: the `maps` of the side's config, handed over as it came. */
+export interface KitMaps {
+  /** False: maps are switched off. The part shows its list and a line saying so, and asks the map server nothing. */
+  enabled: boolean;
+  /** The map server's address; null while maps are off. The kit holds no address of its own. */
+  server: string | null;
+  /** Whether a route may follow roads. The config says it; the map does not read it. */
+  routing?: boolean | undefined;
+}
+
+/** One place on the map. */
+export interface MapPin {
+  /** The row's key, as text. It is what `onSelect` and `onMovePin` are called with, and what `selected` names. */
+  id: string;
+  lat: number;
+  lng: number;
+  /** The place's name: said by its pin, and written in the list beside the map. */
+  label: string;
+  /** The colour of the pin. Default `accent`. */
+  tone?: KitTone | undefined;
+  /**
+   * How the position is known, as a place column says it: `town` is the
+   * middle of a town (the place is somewhere in it), drawn hollow and marked
+   * "by town"; several in one town stand in a ring round it.
+   */
+  by?: 'town' | 'exact' | undefined;
+}
+
+/** An area's outline: a GeoJSON `Polygon` or `MultiPolygon`, positions as `[lng, lat]`. */
+export type MapAreaGeometry = { type: 'Polygon'; coordinates: number[][][] } | { type: 'MultiPolygon'; coordinates: number[][][][] };
+
+/** An area drawn on the map as a filled outline, and named in the list. */
+export interface MapAreaShape {
+  id: string;
+  /** Left out, the list calls it "Area 1". */
+  name?: string | undefined;
+  geometry: MapAreaGeometry;
+  /** The colour of the outline and its fill. Default `accent`. */
+  tone?: KitTone | undefined;
+}
+
+/** One stop of a route: a pin's position, in the pins' order. */
+export interface MapStop {
+  lat: number;
+  lng: number;
+  by?: 'town' | 'exact' | undefined;
+}
+
+/** One leg of a route, as `POST /api/v1/geo/route` answers it. */
+export interface MapLeg {
+  distanceM: number | null;
+  durationS: number | null;
+  /** A straight line and not a road: said as "about". */
+  estimate: boolean;
+  /** Both ends are known only as the same town: said as "unknown", never 0. */
+  unknown?: true | undefined;
+}
+
+/** The way through the stops: what `POST /api/v1/geo/route` answers in `data`. Anything more it says is let by. */
+export interface MapWay {
+  /** One leg between each two neighbours: one fewer than the stops. */
+  legs: readonly MapLeg[];
+  /** The road, as a GeoJSON `LineString`. Without one, straight dashed legs are drawn. */
+  line?: { type: 'LineString'; coordinates: number[][] } | undefined;
+}
+
+/**
+ * The map: a pin for each place and a list of the same places beside it
+ * (under it, on a narrow screen), areas, and a route through the pins.
+ */
+export interface MapProps extends KitCommonProps {
+  /** The `maps` of the side's config, as it came. */
+  maps: KitMaps;
+  /** A pin whose `lat` or `lng` is not a number is left out. */
+  pins: readonly MapPin[];
+  areas?: readonly MapAreaShape[] | undefined;
+  /**
+   * The `id` of the pin that is picked: drawn filled, with a ring, and its
+   * row in the list marked. The map keeps what the person picks; give a new
+   * one (or null) to change it from the app's side.
+   */
+  selected?: string | null | undefined;
+  /** Called when a pin, or its row in the list, is picked. */
+  onSelect?: ((pinId: string) => void) | undefined;
+  /**
+   * Saves a pin dragged to a new spot (with the keyboard: Enter picks a
+   * focused pin up, the arrows move it, Enter keeps the spot, Escape puts it
+   * back). Giving this turns dragging on. Answer a promise and the map waits
+   * for it. `{ refused }`, or a rejection (its `message` is the reason), puts
+   * the pin back and says why above the map and aloud.
+   */
+  onMovePin?: ((pinId: string, at: { lat: number; lng: number }) => void | Promise<void | KitRefused>) | undefined;
+  /**
+   * Saves an area that was drawn (`areaId` is null) or changed. Giving this
+   * turns drawing on. A new shape is a `Polygon`; a changed one comes back
+   * as the kind it was, holes and further pieces kept, so save `geometry`
+   * whole and hand the areas back with `update`. `{ refused }`, or a
+   * rejection, is said above the map; the shape stays as it was drawn.
+   */
+  onAreaChange?: ((areaId: string | null, geometry: MapAreaGeometry) => void | Promise<void | KitRefused>) | undefined;
+  /**
+   * Makes the pins the stops of a route, in their order: they are numbered,
+   * joined, and each leg's length is listed. The map calls this with the
+   * stops whenever their positions change and draws what it answers: post
+   * them to `/api/v1/geo/route` and answer its `data`. Until the answer is
+   * in, and when it does not come, the legs are straight dashed lines of
+   * unknown length.
+   */
+  route?: ((stops: readonly MapStop[]) => Promise<MapWay>) | undefined;
+  /** The unit a route's legs are said in. Default `km`. */
+  units?: 'km' | 'mi' | undefined;
+  /** Where the map starts, as `[lat, lng]`. Left out, it fits what it draws. Read once, at the mount. */
+  center?: readonly [number, number] | undefined;
+  /** 1 (the world) to 18 (a street). Read once, at the mount. */
+  zoom?: number | undefined;
+  /**
+   * Where maps are switched on, for a person who may do it: the "switched
+   * off" line then ends in a link there. Left out, the line has no link.
+   */
+  settingsHref?: string | undefined;
+  /** The list's heading for a screen reader. Default "Places", or "Stops" on a route. */
+  listLabel?: string | undefined;
+  /** Said in place of the map while there is no pin and no area. */
+  emptyLabel?: string | undefined;
+  /** The map's name for a screen reader ("Customers"). */
+  ariaLabel?: string | undefined;
+}
+
 /** A part that is named but cannot be mounted yet. */
 export type KitPartNotYet = Record<string, never>;
 
 export interface KitPartProps {
   mentions: MentionsProps;
   board: BoardProps;
-  map: KitPartNotYet;
+  map: MapProps;
   import: KitPartNotYet;
 }
 
 /** What a mount answers. */
 export interface KitMounted<Props> {
-  /** Changes the props named; the others stay as they were. The caret and the focus are kept. */
+  /** Changes the props named; the others stay as they were. The caret and the focus are kept; so are a map's view and a pin being dragged. */
   update(props: Partial<Props>): void;
   /** Takes the part out of the element and frees what it held. */
   unmount(): void;

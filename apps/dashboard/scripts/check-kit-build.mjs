@@ -11,14 +11,19 @@
  *    part, no React and no words may be in it;
  *  - every file the door reaches, by a static or a dynamic import, is in
  *    `dist/assets/`: a mapped staff host passes only that directory through;
- *  - the dashboard's own page loads none of the kit's files;
+ *  - the dashboard's own page loads none of the kit's files, and the kit
+ *    reaches neither the dashboard's own entry nor its translator (i18next):
+ *    a part that names a module of the first paint would have an app's
+ *    screen fetch it;
  *  - `kit.json` lists every sheet of the kit, the one all parts stand on
  *    first, and the kit's JavaScript reaches each of them;
  *  - a sheet of the kit styles nothing outside its wrapper: every rule's
  *    selector starts at `.adm-kit`. Tailwind's registrations of its own
  *    `--tw-*` property names are the one thing let by; they paint nothing;
  *  - no rule reads a colour of the app's page with nothing to fall back on
- *    (src/kit-host/kit-theme.css turns each to a name kit.css fills);
+ *    (src/kit-host/kit-theme.css turns each to a name kit.css fills). A name
+ *    the sheet itself fills under the wrapper is its own, not the page's (the
+ *    map's sheet gives the map engine the names it colours its pins by);
  *  - the words files are the catalogues' (`gen-kit-words.mjs --check`).
  */
 import { spawnSync } from 'node:child_process';
@@ -119,18 +124,27 @@ manifest.styles.forEach((sheet, index) => {
     if (inside.some((rule) => /^@layer properties\b/.test(rule))) continue;
     // An escaped character (the `\,` inside an arbitrary-value class) is part of a name, not of the list.
     for (const one of selector.replace(/\\./g, '_').split(/,(?![^(]*\))/)) {
-      if (!one.trim().startsWith('.adm-kit')) fail(`${sheet} styles "${one.trim()}" outside the kit's wrapper${inside.length > 0 ? ` (in ${inside.join(' ')})` : ''}.`);
+      // Tailwind writes "every child but the last" (`space-y-*`) as `:where(.adm-kit .x > :not(:last-child))`: still under the wrapper.
+      if (!one.trim().replace(/^:where\(/, '').startsWith('.adm-kit')) fail(`${sheet} styles "${one.trim()}" outside the kit's wrapper${inside.length > 0 ? ` (in ${inside.join(' ')})` : ''}.`);
     }
   }
   for (const found of css.matchAll(/@property\s+(--[\w-]+)/g)) {
     if (!found[1].startsWith('--tw-')) fail(`${sheet} registers ${found[1]} on the app's page.`);
   }
-  const bare = [...css.matchAll(/var\(\s*(--(?!adm-|tw-)[\w-]+)\s*\)/g)].map((found) => found[1]);
+  // What the sheet fills itself. Every rule is under the wrapper (checked above), so these never reach the page.
+  const own = new Set([...css.matchAll(/[{;]\s*(--[\w-]+)\s*:/g)].map((found) => found[1]));
+  const bare = [...css.matchAll(/var\(\s*(--(?!adm-|tw-)[\w-]+)\s*\)/g)].map((found) => found[1]).filter((name) => !own.has(name));
   if (bare.length > 0) fail(`${sheet} reads ${[...new Set(bare)].join(', ')} from the app's page with nothing to fall back on. Turn it to an --adm-kit-* name in src/kit-host/kit-theme.css and fill that in kit.css.`);
 });
 
 const html = readFileSync(join(dist, 'index.html'), 'utf8');
 if (html.includes('/assets/kit/')) fail('dist/index.html loads a file of the kit: the dashboard must not pay for it.');
+// And the other way round. The dashboard's entry is the script its page names; its translator is told by its own log prefix.
+const dashboardEntry = /<script[^>]+src="\/(assets\/[^"]+\.js)"/.exec(html)?.[1];
+if (dashboardEntry !== undefined && seen.has(dashboardEntry)) fail(`the kit reaches ${dashboardEntry}, the dashboard's own entry: an app's screen would load the whole dashboard.`);
+for (const file of seen) {
+  if (file.endsWith('.js') && readFileSync(join(dist, file), 'utf8').includes('i18next:')) fail(`the kit reaches ${file}, which holds i18next: a part imports from "@adminium/i18n" (the whole translator). Import "@adminium/i18n/react", or keep the importer out of the part.`);
+}
 
 const words = spawnSync(process.execPath, [join(root, 'scripts', 'gen-kit-words.mjs'), '--check'], { encoding: 'utf8' });
 if (words.status !== 0) fail(`the kit's words are out of date. Run \`node scripts/gen-kit-words.mjs\`.\n${words.stderr}`);

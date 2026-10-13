@@ -43,7 +43,6 @@ import { HomePage } from '../pages/HomePage.js';
 import { PageRenderer } from '../pages/PageRenderer.js';
 import { preloadPageTemplates } from '../pages/templates.js';
 import { LoginPage } from '../auth/LoginPage.js';
-import { OtpPage } from '../auth/OtpPage.js';
 import { ShortcutsProvider } from '../shell/ShortcutsProvider.js';
 import { useBrandedDocumentTitle } from '../shell/BrandMark.js';
 import { AppShell } from '../shell/AppShell.js';
@@ -78,7 +77,7 @@ const peopleByName: PeopleSource = async (query) =>
  * component statically imported here is in it by definition — on every route,
  * for every user, including the ones who never open that screen.
  *
- * What is NOT lazy is deliberate: the auth screens, `AppShell`, `HomePage`,
+ * What is NOT lazy is deliberate: the sign-in form, `AppShell`, `HomePage`,
  * `PageRenderer`, `StatePage` and `NotFoundPage` are the first paint. Putting a
  * chunk fetch in front of those trades bytes for a blank frame, which is the
  * wrong trade at exactly the moment the app is being judged on speed.
@@ -104,6 +103,9 @@ const AboutPageLazy = lazyRoute(async () => (await import('../about/AboutPage.js
 // every first paint was paying for two screens almost nobody opens.
 const ForgotPageLazy = lazyRoute(async () => (await import('../auth/ForgotPage.js')).ForgotPage);
 const ResetPageLazy = lazyRoute(async () => (await import('../auth/ResetPage.js')).ResetPage);
+// The second step of signing in, never the first paint: nobody arrives at it but from the
+// sign-in form, which fetches this chunk before it sends them here (auth/LoginPage.tsx).
+const OtpPageLazy = lazyRoute(async () => (await import('../auth/OtpPage.js')).OtpPage);
 const AddOnPageHostLazy = lazyRoute(
   async () => (await import('../add-ons/AddOnPageHost.js')).AddOnPageHost,
 );
@@ -434,7 +436,7 @@ const otpRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/otp',
   beforeLoad: ({ context }) => redirectIfAuthed(context.queryClient),
-  component: OtpPage,
+  component: OtpPageLazy,
 });
 
 /**

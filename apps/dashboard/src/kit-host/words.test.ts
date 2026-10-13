@@ -43,7 +43,15 @@ const PART_SOURCES: Record<KitPartName, string[]> = {
     'packages/ui/src/components/spinner/Spinner.tsx',
     'packages/ui/src/components/tag/Tag.tsx',
   ],
-  map: [],
+  map: [
+    'apps/dashboard/src/kit-host/parts/map.tsx',
+    'packages/widgets/src/families/geo/MapBubble.tsx',
+    'packages/widgets/src/families/geo/StatusNote.tsx',
+    'packages/ui/src/components/button/Button.tsx',
+    'packages/ui/src/components/empty-state/EmptyState.tsx',
+    'packages/ui/src/components/icon-tile/IconTile.tsx',
+    'packages/ui/src/components/spinner/Spinner.tsx',
+  ],
   import: [],
 };
 
@@ -75,7 +83,8 @@ describe('the kit’s words', () => {
   it.each(Object.keys(PART_SOURCES) as KitPartName[])('the code of "%s" asks for no key outside its set', (part) => {
     const asked = new Set<string>();
     for (const file of PART_SOURCES[part]) {
-      for (const found of read(repo + file).matchAll(/\bt\(\s*['"`]([A-Za-z]+:[\w.-]+)['"`]/g)) asked.add(found[1]!);
+      // `tRef.current(` is the same translator, read through a ref by a callback that outlives a render (MapBubble).
+      for (const found of read(repo + file).matchAll(/\b(?:t|tRef\.current)\(\s*['"`]([A-Za-z]+:[\w.-]+)['"`]/g)) asked.add(found[1]!);
     }
     expect([...asked].filter((key) => !KEYS[part].includes(key))).toEqual([]);
     // And none listed that nothing asks for: a key carried in eight languages for nobody.

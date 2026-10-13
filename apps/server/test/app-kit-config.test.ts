@@ -29,7 +29,9 @@ import { makeEnv } from './helpers.js';
 const ENTRY = 'kit-BHhBq5nz.js';
 const SHEET = 'root-DF31DXoR.css';
 const PART_SHEET = 'board-Cq0vLx2A.css';
-const KIT = { contract: 1, entry: `/assets/kit/${ENTRY}`, styles: [`/assets/kit/${SHEET}`, `/assets/kit/${PART_SHEET}`] };
+const MAP_SHEET = 'map-DjqTAZ9Z.css';
+const KIT = { contract: 1, entry: `/assets/kit/${ENTRY}`, styles: [`/assets/kit/${SHEET}`, `/assets/kit/${PART_SHEET}`, `/assets/kit/${MAP_SHEET}`] };
+const WORKER = 'maplibre-gl-worker-BNr2FmdD.js';
 const STAFF_HOST = 'staff.example.test';
 const CUSTOMER_HOST = 'shop.example.test';
 
@@ -44,9 +46,11 @@ beforeAll(async () => {
   await writeFile(join(dist, 'index.html'), '<!doctype html><html><body data-app="dashboard"></body></html>', 'utf8');
   await mkdir(join(dist, 'assets', 'kit'), { recursive: true });
   await writeFile(join(dist, 'assets', 'index-AAAAAAAA.js'), 'export const dashboard = 1;', 'utf8');
-  await writeFile(join(dist, 'assets', 'kit', 'kit.json'), JSON.stringify({ contract: 1, entry: ENTRY, styles: [SHEET, PART_SHEET] }), 'utf8');
+  await writeFile(join(dist, 'assets', 'kit', 'kit.json'), JSON.stringify({ contract: 1, entry: ENTRY, styles: [SHEET, PART_SHEET, MAP_SHEET] }), 'utf8');
   await writeFile(join(dist, 'assets', 'kit', ENTRY), 'export const contract = 1; export async function mount() {}', 'utf8');
   await writeFile(join(dist, 'assets', 'kit', SHEET), '.adm-kit{color:red}', 'utf8');
+  // The map library's worker, as the dashboard's build writes it: beside the dashboard's own files, not in the kit's directory.
+  await writeFile(join(dist, 'assets', WORKER), 'self.onmessage = () => undefined;', 'utf8');
 
   // A dashboard build from before the kit.
   bare = await mkdtemp(join(tmpdir(), 'adminium-kit-bare-'));
@@ -184,9 +188,76 @@ describe('the kit’s files are served', () => {
   });
 });
 
+/** A policy's directive by its name, as the list of its sources. */
+function sources(policy: string, directive: string): string[] {
+  return (new RegExp(`(?:^|;)\\s*${directive} ([^;]*)`).exec(policy)?.[1] ?? '').trim().split(/\s+/);
+}
+
+/** Every source of a policy that is another site. */
+function outside(policy: string): string[] {
+  return policy.split(/[\s;]+/).filter((word) => /^https?:\/\//.test(word));
+}
+
+describe('the map part on an app’s own screen', () => {
+  /**
+   * What a map asks the browser for, and where the policy must let it: the
+   * style, the letters and the map pictures are fetched from the map server
+   * (`connect-src`), the sprite is a picture from it (`img-src`, and `blob:`
+   * for what the library decodes), and the library's worker is a file of this
+   * server's own build (`worker-src 'self'`). An app's screen gets the very
+   * policy the dashboard does, so nothing was added for the kit.
+   */
+  it('is let reach the map server by the page’s policy, on the app’s own mount and on a mapped staff host, and no other site', async () => {
+    const { fixture, cookie } = await build();
+    await setDomains(fixture, { [STAFF_HOST]: { appKey: 'clients', side: 'staff' } });
+    const config = (await fixture.app.inject({ method: 'GET', url: '/apps/clients/staff/surface-config.json', headers: { cookie } })).json() as { maps: { enabled: boolean; server: string } };
+    expect(config.maps.enabled).toBe(true);
+    const server = new URL(config.maps.server).origin;
+    for (const [url, host] of [
+      ['/apps/clients/staff/', 'localhost'],
+      ['/', STAFF_HOST],
+    ] as const) {
+      const page = await fixture.app.inject({ method: 'GET', url, headers: { host, cookie, 'sec-fetch-mode': 'navigate', accept: 'text/html' } });
+      expect(page.statusCode, `${host}${url}`).toBe(200);
+      expect(page.body, `${host}${url}`).toContain('data-app="clients-staff"');
+      const policy = String(page.headers['content-security-policy']);
+      expect(sources(policy, 'connect-src'), `${host}${url}`).toContain(server);
+      expect(sources(policy, 'img-src'), `${host}${url}`).toEqual(expect.arrayContaining(["'self'", 'blob:', server]));
+      expect(sources(policy, 'worker-src'), `${host}${url}`).toEqual(["'self'", 'blob:']);
+      expect(sources(policy, 'script-src'), `${host}${url}`).not.toContain(server);
+      expect([...new Set(outside(policy))], `${host}${url}`).toEqual([server]);
+    }
+  });
+
+  it('is let reach no site at all while maps are off', async () => {
+    const { fixture, cookie } = await build(dist, { ADMINIUM_MAP_SERVER: 'off' });
+    await setDomains(fixture, { [STAFF_HOST]: { appKey: 'clients', side: 'staff' } });
+    for (const [url, host] of [
+      ['/apps/clients/staff/', 'localhost'],
+      ['/', STAFF_HOST],
+    ] as const) {
+      const page = await fixture.app.inject({ method: 'GET', url, headers: { host, cookie, 'sec-fetch-mode': 'navigate', accept: 'text/html' } });
+      expect(page.statusCode, `${host}${url}`).toBe(200);
+      expect(outside(String(page.headers['content-security-policy'])), `${host}${url}`).toEqual([]);
+    }
+  });
+
+  it('gets the map library’s worker from /assets, on a mapped staff host too; a customer host is refused it', async () => {
+    const { fixture, cookie } = await build();
+    await setDomains(fixture, { [STAFF_HOST]: { appKey: 'clients', side: 'staff' }, [CUSTOMER_HOST]: { appKey: 'clients', side: 'customer' } });
+    for (const headers of [{ cookie }, { host: STAFF_HOST, cookie }, { host: STAFF_HOST }]) {
+      const worker = await fixture.app.inject({ method: 'GET', url: `/assets/${WORKER}`, headers });
+      expect(worker.statusCode).toBe(200);
+      expect(String(worker.headers['content-type'])).toMatch(/javascript/);
+      expect(worker.body).toContain('self.onmessage');
+    }
+    expect((await fixture.app.inject({ method: 'GET', url: `/assets/${WORKER}`, headers: { host: CUSTOMER_HOST } })).statusCode).toBe(404);
+  });
+});
+
 describe('reading kit.json', () => {
   it('takes a manifest as the build writes it', () => {
-    expect(parseKitManifest(JSON.stringify({ contract: 1, entry: ENTRY, styles: [SHEET, PART_SHEET] }))).toEqual(KIT);
+    expect(parseKitManifest(JSON.stringify({ contract: 1, entry: ENTRY, styles: [SHEET, PART_SHEET, MAP_SHEET] }))).toEqual(KIT);
     expect(parseKitManifest(JSON.stringify({ contract: 2, entry: ENTRY, styles: [] }))).toEqual({ contract: 2, entry: KIT.entry, styles: [] });
     // The first kit named one sheet, or none: both still read.
     expect(parseKitManifest(JSON.stringify({ contract: 1, entry: ENTRY, styles: SHEET }))).toEqual({ ...KIT, styles: [KIT.styles[0]] });

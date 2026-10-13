@@ -19,35 +19,11 @@
 import { InlineComposeCard, KanbanBoard, type BoardAddRefusal, type BoardCardData, type ColumnDef } from '@adminium/widgets/kit-board';
 import { useMemo, useRef, useState, type ReactNode } from 'react';
 
-import type { BoardProps, KitMounted, KitRefused } from '../contract.js';
+import type { BoardProps, KitMounted } from '../contract.js';
 import { mountReact } from '../root.js';
+import { followed, reasonOf } from '../saves.js';
 
 import './board.css';
-
-/** Why a save did not hold, as its rejection says it; undefined when it says nothing a person could read. */
-function reasonOf(error: unknown): string | undefined {
-  const message = error instanceof Error ? error.message : typeof error === 'string' ? error : undefined;
-  return message === undefined || message.trim() === '' ? undefined : message;
-}
-
-/**
- * Follows a save to its answer, in the one form the board knows: a promise
- * that rejects when the save was refused. Nothing answered is taken at its
- * word.
- */
-function followed(save: () => void | KitRefused | Promise<void | KitRefused>): Promise<void> | undefined {
-  let answer: void | KitRefused | Promise<void | KitRefused>;
-  try {
-    answer = save();
-  } catch (error) {
-    return Promise.reject(error instanceof Error ? error : new Error(String(error)));
-  }
-  if (answer === undefined) return undefined;
-  return Promise.resolve(answer).then((said) => {
-    const refused = (said as Partial<KitRefused> | undefined)?.refused;
-    if (typeof refused === 'string') throw new Error(refused);
-  });
-}
 
 function Board({ props, patch }: { props: BoardProps; patch: (change: Partial<BoardProps>) => void }): ReactNode {
   // What the app last gave, for the answers that arrive later.

@@ -12,10 +12,8 @@ import {
   metricKeysOf,
   metricValue,
   plottablePoints,
-  sourceOf,
 } from './geo-lib.js';
 import type { GeoPoint } from './geo-lib.js';
-import { geoPointsOf } from './geo-lib.js';
 import type { MapBubbleConfig } from './geo-config.js';
 import type { MapEngine, Scene, ScenePin } from './map-engine.js';
 import type { MapLibreModule } from './maplibre-module.js';
@@ -43,9 +41,7 @@ import type { AreaGeometry, Corner, DistanceUnits, MapArea, MapRoute } from './m
 import { coordinateText } from './place-value.js';
 import { StatusNote } from './StatusNote.js';
 import { useWidgetRuntimeEnv } from '../../frame/WidgetRuntimeContext.js';
-import { formatMetricValue, formatOptionsOf } from '../../lib/format.js';
 import { mapServerOf } from '../../registry/map-server.js';
-import type { WidgetProps } from '../../registry/types.js';
 
 // Config schema + deterministic demo payload live in the pure `geo-config`
 // module so the registry metadata graph never eagerly pulls this component (or
@@ -76,9 +72,10 @@ export type { MapBubbleConfig };
  * Two boundaries enforce it, and `qa/chunk-budget.test.ts` asserts both:
  *
  *   1. This module is reachable ONLY through `geo-track-components.ts` (by
- *      `lazy(() => import(...))` from the definitions) and `kit-map.ts` (by the
- *      kit's own dynamic import). No static-import path runs from the registry
- *      metadata to here.
+ *      `lazy(() => import(...))` from the definitions, by way of the widget's
+ *      wrapper, `MapBubbleWidget.tsx`) and `kit-map.ts` (by the kit's own
+ *      dynamic import). No static-import path runs from the registry metadata
+ *      to here.
  *   2. MapLibre, its stylesheet, its worker and `map-engine.ts` (the code that
  *      drives it) are loaded by a dynamic `import()` INSIDE the mount effect.
  *      So they are in chunks of their own, fetched when a map is actually
@@ -122,6 +119,8 @@ export interface MapBubbleProps {
   showValues?: boolean | undefined;
   format?: ((value: number) => string) | undefined;
   onSelect?: ((point: GeoPoint) => void) | undefined;
+  /** Which of `points` is the one picked, by its place among them: its pin and its row are drawn as chosen. */
+  selected?: number | undefined;
   /**
    * A pin was dragged (or picked up, moved with the arrow keys and kept) to an
    * exact spot. Turns dragging on. Return the promise of the save: when it is
@@ -147,6 +146,22 @@ export interface MapBubbleProps {
   settingsHref?: string | undefined;
   /** The host's own way to open that page (its router). Without one the notice is a plain link. */
   onSettingsOpen?: ((href: string) => void) | undefined;
+  /**
+   * Light or dark, said by a host that is not the dashboard (a page with no
+   * `ThemeProvider`): the map's style follows this and not `<html data-theme>`.
+   */
+  theme?: 'light' | 'dark' | undefined;
+  /**
+   * Once the person has moved or zoomed the map themselves, the view is
+   * theirs: new places are drawn where they are and the map does not go to
+   * fit them. Without it the view follows the places whenever they change.
+   */
+  holdView?: boolean | undefined;
+  /**
+   * False where the host brings the map library's stylesheet itself (held
+   * under a wrapper of its own): the library's sheet is then not fetched.
+   */
+  librarySheet?: boolean | undefined;
   emptyTitle?: string | undefined;
   emptyBody?: string | undefined;
   mapUnavailableLabel?: string | undefined;
@@ -219,6 +234,7 @@ export function MapBubble({
   showValues = true,
   format = String,
   onSelect,
+  selected,
   onPlace,
   areas,
   onAreaChange,
@@ -226,6 +242,9 @@ export function MapBubble({
   units = 'km',
   settingsHref: settingsHrefProp,
   onSettingsOpen,
+  theme: themeProp,
+  holdView = false,
+  librarySheet = true,
   emptyTitle,
   emptyBody,
   mapUnavailableLabel,
@@ -331,6 +350,8 @@ export function MapBubble({
         hollow: town,
         ...(route === undefined ? {} : { number: stop }),
         movable,
+        ...(point.tone === undefined ? {} : { tone: point.tone }),
+        ...(selected !== undefined && stopOf[index] === selected ? { selected: true } : {}),
       };
     });
     const line =
@@ -357,13 +378,13 @@ export function MapBubble({
             },
     };
     // `format` is read through a ref: a new function identity alone is not a new scene.
-  }, [plottable, spread, stopOf, activeMetric, route, showValues, movable, shownAreas, activeDraft, byTownLabel, t]);
+  }, [plottable, spread, stopOf, activeMetric, route, showValues, movable, selected, shownAreas, activeDraft, byTownLabel, t]);
 
   // Latest inputs, readable from the engine's callbacks without making them a
   // dependency of the mount effect (which must not rebuild a live map: a
   // re-created map loses the view and fetches every picture again).
-  const live = useRef({ plottable, scene, flyToOnClick, onSelect, onPlace, onAreaChange, center, zoom, shownAreas, route });
-  live.current = { plottable, scene, flyToOnClick, onSelect, onPlace, onAreaChange, center, zoom, shownAreas, route };
+  const live = useRef({ plottable, scene, flyToOnClick, onSelect, onPlace, onAreaChange, center, zoom, shownAreas, route, themeProp, librarySheet });
+  live.current = { plottable, scene, flyToOnClick, onSelect, onPlace, onAreaChange, center, zoom, shownAreas, route, themeProp, librarySheet };
   /** Set while a drag is being saved: the view must not jump to re-fit it. */
   const keepView = useRef(false);
   /**
@@ -453,10 +474,12 @@ export function MapBubble({
         } catch {
           /* No bundler (vitest): MapLibre looks beside its own module. */
         }
-        try {
-          await import('maplibre-gl/dist/maplibre-gl.css');
-        } catch {
-          /* CSS stubbed (vitest) or inlined by the host — the map still works. */
+        if (live.current.librarySheet) {
+          try {
+            await import('maplibre-gl/dist/maplibre-gl.css');
+          } catch {
+            /* CSS stubbed (vitest) or inlined by the host — the map still works. */
+          }
         }
       } catch {
         giveUp();
@@ -467,7 +490,7 @@ export function MapBubble({
       try {
         const now = live.current;
         const engine = engines.createMapEngine(lib, container, {
-          style: mapStyleUrl(server, currentTheme()),
+          style: mapStyleUrl(server, now.themeProp ?? currentTheme()),
           center: now.center,
           zoom: now.zoom,
           words: wordsRef.current,
@@ -534,6 +557,8 @@ export function MapBubble({
         // agree; an accent change alone repaints the areas and the route.
         let theme = currentTheme();
         unsubscribe = subscribeTheme((resolved) => {
+          // A host that says the theme itself is followed by the effect below, not by the dashboard's.
+          if (live.current.themeProp !== undefined) return;
           const next = resolved.theme === 'dark' ? 'dark' : 'light';
           if (next === theme) {
             engine.repaint();
@@ -565,6 +590,14 @@ export function MapBubble({
     engineRef.current?.draw(scene);
   }, [scene, status]);
 
+  // The host's own theme changed: the other style, on the map that is there.
+  const styledFor = useRef(themeProp);
+  useEffect(() => {
+    if (styledFor.current === themeProp) return;
+    styledFor.current = themeProp;
+    if (server !== null && themeProp !== undefined) engineRef.current?.setStyle(mapStyleUrl(server, themeProp));
+  }, [themeProp, server]);
+
   // Fit again when the places themselves change (a town was typed, rows
   // arrived) — and not when the change is the person's own drag.
   const fitKey = useMemo(
@@ -579,13 +612,15 @@ export function MapBubble({
       keepView.current = false;
       return;
     }
+    // The person's own view is kept, where the host asked for that.
+    if (holdView && engineRef.current?.movedByPerson() === true) return;
     const bounds = boundsOf(
       plottable.map((point) => ({ lat: point.lat as number, lng: point.lng as number })),
       shownAreas,
       route?.line,
     );
     if (bounds !== null) engineRef.current?.fit(bounds);
-  }, [fitKey, plottable, shownAreas, route]);
+  }, [fitKey, plottable, shownAreas, route, holdView]);
 
   if (!hasCanvas) {
     return (
@@ -795,8 +830,9 @@ export function MapBubble({
                     <button
                       type="button"
                       data-part="geo-ranking-row"
+                      aria-current={stop === selected ? 'true' : undefined}
                       onClick={() => onSelect?.(point)}
-                      className="flex w-full min-w-0 items-center justify-between gap-3 rounded-md px-2 py-1 text-start text-body-sm hover:bg-surface-2/60 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent"
+                      className="flex w-full min-w-0 items-center justify-between gap-3 rounded-md px-2 py-1 text-start text-body-sm hover:bg-surface-2/60 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent aria-[current=true]:bg-surface-2"
                     >
                       <span className="flex min-w-0 items-center gap-1.5">
                         <MapPin aria-hidden="true" className="size-3 shrink-0 text-fg-subtle" />
@@ -867,57 +903,5 @@ export function MapBubble({
         )}
       </div>
     </div>
-  );
-}
-
-export function MapBubbleWidget({ config, data, onEvent }: WidgetProps<MapBubbleConfig>) {
-  const points = geoPointsOf(data, {
-    nameField: config.nameField,
-    codeField: config.codeField,
-    latField: config.latColumn,
-    lngField: config.lngColumn,
-    placeField: config.placeColumn,
-    metricFields: config.metrics,
-  });
-  const opts = formatOptionsOf(config);
-  const source = sourceOf(config.binding);
-
-  return (
-    <MapBubble
-      points={points}
-      metrics={config.metrics}
-      metricLabels={config.metricLabels}
-      flyToOnClick={config.flyToOnClick}
-      topN={config.topN}
-      format={(value) => formatMetricValue(value, config.valueFormat, opts)}
-      {...(config.initialZoom === undefined ? {} : { zoom: config.initialZoom })}
-      {...(config.initialCenter === undefined ? {} : { center: config.initialCenter })}
-      {...(config.emptyTitle === undefined ? {} : { emptyTitle: config.emptyTitle })}
-      {...(config.emptyBody === undefined ? {} : { emptyBody: config.emptyBody })}
-      {...(config.mapUnavailableLabel === undefined ? {} : { mapUnavailableLabel: config.mapUnavailableLabel })}
-      {...(config.regionsLabel === undefined ? {} : { regionsLabel: config.regionsLabel })}
-      {...(config.format?.locale === undefined ? {} : { locale: config.format.locale })}
-      {...(config.testId === undefined ? {} : { testId: config.testId })}
-      onSelect={(point) => {
-        // Selecting a place is a drill-through when config names a route, else a
-        // record-open the page host routes (annex `linkedList`: the host
-        // focuses the paired ranked-entity-list — widgets never talk to each
-        // other directly).
-        if (config.href !== undefined) {
-          onEvent({ type: 'drill-through', href: config.href });
-          return;
-        }
-        onEvent({
-          type: 'record-open',
-          ...(source.connectionId === undefined ? {} : { connectionId: source.connectionId }),
-          table: source.table,
-          recordId: point.code ?? point.name,
-          // annex `linkedList` — carried on the event so the host can focus
-          // the paired list. Omitted when unset, so the event stays exactly what
-          // it was for an unpaired map.
-          ...(config.linkedList === undefined ? {} : { linkedInstanceId: config.linkedList }),
-        });
-      }}
-    />
   );
 }

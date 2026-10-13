@@ -12,5 +12,5 @@
  * map-bubble is placed"). A page that places only `map-choropleth-grid` pulls
  * this chunk without pulling MapLibre.
  */
-export { MapBubbleWidget } from './MapBubble.js';
+export { MapBubbleWidget } from './MapBubbleWidget.js';
 export { MapChoroplethGridWidget } from './MapChoroplethGrid.js';

@@ -61,9 +61,68 @@ export function clearOutsideWords(): void {
   outside.clear();
 }
 
-/** `{name}` put in. No part's words hold a plural yet; one that does reads as written until this learns ICU. */
-function filled(text: string, args: Record<string, unknown>): string {
-  return text.includes('{') ? text.replace(/\{(\w+)\}/g, (whole: string, name: string) => (name in args ? String(args[name]) : whole)) : text;
+/** Where the brace opened at `open` closes, counting the ones inside it; -1 when it never does. */
+function closing(text: string, open: number): number {
+  let depth = 0;
+  for (let at = open; at < text.length; at += 1) {
+    if (text[at] === '{') depth += 1;
+    else if (text[at] === '}') {
+      depth -= 1;
+      if (depth === 0) return at;
+    }
+  }
+  return -1;
+}
+
+/**
+ * What stands for one `{…}`: an argument by its name, or the form of a
+ * plural the language's own rule picks (`{count, plural, one {# place} other
+ * {# places}}`, with `=0` and the like taken first, and `#` the number as the
+ * language writes it). Undefined for anything else, which then reads as written.
+ */
+function argument(body: string, args: Record<string, unknown>, tag: string): string | undefined {
+  const plural = /^\s*(\w+)\s*,\s*plural\s*,([\s\S]*)$/.exec(body);
+  if (plural === null) {
+    const name = body.trim();
+    return /^\w+$/.test(name) && name in args ? String(args[name]) : undefined;
+  }
+  const count = Number(args[plural[1]!]);
+  if (!Number.isFinite(count)) return undefined;
+  const forms = new Map<string, string>();
+  const rest = plural[2]!;
+  let at = 0;
+  while (at < rest.length) {
+    const open = rest.indexOf('{', at);
+    const close = open === -1 ? -1 : closing(rest, open);
+    if (close === -1) break;
+    forms.set(rest.slice(at, open).trim(), rest.slice(open + 1, close));
+    at = close + 1;
+  }
+  let rule = 'other';
+  let number = String(count);
+  try {
+    rule = new Intl.PluralRules(tag).select(count);
+    number = new Intl.NumberFormat(tag).format(count);
+  } catch {
+    // A tag this browser does not know: the plain number, and the form every plural has.
+  }
+  const form = forms.get(`=${String(count)}`) ?? forms.get(rule) ?? forms.get('other');
+  return form === undefined ? undefined : filled(form.replaceAll('#', number), args, tag);
+}
+
+/** A text with its arguments put in. The map's words hold plurals; nothing here needs more of ICU than that. */
+function filled(text: string, args: Record<string, unknown>, tag: string): string {
+  if (!text.includes('{')) return text;
+  let out = '';
+  let at = 0;
+  while (at < text.length) {
+    const open = text.indexOf('{', at);
+    const close = open === -1 ? -1 : closing(text, open);
+    if (close === -1) break;
+    out += text.slice(at, open) + (argument(text.slice(open + 1, close), args, tag) ?? text.slice(open, close + 1));
+    at = close + 1;
+  }
+  return out + text.slice(at);
 }
 
 /**
@@ -83,9 +142,9 @@ export function kitI18n(part: KitPartName, tag: string, words: KitWords | null):
       if (text === undefined) {
         // With no words at all the file did not load: that is the network's doing, not a key outside the set.
         if (words !== null) outside.add(`${part} ${key}`);
-        return filled(typeof defaultValue === 'string' ? defaultValue : key, args);
+        return filled(typeof defaultValue === 'string' ? defaultValue : key, args, tag);
       }
-      return filled(text, args);
+      return filled(text, args, tag);
     },
   };
   return standIn as unknown as I18nInstance;

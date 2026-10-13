@@ -53,6 +53,8 @@ export interface GeoPoint {
   by?: 'town' | 'exact' | undefined;
   /** The town's id in the server's place list, where the place names one. */
   placeId?: number | undefined;
+  /** The colour its pin is drawn in on a map. Without one, the accent. */
+  tone?: 'neutral' | 'accent' | 'pos' | 'warn' | 'danger' | 'info' | undefined;
   values: Record<string, number>;
 }
 

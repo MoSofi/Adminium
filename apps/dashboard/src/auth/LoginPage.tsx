@@ -90,7 +90,11 @@ export function LoginPage() {
             .then((result) => {
               if (result.kind === 'challenge') {
                 storeChallenge(result.challengeToken, returnTo, next);
-                void router.navigate({ to: '/otp' });
+                // The code step is a chunk of its own (app/router.tsx). It is fetched here, under the
+                // form's own spinner, so the step is drawn at once; a fetch that fails is the route's to retry.
+                void import('./OtpPage.js')
+                  .catch(() => undefined)
+                  .then(() => router.navigate({ to: '/otp' }));
                 return;
               }
               finish(returnTo, result.user.name);

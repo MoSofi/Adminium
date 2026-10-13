@@ -10,3 +10,6 @@ export type { GeoPoint } from './families/geo/geo-lib.js';
 export * from './families/geo/map-shapes.js';
 export * from './families/geo/place-value.js';
 export { mapServerOf } from './registry/map-server.js';
+// For a host that is not the dashboard (the kit on an app's own screen): it says where maps come from itself.
+export { WidgetRuntimeProvider } from './frame/WidgetRuntimeContext.js';
+export type { WidgetRuntimeEnv } from './registry/offline.js';

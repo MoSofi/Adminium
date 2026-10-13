@@ -40,6 +40,10 @@ export interface ScenePin {
   number?: number | undefined;
   /** The pin can be dragged, or picked up and moved with the keyboard, to the exact spot. */
   movable: boolean;
+  /** The colour the pin is drawn in. Default `accent`. */
+  tone?: AreaTone | undefined;
+  /** The one that is picked: drawn filled, with a ring round it. */
+  selected?: boolean | undefined;
 }
 
 export interface SceneArea {
@@ -114,6 +118,8 @@ export interface MapEngine {
   flyTo(at: { lat: number; lng: number }): void;
   /** Where the middle of the view is: where the keyboard adds a corner. */
   center(): Corner;
+  /** The person has moved or zoomed the map themselves (a drag, a pinch, the +/− buttons, a double click). */
+  movedByPerson(): boolean;
   destroy(): void;
 }
 
@@ -140,12 +146,31 @@ const TONE_VAR: Record<AreaTone, string> = {
   info: '--info',
 };
 
+/**
+ * A token's value as the page computes it. A token may hold what only an
+ * element can work out (`light-dark(…)`, another `var(…)`), which a canvas
+ * cannot read: a probe inside the container takes it as its colour, and the
+ * browser's own answer is what is drawn. Where that says nothing (no layout),
+ * the token's text stands.
+ */
+function computedColour(container: HTMLElement, variable: string, value: string): string {
+  if (!/light-dark\(|var\(/.test(value)) return value;
+  const probe = document.createElement('span');
+  probe.style.display = 'none';
+  probe.style.color = `var(${variable})`;
+  container.append(probe);
+  const computed = getComputedStyle(probe).color;
+  probe.remove();
+  return computed === '' ? value : computed;
+}
+
 /** A CSS colour as the canvas draws it, whatever notation the token uses. */
 function paintOf(container: HTMLElement, variable: string): string {
   const fallback = '#4f46e5';
   try {
-    const value = getComputedStyle(container).getPropertyValue(variable).trim();
-    if (value === '') return fallback;
+    const raw = getComputedStyle(container).getPropertyValue(variable).trim();
+    if (raw === '') return fallback;
+    const value = computedColour(container, variable, raw);
     const canvas = document.createElement('canvas');
     canvas.width = 1;
     canvas.height = 1;
@@ -198,23 +223,49 @@ function pinElement(pin: ScenePin): HTMLButtonElement {
   style.width = `${size}px`;
   style.height = `${size}px`;
   style.font = '600 12px/1 var(--font-sans, system-ui, sans-serif)';
+  paintPin(element, pin);
+  if (numbered) element.textContent = String(pin.number);
+  return element;
+}
+
+/**
+ * A pin's colours, and whether it is the one picked. Apart from the button's
+ * making, so that picking a pin repaints the button it has: a new button
+ * would drop a drag in the middle and lose the focus.
+ */
+function paintPin(element: HTMLElement, pin: ScenePin): void {
+  const tone = pin.tone ?? 'accent';
+  const colour = `var(${TONE_VAR[tone]})`;
+  const picked = pin.selected === true;
+  const style = element.style;
   if (pin.hollow) {
     // By town: the position is the town's, not the place's own. Hollow and
     // dashed, so nobody reads it as "this is the door".
-    style.border = '2px dashed var(--accent)';
+    style.border = `2px dashed ${colour}`;
     style.background = 'color-mix(in srgb, var(--surface) 80%, transparent)';
-    style.color = 'var(--accent)';
-  } else if (numbered) {
+    style.color = colour;
+  } else if (pin.number !== undefined) {
     style.border = '2px solid var(--surface)';
-    style.background = 'var(--accent)';
-    style.color = 'var(--accent-fg)';
+    style.background = colour;
+    style.color = tone === 'accent' ? 'var(--accent-fg)' : 'var(--surface)';
   } else {
-    style.border = '1.5px solid var(--accent)';
-    style.background = 'color-mix(in srgb, var(--accent) 35%, transparent)';
-    style.color = 'var(--accent)';
+    style.border = `1.5px solid ${colour}`;
+    style.background = picked ? colour : `color-mix(in srgb, ${colour} 35%, transparent)`;
+    style.color = colour;
   }
-  if (numbered) element.textContent = String(pin.number);
-  return element;
+  style.boxShadow = picked ? `0 0 0 3px color-mix(in srgb, ${colour} 40%, transparent)` : '';
+  if (picked) {
+    element.dataset['selected'] = '';
+    element.setAttribute('aria-current', 'true');
+  } else {
+    delete element.dataset['selected'];
+    element.removeAttribute('aria-current');
+  }
+}
+
+/** A pin as it is drawn, but for whether it is the one picked. */
+function lookOf(pin: ScenePin): string {
+  return JSON.stringify({ ...pin, selected: false });
 }
 
 function cornerElement(label: string, selected: boolean, first: boolean): HTMLButtonElement {
@@ -441,9 +492,11 @@ export function createMapEngine(lib: MapLibreModule, container: HTMLElement, opt
     let refocus: HTMLElement | null = null;
     for (const pin of scene.pins) {
       const previous = pinMarkers.get(pin.key);
-      // A pin whose look is unchanged keeps its button, and with it the focus.
-      if (previous !== undefined && JSON.stringify(previous.pin) === JSON.stringify(pin)) {
-        next.set(pin.key, previous);
+      // A pin whose look is unchanged keeps its button, and with it the focus
+      // and a drag in the middle. Being picked, or no longer, repaints that button.
+      if (previous !== undefined && lookOf(previous.pin) === lookOf(pin)) {
+        if ((previous.pin.selected === true) !== (pin.selected === true)) paintPin(previous.marker.getElement(), pin);
+        next.set(pin.key, { marker: previous.marker, pin });
         pinMarkers.delete(pin.key);
         continue;
       }
@@ -609,6 +662,11 @@ export function createMapEngine(lib: MapLibreModule, container: HTMLElement, opt
     tilesFailed += 1;
     if (tilesIn === 0 && tilesFailed >= TILE_FAILURES) fail();
   });
+  // A move the person made carries the event of their hand; one this code made (a fit) carries none.
+  let personMoved = false;
+  map.on('movestart', (event) => {
+    if ((event as { originalEvent?: unknown }).originalEvent !== undefined) personMoved = true;
+  });
   map.on('click', (event) => {
     const editor = scene.editor;
     if (editor !== null && !editor.closed) {
@@ -659,6 +717,9 @@ export function createMapEngine(lib: MapLibreModule, container: HTMLElement, opt
     center() {
       const at = map.getCenter();
       return [at.lng, at.lat];
+    },
+    movedByPerson() {
+      return personMoved;
     },
     destroy() {
       alive = false;

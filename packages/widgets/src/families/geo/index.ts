@@ -10,9 +10,9 @@
  * Note that importing this barrel does NOT pull MapLibre: `MapBubble.tsx` loads
  * it dynamically inside its mount effect (acceptance #3).
  */
+export { MapBubbleWidget } from './MapBubbleWidget.js';
 export {
   MapBubble,
-  MapBubbleWidget,
   mapBubbleConfigSchema,
   mapBubbleDemoData,
   type MapBubbleConfig,

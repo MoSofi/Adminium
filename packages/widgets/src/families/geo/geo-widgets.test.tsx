@@ -155,7 +155,8 @@ vi.mock('maplibre-gl', () => {
 });
 vi.mock('maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url', () => ({ default: '/maplibre-worker.js' }));
 
-import { MapBubble, MapBubbleWidget } from './MapBubble.js';
+import { MapBubble } from './MapBubble.js';
+import { MapBubbleWidget } from './MapBubbleWidget.js';
 import { MapChoroplethGrid } from './MapChoroplethGrid.js';
 import {
   mapBubbleConfigSchema,
@@ -734,6 +735,69 @@ describe('map-bubble', () => {
   it('honours topN=0 (the companion list is optional)', () => {
     const { container } = render(<MapBubble points={CITY_POINTS} topN={0} />);
     expect(container.querySelector('[data-part="geo-ranking"]')).toBeNull();
+  });
+
+  // ── what a host that is not the dashboard asks for (the kit's map part): all optional ──
+
+  it('draws the picked point filled and marks its row, and picking another repaints the buttons there are', async () => {
+    const { container, rerender } = render(withMaps(<MapBubble points={CITY_POINTS} listOrder="given" selected={1} />));
+    const map = await builtMap();
+    act(() => map.fire('style.load'));
+    const pins = [...container.querySelectorAll<HTMLElement>('[data-part="map-pin"]')];
+    expect(pins.map((pin) => pin.getAttribute('aria-current'))).toEqual([null, 'true', null]);
+    expect(pins[1]!.dataset['selected']).toBe('');
+    expect(pins[1]!.style.boxShadow).not.toBe('');
+    expect(container.querySelector('[data-part="geo-ranking-row"][aria-current="true"]')?.textContent).toContain(CITY_POINTS[1]!.name);
+    // Another pick: the same three buttons, so a pin in the middle of a drag keeps its own.
+    rerender(withMaps(<MapBubble points={CITY_POINTS} listOrder="given" selected={2} />));
+    const after = [...container.querySelectorAll<HTMLElement>('[data-part="map-pin"]')];
+    expect(after).toEqual(pins);
+    expect(after.map((pin) => pin.getAttribute('aria-current'))).toEqual([null, null, 'true']);
+    expect(pins[1]!.style.boxShadow).toBe('');
+    // None picked: no pin and no row says so.
+    rerender(withMaps(<MapBubble points={CITY_POINTS} listOrder="given" />));
+    expect(container.querySelectorAll('[aria-current]')).toHaveLength(0);
+  });
+
+  it('draws a pin in the tone its point names, and in the accent without one', async () => {
+    const { container } = render(withMaps(<MapBubble points={[{ ...CITY_POINTS[0]!, tone: 'danger' }, CITY_POINTS[1]!]} />));
+    const map = await builtMap();
+    act(() => map.fire('style.load'));
+    const pins = [...container.querySelectorAll<HTMLElement>('[data-part="map-pin"]')];
+    expect(pins.map((pin) => pin.style.color)).toEqual(['var(--danger)', 'var(--accent)']);
+  });
+
+  it('takes light or dark from a host that says it, and changes the style of the map that is there', async () => {
+    const { rerender } = render(withMaps(<MapBubble points={CITY_POINTS} theme="dark" />));
+    const map = await builtMap();
+    expect(map.options.style).toBe(`${MAP_SERVER}/styles/dark`);
+    act(() => map.fire('style.load'));
+    rerender(withMaps(<MapBubble points={CITY_POINTS} theme="light" />));
+    expect(map.styles).toEqual([`${MAP_SERVER}/styles/dark`, `${MAP_SERVER}/styles/positron`]);
+    expect(fake.maps).toHaveLength(1);
+  });
+
+  it('holdView: once the person has moved the map, new places are not fitted; without it they are', async () => {
+    const more = [...CITY_POINTS, { name: 'Lima', lat: -12.05, lng: -77.04, values: { users: 5 } }];
+    const held = render(withMaps(<MapBubble points={CITY_POINTS} holdView />));
+    const map = await builtMap();
+    act(() => map.fire('style.load'));
+    // A move the map made itself carries no event of a hand: the view still follows the places.
+    act(() => map.fire('movestart', {}));
+    held.rerender(withMaps(<MapBubble points={more} holdView />));
+    expect(map.fitted).toHaveLength(2);
+    act(() => map.fire('movestart', { originalEvent: new Event('mousedown') }));
+    held.rerender(withMaps(<MapBubble points={CITY_POINTS} holdView />));
+    expect(map.fitted).toHaveLength(2);
+    held.unmount();
+
+    fake.maps.length = 0;
+    const free = render(withMaps(<MapBubble points={CITY_POINTS} />));
+    const second = await builtMap();
+    act(() => second.fire('style.load'));
+    act(() => second.fire('movestart', { originalEvent: new Event('mousedown') }));
+    free.rerender(withMaps(<MapBubble points={more} />));
+    expect(second.fitted).toHaveLength(2);
   });
 
   it('emits the selected place from the ranked list (the map’s keyboard-reachable twin)', () => {

@@ -1,0 +1,116 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+/*
+ * The map's styles on an app's own screen, in the board's pattern
+ * (board.css): the kit's scale, exactly the utilities the map's files wear,
+ * each held under the kit's wrapper, and no preflight.
+ *
+ * Two things the board has no need of:
+ *
+ * The map library's own sheet. In the dashboard it is a sheet of its own,
+ * fetched with the first map. Here the part imports it held under the
+ * wrapper (`?kit-scoped`, vite.config.ts), so `.maplibregl-map` is
+ * `.adm-kit .maplibregl-map`; the build writes it into this same file. The
+ * part tells the map not to fetch the library's sheet a second time
+ * (`librarySheet={false}`). The few rules about it below are the kit's own.
+ *
+ * The pins. They are buttons the map engine makes by hand and colours by the
+ * dashboard's token names (`var(--accent)`), and the areas and the route are
+ * drawn on a canvas in colours read off the same names. An app's page may
+ * have none of them, so inside the map's box each is given the kit's own
+ * (which is the app's token when it has one, and Adminium's value when not).
+ * They are set one element below the wrapper: on the wrapper itself
+ * `--accent` and `--adm-kit-accent` would each be made of the other.
+ */
+@import '../kit-theme.css';
+
+@source './map.tsx';
+@source '../../../node_modules/@adminium/widgets/src/families/geo/MapBubble.tsx';
+@source '../../../node_modules/@adminium/widgets/src/families/geo/StatusNote.tsx';
+@source '../../../node_modules/@adminium/ui/src/components/button/Button.tsx';
+@source '../../../node_modules/@adminium/ui/src/components/empty-state/EmptyState.tsx';
+@source '../../../node_modules/@adminium/ui/src/components/icon-tile/IconTile.tsx';
+@source '../../../node_modules/@adminium/ui/src/components/spinner/Spinner.tsx';
+@source '../../../node_modules/@adminium/ui/src/components/tag/Tag.tsx';
+
+.adm-kit {
+  @tailwind utilities source(none);
+}
+
+/*
+ * The map's own box: as wide as the element it is mounted in and never
+ * wider. Its height is the element's when the app gave it one; without, the
+ * map is 20rem tall and the list takes what it needs.
+ */
+.adm-kit[data-kit-part='map'] {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  height: 100%;
+  font-size: 13px;
+}
+.adm-kit .adm-kit-map {
+  --accent: var(--adm-kit-accent);
+  --accent-fg: var(--adm-kit-accent-fg);
+  --surface: var(--adm-kit-surface);
+  --fg-muted: var(--adm-kit-fg-muted);
+  --pos: var(--adm-kit-pos);
+  --warn: var(--adm-kit-warn);
+  --danger: var(--adm-kit-danger);
+  --info: var(--adm-kit-info);
+  /* The dashboard's map sits in a widget's frame and takes its padding; here the box is the app's. */
+  --widget-pad: 0px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  min-width: 0;
+  height: 100%;
+}
+/* The map library writes its own font on everything it draws; the credit line and the buttons take the app's. */
+.adm-kit .adm-kit-map .maplibregl-map {
+  font: inherit;
+  font-size: 12px;
+}
+/* The credit line, on the kit's surface: the library's is white, which a dark page does not want. */
+.adm-kit .adm-kit-map .maplibregl-ctrl-attrib {
+  background-color: color-mix(in srgb, var(--adm-kit-surface) 80%, transparent);
+  color: var(--adm-kit-fg-muted);
+}
+.adm-kit .adm-kit-map .maplibregl-ctrl-attrib a {
+  color: inherit;
+}
+
+/* A save that was refused: said above the map, with the app's own reason. */
+.adm-kit .adm-kit-map-refused {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 12px;
+  border: 1px solid color-mix(in srgb, var(--adm-kit-danger) 40%, transparent);
+  border-radius: 10px;
+  background: var(--adm-kit-danger-soft);
+  color: var(--adm-kit-fg);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+.adm-kit .adm-kit-map-refused p {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.adm-kit .adm-kit-map-dismiss {
+  flex: none;
+  padding: 0 6px;
+  border-radius: 6px;
+  color: var(--adm-kit-fg-muted);
+  font-weight: 600;
+  cursor: pointer;
+}
+.adm-kit .adm-kit-map-dismiss:hover {
+  color: var(--adm-kit-fg);
+}
+.adm-kit .adm-kit-map-dismiss:focus-visible {
+  outline: 2px solid var(--adm-kit-accent);
+  outline-offset: 2px;
+}

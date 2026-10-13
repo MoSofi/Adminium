@@ -1,6 +1,6 @@
 ---
 title: Adminium's own parts on an app's screen
-description: "Draw one of Adminium's larger parts, the text box that mentions people or the board, inside a screen your app wrote itself: the address in the side's config, the mount call, the props, what your screen saves and what the part does, the look, and what a person who opens only your screens gets."
+description: "Draw one of Adminium's larger parts, the text box that mentions people, the board or the map, inside a screen your app wrote itself: the address in the side's config, the mount call, the props, what your screen saves and what the part does, the look, and what a person who opens only your screens gets."
 ---
 
 A staff side is a bundle of its own: its own React, or none. Some parts are too large to write
@@ -9,10 +9,10 @@ mentioned, the board, the map, the import. Adminium serves these itself, and a s
 with a small call: "draw it in this element". The part is drawn by Adminium's own React. Yours
 never meets it, so a screen written in plain JavaScript can use a part as well as one in React.
 
-Today two parts can be mounted: **the mention text area** (`mentions`) and **the board** (`board`).
-`map` and `import` are named and arrive in later versions with the same call; asking for one now
-is refused with an error whose `code` is `KIT_PART_NOT_YET`. `kit.parts` lists the ones this
-Adminium can mount.
+Today three parts can be mounted: **the mention text area** (`mentions`), **the board** (`board`)
+and **the map** (`map`). `import` is named and arrives in a later version with the same call;
+asking for it now is refused with an error whose `code` is `KIT_PART_NOT_YET`. `kit.parts` lists
+the ones this Adminium can mount.
 
 This is for a **staff side**. A customer side is told nothing of the kit, and a customer address
 refuses its files.
@@ -26,7 +26,7 @@ The staff side's `surface-config.json` names it:
   "kit": {
     "contract": 1,
     "entry": "/assets/kit/kit-BHhBq5nz.js",
-    "styles": ["/assets/kit/root-DF31DXoR.css", "/assets/kit/board-Cq0vLx2A.css"]
+    "styles": ["/assets/kit/root-DF31DXoR.css", "/assets/kit/board-Cq0vLx2A.css", "/assets/kit/map-DjqTAZ9Z.css"]
   },
   "maps": { "enabled": true, "server": "https://tiles.openfreemap.org", "routing": false },
   "locale": "ar-EG",
@@ -39,7 +39,7 @@ The staff side's `surface-config.json` names it:
 | `kit.entry` | The file to import. Its name changes with every version of Adminium, so read it from the config each time the page loads and never write it into your code. |
 | `kit.contract` | The number of the mount call's contract. This page describes contract `1`. If your screen was written for another number, show the part's place as unavailable instead of calling it. |
 | `kit.styles` | Every stylesheet of the kit, as a list: the one all parts stand on first, then one for each part that has its own. The kit loads what a part needs when it is mounted; the list is only for a page that wants them fetched early. It may be empty. |
-| `maps` | Whether maps are on in this Adminium, the map server's address, and whether routes along roads are on. The same answer the dashboard gets. The map part will need it. |
+| `maps` | Whether maps are on in this Adminium, the map server's address, and whether routes along roads are on. The same answer the dashboard gets. Hand it to the map part as it came, as its `maps`. |
 | `locale`, `dir` | The language the signed-in person chose in Adminium and its direction. Hand both to every part. |
 
 `kit` is absent when this Adminium has no kit (it runs without the dashboard, or is older than the
@@ -258,6 +258,136 @@ on the live stream.
 Give the element you mount into a width (it takes the width it is given) and, if the columns
 should scroll up and down inside the board instead of the page, a height.
 
+## The map
+
+A pin for each place and a list of the same places beside it (under it, on a narrow screen). A
+person picks a pin or its row, drags a pin to the exact spot with a mouse or a finger, or moves
+it with the keyboard: Tab to a pin, the arrows to go from pin to pin, Enter to pick one up, the
+arrows to move it, Enter to keep the spot, Escape to put it back. Areas can be drawn and changed,
+and the pins can be the stops of a route. It is the dashboard's own map, so it behaves the same
+there and here.
+
+Your screen owns the rows. It reads them, hands them over as plain data, and saves a dragged pin:
+
+```ts
+const { rows } = await staff.list('customers', { order: 'id.asc', limit: 200 });
+
+const map = await kit.mount('map', document.querySelector('#customers'), {
+  maps: config.maps,                                              // as the config gave it
+  pins: rows.map((row) => ({ id: String(row.id), label: String(row.name), lat: Number(row.lat), lng: Number(row.lng) })),
+  locale: config.locale,
+  dir: config.dir,
+  ariaLabel: 'Customers',
+  onSelect: (pinId) => showCustomer(pinId),
+  ...(staff.can('customers', 'update')
+    ? {
+        onMovePin: async (pinId, at) => {
+          await staff.update('customers', pinId, { lat: at.lat, lng: at.lng });   // a refusal throws, with the server's sentence
+        },
+      }
+    : {}),
+});
+```
+
+A screen with no staff session does the same with `fetch` against the data API and answers
+`{ refused: reply.error.message }` when the reply is not a success.
+
+### The map's three states
+
+The part never leaves an empty frame. Which of the three it shows follows `maps`, the side's
+config handed over as it came:
+
+- **Maps are on and the map server answers**: the map, with the list.
+- **Maps are on and the map server cannot be reached** (offline, blocked, down): the list, under
+  "The map could not be reached. Here is the list."
+- **Maps are switched off** (`maps.enabled` is `false`): the list, under "Maps are switched off.
+  Here is the list." Nothing is asked of the map server and the map's code is not fetched. With a
+  `settingsHref`, the line ends in a link to it; give one only to a person who may switch maps
+  on, and point it at wherever that is done ([Settings → Maps](/guides/apps/maps/) is
+  `/settings/maps` in the dashboard).
+
+The list is the same places in all three, each row a button that picks its pin, so a screen
+reader, and a person with no map, have everything the map shows.
+
+The map server's address is never written in the kit. It is the one in `maps`, which is also the
+one the page's content policy lets the browser reach; a different address would be refused by the
+browser. [What a served screen may load](/guides/apps/building-a-side/#what-a-served-screen-may-not-load)
+has the rule.
+
+### Props
+
+| Prop | |
+|---|---|
+| `maps` | The `maps` of the side's config: `{ enabled, server, routing }`. Required. |
+| `pins` | The places. Required. Each: `id` (the row's key, as text), `label`, `lat`, `lng`, and optionally `tone` (`neutral`, `accent`, `pos`, `warn`, `danger`, `info`: the pin's colour) and `by` (`'town'` for a position that is only the middle of a town: the pin is drawn hollow and marked "by town", and several in one town stand in a ring round it). A pin whose `lat` or `lng` is not a number is left out. |
+| `locale`, `dir` | From the side's config. Required. |
+| `selected` | The `id` of the pin that is picked, or `null`. The map keeps what the person picks; pass it only to change the pick from your side. |
+| `onSelect(pinId)` | Called when a pin or its row is picked. |
+| `onMovePin(pinId, { lat, lng })` | Saves a dragged pin. Left out, no pin can be moved. |
+| `areas` | Areas drawn as filled outlines and named in the list. Each: `id`, `geometry` (a GeoJSON `Polygon` or `MultiPolygon`, positions as `[lng, lat]`), and optionally `name` and `tone`. |
+| `onAreaChange(areaId, geometry)` | Saves an area that was drawn (`areaId` is `null`) or changed. Left out, areas cannot be drawn. A changed area comes back as the kind it was, with its holes and other pieces kept, so save `geometry` whole. After saving a new one, call `update({ areas })` with the areas read again: the map then knows its id. |
+| `route(stops)` | Makes the pins the stops of a route, in their order (below). |
+| `units` | `'km'` (the default) or `'mi'`, for a route's legs. |
+| `center`, `zoom` | Where the map starts: `[lat, lng]`, and 1 (the world) to 18 (a street). Left out, it fits what it draws. Read once, when the part is mounted. |
+| `settingsHref` | Where maps are switched on, for the "switched off" line. |
+| `listLabel` | The list's name for a screen reader. Default "Places", or "Stops" on a route. |
+| `emptyLabel` | A line in place of the map while there is no pin and no area. |
+| `ariaLabel` | The map's name for a screen reader. |
+| `theme` | `light` or `dark`, as for every part. The map takes the map server's light or dark style to match. Left out, it follows the page's `color-scheme`, read when the part is mounted, at every `update`, and when the device changes between light and dark. |
+
+### What `onMovePin` must answer
+
+The map leaves the pin where it was dropped and calls `onMovePin`. Answer a promise:
+
+- **resolved with nothing**: the move held. The pin stays.
+- **resolved with `{ refused: 'the reason' }`**, or **rejected** with an error: the pin goes back
+  where it was, the reason is shown in a line above the map and said to a screen reader. Hand over
+  the server's own sentence.
+
+If `onMovePin` answers nothing at all (no promise), the move is taken as saved.
+
+`onAreaChange` answers the same way. A refused change is said in the same line; the shape stays
+on the map as it was drawn, to be changed again.
+
+### A route
+
+Give `route` and the pins are numbered, joined in their order, and each row of the list says how
+far it is from the stop before. The map calls `route` with the stops (`{ lat, lng, by? }` each)
+when it is mounted and again whenever a stop's position changes, and draws what you answer.
+[`POST /api/v1/geo/route`](/guides/apps/maps/#routes-are-estimates) answers exactly that:
+
+```ts
+route: async (stops) => {
+  const reply = await fetch('/api/v1/geo/route', {
+    method: 'POST',
+    credentials: 'same-origin',
+    headers: { 'content-type': 'application/json', 'x-adminium-csrf': config.csrfToken },
+    body: JSON.stringify({ stops }),
+  });
+  if (!reply.ok) throw new Error('No route');
+  return (await reply.json()).data;
+},
+```
+
+Until the answer is in, and when it does not come, the legs are drawn as straight dashed lines
+and their lengths read "unknown". A leg the server measured as a straight line reads "about".
+That route takes 2 to 50 stops.
+
+### What `update` keeps
+
+`update(props)` changes the map that is there; it is never built again. So:
+
+- **the view** is the person's once they have moved or zoomed the map: new pins are drawn where
+  they are and the map does not jump to fit them. Until then it fits what it is given, so pins
+  that arrive after an empty mount are brought into view;
+- **the pick** stays, unless `selected` says otherwise;
+- **a pin being dragged** keeps its hold while other pins change.
+
+It is safe to call when a colleague's change arrives on the live stream.
+
+Give the element you mount into a width. With no height of its own the map is 20rem tall and the
+list takes the room it needs; with one, the part fills it.
+
 ## The look
 
 The kit brings its own styles and loads them when a part is first mounted. Every rule is held
@@ -295,7 +425,9 @@ Nothing until a part is mounted. The entry is about a kilobyte. The first mount 
 its words in the person's language, its styles, and the React that draws it, which is the same
 file the dashboard uses, so a person who has opened the dashboard already has it. The board also
 brings drag and drop (about 14 kB compressed), again the dashboard's own file, and only when a
-board is mounted. The files carry
+board is mounted. The map brings the map library (about 290 kB compressed) and its worker (about
+150 kB), the dashboard's own files too, and only when a map is drawn: with maps switched off
+neither is fetched. The files carry
 a hash of their content in their names and are kept by the browser for good.
 
 All of it comes from the address the side is served from, so it fits
