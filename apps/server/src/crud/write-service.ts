@@ -3314,7 +3314,8 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         const to = String(set[states.column]);
         // What could not be judged inside another row's write: a move that sets off effects, or waits for another row.
         const waits = Object.values(states.moves).some((list) => list.some((move) => typeof move === 'object' && move.to === to && waitVias(move.requires).length > 0));
-        if ((states.effects?.length ?? 0) > 0 || waits) {
+        // As for an effect's row: only an effect this very move would set off (one that starts from the state it moves to).
+        if ((states.effects ?? []).some((their) => !isChangeEffect(their) && their.on.to === to) || waits) {
           throw new StateMoveRefused(`An add-on's plan cannot move a ${target.table.name} row: its move sets off effects or waits for another row.`, { column: states.column, to });
         }
         declared = { ...context, declared: { from: String(before[states.column] ?? states.initial), to } };

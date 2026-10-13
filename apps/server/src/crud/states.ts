@@ -1075,6 +1075,9 @@ async function runEffects(db: Db, table: ResolvedTable, values: Row, moved: read
       }
       const target = held.of(link, next);
       if (target === null) continue;
+      // A link that points at the row being moved (a version that "replaces" itself) moves nothing: the row is already making its own move,
+      // and a second one on top of it would undo that.
+      if (link.table === table.id && sameValue(target[link.key], stored[link.key])) continue;
       const [column, state] = Object.entries(effect.set)[0]!;
       if (sameValue(target[column], state)) continue;
       if (guard.effect === undefined) {

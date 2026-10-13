@@ -131,6 +131,16 @@ for (const [dialect, reachable] of LEGS) {
       expect([await statusOf(draft), await statusOf(next)]).toEqual(['draft', 'draft']);
     });
 
+    it('a quote that names itself as the one it replaces is sent, and stays sent', async () => {
+      const w = await writerFor(h);
+      const only = await quote();
+      await w.update('quotes', only, { replaces_id: only });
+      await w.update('quotes', only, { status: 'sent' });
+      // Not sent and withdrawn in one breath: a link back to the row itself moves nothing.
+      expect(await statusOf(only)).toBe('sent');
+      expect((await h.rows(`SELECT decided_at FROM ${h.real('quotes')} WHERE id = ${String(only)}`))[0]!['decided_at']).toBeNull();
+    });
+
     it('a version already withdrawn is left as it is: its replacement is sent', async () => {
       const w = await writerFor(h);
       const v1 = await quote();

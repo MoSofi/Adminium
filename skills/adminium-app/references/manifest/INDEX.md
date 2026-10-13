@@ -31,7 +31,7 @@
 | `references/manifest/requiredschema--a-resource-and-a-time.md` | requiredSchema — A resource and a time | 3465 |
 | `references/manifest/requiredschema--states.md` | requiredSchema — States | 7156 |
 | `references/manifest/requiredschema--states-2.md` | requiredSchema — States (part 2) | 7096 |
-| `references/manifest/requiredschema--states-3.md` | requiredSchema — States (part 3) | 6822 |
+| `references/manifest/requiredschema--states-3.md` | requiredSchema — States (part 3) | 7292 |
 | `references/manifest/requiredschema--states-4.md` | requiredSchema — States (part 4) | 2077 |
 | `references/manifest/requiredschema--buttons-on-a-record.md` | requiredSchema — Buttons on a record | 3020 |
 | `references/manifest/requiredschema--postings.md` | requiredSchema — Postings | 3904 |

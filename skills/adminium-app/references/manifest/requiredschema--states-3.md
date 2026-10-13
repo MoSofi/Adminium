@@ -66,6 +66,12 @@ it is; a new row already in the state `new` names refuses the whole write (`409`
 `STATE_MOVE_REFUSED` with `details.effect: "new"`: the new room is not ready). Any refusal refuses
 the whole write.
 
+The linked row is moved by its own table's declared move, with that move's conditions, its lock
+and its totals, and not by what the person who made the first move may do to it: whoever may
+make the move that sets an effect off thereby moves the linked row too, whatever their role
+writes of that table and whichever of its rows they reach. Give an effect only a link whose
+row belongs with the row that moves. A link that points at the moving row itself moves nothing.
+
 An effect moves one row, one link away, never a chain. The linked table may not be one whose rows
 are lines of another table's states, one that books people by the day, or the app's outbox; the
 state it sets may not be one the linked table's own effects start from (a table with effects may
