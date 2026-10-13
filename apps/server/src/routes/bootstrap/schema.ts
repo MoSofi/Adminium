@@ -310,6 +310,20 @@ export const bootstrapReply = z.object({
      * are connected is the connections page's to say, to whoever may manage them.
      */
     hasConnections: z.boolean(),
+    /**
+     * Whether this person could bring a file in to at least one table now, so
+     * the menu offers "Import data" only to somebody it is of use to. True for
+     * a Super Admin, and for a role that holds the `import` action on a table,
+     * by name or by a wildcard, of a connection that is neither paused nor
+     * read-only; a table of an app's part that is switched off is held by
+     * nobody while it is off, and does not count.
+     *
+     * A hint for the menu, never an authorisation. It is read off the grants
+     * and the connections alone: whether the table named still exists, is
+     * read-only or private, and what the database lets this server write, are
+     * judged by `POST /imports` for the table chosen.
+     */
+    canImport: z.boolean(),
     /** Resolved axes (system → global → user) + provenance. */
     prefs: mePrefsResolvedView,
     nav: bootstrapNavTree,

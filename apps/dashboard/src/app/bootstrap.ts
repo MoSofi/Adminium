@@ -228,6 +228,13 @@ export interface BootstrapData {
    * always sends it.
    */
   hasConnections?: boolean;
+  /**
+   * Whether this person could bring a file in to at least one table now: the
+   * menu offers "Import data" unless this is false. A hint only; the import
+   * itself is judged by the server for the table chosen. Absent from an older
+   * server, which is read as "offer it", as before.
+   */
+  canImport?: boolean | undefined;
   prefs: ResolvedPrefs;
   nav: NavTree;
   version: string;

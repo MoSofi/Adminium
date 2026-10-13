@@ -172,3 +172,28 @@ describe('platform rail rows follow the session\'s system keys', () => {
     expect(screen.queryByRole('heading', { name: 'Roles & permissions' })).toBeNull();
   });
 });
+
+describe('the rail offers "Import data" to whoever can bring a file in', () => {
+  it('leaves it out for a session the server says can import nothing', async () => {
+    await renderRail({ roles: ['support-lead'], systemActions: [], canImport: false });
+    const links = railLinks();
+    expect(links).not.toContain('Import data');
+    // The row beside it is no part of the rule.
+    expect(links).toContain('Data exports');
+  });
+
+  it('shows it to a session that can', async () => {
+    await renderRail({ roles: ['support-lead'], systemActions: [], canImport: true });
+    expect(railLinks()).toContain('Import data');
+  });
+
+  it('shows it as before when the reply says nothing: an older server', async () => {
+    await renderRail({ roles: ['support-lead'], systemActions: [], canImport: undefined });
+    expect(railLinks()).toContain('Import data');
+  });
+
+  it('still opens the page by its address', async () => {
+    await renderRail({ roles: ['support-lead'], systemActions: [], canImport: false }, '/imports');
+    expect(await screen.findByRole('heading', { name: 'Import data' })).toBeTruthy();
+  });
+});

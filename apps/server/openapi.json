@@ -1936,6 +1936,9 @@
                         "hasConnections": {
                           "type": "boolean"
                         },
+                        "canImport": {
+                          "type": "boolean"
+                        },
                         "prefs": {
                           "type": "object",
                           "properties": {
@@ -3603,6 +3606,7 @@
                         "systemActions",
                         "pagesWithheld",
                         "hasConnections",
+                        "canImport",
                         "prefs",
                         "nav",
                         "version",

@@ -17,6 +17,7 @@ export function makeBootstrap(overrides: Partial<BootstrapData> = {}): Bootstrap
       updatedAt: 1,
     },
     roles: ['super-admin'],
+    canImport: true,
     prefs: {
       theme: 'light',
       accent: 'indigo',

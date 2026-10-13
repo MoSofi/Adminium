@@ -40,7 +40,8 @@ import { addOnPagePermission, pagesAreGated } from '../../add-ons/page-gate.js';
 import { screensOnlyError } from '../../apps/screens-only.js';
 import { UnauthorizedError } from '../../errors.js';
 import { loadAppParts, partIsOn } from '../../rbac/app-parts.js';
-import { PERMISSIONS } from '../../rbac/permissions.js';
+import { parseGrant, PERMISSIONS } from '../../rbac/permissions.js';
+import type { PermissionSet } from '../../rbac/resolver.js';
 import { MAPS_OFF } from '../../geo/map-policy.js';
 import type { AuthContext } from '../../plugins/auth.js';
 import { csrfSigningKey, issueCsrfToken } from '../../security/csrf.js';
@@ -103,6 +104,28 @@ async function heldSystemActions(request: FastifyRequest): Promise<SystemActionK
     if (await request.can(`system:${area}:${verb}`)) held.push(key);
   }
   return held;
+}
+
+/**
+ * Whether a permission set could bring a file in to some table of one of
+ * `writable`: the connections that are neither paused nor read-only. A Super
+ * Admin can once there is one; anybody else needs a table grant whose action
+ * is `import` (or every action) on one of them, by name or by a wildcard.
+ *
+ * Read off the resolved grants, so a table of a part that is off, which the
+ * resolver leaves nobody a write on, is not counted either. It asks no
+ * database and reads no schema: the route judges the table chosen.
+ */
+export function canImportSomewhere(set: Pick<PermissionSet, 'superAdmin' | 'grants'>, writable: ReadonlySet<string>): boolean {
+  if (writable.size === 0) return false;
+  if (set.superAdmin) return true;
+  for (const grant of set.grants) {
+    const parsed = parseGrant(grant);
+    if (parsed === null || parsed.kind !== 'table') continue;
+    if (parsed.action !== 'import' && parsed.action !== '*') continue;
+    if (parsed.connectionId === '*' || writable.has(parsed.connectionId)) return true;
+  }
+  return false;
 }
 
 /**
@@ -716,11 +739,13 @@ export async function bootstrapHandler(
   const surfaceSettings = hasSurfaces ? request.server.surfaceSettings : null;
 
   // Someone whose every role opens only an app's screens is sent there instead.
+  let permissions: PermissionSet | null = null;
   if (request.server.hasDecorator('rbac') && request.apiKeyPrincipal == null) {
     const set = await request.server.rbac.resolve(request);
     if (set.screensOnly !== null) {
       throw screensOnlyError((await surfaceSettings?.read()) ?? NO_SURFACE_SETTINGS, set.screensOnly, request);
     }
+    permissions = set;
   }
   // The project folder, when the server runs one. Same request-time read, for
   // the same reason: this route is registered before it exists.
@@ -735,10 +760,11 @@ export async function bootstrapHandler(
     // Display names, the pause flag and the display currency — no DSN material
     // , so no crypto needed. `disabledAt` decides whether this
     // connection's pages reach the sidebar at all (meta wave 0019);
-    // `currency` is what money cells format with.
+    // `currency` is what money cells format with; `readOnly` is for
+    // `canImport`, with the pause.
     ctx.meta.db
       .selectFrom('adminium_connections')
-      .select(['id', 'name', 'disabledAt', 'currency'])
+      .select(['id', 'name', 'disabledAt', 'currency', 'readOnly'])
       .execute(),
     // `llm.enabled` = a provider is configured — the same
     // `llm.provider` row `resolveProviderClient` gates direct runs
@@ -868,6 +894,10 @@ export async function bootstrapHandler(
         (row) => readBool(row.isEnabled) && !visibleRows.some((visible) => visible.id === row.id),
       ),
       hasConnections: connectionRows.length > 0,
+      // A harness mounted without the rbac plugin resolves nobody's grants: "no" is the honest answer there.
+      canImport:
+        permissions !== null &&
+        canImportSomewhere(permissions, new Set(connectionRows.filter((row) => row.disabledAt === null && !readBool(row.readOnly)).map((row) => row.id))),
       prefs,
       nav,
       version: APP_VERSION,
