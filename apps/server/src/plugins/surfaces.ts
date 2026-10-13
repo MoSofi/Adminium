@@ -73,6 +73,7 @@ import {
 
 import type { Manifest } from '@adminium/manifest';
 
+import { kitOf } from '../apps/kit.js';
 import { sharedTablesOf } from '../apps/shared-tables.js';
 import type { InstalledApps } from '../apps/installed.js';
 import { settingValuesWithDefaults } from '../apps/settings-values.js';
@@ -80,6 +81,7 @@ import { auditAuth } from '../auth/audit.js';
 import { clearSessionCookie } from '../auth/sessions.js';
 import { resolveLabel, type HostedSurface, type SurfaceSide } from '../cli/surfaces-root.js';
 import { AppError, AppUnavailableError, ForbiddenError, NotFoundError } from '../errors.js';
+import { MAPS_OFF } from '../geo/map-policy.js';
 import { bcp47, sameLanguage } from '../i18n/bcp47.js';
 import { loadAppParts, offeredRoles } from '../rbac/app-parts.js';
 import { loadOverrideMap, recipientLocale } from '../i18n/server-i18n.js';
@@ -687,6 +689,15 @@ export const surfacesPlugin = fp<SurfacesPluginOptions>(
         const addOnTables = Object.values(addOns ?? {}).flatMap((addOn) => Object.values((addOn as { tables?: Record<string, string> }).tables ?? {}));
         const access = user === null || bound === null ? null : await accessOf(request, appKey, bound, tables, user.id, addOnTables);
         const sharedTables = bound === null || tables === null || opts.metaDb === undefined ? null : await sharedTablesOf(opts.metaDb, bound, appKey, tables);
+        /*
+         * THE KIT'S PARTS AND THE MAP, for a screen that draws them itself:
+         * the file to import for a part (the board, the map, the import, the
+         * mention box), and whether maps are on and where they come from. The
+         * same answer the dashboard's bootstrap gives, which these screens do
+         * not read.
+         */
+        const kit = await kitOf(request.server.hasDecorator('spaRoot') ? request.server.spaRoot : null);
+        const maps = request.server.hasDecorator('maps') ? await request.server.maps.read() : MAPS_OFF;
         return {
           connectionId: bound,
           appName,
@@ -703,6 +714,8 @@ export const surfacesPlugin = fp<SurfacesPluginOptions>(
           serverTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
           // The server's clock when this was answered: a device whose clock is off still asks for the venue's today.
           now: new Date().toISOString(),
+          ...(kit === null ? {} : { kit }),
+          maps: { enabled: maps.enabled, server: maps.server, routing: maps.routing },
           ...signedIn,
         };
       }

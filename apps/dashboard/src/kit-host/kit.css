@@ -1,0 +1,137 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+/*
+ * The kit's styles on an app's own screen.
+ *
+ * Everything hangs from `.adm-kit`, the wrapper a mount draws: no rule here
+ * names a bare element, so nothing reaches the app's own page, and there is
+ * no reset. The rules are not in a cascade layer, so they also hold on a page
+ * whose own utilities are in one.
+ *
+ * Colours are the app's own tokens when it has them (`--surface`, `--fg`, …,
+ * the names Adminium's own themes use) and Adminium's values when it does
+ * not, light or dark by the page's `color-scheme`. Sides are logical
+ * (`inline-start`), so right-to-left needs no second set.
+ *
+ * So far it holds what the mention box needs. Each part that follows adds its
+ * own rules under the same wrapper and the same `--adm-kit-*` names.
+ */
+.adm-kit {
+  --adm-kit-surface: var(--surface, light-dark(#ffffff, #141419));
+  --adm-kit-field: var(--surface-2, light-dark(#fafafa, #1a1a20));
+  --adm-kit-hover: var(--surface-3, light-dark(#f1f1f4, #24242c));
+  --adm-kit-border: var(--border, light-dark(#ececef, rgba(255, 255, 255, 0.07)));
+  --adm-kit-border-strong: var(--border-strong, light-dark(#e2e2e8, rgba(255, 255, 255, 0.13)));
+  --adm-kit-fg: var(--fg, light-dark(#191920, #f4f4f6));
+  --adm-kit-fg-muted: var(--fg-muted, light-dark(#4a4a54, #b7b7c3));
+  --adm-kit-fg-subtle: var(--fg-subtle, light-dark(#5a5a65, #a1a1ad));
+  --adm-kit-accent: var(--accent, light-dark(#4f46e5, #99a5ff));
+  --adm-kit-accent-soft: var(--accent-soft, color-mix(in srgb, var(--adm-kit-accent) 14%, transparent));
+  --adm-kit-danger: var(--danger, light-dark(#cf273c, #ff6b6b));
+  --adm-kit-danger-soft: var(--danger-soft, color-mix(in srgb, var(--adm-kit-danger) 14%, transparent));
+  --adm-kit-shadow: var(--shadow-md, 0 4px 14px rgba(20, 20, 35, 0.14));
+  box-sizing: border-box;
+  color: var(--adm-kit-fg);
+  text-align: start;
+}
+.adm-kit[data-kit-theme='light'] {
+  color-scheme: light;
+}
+.adm-kit[data-kit-theme='dark'] {
+  color-scheme: dark;
+}
+.adm-kit *,
+.adm-kit *::before,
+.adm-kit *::after {
+  box-sizing: border-box;
+}
+
+.adm-kit .adm-kit-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+}
+.adm-kit .adm-kit-label {
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--adm-kit-fg-muted);
+}
+
+/* The mention box: the text area, and the list of people under it. */
+.adm-kit[data-kit-part='mentions'] .adm-kit-field > div {
+  position: relative;
+  width: 100%;
+}
+.adm-kit[data-kit-part='mentions'] textarea {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  height: auto;
+  min-height: 76px;
+  margin: 0;
+  padding: 8px 12px;
+  border: 1px solid var(--adm-kit-border-strong);
+  border-radius: 10px;
+  background: var(--adm-kit-field);
+  color: var(--adm-kit-fg);
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.625;
+  resize: vertical;
+  outline: none;
+  transition:
+    border-color 150ms,
+    box-shadow 150ms;
+}
+.adm-kit[data-kit-part='mentions'] textarea::placeholder {
+  color: var(--adm-kit-fg-subtle);
+  opacity: 1;
+}
+.adm-kit[data-kit-part='mentions'] textarea:focus-visible {
+  border-color: var(--adm-kit-accent);
+  box-shadow: 0 0 0 3px var(--adm-kit-accent-soft);
+}
+.adm-kit[data-kit-part='mentions'] textarea[aria-invalid='true'] {
+  border-color: var(--adm-kit-danger);
+}
+.adm-kit[data-kit-part='mentions'] textarea[aria-invalid='true']:focus-visible {
+  box-shadow: 0 0 0 3px var(--adm-kit-danger-soft);
+}
+.adm-kit[data-kit-part='mentions'] textarea:disabled {
+  opacity: 0.4;
+  pointer-events: none;
+}
+.adm-kit[data-kit-part='mentions'] [role='listbox'] {
+  position: absolute;
+  inset-inline: 0;
+  top: 100%;
+  z-index: 20;
+  max-height: 220px;
+  margin: 4px 0 0;
+  padding: 4px;
+  overflow: auto;
+  list-style: none;
+  border: 1px solid var(--adm-kit-border);
+  border-radius: 10px;
+  background: var(--adm-kit-surface);
+  box-shadow: var(--adm-kit-shadow);
+}
+.adm-kit[data-kit-part='mentions'] [role='option'] {
+  margin: 0;
+  padding: 6px 10px;
+  border-radius: 7px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--adm-kit-fg-muted);
+  cursor: pointer;
+}
+.adm-kit[data-kit-part='mentions'] [role='option'][aria-selected='true'] {
+  background: var(--adm-kit-hover);
+  color: var(--adm-kit-fg);
+}
+@media (prefers-reduced-motion: reduce) {
+  .adm-kit[data-kit-part='mentions'] textarea {
+    transition: none;
+  }
+}

@@ -2244,7 +2244,10 @@ names, the app's settings and, for the staff side, the connection, the venue's t
 currency, who is signed in, the language they chose in Adminium (`locale`, as a tag such as
 `ar-EG`, with its `dir`), and `access`: which of `read`, `create`, `update` and `delete` they
 hold on each of the app's tables, and the app's roles they hold. A staff screen uses it to leave
-out a button whose write would be refused; the data API still checks every write.
+out a button whose write would be refused; the data API still checks every write. The staff
+side's config also carries `kit`, the address of Adminium's own larger parts for a screen that
+draws one itself (see [Adminium's own parts on an app's screen](/guides/apps/kit-parts/)), and
+`maps`: whether maps are on, the map server's address, and whether routes along roads are on.
 
 ## Whose a row is
 

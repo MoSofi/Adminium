@@ -16,6 +16,8 @@ import { join, resolve } from 'node:path';
 import fastifyStatic from '@fastify/static';
 import fp from 'fastify-plugin';
 
+import { kitCacheControl } from '../apps/kit.js';
+
 declare module 'fastify' {
   interface FastifyInstance {
     /** Absolute dashboard-build root being served, or null when disabled. */
@@ -46,8 +48,14 @@ export const staticPlugin = fp<StaticPluginOptions>(
 
     if (root !== null) {
       app.log.info({ root }, 'serving dashboard build');
+      const served = root;
       await app.register(fastifyStatic, {
         root,
+        // The kit's files carry a hash in their names and are kept for good; its manifest never is (apps/kit.ts).
+        setHeaders: (res, filePath) => {
+          const cache = kitCacheControl(served, filePath);
+          if (cache !== undefined) res.header('cache-control', cache);
+        },
         // Wildcard route; missing files fall through to the not-found handler,
         // which applies the SPA fallback for non-/api paths.
         wildcard: true,
