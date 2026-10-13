@@ -135,7 +135,8 @@ export function modulesLeftOut(document: unknown, has: (addOn: string) => boolea
  * a module's tables are built on is not connected.
  *
  * Gone with a module: its tables, pages, rules, documents, outbox producers
- * and public entries. Gone with its tables, wherever they are named: a link
+ * and public entries — and a browser key (`publicKeys`) every entry of which
+ * went, so a share link's key is made only with the part it opens. Gone with its tables, wherever they are named: a link
  * column into one (and an index or a way of belonging that reads the column),
  * a kept total over one (the column stays, empty), a page bound to one, a
  * role's grants and limits on one, a rule or a public entry on one, an
@@ -225,9 +226,18 @@ export function withoutModules<T>(manifest: T, gone: readonly string[]): T {
   }
 
   if (Array.isArray(out['publicAccess'])) {
+    const served = (entries: readonly unknown[]) => new Set(entries.flatMap((entry) => (isDoc(entry) && typeof entry['key'] === 'string' ? [entry['key']] : [])));
+    const before = served(list(out['publicAccess']));
     const kept = list(out['publicAccess']).filter((entry) => !(inGone(entry) || (isDoc(entry) && onGoneTable(entry['table']))));
     if (kept.length === 0) delete out['publicAccess'];
     else out['publicAccess'] = kept;
+    // A key every entry of which went with a part goes with it: a key that serves nothing is no key of this install.
+    // One that served nothing to begin with stays, for the validator to name.
+    const after = served(kept);
+    if (isDoc(out['publicKeys'])) {
+      for (const name of Object.keys(out['publicKeys'])) if (name !== 'customer' && before.has(name) && !after.has(name)) delete out['publicKeys'][name];
+      if (Object.keys(out['publicKeys']).length === 0) delete out['publicKeys'];
+    }
   }
 
   if (Array.isArray(out['seeds'])) {

@@ -76,7 +76,7 @@ import { announceEffects, effectsOf } from '../../states/effects.js';
 import { tellPostings } from '../../ledgers/announce.js';
 import { publicLedgerRefusal, publicPostings, cardMiss } from './ledger-refusals.js';
 import type { PostedOutcome } from '../../crud/ledger-write.js';
-import { prepareValues } from '../../public-api/values.js';
+import { askedFor, prepareValues } from '../../public-api/values.js';
 import { publishPublicWrite } from '../../public-api/publish.js';
 import { customerHostIn, guestBase } from '../../public-api/guest-base.js';
 import { addressesOf, hashToken, normaliseToken, stillOpen, tokenClaimOf, tokenSessionOpen, type TokenClaim, type TokenGrant } from '../../public-api/token-claim.js';
@@ -477,6 +477,11 @@ function unfilled(resource: CompiledResource, values: Readonly<Record<string, un
   for (const column of resource.requires ?? []) {
     const value = values[column];
     if (value === null || value === undefined || (typeof value === 'string' && value.trim() === '')) return column;
+  }
+  // Asked for by what this write sets another column to (`requiresWhen`): the name typed with an accept.
+  for (const column of Object.keys(resource.requiresWhen ?? {})) {
+    const value = values[column];
+    if (askedFor(resource, column, values) && (value === null || value === undefined || (typeof value === 'string' && value.trim() === ''))) return column;
   }
   return null;
 }

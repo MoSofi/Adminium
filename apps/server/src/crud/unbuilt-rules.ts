@@ -144,6 +144,10 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   'addOn.ledgers',
   'table.postings',
   'states.planned',
+  // A move refused once a date of its row has passed: judged under the write's locks, for every writer.
+  'states.notPast',
+  // A column a public write fills only with some values of another: asked for then, refused at any other time.
+  'publicAccess.requiresWhen',
   'rollup.capUnless',
   'column.announce',
   // A link from a table into an add-on's, judged as it is written; text held to a name or a note; a customer's key made from an address.

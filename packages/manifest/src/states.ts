@@ -53,6 +53,9 @@
  *   (`requires.linked`), for a window on the clock (`requires.time`, read from
  *   moments — see `refs.ts`) and for a value of the settings row
  *   (`requires.setting`).
+ * - A move may be refused once a date of the row has passed
+ *   (`requires.notPast`): today on the business's calendar against the date
+ *   the row holds, for every writer; an empty date refuses nothing.
  * - `strict`: a write naming the state the row already holds is refused
  *   (a ticket let in once), repeating up to four columns of the row.
  * - `late`: a move made inside some time before a moment sets a flag, or is
@@ -146,6 +149,15 @@ export const stateMoveSchema = z.union([
           linked: z.array(linkedConditionSchema).min(1).max(4).optional(),
           time: timeConditionSchema.optional(),
           setting: z.array(settingConditionSchema).min(1).max(4).optional(),
+          /**
+           * A date column of the row the move is not made after: once today,
+           * on the business's calendar, is later than the date the row holds,
+           * the move is refused for every writer (`STATE_DATE_PASSED`) — a
+           * quote accepted no later than its last day. The date is the one
+           * the row held before the write, and a row with no date is held to
+           * none.
+           */
+          notPast: refSchema.optional(),
         })
         .strict()
         .optional(),
@@ -481,6 +493,31 @@ export function undoMoveIssues(
   return out;
 }
 
+/**
+ * Everything wrong with the date a move is not made after (`requires.notPast`):
+ * a date column of the table, never the state, and never on a move no person
+ * makes on a day of their choosing (an undo takes back what was done; a
+ * planned move is a ledger's). Paths are relative to the move. The one judge
+ * for an app's manifest and a states rule saved in Studio.
+ */
+export function notPastIssues(
+  table: string,
+  stateColumn: string,
+  move: StateMove,
+  typeOf: (ref: string) => string | undefined,
+): { path: (string | number)[]; message: string }[] {
+  if (typeof move === 'string' || move.requires?.notPast === undefined) return [];
+  const ref = move.requires.notPast;
+  const path = ['requires', 'notPast'];
+  const type = typeOf(ref);
+  if (type === undefined) return [{ path, message: `"${table}" has no column "${ref}"` }];
+  if (ref === stateColumn) return [{ path, message: 'the state is no date' }];
+  if (type !== 'date') return [{ path, message: `"${table}.${ref}" is not a date, so no day of it can pass` }];
+  if (move.undo === true) return [{ path, message: 'an undo takes back a move already made, whatever the day: take "notPast" out' }];
+  if (move.planned === true) return [{ path, message: 'a planned move is made by a ledger, whatever the day: take "notPast" out' }];
+  return [];
+}
+
 /** Everything wrong with one table's `states` against the manifest's tables. */
 export function statesIssues<C extends ColumnShape>(
   table: string,
@@ -519,6 +556,7 @@ export function statesIssues<C extends ColumnShape>(
       (move.requires?.where ?? []).forEach((condition, w) => {
         out.push(...conditionIssues(table, condition, index, at('moves', from, m, 'requires', 'where', w)));
       });
+      out.push(...notPastIssues(table, states.column, move, (ref) => index.column(table, ref)?.type).map((issue) => ({ path: at('moves', from, m, ...issue.path), message: issue.message })));
       for (const role of move.roles ?? []) {
         if (ctx.roles !== undefined && !ctx.roles.includes(role)) {
           out.push({ path: at('moves', from, m, 'roles'), message: `"${role}" is not one of the app's roles` });

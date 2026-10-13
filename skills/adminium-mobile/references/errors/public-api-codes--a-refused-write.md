@@ -10,7 +10,7 @@ one of these shapes:
 | params | When |
 |---|---|
 | none | Anything the guest cannot be told more about: a column the entry does not let them write, a value outside what it allows, a unique or foreign-key refusal, a state move, a locked row, a balance, a refusal that would say what another row holds. |
-| `{ column }` | A value the entry `requires` was left empty, or text that must be plain holds a link, a handle or a web address. On a child row, with `child`, `index` and `path`. |
+| `{ column }` | A value the entry `requires` (or, for the choice made, `requiresWhen`) was left empty, or text that must be plain holds a link, a handle or a web address. On a child row, with `child`, `index` and `path`. |
 | `{ column, reason }` | The guest's own value, for the reason below. |
 | `{ child, reason }` | A list the request sends: `not-offered` (the entry declares no such list), `too-many` or `too-few` (outside its least and most, or more than 200 rows in all). `path` is added for a list below a row. |
 | `{ child, index, path }` | A child row writes a column, or a value, its entry does not let a guest write. |

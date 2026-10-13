@@ -527,6 +527,20 @@ export const publicAccessSchema = z
      */
     requires: z.array(refSchema).min(1).max(8).optional(),
     /**
+     * Columns a write must fill only when it sets another column to one of
+     * some values, and may write at no other time: `{accepted_name: {status:
+     * [accepted]}}` — accepting carries the name typed, declining carries
+     * none, and a name sent with a decline is refused, so a declined quote
+     * never holds one a stranger typed.
+     */
+    requiresWhen: z
+      .record(
+        refSchema,
+        z.record(refSchema, valuesSchema).refine((when) => Object.keys(when).length === 1, { message: 'a column is asked for by one other column\'s values' }),
+      )
+      .refine((asked) => Object.keys(asked).length >= 1 && Object.keys(asked).length <= 8, { message: 'requiresWhen names 1 to 8 columns' })
+      .optional(),
+    /**
      * The state a row must be IN to be changed — part of the update itself,
      * never of a read, so a finished visit still lists but cannot be moved.
      * `from-now` on a time: only while it is still ahead. `{within: 60}` on a
@@ -1208,7 +1222,30 @@ export function publicAccessIssues(entries: readonly PublicAccess[], ctx: Public
     for (const ref of entry.requires ?? []) {
       if (!writable.has(ref)) out.push({ path: at('requires'), message: `"${ref}" is not writable, so a write cannot fill it` });
     }
+    // A column asked for only with some values of another: both written here, and the values among those the other may take.
+    for (const [ref, when] of Object.entries(entry.requiresWhen ?? {})) {
+      const here = at('requiresWhen', ref);
+      if (!writable.has(ref)) out.push({ path: here, message: `"${ref}" is not writable, so a write cannot fill it` });
+      if ((entry.requires ?? []).includes(ref)) out.push({ path: here, message: `"${ref}" is required by every write already (requires): say one or the other` });
+      for (const [other, values] of Object.entries(when)) {
+        if (other === ref) out.push({ path: here, message: `"${ref}" is asked for by another column's values, not its own` });
+        else if (!writable.has(other)) out.push({ path: here, message: `"${other}" is not writable, so a write never sets it` });
+        const pinned = entry.writableValues?.[other];
+        if (pinned === undefined) {
+          if (writable.has(other)) out.push({ path: here, message: `"${other}" decides when "${ref}" is asked for: list the values it may take (writableValues)` });
+          continue;
+        }
+        for (const value of values) {
+          if (!pinned.some((allowed) => allowed === value)) out.push({ path: here, message: `${JSON.stringify(value)} is not a value a write here may give "${other}"` });
+        }
+      }
+    }
     const states = (table as { states?: { column: string; moves: Readonly<Record<string, readonly StateMove[]>> } }).states;
+    // The last day of a move of this table (`requires.notPast`) is the staff's to set: a guest who could write it would move their own deadline, then make the move.
+    const lastDays = new Set(Object.values(states?.moves ?? {}).flatMap((moves) => moves.flatMap((move) => (typeof move === 'string' || move.requires?.notPast === undefined ? [] : [move.requires.notPast]))));
+    for (const lastDay of lastDays) {
+      if (writable.has(lastDay)) out.push({ path: at('writable'), message: `"${lastDay}" is the last day of a move of "${entry.table}", so a write through this entry may not set it` });
+    }
     for (const [ref, values] of Object.entries(entry.writableValues ?? {})) {
       if (!writable.has(ref)) out.push({ path: at('writableValues', ref), message: `"${ref}" is not writable` });
       const found = column(ref);

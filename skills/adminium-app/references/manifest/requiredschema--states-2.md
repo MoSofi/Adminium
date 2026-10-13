@@ -71,6 +71,42 @@ move is `409` `STATE_MOVE_REFUSED`, its `details` naming what failed: `requires`
 `time` or `setting`), and `via`, `column`, `bound` (`after` or `before`) and `at` where they
 apply, so the door can say "Not paid yet", "Not today" or "Too early".
 
+#### A move's last day
+
+`requires.notPast` names a `date` column of the row. The move is made up to and on that day, and
+refused from the day after: a quote is accepted no later than its `valid_until`.
+
+```json
+"moves": {
+  "sent": [{ "to": "accepted", "requires": { "notPast": "valid_until" } },
+           { "to": "declined", "requires": { "notPast": "valid_until" } },
+           "withdrawn"]
+}
+```
+
+- The day is the business's: today in the install's time zone, never UTC's and never the
+  caller's.
+- It holds every writer alike: a person on the dashboard, a bulk edit, a record's button, a rule,
+  an import that moves a row already there, another row's [effect](https://docs.adminium.dev/reference/manifest/#effects), and a
+  customer through the public API.
+- The date read is the one the row held before the write. A later date sent in the same write does
+  not open the move; a person who may change the date changes it first, and then makes the move.
+- A row whose date is empty is held to none.
+- No public entry on the table may list the date column as `writable`: a guest would move their own
+  deadline.
+- An undo and a planned move take no last day.
+
+A refused move is `409` `STATE_DATE_PASSED`, never `STATE_MOVE_REFUSED`, so a screen can tell "its
+day has passed" from "it is not in a state that allows this". `details` carry `column` (the state
+column), `from`, `to`, `date` (the date column) and `until` (the day it held). Through the public
+API it is `409` `PUBLIC_TOO_LATE` with no `params`: the entry may not show the date. The row is
+still read as before, so a page opened by its link can say the quote ran out. Needs Adminium
+0.3.28.
+
+A public entry can also close a change by a date with [`writableWhen`](https://docs.adminium.dev/reference/manifest/#public-access)
+(`"from-today"`), which refuses a row whose date is empty and holds only that entry's writes. The
+move's last day holds the staff too.
+
 #### Conditions on a new row
 
 `create` holds a new row to the same conditions before it is created at all: a check-in recorded
@@ -80,29 +116,4 @@ only for a paid ticket, on its day, from half an hour before the doors.
 "create": { "requires": {
   "linked": [{ "via": "ticket_id", "where": [{ "column": "status", "in": ["valid", "offered"] }] }],
   "time": { "after": { "column": "doors_at", "via": "event_id", "minus": { "minutes": 30 } } } } }
-```
-
-`requires` takes `where`, `linked`, `time` and `setting`, at least one, in the shapes above (no
-`children`). They are judged inside the create's transaction on every door but an import, which
-is history; a staff device's `occurredAt` stands in for now. A refusal is `409`
-`STATE_MOVE_REFUSED` with `details.create: true` and `from: null`, beside `to`, `requires` and
-the parts above. The row's formulas are worked out before the conditions are judged.
-
-#### Once means once
-
-`strict` refuses a write that names the state the row already holds, rather than letting it pass:
-a ticket let in once is not let in again. The refusal is `409` `STATE_UNCHANGED`, with `details.at`
-and `details.by`, when and by whom the row got there. `{ "show": [...] }` repeats up to 4 more
-columns of the row in the refusal (the door it came in by); never a secret or personal one.
-Through the public API it is `PUBLIC_WRITE_REFUSED` with `reason: "unchanged"`. A parent form that
-sends a child row's unchanged state back is not refused.
-
-#### Late moves
-
-`late` judges a move made close to a moment: a cancellation inside the last 48 hours before a
-stay's arrival.
-
-```json
-"late": [{ "to": "cancelled", "from": ["booked"], "moment": { "column": "arrive", "time": "15:00" },
-           "within": { "hours": 48 }, "mode": "flag", "flag": "late_cancel" }]
 ```

@@ -65,6 +65,7 @@ const TOLD: Readonly<Record<string, string>> = {
   DELETE_REFUSED: 'This row cannot be deleted now.',
   STATE_MOVE_REFUSED: 'This move cannot be made now.',
   STATE_TOO_LATE: 'It is too late for this move.',
+  STATE_DATE_PASSED: 'It is too late for this move.',
   STATE_UNCHANGED: 'This row holds that already.',
   WRITE_WINDOW_CLOSED: 'This change can no longer be made.',
 };
@@ -128,6 +129,8 @@ export function scrubRefusal(error: unknown, view: SnapshotView, written: Resolv
     delete out['left'];
     delete out['at'];
   }
+  // The last day of a move is the date column's: a caller who may not read it is told the column, never the day.
+  if (error.code === 'STATE_DATE_PASSED' && hidden(table, out['date'])) delete out['until'];
   // A moment a move or a window waits for is read from the row's (or a linked row's) columns.
   if (TIMED.has(error.code) && 'at' in out && reads([states, table.table?.stateParents])) delete out['at'];
   // A parent's state, when the caller may not read the parent's state column.

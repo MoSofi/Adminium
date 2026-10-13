@@ -337,6 +337,8 @@ export interface StateMoveRule {
     time?: TimeCondition;
     /** Values of the settings row (its table id). */
     setting?: SettingCondition[];
+    /** A date column of the row the move is not made after: refused once today, on the business's calendar, is later. */
+    notPast?: string;
   };
   roles?: string[];
   /** The move takes back the listed one the other way: made only by a write naming the state it saw. */

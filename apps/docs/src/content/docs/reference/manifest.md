@@ -1357,6 +1357,7 @@ A move's `requires` says what must be true first:
 | `linked` | 1–4 `{ "via", "where" }`: conditions (as `where`) on the row this row's foreign key `via` points at (the order a ticket belongs to is paid). |
 | `time` | `{ "after"?, "before"? }`: a window on the clock, each end a [moment](#moments) (from half an hour before the doors, until the ticket's day ends). |
 | `setting` | 1–4 `{ "table", "column", "eq" }`: a value of the settings row (door sales switched on). |
+| `notPast` | A `date` column of the row: the move is refused once that day has passed. See [A move's last day](#a-moves-last-day). |
 
 A move's `roles` (1–8 of the app's [role](#roles) keys) keeps it for the people holding one of
 them: any role may void a draft, only a manager a sent invoice.
@@ -1463,6 +1464,42 @@ write's own clock, or by the time a staff device says a scan was made (`occurred
 move is `409` `STATE_MOVE_REFUSED`, its `details` naming what failed: `requires` (`linked`,
 `time` or `setting`), and `via`, `column`, `bound` (`after` or `before`) and `at` where they
 apply, so the door can say "Not paid yet", "Not today" or "Too early".
+
+#### A move's last day
+
+`requires.notPast` names a `date` column of the row. The move is made up to and on that day, and
+refused from the day after: a quote is accepted no later than its `valid_until`.
+
+```json
+"moves": {
+  "sent": [{ "to": "accepted", "requires": { "notPast": "valid_until" } },
+           { "to": "declined", "requires": { "notPast": "valid_until" } },
+           "withdrawn"]
+}
+```
+
+- The day is the business's: today in the install's time zone, never UTC's and never the
+  caller's.
+- It holds every writer alike: a person on the dashboard, a bulk edit, a record's button, a rule,
+  an import that moves a row already there, another row's [effect](#effects), and a
+  customer through the public API.
+- The date read is the one the row held before the write. A later date sent in the same write does
+  not open the move; a person who may change the date changes it first, and then makes the move.
+- A row whose date is empty is held to none.
+- No public entry on the table may list the date column as `writable`: a guest would move their own
+  deadline.
+- An undo and a planned move take no last day.
+
+A refused move is `409` `STATE_DATE_PASSED`, never `STATE_MOVE_REFUSED`, so a screen can tell "its
+day has passed" from "it is not in a state that allows this". `details` carry `column` (the state
+column), `from`, `to`, `date` (the date column) and `until` (the day it held). Through the public
+API it is `409` `PUBLIC_TOO_LATE` with no `params`: the entry may not show the date. The row is
+still read as before, so a page opened by its link can say the quote ran out. Needs Adminium
+0.3.28.
+
+A public entry can also close a change by a date with [`writableWhen`](#public-access)
+(`"from-today"`), which refuses a row whose date is empty and holds only that entry's writes. The
+move's last day holds the staff too.
 
 #### Conditions on a new row
 
@@ -1824,7 +1861,9 @@ What the app may add to a part, and nothing else:
   move, a condition added to a move the part has (`requires.where` on a column the app itself
   added: a quote is sent only while its own `may_send` is 1; the part's own conditions stay as
   written, a condition of the app's never reads a column of the part's, and the app adds no
-  move), an effect that runs through a link the app itself added (`effects` with `via`, or
+  move), a last day on a move the part gives none (`requires.notPast`, read from any `date` column of
+  the table, the part's included: a last day only ever refuses), an effect that runs through a link
+  the app itself added (`effects` with `via`, or
   `on.change`, naming the app's own link: sending a quote withdraws the one its `replaces_id`
   names, in the same write; the part's own effects stay as written and in their order), more
   tables in `children`, more columns in a child's `clearOnCreate`, and on a child the
@@ -1905,6 +1944,9 @@ all. Installed without it, the whole part is **left out**: its tables are not ma
 them elsewhere goes with them —
 
 - the part's pages, rules, documents, producers and public entries;
+- a key of [`publicKeys`](#public-access) every entry of which went with the part: a shared link's
+  key is made only with the part it opens, and it is made when the part is put in and the app's
+  public access allowed;
 - a link column into one of its tables (and an index or a `belongs` way that reads the column);
 - a kept total over one of its tables: the column stays, empty, with no rule;
 - a page bound to one of its tables, a role's grants and limits on them, a starting row and a
@@ -3085,6 +3127,7 @@ the update's check, which sends `"publicAccess": true` to `POST /api/v1/apps/{ke
 | `writableValues` | no | `{ "<column>": [1–32 values] }`: the only values a browser may write into a writable column, on a create or a change. Each value must fit the column. |
 | `writableWhen` | no | The state a row must be in to be changed, per column: `[1–32 values]`, where `null` stands for "still empty" (on a nullable column); `"from-now"`, a `timestamptz` still ahead; `{ "within": <minutes> }`, a `timestamptz` no more than that many minutes ahead (1–1440; a past time always passes; at most one per entry); `"from-today"`, a `date` of today or later on the venue's calendar; `"before-today"`, a `date` already past; or a window on a moment, `{ "after"?, "before"?, "where"? }`, see [Windows on a moment](#windows-on-a-moment). Needs `PATCH`, except a window keyed by a `visibleWith` link on a create. |
 | `requires` | no | 1–8 `writable` columns every write through the entry must fill: accepting a proposal carries the name typed as its signature. |
+| `requiresWhen` | no | `{ "<column>": { "<other column>": [values] } }`, 1–8 columns: a `writable` column a write must fill when it sets the other column to one of the values, and may write at no other time. See [A value asked for with a choice](#a-value-asked-for-with-a-choice). |
 | `filters` | no | Rows the endpoint can reach at all. See [Filters](#filters). |
 | `defaults` | no | Values the server writes whatever the browser sends. |
 | `claim` | no | How a person proves who they are: by a row's details, by a link emailed to them, or by a token. Makes the entry its key's identity. See [A person's own rows](#a-persons-own-rows). |
@@ -3122,6 +3165,34 @@ and only while it is `booked`. `writableWhen` is part of the change itself, neve
 finished visit still lists but cannot be moved; a change to a row in any other state answers as if
 the row were not there. An entry with `claimedBy` that changes an enum column must list its
 `writableValues`: permission to cancel is not permission to mark a visit seen.
+
+#### A value asked for with a choice
+
+One entry often carries two answers: a customer accepts a quote, typing a name, or declines it,
+typing none. `requires` would ask for the name on both. `requiresWhen` asks for it only with the
+choice it belongs to:
+
+```json
+{ "table": "quotes", "key": "quote", "methods": ["GET", "PATCH"],
+  "claim": { "by": "token", "column": "share_code", "own": true, "address": "sent_to_email" },
+  "select": ["number", "status", "valid_until", "total"],
+  "writable": ["status", "accepted_name"],
+  "writableValues": { "status": ["accepted", "declined"] },
+  "writableWhen": { "status": ["sent"] },
+  "requiresWhen": { "accepted_name": { "status": ["accepted"] } } }
+```
+
+- A write that sets `status` to `accepted` must fill `accepted_name`; without it the write is
+  refused `400` `PUBLIC_WRITE_REFUSED` with `{ column }`, as for `requires`.
+- A write that does not set `status` to `accepted` may not write `accepted_name` at all: a name
+  sent with a decline, or on its own, refuses the whole write. A declined quote never holds a name
+  a stranger typed. An empty value sent along is left out, and empties nothing.
+- Both columns are `writable`, the other column lists its values in `writableValues`, and each
+  value named is one of them. A column is in `requires` or in `requiresWhen`, not both.
+
+Hold the typed column to plain text as well: a column's own
+[`plainText`](#column-rules) rule, or the entry's `limits.plainText`, keeps a name to a name (no
+link, no markup, no digits) and to its length. Needs Adminium 0.3.28.
 
 A `null` in `writableWhen` pins a value that may be written once: `"signed_name": [null]` takes a
 signature while the column is still empty, and never changes it after. The calendar words pin a

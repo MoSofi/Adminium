@@ -29,16 +29,16 @@
 | `references/manifest/requiredschema--capacity-2.md` | requiredSchema — Capacity (part 2) | 5558 |
 | `references/manifest/requiredschema--booking.md` | requiredSchema — Booking | 5565 |
 | `references/manifest/requiredschema--a-resource-and-a-time.md` | requiredSchema — A resource and a time | 3465 |
-| `references/manifest/requiredschema--states.md` | requiredSchema — States | 7156 |
-| `references/manifest/requiredschema--states-2.md` | requiredSchema — States (part 2) | 7096 |
-| `references/manifest/requiredschema--states-3.md` | requiredSchema — States (part 3) | 7292 |
-| `references/manifest/requiredschema--states-4.md` | requiredSchema — States (part 4) | 2077 |
+| `references/manifest/requiredschema--states.md` | requiredSchema — States | 7335 |
+| `references/manifest/requiredschema--states-2.md` | requiredSchema — States (part 2) | 7686 |
+| `references/manifest/requiredschema--states-3.md` | requiredSchema — States (part 3) | 7400 |
+| `references/manifest/requiredschema--states-4.md` | requiredSchema — States (part 4) | 3307 |
 | `references/manifest/requiredschema--buttons-on-a-record.md` | requiredSchema — Buttons on a record | 3020 |
 | `references/manifest/requiredschema--postings.md` | requiredSchema — Postings | 3904 |
 | `references/manifest/requiredschema--a-price-an-add-on-lowers.md` | requiredSchema — A price an add-on lowers | 3110 |
 | `references/manifest/requiredschema--shared-tables.md` | requiredSchema — Shared tables | 1948 |
-| `references/manifest/requiredschema--tables-built-on-an-add-on-s-shape.md` | requiredSchema — Tables built on an add-on's shape | 4468 |
-| `references/manifest/parts.md` | Parts | 5026 |
+| `references/manifest/requiredschema--tables-built-on-an-add-on-s-shape.md` | requiredSchema — Tables built on an add-on's shape | 4628 |
+| `references/manifest/parts.md` | Parts | 5291 |
 | `references/manifest/maps.md` | Maps | 4741 |
 | `references/manifest/option-lists.md` | Option lists | 851 |
 | `references/manifest/pages.md` | Pages | 7113 |
@@ -62,8 +62,8 @@
 | `references/manifest/emails--emailtemplates.md` | Emails — emailTemplates | 7727 |
 | `references/manifest/emails--emailtemplates-2.md` | Emails — emailTemplates (part 2) | 3407 |
 | `references/manifest/public-access.md` | Public access | 2014 |
-| `references/manifest/public-access-2.md` | Public access (part 2) | 7632 |
-| `references/manifest/public-access-3.md` | Public access (part 3) | 3415 |
+| `references/manifest/public-access-2.md` | Public access (part 2) | 7731 |
+| `references/manifest/public-access-3.md` | Public access (part 3) | 5292 |
 | `references/manifest/public-access--filters.md` | Public access — Filters | 835 |
 | `references/manifest/public-access--windows-on-a-moment.md` | Public access — Windows on a moment | 2049 |
 | `references/manifest/public-access--a-person-s-own-rows.md` | Public access — A person's own rows | 7450 |

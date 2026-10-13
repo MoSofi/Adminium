@@ -116,6 +116,8 @@ export const INSTALL_FLOOR_WORD_NAMES = [
   'column.place',
   'column.area',
   'config.board',
+  'states.notPast',
+  'publicAccess.requiresWhen',
 ] as const;
 export type ManifestWordName = (typeof INSTALL_FLOOR_WORD_NAMES)[number];
 
@@ -181,6 +183,10 @@ export const WORD_FLOORS: Readonly<Partial<Record<ManifestWordName, string>>> = 
   'column.area': '0.3.28',
   // A board whose columns an app names: the rows of a table, or the values of an enum it picks.
   'config.board': '0.3.28',
+  // A move refused once a date of its row has passed, for every writer.
+  'states.notPast': '0.3.28',
+  // A column a public write must fill only with some values of another, and may write at no other time.
+  'publicAccess.requiresWhen': '0.3.28',
 };
 
 /** Every word of `document` that needs the install floor, in document order. */
@@ -246,6 +252,7 @@ export function installFloorWords(document: unknown): ManifestWord[] {
       for (const [from, moves] of Object.entries(isDoc(table['states']['moves']) ? table['states']['moves'] : {})) {
         list(moves).forEach((move, m) => {
           if (isDoc(move) && move['planned'] === true) out.push({ word: 'states.planned', path: `${at}.states.moves.${from}.${String(m)}.planned` });
+          if (isDoc(move) && isDoc(move['requires']) && move['requires']['notPast'] !== undefined) out.push({ word: 'states.notPast', path: `${at}.states.moves.${from}.${String(m)}.requires.notPast` });
         });
       }
     }
@@ -354,6 +361,7 @@ export function installFloorWords(document: unknown): ManifestWord[] {
       out.push({ word: 'unlockBy.self', path: `publicAccess.${String(e)}.unlockBy` });
     }
     if (isDoc(entry) && entry['words'] !== undefined) out.push({ word: 'availability.words', path: `publicAccess.${String(e)}.words` });
+    if (isDoc(entry) && entry['requiresWhen'] !== undefined) out.push({ word: 'publicAccess.requiresWhen', path: `publicAccess.${String(e)}.requiresWhen` });
   });
   return out;
 }

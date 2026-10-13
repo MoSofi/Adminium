@@ -37,7 +37,9 @@ What the app may add to a part, and nothing else:
   move, a condition added to a move the part has (`requires.where` on a column the app itself
   added: a quote is sent only while its own `may_send` is 1; the part's own conditions stay as
   written, a condition of the app's never reads a column of the part's, and the app adds no
-  move), an effect that runs through a link the app itself added (`effects` with `via`, or
+  move), a last day on a move the part gives none (`requires.notPast`, read from any `date` column of
+  the table, the part's included: a last day only ever refuses), an effect that runs through a link
+  the app itself added (`effects` with `via`, or
   `on.change`, naming the app's own link: sending a quote withdraws the one its `replaces_id`
   names, in the same write; the part's own effects stay as written and in their order), more
   tables in `children`, more columns in a child's `clearOnCreate`, and on a child the

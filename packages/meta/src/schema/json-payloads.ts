@@ -1409,6 +1409,8 @@ export const overridePatchSchema = z.discriminatedUnion('op', [
                     children: z.record(ruleTable, z.number().int().min(1).max(1000)).optional(),
                     where: z.array(stateCondition).min(1).max(8).optional(),
                     ...moveConditions,
+                    /** A date column of the row the move is not made after: refused once today, where the business is, is later. */
+                    notPast: ruleColumn.optional(),
                   })
                   .optional(),
                 roles: z.array(z.string().min(1).max(64)).min(1).max(8).optional(),

@@ -58,6 +58,9 @@ all. Installed without it, the whole part is **left out**: its tables are not ma
 them elsewhere goes with them —
 
 - the part's pages, rules, documents, producers and public entries;
+- a key of [`publicKeys`](https://docs.adminium.dev/reference/manifest/#public-access) every entry of which went with the part: a shared link's
+  key is made only with the part it opens, and it is made when the part is put in and the app's
+  public access allowed;
 - a link column into one of its tables (and an index or a `belongs` way that reads the column);
 - a kept total over one of its tables: the column stays, empty, with no rule;
 - a page bound to one of its tables, a role's grants and limits on them, a starting row and a

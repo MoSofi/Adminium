@@ -21,7 +21,8 @@
  *    client's own tax rate before the add-on's default): the part's fill
  *    still answers whenever the copy comes back empty;
  *  - add to a lock's exceptions (its own columns a client may still write),
- *    give a move to some roles only, tie more child tables to the state, and
+ *    give a move to some roles only, hold a move to a condition on a column
+ *    of its own or to a last day read from a date column (`notPast`), tie more child tables to the state, and
  *    empty more of its own columns when a child is created;
  *  - let a locked child EMPTY some of its own columns in some of the lock's
  *    states (`release`: a void invoice's line letting go of the time it
@@ -244,7 +245,10 @@ export function mapRules(rules: ColumnRules | undefined, map: (ref: string) => s
  *
  * An app may hold a shape's move to MORE: a condition (`requires.where`) on a
  * column the app itself added to the table — a quote is sent only once its
- * discount is approved. It may never ask less than the shape (every condition
+ * discount is approved — and a last day (`requires.notPast`) on a move the
+ * shape gives none, read from any date column of the table: a quote accepted
+ * no later than its `valid_until`. A last day only ever refuses, so it may
+ * read a column of the shape's. It may never ask less than the shape (every condition
  * of the shape's stays, as written), never read a column of the shape's in a
  * condition of its own (the shape decides what its columns allow), and never
  * add or drop a move. What is left after taking the app's own conditions out
@@ -257,7 +261,7 @@ function withoutAddedConditions(
   added: ReadonlySet<string>,
   out: string[],
 ): Record<string, unknown[]> {
-  type Move = { to?: unknown; requires?: { where?: readonly { column?: unknown }[] } & Record<string, unknown> } & Record<string, unknown>;
+  type Move = { to?: unknown; requires?: { where?: readonly { column?: unknown }[]; notPast?: unknown } & Record<string, unknown> } & Record<string, unknown>;
   const asMove = (move: unknown): Move => (typeof move === 'string' ? { to: move } : (move as Move));
   return Object.fromEntries(
     Object.entries(have).map(([from, list]) => [
@@ -265,11 +269,13 @@ function withoutAddedConditions(
       list.map((given, at) => {
         const own = asMove(given);
         const shape = want[from]?.[at] === undefined ? undefined : asMove(want[from]![at]);
-        const where = own.requires?.where;
-        if (shape === undefined || where === undefined) return given;
+        if (shape === undefined || own.requires === undefined) return given;
+        const where = own.requires.where ?? [];
         const kept = new Set((shape.requires?.where ?? []).map((condition) => canonical(condition)));
         const extra = where.filter((condition) => !kept.has(canonical(condition)));
-        if (extra.length === 0) return given;
+        // A last day the app gives a move the shape gives none (`notPast`): it only ever refuses, whichever date column it reads.
+        const lastDay = own.requires.notPast !== undefined && shape.requires?.notPast === undefined;
+        if (extra.length === 0 && !lastDay) return given;
         const theirs = extra.filter((condition) => typeof condition.column !== 'string' || !added.has(condition.column));
         if (theirs.length > 0) {
           out.push(`a condition an app adds to the shape's move ${from} → ${String(own.to)} reads a column the app added, never ${theirs.map((condition) => String(condition.column)).join(', ')}`);
@@ -277,8 +283,8 @@ function withoutAddedConditions(
         }
         // The move as the shape wrote it: its own conditions, in its own order, and a string where it was one.
         const rest = where.filter((condition) => kept.has(canonical(condition)));
-        const { where: _where, ...others } = own.requires ?? {};
-        const requires = { ...others, ...(rest.length === 0 ? {} : { where: rest }) };
+        const { where: _where, notPast, ...others } = own.requires;
+        const requires = { ...others, ...(rest.length === 0 ? {} : { where: rest }), ...(lastDay || notPast === undefined ? {} : { notPast }) };
         const { requires: _requires, ...move } = own;
         const back = { ...move, ...(Object.keys(requires).length === 0 ? {} : { requires }) };
         return Object.keys(back).length === 1 && typeof want[from]![at] === 'string' ? back.to : back;
@@ -325,7 +331,7 @@ function statesDifferences(want: States, have: States, ownColumns: (childRef: st
       ]),
     );
   if (!same(moveList(want.moves), moveList(withoutAddedConditions(want.moves, have.moves, added, out)))) {
-    out.push('the moves between states are the shape\'s (an app may only keep a move for some roles, or hold it to a condition on a column it added)');
+    out.push('the moves between states are the shape\'s (an app may only keep a move for some roles, hold it to a condition on a column it added, or give it a last day)');
   }
   if (want.lock !== undefined) {
     if (have.lock === undefined || !same(want.lock.when, have.lock.when)) out.push('the lock is the shape\'s');

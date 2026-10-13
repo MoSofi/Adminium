@@ -234,6 +234,7 @@ export {
 export {
   moveTarget,
   undoMoveIssues,
+  notPastIssues,
   stateChildSchema,
   stateConditionSchema,
   stateMoveSchema,

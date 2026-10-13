@@ -2,6 +2,31 @@
 
 # Manifest spec: requiredSchema — States
 
+`requires` takes `where`, `linked`, `time` and `setting`, at least one, in the shapes above (no
+`children`). They are judged inside the create's transaction on every door but an import, which
+is history; a staff device's `occurredAt` stands in for now. A refusal is `409`
+`STATE_MOVE_REFUSED` with `details.create: true` and `from: null`, beside `to`, `requires` and
+the parts above. The row's formulas are worked out before the conditions are judged.
+
+#### Once means once
+
+`strict` refuses a write that names the state the row already holds, rather than letting it pass:
+a ticket let in once is not let in again. The refusal is `409` `STATE_UNCHANGED`, with `details.at`
+and `details.by`, when and by whom the row got there. `{ "show": [...] }` repeats up to 4 more
+columns of the row in the refusal (the door it came in by); never a secret or personal one.
+Through the public API it is `PUBLIC_WRITE_REFUSED` with `reason: "unchanged"`. A parent form that
+sends a child row's unchanged state back is not refused.
+
+#### Late moves
+
+`late` judges a move made close to a moment: a cancellation inside the last 48 hours before a
+stay's arrival.
+
+```json
+"late": [{ "to": "cancelled", "from": ["booked"], "moment": { "column": "arrive", "time": "15:00" },
+           "within": { "hours": 48 }, "mode": "flag", "flag": "late_cancel" }]
+```
+
 | Field | Rule |
 |---|---|
 | `to` | The state moved to. Each late rule judges its own move; a move the [booking](https://docs.adminium.dev/reference/manifest/#booking) rule's `cancel` already judges takes no second one. |
@@ -92,24 +117,4 @@ order ready by mistake, and moves it back to preparing.
   "ready": [{ "to": "preparing", "undo": true,
               "requires": { "time": { "before": { "column": "ready_at", "plus": { "minutes": 1 } } } } }]
 }
-```
-
-An undo move is made only by a write that names the state it saw the row in (`from` on a staff
-change): a stale screen's tap never takes back another screen's move, and is refused `409`
-`STATE_MOVE_REFUSED` naming both states. What it waits for is judged on the row as it stands. The
-stamps written when the row entered the state it returns to keep what they had; the stamps marked
-[`clearOnBack`](https://docs.adminium.dev/reference/manifest/#stamps) that watch the state it leaves are emptied. A state reached only by undo
-moves is never written by a door that names no state it saw: a timed move, an effect, an email's
-`onSent`, or a value a guest may write. An outbox producer with [`holdSeconds`](https://docs.adminium.dev/reference/manifest/#outbox) waits long
-enough for an undo to drop its message.
-
-An undo may empty further columns that the move it takes back filled, with `clears`: a hand-over
-taken back is unpaid again.
-
-```json
-"moves": {
-  "ready": [{ "to": "picked_up", "requires": { "where": [{ "column": "paid_method", "isNull": false }] } }],
-  "picked_up": [{ "to": "ready", "roles": ["manager"], "undo": true, "clears": ["paid_method"] }]
-},
-"lock": { "when": ["picked_up"], "except": ["link_stopped"] }
 ```

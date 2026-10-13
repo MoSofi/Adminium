@@ -2,6 +2,26 @@
 
 # Manifest spec: requiredSchema — States
 
+An undo move is made only by a write that names the state it saw the row in (`from` on a staff
+change): a stale screen's tap never takes back another screen's move, and is refused `409`
+`STATE_MOVE_REFUSED` naming both states. What it waits for is judged on the row as it stands. The
+stamps written when the row entered the state it returns to keep what they had; the stamps marked
+[`clearOnBack`](https://docs.adminium.dev/reference/manifest/#stamps) that watch the state it leaves are emptied. A state reached only by undo
+moves is never written by a door that names no state it saw: a timed move, an effect, an email's
+`onSent`, or a value a guest may write. An outbox producer with [`holdSeconds`](https://docs.adminium.dev/reference/manifest/#outbox) waits long
+enough for an undo to drop its message.
+
+An undo may empty further columns that the move it takes back filled, with `clears`: a hand-over
+taken back is unpaid again.
+
+```json
+"moves": {
+  "ready": [{ "to": "picked_up", "requires": { "where": [{ "column": "paid_method", "isNull": false }] } }],
+  "picked_up": [{ "to": "ready", "roles": ["manager"], "undo": true, "clears": ["paid_method"] }]
+},
+"lock": { "when": ["picked_up"], "except": ["link_stopped"] }
+```
+
 - The move empties each column it `clears`, whether or not the writer sends it. A writer may leave
   it out or send it as `null`; a value is refused `409` `STATE_MOVE_REFUSED`, with
   `details.clears` naming the column, and nothing is written.

@@ -14,6 +14,7 @@
 | `writableValues` | no | `{ "<column>": [1–32 values] }`: the only values a browser may write into a writable column, on a create or a change. Each value must fit the column. |
 | `writableWhen` | no | The state a row must be in to be changed, per column: `[1–32 values]`, where `null` stands for "still empty" (on a nullable column); `"from-now"`, a `timestamptz` still ahead; `{ "within": <minutes> }`, a `timestamptz` no more than that many minutes ahead (1–1440; a past time always passes; at most one per entry); `"from-today"`, a `date` of today or later on the venue's calendar; `"before-today"`, a `date` already past; or a window on a moment, `{ "after"?, "before"?, "where"? }`, see [Windows on a moment](https://docs.adminium.dev/reference/manifest/#windows-on-a-moment). Needs `PATCH`, except a window keyed by a `visibleWith` link on a create. |
 | `requires` | no | 1–8 `writable` columns every write through the entry must fill: accepting a proposal carries the name typed as its signature. |
+| `requiresWhen` | no | `{ "<column>": { "<other column>": [values] } }`, 1–8 columns: a `writable` column a write must fill when it sets the other column to one of the values, and may write at no other time. See [A value asked for with a choice](https://docs.adminium.dev/reference/manifest/#a-value-asked-for-with-a-choice). |
 | `filters` | no | Rows the endpoint can reach at all. See [Filters](https://docs.adminium.dev/reference/manifest/#filters). |
 | `defaults` | no | Values the server writes whatever the browser sends. |
 | `claim` | no | How a person proves who they are: by a row's details, by a link emailed to them, or by a token. Makes the entry its key's identity. See [A person's own rows](https://docs.adminium.dev/reference/manifest/#a-persons-own-rows). |
@@ -44,4 +45,3 @@
 | `limits` | no | Limits on a change a guest makes. See [Limits on a guest's change](https://docs.adminium.dev/reference/manifest/#limits-on-a-guests-change). |
 | `unlockBy` | no | Rows readable only with a code that unlocks them. See [Codes that unlock rows](https://docs.adminium.dev/reference/manifest/#codes-that-unlock-rows). |
 | `pictures` | no | 1–4 image columns any visitor may see. See [Pictures](https://docs.adminium.dev/reference/manifest/#pictures). |
-| `rule`, `showLeft`, `under` | no | On an `availability` entry: which limit it answers, whether it says what is left, and the column a page asks by. See [Availability](https://docs.adminium.dev/reference/manifest/#availability). |

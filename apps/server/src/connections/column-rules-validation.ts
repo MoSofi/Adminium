@@ -18,7 +18,7 @@
  * contradicted by the database.
  */
 import { parseEnumCheck, type ColumnModel, type DatabaseModel, type LogicalType, type TableModel } from '@adminium/engine';
-import { dayColumns, formulaColumns, formulaExprSchema, isChangeEffect, isJoinColumn, momentColumns, undoMoveIssues, type States } from '@adminium/manifest';
+import { dayColumns, formulaColumns, formulaExprSchema, isChangeEffect, isJoinColumn, momentColumns, notPastIssues, undoMoveIssues, type States } from '@adminium/manifest';
 
 import { storedAdjust, storedPosting } from '@adminium/meta';
 import { z } from 'zod';
@@ -1012,6 +1012,9 @@ function conditionedStatesIssue(states: States, table: TableModel, model: Databa
   for (const moves of Object.values(states.moves)) {
     for (const move of moves) {
       if (typeof move === 'string' || move.requires === undefined) continue;
+      // The date a move is not made after: a column of this table, never its state, on a move a person makes.
+      const lastDay = notPastIssues(table.name, states.column, move, (ref) => table.columns.find((c) => c.name === ref)?.logicalType)[0];
+      if (lastDay !== undefined) return `${lastDay.message}.`;
       for (const condition of move.requires.linked ?? []) {
         const issue = through(condition.via, condition.where.map((c) => c.column));
         if (issue !== null) return issue;

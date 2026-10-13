@@ -91,6 +91,7 @@ import {
   type LinkedHold,
   type StateWindow,
 } from './state-conditions.js';
+import { venueClock } from './venue-time.js';
 import { ruleNow, type WriteClock } from './write-clock.js';
 import type { WriteOrigin } from './write-context.js';
 import { booleanOf, sameValue } from './write-values.js';
@@ -267,6 +268,18 @@ export class StateMoveRefused extends AppError {
   override readonly name = 'StateMoveRefused';
   constructor(message: string, details: Record<string, unknown>) {
     super(409, 'STATE_MOVE_REFUSED', message, details);
+  }
+}
+
+/**
+ * A move made after the last day its row gives it (`requires.notPast`): which
+ * date column, and the day it holds. Told apart from a move the row's state
+ * does not allow, so a screen can say the day has passed.
+ */
+export class StateDatePassed extends AppError {
+  override readonly name = 'StateDatePassed';
+  constructor(message: string, details: { column: string; from: string; to: string | null; date: string; until: string }) {
+    super(409, 'STATE_DATE_PASSED', message, details);
   }
 }
 
@@ -616,6 +629,14 @@ async function judgeOwnUpdate(
       const next = { ...stored, ...values, ...Object.fromEntries(kept.map((column) => [column, stored[column]])) };
       // An import's move of a row already there is a move like anyone's: it waits for what the move waits for.
       const waits = move.requires;
+      // The last day of the move, read from the row as it was HELD — a date sent with the move does not open it again —
+      // against today where the business is, on the write's own clock. A row with no date is held to none.
+      if (waits?.notPast !== undefined) {
+        const until = dayOf(stored[waits.notPast]);
+        if (until !== null && venueClock(nowOf(db, guard), guard.zone ?? 'UTC').day > until) {
+          throw new StateDatePassed(`It is too late to move this ${table.name} row to ${String(to)}: its ${waits.notPast} was ${until}.`, { column: states.column, from, to, date: waits.notPast, until });
+        }
+      }
       if (waits !== undefined) {
         await judgeWaits(waits, table, { moments: momentsOver(db, table, next, guard, judging), now: nowOf(db, guard) }, (message, details) =>
           refuse(`A ${table.name} row goes from ${from} to ${String(to)} ${message}.`, details),

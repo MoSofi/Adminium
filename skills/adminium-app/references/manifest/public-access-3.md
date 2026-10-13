@@ -2,11 +2,43 @@
 
 # Manifest spec: Public access
 
+| Field | Required | Rule |
+|---|---|---|
+| `rule`, `showLeft`, `under` | no | On an `availability` entry: which limit it answers, whether it says what is left, and the column a page asks by. See [Availability](https://docs.adminium.dev/reference/manifest/#availability). |
+
 `writableValues` and `writableWhen` pin both ends of a change: `status` may become `cancelled`,
 and only while it is `booked`. `writableWhen` is part of the change itself, never of a read, so a
 finished visit still lists but cannot be moved; a change to a row in any other state answers as if
 the row were not there. An entry with `claimedBy` that changes an enum column must list its
 `writableValues`: permission to cancel is not permission to mark a visit seen.
+
+#### A value asked for with a choice
+
+One entry often carries two answers: a customer accepts a quote, typing a name, or declines it,
+typing none. `requires` would ask for the name on both. `requiresWhen` asks for it only with the
+choice it belongs to:
+
+```json
+{ "table": "quotes", "key": "quote", "methods": ["GET", "PATCH"],
+  "claim": { "by": "token", "column": "share_code", "own": true, "address": "sent_to_email" },
+  "select": ["number", "status", "valid_until", "total"],
+  "writable": ["status", "accepted_name"],
+  "writableValues": { "status": ["accepted", "declined"] },
+  "writableWhen": { "status": ["sent"] },
+  "requiresWhen": { "accepted_name": { "status": ["accepted"] } } }
+```
+
+- A write that sets `status` to `accepted` must fill `accepted_name`; without it the write is
+  refused `400` `PUBLIC_WRITE_REFUSED` with `{ column }`, as for `requires`.
+- A write that does not set `status` to `accepted` may not write `accepted_name` at all: a name
+  sent with a decline, or on its own, refuses the whole write. A declined quote never holds a name
+  a stranger typed. An empty value sent along is left out, and empties nothing.
+- Both columns are `writable`, the other column lists its values in `writableValues`, and each
+  value named is one of them. A column is in `requires` or in `requiresWhen`, not both.
+
+Hold the typed column to plain text as well: a column's own
+[`plainText`](https://docs.adminium.dev/reference/manifest/#column-rules) rule, or the entry's `limits.plainText`, keeps a name to a name (no
+link, no markup, no digits) and to its length. Needs Adminium 0.3.28.
 
 A `null` in `writableWhen` pins a value that may be written once: `"signed_name": [null]` takes a
 signature while the column is still empty, and never changes it after. The calendar words pin a

@@ -198,6 +198,8 @@ export class ConflictError extends AppError {
       | 'STATE_UNCHANGED'
       // A move a late rule turns away inside its window before a moment.
       | 'STATE_TOO_LATE'
+      // A move made after the last day its row gives it (`details.date` the column, `details.until` the day).
+      | 'STATE_DATE_PASSED'
       // A public change outside the window its entry opens (`details.bound`, `details.at`).
       | 'WRITE_WINDOW_CLOSED'
       // A price by the night whose rate rule cannot be read (`details.table`, `key`, `column`).
