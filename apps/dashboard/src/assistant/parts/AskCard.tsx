@@ -20,6 +20,7 @@ import { ArrowRight, Check } from 'lucide-react';
 
 import { t } from '../../i18n/t.js';
 import type { AssistantAsk } from '../api.js';
+import { RichSay } from './RichSay.js';
 import { AssistantBubble } from './AssistantBubble.js';
 
 export interface AskCardProps {
@@ -40,7 +41,7 @@ export function AskCard({ say, ask, picks, onPick, onGo, answered }: AskCardProp
   return (
     <AssistantBubble testId="assistant-ask">
       {/* The space under the words is for the options: an answer with none ends where its words end. */}
-      {say === '' ? null : <p className={cn('text-[13.5px] leading-[1.6] text-pretty text-fg', groups.length > 0 && 'mb-3.5')}>{say}</p>}
+      {say === '' ? null : <RichSay say={say} className={cn('text-[13.5px] leading-[1.6] text-pretty text-fg', groups.length > 0 && 'mb-3.5')} />}
       {groups.map((group) => (
         <div key={group.key} className="mb-[15px]">
           <div className="mb-2 text-micro uppercase text-fg-muted">{group.title}</div>

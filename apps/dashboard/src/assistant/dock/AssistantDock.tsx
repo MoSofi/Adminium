@@ -38,6 +38,7 @@ import { AllowanceBar } from '../parts/AllowanceBar.js';
 import { AssistantBubble as Speaker } from '../parts/AssistantBubble.js';
 import { Idle } from '../parts/Idle.js';
 import { ReadOnlyBar } from '../parts/ReadOnlyBar.js';
+import { plainSay } from '../parts/RichSay.js';
 import { Warning } from '../parts/ResultCard.js';
 import { UnavailableBar } from '../parts/UnavailableBar.js';
 import { TurnView } from '../TurnView.js';
@@ -444,7 +445,8 @@ export function AssistantDock({ visible, pages, layout: fixedLayout }: Assistant
   };
   /** What is read of a turn: what it said, and one short line when there is something to look at. Never the thing itself. */
   const spokenOf = (turn: ThreadTurn): string => {
-    const said = turn.say ?? '';
+    // Without its marks: an asterisk and a path in brackets are noise read aloud.
+    const said = plainSay(turn.say ?? '');
     if (turn.result !== null) return `${said} ${t('assistant:speak.draft', 'There is a draft for you to look at.')}`.trim();
     if ((turn.answer?.proposal ?? null) !== null) return `${said} ${t('assistant:speak.proposal', 'I have put what would change on the screen for you to look at.')}`.trim();
     return said;
