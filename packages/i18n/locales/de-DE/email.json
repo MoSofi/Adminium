@@ -294,7 +294,13 @@
     },
     "saveFailed": "Konnte nicht gespeichert werden",
     "saved": "Änderungen gespeichert",
-    "loadFailed": "Diese E-Mail konnte nicht geladen werden"
+    "loadFailed": "Diese E-Mail konnte nicht geladen werden",
+    "assistantWrote": {
+      "campaign": "Lesen Sie sie durch. {name} kann diese Kampagne erst senden, nachdem Sie sie gespeichert oder bestätigt haben, dass sie stimmt.",
+      "looksRight": "Stimmt so",
+      "template": "Lesen Sie sie durch und speichern Sie sie oder bestätigen Sie, dass sie stimmt. Eine daraus gestartete Kampagne bleibt bis dahin zurückgehalten.",
+      "title": "{name} hat diese Version geschrieben"
+    }
   },
   "empty": {
     "templates": {

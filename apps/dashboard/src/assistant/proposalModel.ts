@@ -176,6 +176,8 @@ export function refusalText(refused: { code: string; message: string; fields?: r
       return t('assistant:proposal.refused.notCampaign', 'Only a campaign can be sent to people.');
     case 'NOT_LIVE':
       return t('assistant:proposal.refused.notLive', 'A draft is switched on by a person before it can be sent.');
+    case 'NOT_SEEN':
+      return t('assistant:proposal.refused.notSeen', '{name} wrote the latest version of this campaign and nobody has looked at it since. Open it in the editor and press “Looks right”, or save it, first.', { name });
     case 'NO_RECIPIENTS':
       return t('assistant:proposal.refused.noRecipients', 'Nobody would get this mail.');
     default:

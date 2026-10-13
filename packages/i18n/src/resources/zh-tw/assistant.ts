@@ -501,7 +501,8 @@ export default {
         "required": "「{column}」需要一個值",
         "tooLong": "「{column}」太長",
         "unknown": "沒有「{column}」這個欄位"
-      }
+      },
+      "notSeen": "這個行銷活動的最新版本由 {name} 撰寫，之後還沒有人看過。請先在編輯器中開啟它並按「確認無誤」，或儲存它。"
     },
     "row": {
       "untitled": "未命名",

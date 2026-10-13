@@ -147,9 +147,11 @@ export function useEmailEditorAssistant(input: {
   documentId: string;
   draft: EmailDocument;
   applyDocument: (document: EmailDocument) => void;
+  /** The stored document was saved over from the panel: reload it as saved. */
+  onSavedOver?: (documentId: string) => void;
 }): AssistantHostContext {
   const { renderPreview, onCreated } = useEmailHostParts();
-  const { documentId, draft, applyDocument } = input;
+  const { documentId, draft, applyDocument, onSavedOver } = input;
   const applyDraft = useCallback(
     (artefact: Record<string, unknown>) => {
       applyDocument(documentOf(artefact));
@@ -164,7 +166,8 @@ export function useEmailEditorAssistant(input: {
       renderPreview,
       onCreated,
       applyDraft,
+      ...(onSavedOver === undefined ? {} : { onSavedOver }),
     }),
-    [applyDraft, documentId, draft, onCreated, renderPreview],
+    [applyDraft, documentId, draft, onCreated, onSavedOver, renderPreview],
   );
 }

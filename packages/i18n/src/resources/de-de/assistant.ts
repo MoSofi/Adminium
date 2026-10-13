@@ -501,7 +501,8 @@ export default {
         "required": "„{column}“ braucht einen Wert",
         "tooLong": "„{column}“ ist zu lang",
         "unknown": "es gibt keine Spalte „{column}“"
-      }
+      },
+      "notSeen": "{name} hat die neueste Version dieser Kampagne geschrieben, und seitdem hat niemand sie angesehen. Öffnen Sie sie zuerst im Editor und drücken Sie „Stimmt so“, oder speichern Sie sie."
     },
     "row": {
       "untitled": "Ohne Titel",

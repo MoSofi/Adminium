@@ -293,6 +293,8 @@ async function createDraft(input: AssistantActionInput, at: number): Promise<Ass
         // A draft: the manager's Draft pill, not a live document.
         enabled: false,
         createdBy: input.actor.id,
+        // Written by the assistant: nobody has read it until they save it or say it looks right.
+        assistantWroteAt: at,
         ...documentColumns(document),
       },
       at,
@@ -469,6 +471,7 @@ async function addLanguage(input: AssistantActionInput, at: number): Promise<Ass
         starter: source.starter,
         enabled: false,
         createdBy: input.actor.id,
+        assistantWroteAt: at,
         ...documentColumns(document),
       },
       at,

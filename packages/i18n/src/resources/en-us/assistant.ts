@@ -501,7 +501,8 @@ export default {
         "required": "“{column}” needs a value",
         "tooLong": "“{column}” is too long",
         "unknown": "there is no column “{column}”"
-      }
+      },
+      "notSeen": "{name} wrote the latest version of this campaign and nobody has looked at it since. Open it in the editor and press “Looks right”, or save it, first."
     },
     "row": {
       "untitled": "Untitled",

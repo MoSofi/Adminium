@@ -1483,6 +1483,10 @@
     "status": "mt",
     "srcHash": "daa4141b2c2b"
   },
+  "assistant.proposal.refused.notSeen": {
+    "status": "mt",
+    "srcHash": "0ee9dbef9f63"
+  },
   "assistant.proposal.refused.notThisTable": {
     "status": "mt",
     "srcHash": "db6e5d912e41"
@@ -13914,6 +13918,22 @@
   "email.documentReady.subject": {
     "status": "mt",
     "srcHash": "cfe708491ced"
+  },
+  "email.editor.assistantWrote.campaign": {
+    "status": "mt",
+    "srcHash": "4793d2f5a9ec"
+  },
+  "email.editor.assistantWrote.looksRight": {
+    "status": "mt",
+    "srcHash": "b9fefb3f5b62"
+  },
+  "email.editor.assistantWrote.template": {
+    "status": "mt",
+    "srcHash": "97ab17cbdb41"
+  },
+  "email.editor.assistantWrote.title": {
+    "status": "mt",
+    "srcHash": "ac1d72c8d7d2"
   },
   "email.editor.discard.body": {
     "status": "mt",

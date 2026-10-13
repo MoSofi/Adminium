@@ -697,6 +697,8 @@ export interface AdminiumEmailTemplatesTable {
   /** Which starter minted the family; NULL for blank and built-in documents. */
   starter: string | null;
   needsTranslation: BoolColumn;
+  /** When the assistant last wrote this mail, while no person has looked at it since; NULL otherwise. */
+  assistantWroteAt: Ts | null;
   /** Delete is archive. */
   archivedAt: Ts | null;
   preheader: string;

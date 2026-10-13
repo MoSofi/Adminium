@@ -762,10 +762,57 @@ for (const [dialect, available] of legs) {
       // Two mails in one proposal, or a mail beside anything else, is not a proposal at all.
       const two = await turn(owner.id, [reply({ propose: { title: 'x', actions: [send(campaign.id, ['Planner']), send(campaign.id, ['Planner'])] } })], Date.now(), undefined, 'email');
       expect(two.stored.status).toBe('failed');
-      // A campaign that is switched off (as one the assistant itself drafted is saved) is not sent.
-      const draft = await templates.create({ kind: 'campaign', key: `p64-draft-${dialect}`, locale: 'en_US', name: 'Draft', category: 'lifecycle', starter: null, enabled: false, createdBy: owner.id, ...documentColumns(normalizeDocument({ subject: 'Unread', blocks: [] } as never)) });
-      const unread = await turn(owner.id, [reply({ propose: { title: 'Send it', actions: [send(draft.id, ['Planner'])] } })], Date.now(), undefined, 'email');
-      expect((await check(owner, unread)).proposal.actions![0]!.refused).toMatchObject({ code: 'NOT_LIVE' });
+      // ── what a person has seen, and what only the assistant has ──
+      const sendable = async (id: string) => (await check(owner, await one(send(id, ['Planner'])))).proposal.actions![0]!;
+      const api = (method: 'POST' | 'PATCH' | 'PUT', url: string, payload: Record<string, unknown>) => s.app.inject({ method, url: `/api/v1/email-templates/${url}`, headers: { cookie: owner.cookie }, payload });
+      // A campaign made the way the dashboard makes one: from a template, by its own route. It is
+      // created switched off and no screen switches a campaign on; it is a person's work all the same.
+      const source = await templates.create({ kind: 'template', key: `a21-source-${dialect}`, locale: 'en_US', name: 'Autumn', category: 'marketing', starter: null, enabled: true, createdBy: owner.id, ...documentColumns(normalizeDocument({ subject: 'Autumn hours', blocks: [] } as never)) });
+      const minted = await api('POST', `${source.id}/from-template`, { name: 'Autumn news' });
+      expect(minted.statusCode, minted.body).toBe(201);
+      const mine = (minted.json() as { id: string; enabled: boolean; assistantWrote: boolean });
+      expect(mine).toMatchObject({ enabled: false, assistantWrote: false });
+      expect(await sendable(mine.id)).toMatchObject({ preview: { kind: 'send.template', id: mine.id, name: 'Autumn news' } });
+
+      // The assistant saves a draft over it: now only the assistant has read what would go out.
+      await switches({ send: true, change: true, create: true });
+      const draft = { title: 'Autumn', meta: '', artefact: { kind: 'campaign', name: 'x', locale: 'en_US', document: { subject: 'Written by the model', blocks: [{ block: 'email.heading', data: { text: 'Hi' } }] } } };
+      const over = await turn(owner.id, [reply({ result: draft, propose: { title: 'Save over it', actions: [{ do: 'doc.change' }] } })], Date.now(), undefined, 'email', mine.id);
+      const overShown = await check(owner, over);
+      expect((await apply(owner, over, overShown.proposal.hash)).proposal.outcome, overShown.body).toMatchObject({ done: [{ index: 0, id: mine.id }] });
+      expect(await templates.findById(mine.id)).toMatchObject({ subject: 'Written by the model' });
+      expect((await templates.findById(mine.id))!.assistantWroteAt).not.toBeNull();
+      const refused = await sendable(mine.id);
+      expect(refused.refused, JSON.stringify(refused)).toMatchObject({ code: 'NOT_SEEN' });
+      // A rename is not a look…
+      expect((await api('PATCH', mine.id, { name: 'Autumn news!' })).statusCode).toBe(200);
+      expect((await sendable(mine.id)).refused).toMatchObject({ code: 'NOT_SEEN' });
+      // …a copy of it is as unread as it is…
+      const copy = (await api('POST', `${mine.id}/duplicate`, {})).json() as { id: string; assistantWrote: boolean };
+      expect(copy.assistantWrote).toBe(true);
+      expect((await sendable(copy.id)).refused).toMatchObject({ code: 'NOT_SEEN' });
+      // …and "looks right", said by a person, is.
+      const looked = await api('PATCH', mine.id, { reviewed: true });
+      expect(looked.statusCode, looked.body).toBe(200);
+      expect((looked.json() as { assistantWrote: boolean }).assistantWrote).toBe(false);
+      expect(await sendable(mine.id)).toMatchObject({ preview: { kind: 'send.template', subject: 'Written by the model' } });
+
+      // A draft the assistant saves as a NEW campaign is marked from the start; a person's save in the editor clears it.
+      const fresh = await turn(owner.id, [reply({ result: { ...draft, artefact: { ...draft.artefact, name: `Made by the model ${dialect}` } }, propose: { title: 'Save it', actions: [{ do: 'doc.save' }] } })], Date.now(), undefined, 'email');
+      const freshShown = await check(owner, fresh);
+      const freshId = (await apply(owner, fresh, freshShown.proposal.hash)).proposal.outcome!.done[0]!.id!;
+      expect(await templates.findById(freshId)).toMatchObject({ kind: 'campaign', enabled: false });
+      expect((await sendable(freshId)).refused).toMatchObject({ code: 'NOT_SEEN' });
+      const saved = await api('PUT', freshId, { name: 'Read and saved', category: 'marketing', enabled: false, document: { subject: 'Read by a person', blocks: [] } });
+      expect(saved.statusCode, saved.body).toBe(200);
+      expect(await sendable(freshId)).toMatchObject({ preview: { kind: 'send.template', subject: 'Read by a person' } });
+
+      // A language nobody has read rides along with every send: it holds the whole campaign back.
+      await templates.create({ kind: 'campaign', key: (await templates.findById(mine.id))!.key, locale: 'de_DE', name: 'Autumn (de)', category: 'marketing', starter: null, enabled: false, createdBy: owner.id, assistantWroteAt: Date.now(), ...documentColumns(normalizeDocument({ subject: 'Herbst', blocks: [] } as never)) });
+      const held = await sendable(mine.id);
+      expect(held.refused).toMatchObject({ code: 'NOT_SEEN' });
+      expect(held.refused!.message).toContain('de_DE');
+      await switches({ send: true });
 
       // A campaign that reads a name nothing fills would reach everyone as written: the card says so, and offers no send.
       const misspelt = await templates.create({ kind: 'campaign', key: `p64-misspelt-${dialect}`, locale: 'en_US', name: 'Misspelt', category: 'lifecycle', starter: null, enabled: true, createdBy: owner.id, ...documentColumns(normalizeDocument({ subject: 'Hello {{frist_name}}', blocks: [] } as never)) });

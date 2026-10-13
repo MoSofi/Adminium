@@ -304,7 +304,13 @@ export default {
     },
     "saveFailed": "Enregistrement impossible",
     "saved": "Modifications enregistrées",
-    "loadFailed": "Impossible de charger cet e-mail"
+    "loadFailed": "Impossible de charger cet e-mail",
+    "assistantWrote": {
+      "campaign": "Relisez-la. {name} ne peut envoyer cette campagne qu’après que vous l’avez enregistrée ou validée.",
+      "looksRight": "C’est bon",
+      "template": "Relisez-la, puis enregistrez-la ou validez-la. Une campagne créée à partir d’elle reste en attente d’ici là.",
+      "title": "{name} a écrit cette version"
+    }
   },
   "empty": {
     "templates": {

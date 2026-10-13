@@ -501,7 +501,8 @@ export default {
         "required": "„{column}“ potřebuje hodnotu",
         "tooLong": "„{column}“ je příliš dlouhé",
         "unknown": "sloupec „{column}“ neexistuje"
-      }
+      },
+      "notSeen": "Poslední verzi této kampaně napsal {name} a nikdo se na ni od té doby nepodíval. Nejprve ji otevřete v editoru a stiskněte „Je v pořádku“, nebo ji uložte."
     },
     "row": {
       "untitled": "Bez názvu",

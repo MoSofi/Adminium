@@ -304,7 +304,13 @@ export default {
     },
     "saveFailed": "Nepodařilo se uložit",
     "saved": "Změny uloženy",
-    "loadFailed": "Tento e-mail se nepodařilo načíst"
+    "loadFailed": "Tento e-mail se nepodařilo načíst",
+    "assistantWrote": {
+      "campaign": "Přečtěte si ji. {name} může tuto kampaň odeslat až poté, co ji uložíte nebo potvrdíte, že je v pořádku.",
+      "looksRight": "Je v pořádku",
+      "template": "Přečtěte si ji a pak ji uložte nebo potvrďte, že je v pořádku. Kampaň z ní vytvořená zůstane do té doby pozastavená.",
+      "title": "Tuto verzi napsal {name}"
+    }
   },
   "empty": {
     "templates": {

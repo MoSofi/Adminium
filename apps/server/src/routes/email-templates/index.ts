@@ -233,6 +233,7 @@ export function emailTemplatesRoutes(deps: EmailTemplatesRoutesDeps): FastifyPlu
       category: row.category,
       enabled: row.enabled,
       needsTranslation: row.needsTranslation,
+      assistantWrote: row.assistantWroteAt !== null,
       archivedAt: row.archivedAt,
       updatedAt: row.updatedAt,
       isBuiltin: isBuiltinEmailKey(row.key),
@@ -537,6 +538,9 @@ export function emailTemplatesRoutes(deps: EmailTemplatesRoutesDeps): FastifyPlu
             isBuiltinCopy: false,
             needsTranslation: false,
             updatedBy: userId,
+            // Saved by the assistant for this person: marked, until somebody has looked at it.
+            // Saved by the person in the editor: they are looking at it, and the mark goes.
+            assistantWroteAt: request.assistantVia === null ? null : at,
           },
           at,
         );
@@ -569,8 +573,10 @@ export function emailTemplatesRoutes(deps: EmailTemplatesRoutesDeps): FastifyPlu
         const row = await mustFind(request.params.id);
         const at = app.rbac.now();
         const { name, enabled, category, archived } = request.body;
+        // "Looks right" is a person's word: never the assistant's own request.
+        const reviewed = request.body.reviewed === true && request.assistantVia === null;
         let next: EmailTemplate | null = row;
-        if (name !== undefined || category !== undefined || enabled !== undefined) {
+        if (name !== undefined || category !== undefined || enabled !== undefined || reviewed) {
           next = await templates.patch(
             row.id,
             {
@@ -580,6 +586,7 @@ export function emailTemplatesRoutes(deps: EmailTemplatesRoutesDeps): FastifyPlu
               // A rename or a re-categorisation is a human edit the seed must respect; the
               // Draft/Live pill alone is not (the seed has always preserved `enabled`).
               ...(name === undefined && category === undefined ? {} : { isBuiltinCopy: false }),
+              ...(reviewed ? { assistantWroteAt: null } : {}),
               updatedBy: userId,
             },
             at,
@@ -661,6 +668,8 @@ export function emailTemplatesRoutes(deps: EmailTemplatesRoutesDeps): FastifyPlu
             needsTranslation: row.needsTranslation,
             enabled: false,
             createdBy: userId,
+            // A copy of what nobody has read is not read either.
+            assistantWroteAt: row.assistantWroteAt,
             ...documentColumns(normalizeDocument(row)),
           },
           app.rbac.now(),
@@ -724,6 +733,8 @@ export function emailTemplatesRoutes(deps: EmailTemplatesRoutesDeps): FastifyPlu
               needsTranslation,
               enabled: false,
               createdBy: userId,
+              // The same words as the row it copies; a starter's own text is nobody's draft.
+              assistantWroteAt: needsTranslation ? row.assistantWroteAt : null,
               ...documentColumns(doc),
             },
             app.rbac.now(),
@@ -771,6 +782,8 @@ export function emailTemplatesRoutes(deps: EmailTemplatesRoutesDeps): FastifyPlu
             starter: source.starter,
             enabled: false,
             createdBy: userId,
+            // A campaign started from a template the assistant drafted and nobody opened is as unread as it.
+            assistantWroteAt: source.assistantWroteAt,
             ...documentColumns(doc),
           },
           app.rbac.now(),

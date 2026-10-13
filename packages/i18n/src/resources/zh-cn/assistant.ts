@@ -501,7 +501,8 @@ export default {
         "required": "“{column}”需要一个值",
         "tooLong": "“{column}”太长",
         "unknown": "没有“{column}”这一列"
-      }
+      },
+      "notSeen": "这个营销活动的最新版本由 {name} 撰写，之后还没有人看过。请先在编辑器中打开它并按“确认无误”，或保存它。"
     },
     "row": {
       "untitled": "未命名",

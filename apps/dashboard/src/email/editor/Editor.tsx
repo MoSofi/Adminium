@@ -26,9 +26,10 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useBlocker, useNavigate } from '@tanstack/react-router';
 import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { dirForLocale, isLocaleId, tagForLocale, type LocaleId } from '@adminium/i18n';
+import { Alert, Button } from '@adminium/ui';
 
 import { ApiError } from '../../app/api.js';
-import { bootstrapQuery } from '../../app/bootstrap.js';
+import { assistantName, bootstrapQuery } from '../../app/bootstrap.js';
 import { DEFAULT_BRANDING, brandingQuery } from '../../app/branding.js';
 import { resolveFiles, type FileDto } from '../../files/api.js';
 import { t } from '../../i18n/t.js';
@@ -204,7 +205,29 @@ export function Editor({ detail }: EditorProps) {
     },
     [actions, blocks, selectFor],
   );
-  const assistantHost = useEmailEditorAssistant({ documentId: detail.id, draft: draft.document, applyDocument });
+  // The panel saved a draft over this document: what the store holds now is what is on screen, saved.
+  const onSavedOver = useCallback(
+    (id: string) => {
+      if (id !== detail.id) return;
+      void emailApi.detail(id).then((stored) => {
+        queryClient.setQueryData([...EMAIL_DOCUMENTS_KEY, 'detail', id], stored);
+        actions.adopt(stored);
+        void invalidateEmailDocuments(queryClient);
+      });
+    },
+    [actions, detail.id, queryClient],
+  );
+  const assistantHost = useEmailEditorAssistant({ documentId: detail.id, draft: draft.document, applyDocument, onSavedOver });
+
+  // "Looks right": a person has read what the assistant wrote, so it may be sent through the assistant.
+  const looksRight = useMutation({
+    mutationFn: () => emailApi.patch(detail.id, { reviewed: true }),
+    onSuccess: () => {
+      queryClient.setQueryData([...EMAIL_DOCUMENTS_KEY, 'detail', detail.id], (current: EmailDocumentDetail | undefined) => (current === undefined ? current : { ...current, assistantWrote: false }));
+      void invalidateEmailDocuments(queryClient);
+    },
+    onError: (error: unknown) => failToast(t('email:editor.saveFailed', 'Could not save'), error),
+  });
 
   // --- structure ---------------------------------------------------------------
   const liveSiblings = detail.languages.filter((l) => !l.archived && l.id !== detail.id).length;
@@ -272,6 +295,7 @@ export function Editor({ detail }: EditorProps) {
   // --- test send (D1: the on-screen document) ---------------------------------------
   const bootstrap = useQuery(bootstrapQuery()).data;
   const me = bootstrap?.user.id ?? null;
+  const milo = bootstrap === undefined ? 'Milo' : assistantName(bootstrap);
   const localeTag = tagForLocale((bootstrap?.prefs.locale ?? 'en_US') as LocaleId);
   const teammates: readonly Teammate[] =
     useQuery({
@@ -549,6 +573,24 @@ export function Editor({ detail }: EditorProps) {
           cancelling={cancelRun.isPending}
           askAssistant={<AskAssistant host={assistantHost} slot="editor" />}
         />
+        {detail.assistantWrote === true ? (
+          <Alert
+            tone="info"
+            className="mx-7 mt-4"
+            data-testid="email-assistant-wrote"
+            title={t('email:editor.assistantWrote.title', '{name} wrote this version', { name: milo })}
+            body={
+              detail.kind === 'campaign'
+                ? t('email:editor.assistantWrote.campaign', 'Read it through. {name} can send this campaign only after you save it or say it looks right.', { name: milo })
+                : t('email:editor.assistantWrote.template', 'Read it through, then save it or say it looks right. A campaign started from it stays held back until you do.')
+            }
+            action={
+              <Button size="sm" variant="secondary" loading={looksRight.isPending} disabled={looksRight.isPending} onClick={() => looksRight.mutate()}>
+                {t('email:editor.assistantWrote.looksRight', 'Looks right')}
+              </Button>
+            }
+          />
+        ) : null}
         <div className="flex min-h-0 flex-1 items-start">
           <main data-testid="email-canvas" className="min-w-0 flex-1 bg-bg px-7 pb-[60px] pt-[22px]">
             <EmailCanvas

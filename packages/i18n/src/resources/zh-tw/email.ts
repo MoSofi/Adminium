@@ -304,7 +304,13 @@ export default {
     },
     "saveFailed": "無法儲存",
     "saved": "變更已儲存",
-    "loadFailed": "無法載入這封郵件"
+    "loadFailed": "無法載入這封郵件",
+    "assistantWrote": {
+      "campaign": "請通讀一遍。只有在你儲存或確認無誤之後，{name} 才能傳送這個行銷活動。",
+      "looksRight": "確認無誤",
+      "template": "請通讀一遍，然後儲存或確認無誤。在此之前，由它建立的行銷活動會暫緩傳送。",
+      "title": "這個版本由 {name} 撰寫"
+    }
   },
   "empty": {
     "templates": {

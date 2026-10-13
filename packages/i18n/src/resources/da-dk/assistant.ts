@@ -501,7 +501,8 @@ export default {
         "required": "“{column}” skal have en værdi",
         "tooLong": "“{column}” er for lang",
         "unknown": "der er ingen kolonne “{column}”"
-      }
+      },
+      "notSeen": "{name} skrev den seneste version af denne kampagne, og ingen har set på den siden. Åbn den i editoren, og tryk på “Ser rigtig ud”, eller gem den først."
     },
     "row": {
       "untitled": "Uden titel",

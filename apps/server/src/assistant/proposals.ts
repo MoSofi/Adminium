@@ -283,9 +283,23 @@ async function checkSend(input: { action: CheckedAction; abilities: CheckDocInpu
   if (row === null) return { checked: { ...action, refused: { code: 'NOT_FOUND', message: 'That mail is not there.' } } };
   if (row.kind !== 'campaign') return { checked: { ...action, refused: { code: 'NOT_A_CAMPAIGN', message: 'Only a campaign can be sent to people.' } } };
   if (row.archivedAt !== null) return { checked: { ...action, refused: { code: 'ARCHIVED', message: 'An archived campaign cannot be sent.' } } };
-  // A mail the assistant drafted is saved switched off. It is sent only after a person has
-  // looked at it and switched it on: the assistant never sends what only it has read.
-  if (!row.enabled) return { checked: { ...action, refused: { code: 'NOT_LIVE', message: 'A draft is switched on by a person before it can be sent.' } } };
+  // The assistant never sends what only it has read. A mail it wrote (drafted, saved over,
+  // added as a language) carries a mark until a person saves it or says it looks right; a
+  // campaign goes out in every language that is not waiting for a translation, so each of
+  // those is asked. (`enabled` is not the test: a campaign has no switch for it.)
+  const sent = [row, ...(await emailTemplatesRepo(deps.meta).siblings(row.key)).filter((sibling) => sibling.id !== row.id && sibling.archivedAt === null && !sibling.needsTranslation)];
+  const unread = sent.filter((mail) => mail.assistantWroteAt !== null);
+  if (unread.length > 0) {
+    return {
+      checked: {
+        ...action,
+        refused: {
+          code: 'NOT_SEEN',
+          message: `The assistant wrote the latest version of this campaign (${unread.map((mail) => mail.locale).join(', ')}) and nobody has looked at it since. Open it in the editor and say it looks right first.`,
+        },
+      },
+    };
+  }
   const known = await rolesRepo(deps.meta).list();
   const roles: { id: string; name: string }[] = [];
   for (const asked of action.roles) {

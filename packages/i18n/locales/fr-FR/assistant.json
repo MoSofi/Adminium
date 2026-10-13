@@ -491,7 +491,8 @@
         "required": "« {column} » doit avoir une valeur",
         "tooLong": "« {column} » est trop long",
         "unknown": "il n’y a pas de colonne « {column} »"
-      }
+      },
+      "notSeen": "{name} a écrit la dernière version de cette campagne et personne ne l’a relue depuis. Ouvrez-la d’abord dans l’éditeur et appuyez sur « C’est bon », ou enregistrez-la."
     },
     "row": {
       "untitled": "Sans titre",
