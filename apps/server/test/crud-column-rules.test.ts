@@ -202,6 +202,20 @@ describe('the rules a table carries', () => {
     expect(rules?.fills).toEqual([]);
   });
 
+  it('fills a zone-less timestamp itself where the database would fill UTC`s', () => {
+    const columns = [
+      ...OWNER_CASE.slice(0, 2),
+      { name: 'created_at', logicalType: 'timestamp', nullable: false, default: { kind: 'now' } },
+      { name: 'made_epoch', logicalType: 'integer', nullable: false, default: { kind: 'now' } },
+    ];
+    for (const dialect of ['sqlite', 'mysql'] as const) {
+      expect(tableRulesFor(target(dialect, columns as never))?.fills, dialect).toEqual([
+        { column: 'created_at', logicalType: 'timestamp', kind: 'now', onUpdate: false, implicit: true },
+      ]);
+    }
+    expect(tableRulesFor(target('postgres', columns as never))?.fills).toEqual([]);
+  });
+
   it('leaves a generated column alone', () => {
     const rules = tableRulesFor(
       target('postgres', [

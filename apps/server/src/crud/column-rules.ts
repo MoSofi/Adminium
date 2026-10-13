@@ -554,8 +554,14 @@ function implicitFillFor(column: EffectiveColumn, dialect: Dialect | undefined):
    * the database would fill UTC's: hours off wherever the server is not in
    * UTC. Adminium fills the moment itself on its own creates (and, for an
    * `updated_at`, its updates).
+   *
+   * SQLite is the same case by another road: `current_timestamp` there IS
+   * UTC, whatever the server's zone, so a table Adminium did not make (its own
+   * DDL writes `datetime('now', 'localtime')`) read a new row hours off. Only a
+   * column typed as a timestamp: an integer one filled with `unixepoch()` is a
+   * count of seconds and has no zone to get wrong.
    */
-  if (dialect === 'mysql' && column.logicalType === 'timestamp' && column.default?.kind === 'now') {
+  if ((dialect === 'mysql' || dialect === 'sqlite') && column.logicalType === 'timestamp' && column.default?.kind === 'now') {
     return { ...base, kind: 'now', onUpdate: semantic === 'updated-at' };
   }
   if (column.default !== null) return null;
