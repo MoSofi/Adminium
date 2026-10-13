@@ -52572,6 +52572,9 @@
                           "needsTranslation": {
                             "type": "boolean"
                           },
+                          "assistantWrote": {
+                            "type": "boolean"
+                          },
                           "archivedAt": {
                             "anyOf": [
                               {
@@ -52769,6 +52772,7 @@
                           "category",
                           "enabled",
                           "needsTranslation",
+                          "assistantWrote",
                           "archivedAt",
                           "updatedAt",
                           "isBuiltin",
@@ -52899,6 +52903,9 @@
                       "type": "boolean"
                     },
                     "needsTranslation": {
+                      "type": "boolean"
+                    },
+                    "assistantWrote": {
                       "type": "boolean"
                     },
                     "archivedAt": {
@@ -53426,6 +53433,7 @@
                     "category",
                     "enabled",
                     "needsTranslation",
+                    "assistantWrote",
                     "archivedAt",
                     "updatedAt",
                     "isBuiltin",
@@ -54023,6 +54031,9 @@
                     "needsTranslation": {
                       "type": "boolean"
                     },
+                    "assistantWrote": {
+                      "type": "boolean"
+                    },
                     "archivedAt": {
                       "anyOf": [
                         {
@@ -54548,6 +54559,7 @@
                     "category",
                     "enabled",
                     "needsTranslation",
+                    "assistantWrote",
                     "archivedAt",
                     "updatedAt",
                     "isBuiltin",
@@ -54627,6 +54639,9 @@
                     "needsTranslation": {
                       "type": "boolean"
                     },
+                    "assistantWrote": {
+                      "type": "boolean"
+                    },
                     "archivedAt": {
                       "anyOf": [
                         {
@@ -55152,6 +55167,7 @@
                     "category",
                     "enabled",
                     "needsTranslation",
+                    "assistantWrote",
                     "archivedAt",
                     "updatedAt",
                     "isBuiltin",
@@ -55494,6 +55510,9 @@
                     "needsTranslation": {
                       "type": "boolean"
                     },
+                    "assistantWrote": {
+                      "type": "boolean"
+                    },
                     "archivedAt": {
                       "anyOf": [
                         {
@@ -56019,6 +56038,7 @@
                     "category",
                     "enabled",
                     "needsTranslation",
+                    "assistantWrote",
                     "archivedAt",
                     "updatedAt",
                     "isBuiltin",
@@ -56065,6 +56085,12 @@
                   },
                   "archived": {
                     "type": "boolean"
+                  },
+                  "reviewed": {
+                    "type": "boolean",
+                    "enum": [
+                      true
+                    ]
                   }
                 }
               }
@@ -56125,6 +56151,9 @@
                       "type": "boolean"
                     },
                     "needsTranslation": {
+                      "type": "boolean"
+                    },
+                    "assistantWrote": {
                       "type": "boolean"
                     },
                     "archivedAt": {
@@ -56324,6 +56353,7 @@
                     "category",
                     "enabled",
                     "needsTranslation",
+                    "assistantWrote",
                     "archivedAt",
                     "updatedAt",
                     "isBuiltin",
@@ -56397,6 +56427,9 @@
                     "needsTranslation": {
                       "type": "boolean"
                     },
+                    "assistantWrote": {
+                      "type": "boolean"
+                    },
                     "archivedAt": {
                       "anyOf": [
                         {
@@ -56922,6 +56955,7 @@
                     "category",
                     "enabled",
                     "needsTranslation",
+                    "assistantWrote",
                     "archivedAt",
                     "updatedAt",
                     "isBuiltin",
@@ -57004,6 +57038,9 @@
                     "needsTranslation": {
                       "type": "boolean"
                     },
+                    "assistantWrote": {
+                      "type": "boolean"
+                    },
                     "archivedAt": {
                       "anyOf": [
                         {
@@ -57529,6 +57566,7 @@
                     "category",
                     "enabled",
                     "needsTranslation",
+                    "assistantWrote",
                     "archivedAt",
                     "updatedAt",
                     "isBuiltin",
@@ -57628,6 +57666,9 @@
                     "needsTranslation": {
                       "type": "boolean"
                     },
+                    "assistantWrote": {
+                      "type": "boolean"
+                    },
                     "archivedAt": {
                       "anyOf": [
                         {
@@ -58153,6 +58194,7 @@
                     "category",
                     "enabled",
                     "needsTranslation",
+                    "assistantWrote",
                     "archivedAt",
                     "updatedAt",
                     "isBuiltin",
@@ -58249,6 +58291,9 @@
                     "needsTranslation": {
                       "type": "boolean"
                     },
+                    "assistantWrote": {
+                      "type": "boolean"
+                    },
                     "archivedAt": {
                       "anyOf": [
                         {
@@ -58774,6 +58819,7 @@
                     "category",
                     "enabled",
                     "needsTranslation",
+                    "assistantWrote",
                     "archivedAt",
                     "updatedAt",
                     "isBuiltin",
@@ -112965,6 +113011,9 @@
                           },
                           "label": {
                             "type": "string"
+                          },
+                          "remote": {
+                            "type": "boolean"
                           }
                         },
                         "required": [
@@ -113119,6 +113168,16 @@
                           "type": "null"
                         }
                       ]
+                    },
+                    "code": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
                     }
                   },
                   "required": [
@@ -113157,6 +113216,9 @@
                           },
                           "label": {
                             "type": "string"
+                          },
+                          "remote": {
+                            "type": "boolean"
                           }
                         },
                         "required": [
