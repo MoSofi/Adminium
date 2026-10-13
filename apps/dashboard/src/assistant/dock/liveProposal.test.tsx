@@ -287,6 +287,15 @@ describe('a proposal that waits for a yes', () => {
     expect(asked).not.toContain('without these');
   });
 
+  it('tells the page which stored document a confirmed card saved over, so its editor can read as saved', async () => {
+    const over = { do: 'doc.change', preview: { kind: 'doc.change', what: 'email', id: 'tpl_7', name: 'Welcome' } };
+    routes[ACTIONS] = () => ({ proposal: applied([over], [0], { done: [{ index: 0, id: 'tpl_7' }], failed: [], notTried: [] }), undo: [] });
+    const onSavedOver = vi.fn();
+    show(open([over]), { onSavedOver });
+    await userEvent.setup().click(screen.getByTestId('assistant-proposal-confirm'));
+    await waitFor(() => expect(onSavedOver).toHaveBeenCalledWith('tpl_7'));
+  });
+
   it('draws what changed since it was shown, from the refusal itself, and writes nothing', async () => {
     const moved = open([change('INV-1', 'overdue', 'paid')], { hash: 'b'.repeat(64) });
     routes[ACTIONS] = () => new Refusal(409, { reason: 'proposal-changed', proposal: moved });

@@ -39,7 +39,7 @@ import { DeleteModal } from '../manager/DeleteModal.js';
 import type { ReportBlockKind, ReportBody } from '../model/envelope.js';
 import type { Selection } from '../model/ops.js';
 import { useReportEditorAssistant } from '../assistant.js';
-import { invalidateReportDocuments } from '../queries.js';
+import { REPORT_DOCUMENTS_KEY, invalidateReportDocuments } from '../queries.js';
 import { EditorHeader } from './EditorHeader.js';
 import { Palette, PaletteSheet } from './Palette.js';
 import { IMAGE_MAX_LABEL } from './images.js';
@@ -123,7 +123,19 @@ export function Editor({ detail }: EditorProps) {
     },
     [actions, draft.body.blocks, select],
   );
-  const assistantHost = useReportEditorAssistant({ documentId: detail.id, draft: draft.body, applyBody });
+  // The panel saved a draft over this report: what the store holds now is what is on screen, saved.
+  const onSavedOver = useCallback(
+    (id: string) => {
+      if (id !== detail.id) return;
+      void reportBuilderApi.detail(id).then((stored) => {
+        queryClient.setQueryData([...REPORT_DOCUMENTS_KEY, 'detail', id], stored);
+        actions.adopt(stored);
+        void invalidateReportDocuments(queryClient);
+      });
+    },
+    [actions, detail.id, queryClient],
+  );
+  const assistantHost = useReportEditorAssistant({ documentId: detail.id, draft: draft.body, applyBody, onSavedOver });
 
   const failToast = useCallback(
     (title: string, error: unknown) => {
