@@ -262,6 +262,7 @@
       "editor": "Saved to Reports. Opening it in the builder.",
       "resampled": "Re-ran the sources — {n, plural, one {# figure} other {# figures}} updated.",
       "resampledRefused": "Re-ran the sources — {n, plural, one {# figure} other {# figures}} updated; {refused, plural, one {# source} other {# sources}} could not be read.",
+      "resampledRefusedWhy": "Re-ran the sources — {n, plural, one {# figure} other {# figures}} updated; {refused, plural, one {# source} other {# sources}} could not be read: {why}",
       "sample": "Ran the full query for {record}.",
       "saved": "Saved to Reports. Add a schedule from the report header.",
       "test": "Test sent to {email}."

@@ -277,6 +277,11 @@ describe('each page says its own thing', () => {
     expect(echoText('email', { kind: 'language-added', locale: 'de_DE' }, 'Welcome')).toContain('de_DE');
     // A kind this build does not know about says nothing rather than guessing.
     expect(echoText('email', { kind: 'what' }, 'Welcome')).toBeNull();
+    // A source a re-run could not read says why, in the reader's own words.
+    expect(echoText('report', { kind: 'resampled', refreshed: 0, refused: 1, why: 'That source names no connection.' }, 'Sales')).toBe(
+      'Re-ran the sources — 0 figures updated; 1 source could not be read: That source names no connection.',
+    );
+    expect(echoText('report', { kind: 'resampled', refreshed: 2, refused: 1 }, 'Sales')).toBe('Re-ran the sources — 2 figures updated; 1 source could not be read.');
   });
 });
 

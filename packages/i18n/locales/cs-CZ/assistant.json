@@ -262,6 +262,7 @@
       "editor": "Uloženo do Sestav. Otevírá se v nástroji.",
       "resampled": "Zdroje znovu spuštěny — aktualizováno {n, plural, one {# číslo} few {# čísla} other {# čísel}}.",
       "resampledRefused": "Zdroje znovu spuštěny — aktualizováno {n, plural, one {# číslo} few {# čísla} other {# čísel}}; {refused, plural, one {# zdroj nelze přečíst} few {# zdroje nelze přečíst} other {# zdrojů nelze přečíst}}.",
+      "resampledRefusedWhy": "Zdroje znovu spuštěny — aktualizováno {n, plural, one {# číslo} few {# čísla} other {# čísel}}; {refused, plural, one {# zdroj nelze přečíst} few {# zdroje nelze přečíst} other {# zdrojů nelze přečíst}}: {why}",
       "sample": "Spuštěn plný dotaz pro {record}.",
       "saved": "Uloženo do Sestav. Plán přidáš v záhlaví sestavy.",
       "test": "Test odeslán na {email}."

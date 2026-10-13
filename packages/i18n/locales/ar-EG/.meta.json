@@ -1615,6 +1615,10 @@
     "status": "mt",
     "srcHash": "9de97de3ca34"
   },
+  "assistant.report.echo.resampledRefusedWhy": {
+    "status": "mt",
+    "srcHash": "1c16380fd575"
+  },
   "assistant.report.echo.sample": {
     "status": "mt",
     "srcHash": "d81896784b07"

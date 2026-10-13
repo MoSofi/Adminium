@@ -458,6 +458,7 @@ export function echoText(
   const to = typeof echo.to === 'string' ? echo.to : '';
   const refreshed = count(echo.refreshed);
   const refused = count(echo.refused);
+  const why = typeof echo.why === 'string' ? echo.why : '';
   switch (context) {
     case 'email':
       switch (kind) {
@@ -531,11 +532,17 @@ export function echoText(
                 'Re-ran the sources — {n, plural, one {# figure} other {# figures}} updated.',
                 { n: refreshed },
               )
-            : t(
-                'assistant:report.echo.resampledRefused',
-                'Re-ran the sources — {n, plural, one {# figure} other {# figures}} updated; {refused, plural, one {# source} other {# sources}} could not be read.',
-                { n: refreshed, refused },
-              );
+            : why === ''
+              ? t(
+                  'assistant:report.echo.resampledRefused',
+                  'Re-ran the sources — {n, plural, one {# figure} other {# figures}} updated; {refused, plural, one {# source} other {# sources}} could not be read.',
+                  { n: refreshed, refused },
+                )
+              : t(
+                  'assistant:report.echo.resampledRefusedWhy',
+                  'Re-ran the sources — {n, plural, one {# figure} other {# figures}} updated; {refused, plural, one {# source} other {# sources}} could not be read: {why}',
+                  { n: refreshed, refused, why },
+                );
         // Reachable only where a re-run had no deps to run with — a story or
         // a harness. In the product this page always re-runs.
         case 'sampled':

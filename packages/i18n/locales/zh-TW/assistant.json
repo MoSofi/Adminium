@@ -262,6 +262,7 @@
       "editor": "已儲存到報表，正在建構器中開啟。",
       "resampled": "已重新執行資料來源 — 更新了 {n, plural, other {# 項數據}}。",
       "resampledRefused": "已重新執行資料來源 — 更新了 {n, plural, other {# 項數據}}；{refused, plural, other {# 個資料來源}}無法讀取。",
+      "resampledRefusedWhy": "已重新執行資料來源 — 更新了 {n, plural, other {# 項數據}}；{refused, plural, other {# 個資料來源}}無法讀取：{why}",
       "sample": "已為 {record} 執行完整查詢。",
       "saved": "已儲存到報表。可在報表標題列新增排程。",
       "test": "已向 {email} 傳送測試。"

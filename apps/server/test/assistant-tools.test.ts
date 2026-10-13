@@ -684,8 +684,8 @@ describe('what each page will accept as a draft', () => {
           ],
         },
         sources: [
-          { blockId: 'b1', descriptor, reason: 'counts every order' },
-          { blockId: 'b2', descriptor, reason: 'the same count, by status' },
+          { blockId: 'b1', connectionId: connId, descriptor, reason: 'counts every order' },
+          { blockId: 'b2', connectionId: connId, descriptor, reason: 'the same count, by status' },
         ],
       },
       report.deps,
@@ -881,6 +881,31 @@ describe('re-running a report’s sources', () => {
     // The block keeps what it was drafted with rather than being blanked.
     const blocks = (run?.artefact.body as { blocks: Record<string, unknown>[] }).blocks;
     expect((blocks[0]?.series as { value: string }[])[0]?.value).toBe('999');
+  });
+
+  it('re-runs a source written the way the model is told to write it: the connection beside the descriptor', async () => {
+    const report = await setup({ context: 'report', user: 'admin' });
+    // Exactly the two arguments of the `aggregate` call that filled the block.
+    const call = { connectionId: connId, descriptor: ordersByStatus() };
+    const drafted = draftedReport(ordersByStatus());
+    drafted.sources = [{ blockId: 'b1', ...call, reason: 'the order counts' }];
+    const accepted = await report.adapter.document!.acceptArtefact(drafted, report.deps);
+    expect(accepted.ok, JSON.stringify(accepted)).toBe(true);
+    if (!accepted.ok) return;
+    const run = await report.adapter.document!.resample?.(accepted.artefact, report.deps);
+    expect(run?.refused).toEqual([]);
+    expect(run?.refreshed).toBe(1);
+  });
+
+  it('tells the model, while it can still put it right, that a source names no connection', async () => {
+    const report = await setup({ context: 'report', user: 'admin' });
+    const drafted = draftedReport(ordersByStatus());
+    drafted.sources = [{ blockId: 'b1', descriptor: ordersByStatus(), reason: 'the order counts' }];
+    const accepted = await report.adapter.document!.acceptArtefact(drafted, report.deps);
+    expect(accepted.ok).toBe(false);
+    if (accepted.ok) return;
+    expect(accepted.errors[0]).toMatchObject({ code: 'SOURCE_NO_CONNECTION' });
+    expect(accepted.errors[0]?.message).toContain('connectionId');
   });
 
   it('refuses a source with no connection rather than guessing one', async () => {

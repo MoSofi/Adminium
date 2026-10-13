@@ -262,6 +262,7 @@
       "editor": "已保存到报告，正在构建器中打开。",
       "resampled": "已重新运行数据源 — 更新了 {n, plural, other {# 项数据}}。",
       "resampledRefused": "已重新运行数据源 — 更新了 {n, plural, other {# 项数据}}；{refused, plural, other {# 个数据源}}无法读取。",
+      "resampledRefusedWhy": "已重新运行数据源 — 更新了 {n, plural, other {# 项数据}}；{refused, plural, other {# 个数据源}}无法读取：{why}",
       "sample": "已为 {record} 运行完整查询。",
       "saved": "已保存到报告。可在报告标题栏添加计划。",
       "test": "已向 {email} 发送测试。"

@@ -262,6 +262,7 @@
       "editor": "حُفِظ في التقارير. يجري فتحه في المنشئ.",
       "resampled": "أُعيد تشغيل المصادر — تم تحديث {n, plural, zero {# رقم} one {رقم واحد} two {رقمين} few {# أرقام} many {# رقمًا} other {# رقم}}.",
       "resampledRefused": "أُعيد تشغيل المصادر — تم تحديث {n, plural, zero {# رقم} one {رقم واحد} two {رقمين} few {# أرقام} many {# رقمًا} other {# رقم}}؛ تعذّرت قراءة {refused, plural, zero {# مصدر} one {مصدر واحد} two {مصدرين} few {# مصادر} many {# مصدرًا} other {# مصدر}}.",
+      "resampledRefusedWhy": "أُعيد تشغيل المصادر — تم تحديث {n, plural, zero {# رقم} one {رقم واحد} two {رقمين} few {# أرقام} many {# رقمًا} other {# رقم}}؛ تعذّرت قراءة {refused, plural, zero {# مصدر} one {مصدر واحد} two {مصدرين} few {# مصادر} many {# مصدرًا} other {# مصدر}}: {why}",
       "sample": "نُفِّذ الاستعلام الكامل لـ {record}.",
       "saved": "حُفِظ في التقارير. أضف جدولة من ترويسة التقرير.",
       "test": "أُرسِل اختبار إلى {email}."

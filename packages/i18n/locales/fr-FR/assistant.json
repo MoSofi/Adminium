@@ -262,6 +262,7 @@
       "editor": "Enregistré dans Rapports. Ouverture dans le générateur.",
       "resampled": "Sources ré-exécutées — {n, plural, one {# chiffre mis à jour} other {# chiffres mis à jour}}.",
       "resampledRefused": "Sources ré-exécutées — {n, plural, one {# chiffre mis à jour} other {# chiffres mis à jour}} ; {refused, plural, one {# source illisible} other {# sources illisibles}}.",
+      "resampledRefusedWhy": "Sources ré-exécutées — {n, plural, one {# chiffre mis à jour} other {# chiffres mis à jour}} ; {refused, plural, one {# source illisible} other {# sources illisibles}} : {why}",
       "sample": "Requête complète exécutée pour {record}.",
       "saved": "Enregistré dans Rapports. Ajoutez une planification depuis l’en-tête du rapport.",
       "test": "Test envoyé à {email}."

@@ -262,6 +262,7 @@
       "editor": "Gemt i Rapporter. Åbner den i byggeren.",
       "resampled": "Kilderne blev kørt igen — {n, plural, one {# tal} other {# tal}} opdateret.",
       "resampledRefused": "Kilderne blev kørt igen — {n, plural, one {# tal} other {# tal}} opdateret; {refused, plural, one {# kilde} other {# kilder}} kunne ikke læses.",
+      "resampledRefusedWhy": "Kilderne blev kørt igen — {n, plural, one {# tal} other {# tal}} opdateret; {refused, plural, one {# kilde} other {# kilder}} kunne ikke læses: {why}",
       "sample": "Fuld forespørgsel kørt for {record}.",
       "saved": "Gemt i Rapporter. Tilføj en tidsplan fra rapportens header.",
       "test": "Test sendt til {email}."

@@ -262,6 +262,7 @@
       "editor": "In Berichten gespeichert. Wird im Builder geöffnet.",
       "resampled": "Quellen erneut ausgeführt — {n, plural, one {# Wert} other {# Werte}} aktualisiert.",
       "resampledRefused": "Quellen erneut ausgeführt — {n, plural, one {# Wert} other {# Werte}} aktualisiert; {refused, plural, one {# Quelle} other {# Quellen}} konnten nicht gelesen werden.",
+      "resampledRefusedWhy": "Quellen erneut ausgeführt — {n, plural, one {# Wert} other {# Werte}} aktualisiert; {refused, plural, one {# Quelle} other {# Quellen}} konnten nicht gelesen werden: {why}",
       "sample": "Vollständige Abfrage für {record} ausgeführt.",
       "saved": "In Berichten gespeichert. Einen Zeitplan fügst du in der Berichtskopfzeile hinzu.",
       "test": "Test an {email} gesendet."
