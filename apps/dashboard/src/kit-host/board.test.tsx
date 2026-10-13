@@ -308,6 +308,87 @@ describe('the board, mounted', () => {
     // afterEach holds the gate: no word outside the board's set was asked for.
   });
 
+  it('a card’s own actions open from a button after the card, and the app hears the card and the action', async () => {
+    const onAction = vi.fn<(cardId: string, actionId: string) => void>();
+    const onMove = vi.fn<NonNullable<BoardProps['onMove']>>(async () => undefined);
+    const actions = [{ id: 'close', label: 'Close: won or lost…' }, { id: 'hand', label: 'Hand it over…', disabled: true }, { id: 'drop', label: 'Delete', tone: 'danger' as const }];
+    await board({ onAction, onMove, cards: CARDS.map((one) => (one.id === '1' ? { ...one, actions } : one)) });
+    const button = screen.getByRole('button', { name: 'Actions for Harbour Cafe' });
+    expect(card('Harbour Cafe').contains(button)).toBe(false);
+    expect(host.querySelectorAll('[data-part="board-card-actions"]')).toHaveLength(1);
+    fireEvent.keyDown(button, { key: 'ArrowDown' });
+    const items = screen.getAllByRole('menuitem');
+    expect(items.map((item) => item.textContent)).toEqual(['Close: won or lost…', 'Hand it over…', 'Delete']);
+    expect(document.activeElement).toBe(items[0]);
+    // The menu is in the kit's own wrapper, where the kit's styles reach it.
+    expect(screen.getByRole('menu').closest('.adm-kit')).not.toBeNull();
+    fireEvent.click(items[1]!);
+    expect(onAction).not.toHaveBeenCalled();
+    fireEvent.keyDown(items[0]!, { key: 'Escape' });
+    expect(screen.queryByRole('menu')).toBeNull();
+    expect(document.activeElement).toBe(button);
+    fireEvent.click(button);
+    fireEvent.click(screen.getAllByRole('menuitem')[2]!);
+    expect(onAction).toHaveBeenCalledExactlyOnceWith('1', 'drop');
+    expect(document.activeElement).toBe(button);
+    // Nothing of it was a move, and the card is still moved by keyboard.
+    expect(onMove).not.toHaveBeenCalled();
+    await moveByKeys('Harbour Cafe', ['ArrowRight']);
+    expect(onMove).toHaveBeenCalledExactlyOnceWith('1', 'won', 'new');
+    // The app's own function may change with an update; the newest is the one called.
+    const later = vi.fn<(cardId: string, actionId: string) => void>();
+    act(() => mounted!.update({ onAction: later }));
+    fireEvent.click(screen.getByRole('button', { name: 'Actions for Harbour Cafe' }));
+    fireEvent.click(screen.getAllByRole('menuitem')[0]!);
+    expect(later).toHaveBeenCalledExactlyOnceWith('1', 'close');
+    expect(onAction).toHaveBeenCalledTimes(1);
+  });
+
+  it('with no onAction no card has a menu, whatever actions it carries', async () => {
+    await board({ cards: CARDS.map((one) => ({ ...one, actions: [{ id: 'a', label: 'A' }] })) });
+    expect(host.querySelector('[data-part="board-card-actions"]')).toBeNull();
+    expect(host.querySelector('[data-part="board-card-shell"]')).toBeNull();
+  });
+
+  it('with onOpen, Shift+Enter opens a card that Enter picks up, and each such card says so', async () => {
+    const onOpen = vi.fn<(cardId: string) => void>();
+    const onMove = vi.fn<NonNullable<BoardProps['onMove']>>(async () => undefined);
+    await board({ onOpen, onMove, canMove: (id) => id !== '3' });
+    const el = card('Harbour Cafe');
+    const hint = host.querySelector('[data-part="board-open-hint"]')!;
+    expect(hint.textContent).toBe('Enter picks this card up to move it. Shift+Enter opens it.');
+    expect(el.getAttribute('aria-describedby')).toBe(hint.id);
+    expect(card('Third Coast').hasAttribute('aria-describedby')).toBe(false);
+    fireEvent.keyDown(el, { key: 'Enter', shiftKey: true });
+    expect(onOpen).toHaveBeenCalledExactlyOnceWith('1');
+    expect(el.hasAttribute('aria-grabbed')).toBe(false);
+    fireEvent.keyDown(el, { key: 'Enter' });
+    expect(el.getAttribute('aria-grabbed')).toBe('true');
+    fireEvent.keyDown(el, { key: 'Escape' });
+    // A board whose cards open by a click only (no onOpen) has no such line.
+    act(() => mounted!.update({ onOpen: undefined }));
+    expect(host.querySelector('[data-part="board-open-hint"]')).toBeNull();
+  });
+
+  it('writes a column’s badge after its heading', async () => {
+    await board({ columns: COLUMNS.map((one) => (one.id === 'new' ? { ...one, badge: '10%' } : one)) });
+    expect([...host.querySelectorAll('[data-part="column-badge"]')].map((el) => el.textContent)).toEqual(['10%']);
+    expect(column('new').querySelector('[data-part="column-badge"]')?.previousElementSibling?.textContent).toBe('New');
+  });
+
+  it('in Arabic the card is called a draggable card in Arabic, and its button and hint speak Arabic too', async () => {
+    const onMove = vi.fn<NonNullable<BoardProps['onMove']>>(async () => undefined);
+    await board({ locale: 'ar-EG', dir: 'rtl', onMove, onOpen: () => undefined, onAction: () => undefined, cards: CARDS.map((one) => (one.id === '1' ? { ...one, actions: [{ id: 'a', label: 'إغلاق' }] } : one)) });
+    const el = card('Harbour Cafe');
+    expect(el.getAttribute('aria-roledescription')).toBe('بطاقة قابلة للسحب');
+    expect(screen.getByRole('button', { name: 'إجراءات Harbour Cafe' })).toBeTruthy();
+    expect(host.querySelector('[data-part="board-open-hint"]')?.textContent).toBe('اضغط Enter لالتقاط هذه البطاقة وتحريكها، وShift+Enter لفتحها.');
+    expect(host.querySelector('[data-part="board-card-grip"]')?.getAttribute('title')).toBe('اسحب لتحريك البطاقة');
+    fireEvent.keyDown(el, { key: ' ' });
+    expect(said()).toBe('تم التقاط Harbour Cafe. استخدم مفاتيح الأسهم للتحريك، وEnter للإفلات، وEscape للإلغاء.');
+    fireEvent.keyDown(el, { key: 'Escape' });
+  });
+
   it('is gone after unmount, and an answer that arrives later moves nothing', async () => {
     let answer: (value: void) => void = () => undefined;
     const onMove = vi.fn<NonNullable<BoardProps['onMove']>>(() => new Promise<void>((resolve) => (answer = resolve)));

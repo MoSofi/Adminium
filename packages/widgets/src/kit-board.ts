@@ -7,4 +7,4 @@
 export { KanbanBoard, type KanbanBoardProps, type KanbanBoardLabels } from './families/boards/KanbanBoard.js';
 export { InlineComposeCard, type InlineComposeCardProps } from './families/boards/InlineComposeCard.js';
 export type { BoardAddRefusal } from './families/boards/board-dnd.js';
-export type { BoardCardData, BoardCardLine, ColumnDef } from './families/boards/board-lib.js';
+export type { BoardCardAction, BoardCardData, BoardCardLine, ColumnDef } from './families/boards/board-lib.js';

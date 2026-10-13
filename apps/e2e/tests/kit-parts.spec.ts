@@ -40,6 +40,14 @@ import { bundleOf } from './appBundle.js';
 import { ADMIN_NAME } from './constants.js';
 import { seededConnectionId, signIn } from './helpers.js';
 
+/**
+ * The seeded connection's id, asked for once: this file reads it before almost
+ * every call it makes, and a request for each would spend the server's
+ * per-minute budget on the same answer.
+ */
+let connection: Promise<string> | undefined;
+const connectionOf = (page: Page): Promise<string> => (connection ??= seededConnectionId(page));
+
 const KEY = 'e2e-kit';
 const VERSION = '1.0.0';
 const STAFF = `/apps/${KEY}/staff/`;
@@ -179,10 +187,22 @@ export async function pipeline(config, kit, asked) {
   const call = (path, init) => fetch(table + path, { credentials: 'same-origin', ...init, headers: { 'content-type': 'application/json', 'x-adminium-csrf': config.csrfToken } });
   const money = new Intl.NumberFormat(asked.get('locale') ?? config.locale, { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
   const saves = [];
+  const actions = [];
+  // The Pipeline's own actions on a card, when the page is asked for them: one is not to be had on a deal that is won.
+  const actionsOf = (row) => asked.get('actions') === null ? {} : { actions: [
+    { id: 'close', label: 'Close: won or lost…' },
+    { id: 'room', label: 'Open the deal room' },
+    { id: 'hand', label: 'Hand it over…', disabled: row.stage === 'won' },
+    { id: 'drop', label: 'Delete', tone: 'danger' },
+  ] };
+  const ODDS = { new: '10%', talking: '40%' };
+  // A board with a height of its own: its columns then scroll inside it.
+  if (asked.get('long') !== null) document.querySelector('#board').style.height = '420px';
 
   async function read() {
     const { data } = await (await call('?limit=50&order=id.asc')).json();
     const cards = data.map((row) => ({
+      ...actionsOf(row),
       id: String(row.id),
       columnId: row.stage,
       title: row.title,
@@ -194,7 +214,7 @@ export async function pipeline(config, kit, asked) {
     }));
     const columns = STAGES.map((stage) => {
       const rows = data.filter((row) => row.stage === stage.id);
-      return { ...stage, count: rows.length, total: money.format(rows.reduce((sum, row) => sum + row.amount, 0)) };
+      return { ...stage, count: rows.length, total: money.format(rows.reduce((sum, row) => sum + row.amount, 0)), ...(asked.get('actions') === null || ODDS[stage.id] === undefined ? {} : { badge: ODDS[stage.id] }) };
     });
     return { cards, columns };
   }
@@ -209,6 +229,7 @@ export async function pipeline(config, kit, asked) {
     dir: asked.get('dir') ?? config.dir,
     ...(asked.get('theme') === null ? {} : { theme: asked.get('theme') }),
     onOpen: (cardId) => { document.body.dataset.opened = cardId; },
+    ...(asked.get('actions') === null ? {} : { onAction: (cardId, actionId) => { actions.push({ cardId, actionId }); } }),
     onMove: async (cardId, to, from) => {
       const reply = await call('/' + cardId, { method: 'PATCH', body: JSON.stringify({ values: { stage: to }, from }) });
       saves.push({ cardId, to, from, status: reply.status });
@@ -222,7 +243,7 @@ export async function pipeline(config, kit, asked) {
       board.update(await read());
     },
   });
-  return { board, saves };
+  return { board, saves, actions };
 }`;
 
 /**
@@ -278,7 +299,7 @@ test.describe.configure({ mode: 'serial' });
 test.beforeAll(async ({ browser }) => {
   const page = await browser.newPage();
   await signIn(page);
-  const connectionId = await seededConnectionId(page);
+  const connectionId = await connectionOf(page);
   await page.request.delete(`/api/v1/apps/${KEY}`, { data: { dropTables: true, confirmKey: KEY } }).catch(() => undefined);
   const bundle = bundleOf({
     'package.json': JSON.stringify({ name: `@adminium-apps/${KEY}`, version: VERSION }),
@@ -489,15 +510,38 @@ interface Save {
   status: number;
 }
 
+/** Where each deal stands when a test begins: three new, one being talked about, one won. */
+const STAGES: Record<string, string> = { 'Harbour Cafe': 'new', 'Second Wind': 'new', 'Third Coast': 'new', 'Fourth Wall': 'talking', 'Fifth Season': 'won' };
+
 /**
- * Five deals, afresh for each test: three new, one being talked about, one
- * won. Made through the data API as the signed-in person, each stage reached
- * by the moves the table's own rule allows.
+ * The five deals as every test expects to find them, through the data API as
+ * the signed-in person.
+ *
+ * What the test before left is put right where it can be, and the table is
+ * made afresh only where it cannot. Making it afresh is fourteen calls, and
+ * this file's calls are counted against the server's own budget of 300 a
+ * minute for one person: a test that left the deals alone costs one. A deal
+ * that was moved on from New is moved back (the table's rule allows that
+ * step and no other backwards), a card a test added is deleted, and anything
+ * else (a deal that was won, one that is missing) starts over, since a deal
+ * made again would stand after the others in its column.
  */
 async function seedDeals(page: Page): Promise<Record<string, string>> {
-  const connectionId = await seededConnectionId(page);
+  const connectionId = await connectionOf(page);
   const table = `/api/v1/data/${connectionId}/e2e_kit_deals`;
-  const listed = (await (await page.request.get(`${table}?limit=200`)).json()) as { data: { id: number }[] };
+  const listed = (await (await page.request.get(`${table}?limit=200&order=id.asc`)).json()) as { data: { id: number; title: string; stage: string }[] };
+  const kept = listed.data.filter((row) => row.title in STAGES);
+  const mendable =
+    kept.length === DEALS.length &&
+    kept.every((row, index) => row.title === DEALS[index] && (row.stage === STAGES[row.title] || (row.stage === 'talking' && STAGES[row.title] === 'new')));
+  if (mendable) {
+    for (const row of listed.data.filter((one) => !(one.title in STAGES))) expect((await page.request.delete(`${table}/${String(row.id)}`)).ok()).toBe(true);
+    for (const row of kept.filter((one) => one.stage !== STAGES[one.title])) {
+      const back = await page.request.patch(`${table}/${String(row.id)}`, { data: { values: { stage: 'new' }, from: 'talking' } });
+      expect(back.ok(), await back.text()).toBe(true);
+    }
+    return Object.fromEntries(kept.map((row) => [row.title, String(row.id)]));
+  }
   for (const row of listed.data) expect((await page.request.delete(`${table}/${String(row.id)}`)).ok()).toBe(true);
   const ids: Record<string, string> = {};
   for (const [index, title] of DEALS.entries()) {
@@ -811,6 +855,318 @@ test('the board is dark where the app says dark, and takes the app’s own colou
   expect(problems).toEqual([]);
 });
 
+/* -------------------------------------------------- a card's own actions */
+
+/*
+ * The tests from here on do not open the dashboard first. The session this
+ * project starts every page with (the setup project's) is the signed-in
+ * person's already, and each visit to the dashboard is a dozen calls against
+ * the same per-minute budget this file's own reads and saves are counted in.
+ */
+
+const ACTIONS_PAGE = `${BOARD_PAGE}&actions=1`;
+const moreOf = (page: Page, title: string, name = `Actions for ${title}`) => page.locator('#board').getByRole('button', { name, exact: true });
+const menu = (page: Page) => page.locator('#board [role="menu"]');
+const chosen = (page: Page): Promise<{ cardId: string; actionId: string }[]> => page.evaluate(() => (window as unknown as { kitScreen: { actions: { cardId: string; actionId: string }[] } }).kitScreen.actions);
+
+/** Every item of the open menu is whole inside the window and is what a press at its middle would land on: nothing cuts it off or covers it. */
+async function menuIsWhole(page: Page): Promise<void> {
+  const faults = await menu(page)
+    .locator('[role="menuitem"]')
+    .evaluateAll((items) =>
+      items.flatMap((item) => {
+        const box = item.getBoundingClientRect();
+        const inside = box.left >= 0 && box.top >= 0 && box.right <= document.documentElement.clientWidth && box.bottom <= document.documentElement.clientHeight;
+        const top = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
+        return inside && top !== null && item.contains(top) ? [] : [`${item.textContent ?? ''}: inside=${String(inside)} on top=${String(top !== null && item.contains(top))}`];
+      }),
+    );
+  expect(faults).toEqual([]);
+}
+
+test('a card’s own actions open by the mouse from a button that is no part of the card, and the app hears the choice', async ({ page }) => {
+  const ids = await seedDeals(page);
+  const problems = watch(page);
+  await open(page, ACTIONS_PAGE);
+
+  // The app's odds stand after two headings, and nowhere else.
+  await expect(column(page, 'new').locator('[data-part="column-badge"]')).toHaveText('10%');
+  await expect(column(page, 'talking').locator('[data-part="column-badge"]')).toHaveText('40%');
+  await expect(column(page, 'won').locator('[data-part="column-badge"]')).toHaveCount(0);
+  const [label, badge] = await Promise.all([column(page, 'new').locator('header > span').nth(1).boundingBox(), column(page, 'new').locator('[data-part="column-badge"]').boundingBox()]);
+  expect(badge!.x).toBeGreaterThanOrEqual(label!.x + label!.width);
+  expect(await column(page, 'new').locator('[data-part="column-badge"]').evaluate((el) => getComputedStyle(el).borderTopWidth + ' ' + getComputedStyle(el).borderTopLeftRadius)).not.toBe('0px 0px');
+
+  // Every card has its button: at the card's far corner, drawn over it, and not inside it.
+  await expect(page.locator('#board [data-part="board-card-actions"]')).toHaveCount(DEALS.length);
+  const more = moreOf(page, 'Harbour Cafe');
+  await expect(more).toBeVisible();
+  expect(await more.evaluate((el) => el.tagName + ' ' + String(el.closest('[data-board-card]') === null))).toBe('BUTTON true');
+  const [face, corner] = await Promise.all([card(page, 'Harbour Cafe').boundingBox(), more.boundingBox()]);
+  expect(corner!.x).toBeGreaterThan(face!.x + face!.width / 2);
+  expect(corner!.x + corner!.width).toBeLessThanOrEqual(face!.x + face!.width);
+  expect(corner!.y).toBeGreaterThanOrEqual(face!.y);
+  expect(corner!.y - face!.y).toBeLessThan(20);
+  // The grip stands before it, not under it.
+  const grip = (await card(page, 'Harbour Cafe').locator('[data-part="board-card-grip"]').boundingBox())!;
+  expect(grip.x + grip.width).toBeLessThanOrEqual(corner!.x + 1);
+  expect(await unstyledClasses(page)).toEqual([]);
+
+  await more.click();
+  await expect(menu(page)).toBeVisible();
+  await expect(more).toHaveAttribute('aria-expanded', 'true');
+  await expect(menu(page)).toHaveAttribute('aria-label', 'Actions for Harbour Cafe');
+  await expect(menu(page).getByRole('menuitem')).toHaveText(['Close: won or lost…', 'Open the deal room', 'Hand it over…', 'Delete']);
+  await menuIsWhole(page);
+  expect(await unstyledClasses(page)).toEqual([]);
+  // A menu, as the kit draws one: its own surface, a border, a shadow; and the one that cannot be taken back is red.
+  expect(await menu(page).evaluate((el) => [getComputedStyle(el).position, getComputedStyle(el).backgroundColor, getComputedStyle(el).borderTopWidth].join(' '))).toBe('fixed rgb(255, 255, 255) 1px');
+  expect(await menu(page).evaluate((el) => getComputedStyle(el).boxShadow)).not.toBe('none');
+  expect(await menu(page).getByRole('menuitem', { name: 'Delete' }).evaluate((el) => getComputedStyle(el).color)).toBe('rgb(207, 39, 60)');
+  // It hangs under the button, its far edge on the button's.
+  const [under, hung] = await Promise.all([more.boundingBox(), menu(page).boundingBox()]);
+  expect(Math.abs(hung!.x + hung!.width - (under!.x + under!.width))).toBeLessThanOrEqual(1);
+  expect(hung!.y).toBeGreaterThanOrEqual(under!.y + under!.height);
+
+  await menu(page).getByRole('menuitem', { name: 'Open the deal room' }).click();
+  await expect(menu(page)).toHaveCount(0);
+  expect(await chosen(page)).toEqual([{ cardId: ids['Harbour Cafe'], actionId: 'room' }]);
+  await expect(more).toBeFocused();
+  // Choosing an action neither opened the card nor moved it.
+  expect(await page.locator('body').getAttribute('data-opened')).toBeNull();
+  expect(await saves(page)).toEqual([]);
+
+  // A press anywhere else puts the menu away, and chooses nothing.
+  await more.click();
+  await expect(menu(page)).toBeVisible();
+  await page.locator('#own-classes').click();
+  await expect(menu(page)).toHaveCount(0);
+  expect(await chosen(page)).toHaveLength(1);
+
+  // The button does not start a drag: pressed and pulled across to the next column, the card stays.
+  const grab = (await more.boundingBox())!;
+  const drop = (await column(page, 'talking').locator('[data-board-cell]').boundingBox())!;
+  await page.mouse.move(grab.x + grab.width / 2, grab.y + grab.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(grab.x + 40, grab.y + 20, { steps: 4 });
+  await page.mouse.move(drop.x + drop.width / 2, drop.y + drop.height / 2, { steps: 10 });
+  await expect(column(page, 'talking').locator('[data-board-cell]')).not.toHaveAttribute('data-drop-target', '');
+  await page.mouse.up();
+  expect(await cardsIn(page, 'new')).toEqual(['Harbour Cafe', 'Second Wind', 'Third Coast']);
+  expect(await saves(page)).toEqual([]);
+  await page.keyboard.press('Escape');
+  await expect(menu(page)).toHaveCount(0);
+
+  // The card itself is dragged as ever, and its button goes with it to the new column.
+  const from = (await card(page, 'Second Wind').boundingBox())!;
+  await page.mouse.move(from.x + 40, from.y + from.height - 12);
+  await page.mouse.down();
+  await page.mouse.move(from.x + 52, from.y + from.height - 6, { steps: 3 });
+  await page.mouse.move(drop.x + drop.width / 2, drop.y + drop.height / 2, { steps: 12 });
+  await page.mouse.up();
+  await expect.poll(() => cardsIn(page, 'talking')).toEqual(['Second Wind', 'Fourth Wall']);
+  await expect.poll(() => saves(page)).toEqual([{ cardId: ids['Second Wind'], to: 'talking', from: 'new', status: 200 }]);
+  await expect(column(page, 'talking').getByRole('button', { name: 'Actions for Second Wind', exact: true })).toBeVisible();
+  expect(problems).toEqual([]);
+});
+
+test('by keyboard alone: Tab goes from a card to its button, the menu is worked with the arrows, and the same card is still moved and opened', async ({ page }) => {
+  const ids = await seedDeals(page);
+  const problems = watch(page);
+  await open(page, ACTIONS_PAGE);
+
+  // What a screen reader is told on the card: it can be dragged, and how it is opened.
+  const face = card(page, 'Harbour Cafe');
+  await expect(face).toHaveAttribute('aria-roledescription', 'draggable card');
+  const hint = await face.getAttribute('aria-describedby');
+  expect(await page.locator(`[id="${hint!}"]`).textContent()).toBe('Enter picks this card up to move it. Shift+Enter opens it.');
+
+  await face.focus();
+  await page.keyboard.press('Tab');
+  const more = moreOf(page, 'Harbour Cafe');
+  await expect(more).toBeFocused();
+  // The ring the button shows a keyboard is the app's accent or Adminium's: it can be seen.
+  expect(await more.evaluate((el) => getComputedStyle(el).outlineStyle + ' ' + getComputedStyle(el).outlineWidth)).toBe('solid 2px');
+
+  await page.keyboard.press('Enter');
+  await expect(menu(page)).toBeVisible();
+  const items = menu(page).getByRole('menuitem');
+  await expect(items.nth(0)).toBeFocused();
+  // Enter on the button opened a menu: it did not pick the card up.
+  await expect(face).not.toHaveAttribute('aria-grabbed', 'true');
+  await expect(spoken(page)).toHaveText('');
+  await page.keyboard.press('ArrowUp');
+  await expect(items.nth(3)).toBeFocused();
+  await page.keyboard.press('ArrowDown');
+  await expect(items.nth(0)).toBeFocused();
+  await page.keyboard.press('End');
+  await expect(items.nth(3)).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(menu(page)).toHaveCount(0);
+  await expect(more).toBeFocused();
+  expect(await chosen(page)).toEqual([]);
+
+  await page.keyboard.press('ArrowDown');
+  await expect(items.nth(0)).toBeFocused();
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('Space');
+  await expect(menu(page)).toHaveCount(0);
+  expect(await chosen(page)).toEqual([{ cardId: ids['Harbour Cafe'], actionId: 'room' }]);
+  await expect(more).toBeFocused();
+
+  // Tab from the open menu closes it and goes on to the next card, as if the menu had not been there.
+  await page.keyboard.press('Enter');
+  await expect(menu(page)).toBeVisible();
+  await page.keyboard.press('Tab');
+  await expect(menu(page)).toHaveCount(0);
+  await expect(card(page, 'Second Wind')).toBeFocused();
+
+  // One that is not to be had, on the deal that is won: reached, said, and a press does nothing.
+  await moreOf(page, 'Fifth Season').focus();
+  await page.keyboard.press('Enter');
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('ArrowDown');
+  await expect(items.nth(2)).toBeFocused();
+  await expect(items.nth(2)).toHaveAttribute('aria-disabled', 'true');
+  expect(Number(await items.nth(2).evaluate((el) => getComputedStyle(el).opacity))).toBeLessThan(1);
+  await page.keyboard.press('Enter');
+  await expect(menu(page)).toBeVisible();
+  expect(await chosen(page)).toHaveLength(1);
+  await page.keyboard.press('Escape');
+
+  // The very card whose action was chosen is opened and moved, with the same keyboard.
+  await more.focus();
+  await page.keyboard.press('Shift+Tab');
+  await expect(face).toBeFocused();
+  await page.keyboard.press('Shift+Enter');
+  await expect(page.locator('body')).toHaveAttribute('data-opened', ids['Harbour Cafe']!);
+  await expect(face).not.toHaveAttribute('aria-grabbed', 'true');
+  await page.keyboard.press('Enter');
+  await expect(face).toHaveAttribute('aria-grabbed', 'true');
+  await page.keyboard.press('ArrowRight');
+  await page.keyboard.press('Enter');
+  await expect.poll(() => cardsIn(page, 'talking')).toEqual(['Harbour Cafe', 'Fourth Wall']);
+  await expect.poll(() => saves(page)).toEqual([{ cardId: ids['Harbour Cafe'], to: 'talking', from: 'new', status: 200 }]);
+  await expect(card(page, 'Harbour Cafe')).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(moreOf(page, 'Harbour Cafe')).toBeFocused();
+  expect(problems).toEqual([]);
+});
+
+test('the menu of the last card of a long column is whole: the column’s scroll box does not cut it off, and scrolling puts it away', async ({ page }) => {
+  await seedDeals(page);
+  const table = `/api/v1/data/${await connectionOf(page)}/e2e_kit_deals`;
+  for (let extra = 1; extra <= 6; extra += 1) expect((await page.request.post(table, { data: { values: { title: `Extra ${String(extra)}`, amount: 10 } } })).ok()).toBe(true);
+  const problems = watch(page);
+  await open(page, `${ACTIONS_PAGE}&long=1`);
+
+  // Nine cards in a board 420 high: the column scrolls inside itself.
+  const cell = column(page, 'new').locator('[data-board-cell]');
+  const sizes = await cell.evaluate((el) => ({ inner: el.scrollHeight, box: el.clientHeight }));
+  expect(sizes.inner).toBeGreaterThan(sizes.box + 400);
+  const more = moreOf(page, 'Extra 6');
+  await more.focus();
+  await expect.poll(() => cell.evaluate((el) => el.scrollTop)).toBeGreaterThan(400);
+  await page.keyboard.press('Enter');
+  await expect(menu(page)).toBeVisible();
+  await menuIsWhole(page);
+  // It is taller than what is left of the column under the button, and reaches outside the column's own box.
+  const [hung, edge] = await Promise.all([menu(page).boundingBox(), cell.boundingBox()]);
+  expect(hung!.y + hung!.height > edge!.y + edge!.height || hung!.y < edge!.y || hung!.x < edge!.x).toBe(true);
+  await expect(menu(page).getByRole('menuitem').first()).toBeFocused();
+
+  // The column is scrolled under it: the menu would be left hanging where its button no longer is, so it goes.
+  await cell.evaluate((el) => el.scrollBy(0, -200));
+  await expect(menu(page)).toHaveCount(0);
+
+  // And with no room under the button it opens above it: the window is cut to end just under the button.
+  await more.focus();
+  const low = (await more.boundingBox())!;
+  await page.setViewportSize({ width: 1280, height: Math.round(low.y + low.height + 40) });
+  await expect(more).toBeFocused();
+  expect((await more.boundingBox())!.y).toBeCloseTo(low.y, 0);
+  await page.keyboard.press('Enter');
+  await expect(menu(page)).toBeVisible();
+  await menuIsWhole(page);
+  const [above, button] = await Promise.all([menu(page).boundingBox(), more.boundingBox()]);
+  expect(above!.y + above!.height).toBeLessThanOrEqual(button!.y);
+  await page.keyboard.press('Escape');
+  await expect(more).toBeFocused();
+  expect(problems).toEqual([]);
+});
+
+test('in Arabic a card’s button is at its left, its menu opens toward the right, and both speak Arabic', async ({ page }) => {
+  const ids = await seedDeals(page);
+  const problems = watch(page);
+  await open(page, `${ACTIONS_PAGE}&locale=ar-EG&dir=rtl`);
+  const words = (JSON.parse(readFileSync(join(import.meta.dirname, '..', '..', '..', 'packages', 'i18n', 'locales', 'ar-EG', 'ui.json'), 'utf8')) as { widgets: { boards: { cardActions: string; a11y: Record<string, string> } } }).widgets.boards;
+
+  const face = card(page, 'Harbour Cafe');
+  await expect(face).toHaveAttribute('aria-roledescription', words.a11y['draggable']!);
+  expect(words.a11y['draggable']).not.toBe('draggable card');
+  expect(await page.locator(`[id="${(await face.getAttribute('aria-describedby'))!}"]`).textContent()).toBe(words.a11y['openHint']);
+  const more = moreOf(page, 'Harbour Cafe', words.cardActions.replace('{title}', 'Harbour Cafe'));
+  await expect(more).toBeVisible();
+  const [box, corner] = await Promise.all([face.boundingBox(), more.boundingBox()]);
+  expect(corner!.x + corner!.width).toBeLessThan(box!.x + box!.width / 2);
+  expect(corner!.x).toBeGreaterThanOrEqual(box!.x);
+  // The grip is on the button's other side: after it, reading right to left.
+  const grip = (await face.locator('[data-part="board-card-grip"]').boundingBox())!;
+  expect(grip.x).toBeGreaterThanOrEqual(corner!.x + corner!.width - 1);
+
+  await face.focus();
+  await page.keyboard.press('Tab');
+  await expect(more).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(menu(page)).toBeVisible();
+  await menuIsWhole(page);
+  // Its near edge is on the button's, and it reaches toward the start of the line, which is the right here.
+  const hung = (await menu(page).boundingBox())!;
+  expect(Math.abs(hung.x - corner!.x)).toBeLessThanOrEqual(1);
+  expect(hung.x + hung.width).toBeGreaterThan(corner!.x + corner!.width);
+  expect(await menu(page).getByRole('menuitem').first().evaluate((el) => getComputedStyle(el).direction + ' ' + getComputedStyle(el).textAlign)).toMatch(/^rtl (start|right)$/);
+  await page.keyboard.press('Enter');
+  expect(await chosen(page)).toEqual([{ cardId: ids['Harbour Cafe'], actionId: 'close' }]);
+  await expect(more).toBeFocused();
+  // Picked up, the card is announced in Arabic, grip and all.
+  await page.keyboard.press('Shift+Tab');
+  await page.keyboard.press('Space');
+  await expect(spoken(page)).toHaveText(words.a11y['grabbed']!.replace('{title}', 'Harbour Cafe'));
+  await page.keyboard.press('Escape');
+  await expect(face.locator('[data-part="board-card-grip"]')).toHaveAttribute('title', (JSON.parse(readFileSync(join(import.meta.dirname, '..', '..', '..', 'packages', 'i18n', 'locales', 'ar-EG', 'ui.json'), 'utf8')) as { widgets: { boards: { grip: string } } }).widgets.boards.grip);
+  expect(await unstyledClasses(page)).toEqual([]);
+  expect(problems).toEqual([]);
+});
+
+test('at 390 wide and dark, a card’s menu is whole inside the window and the page never scrolls sideways', async ({ page }) => {
+  const ids = await seedDeals(page);
+  await page.setViewportSize({ width: 390, height: 800 });
+  const problems = watch(page);
+  await open(page, `${ACTIONS_PAGE}&theme=dark`);
+
+  const more = moreOf(page, 'Third Coast');
+  await more.click();
+  await expect(menu(page)).toBeVisible();
+  await menuIsWhole(page);
+  const hung = (await menu(page).boundingBox())!;
+  expect(hung.x).toBeGreaterThanOrEqual(0);
+  expect(hung.x + hung.width).toBeLessThanOrEqual(390);
+  expect(await menu(page).evaluate((el) => getComputedStyle(el).backgroundColor)).toBe('rgb(20, 20, 25)');
+  expect(await menu(page).getByRole('menuitem').first().evaluate((el) => getComputedStyle(el).color)).toBe('rgb(244, 244, 246)');
+  const widths = await page.evaluate(() => ({ page: document.documentElement.scrollWidth, view: document.documentElement.clientWidth, left: window.scrollX }));
+  expect(widths.page).toBeLessThanOrEqual(widths.view);
+  expect(widths.left).toBe(0);
+  await menu(page).getByRole('menuitem', { name: 'Close: won or lost…' }).click();
+  expect(await chosen(page)).toEqual([{ cardId: ids['Third Coast'], actionId: 'close' }]);
+  // The board scrolled sideways under an open menu puts it away too.
+  await more.click();
+  await expect(menu(page)).toBeVisible();
+  await page.locator('#board [data-board-scroller]').evaluate((el) => el.scrollBy(120, 0));
+  await expect(menu(page)).toHaveCount(0);
+  expect(await unstyledClasses(page)).toEqual([]);
+  expect(problems).toEqual([]);
+});
+
 /* ------------------------------------------------------------------ the map */
 
 const MAP_PAGE = '?part=map';
@@ -827,11 +1183,27 @@ interface PinSave {
   status: number;
 }
 
-/** Three places, afresh for each test, made through the data API as the signed-in person. */
+/**
+ * The three places where every test expects them, through the data API as the
+ * signed-in person. As with the deals, what is there is put right rather than
+ * made again: a pin a test moved is put back, a place a test added is
+ * deleted, and only a place that is missing starts the table over.
+ */
 async function seedPlaces(page: Page): Promise<Record<string, string>> {
-  const connectionId = await seededConnectionId(page);
+  const connectionId = await connectionOf(page);
   const table = `/api/v1/data/${connectionId}/e2e_kit_places`;
-  const listed = (await (await page.request.get(`${table}?limit=200`)).json()) as { data: { id: number }[] };
+  const listed = (await (await page.request.get(`${table}?limit=200&order=id.asc`)).json()) as { data: { id: number; name: string; lat: number | string; lng: number | string }[] };
+  const kept = listed.data.filter((row) => PLACES.some(([name]) => name === row.name));
+  if (kept.length === PLACES.length && kept.every((row, index) => row.name === PLACES[index]![0])) {
+    for (const row of listed.data.filter((one) => !kept.includes(one))) expect((await page.request.delete(`${table}/${String(row.id)}`)).ok()).toBe(true);
+    for (const [index, row] of kept.entries()) {
+      const [, lat, lng] = PLACES[index]!;
+      if (Number(row.lat) === lat && Number(row.lng) === lng) continue;
+      const back = await page.request.patch(`${table}/${String(row.id)}`, { data: { values: { lat, lng } } });
+      expect(back.ok(), await back.text()).toBe(true);
+    }
+    return Object.fromEntries(kept.map((row) => [row.name, String(row.id)]));
+  }
   for (const row of listed.data) expect((await page.request.delete(`${table}/${String(row.id)}`)).ok()).toBe(true);
   const ids: Record<string, string> = {};
   for (const [name, lat, lng] of PLACES) {
@@ -843,7 +1215,7 @@ async function seedPlaces(page: Page): Promise<Record<string, string>> {
 }
 
 async function placeRow(page: Page, id: string): Promise<{ status: number; lat?: number; lng?: number }> {
-  const reply = await page.request.get(`/api/v1/data/${await seededConnectionId(page)}/e2e_kit_places/${id}`);
+  const reply = await page.request.get(`/api/v1/data/${await connectionOf(page)}/e2e_kit_places/${id}`);
   if (!reply.ok()) return { status: reply.status() };
   const { data } = (await reply.json()) as { data: { lat: number | string; lng: number | string } };
   return { status: reply.status(), lat: Number(data.lat), lng: Number(data.lng) };
@@ -934,7 +1306,6 @@ async function spots(page: Page): Promise<Record<string, { x: number; y: number 
 }
 
 test('a plain page mounts the map from real rows under the server’s policy; a pin is picked and update leaves the view alone', async ({ page }) => {
-  await signIn(page);
   const ids = await seedPlaces(page);
   const problems = watch(page);
   const server = await mapServer(page);
@@ -1028,7 +1399,7 @@ test('a plain page mounts the map from real rows under the server’s policy; a 
   await page.locator('#map').getByRole('button', { name: 'Zoom in' }).click();
   await expect.poll(async () => JSON.stringify(await spots(page))).not.toBe(JSON.stringify(before));
   const zoomed = await spots(page);
-  const made = await page.request.post(`/api/v1/data/${await seededConnectionId(page)}/e2e_kit_places`, { data: { values: { name: 'Fourth Wall', lat: 40.4168, lng: -3.7038 } } });
+  const made = await page.request.post(`/api/v1/data/${await connectionOf(page)}/e2e_kit_places`, { data: { values: { name: 'Fourth Wall', lat: 40.4168, lng: -3.7038 } } });
   expect(made.ok(), await made.text()).toBe(true);
   await page.evaluate(async () => {
     const { map, read } = (window as unknown as { kitScreen: { map: { update(props: Record<string, unknown>): void }; read(): Promise<unknown> } }).kitScreen;
@@ -1046,7 +1417,6 @@ test('a plain page mounts the map from real rows under the server’s policy; a 
 });
 
 test('a pin dragged with the mouse is saved through the data API and stays where it was dropped', async ({ page }) => {
-  await signIn(page);
   const ids = await seedPlaces(page);
   const problems = watch(page);
   await mapServer(page);
@@ -1085,7 +1455,6 @@ test('a pin dragged with the mouse is saved through the data API and stays where
 });
 
 test('a pin is moved with the keyboard, said aloud and saved; Escape puts it back and saves nothing', async ({ page }) => {
-  await signIn(page);
   const ids = await seedPlaces(page);
   const problems = watch(page);
   await mapServer(page);
@@ -1122,7 +1491,6 @@ test('a pin is moved with the keyboard, said aloud and saved; Escape puts it bac
 });
 
 test('a move the server refuses puts the pin back and says the server’s own reason above the map', async ({ page }) => {
-  await signIn(page);
   const ids = await seedPlaces(page);
   const refusals: string[] = [];
   page.on('console', (message) => {
@@ -1134,7 +1502,7 @@ test('a move the server refuses puts the pin back and says the server’s own re
   await openMap(page);
 
   // Somebody else deleted the row while this screen was open: the save is a real 404.
-  expect((await page.request.delete(`/api/v1/data/${await seededConnectionId(page)}/e2e_kit_places/${ids['Depot']!}`)).ok()).toBe(true);
+  expect((await page.request.delete(`/api/v1/data/${await connectionOf(page)}/e2e_kit_places/${ids['Depot']!}`)).ok()).toBe(true);
   // Where the pin stands on the map itself: the notice, when it comes, moves the whole map down the page.
   const onMap = async (): Promise<{ x: number; y: number }> => {
     const [spot, frame] = await Promise.all([spots(page), page.locator('#map [data-part="map-canvas"]').boundingBox()]);
@@ -1169,7 +1537,6 @@ test('a move the server refuses puts the pin back and says the server’s own re
 });
 
 test('switched off: the list and the way to switch maps on, and nothing at all is asked of the map server', async ({ page }) => {
-  await signIn(page);
   const ids = await seedPlaces(page);
   const problems = watch(page);
   const server = await mapServer(page);
@@ -1202,7 +1569,6 @@ test('switched off: the list and the way to switch maps on, and nothing at all i
 });
 
 test('a map server that cannot be reached leaves the list under its notice', async ({ page }) => {
-  await signIn(page);
   await seedPlaces(page);
   const faults: string[] = [];
   page.on('console', (message) => {
@@ -1225,7 +1591,6 @@ test('a map server that cannot be reached leaves the list under its notice', asy
 });
 
 test('in Arabic the map’s list and words run right to left round a map that does not mirror', async ({ page }) => {
-  await signIn(page);
   await seedPlaces(page);
   const problems = watch(page);
   const asked: string[] = [];
@@ -1260,8 +1625,6 @@ test('in Arabic the map’s list and words run right to left round a map that do
 });
 
 test('at 390 wide the list goes under the map and the page never scrolls sideways', async ({ page }) => {
-  // Signed in at a desktop's width (the dashboard's own menu is what the sign-in looks for), then narrowed.
-  await signIn(page);
   await seedPlaces(page);
   await page.setViewportSize({ width: 390, height: 800 });
   const problems = watch(page);
@@ -1290,7 +1653,6 @@ test('at 390 wide the list goes under the map and the page never scrolls sideway
 });
 
 test('dark where the app says dark, with the map server’s dark style; and a route’s legs come from this Adminium', async ({ page }) => {
-  await signIn(page);
   await seedPlaces(page);
   const problems = watch(page);
   const server = await mapServer(page);

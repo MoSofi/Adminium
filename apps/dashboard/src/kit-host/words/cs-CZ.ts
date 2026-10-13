@@ -7,14 +7,17 @@ const words: KitWords = {
     "ui:mentions.people": "Lidé, které lze zmínit"
   },
   "board": {
+    "ui:widgets.boards.a11y.draggable": "přetažitelná karta",
     "ui:widgets.boards.a11y.failed": "{title} nelze přesunout; vrátilo se na původní místo.",
     "ui:widgets.boards.a11y.grabbed": "{title} uchopeno. Pomocí šipek přesuňte, Enter pro položení, Escape pro zrušení.",
     "ui:widgets.boards.a11y.moved": "{title} přesunuto do {cell}.",
+    "ui:widgets.boards.a11y.openHint": "Enter kartu uchopí k přesunutí. Shift+Enter ji otevře.",
     "ui:widgets.boards.a11y.over": "{title} je nad {cell}.",
     "ui:widgets.boards.a11y.returned": "{title} se vrátilo na původní místo.",
     "ui:widgets.boards.addCard": "Přidat kartu",
     "ui:widgets.boards.boardCard.emptyBody": "K této kartě zatím není připojen žádný záznam.",
     "ui:widgets.boards.boardCard.emptyTitle": "Žádná karta",
+    "ui:widgets.boards.cardActions": "Akce pro {title}",
     "ui:widgets.boards.cardNotAdded": "Kartu se nepodařilo přidat.",
     "ui:widgets.boards.dismissNotice": "Zavřít",
     "ui:widgets.boards.grip": "Přetažením přesunete kartu",

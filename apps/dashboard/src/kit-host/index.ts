@@ -14,7 +14,7 @@
  */
 import { KIT_CONTRACT, KIT_PARTS_AVAILABLE, KitPartUnavailableError, type KitMounted, type KitPartName, type KitPartProps } from './contract.js';
 
-export type { BoardCard, BoardCardLine, BoardColumn, BoardProps, KitCommonProps, KitMaps, KitMounted, KitPartName, KitPartProps, KitPerson, KitRefused, KitTone, MapAreaGeometry, MapAreaShape, MapLeg, MapPin, MapProps, MapStop, MapWay, MentionsProps } from './contract.js';
+export type { BoardCard, BoardCardAction, BoardCardLine, BoardColumn, BoardProps, KitCommonProps, KitMaps, KitMounted, KitPartName, KitPartProps, KitPerson, KitRefused, KitTone, MapAreaGeometry, MapAreaShape, MapLeg, MapPin, MapProps, MapStop, MapWay, MentionsProps } from './contract.js';
 
 /** The contract this kit speaks; the side's config says the same number. */
 export const contract = KIT_CONTRACT;

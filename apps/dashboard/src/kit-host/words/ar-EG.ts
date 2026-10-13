@@ -7,14 +7,17 @@ const words: KitWords = {
     "ui:mentions.people": "أشخاص يمكن ذكرهم"
   },
   "board": {
+    "ui:widgets.boards.a11y.draggable": "بطاقة قابلة للسحب",
     "ui:widgets.boards.a11y.failed": "تعذّر نقل {title}؛ فعادت إلى موضعها الأصلي.",
     "ui:widgets.boards.a11y.grabbed": "تم التقاط {title}. استخدم مفاتيح الأسهم للتحريك، وEnter للإفلات، وEscape للإلغاء.",
     "ui:widgets.boards.a11y.moved": "تم نقل {title} إلى {cell}.",
+    "ui:widgets.boards.a11y.openHint": "اضغط Enter لالتقاط هذه البطاقة وتحريكها، وShift+Enter لفتحها.",
     "ui:widgets.boards.a11y.over": "{title} فوق {cell}.",
     "ui:widgets.boards.a11y.returned": "عادت {title} إلى موضعها الأصلي.",
     "ui:widgets.boards.addCard": "إضافة بطاقة",
     "ui:widgets.boards.boardCard.emptyBody": "لم يُربط بهذه البطاقة أي سجل بعد.",
     "ui:widgets.boards.boardCard.emptyTitle": "لا توجد بطاقة",
+    "ui:widgets.boards.cardActions": "إجراءات {title}",
     "ui:widgets.boards.cardNotAdded": "لم تتم إضافة البطاقة.",
     "ui:widgets.boards.dismissNotice": "إغلاق",
     "ui:widgets.boards.grip": "اسحب لتحريك البطاقة",

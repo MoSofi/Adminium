@@ -691,3 +691,191 @@ describe('board chrome localization (ui:widgets.boards.*)', () => {
     expect(screen.getByText('No board columns')).toBeTruthy();
   });
 });
+
+describe('kanban-board — a card’s own actions, a column’s badge, and opening by key (all optional)', () => {
+  const ACTIONS = [
+    { id: 'close', label: 'Close: won or lost…' },
+    { id: 'room', label: 'Open the deal room', disabled: true },
+    { id: 'drop', label: 'Delete', tone: 'danger' as const },
+  ];
+  const menuOf = (): HTMLElement | null => document.querySelector<HTMLElement>('[role="menu"]');
+  const more = (title: string): HTMLElement => screen.getByRole('button', { name: `Actions for ${title}` });
+  const itemsOf = (): HTMLElement[] => [...document.querySelectorAll<HTMLElement>('[role="menuitem"]')];
+
+  it('draws nothing new when no actions are given, or when nobody listens for one', () => {
+    const { container, rerender } = render(<KanbanBoard cards={[card('1', 'todo')]} columns={COLUMNS} onCardAction={vi.fn()} />);
+    expect(container.querySelector('[data-part="board-card-shell"]')).toBeNull();
+    expect(container.querySelector('[data-part="board-card-actions"]')).toBeNull();
+    expect(container.querySelector('[data-part="column-badge"]')).toBeNull();
+    expect(container.querySelector('[data-part="board-open-hint"]')).toBeNull();
+    // The card stands in its cell as it always did, with nothing round it.
+    expect(grabCardEl('Card 1').parentElement?.hasAttribute('data-board-cell')).toBe(true);
+    rerender(<KanbanBoard cards={[card('1', 'todo', { actions: ACTIONS })]} columns={COLUMNS} />);
+    expect(container.querySelector('[data-part="board-card-actions"]')).toBeNull();
+    rerender(<KanbanBoard cards={[card('1', 'todo', { actions: [] })]} columns={COLUMNS} onCardAction={vi.fn()} />);
+    expect(container.querySelector('[data-part="board-card-actions"]')).toBeNull();
+  });
+
+  it('gives a card with actions a real button after the card, not in it, named for the card', () => {
+    render(<KanbanBoard cards={[card('1', 'todo', { actions: ACTIONS }), card('2', 'todo')]} columns={COLUMNS} onCardAction={vi.fn()} onCardMove={vi.fn()} />);
+    const button = more('Card 1');
+    expect(button.tagName).toBe('BUTTON');
+    expect(button.getAttribute('aria-haspopup')).toBe('menu');
+    expect(button.getAttribute('aria-expanded')).toBe('false');
+    const shell = grabCardEl('Card 1');
+    expect(shell.contains(button)).toBe(false);
+    // After the card in the page, so Tab reaches the card first and then its button.
+    expect(shell.compareDocumentPosition(button) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(shell.nextElementSibling).toBe(button);
+    expect(button.tabIndex).toBe(0);
+    // The card without actions has none.
+    expect(screen.queryByRole('button', { name: 'Actions for Card 2' })).toBeNull();
+    expect(menuOf()).toBeNull();
+  });
+
+  it('opens a menu the arrows go round, chooses with a press, and hands the card’s and the action’s ids over', () => {
+    const onAction = vi.fn();
+    render(<KanbanBoard cards={[card('1', 'todo', { actions: ACTIONS })]} columns={COLUMNS} onCardAction={onAction} onCardMove={vi.fn()} />);
+    const button = more('Card 1');
+    fireEvent.click(button);
+    const menu = menuOf()!;
+    expect(menu.getAttribute('aria-label')).toBe('Actions for Card 1');
+    expect(button.getAttribute('aria-expanded')).toBe('true');
+    expect(button.getAttribute('aria-controls')).toBe(menu.id);
+    const [close, room, drop] = itemsOf();
+    expect(itemsOf().map((item) => item.textContent)).toEqual(['Close: won or lost…', 'Open the deal room', 'Delete']);
+    expect(itemsOf().every((item) => item.tabIndex === -1)).toBe(true);
+    expect(document.activeElement).toBe(close);
+    // Placed against the window, so the column's scroll box cannot cut it off.
+    expect(menu.className.split(' ')).toContain('fixed');
+    expect(menu.style.visibility).toBe('visible');
+    fireEvent.keyDown(close!, { key: 'ArrowDown' });
+    expect(document.activeElement).toBe(room);
+    fireEvent.keyDown(room!, { key: 'End' });
+    expect(document.activeElement).toBe(drop);
+    fireEvent.keyDown(drop!, { key: 'ArrowDown' });
+    expect(document.activeElement).toBe(close);
+    fireEvent.keyDown(close!, { key: 'ArrowUp' });
+    expect(document.activeElement).toBe(drop);
+    fireEvent.keyDown(drop!, { key: 'Home' });
+    expect(document.activeElement).toBe(close);
+    expect(drop!.className).toContain('text-danger');
+
+    // One that is not to be had: said so, and a press does nothing and leaves the menu open.
+    expect(room!.getAttribute('aria-disabled')).toBe('true');
+    fireEvent.click(room!);
+    expect(onAction).not.toHaveBeenCalled();
+    expect(menuOf()).not.toBeNull();
+
+    fireEvent.click(drop!);
+    expect(onAction).toHaveBeenCalledExactlyOnceWith('1', 'drop');
+    expect(menuOf()).toBeNull();
+    expect(document.activeElement).toBe(button);
+    expect(button.getAttribute('aria-expanded')).toBe('false');
+  });
+
+  it('Escape closes the menu and gives the focus back to its button; a press elsewhere and Tab close it too', () => {
+    const onAction = vi.fn();
+    render(<KanbanBoard cards={[card('1', 'todo', { actions: ACTIONS })]} columns={COLUMNS} onCardAction={onAction} />);
+    const button = more('Card 1');
+    // The up arrow opens it on its last item, the down arrow on its first.
+    fireEvent.keyDown(button, { key: 'ArrowUp' });
+    expect(document.activeElement).toBe(itemsOf()[2]);
+    fireEvent.keyDown(itemsOf()[2]!, { key: 'Escape' });
+    expect(menuOf()).toBeNull();
+    expect(document.activeElement).toBe(button);
+
+    fireEvent.keyDown(button, { key: 'ArrowDown' });
+    expect(document.activeElement).toBe(itemsOf()[0]);
+    // Inside the menu is not "elsewhere".
+    fireEvent.pointerDown(itemsOf()[1]!);
+    expect(menuOf()).not.toBeNull();
+    fireEvent.pointerDown(document.body);
+    expect(menuOf()).toBeNull();
+
+    fireEvent.click(button);
+    fireEvent.keyDown(itemsOf()[0]!, { key: 'Tab' });
+    expect(menuOf()).toBeNull();
+    expect(document.activeElement).toBe(button);
+
+    // A second press of the button closes what the first opened.
+    fireEvent.click(button);
+    fireEvent.click(button);
+    expect(menuOf()).toBeNull();
+    // A scroll that leaves the button where it is leaves the menu; one that moves the button puts it away.
+    fireEvent.click(button);
+    fireEvent.scroll(document);
+    expect(menuOf()).not.toBeNull();
+    const rect = button.getBoundingClientRect();
+    button.getBoundingClientRect = () => ({ ...rect, top: rect.top - 40, bottom: rect.bottom - 40, y: rect.y - 40, toJSON: () => ({}) });
+    fireEvent.scroll(document);
+    expect(menuOf()).toBeNull();
+    expect(onAction).not.toHaveBeenCalled();
+  });
+
+  it('the button and its menu never pick the card up, move it or open it', () => {
+    const onMove = vi.fn();
+    const onOpen = vi.fn();
+    const onAction = vi.fn();
+    render(<KanbanBoard cards={[card('1', 'todo', { actions: ACTIONS })]} columns={COLUMNS} onCardAction={onAction} onCardMove={onMove} onCardOpen={onOpen} keyboardOpen />);
+    const shell = grabCardEl('Card 1');
+    const button = more('Card 1');
+    for (const key of ['Enter', ' ', 'ArrowRight']) fireEvent.keyDown(button, { key });
+    fireEvent.pointerDown(button, { button: 0, isPrimary: true });
+    fireEvent.click(button);
+    fireEvent.keyDown(itemsOf()[0]!, { key: 'Enter' });
+    fireEvent.keyDown(itemsOf()[0]!, { key: 'ArrowRight' });
+    fireEvent.click(itemsOf()[0]!);
+    expect(shell.hasAttribute('aria-grabbed')).toBe(false);
+    expect(shell.hasAttribute('data-dragging')).toBe(false);
+    expect(document.querySelector('[data-board-liveregion]')?.textContent).toBe('');
+    expect(onMove).not.toHaveBeenCalled();
+    expect(onOpen).not.toHaveBeenCalled();
+    expect(onAction).toHaveBeenCalledExactlyOnceWith('1', 'close');
+    // And the card is moved by keyboard as ever.
+    fireEvent.keyDown(shell, { key: ' ' });
+    fireEvent.keyDown(shell, { key: 'ArrowRight' });
+    fireEvent.keyDown(shell, { key: 'Enter' });
+    expect(onMove).toHaveBeenCalledExactlyOnceWith('1', 'todo', 'in_progress');
+  });
+
+  it('keyboardOpen: Shift+Enter opens a card that Enter picks up, and the card says so; off unless asked for', () => {
+    const onOpen = vi.fn();
+    const onMove = vi.fn();
+    const { rerender } = render(<KanbanBoard cards={[card('1', 'todo'), card('2', 'todo')]} columns={COLUMNS} onCardMove={onMove} onCardOpen={onOpen} canMoveCard={(id) => id !== '2'} keyboardOpen />);
+    const free = grabCardEl('Card 1');
+    const hint = document.querySelector('[data-part="board-open-hint"]')!;
+    expect(hint.textContent).toBe('Enter picks this card up to move it. Shift+Enter opens it.');
+    expect(free.getAttribute('aria-describedby')).toBe(hint.id);
+    // A card that cannot be moved opens with Enter alone, so the line is not its own.
+    expect(grabCardEl('Card 2').hasAttribute('aria-describedby')).toBe(false);
+    fireEvent.keyDown(free, { key: 'Enter', shiftKey: true });
+    expect(onOpen).toHaveBeenCalledExactlyOnceWith('1');
+    expect(free.hasAttribute('aria-grabbed')).toBe(false);
+    // Enter alone still picks it up; while it is held, Shift+Enter is a drop like any Enter.
+    fireEvent.keyDown(free, { key: 'Enter' });
+    expect(free.getAttribute('aria-grabbed')).toBe('true');
+    fireEvent.keyDown(free, { key: 'ArrowRight' });
+    fireEvent.keyDown(free, { key: 'Enter', shiftKey: true });
+    expect(onMove).toHaveBeenCalledExactlyOnceWith('1', 'todo', 'in_progress');
+    expect(onOpen).toHaveBeenCalledTimes(1);
+
+    // Without the prop a board is as it was: no line, and Shift+Enter is an Enter.
+    rerender(<KanbanBoard cards={[card('3', 'todo')]} columns={COLUMNS} onCardMove={onMove} onCardOpen={onOpen} />);
+    expect(document.querySelector('[data-part="board-open-hint"]')).toBeNull();
+    const plain = grabCardEl('Card 3');
+    expect(plain.hasAttribute('aria-describedby')).toBe(false);
+    fireEvent.keyDown(plain, { key: 'Enter', shiftKey: true });
+    expect(plain.getAttribute('aria-grabbed')).toBe('true');
+    expect(onOpen).toHaveBeenCalledTimes(1);
+  });
+
+  it('writes a column’s badge right after its label', () => {
+    const { container } = render(<KanbanBoard cards={[]} columns={[{ ...COLUMNS[0]!, badge: '10%' }, COLUMNS[1]!]} />);
+    const badges = container.querySelectorAll('[data-part="column-badge"]');
+    expect(badges).toHaveLength(1);
+    expect(badges[0]!.textContent).toBe('10%');
+    expect(badges[0]!.previousElementSibling?.textContent).toBe('To do');
+    expect(badges[0]!.nextElementSibling?.getAttribute('data-part')).toBe('column-count');
+  });
+});

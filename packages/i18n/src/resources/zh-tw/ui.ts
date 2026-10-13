@@ -704,6 +704,7 @@ export default {
       "cardNotAdded": "卡片未新增。",
       "dismissNotice": "關閉",
       "grip": "拖曳以移動卡片",
+      "cardActions": "{title} 的動作",
       "pointsUnit": "點",
       "laneSummary": "Σ{points} 點 · {count}",
       "a11y": {
@@ -711,7 +712,9 @@ export default {
         "over": "{title} 位於 {cell} 上方。",
         "moved": "已將 {title} 移動到 {cell}。",
         "returned": "{title} 已返回原位。",
-        "failed": "無法移動 {title}；已返回原位。"
+        "failed": "無法移動 {title}；已返回原位。",
+        "draggable": "可拖曳的卡片",
+        "openHint": "按 Enter 抓取此卡片以移動，按 Shift+Enter 開啟。"
       },
       "boardCard": {
         "description": "單張看板卡片：標籤、標題、進度、負責人與到期日。",

@@ -86,6 +86,20 @@ export interface BoardColumn {
   total?: string | undefined;
   /** The most cards the column should hold: the count reads "4/3" and turns red above it. */
   limit?: number | undefined;
+  /** A few quiet characters right after the heading, already written as text ("10%": a stage's odds). */
+  badge?: string | undefined;
+}
+
+/** One thing a card's own menu offers. */
+export interface BoardCardAction {
+  /** What `onAction` is called with. */
+  id: string;
+  /** In the reader's language. */
+  label: string;
+  /** `danger` for something that cannot be taken back: drawn in red. */
+  tone?: 'danger' | undefined;
+  /** Listed, and not to be had just now: said as unavailable, and a press does nothing. */
+  disabled?: boolean | undefined;
 }
 
 /** One line of a card: the text, and the label before it when it has one. Both already in the reader's words. */
@@ -120,6 +134,12 @@ export interface BoardCard {
   progress?: number | undefined;
   /** Small print at the foot (a reference such as "D-1042"). Left out, nothing is printed there. */
   reference?: string | undefined;
+  /**
+   * What the card's own menu offers: with `onAction`, the card gets a small
+   * "more" button at its far corner (after the card in the Tab order) that
+   * opens them. Left out or empty, the card has no button.
+   */
+  actions?: readonly BoardCardAction[] | undefined;
 }
 
 /** The board: columns of cards a person moves with a pointer or the keyboard. */
@@ -135,8 +155,14 @@ export interface BoardProps extends KitCommonProps {
   onMove?: ((cardId: string, toColumnId: string, fromColumnId: string) => void | Promise<void | KitRefused>) | undefined;
   /** Which cards may be moved: all (the default with `onMove`), none (`false`), or the ones the function says. */
   canMove?: boolean | ((cardId: string) => boolean) | undefined;
-  /** Called when a card is clicked, and on Enter for a card that cannot be moved. */
+  /**
+   * Called when a card is clicked. By keyboard: Enter on a card that cannot
+   * be moved, and Shift+Enter on one that can (Enter alone picks it up); a
+   * screen reader is told so on each such card.
+   */
   onOpen?: ((cardId: string) => void) | undefined;
+  /** Called when one of a card's `actions` is chosen from its menu. Left out, no card has a menu. */
+  onAction?: ((cardId: string, actionId: string) => void) | undefined;
   /**
    * Saves a new card typed at a column's foot. `{ refused }` or a rejection
    * keeps the typed title in its box and says why. Left out, no column has

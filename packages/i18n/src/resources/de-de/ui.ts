@@ -704,6 +704,7 @@ export default {
       "cardNotAdded": "Die Karte wurde nicht hinzugefügt.",
       "dismissNotice": "Schließen",
       "grip": "Zum Verschieben ziehen",
+      "cardActions": "Aktionen für {title}",
       "pointsUnit": "Pkt.",
       "laneSummary": "Σ{points} Pkt. · {count}",
       "a11y": {
@@ -711,7 +712,9 @@ export default {
         "over": "{title} befindet sich über {cell}.",
         "moved": "{title} nach {cell} verschoben.",
         "returned": "{title} an die ursprüngliche Position zurückgesetzt.",
-        "failed": "{title} konnte nicht verschoben werden; die Karte wurde zurückgesetzt."
+        "failed": "{title} konnte nicht verschoben werden; die Karte wurde zurückgesetzt.",
+        "draggable": "ziehbare Karte",
+        "openHint": "Enter nimmt diese Karte zum Verschieben auf. Umschalt+Enter öffnet sie."
       },
       "boardCard": {
         "description": "Eine einzelne Board-Karte: Tag, Titel, Fortschritt, Verantwortliche und Fälligkeit.",

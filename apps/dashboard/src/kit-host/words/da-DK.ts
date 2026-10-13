@@ -7,14 +7,17 @@ const words: KitWords = {
     "ui:mentions.people": "Personer, du kan nævne"
   },
   "board": {
+    "ui:widgets.boards.a11y.draggable": "kort, der kan trækkes",
     "ui:widgets.boards.a11y.failed": "{title} kunne ikke flyttes; den blev sat tilbage.",
     "ui:widgets.boards.a11y.grabbed": "{title} taget op. Brug piletasterne til at flytte, Enter for at slippe, Escape for at annullere.",
     "ui:widgets.boards.a11y.moved": "{title} flyttet til {cell}.",
+    "ui:widgets.boards.a11y.openHint": "Enter tager kortet op, så det kan flyttes. Shift+Enter åbner det.",
     "ui:widgets.boards.a11y.over": "{title} er over {cell}.",
     "ui:widgets.boards.a11y.returned": "{title} vendte tilbage til sin oprindelige placering.",
     "ui:widgets.boards.addCard": "Tilføj kort",
     "ui:widgets.boards.boardCard.emptyBody": "Der er endnu ingen post knyttet til dette kort.",
     "ui:widgets.boards.boardCard.emptyTitle": "Intet kort",
+    "ui:widgets.boards.cardActions": "Handlinger for {title}",
     "ui:widgets.boards.cardNotAdded": "Kortet blev ikke tilføjet.",
     "ui:widgets.boards.dismissNotice": "Luk",
     "ui:widgets.boards.grip": "Træk for at flytte kortet",

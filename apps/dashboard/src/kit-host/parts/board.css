@@ -26,6 +26,7 @@
 @source './board.tsx';
 @source '../../../node_modules/@adminium/widgets/src/families/boards/KanbanBoard.tsx';
 @source '../../../node_modules/@adminium/widgets/src/families/boards/BoardCard.tsx';
+@source '../../../node_modules/@adminium/widgets/src/families/boards/CardActions.tsx';
 @source '../../../node_modules/@adminium/widgets/src/families/boards/InlineComposeCard.tsx';
 @source '../../../node_modules/@adminium/widgets/src/families/boards/board-dnd.tsx';
 @source '../../../node_modules/@adminium/ui/src/components/avatar/Avatar.tsx';

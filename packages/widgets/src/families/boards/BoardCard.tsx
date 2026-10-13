@@ -42,6 +42,11 @@ export interface BoardCardProps {
    * that does nothing.
    */
   showGrip?: boolean | undefined;
+  /**
+   * Leaves the far end of the card's first line free: the board draws the
+   * card's "more" button over that corner, and the grip stands before it.
+   */
+  actionsSpace?: boolean | undefined;
 }
 
 export function BoardCard({
@@ -51,6 +56,7 @@ export function BoardCard({
   gripLabel,
   pointsUnit,
   showGrip = true,
+  actionsSpace = false,
 }: BoardCardProps) {
   const t = useMaybeT();
   const grip = gripLabel ?? t('ui:widgets.boards.grip', 'Drag to move card');
@@ -58,7 +64,7 @@ export function BoardCard({
   const hasPct = typeof card.pct === 'number';
   return (
     <div className="flex flex-col gap-2 rounded-lg border border-border bg-surface p-3 shadow-sm">
-      <div className="flex items-start gap-2">
+      <div className={actionsSpace ? 'flex min-h-5 items-start gap-2 pe-7' : 'flex items-start gap-2'}>
         {card.tag !== undefined && (
           <Tag tone={boardToneOf(card.tagTone, columnTone)}>{card.tag}</Tag>
         )}

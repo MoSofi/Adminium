@@ -704,6 +704,7 @@ export default {
       "cardNotAdded": "لم تتم إضافة البطاقة.",
       "dismissNotice": "إغلاق",
       "grip": "اسحب لتحريك البطاقة",
+      "cardActions": "إجراءات {title}",
       "pointsUnit": "نقطة",
       "laneSummary": "Σ{points} نقطة · {count}",
       "a11y": {
@@ -711,7 +712,9 @@ export default {
         "over": "{title} فوق {cell}.",
         "moved": "تم نقل {title} إلى {cell}.",
         "returned": "عادت {title} إلى موضعها الأصلي.",
-        "failed": "تعذّر نقل {title}؛ فعادت إلى موضعها الأصلي."
+        "failed": "تعذّر نقل {title}؛ فعادت إلى موضعها الأصلي.",
+        "draggable": "بطاقة قابلة للسحب",
+        "openHint": "اضغط Enter لالتقاط هذه البطاقة وتحريكها، وShift+Enter لفتحها."
       },
       "boardCard": {
         "description": "بطاقة لوحة واحدة: الوسم والعنوان والتقدّم والمسؤول وتاريخ الاستحقاق.",

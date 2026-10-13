@@ -185,12 +185,13 @@ A screen with no staff session does the same with `fetch` against the data API a
 
 | Prop | |
 |---|---|
-| `columns` | The columns, in order. Required. Each: `id`, `label`, and optionally `tone` (`neutral`, `accent`, `pos`, `warn`, `danger`, `info`: the dot before the heading), `count` (how many cards the column holds in all; left out, the number of cards given), `total` (a figure at the heading's far end, as text), `limit` (the count reads "4/3" and turns red above it). |
-| `cards` | The cards. Required. Each: `id` (the row's key, as text), `columnId`, `title`, and optionally `subtitle`, `amount`, `meta`, `lines`, `tag`, `tagTone`, `owner`, `due`, `progress`, `reference` (below). A card whose `columnId` is not a column's `id` is not drawn. Within a column the cards stand in the order given. |
+| `columns` | The columns, in order. Required. Each: `id`, `label`, and optionally `tone` (`neutral`, `accent`, `pos`, `warn`, `danger`, `info`: the dot before the heading), `badge` (a few quiet characters right after the heading, as text: a stage's odds, "10%"), `count` (how many cards the column holds in all; left out, the number of cards given), `total` (a figure at the heading's far end, as text), `limit` (the count reads "4/3" and turns red above it). |
+| `cards` | The cards. Required. Each: `id` (the row's key, as text), `columnId`, `title`, and optionally `subtitle`, `amount`, `meta`, `lines`, `tag`, `tagTone`, `owner`, `due`, `progress`, `reference`, `actions` (below). A card whose `columnId` is not a column's `id` is not drawn. Within a column the cards stand in the order given. |
 | `locale`, `dir` | From the side's config. Required. |
 | `onMove(cardId, toColumnId, fromColumnId)` | Saves a move. Left out, no card can be moved. |
 | `canMove` | `false`: no card moves. A function from a card's id to yes or no: only those do. Left out, every card (when there is an `onMove`). |
-| `onOpen(cardId)` | Called on a click. A card that cannot be moved is also opened with Enter. |
+| `onOpen(cardId)` | Called on a click. By keyboard: Enter on a card that cannot be moved, and Shift+Enter on one that can (Enter alone picks it up). |
+| `onAction(cardId, actionId)` | Called when one of a card's own `actions` is chosen. Left out, no card has a menu. |
 | `onAdd(columnId, title)` | Saves a new card typed at a column's foot. Left out, there is no "Add card". |
 | `busy` | Your screen is reading: said to a screen reader, drawn dimmed, and nothing moves meanwhile. |
 | `emptyLabel` | A line above the columns while there is no card, and in place of the board while there is no column. |
@@ -210,6 +211,45 @@ What a card can show, all of it text you have already written in the reader's la
 | `due` | A chip at the foot. |
 | `progress` | 0 to 100, drawn as a bar. |
 | `reference` | Small print at the foot, such as "D-1042". Left out, nothing: the row's key is not shown. |
+| `actions` | The card's own menu (below). |
+
+### A card's own actions
+
+Give a card `actions` and the board an `onAction`, and the card gets a small "more" button at its
+far corner that opens them as a menu:
+
+```ts
+cards: rows.map((row) => ({
+  id: String(row.id),
+  columnId: String(row.stage),
+  title: String(row.title),
+  actions: [
+    { id: 'close', label: 'Close: won or lost…' },
+    { id: 'room', label: 'Open the deal room' },
+    { id: 'hand', label: 'Hand it over…', disabled: !staff.can('deals', 'update') },
+    { id: 'delete', label: 'Delete', tone: 'danger' },
+  ],
+})),
+onAction: (cardId, actionId) => {
+  if (actionId === 'close') openCloseDialog(cardId);
+},
+```
+
+Each action is `id`, `label` (in the reader's language), and optionally `tone: 'danger'` (drawn in
+red, for what cannot be taken back) and `disabled` (listed, said as unavailable, and a press does
+nothing). The board draws the menu and tells you what was chosen; what the action does is yours.
+
+The button is named "Actions for" and the card's title. It comes after the card in the Tab order,
+and it is not part of the card: pressing or dragging it never picks the card up. In the menu the
+arrows go from item to item, Home and End to the first and the last, Enter or space choose, and
+Escape closes it and gives the focus back to the button. A press anywhere else closes it. The menu
+is not cut off by its column: it is drawn over the page, under the button where there is room and
+above it where there is none, and scrolling the board puts it away.
+
+So that a keyboard reaches everything on a card that can be moved: Enter or space picks the card
+up, **Shift+Enter opens it** (`onOpen`), and Tab goes on to its menu. A screen reader is told the
+first two on the card itself. If opening matters on your screen, an `actions` item that opens the
+card is easier to find than a key; the board adds none of its own.
 
 ### What `onMove` must answer
 

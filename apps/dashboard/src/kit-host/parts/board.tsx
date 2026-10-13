@@ -12,6 +12,10 @@
  * a move in `onMove`. A save that is refused (`{ refused }`, or a rejection)
  * puts the card back, and the board says why above its columns and aloud.
  *
+ * A card may carry actions of its own ("Close: won or lost…"): a small "more"
+ * button after the card opens them as a menu, and the app hears the choice in
+ * `onAction`. The button is no part of the card, so it starts no drag.
+ *
  * The board keeps a move that held: the card stays in its new column whether
  * or not the app hands new cards back. Counts and totals are the app's, so a
  * screen that shows them reads them again after a move and calls `update`.
@@ -40,6 +44,7 @@ function Board({ props, patch }: { props: BoardProps; patch: (change: Partial<Bo
         ...(column.limit === undefined ? {} : { wip: column.limit }),
         ...(column.count === undefined ? {} : { count: column.count }),
         ...(column.total === undefined ? {} : { total: column.total }),
+        ...(column.badge === undefined ? {} : { badge: column.badge }),
       })),
     [props.columns],
   );
@@ -60,6 +65,7 @@ function Board({ props, patch }: { props: BoardProps; patch: (change: Partial<Bo
           ...(card.amount === undefined ? {} : { budget: card.amount }),
           ...(card.progress === undefined ? {} : { pct: card.progress }),
           ...(lines.length === 0 ? {} : { lines }),
+          ...(card.actions === undefined || card.actions.length === 0 ? {} : { actions: card.actions }),
         };
       }),
     [props.cards],
@@ -122,7 +128,9 @@ function Board({ props, patch }: { props: BoardProps; patch: (change: Partial<Bo
         onCardMove={move}
         addRefusal={notAdded}
         onDismissAddRefusal={() => setNotAdded(null)}
-        {...(props.onOpen === undefined ? {} : { onCardOpen: props.onOpen })}
+        // Shift+Enter opens a card that Enter would pick up: without it a keyboard could not open a movable card.
+        {...(props.onOpen === undefined ? {} : { onCardOpen: props.onOpen, keyboardOpen: true })}
+        {...(props.onAction === undefined ? {} : { onCardAction: (cardId: string, actionId: string) => latest.current.onAction?.(cardId, actionId) })}
         {...(props.emptyLabel === undefined ? {} : { labels: { emptyTitle: props.emptyLabel, emptyBody: '' } })}
         {...(props.onAdd === undefined ? {} : { columnFooter: (column: ColumnDef) => <InlineComposeCard disabled={busy} onAdd={(title) => add(column.id, title)} /> })}
       />

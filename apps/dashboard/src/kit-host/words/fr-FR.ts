@@ -7,14 +7,17 @@ const words: KitWords = {
     "ui:mentions.people": "Personnes à mentionner"
   },
   "board": {
+    "ui:widgets.boards.a11y.draggable": "carte déplaçable",
     "ui:widgets.boards.a11y.failed": "Impossible de déplacer {title} ; elle est revenue à sa position d'origine.",
     "ui:widgets.boards.a11y.grabbed": "{title} saisie. Utilisez les flèches pour déplacer, Entrée pour déposer, Échap pour annuler.",
     "ui:widgets.boards.a11y.moved": "{title} déplacée vers {cell}.",
+    "ui:widgets.boards.a11y.openHint": "Entrée saisit cette carte pour la déplacer. Maj+Entrée l’ouvre.",
     "ui:widgets.boards.a11y.over": "{title} est au-dessus de {cell}.",
     "ui:widgets.boards.a11y.returned": "{title} est revenue à sa position d'origine.",
     "ui:widgets.boards.addCard": "Ajouter une carte",
     "ui:widgets.boards.boardCard.emptyBody": "Aucun enregistrement n'est encore associé à cette carte.",
     "ui:widgets.boards.boardCard.emptyTitle": "Aucune carte",
+    "ui:widgets.boards.cardActions": "Actions pour {title}",
     "ui:widgets.boards.cardNotAdded": "La carte n’a pas été ajoutée.",
     "ui:widgets.boards.dismissNotice": "Fermer",
     "ui:widgets.boards.grip": "Glisser pour déplacer la carte",

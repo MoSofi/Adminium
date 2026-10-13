@@ -694,6 +694,7 @@
       "cardNotAdded": "The card was not added.",
       "dismissNotice": "Dismiss",
       "grip": "Drag to move card",
+      "cardActions": "Actions for {title}",
       "pointsUnit": "pts",
       "laneSummary": "Σ{points} pts · {count}",
       "a11y": {
@@ -701,7 +702,9 @@
         "over": "{title} is over {cell}.",
         "moved": "Moved {title} to {cell}.",
         "returned": "{title} returned to its original position.",
-        "failed": "Could not move {title}; it was returned to its original position."
+        "failed": "Could not move {title}; it was returned to its original position.",
+        "draggable": "draggable card",
+        "openHint": "Enter picks this card up to move it. Shift+Enter opens it."
       },
       "boardCard": {
         "description": "A single board card: tag, title, progress, owner, and due date.",

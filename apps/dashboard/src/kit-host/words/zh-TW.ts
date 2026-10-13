@@ -7,14 +7,17 @@ const words: KitWords = {
     "ui:mentions.people": "可提及的人員"
   },
   "board": {
+    "ui:widgets.boards.a11y.draggable": "可拖曳的卡片",
     "ui:widgets.boards.a11y.failed": "無法移動 {title}；已返回原位。",
     "ui:widgets.boards.a11y.grabbed": "已抓取 {title}。使用方向鍵移動，Enter 放下，Esc 取消。",
     "ui:widgets.boards.a11y.moved": "已將 {title} 移動到 {cell}。",
+    "ui:widgets.boards.a11y.openHint": "按 Enter 抓取此卡片以移動，按 Shift+Enter 開啟。",
     "ui:widgets.boards.a11y.over": "{title} 位於 {cell} 上方。",
     "ui:widgets.boards.a11y.returned": "{title} 已返回原位。",
     "ui:widgets.boards.addCard": "新增卡片",
     "ui:widgets.boards.boardCard.emptyBody": "這張卡片尚未綁定任何記錄。",
     "ui:widgets.boards.boardCard.emptyTitle": "沒有卡片",
+    "ui:widgets.boards.cardActions": "{title} 的動作",
     "ui:widgets.boards.cardNotAdded": "卡片未新增。",
     "ui:widgets.boards.dismissNotice": "關閉",
     "ui:widgets.boards.grip": "拖曳以移動卡片",

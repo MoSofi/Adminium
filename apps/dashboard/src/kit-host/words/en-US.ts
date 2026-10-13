@@ -7,14 +7,17 @@ const words: KitWords = {
     "ui:mentions.people": "People to mention"
   },
   "board": {
+    "ui:widgets.boards.a11y.draggable": "draggable card",
     "ui:widgets.boards.a11y.failed": "Could not move {title}; it was returned to its original position.",
     "ui:widgets.boards.a11y.grabbed": "Grabbed {title}. Use the arrow keys to move, Enter to drop, Escape to cancel.",
     "ui:widgets.boards.a11y.moved": "Moved {title} to {cell}.",
+    "ui:widgets.boards.a11y.openHint": "Enter picks this card up to move it. Shift+Enter opens it.",
     "ui:widgets.boards.a11y.over": "{title} is over {cell}.",
     "ui:widgets.boards.a11y.returned": "{title} returned to its original position.",
     "ui:widgets.boards.addCard": "Add card",
     "ui:widgets.boards.boardCard.emptyBody": "This card has no record bound to it yet.",
     "ui:widgets.boards.boardCard.emptyTitle": "No card",
+    "ui:widgets.boards.cardActions": "Actions for {title}",
     "ui:widgets.boards.cardNotAdded": "The card was not added.",
     "ui:widgets.boards.dismissNotice": "Dismiss",
     "ui:widgets.boards.grip": "Drag to move card",

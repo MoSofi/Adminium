@@ -32,6 +32,7 @@ const PART_SOURCES: Record<KitPartName, string[]> = {
     'apps/dashboard/src/kit-host/parts/board.tsx',
     'packages/widgets/src/families/boards/KanbanBoard.tsx',
     'packages/widgets/src/families/boards/BoardCard.tsx',
+    'packages/widgets/src/families/boards/CardActions.tsx',
     'packages/widgets/src/families/boards/InlineComposeCard.tsx',
     'packages/widgets/src/families/boards/board-dnd.tsx',
     'packages/ui/src/components/avatar/Avatar.tsx',

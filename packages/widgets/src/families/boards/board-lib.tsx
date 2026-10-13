@@ -51,6 +51,16 @@ export function priorityTone(priority: unknown): Tone {
   }
 }
 
+/** One thing a card's own menu offers; its `label` is already in the reader's words. */
+export interface BoardCardAction {
+  id: string;
+  label: string;
+  /** `danger` for something that cannot be taken back: drawn in red. */
+  tone?: 'danger' | undefined;
+  /** Listed, and not to be had just now. */
+  disabled?: boolean | undefined;
+}
+
 /** A single board card (annex board-card data contract). */
 export interface BoardCardData {
   id: string;
@@ -76,6 +86,8 @@ export interface BoardCardData {
   lines?: readonly BoardCardLine[] | undefined;
   /** What is printed at the card's foot in place of its id; `''` prints nothing there. */
   foot?: string | undefined;
+  /** What the card's own menu offers. A board that is given no `onCardAction` draws no menu. */
+  actions?: readonly BoardCardAction[] | undefined;
 }
 
 /** One line of a card: the text, and the label before it when it has one. */
@@ -99,6 +111,8 @@ export interface ColumnDef {
   count?: number | undefined;
   /** A figure for the column, already formatted ("€12,400"), shown beside the count. */
   total?: string | undefined;
+  /** A few quiet characters right after the label, already written ("10%": a stage's odds). */
+  badge?: string | undefined;
 }
 
 /** A swimlane row (annex `laneDefs`). */

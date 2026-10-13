@@ -704,6 +704,7 @@ export default {
       "cardNotAdded": "La carte n’a pas été ajoutée.",
       "dismissNotice": "Fermer",
       "grip": "Glisser pour déplacer la carte",
+      "cardActions": "Actions pour {title}",
       "pointsUnit": "pts",
       "laneSummary": "Σ{points} pts · {count}",
       "a11y": {
@@ -711,7 +712,9 @@ export default {
         "over": "{title} est au-dessus de {cell}.",
         "moved": "{title} déplacée vers {cell}.",
         "returned": "{title} est revenue à sa position d'origine.",
-        "failed": "Impossible de déplacer {title} ; elle est revenue à sa position d'origine."
+        "failed": "Impossible de déplacer {title} ; elle est revenue à sa position d'origine.",
+        "draggable": "carte déplaçable",
+        "openHint": "Entrée saisit cette carte pour la déplacer. Maj+Entrée l’ouvre."
       },
       "boardCard": {
         "description": "Une carte de tableau : étiquette, titre, progression, responsable et échéance.",

@@ -630,6 +630,7 @@ export function DraggableCard({
   // this family does not register; the widget supplies its own keyboard grab +
   // aria instructions instead, so mixing dnd-kit's would mislead a keyboard user.
   const { setNodeRef, listeners, isDragging } = useDraggable({ id: card.id, disabled: disabled === true });
+  const t = useMaybeT();
   return (
     <div
       ref={setNodeRef}
@@ -637,7 +638,8 @@ export function DraggableCard({
       data-board-card={card.id}
       data-dragging={isDragging ? '' : undefined}
       data-grabbed={grabbed ? '' : undefined}
-      aria-roledescription={disabled === true ? undefined : 'draggable card'}
+      // What a screen reader calls the card in place of "button", in the reader's own language.
+      aria-roledescription={disabled === true ? undefined : t('ui:widgets.boards.a11y.draggable', 'draggable card')}
       aria-label={ariaLabel}
       aria-describedby={ariaDescribedBy}
       aria-grabbed={grabbed ? true : undefined}

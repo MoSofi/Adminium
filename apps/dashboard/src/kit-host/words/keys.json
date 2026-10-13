@@ -3,14 +3,17 @@
     "ui:mentions.people"
   ],
   "board": [
+    "ui:widgets.boards.a11y.draggable",
     "ui:widgets.boards.a11y.failed",
     "ui:widgets.boards.a11y.grabbed",
     "ui:widgets.boards.a11y.moved",
+    "ui:widgets.boards.a11y.openHint",
     "ui:widgets.boards.a11y.over",
     "ui:widgets.boards.a11y.returned",
     "ui:widgets.boards.addCard",
     "ui:widgets.boards.boardCard.emptyBody",
     "ui:widgets.boards.boardCard.emptyTitle",
+    "ui:widgets.boards.cardActions",
     "ui:widgets.boards.cardNotAdded",
     "ui:widgets.boards.dismissNotice",
     "ui:widgets.boards.grip",

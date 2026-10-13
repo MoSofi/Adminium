@@ -704,6 +704,7 @@ export default {
       "cardNotAdded": "Kartu se nepodařilo přidat.",
       "dismissNotice": "Zavřít",
       "grip": "Přetažením přesunete kartu",
+      "cardActions": "Akce pro {title}",
       "pointsUnit": "b.",
       "laneSummary": "Σ{points} b. · {count}",
       "a11y": {
@@ -711,7 +712,9 @@ export default {
         "over": "{title} je nad {cell}.",
         "moved": "{title} přesunuto do {cell}.",
         "returned": "{title} se vrátilo na původní místo.",
-        "failed": "{title} nelze přesunout; vrátilo se na původní místo."
+        "failed": "{title} nelze přesunout; vrátilo se na původní místo.",
+        "draggable": "přetažitelná karta",
+        "openHint": "Enter kartu uchopí k přesunutí. Shift+Enter ji otevře."
       },
       "boardCard": {
         "description": "Jedna karta nástěnky: štítek, název, průběh, vlastník a termín.",

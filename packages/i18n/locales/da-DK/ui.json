@@ -694,6 +694,7 @@
       "cardNotAdded": "Kortet blev ikke tilføjet.",
       "dismissNotice": "Luk",
       "grip": "Træk for at flytte kortet",
+      "cardActions": "Handlinger for {title}",
       "pointsUnit": "pt.",
       "laneSummary": "Σ{points} pt. · {count}",
       "a11y": {
@@ -701,7 +702,9 @@
         "over": "{title} er over {cell}.",
         "moved": "{title} flyttet til {cell}.",
         "returned": "{title} vendte tilbage til sin oprindelige placering.",
-        "failed": "{title} kunne ikke flyttes; den blev sat tilbage."
+        "failed": "{title} kunne ikke flyttes; den blev sat tilbage.",
+        "draggable": "kort, der kan trækkes",
+        "openHint": "Enter tager kortet op, så det kan flyttes. Shift+Enter åbner det."
       },
       "boardCard": {
         "description": "Ét tavlekort: mærkat, titel, fremdrift, ejer og forfaldsdato.",

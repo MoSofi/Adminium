@@ -31707,6 +31707,10 @@
     "srcHash": "dc83cd803134",
     "status": "mt"
   },
+  "ui.widgets.boards.a11y.draggable": {
+    "status": "mt",
+    "srcHash": "d7dd9d2f7886"
+  },
   "ui.widgets.boards.a11y.failed": {
     "srcHash": "428bc9abd772",
     "status": "mt"
@@ -31718,6 +31722,10 @@
   "ui.widgets.boards.a11y.moved": {
     "srcHash": "9621f7bbc08d",
     "status": "mt"
+  },
+  "ui.widgets.boards.a11y.openHint": {
+    "status": "mt",
+    "srcHash": "9d3f82c9c609"
   },
   "ui.widgets.boards.a11y.over": {
     "srcHash": "fdb7e66c3556",
@@ -31742,6 +31750,10 @@
   "ui.widgets.boards.boardCard.emptyTitle": {
     "srcHash": "bb8b28390233",
     "status": "mt"
+  },
+  "ui.widgets.boards.cardActions": {
+    "status": "mt",
+    "srcHash": "be793ddab31a"
   },
   "ui.widgets.boards.cardNotAdded": {
     "status": "mt",
