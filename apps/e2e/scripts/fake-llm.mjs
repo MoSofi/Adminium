@@ -293,8 +293,9 @@ const SCENARIOS = [
             sources: [
               {
                 blockId: 'b1',
+                // Beside the descriptor, as the page's format says: the two arguments `aggregate` was called with.
+                connectionId: firstConnectionId(messages),
                 descriptor: {
-                  connectionId: firstConnectionId(messages),
                   shape: 'categorical',
                   source: { schema: target.schema, name: target.name },
                   groupBy: [target.column],
@@ -408,6 +409,34 @@ const SCENARIOS = [
               },
             ],
           },
+        };
+      },
+    ],
+  },
+  {
+    // A campaign sent to a role, on the email pages. The mail is one the person made; the reply
+    // finds it by its name among the page's documents and proposes the send, which the person
+    // confirms on a card. Where sending is switched off the prompt does not list the move.
+    key: 'send',
+    match: /send the campaign "[^"]+" to /i,
+    // In the self-test no campaign of that name is among the documents, so it ends in words.
+    ends: 'answer',
+    replies: [
+      (messages) => {
+        const told = String(messages.find((message) => message?.role === 'system')?.content ?? '');
+        if (told !== '' && !told.includes('- send.template:')) return { schema_version: SCHEMA, say: 'I cannot send anything here.' };
+        return calls('Finding that campaign.', [{ id: 'c1', tool: 'list_documents', args: {}, step: step('file-search', 'Read the campaigns', 'in this workspace') }]);
+      },
+      (messages) => {
+        const asked = /send the campaign "([^"]+)" to (.+?)\.?$/i.exec(messages.map((message) => String(message?.content ?? '')).find((text) => /send the campaign "/i.test(text)) ?? '');
+        const documents = toolResults(messages).find((entry) => entry.tool === 'list_documents' && entry.ok === true);
+        const list = Array.isArray(documents?.result?.documents) ? documents.result.documents : [];
+        const campaign = list.find((row) => row?.kind === 'campaign' && row?.name === asked?.[1]);
+        if (campaign === undefined) return { schema_version: SCHEMA, say: 'I cannot find that campaign.' };
+        return {
+          schema_version: SCHEMA,
+          say: 'Here is the send, for you to confirm.',
+          propose: { title: 'Send the campaign', actions: [{ do: 'send.template', templateId: campaign.id, roles: [asked?.[2] ?? ''] }] },
         };
       },
     ],
@@ -778,6 +807,8 @@ function scenarioOpener(scenario) {
       return 'How many rows are shown here?';
     case 'general':
       return 'Where do I invite a colleague?';
+    case 'send':
+      return 'Send the campaign "Launch" to Super Admin';
     default:
       return '';
   }
@@ -796,9 +827,10 @@ async function replayReport(scenario, results) {
     if (turn.result !== undefined) {
       const source = Array.isArray(turn.result.artefact.sources) ? turn.result.artefact.sources[0] : undefined;
       const descriptor = source?.descriptor;
-      if (descriptor === undefined) return null;
+      // A source that does not say where it was run cannot be run again: that is a failure here too.
+      if (descriptor === undefined || typeof source.connectionId !== 'string' || source.connectionId === '') return null;
       return {
-        connectionId: descriptor.connectionId,
+        connectionId: source.connectionId,
         table: `${descriptor.source.schema}.${descriptor.source.name}`,
         groupBy: descriptor.groupBy?.[0],
       };
