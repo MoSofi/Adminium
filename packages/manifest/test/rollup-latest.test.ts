@@ -64,7 +64,7 @@ describe('the newest row\'s value (rollup.latest)', () => {
   });
 
   it('needs the floor that first reads it', () => {
-    expect(said(crm(() => {}, '0.3.26')).join('\n')).toMatch(/0\.3\.27/);
+    expect(said(crm(() => {}, '0.3.26')).join('\n')).toMatch(/0\.3\.28/);
   });
 
   it('is one of three: not beside a sum or a count', () => {

@@ -57,7 +57,7 @@ describe('an app\'s starting rows in the manifest', () => {
   it('need the floor that first writes them', () => {
     expect(installFloorWords(app(good)).filter((found) => found.word === 'app.seeds').map((found) => found.path)).toEqual(['seeds']);
     expect(installFloorWords(app(undefined)).filter((found) => found.word === 'app.seeds')).toEqual([]);
-    expect(said(app(good, '0.3.26'))).toMatch(/"app\.seeds" is read by Adminium 0\.3\.27 and later/);
+    expect(said(app(good, '0.3.26'))).toMatch(/"app\.seeds" is read by Adminium 0\.3\.28 and later/);
   });
 
   it('are an add-on\'s word as before: no new floor for an add-on', () => {

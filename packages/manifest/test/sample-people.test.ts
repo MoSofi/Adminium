@@ -57,7 +57,7 @@ describe('sample people in the manifest', () => {
 
   it('need the floor that first reads them, people and teams alike', () => {
     expect(installFloorWords(crm()).filter((found) => found.word === 'sampleData.people').map((found) => found.path)).toEqual(['sampleData.people', 'sampleData.teams']);
-    expect(said(crm(() => {}, '0.3.26'))).toMatch(/0\.3\.27/);
+    expect(said(crm(() => {}, '0.3.26'))).toMatch(/0\.3\.28/);
   });
 
   it('are each listed once, with a role the app has', () => {
