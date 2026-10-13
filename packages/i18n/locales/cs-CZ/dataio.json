@@ -52,6 +52,8 @@
     "targetFailed": "Tuto stránku se nepodařilo otevřít.",
     "noImportRight": "Nemáte právo importovat do tabulky {table}. Požádejte o něj správce.",
     "noReadToMatch": "Porovnání řádků s těmi, které už v tabulce jsou, vyžaduje právo číst tabulku {table}. Neporovnávejte podle ničeho, nebo o právo požádejte správce.",
+    "noUpdateRight": "Nemáte právo měnit řádky v tabulce {table}. Ponechte řádky, které už tu jsou, beze změny, nebo o ně požádejte správce.",
+    "tooLarge": "To je víc, než import přijme: nejvýše 32 MB.",
     "issueRequired": "{column}: prázdné, ale hodnota je povinná",
     "issueBadNumber": "{column}: není číslo",
     "issueBadBoolean": "{column}: není ano ani ne",

@@ -62,6 +62,8 @@ export default {
     "targetFailed": "Diese Seite konnte nicht geöffnet werden.",
     "noImportRight": "Sie haben nicht das Recht, in {table} zu importieren. Bitten Sie einen Administrator darum.",
     "noReadToMatch": "Um Zeilen mit den vorhandenen Datensätzen abzugleichen, ist das Leserecht für {table} nötig. Gleichen Sie mit nichts ab oder bitten Sie einen Administrator darum.",
+    "noUpdateRight": "Sie haben nicht das Recht, Zeilen in {table} zu ändern. Lassen Sie die bereits vorhandenen Zeilen unverändert oder bitten Sie einen Administrator darum.",
+    "tooLarge": "Das ist mehr, als ein Import annimmt: höchstens 32 MB.",
     "issueRequired": "{column}: leer, aber ein Wert ist erforderlich",
     "issueBadNumber": "{column}: keine Zahl",
     "issueBadBoolean": "{column}: weder Ja noch Nein",

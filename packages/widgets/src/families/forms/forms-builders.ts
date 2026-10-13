@@ -245,3 +245,18 @@ export function exportPhaseOf(payloadPhase: ExportPhase, submitted: boolean): Ex
   if (payloadPhase !== 'idle') return payloadPhase;
   return submitted ? 'running' : 'idle';
 }
+
+// ── column-mapping-table (annex) ────────────────────────────────────────────
+
+/**
+ * The destination catalog a mapping falls back on when it is given none (the
+ * demo's `customers` table). Here, and not with the config schemas, so the
+ * table itself can be drawn without the schema library.
+ */
+export const DEFAULT_MAPPING_TARGETS: readonly { key: string; label?: string }[] = [
+  { key: 'full_name', label: 'Full name' },
+  { key: 'email', label: 'Email' },
+  { key: 'company', label: 'Company' },
+  { key: 'country', label: 'Country' },
+  { key: 'created_at', label: 'Created at' },
+];

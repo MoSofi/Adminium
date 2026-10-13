@@ -9,14 +9,8 @@
  * SEVERITY, not by payload order — the reason is in `sortIssues` below.
  */
 
-import { Badge, EmptyState, IconTile } from '@adminium/ui';
-import { useScrollRegion } from '../../lib/useScrollRegion.js';
-import { useWidgetHeadingId } from '../../frame/WidgetHeadingContext.js';
-import { useMaybeT } from '../../lib/i18n.js';
-
-import { severityIcon } from './forms-icons.js';
-import { DEFAULT_SEVERITY_TONE, formatCount, numberField, oneOf, recordRowsOf, stringField } from './forms-lib.js';
-import type { FormTone, IssueSeverity } from './forms-lib.js';
+import { IssuesList, sortIssues, type ValidationIssue } from './IssuesList.js';
+import { numberField, oneOf, recordRowsOf, stringField } from './forms-lib.js';
 import { ISSUE_SEVERITIES, validationIssuesListConfigSchema, validationIssuesListDemoData } from './forms-config.js';
 import type { ValidationIssuesListConfig } from './forms-config.js';
 import type { WidgetProps } from '../../registry/types.js';
@@ -24,13 +18,8 @@ import type { WidgetProps } from '../../registry/types.js';
 export { validationIssuesListConfigSchema, validationIssuesListDemoData };
 export type { ValidationIssuesListConfig };
 
-export interface ValidationIssue {
-  key: string;
-  severity: IssueSeverity;
-  title: string;
-  desc?: string | undefined;
-  count?: number | undefined;
-}
+export type { ValidationIssue };
+export { sortIssues };
 
 /** Project the `record-list` payload onto issues. */
 export function issuesOf(data: unknown, config: ValidationIssuesListConfig): ValidationIssue[] {
@@ -52,81 +41,15 @@ export function issuesOf(data: unknown, config: ValidationIssuesListConfig): Val
   return sortIssues(out);
 }
 
-const SEVERITY_RANK: Record<IssueSeverity, number> = { error: 0, warn: 1, info: 2 };
-
-/**
- * Order errors → warnings → info, stably within each severity.
- *
- * The list is a triage surface: an import blocked by 12 invalid emails must not
- * be reported below "Dates normalised to ISO" merely because the server happened
- * to emit the notice first. Ties keep payload order, so the result stays
- * deterministic for the same payload.
- */
-export function sortIssues(issues: readonly ValidationIssue[]): ValidationIssue[] {
-  return [...issues].sort((a, b) => SEVERITY_RANK[a.severity] - SEVERITY_RANK[b.severity]);
-}
-
-/** Config `severityMap` overrides the default severity→tone map (annex). */
-function toneOf(severity: IssueSeverity, map: Record<string, FormTone> | undefined): FormTone {
-  return map?.[severity] ?? DEFAULT_SEVERITY_TONE[severity];
-}
-
 export function ValidationIssuesListWidget({ config, data }: WidgetProps<ValidationIssuesListConfig>) {
-  const t = useMaybeT();
-  const issues = issuesOf(data, config);
-  const locale = config.format?.locale;
-
-  // ABOVE the empty-state early return, not below it. Hooks must run in the same
-  // order on every render, and the empty branch returns before this point — so
-  // calling them after it threw "Rendered fewer hooks than expected" the moment a
-  // populated list went empty. Deliberately NO role on the list: an explicit one
-  // would override the <ul>'s implicit `role="list"` and destroy the
-  // "list, N items" announcement. The tab stop appears only while it overflows.
-  const headingId = useWidgetHeadingId();
-  const scroll = useScrollRegion({ labelledBy: headingId ?? undefined });
-
-  if (issues.length === 0) {
-    return (
-      <EmptyState
-        compact
-        preset="all-caught-up"
-        title={config.emptyTitle ?? t('ui:widgets.forms.validationIssuesList.emptyTitle', 'No issues found')}
-        body={config.emptyBody ?? t('ui:widgets.forms.validationIssuesList.emptyBody', 'Everything checks out — you are good to import.')}
-      />
-    );
-  }
-
   return (
-    <ul
-      data-widget="validation-issues-list"
-      data-testid={config.testId}
-      {...scroll}
-      className={`m-0 flex h-full list-none flex-col gap-0.5 overflow-auto p-2 ${scroll.className}`}
-    >
-      {issues.map((issue) => {
-        const tone = toneOf(issue.severity, config.severityMap);
-        const count = formatCount(issue.count, locale);
-        return (
-          <li
-            key={issue.key}
-            data-part="issue-row"
-            data-severity={issue.severity}
-            data-tone={tone}
-            className="flex items-start gap-3 rounded-lg px-2.5 py-2.5 hover:bg-surface-2"
-          >
-            <IconTile size="md" tone={tone} icon={severityIcon(issue.severity)} />
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-body-sm font-bold text-fg">{issue.title}</p>
-              {issue.desc !== undefined && <p className="text-caption text-fg-muted">{issue.desc}</p>}
-            </div>
-            {count !== undefined && (
-              <Badge data-part="issue-count" tone={tone} className="shrink-0">
-                {count}
-              </Badge>
-            )}
-          </li>
-        );
-      })}
-    </ul>
+    <IssuesList
+      issues={issuesOf(data, config)}
+      {...(config.severityMap === undefined ? {} : { severityMap: config.severityMap })}
+      {...(config.format?.locale === undefined ? {} : { locale: config.format.locale })}
+      {...(config.emptyTitle === undefined ? {} : { emptyTitle: config.emptyTitle })}
+      {...(config.emptyBody === undefined ? {} : { emptyBody: config.emptyBody })}
+      {...(config.testId === undefined ? {} : { testId: config.testId })}
+    />
   );
 }

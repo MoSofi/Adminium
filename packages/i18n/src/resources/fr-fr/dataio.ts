@@ -62,6 +62,8 @@ export default {
     "targetFailed": "Cette page n’a pas pu être ouverte.",
     "noImportRight": "Vous n’avez pas le droit d’importer dans {table}. Demandez-le à un administrateur.",
     "noReadToMatch": "Comparer les lignes aux enregistrements déjà présents exige le droit de lire {table}. Ne comparez sur rien, ou demandez ce droit à un administrateur.",
+    "noUpdateRight": "Vous n’avez pas le droit de modifier les lignes de {table}. Laissez telles quelles les lignes déjà présentes, ou demandez-le à un administrateur.",
+    "tooLarge": "C’est plus que ce qu’un import accepte : 32 Mo au maximum.",
     "issueRequired": "{column} : vide, alors qu’une valeur est requise",
     "issueBadNumber": "{column} : ce n’est pas un nombre",
     "issueBadBoolean": "{column} : ni oui ni non",

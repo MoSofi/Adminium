@@ -9499,6 +9499,10 @@
     "status": "mt",
     "srcHash": "87f367c6dc78"
   },
+  "dataio.import.noUpdateRight": {
+    "status": "mt",
+    "srcHash": "d7910ac6790c"
+  },
   "dataio.import.notATable": {
     "status": "mt",
     "srcHash": "f78a1d0ad6c2"
@@ -9646,6 +9650,10 @@
   "dataio.import.toValidate": {
     "status": "mt",
     "srcHash": "6752f198b564"
+  },
+  "dataio.import.tooLarge": {
+    "status": "mt",
+    "srcHash": "8d2ea70637ac"
   },
   "dataio.import.validateFailed": {
     "status": "mt",

@@ -22,6 +22,7 @@ import { z } from 'zod';
 import { mulberry32 } from '@adminium/charts';
 
 import {
+  DEFAULT_MAPPING_TARGETS,
   EXPORT_FORMATS,
   FLOW_NODE_KINDS,
   QUESTION_KINDS,
@@ -676,14 +677,8 @@ export const columnMappingTableConfigSchema = widgetSharedConfigSchema.extend({
 });
 export type ColumnMappingTableConfig = z.infer<typeof columnMappingTableConfigSchema>;
 
-/** The destination catalog the demo maps onto (a `customers` table). */
-export const DEFAULT_MAPPING_TARGETS: readonly { key: string; label?: string }[] = [
-  { key: 'full_name', label: 'Full name' },
-  { key: 'email', label: 'Email' },
-  { key: 'company', label: 'Company' },
-  { key: 'country', label: 'Country' },
-  { key: 'created_at', label: 'Created at' },
-];
+// The destination catalog the demo maps onto now lives with the other plain vocabularies: `forms-builders.ts`.
+export { DEFAULT_MAPPING_TARGETS };
 
 const DEMO_MAPPING_ROWS: readonly { column: string; sample: string }[] = [
   { column: 'Full Name', sample: 'Ana Ferreira' },

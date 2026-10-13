@@ -50,17 +50,18 @@ async function box(props: Partial<MentionsProps> = {}): Promise<{ onChange: Retu
 describe('the door', () => {
   it('says its contract and the parts it has', () => {
     expect(contract).toBe(KIT_CONTRACT);
-    expect(parts).toEqual(['mentions', 'board', 'map']);
+    expect(parts).toEqual(['mentions', 'board', 'map', 'import']);
   });
 
-  it('refuses a part that is not built yet, and one it never heard of, by name', async () => {
-    const notYet = await mount('import', host, {}).catch((error: unknown) => error);
-    expect(notYet).toBeInstanceOf(KitPartUnavailableError);
-    expect((notYet as KitPartUnavailableError).code).toBe('KIT_PART_NOT_YET');
-    expect((notYet as Error).message).toContain('"import" is not available');
+  it('refuses a part it never heard of, by name; one that is named and not built yet has an error of its own', async () => {
     const unknown = await mount('toString' as never, host, {} as never).catch((error: unknown) => error);
+    expect(unknown).toBeInstanceOf(KitPartUnavailableError);
     expect((unknown as KitPartUnavailableError).code).toBe('KIT_PART_UNKNOWN');
+    expect((unknown as Error).message).toContain('mentions, board, map, import');
     expect(host.childElementCount).toBe(0);
+    // Every part of contract 1 is built now; the error an older or a later kit answers with is still what apps check for.
+    const notYet = new KitPartUnavailableError('import', 'KIT_PART_NOT_YET');
+    expect(notYet.message).toContain('"import" is not available');
   });
 
   it('refuses a place that is not an element', async () => {

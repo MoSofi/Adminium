@@ -62,6 +62,8 @@ export default {
     "targetFailed": "無法開啟該頁面。",
     "noImportRight": "你沒有匯入 {table} 的權限。請向管理員申請。",
     "noReadToMatch": "要將各行與已有的資料列比對，需要讀取 {table} 的權限。請選擇不比對，或向管理員申請該權限。",
+    "noUpdateRight": "您沒有修改 {table} 中資料列的權限。請保留已有的資料列不變，或向管理員申請。",
+    "tooLarge": "這超出了匯入可接受的大小：最多 32 MB。",
     "issueRequired": "{column}：為空，但必須填寫",
     "issueBadNumber": "{column}：不是數字",
     "issueBadBoolean": "{column}：不是「是」或「否」",

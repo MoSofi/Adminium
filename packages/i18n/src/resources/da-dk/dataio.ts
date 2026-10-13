@@ -62,6 +62,8 @@ export default {
     "targetFailed": "Siden kunne ikke åbnes.",
     "noImportRight": "Du har ikke ret til at importere til {table}. Bed en administrator om den.",
     "noReadToMatch": "At sammenligne linjer med de rækker, der allerede findes, kræver ret til at læse {table}. Sammenlign på ingenting, eller bed en administrator om retten.",
+    "noUpdateRight": "Du har ikke ret til at ændre rækker i {table}. Lad de linjer, der allerede findes, være som de er, eller bed en administrator om den.",
+    "tooLarge": "Det er mere, end en import tager: højst 32 MB.",
     "issueRequired": "{column}: tom, men en værdi er påkrævet",
     "issueBadNumber": "{column}: ikke et tal",
     "issueBadBoolean": "{column}: hverken ja eller nej",

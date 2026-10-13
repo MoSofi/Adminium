@@ -18,6 +18,7 @@ import { Badge, Button, Card, CardBody, CardHeader, Icon, IconTile, Spinner } fr
 
 import { bootstrapQuery, type BootstrapData } from '../app/bootstrap.js';
 import { t } from '../i18n/t.js';
+import { useCommonWords } from '../i18n/commonWords.js';
 import { StatePage } from '../states/StatePage.js';
 import { ProgressRing } from './ProgressRing.js';
 import { isOnboardingAdmin, useOnboarding } from './useOnboarding.js';
@@ -166,6 +167,8 @@ function OnboardingBody({ bootstrap }: { bootstrap: BootstrapData }): ReactNode 
 }
 
 export function OnboardingChecklist(): ReactNode {
+  // This screen's words load with it, not with the first paint.
+  useCommonWords();
   const { data: bootstrap } = useSuspenseQuery(bootstrapQuery());
   if (!isOnboardingAdmin(bootstrap.roles)) {
     return <StatePage stateId="forbidden" fullPage={false} />;

@@ -100,6 +100,9 @@ describe('the deferred `dataio` namespace', () => {
     for (const file of sourceFiles(SRC, true)) {
       if (file.startsWith(`${DATAIO}/`) || file === DATAIO) continue;
       if (file === join(SRC, 'i18n', 'dataioNamespace.test.ts')) continue;
+      // The kit's parts are drawn on an app's own screen, where there is no dashboard and no namespace to wait for:
+      // each carries its own words in every language (kit-host/words/, held to the catalogue by kit-host/words.test.ts).
+      if (file.startsWith(`${join(SRC, 'kit-host')}/`)) continue;
       const src = readFileSync(file, 'utf8');
       for (const match of src.matchAll(ANY_KEY)) outside.push(`${file}: dataio:${match[1] ?? ''}`);
     }

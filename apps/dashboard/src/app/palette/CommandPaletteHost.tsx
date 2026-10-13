@@ -38,6 +38,7 @@ import { appSectionsOf, flattenNav, type BootstrapData } from '../bootstrap.js';
 import { hrefForRecord } from '../links.js';
 import { gChordTargets } from '../shortcuts.js';
 import { t } from '../../i18n/t.js';
+import { useCommonWords } from '../../i18n/commonWords.js';
 import { lucideByName } from '../../lib/lucide.js';
 import { pushRecent, readRecent, type RecentEntry } from './recent.js';
 
@@ -94,6 +95,8 @@ export function CommandPaletteHost({
   onShowShortcuts,
   onOpenApp,
 }: CommandPaletteHostProps) {
+  // The palette's words load with it, when it is first opened, not with the first paint.
+  useCommonWords();
   const resolved = useTheme();
   const { setPref } = useThemePrefs();
   const dark = resolved.theme === 'dark';

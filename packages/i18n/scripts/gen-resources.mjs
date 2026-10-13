@@ -42,7 +42,7 @@ const UI_DEFERRED_GROUPS = ['widgets', 'templates', 'pages'];
  * `en-us/common-deferred.ts`: the words of four screens nobody sees on the
  * first paint. MUST equal `COMMON_DEFERRED_GROUPS` in src/resources/namespaces.ts.
  */
-const COMMON_DEFERRED_GROUPS = ['builder', 'kb', 'about', 'team', 'quietHours', 'security', 'reports', 'changelog'];
+const COMMON_DEFERRED_GROUPS = ['builder', 'kb', 'about', 'team', 'quietHours', 'security', 'reports', 'changelog', 'onboarding', 'audit', 'capabilities', 'palette'];
 const DEFERRED_GROUPS = { ui: UI_DEFERRED_GROUPS, common: COMMON_DEFERRED_GROUPS };
 /** How many texts each deferred group holds: how the runtime tells a group that is in from one an override only started. */
 const deferredCounts = {};

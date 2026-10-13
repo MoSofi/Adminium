@@ -6,12 +6,6 @@ import { useRef, useState } from 'react';
 import type { DragEvent } from 'react';
 
 import { formatSize, resolveLocale } from './media-lib.js';
-import { uploadDropzoneConfigSchema, uploadDropzoneDemoData } from './media-config.js';
-import type { UploadDropzoneConfig } from './media-config.js';
-import type { WidgetProps } from '../../registry/types.js';
-
-export { uploadDropzoneConfigSchema, uploadDropzoneDemoData };
-export type { UploadDropzoneConfig };
 
 /**
  * `upload-dropzone` (annex) — the dashed-border drag-and-drop target: icon tile,
@@ -29,6 +23,11 @@ export type { UploadDropzoneConfig };
  * The `maxSize` constraint is enforced here (oversize files are reported through
  * `onReject`, never silently dropped) because it is the one check that needs no
  * backend — everything else is the server's job.
+ *
+ * The component alone is in this file. As the registry places it (its config
+ * schema, which is zod's) it is `UploadDropzoneWidget.tsx`: the import wizard
+ * draws this one on an app's own screen too, where a schema library has no
+ * business being fetched.
  */
 
 export interface UploadDropzoneProps {
@@ -138,27 +137,5 @@ export function UploadDropzone({
         }}
       />
     </div>
-  );
-}
-
-export function UploadDropzoneWidget({ config }: WidgetProps<UploadDropzoneConfig>) {
-  // No `onFiles` sink: `WidgetEvent` models drill-through/record-open/
-  // mutate — it has no "here are some File handles" case, and inventing one is a
-  // registry-contract change, not a widget decision. The dashboard composes the
-  // exported <UploadDropzone> directly (import pages: dropzone +
-  // column-mapping-table + validation-issues-list, annex) where it can hold
-  // the File objects. Registry-placed, this instance is the visual affordance.
-  return (
-    <UploadDropzone
-      {...(config.accept === undefined ? {} : { accept: config.accept })}
-      {...(config.maxSize === undefined ? {} : { maxSize: config.maxSize })}
-      multiple={config.multiple}
-      disabled={config.disabled}
-      {...(config.format?.locale === undefined ? {} : { locale: config.format.locale })}
-      {...(config.dropTitle === undefined ? {} : { dropTitle: config.dropTitle })}
-      {...(config.browsePrefix === undefined ? {} : { browsePrefix: config.browsePrefix })}
-      {...(config.browseLabel === undefined ? {} : { browseLabel: config.browseLabel })}
-      {...(config.hint === undefined ? {} : { hint: config.hint })}
-    />
   );
 }

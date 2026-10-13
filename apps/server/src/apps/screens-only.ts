@@ -7,8 +7,9 @@
  * screens are, and every other API call is refused except what those screens
  * need: signing in and out, their own account, the records their roles grant,
  * the live-update stream, the translations, the schema of their app's own
- * database, and what an add-on their app uses says of the rows a screen shows
- * (its stock words). Forty-odd routes check only that someone is signed in, so this
+ * database, what an add-on their app uses says of the rows a screen shows
+ * (its stock words), and bringing a file in to a table their role may import
+ * (a "paste a list" screen of their app). Forty-odd routes check only that someone is signed in, so this
  * list — not those routes — is the boundary.
  */
 import type { FastifyRequest } from 'fastify';
@@ -72,6 +73,17 @@ export async function appAddOns(meta: MetaDb, appKeys: readonly string[], connec
   return out;
 }
 
+/** The routes of one import, from the upload to the report of what was skipped, and its job's progress. */
+const IMPORT_ROUTES: ReadonlySet<string> = new Set([
+  'POST /imports/upload',
+  'POST /imports',
+  'GET /imports/:id',
+  'GET /imports/:id/preview',
+  'POST /imports/:id/run',
+  'GET /imports/:id/error-report',
+  'GET /jobs/:id',
+]);
+
 /**
  * Whether a screens-only person may make this API call, judged by the ROUTE
  * it matched (`/api/v1/connections/:id/schema`) and its decoded parameters —
@@ -110,6 +122,11 @@ export function allowedForScreensOnly(
   if (method === 'POST' && route === ADD_ON_DOCUMENT_ROUTE && typeof key === 'string' && addOns.has(key)) return true;
   // …and the page it prints, by the one-time ticket the render answered.
   if (method === 'GET' && rest === '/documents/print-once/:ticket') return true;
+  // A file brought in to a table of their app, from a screen of their app (the kit's import part). Each of these
+  // routes asks the table's own import right (and its read and update rights where the import matches or changes
+  // rows), which a screens-only person holds only where their app's role grants it; an import and its job are
+  // shown to whoever made them. The list of imports, and every other route of the jobs, stay the dashboard's.
+  if (IMPORT_ROUTES.has(`${method} ${rest}`)) return true;
   // The public API has its own gate, and a kiosk's staff-bound key rides it.
   if (rest.startsWith('/public/')) return true;
   if (rest === '/me' || rest.startsWith('/me/')) return true;

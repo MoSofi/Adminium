@@ -62,6 +62,8 @@ export default {
     "targetFailed": "无法打开该页面。",
     "noImportRight": "你没有向 {table} 导入的权限。请向管理员申请。",
     "noReadToMatch": "将各行与已有的行进行匹配，需要读取 {table} 的权限。请选择不匹配，或向管理员申请该权限。",
+    "noUpdateRight": "您没有修改 {table} 中行的权限。请保留已有的行不变，或向管理员申请。",
+    "tooLarge": "这超出了导入可接受的大小：最多 32 MB。",
     "issueRequired": "{column}：为空，但必须填写",
     "issueBadNumber": "{column}：不是数字",
     "issueBadBoolean": "{column}：不是“是”或“否”",

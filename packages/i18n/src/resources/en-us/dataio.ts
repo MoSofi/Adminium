@@ -62,6 +62,8 @@ export default {
     "targetFailed": "That page could not be opened.",
     "noImportRight": "You do not hold the right to import into {table}. Ask an administrator for it.",
     "noReadToMatch": "Matching lines against the rows already there needs the right to read {table}. Match on nothing, or ask an administrator for it.",
+    "noUpdateRight": "You do not hold the right to change rows of {table}. Leave the lines already here as they are, or ask an administrator for it.",
+    "tooLarge": "This is more than an import takes: 32 MB at most.",
     "issueRequired": "{column}: empty, and a value is needed",
     "issueBadNumber": "{column}: not a number",
     "issueBadBoolean": "{column}: not a yes or a no",

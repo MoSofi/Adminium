@@ -1,0 +1,91 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+/*
+ * The import wizard's styles on an app's own screen, in the board's pattern
+ * (board.css): the kit's scale, exactly the utilities the wizard's files
+ * wear, each held under the kit's wrapper, and no preflight.
+ *
+ * The `@source` lines name every file whose class names the wizard can wear:
+ * the wizard itself (the dashboard's own, src/data-io/ImportWizard.tsx), the
+ * four components it is drawn with, and the dashboard's own controls under
+ * them. A component the wizard grows adds its file here; the browser test
+ * (apps/e2e/tests/kit-parts.spec.ts) fails on a class with no rule.
+ */
+@import '../kit-theme.css';
+
+@source './import.tsx';
+@source '../../data-io/ImportWizard.tsx';
+@source '../../../node_modules/@adminium/widgets/src/templates/page-wizard/PageWizard.tsx';
+@source '../../../node_modules/@adminium/widgets/src/families/media/UploadDropzone.tsx';
+@source '../../../node_modules/@adminium/widgets/src/families/forms/MappingTable.tsx';
+@source '../../../node_modules/@adminium/widgets/src/families/forms/IssuesList.tsx';
+@source '../../../node_modules/@adminium/widgets/src/lib/useScrollRegion.ts';
+@source '../../../node_modules/@adminium/ui/src/components/alert/Alert.tsx';
+@source '../../../node_modules/@adminium/ui/src/components/badge/Badge.tsx';
+@source '../../../node_modules/@adminium/ui/src/components/button/Button.tsx';
+@source '../../../node_modules/@adminium/ui/src/components/checkbox/Checkbox.tsx';
+@source '../../../node_modules/@adminium/ui/src/components/empty-state/EmptyState.tsx';
+@source '../../../node_modules/@adminium/ui/src/components/icon-tile/IconTile.tsx';
+@source '../../../node_modules/@adminium/ui/src/components/input/Input.tsx';
+@source '../../../node_modules/@adminium/ui/src/components/mono-text/MonoText.tsx';
+@source '../../../node_modules/@adminium/ui/src/components/progress-bar/ProgressBar.tsx';
+@source '../../../node_modules/@adminium/ui/src/components/select/Select.tsx';
+@source '../../../node_modules/@adminium/ui/src/components/spinner/Spinner.tsx';
+@source '../../../node_modules/@adminium/ui/src/components/tag/Tag.tsx';
+@source '../../../node_modules/@adminium/ui/src/components/textarea/Textarea.tsx';
+
+.adm-kit {
+  @tailwind utilities source(none);
+}
+
+/*
+ * The wizard's own box: as wide as the element it is mounted in and never
+ * wider. Its height is the element's when the app gave it one (the steps
+ * then scroll inside it); without, it is as tall as its step.
+ */
+.adm-kit[data-kit-part='import'] {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  height: 100%;
+  font-size: 13px;
+}
+.adm-kit .adm-kit-import {
+  /* The dashboard's mapping table sits in a widget's frame and takes its padding; here the box is the app's. */
+  --widget-pad: 0px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  min-width: 0;
+  height: 100%;
+}
+.adm-kit .adm-kit-import-title {
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.4;
+  color: var(--adm-kit-fg);
+}
+.adm-kit .adm-kit-import-table {
+  max-width: 28rem;
+}
+
+/*
+ * An alert's tone border. The dashboard writes it as a class that reads the
+ * page's colour by its own name (`var(--danger)`, in @adminium/ui's
+ * lib/tones.ts, which is left out of the sources above for that reason). The
+ * same four classes, with the kit's own names: a refusal keeps its red edge
+ * on a page that has no such token.
+ */
+.adm-kit .border-\[color-mix\(in_srgb\,var\(--info\)_30\%\,transparent\)\] {
+  border-color: color-mix(in srgb, var(--adm-kit-info) 30%, transparent);
+}
+.adm-kit .border-\[color-mix\(in_srgb\,var\(--pos\)_30\%\,transparent\)\] {
+  border-color: color-mix(in srgb, var(--adm-kit-pos) 30%, transparent);
+}
+.adm-kit .border-\[color-mix\(in_srgb\,var\(--warn\)_30\%\,transparent\)\] {
+  border-color: color-mix(in srgb, var(--adm-kit-warn) 30%, transparent);
+}
+.adm-kit .border-\[color-mix\(in_srgb\,var\(--danger\)_30\%\,transparent\)\] {
+  border-color: color-mix(in srgb, var(--adm-kit-danger) 30%, transparent);
+}

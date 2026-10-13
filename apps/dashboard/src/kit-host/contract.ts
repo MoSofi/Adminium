@@ -19,7 +19,7 @@ export const KIT_CONTRACT = 1;
 export type KitPartName = 'mentions' | 'board' | 'map' | 'import';
 
 /** The parts a mount can draw today. The others are named so that adding one changes no signature. */
-export const KIT_PARTS_AVAILABLE: readonly KitPartName[] = ['mentions', 'board', 'map'];
+export const KIT_PARTS_AVAILABLE: readonly KitPartName[] = ['mentions', 'board', 'map', 'import'];
 
 /** One language's words, part by part: `ns:key` to its text (./words/, written by scripts/gen-kit-words.mjs). */
 export type KitWords = Record<KitPartName, Record<string, string>>;
@@ -305,14 +305,76 @@ export interface MapProps extends KitCommonProps {
   ariaLabel?: string | undefined;
 }
 
-/** A part that is named but cannot be mounted yet. */
+/** One table rows may be brought in to. */
+export interface ImportTable {
+  /** The table, as the `tables` of the side's config gives it. */
+  table: string;
+  /** What the person reads for it ("Companies"): in the picker, and in a refusal. */
+  label: string;
+  /**
+   * The columns a file's columns can be mapped to: each one's stored name
+   * and what to call it. `unique` marks a column no two rows share: when any
+   * column is marked, lines can be matched on the marked ones only. (Somebody
+   * held to their own rows may match on no other kind; the server refuses.)
+   */
+  columns: readonly { key: string; label?: string | undefined; unique?: boolean | undefined }[];
+  /** The column (one of `columns`, by its key) lines are matched on to begin with. The person may change it. */
+  matchOn?: string | undefined;
+}
+
+/** What an import did, once it has run. `failed` are the lines the server refused; they are among `skipped`. */
+export interface ImportResult {
+  created: number;
+  updated: number;
+  skipped: number;
+  failed: number;
+}
+
+/** The import wizard: paste or upload, map the columns, see what each line would do, run. */
+export interface ImportProps extends KitCommonProps {
+  /** `connectionId` of the side's config. */
+  connectionId: string;
+  /** One table and the person is not asked; several and they pick one, by its label. */
+  tables: readonly ImportTable[];
+  /**
+   * `csrfToken` of the side's config. The part talks to this Adminium with
+   * the person's own session, and the server takes no change without it.
+   * A new one (after signing in again) is taken by `update`.
+   */
+  csrfToken: string;
+  /**
+   * Used in place of the browser's `fetch` for every call the part makes
+   * (same-origin paths under `/api/v1/imports` and `/api/v1/jobs`). Left
+   * out, the browser's own, with the session's cookie and `csrfToken`.
+   */
+  fetch?: ((input: string, init?: RequestInit) => Promise<Response>) | undefined;
+  /**
+   * What may be done with a line that is already in the table: left as it
+   * is (`skip`), or updated (`update`). The first is the one chosen to begin
+   * with. Default both, `skip` first. Updating needs the right to update,
+   * which the server checks when the import is made and again when it runs.
+   */
+  modes?: readonly ('skip' | 'update')[] | undefined;
+  /** Whether rows are pasted, a file is dropped, or either. Default both. */
+  sources?: readonly ('paste' | 'file')[] | undefined;
+  /** A heading above the steps. */
+  title?: string | undefined;
+  /** The wizard's name for a screen reader, when there is no `title`. */
+  ariaLabel?: string | undefined;
+  /** Called once, when the import has run. */
+  onDone?: ((result: ImportResult) => void) | undefined;
+  /** Gives the last step a "Close" button, and is called by it. */
+  onClose?: (() => void) | undefined;
+}
+
+/** A part that is named but cannot be mounted yet. None is, today; the type stays for the next one. */
 export type KitPartNotYet = Record<string, never>;
 
 export interface KitPartProps {
   mentions: MentionsProps;
   board: BoardProps;
   map: MapProps;
-  import: KitPartNotYet;
+  import: ImportProps;
 }
 
 /** What a mount answers. */

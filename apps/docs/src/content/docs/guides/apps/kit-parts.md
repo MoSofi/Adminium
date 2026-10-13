@@ -1,6 +1,6 @@
 ---
 title: Adminium's own parts on an app's screen
-description: "Draw one of Adminium's larger parts, the text box that mentions people, the board or the map, inside a screen your app wrote itself: the address in the side's config, the mount call, the props, what your screen saves and what the part does, the look, and what a person who opens only your screens gets."
+description: "Draw one of Adminium's larger parts, the text box that mentions people, the board, the map or the import wizard, inside a screen your app wrote itself: the address in the side's config, the mount call, the props, what your screen saves and what the part does, the look, and what a person who opens only your screens gets."
 ---
 
 A staff side is a bundle of its own: its own React, or none. Some parts are too large to write
@@ -9,10 +9,10 @@ mentioned, the board, the map, the import. Adminium serves these itself, and a s
 with a small call: "draw it in this element". The part is drawn by Adminium's own React. Yours
 never meets it, so a screen written in plain JavaScript can use a part as well as one in React.
 
-Today three parts can be mounted: **the mention text area** (`mentions`), **the board** (`board`)
-and **the map** (`map`). `import` is named and arrives in a later version with the same call;
-asking for it now is refused with an error whose `code` is `KIT_PART_NOT_YET`. `kit.parts` lists
-the ones this Adminium can mount.
+Four parts can be mounted: **the mention text area** (`mentions`), **the board** (`board`), **the
+map** (`map`) and **the import wizard** (`import`). `kit.parts` lists the ones this Adminium can
+mount: an older Adminium has fewer, and refuses one it names and has not built yet with an error
+whose `code` is `KIT_PART_NOT_YET`.
 
 This is for a **staff side**. A customer side is told nothing of the kit, and a customer address
 refuses its files.
@@ -26,7 +26,7 @@ The staff side's `surface-config.json` names it:
   "kit": {
     "contract": 1,
     "entry": "/assets/kit/kit-BHhBq5nz.js",
-    "styles": ["/assets/kit/root-DF31DXoR.css", "/assets/kit/board-Cq0vLx2A.css", "/assets/kit/map-DjqTAZ9Z.css"]
+    "styles": ["/assets/kit/root-DF31DXoR.css", "/assets/kit/board-Cq0vLx2A.css", "/assets/kit/import-CGzukXkN.css", "/assets/kit/map-DjqTAZ9Z.css"]
   },
   "maps": { "enabled": true, "server": "https://tiles.openfreemap.org", "routing": false },
   "locale": "ar-EG",
@@ -428,6 +428,90 @@ It is safe to call when a colleague's change arrives on the live stream.
 Give the element you mount into a width. With no height of its own the map is 20rem tall and the
 list takes the room it needs; with one, the part fills it.
 
+## The import wizard
+
+Rows brought in to one of your app's tables: pasted from a spreadsheet or dropped as a CSV file,
+their columns mapped to the table's, each line looked at before anything is written (new, already
+here, or refused), then run, with the numbers of what happened. It is the dashboard's own Import
+wizard, so it behaves the same there and here.
+
+```ts
+const wizard = await kit.mount('import', document.querySelector('#paste-a-list'), {
+  connectionId: config.connectionId,
+  csrfToken: config.csrfToken,
+  tables: [
+    {
+      table: config.tables.companies,
+      label: 'Companies',
+      columns: [
+        { key: 'name', label: 'Name' },
+        { key: 'vat_no', label: 'VAT number', unique: true },     // no two companies share it
+        { key: 'city', label: 'City' },
+      ],
+      matchOn: 'vat_no',
+    },
+  ],
+  modes: staff.can('companies', 'update') ? ['skip', 'update'] : ['skip'],
+  title: 'Paste a list',
+  locale: config.locale,
+  dir: config.dir,
+  onDone: ({ created, updated, skipped, failed }) => refreshTheList(),
+  onClose: () => router.go('/companies'),
+});
+```
+
+### Props
+
+| Prop | |
+|---|---|
+| `connectionId` | `connectionId` of the side's config. Required. |
+| `tables` | The tables rows may go into. Required. With one, the person is not asked; with several, they pick one by its `label`. Each: `table` (as the config's `tables` gives it), `label`, `columns`, and optionally `matchOn`. |
+| `csrfToken` | `csrfToken` of the side's config. Required: the part talks to this Adminium with the person's own session, and the server takes no change without it. |
+| `locale`, `dir` | From the side's config. Required. |
+| `fetch` | Used in place of the browser's `fetch` for every call the part makes. Left out, the browser's own, with the session's cookie and `csrfToken`. |
+| `modes` | What may be done with a line that is already in the table: `'skip'` (left as it is) or `'update'`. The first is the one chosen to begin with; with one, the person is not asked. Default both, `skip` first. |
+| `sources` | `'paste'`, `'file'`, or both (the default). |
+| `title`, `ariaLabel` | A heading above the steps, or the wizard's name for a screen reader when there is none. |
+| `onDone({ created, updated, skipped, failed })` | Called once when an import has run. `failed` are the lines the server refused; they are among `skipped`. |
+| `onClose()` | Gives the last step a "Close" button, and is called by it. |
+| `theme` | `light` or `dark`, as for every part. |
+
+A table's `columns` are the ones a person may bring in: each `key` (the column's stored name) and
+`label`. Mark with `unique: true` the columns no two rows share. When any column is marked, lines
+can be matched on the marked ones only; `matchOn` names the one chosen to begin with. With no
+match column every line is new.
+
+### What the person's role decides
+
+The part calls the same doors the dashboard does, as the signed-in person, so the server decides
+everything, and what it refuses is said in the wizard in the person's language:
+
+- **no right to import** the table: said by the table's `label`, when the lines are checked;
+- **matching** lines against the rows already there needs the right to **read** the table;
+- **updating** the rows a file matches needs the right to **update** them. The server checks it
+  when the import is made and again when it runs, so offer `'update'` only to those who hold it;
+- a match column that is **masked** for the person's role is refused, and somebody held to their
+  own rows may match only on a column no two rows share. These two are said in the server's own
+  sentence;
+- more than 32 MB is too large.
+
+A line the table's own rules refuse (a value missing, a number that is not one) does not stop the
+import: it is shown as refused before the run, skipped by it, and listed in a report the last step
+offers to download.
+
+Somebody whose role is [screens only](/guides/apps/roles-and-staff-access/) can use the part: the
+routes of one import are among the few the server answers them, and each still asks the table's
+rights. The part reads nothing of the dashboard.
+
+### What `update` keeps
+
+`update(props)` changes the wizard that is there: what was pasted, the mapping and the step the
+person is on stay, also when you hand over the same table in a new list. A new `csrfToken` (the
+person signed in again) is used by the next call. Picking another table starts over.
+
+Give the element you mount into a width. With no height of its own the wizard is as tall as its
+step; with one, the step scrolls inside it.
+
 ## The look
 
 The kit brings its own styles and loads them when a part is first mounted. Every rule is held
@@ -467,7 +551,8 @@ file the dashboard uses, so a person who has opened the dashboard already has it
 brings drag and drop (about 14 kB compressed), again the dashboard's own file, and only when a
 board is mounted. The map brings the map library (about 290 kB compressed) and its worker (about
 150 kB), the dashboard's own files too, and only when a map is drawn: with maps switched off
-neither is fetched. The files carry
+neither is fetched. The import wizard brings its own code and controls (about 25 kB compressed)
+and nothing of the dashboard's first load. The files carry
 a hash of their content in their names and are kept by the browser for good.
 
 All of it comes from the address the side is served from, so it fits

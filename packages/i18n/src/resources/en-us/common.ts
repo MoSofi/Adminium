@@ -163,25 +163,6 @@ export default {
     "signOut": "Sign out",
     "toggleSidebar": "Toggle sidebar"
   },
-  "palette": {
-    "dialog": "Command palette",
-    "placeholder": "Type a command or search…",
-    "navigate": "Navigate",
-    "actions": "Actions",
-    "askAi": "Ask AI",
-    "shortcuts": "Keyboard shortcuts",
-    "signOut": "Sign out",
-    "themeDark": "Dark mode",
-    "themeLight": "Light mode",
-    "footerNavigate": "navigate",
-    "footerOpen": "select",
-    "footerClose": "close",
-    "recent": "Recent",
-    "searching": "Searching records…",
-    "records": "Records",
-    "empty": "No results for \"{query}\"",
-    "apps": "Apps"
-  },
   "shortcuts": {
     "title": "Keyboard shortcuts",
     "subtitle": "Work faster across Adminium",
@@ -533,54 +514,6 @@ export default {
       }
     }
   },
-  "onboarding": {
-    "title": "Getting started",
-    "subtitle": "A few steps to get your workspace ready.",
-    "loading": "Loading your setup checklist…",
-    "welcome": "Welcome to Adminium, {name} 👋",
-    "progressBody": "You’ve completed {done} of {total} setup steps. Finish the rest to unlock the full workspace.",
-    "completeBody": "You’re all set — your workspace is fully configured.",
-    "ringLabel": "{done} of {total} steps complete",
-    "done": "Done",
-    "skip": "Skip for now",
-    "goToWorkspace": "Go to workspace",
-    "help": {
-      "title": "Need a hand?",
-      "body": "We’re here to help you get set up fast."
-    },
-    "steps": {
-      "connectDatabase": {
-        "title": "Connect a database",
-        "desc": "Point Adminium at your Postgres, MySQL or SQLite — a read-only role is welcome.",
-        "time": "5 min",
-        "action": "Connect"
-      },
-      "chooseTables": {
-        "title": "Choose your tables",
-        "desc": "Pick which tables become pages — PII is masked by default.",
-        "time": "2 min",
-        "action": "Choose"
-      },
-      "inviteTeammates": {
-        "title": "Invite teammates",
-        "desc": "Bring your team in to explore and collaborate.",
-        "time": "2 min",
-        "action": "Invite"
-      },
-      "workspaceDefaults": {
-        "title": "Set workspace defaults",
-        "desc": "Theme, accent, density and language everyone starts with.",
-        "time": "1 min",
-        "action": "Set defaults"
-      }
-    },
-    "entry": {
-      "wayBack": "Getting started · {done}/{total}",
-      "dismiss": "Dismiss setup checklist",
-      "continue": "Continue setup",
-      "banner": "Finish setting up your workspace — {done} of {total} steps done."
-    }
-  },
   "views": {
     "baseView": "All records",
     "menuLabel": "Saved views",
@@ -859,42 +792,6 @@ export default {
       "details": "Sharing details"
     }
   },
-  "capabilities": {
-    "heading": "App permissions",
-    "description": "Apps you install can ask to use this computer’s hardware. You approve each one, and can revoke access anytime.",
-    "grantedTo": "Allowed for {app}",
-    "status": {
-      "available": "Available",
-      "stub": "Not available yet",
-      "unavailable": "Unavailable"
-    },
-    "allow": {
-      "action": "Allow…"
-    },
-    "revoke": {
-      "action": "Revoke",
-      "saved": "Access revoked",
-      "failed": "Could not revoke access. Try again."
-    },
-    "grant": {
-      "saved": "Access allowed",
-      "failed": "Could not allow access. Try again."
-    },
-    "catalog": {
-      "printerEscpos": {
-        "name": "Receipt printer (ESC/POS)",
-        "scope": "Print to receipt printers and open a connected cash drawer"
-      }
-    },
-    "consent": {
-      "title": "Allow {app}?",
-      "subtitle": "{app} is asking to use this computer’s hardware.",
-      "willAllow": "This will allow {app} to:",
-      "revokeNote": "You can revoke this at any time in Settings → Desktop. Only allow apps you trust.",
-      "deny": "Not now",
-      "approve": "Allow"
-    }
-  },
   "board": {
     "addCard": "Add card",
     "compose": {
@@ -1061,75 +958,6 @@ export default {
   "theme": {
     "toLight": "Light mode",
     "toDark": "Dark mode"
-  },
-  "audit": {
-    "action": {
-      "view": "View"
-    },
-    "actor": {
-      "apiKey": "API key",
-      "automation": "Automation",
-      "system": "System",
-      "user": "User"
-    },
-    "category": {
-      "auth": "Sign-in & accounts",
-      "automation": "Automations",
-      "connection": "Connections",
-      "data": "Records",
-      "export": "Imports & exports",
-      "llm": "AI assist",
-      "rbac": "Roles & permissions",
-      "schema": "Schema",
-      "settings": "Settings",
-      "system": "System"
-    },
-    "column": {
-      "action": "Action",
-      "actor": "Actor",
-      "category": "Category",
-      "details": "Details",
-      "when": "When"
-    },
-    "drawer": {
-      "actorId": "Actor id",
-      "actorKind": "Actor type",
-      "after": "After",
-      "before": "Before",
-      "category": "Category",
-      "changes": "Changes",
-      "connection": "Connection",
-      "field": "Field",
-      "ip": "IP address",
-      "noChanges": "This action recorded no before/after images.",
-      "none": "None",
-      "requestId": "Request id",
-      "resource": "Resource",
-      "subtitle": "{actor} · {when}",
-      "truncated": "Truncated at 16 KB",
-      "userAgent": "User agent",
-      "subtitleVia": "{actor}, through {name} · {when}"
-    },
-    "empty": {
-      "body": "Changes to data, schema, settings and permissions land here as they happen.",
-      "filtered": {
-        "body": "Widen the date range or clear the category filter.",
-        "title": "Nothing matches these filters"
-      },
-      "title": "Nothing has been logged yet"
-    },
-    "filterActor": "Actor id",
-    "filterCategoryAny": "Any category",
-    "filterCategory": "Filter by category",
-    "filterFrom": "From",
-    "filterTo": "To",
-    "listFailed": {
-      "title": "Could not load the audit log"
-    },
-    "loadMore": "Load older entries",
-    "subtitle": "Every change made in this workspace, who made it, and what it changed.",
-    "title": "Audit log",
-    "via": "through {name}"
   },
   "invoices": {
     "copySuffix": "{name} (copy)",

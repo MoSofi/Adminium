@@ -17,14 +17,13 @@ export {
   type FileBrowserConfig,
   type FileBrowserProps,
 } from './FileBrowser.js';
+export { UploadDropzone, type UploadDropzoneProps } from './UploadDropzone.js';
 export {
-  UploadDropzone,
   UploadDropzoneWidget,
   uploadDropzoneConfigSchema,
   uploadDropzoneDemoData,
   type UploadDropzoneConfig,
-  type UploadDropzoneProps,
-} from './UploadDropzone.js';
+} from './UploadDropzoneWidget.js';
 export {
   UploadProgressList,
   UploadProgressListWidget,

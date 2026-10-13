@@ -7,20 +7,19 @@
  * `progress-bar`.
  *
  * PRESENTATIONAL: the mapping lives in local state and every change is a
- * `mutate` intent. The widget never imports a row.
+ * `mutate` intent. The widget never imports a row. The table itself is
+ * `MappingTable.tsx`, which knows no config; this file is the registry's way
+ * in to it.
  *
  * Binds `record-list`: the ROWS are the source columns, so a payload with no
  * columns really is an empty widget (unlike the builders, which start empty by
  * design) and the frame's empty state is the right answer.
  */
 
-import { MonoText, Select, cn } from '@adminium/ui';
-import { useMaybeT } from '../../lib/i18n.js';
-import { useState } from 'react';
-
 import { DEFAULT_MAPPING_TARGETS, columnMappingTableConfigSchema, columnMappingTableDemoData } from './forms-config.js';
 import type { ColumnMappingTableConfig } from './forms-config.js';
-import { SKIP_TARGET, autoMatchTarget } from './forms-builders.js';
+import { autoMatchTarget } from './forms-builders.js';
+import { MappingTable, type MappingRow } from './MappingTable.js';
 import { recordRowsOf, stringField } from './forms-lib.js';
 import { bindingTargetOf } from './forms-state.js';
 import type { WidgetProps } from '../../registry/types.js';
@@ -28,13 +27,7 @@ import type { WidgetProps } from '../../registry/types.js';
 export { columnMappingTableConfigSchema, columnMappingTableDemoData };
 export type { ColumnMappingTableConfig };
 
-export interface MappingRow {
-  key: string;
-  column: string;
-  sample?: string | undefined;
-  /** `''` = undecided, `SKIP_TARGET` = explicitly not imported. */
-  target: string;
-}
+export type { MappingRow };
 
 /**
  * Project the `record-list` payload onto mapping rows, applying `autoMatch` to
@@ -65,91 +58,23 @@ export function mappingRowsOf(data: unknown, config: ColumnMappingTableConfig): 
 }
 
 export function ColumnMappingTableWidget({ config, data, onEvent }: WidgetProps<ColumnMappingTableConfig>) {
-  const t = useMaybeT();
-  const targets = config.targets ?? DEFAULT_MAPPING_TARGETS;
-  const [rows, setRows] = useState<MappingRow[]>(() => mappingRowsOf(data, config));
   const target = bindingTargetOf(config.binding);
-  // Used by the column header AND each row picker's aria-label — resolve once.
-  const targetHeader = config.targetHeader ?? t('ui:widgets.forms.columnMappingTable.targetHeader', 'Target field');
-
-  const setTarget = (index: number, next: string) => {
-    const updated = rows.map((row, i) => (i === index ? { ...row, target: next } : row));
-    setRows(updated);
-    if (target === null) return; // unbound (demo/story/palette)
-    const mapping: Record<string, string> = {};
-    for (const row of updated) {
-      // Undecided columns are omitted, not sent as `''`: the host's importer
-      // must be able to tell "skip this" from "nobody has said yet".
-      if (row.target !== '') mapping[row.column] = row.target;
-    }
-    onEvent({
-      type: 'mutate',
-      intent: 'update',
-      connectionId: target.connectionId,
-      table: target.table,
-      values: { mapping },
-    });
-  };
-
   return (
-    <div
-      data-widget="column-mapping-table"
-      data-testid={config.testId}
-      className="flex h-full flex-col overflow-auto px-[var(--widget-pad)] pb-[var(--widget-pad)]"
-    >
-      <div role="table" className="min-w-full">
-        <div
-          role="row"
-          className="grid grid-cols-[minmax(6rem,1fr)_minmax(6rem,1fr)_minmax(8rem,1fr)] gap-2 border-b border-border pb-1.5"
-        >
-          <span role="columnheader" className="text-caption font-bold uppercase tracking-wide text-fg-subtle">
-            {config.sourceHeader ?? t('ui:widgets.forms.columnMappingTable.sourceHeader', 'Source column')}
-          </span>
-          <span role="columnheader" className="text-caption font-bold uppercase tracking-wide text-fg-subtle">
-            {config.sampleHeader ?? t('ui:widgets.forms.columnMappingTable.sampleHeader', 'Sample')}
-          </span>
-          <span role="columnheader" className="text-caption font-bold uppercase tracking-wide text-fg-subtle">
-            {targetHeader}
-          </span>
-        </div>
-
-        {rows.map((row, index) => (
-          <div
-            key={row.key}
-            role="row"
-            data-part="mapping-row"
-            data-column={row.column}
-            data-target={row.target === '' ? undefined : row.target}
-            className="grid grid-cols-[minmax(6rem,1fr)_minmax(6rem,1fr)_minmax(8rem,1fr)] items-center gap-2 border-b border-border/50 py-1.5"
-          >
-            <MonoText role="cell" className="min-w-0 truncate text-body-sm text-fg">
-              {row.column}
-            </MonoText>
-            <MonoText role="cell" data-part="mapping-sample" className="min-w-0 truncate text-caption text-fg-muted">
-              {row.sample ?? '—'}
-            </MonoText>
-            <span role="cell" className="min-w-0">
-              <Select
-                aria-label={`${targetHeader} — ${row.column}`}
-                data-part="mapping-target"
-                value={row.target}
-                onChange={(event) => setTarget(index, event.currentTarget.value)}
-                className={cn(row.target === SKIP_TARGET && 'text-fg-subtle')}
-              >
-                <option value="" />
-                {targets.map((entry) => (
-                  <option key={entry.key} value={entry.key}>
-                    {entry.label ?? entry.key}
-                  </option>
-                ))}
-                <option value={SKIP_TARGET}>
-                  {config.skipLabel ?? t('ui:widgets.forms.columnMappingTable.skip', "Don't import")}
-                </option>
-              </Select>
-            </span>
-          </div>
-        ))}
-      </div>
-    </div>
+    <MappingTable
+      rows={mappingRowsOf(data, config)}
+      targets={config.targets ?? DEFAULT_MAPPING_TARGETS}
+      {...(config.sourceHeader === undefined ? {} : { sourceHeader: config.sourceHeader })}
+      {...(config.sampleHeader === undefined ? {} : { sampleHeader: config.sampleHeader })}
+      {...(config.targetHeader === undefined ? {} : { targetHeader: config.targetHeader })}
+      {...(config.skipLabel === undefined ? {} : { skipLabel: config.skipLabel })}
+      {...(config.testId === undefined ? {} : { testId: config.testId })}
+      // Unbound (demo/story/palette): nothing is told to anybody.
+      {...(target === null
+        ? {}
+        : {
+            onMapping: (mapping: Record<string, string>) =>
+              onEvent({ type: 'mutate', intent: 'update', connectionId: target.connectionId, table: target.table, values: { mapping } }),
+          })}
+    />
   );
 }

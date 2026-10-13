@@ -30,14 +30,24 @@
  * server at all; a map server that is down leaves the list; Arabic runs
  * right to left round a map that does not mirror; and at 390 wide the list
  * goes under the map and the page never scrolls sideways.
+ *
+ * And the import wizard, as somebody whose role opens ONLY this app's
+ * screens: they have no dashboard, and the part asks for none of it. Three
+ * rows are pasted, looked at (which are new, which are here already), run,
+ * and are in the table; pasted again, every one is already here and nothing
+ * is brought in; the whole walk is made with the keyboard alone; what the
+ * person's role does not let them do (import at all, or update the rows a
+ * file matches) is said in the part in words, and the server refuses the
+ * same call made directly; Arabic runs right to left; and at 390 wide no
+ * step makes the page scroll sideways.
  */
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Browser, type BrowserContext, type Page } from '@playwright/test';
 
 import { bundleOf } from './appBundle.js';
-import { ADMIN_NAME } from './constants.js';
+import { ADMIN_NAME, BASE_URL } from './constants.js';
 import { seededConnectionId, signIn } from './helpers.js';
 
 /**
@@ -69,6 +79,12 @@ const MANIFEST = {
   categories: ['operations'],
   // A floor this server meets, as the other fixtures': the kit is the server's, not the manifest's.
   compatibility: { minAdminiumVersion: '0.2.8' },
+  // Two roles that open this app's screens and nothing of the dashboard: one may read and bring in companies
+  // (and not change one that is there), the other may only read them.
+  roles: [
+    { key: 'rep', name: 'Rep', screensOnly: true, permissions: ['table:@companies:read', 'table:@companies:create', 'table:@companies:import', 'app:@:staff'] },
+    { key: 'looker', name: 'Looker', screensOnly: true, permissions: ['table:@companies:read', 'app:@:staff'] },
+  ],
   requiredSchema: {
     prefixed: true,
     tables: [
@@ -85,6 +101,16 @@ const MANIFEST = {
         states: { column: 'stage', initial: 'new', moves: { new: ['talking'], talking: ['won', 'new'] } },
       },
       {
+        ref: 'companies',
+        columns: [
+          { ref: 'id', type: 'int', role: 'pk' },
+          { ref: 'name', type: 'text', maxLength: 80 },
+          // The company's own number: what no two rows share, and what a pasted line is matched on.
+          { ref: 'code', type: 'text', maxLength: 20, nullable: true },
+          { ref: 'city', type: 'text', maxLength: 80, nullable: true },
+        ],
+      },
+      {
         ref: 'places',
         columns: [
           { ref: 'id', type: 'int', role: 'pk' },
@@ -98,6 +124,7 @@ const MANIFEST = {
   pages: [
     { ref: 'e2e-kit-notes', template: 'page-crud', title: { key: 'mft.e2e-kit.notes', fallback: 'Kit notes' }, nav: { group: 'library', icon: 'list', order: 9 }, bindings: { rows: 'notes' } },
     { ref: 'e2e-kit-deals', template: 'page-crud', title: { key: 'mft.e2e-kit.deals', fallback: 'Kit deals' }, nav: { group: 'library', icon: 'list', order: 10 }, bindings: { rows: 'deals' } },
+    { ref: 'e2e-kit-companies', template: 'page-crud', title: { key: 'mft.e2e-kit.companies', fallback: 'Kit companies' }, nav: { group: 'library', icon: 'list', order: 12 }, bindings: { rows: 'companies' } },
     { ref: 'e2e-kit-places', template: 'page-crud', title: { key: 'mft.e2e-kit.places', fallback: 'Kit places' }, nav: { group: 'library', icon: 'list', order: 11 }, bindings: { rows: 'places' } },
   ],
   frontends: [{ side: 'staff', kind: 'spa', entry: 'index.html', routes: { notes: '/' } }],
@@ -117,6 +144,7 @@ const PAGE = `<!doctype html>
     <p id="own-classes" class="flex hidden truncate sr-only border">The app's own line</p>
     <div id="board"></div>
     <div id="map"></div>
+    <div id="import"></div>
     <pre id="stored"></pre>
     <p id="failed"></p>
     <script type="module" src="./screen.js"></script>
@@ -130,7 +158,9 @@ body[data-tokens] { --accent: rgb(200, 30, 90); }
 body[data-part="board"] > h1, body[data-part="board"] > #own, body[data-part="board"] > #stored { display: none; }
 body[data-part="board"] { margin: 12px; }
 body[data-part="map"] > h1, body[data-part="map"] > #own, body[data-part="map"] > #stored { display: none; }
-body[data-part="map"] { margin: 12px; }`;
+body[data-part="map"] { margin: 12px; }
+body[data-part="import"] > h1, body[data-part="import"] > #own, body[data-part="import"] > #stored { display: none; }
+body[data-part="import"] { margin: 12px; }`;
 
 /** The whole screen: no framework, no bundler. What an app's loader does, in a dozen lines. */
 const SCREEN = `const stored = document.querySelector('#stored');
@@ -149,6 +179,13 @@ try {
     document.body.dataset.part = 'map';
     const { places } = await import('./map.js');
     window.kitScreen = { config, kit, ...(await places(config, kit, asked)) };
+    document.body.dataset.kit = 'ready';
+    throw 'mounted';
+  }
+  if (asked.get('part') === 'import') {
+    document.body.dataset.part = 'import';
+    const { importer } = await import('./import.js');
+    window.kitScreen = { config, kit, ...(await importer(config, kit, asked)) };
     document.body.dataset.kit = 'ready';
     throw 'mounted';
   }
@@ -294,6 +331,34 @@ const MAP = `export async function places(config, kit, asked) {
   return { map, saves, picked, routes, read };
 }`;
 
+/**
+ * The app's "Paste a list" screen: the app knows its table, what to call it,
+ * the columns a person may bring in and which of them no two rows share, and
+ * which modes this person is allowed. It hands those over with the config's
+ * connection and token, and hears what the import did.
+ */
+const IMPORT = `export async function importer(config, kit, asked) {
+  const done = [];
+  const part = await kit.mount('import', document.querySelector('#import'), {
+    connectionId: config.connectionId,
+    tables: [{
+      table: config.tables.companies,
+      label: 'Companies',
+      matchOn: 'code',
+      columns: [{ key: 'name', label: 'Name' }, { key: 'code', label: 'Code', unique: true }, { key: 'city', label: 'City' }],
+    }],
+    csrfToken: config.csrfToken,
+    modes: (asked.get('modes') ?? 'skip').split(','),
+    title: 'Paste a list',
+    locale: asked.get('locale') ?? config.locale,
+    dir: asked.get('dir') ?? config.dir,
+    ...(asked.get('theme') === null ? {} : { theme: asked.get('theme') }),
+    onDone: (result) => { done.push(result); document.body.dataset.done = JSON.stringify(result); },
+    onClose: () => { document.body.dataset.closed = 'yes'; },
+  });
+  return { part, done };
+}`;
+
 test.describe.configure({ mode: 'serial' });
 
 test.beforeAll(async ({ browser }) => {
@@ -308,6 +373,7 @@ test.beforeAll(async ({ browser }) => {
     'staff/screen.js': SCREEN,
     'staff/board.js': BOARD,
     'staff/map.js': MAP,
+    'staff/import.js': IMPORT,
     'staff/screen.css': SHEET,
   });
   const uploaded = await page.request.post(`/api/v1/apps/upload?expectedSha512=${encodeURIComponent(bundle.integrity)}`, { headers: { 'content-type': 'application/octet-stream' }, data: bundle.buffer });
@@ -350,11 +416,12 @@ test('the config names the kit and the map, and the files it names are kept for 
   const config = (await (await page.request.get(`${STAFF}surface-config.json`)).json()) as { kit?: { contract: number; entry: string; styles: string[] }; maps?: unknown; locale?: string; dir?: string };
   expect(config.kit?.contract).toBe(1);
   expect(config.kit?.entry).toMatch(/^\/assets\/kit\/kit-[\w-]+\.js$/);
-  // Every sheet of the kit, the one all parts stand on first, then the board's own and the map's.
-  expect(config.kit?.styles).toHaveLength(3);
+  // Every sheet of the kit, the one all parts stand on first, then the board's own, the import's and the map's.
+  expect(config.kit?.styles).toHaveLength(4);
   expect(config.kit?.styles[0]).toMatch(/^\/assets\/kit\/root-[\w-]+\.css$/);
   expect(config.kit?.styles[1]).toMatch(/^\/assets\/kit\/board-[\w-]+\.css$/);
-  expect(config.kit?.styles[2]).toMatch(/^\/assets\/kit\/map-[\w-]+\.css$/);
+  expect(config.kit?.styles[2]).toMatch(/^\/assets\/kit\/import-[\w-]+\.css$/);
+  expect(config.kit?.styles[3]).toMatch(/^\/assets\/kit\/map-[\w-]+\.css$/);
   for (const sheet of config.kit!.styles) {
     const reply = await page.request.get(sheet);
     expect(reply.headers()['content-type']).toContain('text/css');
@@ -381,7 +448,7 @@ test('a plain page mounts the mention box, and a person picked from the real lis
 
   // The door's own answers.
   expect(await page.evaluate(() => (window as unknown as { kitScreen: { contract: number; parts: string[] } }).kitScreen.contract)).toBe(1);
-  expect(await page.evaluate(() => (window as unknown as { kitScreen: { parts: string[] } }).kitScreen.parts)).toEqual(['mentions', 'board', 'map']);
+  expect(await page.evaluate(() => (window as unknown as { kitScreen: { parts: string[] } }).kitScreen.parts)).toEqual(['mentions', 'board', 'map', 'import']);
   // The page has no React of its own, and the kit put none on the window.
   expect(await page.evaluate(() => 'React' in window || 'ReactDOM' in window)).toBe(false);
   // Only the mention box's files came: the door, the part, the words of one language, what they share with the dashboard, one sheet.
@@ -451,15 +518,15 @@ test('a plain page mounts the mention box, and a person picked from the real lis
   await expect(box).not.toHaveAttribute('aria-invalid', 'true');
   await expect.poll(() => box.evaluate((el) => getComputedStyle(el).borderTopColor)).toBe('rgb(200, 30, 90)');
 
-  // A part that is not built yet is refused by name; the page stands.
+  // A part the kit never heard of is refused by name; the page stands.
   const refused = await page.evaluate(async () => {
     const { kit } = (window as unknown as { kitScreen: { kit: { mount(part: string, element: Element, props: unknown): Promise<unknown> } } }).kitScreen;
-    return kit.mount('import', document.body, {}).then(
+    return kit.mount('wizard', document.body, {}).then(
       () => 'mounted',
       (error: { code?: string }) => error.code ?? 'no code',
     );
   });
-  expect(refused).toBe('KIT_PART_NOT_YET');
+  expect(refused).toBe('KIT_PART_UNKNOWN');
 
   // Taken away again, the element is the app's as it was.
   await page.evaluate(() => (window as unknown as { kitScreen: { box: { unmount(): void } } }).kitScreen.box.unmount());
@@ -1680,4 +1747,358 @@ test('dark where the app says dark, with the map server’s dark style; and a ro
   await expect(pinOf(page, '1. Harbour Cafe')).toHaveAttribute('data-mine', 'kept');
   await expect.poll(() => first.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe('rgb(79, 70, 229)');
   expect(problems).toEqual([]);
+});
+
+/* ------------------------------------------------------------ the import */
+
+const IMPORT_PAGE = '?part=import';
+const REP = { email: 'e2e-kit-rep@adminium.local', name: 'Kit Rep', password: 'adminium-e2e-kit-rep' };
+const PASTED = ['Name,Code,City', 'Harbour Cafe,HC-1,Kiel', 'Second Wind,SW-2,Lyon', 'Third Coast,TC-3,Rome'];
+
+/** The rep: somebody whose one role opens this app's screens and nothing of the dashboard. Made and signed in once, when the first test needs them. */
+let rep: { id: string; cookies: Awaited<ReturnType<BrowserContext['cookies']>>; roles: Record<'rep' | 'looker', string> } | undefined;
+
+/**
+ * Invited by the administrator with the app's `rep` role, activated through
+ * the reset route, and signed in ONCE; every test then starts from that
+ * session. The sign-in is one of the five a minute this server takes from an
+ * address, and a run of this file alone meets the setup project's in the same
+ * minute: a refusal is waited out once, never worked round.
+ */
+async function repOf(browser: Browser, admin: Page): Promise<NonNullable<typeof rep>> {
+  if (rep !== undefined) return rep;
+  test.setTimeout(180_000);
+  const all = ((await (await admin.request.get('/api/v1/roles')).json()) as { roles: { id: string; slug: string }[] }).roles;
+  const roles = { rep: all.find((role) => role.slug === `${KEY}-rep`)!.id, looker: all.find((role) => role.slug === `${KEY}-looker`)!.id };
+  const users = (await (await admin.request.get('/api/v1/users?q=e2e-kit-rep')).json()) as { users?: { id: string; email: string }[] };
+  for (const user of users.users ?? []) if (user.email === REP.email) await admin.request.delete(`/api/v1/users/${user.id}`);
+  const invited = await admin.request.post('/api/v1/users', { data: { email: REP.email, name: REP.name, roleIds: [roles.rep] } });
+  expect(invited.status(), await invited.text()).toBe(201);
+  const { invite, user } = (await invited.json()) as { invite: { token: string }; user: { id: string } };
+  const context = await browser.newContext({ baseURL: BASE_URL, storageState: { cookies: [], origins: [] } });
+  const page = await context.newPage();
+  const activated = await page.request.post('/api/v1/auth/password/reset', { data: { token: invite.token, newPassword: REP.password } });
+  expect(activated.ok(), await activated.text()).toBe(true);
+  await page.goto('/login');
+  const signIn = (): Promise<number> =>
+    page.evaluate(
+      async ([email, password]) => (await fetch('/api/v1/auth/login', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email, password }) })).status,
+      [REP.email, REP.password] as const,
+    );
+  let status = await signIn();
+  if (status === 429) {
+    await page.waitForTimeout(61_000);
+    status = await signIn();
+  }
+  expect(status, 'the rep signs in').toBe(200);
+  rep = { id: user.id, cookies: await context.cookies(), roles };
+  await context.close();
+  return rep;
+}
+
+/** A page of the rep's own, on their session. */
+async function repPage(browser: Browser, admin: Page): Promise<{ page: Page; close: () => Promise<void>; person: NonNullable<typeof rep> }> {
+  const person = await repOf(browser, admin);
+  const context = await browser.newContext({ baseURL: BASE_URL, storageState: { cookies: person.cookies, origins: [] } });
+  return { page: await context.newPage(), close: () => context.close(), person };
+}
+
+/** The companies table as a test begins: empty, or holding the rows given. Through the data API, as the administrator. */
+async function seedCompanies(admin: Page, rows: { name: string; code: string; city: string }[] = []): Promise<void> {
+  const table = `/api/v1/data/${await connectionOf(admin)}/e2e_kit_companies`;
+  const listed = (await (await admin.request.get(`${table}?limit=200`)).json()) as { data: { id: number }[] };
+  for (const row of listed.data) expect((await admin.request.delete(`${table}/${String(row.id)}`)).ok()).toBe(true);
+  for (const values of rows) expect((await admin.request.post(table, { data: { values } })).ok()).toBe(true);
+}
+
+async function companies(admin: Page): Promise<{ name: string; code: string; city: string }[]> {
+  const { data } = (await (await admin.request.get(`/api/v1/data/${await connectionOf(admin)}/e2e_kit_companies?limit=200&order=id.asc`)).json()) as { data: { name: string; code: string; city: string }[] };
+  return data.map(({ name, code, city }) => ({ name, code, city }));
+}
+
+const wizard = (page: Page) => page.locator('#import');
+const lines = (page: Page): Promise<string[]> =>
+  wizard(page)
+    .locator('[data-testid="import-preview"] [data-line]')
+    .evaluateAll((all) => all.map((line) => `${line.getAttribute('data-status') ?? ''} ${line.querySelector('[data-part="line-label"]')?.textContent ?? ''}`));
+
+/** Pastes the three rows and walks to the preview, with the mouse. */
+async function pasteAndLook(page: Page): Promise<void> {
+  await wizard(page).getByRole('textbox').fill(PASTED.join('\n'));
+  await wizard(page).getByTestId('import-paste-use').click();
+  await wizard(page).getByTestId('wizard-validate').click();
+  await expect(wizard(page).getByTestId('validation-summary')).toBeVisible();
+}
+
+test('somebody whose role opens only the app’s screens pastes three rows: looked at, run, in the table; pasted again, nothing is brought in', async ({ page: admin, browser }) => {
+  await seedCompanies(admin, [{ name: 'Second Wind (as it was)', code: 'SW-2', city: 'Paris' }]);
+  const { page, close } = await repPage(browser, admin);
+  const problems = watch(page);
+  const asked: string[] = [];
+  const doors: string[] = [];
+  page.on('request', (request) => {
+    const url = new URL(request.url());
+    if (url.pathname.startsWith('/assets/')) asked.push(url.pathname);
+    if (url.pathname.startsWith('/api/')) doors.push(`${request.method()} ${url.pathname}`);
+  });
+  await open(page, IMPORT_PAGE);
+
+  // The person has no dashboard: this Adminium sends them back to their app when they ask for it.
+  // And the part asked for nothing of it: no session's bootstrap, no list of connections, no page.
+  expect(doors.filter((door) => /\/api\/v1\/(bootstrap|connections|pages|schema)/.test(door))).toEqual([]);
+  expect(doors.filter((door) => /\/api\/v1\/(imports|jobs)/.test(door))).toEqual([]);
+  // Its own files, the wizard's and the two sheets; not the dashboard's entry, and so not its translator.
+  expect(asked.filter((path) => /^\/assets\/kit\/import-[\w-]+\.js$/.test(path))).toHaveLength(1);
+  expect(asked.filter((path) => /^\/assets\/ImportWizard-[\w-]+\.js$/.test(path))).toHaveLength(1);
+  expect(asked.filter((path) => path.endsWith('.css')).sort()).toEqual([expect.stringMatching(/^\/assets\/kit\/import-/), expect.stringMatching(/^\/assets\/kit\/root-/)]);
+  expect(asked.some((path) => /board-|KanbanBoard-|maplibre|mentions-/.test(path))).toBe(false);
+  const entry = /<script[^>]+src="(\/assets\/index-[\w-]+\.js)"/.exec(await (await admin.request.get('/')).text())?.[1];
+  expect(entry).toBeTruthy();
+  expect(asked).not.toContain(entry);
+  for (const path of asked.filter((one) => one.endsWith('.js'))) expect((await (await admin.request.get(path)).text()).includes('i18next:'), path).toBe(false);
+
+  const part = page.locator('#import > .adm-kit');
+  await expect(part).toHaveAttribute('data-kit-part', 'import');
+  await expect(page.getByRole('group', { name: 'Paste a list' })).toBeVisible();
+  // One table: nobody is asked which. The four steps, and the first is the one in hand.
+  await expect(wizard(page).getByTestId('import-target')).toHaveCount(0);
+  await expect(wizard(page).getByText('Map columns')).toBeVisible();
+  await expect(wizard(page).getByText('Drop a CSV file to import')).toBeVisible();
+  expect(await unstyledClasses(page)).toEqual([]);
+  // The look is the kit's: the paste box has its border and its corners, in the app's own typeface.
+  const box = wizard(page).getByRole('textbox');
+  expect(await box.evaluate((el) => getComputedStyle(el).borderTopWidth + ' ' + getComputedStyle(el).borderTopStyle)).toBe('1px solid');
+  expect(await box.evaluate((el) => getComputedStyle(el).fontFamily)).toContain('Georgia');
+  expect(await page.locator('#own-classes').evaluate((el) => [getComputedStyle(el).display, getComputedStyle(el).position, getComputedStyle(el).borderTopWidth].join(' '))).toBe('block static 0px');
+
+  await box.fill(PASTED.join('\n'));
+  await wizard(page).getByTestId('import-paste-use').click();
+  // The columns are matched by their names to the columns the app named, and lines are matched on the one no two rows share.
+  await expect.poll(() => wizard(page).locator('[data-part="mapping-row"] [data-part="mapping-target"]').evaluateAll((all) => all.map((select) => (select as HTMLSelectElement).value))).toEqual(['name', 'code', 'city']);
+  const match = wizard(page).getByTestId('import-match-on');
+  await expect(match).toHaveValue('code');
+  expect(await match.locator('option').allTextContents()).toEqual(['Nothing: every line is new', 'Code']);
+  // The app allows this person one thing for a line already here, so they are not asked.
+  await expect(wizard(page).getByTestId('import-when-here')).toHaveCount(0);
+  expect(await unstyledClasses(page)).toEqual([]);
+  await wizard(page).getByTestId('wizard-validate').click();
+
+  // Looked at before anything is written.
+  await expect(wizard(page).getByTestId('validation-summary')).toHaveText('2 new lines will be brought in.');
+  await expect(wizard(page).getByTestId('validation-rest')).toHaveText('1 already here will be left as they are');
+  expect(await lines(page)).toEqual(['new HC-1', 'here SW-2', 'new TC-3']);
+  expect(await unstyledClasses(page)).toEqual([]);
+  expect(await companies(admin)).toHaveLength(1);
+  await expect(wizard(page).getByTestId('wizard-run')).toHaveText('Bring in 2 new lines');
+  await wizard(page).getByTestId('wizard-run').click();
+
+  const review = wizard(page).getByTestId('import-review');
+  await expect(review).toBeVisible({ timeout: 30_000 });
+  expect(await review.locator('.font-mono').allTextContents()).toEqual(['3', '2', '0', '1']);
+  await expect(page.locator('body')).toHaveAttribute('data-done', JSON.stringify({ created: 2, updated: 0, skipped: 1, failed: 0 }));
+  expect(await unstyledClasses(page)).toEqual([]);
+  // In the table: the two new rows as pasted, and the one that was here exactly as it was.
+  expect(await companies(admin)).toEqual([
+    { name: 'Second Wind (as it was)', code: 'SW-2', city: 'Paris' },
+    { name: 'Harbour Cafe', code: 'HC-1', city: 'Kiel' },
+    { name: 'Third Coast', code: 'TC-3', city: 'Rome' },
+  ]);
+  // Every door the part used was an import's or the job's, and each change carried the app's token (the server took them).
+  expect([...new Set(doors.map((door) => door.replace(/imp_[^/]+|job_[^/]+|\/[0-9A-Za-z_-]{16,}/g, ':id')))].every((door) => /^(GET|POST) \/api\/v1\/(imports|jobs)/.test(door))).toBe(true);
+  await wizard(page).getByTestId('wizard-close').click();
+  await expect(page.locator('body')).toHaveAttribute('data-closed', 'yes');
+
+  // The same list a second time: every line is already here, nothing would be brought in, and nothing is.
+  await open(page, IMPORT_PAGE);
+  await pasteAndLook(page);
+  expect(await lines(page)).toEqual(['here HC-1', 'here SW-2', 'here TC-3']);
+  await expect(wizard(page).getByTestId('import-nothing')).toHaveText('Nothing here would be brought in.');
+  await expect(wizard(page).getByTestId('wizard-run')).toBeDisabled();
+  expect(await companies(admin)).toHaveLength(3);
+  expect(problems).toEqual([]);
+  await close();
+});
+
+test('the whole import by keyboard alone, from the paste to the close', async ({ page: admin, browser }) => {
+  await seedCompanies(admin);
+  const { page, close } = await repPage(browser, admin);
+  const problems = watch(page);
+  await open(page, IMPORT_PAGE);
+
+  /** Tab, until the thing with this test id has the focus. */
+  const tabTo = async (id: string): Promise<void> => {
+    for (let presses = 0; presses < 40; presses += 1) {
+      if (await page.evaluate((wanted) => document.activeElement?.getAttribute('data-testid') === wanted || document.activeElement?.closest(`[data-testid="${wanted}"]`) !== null, id)) return;
+      await page.keyboard.press('Tab');
+    }
+    throw new Error(`Tab never reached ${id}`);
+  };
+
+  await tabTo('import-paste');
+  await expect(wizard(page).getByRole('textbox')).toBeFocused();
+  for (const [index, row] of PASTED.entries()) {
+    if (index > 0) await page.keyboard.press('Enter');
+    await page.keyboard.type(row);
+  }
+  await tabTo('import-paste-use');
+  await page.keyboard.press('Enter');
+  await expect(wizard(page).getByTestId('wizard-validate')).toBeVisible();
+  // The City column is taken out of the import with the keyboard: its picker, then "Don't import".
+  await tabTo('import-match-on');
+  await page.keyboard.press('Shift+Tab');
+  await expect(wizard(page).locator('[data-part="mapping-target"]').nth(2)).toBeFocused();
+  await wizard(page).locator('[data-part="mapping-target"]').nth(2).selectOption('__skip__');
+  await tabTo('wizard-validate');
+  await page.keyboard.press('Enter');
+  await expect(wizard(page).getByTestId('validation-summary')).toHaveText('3 new lines will be brought in.');
+  await tabTo('wizard-run');
+  await page.keyboard.press('Enter');
+  await expect(wizard(page).getByTestId('import-review')).toBeVisible({ timeout: 30_000 });
+  await expect(wizard(page).getByTestId('wizard-close')).toBeVisible();
+  await tabTo('wizard-close');
+  await page.keyboard.press('Enter');
+  await expect(page.locator('body')).toHaveAttribute('data-closed', 'yes');
+  expect(await companies(admin)).toEqual([
+    { name: 'Harbour Cafe', code: 'HC-1', city: null },
+    { name: 'Second Wind', code: 'SW-2', city: null },
+    { name: 'Third Coast', code: 'TC-3', city: null },
+  ]);
+  expect(problems).toEqual([]);
+  await close();
+});
+
+test('what the person’s role does not let them do is said in words, and the server refuses the same call made directly', async ({ page: admin, browser }) => {
+  await seedCompanies(admin, [{ name: 'Second Wind', code: 'SW-2', city: 'Lyon' }]);
+  const { page, close, person } = await repPage(browser, admin);
+  const faults: string[] = [];
+  page.on('console', (message) => {
+    // The browser itself logs a 403; anything else is a fault.
+    if (message.type() === 'error' && !/403/.test(message.text())) faults.push(message.text());
+  });
+  page.on('pageerror', (error) => faults.push(String(error)));
+  const setRoles = async (roleIds: string[]): Promise<void> => {
+    const put = await admin.request.put(`/api/v1/users/${person.id}/roles`, { data: { roleIds } });
+    expect(put.ok(), await put.text()).toBe(true);
+  };
+  const config = async (): Promise<{ connectionId: string; tables: Record<string, string> }> => (await (await page.request.get(`${STAFF}surface-config.json`)).json()) as { connectionId: string; tables: Record<string, string> };
+  /** The same import, made by a direct call as this person, with the file they uploaded. */
+  const direct = async (options: Record<string, unknown>): Promise<{ status: number; code?: string; permission?: string }> => {
+    const { connectionId, tables } = await config();
+    const upload = await page.request.post('/api/v1/imports/upload?filename=direct.csv', { headers: { 'content-type': 'text/csv' }, data: PASTED.join('\n') });
+    expect(upload.ok(), await upload.text()).toBe(true);
+    const { fileId } = ((await upload.json()) as { data: { fileId: string } }).data;
+    const made = await page.request.post('/api/v1/imports', {
+      data: { fileId, connectionId, table: tables['companies'], mapping: { columns: [{ from: 'Name', to: 'name' }, { from: 'Code', to: 'code' }, { from: 'City', to: 'city' }] }, options },
+    });
+    const body = (await made.json().catch(() => ({}))) as { error?: { code?: string; details?: { permission?: string } } };
+    return { status: made.status(), ...(body.error?.code === undefined ? {} : { code: body.error.code }), ...(body.error?.details?.permission === undefined ? {} : { permission: body.error.details.permission.split(':').pop()! }) };
+  };
+
+  try {
+    // The rep may bring companies in and may not change one: asked to update the lines already here, the server says no.
+    await open(page, `${IMPORT_PAGE}&modes=update,skip`);
+    await wizard(page).getByRole('textbox').fill(PASTED.join('\n'));
+    await wizard(page).getByTestId('import-paste-use').click();
+    await expect(wizard(page).getByTestId('import-when-here')).toHaveValue('upsert');
+    await wizard(page).getByTestId('wizard-validate').click();
+    const refusal = wizard(page).getByText('You do not hold the right to change rows of Companies.');
+    await expect(refusal).toBeVisible();
+    await expect(refusal).toContainText('Leave the lines already here as they are, or ask an administrator for it.');
+    expect(await unstyledClasses(page)).toEqual([]);
+    // Drawn as a refusal: the kit's red at its edge, on a page that has no such colour of its own.
+    expect(await refusal.evaluate((el) => getComputedStyle(el.closest('[data-tone]')!).borderTopColor)).toBe('color(srgb 0.811765 0.152941 0.235294 / 0.3)');
+    expect(await direct({ mode: 'upsert', matchColumn: 'code', skipInvalid: true })).toEqual({ status: 403, code: 'TABLE_FORBIDDEN', permission: 'update' });
+    // Still on the step, and the other choice goes through: the person is not stuck.
+    await wizard(page).getByTestId('import-when-here').selectOption('skip');
+    await wizard(page).getByTestId('wizard-validate').click();
+    await expect(wizard(page).getByTestId('validation-summary')).toHaveText('2 new lines will be brought in.');
+
+    // Now somebody who may only read companies: the import itself is refused, by the table's name.
+    await setRoles([person.roles.looker]);
+    await open(page, IMPORT_PAGE);
+    await wizard(page).getByRole('textbox').fill(PASTED.join('\n'));
+    await wizard(page).getByTestId('import-paste-use').click();
+    await wizard(page).getByTestId('wizard-validate').click();
+    await expect(wizard(page).getByText('You do not hold the right to import into Companies. Ask an administrator for it.')).toBeVisible();
+    await expect(wizard(page).getByTestId('wizard-validate')).toBeEnabled();
+    expect(await direct({ mode: 'skip', matchColumn: 'code', skipInvalid: true })).toEqual({ status: 403, code: 'TABLE_FORBIDDEN', permission: 'import' });
+    // Nothing was written by any of it.
+    expect(await companies(admin)).toEqual([{ name: 'Second Wind', code: 'SW-2', city: 'Lyon' }]);
+    expect(faults).toEqual([]);
+  } finally {
+    await setRoles([person.roles.rep]);
+    await close();
+  }
+});
+
+test('in Arabic the wizard runs right to left and speaks Arabic, plurals and all', async ({ page: admin, browser }) => {
+  await seedCompanies(admin, [{ name: 'Second Wind', code: 'SW-2', city: 'Lyon' }]);
+  const { page, close } = await repPage(browser, admin);
+  const problems = watch(page);
+  const asked: string[] = [];
+  page.on('request', (request) => asked.push(new URL(request.url()).pathname));
+  await open(page, `${IMPORT_PAGE}&locale=ar-EG&dir=rtl`);
+  const words = (JSON.parse(readFileSync(join(import.meta.dirname, '..', '..', '..', 'packages', 'i18n', 'locales', 'ar-EG', 'dataio.json'), 'utf8')) as { import: Record<string, string> }).import;
+
+  const wrapper = page.locator('#import > .adm-kit');
+  await expect(wrapper).toHaveAttribute('dir', 'rtl');
+  await expect(wrapper).toHaveAttribute('lang', 'ar-EG');
+  expect(asked.some((path) => /^\/assets\/kit\/ar-EG-[\w-]+\.js$/.test(path))).toBe(true);
+  expect(asked.some((path) => /^\/assets\/kit\/en-US-/.test(path))).toBe(false);
+  // The steps read from the right: the first is the rightmost.
+  const [first, second] = await Promise.all([wizard(page).getByText(words['stepUpload']!, { exact: true }).boundingBox(), wizard(page).getByText(words['stepMap']!, { exact: true }).boundingBox()]);
+  expect(first!.x).toBeGreaterThan(second!.x);
+  expect(await wizard(page).getByRole('textbox').evaluate((el) => getComputedStyle(el).direction)).toBe('rtl');
+  expect(await page.locator('#own-classes').evaluate((el) => getComputedStyle(el).direction)).toBe('ltr');
+  await expect(wizard(page).getByTestId('import-paste-use')).toHaveText(words['pasteUse']!);
+
+  await wizard(page).getByRole('textbox').fill(PASTED.join('\n'));
+  await wizard(page).getByTestId('import-paste-use').click();
+  await wizard(page).getByTestId('wizard-validate').click();
+  await expect(wizard(page).getByTestId('validation-summary')).toBeVisible();
+  // Two new lines: Arabic's own form for two, with no brace left in anything the part says.
+  const summary = (await wizard(page).getByTestId('validation-summary').textContent()) ?? '';
+  expect(summary).toMatch(/[؀-ۿ]/);
+  expect((await wizard(page).textContent()) ?? '').not.toMatch(/[{}]/);
+  await expect(wizard(page).locator('[data-testid="import-preview"] [data-count="here"]')).toContainText(words['previewHere']!);
+  expect(await unstyledClasses(page)).toEqual([]);
+  expect(problems).toEqual([]);
+  await close();
+});
+
+test('at 390 wide and dark, no step of the wizard makes the page scroll sideways', async ({ page: admin, browser }) => {
+  await seedCompanies(admin);
+  const { page, close } = await repPage(browser, admin);
+  await page.setViewportSize({ width: 390, height: 800 });
+  const problems = watch(page);
+  await open(page, `${IMPORT_PAGE}&theme=dark`);
+  const fits = async (step: string): Promise<void> => {
+    const widths = await page.evaluate(() => ({ page: document.documentElement.scrollWidth, view: document.documentElement.clientWidth, left: window.scrollX }));
+    expect(widths.page, step).toBeLessThanOrEqual(widths.view);
+    expect(widths.left, step).toBe(0);
+    expect(await unstyledClasses(page), step).toEqual([]);
+  };
+
+  await expect(page.locator('#import > .adm-kit')).toHaveAttribute('data-kit-theme', 'dark');
+  const box = wizard(page).getByRole('textbox');
+  expect((await box.boundingBox())!.width).toBeLessThanOrEqual(390);
+  expect(await box.evaluate((el) => getComputedStyle(el).color)).toBe('rgb(244, 244, 246)');
+  await fits('upload');
+  await box.fill(PASTED.join('\n'));
+  await wizard(page).getByTestId('import-paste-use').click();
+  await expect(wizard(page).getByTestId('wizard-validate')).toBeVisible();
+  // The mapping's three columns are wider than the screen: they scroll inside their own box.
+  const table = (await wizard(page).locator('[data-widget="column-mapping-table"]').boundingBox())!;
+  expect(table.x).toBeGreaterThanOrEqual(0);
+  expect(table.x + table.width).toBeLessThanOrEqual(390);
+  await fits('map');
+  await wizard(page).getByTestId('wizard-validate').click();
+  await expect(wizard(page).getByTestId('validation-summary')).toBeVisible();
+  await fits('validate');
+  await wizard(page).getByTestId('wizard-run').click();
+  await expect(wizard(page).getByTestId('import-review')).toBeVisible({ timeout: 30_000 });
+  await fits('review');
+  expect(await companies(admin)).toHaveLength(3);
+  expect(problems).toEqual([]);
+  await close();
 });

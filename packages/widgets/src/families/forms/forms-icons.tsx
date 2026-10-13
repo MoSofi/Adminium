@@ -26,7 +26,6 @@ import type { ReactNode } from 'react';
 import { QUESTION_KINDS } from './forms-builders.js';
 import type { QuestionKind } from './forms-builders.js';
 import { DEFAULT_SEVERITY_TONE, ISSUE_SEVERITIES } from './forms-lib.js';
-import type { IssueSeverity } from './forms-lib.js';
 
 /**
  * The `forms` family's CLOSED glyph vocabulary (annex). Separated from
@@ -59,16 +58,9 @@ export function formIcon(name: string | undefined): ReactNode | undefined {
   return FORM_ICONS[name];
 }
 
-/** The default glyph per issue severity (annex `validation-issues-list`). */
-const SEVERITY_ICON: Record<IssueSeverity, ReactNode> = {
-  info: <Info />,
-  warn: <TriangleAlert />,
-  error: <CircleAlert />,
-};
-
-export function severityIcon(severity: IssueSeverity): ReactNode {
-  return SEVERITY_ICON[severity];
-}
+// The glyph per issue severity is in a file of its own (`severity-icons.tsx`): the issues list is also drawn where
+// none of the other tables here should be fetched with it.
+export { severityIcon } from './severity-icons.js';
 
 /**
  * The glyph per `question-builder` palette type (annex). Keyed by the CLOSED

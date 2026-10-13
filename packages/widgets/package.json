@@ -38,6 +38,10 @@
       "types": "./dist/kit-board.d.ts",
       "default": "./dist/kit-board.js"
     },
+    "./kit-import": {
+      "types": "./dist/kit-import.d.ts",
+      "default": "./dist/kit-import.js"
+    },
     "./kit-map": {
       "types": "./dist/kit-map.d.ts",
       "default": "./dist/kit-map.js"

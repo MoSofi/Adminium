@@ -53,7 +53,26 @@ const PART_SOURCES: Record<KitPartName, string[]> = {
     'packages/ui/src/components/icon-tile/IconTile.tsx',
     'packages/ui/src/components/spinner/Spinner.tsx',
   ],
-  import: [],
+  import: [
+    'apps/dashboard/src/kit-host/parts/import.tsx',
+    'apps/dashboard/src/data-io/ImportWizard.tsx',
+    'packages/widgets/src/templates/page-wizard/PageWizard.tsx',
+    'packages/widgets/src/families/media/UploadDropzone.tsx',
+    'packages/widgets/src/families/forms/MappingTable.tsx',
+    'packages/widgets/src/families/forms/IssuesList.tsx',
+    'packages/ui/src/components/alert/Alert.tsx',
+    'packages/ui/src/components/badge/Badge.tsx',
+    'packages/ui/src/components/button/Button.tsx',
+    'packages/ui/src/components/checkbox/Checkbox.tsx',
+    'packages/ui/src/components/empty-state/EmptyState.tsx',
+    'packages/ui/src/components/icon-tile/IconTile.tsx',
+    'packages/ui/src/components/input/Input.tsx',
+    'packages/ui/src/components/mono-text/MonoText.tsx',
+    'packages/ui/src/components/progress-bar/ProgressBar.tsx',
+    'packages/ui/src/components/select/Select.tsx',
+    'packages/ui/src/components/spinner/Spinner.tsx',
+    'packages/ui/src/components/textarea/Textarea.tsx',
+  ],
 };
 
 function catalogueText(tag: string, key: string): unknown {
