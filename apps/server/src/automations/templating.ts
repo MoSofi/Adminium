@@ -86,6 +86,9 @@ export interface TokenContext {
   related?: ReadonlyMap<string, { table: ResolvedTable; row: Row | null }> | undefined;
 }
 
+/** A code no staff member reads (`code.hiddenFromStaff`): the link an order's or a quote's own e-mail carries, and nothing else does. */
+const codeKeptFromStaff = (table: ResolvedTable, name: string): boolean => table.table.columns.find((candidate) => candidate.name === name)?.code?.hiddenFromStaff === true;
+
 /**
  * Every token a run can resolve, as strings — the map handed to
  * `substitute()` here AND to `renderEmail`'s `vars` there. Both names for a
@@ -101,6 +104,8 @@ export function tokensFor(ctx: TokenContext): TokenMap {
   if (ctx.row === null || ctx.table === null) return tokens;
   for (const [name, column] of ctx.table.columns) {
     if (!(ctx.includeMasked ?? false) && (column.masked || column.secret)) continue;
+    // A code no desk hands out is no placeholder of a rule: a rule's text reaches whoever its author says.
+    if (codeKeptFromStaff(ctx.table, name)) continue;
     const value = asText(ctx.row[name], column.logicalType);
     tokens[`record.${name}`] = value;
     tokens[name] = value;
@@ -109,6 +114,7 @@ export function tokensFor(ctx: TokenContext): TokenMap {
     for (const [name, column] of far.table.columns) {
       // A secret is never a placeholder; a masked column is one exactly where the record's own are (a mail's values).
       if (column.secret || (column.masked && !(ctx.includeMasked ?? false))) continue;
+      if (codeKeptFromStaff(far.table, name)) continue;
       const value = far.row === null ? '' : asText(far.row[name], column.logicalType);
       tokens[`record.${link}.${name}`] = value;
       tokens[`${link}.${name}`] = value;

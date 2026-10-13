@@ -19,7 +19,7 @@
 import type { ResolvedTable } from '../crud/identifiers.js';
 import { staffInstants } from '../crud/instants.js';
 import { maskRow, type Row } from '../crud/mask.js';
-import { widgetDataChannel, type FrameReach, type RealtimeHub } from '../realtime/hub.js';
+import { widgetDataChannel, type FrameReach, type RealtimeEvent, type RealtimeHub } from '../realtime/hub.js';
 
 export interface WidgetStreamMutation {
   connectionId: string;
@@ -80,7 +80,7 @@ export function tableFrameReach(table: ResolvedTable): FrameReach {
  * leaves the process; `delete` events (or callers with no row) publish
  * `row: null` and rely on `pk` for buffer removal client-side.
  */
-export function publishWidgetDataStream(hub: RealtimeHub, mutation: WidgetStreamMutation): void {
+export function publishWidgetDataStream(hub: RealtimeHub, mutation: WidgetStreamMutation): RealtimeEvent {
   const channel = widgetDataChannel(mutation.connectionId, mutation.table.id);
   // A SQLite source's wall-time text as the instant it is (Postgres and MySQL hand over moments already).
   const row =
@@ -91,5 +91,5 @@ export function publishWidgetDataStream(hub: RealtimeHub, mutation: WidgetStream
     mutation.pk === null || mutation.pk === undefined
       ? null
       : maskRow(mutation.pk, mutation.table, false);
-  hub.publish(channel, mutation.type, { type: mutation.type, pk, row }, mutation.at, reachOf(mutation));
+  return hub.publish(channel, mutation.type, { type: mutation.type, pk, row }, mutation.at, reachOf(mutation));
 }

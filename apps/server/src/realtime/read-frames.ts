@@ -20,7 +20,6 @@ import type { Row } from '../crud/mask.js';
 import { loadSnapshotView } from '../data-io/snapshot-view.js';
 import { permissionSetAllows, resolvePermissionSet, type PermissionSet } from '../rbac/resolver.js';
 import { rowReachesOf, type RowReach } from '../rbac/row-limits.js';
-import { readLimitOf } from '../rbac/read-limits.js';
 import { frameReachOf, parseChannel, widgetDataChannel, widgetDataReadPermission, type RealtimeEvent, type RealtimeUser } from './hub.js';
 
 /** A subscriber's frame of a channel as they may read it now; null: not theirs any more (not sent). */
@@ -58,9 +57,11 @@ export function readLimitedFrames(meta: MetaDb): FrameFor {
       // Whose the row is: a subscriber held to some rows of the table gets the frames of theirs, and nothing of anybody else's.
       const shown = forRowsReached(event, permissions, user, parsed.connectionId, parsed.table);
       if (shown === null) return null;
-      if (readLimitOf(permissions, parsed.connectionId, parsed.table) === null) return shown;
       const data = shown.data as { row?: Row | null } | null;
       if (data === null || typeof data !== 'object' || data.row === null || data.row === undefined) return shown;
+      // Read as this person reads the table: without the columns their role does not show, and without a code no
+      // desk hands out (`code.hiddenFromStaff`), which is left out for everybody, a role with no limit and the
+      // Super Admin included. So no reader skips this, whatever their role.
       const view = readViewOf(await loadSnapshotView(meta, parsed.connectionId), permissions);
       return { ...shown, data: { ...data, row: readableImage(view, parsed.table, data.row) } };
     };

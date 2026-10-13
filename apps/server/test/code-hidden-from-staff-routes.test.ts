@@ -3,8 +3,9 @@
  * A code no desk hands out (`code.hiddenFromStaff`) stays out of what the
  * data routes answer, against the whole server on every engine: a list, one
  * record, a list that asks for the column, orders or filters by it, a search,
- * the record's history and a write's reply — for a role that reads the whole
- * table and for the Super Admin alike.
+ * the record's history, a write's reply and a live update of the row — for a
+ * role that reads the whole table and for the Super Admin alike. Nor is it a
+ * placeholder a rule's text can print.
  *
  * (`code-hidden-from-staff.test.ts` proves the view and the e-mail; this
  * proves the routes read through that view.)
@@ -12,6 +13,11 @@
 import { overridesRepo } from '@adminium/meta';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
+import { tokensFor } from '../src/automations/templating.js';
+import { loadSnapshotView } from '../src/data-io/snapshot-view.js';
+import { RealtimeHub, widgetDataChannel } from '../src/realtime/hub.js';
+import { publishWidgetDataStream } from '../src/widget-data/stream-publisher.js';
+import { readLimitedFrames } from '../src/realtime/read-frames.js';
 import { ENGINES, world, type PersonName, type World } from './row-limit-world.js';
 
 for (const [dialect, available] of ENGINES) {
@@ -60,6 +66,32 @@ for (const [dialect, available] of ENGINES) {
         expect((JSON.parse((await get(who, '/1')).body) as { data: Record<string, unknown> }).data['title']).toBe('Deal 1, renamed');
       });
     }
+
+    it('a live update of the row carries no code, to a whole-table reader and to the Super Admin', async () => {
+      // The frame as the server publishes it after a write of the row.
+      const row = (await w.rows('SELECT * FROM deals WHERE id = 1'))[0]!;
+      const view = await loadSnapshotView(w.meta, w.connectionId);
+      const channel = widgetDataChannel(w.connectionId, w.id('deals'));
+      const event = publishWidgetDataStream(new RealtimeHub(), { connectionId: w.connectionId, table: view.table(w.id('deals')), type: 'record.update', pk: { id: 1 }, row, before: row });
+      expect(JSON.stringify(event)).toContain(code);
+      for (const id of [w.people.lena, w.owner.id]) {
+        const frames = await readLimitedFrames(w.meta)({ id } as never, channel);
+        const shown = await frames!(event);
+        expect(shown, id).not.toBeNull();
+        expect(JSON.stringify(shown), id).not.toContain(code);
+        expect((shown!.data as { row: Record<string, unknown> }).row['title']).toBe('Deal 1, renamed');
+      }
+    });
+
+    it('a rule\'s text cannot print one: it is no placeholder, of the record or of a row it links to', async () => {
+      const view = await loadSnapshotView(w.meta, w.connectionId);
+      const deals = view.table(w.id('deals'));
+      const row = (await w.rows('SELECT * FROM deals WHERE id = 1'))[0]!;
+      const tokens = tokensFor({ row, table: deals, ruleName: 'r', recordLabel: 'Deal 1', now: Date.now(), includeMasked: true, related: new Map([['deal_id', { table: deals, row }]]) });
+      expect(tokens['record.title']).toBe('Deal 1, renamed');
+      expect(Object.keys(tokens).filter((name) => name.includes('ref_code'))).toEqual([]);
+      expect(JSON.stringify(tokens)).not.toContain(code);
+    });
 
     it('nobody writes one either', async () => {
       const res = await w.app.inject({ method: 'PATCH', url: `/api/v1/data/${w.connectionId}/deals/1`, headers: { cookie: await as('lena') }, payload: { values: { ref_code: 'AAAAAAAA' } } });
