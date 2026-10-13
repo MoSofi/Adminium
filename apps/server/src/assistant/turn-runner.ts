@@ -105,6 +105,15 @@ export interface TurnRunInput {
   execute: (call: { id: string; tool: string; args: Record<string, unknown> }) => Promise<AssistantToolOutcome>;
   /** Resolve the lines a `basedOn` document projects to, for the diff. */
   baseLines?: ((basedOn: string) => Promise<string[] | null>) | undefined;
+  /**
+   * The document open on the page, on a page where a draft made beside it is
+   * a change to it (the email and report editors). A draft that names no base
+   * of its own is compared with this one: without it, one sentence added to
+   * an open template read as every field of it being new.
+   */
+  openDocumentId?: string | undefined;
+  /** What a base document is called, for the diff's heading. */
+  baseName?: ((id: string) => Promise<string | null>) | undefined;
   /** Accept the drafted artefact with the host page's own validator. */
   accept: (artefact: Record<string, unknown>) => Promise<
     { ok: true; artefact: Record<string, unknown> } | { ok: false; errors: { path: string; code: string; message: string }[] }
@@ -215,6 +224,8 @@ export interface TurnResult {
   sources: string[];
   diff: {
     against: string | null;
+    /** What the document it is compared with is called, when that could be read. */
+    againstName?: string;
     adds: number;
     dels: number;
     lines: AssistantDiffLine[];
@@ -452,7 +463,10 @@ export async function runAssistantTurn(input: TurnRunInput): Promise<TurnOutcome
       const basedOn = result.basedOn ?? null;
       // A `result` only parses on a page that has a document, so this is never the empty case.
       const draftLines = input.document?.projectForDiff(artefact) ?? [];
-      const baseLines = basedOn === null ? null : ((await input.baseLines?.(basedOn)) ?? null);
+      // What it is compared with: the document it names, else the one open beside it.
+      const comparedWith = basedOn ?? (input.openDocumentId === undefined || input.openDocumentId === '' ? null : input.openDocumentId);
+      const baseLines = comparedWith === null ? null : ((await input.baseLines?.(comparedWith)) ?? null);
+      const againstName = baseLines === null || comparedWith === null ? null : ((await input.baseName?.(comparedWith).catch(() => null)) ?? null);
       // No base means a new document, and every line of it is an addition —
       // which is what the card says above the lines.
       const diff = assistantLineDiff(baseLines, draftLines);
@@ -481,7 +495,8 @@ export async function runAssistantTurn(input: TurnRunInput): Promise<TurnOutcome
           followups: [...(result.followups ?? [])],
           sources: [...sources],
           diff: {
-            against: baseLines === null ? null : basedOn,
+            against: baseLines === null ? null : comparedWith,
+            ...(againstName === null ? {} : { againstName }),
             adds: diff.adds,
             dels: diff.dels,
             lines: diff.lines,

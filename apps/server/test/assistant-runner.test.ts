@@ -182,6 +182,40 @@ describe('the turn loop', () => {
     expect(outcome.result?.diff.dels).toBe(2);
   });
 
+  it('compares a draft that names no base with the document open beside it, and says what that one is called', async () => {
+    const asked: string[] = [];
+    const draft = { title: 'Order confirmation', meta: '', artefact: { name: 'Order confirmation', body: 'hello\ndelivery takes 3 to 5 working days' } };
+    const { promise } = run([{ text: reply({ result: draft }) }], {
+      overrides: {
+        openDocumentId: 'tpl_open',
+        baseLines: (id: string) => {
+          asked.push(id);
+          return Promise.resolve(['name: Order confirmation', 'body: hello']);
+        },
+        baseName: () => Promise.resolve('Order confirmation'),
+      },
+    });
+    const outcome = await promise;
+    expect(outcome.status).toBe('done');
+    if (outcome.status !== 'done') return;
+    expect(asked).toEqual(['tpl_open']);
+    // A change to the open document, not "every field is new".
+    expect(outcome.result?.diff).toMatchObject({ against: 'tpl_open', againstName: 'Order confirmation' });
+    expect(outcome.result?.diff.adds).toBeLessThan(3);
+    // It is still not "based on" anything the model named: only what the diff is drawn against moved.
+    expect(outcome.result?.basedOn).toBeNull();
+  });
+
+  it('calls a draft new when nothing is open and it names no base', async () => {
+    const { promise } = run([{ text: reply({ result: { title: 'x', meta: '', artefact: { name: 'New', body: 'hello' } } }) }], {
+      overrides: { baseLines: () => Promise.resolve(['never asked']) },
+    });
+    const outcome = await promise;
+    if (outcome.status !== 'done') throw new Error('not done');
+    expect(outcome.result?.diff.against).toBeNull();
+    expect(outcome.result?.diff.dels).toBe(0);
+  });
+
   it('stops on a question and waits for the person', async () => {
     const { promise } = run([
       {

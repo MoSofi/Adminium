@@ -507,7 +507,7 @@ export interface AssistantResult {
   sources: string[];
   /** The document this draft was already saved as, when the server recorded one. */
   saved: { id: string; kind: string; name: string } | null;
-  diff: { against: string | null; adds: number; dels: number; lines: AssistantDiffLine[]; truncated: boolean };
+  diff: { against: string | null; /** What that document is called, when the server could say. */ againstName?: string; adds: number; dels: number; lines: AssistantDiffLine[]; truncated: boolean };
 }
 
 /** `result.saved`, when it reads; anything else means "not saved yet". */
@@ -556,6 +556,7 @@ export function readResult(raw: Record<string, unknown> | null): AssistantResult
     saved: savedOf(raw.saved),
     diff: {
       against: typeof diff?.against === 'string' ? diff.against : null,
+      ...(typeof diff?.againstName === 'string' && diff.againstName !== '' ? { againstName: diff.againstName } : {}),
       adds: num(diff?.adds),
       dels: num(diff?.dels),
       lines: lines

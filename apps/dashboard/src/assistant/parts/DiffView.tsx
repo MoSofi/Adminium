@@ -28,7 +28,7 @@ export function DiffView({ diff, kind }: DiffViewProps) {
         <span className="text-caption text-fg-muted">
           {diff.against === null
             ? t('assistant:diff.new', 'New {kind} — fields it will write', { kind })
-            : t('assistant:diff.against', 'Compared with {name}', { name: diff.against })}
+            : t('assistant:diff.against', 'Compared with {name}', { name: diff.againstName ?? diff.against })}
         </span>
         <span className="ms-auto flex gap-[7px] font-mono text-[11px] font-bold">
           <span className="text-pos">{t('assistant:diff.adds', '+{n}', { n: diff.adds })}</span>
