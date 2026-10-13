@@ -1767,6 +1767,22 @@
     "status": "mt",
     "srcHash": "bba82f993ac3"
   },
+  "assistant.steps.title.answered": {
+    "status": "mt",
+    "srcHash": "587315461ce7"
+  },
+  "assistant.steps.title.asked": {
+    "status": "mt",
+    "srcHash": "908d7e8ee7c6"
+  },
+  "assistant.steps.title.failed": {
+    "status": "mt",
+    "srcHash": "955c4b2a2bca"
+  },
+  "assistant.steps.title.proposed": {
+    "status": "mt",
+    "srcHash": "b57566f43aac"
+  },
   "assistant.steps.working": {
     "status": "mt",
     "srcHash": "9f56551bed5c"

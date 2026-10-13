@@ -292,6 +292,12 @@
     },
     "readPage": "已讀取此頁面",
     "step": "第 {n} 步",
+    "title": {
+      "answered": "已查詢",
+      "asked": "有一個問題要問你",
+      "failed": "未能完成",
+      "proposed": "已算出將會變更的內容"
+    },
     "working": "正在處理"
   },
   "tabs": {

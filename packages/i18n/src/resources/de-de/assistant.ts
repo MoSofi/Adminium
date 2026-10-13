@@ -302,6 +302,12 @@ export default {
     },
     "readPage": "Diese Seite gelesen",
     "step": "Schritt {n}",
+    "title": {
+      "answered": "Nachgeschlagen",
+      "asked": "Hat eine Frage an Sie",
+      "failed": "Konnte nicht abgeschlossen werden",
+      "proposed": "Ermittelt, was sich ändern würde"
+    },
     "working": "Arbeitet daran"
   },
   "tabs": {

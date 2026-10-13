@@ -302,6 +302,12 @@ export default {
     },
     "readPage": "Přečteno na této stránce",
     "step": "krok {n}",
+    "title": {
+      "answered": "Vyhledáno",
+      "asked": "Má na vás otázku",
+      "failed": "Nepodařilo se dokončit",
+      "proposed": "Zjištěno, co by se změnilo"
+    },
     "working": "Pracuje na tom"
   },
   "tabs": {

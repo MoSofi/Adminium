@@ -302,6 +302,12 @@ export default {
     },
     "readPage": "已读取此页面",
     "step": "第 {n} 步",
+    "title": {
+      "answered": "已查询",
+      "asked": "有一个问题要问你",
+      "failed": "未能完成",
+      "proposed": "已算出将会更改的内容"
+    },
     "working": "正在处理"
   },
   "tabs": {

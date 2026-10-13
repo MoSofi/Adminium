@@ -292,6 +292,12 @@
     },
     "readPage": "Read this page",
     "step": "step {n}",
+    "title": {
+      "answered": "Looked it up",
+      "asked": "Has a question for you",
+      "failed": "Could not finish",
+      "proposed": "Worked out what would change"
+    },
     "working": "Working on it"
   },
   "tabs": {

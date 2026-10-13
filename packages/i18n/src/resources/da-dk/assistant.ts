@@ -302,6 +302,12 @@ export default {
     },
     "readPage": "Læste denne side",
     "step": "trin {n}",
+    "title": {
+      "answered": "Slog det op",
+      "asked": "Har et spørgsmål til dig",
+      "failed": "Kunne ikke gøres færdig",
+      "proposed": "Fandt ud af, hvad der ville ændre sig"
+    },
     "working": "Arbejder på det"
   },
   "tabs": {
