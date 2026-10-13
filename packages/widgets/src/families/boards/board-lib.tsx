@@ -69,6 +69,19 @@ export interface BoardCardData {
   due?: string | undefined;
   client?: string | undefined;
   budget?: string | undefined;
+  /**
+   * A few more lines under the title, each already in the reader's words: a
+   * label and what it reads ("Close", "12 Mar"), or a line with no label.
+   */
+  lines?: readonly BoardCardLine[] | undefined;
+  /** What is printed at the card's foot in place of its id; `''` prints nothing there. */
+  foot?: string | undefined;
+}
+
+/** One line of a card: the text, and the label before it when it has one. */
+export interface BoardCardLine {
+  label?: string | undefined;
+  value: string;
 }
 
 /** A board column derived from the status enum (annex `columnDefs`). */

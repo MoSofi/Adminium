@@ -28,7 +28,21 @@ const KEYS = JSON.parse(read('./words/keys.json')) as Record<KitPartName, string
 /** The source files whose words each part shows. */
 const PART_SOURCES: Record<KitPartName, string[]> = {
   mentions: ['apps/dashboard/src/kit-host/parts/mentions.tsx', 'packages/widgets/src/families/forms/MentionTextarea.tsx', 'packages/ui/src/components/textarea/Textarea.tsx'],
-  board: [],
+  board: [
+    'apps/dashboard/src/kit-host/parts/board.tsx',
+    'packages/widgets/src/families/boards/KanbanBoard.tsx',
+    'packages/widgets/src/families/boards/BoardCard.tsx',
+    'packages/widgets/src/families/boards/InlineComposeCard.tsx',
+    'packages/widgets/src/families/boards/board-dnd.tsx',
+    'packages/ui/src/components/avatar/Avatar.tsx',
+    'packages/ui/src/components/button/Button.tsx',
+    'packages/ui/src/components/empty-state/EmptyState.tsx',
+    'packages/ui/src/components/icon-tile/IconTile.tsx',
+    'packages/ui/src/components/mono-text/MonoText.tsx',
+    'packages/ui/src/components/progress-bar/ProgressBar.tsx',
+    'packages/ui/src/components/spinner/Spinner.tsx',
+    'packages/ui/src/components/tag/Tag.tsx',
+  ],
   map: [],
   import: [],
 };

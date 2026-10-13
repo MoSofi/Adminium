@@ -50,6 +50,10 @@ grants it; see [Add a role](https://docs.adminium.dev/guides/apps/manifest-by-ta
 `adminium app build` bundles the code and does not type-check it. To type-check a side, add
 `typescript` to the project and a `tsconfig.json` that includes `apps/`.
 
+A staff screen can also draw one of Adminium's own larger parts, such as the text box in which
+people are mentioned, without bundling it: see
+[Adminium's own parts on an app's screen](https://docs.adminium.dev/guides/apps/kit-parts/).
+
 The person must hold a role that may open the app's staff screens (`app:@:staff` in the app's
 `roles.json`), and their grants on the app's tables decide what the reads and writes above may do.
 See [App roles and staff access](https://docs.adminium.dev/guides/apps/roles-and-staff-access/).

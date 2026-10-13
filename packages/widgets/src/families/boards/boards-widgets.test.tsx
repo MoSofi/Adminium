@@ -115,6 +115,64 @@ describe('kanban-board render', () => {
   });
 });
 
+describe('kanban-board: what a host may add (each left out, the board is as it was)', () => {
+  it('a card prints its extra lines, and its foot in place of its id', () => {
+    render(<BoardCard card={card('7', 'todo', { lines: [{ label: 'Close', value: '12 Mar' }, { value: '3 days in stage' }], foot: 'D-7' })} />);
+    const lines = document.querySelector('[data-part="board-card-lines"]')!;
+    expect(lines.textContent).toBe('Close12 Mar3 days in stage');
+    expect(screen.getByText('D-7')).toBeTruthy();
+    expect(screen.queryByText('7')).toBeNull();
+    cleanup();
+    // An empty foot prints nothing; with none given the id is printed, as before.
+    render(<BoardCard card={card('7', 'todo', { foot: '' })} />);
+    expect(screen.queryByText('7')).toBeNull();
+    expect(document.querySelector('[data-part="board-card-lines"]')).toBeNull();
+    cleanup();
+    render(<BoardCard card={card('7', 'todo')} />);
+    expect(screen.getByText('7')).toBeTruthy();
+  });
+
+  it('a card that may not be moved is not picked up; with a way to open it, Tab stops there and Enter opens it', () => {
+    const onMove = vi.fn();
+    const onOpen = vi.fn();
+    const cards = [card('1', 'todo'), card('2', 'todo')];
+    const { rerender } = render(<KanbanBoard cards={cards} columns={COLUMNS} onCardMove={onMove} onCardOpen={onOpen} canMoveCard={(id) => id !== '1'} />);
+    const locked = grabCardEl('Card 1');
+    expect(locked.tabIndex).toBe(0);
+    expect(locked.hasAttribute('aria-roledescription')).toBe(false);
+    fireEvent.keyDown(locked, { key: 'Enter' });
+    expect(locked.hasAttribute('aria-grabbed')).toBe(false);
+    expect(onOpen).toHaveBeenCalledExactlyOnceWith('1');
+    fireEvent.keyDown(locked, { key: 'ArrowRight' });
+    fireEvent.keyDown(locked, { key: 'Escape' });
+    // The other card is moved as ever.
+    const free = grabCardEl('Card 2');
+    expect(free.getAttribute('aria-roledescription')).toBe('draggable card');
+    fireEvent.keyDown(free, { key: ' ' });
+    fireEvent.keyDown(free, { key: 'ArrowRight' });
+    fireEvent.keyDown(free, { key: 'Enter' });
+    expect(onMove).toHaveBeenCalledExactlyOnceWith('2', 'todo', 'in_progress');
+    expect(onOpen).toHaveBeenCalledTimes(1);
+    // With nothing to open, a card that stays put is not a stop for Tab.
+    rerender(<KanbanBoard cards={cards} columns={COLUMNS} onCardMove={onMove} canMoveCard={() => false} />);
+    expect(grabCardEl('Card 1').tabIndex).toBe(-1);
+    fireEvent.keyDown(grabCardEl('Card 1'), { key: 'Enter' });
+    expect(grabCardEl('Card 1').hasAttribute('aria-grabbed')).toBe(false);
+  });
+
+  it('draws the host’s foot under each column’s cards, and none when it gives none', () => {
+    const { rerender } = render(<KanbanBoard cards={[card('1', 'todo')]} columns={COLUMNS} columnFooter={(column) => <button type="button">{`Add to ${column.label}`}</button>} />);
+    const feet = [...document.querySelectorAll('[data-part="column-footer"]')];
+    expect(feet.map((foot) => foot.textContent)).toEqual(['Add to To do', 'Add to In progress', 'Add to Done']);
+    expect(feet[0]!.closest('[data-board-column]')?.getAttribute('data-board-column')).toBe('todo');
+    // A key typed in the foot is the foot's own: no card is picked up by it.
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Add to To do' }), { key: ' ' });
+    expect(grabCardEl('Card 1').hasAttribute('aria-grabbed')).toBe(false);
+    rerender(<KanbanBoard cards={[card('1', 'todo')]} columns={COLUMNS} />);
+    expect(document.querySelector('[data-part="column-footer"]')).toBeNull();
+  });
+});
+
 describe('kanban-board keyboard move (drives the same optimistic path as a pointer drop)', () => {
   it('grab → arrow → commit moves the card and fires onCardMove(cardId, from, to)', () => {
     const onMove = vi.fn();

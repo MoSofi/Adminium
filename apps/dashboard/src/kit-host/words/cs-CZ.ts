@@ -6,7 +6,27 @@ const words: KitWords = {
   "mentions": {
     "ui:mentions.people": "Lidé, které lze zmínit"
   },
-  "board": {},
+  "board": {
+    "ui:widgets.boards.a11y.failed": "{title} nelze přesunout; vrátilo se na původní místo.",
+    "ui:widgets.boards.a11y.grabbed": "{title} uchopeno. Pomocí šipek přesuňte, Enter pro položení, Escape pro zrušení.",
+    "ui:widgets.boards.a11y.moved": "{title} přesunuto do {cell}.",
+    "ui:widgets.boards.a11y.over": "{title} je nad {cell}.",
+    "ui:widgets.boards.a11y.returned": "{title} se vrátilo na původní místo.",
+    "ui:widgets.boards.addCard": "Přidat kartu",
+    "ui:widgets.boards.boardCard.emptyBody": "K této kartě zatím není připojen žádný záznam.",
+    "ui:widgets.boards.boardCard.emptyTitle": "Žádná karta",
+    "ui:widgets.boards.cardNotAdded": "Kartu se nepodařilo přidat.",
+    "ui:widgets.boards.dismissNotice": "Zavřít",
+    "ui:widgets.boards.grip": "Přetažením přesunete kartu",
+    "ui:widgets.boards.inlineComposeCard.addLabel": "Přidat",
+    "ui:widgets.boards.inlineComposeCard.cancelLabel": "Zrušit",
+    "ui:widgets.boards.inlineComposeCard.openLabel": "Přidat kartu",
+    "ui:widgets.boards.inlineComposeCard.placeholder": "Název karty…",
+    "ui:widgets.boards.kanbanBoard.emptyBody": "Karty se zobrazí ve svých stavových sloupcích, jakmile vzniknou záznamy.",
+    "ui:widgets.boards.kanbanBoard.emptyTitle": "Zatím žádné karty",
+    "ui:widgets.boards.notAdded": "Kartu {title} se nepodařilo přidat.",
+    "ui:widgets.boards.notMoved": "Kartu {title} se nepodařilo přesunout."
+  },
   "map": {},
   "import": {}
 };

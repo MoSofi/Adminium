@@ -1,6 +1,28 @@
 {
-  "mentions": ["ui:mentions.people"],
-  "board": [],
+  "mentions": [
+    "ui:mentions.people"
+  ],
+  "board": [
+    "ui:widgets.boards.a11y.failed",
+    "ui:widgets.boards.a11y.grabbed",
+    "ui:widgets.boards.a11y.moved",
+    "ui:widgets.boards.a11y.over",
+    "ui:widgets.boards.a11y.returned",
+    "ui:widgets.boards.addCard",
+    "ui:widgets.boards.boardCard.emptyBody",
+    "ui:widgets.boards.boardCard.emptyTitle",
+    "ui:widgets.boards.cardNotAdded",
+    "ui:widgets.boards.dismissNotice",
+    "ui:widgets.boards.grip",
+    "ui:widgets.boards.inlineComposeCard.addLabel",
+    "ui:widgets.boards.inlineComposeCard.cancelLabel",
+    "ui:widgets.boards.inlineComposeCard.openLabel",
+    "ui:widgets.boards.inlineComposeCard.placeholder",
+    "ui:widgets.boards.kanbanBoard.emptyBody",
+    "ui:widgets.boards.kanbanBoard.emptyTitle",
+    "ui:widgets.boards.notAdded",
+    "ui:widgets.boards.notMoved"
+  ],
   "map": [],
   "import": []
 }

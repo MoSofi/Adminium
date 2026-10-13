@@ -74,6 +74,14 @@ leads that person where the role's reach is `team`. Somebody who reaches the row
 helper listed on it, a cover, the owner of its parent) works on the row and cannot give it away
 or take it. A record's `handOver` button frees whom the row may go to, not who may hand it over.
 
+Where such a column is kept as a copy of the row's parent (`copy` with `mode: "always"`), the
+person is decided by the link: a writer held to some rows sets that link only to a parent that
+names them there (or somebody they lead, with `set: "team"`), and is refused 403 with reason
+`parent-not-theirs` otherwise. And the person column of a table that another table's `belongs`
+reads `through` takes only somebody who reads at least one of those tables (422, the field
+marked `cannot-open`), whoever writes. See
+[Whose a row is](https://docs.adminium.dev/guides/apps/whose-a-row-is/).
+
 **`handOver`**, on one of a table's [`states.actions`](https://docs.adminium.dev/reference/manifest/#states), marks the one write in which a
 person limited to their own rows may name a colleague: the button asks for a staff column and
 sets it to anybody.

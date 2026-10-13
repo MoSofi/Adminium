@@ -12,7 +12,7 @@ import {
 import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core';
 import { Plus } from 'lucide-react';
 import { useMemo, useRef, useState } from 'react';
-import type { KeyboardEvent as ReactKeyboardEvent } from 'react';
+import type { KeyboardEvent as ReactKeyboardEvent, ReactNode } from 'react';
 
 import { BoardCard } from './BoardCard.js';
 import { useMaybeT } from '../../lib/i18n.js';
@@ -96,6 +96,14 @@ export interface KanbanBoardProps {
    */
   addRefusal?: BoardAddRefusal | null | undefined;
   onDismissAddRefusal?: (() => void) | undefined;
+  /**
+   * Which cards may be moved. Left out, every card. A card that may not is
+   * not dragged and not picked up; with `onCardOpen`, Tab still stops at it
+   * and Enter opens it.
+   */
+  canMoveCard?: ((cardId: string) => boolean) | undefined;
+  /** Drawn at the foot of each column, under its cards (a composer of the host's). */
+  columnFooter?: ((column: ColumnDef) => ReactNode) | undefined;
   testId?: string | undefined;
 }
 
@@ -111,6 +119,8 @@ export function KanbanBoard({
   onAdd,
   addRefusal,
   onDismissAddRefusal,
+  canMoveCard,
+  columnFooter,
   testId,
 }: KanbanBoardProps) {
   const t = useMaybeT();
@@ -168,7 +178,17 @@ export function KanbanBoard({
     }
   };
 
+  const locked = (cardId: string): boolean => canMoveCard !== undefined && !canMoveCard(cardId);
+
   const onCardKeyDown = (event: ReactKeyboardEvent<HTMLElement>, card: BoardCardData): void => {
+    if (locked(card.id)) {
+      // A card that stays where it is has one thing a key can do: be opened.
+      if (onCardOpen !== undefined && (event.key === 'Enter' || event.key === ' ' || event.key === 'Spacebar')) {
+        event.preventDefault();
+        onCardOpen(card.id);
+      }
+      return;
+    }
     const grabbed = moves.isGrabbed(card.id);
     if (event.key === 'Enter' || event.key === ' ' || event.key === 'Spacebar') {
       event.preventDefault();
@@ -279,6 +299,7 @@ export function KanbanBoard({
                       key={card.id}
                       card={card}
                       grabbed={moves.isGrabbed(card.id)}
+                      {...(locked(card.id) ? { disabled: true, tabbable: onCardOpen !== undefined } : {})}
                       ariaLabel={card.title}
                       className="rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
                       onKeyDown={(event) => onCardKeyDown(event, card)}
@@ -294,6 +315,11 @@ export function KanbanBoard({
                     </DraggableCard>
                   ))}
                 </DroppableCell>
+                {columnFooter === undefined ? null : (
+                  <div data-part="column-footer" className="px-2 pb-2">
+                    {columnFooter(column)}
+                  </div>
+                )}
               </section>
             );
           })}

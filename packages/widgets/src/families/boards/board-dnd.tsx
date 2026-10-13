@@ -611,9 +611,12 @@ export function DraggableCard({
   className,
   ariaLabel,
   ariaDescribedBy,
+  tabbable,
 }: {
   card: BoardCardData;
   disabled?: boolean | undefined;
+  /** Whether Tab stops at the card. Left out, a card that can be dragged does and one that cannot does not. */
+  tabbable?: boolean | undefined;
   children: ReactNode;
   onKeyDown?: ((event: ReactKeyboardEvent<HTMLElement>) => void) | undefined;
   onClick?: (() => void) | undefined;
@@ -634,11 +637,11 @@ export function DraggableCard({
       data-board-card={card.id}
       data-dragging={isDragging ? '' : undefined}
       data-grabbed={grabbed ? '' : undefined}
-      aria-roledescription="draggable card"
+      aria-roledescription={disabled === true ? undefined : 'draggable card'}
       aria-label={ariaLabel}
       aria-describedby={ariaDescribedBy}
       aria-grabbed={grabbed ? true : undefined}
-      tabIndex={disabled ? -1 : 0}
+      tabIndex={(tabbable ?? !disabled) ? 0 : -1}
       className={(className ?? '') + (isDragging ? ' opacity-40' : '') + (grabbed ? ' ring-2 ring-accent' : '')}
       onKeyDown={onKeyDown}
       onClick={onClick}

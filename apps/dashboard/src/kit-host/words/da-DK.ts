@@ -6,7 +6,27 @@ const words: KitWords = {
   "mentions": {
     "ui:mentions.people": "Personer, du kan nævne"
   },
-  "board": {},
+  "board": {
+    "ui:widgets.boards.a11y.failed": "{title} kunne ikke flyttes; den blev sat tilbage.",
+    "ui:widgets.boards.a11y.grabbed": "{title} taget op. Brug piletasterne til at flytte, Enter for at slippe, Escape for at annullere.",
+    "ui:widgets.boards.a11y.moved": "{title} flyttet til {cell}.",
+    "ui:widgets.boards.a11y.over": "{title} er over {cell}.",
+    "ui:widgets.boards.a11y.returned": "{title} vendte tilbage til sin oprindelige placering.",
+    "ui:widgets.boards.addCard": "Tilføj kort",
+    "ui:widgets.boards.boardCard.emptyBody": "Der er endnu ingen post knyttet til dette kort.",
+    "ui:widgets.boards.boardCard.emptyTitle": "Intet kort",
+    "ui:widgets.boards.cardNotAdded": "Kortet blev ikke tilføjet.",
+    "ui:widgets.boards.dismissNotice": "Luk",
+    "ui:widgets.boards.grip": "Træk for at flytte kortet",
+    "ui:widgets.boards.inlineComposeCard.addLabel": "Tilføj",
+    "ui:widgets.boards.inlineComposeCard.cancelLabel": "Annuller",
+    "ui:widgets.boards.inlineComposeCard.openLabel": "Tilføj kort",
+    "ui:widgets.boards.inlineComposeCard.placeholder": "Kortets titel…",
+    "ui:widgets.boards.kanbanBoard.emptyBody": "Kort vises i deres statuskolonner, efterhånden som poster oprettes.",
+    "ui:widgets.boards.kanbanBoard.emptyTitle": "Ingen kort endnu",
+    "ui:widgets.boards.notAdded": "{title} blev ikke tilføjet.",
+    "ui:widgets.boards.notMoved": "{title} blev ikke flyttet."
+  },
   "map": {},
   "import": {}
 };

@@ -14,7 +14,7 @@
  */
 import { KIT_CONTRACT, KIT_PARTS_AVAILABLE, KitPartUnavailableError, type KitMounted, type KitPartName, type KitPartProps } from './contract.js';
 
-export type { KitCommonProps, KitMounted, KitPartName, KitPartProps, KitPerson, MentionsProps } from './contract.js';
+export type { BoardCard, BoardCardLine, BoardColumn, BoardProps, KitCommonProps, KitMounted, KitPartName, KitPartProps, KitPerson, KitRefused, KitTone, MentionsProps } from './contract.js';
 
 /** The contract this kit speaks; the side's config says the same number. */
 export const contract = KIT_CONTRACT;
@@ -26,7 +26,7 @@ type Mounter<P extends KitPartName> = (element: Element, props: KitPartProps[P])
 
 const LOADERS: { [P in KitPartName]: (() => Promise<{ default: Mounter<P> }>) | null } = {
   mentions: () => import('./parts/mentions.js'),
-  board: null,
+  board: () => import('./parts/board.js'),
   map: null,
   import: null,
 };

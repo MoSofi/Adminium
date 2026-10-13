@@ -6,7 +6,27 @@ const words: KitWords = {
   "mentions": {
     "ui:mentions.people": "Personen zum Erwähnen"
   },
-  "board": {},
+  "board": {
+    "ui:widgets.boards.a11y.failed": "{title} konnte nicht verschoben werden; die Karte wurde zurückgesetzt.",
+    "ui:widgets.boards.a11y.grabbed": "{title} aufgenommen. Mit den Pfeiltasten bewegen, Enter zum Ablegen, Escape zum Abbrechen.",
+    "ui:widgets.boards.a11y.moved": "{title} nach {cell} verschoben.",
+    "ui:widgets.boards.a11y.over": "{title} befindet sich über {cell}.",
+    "ui:widgets.boards.a11y.returned": "{title} an die ursprüngliche Position zurückgesetzt.",
+    "ui:widgets.boards.addCard": "Karte hinzufügen",
+    "ui:widgets.boards.boardCard.emptyBody": "Dieser Karte ist noch kein Datensatz zugeordnet.",
+    "ui:widgets.boards.boardCard.emptyTitle": "Keine Karte",
+    "ui:widgets.boards.cardNotAdded": "Die Karte wurde nicht hinzugefügt.",
+    "ui:widgets.boards.dismissNotice": "Schließen",
+    "ui:widgets.boards.grip": "Zum Verschieben ziehen",
+    "ui:widgets.boards.inlineComposeCard.addLabel": "Hinzufügen",
+    "ui:widgets.boards.inlineComposeCard.cancelLabel": "Abbrechen",
+    "ui:widgets.boards.inlineComposeCard.openLabel": "Karte hinzufügen",
+    "ui:widgets.boards.inlineComposeCard.placeholder": "Kartentitel…",
+    "ui:widgets.boards.kanbanBoard.emptyBody": "Karten erscheinen in ihren Statusspalten, sobald Datensätze angelegt werden.",
+    "ui:widgets.boards.kanbanBoard.emptyTitle": "Noch keine Karten",
+    "ui:widgets.boards.notAdded": "{title} wurde nicht hinzugefügt.",
+    "ui:widgets.boards.notMoved": "{title} wurde nicht verschoben."
+  },
   "map": {},
   "import": {}
 };

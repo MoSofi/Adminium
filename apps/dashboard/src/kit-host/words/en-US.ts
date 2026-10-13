@@ -6,7 +6,27 @@ const words: KitWords = {
   "mentions": {
     "ui:mentions.people": "People to mention"
   },
-  "board": {},
+  "board": {
+    "ui:widgets.boards.a11y.failed": "Could not move {title}; it was returned to its original position.",
+    "ui:widgets.boards.a11y.grabbed": "Grabbed {title}. Use the arrow keys to move, Enter to drop, Escape to cancel.",
+    "ui:widgets.boards.a11y.moved": "Moved {title} to {cell}.",
+    "ui:widgets.boards.a11y.over": "{title} is over {cell}.",
+    "ui:widgets.boards.a11y.returned": "{title} returned to its original position.",
+    "ui:widgets.boards.addCard": "Add card",
+    "ui:widgets.boards.boardCard.emptyBody": "This card has no record bound to it yet.",
+    "ui:widgets.boards.boardCard.emptyTitle": "No card",
+    "ui:widgets.boards.cardNotAdded": "The card was not added.",
+    "ui:widgets.boards.dismissNotice": "Dismiss",
+    "ui:widgets.boards.grip": "Drag to move card",
+    "ui:widgets.boards.inlineComposeCard.addLabel": "Add",
+    "ui:widgets.boards.inlineComposeCard.cancelLabel": "Cancel",
+    "ui:widgets.boards.inlineComposeCard.openLabel": "Add card",
+    "ui:widgets.boards.inlineComposeCard.placeholder": "Card title…",
+    "ui:widgets.boards.kanbanBoard.emptyBody": "Add a status field to group cards into columns.",
+    "ui:widgets.boards.kanbanBoard.emptyTitle": "No board columns",
+    "ui:widgets.boards.notAdded": "{title} was not added.",
+    "ui:widgets.boards.notMoved": "{title} was not moved."
+  },
   "map": {},
   "import": {}
 };

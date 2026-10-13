@@ -97,6 +97,17 @@ export function BoardCard({
         </div>
       )}
 
+      {card.lines !== undefined && card.lines.length > 0 && (
+        <div data-part="board-card-lines" className="flex flex-col gap-0.5 text-caption text-fg-muted">
+          {card.lines.map((line, index) => (
+            <div key={index} className="flex items-baseline justify-between gap-2">
+              {line.label === undefined ? null : <span className="shrink-0 text-fg-subtle">{line.label}</span>}
+              <span className="min-w-0 truncate">{line.value}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
       {hasPct && (
         <div className="flex flex-col gap-1">
           <div className="flex items-center justify-end text-caption text-fg-muted">
@@ -115,7 +126,7 @@ export function BoardCard({
             <MonoText className="rounded-sm bg-surface-3 px-1.5 py-0.5 text-[10px] text-fg-muted">{card.due}</MonoText>
           )}
         </div>
-        <MonoText className="text-[10px] text-fg-subtle">{card.id}</MonoText>
+        <MonoText className="text-[10px] text-fg-subtle">{card.foot ?? card.id}</MonoText>
       </div>
     </div>
   );

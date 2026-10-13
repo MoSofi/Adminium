@@ -6,7 +6,27 @@ const words: KitWords = {
   "mentions": {
     "ui:mentions.people": "أشخاص يمكن ذكرهم"
   },
-  "board": {},
+  "board": {
+    "ui:widgets.boards.a11y.failed": "تعذّر نقل {title}؛ فعادت إلى موضعها الأصلي.",
+    "ui:widgets.boards.a11y.grabbed": "تم التقاط {title}. استخدم مفاتيح الأسهم للتحريك، وEnter للإفلات، وEscape للإلغاء.",
+    "ui:widgets.boards.a11y.moved": "تم نقل {title} إلى {cell}.",
+    "ui:widgets.boards.a11y.over": "{title} فوق {cell}.",
+    "ui:widgets.boards.a11y.returned": "عادت {title} إلى موضعها الأصلي.",
+    "ui:widgets.boards.addCard": "إضافة بطاقة",
+    "ui:widgets.boards.boardCard.emptyBody": "لم يُربط بهذه البطاقة أي سجل بعد.",
+    "ui:widgets.boards.boardCard.emptyTitle": "لا توجد بطاقة",
+    "ui:widgets.boards.cardNotAdded": "لم تتم إضافة البطاقة.",
+    "ui:widgets.boards.dismissNotice": "إغلاق",
+    "ui:widgets.boards.grip": "اسحب لتحريك البطاقة",
+    "ui:widgets.boards.inlineComposeCard.addLabel": "إضافة",
+    "ui:widgets.boards.inlineComposeCard.cancelLabel": "إلغاء",
+    "ui:widgets.boards.inlineComposeCard.openLabel": "إضافة بطاقة",
+    "ui:widgets.boards.inlineComposeCard.placeholder": "عنوان البطاقة…",
+    "ui:widgets.boards.kanbanBoard.emptyBody": "ستظهر البطاقات في أعمدة الحالة الخاصة بها عند إنشاء السجلات.",
+    "ui:widgets.boards.kanbanBoard.emptyTitle": "لا توجد بطاقات بعد",
+    "ui:widgets.boards.notAdded": "لم تتم إضافة {title}.",
+    "ui:widgets.boards.notMoved": "لم يتم نقل {title}."
+  },
   "map": {},
   "import": {}
 };

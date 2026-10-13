@@ -19,7 +19,7 @@ export const KIT_CONTRACT = 1;
 export type KitPartName = 'mentions' | 'board' | 'map' | 'import';
 
 /** The parts a mount can draw today. The others are named so that adding one changes no signature. */
-export const KIT_PARTS_AVAILABLE: readonly KitPartName[] = ['mentions'];
+export const KIT_PARTS_AVAILABLE: readonly KitPartName[] = ['mentions', 'board'];
 
 /** One language's words, part by part: `ns:key` to its text (./words/, written by scripts/gen-kit-words.mjs). */
 export type KitWords = Record<KitPartName, Record<string, string>>;
@@ -63,12 +63,100 @@ export interface MentionsProps extends KitCommonProps {
   people?: ((query: string) => Promise<readonly KitPerson[]>) | undefined;
 }
 
+/** The six tones a column's dot and a card's tag are drawn in. */
+export type KitTone = 'neutral' | 'accent' | 'pos' | 'warn' | 'danger' | 'info';
+
+/** What an app answers a save with when the server said no: the reason, in words a person can read. */
+export interface KitRefused {
+  refused: string;
+}
+
+export interface BoardColumn {
+  id: string;
+  /** The heading, in the reader's language. */
+  label: string;
+  /** The colour of the dot before the heading. Default `neutral`. */
+  tone?: KitTone | undefined;
+  /**
+   * How many cards the column holds in all, when the app has counted them (a
+   * list stops at its limit). Left out, the number of cards given.
+   */
+  count?: number | undefined;
+  /** A figure for the column, already written as text ("€12,400"), drawn at the heading's far end. */
+  total?: string | undefined;
+  /** The most cards the column should hold: the count reads "4/3" and turns red above it. */
+  limit?: number | undefined;
+}
+
+/** One line of a card: the text, and the label before it when it has one. Both already in the reader's words. */
+export interface BoardCardLine {
+  label?: string | undefined;
+  value: string;
+}
+
+export interface BoardCard {
+  /** The row's key, as text. It is what `onMove`, `onOpen` and `canMove` are called with. */
+  id: string;
+  /** The `id` of the column the card is in. A card whose column is not among `columns` is not drawn. */
+  columnId: string;
+  title: string;
+  /** A quiet line under the title (a company's name). */
+  subtitle?: string | undefined;
+  /** A figure at the far end of the subtitle's line, already written as text by the app ("€4,200"). */
+  amount?: string | undefined;
+  /** Short lines with no label of their own, under the subtitle. */
+  meta?: readonly string[] | undefined;
+  /** Labelled lines under those: "Close" and "12 Mar". */
+  lines?: readonly BoardCardLine[] | undefined;
+  /** A small pill above the title. */
+  tag?: string | undefined;
+  /** Default: the column's tone. */
+  tagTone?: KitTone | undefined;
+  /** A person's name: drawn as their initials in a small round. */
+  owner?: string | undefined;
+  /** A short date or time left, already written as text, in a chip at the foot. */
+  due?: string | undefined;
+  /** 0 to 100: a bar under the lines. */
+  progress?: number | undefined;
+  /** Small print at the foot (a reference such as "D-1042"). Left out, nothing is printed there. */
+  reference?: string | undefined;
+}
+
+/** The board: columns of cards a person moves with a pointer or the keyboard. */
+export interface BoardProps extends KitCommonProps {
+  columns: readonly BoardColumn[];
+  cards: readonly BoardCard[];
+  /**
+   * Saves a move. The board has already drawn the card in its new column;
+   * answer a promise and it waits for it. `{ refused }`, or a rejection (its
+   * `message` is the reason), puts the card back and says why on the board
+   * and aloud. Left out, no card can be moved.
+   */
+  onMove?: ((cardId: string, toColumnId: string, fromColumnId: string) => void | Promise<void | KitRefused>) | undefined;
+  /** Which cards may be moved: all (the default with `onMove`), none (`false`), or the ones the function says. */
+  canMove?: boolean | ((cardId: string) => boolean) | undefined;
+  /** Called when a card is clicked, and on Enter for a card that cannot be moved. */
+  onOpen?: ((cardId: string) => void) | undefined;
+  /**
+   * Saves a new card typed at a column's foot. `{ refused }` or a rejection
+   * keeps the typed title in its box and says why. Left out, no column has
+   * an "Add card".
+   */
+  onAdd?: ((columnId: string, title: string) => void | Promise<void | KitRefused>) | undefined;
+  /** The app is reading: the board says so to a screen reader, dims, and no card can be moved. */
+  busy?: boolean | undefined;
+  /** Said above the columns while there is no card at all, and in place of the board while there is no column. */
+  emptyLabel?: string | undefined;
+  /** The board's name for a screen reader ("Pipeline"). */
+  ariaLabel?: string | undefined;
+}
+
 /** A part that is named but cannot be mounted yet. */
 export type KitPartNotYet = Record<string, never>;
 
 export interface KitPartProps {
   mentions: MentionsProps;
-  board: KitPartNotYet;
+  board: BoardProps;
   map: KitPartNotYet;
   import: KitPartNotYet;
 }

@@ -1,0 +1,88 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+/*
+ * The board's styles on an app's own screen.
+ *
+ * The board is the dashboard's own (`KanbanBoard`), and the dashboard's
+ * components are written in Tailwind's utility classes. An app's page has no
+ * Tailwind, or one of its own, so this sheet carries exactly the utilities
+ * the board's files use, each held under the kit's wrapper: `.flex` here is
+ * `.adm-kit .flex`, and no class of the app's page is touched. There is no
+ * preflight; kit.css resets, inside the wrapper, the few elements a part
+ * draws.
+ *
+ * The `@source` lines name every file whose class names the board can wear.
+ * A component the board grows adds its file here; the browser test
+ * (apps/e2e/tests/kit-parts.spec.ts) fails on a class with no rule.
+ *
+ * `lib/tones.ts` is left out on purpose: it holds recipes the board never
+ * wears that read the page's colours directly. The six tone pairs an icon
+ * tile takes from it are spelled out in Tag.tsx as well, which is listed.
+ *
+ * Every later part does the same in a sheet of its own: this import, its
+ * files, the block.
+ */
+@import '../kit-theme.css';
+
+@source './board.tsx';
+@source '../../../node_modules/@adminium/widgets/src/families/boards/KanbanBoard.tsx';
+@source '../../../node_modules/@adminium/widgets/src/families/boards/BoardCard.tsx';
+@source '../../../node_modules/@adminium/widgets/src/families/boards/InlineComposeCard.tsx';
+@source '../../../node_modules/@adminium/widgets/src/families/boards/board-dnd.tsx';
+@source '../../../node_modules/@adminium/ui/src/components/avatar/Avatar.tsx';
+@source '../../../node_modules/@adminium/ui/src/components/button/Button.tsx';
+@source '../../../node_modules/@adminium/ui/src/components/empty-state/EmptyState.tsx';
+@source '../../../node_modules/@adminium/ui/src/components/icon-tile/IconTile.tsx';
+@source '../../../node_modules/@adminium/ui/src/components/mono-text/MonoText.tsx';
+@source '../../../node_modules/@adminium/ui/src/components/progress-bar/ProgressBar.tsx';
+@source '../../../node_modules/@adminium/ui/src/components/spinner/Spinner.tsx';
+@source '../../../node_modules/@adminium/ui/src/components/tag/Tag.tsx';
+
+.adm-kit {
+  @tailwind utilities source(none);
+}
+
+/*
+ * The board's own box: as wide as the element it is mounted in and never
+ * wider, so the columns scroll sideways inside it and the page does not.
+ */
+.adm-kit[data-kit-part='board'] {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  height: 100%;
+  font-size: 13px;
+}
+.adm-kit .adm-kit-board {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-width: 0;
+  height: 100%;
+}
+.adm-kit .adm-kit-board [data-board-scroller] {
+  overscroll-behavior-x: contain;
+}
+.adm-kit .adm-kit-board[aria-busy='true'] [data-board-scroller] {
+  cursor: progress;
+  opacity: 0.7;
+}
+.adm-kit .adm-kit-board-empty {
+  margin: 12px 12px 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--adm-kit-fg-muted);
+}
+/* A card that can be opened and not moved is still something to press. */
+.adm-kit .adm-kit-board [data-board-card] {
+  cursor: grab;
+}
+.adm-kit .adm-kit-board [data-board-card]:not([aria-roledescription]) {
+  cursor: default;
+}
+.adm-kit .adm-kit-board[data-openable] [data-board-card]:not([aria-roledescription]) {
+  cursor: pointer;
+}
+.adm-kit .adm-kit-board [data-board-card]:not([aria-roledescription]) [data-part='board-card-grip'] {
+  display: none;
+}

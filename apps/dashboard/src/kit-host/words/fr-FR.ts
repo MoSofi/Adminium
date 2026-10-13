@@ -6,7 +6,27 @@ const words: KitWords = {
   "mentions": {
     "ui:mentions.people": "Personnes à mentionner"
   },
-  "board": {},
+  "board": {
+    "ui:widgets.boards.a11y.failed": "Impossible de déplacer {title} ; elle est revenue à sa position d'origine.",
+    "ui:widgets.boards.a11y.grabbed": "{title} saisie. Utilisez les flèches pour déplacer, Entrée pour déposer, Échap pour annuler.",
+    "ui:widgets.boards.a11y.moved": "{title} déplacée vers {cell}.",
+    "ui:widgets.boards.a11y.over": "{title} est au-dessus de {cell}.",
+    "ui:widgets.boards.a11y.returned": "{title} est revenue à sa position d'origine.",
+    "ui:widgets.boards.addCard": "Ajouter une carte",
+    "ui:widgets.boards.boardCard.emptyBody": "Aucun enregistrement n'est encore associé à cette carte.",
+    "ui:widgets.boards.boardCard.emptyTitle": "Aucune carte",
+    "ui:widgets.boards.cardNotAdded": "La carte n’a pas été ajoutée.",
+    "ui:widgets.boards.dismissNotice": "Fermer",
+    "ui:widgets.boards.grip": "Glisser pour déplacer la carte",
+    "ui:widgets.boards.inlineComposeCard.addLabel": "Ajouter",
+    "ui:widgets.boards.inlineComposeCard.cancelLabel": "Annuler",
+    "ui:widgets.boards.inlineComposeCard.openLabel": "Ajouter une carte",
+    "ui:widgets.boards.inlineComposeCard.placeholder": "Titre de la carte…",
+    "ui:widgets.boards.kanbanBoard.emptyBody": "Les cartes apparaîtront dans leurs colonnes de statut à mesure que des enregistrements sont créés.",
+    "ui:widgets.boards.kanbanBoard.emptyTitle": "Aucune carte pour l'instant",
+    "ui:widgets.boards.notAdded": "La carte {title} n’a pas été ajoutée.",
+    "ui:widgets.boards.notMoved": "La carte {title} n’a pas été déplacée."
+  },
   "map": {},
   "import": {}
 };

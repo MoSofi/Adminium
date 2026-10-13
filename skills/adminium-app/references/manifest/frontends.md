@@ -38,6 +38,10 @@ customer side is public and calls the [public API](https://docs.adminium.dev/gui
 app's `customer` browser key, which the install creates. A staff side can be handed a second key
 for a screen of its own; see [publicKeys](https://docs.adminium.dev/reference/manifest/#publickeys). Each side reads its `surface-config.json` at boot: the real table
 names, the app's settings and, for the staff side, the connection, the venue's time zone and
-currency, who is signed in, and `access`: which of `read`, `create`, `update` and `delete` they
+currency, who is signed in, the language they chose in Adminium (`locale`, as a tag such as
+`ar-EG`, with its `dir`), and `access`: which of `read`, `create`, `update` and `delete` they
 hold on each of the app's tables, and the app's roles they hold. A staff screen uses it to leave
-out a button whose write would be refused; the data API still checks every write.
+out a button whose write would be refused; the data API still checks every write. The staff
+side's config also carries `kit`, the address of Adminium's own larger parts for a screen that
+draws one itself (see [Adminium's own parts on an app's screen](https://docs.adminium.dev/guides/apps/kit-parts/)), and
+`maps`: whether maps are on, the map server's address, and whether routes along roads are on.

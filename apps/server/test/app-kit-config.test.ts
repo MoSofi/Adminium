@@ -27,8 +27,9 @@ import { buildAuthApp, login, type AuthTestApp } from './auth-helpers.js';
 import { makeEnv } from './helpers.js';
 
 const ENTRY = 'kit-BHhBq5nz.js';
-const SHEET = 'mentions-DF31DXoR.css';
-const KIT = { contract: 1, entry: `/assets/kit/${ENTRY}`, styles: `/assets/kit/${SHEET}` };
+const SHEET = 'root-DF31DXoR.css';
+const PART_SHEET = 'board-Cq0vLx2A.css';
+const KIT = { contract: 1, entry: `/assets/kit/${ENTRY}`, styles: [`/assets/kit/${SHEET}`, `/assets/kit/${PART_SHEET}`] };
 const STAFF_HOST = 'staff.example.test';
 const CUSTOMER_HOST = 'shop.example.test';
 
@@ -43,7 +44,7 @@ beforeAll(async () => {
   await writeFile(join(dist, 'index.html'), '<!doctype html><html><body data-app="dashboard"></body></html>', 'utf8');
   await mkdir(join(dist, 'assets', 'kit'), { recursive: true });
   await writeFile(join(dist, 'assets', 'index-AAAAAAAA.js'), 'export const dashboard = 1;', 'utf8');
-  await writeFile(join(dist, 'assets', 'kit', 'kit.json'), JSON.stringify({ contract: 1, entry: ENTRY, styles: SHEET }), 'utf8');
+  await writeFile(join(dist, 'assets', 'kit', 'kit.json'), JSON.stringify({ contract: 1, entry: ENTRY, styles: [SHEET, PART_SHEET] }), 'utf8');
   await writeFile(join(dist, 'assets', 'kit', ENTRY), 'export const contract = 1; export async function mount() {}', 'utf8');
   await writeFile(join(dist, 'assets', 'kit', SHEET), '.adm-kit{color:red}', 'utf8');
 
@@ -143,7 +144,7 @@ describe('the kit’s files are served', () => {
     expect(String(entry.headers['content-type'])).toMatch(/javascript/);
     expect(entry.headers['cache-control']).toBe('public, max-age=31536000, immutable');
     expect(entry.body).toContain('export async function mount');
-    const sheet = await fixture.app.inject({ method: 'GET', url: KIT.styles });
+    const sheet = await fixture.app.inject({ method: 'GET', url: KIT.styles[0]! });
     expect(String(sheet.headers['content-type'])).toMatch(/text\/css/);
     expect(sheet.headers['cache-control']).toBe('public, max-age=31536000, immutable');
     const manifest = await fixture.app.inject({ method: 'GET', url: '/assets/kit/kit.json' });
@@ -185,8 +186,12 @@ describe('the kit’s files are served', () => {
 
 describe('reading kit.json', () => {
   it('takes a manifest as the build writes it', () => {
-    expect(parseKitManifest(JSON.stringify({ contract: 1, entry: ENTRY, styles: SHEET }))).toEqual(KIT);
-    expect(parseKitManifest(JSON.stringify({ contract: 2, entry: ENTRY, styles: null }))).toEqual({ contract: 2, entry: KIT.entry, styles: null });
+    expect(parseKitManifest(JSON.stringify({ contract: 1, entry: ENTRY, styles: [SHEET, PART_SHEET] }))).toEqual(KIT);
+    expect(parseKitManifest(JSON.stringify({ contract: 2, entry: ENTRY, styles: [] }))).toEqual({ contract: 2, entry: KIT.entry, styles: [] });
+    // The first kit named one sheet, or none: both still read.
+    expect(parseKitManifest(JSON.stringify({ contract: 1, entry: ENTRY, styles: SHEET }))).toEqual({ ...KIT, styles: [KIT.styles[0]] });
+    expect(parseKitManifest(JSON.stringify({ contract: 1, entry: ENTRY, styles: null }))).toEqual({ ...KIT, styles: [] });
+    expect(parseKitManifest(JSON.stringify({ contract: 1, entry: ENTRY }))).toEqual({ ...KIT, styles: [] });
   });
 
   it.each([
@@ -202,7 +207,8 @@ describe('reading kit.json', () => {
   });
 
   it('drops a sheet it cannot name safely and keeps the entry', () => {
-    expect(parseKitManifest(JSON.stringify({ contract: 1, entry: ENTRY, styles: '/etc/passwd' }))).toEqual({ ...KIT, styles: null });
+    expect(parseKitManifest(JSON.stringify({ contract: 1, entry: ENTRY, styles: '/etc/passwd' }))).toEqual({ ...KIT, styles: [] });
+    expect(parseKitManifest(JSON.stringify({ contract: 1, entry: ENTRY, styles: [SHEET, '../index.css', 'https://evil.example/a.css', 7, ENTRY] }))).toEqual({ ...KIT, styles: [KIT.styles[0]] });
   });
 
   it('reads the file again when it changes, and answers nothing once it is gone', async () => {
@@ -212,11 +218,11 @@ describe('reading kit.json', () => {
       expect(await kitOf(root)).toBeNull();
       await mkdir(join(root, 'assets', 'kit'), { recursive: true });
       const file = join(root, 'assets', 'kit', 'kit.json');
-      await writeFile(file, JSON.stringify({ contract: 1, entry: ENTRY, styles: null }), 'utf8');
-      expect(await kitOf(root)).toEqual({ ...KIT, styles: null });
-      expect(await kitOf(root)).toEqual({ ...KIT, styles: null });
+      await writeFile(file, JSON.stringify({ contract: 1, entry: ENTRY, styles: [] }), 'utf8');
+      expect(await kitOf(root)).toEqual({ ...KIT, styles: [] });
+      expect(await kitOf(root)).toEqual({ ...KIT, styles: [] });
       await new Promise((resolve) => setTimeout(resolve, 20));
-      await writeFile(file, JSON.stringify({ contract: 1, entry: 'kit-ZZZZZZZZ.js', styles: null }), 'utf8');
+      await writeFile(file, JSON.stringify({ contract: 1, entry: 'kit-ZZZZZZZZ.js', styles: [] }), 'utf8');
       expect((await kitOf(root))?.entry).toBe('/assets/kit/kit-ZZZZZZZZ.js');
       await rm(file);
       expect(await kitOf(root)).toBeNull();

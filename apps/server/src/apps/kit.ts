@@ -27,8 +27,12 @@ export interface KitAddress {
   contract: number;
   /** The file a screen imports: an absolute same-origin path. */
   entry: string;
-  /** The kit's sheet, for a screen that wants it fetched early; the kit loads it itself. Null when there is none. */
-  styles: string | null;
+  /**
+   * The kit's sheets, for a screen that wants them fetched early; the kit
+   * loads its own as parts are mounted. The one every part stands on is
+   * first. Empty when the build names none.
+   */
+  styles: string[];
 }
 
 /** A hashed file of the kit, by name: no directory, nothing but the build's own alphabet. */
@@ -46,8 +50,10 @@ export function parseKitManifest(text: string): KitAddress | null {
   const { contract, entry, styles } = doc as { contract?: unknown; entry?: unknown; styles?: unknown };
   if (typeof contract !== 'number' || !Number.isInteger(contract) || contract < 1) return null;
   if (typeof entry !== 'string' || !KIT_FILE.test(entry) || !entry.endsWith('.js')) return null;
-  const sheet = typeof styles === 'string' && KIT_FILE.test(styles) && styles.endsWith('.css') ? styles : null;
-  return { contract, entry: `${KIT_PATH}${entry}`, styles: sheet === null ? null : `${KIT_PATH}${sheet}` };
+  // A list since the board: a part may bring a sheet of its own. One name alone is how the first kit wrote it.
+  const named: unknown[] = Array.isArray(styles) ? styles : [styles];
+  const sheets = named.filter((sheet): sheet is string => typeof sheet === 'string' && KIT_FILE.test(sheet) && sheet.endsWith('.css'));
+  return { contract, entry: `${KIT_PATH}${entry}`, styles: sheets.map((sheet) => `${KIT_PATH}${sheet}`) };
 }
 
 const held = new Map<string, { mtimeMs: number; kit: KitAddress | null }>();
