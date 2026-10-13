@@ -7,6 +7,15 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  PALETTE_DARK_INK,
+  PALETTE_SHAPES,
+  PALETTE_SIZE,
+  areaLabelSpot,
+  formatDuration,
+  legDuration,
+  mapsSiteHref,
+  paletteIndex,
+  routeTotal,
   MIN_CORNERS,
   SPREAD_GAP,
   addCorner,
@@ -257,5 +266,105 @@ describe('the view across the date line', () => {
     const area = { geometry: { type: 'Polygon' as const, coordinates: [[[178, 0], [-178, 0], [-178, 2], [178, 0]]] } };
     expect(shapes.boundsOf([], [area])).toEqual([[178, 0], [182, 2]]);
     expect(shapes.boundsOf([], [], { type: 'LineString', coordinates: [[175, 1], [-175, 3]] })).toEqual([[175, 1], [185, 3]]);
+  });
+});
+
+describe('a route’s drive time and its whole way', () => {
+  it('a leg has a drive time only where the routing server gave one', () => {
+    expect(legDuration({ distanceM: 1000, durationS: 120, estimate: false })).toBe(120);
+    expect(legDuration({ distanceM: 1000, durationS: 0, estimate: false })).toBe(0);
+    expect(legDuration({ distanceM: 1000, durationS: null, estimate: true })).toBeNull();
+    expect(legDuration({ distanceM: null, durationS: 120, estimate: true, unknown: true })).toBeNull();
+    expect(legDuration({ distanceM: 1000, durationS: -5, estimate: false })).toBeNull();
+    expect(legDuration({ distanceM: 1000, durationS: Number.NaN, estimate: false })).toBeNull();
+    expect(legDuration({ distanceM: 1000, durationS: '120' as unknown as number, estimate: false })).toBeNull();
+    expect(legDuration(undefined)).toBeNull();
+  });
+
+  it('writes a drive time to the minute, in the reader’s language, and never as nothing', () => {
+    expect(formatDuration(4320, 'en-US')).toBe('1 hr 12 min');
+    expect(formatDuration(3600, 'en-US')).toBe('1 hr');
+    expect(formatDuration(2700, 'en-US')).toBe('45 min');
+    expect(formatDuration(20, 'en-US')).toBe('1 min');
+    expect(formatDuration(0, 'en-US')).toBe('1 min');
+    expect(formatDuration(4320, 'de-DE')).toBe('1 Std. 12 Min.');
+    expect(formatDuration(4320, 'ar-EG')).toMatch(/١/);
+    // A language tag Intl does not know: the plain figures.
+    expect(formatDuration(4320, 'not a tag')).toBe('1 h 12 min');
+  });
+
+  it('sums the whole way only when every leg between the stops has a length', () => {
+    const road = { distanceM: 1000, durationS: 60, estimate: false };
+    const straight = { distanceM: 500, durationS: null, estimate: true };
+    expect(routeTotal([road, road], 3)).toEqual({ distanceM: 2000, durationS: 120, estimate: false });
+    // One straight leg: the whole is an estimate, and there is no time for it.
+    expect(routeTotal([road, straight], 3)).toEqual({ distanceM: 1500, durationS: null, estimate: true });
+    // One unknown, one missing, no legs at all, one stop: no total.
+    expect(routeTotal([road, { distanceM: null, durationS: null, estimate: true, unknown: true }], 3)).toBeNull();
+    expect(routeTotal([road], 3)).toBeNull();
+    expect(routeTotal([], 2)).toBeNull();
+    expect(routeTotal([], 1)).toBeNull();
+    // A leg more than the stops need is not counted.
+    expect(routeTotal([road, road, road], 3)?.distanceM).toBe(2000);
+  });
+});
+
+describe('the map’s colours', () => {
+  it('takes a whole number from 0 up, round the eight, and nothing else', () => {
+    expect(PALETTE_SIZE).toBe(8);
+    expect([0, 7, 8, 17].map(paletteIndex)).toEqual([0, 7, 0, 1]);
+    for (const bad of [-1, 1.5, Number.NaN, Infinity, '2', null, undefined, {}, 'red; background: url(//x)']) expect(paletteIndex(bad)).toBeNull();
+    expect(PALETTE_SHAPES).toHaveLength(PALETTE_SIZE);
+    expect(PALETTE_DARK_INK).toHaveLength(PALETTE_SIZE);
+    expect(new Set(PALETTE_SHAPES).size).toBe(PALETTE_SIZE);
+  });
+});
+
+describe('where an area’s name is written', () => {
+  const polygon = (ring: number[][]) => ({ type: 'Polygon' as const, coordinates: [ring] });
+
+  it('the middle of a plain shape, with the box the name has to fit in', () => {
+    expect(areaLabelSpot(polygon([[0, 0], [4, 0], [4, 2], [0, 2], [0, 0]]))).toEqual({ at: [2, 1], box: [[0, 0], [4, 2]] });
+  });
+
+  it('inside the shape, for a shape bent round its own middle', () => {
+    // An L: its centre of mass is in the notch.
+    const spot = areaLabelSpot(polygon([[0, 0], [6, 0], [6, 1], [1, 1], [1, 6], [0, 6], [0, 0]]))!;
+    const [lng, lat] = spot.at;
+    const inside = (lng >= 0 && lng <= 6 && lat >= 0 && lat <= 1) || (lng >= 0 && lng <= 1 && lat >= 0 && lat <= 6);
+    expect(inside).toBe(true);
+  });
+
+  it('not in a hole', () => {
+    const ring = { type: 'Polygon' as const, coordinates: [[[0, 0], [6, 0], [6, 6], [0, 6], [0, 0]], [[1, 1], [5, 1], [5, 5], [1, 5], [1, 1]]] };
+    const [lng, lat] = areaLabelSpot(ring)!.at;
+    expect(lng > 1 && lng < 5 && lat > 1 && lat < 5).toBe(false);
+    expect(lng >= 0 && lng <= 6 && lat >= 0 && lat <= 6).toBe(true);
+  });
+
+  it('on the largest piece of several', () => {
+    const pieces = { type: 'MultiPolygon' as const, coordinates: [[[[0, 0], [1, 0], [1, 1], [0, 1], [0, 0]]], [[[10, 10], [14, 10], [14, 14], [10, 14], [10, 10]]]] };
+    expect(areaLabelSpot(pieces)?.at).toEqual([12, 12]);
+  });
+
+  it('across the date line, on the shape and not on the far side of the world', () => {
+    const spot = areaLabelSpot(polygon([[178, 0], [-178, 0], [-178, 2], [178, 2], [178, 0]]))!;
+    expect(spot.at).toEqual([180, 1]);
+    expect(spot.box).toEqual([[178, 0], [182, 2]]);
+  });
+
+  it('nothing for a shape with nothing to write on', () => {
+    expect(areaLabelSpot(null)).toBeNull();
+    expect(areaLabelSpot(polygon([[0, 0], [1, 1]]))).toBeNull();
+    expect(areaLabelSpot({ type: 'Polygon', coordinates: 'x' } as never)).toBeNull();
+    expect(areaLabelSpot(polygon([[0, 0], [Number.NaN, 1], ['a', 2] as never, [1, 1]]))).toBeNull();
+  });
+});
+
+describe('a link out to a map on a desk', () => {
+  it('names OpenStreetMap’s own site, with the position to about a metre and nothing else', () => {
+    expect(mapsSiteHref({ lat: 53.800834, lng: -1.549123 })).toBe('https://www.openstreetmap.org/?mlat=53.80083&mlon=-1.54912#map=16/53.80083/-1.54912');
+    // Whatever else the point holds does not travel.
+    expect(mapsSiteHref({ lat: 1, lng: 2, name: 'Cobalt Legal' } as { lat: number; lng: number })).not.toContain('Cobalt');
   });
 });

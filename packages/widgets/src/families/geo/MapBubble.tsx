@@ -3,6 +3,7 @@ import { useMaybeI18n, useMaybeT } from '../../lib/i18n.js';
 import { Button, EmptyState, SegmentedControl, subscribeTheme } from '@adminium/ui';
 import { MapPin } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { ReactNode } from 'react';
 
 import {
   bubbleRadius,
@@ -23,21 +24,27 @@ import {
   canClose,
   cornersOf,
   formatDistance,
+  formatDuration,
   hasOtherPieces,
   insertCorner,
   isAppleDevice,
   legDistance,
+  legDuration,
   mapsAppHref,
+  mapsSiteHref,
   moveCorner,
+  paletteIndex,
   pointCount,
   removeCorner,
+  routeTotal,
   spreadPins,
   straightLine,
   withOuterRing,
   MIN_CORNERS,
+  PALETTE_SHAPES,
   SETTLE_MS,
 } from './map-shapes.js';
-import type { AreaGeometry, Corner, DistanceUnits, MapArea, MapRoute } from './map-shapes.js';
+import type { AreaGeometry, Corner, DistanceUnits, MapArea, MapRoute, RouteLeg } from './map-shapes.js';
 import { coordinateText } from './place-value.js';
 import { StatusNote } from './StatusNote.js';
 import { useWidgetRuntimeEnv } from '../../frame/WidgetRuntimeContext.js';
@@ -119,8 +126,12 @@ export interface MapBubbleProps {
   showValues?: boolean | undefined;
   format?: ((value: number) => string) | undefined;
   onSelect?: ((point: GeoPoint) => void) | undefined;
-  /** Which of `points` is the one picked, by its place among them: its pin and its row are drawn as chosen. */
-  selected?: number | undefined;
+  /**
+   * Which of `points` is the one picked, by its place among them: its pin and
+   * its row are drawn as chosen, and when the host changes it the map goes to
+   * that pin. Null is the host saying none is picked.
+   */
+  selected?: number | null | undefined;
   /**
    * A pin was dragged (or picked up, moved with the arrow keys and kept) to an
    * exact spot. Turns dragging on. Return the promise of the save: when it is
@@ -139,6 +150,46 @@ export interface MapBubbleProps {
   /** The way through the points, in their order: stops are numbered and joined. */
   route?: MapRoute | undefined;
   units?: DistanceUnits | undefined;
+  /**
+   * Which of `areas` is the one picked, by its id: drawn stronger, its name
+   * marked, its row marked. When the host changes it the map brings that
+   * area into view (and, where areas can be changed, it is the one changed).
+   */
+  selectedArea?: string | undefined;
+  /** An area was picked on the map, or in the list. */
+  onAreaSelect?: ((id: string) => void) | undefined;
+  /**
+   * False leaves the map's own list out: the host draws one itself. THE LIST
+   * IS THE MAP'S ACCESSIBLE EQUIVALENT, and its stand-in while there is no
+   * map; a host that says false has taken both on. See `guides/apps/kit-parts`.
+   */
+  list?: boolean | undefined;
+  /**
+   * A place with no position yet is being put on the map: the next click on
+   * the map (or Enter with the map focused, or the button, for the cross at
+   * its middle) is told to `onPlaceNew`. `name` is said in the line above.
+   */
+  placing?: { name: string } | undefined;
+  /**
+   * Where the place was put. Return the promise of the save: a pin stands on
+   * the spot until it settles, and goes away if it is rejected.
+   */
+  onPlaceNew?: ((at: { lat: number; lng: number }) => unknown) | undefined;
+  /** The person stopped placing (the button, or Escape with the map focused). */
+  onPlacingStop?: (() => void) | undefined;
+  /** The route's legs were asked for and did not come: said above the map, with "Try again" when `onRouteRetry` is given. */
+  routeUnavailable?: boolean | undefined;
+  onRouteRetry?: (() => void) | undefined;
+  /**
+   * Whether a place has a link out to a map of its position on a desk too.
+   * On a phone every placed row has "Open in my maps app" (the device's
+   * own), as before. With this, on a desk the PICKED place has a link to
+   * OpenStreetMap's site in a new tab, while maps are on: a plain link,
+   * followed only when pressed, carrying the position and nothing else.
+   */
+  siteLink?: boolean | undefined;
+  /** What the map is doing: `loading`, `ready`, `unavailable` (the map server could not be reached) or `off`. */
+  onStatus?: ((status: 'loading' | 'ready' | 'unavailable' | 'off') => void) | undefined;
   /**
    * Where Settings → Maps is, for a reader who may change it: the "switched
    * off" notice then links there. The host knows who may; the map does not.
@@ -208,6 +259,12 @@ interface AreaDraft {
 /** The size of a pin that stands for a place and counts nothing. */
 const PLAIN_PIN_RADIUS = 9;
 
+/** The key of the pin that stands where a place was just put. */
+const PENDING_PIN = 'placing';
+
+/** How long the host's saying a pick back counts as the same pick. */
+const ECHO_MS = 1500;
+
 const NEW_DRAFT: AreaDraft = { id: null, corners: [], closed: false, selected: null, source: null };
 
 /** How many rows a list in its given order shows. */
@@ -240,6 +297,16 @@ export function MapBubble({
   onAreaChange,
   route,
   units = 'km',
+  selectedArea,
+  onAreaSelect,
+  list = true,
+  placing,
+  onPlaceNew,
+  onPlacingStop,
+  routeUnavailable = false,
+  onRouteRetry,
+  siteLink = false,
+  onStatus,
   settingsHref: settingsHrefProp,
   onSettingsOpen,
   theme: themeProp,
@@ -263,6 +330,16 @@ export function MapBubble({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const engineRef = useRef<MapEngine | null>(null);
   const [status, setStatus] = useState<MapStatus>('idle');
+  /** How many times the person asked for the map again: each one builds it anew. */
+  const [attempt, setAttempt] = useState(0);
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  /** Where a place was just put, while its save is on its way. */
+  const [pending, setPending] = useState<{ lat: number; lng: number } | null>(null);
+  const pendingRef = useRef(pending);
+  pendingRef.current = pending;
+  // Where the host does not say which place is picked, and a picked place has a link out, the map keeps the pick itself.
+  const [ownPicked, setOwnPicked] = useState<number | undefined>(undefined);
+  const picked = selected === null ? undefined : (selected ?? (siteLink && ownPicked !== undefined && ownPicked < points.length ? ownPicked : undefined));
 
   const keys = metrics !== undefined && metrics.length > 0 ? metrics : metricKeysOf(points);
   const [metric, setMetric] = useState<string | undefined>(undefined);
@@ -314,15 +391,42 @@ export function MapBubble({
   // numbers every row, so a pin after a stop with no position keeps its own.
   const stopOf = useMemo(() => plottable.map((point) => points.indexOf(point)), [plottable, points]);
 
-  /** A leg's length in words; null where there is no leg to speak of. */
+  /** A drive time in words ("1 hr 12 min drive"); null where the routing server gave none (a straight line has no time). */
+  const driveText = (leg: RouteLeg | undefined): string | null => {
+    const seconds = legDuration(leg);
+    return seconds === null ? null : t('ui:widgets.geo.mapBubble.legDrive', '{duration} drive', { duration: formatDuration(seconds, locale) });
+  };
+
+  /** A leg's length in words, with its drive time where one is known; null where there is no leg to speak of. */
   const legText = (stop: number): string | null => {
     if (route === undefined || stop === 0) return null;
-    const distance = legDistance(route.legs[stop - 1], units);
+    const leg = route.legs[stop - 1];
+    const distance = legDistance(leg, units);
     if (distance.kind === 'unknown') return t('ui:widgets.geo.mapBubble.legUnknown', 'distance from the stop before unknown');
     const figure = formatDistance(distance, locale);
-    return distance.kind === 'about'
-      ? t('ui:widgets.geo.mapBubble.legAbout', 'about {distance} from the stop before', { distance: figure })
-      : t('ui:widgets.geo.mapBubble.legExact', '{distance} from the stop before', { distance: figure });
+    const length =
+      distance.kind === 'about'
+        ? t('ui:widgets.geo.mapBubble.legAbout', 'about {distance} from the stop before', { distance: figure })
+        : t('ui:widgets.geo.mapBubble.legExact', '{distance} from the stop before', { distance: figure });
+    const drive = driveText(leg);
+    return drive === null ? length : `${length} · ${drive}`;
+  };
+
+  /** The whole way in words, where every leg has a length; null where one does not (a sum that leaves a leg out is not the whole way). */
+  const totalText = (): string | null => {
+    if (route === undefined) return null;
+    // Every stop must have its pin: a leg to a stop with no position is not in the answer.
+    const whole = plottable.length === points.length ? routeTotal(route.legs, points.length) : null;
+    if (whole === null) return null;
+    const distance = legDistance(whole, units);
+    if (distance.kind === 'unknown') return null;
+    const figure = formatDistance(distance, locale);
+    const length =
+      distance.kind === 'about'
+        ? t('ui:widgets.geo.mapBubble.totalAbout', 'The whole way: about {distance}', { distance: figure })
+        : t('ui:widgets.geo.mapBubble.totalExact', 'The whole way: {distance}', { distance: figure });
+    const drive = driveText(whole);
+    return drive === null ? length : `${length} · ${drive}`;
   };
 
   const byTownLabel = t('ui:widgets.geo.mapBubble.byTown', 'by town');
@@ -336,6 +440,7 @@ export function MapBubble({
       const stop = (stopOf[index] ?? index) + 1;
       const parts = [route === undefined ? point.name : `${stop}. ${point.name}`];
       if (showValues && route === undefined && activeMetric !== undefined) parts[0] = `${parts[0]}: ${formatRef.current(value)}`;
+      if (point.group !== undefined && point.group.trim() !== '') parts.push(point.group.trim());
       if (town) parts.push(byTownLabel);
       if (movable) parts.push(t('ui:widgets.geo.mapBubble.pinMoveHint', 'Drag to the exact spot. With the keyboard: Enter picks the pin up, the arrow keys move it, Enter keeps the spot and Escape puts it back.'));
       return {
@@ -351,9 +456,14 @@ export function MapBubble({
         ...(route === undefined ? {} : { number: stop }),
         movable,
         ...(point.tone === undefined ? {} : { tone: point.tone }),
-        ...(selected !== undefined && stopOf[index] === selected ? { selected: true } : {}),
+        ...(paletteIndex(point.colour) === null ? {} : { colour: paletteIndex(point.colour) as number }),
+        ...(picked !== undefined && stopOf[index] === picked ? { selected: true } : {}),
       };
     });
+    // A place just put on the map stands there, marked, until its save has settled.
+    if (pending !== null && placing !== undefined) {
+      pins.push({ key: PENDING_PIN, lat: pending.lat, lng: pending.lng, dx: 0, dy: 0, radius: PLAIN_PIN_RADIUS, label: placing.name, hollow: false, movable: false, selected: true });
+    }
     const line =
       route === undefined
         ? null
@@ -364,8 +474,16 @@ export function MapBubble({
       pins,
       areas: shownAreas
         .filter((area) => activeDraft === null || area.id !== activeDraft.id)
-        .map((area) => ({ id: area.id, geometry: area.geometry, tone: area.tone ?? 'accent' })),
+        .map((area) => ({
+          id: area.id,
+          geometry: area.geometry,
+          tone: area.tone ?? 'accent',
+          ...(paletteIndex(area.colour) === null ? {} : { colour: paletteIndex(area.colour) as number }),
+          ...(area.name === undefined ? {} : { name: area.name }),
+          ...(area.id === selectedArea ? { selected: true } : {}),
+        })),
       line,
+      placing: placing !== undefined,
       editor:
         activeDraft === null
           ? null
@@ -378,13 +496,15 @@ export function MapBubble({
             },
     };
     // `format` is read through a ref: a new function identity alone is not a new scene.
-  }, [plottable, spread, stopOf, activeMetric, route, showValues, movable, selected, shownAreas, activeDraft, byTownLabel, t]);
+  }, [plottable, spread, stopOf, activeMetric, route, showValues, movable, picked, selectedArea, placing, pending, shownAreas, activeDraft, byTownLabel, t]);
 
   // Latest inputs, readable from the engine's callbacks without making them a
   // dependency of the mount effect (which must not rebuild a live map: a
   // re-created map loses the view and fetches every picture again).
-  const live = useRef({ plottable, scene, flyToOnClick, onSelect, onPlace, onAreaChange, center, zoom, shownAreas, route, themeProp, librarySheet });
-  live.current = { plottable, scene, flyToOnClick, onSelect, onPlace, onAreaChange, center, zoom, shownAreas, route, themeProp, librarySheet };
+  const live = useRef({ points, plottable, scene, flyToOnClick, onSelect, onPlace, onAreaChange, onAreaSelect, placing, onPlaceNew, onPlacingStop, center, zoom, shownAreas, route, themeProp, librarySheet });
+  live.current = { points, plottable, scene, flyToOnClick, onSelect, onPlace, onAreaChange, onAreaSelect, placing, onPlaceNew, onPlacingStop, center, zoom, shownAreas, route, themeProp, librarySheet };
+  /** What the person picked on the map a moment ago: the host saying the same back is not a reason to move the view. */
+  const pickedHere = useRef<{ pin?: number; area?: string; at: number }>({ at: 0 });
   /** Set while a drag is being saved: the view must not jump to re-fit it. */
   const keepView = useRef(false);
   /**
@@ -427,6 +547,37 @@ export function MapBubble({
     }
   }, [releaseView]);
 
+  /** A place put on the map: a pin stands there while the host saves it, and goes if the save is refused. */
+  const placeNew = useCallback(
+    (corner: Corner) => {
+      const now = live.current;
+      if (now.placing === undefined || now.onPlaceNew === undefined || pendingRef.current !== null) return;
+      const { name } = now.placing;
+      const at = { lat: corner[1], lng: corner[0] };
+      pendingRef.current = at;
+      setPending(at);
+      keepView.current = true;
+      let saved: unknown;
+      try {
+        saved = now.onPlaceNew(at);
+      } catch (error) {
+        saved = Promise.reject(error instanceof Error ? error : new Error(String(error)));
+      }
+      const done = (kept: boolean) => (): void => {
+        pendingRef.current = null;
+        setPending(null);
+        setSaid(
+          kept
+            ? tRef.current('ui:widgets.geo.mapBubble.saidPlaced', '{name} placed at {position}.', { name, position: coordinateText(at) })
+            : tRef.current('ui:widgets.geo.mapBubble.saidPlaceRefused', '{name} was not placed.', { name }),
+        );
+      };
+      Promise.resolve(saved).then(done(true), done(false));
+      releaseView(saved);
+    },
+    [releaseView],
+  );
+
   const words = useMemo(
     () => ({
       'NavigationControl.ZoomIn': t('ui:widgets.geo.mapBubble.zoomIn', 'Zoom in'),
@@ -440,7 +591,7 @@ export function MapBubble({
 
   // The canvas is in the tree only while there is something to draw on it and
   // a server to draw it from; the effect below follows both.
-  const hasCanvas = points.length > 0 || shownAreas.length > 0 || editable;
+  const hasCanvas = points.length > 0 || shownAreas.length > 0 || editable || placing !== undefined;
   const drawsMap = server !== null && hasCanvas && status !== 'unavailable';
 
   useEffect(() => {
@@ -503,6 +654,8 @@ export function MapBubble({
             onPinPick: (key) => {
               const point = live.current.plottable[Number(key)];
               if (point === undefined) return;
+              pickedHere.current = { pin: live.current.points.indexOf(point), at: Date.now() };
+              setOwnPicked(pickedHere.current.pin);
               if (live.current.flyToOnClick) engine.flyTo({ lat: point.lat as number, lng: point.lng as number });
               live.current.onSelect?.(point);
             },
@@ -524,8 +677,17 @@ export function MapBubble({
             onPinSettled: () => {
               keepView.current = false;
             },
-            onMapPick: (corner) => changeDraft((current) => (current.closed ? current : { ...current, corners: addCorner(current.corners, corner) })),
+            onMapPick: (corner) => {
+              // Placing comes first: while a place is being put on the map, a click is never a corner.
+              if (live.current.placing !== undefined) placeNew(corner);
+              else changeDraft((current) => (current.closed ? current : { ...current, corners: addCorner(current.corners, corner) }));
+            },
+            onPlacingStop: () => live.current.onPlacingStop?.(),
             onAreaPick: (id) => {
+              if (live.current.onAreaSelect !== undefined) {
+                pickedHere.current = { area: id, at: Date.now() };
+                live.current.onAreaSelect(id);
+              }
               if (live.current.onAreaChange === undefined) return;
               const area = live.current.shownAreas.find((candidate) => candidate.id === id);
               if (area !== undefined) setDraft((current) => (current !== null && !current.closed && current.corners.length > 0 ? current : draftOf(area)));
@@ -583,7 +745,46 @@ export function MapBubble({
     // are the INITIAL view: re-running this on a config change would tear the
     // map down and rebuild it under a user who has panned. Live inputs reach
     // the engine through `live` + the redraw effect below instead.
-  }, [server, hasCanvas, changeDraft]);
+    // `attempt` is the person's "Try again": the same map, built anew.
+  }, [server, hasCanvas, changeDraft, placeNew, attempt]);
+
+  // The host hears what the map is doing: a row's "Place it" needs a map that is there.
+  const onStatusRef = useRef(onStatus);
+  onStatusRef.current = onStatus;
+  const told = server === null ? 'off' : !hasCanvas || status === 'idle' ? 'loading' : status;
+  useEffect(() => {
+    onStatusRef.current?.(told);
+  }, [told]);
+
+  // ── select-and-frame from outside ──────────────────────────────────────────
+  // The host said which pin is picked (a row of its own list was pressed): the
+  // map goes to it, as it does for a pin pressed on the map itself. Not at the
+  // start (the map fits everything), and not when the host only says back what
+  // the person just picked here.
+  const framedPin = useRef(selected);
+  useEffect(() => {
+    if (framedPin.current === selected) return;
+    framedPin.current = selected;
+    if (selected === undefined || selected === null) return;
+    const mine = pickedHere.current;
+    if (mine.pin === selected && Date.now() - mine.at < ECHO_MS) return;
+    const point = points[selected];
+    if (point?.lat === undefined || point.lng === undefined) return;
+    engineRef.current?.flyTo({ lat: point.lat, lng: point.lng });
+  }, [selected, points]);
+  const framedArea = useRef(selectedArea);
+  useEffect(() => {
+    if (framedArea.current === selectedArea) return;
+    framedArea.current = selectedArea;
+    const area = shownAreas.find((candidate) => candidate.id === selectedArea);
+    if (area === undefined) return;
+    // Where areas can be changed, the picked one is the one to change: what the list's "Change" did, for a host with a list of its own.
+    if (editable) setDraft((current) => (current !== null && !current.closed && current.corners.length > 0 ? current : current?.id === area.id ? current : draftOf(area)));
+    const mine = pickedHere.current;
+    if (mine.area === selectedArea && Date.now() - mine.at < ECHO_MS) return;
+    const bounds = boundsOf([], [area]);
+    if (bounds !== null) engineRef.current?.frame(bounds);
+  }, [selectedArea, shownAreas, editable]);
 
   // Redraw when the scene changes. No-ops until the map is there.
   useEffect(() => {
@@ -651,6 +852,34 @@ export function MapBubble({
     return at === -1 ? 1 : (spread[at]?.shared ?? 1);
   };
   const apple = typeof navigator !== 'undefined' && isAppleDevice(navigator.userAgent, navigator.maxTouchPoints);
+  /** The person asked for the map again: it is built anew, and the focus stays in the map's own box. */
+  const retry = (): void => {
+    setSaid(t('ui:widgets.geo.mapBubble.saidTrying', 'Trying the map again.'));
+    setStatus('idle');
+    setAttempt((count) => count + 1);
+    rootRef.current?.focus();
+  };
+  const total = totalText();
+  /** The way out to a map of one position: the device's own app on a phone, OpenStreetMap's site on a desk while maps are on. */
+  const linkOut = (point: GeoPoint, className: string): ReactNode => {
+    if (point.lat === undefined || point.lng === undefined) return null;
+    if (coarse) {
+      return (
+        <a data-part="geo-maps-app" href={mapsAppHref({ lat: point.lat, lng: point.lng, name: point.name }, apple)} className={className}>
+          {t('ui:widgets.geo.mapBubble.openInMaps', 'Open in my maps app')}
+        </a>
+      );
+    }
+    if (!siteLink || server === null) return null;
+    return (
+      // A new tab, told nothing of where it was opened from: the address holds the position and no more.
+      <a data-part="geo-maps-site" href={mapsSiteHref({ lat: point.lat, lng: point.lng })} target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer" className={className}>
+        {t('ui:widgets.geo.mapBubble.openOnMapsSite', 'Open on OpenStreetMap (new tab)')}
+      </a>
+    );
+  };
+  const pickedPoint = picked === undefined ? undefined : points[picked];
+  const pickedLink = !list && pickedPoint !== undefined ? linkOut(pickedPoint, 'font-medium text-accent underline underline-offset-2') : null;
   const listLabel =
     regionsLabel ??
     (route !== undefined
@@ -661,10 +890,13 @@ export function MapBubble({
 
   return (
     <div
+      ref={rootRef}
+      // Takes the focus when "Try again" goes away with its notice, so the keyboard is not sent back to the top of the page.
+      tabIndex={-1}
       data-widget="map-bubble"
       data-testid={testId}
       data-map-status={server === null ? 'off' : status}
-      className="flex h-full min-w-0 flex-col gap-3 px-[var(--widget-pad)] pb-[var(--widget-pad)]"
+      className="flex h-full min-w-0 flex-col gap-3 px-[var(--widget-pad)] pb-[var(--widget-pad)] outline-none"
     >
       {keys.length > 1 && (
         <SegmentedControl
@@ -705,12 +937,60 @@ export function MapBubble({
           )}
         </StatusNote>
       ) : status === 'unavailable' ? (
-        <StatusNote data-part="map-unavailable" className="rounded-lg border border-border bg-surface-2 px-3 py-2 text-body-sm text-fg-muted">
-          {mapUnavailableLabel ?? t('ui:widgets.geo.mapBubble.mapUnavailableLabel', 'The map could not be reached. Here is the list.')}
-        </StatusNote>
+        <div data-part="map-unavailable-box" className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-surface-2 px-3 py-2">
+          <StatusNote data-part="map-unavailable" className="min-w-0 flex-1 basis-48 text-body-sm text-fg-muted">
+            {mapUnavailableLabel ?? t('ui:widgets.geo.mapBubble.mapUnavailableLabel', 'The map could not be reached. Here is the list.')}
+          </StatusNote>
+          <Button type="button" size="sm" variant="secondary" data-part="map-retry" onClick={retry}>
+            {t('ui:widgets.geo.mapBubble.tryAgain', 'Try again')}
+          </Button>
+        </div>
       ) : null}
 
-      {drawsMap && activeDraft !== null && (
+      {route !== undefined && routeUnavailable && (
+        <div data-part="route-unavailable-box" className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-surface-2 px-3 py-2">
+          <StatusNote data-part="route-unavailable" className="min-w-0 flex-1 basis-48 text-body-sm text-fg-muted">
+            {t('ui:widgets.geo.mapBubble.routeUnavailable', 'The way between the stops could not be worked out, so the distances are unknown.')}
+          </StatusNote>
+          {onRouteRetry !== undefined && (
+            <Button type="button" size="sm" variant="secondary" data-part="route-retry" onClick={onRouteRetry}>
+              {t('ui:widgets.geo.mapBubble.tryAgain', 'Try again')}
+            </Button>
+          )}
+        </div>
+      )}
+
+      {drawsMap && placing !== undefined && (
+        <div data-part="map-placing" className="flex flex-wrap items-center gap-2">
+          <p className="min-w-0 flex-1 basis-48 text-caption text-fg-muted">
+            {t(
+              'ui:widgets.geo.mapBubble.placingHint',
+              'Click the map where {name} is. With the keyboard: focus the map, move it with the arrow keys, and press Enter to put {name} under the cross.',
+              { name: placing.name },
+            )}
+          </p>
+          <Button
+            type="button"
+            size="sm"
+            variant="primary"
+            data-part="map-place-middle"
+            disabled={pending !== null}
+            onClick={() => {
+              const at = engineRef.current?.center();
+              if (at !== undefined) placeNew(at);
+            }}
+          >
+            {t('ui:widgets.geo.mapBubble.placeAtMiddle', 'Place it at the middle of the map')}
+          </Button>
+          {onPlacingStop !== undefined && (
+            <Button type="button" size="sm" variant="ghost" data-part="map-placing-stop" onClick={onPlacingStop}>
+              {t('ui:widgets.geo.mapBubble.placingStop', 'Stop placing')}
+            </Button>
+          )}
+        </div>
+      )}
+
+      {drawsMap && placing === undefined && activeDraft !== null && (
         <div data-part="area-tools" className="flex flex-wrap items-center gap-2">
           <p className="min-w-0 flex-1 basis-48 text-caption text-fg-muted">
             {activeDraft.closed
@@ -792,7 +1072,7 @@ export function MapBubble({
           )}
         </div>
       )}
-      {drawsMap && editable && activeDraft === null && (
+      {drawsMap && placing === undefined && editable && activeDraft === null && (
         <div data-part="area-tools" className="flex flex-wrap items-center gap-2">
           <p className="min-w-0 flex-1 basis-48 text-caption text-fg-muted">{t('ui:widgets.geo.mapBubble.areaPickHint', 'Pick an area on the map or in the list to change it.')}</p>
           <Button type="button" size="sm" variant="secondary" data-part="area-new" onClick={() => setDraft(NEW_DRAFT)}>
@@ -814,7 +1094,16 @@ export function MapBubble({
           </div>
         )}
 
-        {(listed.length > 0 || more > 0 || shownAreas.length > 0) && (
+        {/* The host draws the list itself: the picked place still has its way out to a maps app. */}
+        {pickedLink !== null && (
+          <p data-part="geo-picked-link" className="basis-full text-caption text-fg-muted">
+            <span className="text-fg">{pickedPoint?.name}</span>
+            {' · '}
+            {pickedLink}
+          </p>
+        )}
+
+        {list && (listed.length > 0 || more > 0 || shownAreas.length > 0) && (
         <div className="flex min-w-0 flex-1 basis-40 flex-col gap-3">
           {/* The list: the map's companion, its stand-in when there is no map,
               and its accessible equivalent — a canvas of pins is unreadable to a
@@ -830,14 +1119,32 @@ export function MapBubble({
                     <button
                       type="button"
                       data-part="geo-ranking-row"
-                      aria-current={stop === selected ? 'true' : undefined}
-                      onClick={() => onSelect?.(point)}
+                      aria-current={stop === picked ? 'true' : undefined}
+                      onClick={() => {
+                        setOwnPicked(stop);
+                        onSelect?.(point);
+                      }}
                       className="flex w-full min-w-0 items-center justify-between gap-3 rounded-md px-2 py-1 text-start text-body-sm hover:bg-surface-2/60 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent aria-[current=true]:bg-surface-2"
                     >
                       <span className="flex min-w-0 items-center gap-1.5">
-                        <MapPin aria-hidden="true" className="size-3 shrink-0 text-fg-subtle" />
+                        {paletteIndex(point.colour) === null ? (
+                          <MapPin aria-hidden="true" className="size-3 shrink-0 text-fg-subtle" />
+                        ) : (
+                          // The pin's own colour and outline, so the row and its pin are matched by eye.
+                          <span
+                            aria-hidden="true"
+                            data-part="geo-swatch"
+                            className="size-3 shrink-0 rounded-[var(--swatch-shape,9999px)] bg-[var(--swatch,transparent)]"
+                            style={{ '--swatch': `var(--viz-${(paletteIndex(point.colour) as number) + 1})`, '--swatch-shape': PALETTE_SHAPES[paletteIndex(point.colour) as number] ?? '9999px' }}
+                          />
+                        )}
                         <span className="text-fg-subtle tabular-nums">{index + 1}.</span>
                         <span className="truncate text-fg-muted">{point.name}</span>
+                        {point.group !== undefined && point.group.trim() !== '' && (
+                          <span data-part="geo-group" className="shrink-0 text-caption text-fg-subtle">
+                            {point.group.trim()}
+                          </span>
+                        )}
                         {point.by === 'town' && (
                           <span data-part="geo-by-town" className="shrink-0 rounded-sm border border-dashed border-border px-1 text-caption text-fg-subtle">
                             {byTownLabel}
@@ -858,19 +1165,17 @@ export function MapBubble({
                           .join(' · ')}
                       </p>
                     )}
-                    {coarse && placed && (
-                      <a
-                        data-part="geo-maps-app"
-                        href={mapsAppHref({ lat: point.lat as number, lng: point.lng as number, name: point.name }, apple)}
-                        className="ms-7 inline-block px-2 py-1 text-caption font-medium text-accent underline underline-offset-2"
-                      >
-                        {t('ui:widgets.geo.mapBubble.openInMaps', 'Open in my maps app')}
-                      </a>
-                    )}
+                    {/* On a phone every placed row has its way out; on a desk the picked row alone, so a long list is not a list of links. */}
+                    {placed && (coarse || stop === picked) && linkOut(point, 'ms-7 inline-block px-2 py-1 text-caption font-medium text-accent underline underline-offset-2')}
                   </li>
                 );
               })}
             </ol>
+          )}
+          {total !== null && (
+            <p data-part="geo-route-total" className="px-2 text-body-sm font-medium text-fg">
+              {total}
+            </p>
           )}
           {more > 0 && (
             <p data-part="geo-list-more" className="px-2 text-caption text-fg-subtle">
@@ -884,8 +1189,20 @@ export function MapBubble({
                 const name = area.name ?? t('ui:widgets.geo.mapBubble.areaUnnamed', 'Area {number}', { number: String(index + 1) });
                 const count = t('ui:widgets.geo.mapBubble.areaPoints', '{count, plural, one {# point} other {# points}}', { count: pointCount(area.geometry) });
                 return (
-                  <li key={area.id} className="flex min-w-0 items-center justify-between gap-3 px-2 py-1 text-body-sm">
-                    <span className="min-w-0 truncate text-fg-muted">{name}</span>
+                  <li key={area.id} data-part="geo-area-row" aria-current={area.id === selectedArea ? 'true' : undefined} className="flex min-w-0 items-center justify-between gap-3 rounded-md px-2 py-1 text-body-sm aria-[current=true]:bg-surface-2">
+                    {onAreaSelect === undefined ? (
+                      <span className="min-w-0 truncate text-fg-muted">{name}</span>
+                    ) : (
+                      <button
+                        type="button"
+                        data-part="geo-area-pick"
+                        aria-pressed={area.id === selectedArea}
+                        onClick={() => onAreaSelect(area.id)}
+                        className="min-w-0 truncate rounded-sm text-start text-fg-muted hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                      >
+                        {name}
+                      </button>
+                    )}
                     <span className="flex shrink-0 items-center gap-2 text-caption text-fg-subtle">
                       {count}
                       {drawsMap && editable && activeDraft?.id !== area.id && (

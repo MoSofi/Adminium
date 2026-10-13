@@ -35,6 +35,8 @@ export interface MapArea {
   name?: string | undefined;
   geometry: AreaGeometry;
   tone?: AreaTone | undefined;
+  /** One of the map's {@link PALETTE_SIZE} colours, by its number from 0, in place of a tone. */
+  colour?: number | undefined;
 }
 
 /** One leg of a route, as `POST /geo/route` answers it. */
@@ -206,6 +208,183 @@ export function straightLine(points: readonly { lat: number; lng: number }[]): L
   return { type: 'LineString', coordinates: points.map((point) => [point.lng, point.lat]) };
 }
 
+// ── a route's drive time and its total ─────────────────────────────────────
+
+/** A leg's drive time in seconds, where the routing server gave one; null for a straight line or an unknown leg. */
+export function legDuration(leg: RouteLeg | undefined): number | null {
+  if (leg === undefined || leg.unknown === true || leg.durationS === null || typeof leg.durationS !== 'number' || !Number.isFinite(leg.durationS) || leg.durationS < 0) return null;
+  return leg.durationS;
+}
+
+/**
+ * A drive time in the reader's language, to the minute ("1 hr 12 min",
+ * "45 min"). Anything under a minute is one minute: a drive is never "0 min".
+ */
+export function formatDuration(seconds: number, locale: string): string {
+  const minutes = Math.max(1, Math.round(seconds / 60));
+  const parts: [number, 'hour' | 'minute'][] = [];
+  if (minutes >= 60) parts.push([Math.floor(minutes / 60), 'hour']);
+  if (minutes % 60 !== 0 || minutes < 60) parts.push([minutes % 60, 'minute']);
+  return parts
+    .map(([value, unit]) => {
+      try {
+        return new Intl.NumberFormat(locale, { style: 'unit', unit, unitDisplay: 'short', maximumFractionDigits: 0 }).format(value);
+      } catch {
+        return `${value} ${unit === 'hour' ? 'h' : 'min'}`;
+      }
+    })
+    .join(' ');
+}
+
+/**
+ * The whole way, where every leg between the stops has a length. One unknown
+ * or missing leg and there is no total: a sum that leaves a leg out reads as
+ * the whole way and is not. The drive time is summed only when every leg has one.
+ */
+export function routeTotal(legs: readonly RouteLeg[], stops: number): RouteLeg | null {
+  if (stops < 2 || legs.length < stops - 1) return null;
+  let distance = 0;
+  let duration: number | null = 0;
+  let estimate = false;
+  for (const leg of legs.slice(0, stops - 1)) {
+    if (leg.unknown === true || leg.distanceM === null || typeof leg.distanceM !== 'number' || !Number.isFinite(leg.distanceM)) return null;
+    distance += Math.max(0, leg.distanceM);
+    estimate ||= leg.estimate;
+    const drive = legDuration(leg);
+    duration = duration === null || drive === null ? null : duration + drive;
+  }
+  return { distanceM: distance, durationS: duration, estimate };
+}
+
+// ── the map's colours ───────────────────────────────────────────────────────
+
+/** How many colours the map's palette has (the charts' own eight). A number past the end goes round. */
+export const PALETTE_SIZE = 8;
+
+/** A colour's place in the palette, from 0; null for anything that is not a whole number from 0 up. */
+export function paletteIndex(colour: unknown): number | null {
+  if (typeof colour !== 'number' || !Number.isInteger(colour) || colour < 0) return null;
+  return colour % PALETTE_SIZE;
+}
+
+/**
+ * The outline that goes with each colour, as a CSS `border-radius`: colour
+ * alone tells some readers nothing, so no two colours share a shape. A round
+ * pin, a square one, two drops, two leaves, an arch and a bowl.
+ */
+export const PALETTE_SHAPES: readonly string[] = ['9999px', '3px', '50% 50% 50% 0px', '50% 0px 50% 50%', '50% 0px', '0px 50%', '50% 50% 0px 0px', '0px 0px 50% 50%'];
+
+/** Whether writing on a colour is dark (true) or light: what a stop's number is written in. */
+export const PALETTE_DARK_INK: readonly boolean[] = [false, true, true, true, false, false, false, true];
+
+// ── where an area's name is written ─────────────────────────────────────────
+
+function ringArea(ring: readonly number[][]): number {
+  let sum = 0;
+  for (let index = 0; index < ring.length; index += 1) {
+    const a = ring[index]!;
+    const b = ring[(index + 1) % ring.length]!;
+    sum += (a[0] as number) * (b[1] as number) - (b[0] as number) * (a[1] as number);
+  }
+  return sum / 2;
+}
+
+/** The outer ring of the largest polygon of a shape, with its holes; null where there is none to speak of. */
+function largestPolygon(geometry: AreaGeometry): number[][][] | null {
+  const polygons = geometry.type === 'Polygon' ? [geometry.coordinates] : geometry.coordinates;
+  let best: number[][][] | null = null;
+  let bestArea = 0;
+  for (const polygon of polygons) {
+    const outer = (polygon[0] ?? []).filter((corner) => typeof corner[0] === 'number' && typeof corner[1] === 'number' && Number.isFinite(corner[0]) && Number.isFinite(corner[1]));
+    if (outer.length < MIN_CORNERS) continue;
+    const area = Math.abs(ringArea(outer));
+    if (best === null || area > bestArea) {
+      best = [outer, ...polygon.slice(1)];
+      bestArea = area;
+    }
+  }
+  return best;
+}
+
+/** The stretches of the line at `lat` that lie inside the polygon (outside its holes), as pairs of longitudes. */
+function insideSpans(polygon: readonly number[][][], lat: number): [number, number][] {
+  const crossings: number[] = [];
+  for (const ring of polygon) {
+    for (let index = 0; index < ring.length; index += 1) {
+      const a = ring[index]!;
+      const b = ring[(index + 1) % ring.length]!;
+      const [ax, ay, bx, by] = [a[0] as number, a[1] as number, b[0] as number, b[1] as number];
+      if (ay > lat !== by > lat) crossings.push(ax + ((lat - ay) / (by - ay)) * (bx - ax));
+    }
+  }
+  crossings.sort((a, b) => a - b);
+  const spans: [number, number][] = [];
+  for (let index = 0; index + 1 < crossings.length; index += 2) spans.push([crossings[index]!, crossings[index + 1]!]);
+  return spans;
+}
+
+export interface AreaLabelSpot {
+  /** Where the name is centred, `[lng, lat]`: always inside the shape. */
+  at: Corner;
+  /** The box of the piece the name is written on: what the name has to fit in. */
+  box: Bounds;
+}
+
+/**
+ * Where an area's name is written: the middle of its largest piece, when that
+ * is inside the shape; for a shape bent round its own middle (an L, a ring
+ * with a hole) the middle of the widest stretch inside it on that line of
+ * latitude, or on the lines a quarter above and below. Null for a shape with
+ * nothing to write on.
+ */
+export function areaLabelSpot(geometry: AreaGeometry | null | undefined): AreaLabelSpot | null {
+  if (geometry === null || geometry === undefined || !Array.isArray(geometry.coordinates)) return null;
+  const found = largestPolygon(geometry);
+  if (found === null) return null;
+  // A shape across the date line (178 and -178 are neighbours): its west half is counted on past 180, as `boundsOf` does, so its middle is not the far side of the world.
+  const lngs = found[0]!.map((corner) => corner[0] as number);
+  const across = Math.max(...lngs) - Math.min(...lngs) > 180;
+  const polygon = across ? found.map((ring) => ring.map((corner) => [(corner[0] as number) < 0 ? (corner[0] as number) + 360 : (corner[0] as number), corner[1] as number])) : found;
+  const outer = polygon[0]!;
+  let west = Infinity;
+  let east = -Infinity;
+  let south = Infinity;
+  let north = -Infinity;
+  for (const corner of outer) {
+    west = Math.min(west, corner[0] as number);
+    east = Math.max(east, corner[0] as number);
+    south = Math.min(south, corner[1] as number);
+    north = Math.max(north, corner[1] as number);
+  }
+  const box: Bounds = [[west, south], [east, north]];
+  // The centre of the ring's mass.
+  const area = ringArea(outer);
+  let cx = (west + east) / 2;
+  let cy = (south + north) / 2;
+  if (area !== 0) {
+    let x = 0;
+    let y = 0;
+    for (let index = 0; index < outer.length; index += 1) {
+      const a = outer[index]!;
+      const b = outer[(index + 1) % outer.length]!;
+      const cross = (a[0] as number) * (b[1] as number) - (b[0] as number) * (a[1] as number);
+      x += ((a[0] as number) + (b[0] as number)) * cross;
+      y += ((a[1] as number) + (b[1] as number)) * cross;
+    }
+    cx = x / (6 * area);
+    cy = y / (6 * area);
+  }
+  const holds = (lng: number, lat: number): boolean => insideSpans(polygon, lat).some(([from, to]) => lng >= from && lng <= to);
+  if (holds(cx, cy)) return { at: [cx, cy], box };
+  let best: { at: Corner; width: number } | null = null;
+  for (const lat of [cy, south + (north - south) * 0.5, south + (north - south) * 0.25, south + (north - south) * 0.75]) {
+    for (const [from, to] of insideSpans(polygon, lat)) {
+      if (best === null || to - from > best.width) best = { at: [(from + to) / 2, lat], width: to - from };
+    }
+  }
+  return best === null ? null : { at: best.at, box };
+}
+
 // ── the phone's own maps app ────────────────────────────────────────────────
 
 /** An iPhone, an iPad (which says "Macintosh" and has a touch screen), or an iPod. */
@@ -223,6 +402,18 @@ export function mapsAppHref(point: { lat: number; lng: number; name?: string | u
   const name = (point.name ?? '').trim();
   if (apple) return `https://maps.apple.com/?ll=${at}${name === '' ? '' : `&q=${encodeURIComponent(name)}`}`;
   return `geo:${at}?q=${at}${name === '' ? '' : encodeURIComponent(`(${name})`)}`;
+}
+
+/**
+ * A link that shows a position on OpenStreetMap's own site, for a device with
+ * no maps app to hand it to (a desk). A link the person presses, opened in a
+ * tab of its own; this app asks that site nothing. The address carries the
+ * position, to about a metre, and nothing else: no name, no row.
+ */
+export function mapsSiteHref(point: { lat: number; lng: number }): string {
+  const lat = point.lat.toFixed(5);
+  const lng = point.lng.toFixed(5);
+  return `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}#map=16/${lat}/${lng}`;
 }
 
 // ── an area while it is drawn and changed ───────────────────────────────────

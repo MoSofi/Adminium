@@ -16,6 +16,7 @@ part asks of which server, so you can decide what to leave on.
 | The way between stops, as straight lines | **No.** |
 | Drawing a map | **Yes: each viewer's browser** fetches the map's pictures from the map server. |
 | The way between stops along roads | **Yes: your Adminium server** asks the routing server. Off until you switch it on. |
+| "Open in my maps app", "Open on OpenStreetMap" | **Only when a person presses the link.** It is a link, never a request Adminium makes. |
 
 ## The map server
 
@@ -37,6 +38,23 @@ staff browser talk to any server.
 While maps are on, that policy carries the map server's address on every page, the sign-in page
 too, so the address is not a secret from somebody who is not signed in. While maps are off,
 nothing the server sends names it.
+
+## The link out to a maps app
+
+A map's list offers a way out to a map the person already uses. Adminium asks nothing of
+anybody for it: it is a link, and nothing leaves until the person presses it.
+
+- **On a phone or a tablet**, each placed row has "Open in my maps app". The device hands the
+  position (and the row's name, as the search words) to its own maps app: a `geo:` link, or
+  Apple's maps address on an Apple device, which does not open `geo:`.
+- **On a desk**, the picked place has "Open on OpenStreetMap (new tab)". Pressing it opens
+  `https://www.openstreetmap.org/?mlat=…&mlon=…` in a new tab. OpenStreetMap then learns the
+  **viewer's address** (their IP) and **that one position**, to about a metre. It is not sent
+  the row's name, anything else from your data, or the page the link was on (the tab is opened
+  with no referrer). This link is not shown while maps are off.
+
+A map on an app's own screen can leave the desk's link out
+([`mapsSiteLink`](/guides/apps/kit-parts/#open-in-my-maps-app)).
 
 ## Turning maps off
 

@@ -297,23 +297,81 @@ const MAP = `export async function places(config, kit, asked) {
   const saves = [];
   const picked = [];
   const routes = [];
+  const statuses = [];
+  const placed = [];
+  const stopped = [];
 
+  // ?colour=1: each pin in a colour of the map's eight, by something of its row (here, its place in the list).
+  const coloured = asked.get('colour') !== null;
   async function read() {
     const { data } = await (await call('?limit=50&order=id.asc')).json();
-    return data.map((row) => ({ id: String(row.id), label: row.name, lat: Number(row.lat), lng: Number(row.lng), ...(row.name === 'Depot' ? { tone: 'warn' } : {}) }));
+    return data.map((row, index) => ({
+      id: String(row.id), label: row.name, lat: Number(row.lat), lng: Number(row.lng),
+      ...(row.name === 'Depot' ? { tone: 'warn' } : {}),
+      ...(coloured ? { colour: index + 1, group: 'Rep ' + (index + 1) } : {}),
+    }));
   }
+
+  // ?areas=1: two named areas, each in a colour: a small one round Berlin and a wide one round Paris.
+  const AREAS = [
+    { id: 'north', name: 'North', colour: 1, geometry: { type: 'Polygon', coordinates: [[[13.2, 52.4], [13.6, 52.4], [13.6, 52.64], [13.2, 52.64], [13.2, 52.4]]] } },
+    { id: 'west', name: 'الغرب', colour: 2, geometry: { type: 'Polygon', coordinates: [[[-1, 46], [6, 46], [6, 51], [-1, 51], [-1, 46]]] } },
+  ];
+
+  // ?own=1: the app draws the list itself, in the page before the map is mounted, and names it to the map.
+  // A row picks its pin, an area's row picks its area, and a row with no place yet is put on the map.
+  let own = null;
+  let map = null;
+  const mark = (id) => { for (const row of own?.querySelectorAll('[data-row]') ?? []) row.setAttribute('aria-pressed', String(row.dataset.row === id)); };
+  function drawOwn(pins) {
+    if (asked.get('own') === null) return;
+    if (own === null) {
+      own = document.createElement('ul');
+      own.id = 'own-list';
+      own.setAttribute('aria-label', 'Customers, in a list of the app');
+      document.querySelector('#map').after(own);
+    }
+    own.replaceChildren();
+    const add = (label, attrs, press) => {
+      const item = document.createElement('li');
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.textContent = label;
+      for (const [name, value] of Object.entries(attrs)) button.setAttribute(name, value);
+      button.addEventListener('click', press);
+      item.append(button);
+      own.append(item);
+    };
+    for (const pin of pins) add(pin.label, { 'data-row': pin.id, 'aria-pressed': 'false' }, () => { mark(pin.id); map.update({ selected: pin.id }); });
+    if (asked.get('areas') !== null) for (const area of AREAS) add('Area: ' + area.name, { 'data-area': area.id }, () => map.update({ selectedArea: area.id }));
+    if (asked.get('place') !== null) add('Place Fourth Wall', { 'data-place': 'new' }, () => map.update({ placing: { id: 'new', label: 'Fourth Wall' } }));
+  }
+  const first = await read();
+  drawOwn(first);
 
   const refusedOf = async (reply) => ({ refused: (await reply.json().catch(() => ({}))).error?.message ?? 'Not saved.' });
 
-  const map = await kit.mount('map', document.querySelector('#map'), {
+  let routeAsks = 0;
+  map = await kit.mount('map', document.querySelector('#map'), {
     maps: asked.get('maps') === 'off' ? { enabled: false, server: null, routing: false } : config.maps,
-    pins: await read(),
+    pins: first,
+    ...(asked.get('areas') === null ? {} : { areas: AREAS, onSelectArea: (areaId) => { document.body.dataset.area = areaId; } }),
+    ...(asked.get('own') === null ? {} : { hostList: 'own-list' }),
+    onStatus: (status) => { statuses.push(status); document.body.dataset.mapStatus = status; },
+    onPlacingStop: () => { stopped.push(true); },
+    // A row with no place yet: the app makes the row where the person put it. ?place=bad sends what the server refuses (no name).
+    onPlacePin: async (pinId, at) => {
+      const values = asked.get('place') === 'bad' ? { lat: at.lat, lng: at.lng } : { name: 'Fourth Wall', lat: at.lat, lng: at.lng };
+      const reply = await call('', { method: 'POST', body: JSON.stringify({ values }) });
+      placed.push({ pinId, lat: at.lat, lng: at.lng, status: reply.status });
+      if (!reply.ok) return refusedOf(reply);
+    },
     ariaLabel: 'Customers',
     locale: asked.get('locale') ?? config.locale,
     dir: asked.get('dir') ?? config.dir,
     ...(asked.get('theme') === null ? {} : { theme: asked.get('theme') }),
     ...(asked.get('settings') === null ? {} : { settingsHref: asked.get('settings') }),
-    onSelect: (pinId) => { picked.push(pinId); document.body.dataset.picked = pinId; },
+    onSelect: (pinId) => { picked.push(pinId); document.body.dataset.picked = pinId; mark(pinId); },
     onMovePin: async (pinId, at) => {
       const reply = await call('/' + pinId, { method: 'PATCH', body: JSON.stringify({ values: { lat: at.lat, lng: at.lng } }) });
       saves.push({ pinId, lat: at.lat, lng: at.lng, status: reply.status });
@@ -321,6 +379,9 @@ const MAP = `export async function places(config, kit, asked) {
     },
     ...(asked.get('route') === null ? {} : {
       route: async (stops) => {
+        routeAsks += 1;
+        // ?route=flaky: the first asking fails, as a network that dropped would.
+        if (asked.get('route') === 'flaky' && routeAsks === 1) { routes.push(0); throw new Error('No route.'); }
         const reply = await fetch('/api/v1/geo/route', { method: 'POST', credentials: 'same-origin', headers, body: JSON.stringify({ stops }) });
         routes.push(reply.status);
         if (!reply.ok) throw new Error('No route.');
@@ -328,7 +389,7 @@ const MAP = `export async function places(config, kit, asked) {
       },
     }),
   });
-  return { map, saves, picked, routes, read };
+  return { map, saves, picked, routes, read, statuses, placed, stopped };
 }`;
 
 /**
@@ -1320,23 +1381,24 @@ function styleOf(origin: string, dark: boolean): Record<string, unknown> {
  * is answered here, so no test reaches the network. `asked` is every path the
  * page asked that server for; `down` refuses them all.
  */
-async function mapServer(page: Page, how: 'up' | 'down' = 'up'): Promise<{ origin: string; asked: string[] }> {
+async function mapServer(page: Page, how: 'up' | 'down' = 'up'): Promise<{ origin: string; asked: string[]; turn(next: 'up' | 'down'): void }> {
   const config = (await (await page.request.get(`${STAFF}surface-config.json`)).json()) as { maps: { enabled: boolean; server: string | null } };
   expect(config.maps.enabled).toBe(true);
   const origin = new URL(config.maps.server!).origin;
   const asked: string[] = [];
+  const state = { how };
   const cors = { 'access-control-allow-origin': '*' };
   await page.route(`${origin}/**`, async (route) => {
     const { pathname } = new URL(route.request().url());
     asked.push(pathname);
-    if (how === 'down') return route.abort('connectionrefused');
+    if (state.how === 'down') return route.abort('connectionrefused');
     if (pathname.startsWith('/styles/')) return route.fulfill({ status: 200, headers: cors, contentType: 'application/json', body: JSON.stringify(styleOf(origin, pathname.endsWith('/dark'))) });
     if (pathname.endsWith('.json')) return route.fulfill({ status: 200, headers: cors, contentType: 'application/json', body: '{}' });
     if (pathname.endsWith('.png')) return route.fulfill({ status: 200, headers: cors, contentType: 'image/png', body: PIXEL });
     // Letters and map pictures: an empty answer is a tile with nothing on it.
     return route.fulfill({ status: 200, headers: cors, contentType: 'application/x-protobuf', body: Buffer.alloc(0) });
   });
-  return { origin, asked };
+  return { origin, asked, turn: (next) => void (state.how = next) };
 }
 
 const bubble = (page: Page) => page.locator('#map [data-widget="map-bubble"]');
@@ -1746,6 +1808,389 @@ test('dark where the app says dark, with the map server’s dark style; and a ro
   await expect.poll(() => server.asked).toContain('/styles/positron');
   await expect(pinOf(page, '1. Harbour Cafe')).toHaveAttribute('data-mine', 'kept');
   await expect.poll(() => first.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe('rgb(79, 70, 229)');
+  expect(problems).toEqual([]);
+});
+
+/* ---------------------------------------- what the two map screens draw */
+
+interface Placed {
+  pinId: string;
+  lat: number;
+  lng: number;
+  status: number;
+}
+const ownRow = (page: Page, label: string) => page.locator('#own-list button', { hasText: label });
+const areaNames = (page: Page) => page.locator('#map [data-part="map-area-name"]');
+const placingLine = (page: Page) => page.locator('#map [data-part="map-placing"]');
+const mapCanvas = (page: Page) => page.locator('#map canvas.maplibregl-canvas');
+const placedOf = (page: Page): Promise<Placed[]> => page.evaluate(() => (window as unknown as { kitScreen: { placed: Placed[] } }).kitScreen.placed);
+const kitMapUpdate = (page: Page, props: Record<string, unknown>): Promise<void> =>
+  page.evaluate((change) => (window as unknown as { kitScreen: { map: { update(props: Record<string, unknown>): void } } }).kitScreen.map.update(change), props);
+
+/** A spot on the map with no pin near it: where a click is a click on the map and not on a pin. */
+async function emptySpot(page: Page): Promise<{ x: number; y: number }> {
+  const [taken, frame] = await Promise.all([spots(page), page.locator('#map [data-part="map-canvas"]').boundingBox()]);
+  let best = { x: 0, y: 0, room: -1 };
+  for (let col = 1; col < 8; col += 1) {
+    for (let row = 1; row < 6; row += 1) {
+      const x = Math.round(frame!.x + (frame!.width * col) / 8);
+      const y = Math.round(frame!.y + (frame!.height * row) / 6);
+      // Away from the middle too, where the cross is, and from the library's buttons in the corners.
+      const room = Math.min(...Object.values(taken).map((pin) => Math.hypot(pin.x - x, pin.y - y)), Math.hypot(frame!.x + frame!.width / 2 - x, frame!.y + frame!.height / 2 - y));
+      if (room > best.room) best = { x, y, room };
+    }
+  }
+  expect(best.room).toBeGreaterThan(30);
+  return { x: best.x, y: best.y };
+}
+
+test('areas are named on the map, pins take a colour and an outline, and a row of the app’s own list picks and frames, by keyboard', async ({ page }) => {
+  const ids = await seedPlaces(page);
+  const problems = watch(page);
+  const server = await mapServer(page);
+  const origins = new Set<string>();
+  page.on('request', (request) => origins.add(new URL(request.url()).origin));
+  await openMap(page, '&areas=1&colour=1&own=1');
+
+  // The app's own list is in the page and named, so the map's own is left out; the pins are still named buttons.
+  await expect(page.locator('#own-list')).toBeVisible();
+  await expect(page.locator('#map [data-part="geo-ranking"]')).toHaveCount(0);
+  await expect(page.locator('#map [data-part="geo-areas"]')).toHaveCount(0);
+  await expect(pins(page)).toHaveCount(3);
+
+  // A colour of the map's eight for each pin, each with an outline of its own, and what the colour stands for in its name.
+  const cafe = pinOf(page, 'Harbour Cafe');
+  await expect(cafe).toHaveAttribute('aria-label', /^Harbour Cafe · Rep 1 · /);
+  expect(await cafe.evaluate((el) => [getComputedStyle(el).borderTopColor, getComputedStyle(el).borderTopLeftRadius].join(' '))).toBe('rgb(14, 165, 233) 3px');
+  const wind = pinOf(page, 'Second Wind');
+  expect(await wind.evaluate((el) => [getComputedStyle(el).borderTopColor, getComputedStyle(el).borderTopLeftRadius, getComputedStyle(el).borderBottomLeftRadius].join(' '))).toBe('rgb(20, 184, 166) 50% 0px');
+  // A colour stands in the place of a tone: the depot's `warn` gives way.
+  expect(await pinOf(page, 'Depot').evaluate((el) => getComputedStyle(el).borderTopColor)).toBe('rgb(245, 158, 11)');
+
+  // The wide area has its name written on it, in the name's own direction on a map that does not mirror.
+  await expect(areaNames(page)).toHaveCount(2);
+  const west = areaNames(page).nth(1);
+  await expect(west).toHaveText('الغرب');
+  await expect(west).toBeVisible();
+  await expect(west).toHaveAttribute('aria-hidden', 'true');
+  expect(await west.evaluate((el) => [getComputedStyle(el).direction, getComputedStyle(el).pointerEvents].join(' '))).toBe('rtl none');
+  expect(await page.locator('#map [data-part="map-canvas"]').evaluate((el) => getComputedStyle(el).direction)).toBe('ltr');
+  expect(await west.evaluate((el) => getComputedStyle(el).backgroundColor)).not.toBe('rgba(0, 0, 0, 0)');
+  const [name, frame] = await Promise.all([west.boundingBox(), page.locator('#map [data-part="map-canvas"]').boundingBox()]);
+  expect(name!.x).toBeGreaterThan(frame!.x);
+  expect(name!.x + name!.width).toBeLessThan(frame!.x + frame!.width);
+  // The small one is too small on screen to hold its name: it is not written across its neighbours.
+  const north = areaNames(page).first();
+  await expect(north).toHaveText('North');
+  await expect(north).toBeHidden();
+
+  // A row of the app's own list, by keyboard: the pin is marked and the map goes to it.
+  const before = await spots(page);
+  await ownRow(page, 'Depot').focus();
+  await page.keyboard.press('Enter');
+  await expect(pinOf(page, 'Depot')).toHaveAttribute('aria-current', 'true');
+  await expect(ownRow(page, 'Depot')).toHaveAttribute('aria-pressed', 'true');
+  await expect.poll(async () => JSON.stringify(await spots(page))).not.toBe(JSON.stringify(before));
+  // The app only said which is picked: nothing was "picked" on the map.
+  expect(await page.locator('body').getAttribute('data-picked')).toBeNull();
+  // The picked place has its way out under the map: a plain link to OpenStreetMap with the position and nothing else.
+  const out = page.locator('#map [data-part="geo-picked-link"] a');
+  await expect(out).toHaveText('Open on OpenStreetMap (new tab)');
+  expect(await out.getAttribute('href')).toBe('https://www.openstreetmap.org/?mlat=41.90280&mlon=12.49640#map=16/41.90280/12.49640');
+  expect(await out.evaluate((el: HTMLAnchorElement) => [el.target, el.rel, el.referrerPolicy].join(' '))).toBe('_blank noopener noreferrer no-referrer');
+
+  // An area's row: the map brings it into view, where its name now fits, and marks it.
+  await ownRow(page, 'Area: North').focus();
+  await page.keyboard.press('Enter');
+  await expect(north).toBeVisible();
+  await expect(north).toHaveAttribute('data-selected', '');
+  const framed = await spots(page);
+  const box = (await page.locator('#map [data-part="map-canvas"]').boundingBox())!;
+  // The café is inside North: it is in the frame now.
+  expect(framed['Harbour Cafe']!.x).toBeGreaterThan(box.x);
+  expect(framed['Harbour Cafe']!.x).toBeLessThan(box.x + box.width);
+
+  // On the map, with the mouse: a pin is told to the app, which marks its own row; an area under a click is told too.
+  await pinOf(page, 'Harbour Cafe').click();
+  await expect(page.locator('body')).toHaveAttribute('data-picked', ids['Harbour Cafe']!);
+  await expect(ownRow(page, 'Harbour Cafe')).toHaveAttribute('aria-pressed', 'true');
+  await expect(ownRow(page, 'Depot')).toHaveAttribute('aria-pressed', 'false');
+  await spots(page);
+  await page.mouse.click(box.x + box.width / 2 - 90, box.y + box.height / 2 + 40);
+  await expect(page.locator('body')).toHaveAttribute('data-area', 'north');
+
+  expect(await unstyledClasses(page)).toEqual([]);
+  // The link was never followed: nothing went anywhere but this Adminium and the map server.
+  expect([...origins].sort()).toEqual([new URL(page.url()).origin, server.origin].sort());
+  expect(problems).toEqual([]);
+});
+
+test('a row with no place yet is put on the map by a click, then by the keyboard under the cross, and the server holds it', async ({ page }) => {
+  await seedPlaces(page);
+  const problems = watch(page);
+  await mapServer(page);
+  await openMap(page, '&own=1&place=1');
+  await expect(page.locator('body')).toHaveAttribute('data-map-status', 'ready');
+  await expect(placingLine(page)).toHaveCount(0);
+
+  await ownRow(page, 'Place Fourth Wall').click();
+  await expect(placingLine(page)).toContainText('Click the map where Fourth Wall is.');
+  const cross = page.locator('#map [data-part="map-cross"]');
+  await expect(cross).toBeVisible();
+  expect(await mapCanvas(page).evaluate((el) => getComputedStyle(el).cursor)).toBe('crosshair');
+  expect(await unstyledClasses(page)).toEqual([]);
+
+  // With the mouse.
+  const at = await emptySpot(page);
+  // Where on the map itself: the line above it goes when the state ends, and the whole map moves up the page.
+  const frameOf = async (): Promise<{ x: number; y: number }> => (await page.locator('#map [data-part="map-canvas"]').boundingBox())!;
+  const clicked = { x: at.x - (await frameOf()).x, y: at.y - (await frameOf()).y };
+  await page.mouse.click(at.x, at.y);
+  await expect.poll(() => placedOf(page)).toHaveLength(1);
+  const [first] = await placedOf(page);
+  expect(first!.pinId).toBe('new');
+  expect(first!.status).toBeLessThan(300);
+  await expect(pins(page)).toHaveCount(4);
+  await expect(mapSaid(page)).toHaveText(/^Fourth Wall placed at /);
+  // The state ended with the save, and the pin stands where the click was.
+  await expect(placingLine(page)).toHaveCount(0);
+  await expect(cross).toHaveCount(0);
+  await page.waitForTimeout(600);
+  const stood = (await spots(page))['Fourth Wall']!;
+  expect(Math.abs(stood.x - (await frameOf()).x - clicked.x)).toBeLessThanOrEqual(2);
+  expect(Math.abs(stood.y - (await frameOf()).y - clicked.y)).toBeLessThanOrEqual(2);
+  const rows = (await (await page.request.get(`/api/v1/data/${await connectionOf(page)}/e2e_kit_places?limit=50&order=id.asc`)).json()) as { data: { name: string; lat: number | string; lng: number | string }[] };
+  const kept = rows.data.find((row) => row.name === 'Fourth Wall')!;
+  expect(Number(kept.lat)).toBeCloseTo(first!.lat, 5);
+  expect(Number(kept.lng)).toBeCloseTo(first!.lng, 5);
+
+  // With the keyboard: the row's button, then the map itself: the arrows move it, Enter puts the place under the cross.
+  await ownRow(page, 'Place Fourth Wall').focus();
+  await page.keyboard.press('Enter');
+  await expect(cross).toBeVisible();
+  await mapCanvas(page).focus();
+  await page.keyboard.press('ArrowRight');
+  await spots(page);
+  await page.keyboard.press('Enter');
+  await expect.poll(() => placedOf(page)).toHaveLength(2);
+  await expect(placingLine(page)).toHaveCount(0);
+  await page.waitForTimeout(600);
+  const frame = (await page.locator('#map [data-part="map-canvas"]').boundingBox())!;
+  const moved = (await spots(page))['Fourth Wall']!;
+  expect(Math.abs(moved.x - (frame.x + frame.width / 2))).toBeLessThanOrEqual(3);
+  expect(Math.abs(moved.y - (frame.y + frame.height / 2))).toBeLessThanOrEqual(3);
+  await expect(pins(page)).toHaveCount(4);
+
+  // And the button, for somebody who never focuses the map.
+  await ownRow(page, 'Place Fourth Wall').click();
+  await page.locator('#map').getByRole('button', { name: 'Place it at the middle of the map' }).click();
+  await expect.poll(() => placedOf(page)).toHaveLength(3);
+  expect(problems).toEqual([]);
+});
+
+test('a placing the server refuses takes the pin away and says the server’s own reason; Escape on the map leaves the state', async ({ page }) => {
+  await seedPlaces(page);
+  const faults: string[] = [];
+  page.on('console', (message) => {
+    // The browser itself logs the refused save; anything else is a fault.
+    if (message.type() === 'error' && !/40\d|422/.test(message.text())) faults.push(message.text());
+  });
+  page.on('pageerror', (error) => faults.push(String(error)));
+  await mapServer(page);
+  await openMap(page, '&own=1&place=bad');
+
+  await ownRow(page, 'Place Fourth Wall').click();
+  await expect(placingLine(page)).toBeVisible();
+  const at = await emptySpot(page);
+  const answered = page.waitForResponse((response) => response.request().method() === 'POST' && response.url().includes('/e2e_kit_places'));
+  await page.mouse.click(at.x, at.y);
+  const reply = await answered;
+  expect(reply.ok()).toBe(false);
+  const { error } = (await reply.json()) as { error: { message: string } };
+  expect(error.message.length).toBeGreaterThan(5);
+
+  const notice = page.locator('#map [data-part="map-refused"]');
+  await expect(notice).toContainText('Fourth Wall was not placed.');
+  await expect(notice.locator('[data-part="map-refused-reason"]')).toHaveText(error.message);
+  await expect(notice.locator('[data-part="map-refused-reason"]')).toHaveAttribute('role', 'alert');
+  await expect(mapSaid(page)).toHaveText('Fourth Wall was not placed.');
+  await expect(pins(page)).toHaveCount(3);
+  await expect(page.locator('#map [data-pin="placing"]')).toHaveCount(0);
+  // Still placing, for another try; Escape, with the map focused, stops, and the app is told.
+  await expect(placingLine(page)).toBeVisible();
+  await mapCanvas(page).focus();
+  await page.keyboard.press('Escape');
+  await expect(placingLine(page)).toHaveCount(0);
+  expect(await page.evaluate(() => (window as unknown as { kitScreen: { stopped: boolean[] } }).kitScreen.stopped.length)).toBe(1);
+  // A click on the map now places nothing.
+  await page.mouse.click(at.x, at.y);
+  await page.waitForTimeout(300);
+  expect(await placedOf(page)).toHaveLength(1);
+  expect(await unstyledClasses(page)).toEqual([]);
+  expect(faults).toEqual([]);
+});
+
+test('“Try again” brings the map back once its server answers, and a route that did not come is asked again, both by keyboard', async ({ page }) => {
+  await seedPlaces(page);
+  const faults: string[] = [];
+  page.on('console', (message) => {
+    if (message.type() === 'error' && !/ERR_CONNECTION_REFUSED|Failed to load resource/.test(message.text())) faults.push(message.text());
+  });
+  page.on('pageerror', (error) => faults.push(String(error)));
+  const server = await mapServer(page, 'down');
+  await open(page, `${MAP_PAGE}&route=flaky`);
+
+  await expect(bubble(page)).toHaveAttribute('data-map-status', 'unavailable', { timeout: 30_000 });
+  const retry = page.locator('#map [data-part="map-retry"]');
+  await expect(retry).toHaveText('Try again');
+  // Still down: asked again, and the notice and its button come back.
+  await retry.click();
+  await expect.poll(() => page.evaluate(() => (window as unknown as { kitScreen: { statuses: string[] } }).kitScreen.statuses.join(' ')), { timeout: 30_000 }).toBe('loading unreachable loading unreachable');
+  await expect(bubble(page)).toHaveAttribute('data-map-status', 'unavailable');
+  await expect(page.locator('#map [data-part="geo-ranking-row"]')).toHaveCount(3);
+
+  // The server is back. By keyboard.
+  server.turn('up');
+  await retry.focus();
+  await page.keyboard.press('Enter');
+  await expect(mapSaid(page)).toHaveText('Trying the map again.');
+  await expect(bubble(page)).toHaveAttribute('data-map-status', 'ready', { timeout: 30_000 });
+  await expect(page.locator('#map [data-part="map-unavailable"]')).toHaveCount(0);
+  await expect(mapCanvas(page)).toBeVisible();
+  await expect(pins(page)).toHaveCount(3);
+  // The keyboard was not thrown back to the top of the page: the focus is in the map's own box.
+  expect(await page.evaluate(() => document.activeElement?.closest('#map') !== null && document.activeElement !== document.body)).toBe(true);
+  expect(await page.evaluate(() => (window as unknown as { kitScreen: { statuses: string[] } }).kitScreen.statuses)).toEqual(['loading', 'unreachable', 'loading', 'unreachable', 'loading', 'ready']);
+
+  // The route's first asking failed: said, with the legs unknown and no total that leaves one out.
+  const lost = page.locator('#map [data-part="route-unavailable"]');
+  await expect(lost).toHaveText('The way between the stops could not be worked out, so the distances are unknown.');
+  await expect(page.locator('#map [data-part="geo-row-note"]').first()).toHaveText('distance from the stop before unknown');
+  await expect(page.locator('#map [data-part="geo-route-total"]')).toHaveCount(0);
+  await page.locator('#map [data-part="route-retry"]').focus();
+  await page.keyboard.press('Enter');
+  await expect(lost).toHaveCount(0);
+  await expect(page.locator('#map [data-part="geo-row-note"]').first()).toHaveText(/^about [\d.,]+ km from the stop before$/);
+  // Straight legs: about, no drive time to give, and the whole way since every leg has a length.
+  await expect(page.locator('#map [data-part="geo-route-total"]')).toHaveText(/^The whole way: about [\d.,]+ km$/);
+  expect(await page.evaluate(() => (window as unknown as { kitScreen: { routes: number[] } }).kitScreen.routes)).toEqual([0, 200]);
+  expect(await unstyledClasses(page)).toEqual([]);
+  expect(faults).toEqual([]);
+});
+
+test('a routing server’s drive time is beside each leg, and the whole way under the list', async ({ page }) => {
+  await seedPlaces(page);
+  const problems = watch(page);
+  await mapServer(page);
+  // The routing server is the operator's to switch on; its answer is stood in for here, in the form `POST /geo/route` gives.
+  await page.route('**/api/v1/geo/route', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ data: { legs: [{ distanceM: 1_054_000, durationS: 36_840, estimate: false }, { distanceM: 1_421_000, durationS: 50_100, estimate: false }] } }),
+    }),
+  );
+  await openMap(page, '&route=1');
+  const notes = page.locator('#map [data-part="geo-row-note"]');
+  await expect(notes).toHaveText(['1,054 km from the stop before · 10 hr 14 min drive', '1,421 km from the stop before · 13 hr 55 min drive']);
+  await expect(page.locator('#map [data-part="geo-route-total"]')).toHaveText('The whole way: 2,475 km · 24 hr 9 min drive');
+  expect(await unstyledClasses(page)).toEqual([]);
+  expect(problems).toEqual([]);
+});
+
+test('in Arabic, at 390 wide and dark, for somebody who asked for less motion: names, placing and the whole way read right and nothing scrolls sideways', async ({ page }) => {
+  await seedPlaces(page);
+  await page.setViewportSize({ width: 390, height: 800 });
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  const problems = watch(page);
+  const server = await mapServer(page);
+  await openMap(page, '&locale=ar-EG&dir=rtl&theme=dark&areas=1&colour=1&route=1&place=1');
+  const words = (JSON.parse(readFileSync(join(import.meta.dirname, '..', '..', '..', 'packages', 'i18n', 'locales', 'ar-EG', 'ui.json'), 'utf8')) as { widgets: { geo: { mapBubble: Record<string, string> } } }).widgets.geo.mapBubble;
+  // A sentence of the catalogue as a pattern: its words exactly, anything where it takes a name or a figure.
+  const pattern = (text: string): RegExp => {
+    const exact = text.split(/\{[a-z]+\}/).map((piece) => piece.replace(/[.*+?^$()|[\]\\]/g, '\\$&'));
+    return new RegExp('^' + exact.join('.+') + '$');
+  };
+  const sideways = async (): Promise<void> => {
+    const widths = await page.evaluate(() => ({ page: document.documentElement.scrollWidth, view: document.documentElement.clientWidth }));
+    expect(widths.page).toBeLessThanOrEqual(widths.view);
+  };
+  expect(server.asked).toContain('/styles/dark');
+  await sideways();
+
+  // The whole way, in Arabic, under the list (which is under the map at this width).
+  await expect(page.locator('#map [data-part="geo-route-total"]')).toHaveText(pattern(words['totalAbout']!));
+  // An area's name: light on the dark surface, and each in its own direction whichever way the page reads.
+  const west = areaNames(page).nth(1);
+  await expect(west).toBeVisible();
+  const shade = await west.evaluate((el) => (getComputedStyle(el).color.match(/\d+/g) ?? []).slice(0, 3).map(Number));
+  expect(Math.min(...shade)).toBeGreaterThan(180);
+  // Less motion: the area the app picks is in view at once, with no flight to wait for.
+  await kitMapUpdate(page, { selectedArea: 'north' });
+  const north = areaNames(page).first();
+  await expect(north).toBeVisible();
+  const atOnce = JSON.stringify(await pins(page).evaluateAll((all) => all.map((pin) => Math.round(pin.getBoundingClientRect().x))));
+  await page.waitForTimeout(500);
+  expect(JSON.stringify(await pins(page).evaluateAll((all) => all.map((pin) => Math.round(pin.getBoundingClientRect().x))))).toBe(atOnce);
+  expect(await north.evaluate((el) => getComputedStyle(el).direction)).toBe('ltr');
+  expect(await west.evaluate((el) => getComputedStyle(el).direction)).toBe('rtl');
+  await sideways();
+
+  // Placing: the line and its buttons are Arabic and run right to left; the cross is there; by keyboard, the button.
+  await kitMapUpdate(page, { placing: { id: 'new', label: 'Fourth Wall' } });
+  const line = placingLine(page);
+  await expect(line.locator('p')).toHaveText(words['placingHint']!.replaceAll('{name}', 'Fourth Wall'));
+  expect(await line.evaluate((el) => getComputedStyle(el).direction)).toBe('rtl');
+  await expect(page.locator('#map [data-part="map-cross"]')).toBeVisible();
+  await expect(line.getByRole('button', { name: words['placingStop']! })).toBeVisible();
+  await sideways();
+  const middle = line.getByRole('button', { name: words['placeAtMiddle']! });
+  await middle.focus();
+  await page.keyboard.press('Enter');
+  await expect.poll(() => placedOf(page)).toHaveLength(1);
+  await expect(mapSaid(page)).toHaveText(pattern(words['saidPlaced']!));
+  await expect(pins(page)).toHaveCount(4);
+  await expect(line).toHaveCount(0);
+  await sideways();
+  expect(await page.evaluate(() => window.scrollX)).toBe(0);
+  expect(await unstyledClasses(page)).toEqual([]);
+  expect(problems).toEqual([]);
+});
+
+test('switched off with a list of the app’s own: the notice, no map code, no request, and nothing can be placed', async ({ page }) => {
+  await seedPlaces(page);
+  const problems = watch(page);
+  const server = await mapServer(page);
+  const asked: string[] = [];
+  const origins = new Set<string>();
+  page.on('request', (request) => {
+    const url = new URL(request.url());
+    origins.add(url.origin);
+    if (url.pathname.startsWith('/assets/')) asked.push(url.pathname);
+  });
+  await open(page, `${MAP_PAGE}&maps=off&own=1&place=1&areas=1&colour=1`);
+
+  await expect(bubble(page)).toHaveAttribute('data-map-status', 'off');
+  await expect(page.locator('#map [data-part="map-off"]')).toContainText('Maps are switched off. Here is the list.');
+  // The list is the app's, whole without a map; the map's own stays out.
+  await expect(page.locator('#own-list button[data-row]')).toHaveCount(3);
+  await expect(page.locator('#map [data-part="geo-ranking"]')).toHaveCount(0);
+  await expect(page.locator('body')).toHaveAttribute('data-map-status', 'off');
+  // A row still picks, and the app is the one that marks it. No link out: the operator said no outside map.
+  await ownRow(page, 'Second Wind').click();
+  await expect(ownRow(page, 'Second Wind')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('#map [data-part="geo-picked-link"]')).toHaveCount(0);
+  // Placing needs a map: asked for, there is no line, no cross and nothing to click.
+  await ownRow(page, 'Place Fourth Wall').click();
+  await expect(placingLine(page)).toHaveCount(0);
+  await expect(page.locator('#map [data-part="map-cross"]')).toHaveCount(0);
+
+  await page.waitForTimeout(1_000);
+  expect(server.asked).toEqual([]);
+  expect([...origins]).toEqual([new URL(page.url()).origin]);
+  expect(asked.some((path) => /maplibre|map-engine/.test(path))).toBe(false);
+  expect(await placedOf(page)).toEqual([]);
+  expect(await unstyledClasses(page)).toEqual([]);
   expect(problems).toEqual([]);
 });
 

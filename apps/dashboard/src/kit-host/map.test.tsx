@@ -63,8 +63,9 @@ const fake = vi.hoisted(() => {
       return this.layers.includes(id) ? { id } : undefined;
     }
     setPaintProperty(): void {}
-    getCanvas(): { style: Record<string, string> } {
-      return { style: {} };
+    canvas: HTMLElement | undefined;
+    getCanvas(): HTMLElement {
+      return (this.canvas ??= document.createElement('canvas'));
     }
     // One pixel is a hundredth of a degree, y growing south.
     project(at: { lng: number; lat: number }): { x: number; y: number } {
@@ -79,7 +80,10 @@ const fake = vi.hoisted(() => {
     jumpTo(view: unknown): void {
       this.fitted.push(view);
     }
-    flyTo(): void {}
+    flown: unknown[] = [];
+    flyTo(view: unknown): void {
+      this.flown.push(view);
+    }
     getZoom(): number {
       return 3;
     }
@@ -504,5 +508,265 @@ describe('the map, mounted', () => {
     act(() => mounted!.unmount());
     expect(built.removed).toBe(true);
     expect(host.childElementCount).toBe(0);
+  });
+});
+
+// ── what the two map screens draw (T25) ─────────────────────────────────────
+
+describe('the map, mounted: names, colours, a list of the app’s own, click-to-place, "Try again"', () => {
+  const NORTH = { type: 'Polygon' as const, coordinates: [[[13, 52], [14, 52], [14, 53], [13, 53], [13, 52]]] };
+  const SOUTH = { type: 'Polygon' as const, coordinates: [[[2, 48], [4, 48], [4, 49], [2, 49], [2, 48]]] };
+  const AREAS = [
+    { id: 'a1', name: 'North', geometry: NORTH, colour: 0 },
+    { id: 'a2', name: 'South', geometry: SOUTH, colour: 1 },
+  ];
+  const click = (built: (typeof fake.maps)[number], lng: number, lat: number): void => built.fire('click', { lngLat: { lng, lat }, point: { x: 0, y: 0 } });
+  const placingLine = (): string | undefined => host.querySelector('[data-part="map-placing"] p')?.textContent ?? undefined;
+
+  it('a pin’s colour, its outline and what it stands for reach the map; an area’s name is written on it', async () => {
+    await ready({ pins: [{ ...PINS[0]!, colour: 1, group: 'Dana Whitlock' }, PINS[1]!], areas: AREAS });
+    expect(pin('Harbour Cafe').style.color).toBe('var(--viz-2)');
+    expect(pin('Harbour Cafe').style.borderRadius).toBe('3px');
+    expect(pin('Harbour Cafe').getAttribute('aria-label')).toBe('Harbour Cafe · Dana Whitlock');
+    expect(row('Harbour Cafe').textContent).toBe('1.Harbour CafeDana Whitlock');
+    expect(pin('Second Wind').style.color).toBe('var(--pos)');
+    expect([...host.querySelectorAll('[data-part="map-area-name"]')].map((name) => name.textContent)).toEqual(['North', 'South']);
+    // What a script could not have typed its way into: a colour that is not a number is no colour.
+    await update({ pins: [{ ...PINS[0]!, colour: 'red; background: url(//evil.test)' as unknown as number }] });
+    expect(pin('Harbour Cafe').getAttribute('style')).not.toContain('evil');
+    expect(pin('Harbour Cafe').style.color).toBe('var(--accent)');
+  });
+
+  it('a pin the app picks is gone to; one the person picks on the map is told to the app and not gone to twice', async () => {
+    const onSelect = vi.fn();
+    const built = await ready({ onSelect });
+    expect(built.flown).toEqual([]);
+    // A row of the app's own list.
+    await update({ selected: 'c3' });
+    expect(built.flown).toEqual([{ center: [12.5, 41.9], zoom: 5 }]);
+    expect(pin('Third Coast').getAttribute('aria-current')).toBe('true');
+    expect(onSelect).not.toHaveBeenCalled();
+    // On the map.
+    fireEvent.click(pin('Second Wind'));
+    expect(onSelect).toHaveBeenCalledWith('c2');
+    expect(built.flown).toHaveLength(2);
+    // The app says the same back, as a list of its own would.
+    await update({ selected: 'c2' });
+    expect(built.flown).toHaveLength(2);
+    // A pin that is not there, and none: nothing happens, nothing breaks.
+    await update({ selected: 'nobody' });
+    await update({ selected: null });
+    expect(built.flown).toHaveLength(2);
+    expect(host.querySelector('[data-part="map-pin"][aria-current]')).toBeNull();
+  });
+
+  it('an area the app picks is marked and brought into view; one picked on the map or in the list is told to the app', async () => {
+    const onSelectArea = vi.fn();
+    const built = await ready({ areas: AREAS, onSelectArea });
+    const fits = built.fitted.length;
+    await update({ selectedArea: 'a2' });
+    expect(built.fitted.slice(fits)).toEqual([[[2, 48], [4, 49]]]);
+    expect(host.querySelector('[data-part="map-area-name"][data-selected]')?.textContent).toBe('South');
+    expect(screen.getByRole('button', { name: 'South', pressed: true })).toBeTruthy();
+    // In the list.
+    fireEvent.click(screen.getByRole('button', { name: 'North' }));
+    expect(onSelectArea).toHaveBeenLastCalledWith('a1');
+    expect(screen.getByRole('button', { name: 'North', pressed: true })).toBeTruthy();
+    // On the map: the pick is the person's own, so the view stays theirs.
+    const before = built.fitted.length;
+    built.queryRenderedFeatures = () => [{ properties: { id: 'a2' } }];
+    act(() => click(built, 3, 48.5));
+    expect(onSelectArea).toHaveBeenLastCalledWith('a2');
+    expect(built.fitted).toHaveLength(before);
+    await update({ selectedArea: null });
+    expect(host.querySelector('[data-part="map-area-name"][data-selected]')).toBeNull();
+  });
+
+  it('hostList is a promise that is checked: the map’s own list goes only while the app’s list is in the page', async () => {
+    const warned = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    try {
+      // Promised, and not there: the map keeps its list and says so to the developer.
+      await ready({ hostList: 'territory-list', areas: AREAS });
+      expect(rows()).toHaveLength(3);
+      expect(screen.getByRole('list', { name: 'Areas' })).toBeTruthy();
+      expect(warned).toHaveBeenCalledWith(expect.stringContaining('territory-list'));
+      // There: the map's own list is left out. The pins are still named buttons.
+      const own = document.createElement('ul');
+      own.id = 'territory-list';
+      document.body.append(own);
+      await update({});
+      expect(rows()).toHaveLength(0);
+      expect(host.querySelector('[data-part="geo-areas"]')).toBeNull();
+      expect(pin('Harbour Cafe').tagName).toBe('BUTTON');
+      // The app's row picks: the pin is marked and gone to, and its way out is under the map.
+      await update({ selected: 'c1' });
+      expect(pin('Harbour Cafe').getAttribute('aria-current')).toBe('true');
+      expect(host.querySelector('[data-part="geo-picked-link"]')?.textContent).toBe('Harbour Cafe · Open on OpenStreetMap (new tab)');
+      await update({ mapsSiteLink: false });
+      expect(host.querySelector('[data-part="geo-picked-link"]')).toBeNull();
+      // Taken out of the page again: the map's list is back at the next word from the app.
+      own.remove();
+      await update({});
+      expect(rows()).toHaveLength(3);
+      // Not an id at all: no list is hidden for it.
+      await update({ hostList: '' });
+      expect(rows()).toHaveLength(3);
+      await update({ hostList: 7 as unknown as string });
+      expect(rows()).toHaveLength(3);
+    } finally {
+      warned.mockRestore();
+      document.getElementById('territory-list')?.remove();
+    }
+  });
+
+  it('with the app’s own list and no map, the notice still stands and says which', async () => {
+    const own = document.createElement('ul');
+    own.id = 'own-list';
+    document.body.append(own);
+    try {
+      const onStatus = vi.fn();
+      await map({ maps: OFF, hostList: 'own-list', onStatus });
+      await waitFor(() => expect(host.querySelector('[data-part="map-off"]')?.textContent).toBe('Maps are switched off. Here is the list.'));
+      expect(rows()).toHaveLength(0);
+      expect(onStatus).toHaveBeenLastCalledWith('off');
+      expect(fake.imports).toBe(0);
+    } finally {
+      own.remove();
+    }
+  });
+
+  it('click-to-place: the spot reaches the app with the row’s id; held, the pin is kept and the state ends', async () => {
+    const onPlacePin = vi.fn<(id: string, at: { lat: number; lng: number }) => Promise<void>>(() => Promise.resolve());
+    const built = await ready({ onPlacePin });
+    expect(placingLine()).toBeUndefined();
+    await update({ placing: { id: 'c9', label: 'Kestrel Print' } });
+    expect(placingLine()).toContain('Click the map where Kestrel Print is.');
+    await act(async () => click(built, 9.19, 45.46));
+    expect(onPlacePin).toHaveBeenCalledWith('c9', { lat: 45.46, lng: 9.19 });
+    await waitFor(() => expect(pin('Kestrel Print')).toBeTruthy());
+    expect(spotOf('Kestrel Print')).toEqual({ lng: 9.19, lat: 45.46 });
+    expect(rows()).toEqual(['1.Harbour Cafe', '2.Second Wind', '3.Third Coast', '4.Kestrel Print']);
+    await waitFor(() => expect(placingLine()).toBeUndefined());
+    expect(host.querySelector('[data-pin="placing"]')).toBeNull();
+    expect(said()).toMatch(/^Kestrel Print placed at /);
+    // The state is over: a click on the map places nothing more.
+    act(() => click(built, 1, 1));
+    expect(onPlacePin).toHaveBeenCalledTimes(1);
+  });
+
+  it('click-to-place: a pin the app listed with no position takes the spot, and is exact', async () => {
+    const built = await ready({ pins: [...PINS, { id: 'c9', label: 'Kestrel Print', lat: Number.NaN, lng: Number.NaN, by: 'town' }], onPlacePin: () => undefined, placing: { id: 'c9', label: 'Kestrel Print' } });
+    expect(rows()).toHaveLength(3);
+    await act(async () => click(built, 9, 45));
+    await waitFor(() => expect(rows()).toEqual(['1.Harbour Cafe', '2.Second Wind', '3.Third Coast', '4.Kestrel Print']));
+    expect(pin('Kestrel Print').dataset['by']).toBeUndefined();
+  });
+
+  it('click-to-place: a save the app refuses takes the pin away, says why above the map, and leaves the state for another try', async () => {
+    const onPlacePin = vi.fn<(id: string, at: { lat: number; lng: number }) => Promise<KitRefused | void>>(() => Promise.resolve({ refused: 'Otley is outside your territory.' }));
+    const built = await ready({ onPlacePin, placing: { id: 'c9', label: 'Kestrel Print' } });
+    await act(async () => click(built, 9, 45));
+    await waitFor(() => expect(refused()?.textContent).toContain('Kestrel Print was not placed. Otley is outside your territory.'));
+    expect(host.querySelector('[data-part="map-refused-reason"]')?.getAttribute('role')).toBe('alert');
+    await waitFor(() => expect(host.querySelector('[data-pin="placing"]')).toBeNull());
+    expect(host.querySelectorAll('[data-part="map-pin"]')).toHaveLength(3);
+    expect(placingLine()).toContain('Kestrel Print');
+    // A rejection is a refusal too, and the next try that holds clears the notice.
+    onPlacePin.mockImplementationOnce(() => Promise.reject(new Error('The server said no.')));
+    await act(async () => click(built, 9, 45));
+    await waitFor(() => expect(refused()?.textContent).toContain('The server said no.'));
+    onPlacePin.mockImplementationOnce(() => Promise.resolve());
+    await act(async () => fireEvent.keyDown(built.getCanvas(), { key: 'Enter' }));
+    await waitFor(() => expect(pin('Kestrel Print')).toBeTruthy());
+    // By keyboard: under the cross, at the fake map's middle.
+    expect(onPlacePin).toHaveBeenLastCalledWith('c9', { lat: 20, lng: 10 });
+    expect(refused()).toBeNull();
+  });
+
+  it('click-to-place: "Stop placing" and Escape leave the state and tell the app; without onPlacePin there is no such state', async () => {
+    const onPlacingStop = vi.fn();
+    const onPlacePin = vi.fn();
+    const built = await ready({ onPlacePin, onPlacingStop, placing: { id: 'c9', label: 'Kestrel Print' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Stop placing' }));
+    expect(onPlacingStop).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(placingLine()).toBeUndefined());
+    await update({ placing: { id: 'c9', label: 'Kestrel Print' } });
+    await act(async () => fireEvent.keyDown(built.getCanvas(), { key: 'Escape' }));
+    expect(onPlacingStop).toHaveBeenCalledTimes(2);
+    expect(placingLine()).toBeUndefined();
+    act(() => click(built, 1, 1));
+    expect(onPlacePin).not.toHaveBeenCalled();
+    await update({ onPlacePin: undefined, placing: { id: 'c9', label: 'Kestrel Print' } });
+    expect(placingLine()).toBeUndefined();
+    expect(host.querySelector('[data-part="map-cross"]')).toBeNull();
+  });
+
+  it('"Try again" after "could not be reached" builds the map anew, and the app hears each state by the contract’s names', async () => {
+    const onStatus = vi.fn();
+    await map({ onStatus });
+    await waitFor(() => expect(fake.maps).toHaveLength(1));
+    act(() => fake.maps[0]!.fire('error', {}));
+    await waitFor(() => expect(statusOf()).toBe('unavailable'));
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    await waitFor(() => expect(fake.maps).toHaveLength(2));
+    expect(said()).toBe('Trying the map again.');
+    act(() => fake.maps[1]!.fire('style.load'));
+    await waitFor(() => expect(statusOf()).toBe('ready'));
+    expect(host.querySelectorAll('[data-part="map-pin"]')).toHaveLength(3);
+    expect(screen.queryByRole('button', { name: 'Try again' })).toBeNull();
+    expect(onStatus.mock.calls.map(([status]) => status)).toEqual(['loading', 'unreachable', 'loading', 'ready']);
+  });
+
+  it('a route that did not come is said above the map with "Try again", which asks the app once more', async () => {
+    const way: MapWay = { legs: [{ distanceM: 98_400, durationS: 4_320, estimate: false }, { distanceM: 97_100, durationS: 4_200, estimate: false }] };
+    const route = vi.fn<(stops: readonly MapStop[]) => Promise<MapWay>>(() => Promise.reject(new Error('offline')));
+    await ready({ route });
+    await waitFor(() => expect(host.querySelector('[data-part="route-unavailable"]')?.textContent).toBe('The way between the stops could not be worked out, so the distances are unknown.'));
+    expect(route).toHaveBeenCalledTimes(1);
+    route.mockImplementation(() => Promise.resolve(way));
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Try again' })));
+    await waitFor(() => expect(host.textContent).toContain('98.4 km from the stop before · 1 hr 12 min drive'));
+    expect(route).toHaveBeenCalledTimes(2);
+    expect(host.querySelector('[data-part="route-unavailable-box"]')).toBeNull();
+    // Every leg is known: the whole way, with its drive time.
+    expect(host.querySelector('[data-part="geo-route-total"]')?.textContent).toBe('The whole way: 196 km · 2 hr 22 min drive');
+    // An answer that is not a route is no answer.
+    route.mockImplementation(() => Promise.resolve({ nonsense: true } as unknown as MapWay));
+    await update({ pins: PINS.map((one) => (one.id === 'c3' ? { ...one, lat: 45.46 } : one)) });
+    await waitFor(() => expect(host.querySelector('[data-part="route-unavailable"]')).not.toBeNull());
+  });
+
+  it.each(KIT_LOCALES)('in %s the new words are the catalogue’s: placing, a refusal, a route that did not come, a drive time and the whole way', async (locale) => {
+    const built = await ready({
+      locale,
+      dir: locale.startsWith('ar') ? 'rtl' : 'ltr',
+      areas: AREAS,
+      selected: 'c1',
+      placing: { id: 'c9', label: 'Kestrel Print' },
+      onPlacePin: () => Promise.resolve({ refused: 'No.' }),
+      onPlacingStop: () => undefined,
+      route: () => Promise.resolve({ legs: [{ distanceM: 98_400, durationS: 4_320, estimate: false }, { distanceM: 3_000, durationS: null, estimate: true }] }),
+    });
+    await waitFor(() => expect(host.querySelector('[data-part="geo-route-total"]')).not.toBeNull());
+    expect(host.querySelector('[data-part="geo-maps-site"]')).not.toBeNull();
+    await act(async () => click(built, 9, 45));
+    await waitFor(() => expect(refused()).not.toBeNull());
+    expect(host.textContent).not.toMatch(/[{}]/);
+    if (locale !== 'en-US') {
+      expect(placingLine()).not.toContain('Click the map');
+      expect(host.querySelector('[data-part="geo-route-total"]')?.textContent).not.toContain('whole way');
+      expect(host.querySelector('[data-part="geo-maps-site"]')?.textContent).not.toContain('new tab');
+    }
+    // The name the app gave is in the sentence, in every language.
+    expect(placingLine()).toContain('Kestrel Print');
+    expect(refused()?.textContent).toContain('Kestrel Print');
+  });
+
+  it('in Arabic the route that did not come and "Try again" are Arabic', async () => {
+    await map({ locale: 'ar-EG', dir: 'rtl', route: () => Promise.reject(new Error('offline')) });
+    await waitFor(() => expect(fake.maps).toHaveLength(1));
+    act(() => fake.maps[0]!.fire('error', {}));
+    await waitFor(() => expect(host.querySelector('[data-part="route-unavailable"]')?.textContent).toBe('تعذّر حساب الطريق بين المحطات، لذا المسافات غير معروفة.'));
+    expect([...host.querySelectorAll('[data-part="map-retry"], [data-part="route-retry"]')].map((button) => button.textContent)).toEqual(['حاول مرة أخرى', 'حاول مرة أخرى']);
   });
 });

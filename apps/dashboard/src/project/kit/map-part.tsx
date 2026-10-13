@@ -60,6 +60,8 @@ export default function MapPart({
         listOrder="given"
         listMax={LIST_MAX}
         showValues={counted}
+        // The picked place has a way out to a map of it on a desk too (a phone already had its own maps app).
+        siteLink
         {...(maySetMaps ? { settingsHref: '/settings/maps' } : {})}
         {...(maySetMaps && router !== undefined ? { onSettingsOpen: openSettings } : {})}
         {...(valueLabel === undefined ? {} : { regionsLabel: valueLabel })}

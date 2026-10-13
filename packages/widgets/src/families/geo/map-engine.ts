@@ -15,8 +15,8 @@
  * colours are read off the page and re-read when the theme changes.
  */
 import type { MapLibreModule } from './maplibre-module.js';
-import { SETTLE_MS } from './map-shapes.js';
-import type { AreaGeometry, AreaTone, Bounds, Corner } from './map-shapes.js';
+import { areaLabelSpot, PALETTE_DARK_INK, PALETTE_SHAPES, SETTLE_MS } from './map-shapes.js';
+import type { AreaGeometry, AreaLabelSpot, AreaTone, Bounds, Corner } from './map-shapes.js';
 
 type LibMap = InstanceType<MapLibreModule['Map']>;
 type LibMarker = InstanceType<MapLibreModule['Marker']>;
@@ -42,6 +42,8 @@ export interface ScenePin {
   movable: boolean;
   /** The colour the pin is drawn in. Default `accent`. */
   tone?: AreaTone | undefined;
+  /** One of the palette's colours, by its number from 0, in place of the tone. It brings its own outline with it. */
+  colour?: number | undefined;
   /** The one that is picked: drawn filled, with a ring round it. */
   selected?: boolean | undefined;
 }
@@ -50,6 +52,12 @@ export interface SceneArea {
   id: string;
   geometry: AreaGeometry;
   tone: AreaTone;
+  /** One of the palette's colours, by its number from 0, in place of the tone. */
+  colour?: number | undefined;
+  /** Written on the area, where it fits. */
+  name?: string | undefined;
+  /** The one that is picked: a stronger fill and a thicker edge. */
+  selected?: boolean | undefined;
 }
 
 export interface SceneEditor {
@@ -71,6 +79,11 @@ export interface Scene {
   areas: readonly SceneArea[];
   line: { coordinates: number[][]; dashed: boolean } | null;
   editor: SceneEditor | null;
+  /**
+   * A place is being put on the map: a click on the map (or Enter, with the
+   * map focused, for the cross at its middle) is told as `onMapPick`.
+   */
+  placing?: boolean | undefined;
 }
 
 export interface EngineHandlers {
@@ -91,8 +104,10 @@ export interface EngineHandlers {
   onPinMove?: ((key: string, what: 'picked' | 'back' | 'refused') => void) | undefined;
   /** A placing has settled, kept or not: the view may follow the places again. */
   onPinSettled?: (() => void) | undefined;
-  /** A click on the map itself, while an area is being drawn. */
+  /** A click on the map itself, while an area is being drawn or a place is being put on it. */
   onMapPick: (corner: Corner) => void;
+  /** Escape, with the map focused, while a place is being put on it. */
+  onPlacingStop?: (() => void) | undefined;
   onAreaPick: (id: string) => void;
   onCornerPick: (index: number) => void;
   onCornerMove: (index: number, corner: Corner) => void;
@@ -116,6 +131,8 @@ export interface MapEngine {
   /** Bring everything into view. A single position is shown at town scale. */
   fit(bounds: Bounds, animate?: boolean): void;
   flyTo(at: { lat: number; lng: number }): void;
+  /** Bring one area into view, whatever the start the map was given: the person asked for it. */
+  frame(bounds: Bounds): void;
   /** Where the middle of the view is: where the keyboard adds a corner. */
   center(): Corner;
   /** The person has moved or zoomed the map themselves (a drag, a pinch, the +/− buttons, a double click). */
@@ -185,6 +202,20 @@ function paintOf(container: HTMLElement, variable: string): string {
   }
 }
 
+/** The colour a pin or an area is drawn in, as the page names it. */
+function colourVar(tone: AreaTone | undefined, colour: number | undefined): string {
+  return colour === undefined ? TONE_VAR[tone ?? 'accent'] : `--viz-${colour + 1}`;
+}
+
+/** The person asked their device for less motion: the view is put where it goes, not flown there. */
+function reducedMotion(): boolean {
+  try {
+    return typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  } catch {
+    return false;
+  }
+}
+
 function styleButton(element: HTMLElement): void {
   const style = element.style;
   style.appearance = 'none';
@@ -214,6 +245,7 @@ function pinElement(pin: ScenePin): HTMLButtonElement {
   element.dataset['part'] = 'map-pin';
   element.dataset['pin'] = pin.key;
   if (pin.hollow) element.dataset['by'] = 'town';
+  if (pin.colour !== undefined) element.dataset['colour'] = String(pin.colour);
   element.title = pin.label;
   element.setAttribute('aria-label', pin.label);
   styleButton(element);
@@ -223,6 +255,10 @@ function pinElement(pin: ScenePin): HTMLButtonElement {
   style.width = `${size}px`;
   style.height = `${size}px`;
   style.font = '600 12px/1 var(--font-sans, system-ui, sans-serif)';
+  // Above an area's name, which a pin may stand on.
+  style.zIndex = '1';
+  // A colour of the palette has an outline of its own: colour alone tells some readers nothing.
+  if (pin.colour !== undefined) style.borderRadius = PALETTE_SHAPES[pin.colour] ?? '9999px';
   paintPin(element, pin);
   if (numbered) element.textContent = String(pin.number);
   return element;
@@ -235,7 +271,7 @@ function pinElement(pin: ScenePin): HTMLButtonElement {
  */
 function paintPin(element: HTMLElement, pin: ScenePin): void {
   const tone = pin.tone ?? 'accent';
-  const colour = `var(${TONE_VAR[tone]})`;
+  const colour = `var(${colourVar(tone, pin.colour)})`;
   const picked = pin.selected === true;
   const style = element.style;
   if (pin.hollow) {
@@ -247,7 +283,7 @@ function paintPin(element: HTMLElement, pin: ScenePin): void {
   } else if (pin.number !== undefined) {
     style.border = '2px solid var(--surface)';
     style.background = colour;
-    style.color = tone === 'accent' ? 'var(--accent-fg)' : 'var(--surface)';
+    style.color = pin.colour !== undefined ? (PALETTE_DARK_INK[pin.colour] === true ? '#111827' : '#ffffff') : tone === 'accent' ? 'var(--accent-fg)' : 'var(--surface)';
   } else {
     style.border = `1.5px solid ${colour}`;
     style.background = picked ? colour : `color-mix(in srgb, ${colour} 35%, transparent)`;
@@ -266,6 +302,30 @@ function paintPin(element: HTMLElement, pin: ScenePin): void {
 /** A pin as it is drawn, but for whether it is the one picked. */
 function lookOf(pin: ScenePin): string {
   return JSON.stringify({ ...pin, selected: false });
+}
+
+/** An area's name, written on the map: not a button, and a click on it goes through to the area under it. */
+function areaNameElement(name: string): HTMLSpanElement {
+  const element = document.createElement('span');
+  element.dataset['part'] = 'map-area-name';
+  // The list names the areas for a screen reader; said twice it is noise.
+  element.setAttribute('aria-hidden', 'true');
+  // The name's own direction, whichever way the page reads: the map is a left-to-right island.
+  element.dir = 'auto';
+  element.textContent = name;
+  const style = element.style;
+  style.pointerEvents = 'none';
+  style.maxWidth = '180px';
+  style.overflow = 'hidden';
+  style.textOverflow = 'ellipsis';
+  style.whiteSpace = 'nowrap';
+  style.padding = '1px 6px';
+  style.borderRadius = '6px';
+  style.font = '600 12px/1.4 var(--font-sans, system-ui, sans-serif)';
+  // On the page's own surface, so it reads on the light map and the dark one alike.
+  style.color = 'var(--fg, currentColor)';
+  style.background = 'color-mix(in srgb, var(--surface) 82%, transparent)';
+  return element;
 }
 
 function cornerElement(label: string, selected: boolean, first: boolean): HTMLButtonElement {
@@ -346,6 +406,10 @@ export function createMapEngine(lib: MapLibreModule, container: HTMLElement, opt
   let pinMarkers = new Map<string, { marker: LibMarker; pin: ScenePin }>();
   let cornerMarkers: LibMarker[] = [];
   let cornersDrawn = '';
+  let nameMarkers: { marker: LibMarker; spot: AreaLabelSpot; selected: boolean }[] = [];
+  let namesDrawn = '';
+  /** The cross at the middle of the map, while a place is being put on it. */
+  let cross: HTMLElement | null = null;
   /** The pin the Tab key lands on: the one last focused, else the first. */
   let roving: string | null = null;
 
@@ -384,10 +448,13 @@ export function createMapEngine(lib: MapLibreModule, container: HTMLElement, opt
     const accent = paintOf(container, '--accent');
     const surface = paintOf(container, '--surface');
 
-    const areas = collection(scene.areas.map((area) => feature(area.geometry, { id: area.id, color: paintOf(container, TONE_VAR[area.tone]) })));
+    const areas = collection(
+      scene.areas.map((area) => feature(area.geometry, { id: area.id, color: paintOf(container, colourVar(area.tone, area.colour)), selected: area.selected === true })),
+    );
     if (source(AREA_SOURCE, areas)) {
-      map.addLayer({ id: `${AREA_SOURCE}-fill`, type: 'fill', source: AREA_SOURCE, paint: { 'fill-color': ['get', 'color'], 'fill-opacity': 0.18 } });
-      map.addLayer({ id: `${AREA_SOURCE}-line`, type: 'line', source: AREA_SOURCE, paint: { 'line-color': ['get', 'color'], 'line-width': 2 } });
+      // The picked area: a stronger fill and a thicker edge, so it is told from the others by more than its colour.
+      map.addLayer({ id: `${AREA_SOURCE}-fill`, type: 'fill', source: AREA_SOURCE, paint: { 'fill-color': ['get', 'color'], 'fill-opacity': ['case', ['get', 'selected'], 0.36, 0.18] } });
+      map.addLayer({ id: `${AREA_SOURCE}-line`, type: 'line', source: AREA_SOURCE, paint: { 'line-color': ['get', 'color'], 'line-width': ['case', ['get', 'selected'], 4, 2] } });
     }
 
     const line = scene.line;
@@ -417,7 +484,76 @@ export function createMapEngine(lib: MapLibreModule, container: HTMLElement, opt
       map.setPaintProperty(`${DRAFT_SOURCE}-fill`, 'fill-color', accent);
       map.setPaintProperty(`${DRAFT_SOURCE}-line`, 'line-color', accent);
     }
-    map.getCanvas().style.cursor = editor !== null && !editor.closed ? 'crosshair' : '';
+    map.getCanvas().style.cursor = scene.placing === true || (editor !== null && !editor.closed) ? 'crosshair' : '';
+  }
+
+  // ── the DOM half: the areas' names, and the cross a place is put under ───
+
+  /** A name is shown only where its area is large enough on screen to hold it. */
+  function fitNames(): void {
+    for (const { marker, spot } of nameMarkers) {
+      const element = marker.getElement();
+      const [[west, south], [east, north]] = spot.box;
+      const a = map.project({ lng: west, lat: north });
+      const b = map.project({ lng: east, lat: south });
+      const fits = element.offsetWidth <= Math.abs(b.x - a.x) && element.offsetHeight <= Math.abs(b.y - a.y);
+      element.style.visibility = fits ? '' : 'hidden';
+      if (fits) delete element.dataset['hidden'];
+      else element.dataset['hidden'] = '';
+    }
+  }
+
+  function drawNames(): void {
+    const named = scene.areas.filter((area) => area.name !== undefined && area.name.trim() !== '');
+    const drawn = JSON.stringify(named.map((area) => [area.id, area.name, area.geometry, area.selected === true]));
+    if (drawn === namesDrawn) return;
+    namesDrawn = drawn;
+    for (const { marker } of nameMarkers) marker.remove();
+    nameMarkers = [];
+    for (const area of named) {
+      const spot = areaLabelSpot(area.geometry);
+      if (spot === null) continue;
+      const element = areaNameElement((area.name as string).trim());
+      element.dataset['area'] = area.id;
+      if (area.selected === true) {
+        element.dataset['selected'] = '';
+        element.style.fontWeight = '700';
+        element.style.background = 'var(--surface)';
+        element.style.boxShadow = '0 0 0 1.5px var(--fg, currentColor)';
+      }
+      const marker = new lib.Marker({ element }).setLngLat([spot.at[0], spot.at[1]]).addTo(map);
+      // The library's marker takes the pointer; a name must let a click through to its area.
+      element.style.pointerEvents = 'none';
+      nameMarkers.push({ marker, spot, selected: area.selected === true });
+    }
+    fitNames();
+  }
+
+  function drawCross(): void {
+    const wanted = scene.placing === true;
+    if (wanted === (cross !== null)) return;
+    if (!wanted) {
+      cross?.remove();
+      cross = null;
+      return;
+    }
+    cross = document.createElement('div');
+    cross.dataset['part'] = 'map-cross';
+    cross.setAttribute('aria-hidden', 'true');
+    const style = cross.style;
+    style.position = 'absolute';
+    style.left = '50%';
+    style.top = '50%';
+    style.width = '24px';
+    style.height = '24px';
+    style.margin = '-12px 0 0 -12px';
+    style.pointerEvents = 'none';
+    style.zIndex = '3';
+    // Two bars in the page's ink over a halo of its surface: seen on any map.
+    style.background =
+      'linear-gradient(var(--fg, #111827), var(--fg, #111827)) center / 2px 100% no-repeat, linear-gradient(var(--fg, #111827), var(--fg, #111827)) center / 100% 2px no-repeat';
+    style.filter = 'drop-shadow(0 0 1.5px var(--surface, #ffffff)) drop-shadow(0 0 1.5px var(--surface, #ffffff))';
+    container.append(cross);
   }
 
   // ── the DOM half: pins and corners ───────────────────────────────────────
@@ -628,6 +764,7 @@ export function createMapEngine(lib: MapLibreModule, container: HTMLElement, opt
           handlers.onCornerRemove(index);
         }
       });
+      element.style.zIndex = '2';
       cornerMarkers.push(marker);
     });
     // A corner moved by the keyboard is redrawn: the focus goes to its new button.
@@ -667,9 +804,23 @@ export function createMapEngine(lib: MapLibreModule, container: HTMLElement, opt
   map.on('movestart', (event) => {
     if ((event as { originalEvent?: unknown }).originalEvent !== undefined) personMoved = true;
   });
+  map.on('move', fitNames);
+  // With the map focused while a place is being put on it: Enter puts it under the cross, Escape stops.
+  const onCanvasKey = (event: KeyboardEvent): void => {
+    if (scene.placing !== true || event.target !== map.getCanvas()) return;
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      const at = map.getCenter();
+      handlers.onMapPick([at.lng, at.lat]);
+    } else if (event.key === 'Escape') {
+      event.preventDefault();
+      handlers.onPlacingStop?.();
+    }
+  };
+  map.getCanvas().addEventListener('keydown', onCanvasKey);
   map.on('click', (event) => {
     const editor = scene.editor;
-    if (editor !== null && !editor.closed) {
+    if (scene.placing === true || (editor !== null && !editor.closed)) {
       handlers.onMapPick([event.lngLat.lng, event.lngLat.lat]);
       return;
     }
@@ -685,6 +836,8 @@ export function createMapEngine(lib: MapLibreModule, container: HTMLElement, opt
       scene = next;
       drawPins();
       drawCorners();
+      drawNames();
+      drawCross();
       drawCanvas();
     },
     setStyle(style) {
@@ -712,7 +865,19 @@ export function createMapEngine(lib: MapLibreModule, container: HTMLElement, opt
       map.fitBounds(bounds, { padding: 48, maxZoom: 14, animate });
     },
     flyTo(at) {
-      if (alive) map.flyTo({ center: [at.lng, at.lat], zoom: Math.max(map.getZoom(), 5) });
+      if (!alive) return;
+      const to = { center: [at.lng, at.lat] as [number, number], zoom: Math.max(map.getZoom(), 5) };
+      if (reducedMotion()) map.jumpTo(to);
+      else map.flyTo(to);
+    },
+    frame(bounds) {
+      if (!alive) return;
+      const [[west, south], [east, north]] = bounds;
+      if (west === east && south === north) {
+        this.flyTo({ lat: south, lng: west });
+        return;
+      }
+      map.fitBounds(bounds, { padding: 48, maxZoom: 14, animate: !reducedMotion() });
     },
     center() {
       const at = map.getCenter();
@@ -726,8 +891,12 @@ export function createMapEngine(lib: MapLibreModule, container: HTMLElement, opt
       stopTimer();
       for (const { marker } of pinMarkers.values()) marker.remove();
       for (const marker of cornerMarkers) marker.remove();
+      for (const { marker } of nameMarkers) marker.remove();
+      cross?.remove();
+      cross = null;
       pinMarkers = new Map();
       cornerMarkers = [];
+      nameMarkers = [];
       try {
         map.remove();
       } catch {

@@ -9,3 +9,4 @@
 | The way between stops, as straight lines | **No.** |
 | Drawing a map | **Yes: each viewer's browser** fetches the map's pictures from the map server. |
 | The way between stops along roads | **Yes: your Adminium server** asks the routing server. Off until you switch it on. |
+| "Open in my maps app", "Open on OpenStreetMap" | **Only when a person presses the link.** It is a link, never a request Adminium makes. |

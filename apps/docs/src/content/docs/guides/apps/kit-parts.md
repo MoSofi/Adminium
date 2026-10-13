@@ -339,7 +339,8 @@ config handed over as it came:
 
 - **Maps are on and the map server answers**: the map, with the list.
 - **Maps are on and the map server cannot be reached** (offline, blocked, down): the list, under
-  "The map could not be reached. Here is the list."
+  "The map could not be reached. Here is the list.", with a **Try again** button that builds the
+  map anew.
 - **Maps are switched off** (`maps.enabled` is `false`): the list, under "Maps are switched off.
   Here is the list." Nothing is asked of the map server and the map's code is not fetched. With a
   `settingsHref`, the line ends in a link to it; give one only to a person who may switch maps
@@ -359,12 +360,18 @@ has the rule.
 | Prop | |
 |---|---|
 | `maps` | The `maps` of the side's config: `{ enabled, server, routing }`. Required. |
-| `pins` | The places. Required. Each: `id` (the row's key, as text), `label`, `lat`, `lng`, and optionally `tone` (`neutral`, `accent`, `pos`, `warn`, `danger`, `info`: the pin's colour) and `by` (`'town'` for a position that is only the middle of a town: the pin is drawn hollow and marked "by town", and several in one town stand in a ring round it). A pin whose `lat` or `lng` is not a number is left out. |
+| `pins` | The places. Required. Each: `id` (the row's key, as text), `label`, `lat`, `lng`, and optionally `tone` (`neutral`, `accent`, `pos`, `warn`, `danger`, `info`: the pin's colour), `colour` and `group` ([a colour per pin](#a-colour-per-pin-and-per-area)) and `by` (`'town'` for a position that is only the middle of a town: the pin is drawn hollow and marked "by town", and several in one town stand in a ring round it). A pin whose `lat` or `lng` is not a number is left out. |
 | `locale`, `dir` | From the side's config. Required. |
-| `selected` | The `id` of the pin that is picked, or `null`. The map keeps what the person picks; pass it only to change the pick from your side. |
+| `selected` | The `id` of the pin that is picked, or `null`. The map keeps what the person picks; pass it only to change the pick from your side. When you change it, the map goes to that pin ([below](#picking-from-your-own-row)). |
 | `onSelect(pinId)` | Called when a pin or its row is picked. |
 | `onMovePin(pinId, { lat, lng })` | Saves a dragged pin. Left out, no pin can be moved. |
-| `areas` | Areas drawn as filled outlines and named in the list. Each: `id`, `geometry` (a GeoJSON `Polygon` or `MultiPolygon`, positions as `[lng, lat]`), and optionally `name` and `tone`. |
+| `areas` | Areas drawn as filled outlines and named in the list. Each: `id`, `geometry` (a GeoJSON `Polygon` or `MultiPolygon`, positions as `[lng, lat]`), and optionally `name`, `tone` and `colour`. A `name` is also written on the map, in the middle of the area's largest piece, wherever the area is large enough on screen to hold it. |
+| `selectedArea` | The `id` of the area that is picked, or `null`: drawn with a stronger fill and a thicker edge, its name and its row marked. When you change it, the map brings that area into view; where areas can be changed, it is also the one being changed. |
+| `onSelectArea(areaId)` | Called when an area is picked, on the map or in the list. |
+| `hostList` | The `id` of the element that holds a list you draw yourself. [A promise, not a switch](#a-list-of-your-own). |
+| `placing`, `onPlacePin(pinId, { lat, lng })`, `onPlacingStop()` | [Putting a row with no place yet on the map](#a-row-with-no-place-yet). |
+| `onStatus(status)` | Called whenever the map's state changes: `loading`, `ready`, `unreachable` or `off`. |
+| `mapsSiteLink` | `false` leaves out [the link to OpenStreetMap](#open-in-my-maps-app). |
 | `onAreaChange(areaId, geometry)` | Saves an area that was drawn (`areaId` is `null`) or changed. Left out, areas cannot be drawn. A changed area comes back as the kind it was, with its holes and other pieces kept, so save `geometry` whole. After saving a new one, call `update({ areas })` with the areas read again: the map then knows its id. |
 | `route(stops)` | Makes the pins the stops of a route, in their order (below). |
 | `units` | `'km'` (the default) or `'mi'`, for a route's legs. |
@@ -374,6 +381,86 @@ has the rule.
 | `emptyLabel` | A line in place of the map while there is no pin and no area. |
 | `ariaLabel` | The map's name for a screen reader. |
 | `theme` | `light` or `dark`, as for every part. The map takes the map server's light or dark style to match. Left out, it follows the page's `color-scheme`, read when the part is mounted, at every `update`, and when the device changes between light and dark. |
+
+### A colour per pin and per area
+
+`tone` is one of six colours that mean something (`warn` is a warning). For pins and areas
+coloured by something of the row, such as its owner, give `colour`: a whole number from 0, one of
+eight colours (the charts' own; 8 is 0 again). A pin and an area with the same number match.
+
+Colour alone tells some readers nothing, so each of the eight has an outline of its own: round,
+square, two drops, two leaves, an arch and a bowl. Give `group` too (the owner's name): it is
+said with the pin's name and written beside it in the list. An area's cue is its name on the
+map. A `colour` that is not a whole number from 0 up is ignored, and the `tone` stands.
+
+```ts
+pins: companies.map((row) => ({
+  id: String(row.id), label: row.name, lat: row.place.lat, lng: row.place.lng, by: row.place.by,
+  colour: repIndex.get(row.owner_id), group: repName.get(row.owner_id),
+})),
+areas: territories.map((row) => ({ id: String(row.id), name: row.name, geometry: row.area, colour: repIndex.get(row.owner_id) })),
+```
+
+### Picking from your own row
+
+`update({ selected: id })` marks that pin and takes the map to it; `update({ selectedArea: id })`
+marks that area and brings the whole of it into view. A person who asked their device for less
+motion gets the new view at once, with no flight. A pin or an area the person picks on the map
+is told to you (`onSelect`, `onSelectArea`) and the map does not move for your saying the same
+back, so a row and the map always agree and neither chases the other.
+
+### A list of your own
+
+The map's own list is not decoration. It is what a screen reader and a keyboard have in place of
+a canvas of pins, and it is what stands in while there is no map. A screen that draws a richer
+list itself (a territory's owner, its companies and its open value) can have the map leave its
+own out, by naming the element that holds yours:
+
+```ts
+kit.mount('map', element, { ...props, hostList: 'territory-list' });   // <ul id="territory-list">
+```
+
+`hostList` is a promise, and the map checks it: while no element with that id is in the page, the
+map draws its own list whatever you said (and says so in the console). Put your list in the page
+before you mount, and call `update` after you add or remove it.
+
+By naming a list you take on what the map's did:
+
+| The map's list gave | Yours must |
+|---|---|
+| Every pin and every area as real text a screen reader reads | list every row, placed or not, and every area |
+| A row that picks its pin | call `update({ selected: id })` (the map marks the pin and goes to it) and mark the row itself; mark it too when `onSelect` says the person picked on the map |
+| The picked row marked | `aria-pressed` or `aria-current` on your row |
+| Each area's "Change", where areas can be changed | call `update({ selectedArea: id })`: that area becomes the one being changed |
+| The list whole while maps are off or out of reach | draw your list from your rows, never from the map; `onStatus` says which state the map is in |
+| "Open in my maps app" on each placed row | nothing: the map shows the link for the picked place under itself |
+
+What stays the map's, with or without its list: every pin is a button with its name that takes
+the focus (Tab reaches the pins, the arrows go from one to the next), is picked with a click and
+moved by keyboard; the notices; the line said aloud to a screen reader.
+
+### A row with no place yet
+
+A row whose position is not known has no pin. To let a person put it on the map, say which row:
+
+```ts
+map.update({ placing: { id: String(row.id), label: row.name } });
+```
+
+The line above the map then reads "Click the map where Kestrel Print is." and the next click on
+the map is told to `onPlacePin(pinId, { lat, lng })`. By keyboard: a cross marks the middle of
+the map; with the map focused the arrows move it and Enter puts the place under the cross, and
+"Place it at the middle of the map" does the same from a button. "Stop placing", or Escape with
+the map focused, leaves the state and calls `onPlacingStop`.
+
+`onPlacePin` answers as `onMovePin` does. A pin stands on the spot while the promise is out.
+Held: the pin is kept (the pin of `pins` with that id takes the position, or one is added under
+the `label`) and `placing` is set to `null`. Refused (`{ refused }` or a rejection): the pin goes
+away, the reason is shown above the map and said aloud, and the map stays in the state for
+another try.
+
+Placing needs a map. While maps are off or the map server is out of reach there is nothing to
+click; `onStatus` tells you, so your "Place it" button can be offered only on `ready`.
 
 ### What `onMovePin` must answer
 
@@ -392,7 +479,11 @@ on the map as it was drawn, to be changed again.
 ### A route
 
 Give `route` and the pins are numbered, joined in their order, and each row of the list says how
-far it is from the stop before. The map calls `route` with the stops (`{ lat, lng, by? }` each)
+far it is from the stop before, with the drive time where the answer has one ("98.4 km from the
+stop before · 1 hr 12 min drive"). Under the list is the whole way ("The whole way: 196 km · 2 hr
+22 min drive"), only when every leg has a length: a sum that left a leg out would read as the
+whole way and not be. A straight-line leg has no drive time, and neither has a whole way that
+includes one. The map calls `route` with the stops (`{ lat, lng, by? }` each)
 when it is mounted and again whenever a stop's position changes, and draws what you answer.
 [`POST /api/v1/geo/route`](/guides/apps/maps/#routes-are-estimates) answers exactly that:
 
@@ -410,8 +501,23 @@ route: async (stops) => {
 ```
 
 Until the answer is in, and when it does not come, the legs are drawn as straight dashed lines
-and their lengths read "unknown". A leg the server measured as a straight line reads "about".
-That route takes 2 to 50 stops.
+and their lengths read "unknown". When it does not come (your `route` rejects, or answers
+something that is not a route) the map says so above itself, with **Try again**, which calls
+`route` once more with the same stops. A leg the server measured as a straight line reads
+"about". That route takes 2 to 50 stops.
+
+### Open in my maps app
+
+On a phone or a tablet, every placed row of the map's list has "Open in my maps app": a link the
+device hands to its own maps app (`geo:`, or Apple's maps address on an Apple device).
+
+On a desk there is no such app, so the **picked** place has "Open on OpenStreetMap (new tab)":
+under its row, or under the map when the list is your own. It is a plain link and Adminium asks
+that site nothing. Only when the person presses it does their browser open
+`https://www.openstreetmap.org/?mlat=…&mlon=…` in a new tab, which tells OpenStreetMap the
+person's address (their IP) and that one position, to about a metre. No name, no row, and no
+referrer: the new tab is not told which page it was opened from. The link is not shown while
+maps are switched off, and `mapsSiteLink: false` leaves it out altogether.
 
 ### What `update` keeps
 
@@ -420,7 +526,7 @@ That route takes 2 to 50 stops.
 - **the view** is the person's once they have moved or zoomed the map: new pins are drawn where
   they are and the map does not jump to fit them. Until then it fits what it is given, so pins
   that arrive after an empty mount are brought into view;
-- **the pick** stays, unless `selected` says otherwise;
+- **the pick** stays, unless `selected` says otherwise (and then the map goes to the new one);
 - **a pin being dragged** keeps its hold while other pins change.
 
 It is safe to call when a colleague's change arrives on the live stream.

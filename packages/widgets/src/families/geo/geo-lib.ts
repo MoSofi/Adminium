@@ -55,6 +55,14 @@ export interface GeoPoint {
   placeId?: number | undefined;
   /** The colour its pin is drawn in on a map. Without one, the accent. */
   tone?: 'neutral' | 'accent' | 'pos' | 'warn' | 'danger' | 'info' | undefined;
+  /**
+   * One of the map's eight colours, by its number from 0, in place of a tone:
+   * for pins coloured by something of their row (its owner). Each colour has
+   * an outline of its own, so the pins are told apart without colour too.
+   */
+  colour?: number | undefined;
+  /** What the colour stands for ("Dana Whitlock"): said with the pin's name. */
+  group?: string | undefined;
   values: Record<string, number>;
 }
 

@@ -198,6 +198,17 @@ export interface MapPin {
   /** The colour of the pin. Default `accent`. */
   tone?: KitTone | undefined;
   /**
+   * One of the map's eight colours, by its number from 0 (8 is 0 again), in
+   * place of `tone`: for pins coloured by something of their row, such as
+   * its owner. An area takes the same numbers, so a pin and its area match.
+   * Each colour has an outline of its own (round, square, a drop…), because
+   * colour alone tells some readers nothing. Not a whole number from 0 up:
+   * the tone stands.
+   */
+  colour?: number | undefined;
+  /** What the colour stands for ("Dana Whitlock"): said with the pin's name, and written beside it in the list. */
+  group?: string | undefined;
+  /**
    * How the position is known, as a place column says it: `town` is the
    * middle of a town (the place is somewhere in it), drawn hollow and marked
    * "by town"; several in one town stand in a ring round it.
@@ -208,7 +219,11 @@ export interface MapPin {
 /** An area's outline: a GeoJSON `Polygon` or `MultiPolygon`, positions as `[lng, lat]`. */
 export type MapAreaGeometry = { type: 'Polygon'; coordinates: number[][][] } | { type: 'MultiPolygon'; coordinates: number[][][][] };
 
-/** An area drawn on the map as a filled outline, and named in the list. */
+/**
+ * An area drawn on the map as a filled outline, and named in the list. Its
+ * `name` is also written on the map, in the middle of its largest piece,
+ * wherever the area is large enough on screen to hold it.
+ */
 export interface MapAreaShape {
   id: string;
   /** Left out, the list calls it "Area 1". */
@@ -216,6 +231,8 @@ export interface MapAreaShape {
   geometry: MapAreaGeometry;
   /** The colour of the outline and its fill. Default `accent`. */
   tone?: KitTone | undefined;
+  /** One of the map's eight colours, by its number from 0, in place of `tone`: the numbers a pin's `colour` takes. */
+  colour?: number | undefined;
 }
 
 /** One stop of a route: a pin's position, in the pins' order. */
@@ -279,11 +296,13 @@ export interface MapProps extends KitCommonProps {
   onAreaChange?: ((areaId: string | null, geometry: MapAreaGeometry) => void | Promise<void | KitRefused>) | undefined;
   /**
    * Makes the pins the stops of a route, in their order: they are numbered,
-   * joined, and each leg's length is listed. The map calls this with the
-   * stops whenever their positions change and draws what it answers: post
-   * them to `/api/v1/geo/route` and answer its `data`. Until the answer is
-   * in, and when it does not come, the legs are straight dashed lines of
-   * unknown length.
+   * joined, and each leg's length is listed, with its drive time where the
+   * answer has one, and the whole way under the list where every leg has a
+   * length. The map calls this with the stops whenever their positions
+   * change and draws what it answers: post them to `/api/v1/geo/route` and
+   * answer its `data`. Until the answer is in the legs are straight dashed
+   * lines of unknown length; when it does not come (a rejection) the map
+   * says so above itself, with "Try again", which calls this once more.
    */
   route?: ((stops: readonly MapStop[]) => Promise<MapWay>) | undefined;
   /** The unit a route's legs are said in. Default `km`. */
@@ -297,6 +316,64 @@ export interface MapProps extends KitCommonProps {
    * off" line then ends in a link there. Left out, the line has no link.
    */
   settingsHref?: string | undefined;
+  /**
+   * The `id` of the area that is picked: drawn stronger, its name and its
+   * row marked. Give a new one with `update` and the map brings that area
+   * into view; where areas can be changed (`onAreaChange`), it is also the
+   * one being changed. The map keeps what the person picks on it.
+   */
+  selectedArea?: string | null | undefined;
+  /** Called when an area is picked, on the map or in the list. */
+  onSelectArea?: ((areaId: string) => void) | undefined;
+  /**
+   * A PROMISE, NOT A SWITCH. The `id` of the element in the page that holds
+   * the list the app draws itself. While an element with that id is in the
+   * page, the map leaves its own list out; while there is none, the map's
+   * own list is drawn whatever this says.
+   *
+   * The map's list is what a screen reader and a keyboard have in place of
+   * a canvas of pins, and what stands in while there is no map. An app that
+   * names its own has taken on all of it: every pin and area as real text,
+   * a row that picks its pin (`update({ selected })`, which also brings it
+   * into view), the picked row marked, and a list that is whole while maps
+   * are off or the map server is out of reach (`onStatus`). The pins on the
+   * map stay buttons that are focused, picked and moved by keyboard.
+   */
+  hostList?: string | undefined;
+  /**
+   * A row with no position yet is being put on the map: the line above the
+   * map says so with `label`, and the next click on the map, or Enter with
+   * the map focused, or the button, for the cross at its middle, is told to
+   * `onPlacePin` with this `id`. Null or left out: nothing is being placed.
+   * The map is in this state only while the app says so.
+   */
+  placing?: { id: string; label: string } | null | undefined;
+  /**
+   * Saves where a row was put. A pin stands on the spot while the promise
+   * is out. `{ refused }`, or a rejection, takes the pin away and says why
+   * above the map and aloud; `placing` stays, for another try. Held: the
+   * pin is kept (a pin of `pins` with that id takes the position; without
+   * one, a pin is added under the `label`), and `placing` is set to null.
+   */
+  onPlacePin?: ((pinId: string, at: { lat: number; lng: number }) => void | Promise<void | KitRefused>) | undefined;
+  /** The person stopped placing ("Stop placing", or Escape with the map focused). The map has already left the state. */
+  onPlacingStop?: (() => void) | undefined;
+  /**
+   * What the map is doing, whenever it changes: `loading`, `ready`,
+   * `unreachable` (the map server did not answer; the person has "Try
+   * again") or `off`. For a list of the app's own: "Place it" needs `ready`.
+   */
+  onStatus?: ((status: 'loading' | 'ready' | 'unreachable' | 'off') => void) | undefined;
+  /**
+   * False leaves out the link that shows a place on OpenStreetMap's site.
+   * On a phone every placed row has "Open in my maps app" (the device's
+   * own app). On a desk, while maps are on, the picked place has "Open on
+   * OpenStreetMap (new tab)", under its row, or under the map when the list
+   * is the app's own: a plain link, followed only when the person presses
+   * it, that carries the position and nothing else (no name, no row, no
+   * referrer).
+   */
+  mapsSiteLink?: boolean | undefined;
   /** The list's heading for a screen reader. Default "Places", or "Stops" on a route. */
   listLabel?: string | undefined;
   /** Said in place of the map while there is no pin and no area. */

@@ -74,8 +74,9 @@ const fake = vi.hoisted(() => {
       return this.layers.includes(id) ? { id } : undefined;
     }
     setPaintProperty(): void {}
-    getCanvas(): { style: Record<string, string> } {
-      return { style: {} };
+    canvas: HTMLElement | undefined;
+    getCanvas(): HTMLElement {
+      return (this.canvas ??= document.createElement('canvas'));
     }
     // One pixel is a hundredth of a degree, y growing south.
     project(at: { lng: number; lat: number }): { x: number; y: number } {
@@ -90,7 +91,10 @@ const fake = vi.hoisted(() => {
     jumpTo(view: unknown): void {
       this.fitted.push(view);
     }
-    flyTo(): void {}
+    flown: unknown[] = [];
+    flyTo(view: unknown): void {
+      this.flown.push(view);
+    }
     getZoom(): number {
       return 3;
     }
@@ -179,6 +183,7 @@ import {
 import { mapBubbleDefinition, mapChoroplethGridDefinition } from './geo-track.definitions.js';
 import { WidgetRuntimeProvider } from '../../frame/WidgetRuntimeContext.js';
 import type { WidgetRuntimeEnv } from '../../registry/offline.js';
+import { PALETTE_SHAPES } from './map-shapes.js';
 
 afterEach(cleanup);
 beforeEach(() => {
@@ -575,7 +580,10 @@ describe('map-bubble', () => {
     expect(notes[0]).toBeNull();
     expect(notes[1]).toBe('about 81.2 km from the stop before · 2 places are known only by this town');
     expect(notes[2]).toBe('distance from the stop before unknown · 2 places are known only by this town');
-    expect(notes[3]).toBe('61.9 km from the stop before');
+    // A leg along roads has its drive time; a straight line has none to give.
+    expect(notes[3]).toBe('61.9 km from the stop before · 52 min drive');
+    // One leg is unknown: there is no whole way to say.
+    expect(container.querySelector('[data-part="geo-route-total"]')).toBeNull();
     expect(container.querySelector('[data-part="geo-ranking"]')?.getAttribute('aria-label')).toBe('Stops');
   });
 
@@ -1340,5 +1348,345 @@ describe('map-bubble — shapes of several pieces, late areas, numbering, the li
     const held = new MouseEvent('click', { bubbles: true, cancelable: true, metaKey: true });
     act(() => void link.dispatchEvent(held));
     expect(onSettingsOpen).toHaveBeenCalledTimes(1);
+  });
+});
+
+// ── what the two map screens draw (T25) ─────────────────────────────────────
+
+describe('map-bubble — names on areas, a colour per pin, select-and-frame, a host’s own list, click-to-place, "Try again", drive times, a link out', () => {
+  const NORTH = { type: 'Polygon' as const, coordinates: [[[0, 0], [2, 0], [2, 2], [0, 2], [0, 0]]] };
+  const SOUTH = { type: 'Polygon' as const, coordinates: [[[10, 10], [14, 10], [14, 12], [10, 12], [10, 10]]] };
+  const AREAS = [
+    { id: 'n', name: 'North', geometry: NORTH, colour: 0 },
+    { id: 's', name: 'الجنوب', geometry: SOUTH, colour: 3 },
+    { id: 'x', geometry: SOUTH },
+  ];
+  const namesOf = (container: HTMLElement): HTMLElement[] => [...container.querySelectorAll<HTMLElement>('[data-part="map-area-name"]')];
+  const pinsOf = (container: HTMLElement): HTMLElement[] => [...container.querySelectorAll<HTMLElement>('[data-part="map-pin"]')];
+  const saidOf = (container: HTMLElement): string | null | undefined => container.querySelector('[data-part="map-said"]')?.textContent;
+  const areasOf = (map: (typeof fake.maps)[number]): { properties: { id: string; selected: boolean } }[] => (map.sources.get('adminium-areas')?.data as { features: { properties: { id: string; selected: boolean } }[] }).features;
+
+  it('writes each area’s name on the map, in the name’s own direction, out of a screen reader’s way and out of a click’s', async () => {
+    const { container } = render(withMaps(<MapBubble points={[]} areas={AREAS} />));
+    const map = await builtMap();
+    act(() => map.fire('style.load'));
+    const names = namesOf(container);
+    // The area with no name has none on the map; the list calls it "Area 3".
+    expect(names.map((name) => name.textContent)).toEqual(['North', 'الجنوب']);
+    for (const name of names) {
+      expect(name.getAttribute('aria-hidden')).toBe('true');
+      expect(name.dir).toBe('auto');
+      expect(name.style.pointerEvents).toBe('none');
+      expect(name.tagName).toBe('SPAN');
+    }
+    // In the middle of its area.
+    expect((names[0] as HTMLElement & { marker?: { at: unknown } }).marker?.at).toEqual({ lng: 1, lat: 1 });
+    expect((names[1] as HTMLElement & { marker?: { at: unknown } }).marker?.at).toEqual({ lng: 12, lat: 11 });
+    expect([...container.querySelectorAll('[data-part="geo-area-row"]')].map((row) => row.textContent)).toEqual(['North4 points', 'الجنوب4 points', 'Area 34 points']);
+  });
+
+  it('hides a name its area is too small on screen to hold, and shows it again when it fits', async () => {
+    const width = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'offsetWidth');
+    // The fake map draws a degree as 100 pixels: North is 200 wide, and this name is 250.
+    Object.defineProperty(HTMLElement.prototype, 'offsetWidth', { configurable: true, get: () => 250 });
+    try {
+      const { container } = render(withMaps(<MapBubble points={[]} areas={AREAS} />));
+      const map = await builtMap();
+      act(() => map.fire('style.load'));
+      const [north, south] = namesOf(container);
+      expect(north!.style.visibility).toBe('hidden');
+      expect(north!.dataset['hidden']).toBe('');
+      // South is 400 wide: its name fits.
+      expect(south!.style.visibility).toBe('');
+      Object.defineProperty(HTMLElement.prototype, 'offsetWidth', { configurable: true, get: () => 150 });
+      act(() => map.fire('move'));
+      expect(north!.style.visibility).toBe('');
+      expect(north!.dataset['hidden']).toBeUndefined();
+    } finally {
+      if (width === undefined) delete (HTMLElement.prototype as { offsetWidth?: number }).offsetWidth;
+      else Object.defineProperty(HTMLElement.prototype, 'offsetWidth', width);
+    }
+  });
+
+  it('draws a pin in the colour its point numbers, with that colour’s own outline, and says what the colour stands for', async () => {
+    const points = [
+      { name: 'Cobalt', lat: 1, lng: 1, colour: 2, group: 'Dana Whitlock', values: {} },
+      { name: 'Fernway', lat: 2, lng: 2, colour: 9, values: {} },
+      { name: 'Juno', lat: 3, lng: 3, colour: -1, tone: 'warn' as const, values: {} },
+      { name: 'Veldt', lat: 4, lng: 4, colour: 1.5, values: {} },
+    ];
+    const { container } = render(withMaps(<MapBubble points={points} listOrder="given" showValues={false} />));
+    const map = await builtMap();
+    act(() => map.fire('style.load'));
+    const pins = pinsOf(container);
+    expect(pins[0]!.style.color).toBe('var(--viz-3)');
+    expect(pins[0]!.style.borderRadius).toBe(PALETTE_SHAPES[2]);
+    expect(pins[0]!.dataset['colour']).toBe('2');
+    expect(pins[0]!.getAttribute('aria-label')).toBe('Cobalt · Dana Whitlock');
+    // Past the end, the palette goes round: 9 is 1.
+    expect(pins[1]!.style.color).toBe('var(--viz-2)');
+    expect(pins[1]!.style.borderRadius).toBe(PALETTE_SHAPES[1]);
+    // Not a whole number from 0 up: the tone stands, and the round pin.
+    expect(pins[2]!.style.color).toBe('var(--warn)');
+    expect(pins[2]!.dataset['colour']).toBeUndefined();
+    expect(pins[3]!.style.color).toBe('var(--accent)');
+    expect(pins[3]!.style.borderRadius).toBe('9999px');
+    // No two colours share an outline.
+    expect(new Set(PALETTE_SHAPES).size).toBe(8);
+    // The row has the same colour and outline, and the words.
+    const swatch = container.querySelector<HTMLElement>('[data-part="geo-swatch"]')!;
+    expect(swatch.style.getPropertyValue('--swatch')).toBe('var(--viz-3)');
+    expect(swatch.style.getPropertyValue('--swatch-shape')).toBe(PALETTE_SHAPES[2]);
+    expect(container.querySelector('[data-part="geo-group"]')?.textContent).toBe('Dana Whitlock');
+  });
+
+  it('goes to a pin the host says is picked, not at the start, and not when the host only says back what was picked on the map', async () => {
+    const onSelect = vi.fn();
+    const { container, rerender } = render(withMaps(<MapBubble points={CITY_POINTS} listOrder="given" selected={0} onSelect={onSelect} />));
+    const map = await builtMap();
+    act(() => map.fire('style.load'));
+    expect(map.flown).toEqual([]);
+    // A row of the host's own list was pressed.
+    rerender(withMaps(<MapBubble points={CITY_POINTS} listOrder="given" selected={2} onSelect={onSelect} />));
+    expect(map.flown).toEqual([{ center: [10.7, 59.9], zoom: 5 }]);
+    expect(pinsOf(container)[2]!.getAttribute('aria-current')).toBe('true');
+    // A pin pressed on the map: the map goes there once, and the host's echo is not a second trip.
+    act(() => pinsOf(container)[1]!.click());
+    expect(onSelect).toHaveBeenCalledWith(CITY_POINTS[1]);
+    expect(map.flown).toHaveLength(2);
+    rerender(withMaps(<MapBubble points={CITY_POINTS} listOrder="given" selected={1} onSelect={onSelect} />));
+    expect(map.flown).toHaveLength(2);
+    // None picked: nowhere to go.
+    rerender(withMaps(<MapBubble points={CITY_POINTS} listOrder="given" onSelect={onSelect} />));
+    expect(map.flown).toHaveLength(2);
+  });
+
+  it('puts the view where it goes, without flying, for a person who asked for less motion', async () => {
+    const matchMedia = window.matchMedia;
+    window.matchMedia = ((query: string) => ({ matches: query.includes('reduced-motion'), addEventListener: () => undefined, removeEventListener: () => undefined })) as unknown as typeof window.matchMedia;
+    try {
+      const { rerender } = render(withMaps(<MapBubble points={CITY_POINTS} listOrder="given" areas={AREAS} />));
+      const map = await builtMap();
+      act(() => map.fire('style.load'));
+      const before = map.fitted.length;
+      rerender(withMaps(<MapBubble points={CITY_POINTS} listOrder="given" areas={AREAS} selected={2} />));
+      expect(map.flown).toEqual([]);
+      expect(map.fitted.slice(before)).toEqual([{ center: [10.7, 59.9], zoom: 5 }]);
+    } finally {
+      window.matchMedia = matchMedia;
+    }
+  });
+
+  it('marks the area the host says is picked and brings it into view; a pick on the map or in the list is told to the host', async () => {
+    const onAreaSelect = vi.fn();
+    const { container, rerender } = render(withMaps(<MapBubble points={[]} areas={AREAS} onAreaSelect={onAreaSelect} />));
+    const map = await builtMap();
+    act(() => map.fire('style.load'));
+    const fits = map.fitted.length;
+    expect(areasOf(map).map((area) => area.properties.selected)).toEqual([false, false, false]);
+    rerender(withMaps(<MapBubble points={[]} areas={AREAS} onAreaSelect={onAreaSelect} selectedArea="s" />));
+    expect(areasOf(map).map((area) => area.properties.selected)).toEqual([false, true, false]);
+    expect(map.fitted.slice(fits)).toEqual([[[10, 10], [14, 12]]]);
+    expect(namesOf(container).map((name) => name.dataset['selected'])).toEqual([undefined, '']);
+    expect([...container.querySelectorAll('[data-part="geo-area-row"]')].map((row) => row.getAttribute('aria-current'))).toEqual([null, 'true', null]);
+    // In the list: each area's name is a button that says whether it is the one picked.
+    const rows = [...container.querySelectorAll<HTMLElement>('[data-part="geo-area-pick"]')];
+    expect(rows.map((row) => row.getAttribute('aria-pressed'))).toEqual(['false', 'true', 'false']);
+    act(() => rows[0]!.click());
+    expect(onAreaSelect).toHaveBeenLastCalledWith('n');
+    // On the map: the area under the click.
+    map.queryRenderedFeatures = () => [{ properties: { id: 's' } }];
+    act(() => map.fire('click', { lngLat: { lng: 12, lat: 11 }, point: { x: 0, y: 0 } }));
+    expect(onAreaSelect).toHaveBeenLastCalledWith('s');
+  });
+
+  it('where areas can be changed, the area the host picks is the one being changed: what the list’s "Change" did', async () => {
+    const { container, rerender } = render(withMaps(<MapBubble points={[]} areas={AREAS} onAreaChange={vi.fn()} list={false} />));
+    const map = await builtMap();
+    act(() => map.fire('style.load'));
+    expect(container.querySelectorAll('[data-part="map-corner"]')).toHaveLength(0);
+    rerender(withMaps(<MapBubble points={[]} areas={AREAS} onAreaChange={vi.fn()} list={false} selectedArea="n" />));
+    expect(container.querySelectorAll('[data-part="map-corner"]')).toHaveLength(4);
+  });
+
+  it('list={false} leaves the map’s own list out, and the picked place keeps its way out under the map', async () => {
+    const { container, rerender } = render(withMaps(<MapBubble points={CITY_POINTS} listOrder="given" areas={AREAS} list={false} siteLink />));
+    const map = await builtMap();
+    act(() => map.fire('style.load'));
+    expect(container.querySelector('[data-part="geo-ranking"]')).toBeNull();
+    expect(container.querySelector('[data-part="geo-areas"]')).toBeNull();
+    expect(container.querySelector('[data-part="geo-picked-link"]')).toBeNull();
+    // The pins are still buttons with their names: the map's own keyboard and screen-reader half is not the list's to take away.
+    expect(pinsOf(container).map((pin) => pin.getAttribute('aria-label'))).toEqual(['Tokyo: 900', 'Lagos: 200', 'Oslo: 50']);
+    rerender(withMaps(<MapBubble points={CITY_POINTS} listOrder="given" areas={AREAS} list={false} siteLink selected={1} />));
+    const picked = container.querySelector('[data-part="geo-picked-link"]')!;
+    expect(picked.textContent).toBe('Lagos · Open on OpenStreetMap (new tab)');
+  });
+
+  it('a desk’s link out: the picked place alone, to OpenStreetMap in a new tab, carrying the position and nothing else; none while maps are off', () => {
+    const points = [{ name: 'Cobalt Legal & Sons', lat: 53.80083, lng: -1.54912, values: {} }, CITY_POINTS[1]!];
+    const { container, rerender } = render(withMaps(<MapBubble points={points} listOrder="given" siteLink />));
+    // Nothing is picked: no link, so a long list is not a list of links.
+    expect(container.querySelector('[data-part="geo-maps-site"]')).toBeNull();
+    // The map keeps the pick itself where the host does not say one.
+    act(() => container.querySelector<HTMLElement>('[data-part="geo-ranking-row"]')!.click());
+    const links = [...container.querySelectorAll<HTMLAnchorElement>('[data-part="geo-maps-site"]')];
+    expect(links).toHaveLength(1);
+    expect(links[0]!.getAttribute('href')).toBe('https://www.openstreetmap.org/?mlat=53.80083&mlon=-1.54912#map=16/53.80083/-1.54912');
+    expect(links[0]!.getAttribute('href')).not.toMatch(/Cobalt|Legal/);
+    expect(links[0]!.target).toBe('_blank');
+    expect(links[0]!.rel).toBe('noopener noreferrer');
+    expect(links[0]!.getAttribute('referrerpolicy')).toBe('no-referrer');
+    // The phone's own link is a phone's.
+    expect(container.querySelector('[data-part="geo-maps-app"]')).toBeNull();
+    // Without `siteLink` (a widget of regions) there is none, and no row is marked.
+    rerender(withMaps(<MapBubble points={points} listOrder="given" />));
+    expect(container.querySelector('[data-part="geo-maps-site"]')).toBeNull();
+    expect(container.querySelector('[aria-current]')).toBeNull();
+    // Maps switched off: the operator said no outside map, and the link is one.
+    rerender(<MapBubble points={points} listOrder="given" siteLink selected={0} />);
+    expect(container.querySelector('[data-part="map-off"]')).not.toBeNull();
+    expect(container.querySelector('[data-part="geo-maps-site"]')).toBeNull();
+  });
+
+  it('click-to-place: a click on the map is told as the spot, a pin stands there while it is saved, and stays or goes with the save', async () => {
+    let settle: { resolve: () => void; reject: (error: Error) => void } | undefined;
+    const onPlaceNew = vi.fn(() => new Promise<void>((resolve, reject) => void (settle = { resolve, reject })));
+    const onAreaChange = vi.fn();
+    const ui = (extra: Record<string, unknown> = {}) => withMaps(<MapBubble points={CITY_POINTS} listOrder="given" areas={[]} onAreaChange={onAreaChange} placing={{ name: 'Kestrel Print' }} onPlaceNew={onPlaceNew} onPlacingStop={vi.fn()} {...extra} />);
+    const { container } = render(ui());
+    const map = await builtMap();
+    act(() => map.fire('style.load'));
+    expect(container.querySelector('[data-part="map-placing"] p')?.textContent).toContain('Click the map where Kestrel Print is.');
+    // The cross at the middle, for the keyboard; a crosshair for the mouse; no drawing tools while placing.
+    expect(container.querySelector('[data-part="map-cross"]')?.getAttribute('aria-hidden')).toBe('true');
+    expect(map.getCanvas().style.cursor).toBe('crosshair');
+    expect(container.querySelector('[data-part="area-tools"]')).toBeNull();
+
+    act(() => map.fire('click', { lngLat: { lng: 5, lat: 6 }, point: { x: 0, y: 0 } }));
+    expect(onPlaceNew).toHaveBeenCalledWith({ lat: 6, lng: 5 });
+    // A click while placing is never a corner of an area.
+    expect(container.querySelectorAll('[data-part="map-corner"]')).toHaveLength(0);
+    expect(onAreaChange).not.toHaveBeenCalled();
+    const pending = container.querySelector<HTMLElement>('[data-pin="placing"]')!;
+    expect(pending.getAttribute('aria-label')).toBe('Kestrel Print');
+    expect(pending.getAttribute('aria-current')).toBe('true');
+    // One at a time: a second click while the first is being saved is not a second save.
+    act(() => map.fire('click', { lngLat: { lng: 7, lat: 8 }, point: { x: 0, y: 0 } }));
+    expect(onPlaceNew).toHaveBeenCalledTimes(1);
+    expect(container.querySelector<HTMLButtonElement>('[data-part="map-place-middle"]')!.disabled).toBe(true);
+
+    // Refused: the pin goes, and it is said.
+    await act(async () => settle!.reject(new Error('no')));
+    await waitFor(() => expect(container.querySelector('[data-pin="placing"]')).toBeNull());
+    expect(saidOf(container)).toBe('Kestrel Print was not placed.');
+    expect(pinsOf(container)).toHaveLength(3);
+
+    // Held: said, with where.
+    act(() => map.fire('click', { lngLat: { lng: 5, lat: 6 }, point: { x: 0, y: 0 } }));
+    await act(async () => settle!.resolve());
+    await waitFor(() => expect(saidOf(container)).toMatch(/^Kestrel Print placed at /));
+    expect(container.querySelector('[data-pin="placing"]')).toBeNull();
+  });
+
+  it('click-to-place by keyboard: Enter on the focused map puts the place under the cross, the button does the same, Escape stops', async () => {
+    const onPlaceNew = vi.fn(() => Promise.resolve());
+    const onPlacingStop = vi.fn();
+    const { container, rerender } = render(withMaps(<MapBubble points={[]} placing={{ name: 'Kestrel Print' }} onPlaceNew={onPlaceNew} onPlacingStop={onPlacingStop} />));
+    // A map with nothing on it yet is still a map to place on.
+    const map = await builtMap();
+    act(() => map.fire('style.load'));
+    // The fake map's middle is 20°N 10°E.
+    await act(async () => void fireEvent.keyDown(map.getCanvas(), { key: 'Enter' }));
+    expect(onPlaceNew).toHaveBeenLastCalledWith({ lat: 20, lng: 10 });
+    await waitFor(() => expect(container.querySelector('[data-pin="placing"]')).toBeNull());
+    await act(async () => void fireEvent.click(container.querySelector('[data-part="map-place-middle"]')!));
+    expect(onPlaceNew).toHaveBeenCalledTimes(2);
+    fireEvent.keyDown(map.getCanvas(), { key: 'Escape' });
+    expect(onPlacingStop).toHaveBeenCalledTimes(1);
+    fireEvent.click(container.querySelector('[data-part="map-placing-stop"]')!);
+    expect(onPlacingStop).toHaveBeenCalledTimes(2);
+    // The host ends it: the line, the cross and the crosshair go, and Enter on the map is no longer a spot.
+    rerender(withMaps(<MapBubble points={[{ name: 'Kestrel Print', lat: 20, lng: 10, values: {} }]} onPlaceNew={onPlaceNew} onPlacingStop={onPlacingStop} />));
+    await waitFor(() => expect(container.querySelector('[data-part="map-placing"]')).toBeNull());
+    const now = fake.maps[fake.maps.length - 1]!;
+    expect(container.querySelector('[data-part="map-cross"]')).toBeNull();
+    fireEvent.keyDown(now.getCanvas(), { key: 'Enter' });
+    expect(onPlaceNew).toHaveBeenCalledTimes(2);
+  });
+
+  it('"Try again" builds the map anew after "could not be reached", says so, and keeps the focus in the map’s box', async () => {
+    const onStatus = vi.fn();
+    const { container } = render(withMaps(<MapBubble points={CITY_POINTS} onStatus={onStatus} />));
+    const first = await builtMap();
+    act(() => first.fire('error', { error: new Error('Failed to fetch') }));
+    expect(statusOf(container)).toBe('unavailable');
+    expect(first.removed).toBe(true);
+    const retry = container.querySelector<HTMLButtonElement>('[data-part="map-retry"]')!;
+    expect(retry.textContent).toBe('Try again');
+    retry.focus();
+    act(() => retry.click());
+    await waitFor(() => expect(fake.maps).toHaveLength(2));
+    expect(statusOf(container)).toBe('idle');
+    expect(container.querySelector('[data-part="map-unavailable"]')).toBeNull();
+    expect(saidOf(container)).toBe('Trying the map again.');
+    expect(document.activeElement).toBe(container.querySelector('[data-widget="map-bubble"]'));
+    act(() => fake.maps[1]!.fire('style.load'));
+    expect(statusOf(container)).toBe('ready');
+    expect(pinsOf(container)).toHaveLength(3);
+    // The host heard each state.
+    expect(onStatus.mock.calls.map(([status]) => status)).toEqual(['loading', 'unavailable', 'loading', 'ready']);
+    // Still down the second time: the notice and the button are back.
+    act(() => fake.maps[1]!.fire('error', { tile: {}, sourceId: 'land' }));
+    act(() => fake.maps[1]!.fire('error', { tile: {}, sourceId: 'land' }));
+    expect(container.querySelector('[data-part="map-retry"]')).not.toBeNull();
+  });
+
+  it('tells the host maps are off', () => {
+    const onStatus = vi.fn();
+    render(<MapBubble points={CITY_POINTS} onStatus={onStatus} />);
+    expect(onStatus.mock.calls.map(([status]) => status)).toEqual(['off']);
+  });
+
+  it('a route that did not come is said, with "Try again" when the host can ask again', () => {
+    const onRouteRetry = vi.fn();
+    const { container, rerender } = render(<MapBubble points={CITY_POINTS} route={{ legs: [] }} routeUnavailable onRouteRetry={onRouteRetry} />);
+    expect(container.querySelector('[data-part="route-unavailable"]')?.textContent).toBe('The way between the stops could not be worked out, so the distances are unknown.');
+    fireEvent.click(container.querySelector('[data-part="route-retry"]')!);
+    expect(onRouteRetry).toHaveBeenCalledTimes(1);
+    rerender(<MapBubble points={CITY_POINTS} route={{ legs: [] }} />);
+    expect(container.querySelector('[data-part="route-unavailable-box"]')).toBeNull();
+    // Not a route: nothing to say of one.
+    rerender(<MapBubble points={CITY_POINTS} routeUnavailable />);
+    expect(container.querySelector('[data-part="route-unavailable-box"]')).toBeNull();
+  });
+
+  it('a drive time beside each leg that has one, and the whole way where every leg has a length', () => {
+    const stops = [
+      { name: 'Depot', lat: 53.8, lng: -1.55, values: {} },
+      { name: 'Nordwind', lat: 53.77, lng: -0.33, values: {} },
+      { name: 'Cobalt', lat: 53.79, lng: -1.54, values: {} },
+    ];
+    const roads = { legs: [{ distanceM: 98_400, durationS: 4_320, estimate: false }, { distanceM: 97_100, durationS: 59, estimate: false }] };
+    const { container, rerender } = render(<MapBubble points={stops} route={roads} />);
+    const notes = (): (string | null)[] => [...container.querySelectorAll('[data-part="geo-ranking"] > li')].map((row) => row.querySelector('[data-part="geo-row-note"]')?.textContent ?? null);
+    // An hour and twelve minutes; under a minute is a minute, never "0 min".
+    expect(notes()).toEqual([null, '98.4 km from the stop before · 1 hr 12 min drive', '97.1 km from the stop before · 1 min drive']);
+    expect(container.querySelector('[data-part="geo-route-total"]')?.textContent).toBe('The whole way: 196 km · 1 hr 13 min drive');
+    // Straight lines: "about", and no time to give.
+    rerender(<MapBubble points={stops} route={{ legs: [{ distanceM: 80_300, durationS: null, estimate: true }, { distanceM: 80_300, durationS: null, estimate: true }] }} />);
+    expect(notes()[1]).toBe('about 80.3 km from the stop before');
+    expect(container.querySelector('[data-part="geo-route-total"]')?.textContent).toBe('The whole way: about 161 km');
+    // One leg along roads and one straight: about, and no time for the whole.
+    rerender(<MapBubble points={stops} route={{ legs: [roads.legs[0]!, { distanceM: 80_300, durationS: null, estimate: true }] }} />);
+    expect(container.querySelector('[data-part="geo-route-total"]')?.textContent).toBe('The whole way: about 179 km');
+    // The answer is not in yet, or a stop has no position: no total that leaves a leg out.
+    rerender(<MapBubble points={stops} route={{ legs: [] }} />);
+    expect(container.querySelector('[data-part="geo-route-total"]')).toBeNull();
+    rerender(<MapBubble points={[...stops, { name: 'Unplaced', values: {} }]} route={roads} />);
+    expect(container.querySelector('[data-part="geo-route-total"]')).toBeNull();
+    // In miles.
+    rerender(<MapBubble points={stops} route={roads} units="mi" />);
+    expect(container.querySelector('[data-part="geo-route-total"]')?.textContent).toBe('The whole way: 121 mi · 1 hr 13 min drive');
   });
 });

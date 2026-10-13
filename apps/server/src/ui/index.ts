@@ -488,7 +488,7 @@ export type MapAreaGeometry = { type: 'Polygon'; coordinates: number[][][] } | {
 
 export interface MapArea {
   id: string;
-  /** Its name in the list beside the map. */
+  /** Its name in the list beside the map, and written on the map where the area is large enough on screen to hold it. */
   name?: string;
   geometry: MapAreaGeometry;
   tone?: 'neutral' | 'accent' | 'pos' | 'warn' | 'danger' | 'info';
@@ -543,7 +543,11 @@ export interface MapViewProps {
    * save the whole `geometry` as it is handed over.
    */
   onAreaChange?: (id: string | null, geometry: MapAreaGeometry) => void | Promise<unknown>;
-  /** The way through `points`, in their order: stops are numbered and each leg's length is listed. */
+  /**
+   * The way through `points`, in their order: stops are numbered and each
+   * leg's length is listed, with its drive time where the leg has one, and
+   * the whole way under the list when every leg has a length.
+   */
   route?: MapRoute;
   /** The unit a route's legs are said in. Default `km`. */
   units?: 'km' | 'mi';

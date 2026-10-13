@@ -42,6 +42,14 @@
  * map is 20rem tall and the list takes what it needs.
  */
 .adm-kit[data-kit-part='map'] {
+  --adm-kit-viz-1: var(--viz-1, #4f46e5);
+  --adm-kit-viz-2: var(--viz-2, #0ea5e9);
+  --adm-kit-viz-3: var(--viz-3, #14b8a6);
+  --adm-kit-viz-4: var(--viz-4, #f59e0b);
+  --adm-kit-viz-5: var(--viz-5, #ef4444);
+  --adm-kit-viz-6: var(--viz-6, #8b5cf6);
+  --adm-kit-viz-7: var(--viz-7, #ec4899);
+  --adm-kit-viz-8: var(--viz-8, #22c55e);
   display: block;
   width: 100%;
   max-width: 100%;
@@ -53,7 +61,17 @@
   --accent: var(--adm-kit-accent);
   --accent-fg: var(--adm-kit-accent-fg);
   --surface: var(--adm-kit-surface);
+  --fg: var(--adm-kit-fg);
   --fg-muted: var(--adm-kit-fg-muted);
+  /* The map's eight colours (a pin's or an area's `colour`): the app's own chart colours where it has them, Adminium's where not. */
+  --viz-1: var(--adm-kit-viz-1);
+  --viz-2: var(--adm-kit-viz-2);
+  --viz-3: var(--adm-kit-viz-3);
+  --viz-4: var(--adm-kit-viz-4);
+  --viz-5: var(--adm-kit-viz-5);
+  --viz-6: var(--adm-kit-viz-6);
+  --viz-7: var(--adm-kit-viz-7);
+  --viz-8: var(--adm-kit-viz-8);
   --pos: var(--adm-kit-pos);
   --warn: var(--adm-kit-warn);
   --danger: var(--adm-kit-danger);

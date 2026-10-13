@@ -34871,6 +34871,10 @@
     "status": "mt",
     "srcHash": "b2a5d8931efc"
   },
+  "ui.widgets.geo.mapBubble.legDrive": {
+    "status": "mt",
+    "srcHash": "387748ed5ba9"
+  },
   "ui.widgets.geo.mapBubble.legExact": {
     "status": "mt",
     "srcHash": "7afa354a7561"
@@ -34907,17 +34911,37 @@
     "status": "mt",
     "srcHash": "4048a2d3dfe5"
   },
+  "ui.widgets.geo.mapBubble.openOnMapsSite": {
+    "status": "mt",
+    "srcHash": "21cc2d88bc93"
+  },
   "ui.widgets.geo.mapBubble.pinMoveHint": {
     "status": "mt",
     "srcHash": "7a72dbdab010"
+  },
+  "ui.widgets.geo.mapBubble.placeAtMiddle": {
+    "status": "mt",
+    "srcHash": "4da1eae0ff35"
   },
   "ui.widgets.geo.mapBubble.placesLabel": {
     "status": "mt",
     "srcHash": "0cd3597453ab"
   },
+  "ui.widgets.geo.mapBubble.placingHint": {
+    "status": "mt",
+    "srcHash": "f083deb206bb"
+  },
+  "ui.widgets.geo.mapBubble.placingStop": {
+    "status": "mt",
+    "srcHash": "b3657b1663b5"
+  },
   "ui.widgets.geo.mapBubble.regionsLabel": {
     "srcHash": "d2c3f4c254a4",
     "status": "mt"
+  },
+  "ui.widgets.geo.mapBubble.routeUnavailable": {
+    "status": "mt",
+    "srcHash": "9e6af5417653"
   },
   "ui.widgets.geo.mapBubble.saidCornerAdded": {
     "status": "mt",
@@ -34939,9 +34963,21 @@
     "status": "mt",
     "srcHash": "a76dc0700b0a"
   },
+  "ui.widgets.geo.mapBubble.saidPlaceRefused": {
+    "status": "mt",
+    "srcHash": "e97d5a3ebf32"
+  },
+  "ui.widgets.geo.mapBubble.saidPlaced": {
+    "status": "mt",
+    "srcHash": "b851c3af4eea"
+  },
   "ui.widgets.geo.mapBubble.saidShapeClosed": {
     "status": "mt",
     "srcHash": "950f5bc02b12"
+  },
+  "ui.widgets.geo.mapBubble.saidTrying": {
+    "status": "mt",
+    "srcHash": "2d09c2edb9b5"
   },
   "ui.widgets.geo.mapBubble.sharedTown": {
     "status": "mt",
@@ -34950,6 +34986,18 @@
   "ui.widgets.geo.mapBubble.stopsLabel": {
     "status": "mt",
     "srcHash": "0e648419ea80"
+  },
+  "ui.widgets.geo.mapBubble.totalAbout": {
+    "status": "mt",
+    "srcHash": "eca0047b3c89"
+  },
+  "ui.widgets.geo.mapBubble.totalExact": {
+    "status": "mt",
+    "srcHash": "302a81717da2"
+  },
+  "ui.widgets.geo.mapBubble.tryAgain": {
+    "status": "mt",
+    "srcHash": "042c862e4467"
   },
   "ui.widgets.geo.mapBubble.zoomIn": {
     "status": "mt",

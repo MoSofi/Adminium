@@ -20,6 +20,10 @@
  * A move that held is kept: the pin stays on its new spot whether or not the
  * app hands new pins back.
  *
+ * A row with no position yet is put on the map by a click (`placing`,
+ * `onPlacePin`), saved and refused the same way. An app that draws the list
+ * itself names it (`hostList`), and only then is the map's own left out.
+ *
  * `update` never builds the map again: the view is the person's once they
  * have moved it, the picked pin stays picked, and a pin in the middle of a
  * drag keeps its button.
@@ -60,8 +64,23 @@ function schemeAt(element: Element): Scheme {
 
 /** What was not saved, and why when the app said. */
 interface Refusal {
-  what: 'pin' | 'area';
+  what: 'pin' | 'area' | 'place';
   reason: string | undefined;
+  /** The row that was not placed. */
+  name?: string | undefined;
+}
+
+/** The map's states as the contract names them. */
+const STATUS = { loading: 'loading', ready: 'ready', unavailable: 'unreachable', off: 'off' } as const;
+
+/** Whether the list the app promised is in the page: an element with that id, in the document the map is in. */
+function hostListStands(id: string | undefined, box: Element | null): boolean {
+  if (typeof id !== 'string' || id.trim() === '') return false;
+  try {
+    return (box?.ownerDocument ?? document).getElementById(id) !== null;
+  } catch {
+    return false;
+  }
 }
 
 function KitMap({ props, patch, first }: { props: MapProps; patch: (change: Partial<MapProps>) => void; first: Scheme }): ReactNode {
@@ -103,11 +122,13 @@ function KitMap({ props, patch, first }: { props: MapProps; patch: (change: Part
         values: {},
         ...(pin.by === undefined ? {} : { by: pin.by }),
         ...(pin.tone === undefined ? {} : { tone: pin.tone }),
+        ...(typeof pin.colour === 'number' ? { colour: pin.colour } : {}),
+        ...(typeof pin.group === 'string' ? { group: pin.group } : {}),
       })),
     [placed],
   );
   const areas = useMemo<MapArea[] | undefined>(
-    () => props.areas?.map((area) => ({ id: area.id, geometry: area.geometry, ...(area.name === undefined ? {} : { name: area.name }), ...(area.tone === undefined ? {} : { tone: area.tone }) })),
+    () => props.areas?.map((area) => ({ id: area.id, geometry: area.geometry, ...(area.name === undefined ? {} : { name: area.name }), ...(area.tone === undefined ? {} : { tone: area.tone }), ...(typeof area.colour === 'number' ? { colour: area.colour } : {}) })),
     [props.areas],
   );
   const picked = props.selected === undefined || props.selected === null ? -1 : placed.findIndex((pin) => pin.id === props.selected);
@@ -118,6 +139,9 @@ function KitMap({ props, patch, first }: { props: MapProps; patch: (change: Part
   // The positions as text: a new list that says the same places asks nothing again, nor does a new function.
   const stopsKey = routed ? JSON.stringify(stops) : null;
   const [way, setWay] = useState<{ key: string; way: MapWay } | null>(null);
+  /** The stops whose route did not come, and how many times the person asked again. */
+  const [wayFailed, setWayFailed] = useState<string | null>(null);
+  const [wayAsk, setWayAsk] = useState(0);
   const stopsRef = useRef(stops);
   stopsRef.current = stops;
   useEffect(() => {
@@ -125,19 +149,25 @@ function KitMap({ props, patch, first }: { props: MapProps; patch: (change: Part
     if (stopsKey === null || ask === undefined || stopsRef.current.length < 2) return undefined;
     let stale = false;
     const asked = stopsRef.current;
+    setWayFailed(null);
     Promise.resolve()
       .then(() => ask(asked))
       .then(
         (answer) => {
-          if (!stale && Array.isArray(answer?.legs)) setWay({ key: stopsKey, way: answer });
+          if (stale) return;
+          if (Array.isArray(answer?.legs)) setWay({ key: stopsKey, way: answer });
+          else setWayFailed(stopsKey);
         },
-        // No answer: the straight dashed legs stay, their lengths unknown.
-        () => undefined,
+        // No answer: the straight dashed legs stay, their lengths unknown, and the map says so with "Try again".
+        () => {
+          if (!stale) setWayFailed(stopsKey);
+        },
       );
     return () => {
       stale = true;
     };
-  }, [stopsKey]);
+    // `wayAsk` is the person's "Try again": the same stops, asked once more.
+  }, [stopsKey, wayAsk]);
   const route = useMemo<MapRoute | undefined>(() => {
     if (stopsKey === null) return undefined;
     if (way === null || way.key !== stopsKey) return { legs: [] };
@@ -175,6 +205,53 @@ function KitMap({ props, patch, first }: { props: MapProps; patch: (change: Part
     });
   };
 
+  // ── a row with no position yet, put on the map ──
+  const placingNow = props.placing ?? null;
+  const placeNew = (at: { lat: number; lng: number }): Promise<void> | undefined => {
+    const save = latest.current.onPlacePin;
+    const target = latest.current.placing ?? null;
+    if (save === undefined || target === null) return undefined;
+    setRefusal(null);
+    // Held: the pin is kept where it was put, and the map leaves the placing state.
+    const keep = (): void => {
+      const now = latest.current.pins;
+      const kept = { lat: at.lat, lng: at.lng };
+      const pins = now.some((pin) => pin.id === target.id)
+        ? now.map((pin) => (pin.id === target.id ? { ...pin, ...kept, ...(pin.by === undefined ? {} : { by: 'exact' as const }) } : pin))
+        : [...now, { id: target.id, label: target.label, ...kept }];
+      patch({ pins, ...(latest.current.placing?.id === target.id ? { placing: null } : {}) });
+    };
+    const answer = followed(() => save(target.id, at));
+    if (answer === undefined) {
+      keep();
+      return undefined;
+    }
+    return answer.then(keep, (error: unknown) => {
+      setRefusal({ what: 'place', reason: reasonOf(error), name: target.label });
+      throw error;
+    });
+  };
+  const stopPlacing = (): void => {
+    patch({ placing: null });
+    latest.current.onPlacingStop?.();
+  };
+
+  const selectArea = (id: string): void => {
+    if (latest.current.selectedArea !== id) patch({ selectedArea: id });
+    latest.current.onSelectArea?.(id);
+  };
+
+  // The app's own list, where it promised one and it is in the page; else the map's.
+  const ownList = !hostListStands(props.hostList, box.current);
+  // Asked once more after the first drawing: at the mount the box is not in the page yet to ask through.
+  const [, lookAgain] = useState(0);
+  useEffect(() => {
+    if (props.hostList !== undefined) lookAgain((count) => count + 1);
+  }, [props.hostList]);
+  useEffect(() => {
+    if (props.hostList !== undefined && ownList) console.warn(`kit map: no element with id "${props.hostList}" is in the page, so the map draws its own list.`);
+  }, [props.hostList, ownList]);
+
   const changeArea = (id: string | null, geometry: MapAreaGeometry): Promise<void> | undefined => {
     const save = latest.current.onAreaChange;
     if (save === undefined) return undefined;
@@ -202,11 +279,15 @@ function KitMap({ props, patch, first }: { props: MapProps; patch: (change: Part
       {refusal === null ? null : (
         <div className="adm-kit-map-refused" data-part="map-refused">
           <p>
-            {refusal.what === 'pin' ? t('ui:widgets.geo.mapBubble.saidPinRefused', 'The new spot was not kept. The pin is back where it was.') : null}
+            {refusal.what === 'pin'
+              ? t('ui:widgets.geo.mapBubble.saidPinRefused', 'The new spot was not kept. The pin is back where it was.')
+              : refusal.what === 'place'
+                ? t('ui:widgets.geo.mapBubble.saidPlaceRefused', '{name} was not placed.', { name: refusal.name ?? '' })
+                : null}
             {refusal.reason === undefined ? null : (
               // The map itself says "not kept" to a screen reader; the reason is the new thing, so it alone is an alert.
               <span data-part="map-refused-reason" role="alert">
-                {refusal.what === 'pin' ? ' ' : ''}
+                {refusal.what === 'area' ? '' : ' '}
                 {refusal.reason}
               </span>
             )}
@@ -228,10 +309,19 @@ function KitMap({ props, patch, first }: { props: MapProps; patch: (change: Part
           // MapLibre's own sheet came with this part, held under the kit's wrapper.
           librarySheet={false}
           onSelect={select}
-          {...(picked === -1 ? {} : { selected: picked })}
+          // The app's word, or the person's last pick, which the part keeps in the props: never the map's own guess.
+          selected={picked === -1 ? null : picked}
           {...(props.onMovePin === undefined ? {} : { onPlace: place })}
           {...(areas === undefined ? {} : { areas })}
           {...(props.onAreaChange === undefined ? {} : { onAreaChange: changeArea })}
+          {...(typeof props.selectedArea === 'string' ? { selectedArea: props.selectedArea } : {})}
+          onAreaSelect={selectArea}
+          list={ownList}
+          {...(placingNow === null || props.onPlacePin === undefined ? {} : { placing: { name: placingNow.label }, onPlaceNew: placeNew, onPlacingStop: stopPlacing })}
+          routeUnavailable={stopsKey !== null && wayFailed === stopsKey}
+          onRouteRetry={() => setWayAsk((count) => count + 1)}
+          siteLink={props.mapsSiteLink !== false}
+          onStatus={(status) => latest.current.onStatus?.(STATUS[status])}
           {...(route === undefined ? {} : { route })}
           {...(props.units === undefined ? {} : { units: props.units })}
           {...(props.center === undefined ? {} : { center: props.center })}
