@@ -70,7 +70,7 @@ const DDL: readonly string[] = [
   `CREATE TABLE deals (id INTEGER PRIMARY KEY, title VARCHAR(80) NOT NULL, owner_id VARCHAR(36), state VARCHAR(10) NOT NULL, amount INTEGER NOT NULL, big BOOLEAN NOT NULL, company_id INTEGER, ref_code VARCHAR(12), close_on DATE, FOREIGN KEY (company_id) REFERENCES companies(id))`,
   `CREATE TABLE tags (id INTEGER PRIMARY KEY, name VARCHAR(40) NOT NULL)`,
   `CREATE TABLE deal_tags (deal_id INTEGER NOT NULL, tag_id INTEGER NOT NULL, PRIMARY KEY (deal_id, tag_id), FOREIGN KEY (deal_id) REFERENCES deals(id), FOREIGN KEY (tag_id) REFERENCES tags(id))`,
-  `CREATE TABLE deal_members (id INTEGER PRIMARY KEY, deal_id INTEGER NOT NULL, user_id VARCHAR(36) NOT NULL, FOREIGN KEY (deal_id) REFERENCES deals(id))`,
+  `CREATE TABLE deal_members (id INTEGER PRIMARY KEY, deal_id INTEGER NOT NULL, user_id VARCHAR(36) NOT NULL, deal_owner_id VARCHAR(36), FOREIGN KEY (deal_id) REFERENCES deals(id))`,
   `CREATE TABLE covers (id INTEGER PRIMARY KEY, owner_id VARCHAR(36) NOT NULL, cover_id VARCHAR(36) NOT NULL, starts_on DATE NOT NULL, ends_on DATE)`,
   `CREATE TABLE quotes (id INTEGER PRIMARY KEY, deal_id INTEGER, total INTEGER NOT NULL, FOREIGN KEY (deal_id) REFERENCES deals(id))`,
   `CREATE TABLE quote_lines (id INTEGER PRIMARY KEY, quote_id INTEGER NOT NULL, amount INTEGER NOT NULL, FOREIGN KEY (quote_id) REFERENCES quotes(id))`,

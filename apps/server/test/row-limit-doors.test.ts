@@ -209,6 +209,18 @@ for (const [dialect, available] of ENGINES) {
         await w.run('DELETE FROM quotes WHERE id > 900');
       });
 
+      it('changes no stored row for somebody who holds the import and not the update', async () => {
+        // Kim brings quotes in, reads them, and may change none. A file that would change the ones it matches is refused whole…
+        const before = await w.rows('SELECT id, total FROM quotes ORDER BY id');
+        const changing = await readyImport('kim', 'id,total\n1,999\n', { mode: 'upsert', matchColumn: 'id' }, w.id('quotes'));
+        expect(changing.statusCode, changing.body).toBe(403);
+        expect((JSON.parse(changing.body) as { error: { code: string; details: { permission: string } } }).error).toMatchObject({ code: 'TABLE_FORBIDDEN', details: { permission: `table:${w.connectionId}:${w.id('quotes')}:update` } });
+        // …and one that leaves them as they are is taken.
+        const leaving = await readyImport('kim', 'id,total\n1,999\n', { mode: 'skip', matchColumn: 'id' }, w.id('quotes'));
+        expect(leaving.statusCode, leaving.body).toBe(201);
+        expect(await w.rows('SELECT id, total FROM quotes ORDER BY id')).toEqual(before);
+      });
+
       it('changes only rows its requester reaches, and names only people and rows they may', async () => {
         // Deal 1 is Dana's; deal 3 is Omar's; 999 is nobody's row.
         const done = await importDeals('dana', 'id,title\n1,Renamed by Dana\n3,Not hers to rename\n', { mode: 'upsert', matchColumn: 'id' });

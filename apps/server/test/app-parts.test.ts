@@ -307,6 +307,18 @@ for (const [dialect, reachable] of LEGS) {
       expect(config.json().modules).toEqual({ front: true, jobs: false, fleet: true });
     });
 
+    it('tells the staff side the language its reader chose in Adminium, and which way it runs', async () => {
+      const read = async () => (await get('agent', '/apps/desk/staff/surface-config.json')).json() as { locale?: string; dir?: string };
+      expect(await read()).toMatchObject({ locale: 'en-US', dir: 'ltr' });
+      const saved = await s.app.inject({ method: 'PATCH', url: '/api/v1/me/prefs', headers: { cookie: s.cookie['agent']! }, payload: { locale: 'ar_EG' } });
+      expect(saved.statusCode, saved.body).toBe(200);
+      // As a language tag a browser knows (`ar-EG`), with the direction Adminium derives.
+      expect(await read()).toMatchObject({ locale: 'ar-EG', dir: 'rtl' });
+      // Somebody else's choice is theirs alone.
+      expect((await get('fitter', '/apps/desk/staff/surface-config.json').catch(() => null))?.json?.()?.locale ?? 'en-US').toBe('en-US');
+      await s.app.inject({ method: 'PATCH', url: '/api/v1/me/prefs', headers: { cookie: s.cookie['agent']! }, payload: { locale: 'en_US' } });
+    });
+
     it('refuses a page of a part that is off by its address, and leaves it out of the menu', async () => {
       const jobsPage = await get('owner', `/api/v1/pages/${await pageId('desk-jobs')}`);
       expect(said(jobsPage)).toBe('409 PART_OFF');

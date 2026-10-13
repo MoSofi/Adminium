@@ -22,10 +22,28 @@
  *
  * Whoever writes, a staff column holds a person who can sign in, or nothing.
  *
+ * A ROW THAT IS ITS PARENT'S OWNER'S. A table may say its rows are whoever
+ * owns the row they hang off: a staff column kept as a copy of the parent's
+ * (`copy … mode: always`), named in `belongs`. The writer never sends that
+ * column, so the person is judged where the writer does choose: at the link.
+ * Somebody held to some rows hangs such a row only under a parent that
+ * names them (or somebody they lead, where the table says `set: team`) — a
+ * helper on a colleague's deal, or whoever covers for its owner, works on
+ * the deal and adds nobody to it.
+ *
+ * A LISTING NAMES SOMEBODY WHO CAN OPEN WHAT IT LISTS THEM ON. A table other
+ * tables are read through (the people on a deal, who covers whom) holds, in
+ * its person column, only somebody who reads at least one of those tables.
+ * Anybody else would be listed against rows they cannot open today, and
+ * would reach them unasked the day a role is added. This holds for every
+ * writer, limited or not.
+ *
  * Nothing here runs for a writer nothing limits and a table with no staff
  * column: the checks return before they read anything.
  */
 import { teamsRepo, usersRepo, type MetaDb } from '@adminium/meta';
+
+import { permissionSetAllows, resolvePermissionSet } from '../rbac/resolver.js';
 import { sql, type Kysely } from 'kysely';
 
 import type { BelongsWay, EffectiveTable } from '../connections/effective-schema.js';
@@ -204,6 +222,20 @@ function setRuleOf(table: EffectiveTable, column: string): { set: 'self' | 'team
 export interface StaffWriteOptions {
   /** A record's own hand-over: any person who can sign in may be named. */
   handOver?: boolean | undefined;
+  /** The connection the table is in: with it, a listing's person is asked whether they read what the listing opens. */
+  connectionId?: string | undefined;
+  /**
+   * A new row saved under a record that is already there, before its link to that record is written: the caller
+   * judges it again with the link, so whose the parent is is asked then and not here.
+   */
+  parentLater?: boolean | undefined;
+  /** A new row saved under a record this same save makes: what that record was sent (its owner is whose the row will be). */
+  parentValues?: Row | undefined;
+}
+
+/** The tables read through this one, by the person its `column` holds (a listing with a link to a person's row is not asked). */
+function readThrough(model: { tables: readonly EffectiveTable[] }, tableId: string, column: string): EffectiveTable[] {
+  return model.tables.filter((other) => (other.belongs ?? []).some((way) => 'through' in way && way.through.table === tableId && way.through.user === column && way.through.person === undefined));
 }
 
 /**
@@ -238,6 +270,12 @@ export async function assertStaffColumns(ctx: RowLimitContext | null, meta: Meta
    * row may go to, not who may hand it over.
    */
   const deciding = new Set((table.belongs ?? []).flatMap((way) => ('column' in way && way.person === undefined ? [way.column] : [])));
+  /** A deciding column kept as a copy of the parent's: the link decides it, and nothing a writer sends there counts. */
+  const keptCopy = (column: string): { via: string; from: string } | undefined => {
+    const copy = table.columns.find((candidate) => candidate.name === column)?.copy;
+    return copy?.mode === 'always' ? copy : undefined;
+  };
+  const underParent = opts.parentLater === true || opts.parentValues !== undefined;
   let holds: boolean | null = null;
   const holdsItself = async (): Promise<boolean> => {
     if (holds !== null) return holds;
@@ -260,16 +298,70 @@ export async function assertStaffColumns(ctx: RowLimitContext | null, meta: Meta
    */
   if (before === null && reaches !== null && deciding.size > 0 && !reaches.some((reach) => reach.reach === 'all' || reach.unowned === true)) {
     const filledByRule = (column: string): boolean => {
-      const stamp = table.columns.find((candidate) => candidate.name === column)?.stamp as { set?: unknown; on?: unknown } | undefined;
-      return stamp?.set === 'user-id' && stamp.on === 'create';
+      const found = table.columns.find((candidate) => candidate.name === column);
+      const stamp = found?.stamp as { set?: unknown; on?: unknown } | undefined;
+      // …or a copy of the parent's: the row is whoever's the parent is, and the link below is where that is judged.
+      const kept = keptCopy(column);
+      return (stamp?.set === 'user-id' && stamp.on === 'create') || (kept !== undefined && (!empty(values[kept.via]) || underParent));
     };
-    if (![...deciding].some((column) => !empty(values[column]) || filledByRule(column))) {
+    // What a writer sends in a column a copy keeps is thrown away by the copy: it names nobody.
+    if (![...deciding].some((column) => (keptCopy(column) === undefined && !empty(values[column])) || filledByRule(column))) {
       throw new ValidationFailedError('Say whose this is: a row that is nobody\'s is one you could not open again.', { fields: { [[...deciding][0]!]: { code: 'required' } } });
+    }
+  }
+  /*
+   * WHOSE THE PARENT IS. A deciding column kept as a copy of the parent's is
+   * set by the link, so the link is judged as the column would be: the row
+   * goes under a parent that names the writer (or somebody they lead), and
+   * is moved to another only by somebody the stored row names.
+   */
+  if (reaches !== null && opts.handOver !== true) {
+    const judgeOwner = async (via: string, column: string, named: unknown): Promise<void> => {
+      const rule = setRuleOf(table, column);
+      if (rule.set === 'anyone') return;
+      if (empty(named)) {
+        if (!reaches.some((reach) => reach.reach === 'all' || reach.unowned === true)) refuse(via, 'parent-not-theirs');
+        return;
+      }
+      if (me === null) refuse(via, 'parent-not-theirs');
+      if (String(named) !== me && !(rule.set === 'team' && (await leads(String(named))))) refuse(via, 'parent-not-theirs');
+    };
+    for (const column of deciding) {
+      const copy = keptCopy(column);
+      if (copy === undefined) continue;
+      const relation = model.relations.find((r) => r.through === null && r.from.tableId === table.id && r.from.columns.length === 1 && r.from.columns[0] === copy.via && r.to.columns.length === 1);
+      if (!Object.prototype.hasOwnProperty.call(values, copy.via)) {
+        // A new row under a record this same save makes: whose that record will be is whose the row will be.
+        if (before === null && opts.parentValues !== undefined) {
+          const parentTable = relation === undefined ? undefined : model.tables.find((candidate) => candidate.id === relation.to.tableId);
+          const stamp = parentTable?.columns.find((candidate) => candidate.name === copy.from)?.stamp as { set?: unknown; on?: unknown } | undefined;
+          const sent = opts.parentValues[copy.from];
+          await judgeOwner(copy.via, column, empty(sent) && stamp?.set === 'user-id' && stamp.on === 'create' ? me : sent);
+        }
+        continue;
+      }
+      const link = values[copy.via];
+      if (before !== null && same(link, before[copy.via])) continue;
+      if (!(await holdsItself())) refuse(copy.via, 'not-theirs-to-give');
+      // No parent named: the new-row check above, or the column's own rule, answers that.
+      if (empty(link)) continue;
+      if (setRuleOf(table, column).set === 'anyone') continue;
+      if (relation === undefined) refuse(copy.via, 'parent-not-theirs');
+      const parent = await db.selectFrom(relation!.to.tableId as never).select(sql.ref(copy.from).as('person')).where(sql.ref(relation!.to.columns[0]!), '=', link as never).limit(1).executeTakeFirst();
+      // No such row is the link's own refusal, told by the link check or the database.
+      if (parent === undefined) continue;
+      await judgeOwner(copy.via, column, (parent as { person: unknown }).person);
     }
   }
   for (const [column, value] of Object.entries(values)) {
     const found = table.columns.find((candidate) => candidate.name === column);
     if (found === undefined || (before !== null && same(value, before[column]))) continue;
+    if (deciding.has(column) && keptCopy(column) !== undefined) {
+      // A new row's is thrown away by the copy. A stored row's would stay (a copy runs again only when its link moves),
+      // and the row would say a parent's owner the parent does not have: not a limited writer's to write.
+      if (before !== null && reaches !== null) refuse(column, 'kept-by-copy');
+      continue;
+    }
     if (deciding.has(column) && !(await holdsItself())) refuse(column, 'not-theirs-to-give');
     const rule = setRuleOf(table, column);
     // A link to a person's row: who that row holds is who is being named.
@@ -294,6 +386,14 @@ export async function assertStaffColumns(ctx: RowLimitContext | null, meta: Meta
     if (!viaPerson) {
       const user = typeof named === 'string' ? await usersRepo(meta).findById(named) : null;
       if (user === null || user.status === 'suspended') throw new ValidationFailedError('Some values were refused.', { fields: { [column]: { code: 'not-found' } } });
+      // Listed against rows of other tables: somebody who reads at least one of them.
+      const opened = opts.connectionId === undefined ? [] : readThrough(model, table.id, column);
+      if (opened.length > 0) {
+        const theirs = await resolvePermissionSet(meta, { kind: 'user', id: user.id, label: user.id });
+        if (!opened.some((other) => permissionSetAllows(theirs, `table:${opts.connectionId!}:${other.id}:read`))) {
+          throw new ValidationFailedError('Some values were refused.', { fields: { [column]: { code: 'cannot-open' } } });
+        }
+      }
     }
     if (reaches === null || opts.handOver === true || rule.set === 'anyone') continue;
     // An API key is nobody: it names nobody either.

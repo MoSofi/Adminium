@@ -541,7 +541,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
       await assertLinksReached(ctx.rows, db, tableId, values, before);
       // …and a link into a table they do not read at all names a row that is theirs, or none.
       await assertLinksToUnreadTables(ctx.view.model, ctx.connectionId, ctx.writer, db, tableId, values, before);
-      await assertStaffColumns(ctx.rows, meta, db, ctx.view.model, tableId, values, before, opts);
+      await assertStaffColumns(ctx.rows, meta, db, ctx.view.model, tableId, values, before, { ...opts, connectionId: ctx.connectionId });
       // …and each person its text mentions is somebody who signs in here.
       await assertMentions(meta, ctx.view.model.tables.find((candidate) => candidate.id === tableId), values, before);
     };
@@ -945,6 +945,8 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
       raw: Record<string, { key?: Row | undefined; values: Row }[]> | undefined,
       /** Under a NEW record: every row sent is a new row, whatever key it carries (a tree writes them all). */
       fresh = false,
+      /** What that new record itself was sent: a row under it may be its owner's. */
+      parentValues?: Row,
     ): Promise<RequestedChildren[]> {
       if (raw === undefined) return [];
       const out: RequestedChildren[] = [];
@@ -961,7 +963,8 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         // A row the form adds (no key) is a create of the child table, held to that create's limit.
         for (const row of rows) if (row.key === undefined || fresh) await assertCreatable(request, ctx.connectionId, child.child, row.values);
         // …and names only rows and people its writer may: its link to this parent is the parent's own, never sent.
-        for (const row of rows) if (row.key === undefined || fresh) await judgeWrite(ctx, id, allowlistChild(ctx, child, row.values), null);
+        // Whose the parent is, is asked where the link is known: here for a parent this save makes, and with the link below for one already there.
+        for (const row of rows) if (row.key === undefined || fresh) await judgeWrite(ctx, id, allowlistChild(ctx, child, row.values), null, fresh ? { parentValues: parentValues ?? {} } : { parentLater: true });
         out.push({
           child,
           rows: rows.map((row) => ({
@@ -1081,7 +1084,8 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
 
       for (const removed of diff.removed) if (!(await within(removed, 'delete'))) refuse('delete');
       for (const values of diff.added) {
-        await judgeWrite(ctx, child.child.id, values, null, undefined, db);
+        // With its link to this record: a row that is its parent's owner's is judged by whose this record is.
+        await judgeWrite(ctx, child.child.id, { ...values, [child.foreignColumn]: parentKey }, null, undefined, db);
         const row = { ...values, [child.foreignColumn]: parentKey };
         const [prepared] = await writes.beforeEach('create', target, context, [{ values: row }], limits);
         if (prepared === undefined) throw new AppError(500, 'INTERNAL', 'The write could not be prepared.');
@@ -1229,7 +1233,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
             for (const [j, grandRow] of rows.entries()) {
               // A row two levels down is a new row of its own table: held to that table's create, and to whom and what it may name.
               await assertCreatable(request, ctx.connectionId, grandchild.child, grandRow.values);
-              await judgeWrite(ctx, grandchild.child.id, allowlistChild(ctx, grandchild, grandRow.values), null);
+              await judgeWrite(ctx, grandchild.child.id, allowlistChild(ctx, grandchild, grandRow.values), null, { parentValues: allowlistChild(ctx, child, row.values) });
               below.push({
                 name: relationId,
                 target: childTargetOf(ctx, grandchild, ctx.db),
@@ -3156,7 +3160,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         answersRow.add(request);
         const context = withOccurredAt(requestWriteContext(request, 'dashboard'), request.body.occurredAt);
         const links = await requestedLinks(request, ctx, context, request.body.links);
-        const children = await requestedChildren(request, ctx, context, request.body.children, true);
+        const children = await requestedChildren(request, ctx, context, request.body.children, true, values);
         const repeat = request.body.repeat;
         let undoToken: string | null = null;
         // The price the desk showed and the key a retry finds this save by: the tree's own checks.
@@ -3454,7 +3458,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         // A quote copies from the rows it names as a save would: judged first, as a save is.
         await judgeWrite(ctx, ctx.table.id, values, null);
         const context = requestWriteContext(request, 'dashboard');
-        const children = await requestedChildren(request, ctx, context, request.body.children, true);
+        const children = await requestedChildren(request, ctx, context, request.body.children, true, values);
         const tree = await staffTree(request, ctx, context, values, [], children, request.body.children ?? {}, 'dry');
         const shown: Record<string, { data: Row; children?: Record<string, { data: Row }[]> }[]> = {};
         const byPlace = new Map<string, { data: Row; children?: Record<string, { data: Row }[]> }>();

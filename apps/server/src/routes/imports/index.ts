@@ -47,7 +47,7 @@ import { privilegeRefusal, writeRefused } from '../../connections/privileges.js'
 import { SnapshotView, type ResolvedTable } from '../../crud/identifiers.js';
 import { coerceCell } from '../../data-io/coerce.js';
 import { createCsvParser, parseCsv, serializeCsvRow, sniffDelimiter } from '../../data-io/csv.js';
-import { assertMatchReadable, openImportJudge, type EarlierLines, type ImportLine, type LineVerdict } from '../../data-io/import-judge.js';
+import { assertMatchReadable, assertUpsertUpdates, openImportJudge, type EarlierLines, type ImportLine, type LineVerdict } from '../../data-io/import-judge.js';
 import { canReadPii } from '../../crud/mask.js';
 import type { RecordWriteService } from '../../crud/write-service.js';
 import { loadSnapshotView } from '../../data-io/snapshot-view.js';
@@ -381,6 +381,8 @@ export function importsRoutes(deps: ImportsRoutesDeps): FastifyPluginAsyncZod {
         }
         // Matching says which values the table holds: it is for somebody who reads the table.
         assertMatchReadable(await request.can(`table:${connectionId}:${table.id}:read`), mode, connectionId, table.id);
+        // Changing the rows a file matches is an update: for somebody who holds it.
+        assertUpsertUpdates(await request.can(`table:${connectionId}:${table.id}:update`), mode, connectionId, table.id);
         // As this person reads the table: a column their role does not read, or sees masked, is no match key, and no column brought in unless their update names it.
         const permissions = await app.rbac.resolve(request);
         assertImportReadable(

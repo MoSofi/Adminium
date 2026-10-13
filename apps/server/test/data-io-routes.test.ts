@@ -234,9 +234,11 @@ describe('data-io routes + jobs (fake adapter)', () => {
       export: true,
       import: true,
     });
+    // An import that changes the rows it matches is an update too: the editor holds it.
     await t.grantTable(t.roles.editor, connId, 'main.customers', {
       read: true,
       create: true,
+      update: true,
       import: true,
     });
     await t.grantTable(t.roles.viewer, connId, '*', { read: true });

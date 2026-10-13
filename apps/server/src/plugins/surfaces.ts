@@ -664,11 +664,14 @@ export const surfacesPlugin = fp<SurfacesPluginOptions>(
          */
         const user = request.user;
         const session = request.session;
+        // The language this person chose in Adminium, and its direction: the screens speak as the rest of Adminium does to them.
+        const prefs = user === null || opts.metaDb === undefined ? null : await userPrefsRepo(opts.metaDb).resolve(user.id);
         const signedIn =
           user === null || session === null
             ? {}
             : {
                 user: { id: user.id, name: user.name, email: user.email },
+                ...(prefs === null ? {} : { locale: bcp47(prefs.locale), dir: prefs.dir }),
                 ...(request.server.hasDecorator('csrfTokenFor') ? { csrfToken: request.server.csrfTokenFor(session.id) } : {}),
               };
         /*

@@ -9,7 +9,9 @@ the last one.
 
 Bringing rows in needs the **Import** permission on the table. Matching lines to
 the rows already there (see [Matching](#matching)) also needs permission to
-**read** the table, because it says which values the table holds.
+**read** the table, because it says which values the table holds. Changing the rows a
+file matches ("Update them") also needs permission to **update** the table: bringing a
+file in makes rows, and is no way round an update a role does not hold.
 
 ## A file, or a paste
 

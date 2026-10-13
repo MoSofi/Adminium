@@ -90,6 +90,16 @@ export function assertMatchReadable(reads: boolean, mode: ImportMode, connection
   throw new ForbiddenError(MATCH_NEEDS_READ_MESSAGE, 'TABLE_FORBIDDEN', { permission: `table:${connectionId}:${tableId}:read` });
 }
 
+/**
+ * Refuse (403 `TABLE_FORBIDDEN`) an import that changes the rows it matches
+ * for somebody who may not change a row of the table: bringing a file in
+ * makes rows, and is no way round the update they do not hold.
+ */
+export function assertUpsertUpdates(updates: boolean, mode: ImportMode, connectionId: string, tableId: string): void {
+  if (mode !== 'upsert' || updates) return;
+  throw new ForbiddenError('A file that changes the rows it matches is for somebody who may change them. Bring it in leaving those rows as they are, or ask for the update.', 'TABLE_FORBIDDEN', { permission: `table:${connectionId}:${tableId}:update` });
+}
+
 export type ImportMode = 'insert' | 'upsert' | 'skip';
 
 export interface ImportJudgeDeps {
@@ -289,6 +299,8 @@ export async function openImportJudge(deps: ImportJudgeDeps, row: DataImport, ac
     }
     // Asked again now: a read taken away since the import was made ends its matching, for the preview and the run.
     assertMatchReadable(permissionSetAllows(permissions, `table:${row.connectionId}:${table.id}:read`), mode, row.connectionId, table.id);
+    // …and an update taken away ends its changing of rows.
+    assertUpsertUpdates(permissionSetAllows(permissions, `table:${row.connectionId}:${table.id}:update`), mode, row.connectionId, table.id);
     readView = readViewOf(view, permissions);
     const canReadPii = permissionSetAllows(permissions, UNMASK_PERMISSION) || permissionSetAllows(permissions, `table:${row.connectionId}:${table.id}:read_pii`);
     assertImportReadable(readView, table.id, row.mapping.columns, matchColumn, updateLimitOf(permissions, row.connectionId, table.id)?.writable ?? null, canReadPii);
@@ -322,7 +334,7 @@ export async function openImportJudge(deps: ImportJudgeDeps, row: DataImport, ac
     if (!held) return;
     await assertLinksReached(reach, db, table.id, values, before);
     if (writer !== null) await assertLinksToUnreadTables(view.model, row.connectionId, writer, db, table.id, values, before);
-    await assertStaffColumns(reach, deps.meta, db, view.model, table.id, values, before);
+    await assertStaffColumns(reach, deps.meta, db, view.model, table.id, values, before, { connectionId: row.connectionId });
   };
 
   /**

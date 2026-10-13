@@ -77,6 +77,31 @@ includes *rows nobody owns yet* (an inbox, a shared view), a table whose owner c
 fills with the writer (a stamp on create), and somebody nothing limits. An API key is nobody, so
 under a role held to its own rows it makes no row of such a table.
 
+**Who is on a deal is its owner's to say.** A listing other tables are read through (the people
+on a deal) is itself a way in, so it matters who writes it. Give the listing a staff column kept
+as a copy of the parent's owner and name it in the listing's own `belongs`:
+
+```json
+{ "ref": "deal_owner_id", "type": "text", "maxLength": 36, "nullable": true,
+  "rules": { "staff": true, "copy": { "via": "deal_id", "from": "owner_id", "mode": "always", "follow": true } } }
+```
+
+```json
+"belongs": [{ "column": "deal_owner_id", "set": "team" }]
+```
+
+A row of the listing is then the deal's owner's. Somebody held to their own rows adds a person
+only to a deal that names them as its owner (with `set: "team"`, also to a deal of somebody
+they lead), and removes anybody from it, whoever added them. A helper on the deal, or whoever
+covers for its owner, adds nobody, themselves included. When the deal changes hands, the
+listing follows.
+
+**A listing names somebody who can open what it lists them on.** A person written into a
+listing's person column (a deal's people, who covers whom) must read at least one of the tables
+read through that listing. Anybody else is refused for every writer, with the field marked
+`cannot-open`: they would be listed against rows they cannot open today, and would reach them
+unasked the day a role is added. A file brought in by somebody nothing limits is not asked.
+
 A link that is refused is refused exactly as a link to a row that is not there. Only a link this
 write sets is asked about: one the row already holds is left alone. A file brought in is judged
 the same way, row by row. A table that says nothing of its rows is not judged: its key is a key.

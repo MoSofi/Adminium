@@ -2241,7 +2241,8 @@ customer side is public and calls the [public API](/guides/public-api/endpoints-
 app's `customer` browser key, which the install creates. A staff side can be handed a second key
 for a screen of its own; see [publicKeys](#publickeys). Each side reads its `surface-config.json` at boot: the real table
 names, the app's settings and, for the staff side, the connection, the venue's time zone and
-currency, who is signed in, and `access`: which of `read`, `create`, `update` and `delete` they
+currency, who is signed in, the language they chose in Adminium (`locale`, as a tag such as
+`ar-EG`, with its `dir`), and `access`: which of `read`, `create`, `update` and `delete` they
 hold on each of the app's tables, and the app's roles they hold. A staff screen uses it to leave
 out a button whose write would be refused; the data API still checks every write.
 
@@ -2318,6 +2319,14 @@ own `belongs` names) are changed only by somebody the stored row names in one of
 leads that person where the role's reach is `team`. Somebody who reaches the row another way (a
 helper listed on it, a cover, the owner of its parent) works on the row and cannot give it away
 or take it. A record's `handOver` button frees whom the row may go to, not who may hand it over.
+
+Where such a column is kept as a copy of the row's parent (`copy` with `mode: "always"`), the
+person is decided by the link: a writer held to some rows sets that link only to a parent that
+names them there (or somebody they lead, with `set: "team"`), and is refused 403 with reason
+`parent-not-theirs` otherwise. And the person column of a table that another table's `belongs`
+reads `through` takes only somebody who reads at least one of those tables (422, the field
+marked `cannot-open`), whoever writes. See
+[Whose a row is](/guides/apps/whose-a-row-is/).
 
 **`handOver`**, on one of a table's [`states.actions`](#states), marks the one write in which a
 person limited to their own rows may name a colleague: the button asks for a staff column and
