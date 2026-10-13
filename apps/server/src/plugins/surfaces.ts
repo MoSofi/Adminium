@@ -729,7 +729,17 @@ export const surfacesPlugin = fp<SurfacesPluginOptions>(
         connectionId === null
           ? await keys.newestLiveByApp(appKey, 'customer')
           : await keys.newestLiveByAppAndConnection(appKey, 'customer', connectionId);
-      if (key === null) {
+      const shared = await sharedLinkKeysFor(appKey, connectionId);
+      /*
+       * AN APP WHOSE ONLY PUBLIC DOOR IS A SHARED LINK (a quote its customer
+       * opens by the link in an e-mail) has no `customer` key: it serves
+       * nothing to somebody who holds no link. Its customer side is still the
+       * page behind that link and must load, so it is served the link's own
+       * key as its key (the first by name where there are several). That key
+       * opens one row to whoever holds a link, and nothing without one.
+       */
+      const linkOnly = key === null ? Object.keys(shared).sort()[0] : undefined;
+      if (key === null && linkOnly === undefined) {
         throw new NotFoundError('No live publishable key is bound to this surface.', {
           appKey,
           ...(slug === null ? {} : { instance: slug }),
@@ -741,10 +751,9 @@ export const surfacesPlugin = fp<SurfacesPluginOptions>(
       );
       const values = await settingsOf(appKey);
       const addOns = await addOnsOf(appKey, 'customer', connectionId ?? (slug === null ? await installConnectionOf(metaDb, appKey) : null));
-      const shared = await sharedLinkKeysFor(appKey, connectionId);
       return {
         baseUrl: '',
-        publishableKey: openPublishableKey(crypto, key.tokenEncrypted),
+        publishableKey: key === null ? shared[linkOnly as string]! : openPublishableKey(crypto, key.tokenEncrypted),
         appName,
         ...(addOns === null ? {} : { addOns }),
         ...(Object.keys(shared).length === 0 ? {} : { publicKeys: shared }),

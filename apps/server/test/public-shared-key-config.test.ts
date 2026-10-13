@@ -81,4 +81,39 @@ describe('the public side’s surface config', () => {
     expect(customer.json().publicKeys).toEqual({ handover: tokens['handover'] });
     expect(customer.body).not.toContain(tokens['kiosk']);
   });
+
+  it('serves an app whose only public door is a shared link its link key as the side’s own, and still refuses an app with no key at all', async () => {
+    t = await buildAuthApp({ staticRoot: dist, surfaces });
+    const crypto = dsnCryptoFromSecret(makeEnv().ADMINIUM_SECRET);
+    const conn = await connectionsRepo(t.meta, crypto).create({ name: 'src', engine: 'postgres', introspectDsn: 'postgres://ro:s@db/p', dataDsn: 'postgres://rw:s@db/p' });
+    await manifestsRepo(t.meta, IDENTITY).install({ manifestKey: 'clients', version: '0.2.0', kind: 'app', source: 'file', connectionId: conn.id, document: { name: 'Client Portal' } });
+    // No key at all: the side has nothing to open anything with.
+    t.app.surfaceSettings?.invalidate();
+    expect((await t.app.inject({ method: 'GET', url: '/apps/clients/customer/surface-config.json' })).statusCode).toBe(404);
+    const scope = await publicScopesRepo(t.meta).create({ connectionId: conn.id, side: 'customer', name: 'portal', timezone: 'Europe/London', document: JSON.stringify({ version: 1 }) });
+    const tokens: Record<string, string> = {};
+    for (const [purpose, staff] of [['quote', false], ['kiosk', true]] as const) {
+      const generated = generatePublishableKey();
+      tokens[purpose] = generated.token;
+      await publicKeysRepo(t.meta).create({
+        name: purpose,
+        prefix: generated.prefix,
+        tokenHash: generated.tokenHash,
+        tokenEncrypted: sealPublishableKey(crypto, generated.token),
+        scopeId: scope.id,
+        side: 'customer',
+        appKey: 'clients',
+        managedBy: 'clients',
+        purpose,
+        ...(staff ? { requiresStaff: { appKey: 'clients', roleSlug: 'clients-kiosk' } } : {}),
+      });
+    }
+    t.app.surfaceSettings?.invalidate();
+    const customer = await t.app.inject({ method: 'GET', url: '/apps/clients/customer/surface-config.json' });
+    expect(customer.statusCode, customer.body).toBe(200);
+    expect(customer.json().publishableKey).toBe(tokens['quote']);
+    expect(customer.json().publicKeys).toEqual({ quote: tokens['quote'] });
+    // Never a staff-bound key, as the side's own or beside it.
+    expect(customer.body).not.toContain(tokens['kiosk']);
+  });
 });
