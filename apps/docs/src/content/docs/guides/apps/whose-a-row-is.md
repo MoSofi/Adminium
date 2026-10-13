@@ -173,6 +173,13 @@ when it does.
 - **The assistant's kept conversations** keep what their owner saw at the time.
 - **The audit list** leaves out entries of a table its reader is limited on; a row's own history
   is read through the row.
+- **A row's history is not cut by time.** Whoever reads a row today reads its history
+  (`GET /api/v1/data/{connection}/{table}/{record}/history`) back to its first change: every
+  earlier value of the columns their role shows, who changed it, and what a rule wrote to it,
+  under the rule's name. Somebody who came to the row later (a new owner, a person covering, a
+  helper added last week) reads what was written before they came. The history is the row's own:
+  a change to a row under it (a line of a quote) is in that row's history, read by its own
+  rights.
 - **A file out of a table** (an export, a kept document) belongs to whoever asked for it; managing
   exports does not open another person's file of a table you are limited on.
 - **An API key is nobody.** A key whose role is limited on a table reads no row of it.

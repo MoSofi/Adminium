@@ -126,6 +126,9 @@ import { clientKeySecret } from '../public/tree.js';
  * links are actually managed.
  */
 const LINK_READ_CAP = 200;
+
+/** What a rule's own write to a record is audited as (`afterRecordWrite`): the only rows of the rules' category a record's history lists. */
+const RULE_RECORD_ACTIONS = ['record.create', 'record.update', 'record.delete'] as const;
 import { withOccurredAt } from '../../crud/occurred-at.js';
 import { withSeenState } from '../../crud/seen-state.js';
 import { recordActionRoutes } from './actions.js';
@@ -2542,6 +2545,11 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
      * came from (address, browser, request). The audit page stays Studio's;
      * this is what an app's own screens show beside a record (a box office's
      * order timeline).
+     *
+     * What a rule wrote to the record is a change of it too (a stamp a rule
+     * set, a row a rule moved): listed with the rule's name as who did it,
+     * cut to the reader exactly as a person's change is. Nothing else the
+     * rules log about a record is listed (a run refused, a loop stopped).
      */
     app.get(
       '/data/:connectionId/:table/:recordId/history',
@@ -2554,13 +2562,14 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         let q = meta.db
           .selectFrom('adminium_audit_log')
           .select(['id', 'createdAt', 'actorKind', 'actorLabel', 'action', 'changes'])
-          .where('category', '=', 'data')
+          .where((eb) => eb.or([eb('category', '=', 'data'), eb.and([eb('category', '=', 'automation'), eb('action', 'in', RULE_RECORD_ACTIONS)])]))
           .where('connectionId', '=', ctx.connectionId)
           .where('entityTable', '=', keys.entityTable)
           .where('entityId', '=', keys.entityId);
         const { limit, cursor } = request.query;
         if (cursor !== undefined) {
-          const decoded = cursorText(Buffer.from(cursor, 'base64url').toString('utf8')) ?? '';
+          // `cursorText` decodes the cursor itself (and refuses one that holds U+0000).
+          const decoded = cursorText(cursor) ?? '';
           const at = Number(decoded.slice(0, decoded.indexOf(':')));
           const id = decoded.slice(decoded.indexOf(':') + 1);
           if (!Number.isFinite(at) || id === '') throw new ValidationFailedError('Malformed pagination cursor.', { cursor });
