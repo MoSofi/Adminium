@@ -4,6 +4,7 @@
 
 | File | What it covers | Bytes |
 |---|---|---|
+| `references/manifest/sample-data.md` | Sample data | 975 |
 | `references/manifest/sample-data--sample-people.md` | Sample data — Sample people | 7697 |
 | `references/manifest/sample-data--sample-people-2.md` | Sample data — Sample people (part 2) | 2788 |
 | `references/manifest/seeds-and-widgets.md` | seeds and widgets | 2826 |

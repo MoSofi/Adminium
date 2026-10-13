@@ -1288,6 +1288,7 @@ else that can be taken twice by mistake. Needs Adminium 0.3.28.
 | `minutes` | with `start` | An `int` column: how long the row lasts. |
 | `end` | with `start` | A `timestamptz` column: when the row ends. It must be after the start. |
 | `day` | one of `start`, `day` | A `date` column: the row takes the whole day. Takes no `minutes` and no `end`. |
+| `until` | no, with `day` | A `date` column, usually nullable: the last day the row takes, so the row is a span of whole days from `day` to `until`. Empty in a row means the span has no end. Takes no `hours` and no `shared`. |
 | `countWhere` | no | `{ "column", "values" }`: only rows whose column holds one of these values take the resource (a cancelled booking takes nothing). Without it every row counts. |
 | `hours` | no | The resource's week: `{ "table", "resource", "weekday", "opens"?, "closes"? }`, a table of the app with one row per weekday the resource works. `resource` names what the row's `resource` names; `weekday` is an enum of exactly `mon`, `tue`, `wed`, `thu`, `fri`, `sat`, `sun`, in that order. `opens` and `closes` are `text` columns holding `HH:MM`, both or neither. |
 | `shared` | no | `true`: rows may share the resource's time, and only its `hours` are judged (a crew does several jobs on a day it works, and none on its day off). Needs `hours`. |
@@ -1300,6 +1301,19 @@ With `hours`, a weekday the resource has no row for is a day it does not work. A
 also lie inside the weekday's `opens` and `closes`, when the rule names them. A resource with no
 rows in the table at all keeps no week and is held to none, so a crew made a minute ago can be
 booked before its days are written down.
+
+With `until`, a row takes every day from its `day` to its `until`, and both ends count: a cover
+that ends on the 14th and another of the same person that starts on the 14th overlap, and the
+second is refused. Start it on the 15th instead. A row whose `until` is empty runs "until further
+notice": it overlaps every later row of its resource, and a second open-ended row. An `until`
+before its `day` is refused with `BOOKING_OUT_OF_RANGE`. A span can be as long as you like.
+
+```json
+"occupies": { "resource": "owner_id", "day": "starts_on", "until": "ends_on" }
+```
+
+The refusal names the column and nothing of the row in the way: not its key and not its days,
+because the person writing may not be allowed to read that row.
 
 A write that overlaps is refused with `BOOKING_TAKEN` (409), one on a day the resource does not
 work with `BOOKING_CLOSED` (409), one outside the opening times with `BOOKING_OUT_OF_HOURS` and one
@@ -2838,6 +2852,7 @@ A producer may also say:
 | `supersede` | A group name (kebab-case, up to 40 characters). When a message of the group comes due for a row, the earlier ones not yet sent are skipped as overtaken, so an invoice never has two reminders ready at once. Needs `due`. |
 | `dropWhen` | 1–4 conditions on the row the message is about: `{ "column", <one test>, "reason" }`, the test being `eq`, `in`, `isNull`, `lte` or `gte`. While one holds, its waiting messages are skipped with the `reason`: `paid`, `void` or `no-longer-needed`. Only a message that waits (`hold`, or `due`) can be dropped. |
 | `recipient` | `{ "setting" }`: send to the address a setting holds (a studio's own `reply_to`), never to the person the row links. The setting is `{ "table", "column" }` of the settings row, or `{ "addOn", "setting" }` of a required add-on. Or `{ "column", "name"?, "language"? }`: send to the address a `text` column of the producing row holds (the friend a ticket is offered to), with that row's `name` column as the name and its `language` column as the message's language. |
+| `replyTo` | `{ "staff": column }`: a reply to the message goes to the person a [staff column](#whose-a-row-is) names, at the address they sign in with. The column is one of the row the message is about (`owner_id`), or of the row one of its links names (`deal_id.owner_id`: the owner of a quote's deal). See [A reply to the rep](#a-reply-to-the-rep). Needs Adminium 0.3.28. |
 | `holdSeconds` | 1–3600: the message waits this many seconds before it may go, so a move taken back at once (an order marked ready by mistake) drops it by `dropWhen` before anyone is told. A message dropped so does not stop the next one of its kind. Needs the outbox's `due` column; not on a `before` producer, nor with `hold`, `due` or `batchMinutes`. |
 | `repeatBy` | A column of the row the message is about: one message for each value it holds, not one for the row for ever (a ticket offered again, its link made afresh, is emailed again). A message for an earlier value not yet sent is skipped as overtaken. Needs the outbox's `repeatKey` column; not on a `before` producer, nor with `batchMinutes`. |
 | `repeat` | `true`: one message for each change it hears of, not one for the row for ever ("Resend tickets" twice is two messages). Only on an `onChange` producer, and not with `repeatBy` or `batchMinutes`. |
@@ -2877,6 +2892,33 @@ A message row an import or an undo brings back never goes by itself: nothing her
 nobody approved it. One that arrives `queued` comes in `held` for a person to approve, or `failed`
 with a sentence saying why where the outbox has no `held` (queue it again to send it); one that
 says it went, with a sent time and no error, comes in `sent`.
+
+### A reply to the rep
+
+A message about a quote is sent by the business, and the customer's reply should reach the person
+who owns the quote. A producer says so with `replyTo`:
+
+```json
+{ "kind": "quote-sent", "link": "quote_id", "replyTo": { "staff": "deal_id.owner_id" },
+  "onChange": { "table": "quotes", "column": "status", "to": "sent" } }
+```
+
+`staff` is a [staff column](#whose-a-row-is) of the row the message is about, the one the
+producer's `link` names: `"owner_id"`. One link further is allowed: `"deal_id.owner_id"` on a
+quote is the owner of the quote's deal. The validator refuses any other column: a text column that
+holds an address is not one, and there is no way to type an address here.
+
+When the message goes, Adminium reads who the column names and looks up the address that person
+signs in with. The address is read then, not when the message was queued, and it is kept nowhere
+in the app's tables. The message carries it as its Reply-To.
+
+Sometimes there is nobody to reply to: the column or the link is empty, the person has been
+removed or suspended, has not accepted their invitation yet, or is a sample person. Then the
+message carries the house's own address (`settings.replyTo`) if the outbox has one, and no
+Reply-To otherwise. It is sent either way: a missing rep never holds a message back.
+
+The customer sees the rep's sign-in address in the reply field of their mail program. Use
+`replyTo` only where that is what you want.
 
 ### Held messages
 
@@ -3857,7 +3899,7 @@ A step's action is one of six:
 | `kind` | Keys | What it does |
 |---|---|---|
 | `notification` | `to: { "roles" }` or `to: { "column" }`, `title`, `body`?, `urgent`? | Tells everyone who holds one of the manifest's own roles, or [the person on the row](#the-person-on-the-row). `"urgent": true` tells them at once, also in their quiet hours. |
-| `email` | `templateKey`, `to: { "kind": "field", "column" }` or `to: { "kind": "staff", "column" }`, `vars`? | Sends one of the manifest's own templates to the address a column of the record holds, or to [the person on the row](#the-person-on-the-row). |
+| `email` | `templateKey`, `to: { "kind": "field", "column" }` or `to: { "kind": "staff", "column" }`, `vars`?, `replyTo: { "staff": column }`? | Sends one of the manifest's own templates to the address a column of the record holds, or to [the person on the row](#the-person-on-the-row). |
 | `digest` | `templateKey`, `to: { "roles" }`, `sections`, `sendEmpty`? | Makes [a summary for each person](#a-summary-for-each-person) who holds one of the roles: their own rows, read as they read. |
 | `record.create` | `table`, `values`, `name`? | Adds a row of one of the manifest's tables. With a `name`, [the steps after it read the row it made](#a-row-a-step-makes). |
 | `record.update` | `values` | Writes columns of the record. |
@@ -3876,6 +3918,12 @@ A record that names nobody there (a deal with no owner yet, an empty link, a per
 or suspended) tells nobody, and the run goes on: its log says who was not there. That is not a
 failure. An email to a person goes to the address they sign in with, in their language, and waits
 for the end of their quiet hours like a notice does.
+
+An email step may also say where a reply goes: `"replyTo": { "staff": "owner_id" }`, or one link
+further, `"deal_id.owner_id"`. The mail then carries the sign-in address of that person as its
+Reply-To, whoever it is sent to. It follows the rules of [A reply to the rep](#a-reply-to-the-rep),
+and a rule has no house address to fall back on: with nobody there, the mail goes without a
+Reply-To. Needs Adminium 0.3.28.
 
 ### Once per spell
 

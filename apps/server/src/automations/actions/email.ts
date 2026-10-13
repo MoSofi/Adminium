@@ -53,7 +53,7 @@ import { resolveRuleTemplate, templateRequiredPlaceholders } from '../templates.
 import { substitute, tokensFor, type TokenMap } from '../templating.js';
 import { enqueueEmail } from '../../email/send.js';
 import { heldUntil } from '../../notifications/notify.js';
-import { staffAt } from '../staff-recipient.js';
+import { staffAt, staffReplyTo } from '../staff-recipient.js';
 import { AUTOMATION_NOTICE_KIND } from './notice-kind.js';
 import { ActionFailure, type ActionContext, type ActionResult } from './types.js';
 
@@ -226,9 +226,10 @@ async function runStaffEmail(action: EmailAction & { to: { kind: 'staff'; column
     return { log: ctx.text.emailWould(rendered.subject, user.name) };
   }
   const held = await heldUntil(ctx.meta, user.id, AUTOMATION_NOTICE_KIND, ctx.now);
+  const replyTo = await staffReplyTo(ctx.meta, ctx, action.replyTo?.staff);
   const job = await enqueueEmail(
     { meta: ctx.meta, secret: ctx.secret, ...(held === null ? {} : { runAt: held }) },
-    { to: user.email, templateKey: action.templateKey, locale, vars, template } as never,
+    { to: user.email, templateKey: action.templateKey, locale, vars, template, ...(replyTo === null ? {} : { replyTo }) } as never,
   );
   if (job === null) throw new ActionFailure(ctx.text.emailNoSmtp());
   const said = [held === null ? ctx.text.emailQueued(user.name) : ctx.text.heldUntil(user.name, new Date(held).toISOString())];
@@ -254,11 +255,13 @@ export async function runEmailAction(
     { inline: inlineRefs(probe), attachments: prepared.attachments },
   );
   const transport = (ctx.createTransport ?? createSmtpTransport)(config);
+  // A reply goes to the person on the row, by the address they sign in with now; nobody there, and the mail has no Reply-To.
+  const replyTo = await staffReplyTo(ctx.meta, ctx, action.replyTo?.staff);
 
   const replies: string[] = [];
   for (const to of recipients) {
     try {
-      const result = await deliverPrepared({ transport, prepared, locale: template.locale, to, vars, parts });
+      const result = await deliverPrepared({ transport, prepared, locale: template.locale, to, vars, parts, ...(replyTo === null ? {} : { replyTo }) });
       replies.push(ctx.text.emailOk(result.response ?? '250 OK', to));
     } catch (error) {
       throw new ActionFailure(

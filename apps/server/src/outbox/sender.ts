@@ -172,6 +172,7 @@ import { usableLanguage } from './language.js';
 import { isSampleRow, verdictsFor, type LiveOutbox, type OutboxLogger } from './producers.js';
 import { addressFor, plausibleAddress, referenced, rowOf, type Addressed } from './recipient.js';
 import { columnRecipientOf } from './column-recipient.js';
+import { staffReplyTo } from './staff-reply-to.js';
 import type { SignInLinkMinter } from './sign-in-link.js';
 import { producerOf, settingReader, skipSentence, sourceOf } from './timing.js';
 
@@ -1416,8 +1417,9 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     const long = [...drawn].filter((name) => !name.startsWith('row.') && !fitsQr(vars[name]));
     if (long.length > 0) return { status: 'failed', error: qrTooLongSentence(long) };
     const written = typeof row[cols.to] === 'string' ? (row[cols.to] as string).trim() : null;
-    // A reply to any of the app's messages goes to the house's own address, when its settings name one that is an address.
-    const replyTo = await houseReplyTo(box, ctx.db);
+    // A reply goes to the person the row's staff column names, when the producer says so and somebody who signs in is there;
+    // else to the house's own address, when its settings name one that is an address.
+    const replyTo = (await staffReplyTo({ meta: deps.meta, db: ctx.db, view: ctx.view, outboxId: ctx.outbox.id }, producer, row)) ?? (await houseReplyTo(box, ctx.db));
     return {
       to,
       reader: await messageReader(box, ctx, holder, addressed, to),

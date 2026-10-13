@@ -149,6 +149,15 @@ const producerBase = {
       z.object({ column: refSchema, name: refSchema.optional(), language: refSchema.optional() }).strict(),
     ])
     .optional(),
+  /**
+   * Where a reply to the message goes: to the staff member a staff column of
+   * the row the message is about names (a deal's `owner_id`, its rep), or of
+   * the row one of its links names (`deal_id.owner_id`: a quote's deal's
+   * owner). Adminium looks up that person's own sign-in address when the
+   * message goes. Nobody there, or somebody who cannot sign in: the house's
+   * own `settings.replyTo` if the outbox has one, else no Reply-To.
+   */
+  replyTo: z.object({ staff: z.string().regex(/^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)?$/, 'a column, or <link column>.<column>') }).strict().optional(),
   /** One message per linked row in each window of this many minutes. */
   batchMinutes: z.number().int().min(1).max(240).optional(),
   /**
@@ -830,6 +839,20 @@ export function outboxIssues(
           col(linked, producer.recipient.language, ['text'], here('recipient', 'language'), 'a text column');
           if (box.columns.language === undefined) out.push({ path: here('recipient', 'language'), message: 'a message\'s language is kept in the outbox\'s language column: name it' });
         }
+      }
+    }
+    // A reply to the rep: a staff column of the row the message is about, or of the row one of its links names, and no other kind of column.
+    if (producer.replyTo !== undefined) {
+      const [first, second] = producer.replyTo.staff.split('.') as [string, string | undefined];
+      const where = here('replyTo', 'staff');
+      // One link further: the table the row's foreign key points at.
+      const of = second === undefined ? linked : col(linked, first, ['fk'], where, 'a link to another table')?.references;
+      const column = second ?? first;
+      const person = of === undefined ? undefined : col(of, column, null, where, '');
+      // Read off the manifest's own table: a table it does not declare has no staff column it can vouch for.
+      const declared = m.requiredSchema.tables.find((candidate) => candidate.ref === of)?.columns.find((candidate) => candidate.ref === column) as { rules?: { staff?: unknown } } | undefined;
+      if (of !== undefined && person !== undefined && declared?.rules?.staff !== true) {
+        out.push({ path: where, message: `"${of}.${column}" is not a staff column ("rules": { "staff": true }): only one names a person a reply can go to` });
       }
     }
     // The language read from the row a message is about: every producer's row has it.

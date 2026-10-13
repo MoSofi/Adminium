@@ -458,7 +458,9 @@ export interface BookingHoursTable {
  * `table.occupies`: a row takes a resource for a time (a room for an hour, a
  * crew for a day). No two counted rows of one resource overlap, unless they
  * `shared` it; with `hours`, the resource has a row for the weekday and a
- * timed row lies inside it. `hours.table` is an id in the snapshot.
+ * timed row lies inside it. `hours.table` is an id in the snapshot. A `day`
+ * with `until` is a span of whole days, both counted; an empty `until` has
+ * no end.
  */
 export interface TableOccupiesRule {
   resource: string;
@@ -466,6 +468,7 @@ export interface TableOccupiesRule {
   minutes?: string;
   end?: string;
   day?: string;
+  until?: string;
   countWhere?: { column: string; values: string[] };
   shared?: true;
   hours?: { table: string; resource: string; weekday: string; opens?: string; closes?: string };

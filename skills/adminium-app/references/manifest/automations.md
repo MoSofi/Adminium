@@ -37,7 +37,7 @@ A step's action is one of six:
 | `kind` | Keys | What it does |
 |---|---|---|
 | `notification` | `to: { "roles" }` or `to: { "column" }`, `title`, `body`?, `urgent`? | Tells everyone who holds one of the manifest's own roles, or [the person on the row](https://docs.adminium.dev/reference/manifest/#the-person-on-the-row). `"urgent": true` tells them at once, also in their quiet hours. |
-| `email` | `templateKey`, `to: { "kind": "field", "column" }` or `to: { "kind": "staff", "column" }`, `vars`? | Sends one of the manifest's own templates to the address a column of the record holds, or to [the person on the row](https://docs.adminium.dev/reference/manifest/#the-person-on-the-row). |
+| `email` | `templateKey`, `to: { "kind": "field", "column" }` or `to: { "kind": "staff", "column" }`, `vars`?, `replyTo: { "staff": column }`? | Sends one of the manifest's own templates to the address a column of the record holds, or to [the person on the row](https://docs.adminium.dev/reference/manifest/#the-person-on-the-row). |
 | `digest` | `templateKey`, `to: { "roles" }`, `sections`, `sendEmpty`? | Makes [a summary for each person](https://docs.adminium.dev/reference/manifest/#a-summary-for-each-person) who holds one of the roles: their own rows, read as they read. |
 | `record.create` | `table`, `values`, `name`? | Adds a row of one of the manifest's tables. With a `name`, [the steps after it read the row it made](https://docs.adminium.dev/reference/manifest/#a-row-a-step-makes). |
 | `record.update` | `values` | Writes columns of the record. |

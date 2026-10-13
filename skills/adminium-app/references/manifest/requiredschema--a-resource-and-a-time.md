@@ -26,6 +26,7 @@ else that can be taken twice by mistake. Needs Adminium 0.3.28.
 | `minutes` | with `start` | An `int` column: how long the row lasts. |
 | `end` | with `start` | A `timestamptz` column: when the row ends. It must be after the start. |
 | `day` | one of `start`, `day` | A `date` column: the row takes the whole day. Takes no `minutes` and no `end`. |
+| `until` | no, with `day` | A `date` column, usually nullable: the last day the row takes, so the row is a span of whole days from `day` to `until`. Empty in a row means the span has no end. Takes no `hours` and no `shared`. |
 | `countWhere` | no | `{ "column", "values" }`: only rows whose column holds one of these values take the resource (a cancelled booking takes nothing). Without it every row counts. |
 | `hours` | no | The resource's week: `{ "table", "resource", "weekday", "opens"?, "closes"? }`, a table of the app with one row per weekday the resource works. `resource` names what the row's `resource` names; `weekday` is an enum of exactly `mon`, `tue`, `wed`, `thu`, `fri`, `sat`, `sun`, in that order. `opens` and `closes` are `text` columns holding `HH:MM`, both or neither. |
 | `shared` | no | `true`: rows may share the resource's time, and only its `hours` are judged (a crew does several jobs on a day it works, and none on its day off). Needs `hours`. |
@@ -38,6 +39,19 @@ With `hours`, a weekday the resource has no row for is a day it does not work. A
 also lie inside the weekday's `opens` and `closes`, when the rule names them. A resource with no
 rows in the table at all keeps no week and is held to none, so a crew made a minute ago can be
 booked before its days are written down.
+
+With `until`, a row takes every day from its `day` to its `until`, and both ends count: a cover
+that ends on the 14th and another of the same person that starts on the 14th overlap, and the
+second is refused. Start it on the 15th instead. A row whose `until` is empty runs "until further
+notice": it overlaps every later row of its resource, and a second open-ended row. An `until`
+before its `day` is refused with `BOOKING_OUT_OF_RANGE`. A span can be as long as you like.
+
+```json
+"occupies": { "resource": "owner_id", "day": "starts_on", "until": "ends_on" }
+```
+
+The refusal names the column and nothing of the row in the way: not its key and not its days,
+because the person writing may not be allowed to read that row.
 
 A write that overlaps is refused with `BOOKING_TAKEN` (409), one on a day the resource does not
 work with `BOOKING_CLOSED` (409), one outside the opening times with `BOOKING_OUT_OF_HOURS` and one

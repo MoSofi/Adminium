@@ -195,6 +195,9 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   'automations.stepName',
   // More than twelve rules in one manifest: each is installed as the first twelve are.
   'automations.many',
+  // A reply to the person a staff column names: their sign-in address, looked up when the message goes; nobody there is no header.
+  'automations.replyTo',
+  'outbox.replyTo',
   // Rows read by the people they belong to and by nothing else: not in the view a rule, a public door, a kiosk's key or an owner's
   // code reads through, and refused by name as a file out, a file in, a scheduled report and a document.
   'table.private',

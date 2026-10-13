@@ -15,6 +15,11 @@
  * The time is a start with its minutes or its end, or a whole `day`. A row
  * with no resource, or no time yet, takes nothing and is not judged.
  *
+ * A `day` with `until` is a span of whole days, both ends counted: a cover
+ * from the 10th until the 14th and one from the 14th on overlap. An empty
+ * `until` is a span with no end ("until further notice"). A span is judged
+ * for overlap alone, so it has no `hours` and is never `shared`.
+ *
  * Every table the rule names sits under a key called `table`, so the
  * installer maps it to the real table.
  */
@@ -35,6 +40,8 @@ export const occupiesSchema = z
     end: refSchema.optional(),
     /** Or the whole day it takes: a `date`. */
     day: refSchema.optional(),
+    /** With `day`: the last day it takes, a `date` (counted too). Empty in a row: it has no end. */
+    until: refSchema.optional(),
     /** Only rows whose column holds one of these take the resource (a cancelled booking takes nothing). */
     countWhere: z.object({ column: refSchema, values: z.array(z.string().min(1)).min(1) }).strict().optional(),
     /** Rows may share the resource's time: only its hours are judged. */
@@ -46,6 +53,8 @@ export const occupiesSchema = z
   .refine((rule) => (rule.start === undefined) !== (rule.day === undefined), { message: 'the time is a `start` or a whole `day`, one of the two' })
   .refine((rule) => rule.start === undefined || (rule.minutes === undefined) !== (rule.end === undefined), { message: 'a `start` comes with its `minutes` or its `end`, one of the two' })
   .refine((rule) => rule.day === undefined || (rule.minutes === undefined && rule.end === undefined), { message: 'a whole `day` takes no `minutes` and no `end`' })
+  .refine((rule) => rule.until === undefined || rule.day !== undefined, { message: '`until` is the last day of a span that starts on a `day`: name the `day`' })
+  .refine((rule) => rule.until === undefined || (rule.hours === undefined && rule.shared === undefined), { message: 'a span of days (`until`) is judged for overlap alone: it has no `hours` and is not `shared`' })
   .refine((rule) => rule.shared !== true || rule.hours !== undefined, { message: 'rows that share the time are judged by the resource\'s `hours` alone: name them' })
   .refine((rule) => rule.hours === undefined || (rule.hours.opens === undefined) === (rule.hours.closes === undefined), { message: 'hours name both when the day opens and when it closes, or neither' });
 export type OccupiesRule = z.infer<typeof occupiesSchema>;
@@ -75,6 +84,10 @@ export function occupiesIssues(table: TableShape, rule: OccupiesRule, index: Tab
   if (rule.minutes !== undefined) want(table.ref, rule.minutes, ['int', 'bigint'], here('minutes'), 'an int');
   if (rule.end !== undefined) want(table.ref, rule.end, ['timestamptz'], here('end'), 'a timestamptz');
   if (rule.day !== undefined) want(table.ref, rule.day, ['date'], here('day'), 'a date');
+  if (rule.until !== undefined) {
+    want(table.ref, rule.until, ['date'], here('until'), 'a date');
+    if (rule.until === rule.day) out.push({ path: here('until'), message: 'a span\'s last day is kept in a column of its own' });
+  }
   if (rule.countWhere !== undefined) {
     const counted = index.column(table.ref, rule.countWhere.column);
     if (counted === undefined) out.push({ path: here('countWhere', 'column'), message: `"${table.ref}" has no column "${rule.countWhere.column}"` });

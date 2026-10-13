@@ -1343,6 +1343,8 @@ export const overridePatchSchema = z.discriminatedUnion('op', [
         minutes: bookingName.optional(),
         end: bookingName.optional(),
         day: bookingName.optional(),
+        /** With `day`: the last day of a span of whole days; empty in a row = no end. */
+        until: bookingName.optional(),
         countWhere: z.object({ column: bookingName, values: z.array(z.string().min(1)).min(1) }).strict().optional(),
         shared: z.literal(true).optional(),
         hours: z.object({ table: bookingTable, resource: bookingName, weekday: bookingName, opens: bookingName.optional(), closes: bookingName.optional() }).strict().optional(),
@@ -1892,6 +1894,13 @@ export const automationActionSchema = z.discriminatedUnion('kind', [
      * falling back. */
     templateKey: z.string().max(120).nullable().default(null),
     to: automationEmailRecipientSchema.nullable().default(null),
+    /**
+     * Where a reply goes: the person a staff column of the record names
+     * (`owner_id`, or `<link>.<staff column>`), by the address they sign in
+     * with, looked up when the mail goes. Nobody there, or somebody who
+     * cannot sign in: no Reply-To. Never an address somebody typed.
+     */
+    replyTo: z.object({ staff: z.string().max(260) }).strict().optional(),
     /**
      * What fills a placeholder of the template that the record does not:
      * the placeholder's name → a text, which may carry `{{record.x}}` tokens

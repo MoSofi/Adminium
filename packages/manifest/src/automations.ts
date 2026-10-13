@@ -142,6 +142,12 @@ export const manifestActionSchema = z.discriminatedUnion('kind', [
        * of the row a link of it names), whose person's address Adminium looks up.
        */
       to: z.union([z.object({ kind: z.literal('field'), column: refSchema }).strict(), z.object({ kind: z.literal('staff'), column: staffPath }).strict()]),
+      /**
+       * Where a reply goes: to the person a staff column of the record names
+       * (or `<link>.<staff column>` of the row a link of it names), by the
+       * address they sign in with. Nobody there: no Reply-To.
+       */
+      replyTo: z.object({ staff: staffPath }).strict().optional(),
       /** What fills a placeholder of the template that the record does not. */
       vars: z
         .record(z.string().regex(/^[A-Za-z0-9_.-]{1,120}$/), z.string().max(2000))
@@ -585,6 +591,7 @@ export function automationIssues(m: {
         if (record === undefined) out.push({ path: here(), message: 'this rule runs for no record, so there is no address to send to' });
         if (action.to.kind === 'staff') staffAt(action.to.column, here('to', 'column'));
         else column(record, action.to.column, here('to', 'column'));
+        if (action.replyTo !== undefined) staffAt(action.replyTo.staff, here('replyTo', 'staff'));
         const template = templates.get(action.templateKey);
         if (template === undefined) {
           out.push({ path: here('templateKey'), message: `"${action.templateKey}" is not one of this manifest's emailTemplates: a shipped rule sends only its own` });

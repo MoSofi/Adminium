@@ -46,6 +46,7 @@ import { venueClock, wallTimeToInstant } from './venue-time.js';
 
 type Db = Kysely<SourceDatabase>;
 
+const DAY = /^\d{4}-\d{2}-\d{2}$/;
 const WEEKDAYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'] as const;
 const DAY_MS = 86_400_000;
 
@@ -73,7 +74,7 @@ export const isPlain = (rule: TableBookingRule | PlainRule): rule is PlainRule =
 
 /** The columns that place a row: where it sits and whose time it takes. */
 const placing = (rule: TableBookingRule | PlainRule): string[] =>
-  isPlain(rule) ? [rule.plain.start, rule.plain.minutes, rule.plain.end, rule.plain.day, rule.plain.resource].filter((column): column is string => column !== undefined) : [rule.start, rule.minutes, rule.resource, rule.kind];
+  isPlain(rule) ? [rule.plain.start, rule.plain.minutes, rule.plain.end, rule.plain.day, rule.plain.until, rule.plain.resource].filter((column): column is string => column !== undefined) : [rule.start, rule.minutes, rule.resource, rule.kind];
 
 /** The column a refusal about the row's time is told against. */
 export const bookingColumn = (rule: TableBookingRule | PlainRule): string => (isPlain(rule) ? (rule.plain.start ?? rule.plain.day ?? rule.plain.resource) : rule.start);
@@ -89,7 +90,7 @@ function moved(rule: TableBookingRule | PlainRule, column: string, values: Row, 
   if (!has(values, column)) return false;
   const instants = isPlain(rule) ? [rule.plain.start, rule.plain.end] : [rule.start];
   if (instants.includes(column)) return slotInstant(values[column])?.getTime() !== slotInstant(before[column])?.getTime();
-  if (isPlain(rule) && column === rule.plain.day) return dateOf(values[column]) !== dateOf(before[column]);
+  if (isPlain(rule) && (column === rule.plain.day || column === rule.plain.until)) return dateOf(values[column]) !== dateOf(before[column]);
   return keyOf(values[column]) !== keyOf(before[column]);
 }
 
@@ -154,9 +155,13 @@ const FIELD_CODES: Record<Refusal, string> = {
   BOOKING_TAKEN: 'taken',
 };
 
-/** The error a refusal is thrown as: a 409 for what another row or day holds, a 422 for a time never offered. */
-export function bookingRefusal(reason: Refusal, column: string): Error {
-  if (reason === 'BOOKING_TAKEN') return new ConflictError('That time has just gone.', 'BOOKING_TAKEN', { column });
+/**
+ * The error a refusal is thrown as: a 409 for what another row or day holds, a 422 for a time never offered.
+ * `days`: the row is a span of whole days, and the sentence says so. Nothing of the row in the way is told —
+ * not its key, not its days: the caller may not be able to read it.
+ */
+export function bookingRefusal(reason: Refusal, column: string, days = false): Error {
+  if (reason === 'BOOKING_TAKEN') return new ConflictError(days ? 'Those days overlap another entry.' : 'That time has just gone.', 'BOOKING_TAKEN', { column });
   if (reason === 'BOOKING_CLOSED') return new ConflictError('That day is closed.', 'BOOKING_CLOSED', { column });
   const message =
     reason === 'BOOKING_NOT_OFFERED'
@@ -550,9 +555,16 @@ async function checkPlain(rule: TableOccupiesRule, target: GuardTarget, input: O
   const column = rule.start ?? rule.day ?? rule.resource;
   let day: string;
   let span: { start: number; end: number } | null = null;
+  // A span of whole days: its last day, or null while it has no end.
+  let last: string | null = null;
   if (rule.day !== undefined) {
     day = dateOf(row[rule.day]);
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) throw bookingRefusal('BOOKING_OUT_OF_RANGE', column);
+    if (!DAY.test(day)) throw bookingRefusal('BOOKING_OUT_OF_RANGE', column);
+    if (rule.until !== undefined && !empty(row[rule.until])) {
+      last = dateOf(row[rule.until]);
+      // It ends on the day it starts, or later.
+      if (!DAY.test(last) || last < day) throw bookingRefusal('BOOKING_OUT_OF_RANGE', rule.until);
+    }
   } else {
     const start = slotInstant(row[rule.start as string]);
     if (start === null) throw bookingRefusal('BOOKING_OUT_OF_RANGE', column);
@@ -594,12 +606,24 @@ async function checkPlain(rule: TableOccupiesRule, target: GuardTarget, input: O
   const ownPk = input.before === null ? null : pkOf(target.table.primaryKey, input.before);
   const where = rule.day !== undefined ? rule.day : (rule.start as string);
   let query = db.selectFrom(target.table.id).selectAll().where((eb) => eb(db.dynamic.ref(rule.resource), '=', resource as never));
-  if (rule.day !== undefined) query = query.where((eb) => eb(db.dynamic.ref(where), '=', day));
+  const until = rule.until;
+  if (until !== undefined) {
+    // Every row of the resource that starts on or before this one's last day and has not ended before its first.
+    if (last !== null) query = query.where((eb) => eb(db.dynamic.ref(where), '<=', last));
+    query = query.where((eb) => eb.or([eb(db.dynamic.ref(until), 'is', null), eb(db.dynamic.ref(until), '>=', day)]));
+  } else if (rule.day !== undefined) query = query.where((eb) => eb(db.dynamic.ref(where), '=', day));
   else query = query.where((eb) => eb(db.dynamic.ref(where), '>=', addDays(day, -PLAIN_REACH_DAYS))).where((eb) => eb(db.dynamic.ref(where), '<', addDays(day, PLAIN_REACH_DAYS + 1)));
   const counted = rule.countWhere;
   if (counted !== undefined) query = query.where((eb) => eb(db.dynamic.ref(counted.column), 'in', counted.values));
   for (const other of (await query.execute()) as Row[]) {
     if (pkOf(target.table.primaryKey, other) === ownPk) continue;
+    if (until !== undefined) {
+      // Compared again here, as the days the driver hands back: both ends are counted, and no end is open for good.
+      const from = dateOf(other[rule.day as string]);
+      const to = empty(other[until]) ? null : dateOf(other[until]);
+      if ((last === null || from <= last) && (to === null || to >= day)) throw bookingRefusal('BOOKING_TAKEN', column, true);
+      continue;
+    }
     if (span === null) throw bookingRefusal('BOOKING_TAKEN', column);
     const theirs = slotInstant(other[rule.start as string]);
     if (theirs === null) continue;

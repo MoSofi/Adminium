@@ -20,6 +20,7 @@ const bookings = (occupies: unknown, more: Record<string, unknown> = {}) => ({
     { ref: 'starts_at', type: 'timestamptz', nullable: true },
     { ref: 'ends_at', type: 'timestamptz', nullable: true },
     { ref: 'day', type: 'date', nullable: true },
+    { ref: 'last_day', type: 'date', nullable: true },
     { ref: 'minutes', type: 'int', default: 60 },
     { ref: 'note', type: 'text', maxLength: 80, nullable: true },
     { ref: 'state', type: 'enum', enum: ['tentative', 'confirmed', 'cancelled'], default: 'tentative' },
@@ -78,6 +79,20 @@ describe('a table whose rows take a resource for a time', () => {
   it('takes the hours a resource works, with or without an opening and a closing time, and rows that share them', () => {
     expect(said(app(bookings({ resource: 'space_id', start: 'starts_at', minutes: 'minutes', hours: { ...HOURS, opens: 'opens', closes: 'closes' } })))).toBe('');
     expect(said(app(bookings({ resource: 'space_id', day: 'day', shared: true, hours: HOURS })))).toBe('');
+  });
+
+  it('takes a span of whole days: a day and the last day, which may be empty', () => {
+    expect(said(app(bookings({ resource: 'note', day: 'day', until: 'last_day' })))).toBe('');
+    expect(said(app(bookings({ resource: 'space_id', day: 'day', until: 'last_day', countWhere: COUNTED })))).toBe('');
+  });
+
+  it('refuses a last day that is not a date of its own, has no day, or comes with hours', () => {
+    expect(said(app(bookings({ resource: 'space_id', start: 'starts_at', minutes: 'minutes', until: 'last_day' })))).toContain('starts on a `day`');
+    expect(said(app(bookings({ resource: 'space_id', day: 'day', until: 'starts_at' })))).toContain('"bookings.starts_at" must be a date');
+    expect(said(app(bookings({ resource: 'space_id', day: 'day', until: 'gone' })))).toContain('has no column "gone"');
+    expect(said(app(bookings({ resource: 'space_id', day: 'day', until: 'day' })))).toContain('a column of its own');
+    expect(said(app(bookings({ resource: 'space_id', day: 'day', until: 'last_day', hours: HOURS })))).toContain('judged for overlap alone');
+    expect(said(app(bookings({ resource: 'space_id', day: 'day', until: 'last_day', shared: true, hours: HOURS })))).toContain('judged for overlap alone');
   });
 
   it('refuses a time that is not one of the three shapes', () => {

@@ -15,6 +15,8 @@
  */
 import { usersRepo, type MetaDb, type User } from '@adminium/meta';
 
+import { replyToOf } from '../email/send.js';
+
 import { parseRelated } from './related.js';
 import { ActionFailure, type ActionContext } from './actions/types.js';
 
@@ -54,4 +56,22 @@ export async function staffAt(meta: MetaDb, ctx: Pick<ActionContext, 'source'>, 
   if (user === null) return { nobody: 'gone' };
   if (user.status !== 'active') return { nobody: 'away' };
   return { user };
+}
+
+/**
+ * WHERE A REPLY GOES (`replyTo: {staff}` on an email step): the address the
+ * person on the row signs in with, read now, or null — and null is never a
+ * reason to stop the mail. Nobody in the column, somebody removed, suspended
+ * or a sample person, an address that is not one plain address, a column
+ * that is no longer a staff column: the mail goes without the header.
+ */
+export async function staffReplyTo(meta: MetaDb, ctx: Pick<ActionContext, 'source'>, path: string | undefined): Promise<string | null> {
+  if (path === undefined) return null;
+  try {
+    const found = await staffAt(meta, ctx, path);
+    return 'user' in found ? replyToOf(found.user.email) : null;
+  } catch (error) {
+    if (error instanceof ActionFailure) return null;
+    throw error;
+  }
 }

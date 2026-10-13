@@ -89,6 +89,8 @@ export type Action =
        * a step could say.
        */
       vars?: Record<string, string> | undefined;
+      /** Where a reply goes: the person a staff column names. Set by an app's own rules; the step's editor keeps it as it is. */
+      replyTo?: { staff: string } | undefined;
     }
   | {
       kind: 'notification';

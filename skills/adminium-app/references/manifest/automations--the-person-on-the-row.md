@@ -13,3 +13,9 @@ A record that names nobody there (a deal with no owner yet, an empty link, a per
 or suspended) tells nobody, and the run goes on: its log says who was not there. That is not a
 failure. An email to a person goes to the address they sign in with, in their language, and waits
 for the end of their quiet hours like a notice does.
+
+An email step may also say where a reply goes: `"replyTo": { "staff": "owner_id" }`, or one link
+further, `"deal_id.owner_id"`. The mail then carries the sign-in address of that person as its
+Reply-To, whoever it is sent to. It follows the rules of [A reply to the rep](https://docs.adminium.dev/reference/manifest/#a-reply-to-the-rep),
+and a rule has no house address to fall back on: with nobody there, the mail goes without a
+Reply-To. Needs Adminium 0.3.28.

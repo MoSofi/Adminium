@@ -290,6 +290,8 @@ function checkAction(
         );
       }
       if (action.to?.kind === 'staff' && action.to.column !== '') staffColumn(action.to.column, table, ctx, where);
+      // A reply goes to a person a staff column names, and to nobody an address column or a typed text could name.
+      if (action.replyTo !== undefined) staffColumn(action.replyTo.staff, table, ctx, where);
       if (action.to?.kind === 'field' && action.to.column !== '') {
         if (table === null) {
           throw new ValidationFailedError(

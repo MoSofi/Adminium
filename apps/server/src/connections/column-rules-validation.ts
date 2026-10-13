@@ -1274,7 +1274,7 @@ function oneCapacityRuleIssue(value: Value, table: TableModel, model: DatabaseMo
 export function occupiesRuleIssue(raw: unknown, table: TableModel, model: DatabaseModel): string | null {
   const value = (raw ?? {}) as Value;
   const own = (name: unknown) => table.columns.find((c) => c.name === String(name));
-  for (const key of ['resource', 'start', 'minutes', 'end', 'day']) {
+  for (const key of ['resource', 'start', 'minutes', 'end', 'day', 'until']) {
     if (value[key] !== undefined && own(value[key]) === undefined) return `${table.name} has no column ${JSON.stringify(value[key])}.`;
   }
   const counted = (value['countWhere'] as Value | undefined)?.['column'];
@@ -1286,6 +1286,12 @@ export function occupiesRuleIssue(raw: unknown, table: TableModel, model: Databa
   const day = value['day'] === undefined ? undefined : own(value['day']);
   if (day !== undefined && day.logicalType !== 'date') return `${day.name} is not a date.`;
   const hours = value['hours'] as Value | undefined;
+  // A span of whole days: its last day is a date of its own, and it is judged for overlap alone.
+  const until = value['until'] === undefined ? undefined : own(value['until']);
+  if (until !== undefined && value['day'] === undefined) return 'A last day (until) comes with the day the span starts on.';
+  if (until !== undefined && until.logicalType !== 'date') return `${until.name} is not a date.`;
+  if (until !== undefined && until.name === day?.name) return 'A span keeps its last day in a column of its own.';
+  if (until !== undefined && (hours !== undefined || value['shared'] === true)) return 'A span of days is judged for overlap alone: it has no hours and is not shared.';
   if (value['shared'] === true && hours === undefined) return 'Rows that share the time are judged by the hours alone: name them.';
   if (hours !== undefined) {
     const id = String(hours['table'] ?? '');
