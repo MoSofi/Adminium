@@ -173,6 +173,13 @@ for (const [dialect, available] of ENGINES) {
       it('a hand-over button gives the row to anybody, and its writer is then told the key alone; a button that does not say so is held like any change', async () => {
         const passed = await call('dana', 'POST', 'deals/1/actions/pass', { from: 'open', values: { owner_id: w.people.omar } });
         expect(passed.statusCode, passed.body).toBe(403);
+        // …anybody who can open it, that is: Kim holds no role that reads deals, and a deal given to her would answer to nobody.
+        for (const who of ['dana', 'lena'] as const) {
+          const lost = await call(who, 'POST', 'deals/1/actions/give', { from: 'open', values: { owner_id: w.people.kim } });
+          expect(lost.statusCode, `${who}: ${lost.body}`).toBe(422);
+          expect(json<{ error: { details: { fields: unknown } } }>(lost).error.details.fields).toEqual({ owner_id: { code: 'cannot-open' } });
+        }
+        expect(await one('SELECT owner_id FROM deals WHERE id = 1')).toEqual({ owner_id: w.people.dana });
         const given = await call('dana', 'POST', 'deals/1/actions/give', { from: 'open', values: { owner_id: w.people.omar } });
         expect(given.statusCode, given.body).toBe(200);
         expect(json<{ data: Record<string, unknown> }>(given).data).toEqual({ id: 1, _handedOver: true });

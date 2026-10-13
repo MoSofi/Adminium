@@ -394,6 +394,14 @@ export async function assertStaffColumns(ctx: RowLimitContext | null, meta: Meta
           throw new ValidationFailedError('Some values were refused.', { fields: { [column]: { code: 'cannot-open' } } });
         }
       }
+      // A row handed over goes to somebody who can open it: a person whose roles do not read this table would be
+      // given a row that then answers to nobody but an admin (the hand-over of everything a person holds refuses the same).
+      if (opts.handOver === true && opts.connectionId !== undefined) {
+        const theirs = await resolvePermissionSet(meta, { kind: 'user', id: user.id, label: user.id });
+        if (!permissionSetAllows(theirs, `table:${opts.connectionId}:${table.id}:read`)) {
+          throw new ValidationFailedError('Some values were refused.', { fields: { [column]: { code: 'cannot-open' } } });
+        }
+      }
     }
     if (reaches === null || opts.handOver === true || rule.set === 'anyone') continue;
     // An API key is nobody: it names nobody either.
