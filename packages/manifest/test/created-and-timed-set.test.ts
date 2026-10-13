@@ -86,6 +86,11 @@ describe("an effect's move of a linked row", () => {
     (tableOf(chain, 'rooms')['columns'] as Doc[]).push({ ref: 'stay_id', type: 'fk', references: 'stays', nullable: true });
     statesOf(chain, 'rooms')['effects'] = [{ on: { to: 'cleaning' }, via: 'stay_id', set: { status: 'departed' } }];
     expect(issuesText(chain)).toContain('an effect moves one row, never a chain');
+    // Not a chain: the linked table has an effect of its own, but not one the state set here starts.
+    const beside = venue();
+    (tableOf(beside, 'rooms')['columns'] as Doc[]).push({ ref: 'stay_id', type: 'fk', references: 'stays', nullable: true });
+    statesOf(beside, 'rooms')['effects'] = [{ on: { to: 'ready' }, via: 'stay_id', set: { status: 'cancelled' } }];
+    expect(issuesText(beside)).not.toContain('never a chain');
   });
 
   it('still lets an effect make a move that waits for its own row', () => {

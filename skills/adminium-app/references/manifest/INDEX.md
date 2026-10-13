@@ -31,13 +31,13 @@
 | `references/manifest/requiredschema--a-resource-and-a-time.md` | requiredSchema — A resource and a time | 3465 |
 | `references/manifest/requiredschema--states.md` | requiredSchema — States | 7156 |
 | `references/manifest/requiredschema--states-2.md` | requiredSchema — States (part 2) | 7096 |
-| `references/manifest/requiredschema--states-3.md` | requiredSchema — States (part 3) | 6659 |
+| `references/manifest/requiredschema--states-3.md` | requiredSchema — States (part 3) | 6822 |
 | `references/manifest/requiredschema--states-4.md` | requiredSchema — States (part 4) | 2077 |
 | `references/manifest/requiredschema--buttons-on-a-record.md` | requiredSchema — Buttons on a record | 3020 |
 | `references/manifest/requiredschema--postings.md` | requiredSchema — Postings | 3904 |
 | `references/manifest/requiredschema--a-price-an-add-on-lowers.md` | requiredSchema — A price an add-on lowers | 3110 |
 | `references/manifest/requiredschema--shared-tables.md` | requiredSchema — Shared tables | 1948 |
-| `references/manifest/requiredschema--tables-built-on-an-add-on-s-shape.md` | requiredSchema — Tables built on an add-on's shape | 4202 |
+| `references/manifest/requiredschema--tables-built-on-an-add-on-s-shape.md` | requiredSchema — Tables built on an add-on's shape | 4468 |
 | `references/manifest/parts.md` | Parts | 5026 |
 | `references/manifest/maps.md` | Maps | 4741 |
 | `references/manifest/option-lists.md` | Option lists | 851 |

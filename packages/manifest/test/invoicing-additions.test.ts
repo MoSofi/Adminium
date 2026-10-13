@@ -485,6 +485,33 @@ describe('an app table conforms to its shape', () => {
     expect(conformance(m).join('\n')).toContain('the moves between states are the shape\'s');
   });
 
+  it('lets an app add an effect through a link it added, and through no link of the shape\'s', () => {
+    // A corrected invoice names the one it replaces: sending it voids that one, in the same write.
+    const withReplaces = () => {
+      const m = valid();
+      (tableOf(m, 'invoices')['columns'] as Doc[]).push({ ref: 'replaces_id', type: 'fk', references: 'invoices', nullable: true });
+      return m;
+    };
+    const statesOf = (m: Doc) => tableOf(m, 'invoices')['states'] as Doc;
+    const shapeHas = (statesOf(valid())['effects'] as unknown[] | undefined) ?? [];
+    const own = { on: { to: 'sent' }, via: 'replaces_id', set: { status: 'void' } };
+
+    let m = withReplaces();
+    statesOf(m)['effects'] = [...shapeHas, own];
+    expect(conformance(m)).toEqual([]);
+    // Through a column of the shape's own: the shape decides what its columns set off.
+    m = withReplaces();
+    statesOf(m)['effects'] = [...shapeHas, { on: { to: 'sent' }, via: 'total', set: { status: 'void' } }];
+    expect(conformance(m).join('\n')).toContain('an effect an app adds to a shape\'s table runs through a link the app added, never total');
+    // A changed link is held to the same: the link it watches is the app's.
+    m = withReplaces();
+    statesOf(m)['effects'] = [...shapeHas, { on: { change: 'total' }, new: { set: { status: 'void' } } }];
+    expect(conformance(m).join('\n')).toContain('never total');
+    m = withReplaces();
+    statesOf(m)['effects'] = [...shapeHas, { on: { change: 'replaces_id' }, new: { set: { status: 'void' } } }];
+    expect(conformance(m)).toEqual([]);
+  });
+
   it('refuses states narrowed below the shape, and a shape that is not there', () => {
     let m = valid();
     ((tableOf(m, 'invoices')['states'] as Doc)['lock'] as Doc)['except'] = ['due_on'];

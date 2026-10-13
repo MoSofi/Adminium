@@ -37,7 +37,10 @@ What the app may add to a part, and nothing else:
   move, a condition added to a move the part has (`requires.where` on a column the app itself
   added: a quote is sent only while its own `may_send` is 1; the part's own conditions stay as
   written, a condition of the app's never reads a column of the part's, and the app adds no
-  move), more tables in `children`, more columns in a child's `clearOnCreate`, and on a child the
+  move), an effect that runs through a link the app itself added (`effects` with `via`, or
+  `on.change`, naming the app's own link: sending a quote withdraws the one its `replaces_id`
+  names, in the same write; the part's own effects stay as written and in their order), more
+  tables in `children`, more columns in a child's `clearOnCreate`, and on a child the
   part ties to the state a `release` and `lockLinked` entries naming only columns the app added
   to that child (a line's own `time_entry_id`), never the part's. A `release` the part has is
   kept as it is, and a `lockLinked` entry it has keeps at least its columns.

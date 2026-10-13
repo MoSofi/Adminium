@@ -299,7 +299,8 @@ const effectSetSchema = z
  * When this row moves to `on.to`, the row its link `via` points at moves too,
  * in the same write: `set` names that table's state column and the state it
  * moves to, one of the moves that table lists (a guest checked out turns the
- * room to cleaning). One link, never a chain.
+ * room to cleaning). One link, never a chain: the state it sets is not one
+ * the linked table's own effects start from.
  */
 export const moveEffectSchema = z
   .object({
@@ -841,13 +842,16 @@ function conditionedMoveIssues<C extends ColumnShape>(
     }
   };
   /** Everything wrong with the table an effect moves a row of, whatever sets it off. */
-  const effectTargetIssues = (target: string, theirs: States, path: (string | number)[]) => {
+  const effectTargetIssues = (target: string, theirs: States, path: (string | number)[], sets: readonly string[]) => {
     if (target === ctx.outboxTable) out.push({ path, message: `"${target}" is the app's outbox, whose messages move only by the outbox's own moves` });
     // Moved inside this write, after its own rows are held: a lock taken per day, or a parent held first, would come too late.
     if (ctx.bookedOf?.(target) === true) out.push({ path, message: `"${target}" books people by the day, and its lock cannot be taken inside another row's write` });
     const parent = ctx.lineOf?.(target);
     if (parent !== undefined) out.push({ path, message: `"${target}" rows are lines of "${parent}", which would be held after this write's own rows` });
-    if ((theirs.effects?.length ?? 0) > 0) out.push({ path, message: `"${target}" sets off effects of its own; an effect moves one row, never a chain` });
+    // A chain is an effect whose move sets off the moved row's own: a table with effects may still be moved to a state none of them starts from
+    // (a quote sent withdraws the one it replaces; a withdrawn quote sets nothing off).
+    const chained = (theirs.effects ?? []).some((their) => !isChangeEffect(their) && sets.includes(their.on.to));
+    if (chained) out.push({ path, message: `"${target}" sets off effects of its own; an effect moves one row, never a chain` });
   };
 
   (states.effects ?? []).forEach((effect, i) => {
@@ -867,7 +871,7 @@ function conditionedMoveIssues<C extends ColumnShape>(
       }
       if (effect.old !== undefined) effectMoveIssues(target, theirs, effect.old.set, (...rest) => here('old', ...rest));
       if (effect.new !== undefined) effectMoveIssues(target, theirs, effect.new.set, (...rest) => here('new', ...rest));
-      effectTargetIssues(target, theirs, here('on', 'change'));
+      effectTargetIssues(target, theirs, here('on', 'change'), [...Object.values(effect.old?.set ?? {}), ...Object.values(effect.new?.set ?? {})]);
       return;
     }
     known(effect.on.to, here('on', 'to'));
@@ -883,7 +887,7 @@ function conditionedMoveIssues<C extends ColumnShape>(
       return;
     }
     effectMoveIssues(target, theirs, effect.set, here);
-    effectTargetIssues(target, theirs, here('via'));
+    effectTargetIssues(target, theirs, here('via'), Object.values(effect.set));
   });
   return out;
 }

@@ -36,7 +36,7 @@
  * Pure: no I/O, no import of the schema at run time.
  */
 import type { ColumnRules } from './schema.js';
-import type { StateChild, States } from './states.js';
+import { isChangeEffect, type StateChild, type StateEffect, type States } from './states.js';
 
 /** A column as a shape and an app both declare it. */
 export interface ShapeColumn {
@@ -364,9 +364,24 @@ function statesDifferences(want: States, have: States, ownColumns: (childRef: st
   for (const name of ['lockedWhenReferencedBy', 'noDelete', 'onlyLater'] as const) {
     if (!same(want[name], have[name])) out.push(`${name} is the shape's`);
   }
-  // What a move waits for, sets off or is refused as are the shape's too: an app adds none of them to a shape's table.
-  for (const name of ['strict', 'late', 'timed', 'effects', 'create'] as const) {
+  // What a move waits for or is refused as are the shape's too: an app adds none of them to a shape's table.
+  for (const name of ['strict', 'late', 'timed', 'create'] as const) {
     if (!same(want[name], have[name])) out.push(`${name} is the shape's`);
   }
+  /*
+   * What a move sets off (`effects`). The shape's own stay, each as written
+   * and in its order. An app may add one that runs THROUGH A LINK IT ADDED
+   * (a quote's "replaces" link: sending the new version withdraws the old one
+   * in the same write). Such an effect moves another row by that row's own
+   * declared move, so it can refuse this row's move and never loosens it; and
+   * the link is the app's, so the shape's own links set off nothing the shape
+   * did not write.
+   */
+  const shapeEffects = (want.effects ?? []).map((effect) => canonical(effect));
+  const ownEffects = (have.effects ?? []).filter((effect) => !shapeEffects.includes(canonical(effect)));
+  if (!same(want.effects ?? [], (have.effects ?? []).filter((effect) => shapeEffects.includes(canonical(effect))))) out.push('effects is the shape\'s');
+  const through = (effect: StateEffect): string => (isChangeEffect(effect) ? effect.on.change : effect.via);
+  const theirs = ownEffects.filter((effect) => !added.has(through(effect)));
+  if (theirs.length > 0) out.push(`an effect an app adds to a shape's table runs through a link the app added, never ${theirs.map(through).join(', ')}`);
   return out;
 }

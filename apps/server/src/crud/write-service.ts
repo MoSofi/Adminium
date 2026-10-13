@@ -2335,7 +2335,8 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
     const kept =
       rules?.booking !== undefined ||
       (effective?.stateParents?.length ?? 0) > 0 ||
-      (effective?.states?.effects?.length ?? 0) > 0 ||
+      // A chain: the state this sets is one the moved row's own effects start from. (A table with effects is still moved to any other state.)
+      (effective?.states?.effects ?? []).some((their) => !isChangeEffect(their) && their.on.to === state) ||
       // Its move may wait only for its own row: the rows it would read are taken after this write's own.
       Object.values(effective?.states?.moves ?? {}).some((list) =>
         list.some((move) => typeof move === 'object' && move.to === state && waitVias(move.requires).length > 0),

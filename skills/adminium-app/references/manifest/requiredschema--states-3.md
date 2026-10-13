@@ -67,8 +67,10 @@ it is; a new row already in the state `new` names refuses the whole write (`409`
 the whole write.
 
 An effect moves one row, one link away, never a chain. The linked table may not be one whose rows
-are lines of another table's states, one that books people by the day, the app's outbox, or one
-whose rows set off effects of their own; and the move it makes may not wait for another row, be an
+are lines of another table's states, one that books people by the day, or the app's outbox; the
+state it sets may not be one the linked table's own effects start from (a table with effects may
+be moved to any other state, its own rows included: a quote that is sent withdraws the quote it
+replaces); and the move it makes may not wait for another row, be an
 undo, or be judged late by another row's time. A table a project hook watches is refused at run
 time. History (an import, sample data) sets off no effect. A move that set off an effect offers no
 Undo.

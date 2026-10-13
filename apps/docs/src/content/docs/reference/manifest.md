@@ -1565,8 +1565,10 @@ it is; a new row already in the state `new` names refuses the whole write (`409`
 the whole write.
 
 An effect moves one row, one link away, never a chain. The linked table may not be one whose rows
-are lines of another table's states, one that books people by the day, the app's outbox, or one
-whose rows set off effects of their own; and the move it makes may not wait for another row, be an
+are lines of another table's states, one that books people by the day, or the app's outbox; the
+state it sets may not be one the linked table's own effects start from (a table with effects may
+be moved to any other state, its own rows included: a quote that is sent withdraws the quote it
+replaces); and the move it makes may not wait for another row, be an
 undo, or be judged late by another row's time. A table a project hook watches is refused at run
 time. History (an import, sample data) sets off no effect. A move that set off an effect offers no
 Undo.
@@ -1816,7 +1818,10 @@ What the app may add to a part, and nothing else:
   move, a condition added to a move the part has (`requires.where` on a column the app itself
   added: a quote is sent only while its own `may_send` is 1; the part's own conditions stay as
   written, a condition of the app's never reads a column of the part's, and the app adds no
-  move), more tables in `children`, more columns in a child's `clearOnCreate`, and on a child the
+  move), an effect that runs through a link the app itself added (`effects` with `via`, or
+  `on.change`, naming the app's own link: sending a quote withdraws the one its `replaces_id`
+  names, in the same write; the part's own effects stay as written and in their order), more
+  tables in `children`, more columns in a child's `clearOnCreate`, and on a child the
   part ties to the state a `release` and `lockLinked` entries naming only columns the app added
   to that child (a line's own `time_entry_id`), never the part's. A `release` the part has is
   kept as it is, and a `lockLinked` entry it has keeps at least its columns.
