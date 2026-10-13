@@ -60,9 +60,8 @@ import { canReadPii, codeColumnsOf, maskRow, piiCheckFor, renewingCodeColumnsOf,
 import { staffInstants } from '../../crud/instants.js';
 import { renewedBy, renewForUndo, withRenewRetry } from '../../crud/code-renew.js';
 import { assertMovedFrom, assertWithinCreateLimit, assertWithinLimit, changesRow, createLimitOf, movedFromSeen, updateLimitOf, type UpdateLimit } from '../../rbac/update-limits.js';
-import { readLimitsOn } from '../../rbac/read-limits.js';
 import { permissionSetAllows } from '../../rbac/resolver.js';
-import { readableImage, readsHidden, refuseHiddenIn } from '../../crud/read-view.js';
+import { readableImage, readsHidden, readViewOf, refuseHiddenIn } from '../../crud/read-view.js';
 import {
   fetchByPk,
   parseRecordId,
@@ -620,7 +619,8 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
       const { db, dialect } = await manager.data(connection);
       // The tables this caller's reads are limited on, and what they may still write there.
       const permissions = await app.rbac.resolve(request);
-      const readView = view.readAs(readLimitsOn(permissions, connectionId, view.model.tables.map((one) => one.id)));
+      // …and a code no desk hands out (`code.hiddenFromStaff`), which no staff read shows, Super Admin's included (`readViewOf`).
+      const readView = readViewOf(view, permissions);
       const readTable = readView === view ? table : readView.table(table.id);
       const hidden = [...readTable.columns.values()].filter((column) => column.unreadable === true).map((column) => column.name);
       const writable = hidden.length === 0 ? null : updateLimitOf(permissions, connectionId, table.id);
