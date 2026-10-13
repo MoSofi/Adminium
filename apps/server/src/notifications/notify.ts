@@ -43,6 +43,7 @@ import {
   enqueueEmail,
   type EmailLogger,
 } from '../email/send.js';
+import { noticePlaces, placeLink, type RecordPlace } from '../apps/record-address.js';
 import { recipientLocale } from '../i18n/server-i18n.js';
 import { quietUntil, usableZone } from './quiet.js';
 
@@ -75,7 +76,8 @@ export interface NotifyOptions {
    * `actionUrl` into a clickable link in the email. Producers that run inside
    * a request pass `await linkOrigin(meta, request)`, never anything read off
    * the request directly (security/public-origin.ts); background producers (the
-   * report scheduler) have none, and the email then carries the path as stored.
+   * report scheduler, a rule) have none, and the email's link then starts with
+   * the stored `system.publicOrigin`; with none stored it is the path alone.
    */
   origin?: string | undefined;
   /** Skip the email leg entirely (tests, and producers that mail their own). */
@@ -126,19 +128,40 @@ export async function notify(
   // In the person's quiet hours: the notice is there to be read, quietly, and its email waits for the hours to end.
   const held = await heldUntil(meta, input.userId, input.kind, opts.at ?? Date.now(), opts).catch(() => null);
 
+  /*
+   * Where the record opens for THIS person: the screen its app gives it, when
+   * their roles open the app's staff side (apps/record-address.ts). The row is
+   * stored with the dashboard's link, which everybody who is told can use; the
+   * list route asks again each time it is read, so a notice follows a role
+   * that is given or taken later. Asking must never lose the notice.
+   */
+  const place = input.entity === null || input.entity === undefined ? null : ((await noticePlaces(meta, input.userId, [input.entity]).catch(() => [null]))[0] ?? null);
+
   // Ordered so the email leg is reached even when the in-app leg returns early.
   if (channels.email && (opts.email ?? true)) {
-    await deliverEmail(meta, input, opts, held);
+    await deliverEmail(meta, input, opts, held, place);
   }
 
   if ((opts.respectPrefs ?? true) && !channels.inApp) return null;
 
   const row = await notificationsRepo(meta).create(input, opts.at);
   opts.hub?.publish(notificationsChannel(row.userId), NOTIFICATION_CREATED_EVENT, {
-    notification: row,
+    notification: place === null ? row : { ...row, actionUrl: place.url, opens: { appKey: place.appKey, path: place.path } },
     ...(held === null ? {} : { silent: true }),
   });
   return row;
+}
+
+/**
+ * The address a link in a notice's email starts with: the producer's (a
+ * request's, already read through `linkOrigin`), else what the operator set.
+ * A rule that runs in the background has no request, and its email's button
+ * used to carry a bare path no mail client can follow.
+ */
+async function emailOrigin(meta: MetaDb, given: string | undefined): Promise<string | undefined> {
+  if (given !== undefined && given !== '') return given;
+  const stored = await settingsRepo(meta).get('system.publicOrigin').catch(() => null);
+  return typeof stored === 'string' && stored !== '' ? stored : undefined;
 }
 
 /**
@@ -155,6 +178,8 @@ async function deliverEmail(
   opts: NotifyOptions,
   /** Hold the email to this moment (the end of the person's quiet hours). */
   held: number | null = null,
+  /** The app's own screen for the record, when this person's roles open it. */
+  place: RecordPlace | null = null,
 ): Promise<void> {
   try {
     const user = await usersRepo(meta).findById(input.userId);
@@ -173,7 +198,7 @@ async function deliverEmail(
           kind: input.kind,
           title: input.title,
           body: input.body ?? '',
-          actionUrl: absoluteActionUrl(input.actionUrl ?? null, opts.origin),
+          actionUrl: place === null ? absoluteActionUrl(input.actionUrl ?? null, await emailOrigin(meta, opts.origin)) : placeLink(place, await emailOrigin(meta, opts.origin)),
         },
         fallback: NOTIFICATION_FALLBACK_TEMPLATE,
       },

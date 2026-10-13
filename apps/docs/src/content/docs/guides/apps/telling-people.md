@@ -50,6 +50,30 @@ deals they own that close this week, the follow-ups due today. It is read as tha
 is sent, so it never lists a row they could not open, and it is sent on the weekday and at the
 time they chose. See [the reference](/reference/manifest/#a-summary-for-each-person).
 
+A manager's summary is the same step with a section that reads further, and only as far as the
+manager does:
+
+```json
+{ "key": "reps", "table": "deals", "owner": "owner_id", "reach": "team", "by": "owner",
+  "where": [{ "left": { "field": "state" }, "op": "is", "right": "open" }],
+  "sum": ["weighted_value"],
+  "target": { "table": "targets", "owner": "rep_id", "column": "amount", "year": "year", "of": "weighted_value" } }
+```
+
+- `"reach": "team"` reads the person's rows and those of the people they lead when it is sent.
+  It is never "all rows", whatever their role reads.
+- `sum` adds a column up over every row of the section, not the rows listed: `{{sum.reps.weighted_value}}`.
+- `"by": "owner"` lists a line a person: `{{row.owner}}`, `{{row.count}}`, `{{row.sum.weighted_value}}`.
+- `target` measures the sum against those people's targets, read through the reader's own reach
+  of that table: `{{row.target}}`, `{{row.cover}}`, `{{target.reps}}`, `{{cover.reps}}`.
+
+A figure the reader's role cannot answer is left out of their mail, never written as zero, so
+give a target and its cover a backup: `{{cover.reps|not set}}`. The mail says when its figures
+were read (`{{readAt}}`, or a last line of its own). A person asks for theirs at any time with
+`POST /api/v1/me/summaries/{ruleId}/send`, three times an hour: that is what a "Send me a test"
+button on an app's own screen calls. What a summary does not do is listed
+[in the reference](/reference/manifest/#what-a-summary-does-not-do).
+
 ## One rule, several rows
 
 Give a "create a record" step a `name` and the steps after it read the row it made:
@@ -68,3 +92,21 @@ the writer types `@`. Each person newly named is told who mentioned them and on 
 notice never carries the text, and somebody who cannot open the record gets it with no link: a
 mention is a way to ask a colleague, not a way round what their role reads. On a comments table,
 `{ "mentions": { "about": "deal_id" } }` makes the notice name and open the deal the comment is on.
+
+## Where a notice lands
+
+A notice about a record, and the button of its email, open the dashboard's record page. When the
+app has a screen of its own for the record, say so on the staff side and they open that instead:
+
+```json
+{ "side": "staff", "kind": "spa", "entry": "index.html",
+  "records": { "deals": "/deals/{id}", "quotes": "/quotes/{id}" } }
+```
+
+A rule's notice about a deal then lands on `/deals/12` of the staff side for everybody whose role
+opens that side (`app:@:staff`), and on the dashboard's page for everybody else. Somebody who is
+signed out is sent to sign in and brought back. Each notice of `GET /api/v1/me/notifications`
+carries the address in `actionUrl`, and `opens.path` (`/deals/12`) for the app's own bell to go
+there in place. A notice about a table with no address is unchanged. The rule itself says nothing
+about this: the address belongs to the table, so every notice, mention and search hit about a deal
+goes to the same screen. See [Where a record opens](/reference/manifest/#where-a-record-opens).

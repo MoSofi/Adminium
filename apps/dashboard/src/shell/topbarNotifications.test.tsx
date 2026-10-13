@@ -170,6 +170,41 @@ describe('the notification bell in the real Topbar', () => {
     expect(historyPush).toHaveBeenCalledWith('/exports');
   });
 
+  it('a notice about a record that opens in its app is followed there as a document, and an address of another host never', async () => {
+    const about = (id: string, title: string, actionUrl: string) => ({ ...FEED.items[0]!, id, title, actionUrl, kind: 'automation.notice' });
+    stubFetch({
+      ...FEED,
+      items: [
+        { ...about('ntf_a', 'Amount changed: Atrium', '/apps/crm/staff/deals/12'), opens: { appKey: 'crm', path: '/deals/12' } },
+        about('ntf_b', 'Shown inside the dashboard', '/a/crm/deals/12'),
+        about('ntf_c', 'Forged host', 'https://evil.example/deals/12'),
+        about('ntf_d', 'Forged slashes', '//evil.example/deals/12'),
+      ],
+    });
+    vi.spyOn(notificationsApi, 'markAllRead').mockResolvedValue({ updated: 1, unreadCount: 0 });
+    const open = vi.spyOn(window, 'open').mockReturnValue(null);
+    renderTopbar();
+    await screen.findByText('1');
+    const user = userEvent.setup();
+    const follow = async (title: string): Promise<void> => {
+      await user.click(screen.getByRole('button', { name: 'Notifications' }));
+      await user.click(await screen.findByText(title));
+    };
+
+    // The app's own address is not this bundle's to draw: a new document.
+    await follow('Amount changed: Atrium');
+    expect(open).toHaveBeenCalledExactlyOnceWith('/apps/crm/staff/deals/12', '_blank', 'noopener');
+    expect(historyPush).not.toHaveBeenCalled();
+    // A side shown inside the dashboard is followed in place.
+    await follow('Shown inside the dashboard');
+    expect(historyPush).toHaveBeenCalledExactlyOnceWith('/a/crm/deals/12');
+    // Neither forged address is followed anywhere.
+    await follow('Forged host');
+    await follow('Forged slashes');
+    expect(open).toHaveBeenCalledTimes(1);
+    expect(historyPush).toHaveBeenCalledTimes(1);
+  });
+
   it('an empty feed renders the all-caught-up copy, never the old placeholder', async () => {
     stubFetch({ items: [], unreadCount: 0, nextCursor: null });
     renderTopbar();

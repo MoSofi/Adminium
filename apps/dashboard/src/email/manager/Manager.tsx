@@ -43,6 +43,7 @@ import { bootstrapQuery } from '../../app/bootstrap.js';
 import { t } from '../../i18n/t.js';
 import { useAppToasts } from '../../pages/toasts.js';
 import { AskAssistant } from '../../assistant/AskAssistant.js';
+import { AppFilterNote } from '../../shell/AppFilterNote.js';
 import { PageActions } from '../../shell/PageActionsProvider.js';
 import { PageSurface } from '../../shell/PageSurface.js';
 import { formatSince } from '../../team/teamApi.js';
@@ -62,6 +63,10 @@ import { useManagerPrefs } from './useManagerPrefs.js';
 export interface EmailManagerProps {
   initialTab?: EmailDocumentKind | undefined;
   initialArchived?: boolean | undefined;
+  /** Only the documents this installed app brought (the address's `app`). */
+  app?: string | undefined;
+  /** Leave that cut: show every document again. */
+  onShowAll?: (() => void) | undefined;
 }
 
 /** The comp's four empty-state copies (1392), plus archived mode's two. */
@@ -108,7 +113,7 @@ export function startDownload(url: string): void {
 
 type Confirm = { mode: DeleteModalMode; doc: EmailDocumentSummary };
 
-export function EmailManager({ initialTab = 'template', initialArchived = false }: EmailManagerProps) {
+export function EmailManager({ initialTab = 'template', initialArchived = false, app, onShowAll }: EmailManagerProps) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const toasts = useAppToasts();
@@ -127,7 +132,7 @@ export function EmailManager({ initialTab = 'template', initialArchived = false 
   const [newOpen, setNewOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
 
-  const list = useQuery(emailDocumentsQuery({ kind: tab, archived }));
+  const list = useQuery(emailDocumentsQuery({ kind: tab, archived, ...(app === undefined ? {} : { app }) }));
   const items = useMemo(() => list.data?.items ?? [], [list.data]);
   const counts = list.data?.counts ?? { template: 0, campaign: 0, archived: 0 };
   const now = useMemo(() => Date.now(), [list.dataUpdatedAt]);
@@ -361,6 +366,14 @@ export function EmailManager({ initialTab = 'template', initialArchived = false 
       </PageActions>
 
       <PageSurface width="full" testId="email-manager">
+        {app === undefined ? null : (
+          <AppFilterNote
+            className="mx-auto mb-3 max-w-wide"
+            text={t('email:appFilter.note', 'Only the emails of {app} are shown.', { app: (bootstrap?.appSections ?? []).find((section) => section.appKey === app)?.label ?? app })}
+            clear={t('email:appFilter.clear', 'Show all emails')}
+            onClear={onShowAll}
+          />
+        )}
         <Tabs
           variant="pill"
           value={tab}

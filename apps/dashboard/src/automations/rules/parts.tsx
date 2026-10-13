@@ -366,6 +366,16 @@ function RuleMenu({
 
 // --- rules that came with an app or an add-on ------------------------------
 
+/**
+ * The rules one installed app brought, out of the rules listed: what the
+ * screen shows when its address names an app. No app named is every rule. A
+ * copy somebody made of a shipped rule is theirs, not the app's.
+ */
+export function rulesOfApp<R extends Pick<RuleView, 'managed'>>(all: readonly R[], appKey: string | undefined): R[] {
+  if (appKey === undefined) return [...all];
+  return all.filter((rule) => rule.managed !== null && rule.managed !== undefined && rule.managed.kind === 'app' && rule.managed.key === appKey);
+}
+
 /** The owner's own rules, and the ones an app or an add-on brought: listed apart, never mixed. */
 export function splitShipped(all: readonly RuleView[]): { own: RuleView[]; shipped: RuleView[] } {
   const isShipped = (rule: RuleView): boolean => rule.managed !== null && rule.managed !== undefined;

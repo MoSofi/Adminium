@@ -120,6 +120,14 @@ export interface NavItem {
   addOnKey?: string | null;
   /** A page that is the add-on's own code: it opens at the add-on's page route, and has no slug. */
   addOnPage?: { key: string; ref: string };
+  /** An app's page its manifest keeps off the sidebar: it opens by its address and is found by search, and the rail leaves it out. */
+  offRail?: true;
+  /**
+   * An entry of an app's section that is not a page: where it opens. It has no
+   * slug. `document` is an address the dashboard does not draw (a staff side
+   * on its own address): it opens as a new document.
+   */
+  link?: { href: string; document: boolean };
 }
 
 export interface NavTree {
@@ -433,7 +441,7 @@ export function appSectionsOf(bootstrap: BootstrapData): AppSection[] {
 
 /** Every page the sections list that is opened by its slug: an add-on's page of its own code is not one. */
 export function appPagesOf(bootstrap: BootstrapData): NavItem[] {
-  return appSectionsOf(bootstrap).flatMap((section) => section.groups.flatMap((group) => group.items.filter((item) => item.addOnPage === undefined)));
+  return appSectionsOf(bootstrap).flatMap((section) => section.groups.flatMap((group) => group.items.filter((item) => item.addOnPage === undefined && item.link === undefined)));
 }
 
 /** The add-on rail rows and groups, never undefined — see the field's note. */

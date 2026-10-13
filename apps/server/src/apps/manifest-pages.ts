@@ -367,6 +367,8 @@ export async function materialiseManifestPages(input: MaterialiseInput): Promise
       app: manifest.key,
       // The part of the app it belongs to: the page route and the menu read it here.
       ...('module' in page && typeof page.module === 'string' ? { module: page.module } : { module: undefined }),
+      // Kept off the sidebar: the menu reads it here.
+      ...(page.nav.offRail === true ? { offRail: true } : { offRail: undefined }),
       nav: { ...nav, group: page.nav.group },
       title: {
         key: page.title.key,
@@ -415,9 +417,11 @@ export async function materialiseManifestPages(input: MaterialiseInput): Promise
        */
       const held = stored === null || typeof stored.config !== 'object' || stored.config === null ? null : (stored.config as Record<string, unknown>);
       const part = 'module' in page && typeof page.module === 'string' ? page.module : undefined;
-      if (held !== null && held['module'] !== part) {
-        const { module: _was, ...rest } = held;
-        await pages.replaceConfig(holder.id, part === undefined ? rest : { ...rest, module: part });
+      // Whether it is on the sidebar of the app's section is the app's to say too.
+      const offRail = page.nav.offRail === true ? true : undefined;
+      if (held !== null && (held['module'] !== part || held['offRail'] !== offRail)) {
+        const { module: _was, offRail: _rail, ...rest } = held;
+        await pages.replaceConfig(holder.id, { ...rest, ...(part === undefined ? {} : { module: part }), ...(offRail === undefined ? {} : { offRail }) });
       }
       result.kept.push(slug);
       continue;

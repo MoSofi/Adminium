@@ -17,7 +17,7 @@
  * connection the rail renders flat (no redundant label).
  */
 import { Fragment } from 'react';
-import { Link, useMatchRoute } from '@tanstack/react-router';
+import { Link, useMatchRoute, useRouter, useRouterState } from '@tanstack/react-router';
 import { useQuery } from '@tanstack/react-query';
 import {
   Bell,
@@ -56,6 +56,7 @@ import {
   type NavItem,
   type SystemAction,
 } from '../app/bootstrap.js';
+import { isDashboardPath, isDocumentHref } from '../app/openHref.js';
 import { t } from '../i18n/t.js';
 import { lucideByName } from '../lib/lucide.js';
 import { hasStudioAccess } from '../studio/StudioGuard.js';
@@ -312,6 +313,45 @@ function UnreadCountBadge() {
   );
 }
 
+/**
+ * An entry of an app's section that is not a page (`navLinks`). Its address
+ * is the server's: a dashboard screen narrowed to the app, followed in place
+ * and marked while it is the address shown, or the app's staff side, opened
+ * as a document like "Open the staff screens".
+ */
+function NavLinkRow({ item, link }: { item: NavItem; link: NonNullable<NavItem['link']> }) {
+  const router = useRouter();
+  const here = useRouterState({ select: (state) => state.location.href });
+  const Icon = lucideByName(item.icon);
+  const label = <span className="min-w-0 flex-1 truncate">{item.fallback}</span>;
+  if (link.document || !isDashboardPath(link.href)) {
+    return (
+      <a href={isDocumentHref(link.href) ? link.href : undefined} target="_blank" rel="noreferrer" className={NAV_LINK_CLASS} data-part="nav-app-link">
+        <Icon className="size-[18px] shrink-0" aria-hidden="true" />
+        {label}
+        <ExternalLink className="size-3.5 shrink-0 opacity-70 rtl:-scale-x-100" aria-hidden="true" />
+      </a>
+    );
+  }
+  return (
+    <a
+      href={link.href}
+      className={NAV_LINK_CLASS}
+      data-part="nav-app-link"
+      data-status={here === link.href ? 'active' : undefined}
+      aria-current={here === link.href ? 'page' : undefined}
+      onClick={(event) => {
+        if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+        event.preventDefault();
+        router.history.push(link.href);
+      }}
+    >
+      <Icon className="size-[18px] shrink-0" aria-hidden="true" />
+      {label}
+    </a>
+  );
+}
+
 function NavItemList({ items }: { items: readonly NavItem[] }) {
   return (
     <ul className="m-0 flex list-none flex-col gap-1 p-0">
@@ -319,7 +359,9 @@ function NavItemList({ items }: { items: readonly NavItem[] }) {
         const Icon = lucideByName(item.icon);
         return (
           <li key={item.pageId}>
-            {item.addOnPage === undefined ? (
+            {item.link !== undefined ? (
+              <NavLinkRow item={item} link={item.link} />
+            ) : item.addOnPage === undefined ? (
               <Link to="/p/$slug" params={{ slug: item.slug }} className={NAV_LINK_CLASS}>
                 <Icon className="size-[18px] shrink-0" aria-hidden="true" />
                 <span className="min-w-0 flex-1 truncate">{t(item.labelKey, item.fallback)}</span>
@@ -427,6 +469,9 @@ function HostedAppRows({ app }: { app: HostedApp }) {
  */
 function AppSection({ section }: { section: AppSectionData }) {
   const staff = section.staff;
+  // A page its app keeps off the sidebar is listed with the section and drawn by nothing here; a group left empty has no heading.
+  const groups = section.groups.map((group) => ({ ...group, items: group.items.filter((item) => item.offRail !== true) })).filter((group) => group.items.length > 0);
+  if (groups.length === 0 && staff === null) return null;
   return (
     <div className="mt-3.5 border-t border-border pt-3" data-part="nav-app-section">
       <div className="flex items-center gap-2.5 px-[9px] pb-2 pt-1">
@@ -438,7 +483,7 @@ function AppSection({ section }: { section: AppSectionData }) {
         </span>
         <span className="font-mono text-[9.5px] font-bold leading-[normal] text-fg-subtle">{section.version}</span>
       </div>
-      {section.groups.map((group) => (
+      {groups.map((group) => (
         <div key={group.key} className="mb-1">
           {group.label === null ? null : (
             <div className="px-2.5 pb-1 pt-[11px] text-[10px] font-extrabold uppercase tracking-[0.08em] text-fg-subtle">

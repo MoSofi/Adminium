@@ -41,11 +41,13 @@
 | `references/manifest/parts.md` | Parts | 5291 |
 | `references/manifest/maps.md` | Maps | 4741 |
 | `references/manifest/option-lists.md` | Option lists | 851 |
-| `references/manifest/pages.md` | Pages | 7113 |
+| `references/manifest/pages.md` | Pages | 7285 |
 | `references/manifest/pages-2.md` | Pages (part 2) | 3612 |
 | `references/manifest/pages--tab-words-filters-and-bulk-actions.md` | Pages — Tab words, filters and bulk actions | 2313 |
 | `references/manifest/pages--navgroups.md` | Pages — navGroups | 789 |
-| `references/manifest/frontends.md` | Frontends | 3183 |
+| `references/manifest/pages--a-page-kept-off-the-sidebar.md` | Pages — A page kept off the sidebar | 1236 |
+| `references/manifest/pages--navlinks.md` | Pages — navLinks | 2645 |
+| `references/manifest/frontends.md` | Frontends | 5714 |
 | `references/manifest/whose-a-row-is.md` | Whose a row is | 5612 |
 | `references/manifest/roles.md` | Roles | 7316 |
 | `references/manifest/roles--a-role-on-an-add-on-s-tables.md` | Roles — A role on an add-on's tables | 1422 |
@@ -82,11 +84,9 @@
 | `references/manifest/public-access--availability.md` | Public access — Availability | 1991 |
 | `references/manifest/public-access--limits-on-a-stranger-s-create.md` | Public access — Limits on a stranger's create | 3390 |
 | `references/manifest/public-access--publickeys.md` | Public access — publicKeys | 3463 |
-| `references/manifest/automations.md` | Automations | 4329 |
+| `references/manifest/automations.md` | Automations | 4374 |
 | `references/manifest/automations--the-person-on-the-row.md` | Automations — The person on the row | 1425 |
 | `references/manifest/automations--once-per-spell.md` | Automations — Once per spell | 691 |
 | `references/manifest/automations--quiet-hours-and-urgent.md` | Automations — Quiet hours and urgent | 856 |
-| `references/manifest/automations--a-summary-for-each-person.md` | Automations — A summary for each person | 1807 |
-| `references/manifest/automations--a-row-a-step-makes.md` | Automations — A row a step makes | 2591 |
 
 More: `references/manifest/INDEX-2.md`

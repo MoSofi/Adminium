@@ -36,6 +36,7 @@ import { Button, ConfirmModal } from '@adminium/ui';
 import { AskAssistant } from '../assistant/AskAssistant.js';
 import { afterApply, type AssistantChange } from './model/assistantChange.js';
 import { t } from '../i18n/t.js';
+import { AppFilterNote } from '../shell/AppFilterNote.js';
 import { PageActions } from '../shell/PageActionsProvider.js';
 import { PageSurface } from '../shell/PageSurface.js';
 import { useAppToasts } from '../pages/toasts.js';
@@ -49,7 +50,7 @@ import { StepInspector } from './flow/StepInspector.js';
 import { StepPicker } from './flow/StepPicker.js';
 import { useTestRun } from './flow/useTestRun.js';
 import { NewRuleModal } from './rules/NewRuleModal.js';
-import { FlowHeader, RuleCard, RulesEmpty, RulesKpiStrip, ShippedRuleGroups, splitShipped, type RulesKpi } from './rules/parts.js';
+import { FlowHeader, RuleCard, RulesEmpty, RulesKpiStrip, ShippedRuleGroups, rulesOfApp, splitShipped, type RulesKpi } from './rules/parts.js';
 import { FilterPills } from './logs/parts.js';
 import { countSteps, flatten, locate, type Condition, type Graph, type Trigger } from './model/graph.js';
 import type { Action, FlowNode } from './model/graph.js';
@@ -111,7 +112,7 @@ export function AutomationRulesPage(): ReactNode {
   const toastError = (title: string): void => {
     toasts.push({ variant: 'error', title });
   };
-  const search = useSearch({ strict: false }) as { rule?: string };
+  const search = useSearch({ strict: false }) as { rule?: string; app?: string };
 
   const rules = useQuery(rulesQuery());
   const stats = useQuery(rulesStatsQuery());
@@ -131,7 +132,9 @@ export function AutomationRulesPage(): ReactNode {
   const boot = useQuery({ ...bootstrapQuery(), enabled: false });
   const assistant = boot.data === undefined ? 'Milo' : assistantName(boot.data);
 
-  const all = rules.data?.rules ?? [];
+  // Narrowed to one installed app (the address's `app`): a cut of the rules this person lists anyway, never a wider read.
+  const all = rulesOfApp(rules.data?.rules ?? [], search.app);
+  const appName = search.app === undefined ? null : ((boot.data?.appSections ?? []).find((section) => section.appKey === search.app)?.label ?? search.app);
   // The owner's own rules, and the ones an app or an add-on brought: listed apart, never mixed.
   const { own, shipped } = splitShipped(all);
   const selected = all.find((rule) => rule.id === search.rule) ?? own[0] ?? shipped[0] ?? null;
@@ -389,6 +392,14 @@ export function AutomationRulesPage(): ReactNode {
       >
         <RulesKpiStrip kpis={kpis} />
       </div>
+
+      {appName === null ? null : (
+        <AppFilterNote
+          text={t('automations:appFilter.note', 'Only the rules of {app} are shown.', { app: appName })}
+          clear={t('automations:appFilter.clear', 'Show all rules')}
+          onClear={() => void navigate({ to: '.', search: (prev: Record<string, unknown>) => ({ ...prev, app: undefined, rule: undefined }) })}
+        />
+      )}
 
       <div className="grid grid-cols-1 items-start gap-4 min-[1080px]:grid-cols-[360px_minmax(0,1fr)]">
         <div className="flex min-w-0 flex-col gap-3">

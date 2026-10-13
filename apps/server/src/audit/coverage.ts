@@ -144,6 +144,9 @@ export const AUDIT_COVERAGE: Readonly<Record<string, AuditMark>> = {
   'PUT /api/v1/me/notification-prefs': auditExempt(
     'The caller’s own delivery preferences — a per-user setting, not a workspace one.',
   ),
+  'POST /api/v1/me/summaries/:ruleId/send': auditExempt(
+    'Sends the caller their own summary to their own address — nothing of the workspace changes, and it is held to three an hour.',
+  ),
   'PUT /api/v1/me/notification-schedule': auditExempt(
     'The caller’s own delivery preferences — a per-user setting, not a workspace one.',
   ),

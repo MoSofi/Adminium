@@ -42,6 +42,7 @@ import { UnauthorizedError } from '../../errors.js';
 import type { ConnectionManager } from '../../connections/manager.js';
 import { compileQuickSearch, type CompileFilterContext } from '../../crud/filters.js';
 import type { ResolvedTable, SnapshotView } from '../../crud/identifiers.js';
+import { NO_ADDRESSES, recordAddressBook, type RecordAddressBook, type RecordPlace } from '../../apps/record-address.js';
 import { labelColumnFor } from '../../crud/labels.js';
 import { pkLabel } from '../../crud/records.js';
 import type { RowLimitContext } from '../../crud/row-limit.js';
@@ -77,6 +78,8 @@ interface RecordCandidate {
   view: SnapshotView;
   table: ResolvedTable;
   pageSlug: string;
+  /** Its records open in their app's own screens for this searcher. */
+  inApp: boolean;
 }
 
 const TIMEOUT: unique symbol = Symbol('search-timeout');
@@ -189,6 +192,18 @@ export function searchRoutes(deps: SearchRoutesDeps): FastifyPluginAsyncZod {
             rowContexts.set(connectionId, set === null ? null : await rowLimitContextOf(meta, set, connectionId, view.model));
           }
           return rowContexts.get(connectionId) ?? null;
+        };
+
+        /** Where a record opens in its app's own screens, for this searcher; one book for each database. */
+        const books = new Map<string, RecordAddressBook>();
+        const opensIn = async (connectionId: string, table: string, recordId: string): Promise<RecordPlace | null> => {
+          let book = books.get(connectionId);
+          if (book === undefined) {
+            book = await recordAddressBook(meta, connectionId).catch(() => NO_ADDRESSES);
+            books.set(connectionId, book);
+          }
+          // A server mounted with no permission resolver asks nobody's roles (a test's bare routes).
+          return app.hasDecorator('rbac') ? book.placeFor(await app.rbac.resolve(request), { connectionId, table, recordId }) : book.placeOf({ connectionId, table, recordId });
         };
 
         const q = request.query.q.trim();
@@ -340,8 +355,13 @@ export function searchRoutes(deps: SearchRoutesDeps): FastifyPluginAsyncZod {
               // RBAC: the same table-read grant the data routes enforce,
               // plus the page-view grant so a hit never navigates into a 403.
               if (!(await can(req, `table:${connectionId}:${table.id}:read`))) continue;
-              if (!(await can(req, `page:${page.id}:view`))) continue;
-              out.push({ connectionId, view, table, pageSlug: page.slug });
+              // A table whose records open in the app's own screens for this person needs no page of the
+              // dashboard to land on: the hit goes to the app. Reading the table is asked for either way.
+              const inApp = (await opensIn(connectionId, table.id, '0')) !== null;
+              const viewsPage = await can(req, `page:${page.id}:view`);
+              if (!inApp && !viewsPage) continue;
+              // A page they may not view is not named to them: the hit carries the app's address alone.
+              out.push({ connectionId, view, table, pageSlug: viewsPage ? page.slug : '', inApp });
             }
           }
           return out;
@@ -379,7 +399,8 @@ export function searchRoutes(deps: SearchRoutesDeps): FastifyPluginAsyncZod {
           const rows = (await qb.limit(limit).execute()) as Row[];
           if (rows.length === 0) return null;
 
-          const hits: SearchRecordHit[] = rows.map((row) => {
+          const hits: SearchRecordHit[] = [];
+          for (const row of rows) {
             const pk = Object.fromEntries(table.primaryKey.map((name) => [name, row[name]]));
             const raw = labelColumn === null ? null : row[labelColumn];
             const label =
@@ -387,15 +408,18 @@ export function searchRoutes(deps: SearchRoutesDeps): FastifyPluginAsyncZod {
                 ? pkLabel(table, pk)
                 : String(raw);
             const context = contextStringFor(row, contextColumns);
-            return {
+            const recordId = pkLabel(table, pk);
+            const place = candidate.inApp ? await opensIn(connectionId, table.id, recordId) : null;
+            hits.push({
               connectionId,
               table: table.id,
-              recordId: pkLabel(table, pk),
+              recordId,
               label,
               ...(context === undefined ? {} : { context }),
               pageSlug,
-            };
-          });
+              ...(place === null ? {} : { opens: { appKey: place.appKey, path: place.path, url: place.url } }),
+            });
+          }
           return {
             type: 'record',
             connectionId,

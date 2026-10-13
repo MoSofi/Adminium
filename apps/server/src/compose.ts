@@ -256,6 +256,7 @@ import { llmRoutes } from './routes/llm/index.js';
 import { meViewsRoutes } from './routes/me-views/index.js';
 import { fileRecordCheck, hiddenFileCheck } from './files/read-limited.js';
 import { notificationsRoutes } from './routes/notifications/index.js';
+import { summariesRoutes } from './routes/summaries/index.js';
 import { onboardingRoutes } from './routes/onboarding/index.js';
 import { pagesRoutes } from './routes/pages/index.js';
 import { projectRoutes } from './routes/project/index.js';
@@ -1797,6 +1798,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       await api.register(exportsRoutes({ meta, manager, storage, enqueue: enqueueDataIo }));
       await api.register(importsRoutes({ meta, manager, storage, enqueue: enqueueDataIo, writes: recordWrites }));
       await api.register(notificationsRoutes({ meta, hub: jobs.hub }));
+      await api.register(summariesRoutes({ meta, manager, secret: env.ADMINIUM_SECRET }));
       await api.register(scheduledReportsRoutes({ meta }));
       // `onRulesChanged` is what keeps the matcher's in-memory index honest:
       // a rule saved through this route is matched by the next write.

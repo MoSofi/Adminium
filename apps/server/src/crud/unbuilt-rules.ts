@@ -191,6 +191,11 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   'automations.urgent',
   // A summary for each person, read as that person when it is sent.
   'automations.digest',
+  // A section of one: the rows of the people its reader leads now, a column added up over every row, a line a person, a sum against a target.
+  'digest.reach',
+  'digest.sum',
+  'digest.by',
+  'digest.target',
   // A row a step makes, kept in the run's trace for the steps after it.
   'automations.stepName',
   // More than twelve rules in one manifest: each is installed as the first twelve are.
@@ -198,6 +203,11 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   // A reply to the person a staff column names: their sign-in address, looked up when the message goes; nobody there is no header.
   'automations.replyTo',
   'outbox.replyTo',
+  // Where a table's record opens on the app's staff side: a notice, its email and a search hit open there (apps/record-address.ts).
+  'frontend.records',
+  // A page kept off the sidebar, and an entry of the app's section that is not a page: both read when the menu is built.
+  'nav.offRail',
+  'navLinks',
   // Rows read by the people they belong to and by nothing else: not in the view a rule, a public door, a kiosk's key or an owner's
   // code reads through, and refused by name as a file out, a file in, a scheduled report and a document.
   'table.private',

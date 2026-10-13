@@ -12,7 +12,7 @@
  *  - a summary for each person, of their own rows only, read as they read;
  *  - a row a step makes, read by the steps after it, across a wait.
  */
-import { automationsRepo, rolesRepo } from '@adminium/meta';
+import { automationsRepo, rolesRepo, teamsRepo } from '@adminium/meta';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { forgetSpellsIfChosenAnew } from '../src/automations/schedule.js';
@@ -62,11 +62,13 @@ function sales(): Record<string, unknown> {
         },
         { ref: 'follow_ups', columns: [id, { ref: 'deal_id', type: 'fk', references: 'deals' }, { ref: 'note', type: 'text', maxLength: 200, nullable: true }] },
         { ref: 'enquiries', columns: [id, { ref: 'name', type: 'text', maxLength: 120 }] },
+        // What each rep is to book in a year: a summary measures a sum against it.
+        { ref: 'targets', belongs: [{ column: 'rep_id', set: 'team' }], columns: [id, { ref: 'rep_id', type: 'text', maxLength: 36, rules: { staff: true } }, { ref: 'year', type: 'int' }, { ref: 'amount', type: 'int' }] },
       ],
     },
     roles: [
       { key: 'rep', name: 'Rep', permissions: ['table:@deals:read', 'table:@deals:create', 'table:@deals:update', 'table:@follow_ups:read', 'page:@sales-deals:view'], limits: { deals: { rows: { read: { reach: 'own' }, update: { reach: 'own' } } } } },
-      { key: 'manager', name: 'Manager', permissions: ['table:@deals:read', 'table:@deals:update', 'page:@sales-deals:view'] },
+      { key: 'manager', name: 'Manager', permissions: ['table:@deals:read', 'table:@deals:update', 'table:@targets:read', 'page:@sales-deals:view'] },
       { key: 'clerk', name: 'Clerk', permissions: ['table:@enquiries:read', 'table:@enquiries:create'] },
     ],
     pages: [page('sales-deals', 'deals', 1), page('sales-enquiries', 'enquiries', 2)],
@@ -76,6 +78,11 @@ function sales(): Record<string, unknown> {
         { block: 'email.rows', id: 'rows-open', data: { section: 'open', row: { title: '{{row.name}}', amount: '{{row.amount}}' }, empty: 'Nothing is open.' } },
       ]),
       template('sales-won', '{{record.name}} is won', [{ block: 'email.text', data: { text: 'Well done on {{record.name}}.' } }]),
+      template('sales-team', 'The team, {{name}}', [
+        { block: 'email.text', data: { text: '{{count.team}} open, {{sum.team.amount}} in all. Target {{target.reps|none set}}, cover {{cover.reps|not worked out}}. Read {{readAt}}.' } },
+        { block: 'email.rows', id: 'rows-team', data: { section: 'team', row: { title: '{{row.name}}', amount: '{{row.amount}}' }, empty: 'Nothing is open.' } },
+        { block: 'email.rows', id: 'rows-reps', data: { section: 'reps', row: { title: '{{row.owner}}', meta: '{{row.count}} open', amount: '{{row.sum.amount}}', note: 'of {{row.target|no target}}: {{row.cover|no cover}}' }, empty: 'Nobody.' } },
+      ]),
     ],
     automations: [
       {
@@ -112,6 +119,24 @@ function sales(): Record<string, unknown> {
         enabled: true,
         trigger: { kind: 'schedule', schedule: { kind: 'interval', everyMinutes: '60' } },
         graph: flow(node('sum', { kind: 'digest', templateKey: 'sales-week', to: { roles: ['rep', 'manager'] }, sections: [{ key: 'open', table: 'deals', owner: 'owner_id', where: [{ left: { field: 'state' }, op: 'is', right: 'open' }], orderBy: { column: 'name' }, limit: 1 }] })),
+      },
+      {
+        // Switched off: a manager asks for theirs, and nobody is written to by the clock.
+        key: 'weekly-team',
+        name: en('Each manager’s team'),
+        enabled: false,
+        trigger: { kind: 'schedule', schedule: { kind: 'weekly', dayOfWeek: 1, time: '07:00' } },
+        graph: flow(
+          node('sum', {
+            kind: 'digest',
+            templateKey: 'sales-team',
+            to: { roles: ['manager'] },
+            sections: [
+              { key: 'team', table: 'deals', owner: 'owner_id', reach: 'team', sum: ['amount'], where: [{ left: { field: 'state' }, op: 'is', right: 'open' }], orderBy: { column: 'name' } },
+              { key: 'reps', table: 'deals', owner: 'owner_id', reach: 'team', by: 'owner', sum: ['amount'], where: [{ left: { field: 'state' }, op: 'is', right: 'open' }], target: { table: 'targets', owner: 'rep_id', column: 'amount', year: 'year', of: 'amount' } },
+            ],
+          }),
+        ),
       },
       {
         key: 'enquiry-in',
@@ -317,6 +342,40 @@ for (const [dialect, reachable] of LEGS) {
       // Noor has none: no email is made for nothing.
       expect(mails.find((mail) => mail.to === 'noor@sales.test')).toBeUndefined();
       expect(mails).toHaveLength(2);
+    });
+
+    it('sends a manager, on request, her team as the manifest wrote it: rows, a line a person, sums and target cover', async () => {
+      await s.emails();
+      const teams = teamsRepo(s.meta);
+      const team = await teams.create('Desk');
+      await teams.setMember(team.id, s.ids['ivy']!, true);
+      await teams.setMember(team.id, s.ids['dana']!, false);
+      const year = new Date().getUTCFullYear();
+      await s.rows("update sales_deals set amount = 1200 where name = 'Atrium'");
+      await s.rows("update sales_deals set amount = 300, state = 'open' where name = 'Mews'");
+      await s.rows("update sales_deals set amount = 500 where name = 'Yard'");
+      // A deal of Noor's, who is on nobody's team here.
+      expect(said(await s.make('owner', 'deals', { name: 'Quay', owner_id: s.ids['noor'], amount: 7700 }))).toBe('ok');
+      await s.rows(`insert into sales_targets (id, rep_id, year, amount) values (1, '${s.ids['dana']!}', ${String(year)}, 3000), (2, '${s.ids['noor']!}', ${String(year)}, 9100)`);
+      const rule = (await automationsRepo(s.meta).listManagedBy('sales', s.connectionId)).find((one) => one.templateKey === 'weekly-team')!;
+      expect(rule.enabled).toBe(false);
+      // Hers to ask for; not a rep's, who is told nothing of whether it is there.
+      expect(((await s.get('ivy', '/api/v1/me/summaries')).json() as { data: { id: string }[] }).data.map((one) => one.id)).toContain(rule.id);
+      expect(said(await s.send('dana', 'POST', `/api/v1/me/summaries/${rule.id}/send`))).toBe('404 NOT_FOUND');
+      expect(said(await s.send('ivy', 'POST', `/api/v1/me/summaries/${rule.id}/send`))).toBe('ok');
+      const mails = (await s.emails()).filter((mail) => mail.templateKey === 'sales-team');
+      expect(mails.map((mail) => mail.to)).toEqual(['ivy@sales.test']);
+      const text = mails[0]!.text;
+      // Dana's two and her own one: 1,200 + 300 + 500. Ivy has no target, so the whole has no cover; Dana's line has hers.
+      expect(text).toMatch(/3 open, 2,000(\.00)? in all\. Target 3,000(\.00)?, cover not worked out\. Read .*\d{4}/);
+      for (const name of ['Atrium', 'Mews', 'Yard']) expect(text).toContain(name);
+      expect(text).toMatch(/Dana — 2 open — 1,500(\.00)?\n {2}of 3,000(\.00)?: 50%/);
+      expect(text).toMatch(/Ivy — 1 open — 500(\.00)?\n {2}of no target: no cover/);
+      // Ivy's role reads every deal and every target: Noor's are still no part of her team's.
+      for (const word of ['Noor', 'Quay', '7,700', '9,100', '9,700', '12,100']) expect(text).not.toContain(word);
+      // The moment is in the text where the template put it, and not a second time.
+      expect(text).not.toContain('Figures read on');
+      await s.rows("update sales_deals set state = 'won' where name = 'Quay'");
     });
 
     it('sends no summary to somebody who lost the role between the rule’s run and the send', async () => {

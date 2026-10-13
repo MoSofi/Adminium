@@ -486,6 +486,11 @@
     "removeSection": "Odebrat tento oddíl",
     "addSection": "Přidat oddíl",
     "sendEmpty": "Odeslat, i když není co vypsat",
-    "sendEmptyBody": "Vypnuto: kdo nemá v žádném oddílu řádek, nedostane e-mail"
+    "sendEmptyBody": "Vypnuto: kdo nemá v žádném oddílu řádek, nedostane e-mail",
+    "readAt": "Údaje načteny: {when}."
+  },
+  "appFilter": {
+    "note": "Zobrazují se jen pravidla aplikace {app}.",
+    "clear": "Zobrazit všechna pravidla"
   }
 }

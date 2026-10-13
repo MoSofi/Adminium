@@ -123,7 +123,7 @@ function fields(schema: Json, printer: Printer, skip: readonly string[] = [], in
 export const ACTION_NOTES: Readonly<Record<string, string>> = {
   email: 'sends a LIVE template (its key from rule_parts; no subject or body of its own). `to` names a column that HOLDS ADDRESSES (rule_parts lists them, a linked row\'s too: `customer_id.email`), or fixed addresses. `vars` fills a placeholder the record does not: its name → a text.',
   notification: 'an in-app notice to roles or people of the workspace, or (`to: { "column" }`) to the person a STAFF column of the record names, or of a row it links to (`deal_id.owner_id`). `urgent: true` only when the person asked that it reach people in their quiet hours.',
-  digest: 'a summary e-mail for each person who holds one of `to.roles`: each `sections` entry lists that person\'s OWN rows of `table` (those whose `owner` staff column names them). `templateKey` is a LIVE template that draws the sections. Only in a rule that runs by the clock.',
+  digest: 'a summary for each holder of `to.roles`: sections list their OWN `table` rows by the `owner` staff column (`reach: "team"`: their team\'s too). `templateKey`: a LIVE template. Clock rules only.',
   'record.create': 'adds a row to `table`; `values` is column → text, or { "now": true } for the moment it runs.',
   'record.update': 'writes columns of the record the run is about.',
   webhook: 'calls a URL the person gives. Never invent one; leave `headerValue` out.',

@@ -902,5 +902,9 @@ export default {
     "otherwise": "Sinon afficher",
     "otherwiseHint": "Ces mots remplacent le bloc entier. Laissez vide pour ne rien envoyer à sa place.",
     "leftOut": "Quand elle n’en a pas, ce bloc est retiré de l’e-mail."
+  },
+  "appFilter": {
+    "note": "Seuls les e-mails de {app} sont affichés.",
+    "clear": "Afficher tous les e-mails"
   }
 } as const;

@@ -28,6 +28,7 @@ import { dataIoRoutes } from '../data-io/routes.js';
 import { assistantMessagesReady } from '../assistant/assistantMessages.js';
 import { emailMessagesReady } from '../email/emailMessages.js';
 import { filesMessagesReady } from '../files/filesMessages.js';
+import { isLocalPath } from '../auth/nextTarget.js';
 import { validateEmailTemplatesSearch } from '../email/search.js';
 import { reportBuilderMessagesReady } from '../report-builder/reportBuilderMessages.js';
 import { rolesMessagesReady } from '../team/rolesMessages.js';
@@ -278,20 +279,13 @@ const loginRoute = createRoute({
    * SURFACE gate appends — the target may be a hosted app path this SPA
    * cannot render (on a mapped staff domain, EVERY non-reserved path is
    * surface-owned), so honoring it must be a DOCUMENT navigation, which
-   * only LoginPage/OtpPage can perform. Both accept paths only — `//host`
-   * and absolute URLs are dropped, never followed.
+   * only LoginPage/OtpPage can perform. Both accept paths only — `//host`,
+   * `/\host` and absolute URLs are dropped, never followed — and `next` is
+   * followed only into an app's own screens (auth/nextTarget.ts).
    */
   validateSearch: (search: Record<string, unknown>): { returnTo?: string; next?: string } => ({
-    ...(typeof search.returnTo === 'string' &&
-    search.returnTo.startsWith('/') &&
-    !search.returnTo.startsWith('//')
-      ? { returnTo: search.returnTo }
-      : {}),
-    ...(typeof search.next === 'string' &&
-    search.next.startsWith('/') &&
-    !search.next.startsWith('//')
-      ? { next: search.next }
-      : {}),
+    ...(isLocalPath(search.returnTo) ? { returnTo: search.returnTo } : {}),
+    ...(isLocalPath(search.next) ? { next: search.next } : {}),
   }),
   beforeLoad: async ({ context }) => {
     redirectIfAuthed(context.queryClient);

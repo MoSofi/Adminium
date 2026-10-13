@@ -23,7 +23,10 @@ export interface SearchRecordHit {
   label: string;
   /** Row context, e.g. `unit_price 18 · status active` (may be absent). */
   context?: string | undefined;
+  /** Empty when the searcher may not view the table's page and the hit `opens` in its app. */
   pageSlug: string;
+  /** The record's own screen in its app, for a searcher whose roles open the app's staff side: the hit opens there. */
+  opens?: { appKey: string; path: string; url: string } | undefined;
 }
 
 export type SearchGroup =

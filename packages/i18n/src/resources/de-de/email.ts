@@ -902,5 +902,9 @@ export default {
     "otherwise": "Andernfalls zeigen",
     "otherwiseHint": "Diese Worte ersetzen den ganzen Block. Leer lassen, damit an seiner Stelle nichts gesendet wird.",
     "leftOut": "Fehlt der Wert, wird dieser Block aus der E-Mail weggelassen."
+  },
+  "appFilter": {
+    "note": "Es werden nur die E-Mails von {app} angezeigt.",
+    "clear": "Alle E-Mails anzeigen"
   }
 } as const;

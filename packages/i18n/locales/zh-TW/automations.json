@@ -486,6 +486,11 @@
     "removeSection": "移除此區段",
     "addSection": "新增區段",
     "sendEmpty": "沒有內容時也傳送",
-    "sendEmptyBody": "關閉：任何區段都沒有列的人不會收到郵件"
+    "sendEmptyBody": "關閉：任何區段都沒有列的人不會收到郵件",
+    "readAt": "資料讀取時間：{when}。"
+  },
+  "appFilter": {
+    "note": "僅顯示 {app} 的規則。",
+    "clear": "顯示全部規則"
   }
 }

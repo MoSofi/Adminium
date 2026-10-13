@@ -70,7 +70,7 @@ const list = (value: unknown): unknown[] => (Array.isArray(value) ? value : []);
 const text = (value: unknown): string | undefined => (typeof value === 'string' ? value : undefined);
 
 /** The blocks whose entries name one module, with the words an issue uses for an entry. */
-const MODULE_BLOCKS = ['pages', 'automations', 'documents', 'publicAccess'] as const;
+const MODULE_BLOCKS = ['pages', 'automations', 'documents', 'publicAccess', 'navLinks'] as const;
 
 /** Module id → the add-ons its feature needs (none when it names no feature). */
 function featureNeeds(document: Doc): Map<string, string[]> {
@@ -208,6 +208,18 @@ export function withoutModules<T>(manifest: T, gone: readonly string[]): T {
       if (drop && typeof page['ref'] === 'string') gonePages.add(page['ref']);
       return !drop;
     });
+  }
+
+  // An entry of the section that belongs to a part goes with it; so does the address of a table that is not made.
+  if (Array.isArray(out['navLinks'])) {
+    const kept = list(out['navLinks']).filter((link) => !inGone(link));
+    if (kept.length === 0) delete out['navLinks'];
+    else out['navLinks'] = kept;
+  }
+  for (const frontend of list(out['frontends'])) {
+    if (!isDoc(frontend) || !isDoc(frontend['records'])) continue;
+    for (const ref of Object.keys(frontend['records'])) if (goneTables.has(ref)) delete frontend['records'][ref];
+    if (Object.keys(frontend['records']).length === 0) delete frontend['records'];
   }
 
   if (Array.isArray(out['automations'])) {

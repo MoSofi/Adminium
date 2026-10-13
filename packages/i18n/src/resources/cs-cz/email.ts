@@ -902,5 +902,9 @@ export default {
     "otherwise": "Jinak zobrazit",
     "otherwiseHint": "Tato slova nahradí celý blok. Nechte prázdné, aby se místo něj neodeslalo nic.",
     "leftOut": "Když hodnotu nemá, tento blok se z e-mailu vynechá."
+  },
+  "appFilter": {
+    "note": "Zobrazují se jen e-maily aplikace {app}.",
+    "clear": "Zobrazit všechny e-maily"
   }
 } as const;

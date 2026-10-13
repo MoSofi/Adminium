@@ -2170,6 +2170,28 @@
                                             "ref"
                                           ],
                                           "additionalProperties": false
+                                        },
+                                        "offRail": {
+                                          "type": "boolean",
+                                          "enum": [
+                                            true
+                                          ]
+                                        },
+                                        "link": {
+                                          "type": "object",
+                                          "properties": {
+                                            "href": {
+                                              "type": "string"
+                                            },
+                                            "document": {
+                                              "type": "boolean"
+                                            }
+                                          },
+                                          "required": [
+                                            "href",
+                                            "document"
+                                          ],
+                                          "additionalProperties": false
                                         }
                                       },
                                       "required": [
@@ -2499,6 +2521,28 @@
                                   "ref"
                                 ],
                                 "additionalProperties": false
+                              },
+                              "offRail": {
+                                "type": "boolean",
+                                "enum": [
+                                  true
+                                ]
+                              },
+                              "link": {
+                                "type": "object",
+                                "properties": {
+                                  "href": {
+                                    "type": "string"
+                                  },
+                                  "document": {
+                                    "type": "boolean"
+                                  }
+                                },
+                                "required": [
+                                  "href",
+                                  "document"
+                                ],
+                                "additionalProperties": false
                               }
                             },
                             "required": [
@@ -2621,6 +2665,28 @@
                                 "required": [
                                   "key",
                                   "ref"
+                                ],
+                                "additionalProperties": false
+                              },
+                              "offRail": {
+                                "type": "boolean",
+                                "enum": [
+                                  true
+                                ]
+                              },
+                              "link": {
+                                "type": "object",
+                                "properties": {
+                                  "href": {
+                                    "type": "string"
+                                  },
+                                  "document": {
+                                    "type": "boolean"
+                                  }
+                                },
+                                "required": [
+                                  "href",
+                                  "document"
                                 ],
                                 "additionalProperties": false
                               }
@@ -2814,6 +2880,28 @@
                                             "required": [
                                               "key",
                                               "ref"
+                                            ],
+                                            "additionalProperties": false
+                                          },
+                                          "offRail": {
+                                            "type": "boolean",
+                                            "enum": [
+                                              true
+                                            ]
+                                          },
+                                          "link": {
+                                            "type": "object",
+                                            "properties": {
+                                              "href": {
+                                                "type": "string"
+                                              },
+                                              "document": {
+                                                "type": "boolean"
+                                              }
+                                            },
+                                            "required": [
+                                              "href",
+                                              "document"
                                             ],
                                             "additionalProperties": false
                                           }
@@ -3085,6 +3173,28 @@
                                   "ref"
                                 ],
                                 "additionalProperties": false
+                              },
+                              "offRail": {
+                                "type": "boolean",
+                                "enum": [
+                                  true
+                                ]
+                              },
+                              "link": {
+                                "type": "object",
+                                "properties": {
+                                  "href": {
+                                    "type": "string"
+                                  },
+                                  "document": {
+                                    "type": "boolean"
+                                  }
+                                },
+                                "required": [
+                                  "href",
+                                  "document"
+                                ],
+                                "additionalProperties": false
                               }
                             },
                             "required": [
@@ -3207,6 +3317,28 @@
                                 "required": [
                                   "key",
                                   "ref"
+                                ],
+                                "additionalProperties": false
+                              },
+                              "offRail": {
+                                "type": "boolean",
+                                "enum": [
+                                  true
+                                ]
+                              },
+                              "link": {
+                                "type": "object",
+                                "properties": {
+                                  "href": {
+                                    "type": "string"
+                                  },
+                                  "document": {
+                                    "type": "boolean"
+                                  }
+                                },
+                                "required": [
+                                  "href",
+                                  "document"
                                 ],
                                 "additionalProperties": false
                               },
@@ -3342,6 +3474,28 @@
                                 "required": [
                                   "key",
                                   "ref"
+                                ],
+                                "additionalProperties": false
+                              },
+                              "offRail": {
+                                "type": "boolean",
+                                "enum": [
+                                  true
+                                ]
+                              },
+                              "link": {
+                                "type": "object",
+                                "properties": {
+                                  "href": {
+                                    "type": "string"
+                                  },
+                                  "document": {
+                                    "type": "boolean"
+                                  }
+                                },
+                                "required": [
+                                  "href",
+                                  "document"
                                 ],
                                 "additionalProperties": false
                               }
@@ -22749,6 +22903,22 @@
                                   }
                                 ]
                               },
+                              "opens": {
+                                "type": "object",
+                                "properties": {
+                                  "appKey": {
+                                    "type": "string"
+                                  },
+                                  "path": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "appKey",
+                                  "path"
+                                ],
+                                "additionalProperties": false
+                              },
                               "readAt": {
                                 "anyOf": [
                                   {
@@ -23464,6 +23634,118 @@
                         "digestDay",
                         "digestTime",
                         "fallbackTimezone"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/me/summaries": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "enabled": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name",
+                          "enabled"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/me/summaries/{ruleId}/send": {
+      "post": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "in": "path",
+            "name": "ruleId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "sent": {
+                          "type": "boolean"
+                        },
+                        "reason": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "enum": [
+                                "no-email",
+                                "no-template"
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "left": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        }
+                      },
+                      "required": [
+                        "sent",
+                        "reason",
+                        "left"
                       ],
                       "additionalProperties": false
                     }
@@ -25527,6 +25809,59 @@
                                                             "type": "integer",
                                                             "minimum": 1,
                                                             "maximum": 50
+                                                          },
+                                                          "reach": {
+                                                            "type": "string",
+                                                            "enum": [
+                                                              "own",
+                                                              "team"
+                                                            ]
+                                                          },
+                                                          "sum": {
+                                                            "maxItems": 4,
+                                                            "type": "array",
+                                                            "items": {
+                                                              "type": "string",
+                                                              "maxLength": 128
+                                                            }
+                                                          },
+                                                          "by": {
+                                                            "type": "string",
+                                                            "enum": [
+                                                              "owner"
+                                                            ]
+                                                          },
+                                                          "target": {
+                                                            "type": "object",
+                                                            "properties": {
+                                                              "table": {
+                                                                "type": "string",
+                                                                "maxLength": 200
+                                                              },
+                                                              "owner": {
+                                                                "type": "string",
+                                                                "maxLength": 128
+                                                              },
+                                                              "column": {
+                                                                "type": "string",
+                                                                "maxLength": 128
+                                                              },
+                                                              "year": {
+                                                                "type": "string",
+                                                                "maxLength": 128
+                                                              },
+                                                              "of": {
+                                                                "type": "string",
+                                                                "maxLength": 128
+                                                              }
+                                                            },
+                                                            "required": [
+                                                              "table",
+                                                              "owner",
+                                                              "column",
+                                                              "of"
+                                                            ],
+                                                            "additionalProperties": false
                                                           }
                                                         },
                                                         "required": [
@@ -26886,6 +27221,59 @@
                                                                                   "type": "integer",
                                                                                   "minimum": 1,
                                                                                   "maximum": 50
+                                                                                },
+                                                                                "reach": {
+                                                                                  "type": "string",
+                                                                                  "enum": [
+                                                                                    "own",
+                                                                                    "team"
+                                                                                  ]
+                                                                                },
+                                                                                "sum": {
+                                                                                  "maxItems": 4,
+                                                                                  "type": "array",
+                                                                                  "items": {
+                                                                                    "type": "string",
+                                                                                    "maxLength": 128
+                                                                                  }
+                                                                                },
+                                                                                "by": {
+                                                                                  "type": "string",
+                                                                                  "enum": [
+                                                                                    "owner"
+                                                                                  ]
+                                                                                },
+                                                                                "target": {
+                                                                                  "type": "object",
+                                                                                  "properties": {
+                                                                                    "table": {
+                                                                                      "type": "string",
+                                                                                      "maxLength": 200
+                                                                                    },
+                                                                                    "owner": {
+                                                                                      "type": "string",
+                                                                                      "maxLength": 128
+                                                                                    },
+                                                                                    "column": {
+                                                                                      "type": "string",
+                                                                                      "maxLength": 128
+                                                                                    },
+                                                                                    "year": {
+                                                                                      "type": "string",
+                                                                                      "maxLength": 128
+                                                                                    },
+                                                                                    "of": {
+                                                                                      "type": "string",
+                                                                                      "maxLength": 128
+                                                                                    }
+                                                                                  },
+                                                                                  "required": [
+                                                                                    "table",
+                                                                                    "owner",
+                                                                                    "column",
+                                                                                    "of"
+                                                                                  ],
+                                                                                  "additionalProperties": false
                                                                                 }
                                                                               },
                                                                               "required": [
@@ -28096,6 +28484,59 @@
                                                                                   "type": "integer",
                                                                                   "minimum": 1,
                                                                                   "maximum": 50
+                                                                                },
+                                                                                "reach": {
+                                                                                  "type": "string",
+                                                                                  "enum": [
+                                                                                    "own",
+                                                                                    "team"
+                                                                                  ]
+                                                                                },
+                                                                                "sum": {
+                                                                                  "maxItems": 4,
+                                                                                  "type": "array",
+                                                                                  "items": {
+                                                                                    "type": "string",
+                                                                                    "maxLength": 128
+                                                                                  }
+                                                                                },
+                                                                                "by": {
+                                                                                  "type": "string",
+                                                                                  "enum": [
+                                                                                    "owner"
+                                                                                  ]
+                                                                                },
+                                                                                "target": {
+                                                                                  "type": "object",
+                                                                                  "properties": {
+                                                                                    "table": {
+                                                                                      "type": "string",
+                                                                                      "maxLength": 200
+                                                                                    },
+                                                                                    "owner": {
+                                                                                      "type": "string",
+                                                                                      "maxLength": 128
+                                                                                    },
+                                                                                    "column": {
+                                                                                      "type": "string",
+                                                                                      "maxLength": 128
+                                                                                    },
+                                                                                    "year": {
+                                                                                      "type": "string",
+                                                                                      "maxLength": 128
+                                                                                    },
+                                                                                    "of": {
+                                                                                      "type": "string",
+                                                                                      "maxLength": 128
+                                                                                    }
+                                                                                  },
+                                                                                  "required": [
+                                                                                    "table",
+                                                                                    "owner",
+                                                                                    "column",
+                                                                                    "of"
+                                                                                  ],
+                                                                                  "additionalProperties": false
                                                                                 }
                                                                               },
                                                                               "required": [
@@ -30132,6 +30573,58 @@
                                                     "type": "integer",
                                                     "minimum": 1,
                                                     "maximum": 50
+                                                  },
+                                                  "reach": {
+                                                    "type": "string",
+                                                    "enum": [
+                                                      "own",
+                                                      "team"
+                                                    ]
+                                                  },
+                                                  "sum": {
+                                                    "maxItems": 4,
+                                                    "type": "array",
+                                                    "items": {
+                                                      "type": "string",
+                                                      "maxLength": 128
+                                                    }
+                                                  },
+                                                  "by": {
+                                                    "type": "string",
+                                                    "enum": [
+                                                      "owner"
+                                                    ]
+                                                  },
+                                                  "target": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                      "table": {
+                                                        "type": "string",
+                                                        "maxLength": 200
+                                                      },
+                                                      "owner": {
+                                                        "type": "string",
+                                                        "maxLength": 128
+                                                      },
+                                                      "column": {
+                                                        "type": "string",
+                                                        "maxLength": 128
+                                                      },
+                                                      "year": {
+                                                        "type": "string",
+                                                        "maxLength": 128
+                                                      },
+                                                      "of": {
+                                                        "type": "string",
+                                                        "maxLength": 128
+                                                      }
+                                                    },
+                                                    "required": [
+                                                      "table",
+                                                      "owner",
+                                                      "column",
+                                                      "of"
+                                                    ]
                                                   }
                                                 },
                                                 "required": [
@@ -31415,6 +31908,58 @@
                                                                           "type": "integer",
                                                                           "minimum": 1,
                                                                           "maximum": 50
+                                                                        },
+                                                                        "reach": {
+                                                                          "type": "string",
+                                                                          "enum": [
+                                                                            "own",
+                                                                            "team"
+                                                                          ]
+                                                                        },
+                                                                        "sum": {
+                                                                          "maxItems": 4,
+                                                                          "type": "array",
+                                                                          "items": {
+                                                                            "type": "string",
+                                                                            "maxLength": 128
+                                                                          }
+                                                                        },
+                                                                        "by": {
+                                                                          "type": "string",
+                                                                          "enum": [
+                                                                            "owner"
+                                                                          ]
+                                                                        },
+                                                                        "target": {
+                                                                          "type": "object",
+                                                                          "properties": {
+                                                                            "table": {
+                                                                              "type": "string",
+                                                                              "maxLength": 200
+                                                                            },
+                                                                            "owner": {
+                                                                              "type": "string",
+                                                                              "maxLength": 128
+                                                                            },
+                                                                            "column": {
+                                                                              "type": "string",
+                                                                              "maxLength": 128
+                                                                            },
+                                                                            "year": {
+                                                                              "type": "string",
+                                                                              "maxLength": 128
+                                                                            },
+                                                                            "of": {
+                                                                              "type": "string",
+                                                                              "maxLength": 128
+                                                                            }
+                                                                          },
+                                                                          "required": [
+                                                                            "table",
+                                                                            "owner",
+                                                                            "column",
+                                                                            "of"
+                                                                          ]
                                                                         }
                                                                       },
                                                                       "required": [
@@ -32555,6 +33100,58 @@
                                                                           "type": "integer",
                                                                           "minimum": 1,
                                                                           "maximum": 50
+                                                                        },
+                                                                        "reach": {
+                                                                          "type": "string",
+                                                                          "enum": [
+                                                                            "own",
+                                                                            "team"
+                                                                          ]
+                                                                        },
+                                                                        "sum": {
+                                                                          "maxItems": 4,
+                                                                          "type": "array",
+                                                                          "items": {
+                                                                            "type": "string",
+                                                                            "maxLength": 128
+                                                                          }
+                                                                        },
+                                                                        "by": {
+                                                                          "type": "string",
+                                                                          "enum": [
+                                                                            "owner"
+                                                                          ]
+                                                                        },
+                                                                        "target": {
+                                                                          "type": "object",
+                                                                          "properties": {
+                                                                            "table": {
+                                                                              "type": "string",
+                                                                              "maxLength": 200
+                                                                            },
+                                                                            "owner": {
+                                                                              "type": "string",
+                                                                              "maxLength": 128
+                                                                            },
+                                                                            "column": {
+                                                                              "type": "string",
+                                                                              "maxLength": 128
+                                                                            },
+                                                                            "year": {
+                                                                              "type": "string",
+                                                                              "maxLength": 128
+                                                                            },
+                                                                            "of": {
+                                                                              "type": "string",
+                                                                              "maxLength": 128
+                                                                            }
+                                                                          },
+                                                                          "required": [
+                                                                            "table",
+                                                                            "owner",
+                                                                            "column",
+                                                                            "of"
+                                                                          ]
                                                                         }
                                                                       },
                                                                       "required": [
@@ -34468,6 +35065,59 @@
                                                       "type": "integer",
                                                       "minimum": 1,
                                                       "maximum": 50
+                                                    },
+                                                    "reach": {
+                                                      "type": "string",
+                                                      "enum": [
+                                                        "own",
+                                                        "team"
+                                                      ]
+                                                    },
+                                                    "sum": {
+                                                      "maxItems": 4,
+                                                      "type": "array",
+                                                      "items": {
+                                                        "type": "string",
+                                                        "maxLength": 128
+                                                      }
+                                                    },
+                                                    "by": {
+                                                      "type": "string",
+                                                      "enum": [
+                                                        "owner"
+                                                      ]
+                                                    },
+                                                    "target": {
+                                                      "type": "object",
+                                                      "properties": {
+                                                        "table": {
+                                                          "type": "string",
+                                                          "maxLength": 200
+                                                        },
+                                                        "owner": {
+                                                          "type": "string",
+                                                          "maxLength": 128
+                                                        },
+                                                        "column": {
+                                                          "type": "string",
+                                                          "maxLength": 128
+                                                        },
+                                                        "year": {
+                                                          "type": "string",
+                                                          "maxLength": 128
+                                                        },
+                                                        "of": {
+                                                          "type": "string",
+                                                          "maxLength": 128
+                                                        }
+                                                      },
+                                                      "required": [
+                                                        "table",
+                                                        "owner",
+                                                        "column",
+                                                        "of"
+                                                      ],
+                                                      "additionalProperties": false
                                                     }
                                                   },
                                                   "required": [
@@ -35827,6 +36477,59 @@
                                                                             "type": "integer",
                                                                             "minimum": 1,
                                                                             "maximum": 50
+                                                                          },
+                                                                          "reach": {
+                                                                            "type": "string",
+                                                                            "enum": [
+                                                                              "own",
+                                                                              "team"
+                                                                            ]
+                                                                          },
+                                                                          "sum": {
+                                                                            "maxItems": 4,
+                                                                            "type": "array",
+                                                                            "items": {
+                                                                              "type": "string",
+                                                                              "maxLength": 128
+                                                                            }
+                                                                          },
+                                                                          "by": {
+                                                                            "type": "string",
+                                                                            "enum": [
+                                                                              "owner"
+                                                                            ]
+                                                                          },
+                                                                          "target": {
+                                                                            "type": "object",
+                                                                            "properties": {
+                                                                              "table": {
+                                                                                "type": "string",
+                                                                                "maxLength": 200
+                                                                              },
+                                                                              "owner": {
+                                                                                "type": "string",
+                                                                                "maxLength": 128
+                                                                              },
+                                                                              "column": {
+                                                                                "type": "string",
+                                                                                "maxLength": 128
+                                                                              },
+                                                                              "year": {
+                                                                                "type": "string",
+                                                                                "maxLength": 128
+                                                                              },
+                                                                              "of": {
+                                                                                "type": "string",
+                                                                                "maxLength": 128
+                                                                              }
+                                                                            },
+                                                                            "required": [
+                                                                              "table",
+                                                                              "owner",
+                                                                              "column",
+                                                                              "of"
+                                                                            ],
+                                                                            "additionalProperties": false
                                                                           }
                                                                         },
                                                                         "required": [
@@ -37037,6 +37740,59 @@
                                                                             "type": "integer",
                                                                             "minimum": 1,
                                                                             "maximum": 50
+                                                                          },
+                                                                          "reach": {
+                                                                            "type": "string",
+                                                                            "enum": [
+                                                                              "own",
+                                                                              "team"
+                                                                            ]
+                                                                          },
+                                                                          "sum": {
+                                                                            "maxItems": 4,
+                                                                            "type": "array",
+                                                                            "items": {
+                                                                              "type": "string",
+                                                                              "maxLength": 128
+                                                                            }
+                                                                          },
+                                                                          "by": {
+                                                                            "type": "string",
+                                                                            "enum": [
+                                                                              "owner"
+                                                                            ]
+                                                                          },
+                                                                          "target": {
+                                                                            "type": "object",
+                                                                            "properties": {
+                                                                              "table": {
+                                                                                "type": "string",
+                                                                                "maxLength": 200
+                                                                              },
+                                                                              "owner": {
+                                                                                "type": "string",
+                                                                                "maxLength": 128
+                                                                              },
+                                                                              "column": {
+                                                                                "type": "string",
+                                                                                "maxLength": 128
+                                                                              },
+                                                                              "year": {
+                                                                                "type": "string",
+                                                                                "maxLength": 128
+                                                                              },
+                                                                              "of": {
+                                                                                "type": "string",
+                                                                                "maxLength": 128
+                                                                              }
+                                                                            },
+                                                                            "required": [
+                                                                              "table",
+                                                                              "owner",
+                                                                              "column",
+                                                                              "of"
+                                                                            ],
+                                                                            "additionalProperties": false
                                                                           }
                                                                         },
                                                                         "required": [
@@ -39703,6 +40459,59 @@
                                                       "type": "integer",
                                                       "minimum": 1,
                                                       "maximum": 50
+                                                    },
+                                                    "reach": {
+                                                      "type": "string",
+                                                      "enum": [
+                                                        "own",
+                                                        "team"
+                                                      ]
+                                                    },
+                                                    "sum": {
+                                                      "maxItems": 4,
+                                                      "type": "array",
+                                                      "items": {
+                                                        "type": "string",
+                                                        "maxLength": 128
+                                                      }
+                                                    },
+                                                    "by": {
+                                                      "type": "string",
+                                                      "enum": [
+                                                        "owner"
+                                                      ]
+                                                    },
+                                                    "target": {
+                                                      "type": "object",
+                                                      "properties": {
+                                                        "table": {
+                                                          "type": "string",
+                                                          "maxLength": 200
+                                                        },
+                                                        "owner": {
+                                                          "type": "string",
+                                                          "maxLength": 128
+                                                        },
+                                                        "column": {
+                                                          "type": "string",
+                                                          "maxLength": 128
+                                                        },
+                                                        "year": {
+                                                          "type": "string",
+                                                          "maxLength": 128
+                                                        },
+                                                        "of": {
+                                                          "type": "string",
+                                                          "maxLength": 128
+                                                        }
+                                                      },
+                                                      "required": [
+                                                        "table",
+                                                        "owner",
+                                                        "column",
+                                                        "of"
+                                                      ],
+                                                      "additionalProperties": false
                                                     }
                                                   },
                                                   "required": [
@@ -41062,6 +41871,59 @@
                                                                             "type": "integer",
                                                                             "minimum": 1,
                                                                             "maximum": 50
+                                                                          },
+                                                                          "reach": {
+                                                                            "type": "string",
+                                                                            "enum": [
+                                                                              "own",
+                                                                              "team"
+                                                                            ]
+                                                                          },
+                                                                          "sum": {
+                                                                            "maxItems": 4,
+                                                                            "type": "array",
+                                                                            "items": {
+                                                                              "type": "string",
+                                                                              "maxLength": 128
+                                                                            }
+                                                                          },
+                                                                          "by": {
+                                                                            "type": "string",
+                                                                            "enum": [
+                                                                              "owner"
+                                                                            ]
+                                                                          },
+                                                                          "target": {
+                                                                            "type": "object",
+                                                                            "properties": {
+                                                                              "table": {
+                                                                                "type": "string",
+                                                                                "maxLength": 200
+                                                                              },
+                                                                              "owner": {
+                                                                                "type": "string",
+                                                                                "maxLength": 128
+                                                                              },
+                                                                              "column": {
+                                                                                "type": "string",
+                                                                                "maxLength": 128
+                                                                              },
+                                                                              "year": {
+                                                                                "type": "string",
+                                                                                "maxLength": 128
+                                                                              },
+                                                                              "of": {
+                                                                                "type": "string",
+                                                                                "maxLength": 128
+                                                                              }
+                                                                            },
+                                                                            "required": [
+                                                                              "table",
+                                                                              "owner",
+                                                                              "column",
+                                                                              "of"
+                                                                            ],
+                                                                            "additionalProperties": false
                                                                           }
                                                                         },
                                                                         "required": [
@@ -42272,6 +43134,59 @@
                                                                             "type": "integer",
                                                                             "minimum": 1,
                                                                             "maximum": 50
+                                                                          },
+                                                                          "reach": {
+                                                                            "type": "string",
+                                                                            "enum": [
+                                                                              "own",
+                                                                              "team"
+                                                                            ]
+                                                                          },
+                                                                          "sum": {
+                                                                            "maxItems": 4,
+                                                                            "type": "array",
+                                                                            "items": {
+                                                                              "type": "string",
+                                                                              "maxLength": 128
+                                                                            }
+                                                                          },
+                                                                          "by": {
+                                                                            "type": "string",
+                                                                            "enum": [
+                                                                              "owner"
+                                                                            ]
+                                                                          },
+                                                                          "target": {
+                                                                            "type": "object",
+                                                                            "properties": {
+                                                                              "table": {
+                                                                                "type": "string",
+                                                                                "maxLength": 200
+                                                                              },
+                                                                              "owner": {
+                                                                                "type": "string",
+                                                                                "maxLength": 128
+                                                                              },
+                                                                              "column": {
+                                                                                "type": "string",
+                                                                                "maxLength": 128
+                                                                              },
+                                                                              "year": {
+                                                                                "type": "string",
+                                                                                "maxLength": 128
+                                                                              },
+                                                                              "of": {
+                                                                                "type": "string",
+                                                                                "maxLength": 128
+                                                                              }
+                                                                            },
+                                                                            "required": [
+                                                                              "table",
+                                                                              "owner",
+                                                                              "column",
+                                                                              "of"
+                                                                            ],
+                                                                            "additionalProperties": false
                                                                           }
                                                                         },
                                                                         "required": [
@@ -44291,6 +45206,58 @@
                                                     "type": "integer",
                                                     "minimum": 1,
                                                     "maximum": 50
+                                                  },
+                                                  "reach": {
+                                                    "type": "string",
+                                                    "enum": [
+                                                      "own",
+                                                      "team"
+                                                    ]
+                                                  },
+                                                  "sum": {
+                                                    "maxItems": 4,
+                                                    "type": "array",
+                                                    "items": {
+                                                      "type": "string",
+                                                      "maxLength": 128
+                                                    }
+                                                  },
+                                                  "by": {
+                                                    "type": "string",
+                                                    "enum": [
+                                                      "owner"
+                                                    ]
+                                                  },
+                                                  "target": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                      "table": {
+                                                        "type": "string",
+                                                        "maxLength": 200
+                                                      },
+                                                      "owner": {
+                                                        "type": "string",
+                                                        "maxLength": 128
+                                                      },
+                                                      "column": {
+                                                        "type": "string",
+                                                        "maxLength": 128
+                                                      },
+                                                      "year": {
+                                                        "type": "string",
+                                                        "maxLength": 128
+                                                      },
+                                                      "of": {
+                                                        "type": "string",
+                                                        "maxLength": 128
+                                                      }
+                                                    },
+                                                    "required": [
+                                                      "table",
+                                                      "owner",
+                                                      "column",
+                                                      "of"
+                                                    ]
                                                   }
                                                 },
                                                 "required": [
@@ -45574,6 +46541,58 @@
                                                                           "type": "integer",
                                                                           "minimum": 1,
                                                                           "maximum": 50
+                                                                        },
+                                                                        "reach": {
+                                                                          "type": "string",
+                                                                          "enum": [
+                                                                            "own",
+                                                                            "team"
+                                                                          ]
+                                                                        },
+                                                                        "sum": {
+                                                                          "maxItems": 4,
+                                                                          "type": "array",
+                                                                          "items": {
+                                                                            "type": "string",
+                                                                            "maxLength": 128
+                                                                          }
+                                                                        },
+                                                                        "by": {
+                                                                          "type": "string",
+                                                                          "enum": [
+                                                                            "owner"
+                                                                          ]
+                                                                        },
+                                                                        "target": {
+                                                                          "type": "object",
+                                                                          "properties": {
+                                                                            "table": {
+                                                                              "type": "string",
+                                                                              "maxLength": 200
+                                                                            },
+                                                                            "owner": {
+                                                                              "type": "string",
+                                                                              "maxLength": 128
+                                                                            },
+                                                                            "column": {
+                                                                              "type": "string",
+                                                                              "maxLength": 128
+                                                                            },
+                                                                            "year": {
+                                                                              "type": "string",
+                                                                              "maxLength": 128
+                                                                            },
+                                                                            "of": {
+                                                                              "type": "string",
+                                                                              "maxLength": 128
+                                                                            }
+                                                                          },
+                                                                          "required": [
+                                                                            "table",
+                                                                            "owner",
+                                                                            "column",
+                                                                            "of"
+                                                                          ]
                                                                         }
                                                                       },
                                                                       "required": [
@@ -46714,6 +47733,58 @@
                                                                           "type": "integer",
                                                                           "minimum": 1,
                                                                           "maximum": 50
+                                                                        },
+                                                                        "reach": {
+                                                                          "type": "string",
+                                                                          "enum": [
+                                                                            "own",
+                                                                            "team"
+                                                                          ]
+                                                                        },
+                                                                        "sum": {
+                                                                          "maxItems": 4,
+                                                                          "type": "array",
+                                                                          "items": {
+                                                                            "type": "string",
+                                                                            "maxLength": 128
+                                                                          }
+                                                                        },
+                                                                        "by": {
+                                                                          "type": "string",
+                                                                          "enum": [
+                                                                            "owner"
+                                                                          ]
+                                                                        },
+                                                                        "target": {
+                                                                          "type": "object",
+                                                                          "properties": {
+                                                                            "table": {
+                                                                              "type": "string",
+                                                                              "maxLength": 200
+                                                                            },
+                                                                            "owner": {
+                                                                              "type": "string",
+                                                                              "maxLength": 128
+                                                                            },
+                                                                            "column": {
+                                                                              "type": "string",
+                                                                              "maxLength": 128
+                                                                            },
+                                                                            "year": {
+                                                                              "type": "string",
+                                                                              "maxLength": 128
+                                                                            },
+                                                                            "of": {
+                                                                              "type": "string",
+                                                                              "maxLength": 128
+                                                                            }
+                                                                          },
+                                                                          "required": [
+                                                                            "table",
+                                                                            "owner",
+                                                                            "column",
+                                                                            "of"
+                                                                          ]
                                                                         }
                                                                       },
                                                                       "required": [
@@ -48632,6 +49703,59 @@
                                                       "type": "integer",
                                                       "minimum": 1,
                                                       "maximum": 50
+                                                    },
+                                                    "reach": {
+                                                      "type": "string",
+                                                      "enum": [
+                                                        "own",
+                                                        "team"
+                                                      ]
+                                                    },
+                                                    "sum": {
+                                                      "maxItems": 4,
+                                                      "type": "array",
+                                                      "items": {
+                                                        "type": "string",
+                                                        "maxLength": 128
+                                                      }
+                                                    },
+                                                    "by": {
+                                                      "type": "string",
+                                                      "enum": [
+                                                        "owner"
+                                                      ]
+                                                    },
+                                                    "target": {
+                                                      "type": "object",
+                                                      "properties": {
+                                                        "table": {
+                                                          "type": "string",
+                                                          "maxLength": 200
+                                                        },
+                                                        "owner": {
+                                                          "type": "string",
+                                                          "maxLength": 128
+                                                        },
+                                                        "column": {
+                                                          "type": "string",
+                                                          "maxLength": 128
+                                                        },
+                                                        "year": {
+                                                          "type": "string",
+                                                          "maxLength": 128
+                                                        },
+                                                        "of": {
+                                                          "type": "string",
+                                                          "maxLength": 128
+                                                        }
+                                                      },
+                                                      "required": [
+                                                        "table",
+                                                        "owner",
+                                                        "column",
+                                                        "of"
+                                                      ],
+                                                      "additionalProperties": false
                                                     }
                                                   },
                                                   "required": [
@@ -49991,6 +51115,59 @@
                                                                             "type": "integer",
                                                                             "minimum": 1,
                                                                             "maximum": 50
+                                                                          },
+                                                                          "reach": {
+                                                                            "type": "string",
+                                                                            "enum": [
+                                                                              "own",
+                                                                              "team"
+                                                                            ]
+                                                                          },
+                                                                          "sum": {
+                                                                            "maxItems": 4,
+                                                                            "type": "array",
+                                                                            "items": {
+                                                                              "type": "string",
+                                                                              "maxLength": 128
+                                                                            }
+                                                                          },
+                                                                          "by": {
+                                                                            "type": "string",
+                                                                            "enum": [
+                                                                              "owner"
+                                                                            ]
+                                                                          },
+                                                                          "target": {
+                                                                            "type": "object",
+                                                                            "properties": {
+                                                                              "table": {
+                                                                                "type": "string",
+                                                                                "maxLength": 200
+                                                                              },
+                                                                              "owner": {
+                                                                                "type": "string",
+                                                                                "maxLength": 128
+                                                                              },
+                                                                              "column": {
+                                                                                "type": "string",
+                                                                                "maxLength": 128
+                                                                              },
+                                                                              "year": {
+                                                                                "type": "string",
+                                                                                "maxLength": 128
+                                                                              },
+                                                                              "of": {
+                                                                                "type": "string",
+                                                                                "maxLength": 128
+                                                                              }
+                                                                            },
+                                                                            "required": [
+                                                                              "table",
+                                                                              "owner",
+                                                                              "column",
+                                                                              "of"
+                                                                            ],
+                                                                            "additionalProperties": false
                                                                           }
                                                                         },
                                                                         "required": [
@@ -51201,6 +52378,59 @@
                                                                             "type": "integer",
                                                                             "minimum": 1,
                                                                             "maximum": 50
+                                                                          },
+                                                                          "reach": {
+                                                                            "type": "string",
+                                                                            "enum": [
+                                                                              "own",
+                                                                              "team"
+                                                                            ]
+                                                                          },
+                                                                          "sum": {
+                                                                            "maxItems": 4,
+                                                                            "type": "array",
+                                                                            "items": {
+                                                                              "type": "string",
+                                                                              "maxLength": 128
+                                                                            }
+                                                                          },
+                                                                          "by": {
+                                                                            "type": "string",
+                                                                            "enum": [
+                                                                              "owner"
+                                                                            ]
+                                                                          },
+                                                                          "target": {
+                                                                            "type": "object",
+                                                                            "properties": {
+                                                                              "table": {
+                                                                                "type": "string",
+                                                                                "maxLength": 200
+                                                                              },
+                                                                              "owner": {
+                                                                                "type": "string",
+                                                                                "maxLength": 128
+                                                                              },
+                                                                              "column": {
+                                                                                "type": "string",
+                                                                                "maxLength": 128
+                                                                              },
+                                                                              "year": {
+                                                                                "type": "string",
+                                                                                "maxLength": 128
+                                                                              },
+                                                                              "of": {
+                                                                                "type": "string",
+                                                                                "maxLength": 128
+                                                                              }
+                                                                            },
+                                                                            "required": [
+                                                                              "table",
+                                                                              "owner",
+                                                                              "column",
+                                                                              "of"
+                                                                            ],
+                                                                            "additionalProperties": false
                                                                           }
                                                                         },
                                                                         "required": [
@@ -53349,6 +54579,59 @@
                                                       "type": "integer",
                                                       "minimum": 1,
                                                       "maximum": 50
+                                                    },
+                                                    "reach": {
+                                                      "type": "string",
+                                                      "enum": [
+                                                        "own",
+                                                        "team"
+                                                      ]
+                                                    },
+                                                    "sum": {
+                                                      "maxItems": 4,
+                                                      "type": "array",
+                                                      "items": {
+                                                        "type": "string",
+                                                        "maxLength": 128
+                                                      }
+                                                    },
+                                                    "by": {
+                                                      "type": "string",
+                                                      "enum": [
+                                                        "owner"
+                                                      ]
+                                                    },
+                                                    "target": {
+                                                      "type": "object",
+                                                      "properties": {
+                                                        "table": {
+                                                          "type": "string",
+                                                          "maxLength": 200
+                                                        },
+                                                        "owner": {
+                                                          "type": "string",
+                                                          "maxLength": 128
+                                                        },
+                                                        "column": {
+                                                          "type": "string",
+                                                          "maxLength": 128
+                                                        },
+                                                        "year": {
+                                                          "type": "string",
+                                                          "maxLength": 128
+                                                        },
+                                                        "of": {
+                                                          "type": "string",
+                                                          "maxLength": 128
+                                                        }
+                                                      },
+                                                      "required": [
+                                                        "table",
+                                                        "owner",
+                                                        "column",
+                                                        "of"
+                                                      ],
+                                                      "additionalProperties": false
                                                     }
                                                   },
                                                   "required": [
@@ -54708,6 +55991,59 @@
                                                                             "type": "integer",
                                                                             "minimum": 1,
                                                                             "maximum": 50
+                                                                          },
+                                                                          "reach": {
+                                                                            "type": "string",
+                                                                            "enum": [
+                                                                              "own",
+                                                                              "team"
+                                                                            ]
+                                                                          },
+                                                                          "sum": {
+                                                                            "maxItems": 4,
+                                                                            "type": "array",
+                                                                            "items": {
+                                                                              "type": "string",
+                                                                              "maxLength": 128
+                                                                            }
+                                                                          },
+                                                                          "by": {
+                                                                            "type": "string",
+                                                                            "enum": [
+                                                                              "owner"
+                                                                            ]
+                                                                          },
+                                                                          "target": {
+                                                                            "type": "object",
+                                                                            "properties": {
+                                                                              "table": {
+                                                                                "type": "string",
+                                                                                "maxLength": 200
+                                                                              },
+                                                                              "owner": {
+                                                                                "type": "string",
+                                                                                "maxLength": 128
+                                                                              },
+                                                                              "column": {
+                                                                                "type": "string",
+                                                                                "maxLength": 128
+                                                                              },
+                                                                              "year": {
+                                                                                "type": "string",
+                                                                                "maxLength": 128
+                                                                              },
+                                                                              "of": {
+                                                                                "type": "string",
+                                                                                "maxLength": 128
+                                                                              }
+                                                                            },
+                                                                            "required": [
+                                                                              "table",
+                                                                              "owner",
+                                                                              "column",
+                                                                              "of"
+                                                                            ],
+                                                                            "additionalProperties": false
                                                                           }
                                                                         },
                                                                         "required": [
@@ -55918,6 +57254,59 @@
                                                                             "type": "integer",
                                                                             "minimum": 1,
                                                                             "maximum": 50
+                                                                          },
+                                                                          "reach": {
+                                                                            "type": "string",
+                                                                            "enum": [
+                                                                              "own",
+                                                                              "team"
+                                                                            ]
+                                                                          },
+                                                                          "sum": {
+                                                                            "maxItems": 4,
+                                                                            "type": "array",
+                                                                            "items": {
+                                                                              "type": "string",
+                                                                              "maxLength": 128
+                                                                            }
+                                                                          },
+                                                                          "by": {
+                                                                            "type": "string",
+                                                                            "enum": [
+                                                                              "owner"
+                                                                            ]
+                                                                          },
+                                                                          "target": {
+                                                                            "type": "object",
+                                                                            "properties": {
+                                                                              "table": {
+                                                                                "type": "string",
+                                                                                "maxLength": 200
+                                                                              },
+                                                                              "owner": {
+                                                                                "type": "string",
+                                                                                "maxLength": 128
+                                                                              },
+                                                                              "column": {
+                                                                                "type": "string",
+                                                                                "maxLength": 128
+                                                                              },
+                                                                              "year": {
+                                                                                "type": "string",
+                                                                                "maxLength": 128
+                                                                              },
+                                                                              "of": {
+                                                                                "type": "string",
+                                                                                "maxLength": 128
+                                                                              }
+                                                                            },
+                                                                            "required": [
+                                                                              "table",
+                                                                              "owner",
+                                                                              "column",
+                                                                              "of"
+                                                                            ],
+                                                                            "additionalProperties": false
                                                                           }
                                                                         },
                                                                         "required": [
@@ -57934,6 +59323,58 @@
                                                     "type": "integer",
                                                     "minimum": 1,
                                                     "maximum": 50
+                                                  },
+                                                  "reach": {
+                                                    "type": "string",
+                                                    "enum": [
+                                                      "own",
+                                                      "team"
+                                                    ]
+                                                  },
+                                                  "sum": {
+                                                    "maxItems": 4,
+                                                    "type": "array",
+                                                    "items": {
+                                                      "type": "string",
+                                                      "maxLength": 128
+                                                    }
+                                                  },
+                                                  "by": {
+                                                    "type": "string",
+                                                    "enum": [
+                                                      "owner"
+                                                    ]
+                                                  },
+                                                  "target": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                      "table": {
+                                                        "type": "string",
+                                                        "maxLength": 200
+                                                      },
+                                                      "owner": {
+                                                        "type": "string",
+                                                        "maxLength": 128
+                                                      },
+                                                      "column": {
+                                                        "type": "string",
+                                                        "maxLength": 128
+                                                      },
+                                                      "year": {
+                                                        "type": "string",
+                                                        "maxLength": 128
+                                                      },
+                                                      "of": {
+                                                        "type": "string",
+                                                        "maxLength": 128
+                                                      }
+                                                    },
+                                                    "required": [
+                                                      "table",
+                                                      "owner",
+                                                      "column",
+                                                      "of"
+                                                    ]
                                                   }
                                                 },
                                                 "required": [
@@ -59217,6 +60658,58 @@
                                                                           "type": "integer",
                                                                           "minimum": 1,
                                                                           "maximum": 50
+                                                                        },
+                                                                        "reach": {
+                                                                          "type": "string",
+                                                                          "enum": [
+                                                                            "own",
+                                                                            "team"
+                                                                          ]
+                                                                        },
+                                                                        "sum": {
+                                                                          "maxItems": 4,
+                                                                          "type": "array",
+                                                                          "items": {
+                                                                            "type": "string",
+                                                                            "maxLength": 128
+                                                                          }
+                                                                        },
+                                                                        "by": {
+                                                                          "type": "string",
+                                                                          "enum": [
+                                                                            "owner"
+                                                                          ]
+                                                                        },
+                                                                        "target": {
+                                                                          "type": "object",
+                                                                          "properties": {
+                                                                            "table": {
+                                                                              "type": "string",
+                                                                              "maxLength": 200
+                                                                            },
+                                                                            "owner": {
+                                                                              "type": "string",
+                                                                              "maxLength": 128
+                                                                            },
+                                                                            "column": {
+                                                                              "type": "string",
+                                                                              "maxLength": 128
+                                                                            },
+                                                                            "year": {
+                                                                              "type": "string",
+                                                                              "maxLength": 128
+                                                                            },
+                                                                            "of": {
+                                                                              "type": "string",
+                                                                              "maxLength": 128
+                                                                            }
+                                                                          },
+                                                                          "required": [
+                                                                            "table",
+                                                                            "owner",
+                                                                            "column",
+                                                                            "of"
+                                                                          ]
                                                                         }
                                                                       },
                                                                       "required": [
@@ -60357,6 +61850,58 @@
                                                                           "type": "integer",
                                                                           "minimum": 1,
                                                                           "maximum": 50
+                                                                        },
+                                                                        "reach": {
+                                                                          "type": "string",
+                                                                          "enum": [
+                                                                            "own",
+                                                                            "team"
+                                                                          ]
+                                                                        },
+                                                                        "sum": {
+                                                                          "maxItems": 4,
+                                                                          "type": "array",
+                                                                          "items": {
+                                                                            "type": "string",
+                                                                            "maxLength": 128
+                                                                          }
+                                                                        },
+                                                                        "by": {
+                                                                          "type": "string",
+                                                                          "enum": [
+                                                                            "owner"
+                                                                          ]
+                                                                        },
+                                                                        "target": {
+                                                                          "type": "object",
+                                                                          "properties": {
+                                                                            "table": {
+                                                                              "type": "string",
+                                                                              "maxLength": 200
+                                                                            },
+                                                                            "owner": {
+                                                                              "type": "string",
+                                                                              "maxLength": 128
+                                                                            },
+                                                                            "column": {
+                                                                              "type": "string",
+                                                                              "maxLength": 128
+                                                                            },
+                                                                            "year": {
+                                                                              "type": "string",
+                                                                              "maxLength": 128
+                                                                            },
+                                                                            "of": {
+                                                                              "type": "string",
+                                                                              "maxLength": 128
+                                                                            }
+                                                                          },
+                                                                          "required": [
+                                                                            "table",
+                                                                            "owner",
+                                                                            "column",
+                                                                            "of"
+                                                                          ]
                                                                         }
                                                                       },
                                                                       "required": [
@@ -61958,6 +63503,15 @@
             },
             "in": "query",
             "name": "q",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]{0,62}$"
+            },
+            "in": "query",
+            "name": "app",
             "required": false
           }
         ],
@@ -88502,6 +90056,26 @@
                                         },
                                         "pageSlug": {
                                           "type": "string"
+                                        },
+                                        "opens": {
+                                          "type": "object",
+                                          "properties": {
+                                            "appKey": {
+                                              "type": "string"
+                                            },
+                                            "path": {
+                                              "type": "string"
+                                            },
+                                            "url": {
+                                              "type": "string"
+                                            }
+                                          },
+                                          "required": [
+                                            "appKey",
+                                            "path",
+                                            "url"
+                                          ],
+                                          "additionalProperties": false
                                         }
                                       },
                                       "required": [

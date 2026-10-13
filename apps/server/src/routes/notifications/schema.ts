@@ -19,7 +19,19 @@ export const notificationView = z.object({
   body: z.string().nullable(),
   /** Kind-specific substitutions the client localizes at render time. */
   entity: z.record(z.string(), z.unknown()).nullable(),
+  /**
+   * Where the notice opens. For a notice about a record whose app gives it a
+   * screen of its own, and a reader whose roles open that app's staff side,
+   * this is that screen's address on this server; for everybody else the link
+   * the notice was written with (the dashboard's record page).
+   */
   actionUrl: z.string().nullable(),
+  /**
+   * Set with an `actionUrl` that is an app's own screen: the app, and the
+   * address under its staff side (`/deals/12`), so the app's screens can go
+   * there in place.
+   */
+  opens: z.object({ appKey: z.string(), path: z.string() }).optional(),
   readAt: z.number().nullable(),
   createdAt: z.number(),
 });

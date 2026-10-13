@@ -486,6 +486,11 @@
     "removeSection": "Fjern denne sektion",
     "addSection": "Tilføj en sektion",
     "sendEmpty": "Send også, når der intet er at vise",
-    "sendEmptyBody": "Fra: en person uden rækker i nogen sektion får ingen e-mail"
+    "sendEmptyBody": "Fra: en person uden rækker i nogen sektion får ingen e-mail",
+    "readAt": "Tallene er aflæst {when}."
+  },
+  "appFilter": {
+    "note": "Kun reglerne fra {app} vises.",
+    "clear": "Vis alle regler"
   }
 }

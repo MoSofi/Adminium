@@ -66,8 +66,12 @@ export interface CommandPaletteHostProps {
   onShowShortcuts: () => void;
   /** An app's screen: in the dashboard (`/a/<key>/<path>`), or its own address in a new tab. */
   onOpenApp?: (target: { appKey: string; path: string } | { url: string }) => void;
+  /** An address the server wrote: the dashboard's own in place, an app's own address as a document (`app/openHref.ts`). */
+  onOpenHref?: (href: string) => void;
 }
 
+/** An address the server wrote: `href:<what it is> <address>` (an entry of an app's section, a record's own screen in its app). */
+const HREF_ID_PREFIX = 'href:';
 /** An external app's screen: `app-screen:<appKey>/<screen id> <url>`. */
 const APP_SCREEN_ID_PREFIX = 'app-screen:';
 
@@ -94,6 +98,7 @@ export function CommandPaletteHost({
   onSignOut,
   onShowShortcuts,
   onOpenApp,
+  onOpenHref,
 }: CommandPaletteHostProps) {
   // The palette's words load with it, when it is first opened, not with the first paint.
   useCommonWords();
@@ -197,9 +202,20 @@ export function CommandPaletteHost({
      */
     const appItems: CommandItem[] = appSectionsOf(bootstrap).flatMap((section) => {
       const pages = section.groups.flatMap((group) =>
-        // Pages opened by their slug; an add-on's page of its own code is reached from the rail.
+        // Pages opened by their slug; an add-on's page of its own code is reached from the rail. A page its app keeps
+        // off the sidebar is listed here like the rest: the section lists only what this person may view.
         group.items.filter((item) => item.addOnPage === undefined).map((item): CommandItem => {
           const Icon = lucideByName(item.icon);
+          // An entry that is not a page: the address the server wrote for it.
+          if (item.link !== undefined) {
+            return {
+              id: `${HREF_ID_PREFIX}${section.appKey}/${item.pageId} ${item.link.href}`,
+              label: item.fallback,
+              description: section.label,
+              icon: item.link.document ? <ExternalLink className="rtl:-scale-x-100" /> : <Icon />,
+              keywords: [section.label],
+            };
+          }
           return {
             id: `nav:${item.slug}`,
             label: t(item.labelKey, item.fallback),
@@ -286,7 +302,8 @@ export function CommandPaletteHost({
               },
             ]
           : records.hits.map((hit) => ({
-              id: `${RECORD_ID_PREFIX}${hit.pageSlug} ${hit.recordId}`,
+              // A record with a screen of its own in its app opens there; the id keeps two hits at one address apart.
+              id: hit.opens === undefined ? `${RECORD_ID_PREFIX}${hit.pageSlug} ${hit.recordId}` : `${HREF_ID_PREFIX}${hit.table}/${hit.recordId} ${hit.opens.url}`,
               label: hit.label,
               // The muted subtitle.
               ...(hit.context === undefined ? {} : { description: hit.context }),
@@ -310,6 +327,9 @@ export function CommandPaletteHost({
       onShowShortcuts();
     } else if (item.id.startsWith('nav:')) {
       onNavigate(item.id.slice('nav:'.length));
+    } else if (item.id.startsWith(HREF_ID_PREFIX)) {
+      // `<what> <address>`: the address is the last word (an address holds no space).
+      onOpenHref?.(item.id.slice(item.id.lastIndexOf(' ') + 1));
     } else if (item.id.startsWith(APP_SCREEN_ID_PREFIX)) {
       // `<appKey>/<screen id> <url>` — the id keeps two screens at one URL apart.
       const rest = item.id.slice(APP_SCREEN_ID_PREFIX.length);

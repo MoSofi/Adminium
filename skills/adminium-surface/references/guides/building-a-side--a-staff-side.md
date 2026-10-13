@@ -73,3 +73,12 @@ See [App roles and staff access](https://docs.adminium.dev/guides/apps/roles-and
 page, `"done"` is the page at `/done`. It is added to wherever the side is opened, so it never
 starts with `/`. `icon` is a [Lucide](https://lucide.dev) icon name. Each entry needs a page at
 its address: see [Pages and their addresses](https://docs.adminium.dev/guides/apps/building-a-side/#pages-and-their-addresses).
+
+The app's section of the sidebar is the manifest's to shape too. A generated page that the staff
+side replaces can be [kept off the sidebar](https://docs.adminium.dev/reference/manifest/#a-page-kept-off-the-sidebar)
+(`"offRail": true` in its `nav`): it still opens by its address and is still found by search, for
+whoever may view it. An entry that is not a page ([`navLinks`](https://docs.adminium.dev/reference/manifest/#navlinks))
+opens a screen of the staff side, or the dashboard's Automations or Emails showing only what the
+app brought, or the app's own settings. And a table's records can open on the staff side wherever
+Adminium links to one, a notice, its email, a search hit: see
+[Where a record opens](https://docs.adminium.dev/reference/manifest/#where-a-record-opens).

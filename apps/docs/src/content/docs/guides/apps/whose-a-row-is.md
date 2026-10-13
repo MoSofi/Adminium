@@ -164,6 +164,10 @@ when it does.
 - **Rules run as the system.** A rule, its notices, emails and webhooks are not held to a
   person's rows: whoever writes a rule decides who is told what. To save, switch on, copy or
   test a rule on a table, its author must reach every row of that table.
+- **A summary is the exception: it is read as its reader.** A rule's `digest` step reads each
+  section through the row limit and the columns of the person it writes to, when it is sent: their
+  own rows, or theirs and those of the people they lead, with every sum and target the same. See
+  [a summary for each person](/reference/manifest/#a-summary-for-each-person).
 - **A stored total is every row's.** A count or a sum kept on a parent row is written whole. An
   app's manifest is refused if it keeps such a total where a role reads only some of the rows
   it adds up; the app works the figure out when it is read instead.

@@ -372,17 +372,23 @@ export function emailTemplatesRoutes(deps: EmailTemplatesRoutesDeps): FastifyPlu
       { schema: { querystring: emailDocumentsListQuery, response: { 200: emailDocumentsListReply } } },
       async (request) => {
         requireUserId(request);
-        const { kind, archived, q } = request.query;
-        const rows = await templates.list({ kind, archived: archived ?? false, q });
+        const { kind, archived, q, app: appKey } = request.query;
+        // One app's documents: a cut of the rows the list answers anyway, made after the read, so it can only narrow.
+        const ofApp = (list: EmailTemplate[]): EmailTemplate[] => (appKey === undefined ? list : list.filter((row) => row.managedBy === appKey));
+        const rows = ofApp(await templates.list({ kind, archived: archived ?? false, q }));
         // Topic labels come from the whole family, not the filtered page: a
         // search that matches only the German variant still labels the topic
         // with the English name.
-        const familyRows = q === undefined || q === '' ? rows : await templates.list({ kind, archived: archived ?? false });
+        const familyRows = q === undefined || q === '' ? rows : ofApp(await templates.list({ kind, archived: archived ?? false }));
         const labels = topicLabels(familyRows);
         const latest = await runs.latestByTemplates(rows.filter((r) => r.kind === 'campaign').map((r) => r.id));
         const items = [];
         for (const row of rows) items.push(await summaryOf(row, labels, latest));
-        return { items, counts: await templates.counts(archived ?? false) };
+        if (appKey === undefined) return { items, counts: await templates.counts(archived ?? false) };
+        // The badges count the same cut: this app's documents of each kind, and its archived ones.
+        const shown = ofApp(await templates.list({ archived: archived ?? false }));
+        const gone = archived === true ? shown : ofApp(await templates.list({ archived: true }));
+        return { items, counts: { template: shown.filter((row) => row.kind === 'template').length, campaign: shown.filter((row) => row.kind === 'campaign').length, archived: gone.length } };
       },
     );
 

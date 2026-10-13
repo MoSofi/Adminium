@@ -81,6 +81,22 @@ export const bootstrapNavItem = z.object({
    * empty.
    */
   addOnPage: z.object({ key: z.string(), ref: z.string() }).optional(),
+  /**
+   * The page is kept off the sidebar by its app (`nav.offRail`). It travels
+   * with the section all the same, to the people who may view it: it opens by
+   * its address, and the palette, the record links and the import targets
+   * that read the section still find it. Only the sidebar leaves it out.
+   */
+  offRail: z.literal(true).optional(),
+  /**
+   * Set on an entry of an app's section that is not a page (`navLinks`):
+   * where it opens. `pageId` is then `link:<ref>` and `slug` is empty. The
+   * address is the server's own, never the manifest's: a dashboard screen
+   * narrowed to the app, or the app's staff side. `document` says the address
+   * is not the dashboard's to draw (a staff side on its own address): it is
+   * opened as a new document.
+   */
+  link: z.object({ href: z.string(), document: z.boolean() }).optional(),
 });
 export type BootstrapNavItem = z.infer<typeof bootstrapNavItem>;
 

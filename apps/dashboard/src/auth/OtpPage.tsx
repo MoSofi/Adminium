@@ -13,6 +13,7 @@ import { t } from '../i18n/t.js';
 import { useBranding } from '../shell/BrandMark.js';
 import { AuthScreenLayout } from './AuthScreenLayout.js';
 import { clearChallenge, readChallenge, verify2fa } from './authApi.js';
+import { nextTarget } from './nextTarget.js';
 import { StaffHandover } from './StaffHandover.js';
 
 export function OtpPage() {
@@ -60,9 +61,10 @@ export function OtpPage() {
               router.options.context.queryClient.clear();
               // The surface gate's target needs a DOCUMENT navigation — same
               // rule as LoginPage.finish, same path-only guard.
-              if (challenge.next !== null) {
+              const target = nextTarget(challenge.next, surface !== undefined);
+              if (target !== null) {
                 setOpening(user.name);
-                window.location.assign(challenge.next);
+                window.location.assign(target);
                 return;
               }
               // Runtime string target — go through history, not typed links.

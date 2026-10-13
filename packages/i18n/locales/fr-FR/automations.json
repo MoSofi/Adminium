@@ -486,6 +486,11 @@
     "removeSection": "Supprimer cette section",
     "addSection": "Ajouter une section",
     "sendEmpty": "Envoyer même s’il n’y a rien à lister",
-    "sendEmptyBody": "Désactivé : une personne sans aucune ligne dans aucune section ne reçoit pas d’e-mail"
+    "sendEmptyBody": "Désactivé : une personne sans aucune ligne dans aucune section ne reçoit pas d’e-mail",
+    "readAt": "Chiffres relevés le {when}."
+  },
+  "appFilter": {
+    "note": "Seules les règles de {app} sont affichées.",
+    "clear": "Afficher toutes les règles"
   }
 }

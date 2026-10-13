@@ -11,7 +11,7 @@
  * live without reload.
  */
 import { useQuery, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
-import { Outlet, useNavigate, useRouterState } from '@tanstack/react-router';
+import { Outlet, useNavigate, useRouter, useRouterState } from '@tanstack/react-router';
 import { WifiOff } from 'lucide-react';
 import { Suspense, lazy, useEffect, useMemo, useState } from 'react';
 import { useCommandK, useTheme, useThemePrefs } from '@adminium/ui';
@@ -19,6 +19,7 @@ import { useCommandK, useTheme, useThemePrefs } from '@adminium/ui';
 import { invalidateForRealtimeEvent, resyncConfigOnConnect } from '../api/realtime.js';
 import { bootstrapQuery, findPageBySlug, flattenNav, holdsSystemAction } from '../app/bootstrap.js';
 import { systemInfoQuery } from '../app/capabilities.js';
+import { openHref } from '../app/openHref.js';
 import { pushRecent } from '../app/palette/recent.js';
 import { gChordTargets } from '../app/shortcuts.js';
 import { createRealtimeClient } from '../app/ws.js';
@@ -66,6 +67,7 @@ const DesktopUpdateToaster = lazy(async () => ({ default: (await import('../desk
 export function AppShell() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const router = useRouter();
   const { data: bootstrap } = useSuspenseQuery(bootstrapQuery());
   // A cached read the capabilities provider already made: no second request.
   const designMode = useQuery(systemInfoQuery()).data?.designer?.mode === 'local';
@@ -361,6 +363,7 @@ export function AppShell() {
             }
             onSignOut={signOut}
             onShowShortcuts={() => setShortcutsOpen(true)}
+            onOpenHref={(href) => openHref(href, (path) => router.history.push(path))}
             onOpenApp={(target) => {
               if ('url' in target) window.open(target.url, '_blank', 'noopener');
               else void navigate({ to: '/a/$appKey/$', params: { appKey: target.appKey, _splat: target.path } });

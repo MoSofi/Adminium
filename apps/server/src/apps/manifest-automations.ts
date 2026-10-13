@@ -93,7 +93,18 @@ function boundNode(node: unknown, b: Binding): unknown {
   }
   if (action.kind === 'digest') {
     const to = action['to'] as { roles: string[] };
-    const sections = action['sections'] as { key: string; table: string; owner: string; where?: ManifestCondition[]; orderBy?: { column: string; dir?: 'asc' | 'desc' }; limit?: number }[];
+    const sections = action['sections'] as {
+      key: string;
+      table: string;
+      owner: string;
+      where?: ManifestCondition[];
+      orderBy?: { column: string; dir?: 'asc' | 'desc' };
+      limit?: number;
+      reach?: 'own' | 'team';
+      sum?: string[];
+      by?: 'owner';
+      target?: { table: string; owner: string; column: string; year?: string; of: string };
+    }[];
     return {
       ...base,
       action: {
@@ -107,6 +118,10 @@ function boundNode(node: unknown, b: Binding): unknown {
           where: (section.where ?? []).map((condition) => boundCondition(condition, b)),
           orderBy: section.orderBy === undefined ? null : { column: section.orderBy.column, dir: section.orderBy.dir ?? 'asc' },
           limit: section.limit ?? 20,
+          ...(section.reach === undefined ? {} : { reach: section.reach }),
+          ...(section.sum === undefined ? {} : { sum: section.sum }),
+          ...(section.by === undefined ? {} : { by: section.by }),
+          ...(section.target === undefined ? {} : { target: { ...section.target, table: b.realId(section.target.table) } }),
         })),
         sendEmpty: action['sendEmpty'] === true,
       },

@@ -4,6 +4,8 @@
 
 | File | What it covers | Bytes |
 |---|---|---|
+| `references/manifest/automations--a-summary-for-each-person.md` | Automations — A summary for each person | 6901 |
+| `references/manifest/automations--a-row-a-step-makes.md` | Automations — A row a step makes | 2591 |
 | `references/manifest/sample-data.md` | Sample data | 975 |
 | `references/manifest/sample-data--sample-people.md` | Sample data — Sample people | 7697 |
 | `references/manifest/sample-data--sample-people-2.md` | Sample data — Sample people (part 2) | 2788 |

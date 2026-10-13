@@ -486,6 +486,11 @@
     "removeSection": "Diesen Abschnitt entfernen",
     "addSection": "Abschnitt hinzufügen",
     "sendEmpty": "Auch senden, wenn nichts aufzulisten ist",
-    "sendEmptyBody": "Aus: Wer in keinem Abschnitt eine Zeile hat, bekommt keine E-Mail"
+    "sendEmptyBody": "Aus: Wer in keinem Abschnitt eine Zeile hat, bekommt keine E-Mail",
+    "readAt": "Stand der Zahlen: {when}."
+  },
+  "appFilter": {
+    "note": "Es werden nur die Regeln von {app} angezeigt.",
+    "clear": "Alle Regeln anzeigen"
   }
 }

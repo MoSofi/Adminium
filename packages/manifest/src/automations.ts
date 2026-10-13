@@ -173,6 +173,10 @@ export const manifestActionSchema = z.discriminatedUnion('kind', [
    * Each section lists the rows of a table whose `owner` (a staff column) is
    * the person, that meet `where` and that the person may read; a block
    * `email.rows` of the template with `"section": "<key>"` draws it.
+   * `"reach": "team"` adds the rows of the people the person leads when it is
+   * sent; `sum` adds columns up over every such row; `"by": "owner"` lists a
+   * line a person; `target` measures a sum against those people's targets.
+   * Nothing in it is read further than the person's own roles reach.
    */
   z
     .object({
@@ -189,6 +193,14 @@ export const manifestActionSchema = z.discriminatedUnion('kind', [
               where: z.array(manifestConditionSchema).max(8).optional(),
               orderBy: z.object({ column: refSchema, dir: z.enum(['asc', 'desc']).optional() }).strict().optional(),
               limit: z.number().int().min(1).max(50).optional(),
+              /** `team`: the person's rows and those of the people they lead when it is sent. Never "all". */
+              reach: z.enum(['own', 'team']).optional(),
+              /** Number columns added up over every row of the section: `{{sum.<section>.<column>}}`. */
+              sum: z.array(refSchema).min(1).max(4).optional(),
+              /** One line a person (their name, how many, each sum) instead of one a row. */
+              by: z.literal('owner').optional(),
+              /** What the sum `of` is measured against: `column` of the rows of `table` whose `owner` names the same people. */
+              target: z.object({ table: refSchema, owner: refSchema, column: refSchema, year: refSchema.optional(), of: refSchema }).strict().optional(),
             })
             .strict(),
         )
@@ -305,8 +317,8 @@ export interface AutomationTemplateShape {
 
 /** What every rule's email can read whatever its record is. */
 export const RULE_EMAIL_VARS = ['now', 'ruleName', 'recordLabel', 'appName'] as const;
-/** What a summary's email can read: the person's name, and how many rows each section lists (`count.<section>`). */
-export const DIGEST_EMAIL_VARS = ['now', 'ruleName', 'appName', 'name'] as const;
+/** What a summary's email can read beside its sections' figures: the person's name, and when the figures were read (`readAt`). */
+export const DIGEST_EMAIL_VARS = ['now', 'ruleName', 'appName', 'name', 'readAt'] as const;
 
 /**
  * Every placeholder a template reads in one language, in the order it reads
@@ -520,6 +532,27 @@ export function automationIssues(m: {
             }
             (section.where ?? []).forEach((condition, c) => conditionIssues(of, condition, here('sections', s, 'where', c), true));
             if (section.orderBy !== undefined) column(of, section.orderBy.column, here('sections', s, 'orderBy', 'column'));
+            // A sum adds up numbers; the same column twice is one figure with two names.
+            (section.sum ?? []).forEach((ref, n) => {
+              const added = column(of, ref, here('sections', s, 'sum', n));
+              if (added !== undefined && !NUMBERS.includes(added.type)) out.push({ path: here('sections', s, 'sum', n), message: `"${section.table}.${ref}" is not a number column: a sum adds numbers up` });
+              if ((section.sum ?? []).indexOf(ref) !== n) out.push({ path: here('sections', s, 'sum', n), message: `"${ref}" is summed twice` });
+            });
+            // A line a person has no row to sort by.
+            if (section.by !== undefined && section.orderBy !== undefined) out.push({ path: here('sections', s, 'orderBy'), message: 'a section with one line a person ("by": "owner") is listed by name: it has no orderBy' });
+            if (section.target !== undefined) {
+              const target = section.target;
+              if (!(section.sum ?? []).includes(target.of)) out.push({ path: here('sections', s, 'target', 'of'), message: `"${target.of}" is not one of this section's sums ("sum")` });
+              const goals = tableAt(target.table, here('sections', s, 'target', 'table'));
+              const whose = column(goals, target.owner, here('sections', s, 'target', 'owner'));
+              if (whose !== undefined && whose.rules?.['staff'] !== true) out.push({ path: here('sections', s, 'target', 'owner'), message: `"${target.table}.${target.owner}" is not a staff column ("rules": { "staff": true }): a target is somebody's` });
+              const goal = column(goals, target.column, here('sections', s, 'target', 'column'));
+              if (goal !== undefined && !NUMBERS.includes(goal.type)) out.push({ path: here('sections', s, 'target', 'column'), message: `"${target.table}.${target.column}" is not a number column` });
+              if (target.year !== undefined) {
+                const year = column(goals, target.year, here('sections', s, 'target', 'year'));
+                if (year !== undefined && !['int', 'bigint'].includes(year.type)) out.push({ path: here('sections', s, 'target', 'year'), message: `"${target.table}.${target.year}" is not a whole-number column: it holds a calendar year` });
+              }
+            }
           });
           const template = templates.get(action.templateKey);
           if (template === undefined) {
@@ -537,8 +570,17 @@ export function automationIssues(m: {
                 return;
               }
               drawn.add(section);
+              const drawing = action.sections.find((one) => one.key === section)!;
+              // A line a person reads the person's name, how many rows, each sum, and the target with its cover.
+              if (drawing.by !== undefined) {
+                const lines = new Set(['row.owner', 'row.count', ...(drawing.sum ?? []).map((ref) => `row.sum.${ref}`), ...(drawing.target === undefined ? [] : ['row.target', 'row.cover'])]);
+                for (const name of placeholderNames([block.data?.['row']])) {
+                  if (name.startsWith('row.') && !lines.has(name)) out.push({ path: here('templateKey'), message: `"${action.templateKey}" (${locale}) reads {{${name}}} in the section "${section}", which lists one line a person: a line reads ${[...lines].map((one) => `{{${one}}}`).join(', ')}` });
+                }
+                return;
+              }
               // Each line reads the columns of its section's table: {{row.<column>}}, or a form of one ({{row.<column>.money}}).
-              const of = tables.get(action.sections.find((one) => one.key === section)!.table);
+              const of = tables.get(drawing.table);
               for (const name of placeholderNames([block.data?.['row']])) {
                 if (!name.startsWith('row.')) continue;
                 const ref = name.slice('row.'.length).split('.')[0] as string;
@@ -550,9 +592,18 @@ export function automationIssues(m: {
             for (const key of keys) {
               if (!drawn.has(key)) out.push({ path: here('sections'), message: `"${action.templateKey}" (${locale}) draws no rows block for the section "${key}"` });
             }
-            const unfilled = templateRequiredPlaceholdersOf(content).filter((name) => !(DIGEST_EMAIL_VARS as readonly string[]).includes(name) && !/^count\.[a-z][a-z0-9-]*$/.test(name));
+            // A section's own figures: how many rows, each sum. They are there for everybody who reads the section.
+            const figures = new Set(action.sections.flatMap((one) => [`count.${one.key}`, ...(one.sum ?? []).map((ref) => `sum.${one.key}.${ref}`)]));
+            // A target and its cover are there only for a person who has one: a template that reads either says what it writes without.
+            const sometimes = new Set(action.sections.flatMap((one) => (one.target === undefined ? [] : [`target.${one.key}`, `cover.${one.key}`])));
+            const required = templateRequiredPlaceholdersOf(content);
+            const unfilled = required.filter((name) => !(DIGEST_EMAIL_VARS as readonly string[]).includes(name) && !figures.has(name) && !sometimes.has(name));
             if (unfilled.length > 0) {
-              out.push({ path: here(), message: `"${action.templateKey}" (${locale}) reads ${unfilled.map((name) => `{{${name}}}`).join(', ')}, which a summary cannot fill: it fills {{name}}, {{appName}}, {{ruleName}}, {{now}} and {{count.<section>}}` });
+              out.push({ path: here(), message: `"${action.templateKey}" (${locale}) reads ${unfilled.map((name) => `{{${name}}}`).join(', ')}, which a summary cannot fill: it fills {{name}}, {{appName}}, {{ruleName}}, {{now}}, {{readAt}}, {{count.<section>}}, and {{sum.<section>.<column>}}, {{target.<section>}} and {{cover.<section>}} of a section that asks for them` });
+            }
+            const bare = required.filter((name) => sometimes.has(name));
+            if (bare.length > 0) {
+              out.push({ path: here(), message: `"${action.templateKey}" (${locale}) reads ${bare.map((name) => `{{${name}}}`).join(', ')} with nothing to write for a person who has no target: give it a backup ({{${bare[0]!}|none set}}), or tie its block to it with "showWhen"` });
             }
           }
           return;

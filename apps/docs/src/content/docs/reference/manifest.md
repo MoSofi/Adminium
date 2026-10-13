@@ -2097,7 +2097,7 @@ and appears in the app's own sidebar section.
 | `template` | yes | The page template; see below. |
 | `title` | yes | An i18n message. `fallback` is the English title. |
 | `titles` | no | The title in other languages, keyed by BCP 47 tag, each 1–120 characters. The sidebar shows the operator's language until the operator renames the page. |
-| `nav` | yes | `{ "group", "icon", "order" }`. `group` is 1–80 characters, `icon` a [Lucide](https://lucide.dev/icons/) icon name (1–60 characters), `order` an integer. |
+| `nav` | yes | `{ "group", "icon", "order", "offRail"? }`. `group` is 1–80 characters, `icon` a [Lucide](https://lucide.dev/icons/) icon name (1–60 characters), `order` an integer. `"offRail": true` keeps the page off the sidebar; see [A page kept off the sidebar](#a-page-kept-off-the-sidebar). |
 | `bindings` | no | Which of the app's tables the page reads: an object from a page-local name to a `requiredSchema` table ref. |
 | `config` | no | Page configuration: a `form` for a record page, a `layout` for `page-dashboard`, a `calendar` for `page-calendar`, a `board` for `page-board`. |
 | `feature` | no | The id of one of the app's [`addOns.features`](#add-ons). Until every add-on the feature requires is installed, attached to the app and switched on there, the page leaves the sidebar and is listed apart, with the add-ons it needs. |
@@ -2270,6 +2270,63 @@ integer `order`. A page whose `nav.group` is one of these keys is listed under t
 `nav.order`. A page whose group is not declared (an Overview, say) is listed first, with no
 heading.
 
+### A page kept off the sidebar
+
+An app with many tables has many pages, and its sidebar section need not list them all. A page
+whose `nav` says `"offRail": true` is left out of the sidebar and is a page in every other way:
+
+```json
+{ "ref": "crm-stages", "template": "page-crud", "title": { "key": "mft.crm.page.stages", "fallback": "Stages" },
+  "nav": { "group": "selling", "icon": "milestone", "order": 1, "offRail": true },
+  "bindings": { "rows": "stages" } }
+```
+
+It opens at its address (`/p/crm-stages`), a record of its table opens on it, and search, the
+command palette and the assistant's "where is" find it, for whoever may view it
+(`page:@crm-stages:view`). Somebody who may not view it finds it nowhere, as with any page: the
+key hides a page from the menu and from nobody's reach. A heading of the section whose every page
+is kept off the sidebar is not drawn. The only value is `true`; leave the key out for a page on
+the sidebar. An owner who edits the page keeps their edit and this key stays the app's to say.
+Needs Adminium 0.3.28.
+
+### navLinks
+
+`navLinks` adds entries to the app's sidebar section that are not pages. Up to 24. An entry does
+not write an address: it names one of a closed list of places, and Adminium writes the address.
+
+```json
+"navLinks": [
+  { "ref": "approvals", "label": { "en-US": "Approvals", "de-DE": "Freigaben" },
+    "nav": { "group": "selling", "icon": "badge-check", "order": 7 },
+    "to": { "side": "staff", "path": "/approvals" } },
+  { "ref": "rules", "label": { "en-US": "Rules" },
+    "nav": { "group": "setup", "icon": "workflow", "order": 1 },
+    "to": { "screen": "automations" } }
+]
+```
+
+| Field | Required | Rule |
+|---|---|---|
+| `ref` | yes | kebab-case, up to 60 characters, used once. |
+| `label` | yes | A keyed [label](#conventions) (must include `en-US`). Shown in the reader's language. |
+| `nav` | yes | `{ "group", "icon", "order" }`, as a page's: the entry sits among the pages of its group, in `order`. |
+| `to` | yes | Where it opens: `{ "screen": … }` or `{ "side": "staff", "path"? }`, below. |
+| `module` | no | The [part](#parts) of the app the entry belongs to. It leaves the sidebar while the part is off. |
+
+| `to` | Opens | Shown to |
+|---|---|---|
+| `{ "screen": "automations" }` | The dashboard's Automations, showing only the rules this app brought (`/automations?app=<key>`). | Whoever may manage automations. |
+| `{ "screen": "email-templates" }` | The dashboard's Emails, showing only the documents this app brought (`/email-templates?app=<key>`). | Whoever may manage settings. |
+| `{ "screen": "settings" }` | The app's own page in the console: its parts, its sample data, its add-ons. | Whoever may manage apps. |
+| `{ "side": "staff" }` | The app's staff side: its first screen, or the screen at `path`. Inside the dashboard for a side shown there, else on its own address in a new tab. | Whoever may open the staff side (`app:@:staff`), while the side is served. |
+
+`path` is a path under the side: `/` then plain segments (letters, digits, `.`, `_`, `~`, `-`),
+with no query, no `#` and no `..`. An entry is listed only to somebody who can open what it opens;
+nobody else is told it exists. The two narrowed screens show a line saying what is shown, with a
+way back to everything, and they only narrow: nobody sees a rule or an email there that the whole
+screen would not list for them. An entry to the staff side needs a `staff` frontend. Needs
+Adminium 0.3.28.
+
 ## Frontends
 
 `frontends` declares the app's own screens: a **staff** side, a **customer** side, a **mobile**
@@ -2295,6 +2352,44 @@ there and is not declared.
 | `routes` | no | The views this side owns, from a view name to a path. |
 | `placement` | no | Staff side only: `internal` opens the screens inside the dashboard, `external` on their own address (a till). The operator can change it. Absent means `internal`. |
 | `enabled` | no | Whether the side starts switched on. Absent means on. |
+| `records` | no | Staff side only: where a record opens on this side, from a table ref to a path with one `{id}`; see [Where a record opens](#where-a-record-opens). Needs Adminium 0.3.28. |
+
+### Where a record opens
+
+Adminium gives people links to records: a notice in the bell, the button of the notice's email, a
+search hit. Each opens the dashboard's record page. An app whose staff side has a screen of its
+own for a record says where, per table:
+
+```json
+{ "side": "staff", "kind": "spa", "entry": "index.html", "placement": "external",
+  "records": { "deals": "/deals/{id}", "quotes": "/quotes/{id}", "companies": "/companies/{id}" } }
+```
+
+Each key is one of the app's table refs. Each value is a path under the side: `/`, then plain
+segments (letters, digits, `.`, `_`, `~`, `-`), and `{id}` as one whole segment, exactly once. It
+has no query, no `#`, no `..` and no host: the address can only be a screen of this side. `{id}`
+is the record's key as the dashboard's record page takes it (a key of several columns is their
+values as a JSON list), written as one segment whatever it holds.
+
+Who gets the app's address is decided for each person. Somebody whose roles open the staff side
+(`app:@:staff`) gets it, while the app is on, the side is switched on and the table's part is on.
+Everybody else keeps the dashboard's record page. Then:
+
+- **A notice** (`GET /api/v1/me/notifications`) carries the address in `actionUrl`
+  (`/apps/<key>/staff/deals/12`; `/a/<key>/deals/12` for a side shown inside the dashboard) and
+  `opens: { "appKey", "path" }` with the path under the side (`/deals/12`), which the app's own
+  screens route on. It is asked again each time the list is read, so a role given or taken later
+  moves a notice already written.
+- **The notice's email** carries the same address in its button: on the host mapped to the staff
+  side when there is one, else under the server's public address.
+- **A search hit** (`GET /api/v1/search`) carries `opens: { "appKey", "path", "url" }`. A table
+  with an address is searched for somebody who reads it and opens the staff side, even with no
+  page of the dashboard to land on; `pageSlug` is then empty.
+
+Somebody who is signed out and follows the address is sent to sign in and brought back to it. The
+way back is followed only to a path of the same address, and on the dashboard's own address only
+into an app's screens. Only the staff side takes `records`. A table left out with its part takes
+its address with it.
 
 A `mobile` side is `{ "side": "mobile", "kind": "expo" }` and nothing more: it is a phone app in
 `apps/<key>/mobile/`, which Adminium serves to nobody and no package carries, so it has no entry,
@@ -3900,7 +3995,7 @@ A step's action is one of six:
 |---|---|---|
 | `notification` | `to: { "roles" }` or `to: { "column" }`, `title`, `body`?, `urgent`? | Tells everyone who holds one of the manifest's own roles, or [the person on the row](#the-person-on-the-row). `"urgent": true` tells them at once, also in their quiet hours. |
 | `email` | `templateKey`, `to: { "kind": "field", "column" }` or `to: { "kind": "staff", "column" }`, `vars`?, `replyTo: { "staff": column }`? | Sends one of the manifest's own templates to the address a column of the record holds, or to [the person on the row](#the-person-on-the-row). |
-| `digest` | `templateKey`, `to: { "roles" }`, `sections`, `sendEmpty`? | Makes [a summary for each person](#a-summary-for-each-person) who holds one of the roles: their own rows, read as they read. |
+| `digest` | `templateKey`, `to: { "roles" }`, `sections`, `sendEmpty`? | Makes [a summary for each person](#a-summary-for-each-person) who holds one of the roles: their own rows, or theirs and those of the people they lead, read as they read. |
 | `record.create` | `table`, `values`, `name`? | Adds a row of one of the manifest's tables. With a `name`, [the steps after it read the row it made](#a-row-a-step-makes). |
 | `record.update` | `values` | Writes columns of the record. |
 | `add-on.step` | `addOn`, `step`, `inputs` | Runs a [step an add-on gives](#steps-for-automations): the add-on's key, the step's key, and a text for each input. An add-on's own step is checked here; another add-on's is checked where the rule is installed, and fails by name while that add-on is not there. Needs `minAdminiumVersion` `0.3.22`. |
@@ -3966,9 +4061,77 @@ there are, also when the section lists fewer.
 
 The template draws each section with a rows block that names it, `{ "block": "email.rows",
 "data": { "section": "open", "row": { "title": "{{row.name}}" }, "empty": "…" } }`, and may read
-`{{name}}`, `{{appName}}`, `{{ruleName}}` and `{{count.<section>}}`. Up to 6 sections of up to 50
-rows. The validator refuses a section whose `owner` is not a staff column, a section no rows
-block draws, and a rows block that names no section.
+`{{name}}`, `{{appName}}`, `{{ruleName}}`, `{{readAt}}` and `{{count.<section>}}`. Up to 6 sections
+of up to 50 rows. The validator refuses a section whose `owner` is not a staff column, a section no
+rows block draws, and a rows block that names no section.
+
+#### A section of a team, with sums, a line a person and target cover
+
+Four more words on a section, each read from Adminium 0.3.28:
+
+```json
+{ "key": "reps", "table": "deals", "owner": "owner_id",
+  "reach": "team",
+  "where": [{ "left": { "field": "state" }, "op": "is", "right": "open" }],
+  "sum": ["amount", "weighted_value"],
+  "by": "owner",
+  "target": { "table": "targets", "owner": "rep_id", "column": "amount", "year": "year", "of": "weighted_value" } }
+```
+
+| Key | What it does |
+|---|---|
+| `"reach": "team"` | The rows whose `owner` is the person **or somebody they lead when the summary is sent** (the other members of every team they lead). Default `"own"`. There is no `"all"`: somebody whose role reads every row still gets their own, or their team's. Somebody who leads nobody gets their own. |
+| `"sum": [columns]` | Up to 4 number columns, each added up by the database over **every** row of the section, not over the rows it lists: `{{sum.<section>.<column>}}`, written as money where the column is money and as a number otherwise. A section with no row sums to 0. |
+| `"by": "owner"` | The section lists one line a person instead of one a row, by name: `{{row.owner}}` (their name in Adminium), `{{row.count}}`, `{{row.sum.<column>}}`, and with a `target`, `{{row.target}}` and `{{row.cover}}`. Such a section has no `orderBy`; `limit` is the most lines. |
+| `"target"` | What the sum `of` is measured against: `column` of the rows of `table` whose `owner` staff column names the same people. `year`, a whole-number column, keeps only the rows of the calendar year the business is in. Fills `{{target.<section>}}` and `{{cover.<section>}}` (the sum as a share of the target, a whole percentage), and each line's own. |
+
+**Everything is the reader's own reach or nothing.** Each figure is read through the same row limit
+and the same columns as a list the person opens: a sum is never of a row they could not open, a
+line never names somebody whose rows they do not reach, and a target is read through their reach
+of the targets' table (their own for a rep, their team's for a manager whose role reads the
+team's). A figure that cannot be answered for a person is **left out, never written as zero**:
+
+- a column their role does not show is not added up, and nothing is measured by it;
+- a section that chooses or sorts rows by a column their role does not show lists nothing and
+  counts nothing;
+- rows in more than one currency (a `currency` column) have no single sum;
+- a person with no target they reach has no `{{row.target}}` and no `{{row.cover}}`, and the
+  section has no `{{cover.<section>}}` while anybody whose rows are in its sum has none.
+
+So a template writes `{{target.<section>}}` and `{{cover.<section>}}` with a backup
+(`{{cover.reps|not set}}`) or in a block tied to them with `showWhen`: the validator refuses them
+bare. It also refuses a sum of a column that is not a number, a `target.of` that is not one of
+the section's sums, a `target.owner` that is not a staff column, and a line of a `"by": "owner"`
+section that reads a column of a row.
+
+#### When the figures were read, and "send me mine now"
+
+A summary may wait hours for the end of its reader's quiet hours. Every summary therefore says the
+moment its figures were read, in the reader's language and on the business's clock: where the
+template writes `{{readAt}}`, or as a last line ("Figures read on …") when it does not.
+
+A signed-in person asks for their own summary with `POST /api/v1/me/summaries/{ruleId}/send`
+(`GET /api/v1/me/summaries` lists the rules that make them one). It takes no body: the rule's own
+sections, read as that person at that moment, sent to their own address, also when nothing is in
+any section and also while the rule is switched off. Three an hour for each person and rule. A
+rule that is not there and a rule that writes to roles the person does not hold answer the same
+`404`.
+
+#### What a summary does not do
+
+- It never reads "all rows", and it has no section without an `owner` column: whose a row is in a
+  summary is that one staff column, not every way of the table's `belongs`. A rep who covers for a
+  colleague, or helps on a colleague's deal, reads those deals on the screen and does not get them
+  in their summary.
+- "The people they lead" is read when the summary is sent, not when the rule ran: somebody moved
+  out of a team, and a manager who stopped leading it, are out of the next summary.
+- It reads no private table, no column through a link, and no count of related rows.
+- It adds no two sections together and divides no sum by another: one sum, one target. A figure
+  made of two conditions (booked plus weighted) is a column of the table, or two figures.
+- A line a person has only people with a row in the section or a target; it sorts by name.
+- It keeps no copy: the job that makes it holds the rule's sections and the person's id, and the
+  mail's own job holds the mail sealed. A summary job cannot be queued by hand.
+- "This week" is still counted from when the rule ran, whatever hour the person reads it.
 
 ### A row a step makes
 

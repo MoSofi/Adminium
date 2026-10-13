@@ -69,6 +69,9 @@ export {
   shapeDefinitionIssues,
   capacitySchema,
   navGroupSchema,
+  navLinkSchema,
+  railPlaceSchema,
+  type NavLink,
   publicAccessSchema,
   publicKeysSchema,
   sampleDataSchema,
@@ -481,3 +484,14 @@ export {
   type ManifestNode,
   type ManifestTrigger,
 } from './automations.js';
+
+export {
+  NAV_LINK_SCREENS,
+  isRecordAddress,
+  isSidePath,
+  railIssues,
+  recordAddressOf,
+  staffRecordAddresses,
+  type NavLinkScreen,
+  type RailIssue,
+} from './rail.js';

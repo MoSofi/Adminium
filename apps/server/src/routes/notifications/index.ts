@@ -28,6 +28,7 @@ import {
   notificationSchedulesRepo,
 } from '@adminium/meta';
 
+import { noticePlaces, type RecordPlace } from '../../apps/record-address.js';
 import { isEmailConfigured } from '../../email/send.js';
 import { UnauthorizedError, ValidationFailedError } from '../../errors.js';
 import {
@@ -92,7 +93,7 @@ function requireUserId(request: FastifyRequest): string {
   return id;
 }
 
-function toView(row: Notification): NotificationView {
+function toView(row: Notification, place: RecordPlace | null = null): NotificationView {
   return {
     id: row.id,
     kind: row.kind,
@@ -100,7 +101,9 @@ function toView(row: Notification): NotificationView {
     title: row.title,
     body: row.body,
     entity: row.entity,
-    actionUrl: row.actionUrl,
+    // The app's own screen for the record, for a reader whose roles open it; else the link as written.
+    actionUrl: place === null ? row.actionUrl : place.url,
+    ...(place === null ? {} : { opens: { appKey: place.appKey, path: place.path } }),
     readAt: row.readAt,
     createdAt: row.createdAt,
   };
@@ -175,7 +178,10 @@ export function notificationsRoutes(deps: NotificationsRoutesDeps): FastifyPlugi
         const last = page[page.length - 1];
         return {
           data: {
-            items: page.map(toView),
+            // Asked for this reader, now: a role given or taken since the notice was written counts.
+            items: await noticePlaces(meta, userId, page.map((row) => row.entity))
+              .catch(() => page.map(() => null))
+              .then((places) => page.map((row, index) => toView(row, places[index] ?? null))),
             unreadCount: await notifications.unreadCount(userId),
             nextCursor:
               rows.length > limit && last !== undefined ? `${last.createdAt}:${last.id}` : null,

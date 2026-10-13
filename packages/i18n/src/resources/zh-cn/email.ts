@@ -902,5 +902,9 @@ export default {
     "otherwise": "否则显示",
     "otherwiseHint": "这些文字会替换整个区块。留空则不发送任何内容。",
     "leftOut": "没有值时，此区块不会出现在邮件中。"
+  },
+  "appFilter": {
+    "note": "仅显示 {app} 的邮件。",
+    "clear": "显示全部邮件"
   }
 } as const;

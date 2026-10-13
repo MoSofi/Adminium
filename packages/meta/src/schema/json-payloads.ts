@@ -1875,7 +1875,7 @@ const automationEmailRecipientSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('staff'), column: z.string().max(260) }),
 ]);
 
-/** One section of a summary: the rows of a table whose `owner` is the person written to. */
+/** One section of a summary: the rows of a table whose `owner` is the person written to, or one of the people they lead. */
 export const automationDigestSectionSchema = z.object({
   key: z.string().regex(/^[a-z][a-z0-9-]{0,39}$/),
   table: z.string().max(200),
@@ -1884,6 +1884,33 @@ export const automationDigestSectionSchema = z.object({
   where: z.array(automationConditionSchema).max(8).default([]),
   orderBy: z.object({ column: z.string().max(128), dir: z.enum(['asc', 'desc']).default('asc') }).nullable().default(null),
   limit: z.number().int().min(1).max(50).default(20),
+  /**
+   * Whose rows: the person's own (the default), or `team`: theirs and those
+   * of the people they lead when the summary is sent. There is no "all": a
+   * summary never reads further than the person and the people they lead,
+   * and never further than their own roles reach either.
+   */
+  reach: z.enum(['own', 'team']).optional(),
+  /** Columns added up over EVERY row of the section, not over the rows it lists: `{{sum.<section>.<column>}}`. */
+  sum: z.array(z.string().max(128)).max(4).optional(),
+  /** One line a person instead of one a row: their name, how many rows, each sum. */
+  by: z.literal('owner').optional(),
+  /**
+   * What one of the sums is measured against: the `column` of the rows of
+   * `table` whose `owner` staff column names the same people, read as the
+   * recipient reads that table. `year`: a whole-number column that holds the
+   * calendar year, of which only this year's rows count.
+   */
+  target: z
+    .object({
+      table: z.string().max(200),
+      owner: z.string().max(128),
+      column: z.string().max(128),
+      year: z.string().max(128).optional(),
+      /** Which of the section's sums is divided by it. */
+      of: z.string().max(128),
+    })
+    .optional(),
 });
 export type AutomationDigestSection = z.infer<typeof automationDigestSectionSchema>;
 

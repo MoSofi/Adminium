@@ -157,6 +157,9 @@ export interface ResolveContext {
  */
 const NO_RECORD_REMEDY = 'Give the schedule a table, or trigger the rule on a record.';
 
+/** What a summary's section may add up. */
+const SUMMED_TYPES: ReadonlySet<string> = new Set(['integer', 'bigint', 'decimal', 'float']);
+
 function tableOrThrow(ctx: ResolveContext, id: string, where: string): ResolvedTable {
   if (ctx.view === null) {
     throw new ValidationFailedError(`${where} names a table but the rule has no connection.`, {
@@ -341,6 +344,29 @@ function checkAction(
         }
         if (section.orderBy !== null && readColumn(of, section.orderBy.column, where) === undefined) {
           throw new ValidationFailedError(`${where}: ${of.id} has no column ${section.orderBy.column}.`, { column: section.orderBy.column });
+        }
+        // A figure is the author's to ask for only over what the author reads; each reader is then judged again, as themselves.
+        const number = (table: ResolvedTable, name: string): void => {
+          const column = readColumn(table, name, where);
+          if (column === undefined) throw new ValidationFailedError(`${where}: ${table.id} has no column ${name}.`, { column: name });
+          if (!SUMMED_TYPES.has(column.logicalType)) throw new ValidationFailedError(`${where}: ${table.id}.${name} is not a number, so it cannot be added up.`, { column: name, reason: 'not-a-number' });
+        };
+        for (const name of section.sum ?? []) number(of, name);
+        if (section.by !== undefined && section.orderBy !== null) {
+          throw new ValidationFailedError(`${where}: the section "${section.key}" lists one line a person, by name: it has no order of its own.`, { section: section.key });
+        }
+        if (section.target !== undefined) {
+          const target = section.target;
+          if (!(section.sum ?? []).includes(target.of)) throw new ValidationFailedError(`${where}: the section "${section.key}" measures ${target.of} against a target, and does not add ${target.of} up.`, { column: target.of });
+          const goals = tableOrThrow(ctx, target.table, `${where}, section "${section.key}"`);
+          if (readColumn(goals, target.owner, where) === undefined || goals.table.columns.find((column) => column.name === target.owner)?.staff !== true) {
+            throw new ValidationFailedError(`${where}: ${goals.id}.${target.owner} does not hold a staff member, so a target cannot be somebody's by it.`, { column: target.owner, reason: 'not-staff' });
+          }
+          number(goals, target.column);
+          if (target.year !== undefined) {
+            const year = readColumn(goals, target.year, where);
+            if (year === undefined || (year.logicalType !== 'integer' && year.logicalType !== 'bigint')) throw new ValidationFailedError(`${where}: ${goals.id}.${target.year} is not a whole number, so it cannot hold a year.`, { column: target.year });
+          }
         }
       }
       return;

@@ -7,7 +7,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { installFloorWords, validateManifest } from '../src/index.js';
+import { installFloorWords, validateManifest, WORD_FLOORS } from '../src/index.js';
 
 const en = (text: string) => ({ 'en-US': text });
 const id = { ref: 'id', type: 'int', role: 'pk' };
@@ -49,11 +49,13 @@ function sales(): Record<string, unknown> {
         },
         { ref: 'follow_ups', columns: [id, { ref: 'deal_id', type: 'fk', references: 'deals' }, { ref: 'note', type: 'text', maxLength: 200, nullable: true }] },
         { ref: 'enquiries', columns: [id, { ref: 'name', type: 'text', maxLength: 120 }] },
+        // What each rep is to book in a year: a summary measures a sum against it.
+        { ref: 'targets', belongs: [{ column: 'rep_id', set: 'team' }], columns: [id, { ref: 'rep_id', type: 'text', maxLength: 36, rules: { staff: true } }, { ref: 'year', type: 'int' }, { ref: 'amount', type: 'int' }] },
       ],
     },
     roles: [
       { key: 'rep', name: 'Rep', permissions: ['table:@deals:read', 'table:@deals:create', 'table:@deals:update', 'table:@follow_ups:read', 'page:@sales-deals:view'], limits: { deals: { rows: { read: { reach: 'own' }, update: { reach: 'own' } } } } },
-      { key: 'manager', name: 'Manager', permissions: ['table:@deals:read', 'table:@deals:update', 'page:@sales-deals:view'] },
+      { key: 'manager', name: 'Manager', permissions: ['table:@deals:read', 'table:@deals:update', 'table:@targets:read', 'page:@sales-deals:view'] },
       { key: 'clerk', name: 'Clerk', permissions: ['table:@enquiries:read', 'table:@enquiries:create'] },
     ],
     pages: [page('sales-deals', 'deals', 1), page('sales-enquiries', 'enquiries', 2)],
@@ -63,6 +65,11 @@ function sales(): Record<string, unknown> {
         { block: 'email.rows', id: 'rows-open', data: { section: 'open', row: { title: '{{row.name}}', amount: '{{row.amount}}' }, empty: 'Nothing is open.' } },
       ]),
       template('sales-won', '{{record.name}} is won', [{ block: 'email.text', data: { text: 'Well done on {{record.name}}.' } }]),
+      template('sales-team', 'The team, {{name}}', [
+        { block: 'email.text', data: { text: '{{count.team}} open, {{sum.team.amount}} in all. Target {{target.reps|none set}}, cover {{cover.reps|not worked out}}. Read {{readAt}}.' } },
+        { block: 'email.rows', id: 'rows-team', data: { section: 'team', row: { title: '{{row.name}}', amount: '{{row.amount}}' }, empty: 'Nothing is open.' } },
+        { block: 'email.rows', id: 'rows-reps', data: { section: 'reps', row: { title: '{{row.owner}}', meta: '{{row.count}} open', amount: '{{row.sum.amount}}', note: 'of {{row.target|no target}}: {{row.cover|no cover}}' }, empty: 'Nobody.' } },
+      ]),
     ],
     automations: [
       {
@@ -99,6 +106,24 @@ function sales(): Record<string, unknown> {
         enabled: true,
         trigger: { kind: 'schedule', schedule: { kind: 'interval', everyMinutes: '60' } },
         graph: flow(node('sum', { kind: 'digest', templateKey: 'sales-week', to: { roles: ['rep', 'manager'] }, sections: [{ key: 'open', table: 'deals', owner: 'owner_id', where: [{ left: { field: 'state' }, op: 'is', right: 'open' }], orderBy: { column: 'name' } }] })),
+      },
+      {
+        // Switched off: a manager asks for theirs, and nobody is written to by the clock.
+        key: 'weekly-team',
+        name: en('Each manager’s team'),
+        enabled: false,
+        trigger: { kind: 'schedule', schedule: { kind: 'weekly', dayOfWeek: 1, time: '07:00' } },
+        graph: flow(
+          node('sum', {
+            kind: 'digest',
+            templateKey: 'sales-team',
+            to: { roles: ['manager'] },
+            sections: [
+              { key: 'team', table: 'deals', owner: 'owner_id', reach: 'team', sum: ['amount'], where: [{ left: { field: 'state' }, op: 'is', right: 'open' }], orderBy: { column: 'name' } },
+              { key: 'reps', table: 'deals', owner: 'owner_id', reach: 'team', by: 'owner', sum: ['amount'], where: [{ left: { field: 'state' }, op: 'is', right: 'open' }], target: { table: 'targets', owner: 'rep_id', column: 'amount', year: 'year', of: 'amount' } },
+            ],
+          }),
+        ),
       },
       {
         key: 'enquiry-in',
@@ -154,6 +179,31 @@ describe('rules that tell the person on the row', () => {
     expect(renamed).toContain('draws no rows block for the section "mine"');
   });
 
+  it('holds a section of a team to the same words: a number summed, a line a person, a target that is somebody\'s', () => {
+    const words = new Set(installFloorWords(sales()).map((found) => found.word));
+    for (const word of ['digest.reach', 'digest.sum', 'digest.by', 'digest.target']) expect(words.has(word as never), word).toBe(true);
+    for (const word of ['digest.reach', 'digest.sum', 'digest.by', 'digest.target'] as const) expect(WORD_FLOORS[word]).toBe('0.3.28');
+    const section = (doc: Doc, n: number) => rule(doc, 'weekly-team').graph.nodes[1]!.action['sections'][n];
+    // There is no "all": a summary reads the person's rows, or theirs and their team's.
+    expect(changed((doc) => (section(doc, 0).reach = 'all'))).not.toBe('');
+    expect(changed((doc) => (section(doc, 0).sum = ['name']))).toContain('"deals.name" is not a number column: a sum adds numbers up');
+    expect(changed((doc) => (section(doc, 0).sum = ['nope']))).toContain('"deals" has no column "nope"');
+    expect(changed((doc) => (section(doc, 0).sum = ['amount', 'amount']))).toContain('"amount" is summed twice');
+    expect(changed((doc) => (section(doc, 1).orderBy = { column: 'name' }))).toContain('is listed by name: it has no orderBy');
+    expect(changed((doc) => (section(doc, 1).target.of = 'quiet'))).toContain('"quiet" is not one of this section\'s sums');
+    expect(changed((doc) => (section(doc, 1).target.owner = 'year'))).toContain('"targets.year" is not a staff column');
+    expect(changed((doc) => (section(doc, 1).target.column = 'rep_id'))).toContain('"targets.rep_id" is not a number column');
+    expect(changed((doc) => (section(doc, 1).target.year = 'rep_id'))).toContain('it holds a calendar year');
+    expect(changed((doc) => (section(doc, 1).target.table = 'goals'))).toContain('"goals" is not one of this manifest\'s tables');
+    // A line a person reads the person and their figures, never a column of some row.
+    const template = (doc: Doc) => (doc as unknown as { emailTemplates: { key: string; locales: Record<string, { blocks: { data: Record<string, any> }[] }> }[] }).emailTemplates.find((one) => one.key === 'sales-team')!.locales['en-US']!;
+    expect(changed((doc) => (template(doc).blocks[2]!.data['row'].title = '{{row.name}}'))).toContain('reads {{row.name}} in the section "reps", which lists one line a person');
+    // A sum nobody asked for is not filled; a target with nothing to say for a person who has none is refused.
+    expect(changed((doc) => (template(doc).blocks[0]!.data['text'] = '{{sum.team.quiet}}'))).toContain('reads {{sum.team.quiet}}, which a summary cannot fill');
+    expect(changed((doc) => (template(doc).blocks[0]!.data['text'] = 'Cover {{cover.reps}}'))).toContain('with nothing to write for a person who has no target');
+    expect(changed((doc) => (template(doc).blocks[0]!.data['text'] = 'Cover {{cover.team}}'))).toContain('reads {{cover.team}}, which a summary cannot fill');
+  });
+
   it('lets a step read only a row a step before it makes, by a column that row has', () => {
     expect(changed((doc) => (rule(doc, 'enquiry-in').graph.nodes[2]!.action['values'].name = 'Deal for {{steps.ghost.name}}'))).toContain('no earlier step makes a row called "ghost"');
     expect(changed((doc) => (rule(doc, 'enquiry-in').graph.nodes[2]!.action['values'].name = 'Deal for {{steps.contact.nope}}'))).toContain('"contacts" has no column "nope"');
@@ -161,7 +211,7 @@ describe('rules that tell the person on the row', () => {
   });
 
   it('sends a template through an outbox or by a rule\'s step, and says which one nothing sends', () => {
-    expect(changed((doc) => delete (doc as { automations?: unknown }).automations)).toContain('nothing sends "sales-week", "sales-won": this app declares no outbox');
+    expect(changed((doc) => delete (doc as { automations?: unknown }).automations)).toContain('nothing sends "sales-week", "sales-won", "sales-team": this app declares no outbox');
   });
 });
 

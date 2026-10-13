@@ -1835,6 +1835,14 @@
     "status": "mt",
     "srcHash": "ad871a1e5638"
   },
+  "automations.appFilter.clear": {
+    "status": "mt",
+    "srcHash": "7414450c8edc"
+  },
+  "automations.appFilter.note": {
+    "status": "mt",
+    "srcHash": "db09e432dec0"
+  },
   "automations.assistant.addedBy": {
     "status": "mt",
     "srcHash": "19b77b48a1ea"
@@ -1922,6 +1930,10 @@
   "automations.digest.owner": {
     "status": "mt",
     "srcHash": "d101fc0f2c90"
+  },
+  "automations.digest.readAt": {
+    "status": "mt",
+    "srcHash": "ffb4dfdfe034"
   },
   "automations.digest.removeSection": {
     "status": "mt",
@@ -13402,6 +13414,14 @@
   "email.actions.settings": {
     "status": "mt",
     "srcHash": "180dd66fda2f"
+  },
+  "email.appFilter.clear": {
+    "status": "mt",
+    "srcHash": "d0d4f01a8ea8"
+  },
+  "email.appFilter.note": {
+    "status": "mt",
+    "srcHash": "9ab1426d61c3"
   },
   "email.archivedChip.field": {
     "status": "mt",

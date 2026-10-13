@@ -13,6 +13,7 @@ import { t } from '../i18n/t.js';
 import { useBranding } from '../shell/BrandMark.js';
 import { AuthScreenLayout } from './AuthScreenLayout.js';
 import { login, storeChallenge } from './authApi.js';
+import { nextTarget } from './nextTarget.js';
 import { StaffHandover } from './StaffHandover.js';
 
 export function LoginPage() {
@@ -32,11 +33,13 @@ export function LoginPage() {
      * non-reserved path is served by the SERVER as the app surface, so
      * re-entering it must be a document navigation — a client-side push would
      * paint this SPA's shell over a URL it does not own. The router's
-     * validateSearch already pinned it to a path (never `//host`).
+     * validateSearch already pinned it to a path (never `//host`), and it is
+     * followed only into an app's own screens (auth/nextTarget.ts).
      */
-    if (next !== undefined) {
+    const target = nextTarget(next, surface !== undefined);
+    if (target !== null) {
       setOpening(userName);
-      window.location.assign(next);
+      window.location.assign(target);
       return;
     }
     // `returnTo` is a runtime string — go through history, not typed links.

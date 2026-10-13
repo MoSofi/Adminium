@@ -496,6 +496,11 @@ export default {
     "removeSection": "Remove this section",
     "addSection": "Add a section",
     "sendEmpty": "Send when there is nothing to list",
-    "sendEmptyBody": "Off: a person with no row in any section gets no email"
+    "sendEmptyBody": "Off: a person with no row in any section gets no email",
+    "readAt": "Figures read on {when}."
+  },
+  "appFilter": {
+    "note": "Only the rules of {app} are shown.",
+    "clear": "Show all rules"
   }
 } as const;

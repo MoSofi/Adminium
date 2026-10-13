@@ -23,6 +23,8 @@ export interface NotificationDto {
   body: string | null;
   entity: Record<string, unknown> | null;
   actionUrl: string | null;
+  /** Set when `actionUrl` is a screen of the record's own app. */
+  opens?: { appKey: string; path: string };
   readAt: number | null;
   createdAt: number;
 }

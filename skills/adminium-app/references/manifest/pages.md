@@ -23,7 +23,7 @@ and appears in the app's own sidebar section.
 | `template` | yes | The page template; see below. |
 | `title` | yes | An i18n message. `fallback` is the English title. |
 | `titles` | no | The title in other languages, keyed by BCP 47 tag, each 1–120 characters. The sidebar shows the operator's language until the operator renames the page. |
-| `nav` | yes | `{ "group", "icon", "order" }`. `group` is 1–80 characters, `icon` a [Lucide](https://lucide.dev/icons/) icon name (1–60 characters), `order` an integer. |
+| `nav` | yes | `{ "group", "icon", "order", "offRail"? }`. `group` is 1–80 characters, `icon` a [Lucide](https://lucide.dev/icons/) icon name (1–60 characters), `order` an integer. `"offRail": true` keeps the page off the sidebar; see [A page kept off the sidebar](https://docs.adminium.dev/reference/manifest/#a-page-kept-off-the-sidebar). |
 | `bindings` | no | Which of the app's tables the page reads: an object from a page-local name to a `requiredSchema` table ref. |
 | `config` | no | Page configuration: a `form` for a record page, a `layout` for `page-dashboard`, a `calendar` for `page-calendar`, a `board` for `page-board`. |
 | `feature` | no | The id of one of the app's [`addOns.features`](https://docs.adminium.dev/reference/manifest/#add-ons). Until every add-on the feature requires is installed, attached to the app and switched on there, the page leaves the sidebar and is listed apart, with the add-ons it needs. |

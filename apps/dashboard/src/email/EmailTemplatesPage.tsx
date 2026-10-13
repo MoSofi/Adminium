@@ -22,5 +22,12 @@ export function EmailTemplatesPage() {
     void navigate({ to: '/email-templates/$id', params: { id: open }, replace: true });
   }, [open, navigate]);
 
-  return <EmailManager initialTab={search.kind ?? 'template'} initialArchived={search.archived ?? false} />;
+  return (
+    <EmailManager
+      initialTab={search.kind ?? 'template'}
+      initialArchived={search.archived ?? false}
+      app={search.app}
+      onShowAll={() => void navigate({ to: '/email-templates', search: (prev: Record<string, unknown>) => ({ ...prev, app: undefined }) })}
+    />
+  );
 }
