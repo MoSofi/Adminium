@@ -41,11 +41,13 @@ export function staffTargetFor(bootstrap: BootstrapData, pageId: string, path = 
     if (path === '') return { external: true, href: staff.url };
     // One screen of a side on its own address: the path under the side's own (`staffLinkPath` kept it inside).
     try {
-      const at = new URL(staff.url);
+      // The side's address may be a path on this server (`/apps/crm/staff/`): read against this page's own origin, and kept a path.
+      const relative = !/^[a-z][a-z0-9+.-]*:/i.test(staff.url);
+      const at = new URL(staff.url, globalThis.location?.origin ?? 'http://localhost');
       at.pathname = `${at.pathname.replace(/\/?$/, '/')}${path}`;
       at.search = '';
       at.hash = '';
-      return { external: true, href: at.toString() };
+      return { external: true, href: relative ? at.pathname : at.toString() };
     } catch {
       return null;
     }

@@ -258,6 +258,11 @@ describe('“Open the desk” — the app’s staff screens', () => {
     await renderAt('/p/overview', { href: '@staff/settings/team', staff: { placement: 'external', url: 'https://desk.studio.test/staff?x=1' } });
     await userEvent.click(await screen.findByTestId('page-dashboard-link'));
     expect(open).toHaveBeenCalledWith('https://desk.studio.test/staff/settings/team', '_blank', 'noopener,noreferrer');
+    cleanup();
+    // A side served by this same server names its address as a path: the screen's address stays a path on it.
+    await renderAt('/p/overview', { href: '@staff/approvals', staff: { placement: 'external', url: '/apps/crm/staff/' } });
+    await userEvent.click(await screen.findByTestId('page-dashboard-link'));
+    expect(open).toHaveBeenLastCalledWith('/apps/crm/staff/approvals', '_blank', 'noopener,noreferrer');
   });
 
   it('draws no button for a path that could leave the side', async () => {
