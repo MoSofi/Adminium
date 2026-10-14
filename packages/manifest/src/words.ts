@@ -117,6 +117,11 @@ export const INSTALL_FLOOR_WORD_NAMES = [
   'automations.stepName',
   'automations.many',
   'automations.replyTo',
+  'automations.lead',
+  'automations.staffName',
+  'automations.recordUrl',
+  'automations.was',
+  'automations.settingAmount',
   'outbox.replyTo',
   'outbox.onDelete',
   'column.mentions',
@@ -194,6 +199,15 @@ export const WORD_FLOORS: Readonly<Partial<Record<ManifestWordName, string>>> = 
   'automations.many': '0.3.28',
   // A reply that goes to the person a staff column of the row names: a rule's email, an outbox producer's message.
   'automations.replyTo': '0.3.28',
+  // A notice to whoever leads a team the person a staff column names is in, and to roles when there is nobody.
+  'automations.lead': '0.3.28',
+  // A rule's text or its e-mail naming the person a staff column names; a rule's e-mail to a person carrying the record's address.
+  'automations.staffName': '0.3.28',
+  'automations.recordUrl': '0.3.28',
+  // A rule run by a change reads its record as it was before it.
+  'automations.was': '0.3.28',
+  // An amount of time a condition reads from a column of the app's settings row.
+  'automations.settingAmount': '0.3.28',
   'outbox.replyTo': '0.3.28',
   'outbox.onDelete': '0.3.28',
   // A text column in which people are mentioned.
@@ -367,6 +381,27 @@ export function installFloorWords(document: unknown): ManifestWord[] {
       if (placeholdersIn(JSON.stringify(entry ?? null)).some((placeholder) => placeholder.backup !== undefined)) out.push({ word: 'placeholder.backup', path: `${part}.${String(e)}` });
     });
   }
+  // The staff columns of the manifest's tables, by name, and the templates each rule's e-mails send.
+  const staffRefs = new Set(
+    list(isDoc(document['requiredSchema']) ? document['requiredSchema']['tables'] : undefined).flatMap((table) =>
+      list(isDoc(table) ? table['columns'] : undefined).flatMap((column) => (isDoc(column) && isDoc(column['rules']) && column['rules']['staff'] === true && typeof column['ref'] === 'string' ? [column['ref']] : [])),
+    ),
+  );
+  const ruleTemplates = (rule: unknown): string[] => {
+    const out: string[] = [];
+    const walk = (nodes: unknown): void => {
+      for (const node of list(nodes)) {
+        if (!isDoc(node)) continue;
+        if (isDoc(node['action']) && node['action']['kind'] === 'email' && typeof node['action']['templateKey'] === 'string') out.push(node['action']['templateKey']);
+        for (const branch of list(node['branches'])) walk(isDoc(branch) ? branch['nodes'] : undefined);
+      }
+    };
+    walk(isDoc(rule) && isDoc(rule['graph']) ? rule['graph']['nodes'] : undefined);
+    return out;
+  };
+  /** Whether a rule holds an amount of time read from a setting, anywhere in it. */
+  const holdsSettingAmount = (value: unknown): boolean =>
+    Array.isArray(value) ? value.some(holdsSettingAmount) : isDoc(value) && ((value['amount'] !== undefined && value['unit'] !== undefined && value['setting'] !== undefined) || Object.values(value).some(holdsSettingAmount));
   // More rules than a manifest could ship before.
   if (list(document['automations']).length > 12) out.push({ word: 'automations.many', path: 'automations' });
   // A rule that uses a step an add-on gives.
@@ -379,6 +414,7 @@ export function installFloorWords(document: unknown): ManifestWord[] {
         const to = isDoc(action['to']) ? action['to'] : {};
         if ((action['kind'] === 'notification' && to['column'] !== undefined) || (action['kind'] === 'email' && to['kind'] === 'staff')) out.push({ word: 'automations.staffRecipient', path: `${at}.${String(n)}.action.to` });
         if (action['kind'] === 'email' && action['replyTo'] !== undefined) out.push({ word: 'automations.replyTo', path: `${at}.${String(n)}.action.replyTo` });
+        if (action['kind'] === 'notification' && (to['lead'] !== undefined || to['else'] !== undefined)) out.push({ word: 'automations.lead', path: `${at}.${String(n)}.action.to` });
         if (action['urgent'] !== undefined) out.push({ word: 'automations.urgent', path: `${at}.${String(n)}.action.urgent` });
         if (action['kind'] === 'digest') out.push({ word: 'automations.digest', path: `${at}.${String(n)}.action` });
         if (action['kind'] === 'digest') {
@@ -393,6 +429,13 @@ export function installFloorWords(document: unknown): ManifestWord[] {
       });
     };
     steps(isDoc(rule) && isDoc(rule['graph']) ? rule['graph']['nodes'] : undefined, `automations.${String(r)}.graph.nodes`);
+    // What a rule reads in its own texts and in the templates its e-mails send: a person's name by a staff column, the record's address.
+    const read = [JSON.stringify(rule ?? null), ...ruleTemplates(rule).map((key) => JSON.stringify(list(document['emailTemplates']).find((template) => isDoc(template) && template['key'] === key) ?? null))];
+    const names = read.flatMap((text) => placeholdersIn(text).map((placeholder) => placeholder.name));
+    if (names.some((name) => name.endsWith('.name') && staffRefs.has(name.split('.').at(-2) ?? ''))) out.push({ word: 'automations.staffName', path: `automations.${String(r)}` });
+    if (names.includes('recordUrl')) out.push({ word: 'automations.recordUrl', path: `automations.${String(r)}` });
+    if (names.some((name) => name.startsWith('was.'))) out.push({ word: 'automations.was', path: `automations.${String(r)}` });
+    if (holdsSettingAmount(rule)) out.push({ word: 'automations.settingAmount', path: `automations.${String(r)}` });
     const forEach = isDoc(rule) && isDoc(rule['trigger']) && isDoc(rule['trigger']['forEach']) ? rule['trigger']['forEach'] : {};
     if (forEach['once'] === 'per-spell') out.push({ word: 'automations.perSpell', path: `automations.${String(r)}.trigger.forEach.once` });
   });

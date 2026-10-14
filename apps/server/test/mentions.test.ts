@@ -59,6 +59,8 @@ function sales(): Record<string, unknown> {
       },
       { key: 'manager', name: 'Manager', permissions: ['table:@deals:read', 'table:@deals:update', 'table:@comments:read', 'page:@sales-deals:view'] },
       { key: 'driver', name: 'Driver', permissions: ['table:@deliveries:read'] },
+      // Reads every deal, but not its name.
+      { key: 'auditor', name: 'Auditor', permissions: ['table:@deals:read', 'page:@sales-deals:view'], limits: { deals: { readable: ['id', 'owner_id'] } } },
     ],
     pages: [page('sales-deals', 'deals', 1)],
     frontends: [{ side: 'staff', kind: 'spa', entry: 'index.html', routes: { desk: '/' } }],
@@ -82,7 +84,7 @@ for (const [dialect, reachable] of LEGS) {
     const notices = async (who: string): Promise<Notice[]> => ((await s.get(who, '/api/v1/me/notifications?limit=100')).json() as { data: { items: Notice[] } }).data.items.filter((item) => item.kind === 'mention');
 
     beforeAll(async () => {
-      s = await wholeServer(dialect, sales(), { people: { dana: ['rep'], noor: ['rep'], ivy: ['manager'], sam: ['driver'] }, smtp: true });
+      s = await wholeServer(dialect, sales(), { people: { dana: ['rep'], noor: ['rep'], ivy: ['manager'], sam: ['driver'], ada: ['auditor'] }, smtp: true });
       expect(said(await s.make('owner', 'deals', { name: 'Atrium', owner_id: s.ids['dana'] }))).toBe('ok');
       atrium = Number((await s.rows("select id from sales_deals where name = 'Atrium'"))[0]!['id']);
     }, 180_000);
@@ -102,16 +104,17 @@ for (const [dialect, reachable] of LEGS) {
       expect(ivy[0]).toMatchObject({ title: 'Dana mentioned you', actorLabel: 'Dana', actionUrl: `/p/sales-deals/r/${String(atrium)}` });
       expect(ivy[0]!.body).toContain('Atrium');
 
-      // A rep reads deals, but this one is not his: who and where, and no way in.
+      // A rep reads deals, but this one is not his: who and which table, never the deal's name, and no way in.
       const noor = await notices('noor');
       expect(noor).toHaveLength(1);
       expect(noor[0]).toMatchObject({ title: 'Dana mentioned you', actionUrl: null, entity: null });
-      expect(noor[0]!.body).toContain('Atrium');
+      expect(noor[0]!.body).not.toContain('Atrium');
+      expect(noor[0]!.body).toBe(ivy[0]!.body!.split(':')[0]);
 
       // A driver has no right on deals at all: the same.
       const sam = await notices('sam');
       expect(sam).toHaveLength(1);
-      expect(sam[0]).toMatchObject({ title: 'Dana mentioned you', actionUrl: null, entity: null });
+      expect(sam[0]).toMatchObject({ title: 'Dana mentioned you', actionUrl: null, entity: null, body: noor[0]!.body });
 
       // Nobody's notice, in the app or by email, carries the text.
       for (const notice of [...ivy, ...noor, ...sam]) expect(JSON.stringify(notice)).not.toContain('41 percent');
@@ -121,9 +124,28 @@ for (const [dialect, reachable] of LEGS) {
         expect(`${mail.subject} ${mail.html} ${mail.text}`).not.toContain('41 percent');
         expect(`${mail.subject} ${mail.text}`).toContain('Dana mentioned you');
       }
+      // The deal's name goes by email only to the person who can open it.
+      expect(mails.find((mail) => mail.to === 'ivy@sales.test')!.text).toContain('Atrium');
+      for (const to of ['noor@sales.test', 'sam@sales.test']) {
+        const mail = mails.find((one) => one.to === to)!;
+        expect(`${mail.subject} ${mail.html} ${mail.text}`, to).not.toContain('Atrium');
+      }
       // The one way in is the manager's; the others' emails lead nowhere on the deal.
       expect(mails.find((mail) => mail.to === 'ivy@sales.test')!.html).toContain(`/p/sales-deals/r/${String(atrium)}`);
       expect(mails.find((mail) => mail.to === 'sam@sales.test')!.html).not.toContain('/p/sales-deals/r/');
+    });
+
+    it('names the deal by no column the reader’s role hides: somebody who opens it but may not read its name is led there by its number', async () => {
+      await s.emails();
+      const made = await s.make('dana', 'comments', { deal_id: atrium, body: `${at('ada')} please check this one` });
+      expect(made.statusCode, made.body).toBe(201);
+      const ada = await notices('ada');
+      expect(ada).toHaveLength(1);
+      expect(ada[0]).toMatchObject({ title: 'Dana mentioned you', actionUrl: `/p/sales-deals/r/${String(atrium)}` });
+      expect(ada[0]!.body).not.toContain('Atrium');
+      expect(ada[0]!.body).toContain(String(atrium));
+      const mail = (await s.emails()).find((one) => one.to === 'ada@sales.test')!;
+      expect(`${mail.subject} ${mail.html} ${mail.text}`).not.toContain('Atrium');
     });
 
     it('tells only the people a change newly names, and never the writer', async () => {
@@ -139,8 +161,9 @@ for (const [dialect, reachable] of LEGS) {
       expect(said(await s.change('dana', 'deals', atrium, { name: 'Atrium Tower' }))).toBe('ok');
       expect(await notices('ivy')).toHaveLength(2);
       expect(await notices('sam')).toHaveLength(2);
-      // A mention on the deal itself names the deal, by its new name.
-      expect((await notices('sam'))[0]!.body).toContain('Atrium');
+      // A mention on the deal itself names the deal to whoever opens it, and to a driver who cannot only its table.
+      expect((await notices('ivy'))[0]!.body).toContain('Atrium');
+      expect((await notices('sam'))[0]!.body).not.toContain('Atrium');
     });
 
     it('refuses a save that names nobody who signs in here, by the column, and writes nothing', async () => {

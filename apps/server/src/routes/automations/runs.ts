@@ -220,9 +220,9 @@ export function automationRunsRoutes(deps: AutomationRunsRoutesDeps): FastifyPlu
   };
 }
 
-/** A run's trigger as Workflow Logs may read it: never a deleted row's values (`triggerEvent.values`). */
-function withoutValues(event: AutomationRun['triggerEvent']): Omit<AutomationRun['triggerEvent'], 'values'> {
-  const { values: _values, ...served } = event;
+/** A run's trigger as Workflow Logs may read it: never a deleted row's values, nor a changed row as it was (`values`, `before`). */
+function withoutValues(event: AutomationRun['triggerEvent']): Omit<AutomationRun['triggerEvent'], 'values' | 'before'> {
+  const { values: _values, before: _before, ...served } = event;
   return served;
 }
 

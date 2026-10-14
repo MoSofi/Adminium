@@ -104,6 +104,10 @@ export const NOT_FOR_A_DRAFT: Readonly<Record<string, string>> = {
   headerValueEncrypted: 'a webhook\'s sealed header is the server\'s to write',
   headerValueSet: 'read-only: whether the server holds a header value',
   addOnName: 'the add-on\'s name is written by the server from what is installed',
+  // The rule format's budget is spent; these words of 0.3.28 are an app's or a person's to write, not a draft's.
+  lead: 'a notice to the lead of the person on the row is written in an app\'s manifest',
+  else: 'the roles told when nobody is on the row are written in an app\'s manifest',
+  setting: 'an amount read from a setting is written in an app\'s manifest',
 };
 
 /** `, a: T, b?: T` — a field that may be left out, or that has a default, carries the `?`. */

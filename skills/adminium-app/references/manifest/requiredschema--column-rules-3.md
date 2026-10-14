@@ -2,6 +2,12 @@
 
 # Manifest spec: requiredSchema — Column rules
 
+`copy`, `default`, `sequence`, `format`, `code`, `rollup`, `formula`, `stamp`, `lookup` and
+`perNight` are values **Adminium decides**: they are filled on the server, so a browser never
+picks a price, a number, a code or a time. So are a rollup's `balance` column, a booking's
+late-cancellation [`flag`](https://docs.adminium.dev/reference/manifest/#booking) and a [late move's](https://docs.adminium.dev/reference/manifest/#late-moves) flag. None of them can be listed as `writable` in [public access](https://docs.adminium.dev/reference/manifest/#public-access), and
+a primary key cannot take `sequence` or `code`.
+
 One rule decides a column. The one pair allowed is a `copy` with a `default` behind it: the copy
 comes first, and the default fills the column when the copy comes back empty (a client's own tax
 rate, else the business's). A stamped column takes none of the others.
@@ -98,9 +104,3 @@ no longer gives.
 { "ref": "list_rate", "type": "decimal", "scale": "currency", "nullable": true,
   "rules": { "copy": { "via": "price_id", "from": "list_rate", "mode": "always" } } }
 ```
-
-`where` is 1–8 conditions on the row the link names, in the shape a move's
-[`linked`](https://docs.adminium.dev/reference/manifest/#conditions-a-move-waits-for) takes: `{ "column", <one test> }`, the test `eq` or `in`
-(values that fit the column), `isNull`, or `gt`, `gte`, `lt` or `lte` on a number column. Every
-condition must hold. The rule's column is a foreign key, and each condition names a column of the
-table it points at that is not a `secret`.

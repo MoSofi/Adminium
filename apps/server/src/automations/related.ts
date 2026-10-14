@@ -148,7 +148,9 @@ export function relatedUses(graph: AutomationGraph): RelatedUse[] {
       const names = new Set<string>();
       tokenNames(part, names);
       for (const name of names) {
-        const ref = parseRelated(name.startsWith('record.') ? name.slice('record.'.length) : name);
+        const bare = name.startsWith('record.') ? name.slice('record.'.length) : name;
+        // The name of the person a staff column of a linked row names (`deal_id.owner_id.name`) reads that row.
+        const ref = parseRelated(bare.split('.').length === 3 && bare.endsWith('.name') ? bare.slice(0, -'.name'.length) : bare);
         if (ref !== null) out.push({ ...ref, nodeId: node.id, title: node.title, as: 'token', step: action.kind, ...(input === undefined ? {} : { input }) });
       }
     }

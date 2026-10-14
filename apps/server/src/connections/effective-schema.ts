@@ -1406,6 +1406,26 @@ export function withoutPrivateTables<M extends Pick<EffectiveModel, 'tables' | '
   };
 }
 
+/**
+ * A column that holds a staff member names a person, never a row of another
+ * table: a link a guesser read into its name (`rep_id` → `reps`, a text
+ * holding a user's id against a table's whole-number key) is no link, and
+ * nothing may follow it — a message's template, a rule's `rep_id.name`, a
+ * mention's record. A foreign key the database keeps, or one a person or an
+ * app declared, stays as it was.
+ */
+function withoutGuessedStaffLinks(relations: EffectiveRelation[], tables: ReadonlyMap<string, EffectiveTable>): EffectiveRelation[] {
+  const staff = (tableId: string, columns: readonly string[]): boolean => {
+    const table = tables.get(tableId);
+    return table !== undefined && columns.some((name) => table.columns.find((column) => column.name === name)?.staff === true);
+  };
+  return relations.filter((relation) => {
+    if (relation.kind !== 'inferred-name' && relation.kind !== 'inferred-join-table') return true;
+    if (relation.through !== null) return !staff(relation.through.tableId, [...relation.through.fromColumns, ...relation.through.toColumns]);
+    return !staff(relation.from.tableId, relation.from.columns);
+  });
+}
+
 /** Apply active override rows (already in created_at order) onto a snapshot model. */
 export function applyOverrides(
   model: DatabaseModel,
@@ -1774,6 +1794,7 @@ export function applyOverrides(
   }
 
   settleSecrets(tables.values(), secretSaid, maskedForSecret);
+  effective.relations = withoutGuessedStaffLinks(effective.relations, tables);
   tieStates(tables, effective.relations);
 
   // Table labels last, from the ONE precedence-aware resolver — a user

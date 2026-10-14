@@ -12,7 +12,8 @@
  *
  * AFTER THE SAVE, each person newly named is told who mentioned them and on
  * which record; never what was written. Anybody who signs in may be named,
- * also one who cannot open the record: their notice then has no way in. A
+ * also one who cannot open the record: their notice then names the table
+ * only (never the record's name) and has no way in. A
  * column may say which record a mention in it is about (`about`: a comment's
  * deal), and that is the record the notice names and opens.
  */
@@ -26,6 +27,7 @@ import { notify, type NotificationPublisher } from '../notifications/notify.js';
 import { permissionSetAllows, resolvePermissionSet } from '../rbac/resolver.js';
 import type { ResolvedTable, SnapshotView } from './identifiers.js';
 import { labelColumnFor } from './labels.js';
+import { readTableOf, readViewOf } from './read-view.js';
 import type { Row } from './mask.js';
 import { fetchByPk, pkLabel } from './records.js';
 import { fetchVisible } from './row-limit.js';
@@ -132,22 +134,27 @@ export async function tellMentioned(deps: MentionDeps, write: MentionWrite): Pro
     if (meant === null) continue;
     const { db } = await deps.manager.data(write.connectionId);
     const source = db as Kysely<SourceDatabase>;
-    // Whether somebody's roles read the record meant: its table, and this row among the rows they reach.
-    const opensIt = async (person: { id: string; name: string }): Promise<boolean> => {
+    // Whether somebody's roles read the record meant (its table, and this row among the rows they reach): the
+    // connection as they read it when they do, so the record is named by a column they read; null when they do not.
+    const readerOf = async (person: { id: string; name: string }): Promise<SnapshotView | null> => {
       const set = await resolvePermissionSet(meta, { kind: 'user', id: person.id, label: person.name });
-      if (!permissionSetAllows(set, `table:${write.connectionId}:${meant.table.id}:read`)) return false;
+      if (!permissionSetAllows(set, `table:${write.connectionId}:${meant.table.id}:read`)) return null;
       const reach = await rowLimitContextOf(meta, set, write.connectionId, write.view.model, new Date(at));
-      return reach === null || (await fetchVisible(reach, source, meant.table, meant.pk, 'read')) !== undefined;
+      if (reach !== null && (await fetchVisible(reach, source, meant.table, meant.pk, 'read')) === undefined) return null;
+      return readViewOf(write.view, set);
     };
-    // The record's name as its table shows it, never a masked column; its key when it has none.
-    const labelColumn = labelColumnFor(write.view, meant.table);
     const row = meant.table === write.table && column.about === null ? write.after : await fetchByPk(source, meant.table, meant.pk);
     if (row === undefined) continue;
-    const label = labelColumn !== null && row[labelColumn] !== null && row[labelColumn] !== undefined && String(row[labelColumn]).trim() !== '' ? String(row[labelColumn]) : pkLabel(meant.table, meant.pk);
-    // The record is named by the writer, to people who may not read it: so only a record the writer reads is named.
-    // A comment hung on a deal its writer cannot open says "a deal", and no more.
+    // The record's name as its table shows it to this reader, never a masked column or one their role hides; its key when it has none.
+    const labelFor = (view: SnapshotView): string => {
+      const labelColumn = labelColumnFor(view, readTableOf(view, meant.table));
+      return labelColumn !== null && row[labelColumn] !== null && row[labelColumn] !== undefined && String(row[labelColumn]).trim() !== '' ? String(row[labelColumn]) : pkLabel(meant.table, meant.pk);
+    };
+    // The record is named by the writer, to people who may not read it: so a record is named only to somebody who
+    // opens it, and only when the writer opens it too. A comment hung on a deal its writer cannot open says "a deal",
+    // and no more; so does the notice of somebody the writer named who cannot open the deal.
     const tableName = meant.table.table.label ?? meant.table.table.name;
-    const where = (await opensIt(write.writer)) ? `${tableName}: ${label}` : tableName;
+    const writerOpens = (await readerOf(write.writer)) !== null;
     const page = (await pagesRepo(meta).listForConnection(write.connectionId)).find((candidate) => candidate.isEnabled && sourceTableOf(candidate.config) === meant.table.id);
     const keys = Object.values(meant.pk);
     const recordId = keys.length === 1 ? String(keys[0]) : JSON.stringify(keys);
@@ -156,8 +163,9 @@ export async function tellMentioned(deps: MentionDeps, write: MentionWrite): Pro
       done.add(id);
       const user = await usersRepo(meta).findById(id);
       if (user === null || user.status !== 'active') continue;
-      // A way in only for somebody who can open the record: their roles read the table, and this row is one they reach.
-      const opens = await opensIt(user);
+      // A way in, and the record's name, only for somebody who can open it: their roles read the table, and this row is one they reach.
+      const theirs = await readerOf(user);
+      const opens = theirs !== null;
       await notify(
         meta,
         {
@@ -165,7 +173,7 @@ export async function tellMentioned(deps: MentionDeps, write: MentionWrite): Pro
           kind: MENTION_KIND,
           actorLabel: write.writer.name,
           title: `${write.writer.name} mentioned you`,
-          body: where,
+          body: opens && writerOpens ? `${tableName}: ${labelFor(theirs)}` : tableName,
           ...(opens ? { entity: { connectionId: write.connectionId, table: meant.table.id, pk: meant.pk } } : {}),
           actionUrl: opens && page !== undefined ? `/p/${page.slug}/r/${encodeURIComponent(recordId)}` : null,
         },

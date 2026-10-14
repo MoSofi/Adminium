@@ -387,7 +387,7 @@ change or delete is theirs from then on.
 | `lookup` | `{ "from", "table", "column", "where"?, "scope"? }` | A foreign key filled from a code a person types into another column: a discount code, a presale code. See [Typed codes](#typed-codes). |
 | `addOnLink` | `{ "addOn", "table" }` | A link to a row of a table an add-on keeps: an order line's stock item, a payment's gift card. No foreign key is made, so the app installs whether or not the add-on is there. The add-on is one the manifest names under [`addOns`](#add-ons). While it is not installed, or not connected to this app, the link is inert: a value sent for it is refused (`POSTING_REFUSED`, reason `add-on-unavailable`, with the column) and the rows keep what they named. While it is there, a value must be the key of a row of that table, or the column is refused `not-found`. An empty link is always taken, and an import keeps whatever it names. A `lookup` on the same column may name the same table as `{ "addOn", "table" }`: a typed code then fills the link. A [`default`](#values-from-elsewhere) may fill it from a column of the app's settings row that carries the same `addOnLink` (same add-on, same table, same type), and from nowhere else: `"default": { "from": { "table": "settings", "column": "supplies_place_id" } }`. Such a default never refuses a save: it is left empty while the add-on is not there for the app, and when the row the setting names is gone. It needs `minAdminiumVersion` 0.3.19 or later. |
 | `plainText` | `true` or `{ "digits"?, "max"? }` | On a `text` column shown to people who did not write it: a name, the message on a card, a note to the kitchen. Letters, spaces and sentence punctuation only: no web address, no email address, no `@` handle, no path. `true` is a name (no digits, up to 80 characters); an object is a note with up to `digits` digits and `max` characters. It is the column's own rule, so it holds every way of writing the row: a staff save, an import, a guest's entry (which may be stricter still). Refused as `plain-text` on the column. |
-| `mentions` | `true` or `{ "about": link }` | On a `text` column people write to each other in (a note, a comment). Its box offers the people who sign in as the writer types `@`, and the text keeps each one named as `@[Name](usr_…)`. A save that names somebody who does not sign in here is refused by the column, with nothing written. After the save each person **newly** named is told who mentioned them and on which record, never what was written; one who cannot open that record gets the same notice with no link. The record is named only when the writer can read it. A mention in a row saved under another record's form tells the people a new row names; a change to such a row tells nobody. A text that already names somebody who has since left can still be edited. `about` is a link of the table: a mention in a comment is about the deal the comment is on, and that is the record the notice names and opens. Not on a [private](#whose-a-row-is) table. Needs `minAdminiumVersion` `0.3.28`. |
+| `mentions` | `true` or `{ "about": link }` | On a `text` column people write to each other in (a note, a comment). Its box offers the people who sign in as the writer types `@`, and the text keeps each one named as `@[Name](usr_…)`. A save that names somebody who does not sign in here is refused by the column, with nothing written. After the save each person **newly** named is told who mentioned them and on which record, never what was written; one who cannot open that record gets a notice that names the table only (never the record) and has no link. The record is named only to somebody who can open it, by a column their role shows, and only when the writer can read it too. A mention in a row saved under another record's form tells the people a new row names; a change to such a row tells nobody. A text that already names somebody who has since left can still be edited. `about` is a link of the table: a mention in a comment is about the deal the comment is on, and that is the record the notice names and opens. Not on a [private](#whose-a-row-is) table. Needs `minAdminiumVersion` `0.3.28`. |
 | `place` | `true` | On a `json` column: a position on the map, kept as `{ "lat", "lng", "by" }` where `by` is `"town"` or `"exact"`. Every write is read and made alike; a value that is not a position is refused by the column. See [A place and an area](#a-place-and-an-area). Needs Adminium 0.3.28. |
 | `area` | `true` | On a `json` column: an area on the map, kept as a GeoJSON `Polygon` or `MultiPolygon`. See [A place and an area](#a-place-and-an-area). Needs Adminium 0.3.28. |
 | `customerKey` | `{ "of": "<address column>" }` | On a `text` column of 64 characters that may be empty: a keyed hash of the address in `of`, made by Adminium whenever that address is written and by nobody else (a value sent for it is dropped; a guest's entry may not list it). The same address gives the same key however it is spelled, and another key in another database. It says "the same customer" to whatever counts per customer, without keeping who. An empty address has no key. |
@@ -4120,14 +4120,72 @@ A step's action is one of six:
 
 | `kind` | Keys | What it does |
 |---|---|---|
-| `notification` | `to: { "roles" }` or `to: { "column" }`, `title`, `body`?, `urgent`? | Tells everyone who holds one of the manifest's own roles, or [the person on the row](#the-person-on-the-row). `"urgent": true` tells them at once, also in their quiet hours. |
+| `notification` | `to: { "roles" }` or `to: { "column", "lead"?, "else"? }`, `title`, `body`?, `urgent`? | Tells everyone who holds one of the manifest's own roles **and can open the record**, or [the person on the row](#the-person-on-the-row), or [the lead of that person](#the-lead-of-the-person-on-the-row). `"urgent": true` tells them at once, also in their quiet hours. |
 | `email` | `templateKey`, `to: { "kind": "field", "column" }` or `to: { "kind": "staff", "column" }`, `vars`?, `replyTo: { "staff": column }`? | Sends one of the manifest's own templates to the address a column of the record holds, or to [the person on the row](#the-person-on-the-row). |
 | `digest` | `templateKey`, `to: { "roles" }`, `sections`, `sendEmpty`? | Makes [a summary for each person](#a-summary-for-each-person) who holds one of the roles: their own rows, or theirs and those of the people they lead, read as they read. |
 | `record.create` | `table`, `values`, `name`? | Adds a row of one of the manifest's tables. With a `name`, [the steps after it read the row it made](#a-row-a-step-makes). |
 | `record.update` | `values` | Writes columns of the record. |
 | `add-on.step` | `addOn`, `step`, `inputs` | Runs a [step an add-on gives](#steps-for-automations): the add-on's key, the step's key, and a text for each input. An add-on's own step is checked here; another add-on's is checked where the rule is installed, and fails by name while that add-on is not there. Needs `minAdminiumVersion` `0.3.22`. |
 
-A value is a text, which may carry `{{record.<column>}}`, or `{ "now": true }`.
+A value is a text, which may carry `{{record.<column>}}`, or `{ "now": true }`. It may also carry
+[the record as it was](#the-record-as-it-was) and [the name of a person](#a-persons-name-and-the-records-address).
+
+A notice is about its record, and its title and body carry the record's values. So a notice to
+roles, or to people listed by hand in the dashboard, goes only to those of them whose roles **open
+the record**: they read its table, and the row is among the rows they reach. A sales manager whose
+reach is her own team is not told of another team's quote. Nobody left is a line in the run's log
+(`notified 0 people`), not a failure. A notice about a row that was removed goes only to those
+whose read of its table is not limited to some rows, since a removed row cannot be read again to
+ask. A rule that runs for no record (a clock with no rows to visit) tells everybody it names.
+
+### The lead of the person on the row
+
+```json
+{ "kind": "notification", "to": { "column": "asked_by_id", "lead": true, "else": { "roles": ["admin"] } },
+  "title": { "en-US": "Quote {{record.number}} needs your approval" } }
+```
+
+With `"lead": true` the notice goes not to the person the staff column names but to **whoever
+leads a team that person is in** (Settings → Teams), never to the person themselves, and only to a
+lead who can open the record. When there is none (she is in no team, she leads her own team and
+nobody leads her, or her lead's roles do not reach the record) the holders of the `else` roles who
+can open the record are told instead, again never the person. A notice to a lead always says
+`else`; the validator refuses one without. `else` also works without `lead`: a record whose column
+names nobody then tells those roles instead of nobody. Needs Adminium 0.3.28.
+
+### The record as it was
+
+A rule run when its record is updated may read the record as it was **before** the change:
+`{{was.<column>}}`, in a notice, in a value a step writes, and in the template its e-mail sends.
+
+```json
+"trigger": { "kind": "record", "event": "updated", "table": "deals", "changedColumn": "stage" },
+"graph": { "version": 1, "nodes": [
+  { "id": "t", "kind": "trigger", "title": "A deal moves" },
+  { "id": "k", "kind": "action", "title": "Keep where it came from",
+    "action": { "kind": "record.update", "values": { "came_from": "{{was.stage}}" } } }
+] }
+```
+
+It follows the record's own rules: a personal column only in an e-mail, a secret never, and a mail
+writes a date or an amount as it writes the record's. A rule run when a row is made or removed, or
+by the clock, has no "as it was", and the validator refuses `{{was.*}}` there. The row as it was
+is kept with the run for its steps, is never shown in Workflow Logs, and is dropped when the run
+ends. Needs Adminium 0.3.28.
+
+### A person's name, and the record's address
+
+`{{<staff column>.name}}` is the name of the person a [staff column](#whose-a-row-is) names, as
+Adminium keeps it: `{{asked_by_id.name}}`, `{{record.owner_id.name}}`, or one link further
+`{{deal_id.owner_id.name}}`. A column that names nobody, or somebody since removed, writes nothing,
+so give it a backup: `{{asked_by_id.name|nobody}}`. A staff column is never a link to another
+table, whatever its name: `rep_id` beside a `reps` table names a person, not a rep's row.
+
+An e-mail step sent to a person (`"to": { "kind": "staff", … }`) may carry the record's address,
+`{{recordUrl}}`: the address a notice's e-mail button gives, the app's own screen for the record
+when the person's roles open it, on the operator's host. Somebody who cannot open the record gets
+no address, so give it a backup or tie its block to it. A mail to an address a column holds has
+no `{{recordUrl}}`; the validator refuses it there. Both need Adminium 0.3.28.
 
 ### The person on the row
 
@@ -4146,6 +4204,23 @@ further, `"deal_id.owner_id"`. The mail then carries the sign-in address of that
 Reply-To, whoever it is sent to. It follows the rules of [A reply to the rep](#a-reply-to-the-rep),
 and a rule has no house address to fall back on: with nobody there, the mail goes without a
 Reply-To. Needs Adminium 0.3.28.
+
+### An amount of time the business sets
+
+A relative condition (`within_next`, `within_last`, `more_than_ago`, `more_than_ahead`) may read its
+amount from a whole-number column of the app's settings row (the first row of that table):
+
+```json
+{ "left": { "field": "last_activity_at" }, "op": "more_than_ago",
+  "right": { "amount": 7, "unit": "days", "setting": { "table": "settings", "column": "nudge_quiet_days" } } }
+```
+
+"Quiet for more than `settings.nudge_quiet_days` days": the number is read at each tick of a
+rule by the clock (in `forEach.where`) and as a run reaches a condition step, so a change on the
+app's Settings screen counts from the next tick. `amount` is the number used while the setting holds
+none from 1 to 3650 (empty, 0, a text). A trigger's own `when`, a summary's sections and a count do
+not read settings; the validator refuses one there, and a column that is not a whole number. Needs
+Adminium 0.3.28.
 
 ### Once per spell
 

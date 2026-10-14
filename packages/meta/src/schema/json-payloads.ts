@@ -1719,10 +1719,15 @@ export function isRelativeAutomationOp(op: AutomationConditionOp): boolean {
   return (RELATIVE_OPS as readonly string[]).includes(op);
 }
 
-/** `{ amount: 2, unit: 'hours' }` — the operand of a relative-time op. 3650 days caps it at a decade. */
+/**
+ * `{ amount: 2, unit: 'hours' }` — the operand of a relative-time op. 3650 days caps it at a decade.
+ * `setting`: the amount is read from a whole-number column of a settings row (its table's first
+ * row) when the conditions are read; `amount` is used while that holds no amount from 1 to 3650.
+ */
 export const automationRelativeOperandSchema = z.object({
   amount: z.number().int().min(1).max(3650),
   unit: automationDurationUnitSchema,
+  setting: z.object({ table: z.string().max(200), column: z.string().max(128) }).optional(),
 });
 export type AutomationRelativeOperand = z.infer<typeof automationRelativeOperandSchema>;
 
@@ -1730,6 +1735,13 @@ const automationOperandSchema = z.union([
   z.string().max(2000),
   z.number(),
   automationRelativeOperandSchema,
+]);
+
+/** A count's own condition reads no setting: its amount is written. (One level shallower too, so its type is declared whole.) */
+const automationCountOperandSchema = z.union([
+  z.string().max(2000),
+  z.number(),
+  z.object({ amount: z.number().int().min(1).max(3650), unit: automationDurationUnitSchema }),
 ]);
 
 /** A column of the record being processed. Empty = the person has not chosen one yet. */
@@ -1747,7 +1759,7 @@ const automationFieldLeftSchema = z.object({ field: z.string().max(128) });
 const automationCountLeafSchema = z.object({
   left: automationFieldLeftSchema,
   op: automationConditionOpSchema,
-  right: automationOperandSchema.optional(),
+  right: automationCountOperandSchema.optional(),
 });
 
 const automationCountLeftSchema = z.object({
@@ -1961,8 +1973,12 @@ export const automationActionSchema = z.discriminatedUnion('kind', [
       .union([
         z.object({ roles: z.array(z.string()).max(20) }),
         z.object({ users: z.array(z.string()).max(50) }),
-        /** The person a staff column of the record names (`owner_id`, or `<link>.<staff column>`). */
-        z.object({ column: z.string().max(260) }),
+        /**
+         * The person a staff column of the record names (`owner_id`, or `<link>.<staff column>`).
+         * `lead`: instead, whoever leads a team that person is in (never the person), of those
+         * who can open the record. `else`: the roles told when that names nobody; a lead has one.
+         */
+        z.object({ column: z.string().max(260), lead: z.literal(true).optional(), else: z.object({ roles: z.array(z.string()).min(1).max(20) }).optional() }),
       ])
       .nullable()
       .default(null),
@@ -2232,6 +2248,12 @@ export const automationTriggerEventSchema = z.object({
    * the run ends; the trace reads `snapshot`.
    */
   values: z.record(z.string(), z.unknown()).nullish(),
+  /**
+   * An UPDATED row as it was before the change, for a rule that reads it
+   * (`{{was.<column>}}`). Never served and cleared once the run ends, as
+   * `values` is.
+   */
+  before: z.record(z.string(), z.unknown()).nullish(),
   occurredAt: z.number().int(),
   /**
    * The conversation with the assistant in which the write that started this

@@ -125,7 +125,15 @@ export function applyAcceptedRelations(
   model: DatabaseModel,
   overrides: readonly SchemaOverride[],
 ): { model: DatabaseModel; warnings: string[] } {
-  const resolved = applyRelationOverrides(model.relations, overrides);
+  // A column marked as holding a staff member names a person: a link guessed from its name (`rep_id` → `reps`) is
+  // dropped, as the effective model drops it (`connections/effective-schema.ts`), so no page offers a rep's row for it.
+  const staff = new Set(overrides.filter((row) => row.status === 'active' && (row.op as string) === 'column.staff' && row.columnName !== null).map((row) => `${row.tableName}\u0000${String(row.columnName)}`));
+  const guessed = (relation: (typeof model.relations)[number]): boolean =>
+    (relation.kind === 'inferred-name' || relation.kind === 'inferred-join-table') &&
+    (relation.through === null
+      ? relation.from.columns.some((column) => staff.has(`${relation.from.tableId}\u0000${column}`))
+      : [...relation.through.fromColumns, ...relation.through.toColumns].some((column) => staff.has(`${relation.through!.tableId}\u0000${column}`)));
+  const resolved = applyRelationOverrides(model.relations, overrides).filter((relation) => !guessed(relation));
 
   const columnsByTable = new Map(
     model.tables.map((table) => [table.id, new Set(table.columns.map((c) => c.name))]),

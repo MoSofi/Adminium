@@ -24792,6 +24792,24 @@
                                                     "hours",
                                                     "days"
                                                   ]
+                                                },
+                                                "setting": {
+                                                  "type": "object",
+                                                  "properties": {
+                                                    "table": {
+                                                      "type": "string",
+                                                      "maxLength": 200
+                                                    },
+                                                    "column": {
+                                                      "type": "string",
+                                                      "maxLength": 128
+                                                    }
+                                                  },
+                                                  "required": [
+                                                    "table",
+                                                    "column"
+                                                  ],
+                                                  "additionalProperties": false
                                                 }
                                               },
                                               "required": [
@@ -25095,6 +25113,24 @@
                                                         "hours",
                                                         "days"
                                                       ]
+                                                    },
+                                                    "setting": {
+                                                      "type": "object",
+                                                      "properties": {
+                                                        "table": {
+                                                          "type": "string",
+                                                          "maxLength": 200
+                                                        },
+                                                        "column": {
+                                                          "type": "string",
+                                                          "maxLength": 128
+                                                        }
+                                                      },
+                                                      "required": [
+                                                        "table",
+                                                        "column"
+                                                      ],
+                                                      "additionalProperties": false
                                                     }
                                                   },
                                                   "required": [
@@ -25416,6 +25452,29 @@
                                                                 "column": {
                                                                   "type": "string",
                                                                   "maxLength": 260
+                                                                },
+                                                                "lead": {
+                                                                  "type": "boolean",
+                                                                  "enum": [
+                                                                    true
+                                                                  ]
+                                                                },
+                                                                "else": {
+                                                                  "type": "object",
+                                                                  "properties": {
+                                                                    "roles": {
+                                                                      "minItems": 1,
+                                                                      "maxItems": 20,
+                                                                      "type": "array",
+                                                                      "items": {
+                                                                        "type": "string"
+                                                                      }
+                                                                    }
+                                                                  },
+                                                                  "required": [
+                                                                    "roles"
+                                                                  ],
+                                                                  "additionalProperties": false
                                                                 }
                                                               },
                                                               "required": [
@@ -25756,6 +25815,24 @@
                                                                             "hours",
                                                                             "days"
                                                                           ]
+                                                                        },
+                                                                        "setting": {
+                                                                          "type": "object",
+                                                                          "properties": {
+                                                                            "table": {
+                                                                              "type": "string",
+                                                                              "maxLength": 200
+                                                                            },
+                                                                            "column": {
+                                                                              "type": "string",
+                                                                              "maxLength": 128
+                                                                            }
+                                                                          },
+                                                                          "required": [
+                                                                            "table",
+                                                                            "column"
+                                                                          ],
+                                                                          "additionalProperties": false
                                                                         }
                                                                       },
                                                                       "required": [
@@ -26313,6 +26390,24 @@
                                                             "hours",
                                                             "days"
                                                           ]
+                                                        },
+                                                        "setting": {
+                                                          "type": "object",
+                                                          "properties": {
+                                                            "table": {
+                                                              "type": "string",
+                                                              "maxLength": 200
+                                                            },
+                                                            "column": {
+                                                              "type": "string",
+                                                              "maxLength": 128
+                                                            }
+                                                          },
+                                                          "required": [
+                                                            "table",
+                                                            "column"
+                                                          ],
+                                                          "additionalProperties": false
                                                         }
                                                       },
                                                       "required": [
@@ -26571,6 +26666,24 @@
                                                             "hours",
                                                             "days"
                                                           ]
+                                                        },
+                                                        "setting": {
+                                                          "type": "object",
+                                                          "properties": {
+                                                            "table": {
+                                                              "type": "string",
+                                                              "maxLength": 200
+                                                            },
+                                                            "column": {
+                                                              "type": "string",
+                                                              "maxLength": 128
+                                                            }
+                                                          },
+                                                          "required": [
+                                                            "table",
+                                                            "column"
+                                                          ],
+                                                          "additionalProperties": false
                                                         }
                                                       },
                                                       "required": [
@@ -26828,6 +26941,29 @@
                                                                                       "column": {
                                                                                         "type": "string",
                                                                                         "maxLength": 260
+                                                                                      },
+                                                                                      "lead": {
+                                                                                        "type": "boolean",
+                                                                                        "enum": [
+                                                                                          true
+                                                                                        ]
+                                                                                      },
+                                                                                      "else": {
+                                                                                        "type": "object",
+                                                                                        "properties": {
+                                                                                          "roles": {
+                                                                                            "minItems": 1,
+                                                                                            "maxItems": 20,
+                                                                                            "type": "array",
+                                                                                            "items": {
+                                                                                              "type": "string"
+                                                                                            }
+                                                                                          }
+                                                                                        },
+                                                                                        "required": [
+                                                                                          "roles"
+                                                                                        ],
+                                                                                        "additionalProperties": false
                                                                                       }
                                                                                     },
                                                                                     "required": [
@@ -27168,6 +27304,24 @@
                                                                                                   "hours",
                                                                                                   "days"
                                                                                                 ]
+                                                                                              },
+                                                                                              "setting": {
+                                                                                                "type": "object",
+                                                                                                "properties": {
+                                                                                                  "table": {
+                                                                                                    "type": "string",
+                                                                                                    "maxLength": 200
+                                                                                                  },
+                                                                                                  "column": {
+                                                                                                    "type": "string",
+                                                                                                    "maxLength": 128
+                                                                                                  }
+                                                                                                },
+                                                                                                "required": [
+                                                                                                  "table",
+                                                                                                  "column"
+                                                                                                ],
+                                                                                                "additionalProperties": false
                                                                                               }
                                                                                             },
                                                                                             "required": [
@@ -27725,6 +27879,24 @@
                                                                                   "hours",
                                                                                   "days"
                                                                                 ]
+                                                                              },
+                                                                              "setting": {
+                                                                                "type": "object",
+                                                                                "properties": {
+                                                                                  "table": {
+                                                                                    "type": "string",
+                                                                                    "maxLength": 200
+                                                                                  },
+                                                                                  "column": {
+                                                                                    "type": "string",
+                                                                                    "maxLength": 128
+                                                                                  }
+                                                                                },
+                                                                                "required": [
+                                                                                  "table",
+                                                                                  "column"
+                                                                                ],
+                                                                                "additionalProperties": false
                                                                               }
                                                                             },
                                                                             "required": [
@@ -28091,6 +28263,29 @@
                                                                                       "column": {
                                                                                         "type": "string",
                                                                                         "maxLength": 260
+                                                                                      },
+                                                                                      "lead": {
+                                                                                        "type": "boolean",
+                                                                                        "enum": [
+                                                                                          true
+                                                                                        ]
+                                                                                      },
+                                                                                      "else": {
+                                                                                        "type": "object",
+                                                                                        "properties": {
+                                                                                          "roles": {
+                                                                                            "minItems": 1,
+                                                                                            "maxItems": 20,
+                                                                                            "type": "array",
+                                                                                            "items": {
+                                                                                              "type": "string"
+                                                                                            }
+                                                                                          }
+                                                                                        },
+                                                                                        "required": [
+                                                                                          "roles"
+                                                                                        ],
+                                                                                        "additionalProperties": false
                                                                                       }
                                                                                     },
                                                                                     "required": [
@@ -28431,6 +28626,24 @@
                                                                                                   "hours",
                                                                                                   "days"
                                                                                                 ]
+                                                                                              },
+                                                                                              "setting": {
+                                                                                                "type": "object",
+                                                                                                "properties": {
+                                                                                                  "table": {
+                                                                                                    "type": "string",
+                                                                                                    "maxLength": 200
+                                                                                                  },
+                                                                                                  "column": {
+                                                                                                    "type": "string",
+                                                                                                    "maxLength": 128
+                                                                                                  }
+                                                                                                },
+                                                                                                "required": [
+                                                                                                  "table",
+                                                                                                  "column"
+                                                                                                ],
+                                                                                                "additionalProperties": false
                                                                                               }
                                                                                             },
                                                                                             "required": [
@@ -28988,6 +29201,24 @@
                                                                                   "hours",
                                                                                   "days"
                                                                                 ]
+                                                                              },
+                                                                              "setting": {
+                                                                                "type": "object",
+                                                                                "properties": {
+                                                                                  "table": {
+                                                                                    "type": "string",
+                                                                                    "maxLength": 200
+                                                                                  },
+                                                                                  "column": {
+                                                                                    "type": "string",
+                                                                                    "maxLength": 128
+                                                                                  }
+                                                                                },
+                                                                                "required": [
+                                                                                  "table",
+                                                                                  "column"
+                                                                                ],
+                                                                                "additionalProperties": false
                                                                               }
                                                                             },
                                                                             "required": [
@@ -29602,6 +29833,23 @@
                                             "hours",
                                             "days"
                                           ]
+                                        },
+                                        "setting": {
+                                          "type": "object",
+                                          "properties": {
+                                            "table": {
+                                              "type": "string",
+                                              "maxLength": 200
+                                            },
+                                            "column": {
+                                              "type": "string",
+                                              "maxLength": 128
+                                            }
+                                          },
+                                          "required": [
+                                            "table",
+                                            "column"
+                                          ]
                                         }
                                       },
                                       "required": [
@@ -29892,6 +30140,23 @@
                                                 "minutes",
                                                 "hours",
                                                 "days"
+                                              ]
+                                            },
+                                            "setting": {
+                                              "type": "object",
+                                              "properties": {
+                                                "table": {
+                                                  "type": "string",
+                                                  "maxLength": 200
+                                                },
+                                                "column": {
+                                                  "type": "string",
+                                                  "maxLength": 128
+                                                }
+                                              },
+                                              "required": [
+                                                "table",
+                                                "column"
                                               ]
                                             }
                                           },
@@ -30200,6 +30465,28 @@
                                                         "column": {
                                                           "type": "string",
                                                           "maxLength": 260
+                                                        },
+                                                        "lead": {
+                                                          "type": "boolean",
+                                                          "enum": [
+                                                            true
+                                                          ]
+                                                        },
+                                                        "else": {
+                                                          "type": "object",
+                                                          "properties": {
+                                                            "roles": {
+                                                              "minItems": 1,
+                                                              "maxItems": 20,
+                                                              "type": "array",
+                                                              "items": {
+                                                                "type": "string"
+                                                              }
+                                                            }
+                                                          },
+                                                          "required": [
+                                                            "roles"
+                                                          ]
                                                         }
                                                       },
                                                       "required": [
@@ -30523,6 +30810,23 @@
                                                                     "minutes",
                                                                     "hours",
                                                                     "days"
+                                                                  ]
+                                                                },
+                                                                "setting": {
+                                                                  "type": "object",
+                                                                  "properties": {
+                                                                    "table": {
+                                                                      "type": "string",
+                                                                      "maxLength": 200
+                                                                    },
+                                                                    "column": {
+                                                                      "type": "string",
+                                                                      "maxLength": 128
+                                                                    }
+                                                                  },
+                                                                  "required": [
+                                                                    "table",
+                                                                    "column"
                                                                   ]
                                                                 }
                                                               },
@@ -31042,6 +31346,23 @@
                                                     "hours",
                                                     "days"
                                                   ]
+                                                },
+                                                "setting": {
+                                                  "type": "object",
+                                                  "properties": {
+                                                    "table": {
+                                                      "type": "string",
+                                                      "maxLength": 200
+                                                    },
+                                                    "column": {
+                                                      "type": "string",
+                                                      "maxLength": 128
+                                                    }
+                                                  },
+                                                  "required": [
+                                                    "table",
+                                                    "column"
+                                                  ]
                                                 }
                                               },
                                               "required": [
@@ -31289,6 +31610,23 @@
                                                     "hours",
                                                     "days"
                                                   ]
+                                                },
+                                                "setting": {
+                                                  "type": "object",
+                                                  "properties": {
+                                                    "table": {
+                                                      "type": "string",
+                                                      "maxLength": 200
+                                                    },
+                                                    "column": {
+                                                      "type": "string",
+                                                      "maxLength": 128
+                                                    }
+                                                  },
+                                                  "required": [
+                                                    "table",
+                                                    "column"
+                                                  ]
                                                 }
                                               },
                                               "required": [
@@ -31535,6 +31873,28 @@
                                                                               "column": {
                                                                                 "type": "string",
                                                                                 "maxLength": 260
+                                                                              },
+                                                                              "lead": {
+                                                                                "type": "boolean",
+                                                                                "enum": [
+                                                                                  true
+                                                                                ]
+                                                                              },
+                                                                              "else": {
+                                                                                "type": "object",
+                                                                                "properties": {
+                                                                                  "roles": {
+                                                                                    "minItems": 1,
+                                                                                    "maxItems": 20,
+                                                                                    "type": "array",
+                                                                                    "items": {
+                                                                                      "type": "string"
+                                                                                    }
+                                                                                  }
+                                                                                },
+                                                                                "required": [
+                                                                                  "roles"
+                                                                                ]
                                                                               }
                                                                             },
                                                                             "required": [
@@ -31858,6 +32218,23 @@
                                                                                           "minutes",
                                                                                           "hours",
                                                                                           "days"
+                                                                                        ]
+                                                                                      },
+                                                                                      "setting": {
+                                                                                        "type": "object",
+                                                                                        "properties": {
+                                                                                          "table": {
+                                                                                            "type": "string",
+                                                                                            "maxLength": 200
+                                                                                          },
+                                                                                          "column": {
+                                                                                            "type": "string",
+                                                                                            "maxLength": 128
+                                                                                          }
+                                                                                        },
+                                                                                        "required": [
+                                                                                          "table",
+                                                                                          "column"
                                                                                         ]
                                                                                       }
                                                                                     },
@@ -32376,6 +32753,23 @@
                                                                           "minutes",
                                                                           "hours",
                                                                           "days"
+                                                                        ]
+                                                                      },
+                                                                      "setting": {
+                                                                        "type": "object",
+                                                                        "properties": {
+                                                                          "table": {
+                                                                            "type": "string",
+                                                                            "maxLength": 200
+                                                                          },
+                                                                          "column": {
+                                                                            "type": "string",
+                                                                            "maxLength": 128
+                                                                          }
+                                                                        },
+                                                                        "required": [
+                                                                          "table",
+                                                                          "column"
                                                                         ]
                                                                       }
                                                                     },
@@ -32727,6 +33121,28 @@
                                                                               "column": {
                                                                                 "type": "string",
                                                                                 "maxLength": 260
+                                                                              },
+                                                                              "lead": {
+                                                                                "type": "boolean",
+                                                                                "enum": [
+                                                                                  true
+                                                                                ]
+                                                                              },
+                                                                              "else": {
+                                                                                "type": "object",
+                                                                                "properties": {
+                                                                                  "roles": {
+                                                                                    "minItems": 1,
+                                                                                    "maxItems": 20,
+                                                                                    "type": "array",
+                                                                                    "items": {
+                                                                                      "type": "string"
+                                                                                    }
+                                                                                  }
+                                                                                },
+                                                                                "required": [
+                                                                                  "roles"
+                                                                                ]
                                                                               }
                                                                             },
                                                                             "required": [
@@ -33050,6 +33466,23 @@
                                                                                           "minutes",
                                                                                           "hours",
                                                                                           "days"
+                                                                                        ]
+                                                                                      },
+                                                                                      "setting": {
+                                                                                        "type": "object",
+                                                                                        "properties": {
+                                                                                          "table": {
+                                                                                            "type": "string",
+                                                                                            "maxLength": 200
+                                                                                          },
+                                                                                          "column": {
+                                                                                            "type": "string",
+                                                                                            "maxLength": 128
+                                                                                          }
+                                                                                        },
+                                                                                        "required": [
+                                                                                          "table",
+                                                                                          "column"
                                                                                         ]
                                                                                       }
                                                                                     },
@@ -33568,6 +34001,23 @@
                                                                           "minutes",
                                                                           "hours",
                                                                           "days"
+                                                                        ]
+                                                                      },
+                                                                      "setting": {
+                                                                        "type": "object",
+                                                                        "properties": {
+                                                                          "table": {
+                                                                            "type": "string",
+                                                                            "maxLength": 200
+                                                                          },
+                                                                          "column": {
+                                                                            "type": "string",
+                                                                            "maxLength": 128
+                                                                          }
+                                                                        },
+                                                                        "required": [
+                                                                          "table",
+                                                                          "column"
                                                                         ]
                                                                       }
                                                                     },
@@ -34048,6 +34498,24 @@
                                               "hours",
                                               "days"
                                             ]
+                                          },
+                                          "setting": {
+                                            "type": "object",
+                                            "properties": {
+                                              "table": {
+                                                "type": "string",
+                                                "maxLength": 200
+                                              },
+                                              "column": {
+                                                "type": "string",
+                                                "maxLength": 128
+                                              }
+                                            },
+                                            "required": [
+                                              "table",
+                                              "column"
+                                            ],
+                                            "additionalProperties": false
                                           }
                                         },
                                         "required": [
@@ -34351,6 +34819,24 @@
                                                   "hours",
                                                   "days"
                                                 ]
+                                              },
+                                              "setting": {
+                                                "type": "object",
+                                                "properties": {
+                                                  "table": {
+                                                    "type": "string",
+                                                    "maxLength": 200
+                                                  },
+                                                  "column": {
+                                                    "type": "string",
+                                                    "maxLength": 128
+                                                  }
+                                                },
+                                                "required": [
+                                                  "table",
+                                                  "column"
+                                                ],
+                                                "additionalProperties": false
                                               }
                                             },
                                             "required": [
@@ -34672,6 +35158,29 @@
                                                           "column": {
                                                             "type": "string",
                                                             "maxLength": 260
+                                                          },
+                                                          "lead": {
+                                                            "type": "boolean",
+                                                            "enum": [
+                                                              true
+                                                            ]
+                                                          },
+                                                          "else": {
+                                                            "type": "object",
+                                                            "properties": {
+                                                              "roles": {
+                                                                "minItems": 1,
+                                                                "maxItems": 20,
+                                                                "type": "array",
+                                                                "items": {
+                                                                  "type": "string"
+                                                                }
+                                                              }
+                                                            },
+                                                            "required": [
+                                                              "roles"
+                                                            ],
+                                                            "additionalProperties": false
                                                           }
                                                         },
                                                         "required": [
@@ -35012,6 +35521,24 @@
                                                                       "hours",
                                                                       "days"
                                                                     ]
+                                                                  },
+                                                                  "setting": {
+                                                                    "type": "object",
+                                                                    "properties": {
+                                                                      "table": {
+                                                                        "type": "string",
+                                                                        "maxLength": 200
+                                                                      },
+                                                                      "column": {
+                                                                        "type": "string",
+                                                                        "maxLength": 128
+                                                                      }
+                                                                    },
+                                                                    "required": [
+                                                                      "table",
+                                                                      "column"
+                                                                    ],
+                                                                    "additionalProperties": false
                                                                   }
                                                                 },
                                                                 "required": [
@@ -35569,6 +36096,24 @@
                                                       "hours",
                                                       "days"
                                                     ]
+                                                  },
+                                                  "setting": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                      "table": {
+                                                        "type": "string",
+                                                        "maxLength": 200
+                                                      },
+                                                      "column": {
+                                                        "type": "string",
+                                                        "maxLength": 128
+                                                      }
+                                                    },
+                                                    "required": [
+                                                      "table",
+                                                      "column"
+                                                    ],
+                                                    "additionalProperties": false
                                                   }
                                                 },
                                                 "required": [
@@ -35827,6 +36372,24 @@
                                                       "hours",
                                                       "days"
                                                     ]
+                                                  },
+                                                  "setting": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                      "table": {
+                                                        "type": "string",
+                                                        "maxLength": 200
+                                                      },
+                                                      "column": {
+                                                        "type": "string",
+                                                        "maxLength": 128
+                                                      }
+                                                    },
+                                                    "required": [
+                                                      "table",
+                                                      "column"
+                                                    ],
+                                                    "additionalProperties": false
                                                   }
                                                 },
                                                 "required": [
@@ -36084,6 +36647,29 @@
                                                                                 "column": {
                                                                                   "type": "string",
                                                                                   "maxLength": 260
+                                                                                },
+                                                                                "lead": {
+                                                                                  "type": "boolean",
+                                                                                  "enum": [
+                                                                                    true
+                                                                                  ]
+                                                                                },
+                                                                                "else": {
+                                                                                  "type": "object",
+                                                                                  "properties": {
+                                                                                    "roles": {
+                                                                                      "minItems": 1,
+                                                                                      "maxItems": 20,
+                                                                                      "type": "array",
+                                                                                      "items": {
+                                                                                        "type": "string"
+                                                                                      }
+                                                                                    }
+                                                                                  },
+                                                                                  "required": [
+                                                                                    "roles"
+                                                                                  ],
+                                                                                  "additionalProperties": false
                                                                                 }
                                                                               },
                                                                               "required": [
@@ -36424,6 +37010,24 @@
                                                                                             "hours",
                                                                                             "days"
                                                                                           ]
+                                                                                        },
+                                                                                        "setting": {
+                                                                                          "type": "object",
+                                                                                          "properties": {
+                                                                                            "table": {
+                                                                                              "type": "string",
+                                                                                              "maxLength": 200
+                                                                                            },
+                                                                                            "column": {
+                                                                                              "type": "string",
+                                                                                              "maxLength": 128
+                                                                                            }
+                                                                                          },
+                                                                                          "required": [
+                                                                                            "table",
+                                                                                            "column"
+                                                                                          ],
+                                                                                          "additionalProperties": false
                                                                                         }
                                                                                       },
                                                                                       "required": [
@@ -36981,6 +37585,24 @@
                                                                             "hours",
                                                                             "days"
                                                                           ]
+                                                                        },
+                                                                        "setting": {
+                                                                          "type": "object",
+                                                                          "properties": {
+                                                                            "table": {
+                                                                              "type": "string",
+                                                                              "maxLength": 200
+                                                                            },
+                                                                            "column": {
+                                                                              "type": "string",
+                                                                              "maxLength": 128
+                                                                            }
+                                                                          },
+                                                                          "required": [
+                                                                            "table",
+                                                                            "column"
+                                                                          ],
+                                                                          "additionalProperties": false
                                                                         }
                                                                       },
                                                                       "required": [
@@ -37347,6 +37969,29 @@
                                                                                 "column": {
                                                                                   "type": "string",
                                                                                   "maxLength": 260
+                                                                                },
+                                                                                "lead": {
+                                                                                  "type": "boolean",
+                                                                                  "enum": [
+                                                                                    true
+                                                                                  ]
+                                                                                },
+                                                                                "else": {
+                                                                                  "type": "object",
+                                                                                  "properties": {
+                                                                                    "roles": {
+                                                                                      "minItems": 1,
+                                                                                      "maxItems": 20,
+                                                                                      "type": "array",
+                                                                                      "items": {
+                                                                                        "type": "string"
+                                                                                      }
+                                                                                    }
+                                                                                  },
+                                                                                  "required": [
+                                                                                    "roles"
+                                                                                  ],
+                                                                                  "additionalProperties": false
                                                                                 }
                                                                               },
                                                                               "required": [
@@ -37687,6 +38332,24 @@
                                                                                             "hours",
                                                                                             "days"
                                                                                           ]
+                                                                                        },
+                                                                                        "setting": {
+                                                                                          "type": "object",
+                                                                                          "properties": {
+                                                                                            "table": {
+                                                                                              "type": "string",
+                                                                                              "maxLength": 200
+                                                                                            },
+                                                                                            "column": {
+                                                                                              "type": "string",
+                                                                                              "maxLength": 128
+                                                                                            }
+                                                                                          },
+                                                                                          "required": [
+                                                                                            "table",
+                                                                                            "column"
+                                                                                          ],
+                                                                                          "additionalProperties": false
                                                                                         }
                                                                                       },
                                                                                       "required": [
@@ -38244,6 +38907,24 @@
                                                                             "hours",
                                                                             "days"
                                                                           ]
+                                                                        },
+                                                                        "setting": {
+                                                                          "type": "object",
+                                                                          "properties": {
+                                                                            "table": {
+                                                                              "type": "string",
+                                                                              "maxLength": 200
+                                                                            },
+                                                                            "column": {
+                                                                              "type": "string",
+                                                                              "maxLength": 128
+                                                                            }
+                                                                          },
+                                                                          "required": [
+                                                                            "table",
+                                                                            "column"
+                                                                          ],
+                                                                          "additionalProperties": false
                                                                         }
                                                                       },
                                                                       "required": [
@@ -39442,6 +40123,24 @@
                                               "hours",
                                               "days"
                                             ]
+                                          },
+                                          "setting": {
+                                            "type": "object",
+                                            "properties": {
+                                              "table": {
+                                                "type": "string",
+                                                "maxLength": 200
+                                              },
+                                              "column": {
+                                                "type": "string",
+                                                "maxLength": 128
+                                              }
+                                            },
+                                            "required": [
+                                              "table",
+                                              "column"
+                                            ],
+                                            "additionalProperties": false
                                           }
                                         },
                                         "required": [
@@ -39745,6 +40444,24 @@
                                                   "hours",
                                                   "days"
                                                 ]
+                                              },
+                                              "setting": {
+                                                "type": "object",
+                                                "properties": {
+                                                  "table": {
+                                                    "type": "string",
+                                                    "maxLength": 200
+                                                  },
+                                                  "column": {
+                                                    "type": "string",
+                                                    "maxLength": 128
+                                                  }
+                                                },
+                                                "required": [
+                                                  "table",
+                                                  "column"
+                                                ],
+                                                "additionalProperties": false
                                               }
                                             },
                                             "required": [
@@ -40066,6 +40783,29 @@
                                                           "column": {
                                                             "type": "string",
                                                             "maxLength": 260
+                                                          },
+                                                          "lead": {
+                                                            "type": "boolean",
+                                                            "enum": [
+                                                              true
+                                                            ]
+                                                          },
+                                                          "else": {
+                                                            "type": "object",
+                                                            "properties": {
+                                                              "roles": {
+                                                                "minItems": 1,
+                                                                "maxItems": 20,
+                                                                "type": "array",
+                                                                "items": {
+                                                                  "type": "string"
+                                                                }
+                                                              }
+                                                            },
+                                                            "required": [
+                                                              "roles"
+                                                            ],
+                                                            "additionalProperties": false
                                                           }
                                                         },
                                                         "required": [
@@ -40406,6 +41146,24 @@
                                                                       "hours",
                                                                       "days"
                                                                     ]
+                                                                  },
+                                                                  "setting": {
+                                                                    "type": "object",
+                                                                    "properties": {
+                                                                      "table": {
+                                                                        "type": "string",
+                                                                        "maxLength": 200
+                                                                      },
+                                                                      "column": {
+                                                                        "type": "string",
+                                                                        "maxLength": 128
+                                                                      }
+                                                                    },
+                                                                    "required": [
+                                                                      "table",
+                                                                      "column"
+                                                                    ],
+                                                                    "additionalProperties": false
                                                                   }
                                                                 },
                                                                 "required": [
@@ -40963,6 +41721,24 @@
                                                       "hours",
                                                       "days"
                                                     ]
+                                                  },
+                                                  "setting": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                      "table": {
+                                                        "type": "string",
+                                                        "maxLength": 200
+                                                      },
+                                                      "column": {
+                                                        "type": "string",
+                                                        "maxLength": 128
+                                                      }
+                                                    },
+                                                    "required": [
+                                                      "table",
+                                                      "column"
+                                                    ],
+                                                    "additionalProperties": false
                                                   }
                                                 },
                                                 "required": [
@@ -41221,6 +41997,24 @@
                                                       "hours",
                                                       "days"
                                                     ]
+                                                  },
+                                                  "setting": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                      "table": {
+                                                        "type": "string",
+                                                        "maxLength": 200
+                                                      },
+                                                      "column": {
+                                                        "type": "string",
+                                                        "maxLength": 128
+                                                      }
+                                                    },
+                                                    "required": [
+                                                      "table",
+                                                      "column"
+                                                    ],
+                                                    "additionalProperties": false
                                                   }
                                                 },
                                                 "required": [
@@ -41478,6 +42272,29 @@
                                                                                 "column": {
                                                                                   "type": "string",
                                                                                   "maxLength": 260
+                                                                                },
+                                                                                "lead": {
+                                                                                  "type": "boolean",
+                                                                                  "enum": [
+                                                                                    true
+                                                                                  ]
+                                                                                },
+                                                                                "else": {
+                                                                                  "type": "object",
+                                                                                  "properties": {
+                                                                                    "roles": {
+                                                                                      "minItems": 1,
+                                                                                      "maxItems": 20,
+                                                                                      "type": "array",
+                                                                                      "items": {
+                                                                                        "type": "string"
+                                                                                      }
+                                                                                    }
+                                                                                  },
+                                                                                  "required": [
+                                                                                    "roles"
+                                                                                  ],
+                                                                                  "additionalProperties": false
                                                                                 }
                                                                               },
                                                                               "required": [
@@ -41818,6 +42635,24 @@
                                                                                             "hours",
                                                                                             "days"
                                                                                           ]
+                                                                                        },
+                                                                                        "setting": {
+                                                                                          "type": "object",
+                                                                                          "properties": {
+                                                                                            "table": {
+                                                                                              "type": "string",
+                                                                                              "maxLength": 200
+                                                                                            },
+                                                                                            "column": {
+                                                                                              "type": "string",
+                                                                                              "maxLength": 128
+                                                                                            }
+                                                                                          },
+                                                                                          "required": [
+                                                                                            "table",
+                                                                                            "column"
+                                                                                          ],
+                                                                                          "additionalProperties": false
                                                                                         }
                                                                                       },
                                                                                       "required": [
@@ -42375,6 +43210,24 @@
                                                                             "hours",
                                                                             "days"
                                                                           ]
+                                                                        },
+                                                                        "setting": {
+                                                                          "type": "object",
+                                                                          "properties": {
+                                                                            "table": {
+                                                                              "type": "string",
+                                                                              "maxLength": 200
+                                                                            },
+                                                                            "column": {
+                                                                              "type": "string",
+                                                                              "maxLength": 128
+                                                                            }
+                                                                          },
+                                                                          "required": [
+                                                                            "table",
+                                                                            "column"
+                                                                          ],
+                                                                          "additionalProperties": false
                                                                         }
                                                                       },
                                                                       "required": [
@@ -42741,6 +43594,29 @@
                                                                                 "column": {
                                                                                   "type": "string",
                                                                                   "maxLength": 260
+                                                                                },
+                                                                                "lead": {
+                                                                                  "type": "boolean",
+                                                                                  "enum": [
+                                                                                    true
+                                                                                  ]
+                                                                                },
+                                                                                "else": {
+                                                                                  "type": "object",
+                                                                                  "properties": {
+                                                                                    "roles": {
+                                                                                      "minItems": 1,
+                                                                                      "maxItems": 20,
+                                                                                      "type": "array",
+                                                                                      "items": {
+                                                                                        "type": "string"
+                                                                                      }
+                                                                                    }
+                                                                                  },
+                                                                                  "required": [
+                                                                                    "roles"
+                                                                                  ],
+                                                                                  "additionalProperties": false
                                                                                 }
                                                                               },
                                                                               "required": [
@@ -43081,6 +43957,24 @@
                                                                                             "hours",
                                                                                             "days"
                                                                                           ]
+                                                                                        },
+                                                                                        "setting": {
+                                                                                          "type": "object",
+                                                                                          "properties": {
+                                                                                            "table": {
+                                                                                              "type": "string",
+                                                                                              "maxLength": 200
+                                                                                            },
+                                                                                            "column": {
+                                                                                              "type": "string",
+                                                                                              "maxLength": 128
+                                                                                            }
+                                                                                          },
+                                                                                          "required": [
+                                                                                            "table",
+                                                                                            "column"
+                                                                                          ],
+                                                                                          "additionalProperties": false
                                                                                         }
                                                                                       },
                                                                                       "required": [
@@ -43638,6 +44532,24 @@
                                                                             "hours",
                                                                             "days"
                                                                           ]
+                                                                        },
+                                                                        "setting": {
+                                                                          "type": "object",
+                                                                          "properties": {
+                                                                            "table": {
+                                                                              "type": "string",
+                                                                              "maxLength": 200
+                                                                            },
+                                                                            "column": {
+                                                                              "type": "string",
+                                                                              "maxLength": 128
+                                                                            }
+                                                                          },
+                                                                          "required": [
+                                                                            "table",
+                                                                            "column"
+                                                                          ],
+                                                                          "additionalProperties": false
                                                                         }
                                                                       },
                                                                       "required": [
@@ -44235,6 +45147,23 @@
                                             "hours",
                                             "days"
                                           ]
+                                        },
+                                        "setting": {
+                                          "type": "object",
+                                          "properties": {
+                                            "table": {
+                                              "type": "string",
+                                              "maxLength": 200
+                                            },
+                                            "column": {
+                                              "type": "string",
+                                              "maxLength": 128
+                                            }
+                                          },
+                                          "required": [
+                                            "table",
+                                            "column"
+                                          ]
                                         }
                                       },
                                       "required": [
@@ -44525,6 +45454,23 @@
                                                 "minutes",
                                                 "hours",
                                                 "days"
+                                              ]
+                                            },
+                                            "setting": {
+                                              "type": "object",
+                                              "properties": {
+                                                "table": {
+                                                  "type": "string",
+                                                  "maxLength": 200
+                                                },
+                                                "column": {
+                                                  "type": "string",
+                                                  "maxLength": 128
+                                                }
+                                              },
+                                              "required": [
+                                                "table",
+                                                "column"
                                               ]
                                             }
                                           },
@@ -44833,6 +45779,28 @@
                                                         "column": {
                                                           "type": "string",
                                                           "maxLength": 260
+                                                        },
+                                                        "lead": {
+                                                          "type": "boolean",
+                                                          "enum": [
+                                                            true
+                                                          ]
+                                                        },
+                                                        "else": {
+                                                          "type": "object",
+                                                          "properties": {
+                                                            "roles": {
+                                                              "minItems": 1,
+                                                              "maxItems": 20,
+                                                              "type": "array",
+                                                              "items": {
+                                                                "type": "string"
+                                                              }
+                                                            }
+                                                          },
+                                                          "required": [
+                                                            "roles"
+                                                          ]
                                                         }
                                                       },
                                                       "required": [
@@ -45156,6 +46124,23 @@
                                                                     "minutes",
                                                                     "hours",
                                                                     "days"
+                                                                  ]
+                                                                },
+                                                                "setting": {
+                                                                  "type": "object",
+                                                                  "properties": {
+                                                                    "table": {
+                                                                      "type": "string",
+                                                                      "maxLength": 200
+                                                                    },
+                                                                    "column": {
+                                                                      "type": "string",
+                                                                      "maxLength": 128
+                                                                    }
+                                                                  },
+                                                                  "required": [
+                                                                    "table",
+                                                                    "column"
                                                                   ]
                                                                 }
                                                               },
@@ -45675,6 +46660,23 @@
                                                     "hours",
                                                     "days"
                                                   ]
+                                                },
+                                                "setting": {
+                                                  "type": "object",
+                                                  "properties": {
+                                                    "table": {
+                                                      "type": "string",
+                                                      "maxLength": 200
+                                                    },
+                                                    "column": {
+                                                      "type": "string",
+                                                      "maxLength": 128
+                                                    }
+                                                  },
+                                                  "required": [
+                                                    "table",
+                                                    "column"
+                                                  ]
                                                 }
                                               },
                                               "required": [
@@ -45922,6 +46924,23 @@
                                                     "hours",
                                                     "days"
                                                   ]
+                                                },
+                                                "setting": {
+                                                  "type": "object",
+                                                  "properties": {
+                                                    "table": {
+                                                      "type": "string",
+                                                      "maxLength": 200
+                                                    },
+                                                    "column": {
+                                                      "type": "string",
+                                                      "maxLength": 128
+                                                    }
+                                                  },
+                                                  "required": [
+                                                    "table",
+                                                    "column"
+                                                  ]
                                                 }
                                               },
                                               "required": [
@@ -46168,6 +47187,28 @@
                                                                               "column": {
                                                                                 "type": "string",
                                                                                 "maxLength": 260
+                                                                              },
+                                                                              "lead": {
+                                                                                "type": "boolean",
+                                                                                "enum": [
+                                                                                  true
+                                                                                ]
+                                                                              },
+                                                                              "else": {
+                                                                                "type": "object",
+                                                                                "properties": {
+                                                                                  "roles": {
+                                                                                    "minItems": 1,
+                                                                                    "maxItems": 20,
+                                                                                    "type": "array",
+                                                                                    "items": {
+                                                                                      "type": "string"
+                                                                                    }
+                                                                                  }
+                                                                                },
+                                                                                "required": [
+                                                                                  "roles"
+                                                                                ]
                                                                               }
                                                                             },
                                                                             "required": [
@@ -46491,6 +47532,23 @@
                                                                                           "minutes",
                                                                                           "hours",
                                                                                           "days"
+                                                                                        ]
+                                                                                      },
+                                                                                      "setting": {
+                                                                                        "type": "object",
+                                                                                        "properties": {
+                                                                                          "table": {
+                                                                                            "type": "string",
+                                                                                            "maxLength": 200
+                                                                                          },
+                                                                                          "column": {
+                                                                                            "type": "string",
+                                                                                            "maxLength": 128
+                                                                                          }
+                                                                                        },
+                                                                                        "required": [
+                                                                                          "table",
+                                                                                          "column"
                                                                                         ]
                                                                                       }
                                                                                     },
@@ -47009,6 +48067,23 @@
                                                                           "minutes",
                                                                           "hours",
                                                                           "days"
+                                                                        ]
+                                                                      },
+                                                                      "setting": {
+                                                                        "type": "object",
+                                                                        "properties": {
+                                                                          "table": {
+                                                                            "type": "string",
+                                                                            "maxLength": 200
+                                                                          },
+                                                                          "column": {
+                                                                            "type": "string",
+                                                                            "maxLength": 128
+                                                                          }
+                                                                        },
+                                                                        "required": [
+                                                                          "table",
+                                                                          "column"
                                                                         ]
                                                                       }
                                                                     },
@@ -47360,6 +48435,28 @@
                                                                               "column": {
                                                                                 "type": "string",
                                                                                 "maxLength": 260
+                                                                              },
+                                                                              "lead": {
+                                                                                "type": "boolean",
+                                                                                "enum": [
+                                                                                  true
+                                                                                ]
+                                                                              },
+                                                                              "else": {
+                                                                                "type": "object",
+                                                                                "properties": {
+                                                                                  "roles": {
+                                                                                    "minItems": 1,
+                                                                                    "maxItems": 20,
+                                                                                    "type": "array",
+                                                                                    "items": {
+                                                                                      "type": "string"
+                                                                                    }
+                                                                                  }
+                                                                                },
+                                                                                "required": [
+                                                                                  "roles"
+                                                                                ]
                                                                               }
                                                                             },
                                                                             "required": [
@@ -47683,6 +48780,23 @@
                                                                                           "minutes",
                                                                                           "hours",
                                                                                           "days"
+                                                                                        ]
+                                                                                      },
+                                                                                      "setting": {
+                                                                                        "type": "object",
+                                                                                        "properties": {
+                                                                                          "table": {
+                                                                                            "type": "string",
+                                                                                            "maxLength": 200
+                                                                                          },
+                                                                                          "column": {
+                                                                                            "type": "string",
+                                                                                            "maxLength": 128
+                                                                                          }
+                                                                                        },
+                                                                                        "required": [
+                                                                                          "table",
+                                                                                          "column"
                                                                                         ]
                                                                                       }
                                                                                     },
@@ -48201,6 +49315,23 @@
                                                                           "minutes",
                                                                           "hours",
                                                                           "days"
+                                                                        ]
+                                                                      },
+                                                                      "setting": {
+                                                                        "type": "object",
+                                                                        "properties": {
+                                                                          "table": {
+                                                                            "type": "string",
+                                                                            "maxLength": 200
+                                                                          },
+                                                                          "column": {
+                                                                            "type": "string",
+                                                                            "maxLength": 128
+                                                                          }
+                                                                        },
+                                                                        "required": [
+                                                                          "table",
+                                                                          "column"
                                                                         ]
                                                                       }
                                                                     },
@@ -48686,6 +49817,24 @@
                                               "hours",
                                               "days"
                                             ]
+                                          },
+                                          "setting": {
+                                            "type": "object",
+                                            "properties": {
+                                              "table": {
+                                                "type": "string",
+                                                "maxLength": 200
+                                              },
+                                              "column": {
+                                                "type": "string",
+                                                "maxLength": 128
+                                              }
+                                            },
+                                            "required": [
+                                              "table",
+                                              "column"
+                                            ],
+                                            "additionalProperties": false
                                           }
                                         },
                                         "required": [
@@ -48989,6 +50138,24 @@
                                                   "hours",
                                                   "days"
                                                 ]
+                                              },
+                                              "setting": {
+                                                "type": "object",
+                                                "properties": {
+                                                  "table": {
+                                                    "type": "string",
+                                                    "maxLength": 200
+                                                  },
+                                                  "column": {
+                                                    "type": "string",
+                                                    "maxLength": 128
+                                                  }
+                                                },
+                                                "required": [
+                                                  "table",
+                                                  "column"
+                                                ],
+                                                "additionalProperties": false
                                               }
                                             },
                                             "required": [
@@ -49310,6 +50477,29 @@
                                                           "column": {
                                                             "type": "string",
                                                             "maxLength": 260
+                                                          },
+                                                          "lead": {
+                                                            "type": "boolean",
+                                                            "enum": [
+                                                              true
+                                                            ]
+                                                          },
+                                                          "else": {
+                                                            "type": "object",
+                                                            "properties": {
+                                                              "roles": {
+                                                                "minItems": 1,
+                                                                "maxItems": 20,
+                                                                "type": "array",
+                                                                "items": {
+                                                                  "type": "string"
+                                                                }
+                                                              }
+                                                            },
+                                                            "required": [
+                                                              "roles"
+                                                            ],
+                                                            "additionalProperties": false
                                                           }
                                                         },
                                                         "required": [
@@ -49650,6 +50840,24 @@
                                                                       "hours",
                                                                       "days"
                                                                     ]
+                                                                  },
+                                                                  "setting": {
+                                                                    "type": "object",
+                                                                    "properties": {
+                                                                      "table": {
+                                                                        "type": "string",
+                                                                        "maxLength": 200
+                                                                      },
+                                                                      "column": {
+                                                                        "type": "string",
+                                                                        "maxLength": 128
+                                                                      }
+                                                                    },
+                                                                    "required": [
+                                                                      "table",
+                                                                      "column"
+                                                                    ],
+                                                                    "additionalProperties": false
                                                                   }
                                                                 },
                                                                 "required": [
@@ -50207,6 +51415,24 @@
                                                       "hours",
                                                       "days"
                                                     ]
+                                                  },
+                                                  "setting": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                      "table": {
+                                                        "type": "string",
+                                                        "maxLength": 200
+                                                      },
+                                                      "column": {
+                                                        "type": "string",
+                                                        "maxLength": 128
+                                                      }
+                                                    },
+                                                    "required": [
+                                                      "table",
+                                                      "column"
+                                                    ],
+                                                    "additionalProperties": false
                                                   }
                                                 },
                                                 "required": [
@@ -50465,6 +51691,24 @@
                                                       "hours",
                                                       "days"
                                                     ]
+                                                  },
+                                                  "setting": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                      "table": {
+                                                        "type": "string",
+                                                        "maxLength": 200
+                                                      },
+                                                      "column": {
+                                                        "type": "string",
+                                                        "maxLength": 128
+                                                      }
+                                                    },
+                                                    "required": [
+                                                      "table",
+                                                      "column"
+                                                    ],
+                                                    "additionalProperties": false
                                                   }
                                                 },
                                                 "required": [
@@ -50722,6 +51966,29 @@
                                                                                 "column": {
                                                                                   "type": "string",
                                                                                   "maxLength": 260
+                                                                                },
+                                                                                "lead": {
+                                                                                  "type": "boolean",
+                                                                                  "enum": [
+                                                                                    true
+                                                                                  ]
+                                                                                },
+                                                                                "else": {
+                                                                                  "type": "object",
+                                                                                  "properties": {
+                                                                                    "roles": {
+                                                                                      "minItems": 1,
+                                                                                      "maxItems": 20,
+                                                                                      "type": "array",
+                                                                                      "items": {
+                                                                                        "type": "string"
+                                                                                      }
+                                                                                    }
+                                                                                  },
+                                                                                  "required": [
+                                                                                    "roles"
+                                                                                  ],
+                                                                                  "additionalProperties": false
                                                                                 }
                                                                               },
                                                                               "required": [
@@ -51062,6 +52329,24 @@
                                                                                             "hours",
                                                                                             "days"
                                                                                           ]
+                                                                                        },
+                                                                                        "setting": {
+                                                                                          "type": "object",
+                                                                                          "properties": {
+                                                                                            "table": {
+                                                                                              "type": "string",
+                                                                                              "maxLength": 200
+                                                                                            },
+                                                                                            "column": {
+                                                                                              "type": "string",
+                                                                                              "maxLength": 128
+                                                                                            }
+                                                                                          },
+                                                                                          "required": [
+                                                                                            "table",
+                                                                                            "column"
+                                                                                          ],
+                                                                                          "additionalProperties": false
                                                                                         }
                                                                                       },
                                                                                       "required": [
@@ -51619,6 +52904,24 @@
                                                                             "hours",
                                                                             "days"
                                                                           ]
+                                                                        },
+                                                                        "setting": {
+                                                                          "type": "object",
+                                                                          "properties": {
+                                                                            "table": {
+                                                                              "type": "string",
+                                                                              "maxLength": 200
+                                                                            },
+                                                                            "column": {
+                                                                              "type": "string",
+                                                                              "maxLength": 128
+                                                                            }
+                                                                          },
+                                                                          "required": [
+                                                                            "table",
+                                                                            "column"
+                                                                          ],
+                                                                          "additionalProperties": false
                                                                         }
                                                                       },
                                                                       "required": [
@@ -51985,6 +53288,29 @@
                                                                                 "column": {
                                                                                   "type": "string",
                                                                                   "maxLength": 260
+                                                                                },
+                                                                                "lead": {
+                                                                                  "type": "boolean",
+                                                                                  "enum": [
+                                                                                    true
+                                                                                  ]
+                                                                                },
+                                                                                "else": {
+                                                                                  "type": "object",
+                                                                                  "properties": {
+                                                                                    "roles": {
+                                                                                      "minItems": 1,
+                                                                                      "maxItems": 20,
+                                                                                      "type": "array",
+                                                                                      "items": {
+                                                                                        "type": "string"
+                                                                                      }
+                                                                                    }
+                                                                                  },
+                                                                                  "required": [
+                                                                                    "roles"
+                                                                                  ],
+                                                                                  "additionalProperties": false
                                                                                 }
                                                                               },
                                                                               "required": [
@@ -52325,6 +53651,24 @@
                                                                                             "hours",
                                                                                             "days"
                                                                                           ]
+                                                                                        },
+                                                                                        "setting": {
+                                                                                          "type": "object",
+                                                                                          "properties": {
+                                                                                            "table": {
+                                                                                              "type": "string",
+                                                                                              "maxLength": 200
+                                                                                            },
+                                                                                            "column": {
+                                                                                              "type": "string",
+                                                                                              "maxLength": 128
+                                                                                            }
+                                                                                          },
+                                                                                          "required": [
+                                                                                            "table",
+                                                                                            "column"
+                                                                                          ],
+                                                                                          "additionalProperties": false
                                                                                         }
                                                                                       },
                                                                                       "required": [
@@ -52882,6 +54226,24 @@
                                                                             "hours",
                                                                             "days"
                                                                           ]
+                                                                        },
+                                                                        "setting": {
+                                                                          "type": "object",
+                                                                          "properties": {
+                                                                            "table": {
+                                                                              "type": "string",
+                                                                              "maxLength": 200
+                                                                            },
+                                                                            "column": {
+                                                                              "type": "string",
+                                                                              "maxLength": 128
+                                                                            }
+                                                                          },
+                                                                          "required": [
+                                                                            "table",
+                                                                            "column"
+                                                                          ],
+                                                                          "additionalProperties": false
                                                                         }
                                                                       },
                                                                       "required": [
@@ -53562,6 +54924,24 @@
                                               "hours",
                                               "days"
                                             ]
+                                          },
+                                          "setting": {
+                                            "type": "object",
+                                            "properties": {
+                                              "table": {
+                                                "type": "string",
+                                                "maxLength": 200
+                                              },
+                                              "column": {
+                                                "type": "string",
+                                                "maxLength": 128
+                                              }
+                                            },
+                                            "required": [
+                                              "table",
+                                              "column"
+                                            ],
+                                            "additionalProperties": false
                                           }
                                         },
                                         "required": [
@@ -53865,6 +55245,24 @@
                                                   "hours",
                                                   "days"
                                                 ]
+                                              },
+                                              "setting": {
+                                                "type": "object",
+                                                "properties": {
+                                                  "table": {
+                                                    "type": "string",
+                                                    "maxLength": 200
+                                                  },
+                                                  "column": {
+                                                    "type": "string",
+                                                    "maxLength": 128
+                                                  }
+                                                },
+                                                "required": [
+                                                  "table",
+                                                  "column"
+                                                ],
+                                                "additionalProperties": false
                                               }
                                             },
                                             "required": [
@@ -54186,6 +55584,29 @@
                                                           "column": {
                                                             "type": "string",
                                                             "maxLength": 260
+                                                          },
+                                                          "lead": {
+                                                            "type": "boolean",
+                                                            "enum": [
+                                                              true
+                                                            ]
+                                                          },
+                                                          "else": {
+                                                            "type": "object",
+                                                            "properties": {
+                                                              "roles": {
+                                                                "minItems": 1,
+                                                                "maxItems": 20,
+                                                                "type": "array",
+                                                                "items": {
+                                                                  "type": "string"
+                                                                }
+                                                              }
+                                                            },
+                                                            "required": [
+                                                              "roles"
+                                                            ],
+                                                            "additionalProperties": false
                                                           }
                                                         },
                                                         "required": [
@@ -54526,6 +55947,24 @@
                                                                       "hours",
                                                                       "days"
                                                                     ]
+                                                                  },
+                                                                  "setting": {
+                                                                    "type": "object",
+                                                                    "properties": {
+                                                                      "table": {
+                                                                        "type": "string",
+                                                                        "maxLength": 200
+                                                                      },
+                                                                      "column": {
+                                                                        "type": "string",
+                                                                        "maxLength": 128
+                                                                      }
+                                                                    },
+                                                                    "required": [
+                                                                      "table",
+                                                                      "column"
+                                                                    ],
+                                                                    "additionalProperties": false
                                                                   }
                                                                 },
                                                                 "required": [
@@ -55083,6 +56522,24 @@
                                                       "hours",
                                                       "days"
                                                     ]
+                                                  },
+                                                  "setting": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                      "table": {
+                                                        "type": "string",
+                                                        "maxLength": 200
+                                                      },
+                                                      "column": {
+                                                        "type": "string",
+                                                        "maxLength": 128
+                                                      }
+                                                    },
+                                                    "required": [
+                                                      "table",
+                                                      "column"
+                                                    ],
+                                                    "additionalProperties": false
                                                   }
                                                 },
                                                 "required": [
@@ -55341,6 +56798,24 @@
                                                       "hours",
                                                       "days"
                                                     ]
+                                                  },
+                                                  "setting": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                      "table": {
+                                                        "type": "string",
+                                                        "maxLength": 200
+                                                      },
+                                                      "column": {
+                                                        "type": "string",
+                                                        "maxLength": 128
+                                                      }
+                                                    },
+                                                    "required": [
+                                                      "table",
+                                                      "column"
+                                                    ],
+                                                    "additionalProperties": false
                                                   }
                                                 },
                                                 "required": [
@@ -55598,6 +57073,29 @@
                                                                                 "column": {
                                                                                   "type": "string",
                                                                                   "maxLength": 260
+                                                                                },
+                                                                                "lead": {
+                                                                                  "type": "boolean",
+                                                                                  "enum": [
+                                                                                    true
+                                                                                  ]
+                                                                                },
+                                                                                "else": {
+                                                                                  "type": "object",
+                                                                                  "properties": {
+                                                                                    "roles": {
+                                                                                      "minItems": 1,
+                                                                                      "maxItems": 20,
+                                                                                      "type": "array",
+                                                                                      "items": {
+                                                                                        "type": "string"
+                                                                                      }
+                                                                                    }
+                                                                                  },
+                                                                                  "required": [
+                                                                                    "roles"
+                                                                                  ],
+                                                                                  "additionalProperties": false
                                                                                 }
                                                                               },
                                                                               "required": [
@@ -55938,6 +57436,24 @@
                                                                                             "hours",
                                                                                             "days"
                                                                                           ]
+                                                                                        },
+                                                                                        "setting": {
+                                                                                          "type": "object",
+                                                                                          "properties": {
+                                                                                            "table": {
+                                                                                              "type": "string",
+                                                                                              "maxLength": 200
+                                                                                            },
+                                                                                            "column": {
+                                                                                              "type": "string",
+                                                                                              "maxLength": 128
+                                                                                            }
+                                                                                          },
+                                                                                          "required": [
+                                                                                            "table",
+                                                                                            "column"
+                                                                                          ],
+                                                                                          "additionalProperties": false
                                                                                         }
                                                                                       },
                                                                                       "required": [
@@ -56495,6 +58011,24 @@
                                                                             "hours",
                                                                             "days"
                                                                           ]
+                                                                        },
+                                                                        "setting": {
+                                                                          "type": "object",
+                                                                          "properties": {
+                                                                            "table": {
+                                                                              "type": "string",
+                                                                              "maxLength": 200
+                                                                            },
+                                                                            "column": {
+                                                                              "type": "string",
+                                                                              "maxLength": 128
+                                                                            }
+                                                                          },
+                                                                          "required": [
+                                                                            "table",
+                                                                            "column"
+                                                                          ],
+                                                                          "additionalProperties": false
                                                                         }
                                                                       },
                                                                       "required": [
@@ -56861,6 +58395,29 @@
                                                                                 "column": {
                                                                                   "type": "string",
                                                                                   "maxLength": 260
+                                                                                },
+                                                                                "lead": {
+                                                                                  "type": "boolean",
+                                                                                  "enum": [
+                                                                                    true
+                                                                                  ]
+                                                                                },
+                                                                                "else": {
+                                                                                  "type": "object",
+                                                                                  "properties": {
+                                                                                    "roles": {
+                                                                                      "minItems": 1,
+                                                                                      "maxItems": 20,
+                                                                                      "type": "array",
+                                                                                      "items": {
+                                                                                        "type": "string"
+                                                                                      }
+                                                                                    }
+                                                                                  },
+                                                                                  "required": [
+                                                                                    "roles"
+                                                                                  ],
+                                                                                  "additionalProperties": false
                                                                                 }
                                                                               },
                                                                               "required": [
@@ -57201,6 +58758,24 @@
                                                                                             "hours",
                                                                                             "days"
                                                                                           ]
+                                                                                        },
+                                                                                        "setting": {
+                                                                                          "type": "object",
+                                                                                          "properties": {
+                                                                                            "table": {
+                                                                                              "type": "string",
+                                                                                              "maxLength": 200
+                                                                                            },
+                                                                                            "column": {
+                                                                                              "type": "string",
+                                                                                              "maxLength": 128
+                                                                                            }
+                                                                                          },
+                                                                                          "required": [
+                                                                                            "table",
+                                                                                            "column"
+                                                                                          ],
+                                                                                          "additionalProperties": false
                                                                                         }
                                                                                       },
                                                                                       "required": [
@@ -57758,6 +59333,24 @@
                                                                             "hours",
                                                                             "days"
                                                                           ]
+                                                                        },
+                                                                        "setting": {
+                                                                          "type": "object",
+                                                                          "properties": {
+                                                                            "table": {
+                                                                              "type": "string",
+                                                                              "maxLength": 200
+                                                                            },
+                                                                            "column": {
+                                                                              "type": "string",
+                                                                              "maxLength": 128
+                                                                            }
+                                                                          },
+                                                                          "required": [
+                                                                            "table",
+                                                                            "column"
+                                                                          ],
+                                                                          "additionalProperties": false
                                                                         }
                                                                       },
                                                                       "required": [
@@ -58352,6 +59945,23 @@
                                             "hours",
                                             "days"
                                           ]
+                                        },
+                                        "setting": {
+                                          "type": "object",
+                                          "properties": {
+                                            "table": {
+                                              "type": "string",
+                                              "maxLength": 200
+                                            },
+                                            "column": {
+                                              "type": "string",
+                                              "maxLength": 128
+                                            }
+                                          },
+                                          "required": [
+                                            "table",
+                                            "column"
+                                          ]
                                         }
                                       },
                                       "required": [
@@ -58642,6 +60252,23 @@
                                                 "minutes",
                                                 "hours",
                                                 "days"
+                                              ]
+                                            },
+                                            "setting": {
+                                              "type": "object",
+                                              "properties": {
+                                                "table": {
+                                                  "type": "string",
+                                                  "maxLength": 200
+                                                },
+                                                "column": {
+                                                  "type": "string",
+                                                  "maxLength": 128
+                                                }
+                                              },
+                                              "required": [
+                                                "table",
+                                                "column"
                                               ]
                                             }
                                           },
@@ -58950,6 +60577,28 @@
                                                         "column": {
                                                           "type": "string",
                                                           "maxLength": 260
+                                                        },
+                                                        "lead": {
+                                                          "type": "boolean",
+                                                          "enum": [
+                                                            true
+                                                          ]
+                                                        },
+                                                        "else": {
+                                                          "type": "object",
+                                                          "properties": {
+                                                            "roles": {
+                                                              "minItems": 1,
+                                                              "maxItems": 20,
+                                                              "type": "array",
+                                                              "items": {
+                                                                "type": "string"
+                                                              }
+                                                            }
+                                                          },
+                                                          "required": [
+                                                            "roles"
+                                                          ]
                                                         }
                                                       },
                                                       "required": [
@@ -59273,6 +60922,23 @@
                                                                     "minutes",
                                                                     "hours",
                                                                     "days"
+                                                                  ]
+                                                                },
+                                                                "setting": {
+                                                                  "type": "object",
+                                                                  "properties": {
+                                                                    "table": {
+                                                                      "type": "string",
+                                                                      "maxLength": 200
+                                                                    },
+                                                                    "column": {
+                                                                      "type": "string",
+                                                                      "maxLength": 128
+                                                                    }
+                                                                  },
+                                                                  "required": [
+                                                                    "table",
+                                                                    "column"
                                                                   ]
                                                                 }
                                                               },
@@ -59792,6 +61458,23 @@
                                                     "hours",
                                                     "days"
                                                   ]
+                                                },
+                                                "setting": {
+                                                  "type": "object",
+                                                  "properties": {
+                                                    "table": {
+                                                      "type": "string",
+                                                      "maxLength": 200
+                                                    },
+                                                    "column": {
+                                                      "type": "string",
+                                                      "maxLength": 128
+                                                    }
+                                                  },
+                                                  "required": [
+                                                    "table",
+                                                    "column"
+                                                  ]
                                                 }
                                               },
                                               "required": [
@@ -60039,6 +61722,23 @@
                                                     "hours",
                                                     "days"
                                                   ]
+                                                },
+                                                "setting": {
+                                                  "type": "object",
+                                                  "properties": {
+                                                    "table": {
+                                                      "type": "string",
+                                                      "maxLength": 200
+                                                    },
+                                                    "column": {
+                                                      "type": "string",
+                                                      "maxLength": 128
+                                                    }
+                                                  },
+                                                  "required": [
+                                                    "table",
+                                                    "column"
+                                                  ]
                                                 }
                                               },
                                               "required": [
@@ -60285,6 +61985,28 @@
                                                                               "column": {
                                                                                 "type": "string",
                                                                                 "maxLength": 260
+                                                                              },
+                                                                              "lead": {
+                                                                                "type": "boolean",
+                                                                                "enum": [
+                                                                                  true
+                                                                                ]
+                                                                              },
+                                                                              "else": {
+                                                                                "type": "object",
+                                                                                "properties": {
+                                                                                  "roles": {
+                                                                                    "minItems": 1,
+                                                                                    "maxItems": 20,
+                                                                                    "type": "array",
+                                                                                    "items": {
+                                                                                      "type": "string"
+                                                                                    }
+                                                                                  }
+                                                                                },
+                                                                                "required": [
+                                                                                  "roles"
+                                                                                ]
                                                                               }
                                                                             },
                                                                             "required": [
@@ -60608,6 +62330,23 @@
                                                                                           "minutes",
                                                                                           "hours",
                                                                                           "days"
+                                                                                        ]
+                                                                                      },
+                                                                                      "setting": {
+                                                                                        "type": "object",
+                                                                                        "properties": {
+                                                                                          "table": {
+                                                                                            "type": "string",
+                                                                                            "maxLength": 200
+                                                                                          },
+                                                                                          "column": {
+                                                                                            "type": "string",
+                                                                                            "maxLength": 128
+                                                                                          }
+                                                                                        },
+                                                                                        "required": [
+                                                                                          "table",
+                                                                                          "column"
                                                                                         ]
                                                                                       }
                                                                                     },
@@ -61126,6 +62865,23 @@
                                                                           "minutes",
                                                                           "hours",
                                                                           "days"
+                                                                        ]
+                                                                      },
+                                                                      "setting": {
+                                                                        "type": "object",
+                                                                        "properties": {
+                                                                          "table": {
+                                                                            "type": "string",
+                                                                            "maxLength": 200
+                                                                          },
+                                                                          "column": {
+                                                                            "type": "string",
+                                                                            "maxLength": 128
+                                                                          }
+                                                                        },
+                                                                        "required": [
+                                                                          "table",
+                                                                          "column"
                                                                         ]
                                                                       }
                                                                     },
@@ -61477,6 +63233,28 @@
                                                                               "column": {
                                                                                 "type": "string",
                                                                                 "maxLength": 260
+                                                                              },
+                                                                              "lead": {
+                                                                                "type": "boolean",
+                                                                                "enum": [
+                                                                                  true
+                                                                                ]
+                                                                              },
+                                                                              "else": {
+                                                                                "type": "object",
+                                                                                "properties": {
+                                                                                  "roles": {
+                                                                                    "minItems": 1,
+                                                                                    "maxItems": 20,
+                                                                                    "type": "array",
+                                                                                    "items": {
+                                                                                      "type": "string"
+                                                                                    }
+                                                                                  }
+                                                                                },
+                                                                                "required": [
+                                                                                  "roles"
+                                                                                ]
                                                                               }
                                                                             },
                                                                             "required": [
@@ -61800,6 +63578,23 @@
                                                                                           "minutes",
                                                                                           "hours",
                                                                                           "days"
+                                                                                        ]
+                                                                                      },
+                                                                                      "setting": {
+                                                                                        "type": "object",
+                                                                                        "properties": {
+                                                                                          "table": {
+                                                                                            "type": "string",
+                                                                                            "maxLength": 200
+                                                                                          },
+                                                                                          "column": {
+                                                                                            "type": "string",
+                                                                                            "maxLength": 128
+                                                                                          }
+                                                                                        },
+                                                                                        "required": [
+                                                                                          "table",
+                                                                                          "column"
                                                                                         ]
                                                                                       }
                                                                                     },
@@ -62318,6 +64113,23 @@
                                                                           "minutes",
                                                                           "hours",
                                                                           "days"
+                                                                        ]
+                                                                      },
+                                                                      "setting": {
+                                                                        "type": "object",
+                                                                        "properties": {
+                                                                          "table": {
+                                                                            "type": "string",
+                                                                            "maxLength": 200
+                                                                          },
+                                                                          "column": {
+                                                                            "type": "string",
+                                                                            "maxLength": 128
+                                                                          }
+                                                                        },
+                                                                        "required": [
+                                                                          "table",
+                                                                          "column"
                                                                         ]
                                                                       }
                                                                     },

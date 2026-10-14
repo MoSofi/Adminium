@@ -172,6 +172,97 @@ describe('rules that tell the person on the row', () => {
     expect(changed((doc) => (rule(doc, 'quiet-deal').graph.nodes[1]!.action['urgent'] = 'yes'))).not.toBe('');
   });
 
+  it('tells the lead of the person a staff column names, with roles for when there is none, and says the word to an older server', () => {
+    const lead = (doc: Doc, to: unknown) => (rule(doc, 'quiet-deal').graph.nodes[1]!.action['to'] = to);
+    const asked = sales() as Doc;
+    lead(asked, { column: 'owner_id', lead: true, else: { roles: ['manager'] } });
+    expect(issuesOf(asked)).toEqual([]);
+    expect(installFloorWords(asked).map((found) => found.word)).toContain('automations.lead');
+    expect(WORD_FLOORS['automations.lead']).toBe('0.3.28');
+    // Roles for an empty column, without a lead, are the same word.
+    const empty = sales() as Doc;
+    lead(empty, { column: 'owner_id', else: { roles: ['manager'] } });
+    expect(issuesOf(empty)).toEqual([]);
+    expect(installFloorWords(empty).map((found) => found.word)).toContain('automations.lead');
+    // A lead is never quietly nobody's; the roles are the manifest's own; the column a staff column.
+    expect(changed((doc) => lead(doc, { column: 'owner_id', lead: true }))).toContain('a notice to a lead says who is told when there is none');
+    expect(changed((doc) => lead(doc, { column: 'owner_id', lead: true, else: { roles: ['boss'] } }))).toContain('"boss" is not one of this manifest\'s roles');
+    expect(changed((doc) => lead(doc, { column: 'name', lead: true, else: { roles: ['manager'] } }))).toContain('"deals.name" is not a staff column');
+    expect(changed((doc) => lead(doc, { column: 'owner_id', lead: 'yes', else: { roles: ['manager'] } }))).not.toBe('');
+    expect(changed((doc) => lead(doc, { column: 'owner_id', lead: true, else: { roles: [] } }))).not.toBe('');
+  });
+
+  it('fills the name of the person a staff column names, and the record\'s address only in a mail to a person', () => {
+    type Templates = { emailTemplates: { key: string; locales: Record<string, { blocks: { data: Record<string, unknown> }[] }> }[] };
+    const won = (doc: Doc) => (doc as unknown as Templates).emailTemplates.find((one) => one.key === 'sales-won')!.locales['en-US']!.blocks[0]!.data;
+    const named = sales() as Doc;
+    won(named)['text'] = 'Well done, {{owner_id.name}}, on {{record.name}} ({{record.owner_id.name}}). Open it: {{recordUrl}}';
+    rule(named, 'quiet-deal').graph.nodes[1]!.action['title'] = en('{{owner_id.name}}: {{record.name}} is quiet');
+    expect(issuesOf(named)).toEqual([]);
+    const words = installFloorWords(named).map((found) => `${found.word} ${found.path}`);
+    expect(words).toContain('automations.staffName automations.0');
+    expect(words).toContain('automations.staffName automations.3');
+    expect(words).toContain('automations.recordUrl automations.3');
+    expect(WORD_FLOORS['automations.staffName']).toBe('0.3.28');
+    expect(WORD_FLOORS['automations.recordUrl']).toBe('0.3.28');
+    // A column that names nobody has no name; the address goes only to a person, never to an address a column holds.
+    expect(changed((doc) => (won(doc)['text'] = 'Hello {{name.name}}'))).toContain('reads {{name.name}}, which a rule cannot fill');
+    expect(changed((doc) => {
+      won(doc)['text'] = 'Open it: {{recordUrl}}';
+      rule(doc, 'deal-won').graph.nodes[1]!.action['to'] = { kind: 'field', column: 'name' };
+    })).toContain('reads {{recordUrl}}, which only a mail to a person carries');
+  });
+
+  it('reads the record as it was before the change, in a rule run by a change only, in its texts, its writes and its mails', () => {
+    type Templates = { emailTemplates: { key: string; locales: Record<string, { blocks: { data: Record<string, unknown> }[] }> }[] };
+    const won = (doc: Doc) => (doc as unknown as Templates).emailTemplates.find((one) => one.key === 'sales-won')!.locales['en-US']!.blocks[0]!.data;
+    const was = sales() as Doc;
+    rule(was, 'amount-changed').graph.nodes[1]!.action['title'] = en('{{record.name}}: {{was.amount}} → {{record.amount}}');
+    rule(was, 'amount-changed').graph.nodes.push({ action: { kind: 'record.update', values: { name: '{{record.name}} (was {{was.amount}})' } } } as never);
+    (rule(was, 'amount-changed').graph.nodes.at(-1) as Record<string, unknown>)['id'] = 'keep';
+    (rule(was, 'amount-changed').graph.nodes.at(-1) as Record<string, unknown>)['kind'] = 'action';
+    (rule(was, 'amount-changed').graph.nodes.at(-1) as Record<string, unknown>)['title'] = 'keep';
+    won(was)['text'] = 'Well done on {{record.name}}, {{was.state}} until now.';
+    expect(issuesOf(was)).toEqual([]);
+    const words = installFloorWords(was).map((found) => `${found.word} ${found.path}`);
+    expect(words).toContain('automations.was automations.2');
+    expect(words).toContain('automations.was automations.3');
+    expect(WORD_FLOORS['automations.was']).toBe('0.3.28');
+    // A rule run by the clock, or when a row is made, has no "as it was"; a column the record has not, none either.
+    expect(changed((doc) => (rule(doc, 'quiet-deal').graph.nodes[1]!.action['title'] = en('{{was.name}}')))).toContain('{{was.name}}: only a rule run when its record is updated reads the record as it was');
+    expect(changed((doc) => (rule(doc, 'amount-changed').graph.nodes[1]!.action['title'] = en('{{was.nope}}')))).toContain('{{was.nope}}: "deals" has no column "nope"');
+    expect(changed((doc) => {
+      won(doc)['text'] = 'Was {{was.state}}';
+      rule(doc, 'deal-won').trigger['event'] = 'created';
+      delete rule(doc, 'deal-won').trigger['changedColumn'];
+      delete rule(doc, 'deal-won').trigger['when'];
+    })).toContain('reads {{was.state}}, which a rule cannot fill');
+  });
+
+  it('reads an amount of time from a whole-number column of a settings row, where a scan or a condition step reads it', () => {
+    const quiet = (doc: Doc) => rule(doc, 'quiet-deal').trigger['forEach'] as { where: Record<string, unknown>[] };
+    const stamp = (doc: Doc) => Object.assign(column(doc, 'deals', 'quiet'), { type: 'timestamptz', default: undefined, nullable: true });
+    const read = sales() as Doc;
+    stamp(read);
+    quiet(read).where = [{ left: { field: 'quiet' }, op: 'more_than_ago', right: { amount: 7, unit: 'days', setting: { table: 'targets', column: 'year' } } }];
+    expect(issuesOf(read)).toEqual([]);
+    expect(installFloorWords(read).map((found) => `${found.word} ${found.path}`)).toContain('automations.settingAmount automations.0');
+    expect(WORD_FLOORS['automations.settingAmount']).toBe('0.3.28');
+    const withSetting = (doc: Doc, setting: unknown) => {
+      stamp(doc);
+      quiet(doc).where = [{ left: { field: 'quiet' }, op: 'more_than_ago', right: { amount: 7, unit: 'days', setting } }];
+    };
+    expect(changed((doc) => withSetting(doc, { table: 'targets', column: 'rep_id' }))).toContain('"targets.rep_id" is not a whole-number column');
+    expect(changed((doc) => withSetting(doc, { table: 'settings', column: 'days' }))).toContain('"settings" is not one of this manifest\'s tables');
+    // Not in a trigger's own conditions, which are read inside the save.
+    expect(
+      changed((doc) => {
+        const won = rule(doc, 'deal-won');
+        won.trigger['when'] = [{ left: { field: 'name' }, op: 'within_last', right: { amount: 7, unit: 'days', setting: { table: 'targets', column: 'year' } } }];
+      }),
+    ).toContain('an amount read from a setting is read where a rule visits rows by the clock');
+  });
+
   it('holds a summary to sections of the person\'s own rows, each drawn by a rows block of its template', () => {
     expect(changed((doc) => (rule(doc, 'weekly').graph.nodes[1]!.action['sections'][0].owner = 'name'))).toContain('a section lists the rows whose person is the one written to');
     const renamed = changed((doc) => (rule(doc, 'weekly').graph.nodes[1]!.action['sections'][0].key = 'mine'));

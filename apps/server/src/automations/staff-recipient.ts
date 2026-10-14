@@ -15,6 +15,7 @@
  */
 import { usersRepo, type MetaDb, type User } from '@adminium/meta';
 
+import type { Row } from '../crud/mask.js';
 import { replyToOf } from '../email/send.js';
 
 import { parseRelated } from './related.js';
@@ -22,6 +23,30 @@ import { ActionFailure, type ActionContext } from './actions/types.js';
 
 /** Who a staff column of the run's record names, or why nobody. */
 export type StaffFound = { user: User } | { nobody: 'empty' | 'gone' | 'away' };
+
+/**
+ * The names of the people the record's staff columns name, and those of the
+ * related rows the run has read: by id, as Adminium keeps them. One read of
+ * each person, whatever their status: a name is said, nobody is told.
+ */
+export async function staffNamesOf(meta: MetaDb, source: Pick<NonNullable<ActionContext['source']>, 'table' | 'row' | 'related'>): Promise<Map<string, string>> {
+  const ids = new Set<string>();
+  const take = (table: { table: { columns: readonly { name: string; staff?: boolean | undefined }[] } }, row: Row | null) => {
+    for (const column of table.table.columns) {
+      const value = column.staff === true ? row?.[column.name] : undefined;
+      if (value !== null && value !== undefined && String(value).trim() !== '') ids.add(String(value));
+    }
+  };
+  take(source.table, source.row);
+  for (const far of source.related?.values() ?? []) take(far.table, far.row);
+  const users = usersRepo(meta);
+  const out = new Map<string, string>();
+  for (const id of ids) {
+    const user = await users.findById(id);
+    if (user !== null) out.set(id, user.name);
+  }
+  return out;
+}
 
 /** Whether a column of a table holds a staff member. */
 function isStaff(table: { table: { columns: readonly { name: string; staff?: boolean | undefined }[] } }, column: string): boolean {

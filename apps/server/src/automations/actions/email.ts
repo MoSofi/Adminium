@@ -53,6 +53,7 @@ import { resolveRuleTemplate, templateRequiredPlaceholders } from '../templates.
 import { substitute, tokensFor, type TokenMap } from '../templating.js';
 import { enqueueEmail } from '../../email/send.js';
 import { heldUntil } from '../../notifications/notify.js';
+import { recordUrlFor } from '../record-link.js';
 import { staffAt, staffReplyTo } from '../staff-recipient.js';
 import { AUTOMATION_NOTICE_KIND } from './notice-kind.js';
 import { ActionFailure, type ActionContext, type ActionResult } from './types.js';
@@ -116,7 +117,7 @@ async function existsInAnyLocale(meta: MetaDb, key: string, locale: string): Pro
 // Where a template's placeholders are read: beside what a template key means, which this step also asks.
 export { templatePlaceholders } from '../templates.js';
 
-/** What every rule's email can read whatever its record is. */
+/** What every rule's email can read whatever its record is. A mail to a person (`to.kind: staff`) also reads `recordUrl`. */
 export const RULE_EMAIL_VARS = ['now', 'ruleName', 'recordLabel', 'appName'] as const;
 
 /**
@@ -141,20 +142,22 @@ async function formattedValues(ctx: ActionContext, locale: string): Promise<Toke
   const own = source.table.columns.has('currency') ? source.row['currency'] : null;
   const currency = typeof own === 'string' && /^[A-Za-z]{3}$/.test(own.trim()) ? own.trim().toUpperCase() : null;
   const out: TokenMap = {};
+  const formatted = (name: string, column: { logicalType: string; secret: boolean }, value: unknown): string | undefined => {
+    if (value === null || value === undefined || value === '') return undefined;
+    if (column.logicalType === 'timestamp' || column.logicalType === 'timestamptz') return forms.instant(name, value)[name];
+    if (column.logicalType === 'date') return forms.day(name, value)[name];
+    if (source.table.table.columns.find((c) => c.name === name)?.semantics?.primary === 'money') return forms.money(value, currency);
+    return undefined;
+  };
   for (const [name, column] of source.table.columns) {
-    const value = source.row[name];
-    if (value === null || value === undefined || value === '') continue;
-    let text: string | undefined;
-    if (column.logicalType === 'timestamp' || column.logicalType === 'timestamptz') {
-      text = forms.instant(name, value)[name];
-    } else if (column.logicalType === 'date') {
-      text = forms.day(name, value)[name];
-    } else if (source.table.table.columns.find((c) => c.name === name)?.semantics?.primary === 'money') {
-      text = forms.money(value, currency);
+    const text = formatted(name, column, source.row[name]);
+    if (text !== undefined) {
+      out[`record.${name}`] = text;
+      out[name] = text;
     }
-    if (text === undefined) continue;
-    out[`record.${name}`] = text;
-    out[name] = text;
+    // The record as it was before a change, read the same way; a secret never.
+    const was = source.was === undefined || source.was === null || column.secret ? undefined : formatted(name, column, source.was[name]);
+    if (was !== undefined) out[`was.${name}`] = was;
   }
   return out;
 }
@@ -182,6 +185,8 @@ async function varsFor(action: EmailAction, ctx: ActionContext, locale: string):
           now: ctx.now,
           includeMasked: true,
           related: ctx.source.related,
+          people: ctx.source.people,
+          was: ctx.source.was,
         });
   const read: Record<string, string> = { ...ctx.tokens, ...unmasked, ...(await formattedValues(ctx, locale)), appName };
   const mapped: Record<string, string> = {};
@@ -217,7 +222,8 @@ async function runStaffEmail(action: EmailAction & { to: { kind: 'staff'; column
     const exists = await existsInAnyLocale(ctx.meta, action.templateKey, locale);
     throw new ActionFailure(exists ? `Template ${action.templateKey} is archived or switched off.` : `Template ${action.templateKey} no longer exists.`);
   }
-  const vars = await varsFor(action, ctx, template.locale);
+  // The record's address, for a person who can open it: what a notice's e-mail button carries, and nothing for anybody else.
+  const vars = { recordUrl: await recordUrlFor(ctx, user), ...(await varsFor(action, ctx, template.locale)) };
   const unfilled = unfilledIn(template, vars);
   if (dryRun) {
     const prepared = await prepareEmail(ctx.meta, template);

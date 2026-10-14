@@ -22,7 +22,7 @@
  */
 
 import { stepRowProblems } from './step-rows.js';
-import { placeholdersIn } from '@adminium/manifest';
+import { placeholderNames, placeholdersIn } from '@adminium/manifest';
 import type {
   AutomationAction,
   AutomationCondition,
@@ -235,7 +235,21 @@ function checkCondition(
   table: ResolvedTable,
   ctx: ResolveContext,
   where: string,
+  /** An amount may be read from a setting here: a schedule's scan, a condition step. */
+  settingsOk = false,
 ): void {
+  const right = condition.right;
+  if (typeof right === 'object' && right !== null && right.setting !== undefined) {
+    if (!settingsOk || 'count' in condition.left) {
+      throw new ValidationFailedError(`${where}: an amount read from a setting is read by a schedule's conditions and by a condition step, not here.`, { reason: 'setting-not-here' });
+    }
+    const held = tableOrThrow(ctx, right.setting.table, where);
+    const column = readColumn(held, right.setting.column, where);
+    if (column === undefined) throw new ValidationFailedError(`${where}: ${held.id} has no column ${right.setting.column}.`, { column: right.setting.column });
+    if (column.logicalType !== 'integer' && column.logicalType !== 'bigint') {
+      throw new ValidationFailedError(`${where}: ${held.id}.${right.setting.column} is not a whole-number column, so it holds no amount of time.`, { column: right.setting.column, reason: 'setting-not-a-number' });
+    }
+  }
   if ('count' in condition.left) {
     const counted = tableOrThrow(ctx, condition.left.count.table, where);
     const match = readColumn(counted, condition.left.count.matchColumn, where);
@@ -319,6 +333,10 @@ function checkAction(
     }
     case 'notification': {
       if (action.to !== null && 'column' in action.to && action.to.column !== '') staffColumn(action.to.column, table, ctx, where);
+      // A notice to a lead goes somewhere when there is none: it is never quietly nobody's.
+      if (action.to !== null && 'column' in action.to && action.to.lead === true && (action.to.else?.roles.length ?? 0) === 0) {
+        throw new ValidationFailedError(`${where}: a notice to the lead of the person in ${action.to.column} says which roles are told when there is none.`, { column: action.to.column, reason: 'lead-without-else' });
+      }
       return;
     }
     case 'digest': {
@@ -550,7 +568,20 @@ export function resolveRule(
       if ('count' in condition.left) {
         throw new ValidationFailedError("A schedule's conditions are read by the database. Count related rows in a step after it.", { table: table.id });
       }
-      checkCondition(condition, table, ctx, 'The schedule');
+      checkCondition(condition, table, ctx, 'The schedule', true);
+    }
+  }
+  // The record as it was (`{{was.<column>}}`): there is one only for a change, and only of the record's own columns.
+  for (const node of flattenNodes(graph)) {
+    if (node.kind !== 'action') continue;
+    for (const name of placeholderNames(node.action)) {
+      if (!name.startsWith('was.')) continue;
+      const where = `Step “${node.title}”`;
+      if (trigger.kind !== 'record' || trigger.event !== 'updated' || table === null) {
+        throw new ValidationFailedError(`${where}: {{${name}}} is the record as it was before a change, and only a rule run when its record is updated has one.`, { placeholder: name, reason: 'was-without-change' });
+      }
+      const column = name.slice('was.'.length);
+      if (readColumn(table, column, where) === undefined) throw new ValidationFailedError(`${where}: ${table.id} has no column ${column}.`, { column });
     }
   }
 
@@ -558,7 +589,7 @@ export function resolveRule(
     const where = `Step “${node.title}”`;
     if (node.kind === 'action') checkAction(node.action, table, ctx, where);
     else if ((node.kind === 'condition' || node.kind === 'branch') && table !== null) {
-      checkCondition(node.condition, table, ctx, where);
+      checkCondition(node.condition, table, ctx, where, true);
     }
   }
   // A row a step makes, read by a later one (`{{steps.deal.id}}`): made before it is read, and only what its author is shown.

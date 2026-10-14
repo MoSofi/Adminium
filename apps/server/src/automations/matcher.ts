@@ -228,7 +228,7 @@ export class AutomationMatcher {
           event.action === 'update' ? await this.#dialectOf(event.connectionId) : undefined,
         ),
         origin: event.origin,
-        triggerEvent: triggerEventFor(event, hops, image),
+        triggerEvent: triggerEventFor(event, hops, image, readsWas(rule)),
         wakeAt: delayed ? wakeAt : null,
       },
       at,
@@ -275,7 +275,7 @@ export class AutomationMatcher {
   async watchesChange(connectionId: string, tableId: string): Promise<boolean> {
     if (!this.#loaded) await this.refresh();
     return (this.#index.get(indexKey(connectionId, tableId, 'updated')) ?? []).some(
-      (rule) => rule.trigger.kind === 'record' && typeof rule.trigger.changedColumn === 'string' && rule.trigger.changedColumn !== '',
+      (rule) => rule.trigger.kind === 'record' && ((typeof rule.trigger.changedColumn === 'string' && rule.trigger.changedColumn !== '') || readsWas(rule)),
     );
   }
 
@@ -332,10 +332,22 @@ export function occurrenceKeyFor(
   return null;
 }
 
+/**
+ * Whether a rule may read the changed row as it was (`{{was.<column>}}`): its
+ * steps say so, or it sends an e-mail, whose template may. Such a rule's
+ * update is announced with the row as it was, read first, and its run keeps it.
+ */
+export function readsWas(rule: Pick<Automation, 'graph'>): boolean {
+  const text = JSON.stringify(rule.graph);
+  return /\{\{\s*was\./.test(text) || /"kind":"email"/.test(text);
+}
+
 export function triggerEventFor(
   event: RecordWriteEvent,
   hops: number,
   image: Row,
+  /** The rule reads the changed row as it was: keep it for the run (`before`). */
+  keepBefore = false,
 ): AutomationTriggerEvent {
   const name =
     event.action === 'create'
@@ -358,6 +370,8 @@ export function triggerEventFor(
     // A deleted row cannot be read again, so its actions get it as it was;
     // never served, and dropped when the run ends (`values`).
     ...(event.action === 'delete' ? { values: image } : {}),
+    // A changed row as it was, for `{{was.<column>}}`: never served either, and dropped when the run ends.
+    ...(keepBefore && event.action === 'update' && event.before !== null && event.before !== undefined ? { before: event.before } : {}),
     occurredAt: event.occurredAt ?? Date.now(),
   };
 }

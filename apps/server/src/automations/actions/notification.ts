@@ -21,9 +21,10 @@
  * which is the honest fallback, because the run IS what happened.
  */
 
-import { pagesRepo, rolesRepo, usersRepo, type AutomationAction } from '@adminium/meta';
+import { pagesRepo, rolesRepo, teamsRepo, usersRepo, type AutomationAction } from '@adminium/meta';
 
 import { notify } from '../../notifications/notify.js';
+import { opensRecord } from '../record-link.js';
 import { substitute } from '../templating.js';
 import { AUTOMATION_NOTICE_KIND } from './notice-kind.js';
 import { staffAt } from '../staff-recipient.js';
@@ -33,23 +34,67 @@ type NotificationAction = Extract<AutomationAction, { kind: 'notification' }>;
 
 export { AUTOMATION_NOTICE_KIND };
 
+/**
+ * The people who lead a team the person is in, other than the person: each
+ * once, and only those who sign in and can open the record the notice is
+ * about. Somebody who leads their own team and is led by nobody else has none.
+ */
+async function leadsOf(ctx: ActionContext, userId: string): Promise<string[]> {
+  const teams = teamsRepo(ctx.meta);
+  const users = usersRepo(ctx.meta);
+  const out: string[] = [];
+  for (const membership of await teams.teamsOf(userId)) {
+    for (const member of await teams.members(membership.teamId)) {
+      if (!member.lead || member.userId === userId || out.includes(member.userId)) continue;
+      if ((await users.findById(member.userId))?.status !== 'active') continue;
+      if (await opensRecord(ctx, member.userId)) out.push(member.userId);
+    }
+  }
+  return out;
+}
+
+async function holdersOf(ctx: ActionContext, roleIds: readonly string[]): Promise<string[]> {
+  const roles = rolesRepo(ctx.meta);
+  const ids = new Set<string>();
+  for (const roleId of roleIds) {
+    for (const userId of await roles.usersInRole(roleId)) ids.add(userId);
+  }
+  return [...ids];
+}
+
+/**
+ * Of the people a step names by role or by hand, those who can open the
+ * record the notice is about: its title and body carry the record's values,
+ * and somebody whose roles do not reach the row (a manager of another team)
+ * is not told of it. Nobody left is said in the run's log, not a failure. A
+ * rule about no record tells everybody it names.
+ */
+async function readersOf(ctx: ActionContext, ids: readonly string[]): Promise<string[] | { note: string }> {
+  if (ctx.source === null || ids.length === 0) return [...ids];
+  const out: string[] = [];
+  for (const id of ids) if (await opensRecord(ctx, id)) out.push(id);
+  return out.length === 0 ? { note: ctx.text.notifOk(0) } : out;
+}
+
 /** Who a notice goes to; `note` says why nobody, where that is not a failure (an empty staff column). */
 async function recipientsFor(action: NotificationAction, ctx: ActionContext): Promise<string[] | { note: string }> {
   const to = action.to;
   if (to === null) throw new ActionFailure('This step has nobody to notify.');
-  if ('users' in to) return [...new Set(to.users)];
-  // The person on the row: a record that names nobody tells nobody, and the run says so.
+  if ('users' in to) return readersOf(ctx, [...new Set(to.users)]);
+  // The person on the row, or whoever leads them: a record that names nobody tells the step's other roles, else nobody, and the run says so.
   if ('column' in to) {
     const found = await staffAt(ctx.meta, ctx, to.column);
-    return 'user' in found ? [found.user.id] : { note: ctx.text.staffNobody(to.column, found.nobody) };
+    const fallback = to.else?.roles ?? [];
+    if (!('user' in found)) return fallback.length > 0 ? readersOf(ctx, await holdersOf(ctx, fallback)) : { note: ctx.text.staffNobody(to.column, found.nobody) };
+    if (to.lead !== true) return [found.user.id];
+    // Never the person themselves: a lead of nobody, or led by nobody who can open the record, is the roles' to hear.
+    const leads = await leadsOf(ctx, found.user.id);
+    if (leads.length > 0) return leads;
+    if (fallback.length === 0) throw new ActionFailure(`Nobody leads the person in ${to.column}, and this step names no roles to tell instead.`);
+    const others = (await holdersOf(ctx, fallback)).filter((id) => id !== found.user.id);
+    return others.length === 0 ? others : readersOf(ctx, others);
   }
-
-  const roles = rolesRepo(ctx.meta);
-  const ids = new Set<string>();
-  for (const roleId of to.roles) {
-    for (const userId of await roles.usersInRole(roleId)) ids.add(userId);
-  }
-  return [...ids];
+  return readersOf(ctx, await holdersOf(ctx, to.roles));
 }
 
 /**

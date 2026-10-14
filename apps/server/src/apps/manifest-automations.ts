@@ -71,6 +71,9 @@ interface Binding {
 const one = (words: Words, language: string): string => (typeof words === 'string' ? words : (words[language] ?? words['en-US'] ?? Object.values(words)[0] ?? ''));
 
 function boundCondition(condition: ManifestCondition, b: Binding): unknown {
+  // An amount read from a setting: from the settings table as it is named here.
+  const right = condition.right;
+  if (typeof right === 'object' && right !== null && right.setting !== undefined) return { ...condition, right: { ...right, setting: { ...right.setting, table: b.realId(right.setting.table) } } };
   if (!('count' in condition.left)) return condition;
   const count = condition.left.count;
   return { ...condition, left: { count: { ...count, table: b.realId(count.table) } } };
@@ -87,9 +90,10 @@ function boundNode(node: unknown, b: Binding): unknown {
   if (anyNode.kind !== 'action') return base;
   const action = anyNode['action'] as { kind: string } & Record<string, unknown>;
   if (action.kind === 'notification') {
-    // To the people of a role, by the role's id here; or to the person a staff column names, as written.
-    const to = action['to'] as { roles: string[] } | { column: string };
-    return { ...base, action: { ...action, to: 'roles' in to ? { roles: to.roles.map((key) => b.roleId(key)) } : to, title: one(action['title'] as Words, b.language), ...(action['body'] === undefined ? {} : { body: one(action['body'] as Words, b.language) }) } };
+    // To the people of a role, by the role's id here; or to the person a staff column names (or their lead), as written, with its roles for nobody by id.
+    const to = action['to'] as { roles: string[] } | { column: string; lead?: true; else?: { roles: string[] } };
+    const bound = 'roles' in to ? { roles: to.roles.map((key) => b.roleId(key)) } : to.else === undefined ? to : { ...to, else: { roles: to.else.roles.map((key) => b.roleId(key)) } };
+    return { ...base, action: { ...action, to: bound, title: one(action['title'] as Words, b.language), ...(action['body'] === undefined ? {} : { body: one(action['body'] as Words, b.language) }) } };
   }
   if (action.kind === 'digest') {
     const to = action['to'] as { roles: string[] };

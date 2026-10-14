@@ -45,6 +45,7 @@ import type { FastifyInstance } from 'fastify';
 import {
   automationDurationMs,
   type Automation,
+  type AutomationCondition,
   type AutomationGraph,
   type AutomationNode,
   type AutomationTrace,
@@ -76,6 +77,9 @@ import { ActionFailure, type ActionContext, type ActionSource } from './actions/
 import { evaluateCondition, type ConditionContext } from './conditions.js';
 import { countRelatedRows } from './related-count.js';
 import { loadRelated, relatedUses } from './related.js';
+import { staffNamesOf } from './staff-recipient.js';
+import { readsSettings, withSettingAmounts } from './setting-operands.js';
+import { settingReader } from '../outbox/timing.js';
 import type { StepLookup } from './add-on-steps.js';
 import { flattenNodes } from './validate.js';
 import { tokensFor } from './templating.js';
@@ -237,12 +241,16 @@ export async function walkRule(deps: RunnerDeps, input: WalkInput): Promise<RunO
   if (deps.steps !== undefined && flattenNodes(input.rule.graph).some((node) => node.kind === 'action' && node.action.kind === 'add-on.step')) ctx.steps = await deps.steps();
   // The rows the rule reaches through a link, read once for the whole run.
   if (source !== null) source.related = await loadRelated(source, relatedUses(input.rule.graph).map((use) => use.link));
+  // The names of the people its staff columns name, for `{{owner_id.name}}`.
+  if (source !== null) source.people = await staffNamesOf(deps.meta, source);
   const refreshTokens = (): void => {
     ctx.tokens = {
       ...tokensFor({
         row: source?.row ?? null,
         table: source?.table ?? null,
         related: source?.related,
+        people: source?.people,
+        was: source?.was,
         ruleName: input.rule.name,
         recordLabel: source?.record.label ?? '',
         now,
@@ -253,6 +261,9 @@ export async function walkRule(deps: RunnerDeps, input: WalkInput): Promise<RunO
   };
   refreshTokens();
 
+  // A condition whose amount a setting holds reads it as the step reaches it.
+  const settled = async (condition: AutomationCondition): Promise<AutomationCondition> =>
+    source === null || !readsSettings([condition]) ? condition : ((await withSettingAmounts([condition], settingReader(deps.meta, source.db)))[0] as AutomationCondition);
   const conditionCtx = (): ConditionContext => ({
     row: source?.row ?? null,
     table: source?.table ?? null,
@@ -282,7 +293,7 @@ export async function walkRule(deps: RunnerDeps, input: WalkInput): Promise<RunO
   const branchLogs = new Map<string, string>();
   const decide = async (node: AutomationNode): Promise<number | null> => {
     if (node.kind !== 'branch' || halted) return null;
-    const ok = await evaluateCondition(node.condition, conditionCtx());
+    const ok = await evaluateCondition(await settled(node.condition), conditionCtx());
     const chosen = ok ? 0 : 1;
     branchLogs.set(node.id, node.branches[chosen].label);
     return chosen;
@@ -340,7 +351,7 @@ export async function walkRule(deps: RunnerDeps, input: WalkInput): Promise<RunO
     }
 
     if (node.kind === 'condition') {
-      const ok = await evaluateCondition(node.condition, conditionCtx());
+      const ok = await evaluateCondition(await settled(node.condition), conditionCtx());
       trace.add({
         nodeId: node.id,
         name: node.title,
@@ -520,9 +531,12 @@ async function openSource(
       table,
       record,
       row: (event.values ?? event.snapshot ?? {}) as Row,
+      removed: true,
     };
   }
   const row = await fetchByPk(db, table, record.pk as Row);
   if (row === undefined) return 'gone';
-  return { connectionId: record.connectionId, view, db, dialect, table, record, row };
+  // A change: the row as it was, when the run kept it (`{{was.<column>}}`).
+  const was = event.event === 'record.updated' ? ((event.before ?? null) as Row | null) : undefined;
+  return { connectionId: record.connectionId, view, db, dialect, table, record, row, ...(was === undefined ? {} : { was }) };
 }

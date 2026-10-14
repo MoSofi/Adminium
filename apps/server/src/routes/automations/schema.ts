@@ -265,7 +265,7 @@ export const runRowSchema = z.object({
 export const runViewSchema = runRowSchema.extend({
   trace: automationTraceSchema.nullable(),
   // A deleted row's values are the run's own, never served: the trace reads the masked snapshot.
-  triggerEvent: automationTriggerEventSchema.omit({ values: true }),
+  triggerEvent: automationTriggerEventSchema.omit({ values: true, before: true }),
   error: z.string().nullable(),
 });
 

@@ -2,6 +2,32 @@
 
 # Manifest spec: requiredSchema — Column rules
 
+A `{ "table", "column" }` setting, wherever a rule reads one (a default, a limit's size, a move's
+condition, a moment's time), names a table that holds **one row**: the outbox's
+[`settings.table`](https://docs.adminium.dev/reference/manifest/#outbox), or a table that stands alone, with no foreign key of its own, none
+pointing at it, and no states, limits or booking. Adminium reads that row when the rule runs. A
+moment, a state condition or a stamp's amount that finds two rows there reads nothing rather than
+guess which one is meant.
+
+#### Copies that follow
+
+A plain `copy` is taken when the row is written. With `"follow": true` it keeps in step: when the
+row it copies from changes, every row that copies it takes the new value in the same write. A
+hotel stay's extras copy the stay's nights and guests, so breakfast for two over three nights
+becomes breakfast for three over four the moment the stay changes.
+
+```json
+{ "ref": "nights", "type": "int", "nullable": true,
+  "rules": { "copy": { "via": "stay_id", "from": "nights", "mode": "always", "follow": true } } }
+```
+
+The copy is written, then every formula over it, then the totals it moves are settled into the
+row it follows (the stay's total, tax and balance), before the change commits; if any of that is
+refused, nothing is kept. A paid stay whose balance would fall below zero is refused
+`409` `BALANCE_EXCEEDED`.
+
+The rules that keep a follow sound:
+
 - it always wins (`mode: "always"`), and follows one level: the column it copies does not itself
   follow another row;
 - it never follows a total, a balance or a stamp, nor a formula over one: those change without a
@@ -68,28 +94,3 @@ code on a ticket. The browser never names the codes row itself; Adminium finds i
                                    { "column": "valid_until", "notBefore": "today", "orEmpty": true }],
                          "scope": [{ "column": "event_id", "equals": "event_id", "orEmpty": true }] } } }
 ```
-
-| Field | Rule |
-|---|---|
-| `from` | The nullable `text` column of this row the code is typed into, up to 64 characters, with no rule of its own that decides it. |
-| `table`, `column` | The codes table, and its `text` column the code is found by. The rule's own column is a nullable foreign key to `table`. `column` finds one row: it is `unique`, a [`code`](https://docs.adminium.dev/reference/manifest/#column-rules) column, or unique together with the `scope` columns in one of the table's [sets](https://docs.adminium.dev/reference/manifest/#columns-unique-together). It is compared as a code, so it has `normalize: "code"` unless it is a `code` column. Never the code a shared link opens its row with. |
-| `where` | Up to 4 conditions on the codes row: `{ "column", "eq" }`; `{ "column", "notBefore": "now" or "today", "orEmpty"? }`, a date or time not yet past (`valid_until`); `{ "column", "notAfter": "now" or "today", "orEmpty"? }`, one already reached (`valid_from`). `orEmpty` lets an empty column pass. |
-| `scope` | 1–2 `{ "column", "equals", "orEmpty"? }`: the codes row's `column` equals this row's `equals` column (this show's codes). With `orEmpty`, a codes row whose `column` is empty matches any (a code good for every show). |
-
-A typed code is read the way codes are kept: upper case, spaces and dashes left out. A column
-Adminium [makes codes in](https://docs.adminium.dev/reference/manifest/#column-rules) reads it as a claim does, its prefix put back, `O` as `0`,
-`I` and `L` as `1`. Two stored codes that fold alike are told apart by the exact spelling.
-
-Every miss is one answer: no such code, a code switched off, expired, another show's, or two that
-fold alike are all refused `422` `VALIDATION_FAILED` on the typed column with the code `unknown`
-(through the public API, `PUBLIC_WRITE_REFUSED` with `reason: "unknown"`), so a guesser learns no
-more from one miss than from another. A code whose uses are all taken, counted by a
-[parent limit](https://docs.adminium.dev/reference/manifest/#parent-limits) through the link, is refused on the typed column as `used-up`.
-Emptying the typed column empties the link, and every copy made through it: a code taken off
-takes its discount with it. A bulk edit, a form's child rows and an import find each row's code
-the same way, and an unknown code refuses just that row. A table resolves at most two typed codes.
-
-A code typed to **read** rows rather than write one (a presale code that shows its ticket type) is
-a public entry's [`unlockBy`](https://docs.adminium.dev/reference/manifest/#codes-that-unlock-rows).
-
-#### Codes that renew

@@ -2,6 +2,12 @@
 
 # Manifest spec: requiredSchema — Column rules
 
+`where` is 1–8 conditions on the row the link names, in the shape a move's
+[`linked`](https://docs.adminium.dev/reference/manifest/#conditions-a-move-waits-for) takes: `{ "column", <one test> }`, the test `eq` or `in`
+(values that fit the column), `isNull`, or `gt`, `gte`, `lt` or `lte` on a number column. Every
+condition must hold. The rule's column is a foreign key, and each condition names a column of the
+table it points at that is not a `secret`.
+
 - **When it is judged.** On a new row that names a row, and on a change that moves the link to
   another row. A change that leaves the link as the row holds it, or sends it back as it stands (as
   the record form sends every field), is no move: a line naming a price retired since keeps it while
@@ -80,17 +86,3 @@ how many lines a kitchen ticket has.
 A rollup names `sum` or `"count": true`, never both. A count is kept in an `int` or `bigint`
 column, and takes no `times`, `balance` or `cap`; `where` and `unlessSet` leave rows out as they do
 for a sum.
-
-A total may also add up another table's totals: an option's price into its line, the line into
-its order, the order into the customer's lifetime total. Such totals **climb**, at most three
-tables high, and never in a circle (a table adding up its own rows, or two tables adding up each
-other). A write that moves a total at the bottom settles every total above it in the same
-transaction: each level adds up what the level below has just written, then works out its
-formulas and balances. Every door that moves a total does this: a create, a change, a delete, a
-create with child rows, a bulk edit, an import, an undo, a parent form and sample data. Two
-writers take the rows in one order (the highest parent first), so they never wait on each other
-crosswise; a line moved to another order while a write was reading it is refused `409`
-`WRITE_CONFLICT` with `details.retry: true`, and the same write a moment later goes through.
-
-Sums are exact on every engine, SQLite included: a total is added up from each row's decimal text,
-never through a floating-point number.

@@ -36,11 +36,20 @@ A step's action is one of six:
 
 | `kind` | Keys | What it does |
 |---|---|---|
-| `notification` | `to: { "roles" }` or `to: { "column" }`, `title`, `body`?, `urgent`? | Tells everyone who holds one of the manifest's own roles, or [the person on the row](https://docs.adminium.dev/reference/manifest/#the-person-on-the-row). `"urgent": true` tells them at once, also in their quiet hours. |
+| `notification` | `to: { "roles" }` or `to: { "column", "lead"?, "else"? }`, `title`, `body`?, `urgent`? | Tells everyone who holds one of the manifest's own roles **and can open the record**, or [the person on the row](https://docs.adminium.dev/reference/manifest/#the-person-on-the-row), or [the lead of that person](https://docs.adminium.dev/reference/manifest/#the-lead-of-the-person-on-the-row). `"urgent": true` tells them at once, also in their quiet hours. |
 | `email` | `templateKey`, `to: { "kind": "field", "column" }` or `to: { "kind": "staff", "column" }`, `vars`?, `replyTo: { "staff": column }`? | Sends one of the manifest's own templates to the address a column of the record holds, or to [the person on the row](https://docs.adminium.dev/reference/manifest/#the-person-on-the-row). |
 | `digest` | `templateKey`, `to: { "roles" }`, `sections`, `sendEmpty`? | Makes [a summary for each person](https://docs.adminium.dev/reference/manifest/#a-summary-for-each-person) who holds one of the roles: their own rows, or theirs and those of the people they lead, read as they read. |
 | `record.create` | `table`, `values`, `name`? | Adds a row of one of the manifest's tables. With a `name`, [the steps after it read the row it made](https://docs.adminium.dev/reference/manifest/#a-row-a-step-makes). |
 | `record.update` | `values` | Writes columns of the record. |
 | `add-on.step` | `addOn`, `step`, `inputs` | Runs a [step an add-on gives](https://docs.adminium.dev/reference/manifest/#steps-for-automations): the add-on's key, the step's key, and a text for each input. An add-on's own step is checked here; another add-on's is checked where the rule is installed, and fails by name while that add-on is not there. Needs `minAdminiumVersion` `0.3.22`. |
 
-A value is a text, which may carry `{{record.<column>}}`, or `{ "now": true }`.
+A value is a text, which may carry `{{record.<column>}}`, or `{ "now": true }`. It may also carry
+[the record as it was](https://docs.adminium.dev/reference/manifest/#the-record-as-it-was) and [the name of a person](https://docs.adminium.dev/reference/manifest/#a-persons-name-and-the-records-address).
+
+A notice is about its record, and its title and body carry the record's values. So a notice to
+roles, or to people listed by hand in the dashboard, goes only to those of them whose roles **open
+the record**: they read its table, and the row is among the rows they reach. A sales manager whose
+reach is her own team is not told of another team's quote. Nobody left is a line in the run's log
+(`notified 0 people`), not a failure. A notice about a row that was removed goes only to those
+whose read of its table is not limited to some rows, since a removed row cannot be read again to
+ask. A rule that runs for no record (a clock with no rows to visit) tells everybody it names.

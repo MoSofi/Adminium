@@ -19,6 +19,9 @@
  *   {{now}}               the run's instant, ISO-8601
  *   {{ruleName}}          the rule's name
  *   {{recordLabel}}       the record's display label
+ *   {{was.<column>}}      on a change, the record's column as it was before it
+ *   {{<staff column>.name}}  the name of the person a staff column names
+ *                            (`{{record.owner_id.name}}`, `{{deal_id.owner_id.name}}`)
  *
  * A token may say its backup after a bar: `{{record.first_name|there}}` writes
  * "there" when the column is empty or the token is unknown.
@@ -84,7 +87,24 @@ export interface TokenContext {
    * missing fills its placeholders with nothing.
    */
   related?: ReadonlyMap<string, { table: ResolvedTable; row: Row | null }> | undefined;
+  /**
+   * The names of the people the record's staff columns (and its related
+   * rows') name, by id: `{{owner_id.name}}` is the owner's name as Adminium
+   * keeps it. Somebody no longer here, or a column that names nobody, writes
+   * nothing.
+   */
+  people?: ReadonlyMap<string, string> | undefined;
+  /**
+   * A run about a change: the record as it was before it (`{{was.<column>}}`),
+   * held to the record's own rules (a masked column only in a mail, a secret
+   * never). Null when the run did not keep it: every `was.*` is then empty,
+   * never left as written, so a write that copies one writes nothing.
+   */
+  was?: Row | null | undefined;
 }
+
+/** Whether a column of a table holds a staff member. */
+const holdsStaff = (table: ResolvedTable, name: string): boolean => (table.table as ResolvedTable['table'] | undefined)?.columns?.find((candidate) => candidate.name === name)?.staff === true;
 
 /** A code no staff member reads (`code.hiddenFromStaff`): the link an order's or a quote's own e-mail carries, and nothing else does. */
 const codeKeptFromStaff = (table: ResolvedTable, name: string): boolean => (table.table as ResolvedTable['table'] | undefined)?.columns?.find((candidate) => candidate.name === name)?.code?.hiddenFromStaff === true;
@@ -109,6 +129,19 @@ export function tokensFor(ctx: TokenContext): TokenMap {
     const value = asText(ctx.row[name], column.logicalType);
     tokens[`record.${name}`] = value;
     tokens[name] = value;
+    // The person a staff column names, by name: never a link, whatever the column is called.
+    if (ctx.people !== undefined && holdsStaff(ctx.table, name) && !(ctx.related?.has(name) ?? false)) {
+      const person = ctx.people.get(value) ?? '';
+      tokens[`record.${name}.name`] = person;
+      tokens[`${name}.name`] = person;
+    }
+  }
+  if (ctx.was !== undefined) {
+    for (const [name, column] of ctx.table.columns) {
+      if (!(ctx.includeMasked ?? false) && (column.masked || column.secret)) continue;
+      if (column.secret || codeKeptFromStaff(ctx.table, name)) continue;
+      tokens[`was.${name}`] = ctx.was === null ? '' : asText(ctx.was[name], column.logicalType);
+    }
   }
   for (const [link, far] of ctx.related ?? []) {
     for (const [name, column] of far.table.columns) {
@@ -118,6 +151,11 @@ export function tokensFor(ctx: TokenContext): TokenMap {
       const value = far.row === null ? '' : asText(far.row[name], column.logicalType);
       tokens[`record.${link}.${name}`] = value;
       tokens[`${link}.${name}`] = value;
+      if (ctx.people !== undefined && holdsStaff(far.table, name)) {
+        const person = ctx.people.get(value) ?? '';
+        tokens[`record.${link}.${name}.name`] = person;
+        tokens[`${link}.${name}.name`] = person;
+      }
     }
   }
   return tokens;

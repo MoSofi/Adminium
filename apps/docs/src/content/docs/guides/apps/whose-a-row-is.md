@@ -32,6 +32,11 @@ table may use several (any one is enough):
 An app declares this in its manifest ([`belongs`](/reference/manifest/#whose-a-row-is)). A table
 that says nothing is everybody's who holds the table.
 
+A staff column names a person and nothing else. Its name may look like a link (`rep_id` in a
+database that also has a `reps` table), but Adminium never reads it as one unless a foreign key the
+database keeps, or one an app or a person declared, says so: a message, a rule or a mention never
+follows it into another table's rows.
+
 ## Limiting a role
 
 **Settings → Roles & permissions**, then **Rows** beside a role. The dialog lists every table the

@@ -47,6 +47,15 @@ export interface ActionSource {
    * holds has no entry: the step that names it fails by name.
    */
   related?: ReadonlyMap<string, { table: ResolvedTable; row: Row | null }> | undefined;
+  /** The run is about a row that was removed: `row` is what it held, and it cannot be read again. */
+  removed?: true | undefined;
+  /**
+   * An updated record as it was before the change (`{{was.<column>}}`): null
+   * when the run did not keep it; absent for a run that is not about a change.
+   */
+  was?: Row | null | undefined;
+  /** The names of the people the record's staff columns, and its related rows', name: by id. */
+  people?: ReadonlyMap<string, string> | undefined;
 }
 
 export interface ActionContext {

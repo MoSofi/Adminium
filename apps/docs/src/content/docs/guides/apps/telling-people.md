@@ -23,6 +23,29 @@ Mark the column that holds the person as a staff column, then address a notice o
 On a table that links to the record, go one link further: `"deal_id.owner_id"` on a follow-up is
 the deal's owner. A record with nobody in the column tells nobody, and the run's log says so.
 
+A notice to a role goes only to the people of the role who can open the record: a manager whose
+role reads her own team's deals is not told of another team's.
+
+## Tell the person's team lead
+
+"Approval asked" goes to the asker's team lead, never the asker:
+
+```json
+{ "kind": "notification", "to": { "column": "asked_by_id", "lead": true, "else": { "roles": ["admin"] } },
+  "title": { "en-US": "{{asked_by_id.name}} asks you to approve {{record.number}}" } }
+```
+
+The lead is whoever leads a team the asker is in (Settings → Teams) and can open the quote. With
+none (she leads her own team and nobody leads her, or she is in no team), the `else` roles are told,
+and still never she. `{{asked_by_id.name}}` is her name.
+
+## Say what it was
+
+A rule run by a change reads the record as it was: `{{was.stage}}`. Copy it into a column of its
+own (`"values": { "came_from": "{{was.stage}}" }`) or say it: "moved from {{was.stage}} to
+{{record.stage}}". An e-mail step to a person may carry `{{recordUrl}}`, the record's address,
+given only to somebody who can open it.
+
 ## Once each time it happens
 
 A rule by the clock that visits "deals with nothing done for 14 days" would tell the owner every
@@ -34,6 +57,10 @@ the deal goes quiet: when it is worked on and then goes quiet again, they are to
   "forEach": { "table": "deals", "once": "per-spell",
     "where": [{ "left": { "field": "last_touch_at" }, "op": "more_than_ago", "right": { "amount": 14, "unit": "days" } }] } }
 ```
+
+The 14 may be the business's to choose: `"right": { "amount": 14, "unit": "days", "setting":
+{ "table": "settings", "column": "nudge_quiet_days" } }` reads it from the app's settings row at each
+tick, and keeps 14 while the setting is empty.
 
 ## Quiet hours
 
@@ -89,8 +116,9 @@ Give a "create a record" step a `name` and the steps after it read the row it ma
 
 Mark a text column `"rules": { "mentions": true }` and its box offers the people who sign in as
 the writer types `@`. Each person newly named is told who mentioned them and on which record. The
-notice never carries the text, and somebody who cannot open the record gets it with no link: a
-mention is a way to ask a colleague, not a way round what their role reads. On a comments table,
+notice never carries the text, and somebody who cannot open the record gets it with the table's
+name only (never the record's) and no link: a mention is a way to ask a colleague, not a way round
+what their role reads. On a comments table,
 `{ "mentions": { "about": "deal_id" } }` makes the notice name and open the deal the comment is on.
 
 ## Where a notice lands
