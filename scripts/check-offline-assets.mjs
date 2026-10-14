@@ -295,6 +295,10 @@ const ALLOWED_HOSTS = [
     why: 'the AGPL-3.0 source link and the releases page on the About screen. shell.openExternal, same as the docs',
   },
   {
+    test: /^www\.openstreetmap\.org$/,
+    why: 'the map\'s "open this place on a map" link for a device with no maps app (widgets families/geo/map-shapes.ts mapsSiteHref). An anchor the person presses, opened outside the app (shell.openExternal, same as the docs); nothing is requested from it. The map\'s TILES are a different host, named by the operator and switched off in the desktop build',
+  },
+  {
     test: /^(react\.dev|www\.i18next\.com|locize\.com)$/,
     why: 'error-message and attribution strings baked into React and i18next. Printed to a console, never requested',
   },
