@@ -26,7 +26,7 @@
  * Reads and writes the meta store only.
  */
 import { parseDatabaseModel } from '@adminium/engine';
-import { addOnRoleTableHold, holdWider, type AddOnManifest, type Manifest, type RoleTableHold, type RoleTableNarrowed, type RoleTableSkip } from '@adminium/manifest';
+import { addOnRoleTableHold, holdWider, type RoleTableResult, type AddOnManifest, type Manifest, type RoleTableHold, type RoleTableNarrowed, type RoleTableSkip } from '@adminium/manifest';
 import { appTablesRepo, permissionsRepo, rolesRepo, settingsRepo, snapshotsRepo, type MetaDb, type ReadLimit, type TableActions, type UpdateLimit } from '@adminium/meta';
 
 import { roleSlugFor, SEEDED_APP_ROLE_GRANTS_KEY, storedRowLimit } from './manifest-roles.js';
@@ -35,22 +35,8 @@ type AppRole = NonNullable<Extract<Manifest, { kind: 'app' }>['roles']>[number];
 type RoleTable = NonNullable<AppRole['tables']>[number];
 type Action = RoleTable['actions'][number];
 
-export interface RoleTableResult {
-  /** The role's key in the app. */
-  role: string;
-  addOn: string;
-  table: string;
-  /** What the role holds of the table now by this grant (after any narrowing below). */
-  actions: string[];
-  /** The columns each action reaches; absent, every column (only where the add-on sets no `appGrants`). */
-  readable?: string[];
-  writable?: string[];
-  creatable?: string[];
-  /** What the app asked for and does not get, by name. */
-  narrowed?: RoleTableNarrowed;
-  /** Why the entry, or part of it, was left out. */
-  skipped?: RoleTableSkip;
-}
+/** What a settle gave each role of an add-on's tables (kept beside the add-on's own words, so the add-on installer reads it too). */
+export type { RoleTableResult } from '@adminium/manifest';
 
 /** A role's grants on add-on tables: the ones of the role it clones, then its own over them — a clone of a limited role is limited alike. */
 export function roleTablesOf(role: AppRole, roles: readonly AppRole[]): RoleTable[] {

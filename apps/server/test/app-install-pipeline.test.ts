@@ -98,6 +98,13 @@ import { makeEnv, TEST_SECRET } from './helpers.js';
  * The code generator's dice, loaded on request: a queued number is the next
  * `randomInt`, so a test can make a code collide. Empty, it is the real one.
  */
+
+/** One "this is money" a column the app keeps money in (`type: money`, `semantic: money`, a currency's places) is told at install. */
+function moneyIn(of: unknown): number {
+  const tables = Array.isArray(of) ? of : ((of as { requiredSchema?: { tables?: unknown[] } }).requiredSchema?.tables ?? []);
+  return (tables as { columns?: { type?: string; semantic?: string; scale?: string }[] }[]).flatMap((table) => table.columns ?? []).filter((column) => column.type === 'money' || column.semantic === 'money' || column.scale === 'currency').length;
+}
+
 const forcedInts = vi.hoisted(() => [] as number[]);
 vi.mock('node:crypto', async (importOriginal) => {
   const real = await importOriginal<typeof import('node:crypto')>();
@@ -3368,7 +3375,7 @@ for (const [dialect, available] of legs) {
       expect(installed.statusCode, installed.body).toBe(200);
       // The booking rule, the `now` fill, and one "this is a yes/no" for each bool column.
       const yesNo = tables.flatMap((table) => table.columns as { type?: string }[]).filter((column) => column.type === 'bool').length;
-      expect(installed.json().rules).toMatchObject({ written: 1 + nowFill + yesNo, skipped: [] });
+      expect(installed.json().rules).toMatchObject({ written: 1 + nowFill + yesNo + moneyIn(tables), skipped: [] });
 
       const snapshot = (await snapshotsRepo(h.meta).latest(h.connectionId))!;
       const model = parseDatabaseModel(snapshot.schema);
@@ -3443,7 +3450,7 @@ for (const [dialect, available] of legs) {
       await stageManifest(h, v1);
       const installed = await post(h, '/apps/install');
       expect(installed.statusCode, installed.body).toBe(200);
-      expect(installed.json().rules).toEqual({ written: 5 + nowFill, removed: 0, lists: ['pos-zones'], skipped: [] });
+      expect(installed.json().rules).toEqual({ written: 5 + nowFill + moneyIn(v1), removed: 0, lists: ['pos-zones'], skipped: [] });
 
       const overrides = overridesRepo(h.meta);
       // The shift's opening time, which Adminium fills itself, is a rule of its own.
@@ -3451,7 +3458,8 @@ for (const [dialect, available] of legs) {
       expect((await overrides.listForConnection(h.connectionId)).filter(nowRule).map((o) => [o.value, o.origin])).toEqual([[{ kind: 'now' }, 'app']]);
       const appRules = async () =>
         (await overrides.listForConnection(h.connectionId))
-          .filter((o) => !nowRule(o))
+          // The money columns' "this is money" (`moneyIn`) is said apart: this list is the rules the manifest writes.
+          .filter((o) => !nowRule(o) && o.op !== 'column.semanticType')
           .map((o) => ({ op: o.op, at: `${o.tableName.split('.').at(-1)!}.${o.columnName ?? ''}`, origin: o.origin, value: o.value }))
           .sort((a, b) => `${a.at}${a.op}`.localeCompare(`${b.at}${b.op}`));
       expect(await appRules()).toEqual([
@@ -3531,10 +3539,11 @@ for (const [dialect, available] of legs) {
 
       // Uninstall takes back the two still as it wrote them (and, on MySQL, its fill of the opening time).
       const plan = (await h.app.inject({ method: 'GET', url: '/apps/pos/uninstall-plan' })).json();
-      expect(plan.rules).toBe(2 + nowFill);
+      // …and each money column's "this is money", which no operator touched.
+      expect(plan.rules).toBe(2 + nowFill + moneyIn(v1));
       const removed = await h.app.inject({ method: 'DELETE', url: '/apps/pos' });
       expect(removed.statusCode, removed.body).toBe(200);
-      expect(removed.json().removed.rules).toBe(2 + nowFill);
+      expect(removed.json().removed.rules).toBe(2 + nowFill + moneyIn(v1));
       expect((await appRules()).map((r) => `${r.at}:${r.op}`)).toEqual([
         'pos_payments.method:column.options',
         'pos_payments.tip:column.required',
@@ -3582,7 +3591,7 @@ for (const [dialect, available] of legs) {
       const overrides = overridesRepo(h.meta);
       const installed = await post(h, '/apps/install');
       expect(installed.statusCode, installed.body).toBe(200);
-      expect(installed.json().rules).toMatchObject({ written: 5 + nowFill, skipped: [] });
+      expect(installed.json().rules).toMatchObject({ written: 5 + nowFill + moneyIn(labelled), skipped: [] });
       const labels = async () =>
         (await overrides.listForConnection(h.connectionId))
           .filter((o) => o.op === 'table.label' || o.op === 'table.keyField' || o.op === 'column.label')
@@ -3633,7 +3642,7 @@ for (const [dialect, available] of legs) {
       // Uninstall takes back the three still its own; the operator's stays.
       const removed = await h.app.inject({ method: 'DELETE', url: '/apps/pos' });
       expect(removed.statusCode, removed.body).toBe(200);
-      expect(removed.json().removed.rules).toBe(4 + nowFill);
+      expect(removed.json().removed.rules).toBe(4 + nowFill + moneyIn(labelled));
       expect((await labels()).map((r) => `${r.at}:${r.op}:${r.origin}`)).toEqual(['pos_payments.method:column.label:user']);
     }, 60_000);
 
@@ -4079,7 +4088,7 @@ for (const [dialect, available] of legs) {
       await stageManifest(h, decided);
       const installed = await post(h, '/apps/install');
       expect(installed.statusCode, installed.body).toBe(200);
-      expect(installed.json().rules.written).toBe(4);
+      expect(installed.json().rules.written).toBe(4 + moneyIn(decided));
 
       // The view every write path builds: the snapshot with its overrides.
       const snapshot = (await snapshotsRepo(h.meta).latest(h.connectionId))!;
@@ -4202,7 +4211,7 @@ for (const [dialect, available] of legs) {
       await stageManifest(h, guarded);
       const installed = await post(h, '/apps/install');
       expect(installed.statusCode, installed.body).toBe(200);
-      expect(installed.json().rules).toMatchObject({ written: 2, skipped: [] });
+      expect(installed.json().rules).toMatchObject({ written: 2 + moneyIn(guarded), skipped: [] });
       // The guests' free-or-full endpoint is made, on the guarded table.
       expect(installed.json().publicAccess.endpoints).toEqual(['pos_reservations_availability']);
 

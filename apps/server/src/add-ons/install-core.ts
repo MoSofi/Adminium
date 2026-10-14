@@ -15,7 +15,7 @@ import type { AddOnManifest, InstallPlan, Manifest } from '@adminium/manifest';
 import type { InstalledManifest } from '@adminium/meta';
 
 import type { ExistingTable } from './install-ddl.js';
-import type { RoleTableResult } from '../apps/manifest-role-tables.js';
+import type { RoleTableResult } from '@adminium/manifest';
 
 /** Who an install or update is done by. */
 export interface InstallActor {
