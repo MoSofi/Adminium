@@ -79,9 +79,9 @@ function errorMessageOf(error: unknown): string | undefined {
 /**
  * The words a config carries in several languages, each picked for the page's
  * locale: the title (`titles`), the subtitle (`subtitles`), a KPI's caption
- * (`metricLabels`) and the empty state's title and body (`emptyState.titles`
- * / `.bodies`, over `titleKey` / `bodyKey`). Absent maps leave the config as
- * it was.
+ * (`metricLabels`), the empty state's title and body (`emptyState.titles`
+ * / `.bodies`, over `titleKey` / `bodyKey`) and a table card's column
+ * headings (`columns[].labels`). Absent maps leave the config as it was.
  */
 export function localizedConfig(raw: Record<string, unknown>, locale: string | undefined): Record<string, unknown> {
   const text = (value: unknown) => (typeof value === 'string' ? value : undefined);
@@ -99,6 +99,11 @@ export function localizedConfig(raw: Record<string, unknown>, locale: string | u
     const titleKey = pickLocalized(empty.titleKey, empty.titles, locale);
     const bodyKey = pickLocalized(empty.bodyKey, empty.bodies, locale);
     out = { ...out, emptyState: { ...empty, ...(titleKey === undefined ? {} : { titleKey }), ...(bodyKey === undefined ? {} : { bodyKey }) } };
+  }
+  // A table card's column headings (`columns[].labels`), each picked as the title is.
+  const columns = raw['columns'];
+  if (Array.isArray(columns) && columns.some((column) => (column as { labels?: unknown } | null)?.labels !== undefined)) {
+    out = { ...out, columns: columns.map((column: { label?: string; labels?: Localized } | null) => (column?.labels === undefined ? column : { ...column, label: pickLocalized(text(column.label), column.labels, locale) })) };
   }
   return out;
 }
@@ -234,6 +239,14 @@ export function WidgetHost({
         place: t('ui:frame.data.place', 'Place'),
       },
       number: (value) => (metricFormat === undefined ? numbers.format(value) : formatMetricValue(value, metricFormat, formatOptions)),
+      // A figure the answer says is money: whole, in the card's currency (a code no browser knows: the number).
+      money: (value) => {
+        try {
+          return new Intl.NumberFormat(formatOptions.locale ?? tag, { style: 'currency', currency: formatOptions.currency || 'USD', maximumFractionDigits: Number.isInteger(value) ? 0 : 2 }).format(value);
+        } catch {
+          return numbers.format(value);
+        }
+      },
       percent: (fraction) => shares.format(fraction),
       period: (iso) => {
         const at = new Date(iso);

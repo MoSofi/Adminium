@@ -799,6 +799,11 @@ function rowIssues(
           issues.push({ path: `${at}.${column}`, message: `"${table.ref}" has no column "${column}".` });
           continue;
         }
+        // A file is uploaded by a signed-in person: no sample row brings one.
+        if (value !== null && !(Array.isArray(value) && value.length === 0) && shape.columns.find((c) => c.ref === column)?.rules?.file !== undefined) {
+          issues.push({ path: `${at}.${column}`, message: `"${table.ref}.${column}" holds files a signed-in person uploads, so a sample row leaves it empty.` });
+          continue;
+        }
         // An object that looks like a directive must BE one: a malformed
         // `@ago` would otherwise be written into the column as JSON.
         if (

@@ -135,12 +135,17 @@ export const INSTALL_FLOOR_WORD_NAMES = [
   'column.area',
   'column.linkable',
   'linkable.same',
+  'column.file',
   'config.board',
   'states.notPast',
   'publicAccess.requiresWhen',
   'frontend.records',
   'nav.offRail',
   'navLinks',
+  'outbox.staffName',
+  'card.module',
+  'card.columnLabels',
+  'link.staffPath',
 ] as const;
 export type ManifestWordName = (typeof INSTALL_FLOOR_WORD_NAMES)[number];
 
@@ -237,6 +242,8 @@ export const WORD_FLOORS: Readonly<Partial<Record<ManifestWordName, string>>> = 
   'column.linkable': '0.3.28',
   // Such a link whose named row must hold what the row written holds (a visit's contact of the visit's deal's company).
   'linkable.same': '0.3.28',
+  // A column that holds files a signed-in person uploaded for it: their kinds, their size, how many.
+  'column.file': '0.3.28',
   // A board whose columns an app names: the rows of a table, or the values of an enum it picks.
   'config.board': '0.3.28',
   // A move refused once a date of its row has passed, for every writer.
@@ -248,6 +255,12 @@ export const WORD_FLOORS: Readonly<Partial<Record<ManifestWordName, string>>> = 
   // A page kept off the sidebar, and an entry of the app's section that is not a page.
   'nav.offRail': '0.3.28',
   'navLinks': '0.3.28',
+  // An app's e-mail that names the person a staff column names (`{{visit.rep_id.name}}`): a release before fails the message.
+  'outbox.staffName': '0.3.28',
+  // A dashboard card of a part of the app, its column headings in the reader's language, and a link to one screen of the staff side.
+  'card.module': '0.3.28',
+  'card.columnLabels': '0.3.28',
+  'link.staffPath': '0.3.28',
 };
 
 /** Every word of `document` that needs the install floor, in document order. */
@@ -339,6 +352,7 @@ export function installFloorWords(document: unknown): ManifestWord[] {
       if (rules['area'] !== undefined) out.push({ word: 'column.area', path: `${here}.area` });
       if (rules['linkable'] !== undefined) out.push({ word: 'column.linkable', path: `${here}.linkable` });
       if (isDoc(rules['linkable']) && rules['linkable']['same'] !== undefined) out.push({ word: 'linkable.same', path: `${here}.linkable.same` });
+      if (rules['file'] !== undefined) out.push({ word: 'column.file', path: `${here}.file` });
       for (const key of ['announce', 'plainText', 'customerKey', 'codeLast4'] as const) {
         if (rules[key] !== undefined) out.push({ word: `column.${key}`, path: `${here}.${key}` });
       }
@@ -386,6 +400,22 @@ export function installFloorWords(document: unknown): ManifestWord[] {
     if (config['tabs'] !== undefined) out.push({ word: 'config.tabs', path: `${here}.tabs` });
     if (config['bulk'] !== undefined) out.push({ word: 'config.bulk', path: `${here}.bulk` });
     if (config['board'] !== undefined) out.push({ word: 'config.board', path: `${here}.board` });
+    // A link to one screen of the app's staff side (`@staff/approvals`): on the toolbar, or a card's.
+    const staffPath = (href: unknown): boolean => typeof href === 'string' && href.startsWith('@staff/');
+    if (staffPath(isDoc(toolbar['link']) ? toolbar['link']['href'] : undefined)) out.push({ word: 'link.staffPath', path: `${here}.layout.toolbar.link.href` });
+    list(toolbar['links']).forEach((link, l) => {
+      if (isDoc(link) && staffPath(link['href'])) out.push({ word: 'link.staffPath', path: `${here}.layout.toolbar.links.${String(l)}.href` });
+    });
+    list(isDoc(config['layout']) ? config['layout']['items'] : undefined).forEach((item, i) => {
+      if (!isDoc(item)) return;
+      const at = `${here}.layout.items.${String(i)}`;
+      if (item['module'] !== undefined) out.push({ word: 'card.module', path: `${at}.module` });
+      const card = isDoc(item['config']) ? item['config'] : {};
+      if (staffPath(card['href'])) out.push({ word: 'link.staffPath', path: `${at}.config.href` });
+      list(card['columns']).forEach((column, c) => {
+        if (isDoc(column) && column['labels'] !== undefined) out.push({ word: 'card.columnLabels', path: `${at}.config.columns.${String(c)}.labels` });
+      });
+    });
   });
   // An email block sent only with, or without, a variable; an add-on's links into its app; rows found by a table-and-row pair.
   const outbox = isDoc(document['outbox']) ? document['outbox'] : {};
@@ -475,6 +505,13 @@ export function installFloorWords(document: unknown): ManifestWord[] {
     if (holdsSettingAmount(rule)) out.push({ word: 'automations.settingAmount', path: `automations.${String(r)}` });
     const forEach = isDoc(rule) && isDoc(rule['trigger']) && isDoc(rule['trigger']['forEach']) ? rule['trigger']['forEach'] : {};
     if (forEach['once'] === 'per-spell') out.push({ word: 'automations.perSpell', path: `automations.${String(r)}.trigger.forEach.once` });
+  });
+  // An app's e-mail that names the person a staff column names: a template the outbox sends reading `<…>.<staff column>.name`.
+  const outboxTemplates = new Set(Object.values(isDoc(outbox['kinds']) ? outbox['kinds'] : {}).filter((key): key is string => typeof key === 'string'));
+  list(document['emailTemplates']).forEach((template, t) => {
+    if (!isDoc(template) || typeof template['key'] !== 'string' || !outboxTemplates.has(template['key'])) return;
+    const names = placeholdersIn(JSON.stringify(template)).map((placeholder) => placeholder.name);
+    if (names.some((name) => name.endsWith('.name') && name.split('.').length >= 3 && staffRefs.has(name.split('.').at(-2) ?? ''))) out.push({ word: 'outbox.staffName', path: `emailTemplates.${String(t)}` });
   });
   list(document['documents']).forEach((entry, d) => {
     for (const [slot, source] of Object.entries(isDoc(entry) && isDoc(entry['mapping']) ? entry['mapping'] : {})) {

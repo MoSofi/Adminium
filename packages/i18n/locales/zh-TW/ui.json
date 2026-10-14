@@ -93,7 +93,11 @@
       "duplicate": "已新增。",
       "form": "部分值遭到拒絕。請檢查標記的欄位。",
       "mentionUnknown": "此處提到的某人不是在這裡登入的人員。請輸入 @ 並從清單中選擇。",
-      "tooManyMentions": "此處提到的人太多。請減少提及的人數。"
+      "tooManyMentions": "此處提到的人太多。請減少提及的人數。",
+      "fileNotHere": "此檔案無法儲存在這裡，請從此欄位重新上傳。",
+      "fileType": "此處不接受這種檔案。",
+      "fileTooLarge": "此檔案超出此欄位允許的大小。",
+      "tooManyFiles": "此處最多 {n} 個檔案。"
     },
     "lines": {
       "add": "新增列",
@@ -1616,6 +1620,41 @@
       "wholeOnly": {
         "title": "僅限整個團隊",
         "body": "此數字屬於整個團隊。由於你的角色只能讀取用來計算它的部分資料列，因此不向你顯示。"
+      }
+    },
+    "files": {
+      "tooLarge": "此檔案超出此欄位允許的大小。",
+      "wrongType": "此處不接受這種檔案。",
+      "notAllowed": "您不能在此處新增檔案。",
+      "notSent": "無法傳送，請再試一次。",
+      "signature": {
+        "name": "簽名",
+        "pad": "請用手指、觸控筆或滑鼠在此簽名。",
+        "typedPad": "以簽名形式書寫的姓名。",
+        "line": "請在線上方簽名",
+        "clear": "清除",
+        "typeInstead": "改為輸入姓名",
+        "drawInstead": "改為手寫簽名",
+        "typedLabel": "作為簽名的姓名",
+        "keep": "保留此簽名",
+        "again": "重新簽名",
+        "saving": "正在傳送簽名…",
+        "kept": "簽名已保留。",
+        "cleared": "簽名已清除，請重新簽名。",
+        "empty": "請先簽名，再保留簽名。",
+        "keptAlt": "已保留的簽名"
+      },
+      "photos": {
+        "name": "照片",
+        "add": "新增照片",
+        "count": "{count} / {max}",
+        "full": "此欄位無法再新增照片。",
+        "alt": "照片 {n}",
+        "remove": "移除照片 {n}",
+        "sending": "正在傳送…",
+        "added": "照片已新增。",
+        "refused": "照片未被保留：{reason}",
+        "removed": "照片 {n} 已移除。"
       }
     }
   },

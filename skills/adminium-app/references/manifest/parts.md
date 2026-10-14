@@ -23,14 +23,18 @@ switches "Jobs on site" off and never sees its pages, its roles or its rules. Th
 | `feature` | no | One of the app's [`addOns.features`](https://docs.adminium.dev/reference/manifest/#add-ons): the part is also off while that feature's add-ons are not all installed and connected to the app, whatever its switch says. |
 
 1–16 parts. What belongs to a part says so with `"module": "<id>"`: a [table](https://docs.adminium.dev/reference/manifest/#tables), a
-[page](https://docs.adminium.dev/reference/manifest/#pages), a rule in [`automations`](https://docs.adminium.dev/reference/manifest/#automations), an entry in [`documents`](https://docs.adminium.dev/reference/manifest/#documents), an
-outbox [producer](https://docs.adminium.dev/reference/manifest/#outbox) and a [`publicAccess`](https://docs.adminium.dev/reference/manifest/#public-access) entry each name one part. A
+[page](https://docs.adminium.dev/reference/manifest/#pages), a dashboard card (an entry of a page's `layout.items`), a rule in
+[`automations`](https://docs.adminium.dev/reference/manifest/#automations), an entry in [`documents`](https://docs.adminium.dev/reference/manifest/#documents), an outbox
+[producer](https://docs.adminium.dev/reference/manifest/#outbox) and a [`publicAccess`](https://docs.adminium.dev/reference/manifest/#public-access) entry each name one part. A
 [role](https://docs.adminium.dev/reference/manifest/#roles) names one or several with `"modules": [...]`. Anything that names no part is always
 there.
 
 **What "off" means.** While a part is off:
 
 - its pages are out of the sidebar, and their addresses answer `409` `PART_OFF`;
+- its cards are not drawn on a dashboard of another part: the page is served without them, in
+  its shared layout and in each person's own. A layout saved meanwhile keeps them where they were,
+  so they are back in their place when the part is on;
 - its rules start no run. A run that was already waiting is passed over, with a line in its log.
   A scheduled rule that visits each row `once` does not use a row up while the part is off;
 - its documents are not drawn, its outbox producers queue nothing, its public entries answer as
@@ -57,7 +61,9 @@ Put it in a part whose `feature` requires that add-on and the app need not requi
 all. Installed without it, the whole part is **left out**: its tables are not made, and what names
 them elsewhere goes with them —
 
-- the part's pages, rules, documents, producers and public entries;
+- the part's pages, cards, rules, documents, producers and public entries;
+- a dashboard card over one of its tables, whether or not it names the part, so the dashboard
+  is built without it;
 - a key of [`publicKeys`](https://docs.adminium.dev/reference/manifest/#public-access) every entry of which went with the part: a shared link's
   key is made only with the part it opens, and it is made when the part is put in and the app's
   public access allowed;

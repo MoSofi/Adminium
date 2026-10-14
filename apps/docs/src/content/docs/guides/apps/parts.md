@@ -43,6 +43,7 @@ tables made, so its tables count either way.
 | Of the part | While it is off |
 |---|---|
 | Pages | Out of the menu. Their addresses say "This part of the app is switched off". Search does not find them. |
+| Cards on a dashboard of another part | Not drawn. The rest of the dashboard is; a layout saved meanwhile keeps the card, and it is back in its place when the part is on. |
 | Rules the app shipped | Start no run. A run that was already waiting is passed over, and its log says why. |
 | Documents, emails, public entries | Not drawn, not queued, closed. An email that was already queued is still sent. |
 | Scheduled reports over its pages | Wait, and are due again at their next time. A new one cannot be made. |
@@ -83,8 +84,9 @@ nothing away.
 ## For an app's author
 
 A manifest declares its parts in [`modules`](/reference/manifest/#parts) and puts a table, a page,
-a rule, a document, an email producer or a public entry in one with `"module": "<id>"`. A role
-lists its parts in `"modules"`.
+a rule, a document, an email producer or a public entry in one with `"module": "<id>"`. A card of
+a dashboard says its part the same way, on its layout entry (`"module": "inbox"` beside `i` and
+`widget`). A role lists its parts in `"modules"`.
 
 - Give every part that a business can do without `"default": "on"` or `"off"`, and keep
   `"always"` for what the rest of the app cannot work without.
@@ -93,6 +95,9 @@ lists its parts in `"modules"`.
   with that part and the rest stay.
 - To let a role keep reading a table when the table's part is off, leave that part out of the
   role's `modules`.
+- A card on a dashboard of an always-on part that counts a part's table ("Unclaimed enquiries"
+  over the Inbox's) names that part, so it goes when the part is off. A part left out at install
+  takes such a card with it whether it names the part or not.
 - A table built on an add-on's shape goes in a part whose `feature` requires that add-on. The
   manifest check then also checks the app **without** the add-on: whatever is left must stand on
   its own.

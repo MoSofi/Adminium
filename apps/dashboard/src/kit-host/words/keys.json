@@ -161,5 +161,42 @@
     "ui:widgets.media.uploadDropzone.browseLabel",
     "ui:widgets.media.uploadDropzone.browsePrefix",
     "ui:widgets.media.uploadDropzone.dropTitle"
+  ],
+  "signature": [
+    "ui:widgets.files.notAllowed",
+    "ui:widgets.files.notSent",
+    "ui:widgets.files.signature.again",
+    "ui:widgets.files.signature.clear",
+    "ui:widgets.files.signature.cleared",
+    "ui:widgets.files.signature.drawInstead",
+    "ui:widgets.files.signature.empty",
+    "ui:widgets.files.signature.keep",
+    "ui:widgets.files.signature.kept",
+    "ui:widgets.files.signature.keptAlt",
+    "ui:widgets.files.signature.line",
+    "ui:widgets.files.signature.name",
+    "ui:widgets.files.signature.pad",
+    "ui:widgets.files.signature.saving",
+    "ui:widgets.files.signature.typeInstead",
+    "ui:widgets.files.signature.typedLabel",
+    "ui:widgets.files.signature.typedPad",
+    "ui:widgets.files.tooLarge",
+    "ui:widgets.files.wrongType"
+  ],
+  "photos": [
+    "ui:widgets.files.notAllowed",
+    "ui:widgets.files.notSent",
+    "ui:widgets.files.photos.add",
+    "ui:widgets.files.photos.added",
+    "ui:widgets.files.photos.alt",
+    "ui:widgets.files.photos.count",
+    "ui:widgets.files.photos.full",
+    "ui:widgets.files.photos.name",
+    "ui:widgets.files.photos.refused",
+    "ui:widgets.files.photos.remove",
+    "ui:widgets.files.photos.removed",
+    "ui:widgets.files.photos.sending",
+    "ui:widgets.files.tooLarge",
+    "ui:widgets.files.wrongType"
   ]
 }

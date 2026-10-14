@@ -8,6 +8,10 @@
  * resolves it the way the sidebar's "Open the staff screens" does — the same
  * section, the same address — for the app that owns the page.
  *
+ * `@staff/<path>` opens one screen of them (`@staff/approvals`): the path is
+ * joined to the side's address, and one that could leave it (`..`, `//`, a
+ * scheme, an encoded dot) names nothing (`staffLinkPath`).
+ *
  * An app with no staff screens resolves to nothing, and the page draws no
  * link at all rather than one that goes nowhere.
  */
@@ -24,7 +28,7 @@ export type StaffTarget = { external: false; href: string } | { external: true; 
  * binding that asks — the only template with a page link — has the page
  * document, not its address.
  */
-export function staffTargetFor(bootstrap: BootstrapData, pageId: string): StaffTarget | null {
+export function staffTargetFor(bootstrap: BootstrapData, pageId: string, path = ''): StaffTarget | null {
   const item = [...bootstrap.nav.groups.flatMap((group) => group.items), ...appPagesOf(bootstrap), ...hiddenPagesOf(bootstrap)].find(
     (candidate) => candidate.pageId === pageId,
   );
@@ -32,11 +36,26 @@ export function staffTargetFor(bootstrap: BootstrapData, pageId: string): StaffT
   if (appKey === undefined || appKey === null) return null;
   const staff = appSectionsOf(bootstrap).find((section) => section.appKey === appKey)?.staff ?? null;
   if (staff === null) return null;
-  if (staff.placement === 'external') return staff.url === '' ? null : { external: true, href: staff.url };
+  if (staff.placement === 'external') {
+    if (staff.url === '') return null;
+    if (path === '') return { external: true, href: staff.url };
+    // One screen of a side on its own address: the path under the side's own (`staffLinkPath` kept it inside).
+    try {
+      const at = new URL(staff.url);
+      at.pathname = `${at.pathname.replace(/\/?$/, '/')}${path}`;
+      at.search = '';
+      at.hash = '';
+      return { external: true, href: at.toString() };
+    } catch {
+      return null;
+    }
+  }
+  const base = `/a/${encodeURIComponent(appKey)}`;
+  // One screen of the side, by its path (`@staff/approvals`).
+  if (path !== '') return staff.items.length === 0 ? null : { external: false, href: `${base}/${path}` };
   // In the dashboard: the first screen, as the sidebar lists it first.
   const first = staff.items[0];
   if (first === undefined) return null;
-  const base = `/a/${encodeURIComponent(appKey)}`;
   return { external: false, href: first.path === '' ? base : `${base}/${first.path}` };
 }
 

@@ -165,6 +165,43 @@ const words: KitWords = {
     "ui:widgets.media.uploadDropzone.browseLabel": "تصفّح",
     "ui:widgets.media.uploadDropzone.browsePrefix": "أو",
     "ui:widgets.media.uploadDropzone.dropTitle": "أفلت الملفات لرفعها"
+  },
+  "signature": {
+    "ui:widgets.files.notAllowed": "لا يمكنك إضافة ملفات هنا.",
+    "ui:widgets.files.notSent": "تعذّر الإرسال. حاول مرة أخرى.",
+    "ui:widgets.files.signature.again": "وقّع من جديد",
+    "ui:widgets.files.signature.clear": "مسح",
+    "ui:widgets.files.signature.cleared": "تم مسح التوقيع. وقّع من جديد.",
+    "ui:widgets.files.signature.drawInstead": "وقّع بخط اليد بدلًا من ذلك",
+    "ui:widgets.files.signature.empty": "وقّع أولًا ثم احتفظ بالتوقيع.",
+    "ui:widgets.files.signature.keep": "احتفظ بهذا التوقيع",
+    "ui:widgets.files.signature.kept": "تم الاحتفاظ بالتوقيع.",
+    "ui:widgets.files.signature.keptAlt": "التوقيع المحفوظ",
+    "ui:widgets.files.signature.line": "وقّع فوق الخط",
+    "ui:widgets.files.signature.name": "التوقيع",
+    "ui:widgets.files.signature.pad": "وقّع هنا بإصبعك أو بقلم أو بالفأرة.",
+    "ui:widgets.files.signature.saving": "جارٍ إرسال التوقيع…",
+    "ui:widgets.files.signature.typeInstead": "اكتب الاسم بدلًا من ذلك",
+    "ui:widgets.files.signature.typedLabel": "الاسم كتوقيع",
+    "ui:widgets.files.signature.typedPad": "الاسم مكتوبًا كتوقيع.",
+    "ui:widgets.files.tooLarge": "هذا الملف أكبر من المسموح به في هذا الحقل.",
+    "ui:widgets.files.wrongType": "هذا النوع من الملفات غير مقبول هنا."
+  },
+  "photos": {
+    "ui:widgets.files.notAllowed": "لا يمكنك إضافة ملفات هنا.",
+    "ui:widgets.files.notSent": "تعذّر الإرسال. حاول مرة أخرى.",
+    "ui:widgets.files.photos.add": "أضف صورة",
+    "ui:widgets.files.photos.added": "تمت إضافة الصورة.",
+    "ui:widgets.files.photos.alt": "الصورة {n}",
+    "ui:widgets.files.photos.count": "{count} من {max}",
+    "ui:widgets.files.photos.full": "لا يتسع هذا الحقل لصور أكثر.",
+    "ui:widgets.files.photos.name": "الصور",
+    "ui:widgets.files.photos.refused": "لم يتم الاحتفاظ بالصورة: {reason}",
+    "ui:widgets.files.photos.remove": "أزل الصورة {n}",
+    "ui:widgets.files.photos.removed": "تمت إزالة الصورة {n}.",
+    "ui:widgets.files.photos.sending": "جارٍ الإرسال…",
+    "ui:widgets.files.tooLarge": "هذا الملف أكبر من المسموح به في هذا الحقل.",
+    "ui:widgets.files.wrongType": "هذا النوع من الملفات غير مقبول هنا."
   }
 };
 

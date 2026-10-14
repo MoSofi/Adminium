@@ -2,6 +2,25 @@
 
 # Manifest spec: requiredSchema — Column rules
 
+```json
+{ "ref": "subtotal", "type": "money", "default": 0,
+  "rules": { "rollup": { "from": "ticket_items", "via": "ticket_id", "sum": "unit_price",
+                         "times": "qty", "unlessSet": "voided_at" } } }
+```
+
+#### Links to some rows
+
+`linkable` says that a foreign key names only a row meeting some conditions: a quote line names a
+price-list line that is still offered, so a rep cannot price a quote from a retired line the list
+no longer gives.
+
+```json
+{ "ref": "price_id", "type": "fk", "references": "price_list", "nullable": true,
+  "rules": { "linkable": { "where": [{ "column": "active", "eq": true }] } } },
+{ "ref": "list_rate", "type": "decimal", "scale": "currency", "nullable": true,
+  "rules": { "copy": { "via": "price_id", "from": "list_rate", "mode": "always" } } }
+```
+
 `where` is 1–8 conditions on the row the link names, in the shape a move's
 [`linked`](https://docs.adminium.dev/reference/manifest/#conditions-a-move-waits-for) takes: `{ "column", <one test> }`, the test `eq` or `in`
 (values that fit the column), `isNull`, or `gt`, `gte`, `lt` or `lte` on a number column. Every
@@ -64,28 +83,20 @@ An operator may set the same rule on a column in Studio; Studio refuses one whos
 foreign key, or whose conditions name a column the linked table does not have. The screens are
 still the app's to filter: a picker that offers only active lines is kinder than a refusal.
 
-#### Totals and balances
+#### Files in a column
 
-A rollup can also filter its child rows, keep a balance beside the total, and refuse a change
-that would take the balance below zero: what a visit's fee, its payments and its write-offs need.
-
-| Field | Rule |
-|---|---|
-| `where` | `{ "column", "eq" }`: only child rows whose column equals the value are added up (`voided` is `false`). The value must fit the column, and the column must not be nullable: a row left empty would drop out of the total unseen. |
-| `balance` | `{ "column", "of", "minus"? }`: a second column of this row, kept as `of − minus… − total` (`balance = fee − waived − paid`). `minus` lists up to 4 columns. Every column named is a number column of this table, and the balance is a column of its own, with no rules of its own. |
-| `cap` | `true`: a child write that would take the balance below zero is refused. It needs a `balance` on the same rollup, or a balance elsewhere on the row whose `minus` lists this total (a write-off is capped by the balance it lowers). |
-| `capUnless` | `{ "column" }`, with `cap`: a yes/no column of the same row that lifts the cap while it is on (a stock level a shop sells from whether or not the count is right). The column is never empty. A balance guarded by two capped totals is lifted only when both name the same column. |
-| `latest` | `{ "of", "by", "row"? }`, in place of `sum` and `count`: the column holds the value of `of` in the newest child row, the one whose `by` (a date, a time or a number) is the greatest (a deal's amount is the total of its last sent quote: `{ "from": "quotes", "via": "deal_id", "latest": { "of": "total", "by": "sent_at", "row": "quote_id" } }`). A row whose `by` is empty is left out; of two rows with the same `by`, the one with the greater key is taken; `where` and `unlessSet` leave rows out as they do of a total. The column is nullable (it is empty while no row qualifies) and of the type of `of`. `row` names a nullable column of this table that Adminium fills with the key of the row it took: a plain column of the key's type, not a link (a link would stop that row being deleted), with no rules of its own. No `times`, `balance` or `cap`. Kept in the statement that writes the child row, like a total, and it climbs like one: a line added to the quote that counts moves the deal. Needs Adminium 0.3.28. |
+`file` makes a column hold files a signed-in person uploads for it: a crew's sign-off keeps the
+customer's signature and the job's photos.
 
 ```json
-{ "ref": "paid", "type": "money", "default": 0,
-  "rules": { "rollup": { "from": "payments", "via": "visit_id", "sum": "amount",
-                         "where": { "column": "voided", "eq": false },
-                         "balance": { "column": "balance", "of": "fee", "minus": ["waived"] },
-                         "cap": true } } }
+{ "ref": "signature", "type": "text", "maxLength": 64, "nullable": true,
+  "rules": { "file": { "accept": ["png"], "maxBytes": 524288 } } },
+{ "ref": "photos", "type": "json", "nullable": true,
+  "rules": { "file": { "accept": ["jpeg", "png", "webp"], "maxBytes": 8388608, "maxCount": 6 } } }
 ```
 
-`of` may be another total of the row, so money given back is capped by money taken: two totals
-over the same payments, `taken` (`where` `kind` `taken`) and `given_back` (`where` `kind`
-`given_back`, `balance: { "column": "refundable", "of": "taken" }`, `cap: true`). A refund past what
-was taken is refused, and so is lowering a payment taken below what already went back.
+A `text` column holds one file's id (`file_…`, 31 characters, so a `maxLength` is at least 31); a
+`json` column holds a list of ids, of at most `maxCount`, read back as a list on every database.
+`accept` takes `png`, `jpeg`, `webp`, `gif`, `pdf`, `office`, `zip`, `csv`, `text`, `markdown`,
+`json`, `mp4`, `webm`, `mp3`, `wav` and `ogg`: never `svg`, a document that can carry script, and
+never `heic`, a picture whose camera notes cannot be taken out of it.

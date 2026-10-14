@@ -613,6 +613,21 @@ export interface EffectiveColumn extends ColumnModel {
    * `<link>.<column>` of the row a link of it names.
    */
   linkable?: { where?: StateCondition[]; same?: { column: string; as: string }[] };
+  /** `column.file`: the column holds files a signed-in person uploaded for it. */
+  file?: EffectiveFileRule;
+}
+
+/**
+ * `column.file`, as kept: the kinds of file the column takes (the server's
+ * names for what a file's bytes are), the most bytes of each, and — for a
+ * column that holds a list (a json column) — how many. One file is its id in
+ * a text column; a list is a JSON array of ids.
+ */
+export interface EffectiveFileRule {
+  accept: string[];
+  maxBytes: number;
+  /** Present: the column holds a list of up to this many. Absent: one file. */
+  maxCount?: number;
 }
 
 export interface EffectiveTable extends Omit<TableModel, 'columns'> {
@@ -1574,6 +1589,12 @@ export function applyOverrides(
           const rule = value as { where?: StateCondition[]; same?: { column: string; as: string }[] };
           column.linkable = { ...(rule.where === undefined ? {} : { where: structuredClone(rule.where) }), ...(rule.same === undefined ? {} : { same: structuredClone(rule.same) }) };
         }
+        break;
+      }
+      case 'column.file': {
+        const column = columnOf(table, row.columnName);
+        const rule = value as { accept: string[]; maxBytes: number; maxCount?: number };
+        if (column !== undefined) column.file = { accept: [...rule.accept], maxBytes: rule.maxBytes, ...(rule.maxCount === undefined ? {} : { maxCount: rule.maxCount }) };
         break;
       }
       case 'table.belongs': {

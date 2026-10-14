@@ -93,7 +93,11 @@
       "duplicate": "Allerede tilføjet.",
       "form": "Nogle værdier blev afvist. Tjek de markerede felter.",
       "mentionUnknown": "En person, der nævnes her, logger ikke ind her. Skriv @, og vælg personen på listen.",
-      "tooManyMentions": "Der nævnes for mange personer her. Nævn færre."
+      "tooManyMentions": "Der nævnes for mange personer her. Nævn færre.",
+      "fileNotHere": "Filen kan ikke gemmes her. Upload den igen fra dette felt.",
+      "fileType": "Denne filtype modtages ikke her.",
+      "fileTooLarge": "Filen er for stor til dette felt.",
+      "tooManyFiles": "Højst {n} filer her."
     },
     "lines": {
       "add": "Tilføj linje",
@@ -1616,6 +1620,41 @@
       "wholeOnly": {
         "title": "Kun for hele teamet",
         "body": "Dette tal gælder hele teamet. Det vises ikke for dig, fordi din rolle kun læser nogle af de rækker, det er beregnet ud fra."
+      }
+    },
+    "files": {
+      "tooLarge": "Filen er for stor til dette felt.",
+      "wrongType": "Denne filtype modtages ikke her.",
+      "notAllowed": "Du må ikke tilføje filer her.",
+      "notSent": "Den kunne ikke sendes. Prøv igen.",
+      "signature": {
+        "name": "Underskrift",
+        "pad": "Skriv under her med en finger, en pen eller musen.",
+        "typedPad": "Navnet, skrevet som underskrift.",
+        "line": "Skriv under over linjen",
+        "clear": "Ryd",
+        "typeInstead": "Skriv navnet i stedet",
+        "drawInstead": "Skriv under i hånden i stedet",
+        "typedLabel": "Navn som underskrift",
+        "keep": "Behold denne underskrift",
+        "again": "Skriv under igen",
+        "saving": "Sender underskriften …",
+        "kept": "Underskriften er gemt.",
+        "cleared": "Underskriften er ryddet. Skriv under igen.",
+        "empty": "Skriv først under, og behold så underskriften.",
+        "keptAlt": "Den gemte underskrift"
+      },
+      "photos": {
+        "name": "Billeder",
+        "add": "Tilføj et billede",
+        "count": "{count} af {max}",
+        "full": "Feltet kan ikke rumme flere billeder.",
+        "alt": "Billede {n}",
+        "remove": "Fjern billede {n}",
+        "sending": "Sender …",
+        "added": "Billedet er tilføjet.",
+        "refused": "Billedet blev ikke gemt: {reason}",
+        "removed": "Billede {n} er fjernet."
       }
     }
   },

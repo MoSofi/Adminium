@@ -231,3 +231,35 @@ export async function pagePartOff(meta: MetaDb, config: unknown): Promise<boolea
   const part = pageAppPart(config);
   return part !== null && !(await appPartIsOn(meta, part.app, part.module));
 }
+
+/**
+ * A dashboard's cards without those of parts of its app that are off: a card
+ * names its part (`layout.items[].module`) and is not drawn while that part
+ * is off, as a page of it is not. Nothing to drop answers the same array.
+ */
+export async function cardsOfPartsOn<I extends { module?: string | undefined }>(meta: MetaDb, appKey: string | null | undefined, items: readonly I[]): Promise<readonly I[]> {
+  if (appKey === null || appKey === undefined || !items.some((item) => typeof item.module === 'string')) return items;
+  const parts = (await loadAppParts(meta, [appKey])).get(appKey);
+  const kept = items.filter((item) => partIsOn(parts, item.module));
+  return kept.length === items.length ? items : kept;
+}
+
+/** The cards among `items` of parts of the app that are off: what a layout saved without them keeps (they were not drawn to be moved). */
+export async function cardsOfPartsOff<I extends { module?: string | undefined }>(meta: MetaDb, appKey: string | null | undefined, items: readonly I[]): Promise<I[]> {
+  if (appKey === null || appKey === undefined || !items.some((item) => typeof item.module === 'string')) return [];
+  const parts = (await loadAppParts(meta, [appKey])).get(appKey);
+  return items.filter((item) => !partIsOn(parts, item.module));
+}
+
+/** A stored page's envelope with {@link cardsOfPartsOn} applied to its layout (`config.layout.items`). */
+export async function withCardsOfPartsOn(meta: MetaDb, envelope: unknown): Promise<unknown> {
+  const part = pageAppPart(envelope);
+  if (part === null || typeof envelope !== 'object' || envelope === null) return envelope;
+  const body = (envelope as { config?: unknown }).config;
+  const layout = typeof body === 'object' && body !== null ? (body as { layout?: unknown }).layout : undefined;
+  const items = typeof layout === 'object' && layout !== null ? (layout as { items?: unknown }).items : undefined;
+  if (!Array.isArray(items)) return envelope;
+  const kept = await cardsOfPartsOn(meta, part.app, items as { module?: string }[]);
+  if (kept === items) return envelope;
+  return { ...envelope, config: { ...(body as object), layout: { ...(layout as object), items: kept } } };
+}

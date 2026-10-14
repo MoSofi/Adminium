@@ -4,6 +4,7 @@
 
 | File | What it covers | Bytes |
 |---|---|---|
+| `references/guides/timed-moves--moves-that-wait-for-a-time.md` | Moves that wait for a time | 1130 |
 | `references/guides/timed-moves--late-moves.md` | Late moves | 1872 |
 | `references/guides/timed-moves--reminders-at-a-wall-time.md` | Reminders at a wall time | 1173 |
 | `references/guides/timed-moves--settings-a-moment-reads.md` | Settings a moment reads | 1274 |
@@ -61,7 +62,8 @@
 | `references/guides/emails--held-messages.md` | Held messages | 1454 |
 | `references/guides/emails--attachments.md` | Attachments | 1702 |
 | `references/guides/emails--the-templates.md` | The templates | 1273 |
-| `references/guides/emails--variables.md` | Variables | 7049 |
+| `references/guides/emails--variables.md` | Variables | 7217 |
+| `references/guides/emails--variables--the-person-a-staff-column-names.md` | Variables — The person a staff column names | 1053 |
 | `references/guides/emails--emails-that-list-rows.md` | Emails that list rows | 5462 |
 | `references/guides/emails--links.md` | Links | 850 |
 | `references/guides/emails--upgrading.md` | Upgrading | 1762 |
@@ -87,8 +89,5 @@
 | `references/guides/public-access--the-customer-domain.md` | The customer domain | 464 |
 | `references/guides/public-access--rate-limits.md` | Rate limits | 984 |
 | `references/guides/maps--overview.md` | Maps, places and routes | 367 |
-| `references/guides/maps--what-works-with-nothing-set-up.md` | What works with nothing set up | 842 |
-| `references/guides/maps--the-map-server.md` | The map server | 1337 |
-| `references/guides/maps--the-link-out-to-a-maps-app.md` | The link out to a maps app | 1185 |
 
 More: `references/guides/INDEX-3.md`

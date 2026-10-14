@@ -67,7 +67,10 @@ email to every user who ever signed up.
 
 **A row Adminium wrote and the watcher then saw is one run, not two.** Both
 sides compute the same identity for the same occurrence, and only the first
-one through creates the run.
+one through creates the run. Each change Adminium writes is its own run all
+the same, also when several changes of one row carry the same `updated_at`
+(MySQL keeps it to the whole second): three stage moves within a second are
+three runs, each with the row as it was before its own move.
 
 ## Waiting
 

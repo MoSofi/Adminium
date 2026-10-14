@@ -91,6 +91,7 @@ import {
   publishChildWrite,
   type RecordWriteAction,
 } from '../../crud/after-record-write.js';
+import { ruledBlocksOf } from '../../files/column-blocks.js';
 import type { FileReconciler } from '../../files/reconcile.js';
 import { normalizeWriteValue, sameValue } from '../../crud/write-values.js';
 import { bookingDays, bookingSlots, kindMinutes } from '../../crud/booking-guard.js';
@@ -721,6 +722,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         connectionId: ctx.connectionId,
         table: ctx.table.id,
         values,
+        ruled: new Set(ruledBlocksOf(ctx.table.columns.values()).keys()),
       });
       if (problem === null) return;
       if (problem.reason === 'too-many') {
@@ -1699,6 +1701,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         table: ctx.table.id,
         entity,
         row: before,
+        ruled: ruledBlocksOf(ctx.table.columns.values()),
       });
       return trashed;
     }

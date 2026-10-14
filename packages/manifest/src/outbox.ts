@@ -1335,9 +1335,13 @@ export function isCodeColumn(column: { type: string; rules?: { code?: unknown } 
   return column.type === 'text' && column.rules?.code !== undefined;
 }
 
-/** The forms a row's column may be read in: its type's, a text column's `time` only when it keeps a time of day, and a code's groups. */
-export function rowFormsOf(column: Parameters<typeof clockShaped>[0] & { rules?: { code?: unknown } | undefined }): readonly string[] {
+/** The form of a staff column that is the person it names, by the name the people list gives them (`{{visit.rep_id.name}}`). */
+export const STAFF_NAME_FORM = 'name';
+
+/** The forms a row's column may be read in: its type's, a text column's `time` only when it keeps a time of day, a code's groups, and a staff column's person by name. */
+export function rowFormsOf(column: Parameters<typeof clockShaped>[0] & { rules?: { code?: unknown; staff?: unknown } | undefined }): readonly string[] {
   const forms = ROW_FORMS[column.type] ?? [];
   const own = column.type === 'text' && !clockShaped(column) ? forms.filter((form) => form !== 'time') : forms;
-  return isCodeColumn(column) ? [...own, GROUPED_FORM] : own;
+  const coded = isCodeColumn(column) ? [...own, GROUPED_FORM] : own;
+  return column.rules?.staff === true ? [...coded, STAFF_NAME_FORM] : coded;
 }

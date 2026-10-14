@@ -165,6 +165,43 @@ const words: KitWords = {
     "ui:widgets.media.uploadDropzone.browseLabel": "瀏覽",
     "ui:widgets.media.uploadDropzone.browsePrefix": "或",
     "ui:widgets.media.uploadDropzone.dropTitle": "拖放檔案以上傳"
+  },
+  "signature": {
+    "ui:widgets.files.notAllowed": "您不能在此處新增檔案。",
+    "ui:widgets.files.notSent": "無法傳送，請再試一次。",
+    "ui:widgets.files.signature.again": "重新簽名",
+    "ui:widgets.files.signature.clear": "清除",
+    "ui:widgets.files.signature.cleared": "簽名已清除，請重新簽名。",
+    "ui:widgets.files.signature.drawInstead": "改為手寫簽名",
+    "ui:widgets.files.signature.empty": "請先簽名，再保留簽名。",
+    "ui:widgets.files.signature.keep": "保留此簽名",
+    "ui:widgets.files.signature.kept": "簽名已保留。",
+    "ui:widgets.files.signature.keptAlt": "已保留的簽名",
+    "ui:widgets.files.signature.line": "請在線上方簽名",
+    "ui:widgets.files.signature.name": "簽名",
+    "ui:widgets.files.signature.pad": "請用手指、觸控筆或滑鼠在此簽名。",
+    "ui:widgets.files.signature.saving": "正在傳送簽名…",
+    "ui:widgets.files.signature.typeInstead": "改為輸入姓名",
+    "ui:widgets.files.signature.typedLabel": "作為簽名的姓名",
+    "ui:widgets.files.signature.typedPad": "以簽名形式書寫的姓名。",
+    "ui:widgets.files.tooLarge": "此檔案超出此欄位允許的大小。",
+    "ui:widgets.files.wrongType": "此處不接受這種檔案。"
+  },
+  "photos": {
+    "ui:widgets.files.notAllowed": "您不能在此處新增檔案。",
+    "ui:widgets.files.notSent": "無法傳送，請再試一次。",
+    "ui:widgets.files.photos.add": "新增照片",
+    "ui:widgets.files.photos.added": "照片已新增。",
+    "ui:widgets.files.photos.alt": "照片 {n}",
+    "ui:widgets.files.photos.count": "{count} / {max}",
+    "ui:widgets.files.photos.full": "此欄位無法再新增照片。",
+    "ui:widgets.files.photos.name": "照片",
+    "ui:widgets.files.photos.refused": "照片未被保留：{reason}",
+    "ui:widgets.files.photos.remove": "移除照片 {n}",
+    "ui:widgets.files.photos.removed": "照片 {n} 已移除。",
+    "ui:widgets.files.photos.sending": "正在傳送…",
+    "ui:widgets.files.tooLarge": "此檔案超出此欄位允許的大小。",
+    "ui:widgets.files.wrongType": "此處不接受這種檔案。"
   }
 };
 

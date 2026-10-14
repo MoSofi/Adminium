@@ -70,6 +70,7 @@
               "column.place",
               "column.area",
               "column.linkable",
+              "column.file",
               "table.belongs",
               "table.private",
               "relation.add",

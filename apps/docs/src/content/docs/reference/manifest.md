@@ -253,7 +253,7 @@ version of the app does not overwrite it.
 | `type` | yes | One of the [column types](#column-types). |
 | `nullable` | no | `true` makes the column nullable. **Columns are `NOT NULL` unless you say otherwise.** A primary key is never nullable. |
 | `role` | no | `pk` (primary key), `created_at` or `updated_at`. |
-| `semantic` | no | A hint for widgets: `name`, `money`, `image`, `email`, `avatar`, `geo-lat`, `geo-lng`. |
+| `semantic` | no | A hint for widgets: `name`, `money`, `image`, `email`, `avatar`, `geo-lat`, `geo-lng`. `money` (like a `money` column, or `"scale": "currency"`) makes the column money wherever Adminium draws it, whatever it is called: a board's totals and card, a chart's **Show data** table, a list. Read by Adminium 0.3.28 and later; an older release takes it as a hint only. |
 | `enum` | for `enum` | The allowed values, at least one. |
 | `references` | for `fk` | The `ref` of the table this foreign key points at. That table must declare exactly one `pk` column; the foreign key takes its type. |
 | `maxLength` | no | `text` only: creates `varchar(n)` instead of unbounded text. 1–1000. Leave it out for long text (notes, a description): text with no `maxLength` has no limit. |
@@ -396,6 +396,7 @@ change or delete is theirs from then on.
 | `notAfter` | `"today"` or `{ "column", "via"?, "when"?, "strict"? }` | A `date` column is never later than today, in the venue's time zone; or than another date, read as `notBefore` reads it (a credit's nights end by its stay's `depart`). A later date is refused (`out-of-range`). |
 | `notBefore` | `{ "column", "via"?, "when"?, "strict"? }` | A `date` column is never earlier than another date column: of the same row, or, with `via`, of the row its foreign key `via` points at (a payment never before its invoice's `issued_on`). `when`: 1–8 [conditions](#conditions-a-move-waits-for) on the row as the write leaves it; the bound holds only while they are met. `strict`: the same day is out too — `true`, or 1–8 conditions it is out under (a guest who left early is credited from the day after the arrival, one who never came from the arrival itself). |
 | `linkable` | `{ "where"?, "same"? }` | On a foreign key: it names only a row of the table it points at that meets 1–8 conditions (`where`, the shape a move's [`linked`](#conditions-a-move-waits-for) takes) — a price-list line still offered — and, with `same`, whose columns hold what this row holds (a visit's contact works for the company of the visit's deal). Judged when a new row names one and when a change moves the link, for every writer. See [Links to some rows](#links-to-some-rows). Needs Adminium 0.3.28. |
+| `file` | `{ "accept", "maxBytes", "maxCount"? }` | Files a signed-in person uploads for the column: one in a `text` column, a list of up to `maxCount` (1–20) in a `json` column. It holds Adminium's own file ids, never a link. `accept` names the kinds the column takes, judged by the file's bytes; `maxBytes` (1 KiB–25 MiB) the size of each. A picture loses what a camera writes beside it as it is uploaded. A write may name only a file its writer uploaded and no record holds yet. See [Files in a column](#files-in-a-column). Needs Adminium 0.3.28. |
 | `retryKey` | `true` | The column a staff create keeps its retry key in, as a 43-letter hash, on a table no public entry creates rows of: a desk's payment sent again after a lost reply answers the payment the first one made (see the REST API's `clientKey`). A `text` column, `unique`, nullable, at least 43 long; one a table. |
 | `rollup` | `{ "from", "via", "sum" or "count", "times"?, "unlessSet"?, "where"?, "balance"?, "cap"? }` | A total over child rows, kept up to date as they change. `from` is the child table, `via` its foreign key back to this table, `sum` the column to add up, or `"count": true` to count the rows instead; see [Totals that count and climb](#totals-that-count-and-climb). `times` multiplies each row (a quantity); a child row with a value in `unlessSet` is left out (a voided line). See [Totals and balances](#totals-and-balances) for `where`, `balance` and `cap`. |
 | `stamp` | `{ "set", "on", "clearOnBack"? }` | A value Adminium writes when something happens: the moment, who did it, or a deadline. See [Stamps](#stamps). |
@@ -569,6 +570,53 @@ so a deal with no company yet matches no contact; an empty link is still taken. 
 An operator may set the same rule on a column in Studio; Studio refuses one whose column is not a
 foreign key, or whose conditions name a column the linked table does not have. The screens are
 still the app's to filter: a picker that offers only active lines is kinder than a refusal.
+
+#### Files in a column
+
+`file` makes a column hold files a signed-in person uploads for it: a crew's sign-off keeps the
+customer's signature and the job's photos.
+
+```json
+{ "ref": "signature", "type": "text", "maxLength": 64, "nullable": true,
+  "rules": { "file": { "accept": ["png"], "maxBytes": 524288 } } },
+{ "ref": "photos", "type": "json", "nullable": true,
+  "rules": { "file": { "accept": ["jpeg", "png", "webp"], "maxBytes": 8388608, "maxCount": 6 } } }
+```
+
+A `text` column holds one file's id (`file_…`, 31 characters, so a `maxLength` is at least 31); a
+`json` column holds a list of ids, of at most `maxCount`, read back as a list on every database.
+`accept` takes `png`, `jpeg`, `webp`, `gif`, `pdf`, `office`, `zip`, `csv`, `text`, `markdown`,
+`json`, `mp4`, `webm`, `mp3`, `wav` and `ogg`: never `svg`, a document that can carry script, and
+never `heic`, a picture whose camera notes cannot be taken out of it.
+
+- **The upload.** `POST /api/v1/files?connectionId=…&table=…&column=…&filename=…`, the body the file
+  itself, from a person who may create or change rows of the table. The column's kinds and size
+  narrow the workspace's own (`files.allowedTypes`, `files.maxBytes`), never widen them: a file of
+  another kind is refused `415`, a larger one `413`. A PNG, JPEG, WebP or GIF is kept without what a
+  camera writes beside it: the place it was taken, the device, comments, XMP. A picture that cannot be
+  read as one is refused `415`. The reply's `data.id` is what the column holds. Until a record names
+  it, the file is its uploader's alone: nobody else reads it, and the uploader may throw it away
+  (`DELETE /api/v1/files/{id}`). One no record names is thrown away after `files.unattachedHours`.
+- **The write.** A create or a change may name, beside what the column already held, only a file
+  **its writer uploaded and no record holds yet** (or one uploaded for this very record and in none of
+  its other columns), of this database, of a kind the column takes, no larger than it allows, and, a
+  picture, one cleaned as it was uploaded for a file column. A file named twice in one row is refused,
+  and so is a list longer than `maxCount`. Only a person names a new file, through a form, a bulk edit
+  or a record's button: an import, a rule, project code, sample data and the public API name none (they
+  may keep or empty what the column holds). An undo puts back what was. A refusal is `422`
+  `VALIDATION_FAILED`, the field's code `file-not-here`, `file-type`, `file-too-large` or
+  `too-many-files`; whose a file is, whether it exists and which record holds it are all said alike, as
+  `file-not-here`.
+- **The record holds it.** Once named, the file is read with its record, by whoever reads the record
+  and reaches its row, through every column their role shows. It is changed only through the record:
+  taking it off, renaming it, throwing it away or hanging it on another record by the file routes is
+  refused `409` `FILE_HELD`, for its uploader and the owner alike. A change that names another file
+  throws the old one away; removing the record throws away its files (an undo brings them back).
+- **What a manifest cannot do with one.** A public entry neither writes nor defaults a file column, a
+  sample row leaves it empty, and a file column takes no `default`, no `unique` and no rule that
+  decides its value (`personal`, `required` and `requiredWhen` are fine). The kit's
+  [signature pad and photo field](/guides/apps/kit-parts/#a-signature-and-photos) upload for such a
+  column from an app's own screen.
 
 #### Totals and balances
 
@@ -2014,14 +2062,18 @@ switches "Jobs on site" off and never sees its pages, its roles or its rules. Th
 | `feature` | no | One of the app's [`addOns.features`](#add-ons): the part is also off while that feature's add-ons are not all installed and connected to the app, whatever its switch says. |
 
 1–16 parts. What belongs to a part says so with `"module": "<id>"`: a [table](#tables), a
-[page](#pages), a rule in [`automations`](#automations), an entry in [`documents`](#documents), an
-outbox [producer](#outbox) and a [`publicAccess`](#public-access) entry each name one part. A
+[page](#pages), a dashboard card (an entry of a page's `layout.items`), a rule in
+[`automations`](#automations), an entry in [`documents`](#documents), an outbox
+[producer](#outbox) and a [`publicAccess`](#public-access) entry each name one part. A
 [role](#roles) names one or several with `"modules": [...]`. Anything that names no part is always
 there.
 
 **What "off" means.** While a part is off:
 
 - its pages are out of the sidebar, and their addresses answer `409` `PART_OFF`;
+- its cards are not drawn on a dashboard of another part: the page is served without them, in
+  its shared layout and in each person's own. A layout saved meanwhile keeps them where they were,
+  so they are back in their place when the part is on;
 - its rules start no run. A run that was already waiting is passed over, with a line in its log.
   A scheduled rule that visits each row `once` does not use a row up while the part is off;
 - its documents are not drawn, its outbox producers queue nothing, its public entries answer as
@@ -2048,7 +2100,9 @@ Put it in a part whose `feature` requires that add-on and the app need not requi
 all. Installed without it, the whole part is **left out**: its tables are not made, and what names
 them elsewhere goes with them —
 
-- the part's pages, rules, documents, producers and public entries;
+- the part's pages, cards, rules, documents, producers and public entries;
+- a dashboard card over one of its tables, whether or not it names the part, so the dashboard
+  is built without it;
 - a key of [`publicKeys`](#public-access) every entry of which went with the part: a shared link's
   key is made only with the part it opens, and it is made when the part is put in and the app's
   public access allowed;
@@ -2367,6 +2421,38 @@ A bulk action's `confirm.title`, `confirm.body` and `done` may name `{count}`, t
 and nothing else. Its `where` and `confirm.columns` never name a secret column or a code kept from
 staff. A dashboard page's toolbar takes `layout.toolbar.links` in place of `link`: one or two
 links of the same shape, at most one of them with `"tone": "primary"`.
+
+**A link to the app's own staff side.** A toolbar link, or a card's `href`, may name `"@staff"`:
+the app's staff screens, wherever the app placed them (inside the dashboard, or on their own
+address in a new tab), as the sidebar's "Open the staff screens" opens them. `"@staff/<path>"`
+opens one screen of them: `"@staff/approvals"` is `/a/<app key>/approvals` inside the dashboard,
+or `approvals` under the side's own address. The path is a path under the side, as a
+[`navLinks`](#navlinks) entry's is: plain segments of letters, digits, `.`, `_`, `~` and `-`,
+with no query, no `#` and no `..`; the manifest is refused otherwise, and when the app has no
+`staff` frontend. A link is drawn only when the side can be opened. `@staff/<path>` needs
+Adminium 0.3.28 (an older release draws no such link).
+
+```json
+"layout": { "version": 1, "toolbar": { "links": [
+  { "label": "Approvals", "labels": { "de-DE": "Freigaben" }, "href": "@staff/approvals", "icon": "clipboard-check", "tone": "primary" }
+] }, "items": [] }
+```
+
+**A dashboard card of a part, and its column headings.** A card of an app's `page-dashboard`
+(an entry of `layout.items`) may say which [part](#parts) of the app it belongs to with
+`"module": "<id>"`: while that part is off the card is not drawn, for everybody, and the page
+stays whole. A table card's columns (`config.columns`, as a `data-grid` heads them and a
+`detail-key-value` names its rows) may give their heading in other languages with `labels`, keyed by tag as a page's `titles`
+are: each reader sees the heading in their language, else `label`. Both need Adminium 0.3.28.
+
+```json
+{ "i": "unclaimed", "widget": "kpi-stat-card", "x": 3, "y": 3, "w": 3, "h": 3, "module": "inbox",
+  "config": { "title": "Unclaimed enquiries", "binding": { "kind": "table-query", "source": { "name": "enquiries", "type": "table" }, "shape": "metric+delta", "aggregations": [{ "fn": "count", "alias": "n" }] } } }
+```
+
+```json
+"columns": [{ "name": "name", "label": "Rep", "labels": { "de-DE": "Verkäufer", "ar-EG": "المندوب" } }]
+```
 
 ### navGroups
 
@@ -3300,6 +3386,11 @@ column of up to 8 characters holding a time of day has `.time`, in the reader's 
 the US, "15:00" in Britain); a [code](#column-rules) column has `.grouped` (`K7QX-M2PD`) and `.qr`
 (see [Emails that list rows](#emails-that-list-rows)). A `{{was.<column>}}` reads a
 [`was`](#outbox) column as it was before a change, or as a removed row held it, in the same forms. A
+staff column (`rules.staff`) has `.name`: the person it names, by the name the people list gives
+them (`{{visit.rep_id.name}}`, `{{was.rep_id.name}}`, `{{row.rep_id.name}}` in a list), and nothing
+else of them, never their address. Somebody suspended, only invited or removed, and an id that is
+nobody's, read empty, so a block sent `onlyWith` the name is left out; such a template needs
+Adminium 0.3.28 (an older release fails the message). A
 date has `.day_month` and `.days_since` only: a template asking a column for a form its type does
 not have (`{{invoice.due_on.date}}` on a `date` column) is refused at install and on update with
 `EMAIL_TEMPLATE_INVALID`, naming the template and the variable.

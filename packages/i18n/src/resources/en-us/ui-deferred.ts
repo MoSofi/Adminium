@@ -1493,6 +1493,41 @@ export default {
         "title": "For the whole team only",
         "body": "This figure is the whole team’s. It is not shown to you, because your role reads only some of the rows it is worked out from."
       }
+    },
+    "files": {
+      "tooLarge": "This file is too large for this field.",
+      "wrongType": "This kind of file is not taken here.",
+      "notAllowed": "You may not add files here.",
+      "notSent": "It could not be sent. Try again.",
+      "signature": {
+        "name": "Signature",
+        "pad": "Sign here with a finger, a pen or the mouse.",
+        "typedPad": "The name, written as the signature.",
+        "line": "Sign above the line",
+        "clear": "Clear",
+        "typeInstead": "Type the name instead",
+        "drawInstead": "Sign by hand instead",
+        "typedLabel": "Name, as the signature",
+        "keep": "Keep this signature",
+        "again": "Sign again",
+        "saving": "Sending the signature…",
+        "kept": "Signature kept.",
+        "cleared": "Signature cleared. Sign again.",
+        "empty": "Sign first, then keep the signature.",
+        "keptAlt": "The signature as kept"
+      },
+      "photos": {
+        "name": "Photos",
+        "add": "Add a photo",
+        "count": "{count} of {max}",
+        "full": "That is as many photos as this takes.",
+        "alt": "Photo {n}",
+        "remove": "Take photo {n} out",
+        "sending": "Sending…",
+        "added": "Photo added.",
+        "refused": "The photo was not kept: {reason}",
+        "removed": "Photo {n} taken out."
+      }
     }
   },
   "templates": {

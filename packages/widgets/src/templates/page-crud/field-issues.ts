@@ -47,6 +47,10 @@ export const FIELD_ISSUE_CODES = [
   'place-unknown',
   'area-unreadable',
   'area-too-large',
+  'file-not-here',
+  'file-type',
+  'file-too-large',
+  'too-many-files',
 ] as const;
 
 export type FieldIssueCode = (typeof FIELD_ISSUE_CODES)[number];
@@ -128,6 +132,16 @@ export function fieldIssueMessage(t: Translate, issue: FieldIssue): string {
       return t('ui:widgets.geo.area.issue.unreadable', 'This could not be read as an area. Draw it again.');
     case 'area-too-large':
       return t('ui:widgets.geo.area.issue.tooLarge', 'This area has too many points. Draw it with fewer.');
+    // A file column (an app's `column.file`): a file this record may not be given — not one the writer
+    // uploaded here, or one another record keeps — one of a kind it does not take, too large, too many.
+    case 'file-not-here':
+      return t('ui:formDialog.issue.fileNotHere', 'This file cannot be kept here. Upload it again from this field.');
+    case 'file-type':
+      return t('ui:formDialog.issue.fileType', 'This kind of file is not taken here.');
+    case 'file-too-large':
+      return t('ui:formDialog.issue.fileTooLarge', 'This file is too large for this field.');
+    case 'too-many-files':
+      return t('ui:formDialog.issue.tooManyFiles', 'Keep at most {n} files here.', { n: n ?? 0 });
     // A discount code spelled like a voucher's or a gift card's: a typed value starting so would be taken for one of those.
     case 'reserved':
       return t('ui:formDialog.issue.reserved', 'A discount code cannot start like a voucher or a gift card code.');

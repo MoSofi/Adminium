@@ -29,6 +29,9 @@ const SEGMENT = '[A-Za-z0-9_~-][A-Za-z0-9._~-]*';
 const SIDE_PATH = new RegExp(`^(?:/${SEGMENT})+$`);
 const RECORD_ADDRESS = new RegExp(`^(?:/(?:${SEGMENT}|\\{id\\}))+$`);
 
+/** A page link to the app's own staff side: `@staff` (its first screen) or `@staff/<path>` (one screen of it). */
+export const STAFF_LINK = '@staff';
+
 export const SIDE_PATH_MESSAGE = 'a path under the side: "/" then plain segments (letters, digits, ".", "_", "~", "-"), with no query, no "#" and no ".."';
 export const RECORD_ADDRESS_MESSAGE = 'a path under the side with one "{id}" segment, as in "/deals/{id}": plain segments only, no query, no "#" and no ".."';
 
@@ -105,6 +108,23 @@ export function railIssues(document: unknown): RailIssue[] {
     }
     if (isDoc(link['to']) && link['to']['side'] === 'staff' && !hasStaff) {
       out.push({ path: ['navLinks', l, 'to', 'side'], message: 'the app declares no staff side to open' });
+    }
+  });
+
+  // A console page's link to one screen of the staff side (`@staff/approvals`): a path under the side, as a section's entry names one.
+  list(document['pages']).forEach((page, p) => {
+    const layout = isDoc(page) && isDoc(page['config']) && isDoc(page['config']['layout']) ? page['config']['layout'] : {};
+    const toolbar = isDoc(layout['toolbar']) ? layout['toolbar'] : {};
+    const at = ['pages', p, 'config', 'layout'];
+    const hrefs: [unknown, (string | number)[]][] = [
+      [isDoc(toolbar['link']) ? toolbar['link']['href'] : undefined, [...at, 'toolbar', 'link', 'href']],
+      ...list(toolbar['links']).map((link, l): [unknown, (string | number)[]] => [isDoc(link) ? link['href'] : undefined, [...at, 'toolbar', 'links', l, 'href']]),
+      ...list(layout['items']).map((item, i): [unknown, (string | number)[]] => [isDoc(item) && isDoc(item['config']) ? item['config']['href'] : undefined, [...at, 'items', i, 'config', 'href']]),
+    ];
+    for (const [href, path] of hrefs) {
+      if (typeof href !== 'string' || !href.startsWith(`${STAFF_LINK}/`)) continue;
+      if (!isSidePath(href.slice(STAFF_LINK.length))) out.push({ path, message: `"@staff/" is followed by ${SIDE_PATH_MESSAGE.replace('"/" then plain', 'plain')}` });
+      else if (!hasStaff) out.push({ path, message: 'the app declares no staff side to open' });
     }
   });
   return out;

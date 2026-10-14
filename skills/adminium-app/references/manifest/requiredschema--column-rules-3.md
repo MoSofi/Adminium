@@ -2,6 +2,12 @@
 
 # Manifest spec: requiredSchema — Column rules
 
+| Rule | Shape | What it does |
+|---|---|---|
+| `secret` | `true` or `false` | Whether the column is a secret no response carries, to anyone, overriding the guess Adminium makes from the column's name (`api_token`, `password_hash`). An entry in [public access](https://docs.adminium.dev/reference/manifest/#public-access) that names no `select` leaves a `secret` column out, and a `code` column too. `false` is written only on a table the app's install made: on a table it reuses, a rule that would show a secret or take a personal column's mask off is skipped, the check step says so, and only an operator can show the column, in Studio, as Super Admin. A `secret` the operator set in Studio wins over the app's. On a column of an add-on's shape, only `true`. |
+
+Tones are the dashboard's badge colours: `neutral`, `accent`, `info`, `pos`, `warn` and `danger`.
+
 `copy`, `default`, `sequence`, `format`, `code`, `rollup`, `formula`, `stamp`, `lookup` and
 `perNight` are values **Adminium decides**: they are filled on the server, so a browser never
 picks a price, a number, a code or a time. So are a rollup's `balance` column, a booking's
@@ -85,22 +91,3 @@ enum, a number for a number column, `true` or `false` for a `bool`). The rule's 
 exception is a `copy` that only fills what a write leaves out (`mode: "default"`, without
 `follow`): the copy runs first, and the column is asked for only when there was nothing to copy
 either (an order sent by email needs an address: its supplier's, or one typed on the order).
-
-```json
-{ "ref": "subtotal", "type": "money", "default": 0,
-  "rules": { "rollup": { "from": "ticket_items", "via": "ticket_id", "sum": "unit_price",
-                         "times": "qty", "unlessSet": "voided_at" } } }
-```
-
-#### Links to some rows
-
-`linkable` says that a foreign key names only a row meeting some conditions: a quote line names a
-price-list line that is still offered, so a rep cannot price a quote from a retired line the list
-no longer gives.
-
-```json
-{ "ref": "price_id", "type": "fk", "references": "price_list", "nullable": true,
-  "rules": { "linkable": { "where": [{ "column": "active", "eq": true }] } } },
-{ "ref": "list_rate", "type": "decimal", "scale": "currency", "nullable": true,
-  "rules": { "copy": { "via": "price_id", "from": "list_rate", "mode": "always" } } }
-```

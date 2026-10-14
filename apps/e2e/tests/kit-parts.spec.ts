@@ -477,12 +477,14 @@ test('the config names the kit and the map, and the files it names are kept for 
   const config = (await (await page.request.get(`${STAFF}surface-config.json`)).json()) as { kit?: { contract: number; entry: string; styles: string[] }; maps?: unknown; locale?: string; dir?: string };
   expect(config.kit?.contract).toBe(1);
   expect(config.kit?.entry).toMatch(/^\/assets\/kit\/kit-[\w-]+\.js$/);
-  // Every sheet of the kit, the one all parts stand on first, then the board's own, the import's and the map's.
-  expect(config.kit?.styles).toHaveLength(4);
+  // Every sheet of the kit, the one all parts stand on first, then the board's own, the file parts', the import's and the map's.
+  expect(config.kit?.styles).toHaveLength(5);
   expect(config.kit?.styles[0]).toMatch(/^\/assets\/kit\/root-[\w-]+\.css$/);
   expect(config.kit?.styles[1]).toMatch(/^\/assets\/kit\/board-[\w-]+\.css$/);
-  expect(config.kit?.styles[2]).toMatch(/^\/assets\/kit\/import-[\w-]+\.css$/);
-  expect(config.kit?.styles[3]).toMatch(/^\/assets\/kit\/map-[\w-]+\.css$/);
+  // The signature pad's and the photo field's, one sheet for the two.
+  expect(config.kit?.styles[2]).toMatch(/^\/assets\/kit\/files-[\w-]+\.css$/);
+  expect(config.kit?.styles[3]).toMatch(/^\/assets\/kit\/import-[\w-]+\.css$/);
+  expect(config.kit?.styles[4]).toMatch(/^\/assets\/kit\/map-[\w-]+\.css$/);
   for (const sheet of config.kit!.styles) {
     const reply = await page.request.get(sheet);
     expect(reply.headers()['content-type']).toContain('text/css');
@@ -509,7 +511,7 @@ test('a plain page mounts the mention box, and a person picked from the real lis
 
   // The door's own answers.
   expect(await page.evaluate(() => (window as unknown as { kitScreen: { contract: number; parts: string[] } }).kitScreen.contract)).toBe(1);
-  expect(await page.evaluate(() => (window as unknown as { kitScreen: { parts: string[] } }).kitScreen.parts)).toEqual(['mentions', 'board', 'map', 'import']);
+  expect(await page.evaluate(() => (window as unknown as { kitScreen: { parts: string[] } }).kitScreen.parts)).toEqual(['mentions', 'board', 'map', 'import', 'signature', 'photos']);
   // The page has no React of its own, and the kit put none on the window.
   expect(await page.evaluate(() => 'React' in window || 'ReactDOM' in window)).toBe(false);
   // Only the mention box's files came: the door, the part, the words of one language, what they share with the dashboard, one sheet.

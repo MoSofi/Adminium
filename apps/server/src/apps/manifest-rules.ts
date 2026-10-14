@@ -104,6 +104,7 @@ export type RuleOp =
   | 'column.pii'
   | 'column.secret'
   | 'column.label'
+  | 'column.semanticType'
   | 'column.lookup'
   | 'column.announce'
   | 'column.tableRef'
@@ -116,6 +117,7 @@ export type RuleOp =
   | 'column.place'
   | 'column.area'
   | 'column.linkable'
+  | 'column.file'
   | 'table.belongs'
   | 'table.private'
   | 'table.capacity'
@@ -128,7 +130,7 @@ export type RuleOp =
   | 'table.keyField';
 
 /** Ops that name things rather than rule a write: no column-rule check applies. */
-const NAMING_OPS: ReadonlySet<RuleOp> = new Set(['column.label', 'column.yesNo', 'table.label', 'table.keyField']);
+const NAMING_OPS: ReadonlySet<RuleOp> = new Set(['column.label', 'column.yesNo', 'column.semanticType', 'table.label', 'table.keyField']);
 /** Ops that belong to the table, not one of its columns. */
 const TABLE_OPS: ReadonlySet<RuleOp> = new Set(['table.capacity', 'table.booking', 'table.occupies', 'table.states', 'table.postings', 'table.adjust', 'table.belongs', 'table.private', 'table.label', 'table.keyField']);
 
@@ -261,6 +263,8 @@ export function opsForRules(appKey: string, rules: ColumnRules): { op: RuleOp; v
     const { where, same } = rules.linkable;
     out.push({ op: 'column.linkable', value: { ...(where === undefined ? {} : { where: where.map((condition) => ({ ...condition })) }), ...(same === undefined ? {} : { same: same.map((pair) => ({ ...pair })) }) } });
   }
+  // A list of files is told by how many it holds: on SQLite a json column is TEXT, so the column's type cannot say it.
+  if (rules.file !== undefined) out.push({ op: 'column.file', value: { accept: [...rules.file.accept], maxBytes: rules.file.maxBytes, ...(rules.file.maxCount === undefined ? {} : { maxCount: rules.file.maxCount }) } });
   return out;
 }
 
@@ -597,6 +601,10 @@ export async function writeManifestRules(input: {
         const shape = shapeOwned(table, column.ref, 'column.scale');
         desired.push({ ref: table.ref, table: real.id, column: column.ref, op: 'column.scale', value: { scale: column.scale }, ...(shape === undefined ? {} : { shape }) });
       }
+      // A column the app keeps money in (`semantic`, `type` or a currency's places): money wherever Adminium draws it — a board's totals, a chart's table — whatever it is called.
+      if (column.semantic === 'money' || column.type === 'money' || column.scale === 'currency') {
+        desired.push({ ref: table.ref, table: real.id, column: column.ref, op: 'column.semanticType', value: { semanticType: 'money' } });
+      }
       /*
        * `default: "now"` is filled by Adminium, on every create through every
        * door. On MySQL it has to be: the column is a `DATETIME`, which keeps
@@ -774,7 +782,7 @@ export async function writeManifestRules(input: {
       }
     } else if (!NAMING_OPS.has(rule.op) && rule.op !== 'column.enumLabels' && rule.op !== 'column.pii' && rule.op !== 'column.secret' && column !== undefined) {
       const issue = columnRuleIssue(
-        rule.op as Exclude<RuleOp, 'column.enumLabels' | 'column.pii' | 'column.secret' | 'column.label' | 'column.yesNo' | 'table.capacity' | 'table.booking' | 'table.occupies' | 'table.states' | 'table.postings' | 'table.adjust' | 'table.belongs' | 'table.private' | 'table.label' | 'table.keyField'>,
+        rule.op as Exclude<RuleOp, 'column.enumLabels' | 'column.pii' | 'column.secret' | 'column.label' | 'column.yesNo' | 'column.semanticType' | 'table.capacity' | 'table.booking' | 'table.occupies' | 'table.states' | 'table.postings' | 'table.adjust' | 'table.belongs' | 'table.private' | 'table.label' | 'table.keyField'>,
         rule.value,
         column,
         model,

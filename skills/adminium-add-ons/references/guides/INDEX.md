@@ -28,7 +28,8 @@
 | `references/guides/emails--held-messages.md` | Held messages | 1454 |
 | `references/guides/emails--attachments.md` | Attachments | 1702 |
 | `references/guides/emails--the-templates.md` | The templates | 1273 |
-| `references/guides/emails--variables.md` | Variables | 7049 |
+| `references/guides/emails--variables.md` | Variables | 7217 |
+| `references/guides/emails--variables--the-person-a-staff-column-names.md` | Variables — The person a staff column names | 1053 |
 | `references/guides/emails--emails-that-list-rows.md` | Emails that list rows | 5462 |
 | `references/guides/emails--links.md` | Links | 850 |
 | `references/guides/emails--upgrading.md` | Upgrading | 1762 |

@@ -16,7 +16,11 @@ is sent to the app instead of the dashboard:
   still needs every table and column it prints to be one their roles read, and the stock words
   still need a read of the table asked about. They may also bring a file in to a table their
   role may import, from a screen of their app ([the import part](https://docs.adminium.dev/guides/apps/kit-parts/#the-import-wizard)):
-  the routes of one import and its progress, each of which still asks the table's own rights.
+  the routes of one import and its progress, each of which still asks the table's own rights. And
+  they may upload a file for a [file column](https://docs.adminium.dev/reference/manifest/#files-in-a-column) of a table
+  their role creates or changes rows of (a crew's signature and photos), read a file back with the
+  record that holds it, and throw away one of their own uploads no record holds yet; the list of
+  files and the rest of the file routes stay the dashboard's.
 - the [assistant](https://docs.adminium.dev/guides/llm-assist/milo/#on-an-apps-own-staff-address), when an administrator
   has given their role the assistant permission: its button is on the app's staff screens, and it
   answers about their app's data within what their roles read. An app's manifest cannot grant

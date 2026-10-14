@@ -165,6 +165,43 @@ const words: KitWords = {
     "ui:widgets.media.uploadDropzone.browseLabel": "浏览",
     "ui:widgets.media.uploadDropzone.browsePrefix": "或",
     "ui:widgets.media.uploadDropzone.dropTitle": "拖放文件以上传"
+  },
+  "signature": {
+    "ui:widgets.files.notAllowed": "您不能在此处添加文件。",
+    "ui:widgets.files.notSent": "无法发送，请重试。",
+    "ui:widgets.files.signature.again": "重新签名",
+    "ui:widgets.files.signature.clear": "清除",
+    "ui:widgets.files.signature.cleared": "签名已清除，请重新签名。",
+    "ui:widgets.files.signature.drawInstead": "改为手写签名",
+    "ui:widgets.files.signature.empty": "请先签名，再保留签名。",
+    "ui:widgets.files.signature.keep": "保留此签名",
+    "ui:widgets.files.signature.kept": "签名已保留。",
+    "ui:widgets.files.signature.keptAlt": "已保留的签名",
+    "ui:widgets.files.signature.line": "请在线上方签名",
+    "ui:widgets.files.signature.name": "签名",
+    "ui:widgets.files.signature.pad": "请用手指、触控笔或鼠标在此签名。",
+    "ui:widgets.files.signature.saving": "正在发送签名…",
+    "ui:widgets.files.signature.typeInstead": "改为输入姓名",
+    "ui:widgets.files.signature.typedLabel": "作为签名的姓名",
+    "ui:widgets.files.signature.typedPad": "以签名形式书写的姓名。",
+    "ui:widgets.files.tooLarge": "此文件超出此字段允许的大小。",
+    "ui:widgets.files.wrongType": "此处不接受这种文件。"
+  },
+  "photos": {
+    "ui:widgets.files.notAllowed": "您不能在此处添加文件。",
+    "ui:widgets.files.notSent": "无法发送，请重试。",
+    "ui:widgets.files.photos.add": "添加照片",
+    "ui:widgets.files.photos.added": "照片已添加。",
+    "ui:widgets.files.photos.alt": "照片 {n}",
+    "ui:widgets.files.photos.count": "{count} / {max}",
+    "ui:widgets.files.photos.full": "此字段无法再添加照片。",
+    "ui:widgets.files.photos.name": "照片",
+    "ui:widgets.files.photos.refused": "照片未被保留：{reason}",
+    "ui:widgets.files.photos.remove": "移除照片 {n}",
+    "ui:widgets.files.photos.removed": "照片 {n} 已移除。",
+    "ui:widgets.files.photos.sending": "正在发送…",
+    "ui:widgets.files.tooLarge": "此文件超出此字段允许的大小。",
+    "ui:widgets.files.wrongType": "此处不接受这种文件。"
   }
 };
 

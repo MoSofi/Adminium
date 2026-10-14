@@ -165,6 +165,43 @@ const words: KitWords = {
     "ui:widgets.media.uploadDropzone.browseLabel": "durchsuchen",
     "ui:widgets.media.uploadDropzone.browsePrefix": "oder",
     "ui:widgets.media.uploadDropzone.dropTitle": "Dateien zum Hochladen ablegen"
+  },
+  "signature": {
+    "ui:widgets.files.notAllowed": "Sie dürfen hier keine Dateien hinzufügen.",
+    "ui:widgets.files.notSent": "Sie konnte nicht gesendet werden. Versuchen Sie es erneut.",
+    "ui:widgets.files.signature.again": "Erneut unterschreiben",
+    "ui:widgets.files.signature.clear": "Löschen",
+    "ui:widgets.files.signature.cleared": "Unterschrift gelöscht. Bitte erneut unterschreiben.",
+    "ui:widgets.files.signature.drawInstead": "Stattdessen von Hand unterschreiben",
+    "ui:widgets.files.signature.empty": "Erst unterschreiben, dann die Unterschrift übernehmen.",
+    "ui:widgets.files.signature.keep": "Diese Unterschrift übernehmen",
+    "ui:widgets.files.signature.kept": "Unterschrift übernommen.",
+    "ui:widgets.files.signature.keptAlt": "Die übernommene Unterschrift",
+    "ui:widgets.files.signature.line": "Über der Linie unterschreiben",
+    "ui:widgets.files.signature.name": "Unterschrift",
+    "ui:widgets.files.signature.pad": "Hier mit dem Finger, einem Stift oder der Maus unterschreiben.",
+    "ui:widgets.files.signature.saving": "Unterschrift wird gesendet …",
+    "ui:widgets.files.signature.typeInstead": "Stattdessen den Namen eingeben",
+    "ui:widgets.files.signature.typedLabel": "Name als Unterschrift",
+    "ui:widgets.files.signature.typedPad": "Der Name, als Unterschrift geschrieben.",
+    "ui:widgets.files.tooLarge": "Diese Datei ist für dieses Feld zu groß.",
+    "ui:widgets.files.wrongType": "Diese Art von Datei wird hier nicht angenommen."
+  },
+  "photos": {
+    "ui:widgets.files.notAllowed": "Sie dürfen hier keine Dateien hinzufügen.",
+    "ui:widgets.files.notSent": "Sie konnte nicht gesendet werden. Versuchen Sie es erneut.",
+    "ui:widgets.files.photos.add": "Foto hinzufügen",
+    "ui:widgets.files.photos.added": "Foto hinzugefügt.",
+    "ui:widgets.files.photos.alt": "Foto {n}",
+    "ui:widgets.files.photos.count": "{count} von {max}",
+    "ui:widgets.files.photos.full": "Mehr Fotos nimmt dieses Feld nicht auf.",
+    "ui:widgets.files.photos.name": "Fotos",
+    "ui:widgets.files.photos.refused": "Das Foto wurde nicht übernommen: {reason}",
+    "ui:widgets.files.photos.remove": "Foto {n} entfernen",
+    "ui:widgets.files.photos.removed": "Foto {n} entfernt.",
+    "ui:widgets.files.photos.sending": "Wird gesendet …",
+    "ui:widgets.files.tooLarge": "Diese Datei ist für dieses Feld zu groß.",
+    "ui:widgets.files.wrongType": "Diese Art von Datei wird hier nicht angenommen."
   }
 };
 

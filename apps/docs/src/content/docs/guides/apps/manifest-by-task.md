@@ -163,6 +163,27 @@ For a list the operator may edit after the install, use a `text` column with `ru
 
 Reference: [Column rules](/reference/manifest/#column-rules), [Option lists](/reference/manifest/#option-lists).
 
+## A signature or photos on a row
+
+A column that holds files a person uploads says so with `file`: one in a `text` column, a list in a
+`json` column.
+
+```json
+{ "ref": "signature", "type": "text", "maxLength": 64, "nullable": true,
+  "rules": { "file": { "accept": ["png"], "maxBytes": 524288 } } },
+{ "ref": "photos", "type": "json", "nullable": true,
+  "rules": { "file": { "accept": ["jpeg", "png", "webp"], "maxBytes": 8388608, "maxCount": 6 } } }
+```
+
+The column holds Adminium's own file ids. A screen uploads first, for the column, and then saves the
+row naming the ids: the [kit's signature pad and photo field](/guides/apps/kit-parts/#a-signature-and-photos)
+do the uploading. The server takes only the kinds and the size the rule says, keeps a picture
+without the place it was taken, and lets a save name only a file its writer uploaded and no record
+holds yet. A row that is signed once and never changed again (a sign-off) also leaves the columns
+out of every role's `writable`.
+
+Reference: [Files in a column](/reference/manifest/#files-in-a-column).
+
 ## Add a dashboard page
 
 One file per page, in `manifest/pages/`. A page is a `template` over one of the app's tables.
@@ -681,6 +702,7 @@ next number in a series and `done_at` is written when the status becomes `done`.
 | `perNight` | A price worked out night by night. |
 | `notAfter`, `notBefore` | A date kept on one side of today, or of another date. |
 | `linkable` | A foreign key that names only a row meeting some conditions (a price still offered), or holding what the row written holds (a contact of the deal's company). |
+| `file` | Files a person uploads for the column: their kinds, their size, how many. |
 | `venueLocal` | A time given with no zone is read in the venue's time zone. |
 | `personal`, `secret` | Whether the column is personal data, or a secret no reply carries. |
 | `retryKey` | The column a staff create keeps its retry key in. |

@@ -73,6 +73,8 @@ const PART_SOURCES: Record<KitPartName, string[]> = {
     'packages/ui/src/components/spinner/Spinner.tsx',
     'packages/ui/src/components/textarea/Textarea.tsx',
   ],
+  signature: ['apps/dashboard/src/kit-host/parts/signature.tsx', 'apps/dashboard/src/kit-host/parts/file-words.ts'],
+  photos: ['apps/dashboard/src/kit-host/parts/photos.tsx', 'apps/dashboard/src/kit-host/parts/file-words.ts'],
 };
 
 function catalogueText(tag: string, key: string): unknown {

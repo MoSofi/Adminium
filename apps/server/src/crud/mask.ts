@@ -20,6 +20,7 @@
 import type { FastifyRequest } from 'fastify';
 
 import { SnapshotView, type ResolvedTable } from './identifiers.js';
+import { readFileList } from '../files/column-values.js';
 import { readGeoValue } from '../geo/values.js';
 import { yesNoAsBoolean } from './yes-no.js';
 
@@ -79,8 +80,15 @@ export function maskRow(row: Row, table: ResolvedTable, unmasked: boolean): Row 
       continue;
     }
     // A yes/no column answers yes or no: MySQL and SQLite hand back 1 and 0.
-    // A place or an area answers as an object: SQLite hands a JSON column back as text.
-    out[key] = column?.logicalType === 'boolean' ? yesNoAsBoolean(value) : column?.geo !== undefined ? readGeoValue(value) : value;
+    // A place or an area answers as an object, a list of files as an array: SQLite hands a JSON column back as text.
+    out[key] =
+      column?.logicalType === 'boolean'
+        ? yesNoAsBoolean(value)
+        : column?.geo !== undefined
+          ? readGeoValue(value)
+          : column?.file?.maxCount !== undefined
+            ? readFileList(value)
+            : value;
   }
   if (maskedHere.length > 0) out._masked = maskedHere;
   return out;

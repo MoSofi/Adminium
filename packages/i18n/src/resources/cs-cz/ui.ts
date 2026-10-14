@@ -103,7 +103,11 @@ export default {
       "duplicate": "Již přidáno.",
       "form": "Některé hodnoty byly odmítnuty. Zkontrolujte označená pole.",
       "mentionUnknown": "Někdo, kdo je zde zmíněn, se sem nepřihlašuje. Napište @ a vyberte ho ze seznamu.",
-      "tooManyMentions": "Je zde zmíněno příliš mnoho lidí. Zmiňte jich méně."
+      "tooManyMentions": "Je zde zmíněno příliš mnoho lidí. Zmiňte jich méně.",
+      "fileNotHere": "Tento soubor zde nelze uložit. Nahrajte ho znovu z tohoto pole.",
+      "fileType": "Tento druh souboru se zde nepřijímá.",
+      "fileTooLarge": "Tento soubor je pro toto pole příliš velký.",
+      "tooManyFiles": "Nejvýše {n} souborů."
     },
     "lines": {
       "add": "Přidat řádek",
@@ -1626,6 +1630,41 @@ export default {
       "wholeOnly": {
         "title": "Jen pro celý tým",
         "body": "Tento údaj je za celý tým. Nezobrazuje se vám, protože vaše role čte jen část řádků, ze kterých se počítá."
+      }
+    },
+    "files": {
+      "tooLarge": "Tento soubor je pro toto pole příliš velký.",
+      "wrongType": "Tento druh souboru se zde nepřijímá.",
+      "notAllowed": "Sem nemůžete přidávat soubory.",
+      "notSent": "Nepodařilo se ho odeslat. Zkuste to znovu.",
+      "signature": {
+        "name": "Podpis",
+        "pad": "Podepište se sem prstem, perem nebo myší.",
+        "typedPad": "Jméno napsané jako podpis.",
+        "line": "Podepište se nad čarou",
+        "clear": "Vymazat",
+        "typeInstead": "Místo toho napsat jméno",
+        "drawInstead": "Místo toho podepsat rukou",
+        "typedLabel": "Jméno jako podpis",
+        "keep": "Ponechat tento podpis",
+        "again": "Podepsat znovu",
+        "saving": "Odesílá se podpis…",
+        "kept": "Podpis ponechán.",
+        "cleared": "Podpis vymazán. Podepište se znovu.",
+        "empty": "Nejdřív se podepište, pak podpis ponechte.",
+        "keptAlt": "Ponechaný podpis"
+      },
+      "photos": {
+        "name": "Fotky",
+        "add": "Přidat fotku",
+        "count": "{count} z {max}",
+        "full": "Víc fotek toto pole nepojme.",
+        "alt": "Fotka {n}",
+        "remove": "Odebrat fotku {n}",
+        "sending": "Odesílá se…",
+        "added": "Fotka přidána.",
+        "refused": "Fotka nebyla ponechána: {reason}",
+        "removed": "Fotka {n} odebrána."
       }
     }
   },

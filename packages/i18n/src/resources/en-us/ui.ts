@@ -103,7 +103,11 @@ export default {
       "duplicate": "Already added.",
       "form": "Some values were refused. Check the marked fields.",
       "mentionUnknown": "Somebody mentioned here is not a person who signs in. Type @ and choose them from the list.",
-      "tooManyMentions": "Too many people are mentioned here. Mention fewer."
+      "tooManyMentions": "Too many people are mentioned here. Mention fewer.",
+      "fileNotHere": "This file cannot be kept here. Upload it again from this field.",
+      "fileType": "This kind of file is not taken here.",
+      "fileTooLarge": "This file is too large for this field.",
+      "tooManyFiles": "Keep at most {n} files here."
     },
     "lines": {
       "add": "Add line",

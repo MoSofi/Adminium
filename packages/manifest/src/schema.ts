@@ -262,6 +262,21 @@ export const COLUMN_SEMANTICS = [
   'geo-lng',
 ] as const;
 
+/**
+ * The kinds of file a file column may take (`rules.file.accept`), by the
+ * names the server's content check gives them: what a file's bytes are, never
+ * what its name or its sender says. Two of the server's kinds are never taken
+ * by a column: SVG is a document that can carry script, and a HEIC picture is
+ * one whose camera notes (the place, the device) cannot be taken out of it.
+ */
+export const FILE_COLUMN_KINDS = ['png', 'jpeg', 'webp', 'gif', 'pdf', 'office', 'zip', 'csv', 'text', 'markdown', 'json', 'mp4', 'webm', 'mp3', 'wav', 'ogg'] as const;
+
+/** The most a file column's `maxBytes` may say: 25 MiB. */
+export const FILE_COLUMN_MAX_BYTES = 25 * 1024 * 1024;
+
+/** The most files a json file column may hold. */
+export const FILE_COLUMN_MAX_COUNT = 20;
+
 /** Structural role markers. */
 export const COLUMN_ROLES = ['pk', 'created_at', 'updated_at'] as const;
 
@@ -800,6 +815,23 @@ export const columnRulesSchema = z
       })
       .strict()
       .refine((rule) => rule.where !== undefined || rule.same !== undefined, { message: 'a link says which rows it may name: "where", "same", or both' })
+      .optional(),
+    /**
+     * A column that holds files a signed-in person uploaded for it: a text
+     * column one, a json column a list of up to `maxCount`. What it holds is
+     * Adminium's own file id (`file_…`), never a link. Only the kinds in
+     * `accept`, judged by the file's bytes, each at most `maxBytes`; a picture
+     * loses what a camera writes beside it (the place, the device) as it is
+     * uploaded. A write may name only a file its writer uploaded and no record
+     * holds yet; a file a record holds is changed only through the record.
+     */
+    file: z
+      .object({
+        accept: z.array(z.enum(FILE_COLUMN_KINDS)).min(1).max(FILE_COLUMN_KINDS.length),
+        maxBytes: z.number().int().min(1024).max(FILE_COLUMN_MAX_BYTES),
+        maxCount: z.number().int().min(1).max(FILE_COLUMN_MAX_COUNT).optional(),
+      })
+      .strict()
       .optional(),
   })
   .strict();
@@ -2640,6 +2672,23 @@ export function appReferenceIssues(
       }
       if (rules.place !== undefined && rules.area !== undefined) {
         out.push({ path: here('area'), message: 'a column holds a place or an area, not both' });
+      }
+      if (rules.file !== undefined) {
+        // One file is its id in a text column; a list of them is kept whole, as JSON.
+        if (column.type === 'text') {
+          if (rules.file.maxCount !== undefined) out.push({ path: here('file', 'maxCount'), message: 'a text column holds one file; keep a list of them in a json column' });
+          if (column.maxLength !== undefined && column.maxLength < 31) out.push({ path: here('file'), message: "a file's id is 31 characters, so maxLength is at least 31" });
+        } else if (column.type === 'json') {
+          if (rules.file.maxCount === undefined) out.push({ path: here('file', 'maxCount'), message: 'say how many files the list may hold (maxCount)' });
+        } else {
+          out.push({ path: here('file'), message: `a file is kept in a text column, a list of files in a json column, and "${table.ref}.${column.ref}" is ${column.type}` });
+        }
+        if (new Set(rules.file.accept).size !== rules.file.accept.length) out.push({ path: here('file', 'accept'), message: 'each kind of file is named once' });
+        // What the column holds is a file a person uploaded: no rule of Adminium's makes one, and no two rows share one.
+        const others = (Object.keys(rules) as (keyof ColumnRules)[]).filter((name) => !['file', 'personal', 'required', 'requiredWhen'].includes(name));
+        if (others.length > 0) out.push({ path: here('file'), message: `a file column holds what a person uploaded, not also ${others.join(', ')}` });
+        if (column.unique === true) out.push({ path: at('columns', c, 'unique'), message: 'a file column holds a file nobody else holds already: it is not also unique' });
+        if ((column as { default?: unknown }).default !== undefined) out.push({ path: at('columns', c, 'default'), message: 'a file column takes no default: a file is uploaded' });
       }
       if (rules.plainText !== undefined && column.type !== 'text') {
         out.push({ path: here('plainText'), message: 'plain text is a rule of a text column' });

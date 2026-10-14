@@ -18,7 +18,7 @@
  * contradicted by the database.
  */
 import { parseEnumCheck, type ColumnModel, type DatabaseModel, type LogicalType, type TableModel } from '@adminium/engine';
-import { dayColumns, formulaColumns, formulaExprSchema, isChangeEffect, isJoinColumn, momentColumns, notPastIssues, undoMoveIssues, type States } from '@adminium/manifest';
+import { dayColumns, FILE_COLUMN_KINDS, formulaColumns, formulaExprSchema, isChangeEffect, isJoinColumn, momentColumns, notPastIssues, undoMoveIssues, type States } from '@adminium/manifest';
 
 import { storedAdjust, storedPosting } from '@adminium/meta';
 import { z } from 'zod';
@@ -171,7 +171,8 @@ export function columnRuleIssue(
     | 'column.mentions'
     | 'column.place'
     | 'column.area'
-    | 'column.linkable',
+    | 'column.linkable'
+    | 'column.file',
   raw: unknown,
   column: ColumnModel,
   model: DatabaseModel,
@@ -541,6 +542,18 @@ export function columnRuleIssue(
         if (reached === undefined) return `${JSON.stringify(own)} is not a foreign key, so it names no row to read ${JSON.stringify(far)} of.`;
         if (!reached.columns.some((c) => c.name === far)) return `${reached.name} has no column ${JSON.stringify(far)}.`;
       }
+      return null;
+    }
+
+    case 'column.file': {
+      // One file is its id, as text; a list is kept whole, as JSON (TEXT on SQLite, which has no JSON type).
+      if (column.isGenerated || column.isPrimaryKey) return `${name} cannot hold a file.`;
+      const list = value['maxCount'] !== undefined;
+      const holdsJson = column.logicalType === 'json' || (model.dialect === 'sqlite' && column.logicalType === 'text');
+      if (list && !holdsJson) return `A list of files is kept in a json column; ${name} is ${column.logicalType}.`;
+      if (!list && !TEXTUAL_TYPES.has(column.logicalType)) return `A file is kept in text; ${name} is ${column.logicalType}.`;
+      const accept = value['accept'];
+      if (!Array.isArray(accept) || accept.some((kind) => !(FILE_COLUMN_KINDS as readonly unknown[]).includes(kind))) return `Say which kinds of file ${name} takes, from: ${FILE_COLUMN_KINDS.join(', ')}.`;
       return null;
     }
 

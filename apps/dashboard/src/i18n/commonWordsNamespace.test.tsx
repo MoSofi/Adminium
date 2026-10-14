@@ -57,6 +57,10 @@ const SCREENS: Readonly<Record<string, readonly string[]>> = {
   'account/QuietHoursCard.tsx': [],
   'desktop/updates.tsx': [],
   'pages/builders/PageBuilderBinding.tsx': [],
+  // Three page templates' words (`templates`): each binding is fetched with its page.
+  'pages/PageDirectoryBinding.tsx': [],
+  'pages/PageQueueInboxBinding.tsx': [],
+  'pages/PageMasterDetailBinding.tsx': [],
   'pages/dashboard-builder/DashboardBuilder.tsx': [
     'pages/dashboard-builder/BuilderGrid.tsx',
     'pages/dashboard-builder/ConfigInspector.tsx',

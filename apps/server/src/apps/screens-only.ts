@@ -10,7 +10,8 @@
  * database, what an add-on their app uses says of the rows a screen shows
  * (its stock words), which of their app's own rules are switched on, and
  * bringing a file in to a table their role may import (a "paste a list"
- * screen of their app). Forty-odd routes check only that someone is signed in, so this
+ * screen of their app), and the files a record of theirs keeps (a crew's
+ * signature and photos). Forty-odd routes check only that someone is signed in, so this
  * list — not those routes — is the boundary.
  */
 import type { FastifyRequest } from 'fastify';
@@ -86,6 +87,16 @@ const IMPORT_ROUTES: ReadonlySet<string> = new Set([
 ]);
 
 /**
+ * A file uploaded for a record of a table their role creates or changes (a
+ * crew's signature and photos), read back with its record, and thrown away
+ * while no record holds it yet. Each route asks the table's own rights and
+ * whose the file is (`routes/files`): a file no role of theirs reaches is not
+ * there for them. The list of files, their library, renaming and moving them
+ * stay the dashboard's.
+ */
+const FILE_ROUTES: ReadonlySet<string> = new Set(['POST /files', 'GET /files/:id', 'GET /files/:id/content', 'DELETE /files/:id']);
+
+/**
  * Whether a screens-only person may make this API call, judged by the ROUTE
  * it matched (`/api/v1/connections/:id/schema`) and its decoded parameters —
  * never by the request line, which can spell the same route another way
@@ -131,6 +142,7 @@ export function allowedForScreensOnly(
   // rows), which a screens-only person holds only where their app's role grants it; an import and its job are
   // shown to whoever made them. The list of imports, and every other route of the jobs, stay the dashboard's.
   if (IMPORT_ROUTES.has(`${method} ${rest}`)) return true;
+  if (FILE_ROUTES.has(`${method} ${rest}`)) return true;
   // The public API has its own gate, and a kiosk's staff-bound key rides it.
   if (rest.startsWith('/public/')) return true;
   if (rest === '/me' || rest.startsWith('/me/')) return true;

@@ -165,6 +165,43 @@ const words: KitWords = {
     "ui:widgets.media.uploadDropzone.browseLabel": "procházet",
     "ui:widgets.media.uploadDropzone.browsePrefix": "nebo",
     "ui:widgets.media.uploadDropzone.dropTitle": "Přetáhněte sem soubory k nahrání"
+  },
+  "signature": {
+    "ui:widgets.files.notAllowed": "Sem nemůžete přidávat soubory.",
+    "ui:widgets.files.notSent": "Nepodařilo se ho odeslat. Zkuste to znovu.",
+    "ui:widgets.files.signature.again": "Podepsat znovu",
+    "ui:widgets.files.signature.clear": "Vymazat",
+    "ui:widgets.files.signature.cleared": "Podpis vymazán. Podepište se znovu.",
+    "ui:widgets.files.signature.drawInstead": "Místo toho podepsat rukou",
+    "ui:widgets.files.signature.empty": "Nejdřív se podepište, pak podpis ponechte.",
+    "ui:widgets.files.signature.keep": "Ponechat tento podpis",
+    "ui:widgets.files.signature.kept": "Podpis ponechán.",
+    "ui:widgets.files.signature.keptAlt": "Ponechaný podpis",
+    "ui:widgets.files.signature.line": "Podepište se nad čarou",
+    "ui:widgets.files.signature.name": "Podpis",
+    "ui:widgets.files.signature.pad": "Podepište se sem prstem, perem nebo myší.",
+    "ui:widgets.files.signature.saving": "Odesílá se podpis…",
+    "ui:widgets.files.signature.typeInstead": "Místo toho napsat jméno",
+    "ui:widgets.files.signature.typedLabel": "Jméno jako podpis",
+    "ui:widgets.files.signature.typedPad": "Jméno napsané jako podpis.",
+    "ui:widgets.files.tooLarge": "Tento soubor je pro toto pole příliš velký.",
+    "ui:widgets.files.wrongType": "Tento druh souboru se zde nepřijímá."
+  },
+  "photos": {
+    "ui:widgets.files.notAllowed": "Sem nemůžete přidávat soubory.",
+    "ui:widgets.files.notSent": "Nepodařilo se ho odeslat. Zkuste to znovu.",
+    "ui:widgets.files.photos.add": "Přidat fotku",
+    "ui:widgets.files.photos.added": "Fotka přidána.",
+    "ui:widgets.files.photos.alt": "Fotka {n}",
+    "ui:widgets.files.photos.count": "{count} z {max}",
+    "ui:widgets.files.photos.full": "Víc fotek toto pole nepojme.",
+    "ui:widgets.files.photos.name": "Fotky",
+    "ui:widgets.files.photos.refused": "Fotka nebyla ponechána: {reason}",
+    "ui:widgets.files.photos.remove": "Odebrat fotku {n}",
+    "ui:widgets.files.photos.removed": "Fotka {n} odebrána.",
+    "ui:widgets.files.photos.sending": "Odesílá se…",
+    "ui:widgets.files.tooLarge": "Tento soubor je pro toto pole příliš velký.",
+    "ui:widgets.files.wrongType": "Tento druh souboru se zde nepřijímá."
   }
 };
 

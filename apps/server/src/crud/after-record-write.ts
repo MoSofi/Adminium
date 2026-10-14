@@ -54,6 +54,7 @@ import {
 import type { ResolvedTable } from './identifiers.js';
 import { keptImages, type Row } from './mask.js';
 import { occurredAtOf } from './occurred-at.js';
+import { ruledBlocksOf } from '../files/column-blocks.js';
 import type { FileReconciler } from '../files/reconcile.js';
 import type { ReleasedLink } from '../outbox/release.js';
 import { publishWidgetDataStream } from '../widget-data/stream-publisher.js';
@@ -269,7 +270,7 @@ export async function afterRecordWrite(
   const reconciled =
     input.files === undefined
       ? null
-      : await input.files.reconcile({ connectionId, table: table.id, entity, before, after });
+      : await input.files.reconcile({ connectionId, table: table.id, entity, before, after, ruled: ruledBlocksOf(table.columns.values()) });
 
   if (app.hasDecorator('realtime')) {
     // An open record page refetches its Attachments panel. Every frame rides

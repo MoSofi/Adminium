@@ -360,8 +360,12 @@ is shown no figure: give such a manager cards of the ordinary kind, which answer
 Every chart and map card also carries its figures as a table: hidden from sight, read by a screen
 reader, captioned with the card's title and subtitle. Its **Show data** button swaps the chart for
 that table in place, and back. The figures are formatted as the card formats its own, a money
-card's in its currency, and periods as the axis reads them. A pair has a column per figure, named
-by the card's `series`. There is no table, and no button, while the card loads or when it has
+card's in its currency, and periods as the axis reads them. A figure that is a sum (an average,
+the least, the most, a percentile) of a money column is written in the card's currency whatever
+the card says: a column Adminium takes for money by its name (`amount`, `total`), or one the app
+declares money (`"semantic": "money"`, a `money` column or `"scale": "currency"`), so a pair of
+the deals' count and their weighted value reads `3` and `£3,635`. A count is a number. A pair has
+a column per figure, named by the card's `series`. There is no table, and no button, while the card loads or when it has
 nothing to draw.
 
 ## Words in the reader's language
@@ -375,6 +379,7 @@ A card's words may come in other languages, keyed by language tag like `titles`:
 | `metricLabels` | `metricLabel`, the caption on a KPI card |
 | `emptyState.titles`, `emptyState.bodies` | What an empty card says |
 | `series[].labels` | A chart's bar names |
+| `columns[].labels` | `columns[].label`, a `data-grid`'s column heading (a `detail-key-value`'s row name) |
 
 The reader's language picks one: the same tag, else any tag of the same language (a `fr-FR` word
 serves a reader in `fr-CA`), else the word it translates stands. Each is 1–240 characters (a title
@@ -382,6 +387,21 @@ serves a reader in `fr-CA`), else the word it translates stands. Each is 1–240
 
 A KPI with no figure (occupancy when there is nothing to sell) shows the card's empty state, never
 a zero. A figure of zero is shown as 0.
+
+## A card of an app's part
+
+A card of an app's dashboard may belong to one of the app's [parts](/guides/apps/parts/):
+`"module": "inbox"` on the layout entry, beside `i` and `widget`. While that part is off the card
+is not drawn, for everybody, and the rest of the page is; a layout saved meanwhile keeps the card
+where it was. An install that leaves the part out leaves the card out too, and so any card over
+one of the part's tables. Needs Adminium 0.3.28.
+
+## A link to the app's staff side
+
+A toolbar link, or a card's `href`, may open the app's own staff screens: `"@staff"` the first,
+`"@staff/approvals"` the screen at `approvals`, inside the dashboard or on the side's own address.
+The path is plain segments, with no query, no `#` and no `..`. See
+[the reference](/reference/manifest/#pages). `@staff/<path>` needs Adminium 0.3.28.
 
 ## KPI icons
 

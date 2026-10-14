@@ -248,6 +248,12 @@ export const gridColumnSpecSchema = z.object({
   name: z.string().min(1),
   /** Humanized header/label ("Monthly revenue"). */
   label: z.string().min(1),
+  /**
+   * `label` in the other languages the page is read in, by tag (`de-DE`): the
+   * reader's language picks one, else `label` stands. How an app ships a
+   * card's headings in every language it speaks.
+   */
+  labels: z.record(z.string().regex(/^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$/), z.string().min(1).max(120)).optional(),
   logicalType: gridLogicalTypeSchema.default('text'),
   /** Primary semantic tag from the classifier (engine id). */
   semantic: z.string().nullable().default(null),

@@ -103,7 +103,11 @@ export default {
       "duplicate": "Bereits hinzugefügt.",
       "form": "Einige Werte wurden abgelehnt. Prüfen Sie die markierten Felder.",
       "mentionUnknown": "Eine hier erwähnte Person meldet sich hier nicht an. Geben Sie @ ein und wählen Sie sie aus der Liste.",
-      "tooManyMentions": "Hier werden zu viele Personen erwähnt. Erwähnen Sie weniger."
+      "tooManyMentions": "Hier werden zu viele Personen erwähnt. Erwähnen Sie weniger.",
+      "fileNotHere": "Diese Datei kann hier nicht gespeichert werden. Laden Sie sie über dieses Feld erneut hoch.",
+      "fileType": "Diese Art von Datei wird hier nicht angenommen.",
+      "fileTooLarge": "Diese Datei ist für dieses Feld zu groß.",
+      "tooManyFiles": "Höchstens {n} Dateien hier."
     },
     "lines": {
       "add": "Zeile hinzufügen",
@@ -1626,6 +1630,41 @@ export default {
       "wholeOnly": {
         "title": "Nur für das ganze Team",
         "body": "Diese Zahl gilt für das ganze Team. Sie wird Ihnen nicht angezeigt, weil Ihre Rolle nur einen Teil der Zeilen liest, aus denen sie berechnet wird."
+      }
+    },
+    "files": {
+      "tooLarge": "Diese Datei ist für dieses Feld zu groß.",
+      "wrongType": "Diese Art von Datei wird hier nicht angenommen.",
+      "notAllowed": "Sie dürfen hier keine Dateien hinzufügen.",
+      "notSent": "Sie konnte nicht gesendet werden. Versuchen Sie es erneut.",
+      "signature": {
+        "name": "Unterschrift",
+        "pad": "Hier mit dem Finger, einem Stift oder der Maus unterschreiben.",
+        "typedPad": "Der Name, als Unterschrift geschrieben.",
+        "line": "Über der Linie unterschreiben",
+        "clear": "Löschen",
+        "typeInstead": "Stattdessen den Namen eingeben",
+        "drawInstead": "Stattdessen von Hand unterschreiben",
+        "typedLabel": "Name als Unterschrift",
+        "keep": "Diese Unterschrift übernehmen",
+        "again": "Erneut unterschreiben",
+        "saving": "Unterschrift wird gesendet …",
+        "kept": "Unterschrift übernommen.",
+        "cleared": "Unterschrift gelöscht. Bitte erneut unterschreiben.",
+        "empty": "Erst unterschreiben, dann die Unterschrift übernehmen.",
+        "keptAlt": "Die übernommene Unterschrift"
+      },
+      "photos": {
+        "name": "Fotos",
+        "add": "Foto hinzufügen",
+        "count": "{count} von {max}",
+        "full": "Mehr Fotos nimmt dieses Feld nicht auf.",
+        "alt": "Foto {n}",
+        "remove": "Foto {n} entfernen",
+        "sending": "Wird gesendet …",
+        "added": "Foto hinzugefügt.",
+        "refused": "Das Foto wurde nicht übernommen: {reason}",
+        "removed": "Foto {n} entfernt."
       }
     }
   },

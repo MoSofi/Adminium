@@ -37,6 +37,7 @@ export {
   type QueryFilterNode,
 } from './query-descriptor.js';
 export { layoutItemSchema, pageLayoutSchema, type LayoutItem, type PageLayout } from './layout.js';
+export { STAFF_LINK, staffLinkPath } from './staff-link.js';
 export {
   crudAttachmentsConfigSchema,
   crudDetailConfigSchema,

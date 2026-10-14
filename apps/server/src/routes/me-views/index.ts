@@ -18,9 +18,11 @@
 
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import type { FastifyRequest } from 'fastify';
-import { pagesRepo, viewsRepo, type MetaDb, type Page } from '@adminium/meta';
+import { pageAppPart, pagesRepo, viewsRepo, type MetaDb, type Page } from '@adminium/meta';
 
 import { NotFoundError, UnauthorizedError } from '../../errors.js';
+import { cardsOfPartsOff } from '../../rbac/app-parts.js';
+import { pageLayoutSchema } from '../pages/layout-schema.js';
 import { meLayoutOkReply, meLayoutParams, meLayoutPutBody, meLayoutReply } from './schema.js';
 
 export interface MeViewsRoutesDeps {
@@ -71,8 +73,15 @@ export function meViewsRoutes(deps: MeViewsRoutesDeps): FastifyPluginAsyncZod {
         // `layoutStale` after a regeneration (or a shared PATCH) moves the
         // default on. `pageLayoutSchema` strips unknown keys on read, so the
         // stamp never leaks into a served layout.
+        // The cards of a part that is off were not drawn, so a layout saved without them keeps them: from the person's own, else the page's.
+        const own = await views.findLayoutOverride(pageId, userId);
+        const before = pageLayoutSchema.safeParse(own?.config ?? ((page.config as { config?: { layout?: unknown } } | null)?.config ?? {}).layout);
+        const hidden = before.success ? await cardsOfPartsOff(deps.meta, pageAppPart(page.config)?.app, before.data.items) : [];
+        const sent = new Set(request.body.items.map((item) => item.i));
+        const kept = hidden.filter((item) => !sent.has(item.i));
         await views.upsertLayoutOverride(pageId, userId, {
           ...request.body,
+          ...(kept.length === 0 ? {} : { items: [...request.body.items, ...kept] }),
           pageRevision: page.revision,
         });
         return { data: { layout: request.body } };

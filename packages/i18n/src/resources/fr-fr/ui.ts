@@ -103,7 +103,11 @@ export default {
       "duplicate": "Déjà ajouté.",
       "form": "Certaines valeurs ont été refusées. Vérifiez les champs signalés.",
       "mentionUnknown": "Une personne mentionnée ici ne se connecte pas ici. Tapez @ et choisissez-la dans la liste.",
-      "tooManyMentions": "Trop de personnes sont mentionnées ici. Mentionnez-en moins."
+      "tooManyMentions": "Trop de personnes sont mentionnées ici. Mentionnez-en moins.",
+      "fileNotHere": "Ce fichier ne peut pas être gardé ici. Envoyez-le de nouveau depuis ce champ.",
+      "fileType": "Ce type de fichier n’est pas accepté ici.",
+      "fileTooLarge": "Ce fichier est trop volumineux pour ce champ.",
+      "tooManyFiles": "{n} fichiers au plus ici."
     },
     "lines": {
       "add": "Ajouter une ligne",
@@ -1626,6 +1630,41 @@ export default {
       "wholeOnly": {
         "title": "Réservé à toute l’équipe",
         "body": "Ce chiffre est celui de toute l’équipe. Il ne vous est pas affiché, car votre rôle ne lit qu’une partie des lignes à partir desquelles il est calculé."
+      }
+    },
+    "files": {
+      "tooLarge": "Ce fichier est trop volumineux pour ce champ.",
+      "wrongType": "Ce type de fichier n’est pas accepté ici.",
+      "notAllowed": "Vous ne pouvez pas ajouter de fichiers ici.",
+      "notSent": "L’envoi a échoué. Réessayez.",
+      "signature": {
+        "name": "Signature",
+        "pad": "Signez ici avec le doigt, un stylet ou la souris.",
+        "typedPad": "Le nom, écrit comme signature.",
+        "line": "Signez au-dessus de la ligne",
+        "clear": "Effacer",
+        "typeInstead": "Saisir le nom à la place",
+        "drawInstead": "Signer à la main à la place",
+        "typedLabel": "Nom, comme signature",
+        "keep": "Garder cette signature",
+        "again": "Signer de nouveau",
+        "saving": "Envoi de la signature…",
+        "kept": "Signature gardée.",
+        "cleared": "Signature effacée. Signez de nouveau.",
+        "empty": "Signez d’abord, puis gardez la signature.",
+        "keptAlt": "La signature gardée"
+      },
+      "photos": {
+        "name": "Photos",
+        "add": "Ajouter une photo",
+        "count": "{count} sur {max}",
+        "full": "Ce champ ne prend pas plus de photos.",
+        "alt": "Photo {n}",
+        "remove": "Retirer la photo {n}",
+        "sending": "Envoi…",
+        "added": "Photo ajoutée.",
+        "refused": "La photo n’a pas été gardée : {reason}",
+        "removed": "Photo {n} retirée."
       }
     }
   },

@@ -103,7 +103,11 @@ export default {
       "duplicate": "已添加。",
       "form": "部分值被拒绝。请检查标记的字段。",
       "mentionUnknown": "此处提到的某人不是在这里登录的人员。请输入 @ 并从列表中选择。",
-      "tooManyMentions": "此处提到的人太多。请减少提及的人数。"
+      "tooManyMentions": "此处提到的人太多。请减少提及的人数。",
+      "fileNotHere": "此文件无法保存在这里，请从此字段重新上传。",
+      "fileType": "此处不接受这种文件。",
+      "fileTooLarge": "此文件超出此字段允许的大小。",
+      "tooManyFiles": "此处最多 {n} 个文件。"
     },
     "lines": {
       "add": "添加行",
@@ -1626,6 +1630,41 @@ export default {
       "wholeOnly": {
         "title": "仅限整个团队",
         "body": "此数字属于整个团队。由于你的角色只能读取用于计算它的部分行，因此不向你显示。"
+      }
+    },
+    "files": {
+      "tooLarge": "此文件超出此字段允许的大小。",
+      "wrongType": "此处不接受这种文件。",
+      "notAllowed": "您不能在此处添加文件。",
+      "notSent": "无法发送，请重试。",
+      "signature": {
+        "name": "签名",
+        "pad": "请用手指、触控笔或鼠标在此签名。",
+        "typedPad": "以签名形式书写的姓名。",
+        "line": "请在线上方签名",
+        "clear": "清除",
+        "typeInstead": "改为输入姓名",
+        "drawInstead": "改为手写签名",
+        "typedLabel": "作为签名的姓名",
+        "keep": "保留此签名",
+        "again": "重新签名",
+        "saving": "正在发送签名…",
+        "kept": "签名已保留。",
+        "cleared": "签名已清除，请重新签名。",
+        "empty": "请先签名，再保留签名。",
+        "keptAlt": "已保留的签名"
+      },
+      "photos": {
+        "name": "照片",
+        "add": "添加照片",
+        "count": "{count} / {max}",
+        "full": "此字段无法再添加照片。",
+        "alt": "照片 {n}",
+        "remove": "移除照片 {n}",
+        "sending": "正在发送…",
+        "added": "照片已添加。",
+        "refused": "照片未被保留：{reason}",
+        "removed": "照片 {n} 已移除。"
       }
     }
   },

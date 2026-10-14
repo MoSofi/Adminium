@@ -208,6 +208,12 @@ export function withoutModules<T>(manifest: T, gone: readonly string[]): T {
       if (drop && typeof page['ref'] === 'string') gonePages.add(page['ref']);
       return !drop;
     });
+    // A dashboard's card of a part left out goes with it, and so does one that reads a table that is not made.
+    for (const page of list(out['pages'])) {
+      const layout = isDoc(page) && isDoc(page['config']) && isDoc(page['config']['layout']) ? page['config']['layout'] : undefined;
+      if (layout === undefined || !Array.isArray(layout['items'])) continue;
+      layout['items'] = list(layout['items']).filter((item) => !(inGone(item) || (isDoc(item) && cardTables(item['config']).some(onGoneTable))));
+    }
   }
 
   // An entry of the section that belongs to a part goes with it; so does the address of a table that is not made.
@@ -313,6 +319,27 @@ export function withoutModules<T>(manifest: T, gone: readonly string[]): T {
   return out as T;
 }
 
+/**
+ * The tables a dashboard card's queries read, as the manifest names them: a
+ * query's `source`, a list's `counts.table` and a team's `team.target.table`.
+ */
+function cardTables(value: unknown): string[] {
+  const out: string[] = [];
+  const walk = (node: unknown): void => {
+    if (Array.isArray(node)) return node.forEach(walk);
+    if (!isDoc(node)) return;
+    if (node['shape'] !== undefined && isDoc(node['source']) && typeof node['source']['name'] === 'string') {
+      out.push(node['source']['name']);
+      if (isDoc(node['counts']) && typeof node['counts']['table'] === 'string') out.push(node['counts']['table']);
+      const target = isDoc(node['team']) && isDoc(node['team']['target']) ? node['team']['target'] : undefined;
+      if (typeof target?.['table'] === 'string') out.push(target['table']);
+    }
+    Object.values(node).forEach(walk);
+  };
+  walk(value);
+  return out;
+}
+
 /** The refs of the tables `withoutModules(document, gone)` would not make. */
 export function tablesLeftOut(document: unknown, gone: readonly string[]): string[] {
   if (!isDoc(document)) return [];
@@ -331,6 +358,14 @@ export function columnsLeftOut(document: unknown, gone: readonly string[]): Reco
     if (lost.length > 0) out[table['ref']] = lost;
   }
   return out;
+}
+
+/** Every dashboard card of the document's pages (`pages[].config.layout.items[]`), with where it is written. */
+function cardsOf(document: Doc): { item: Doc; path: (string | number)[] }[] {
+  return list(document['pages']).flatMap((page, p) => {
+    const layout = isDoc(page) && isDoc(page['config']) && isDoc(page['config']['layout']) ? page['config']['layout'] : undefined;
+    return list(layout?.['items']).flatMap((item, i) => (isDoc(item) ? [{ item, path: ['pages', p, 'config', 'layout', 'items', i] }] : []));
+  });
 }
 
 /** Everything wrong with an app's `modules` and the `module` keys that name them. */
@@ -359,6 +394,7 @@ export function moduleIssues(document: unknown): ReferenceIssue[] {
   list(isDoc(document['outbox']) ? document['outbox']['producers'] : undefined).forEach((producer, p) => {
     if (isDoc(producer)) named(producer['module'], ['outbox', 'producers', p, 'module']);
   });
+  cardsOf(document).forEach(({ item, path }) => named(item['module'], [...path, 'module']));
   list(document['roles']).forEach((role, r) => {
     if (!isDoc(role) || role['modules'] === undefined) return;
     const seen = new Set<string>();
@@ -388,6 +424,9 @@ export function addOnModuleIssues(document: unknown): ReferenceIssue[] {
   }
   list(isDoc(document['outbox']) ? document['outbox']['producers'] : undefined).forEach((producer, p) => {
     if (isDoc(producer) && producer['module'] !== undefined) refuse(['outbox', 'producers', p, 'module']);
+  });
+  cardsOf(document).forEach(({ item, path }) => {
+    if (item['module'] !== undefined) refuse([...path, 'module']);
   });
   list(document['roles']).forEach((role, r) => {
     if (isDoc(role) && role['modules'] !== undefined) refuse(['roles', r, 'modules']);

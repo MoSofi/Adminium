@@ -59,6 +59,8 @@ export interface ShapedTimeseries {
   shape: 'timeseries';
   points: TsPoint[];
   compare?: TsPoint[];
+  /** The aliases of the figures that are money (`moneyFiguresOf`): a chart's table writes them in the currency. */
+  money?: string[];
 }
 
 export interface ShapedMultiTimeseries {
@@ -77,6 +79,8 @@ export interface ShapedCategorical {
   total: number;
   /** The aggregates' aliases, in the descriptor's order, when there is more than one. */
   aggregates?: string[];
+  /** The aliases of the figures that are money (`moneyFiguresOf`): a chart's table writes them in the currency. */
+  money?: string[];
 }
 
 export interface ShapedMatrix {
@@ -971,4 +975,18 @@ export function shapeRows(input: ShapeInput): ShapedPayload {
     default:
       throw new Error(`shaper: unsupported shape ${String(compiled.shape)} (compiler bug)`);
   }
+}
+
+/** The aggregates that keep a column's unit: a sum or a median of money is money, a count of it is not. */
+const MONEY_KEEPING = new Set(['sum', 'avg', 'min', 'max', 'percentile']);
+
+/**
+ * Which of a query's figures are amounts of money, by alias: a sum (an
+ * average, the least, the most, a percentile) of a column the table holds money in — one
+ * its app declares as money (`semantic`, `type` or `scale: "currency"`), or
+ * one Adminium took for money by its name. A chart's "Show data" table
+ * writes these in the currency, as a money card does.
+ */
+export function moneyFiguresOf(aggregations: readonly { fn: string; column?: string | undefined; alias: string }[] | undefined, table: { table: { columns: readonly { name: string; semantics?: { primary?: string | null } | null }[] } }): string[] {
+  return (aggregations ?? []).filter((one) => MONEY_KEEPING.has(one.fn) && one.column !== undefined && table.table.columns.find((column) => column.name === one.column)?.semantics?.primary === 'money').map((one) => one.alias);
 }

@@ -1,0 +1,202 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+/*
+ * The signature pad's and the photo field's styles on an app's own screen.
+ *
+ * Both parts are written for the kit alone, so this sheet is written by hand
+ * like the mention box's in kit.css: every rule under `.adm-kit`, colours
+ * from the `--adm-kit-*` names (the app's own tokens, else Adminium's), sides
+ * logical so right to left needs nothing more. The pad is paper: white, dark
+ * ink, in a dark theme too, because the signature is what gets printed.
+ */
+.adm-kit[data-kit-part='signature'],
+.adm-kit[data-kit-part='photos'] {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  font-size: 13px;
+}
+
+/* Each part's own box: what its words said to a screen reader are placed against. */
+.adm-kit .adm-kit-signature,
+.adm-kit .adm-kit-photos {
+  position: relative;
+  min-width: 0;
+}
+
+.adm-kit .adm-kit-pad {
+  position: relative;
+  width: 100%;
+  max-width: 600px;
+  aspect-ratio: 3 / 1;
+  border: 1px solid var(--adm-kit-border-strong);
+  border-radius: 10px;
+  background: #ffffff;
+  overflow: hidden;
+}
+.adm-kit .adm-kit-pad-invalid {
+  border-color: var(--adm-kit-danger);
+  box-shadow: 0 0 0 3px var(--adm-kit-danger-soft);
+}
+.adm-kit .adm-kit-pad-canvas,
+.adm-kit .adm-kit-pad-kept {
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+  cursor: crosshair;
+}
+.adm-kit .adm-kit-pad-kept {
+  object-fit: contain;
+  cursor: default;
+}
+.adm-kit .adm-kit-pad-line {
+  position: absolute;
+  inset-inline: 24px;
+  bottom: 22%;
+  padding-top: 4px;
+  border-top: 1px dashed #9ca3af;
+  color: #4b5563;
+  font-size: 11.5px;
+  line-height: 1.3;
+  pointer-events: none;
+}
+.adm-kit[data-kit-part='signature'] [data-stage='kept'] .adm-kit-pad-line {
+  display: none;
+}
+
+.adm-kit .adm-kit-input {
+  display: block;
+  width: 100%;
+  max-width: 600px;
+  min-width: 0;
+  height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--adm-kit-border-strong);
+  border-radius: 10px;
+  background: var(--adm-kit-field);
+  color: var(--adm-kit-fg);
+  font-size: 15px;
+  outline: none;
+}
+.adm-kit .adm-kit-input:focus-visible {
+  border-color: var(--adm-kit-accent);
+  box-shadow: 0 0 0 3px var(--adm-kit-accent-soft);
+}
+
+.adm-kit .adm-kit-files-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.adm-kit .adm-kit-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 0 14px;
+  border: 1px solid var(--adm-kit-border-strong);
+  border-radius: 10px;
+  background: var(--adm-kit-surface);
+  color: var(--adm-kit-fg);
+  font-size: 13.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.adm-kit .adm-kit-button-quiet {
+  border-color: transparent;
+  background: transparent;
+  color: var(--adm-kit-fg-muted);
+}
+.adm-kit .adm-kit-button-primary {
+  border-color: var(--adm-kit-accent);
+  background: var(--adm-kit-accent);
+  color: var(--adm-kit-accent-fg);
+}
+.adm-kit .adm-kit-button:focus-visible,
+.adm-kit .adm-kit-photo-remove:focus-visible {
+  outline: 2px solid var(--adm-kit-accent);
+  outline-offset: 2px;
+}
+.adm-kit .adm-kit-button:disabled,
+.adm-kit .adm-kit-photo-remove:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.adm-kit .adm-kit-files-error {
+  color: var(--adm-kit-danger);
+  font-size: 12.5px;
+}
+.adm-kit .adm-kit-files-count {
+  color: var(--adm-kit-fg-subtle);
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.adm-kit .adm-kit-photo-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: 8px;
+  width: 100%;
+  padding: 0;
+  border-radius: 10px;
+}
+.adm-kit .adm-kit-photo {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  border: 1px solid var(--adm-kit-border);
+  border-radius: 10px;
+  background: var(--adm-kit-field);
+  overflow: hidden;
+}
+.adm-kit .adm-kit-photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.adm-kit .adm-kit-photo[data-state='sending'] img {
+  opacity: 0.5;
+}
+.adm-kit .adm-kit-photo-note {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  padding: 4px 6px;
+  background: var(--adm-kit-surface);
+  color: var(--adm-kit-fg-muted);
+  font-size: 11.5px;
+  line-height: 1.3;
+}
+.adm-kit .adm-kit-photo-refused {
+  color: var(--adm-kit-danger);
+}
+.adm-kit .adm-kit-photo-remove {
+  position: absolute;
+  top: 4px;
+  inset-inline-end: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  background: var(--adm-kit-surface);
+  color: var(--adm-kit-fg);
+  box-shadow: var(--adm-kit-shadow-sm);
+  font-size: 18px;
+  line-height: 1;
+}
+
+/* Said to a screen reader and drawn nowhere. */
+.adm-kit .adm-kit-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}

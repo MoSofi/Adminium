@@ -14,7 +14,7 @@
  */
 import { KIT_CONTRACT, KIT_PARTS_AVAILABLE, KitPartUnavailableError, type KitMounted, type KitPartName, type KitPartProps } from './contract.js';
 
-export type { BoardCard, BoardCardAction, BoardCardLine, BoardColumn, BoardProps, ImportProps, ImportResult, ImportTable, KitCommonProps, KitMaps, KitMounted, KitPartName, KitPartProps, KitPerson, KitRefused, KitTone, MapAreaGeometry, MapAreaShape, MapLeg, MapPin, MapProps, MapStop, MapWay, MentionsProps } from './contract.js';
+export type { BoardCard, BoardCardAction, BoardCardLine, BoardColumn, BoardProps, ImportProps, ImportResult, ImportTable, KitCommonProps, KitFileTarget, KitMaps, KitMounted, KitPartName, KitPartProps, KitPerson, KitRefused, KitTone, MapAreaGeometry, MapAreaShape, MapLeg, MapPin, MapProps, MapStop, MapWay, MentionsProps, PhotosProps, SignatureProps } from './contract.js';
 
 /** The contract this kit speaks; the side's config says the same number. */
 export const contract = KIT_CONTRACT;
@@ -29,6 +29,8 @@ const LOADERS: { [P in KitPartName]: (() => Promise<{ default: Mounter<P> }>) | 
   board: () => import('./parts/board.js'),
   map: () => import('./parts/map.js'),
   import: () => import('./parts/import.js'),
+  signature: () => import('./parts/signature.js'),
+  photos: () => import('./parts/photos.js'),
 };
 
 /**

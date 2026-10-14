@@ -111,7 +111,12 @@ export type IssueCode =
   | 'place-short-link'
   // An area that is not a closed polygon on the map, or is larger than a column keeps.
   | 'area-unreadable'
-  | 'area-too-large';
+  | 'area-too-large'
+  // A file column naming a file this write may not hand its record, one of a kind it does not take, one too large, or too many.
+  | 'file-not-here'
+  | 'file-type'
+  | 'file-too-large'
+  | 'too-many-files';
 
 /** `n` carries the bound a message needs ("Use at most {n} characters"). */
 export interface FieldIssue {

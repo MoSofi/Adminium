@@ -52,7 +52,7 @@ import type { RecordWriteEvent } from '../crud/after-record-write.js';
 import { keptRow, type Row } from '../crud/mask.js';
 import { UNDO_TTL_MS } from '../crud/undo.js';
 import { evaluateAll, type ConditionContext, type RelatedCountSpec } from './conditions.js';
-import { recordOccurrenceKey } from './events.js';
+import { laterChangeKey, recordOccurrenceKey } from './events.js';
 import { AUTOMATION_RUN_KIND } from './kinds.js';
 import { resolveRuleTemplate } from './templates.js';
 import { flattenNodes } from './validate.js';
@@ -221,21 +221,30 @@ export class AutomationMatcher {
     const wakeAt = delayed ? at + (this.#deps.undoTtlMs ?? UNDO_TTL_MS) : at;
     const runs = automationRunsRepo(this.#deps.meta);
 
-    const run = await runs.begin(
-      {
-        automationId: rule.id,
-        dedupeKey: occurrenceKeyFor(
-          rule.id,
-          event,
-          event.action === 'update' ? await this.#dialectOf(event.connectionId) : undefined,
-        ),
-        origin: event.origin,
-        triggerEvent: triggerEventFor(event, hops, image, event.action === 'update' && readsWas(rule) ? await wasColumnsOf(this.#deps.meta, rule) : false),
-        wakeAt: delayed ? wakeAt : null,
-      },
-      at,
+    const dedupeKey = occurrenceKeyFor(
+      rule.id,
+      event,
+      event.action === 'update' ? await this.#dialectOf(event.connectionId) : undefined,
     );
-    // null = another producer already claimed this occurrence (D6).
+    const claim = {
+      automationId: rule.id,
+      dedupeKey,
+      origin: event.origin,
+      triggerEvent: triggerEventFor(event, hops, image, event.action === 'update' && readsWas(rule) ? await wasColumnsOf(this.#deps.meta, rule) : false),
+      wakeAt: delayed ? wakeAt : null,
+    };
+    let run = await runs.begin(claim, at);
+    // null = another producer already claimed this occurrence (D6)…
+    if (run === null && event.action === 'update' && dedupeKey !== null) {
+      // …unless it was an earlier write of this server that left the row with
+      // the same moment (MySQL keeps whole seconds): this write is a change
+      // of its own, and takes the next number. Only the poller's claim is of
+      // the SAME change — it reads a row, never a write.
+      const holder = await runs.claimedBy(dedupeKey);
+      if (holder !== null && holder !== 'watch') {
+        for (let n = 2; run === null && n <= MAX_CHANGES_A_MOMENT; n++) run = await runs.begin({ ...claim, dedupeKey: laterChangeKey(dedupeKey, n) }, at);
+      }
+    }
     if (run === null) return;
 
     const job = await this.#deps.enqueue({
@@ -285,6 +294,13 @@ export class AutomationMatcher {
     await this.refresh();
   }
 }
+
+/**
+ * How many changes of one row a rule hears within one moment of it (a whole
+ * second on MySQL). Past it a write claims no run, as every write of that
+ * moment did before: far more than a person or a rule's own steps make.
+ */
+const MAX_CHANGES_A_MOMENT = 50;
 
 function refKey(ref: RecordRef): string {
   const values = Object.keys(ref.pk)

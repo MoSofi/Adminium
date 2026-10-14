@@ -30,6 +30,20 @@ describe('a picture, cleaned', () => {
     }
   });
 
+  it('cleaned again is the same bytes: what a file column checks a kept picture by', () => {
+    for (const [mime, image] of [
+      ['image/png', png({ text: 'GPS 51.5074 N', exif: true })],
+      ['image/jpeg', jpeg()],
+      ['image/webp', webp()],
+      ['image/gif', gif()],
+    ] as const) {
+      const once = cleanPicture(image.bytes, mime).bytes;
+      expect(cleanPicture(once, mime).bytes.equals(once), mime).toBe(true);
+      // …and a picture with its camera notes still in it is not.
+      expect(once.equals(image.bytes), mime).toBe(false);
+    }
+  });
+
   it('reads its size from the picture itself', () => {
     expect(cleanPicture(png({ width: 3, height: 5 }).bytes, 'image/png')).toMatchObject({ width: 3, height: 5 });
     expect(cleanPicture(jpeg({ width: 640, height: 480 }).bytes, 'image/jpeg')).toMatchObject({ width: 640, height: 480 });

@@ -246,6 +246,29 @@ describe('“Open the desk” — the app’s staff screens', () => {
     expect(screen.queryByTestId('page-dashboard-link')).toBeNull();
   });
 
+  it('opens one screen of the side by its path (`@staff/<path>`), inside the dashboard or on the side\'s own address', async () => {
+    const { router } = await renderAt('/p/overview', {
+      href: '@staff/approvals',
+      staff: { placement: 'internal', items: [{ id: 'desk', label: 'Desk', path: 'desk/today' }] as never },
+    });
+    await userEvent.click(await screen.findByTestId('page-dashboard-link'));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/a/clients/approvals'));
+    cleanup();
+    const open = vi.spyOn(window, 'open').mockImplementation(() => null);
+    await renderAt('/p/overview', { href: '@staff/settings/team', staff: { placement: 'external', url: 'https://desk.studio.test/staff?x=1' } });
+    await userEvent.click(await screen.findByTestId('page-dashboard-link'));
+    expect(open).toHaveBeenCalledWith('https://desk.studio.test/staff/settings/team', '_blank', 'noopener,noreferrer');
+  });
+
+  it('draws no button for a path that could leave the side', async () => {
+    for (const href of ['@staff/../other', '@staff//evil.example', '@staff/%2e%2e/x', '@staff/a?next=//evil.example', '@staff/https://evil.example']) {
+      await renderAt('/p/overview', { href, staff: { placement: 'external', url: 'https://desk.studio.test/' } });
+      await screen.findAllByText('42');
+      expect(screen.queryByTestId('page-dashboard-link'), href).toBeNull();
+      cleanup();
+    }
+  });
+
   it('keeps an ordinary route link as it was', async () => {
     const { router } = await renderAt('/p/overview', { href: '/p/customers?f.status=eq:active' });
     await userEvent.click(await screen.findByTestId('page-dashboard-link'));

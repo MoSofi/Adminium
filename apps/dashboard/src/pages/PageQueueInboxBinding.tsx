@@ -28,12 +28,14 @@ import { pageLayoutSchema } from '@adminium/engine/config';
 import { PageQueueInbox, type QueueApi, type WidgetDataState } from '@adminium/widgets';
 
 import { notificationFeedRow, notificationsQuery } from '../api/notifications.js';
+import { useCommonWords } from '../i18n/commonWords.js';
 import { t } from '../i18n/t.js';
 import { LinkFilterBar, LinkNarrowingGate, useLinkNarrowing, useNarrowedPage } from './linkNarrowing.js';
 import type { PageTemplateProps } from './template-types.js';
 import { usePageTemplateData } from './usePageTemplateData.js';
 
 export function PageQueueInboxBinding({ page, adapters, currency, formColumns, columnFacts }: PageTemplateProps) {
+  useCommonWords();
   // A link may open this list narrowed (`?f.<column>=<op>:<value>`): see linkNarrowing.tsx.
   const narrowing = useLinkNarrowing(page, adapters.crud?.table);
   const view = useNarrowedPage(page, narrowing);

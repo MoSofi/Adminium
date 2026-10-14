@@ -165,6 +165,43 @@ const words: KitWords = {
     "ui:widgets.media.uploadDropzone.browseLabel": "gennemse",
     "ui:widgets.media.uploadDropzone.browsePrefix": "eller",
     "ui:widgets.media.uploadDropzone.dropTitle": "Slip filer for at uploade"
+  },
+  "signature": {
+    "ui:widgets.files.notAllowed": "Du må ikke tilføje filer her.",
+    "ui:widgets.files.notSent": "Den kunne ikke sendes. Prøv igen.",
+    "ui:widgets.files.signature.again": "Skriv under igen",
+    "ui:widgets.files.signature.clear": "Ryd",
+    "ui:widgets.files.signature.cleared": "Underskriften er ryddet. Skriv under igen.",
+    "ui:widgets.files.signature.drawInstead": "Skriv under i hånden i stedet",
+    "ui:widgets.files.signature.empty": "Skriv først under, og behold så underskriften.",
+    "ui:widgets.files.signature.keep": "Behold denne underskrift",
+    "ui:widgets.files.signature.kept": "Underskriften er gemt.",
+    "ui:widgets.files.signature.keptAlt": "Den gemte underskrift",
+    "ui:widgets.files.signature.line": "Skriv under over linjen",
+    "ui:widgets.files.signature.name": "Underskrift",
+    "ui:widgets.files.signature.pad": "Skriv under her med en finger, en pen eller musen.",
+    "ui:widgets.files.signature.saving": "Sender underskriften …",
+    "ui:widgets.files.signature.typeInstead": "Skriv navnet i stedet",
+    "ui:widgets.files.signature.typedLabel": "Navn som underskrift",
+    "ui:widgets.files.signature.typedPad": "Navnet, skrevet som underskrift.",
+    "ui:widgets.files.tooLarge": "Filen er for stor til dette felt.",
+    "ui:widgets.files.wrongType": "Denne filtype modtages ikke her."
+  },
+  "photos": {
+    "ui:widgets.files.notAllowed": "Du må ikke tilføje filer her.",
+    "ui:widgets.files.notSent": "Den kunne ikke sendes. Prøv igen.",
+    "ui:widgets.files.photos.add": "Tilføj et billede",
+    "ui:widgets.files.photos.added": "Billedet er tilføjet.",
+    "ui:widgets.files.photos.alt": "Billede {n}",
+    "ui:widgets.files.photos.count": "{count} af {max}",
+    "ui:widgets.files.photos.full": "Feltet kan ikke rumme flere billeder.",
+    "ui:widgets.files.photos.name": "Billeder",
+    "ui:widgets.files.photos.refused": "Billedet blev ikke gemt: {reason}",
+    "ui:widgets.files.photos.remove": "Fjern billede {n}",
+    "ui:widgets.files.photos.removed": "Billede {n} er fjernet.",
+    "ui:widgets.files.photos.sending": "Sender …",
+    "ui:widgets.files.tooLarge": "Filen er for stor til dette felt.",
+    "ui:widgets.files.wrongType": "Denne filtype modtages ikke her."
   }
 };
 

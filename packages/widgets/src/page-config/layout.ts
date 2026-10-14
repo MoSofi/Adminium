@@ -19,6 +19,12 @@ export const layoutItemSchema = z.object({
   w: z.number().int().min(1).max(12),
   h: z.number().int().min(1).max(MAX_H), // half-units
   config: z.record(z.string(), z.unknown()),
+  /**
+   * The part of its app the card belongs to (an app's `modules` id): while
+   * that part is off the card is not drawn, and an install that leaves the
+   * part out leaves the card out.
+   */
+  module: z.string().regex(/^[a-z][a-z0-9-]{0,39}$/).optional(),
 });
 
 export const pageLayoutSchema = z.object({
@@ -39,8 +45,9 @@ export const pageLayoutSchema = z.object({
        * the host opens, its label, and the label in the other languages the
        * page is read in. `href: "@staff"` names the installed app's own staff
        * screens, wherever the app placed them (the address the sidebar's
-       * "Open the staff screens" opens); a page whose app has none draws no
-       * link at all.
+       * "Open the staff screens" opens), and `"@staff/<path>"` one screen of
+       * them (`@staff/approvals`, see `staffLinkPath`); a page whose app has
+       * none draws no link at all.
        */
       link: z
         .object({

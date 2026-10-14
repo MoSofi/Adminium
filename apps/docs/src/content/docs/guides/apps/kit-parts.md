@@ -1,6 +1,6 @@
 ---
 title: Adminium's own parts on an app's screen
-description: "Draw one of Adminium's larger parts, the text box that mentions people, the board, the map or the import wizard, inside a screen your app wrote itself: the address in the side's config, the mount call, the props, what your screen saves and what the part does, the look, and what a person who opens only your screens gets."
+description: "Draw one of Adminium's larger parts, the text box that mentions people, the board, the map, the import wizard, the signature pad or the photo field, inside a screen your app wrote itself: the address in the side's config, the mount call, the props, what your screen saves and what the part does, the look, and what a person who opens only your screens gets."
 ---
 
 A staff side is a bundle of its own: its own React, or none. Some parts are too large to write
@@ -9,8 +9,9 @@ mentioned, the board, the map, the import. Adminium serves these itself, and a s
 with a small call: "draw it in this element". The part is drawn by Adminium's own React. Yours
 never meets it, so a screen written in plain JavaScript can use a part as well as one in React.
 
-Four parts can be mounted: **the mention text area** (`mentions`), **the board** (`board`), **the
-map** (`map`) and **the import wizard** (`import`). `kit.parts` lists the ones this Adminium can
+Six parts can be mounted: **the mention text area** (`mentions`), **the board** (`board`), **the
+map** (`map`), **the import wizard** (`import`), **the signature pad** (`signature`) and **the
+photo field** (`photos`). `kit.parts` lists the ones this Adminium can
 mount: an older Adminium has fewer, and refuses one it names and has not built yet with an error
 whose `code` is `KIT_PART_NOT_YET`.
 
@@ -26,7 +27,7 @@ The staff side's `surface-config.json` names it:
   "kit": {
     "contract": 1,
     "entry": "/assets/kit/kit-BHhBq5nz.js",
-    "styles": ["/assets/kit/root-DF31DXoR.css", "/assets/kit/board-Cq0vLx2A.css", "/assets/kit/import-CGzukXkN.css", "/assets/kit/map-DjqTAZ9Z.css"]
+    "styles": ["/assets/kit/root-DF31DXoR.css", "/assets/kit/board-Cq0vLx2A.css", "/assets/kit/files-B2nPq0Zx.css", "/assets/kit/import-CGzukXkN.css", "/assets/kit/map-DjqTAZ9Z.css"]
   },
   "maps": { "enabled": true, "server": "https://tiles.openfreemap.org", "routing": false },
   "locale": "ar-EG",
@@ -618,6 +619,86 @@ person signed in again) is used by the next call. Picking another table starts o
 Give the element you mount into a width. With no height of its own the wizard is as tall as its
 step; with one, the step scrolls inside it.
 
+## A signature and photos
+
+Two parts that send files for a column your manifest makes a [file column](/reference/manifest/#files-in-a-column)
+(`rules.file`): **the signature pad**, signed with a finger, a pen or the mouse, or by typing the
+name (the keyboard's way), and **the photo field**, which opens the phone's camera or its pictures.
+Each sends what the person keeps as soon as they keep it, and hands you the file's id. You name the
+ids in the record you save: one create, with a retry key.
+
+```ts
+const target = { connectionId: config.connectionId, table: config.tables.sign_offs, csrfToken: config.csrfToken, locale: config.locale, dir: config.dir };
+let signature = null;
+let photos = [];
+let sending = false;
+
+const pad = await kit.mount('signature', document.querySelector('#signature'), {
+  ...target, column: 'signature', label: "Customer's signature",
+  onChange: (fileId) => { signature = fileId; },
+});
+const field = await kit.mount('photos', document.querySelector('#photos'), {
+  ...target, column: 'photos', label: 'Photos of the job', max: 6,
+  onChange: (fileIds) => { photos = fileIds; },
+  onBusy: (busy) => { sending = busy; },
+});
+
+async function signOff() {
+  if (sending || signature === null) return;
+  const reply = await fetch(`/api/v1/data/${config.connectionId}/${config.tables.sign_offs}`, {
+    method: 'POST',
+    credentials: 'same-origin',
+    headers: { 'content-type': 'application/json', 'x-adminium-csrf': config.csrfToken },
+    body: JSON.stringify({ values: { visit_id, signer_name, check_1: true, signature, photos }, clientKey }),
+  });
+  if (reply.ok) {
+    // The record holds them now: hand them back, and the parts treat them as the record's.
+    pad.update({ value: signature });
+    field.update({ value: photos });
+    return;
+  }
+  // Refused, and given up: throw the uploads away. (Kept for another try, they can be named again.)
+  for (const id of [signature, ...photos]) {
+    await fetch(`/api/v1/files/${id}`, { method: 'DELETE', credentials: 'same-origin', headers: { 'x-adminium-csrf': config.csrfToken } });
+  }
+}
+```
+
+| Prop | |
+|---|---|
+| `connectionId`, `table`, `column` | Where the files go: the config's `connectionId`, the table as the config's `tables` gives it, and the file column. Required. |
+| `csrfToken` | `csrfToken` of the side's config. Required. |
+| `locale`, `dir` | From the side's config. Required. |
+| `onChange` | The pad: called with the file's id once a signature is kept, and with `null` when it is signed again. The field: called with the ids it holds, in order, after every photo kept or taken out. Required. |
+| `value` | What the column holds now: a file id for the pad, a list for the field. Shown kept, and never thrown away by the part. |
+| `max` | The field: the most photos it takes, the column's `maxCount`. Default 6. |
+| `maxSide` | The field: the longest side a photo is sent at. Default 2048 pixels. |
+| `onBusy(busy)` | The field: whether a photo is still being sent. Wait before you save. |
+| `label`, `ariaLabel`, `disabled`, `invalid`, `theme`, `fetch` | As for every part. `disabled` shows a signed record's signature with nothing to press. |
+
+What the server holds to, whatever a screen does:
+
+- **The upload** is judged by its bytes against the column's kinds and size. A picture is kept
+  without its camera notes (the place it was taken, the device); the photo field also draws each
+  photo again, upright and smaller, before it is sent. Until a record names it, the file is its
+  uploader's alone.
+- **The record** may name only a file its writer uploaded and no other record holds: another
+  sign-off's signature, a colleague's upload or a file uploaded unclean is refused
+  (`file-not-here`). Once named, the file is read with its record, by whoever reaches the row, and
+  is changed only through the record: the file routes refuse to take it off or throw it away
+  (`409 FILE_HELD`), its uploader included.
+- **A lost reply.** Save with a retry key (`clientKey`). If the reply is lost, read back by the key,
+  or send the same create again: it answers the row the first one made, which holds the files.
+  Never throw the files away before you know the create was refused: a `DELETE` of a file a record
+  already holds answers `409 FILE_HELD`, which is itself the answer that the record was made.
+- **Somebody whose role is [screens only](/guides/apps/roles-and-staff-access/)** can use both
+  parts: the upload, reading a file back, and throwing away one no record holds are among the few
+  routes the server answers them, and each asks the table's own rights.
+
+The pad keeps a signature it sent and you have not given back as `value` until it is signed again,
+then throws it away; the field does the same with a photo the person takes out. A file you gave as
+`value` is the record's, and the part never throws it away.
+
 ## The look
 
 The kit brings its own styles and loads them when a part is first mounted. Every rule is held
@@ -658,7 +739,8 @@ brings drag and drop (about 14 kB compressed), again the dashboard's own file, a
 board is mounted. The map brings the map library (about 290 kB compressed) and its worker (about
 150 kB), the dashboard's own files too, and only when a map is drawn: with maps switched off
 neither is fetched. The import wizard brings its own code and controls (about 25 kB compressed)
-and nothing of the dashboard's first load. The files carry
+and nothing of the dashboard's first load; the signature pad and the photo field a few kilobytes
+each. The files carry
 a hash of their content in their names and are kept by the browser for good.
 
 All of it comes from the address the side is served from, so it fits

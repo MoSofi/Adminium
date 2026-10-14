@@ -173,6 +173,7 @@ import { isSampleRow, verdictsFor, type LiveOutbox, type OutboxLogger } from './
 import { addressFor, plausibleAddress, referenced, rowOf, type Addressed } from './recipient.js';
 import { columnRecipientOf } from './column-recipient.js';
 import { staffReplyTo } from './staff-reply-to.js';
+import { peopleNames } from '../widget-data/people-names.js';
 import type { SignInLinkMinter } from './sign-in-link.js';
 import { producerOf, settingReader, skipSentence, sourceOf } from './timing.js';
 
@@ -554,6 +555,24 @@ type BlankOf = (table: ResolvedTable, record: Row) => Promise<ReadonlySet<string
 interface WrittenValues {
   vars: Record<string, string>;
   withheld: Set<string>;
+  /** `<name>.name` of each staff column put, by the id it holds: named by {@link namePeople}. */
+  people?: Map<string, string>;
+}
+
+/**
+ * THE PERSON A STAFF COLUMN NAMES, by name (`{{visit.rep_id.name}}`): the
+ * display name the people list gives them, and nothing else of them — never
+ * an address, a role or a status. Only somebody the people list names is
+ * named (here already, or the sample's): a person suspended, only invited or
+ * removed, and an id that is nobody's, read empty. The ids are only those of
+ * columns the message already prints.
+ */
+async function namePeople(meta: MetaDb, out: WrittenValues): Promise<void> {
+  const people = out.people;
+  if (people === undefined || people.size === 0) return;
+  const names = await peopleNames(meta, [...people.values()]);
+  for (const [name, id] of people) out.vars[name] = names.get(id) ?? '';
+  people.clear();
 }
 
 /**
@@ -663,6 +682,11 @@ function putValues(
     const effective = table.table.columns.find((c) => c.name === column.name);
     const labelled = ctx.labels === undefined ? undefined : (choice: string) => ctx.labels!(table.id, column.name, choice);
     for (const [form, text] of Object.entries(extraForms(column, effective, value, forms, currency, labelled))) vars[`${name}.${form}`] = text;
+    // A staff column: the person it names, by name (`namePeople` fills it); nobody, empty.
+    if ((effective as { staff?: boolean } | undefined)?.staff === true) {
+      vars[`${name}.name`] = '';
+      if (value !== null && value !== undefined && String(value).trim() !== '') (out.people ??= new Map()).set(`${name}.name`, String(value).trim());
+    }
     if (value === null || value === undefined) {
       vars[name] = '';
       const empty =
@@ -898,6 +922,7 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
       const scratch: WrittenValues = { vars: {}, withheld: new Set<string>() };
       putValues(scratch, ctx, () => false, 'was', kept.table, record, true);
       for (const column of blank) scratch.vars[`was.${column}`] ??= '';
+      await namePeople(deps.meta, scratch);
       for (const [name, text] of Object.entries(scratch.vars)) {
         if (kept.columns.some((column) => name === `was.${column}` || name.startsWith(`was.${column}.`))) vars[name] = text;
       }
@@ -951,6 +976,7 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     // The desk: a studio notice's button opens `{{staff_url}}proposals/42`.
     vars['staff_url'] = (await staffBase(box.appKey)) ?? '';
     Object.assign(vars, await addOnVariables((await appFacts(box.row.manifestId)).requires));
+    await namePeople(deps.meta, out);
     // A name a row of the recipient's own fills too (`client.share_token` beside a project's) is not held back.
     for (const name of withheld) if (Object.hasOwn(vars, name)) withheld.delete(name);
     return { vars, withheld };
@@ -1310,6 +1336,7 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
       for (const [name, join] of Object.entries(joins)) {
         one.vars[`row.${name}`] = (joined.get(name)?.get(String(key === undefined ? '' : record[key])) ?? []).join(join.separator ?? ', ');
       }
+      await namePeople(deps.meta, one);
       for (const name of one.withheld) if (Object.hasOwn(one.vars, name)) one.withheld.delete(name);
       out.push(one);
     }

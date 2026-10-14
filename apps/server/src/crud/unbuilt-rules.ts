@@ -169,6 +169,8 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   'column.linkable',
   // Such a link whose named row must hold what the row written holds: judged also when a write moves what the row's side reads.
   'linkable.same',
+  // A column that holds files a signed-in person uploaded: judged by the upload and by every write that names one.
+  'column.file',
   // Whose a row is, and a role whose read, update or delete reaches only some rows: the test every read and write of a row carries.
   'table.belongs',
   'roles.rows',
@@ -234,6 +236,12 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   // A page kept off the sidebar, and an entry of the app's section that is not a page: both read when the menu is built.
   'nav.offRail',
   'navLinks',
+  // An app's e-mail naming the person a staff column names: their name as the people list gives it, nothing else of them (outbox/sender.ts).
+  'outbox.staffName',
+  // A dashboard card of a part (hidden while it is off, left out with it), its column headings by language, a link to one staff screen.
+  'card.module',
+  'card.columnLabels',
+  'link.staffPath',
   // Rows read by the people they belong to and by nothing else: not in the view a rule, a public door, a kiosk's key or an owner's
   // code reads through, and refused by name as a file out, a file in, a scheduled report and a document.
   'table.private',

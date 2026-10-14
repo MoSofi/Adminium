@@ -145,6 +145,7 @@ import { architectureOf } from './designer/architecture.js';
 import { designerChannel } from './realtime/hub.js';
 import { createProjectApps, type ProjectApps } from './project/apps/project-apps.js';
 import { createColumnBlockReader } from './files/column-blocks.js';
+import { createFileColumnJudge, storedBytes } from './files/column-judge.js';
 import { createProjectService, isConfigWrite, type ProjectServerOptions } from './project/service.js';
 import { createActionRunner } from './project/code/actions.js';
 import { createProjectDb, type ProjectDbScope } from './project/code/db.js';
@@ -254,7 +255,7 @@ import { invoicesRoutes } from './routes/invoices/index.js';
 import { reportDocumentsRoutes } from './routes/report-documents/index.js';
 import { llmRoutes } from './routes/llm/index.js';
 import { meViewsRoutes } from './routes/me-views/index.js';
-import { fileRecordCheck, hiddenFileCheck } from './files/read-limited.js';
+import { fileHeldCheck, fileRecordCheck, hiddenFileCheck, ruledFileColumn, tableIdOf } from './files/read-limited.js';
 import { notificationsRoutes } from './routes/notifications/index.js';
 import { summariesRoutes } from './routes/summaries/index.js';
 import { onboardingRoutes } from './routes/onboarding/index.js';
@@ -1051,6 +1052,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     rights: async (connectionId, tableId) => privilegesOf(await manager.tablePrivilegesById(connectionId), tableId),
     // A message never stops the row it is about from being removed, where the app writes to people about removals.
     releases: (connectionId, tableId) => outboxProducers.releasing(connectionId, tableId),
+    // A file column names only a file its writer uploaded and no record holds; a picture, one cleaned as it came in.
+    files: createFileColumnJudge({ meta, bytesOf: storedBytes(storage) }),
   });
   /*
    * AN APP'S EMAILS. The producers queue rows in an installed app's outbox
@@ -1886,7 +1889,11 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           hiddenFile: hiddenFileCheck(meta, manager),
           // …and a file of a record its reader's role does not reach is not theirs either.
           reachesRecord: fileRecordCheck(meta, manager),
-          columnFileBlock: (input) => columnBlocks.forColumn(input),
+          // An app's own file column first (its rule, read fresh), then a page's block.
+          columnFileBlock: async (input) => (await ruledFileColumn(meta, input)) ?? columnBlocks.forColumn(input),
+          tableIdOf: (connectionId, table) => tableIdOf(meta, connectionId, table),
+          // A file a record keeps in an app's own file column changes only with its record.
+          heldByRecord: fileHeldCheck(meta, manager),
           // The sidecar half: `config.attachments` narrows the allowlist, the
           // cap and the destination for an upload that names no column, and
           // enforces the per-record count.

@@ -493,6 +493,7 @@ A column's value is shown by its type:
 | *x*`.label` | Card | A choice column: the label the app gave the value, in the email's language ("Karte" in German), else the value itself. |
 | *x*`.time` | 3:00 PM | A text column of at most 8 characters that holds a time of day (`15:00`, `09:30:00`): the time on the reader's clock, "15:00" in Britain. |
 | *x*`.grouped` | K7QX-M2PD | A code column: the code in groups of four, the way a person reads it out. |
+| *x*`.name` | Dana Reyes | A staff column (`rules.staff`): the person it names, by the name the people list gives them. |
 | *x*`.qr` | (an image) | A code column, drawn as a QR code: only as the whole value of an image. See [QR codes](#qr-codes). |
 
 Every form is written in the email's language: `morgen` rather than `tomorrow` in German, and
@@ -510,6 +511,7 @@ A form belongs to its column's type:
 | A choice (`enum`) | `.label` |
 | A text column of at most 8 characters | `.time` |
 | A code (a text column with a `code` rule) | `.grouped`, and `.qr` in an image |
+| A staff column (`rules.staff`) | `.name` |
 
 So a date column (`due_on`) has no clock, and reads as `{{invoice.due_on}}`, `.day_month` or
 `.days_since`, never `.date`, `.time` or `.relative_day`; and a longer text column (a note, a name)
@@ -520,6 +522,22 @@ templates for this: a template that asks a column for a form it does not have
 (`{{invoice.due_on.date}}`) is refused with `EMAIL_TEMPLATE_INVALID`, naming the template, its
 language and the variable, before anything is written. A name the manifest does not declare is
 left to the send.
+
+### The person a staff column names
+
+A site visit names its rep in a staff column, and the customer's mail can say who is coming:
+
+```text
+{{recipient.first_name}}, {{visit.rep_id.name}} will see you on {{visit.starts_at.date}}.
+```
+
+`{{visit.rep_id.name}}` is the rep's name as the people list shows it, and nothing else of them:
+the mail never carries their address or their id through it. It reads the same way as it was
+before a change (`{{was.rep_id.name}}`, with `rep_id` among the producer's `was`), and on each row
+of a list (`{{row.rep_id.name}}`). Somebody suspended, only invited or removed, and an id that is
+nobody's, read empty: put the name in a block of its own with `onlyWith`, and the mail goes
+without that line. A template that names a person this way needs Adminium 0.3.28; an older release
+fails the message, naming the variable.
 
 ## Emails that list rows
 

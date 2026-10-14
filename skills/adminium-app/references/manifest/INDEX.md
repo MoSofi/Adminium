@@ -14,17 +14,18 @@
 | `references/manifest/requiredschema--table-names-and-prefixed.md` | requiredSchema — Table names and `prefixed` | 1246 |
 | `references/manifest/requiredschema--what-the-plan-does-with-each-table.md` | requiredSchema — What the plan does with each table | 1832 |
 | `references/manifest/requiredschema--tables.md` | requiredSchema — Tables | 2941 |
-| `references/manifest/requiredschema--columns.md` | requiredSchema — Columns | 7808 |
-| `references/manifest/requiredschema--columns-2.md` | requiredSchema — Columns (part 2) | 652 |
+| `references/manifest/requiredschema--columns.md` | requiredSchema — Columns | 7610 |
+| `references/manifest/requiredschema--columns-2.md` | requiredSchema — Columns (part 2) | 1125 |
 | `references/manifest/requiredschema--column-rules.md` | requiredSchema — Column rules | 7546 |
-| `references/manifest/requiredschema--column-rules-2.md` | requiredSchema — Column rules (part 2) | 7454 |
-| `references/manifest/requiredschema--column-rules-3.md` | requiredSchema — Column rules (part 3) | 7710 |
-| `references/manifest/requiredschema--column-rules-4.md` | requiredSchema — Column rules (part 4) | 7805 |
-| `references/manifest/requiredschema--column-rules-5.md` | requiredSchema — Column rules (part 5) | 7786 |
-| `references/manifest/requiredschema--column-rules-6.md` | requiredSchema — Column rules (part 6) | 7559 |
-| `references/manifest/requiredschema--column-rules-7.md` | requiredSchema — Column rules (part 7) | 7310 |
-| `references/manifest/requiredschema--column-rules-8.md` | requiredSchema — Column rules (part 8) | 5692 |
-| `references/manifest/requiredschema--column-rules-9.md` | requiredSchema — Column rules (part 9) | 6457 |
+| `references/manifest/requiredschema--column-rules-2.md` | requiredSchema — Column rules (part 2) | 7240 |
+| `references/manifest/requiredschema--column-rules-3.md` | requiredSchema — Column rules (part 3) | 7767 |
+| `references/manifest/requiredschema--column-rules-4.md` | requiredSchema — Column rules (part 4) | 6472 |
+| `references/manifest/requiredschema--column-rules-5.md` | requiredSchema — Column rules (part 5) | 7226 |
+| `references/manifest/requiredschema--column-rules-6.md` | requiredSchema — Column rules (part 6) | 6987 |
+| `references/manifest/requiredschema--column-rules-7.md` | requiredSchema — Column rules (part 7) | 7727 |
+| `references/manifest/requiredschema--column-rules-8.md` | requiredSchema — Column rules (part 8) | 6620 |
+| `references/manifest/requiredschema--column-rules-9.md` | requiredSchema — Column rules (part 9) | 5692 |
+| `references/manifest/requiredschema--column-rules-10.md` | requiredSchema — Column rules (part 10) | 6457 |
 | `references/manifest/requiredschema--moments.md` | requiredSchema — Moments | 2748 |
 | `references/manifest/requiredschema--capacity.md` | requiredSchema — Capacity | 7647 |
 | `references/manifest/requiredschema--capacity-2.md` | requiredSchema — Capacity (part 2) | 5558 |
@@ -39,13 +40,13 @@
 | `references/manifest/requiredschema--a-price-an-add-on-lowers.md` | requiredSchema — A price an add-on lowers | 3110 |
 | `references/manifest/requiredschema--shared-tables.md` | requiredSchema — Shared tables | 1948 |
 | `references/manifest/requiredschema--tables-built-on-an-add-on-s-shape.md` | requiredSchema — Tables built on an add-on's shape | 4628 |
-| `references/manifest/parts.md` | Parts | 5291 |
+| `references/manifest/parts.md` | Parts | 5719 |
 | `references/manifest/maps.md` | Maps | 4741 |
 | `references/manifest/option-lists.md` | Option lists | 851 |
 | `references/manifest/pages.md` | Pages | 5597 |
 | `references/manifest/pages-2.md` | Pages (part 2) | 7293 |
 | `references/manifest/pages-3.md` | Pages (part 3) | 823 |
-| `references/manifest/pages--tab-words-filters-and-bulk-actions.md` | Pages — Tab words, filters and bulk actions | 2313 |
+| `references/manifest/pages--tab-words-filters-and-bulk-actions.md` | Pages — Tab words, filters and bulk actions | 4459 |
 | `references/manifest/pages--navgroups.md` | Pages — navGroups | 789 |
 | `references/manifest/pages--a-page-kept-off-the-sidebar.md` | Pages — A page kept off the sidebar | 1236 |
 | `references/manifest/pages--navlinks.md` | Pages — navLinks | 2645 |
@@ -65,8 +66,8 @@
 | `references/manifest/emails--outbox-3.md` | Emails — outbox (part 3) | 1660 |
 | `references/manifest/emails--a-reply-to-the-rep.md` | Emails — A reply to the rep | 1672 |
 | `references/manifest/emails--held-messages.md` | Emails — Held messages | 2873 |
-| `references/manifest/emails--emailtemplates.md` | Emails — emailTemplates | 7756 |
-| `references/manifest/emails--emailtemplates-2.md` | Emails — emailTemplates (part 2) | 3407 |
+| `references/manifest/emails--emailtemplates.md` | Emails — emailTemplates | 7799 |
+| `references/manifest/emails--emailtemplates-2.md` | Emails — emailTemplates (part 2) | 3808 |
 | `references/manifest/public-access.md` | Public access | 2014 |
 | `references/manifest/public-access-2.md` | Public access (part 2) | 7731 |
 | `references/manifest/public-access-3.md` | Public access (part 3) | 5292 |
@@ -88,6 +89,5 @@
 | `references/manifest/public-access--limits-on-a-stranger-s-create.md` | Public access — Limits on a stranger's create | 3390 |
 | `references/manifest/public-access--publickeys.md` | Public access — publicKeys | 3463 |
 | `references/manifest/automations.md` | Automations | 6517 |
-| `references/manifest/automations--the-lead-of-the-person-on-the-row.md` | Automations — The lead of the person on the row | 1212 |
 
 More: `references/manifest/INDEX-2.md`

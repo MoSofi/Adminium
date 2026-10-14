@@ -165,6 +165,43 @@ const words: KitWords = {
     "ui:widgets.media.uploadDropzone.browseLabel": "parcourir",
     "ui:widgets.media.uploadDropzone.browsePrefix": "ou",
     "ui:widgets.media.uploadDropzone.dropTitle": "Déposez les fichiers à téléverser"
+  },
+  "signature": {
+    "ui:widgets.files.notAllowed": "Vous ne pouvez pas ajouter de fichiers ici.",
+    "ui:widgets.files.notSent": "L’envoi a échoué. Réessayez.",
+    "ui:widgets.files.signature.again": "Signer de nouveau",
+    "ui:widgets.files.signature.clear": "Effacer",
+    "ui:widgets.files.signature.cleared": "Signature effacée. Signez de nouveau.",
+    "ui:widgets.files.signature.drawInstead": "Signer à la main à la place",
+    "ui:widgets.files.signature.empty": "Signez d’abord, puis gardez la signature.",
+    "ui:widgets.files.signature.keep": "Garder cette signature",
+    "ui:widgets.files.signature.kept": "Signature gardée.",
+    "ui:widgets.files.signature.keptAlt": "La signature gardée",
+    "ui:widgets.files.signature.line": "Signez au-dessus de la ligne",
+    "ui:widgets.files.signature.name": "Signature",
+    "ui:widgets.files.signature.pad": "Signez ici avec le doigt, un stylet ou la souris.",
+    "ui:widgets.files.signature.saving": "Envoi de la signature…",
+    "ui:widgets.files.signature.typeInstead": "Saisir le nom à la place",
+    "ui:widgets.files.signature.typedLabel": "Nom, comme signature",
+    "ui:widgets.files.signature.typedPad": "Le nom, écrit comme signature.",
+    "ui:widgets.files.tooLarge": "Ce fichier est trop volumineux pour ce champ.",
+    "ui:widgets.files.wrongType": "Ce type de fichier n’est pas accepté ici."
+  },
+  "photos": {
+    "ui:widgets.files.notAllowed": "Vous ne pouvez pas ajouter de fichiers ici.",
+    "ui:widgets.files.notSent": "L’envoi a échoué. Réessayez.",
+    "ui:widgets.files.photos.add": "Ajouter une photo",
+    "ui:widgets.files.photos.added": "Photo ajoutée.",
+    "ui:widgets.files.photos.alt": "Photo {n}",
+    "ui:widgets.files.photos.count": "{count} sur {max}",
+    "ui:widgets.files.photos.full": "Ce champ ne prend pas plus de photos.",
+    "ui:widgets.files.photos.name": "Photos",
+    "ui:widgets.files.photos.refused": "La photo n’a pas été gardée : {reason}",
+    "ui:widgets.files.photos.remove": "Retirer la photo {n}",
+    "ui:widgets.files.photos.removed": "Photo {n} retirée.",
+    "ui:widgets.files.photos.sending": "Envoi…",
+    "ui:widgets.files.tooLarge": "Ce fichier est trop volumineux pour ce champ.",
+    "ui:widgets.files.wrongType": "Ce type de fichier n’est pas accepté ici."
   }
 };
 

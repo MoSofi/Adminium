@@ -30507,6 +30507,18 @@
     "status": "mt",
     "srcHash": "2e09edea513a"
   },
+  "ui.formDialog.issue.fileNotHere": {
+    "status": "mt",
+    "srcHash": "46f4e616bbb8"
+  },
+  "ui.formDialog.issue.fileTooLarge": {
+    "status": "mt",
+    "srcHash": "97b007826b5a"
+  },
+  "ui.formDialog.issue.fileType": {
+    "status": "mt",
+    "srcHash": "9ec300d46d19"
+  },
   "ui.formDialog.issue.form": {
     "status": "mt",
     "srcHash": "4a4dacb3d935"
@@ -30566,6 +30578,10 @@
   "ui.formDialog.issue.tooLong": {
     "status": "mt",
     "srcHash": "d0103a9d10de"
+  },
+  "ui.formDialog.issue.tooManyFiles": {
+    "status": "mt",
+    "srcHash": "9a3939b2ad95"
   },
   "ui.formDialog.issue.tooManyMentions": {
     "status": "mt",
@@ -34874,6 +34890,122 @@
   "ui.widgets.feeds.unreadBadge.unitLabel": {
     "srcHash": "1b9aebd6c04d",
     "status": "mt"
+  },
+  "ui.widgets.files.notAllowed": {
+    "status": "mt",
+    "srcHash": "cfc3fa44bd40"
+  },
+  "ui.widgets.files.notSent": {
+    "status": "mt",
+    "srcHash": "26a9821b2340"
+  },
+  "ui.widgets.files.photos.add": {
+    "status": "mt",
+    "srcHash": "67b2f988c992"
+  },
+  "ui.widgets.files.photos.added": {
+    "status": "mt",
+    "srcHash": "5730eb7a3df5"
+  },
+  "ui.widgets.files.photos.alt": {
+    "status": "mt",
+    "srcHash": "ca0765758283"
+  },
+  "ui.widgets.files.photos.count": {
+    "status": "mt",
+    "srcHash": "7b370ac644c6"
+  },
+  "ui.widgets.files.photos.full": {
+    "status": "mt",
+    "srcHash": "359596b4f401"
+  },
+  "ui.widgets.files.photos.name": {
+    "status": "mt",
+    "srcHash": "c8b2e864eccb"
+  },
+  "ui.widgets.files.photos.refused": {
+    "status": "mt",
+    "srcHash": "d04d5e3f2281"
+  },
+  "ui.widgets.files.photos.remove": {
+    "status": "mt",
+    "srcHash": "fa11e9b51d85"
+  },
+  "ui.widgets.files.photos.removed": {
+    "status": "mt",
+    "srcHash": "6537e5bee08c"
+  },
+  "ui.widgets.files.photos.sending": {
+    "status": "mt",
+    "srcHash": "cf765512cc6d"
+  },
+  "ui.widgets.files.signature.again": {
+    "status": "mt",
+    "srcHash": "97b6038b6fc8"
+  },
+  "ui.widgets.files.signature.clear": {
+    "status": "mt",
+    "srcHash": "719ea396ad92"
+  },
+  "ui.widgets.files.signature.cleared": {
+    "status": "mt",
+    "srcHash": "77697508ad74"
+  },
+  "ui.widgets.files.signature.drawInstead": {
+    "status": "mt",
+    "srcHash": "73c99bb5ea7e"
+  },
+  "ui.widgets.files.signature.empty": {
+    "status": "mt",
+    "srcHash": "6b83ce2d477a"
+  },
+  "ui.widgets.files.signature.keep": {
+    "status": "mt",
+    "srcHash": "770e4ca0398f"
+  },
+  "ui.widgets.files.signature.kept": {
+    "status": "mt",
+    "srcHash": "b15577e76c61"
+  },
+  "ui.widgets.files.signature.keptAlt": {
+    "status": "mt",
+    "srcHash": "ca16241178d8"
+  },
+  "ui.widgets.files.signature.line": {
+    "status": "mt",
+    "srcHash": "57cf36eb2e3a"
+  },
+  "ui.widgets.files.signature.name": {
+    "status": "mt",
+    "srcHash": "2f32be1dc741"
+  },
+  "ui.widgets.files.signature.pad": {
+    "status": "mt",
+    "srcHash": "8fbc6edcccba"
+  },
+  "ui.widgets.files.signature.saving": {
+    "status": "mt",
+    "srcHash": "61f2cb3dfd79"
+  },
+  "ui.widgets.files.signature.typeInstead": {
+    "status": "mt",
+    "srcHash": "dbeebd7590b8"
+  },
+  "ui.widgets.files.signature.typedLabel": {
+    "status": "mt",
+    "srcHash": "67725b5c92a8"
+  },
+  "ui.widgets.files.signature.typedPad": {
+    "status": "mt",
+    "srcHash": "0716c4019767"
+  },
+  "ui.widgets.files.tooLarge": {
+    "status": "mt",
+    "srcHash": "97b007826b5a"
+  },
+  "ui.widgets.files.wrongType": {
+    "status": "mt",
+    "srcHash": "9ec300d46d19"
   },
   "ui.widgets.forms.chipInput.description": {
     "srcHash": "4dcbe0ef830a",

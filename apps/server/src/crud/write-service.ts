@@ -169,6 +169,7 @@ import { LockMoved, beginOn, withNamedLocks, type NamedLock } from './capacity/l
 import type { JudgedRow, LockNameRow, PoolState } from './capacity/types.js';
 import { bindWriteValue, booleanOf, normalizeWriteValue, sameValue, zonedWriteValue } from './write-values.js';
 import type { WriteAction, WriteActor, WriteContext, WriteOrigin, WriteTarget } from './write-context.js';
+import { NO_NEW_FILES, type FileColumnJudge } from '../files/column-judge.js';
 
 // The write's own vocabulary lives in a leaf, because `column-rules.ts` reads
 // it and this module reads the rules — see `write-context.ts`. Re-exported so
@@ -1886,6 +1887,12 @@ export interface WriteServiceOptions {
    * never filled, whichever door the write came through.
    */
   rights?: ((connectionId: string, tableId: string) => Promise<TablePrivileges | null>) | undefined;
+  /**
+   * Which files a write may name in a column that holds files
+   * (`files/column-judge.ts`). Without it a write may keep or clear what such
+   * a column holds and name no new file: nothing here can vouch for one.
+   */
+  files?: FileColumnJudge | undefined;
 }
 
 /** How many times a create whose generated code collided is tried again. */
@@ -2278,6 +2285,21 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
     return value === null || value === undefined || value === '' ? null : value;
   }
 
+  /**
+   * Columns that hold files (`column.file`): a write names only a file its
+   * writer uploaded and no record holds yet, of a kind the column takes and
+   * no larger than it allows (`files/column-judge.ts`). Every writer and
+   * every door but an undo; a door with no person behind it names no new
+   * file at all. A file the row already held in that column is not judged
+   * again.
+   */
+  async function fileIssues(action: WriteAction, target: WriteTarget, context: WriteContext, values: Row, stored: Row | null): Promise<FieldIssues | null> {
+    if (action === 'delete' || context.origin === 'undo') return null;
+    if (![...target.table.columns.values()].some((column) => column.file !== undefined && Object.prototype.hasOwnProperty.call(values, column.name))) return null;
+    const write = { connectionId: target.connectionId, table: target.table, origin: context.origin, actor: context.actor ?? null, values, stored };
+    return (opts.files ?? NO_NEW_FILES).judge(write);
+  }
+
   /** CHECK, then the dates a rule keeps within dates; the caller's own refusal when there is one. */
   /**
    * A link into an add-on's table has no foreign key behind it, so it is
@@ -2339,7 +2361,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       mergeIssues(mergeIssues(geo?.issues ?? null, checkRow(judged, action, values, { dialect: target.dialect, stored, columns: target.table.columns })), await boundIssues(rules, action, target, context, values, stored)),
       mergeIssues(
         mergeIssues(await linkIssues(rules, action, target, context, values, mapError, stored), action === 'delete' ? null : reservedIssue(rules, values)),
-        await linkableIssues(rules, action, target, context, values, stored),
+        mergeIssues(await linkableIssues(rules, action, target, context, values, stored), await fileIssues(action, target, context, values, stored)),
       ),
     );
     // What the check read of the stored row goes with the values, for the statement to hold it to.
@@ -3751,7 +3773,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
           mergeIssues(
             mergeIssues(await linkIssues(rules, action, target, context, values), action === 'delete' ? null : reservedIssue(rules, values)),
             // A change judged here (an import's preview of a hooked table) is judged against the row it matched.
-            await linkableIssues(rules, action, target, context, values, checkOpts?.stored?.[index] ?? null),
+            mergeIssues(await linkableIssues(rules, action, target, context, values, checkOpts?.stored?.[index] ?? null), await fileIssues(action, target, context, values, checkOpts?.stored?.[index] ?? null)),
           ),
         );
         issues.push(issue);
@@ -4006,6 +4028,21 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       const rootBooking = rulesOf(rootRow.target)?.booking;
       if (rootBooking !== undefined && (input.placeRoot !== true || dry || everyRow.length > 1)) await at(rootRow.node, () => Promise.reject(new GuardedBatchError(rootRow.target.table.name)));
 
+      /*
+       * A retry of a create already made answers the rows it stored, with
+       * nothing written — and nothing prepared: its before hooks do not run
+       * again, and what it carries is not judged again against a world the
+       * first send changed (the files a sign-off's first send named are that
+       * sign-off's now, and a second judging would refuse them).
+       */
+      const replayed = async (db: Db): Promise<TreeOutcome | null> => {
+        if (dry || input.replay === undefined) return null;
+        const found = await input.replay(db);
+        return found === null ? null : { mode, root: found.root, rows: found.rows, capacity: [], replayed: true };
+      };
+      const before = await replayed(rootRow.target.db);
+      if (before !== null) return before;
+
       // 2. The root, prepared as a single create prepares its row; its before hooks run for a save only.
       const root = await at(rootRow.node, () =>
         prepareOne({ target: rootRow.target, values: rootRow.node.values, context, clock, mode, hooks: !dry, grants: true }),
@@ -4022,15 +4059,6 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         await at(rootRow.node, () => refuseUngrantedChain(target, [...(rules?.rollupsInto ?? []), ...(rules?.ownRollups ?? [])]));
       }
       const currency = currencyFor(rootRow.target);
-
-      // A retry of a create already made answers the rows it stored, with nothing written.
-      const replayed = async (db: Db): Promise<TreeOutcome | null> => {
-        if (dry || input.replay === undefined) return null;
-        const found = await input.replay(db);
-        return found === null ? null : { mode, root: found.root, rows: found.rows, capacity: [], replayed: true };
-      };
-      const before = await replayed(rootRow.target.db);
-      if (before !== null) return before;
 
       // What each row says of the rows outside the tree it will be tied to: its values as sent, a copied link read through its source.
       const peeked = new Map<TreeRow, Row>();

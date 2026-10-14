@@ -165,6 +165,43 @@ const words: KitWords = {
     "ui:widgets.media.uploadDropzone.browseLabel": "browse",
     "ui:widgets.media.uploadDropzone.browsePrefix": "or",
     "ui:widgets.media.uploadDropzone.dropTitle": "Drop files to upload"
+  },
+  "signature": {
+    "ui:widgets.files.notAllowed": "You may not add files here.",
+    "ui:widgets.files.notSent": "It could not be sent. Try again.",
+    "ui:widgets.files.signature.again": "Sign again",
+    "ui:widgets.files.signature.clear": "Clear",
+    "ui:widgets.files.signature.cleared": "Signature cleared. Sign again.",
+    "ui:widgets.files.signature.drawInstead": "Sign by hand instead",
+    "ui:widgets.files.signature.empty": "Sign first, then keep the signature.",
+    "ui:widgets.files.signature.keep": "Keep this signature",
+    "ui:widgets.files.signature.kept": "Signature kept.",
+    "ui:widgets.files.signature.keptAlt": "The signature as kept",
+    "ui:widgets.files.signature.line": "Sign above the line",
+    "ui:widgets.files.signature.name": "Signature",
+    "ui:widgets.files.signature.pad": "Sign here with a finger, a pen or the mouse.",
+    "ui:widgets.files.signature.saving": "Sending the signature…",
+    "ui:widgets.files.signature.typeInstead": "Type the name instead",
+    "ui:widgets.files.signature.typedLabel": "Name, as the signature",
+    "ui:widgets.files.signature.typedPad": "The name, written as the signature.",
+    "ui:widgets.files.tooLarge": "This file is too large for this field.",
+    "ui:widgets.files.wrongType": "This kind of file is not taken here."
+  },
+  "photos": {
+    "ui:widgets.files.notAllowed": "You may not add files here.",
+    "ui:widgets.files.notSent": "It could not be sent. Try again.",
+    "ui:widgets.files.photos.add": "Add a photo",
+    "ui:widgets.files.photos.added": "Photo added.",
+    "ui:widgets.files.photos.alt": "Photo {n}",
+    "ui:widgets.files.photos.count": "{count} of {max}",
+    "ui:widgets.files.photos.full": "That is as many photos as this takes.",
+    "ui:widgets.files.photos.name": "Photos",
+    "ui:widgets.files.photos.refused": "The photo was not kept: {reason}",
+    "ui:widgets.files.photos.remove": "Take photo {n} out",
+    "ui:widgets.files.photos.removed": "Photo {n} taken out.",
+    "ui:widgets.files.photos.sending": "Sending…",
+    "ui:widgets.files.tooLarge": "This file is too large for this field.",
+    "ui:widgets.files.wrongType": "This kind of file is not taken here."
   }
 };
 

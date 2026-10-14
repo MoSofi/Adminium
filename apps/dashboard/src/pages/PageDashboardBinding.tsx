@@ -25,11 +25,12 @@ import { useCallback, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from '@tanstack/react-router';
 import type { WidgetDataState, WidgetEvent } from '@adminium/widgets';
+import { staffLinkPath } from '@adminium/widgets/page-config';
 
 import { extractBindings } from '../api/widgetData.js';
 import { addOnNavOf, bootstrapQuery, findPageBySlug } from '../app/bootstrap.js';
 import { DashboardBuilder } from './dashboard-builder/index.js';
-import { STAFF_HREF, openStaffTarget, staffTargetFor } from './staffLink.js';
+import { openStaffTarget, staffTargetFor } from './staffLink.js';
 import type { PageTemplateProps } from './template-types.js';
 
 export function PageDashboardBinding({ page, adapters, canEditLayout, currency }: PageTemplateProps) {
@@ -41,10 +42,17 @@ export function PageDashboardBinding({ page, adapters, canEditLayout, currency }
    * the page host every template shares: only a dashboard draws a page link.
    */
   const { data: bootstrap } = useQuery(bootstrapQuery());
-  const staff = useMemo(() => (bootstrap === undefined ? null : staffTargetFor(bootstrap, page.id)), [bootstrap, page.id]);
+  // `@staff` and `@staff/<path>`: where each goes for this page's app, or null (another `@` address, a path that could leave the side).
+  const staffAt = useCallback(
+    (href: string) => {
+      const path = staffLinkPath(href);
+      return path === null || bootstrap === undefined ? null : staffTargetFor(bootstrap, page.id, path);
+    },
+    [bootstrap, page.id],
+  );
   const linkAvailable = useCallback(
     (href: string) => {
-      if (href.startsWith('@')) return href === STAFF_HREF && staff !== null;
+      if (href.startsWith('@')) return staffAt(href) !== null;
       // A link to a page is drawn for a reader who may open that page: the pages they were sent are the ones they may.
       const [path = ''] = href.split(/[?#]/);
       const page = /^\/p\/([^/]+)/.exec(path);
@@ -54,21 +62,22 @@ export function PageDashboardBinding({ page, adapters, canEditLayout, currency }
       if (own !== null) return bootstrap !== undefined && addOnNavOf(bootstrap).pages.some((one) => one.addOnKey === decodeURIComponent(own[1]!) && one.ref === decodeURIComponent(own[2]!));
       return true;
     },
-    [staff, bootstrap],
+    [staffAt, bootstrap],
   );
   const onEvent = useCallback(
     (event: WidgetEvent) => {
       if (event.type === 'drill-through' && event.href.startsWith('@')) {
         // Another `@` address names something this host does not know: it
         // opens nothing (and `linkAvailable` kept its button from being drawn).
-        if (event.href === STAFF_HREF && staff !== null) openStaffTarget(staff, (href) => router.history.push(href));
+        const staff = staffAt(event.href);
+        if (staff !== null) openStaffTarget(staff, (href) => router.history.push(href));
         return undefined;
       }
       // Forward the host's result so optimistic widgets (kanban) get the
       // mutate promise and can roll back a rejected move.
       return adapters.onEvent(event);
     },
-    [adapters, router, staff],
+    [adapters, router, staffAt],
   );
   const { requests, invalid } = useMemo(() => extractBindings(page), [page]);
 
@@ -89,7 +98,7 @@ export function PageDashboardBinding({ page, adapters, canEditLayout, currency }
       canEditLayout={canEditLayout ?? false}
       states={states}
       day={adapters.dashboardDay ?? null}
-      // An `@staff` link is drawn only when the owning app has staff screens.
+      // An `@staff` link (`@staff/<path>` too) is drawn only when the owning app has staff screens.
       linkAvailable={linkAvailable}
       // The connection's currency: a money card that names none reads in it.
       {...(currency === undefined || currency === null ? {} : { currency })}

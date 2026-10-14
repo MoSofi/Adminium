@@ -93679,6 +93679,10 @@
                             "type": "string"
                           },
                           "additionalProperties": {}
+                        },
+                        "module": {
+                          "type": "string",
+                          "pattern": "^[a-z][a-z0-9-]{0,39}$"
                         }
                       },
                       "required": [
@@ -93873,6 +93877,10 @@
                                       "type": "string"
                                     },
                                     "additionalProperties": {}
+                                  },
+                                  "module": {
+                                    "type": "string",
+                                    "pattern": "^[a-z][a-z0-9-]{0,39}$"
                                   }
                                 },
                                 "required": [
@@ -108578,6 +108586,10 @@
                             "type": "string"
                           },
                           "additionalProperties": {}
+                        },
+                        "module": {
+                          "type": "string",
+                          "pattern": "^[a-z][a-z0-9-]{0,39}$"
                         }
                       },
                       "required": [
@@ -108772,6 +108784,10 @@
                                       "type": "string"
                                     },
                                     "additionalProperties": {}
+                                  },
+                                  "module": {
+                                    "type": "string",
+                                    "pattern": "^[a-z][a-z0-9-]{0,39}$"
                                   }
                                 },
                                 "required": [

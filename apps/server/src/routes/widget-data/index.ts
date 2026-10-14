@@ -47,7 +47,7 @@ import { translatorFor } from '../../i18n/server-i18n.js';
 import { answerTeamFigures, type ShapedTeam } from '../../widget-data/team-figures.js';
 import { resolveLinkFilters } from '../../widget-data/link-filters.js';
 import { resolvePaths } from '../../widget-data/paths.js';
-import { shapeRows, toNumber, type ShapedPayload } from '../../widget-data/shapers.js';
+import { moneyFiguresOf, shapeRows, toNumber, type ShapedPayload } from '../../widget-data/shapers.js';
 import {
   linkFiltersBody,
   linkFiltersReply,
@@ -325,7 +325,10 @@ export function widgetDataRoutes(deps: WidgetDataRoutesDeps): FastifyPluginAsync
           : staffGroupLabels({ meta, keys: [...rows, ...(priorRows ?? [])].map((row) => row[alias]), named: namesPeople(request), unnamed: await unnamedWord(request) });
       const groupNames = descriptor.groupLabel === undefined ? await staffLabels(0, compiled.groupAlias) : undefined;
       const colLabels = await staffLabels(1, compiled.colAlias);
-      const listed = shapeRows({ compiled, rows, priorRows, total, canReadPii: unmasked, connectionId, groupLabels: groupLabels ?? groupNames, colLabels });
+      const plain = shapeRows({ compiled, rows, priorRows, total, canReadPii: unmasked, connectionId, groupLabels: groupLabels ?? groupNames, colLabels });
+      // A chart's figures that are money, by alias: its table writes them in the currency.
+      const money = plain.shape === 'categorical' || plain.shape === 'timeseries' ? moneyFiguresOf(descriptor.aggregations, compiled.table) : [];
+      const listed = money.length === 0 ? plain : { ...plain, money };
       const shaped =
         listed.shape !== 'record-list' || (peopleColumns.length === 0 && days.length === 0)
           ? listed

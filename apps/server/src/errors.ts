@@ -151,6 +151,8 @@ export class ConflictError extends AppError {
     message = 'The resource changed since you loaded it.',
     code:
       | 'CONFLICT'
+      // A file a record keeps in an app's own file column, asked to be taken off, renamed or thrown away by itself.
+      | 'FILE_HELD'
       // A plain column the writer saw (`seen`) holds another value now.
       | 'ROW_CHANGED'
       | 'UNIQUE_VIOLATION'

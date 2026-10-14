@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * GENERATED MIRROR of ../../../locales/en-US/common.json (its builder, kb, about, team, quietHours, security, reports, changelog, onboarding, audit, capabilities, palette, account groups: en-US's deferred part of `common`) — do not edit by hand.
+ * GENERATED MIRROR of ../../../locales/en-US/common.json (its builder, kb, about, team, quietHours, security, reports, changelog, onboarding, audit, capabilities, palette, account, templates groups: en-US's deferred part of `common`) — do not edit by hand.
  * The JSON file is the canonical hand-authored bundle;
  * this TS mirror exists so the runtime can bundle a namespace (en-US's eager
  * ones) or chunk-split it (every other locale, and en-US's deferred `studio`)
@@ -962,6 +962,106 @@ export default {
       "reset": "Reset to workspace default",
       "resetFailed": "Could not reset this preference. Try again.",
       "appliesInstantly": "Changes apply instantly and are saved to your profile."
+    }
+  },
+  "templates": {
+    "crud": {
+      "title": "Records",
+      "description": "Rows in a searchable table."
+    },
+    "dashboard": {
+      "title": "Dashboard",
+      "description": "Charts and figures you arrange."
+    },
+    "board": {
+      "title": "Board",
+      "description": "Cards in columns by status."
+    },
+    "calendar": {
+      "title": "Calendar",
+      "description": "Records on a month grid, by date."
+    },
+    "scheduler": {
+      "title": "Scheduler",
+      "description": "A timeline per person."
+    },
+    "logViewer": {
+      "title": "Logs",
+      "description": "Filterable event lines."
+    },
+    "files": {
+      "title": "Files",
+      "description": "Files and folders to browse."
+    },
+    "chat": {
+      "title": "Chat",
+      "description": "Threaded conversations."
+    },
+    "builder": {
+      "title": "Builder",
+      "description": "A drag-and-drop document canvas."
+    },
+    "wizard": {
+      "title": "Wizard",
+      "description": "Guided steps to finish a task."
+    },
+    "settings": {
+      "title": "Settings",
+      "description": "Preference rows with toggles."
+    },
+    "directory": {
+      "title": "Directory",
+      "searchPlaceholder": "Search people…",
+      "allFilter": "All",
+      "clearFilters": "Clear filters",
+      "detailTitle": "Person",
+      "emptyTitle": "No people yet",
+      "emptyBody": "People appear here as rows land in the table.",
+      "noMatchesTitle": "No matching people",
+      "noMatchesBody": "Try a different search or remove a filter.",
+      "errorTitle": "This directory failed to load",
+      "loading": "Loading people",
+      "memberCount": "{count} people",
+      "description": "People cards and an org chart."
+    },
+    "masterDetail": {
+      "title": "List & detail",
+      "allFilter": "All",
+      "clearFilters": "Clear filters",
+      "emptyTitle": "Nothing here yet",
+      "emptyBody": "Records appear here as rows land in the table.",
+      "noMatchesTitle": "No matching records",
+      "noMatchesBody": "Try removing a filter.",
+      "errorTitle": "This list failed to load",
+      "loading": "Loading records",
+      "selectPrompt": "Select a record",
+      "description": "A list, with the record beside it."
+    },
+    "queueInbox": {
+      "title": "Queue",
+      "approve": "Approve",
+      "reject": "Reject",
+      "allSegment": "All",
+      "approvedToast": "{count} approved.",
+      "rejectedToast": "{count} rejected.",
+      "undoneToast": "Decision undone.",
+      "failedToast": "Decision failed.",
+      "bulkFailed": "{failed} of {total} selected rows could not be updated.",
+      "undoFailedToast": "Could not undo this decision.",
+      "rejectTitle": "Reject requests",
+      "rejectCount": "Selected · {count}",
+      "rejectNote": "The requester will be notified with your note.",
+      "rejectPlaceholder": "Add a note for the requester…",
+      "rejectConfirm": "Reject",
+      "emptyTitle": "Nothing in the queue",
+      "emptyBody": "New requests appear here as they arrive.",
+      "caughtUpTitle": "You’re all caught up",
+      "caughtUpBody": "No requests in this tab right now.",
+      "errorTitle": "This queue failed to load",
+      "loading": "Loading queue",
+      "selectPrompt": "Select a request",
+      "daysUnit": "{count} days",
+      "description": "A work queue with approve and reject."
     }
   }
 } as const;

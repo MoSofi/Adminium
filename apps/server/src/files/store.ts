@@ -28,13 +28,15 @@
  * store that never opens Studio → Storage sees no difference at all.
  */
 
-import type { Readable } from 'node:stream';
+import { readFile } from 'node:fs/promises';
+import { Readable } from 'node:stream';
 
 import type { FileKind, FilesRepo, RecordRef, StoredFile } from '@adminium/meta';
 import { newId } from '@adminium/meta';
 
 import type { DestinationResolver } from './destinations.js';
 import type { ByteRange, FileDriver, OpenedBytes } from './drivers/driver.js';
+import { cleanPicture, isPictureMime, PictureRefused } from '../public-api/picture.js';
 import { sniff, type SniffTypeKey, type SniffedType } from './sniff.js';
 import type { Spool, SpooledFile } from './spool.js';
 
@@ -107,6 +109,13 @@ export interface PutUploadInput {
   claimed?: boolean | undefined;
   /** Override the default destination — a per-column choice, or the migrate job. */
   destinationId?: string | null | undefined;
+  /**
+   * A picture (PNG, JPEG, WebP, GIF) is kept without what a camera writes
+   * beside it — the place it was taken, the device, comments — and refused
+   * when it cannot be read as one (`public-api/picture.ts`). An upload for a
+   * column an app's own rule makes a file column.
+   */
+  clean?: boolean | undefined;
   at?: number;
 }
 
@@ -161,6 +170,20 @@ export interface FileStoreOptions {
 
 export function createFileStore(opts: FileStoreOptions): FileStore {
   const { spool, destinations, files } = opts;
+
+  /** A spooled picture, read again without its camera notes into a spool of its own; the first is let go. */
+  async function cleaned(spooled: SpooledFile, mime: string, maxBytes: number): Promise<SpooledFile> {
+    let picture: Buffer;
+    try {
+      picture = cleanPicture(await readFile(spooled.path), mime).bytes;
+    } catch (error) {
+      if (!(error instanceof PictureRefused)) throw error;
+      throw new UnsupportedFileTypeError(`That picture cannot be read: ${error.message}.`, mime);
+    } finally {
+      await spooled.release();
+    }
+    return spool.spool(Readable.from([picture]), { maxBytes });
+  }
 
   /**
    * Resolve where to write. An explicitly named destination wins (a per-column
@@ -282,8 +305,11 @@ export function createFileStore(opts: FileStoreOptions): FileStore {
         );
       }
 
+      // The cleaned picture is what is kept, under its own hash: the bytes the camera wrote are never stored.
+      const kept = input.clean === true && isPictureMime(result.type.mime) ? await cleaned(spooled, result.type.mime, input.maxBytes) : spooled;
+
       const bytes = await commit(
-        spooled,
+        kept,
         { id, kind: input.kind, filename: input.filename, mime: result.type.mime, createdAt: at },
         destinationId,
       );

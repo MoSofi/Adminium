@@ -243,6 +243,31 @@ describe('someone who opens only an app’s own screens', () => {
     }
   });
 
+  it('may upload a file for a record of their app, read one back and throw away one no record holds, and no other file route', () => {
+    const allowed = (method: string, route: string) => allowedForScreensOnly(method, route, { id: 'file_1' }, new Set(['conn_1']), ['clients']);
+    for (const [method, route] of [
+      ['POST', '/api/v1/files'],
+      ['GET', '/api/v1/files/:id'],
+      ['GET', '/api/v1/files/:id/content'],
+      ['DELETE', '/api/v1/files/:id'],
+    ] as const) {
+      expect(allowed(method, route), `${method} ${route}`).toBe(true);
+    }
+    // The list of files, the library's sizes, looking files up in bulk, renaming, moving and restoring them stay the dashboard's.
+    for (const [method, route] of [
+      ['GET', '/api/v1/files'],
+      ['GET', '/api/v1/files/usage'],
+      ['POST', '/api/v1/files/resolve'],
+      ['PATCH', '/api/v1/files/:id'],
+      ['POST', '/api/v1/files/:id/attach'],
+      ['POST', '/api/v1/files/:id/detach'],
+      ['POST', '/api/v1/files/:id/restore'],
+      ['GET', '/api/v1/storage/destinations'],
+    ] as const) {
+      expect(allowed(method, route), `${method} ${route}`).toBe(false);
+    }
+  });
+
   it('finds who they are, and their token, in the staff config', async () => {
     const cookie = await person('dan@example.com', [{ screensOnly: true }]);
     const config = await get('/apps/clients/staff/surface-config.json', cookie);

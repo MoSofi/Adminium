@@ -8,6 +8,7 @@
 | `references/guides/manifest-by-task--add-a-table.md` | Add a table | 2907 |
 | `references/guides/manifest-by-task--link-two-tables.md` | Link two tables | 3273 |
 | `references/guides/manifest-by-task--a-choice-column.md` | A choice column | 1243 |
+| `references/guides/manifest-by-task--a-signature-or-photos-on-a-row.md` | A signature or photos on a row | 1269 |
 | `references/guides/manifest-by-task--add-a-dashboard-page.md` | Add a dashboard page | 3201 |
 | `references/guides/manifest-by-task--a-board-with-its-own-columns.md` | A board with its own columns | 5351 |
 | `references/guides/manifest-by-task--buttons-on-a-record-page.md` | Buttons on a record page | 1587 |
@@ -20,7 +21,7 @@
 | `references/guides/manifest-by-task--build-on-an-add-on.md` | Build on an add-on | 1236 |
 | `references/guides/manifest-by-task--stock-from-the-inventory-add-on.md` | Stock from the Inventory add-on | 2189 |
 | `references/guides/manifest-by-task--discounts-codes-and-gift-cards-from-the-offers-add-on.md` | Discounts, codes and gift cards from the Offers add-on | 2174 |
-| `references/guides/manifest-by-task--values-adminium-fills-in.md` | Values Adminium fills in | 2625 |
+| `references/guides/manifest-by-task--values-adminium-fills-in.md` | Values Adminium fills in | 2712 |
 | `references/guides/manifest-by-task--things-a-manifest-cannot-do.md` | Things a manifest cannot do | 941 |
 | `references/guides/sample-data--overview.md` | Sample data | 414 |
 | `references/guides/sample-data--adding-it.md` | Adding it | 3778 |
@@ -36,7 +37,7 @@
 | `references/guides/roles-and-staff-access--personal-data.md` | Personal data | 1375 |
 | `references/guides/roles-and-staff-access--edits-limited-to-some-columns.md` | Edits limited to some columns | 2384 |
 | `references/guides/roles-and-staff-access--reads-limited-to-some-columns.md` | Reads limited to some columns | 1696 |
-| `references/guides/roles-and-staff-access--people-who-only-use-the-app.md` | People who only use the app | 1918 |
+| `references/guides/roles-and-staff-access--people-who-only-use-the-app.md` | People who only use the app | 2301 |
 | `references/guides/roles-and-staff-access--someone-without-access.md` | Someone without access | 902 |
 | `references/guides/roles-and-staff-access--signing-in-on-the-app-s-own-address.md` | Signing in on the app's own address | 1762 |
 | `references/guides/settings--overview.md` | An app's settings page | 769 |
@@ -86,6 +87,5 @@
 | `references/guides/timed-moves--what-a-timed-move-never-does.md` | What a timed move never does | 1374 |
 | `references/guides/timed-moves--three-cases.md` | Three cases | 2280 |
 | `references/guides/timed-moves--sample-data.md` | Sample data | 877 |
-| `references/guides/timed-moves--moves-that-wait-for-a-time.md` | Moves that wait for a time | 1130 |
 
 More: `references/guides/INDEX-2.md`

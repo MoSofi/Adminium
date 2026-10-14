@@ -284,6 +284,21 @@ export function automationRunsRepo(meta: MetaDb) {
     },
 
     /**
+     * Who claimed an occurrence key: the origin of the run holding it, or null
+     * when no run holds it (any more). The route matcher asks after `begin`
+     * answered null for a change, to tell the poller's claim of the SAME
+     * change from an earlier change that carried the same moment.
+     */
+    async claimedBy(dedupeKey: string): Promise<AutomationOrigin | null> {
+      const row = await db
+        .selectFrom('adminium_automation_runs')
+        .select('origin')
+        .where('dedupeKey', '=', dedupeKey)
+        .executeTakeFirst();
+      return row === undefined ? null : automationOriginSchema.parse(row.origin);
+    },
+
+    /**
      * The undo mapping's worklist (D7): runs that have not started and are
      * still inside their delay. Small by construction — the window is 60 s —
      * so the caller decodes `triggerEvent.record` in JS rather than the store

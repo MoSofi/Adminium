@@ -1547,6 +1547,21 @@ export const overridePatchSchema = z.discriminatedUnion('op', [
       .strict()
       .refine((value) => value.where !== undefined || value.same !== undefined, { message: 'a link says which rows it may name: where, same, or both' }),
   }),
+  /*
+   * A column that holds files a signed-in person uploaded for it: the kinds
+   * it takes (the server's names for what a file's bytes are), the size of
+   * each, and, for a json column, how many it holds.
+   */
+  z.object({
+    op: z.literal('column.file'),
+    value: z
+      .object({
+        accept: z.array(z.string().regex(/^[a-z]{2,10}$/)).min(1).max(20),
+        maxBytes: z.number().int().min(1024).max(26_214_400),
+        maxCount: z.number().int().min(1).max(20).optional(),
+      })
+      .strict(),
+  }),
   /* How a person belongs to a row of the table, each way with its table names as the real tables' ids. */
   z.object({ op: z.literal('table.belongs'), value: z.object({ ways: z.array(storedBelongsWay).min(1).max(6) }).strict() }),
   /* Rows read by the people they belong to, and by nobody and nothing else. */

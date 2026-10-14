@@ -16,10 +16,10 @@
 /** The contract's number, as the side's config and `kit.json` say it. */
 export const KIT_CONTRACT = 1;
 
-export type KitPartName = 'mentions' | 'board' | 'map' | 'import';
+export type KitPartName = 'mentions' | 'board' | 'map' | 'import' | 'signature' | 'photos';
 
 /** The parts a mount can draw today. The others are named so that adding one changes no signature. */
-export const KIT_PARTS_AVAILABLE: readonly KitPartName[] = ['mentions', 'board', 'map', 'import'];
+export const KIT_PARTS_AVAILABLE: readonly KitPartName[] = ['mentions', 'board', 'map', 'import', 'signature', 'photos'];
 
 /** One language's words, part by part: `ns:key` to its text (./words/, written by scripts/gen-kit-words.mjs). */
 export type KitWords = Record<KitPartName, Record<string, string>>;
@@ -444,6 +444,73 @@ export interface ImportProps extends KitCommonProps {
   onClose?: (() => void) | undefined;
 }
 
+/**
+ * Where a file part sends what a person gives it: a column an app's manifest
+ * makes a file column (`rules.file`), with the person's own session. The
+ * server judges the file by its bytes against the column's kinds and size,
+ * takes a picture's camera notes (the place, the device) out of it, and
+ * keeps it for this person alone until a record they save names it.
+ */
+export interface KitFileTarget {
+  /** `connectionId` of the side's config. */
+  connectionId: string;
+  /** The table, as the `tables` of the side's config gives it. */
+  table: string;
+  /** The column the files are for. */
+  column: string;
+  /** `csrfToken` of the side's config: the server takes no upload without it. A new one is taken by `update`. */
+  csrfToken: string;
+  /** Used in place of the browser's `fetch` (same-origin paths under `/api/v1/files`). Left out, the browser's own. */
+  fetch?: ((input: string, init?: RequestInit) => Promise<Response>) | undefined;
+}
+
+/**
+ * A signature pad: drawn with a finger, a pen or the mouse, or the name typed
+ * instead (by keyboard alone). "Keep this signature" sends it as a PNG and
+ * tells the app the new file's id; the app then names that id in the
+ * record it saves. "Sign again" clears it, and a signature this mount sent
+ * and the app did not give back as `value` is thrown away on the server.
+ */
+export interface SignatureProps extends KitCommonProps, KitFileTarget {
+  /** The file id the column holds now: shown as the kept signature. Null or left out: the pad is empty. */
+  value?: string | null | undefined;
+  /** Called with the file's id once a signature is kept, and with null when it is cleared. */
+  onChange: (fileId: string | null) => void;
+  /** Drawn above the pad and tied to it ("Customer's signature"). */
+  label?: string | undefined;
+  /** The pad's name for a screen reader when there is no `label`. */
+  ariaLabel?: string | undefined;
+  /** Nothing can be drawn, typed or kept: a signed record shown again. */
+  disabled?: boolean | undefined;
+  /** Draws the pad as wrong and says so to a screen reader (the record was refused for its signature). */
+  invalid?: boolean | undefined;
+}
+
+/**
+ * A field of photos: "Add a photo" opens the phone's camera or its pictures;
+ * each photo is turned upright, made at most `maxSide` pixels a side, sent,
+ * and shown small with a button that takes it out. The app hears the ids of
+ * the photos it holds, in order, and names them in the record it saves. A
+ * photo this mount sent and the person took out again (and that the app did
+ * not give back as `value`) is thrown away on the server.
+ */
+export interface PhotosProps extends KitCommonProps, KitFileTarget {
+  /** The file ids the column holds now, in order. */
+  value?: readonly string[] | undefined;
+  /** The most photos the field takes: the column's `maxCount`. Default 6. */
+  max?: number | undefined;
+  /** The longest side a photo is sent at, in pixels. Default 2048. */
+  maxSide?: number | undefined;
+  /** Called with the ids the field holds, in order, after every photo kept or taken out. */
+  onChange: (fileIds: string[]) => void;
+  /** Called with whether a photo is still being sent: a screen waits before it saves. */
+  onBusy?: ((busy: boolean) => void) | undefined;
+  label?: string | undefined;
+  ariaLabel?: string | undefined;
+  disabled?: boolean | undefined;
+  invalid?: boolean | undefined;
+}
+
 /** A part that is named but cannot be mounted yet. None is, today; the type stays for the next one. */
 export type KitPartNotYet = Record<string, never>;
 
@@ -452,6 +519,8 @@ export interface KitPartProps {
   board: BoardProps;
   map: MapProps;
   import: ImportProps;
+  signature: SignatureProps;
+  photos: PhotosProps;
 }
 
 /** What a mount answers. */
@@ -470,7 +539,7 @@ export class KitPartUnavailableError extends Error {
     super(
       code === 'KIT_PART_NOT_YET'
         ? `The kit part "${part}" is not available in this version of Adminium yet.`
-        : `The kit has no part called "${part}". Its parts are: mentions, board, map, import.`,
+        : `The kit has no part called "${part}". Its parts are: mentions, board, map, import, signature, photos.`,
     );
     this.name = 'KitPartUnavailableError';
     this.code = code;
