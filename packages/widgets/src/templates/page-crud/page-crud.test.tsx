@@ -92,6 +92,18 @@ describe('PageCrud template', () => {
     expect(screen.getByRole('button', { name: /New row/ })).toBeDefined();
   });
 
+  it('counts the rows the filter leaves, not the whole table', async () => {
+    const api = makeApi(rows);
+    const filter = { column: 'status', op: 'eq' as const, value: 'active' };
+    renderPage(api, { initialFilters: [filter] });
+    await screen.findByText('Initech');
+    await waitFor(() => {
+      const calls = (api.list as ReturnType<typeof vi.fn>).mock.calls as [CrudListParams][];
+      const probe = calls.find(([params]) => params.count === 'estimated');
+      expect(probe?.[0].where).toEqual(filter);
+    });
+  });
+
   it('server sort resets keyset paging and reissues the list query', async () => {
     const user = userEvent.setup();
     const api = makeApi(rows);

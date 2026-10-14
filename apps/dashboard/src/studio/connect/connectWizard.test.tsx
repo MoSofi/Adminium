@@ -386,7 +386,13 @@ describe('schema-file mode', () => {
 
 describe('full walk: test → include → meta → generate (read-only source)', () => {
   it('runs the storytelling log, defaults inclusion, forces separate meta, and succeeds', async () => {
-    const { calls, patches } = scriptFetch();
+    // A store this server can still move: the one case where the meta step is a real choice.
+    const movable = {
+      'GET /api/v1/meta/placement': () => jsonResponse(200, { data: { source: 'embedded', engine: 'sqlite', embedded: true, canRelocate: true, reason: null } }),
+      'POST /api/v1/meta/relocate': () => jsonResponse(200, { data: { engine: 'postgres', rowsCopied: 41, restarting: true, healthPath: '/api/v1/healthz' } }),
+      'GET /api/v1/healthz': () => jsonResponse(200, { status: 'ok' }),
+    };
+    const { calls, patches } = scriptFetch(movable);
     const onOpenApp = vi.fn();
     renderWizard(onOpenApp);
 
@@ -449,6 +455,7 @@ describe('full walk: test → include → meta → generate (read-only source)',
     );
     // The separate-DSN probe must report canWrite ∧ canDDL.
     scriptFetch({
+      ...movable,
       'POST /api/v1/connections/test': () =>
         jsonResponse(200, {
           ok: true,
@@ -765,6 +772,45 @@ describe('meta step — carrying out the placement choice', () => {
     await screen.findByText('Where should Adminium keep its own tables?');
   };
 
+  it('keeps the built-in file by default: Continue works at once and moves nothing', async () => {
+    const { calls } = scriptFetch({
+      'GET /api/v1/meta/placement': () =>
+        jsonResponse(200, {
+          data: { source: 'embedded', engine: 'sqlite', embedded: true, canRelocate: true, reason: null },
+        }),
+    });
+    renderWizard();
+    await walkToMetaStep();
+
+    // The first-run wizard already asked this; its answer is the one in place.
+    const keep = screen.getByRole('radio', { name: /Keep it in the file on this machine/ });
+    expect(keep.getAttribute('aria-checked')).toBe('true');
+    expect(screen.getByRole('radio', { name: /Separate database/ })).toBeDefined();
+    expect(continueButton()).toHaveProperty('disabled', false);
+
+    await userEvent.click(continueButton());
+    await waitFor(() => {
+      expect(screen.queryByText('Where should Adminium keep its own tables?')).toBeNull();
+    });
+    expect(calls.some((call) => call.url === '/api/v1/meta/relocate')).toBe(false);
+  });
+
+  it('waits for the answer to where the store is before Continue can do anything', async () => {
+    let answer: (response: Response) => void = () => undefined;
+    scriptFetch({
+      'GET /api/v1/meta/placement': () => new Promise<Response>((resolve) => (answer = resolve)) as never,
+    });
+    renderWizard();
+    await walkToMetaStep();
+
+    expect(screen.getByTestId('meta-step-checking')).toBeDefined();
+    expect(continueButton()).toHaveProperty('disabled', true);
+
+    answer(jsonResponse(200, { data: { source: 'embedded', engine: 'sqlite', embedded: true, canRelocate: true, reason: null } }));
+    await screen.findByRole('radio', { name: /Keep it in the file on this machine/ });
+    expect(continueButton()).toHaveProperty('disabled', false);
+  });
+
   it('moves the store, then advances once the server is back', async () => {
     const { calls } = scriptFetch({
       'GET /api/v1/meta/placement': () =>
@@ -780,11 +826,13 @@ describe('meta step — carrying out the placement choice', () => {
     renderWizard();
     await walkToMetaStep();
 
+    // Until another answer is picked, the file the first-run wizard kept stays the answer.
+    expect(screen.queryByText(/This will move Adminium’s tables/)).toBeNull();
+
+    await userEvent.click(screen.getByRole('radio', { name: /Separate database/ }));
     // The step says what Continue is about to do — the old copy claimed the
     // opposite ("moving an existing meta store is an ops task").
     expect(screen.getByText(/This will move Adminium’s tables/)).toBeDefined();
-
-    await userEvent.click(screen.getByRole('radio', { name: /Separate database/ }));
     await userEvent.type(
       screen.getByLabelText(/Meta database connection string/),
       'postgres://adminium@meta.acme.io:5432/adminium_meta',
@@ -877,9 +925,9 @@ describe('meta step — carrying out the placement choice', () => {
     await walkToMetaStep();
 
     expect(screen.queryByText(/This will move Adminium’s tables/)).toBeNull();
-    expect(screen.getByText(/already keeps its own tables in a configured database/)).toBeDefined();
-
-    await userEvent.click(screen.getByRole('radio', { name: /Same database/ }));
+    expect(screen.getByText(/keeps its own tables where they are now/)).toBeDefined();
+    // Nothing here can change where the store is, so nothing is asked: no card to pick first.
+    expect(screen.queryByRole('radio')).toBeNull();
     await userEvent.click(continueButton());
 
     await waitFor(() => {

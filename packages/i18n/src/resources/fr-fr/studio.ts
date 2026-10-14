@@ -1203,6 +1203,11 @@ export default {
     }
   },
   "meta": {
+    "checking": "Vérification de l’emplacement des tables d’Adminium…",
+    "keep": {
+      "description": "Là où Adminium garde ses propres tables aujourd’hui. Rien n’est déplacé, et rien n’est écrit dans votre base.",
+      "title": "Les garder dans le fichier sur cette machine"
+    },
     "move": {
       "copying": "Déplacement des tables d’Adminium…",
       "copyingBody": "Copie de chaque table adminium_ vers la nouvelle base. Vos données sources ne sont pas touchées, et rien n’est basculé tant que la copie n’est pas vérifiée.",
@@ -1228,6 +1233,9 @@ export default {
       "ok": "Compatible — écriture ✓ · DDL ✓",
       "test": "Tester la connexion",
       "title": "Base de données séparée"
+    },
+    "settled": {
+      "body": "Adminium garde ses propres tables là où elles sont, et cette étape ne les déplace pas. Il n’y a rien à choisir ici."
     },
     "subtitle": "Pages, rôles, journal d’audit et paramètres vivent dans des tables préfixées adminium_ — jamais mêlés à vos données.",
     "testFailed": "Échec de la connexion.",
@@ -2213,6 +2221,7 @@ export default {
       "modelPlaceholder": "Sélectionner un modèle…",
       "modelStatic": "Une liste éprouvée ; saisissez un identifiant personnalisé après l’enregistrement pour l’actualiser.",
       "noKeyBody": "Ollama tourne localement, donc rien ne quitte cette machine.",
+      "noKeyRemoteBody": "Ceci est un modèle cloud d’Ollama : Ollama l’exécute sur ses propres serveurs, donc ce qui est donné au modèle quitte cette machine.",
       "noKeyTitle": "Aucune clé API requise"
     },
     "history": {
@@ -2242,7 +2251,7 @@ export default {
       "networkDisabledBody": "Cet Adminium est configuré sans accès Internet sortant : il ne peut joindre aucune API de fournisseur. Utilisez l'aller-retour copier-coller ci-dessous — ni clé ni réseau requis.",
       "networkDisabledTitle": "Les fournisseurs IA directs sont désactivés sur cette installation",
       "ollama": {
-        "desc": "Modèles exécutés localement via Ollama — sans clé, sans cloud.",
+        "desc": "Des modèles exécutés par votre propre Ollama — sans clé.",
         "label": "Ollama (local)"
       },
       "openai": {
@@ -2302,7 +2311,9 @@ export default {
       "noTool": "Ce modèle a répondu sans utiliser l’outil fourni. {name} devinerait au lieu de lire vos données. Choisissez un autre modèle.",
       "wrongValue": "Ce modèle a utilisé l’outil puis a rapporté autre chose. Choisissez un autre modèle.",
       "provider": "Le modèle n’a pas répondu : {message}",
-      "error": "Le test n’a pas pu être exécuté. Réessayez."
+      "error": "Le test n’a pas pu être exécuté. Réessayez.",
+      "unreachable": "Rien ne répond à l’adresse du modèle. Vérifiez qu’il est lancé. ({message})",
+      "noModel": "Le modèle est introuvable : son fournisseur ne l’a pas. Choisissez un autre modèle. ({message})"
     },
     "allowance": {
       "title": "Quota quotidien",

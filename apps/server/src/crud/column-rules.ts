@@ -588,8 +588,18 @@ function implicitFillFor(column: EffectiveColumn, dialect: Dialect | undefined):
    * the database would fill UTC's: hours off wherever the server is not in
    * UTC. Adminium fills the moment itself on its own creates (and, for an
    * `updated_at`, its updates).
+   *
+   * SQLite is the same case by another road: `current_timestamp` there IS
+   * UTC, whatever the server's zone, so a table Adminium did not make (its own
+   * DDL writes `datetime('now', 'localtime')`) read a new row hours off. Only
+   * where the introspector marked the default as UTC text: a column filled
+   * with `unixepoch()` holds a count of seconds, and one filled with
+   * `datetime('now', 'localtime')` is right already; text written into the
+   * first would break it. A model read before the mark existed has none, and
+   * is left as it was until the schema is read again.
    */
-  if (dialect === 'mysql' && column.logicalType === 'timestamp' && column.default?.kind === 'now') {
+  const fromDatabase = column.default?.kind === 'now' ? column.default : null;
+  if (fromDatabase !== null && column.logicalType === 'timestamp' && (dialect === 'mysql' || (dialect === 'sqlite' && fromDatabase.utc === true))) {
     return { ...base, kind: 'now', onUpdate: semantic === 'updated-at' };
   }
   if (column.default !== null) return null;
@@ -1499,6 +1509,28 @@ function filledColumns(rules: TableRules): Set<string> {
     ...(rules.formulas ?? []).map((c) => c.column),
     ...(rules.numbered ?? []),
   ]);
+}
+
+/**
+ * The columns a NEW row must be given a value for, as far as can be told
+ * before it is tried: an admin's "required", and a NOT NULL column nothing
+ * fills (no default, not generated, not a key the database counts, not one of
+ * Adminium's own fills). The write itself is still the judge (a trigger may
+ * fill what looks empty); this is what somebody proposing a row is told
+ * beforehand, so the first try is not the one that finds out.
+ */
+export function requiredOnCreate(target: { view: SnapshotView; table: ResolvedTable }): string[] {
+  const rules = tableRulesFor(target);
+  const filled = rules === null ? new Set<string>() : filledColumns(rules);
+  const byRule = new Set((rules?.checks ?? []).filter((check) => check.requiredByRule === true).map((check) => check.column));
+  const out: string[] = [];
+  for (const column of target.table.table.columns) {
+    const shown = target.table.columns.get(column.name);
+    if (shown === undefined || shown.secret || shown.unreadable === true) continue;
+    if (column.isGenerated || filled.has(column.name)) continue;
+    if (byRule.has(column.name) || (!column.nullable && column.default === null)) out.push(column.name);
+  }
+  return out;
 }
 
 /**

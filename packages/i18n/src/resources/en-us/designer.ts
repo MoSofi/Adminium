@@ -178,6 +178,22 @@ export default {
     "keptWindows": "on this computer, encrypted by Windows. It is not put in your project, so a project you export or share carries none.",
     "keptLinux": "on this computer, encrypted by your desktop’s key store. It is not put in your project, so a project you export or share carries none."
   },
+  "effort": {
+    "label": "Effort: {effort}",
+    "menu": "Effort",
+    "default": "Default",
+    "defaultLine": "What the model does by itself",
+    "low": "Low",
+    "lowLine": "Fastest and cheapest",
+    "medium": "Medium",
+    "mediumLine": "A balance of speed and care",
+    "high": "High",
+    "highLine": "More thought on each step",
+    "xhigh": "Extra high",
+    "xhighLine": "For hard builds; slower, costs more",
+    "max": "Max",
+    "maxLine": "The most thought; slowest, costs the most"
+  },
   "provider": {
     "anthropic": "Anthropic",
     "openai": "OpenAI",
@@ -346,6 +362,9 @@ export default {
     "picturesDeclined": "Did without pictures",
     "picturesFailed": "Could not add pictures",
     "picturesRefused": "No pictures added",
+    "ownPicturesAdding": "Adding your pictures",
+    "ownPicturesAdded": "Your pictures added: {count}",
+    "ownPicturesFailed": "Your pictures were not added",
     "naming": "Naming the app",
     "named": "Named the app {subject}",
     "notNamed": "The app was not named",
@@ -751,7 +770,23 @@ export default {
     "composerUnsaved": "You have unsaved changes in {count, plural, one {# file} other {# files}}. The Designer will not see them.",
     "saveFirst": "Save first",
     "sendAnyway": "Send anyway",
-    "groupMobile": "Phone app"
+    "groupMobile": "Phone app",
+    "searchAll": "Search in all files",
+    "searchResults": "Search results",
+    "matchCase": "Match case",
+    "wholeWord": "Whole word",
+    "searching": "Searching…",
+    "searchFailed": "The files could not be searched.",
+    "noResults": "No results",
+    "resultCount": "{count, plural, one {# result} other {# results}} in {files, plural, one {# file} other {# files}}",
+    "resultsFirst": "The first {count} results, in {files, plural, one {# file} other {# files}}",
+    "resultLine": "Line {line}: {text}",
+    "find": "Find in this file",
+    "findAt": "{at} of {count}",
+    "findCount": "{count} found",
+    "findPrevious": "Previous result",
+    "findNext": "Next result",
+    "findClose": "Close the search"
   },
   "chat": {
     "copy": "Copy this message",
@@ -868,5 +903,19 @@ export default {
     "show": "Show the code",
     "open": "Open on a phone",
     "webNote": "Drawn by the browser: close to the phone, not the phone. The Designer does not look at this side."
+  },
+  "pick": {
+    "button": "Pick an element on the page",
+    "hint": "Click the part of the page you want changed. Esc stops.",
+    "chip": "Picked element",
+    "remove": "Take the picked element off",
+    "placeholder": "Say what to change about this element…"
+  },
+  "shot": {
+    "button": "Take a picture of a part of the page",
+    "hint": "Drag over the part of the page you mean. Esc stops.",
+    "area": "Drag over the part of the page to take a picture of",
+    "drawing": "Taking the picture…",
+    "failed": "The page could not draw that part. Try again, or attach a picture of your own."
   }
 } as const;

@@ -1203,6 +1203,11 @@ export default {
     }
   },
   "meta": {
+    "checking": "Checking where Adminium keeps its own tables…",
+    "keep": {
+      "description": "Where Adminium keeps its own tables now. Nothing is moved, and your database is not written to.",
+      "title": "Keep it in the file on this machine"
+    },
     "move": {
       "copying": "Moving Adminium’s tables…",
       "copyingBody": "Copying every adminium_ table into the new database. Your source data is not touched, and nothing is switched over until the copy is verified.",
@@ -1228,6 +1233,9 @@ export default {
       "ok": "Compatible — write ✓ · DDL ✓",
       "test": "Test connection",
       "title": "Separate database"
+    },
+    "settled": {
+      "body": "Adminium keeps its own tables where they are now, and this step does not move them. There is nothing to choose here."
     },
     "subtitle": "Pages, roles, audit log and settings live in adminium_-prefixed tables — never mixed into your data.",
     "testFailed": "Connection failed.",
@@ -2213,6 +2221,7 @@ export default {
       "modelPlaceholder": "Select a model…",
       "modelStatic": "A known-good list; type a custom id after saving to refresh it.",
       "noKeyBody": "Ollama runs locally, so nothing leaves this machine.",
+      "noKeyRemoteBody": "This is an Ollama cloud model: Ollama runs it on its own servers, so what the model is given leaves this machine.",
       "noKeyTitle": "No API key needed"
     },
     "history": {
@@ -2242,7 +2251,7 @@ export default {
       "networkDisabledBody": "This Adminium is configured with no outbound internet access, so it cannot reach a provider API. Use the copy-paste round-trip below — it needs no key and no network.",
       "networkDisabledTitle": "Direct AI providers are turned off on this install",
       "ollama": {
-        "desc": "Models running locally through Ollama — no key, no cloud.",
+        "desc": "Models run through your own Ollama — no key.",
         "label": "Ollama (local)"
       },
       "openai": {
@@ -2302,7 +2311,9 @@ export default {
       "noTool": "This model answered without using the tool it was given. {name} would guess instead of reading your data. Choose another model.",
       "wrongValue": "This model used the tool and then reported something else. Choose another model.",
       "provider": "The model did not answer: {message}",
-      "error": "The test could not be run. Try again."
+      "error": "The test could not be run. Try again.",
+      "unreachable": "Nothing answers at the model’s address. Check that it is running. ({message})",
+      "noModel": "The model is not there: its provider does not have it. Choose another model. ({message})"
     },
     "allowance": {
       "title": "Daily allowance",

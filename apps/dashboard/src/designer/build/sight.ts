@@ -34,18 +34,24 @@ export type PageFault = Record<string, string | number>;
 
 /** Which side the preview on this page shows now; null when no preview is open. Set by the preview itself. */
 let shown: 'dashboard' | 'staff' | 'customer' | 'mobile' | null = null;
-export function previewShows(side: 'dashboard' | 'staff' | 'customer' | 'mobile' | null): void {
+/** The app has no screen of its own yet, and the preview will turn to the first one a turn makes. */
+let soon = false;
+export function previewShows(side: 'dashboard' | 'staff' | 'customer' | 'mobile' | null, firstScreenToCome = false): void {
   shown = side;
+  soon = firstScreenToCome;
 }
 
 /**
  * Whether a turn started from the build page will be shown its screen: the
- * person lets it, and the preview is open on one of the app's own sides. On
- * the Dashboard tab there is no screen of the app's to look at, and a turn
- * told otherwise would wait for a picture that never comes.
+ * person lets it, and the preview is open on one of the app's own sides, or
+ * the app has none yet and the preview will open on the first. On the
+ * Dashboard tab of an app that has screens there is none to look at, and a
+ * turn told otherwise would wait for a picture that never comes.
  */
 export function looksNow(): boolean {
-  return seesPage() && (shown === 'staff' || shown === 'customer');
+  // An app with no screen yet: the turn about to start may make its first one, and the preview turns to it by
+  // itself. That first screen is the one most worth a look, and a turn that makes none waits for nothing.
+  return seesPage() && (shown === 'staff' || shown === 'customer' || soon);
 }
 
 export interface PageSight {

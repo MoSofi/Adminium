@@ -55,6 +55,8 @@ export interface EditorActions {
    * draft does not carry yet (D5/O2) without a render in between.
    */
   save: (override?: Partial<EditorDraft>) => Promise<ReportDetail>;
+  /** Take a stored version as both the draft and the saved baseline (a save made from the assistant's panel). One undo step. */
+  adopt: (detail: ReportDetail) => void;
 }
 
 function applyPatch(draft: EditorDraft, patch: DraftPatch): EditorDraft {
@@ -123,10 +125,17 @@ export function useEditorDraft(detail: ReportDetail): [EditorState, EditorAction
     [mutateAsync],
   );
 
+  const adopt = useCallback((stored: ReportDetail) => {
+    const next = draftFromDetail(stored);
+    setHistory((h) => pushHistory(h, draftRef.current));
+    setDraft(next);
+    setSaved(next);
+  }, []);
+
   const status: SaveStatus = saveMutation.isPending ? 'saving' : saveMutation.isError ? 'error' : dirty ? 'dirty' : 'saved';
   const error = saveMutation.isError ? (saveMutation.error instanceof Error ? saveMutation.error.message : String(saveMutation.error)) : null;
 
-  const actions = useMemo<EditorActions>(() => ({ beginEdit, mutate, histMutate, undo, redo, save }), [beginEdit, mutate, histMutate, undo, redo, save]);
+  const actions = useMemo<EditorActions>(() => ({ beginEdit, mutate, histMutate, undo, redo, save, adopt }), [beginEdit, mutate, histMutate, undo, redo, save, adopt]);
 
   return [
     {

@@ -15,7 +15,7 @@ import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, renam
 import { randomBytes } from 'node:crypto';
 import { join } from 'node:path';
 
-import type { RunMessage } from '@adminium/llm';
+import type { RunEffort, RunMessage } from '@adminium/llm';
 
 import { NotFoundError } from '../errors.js';
 import type { DesignerEvent } from './events.js';
@@ -36,6 +36,8 @@ export interface DesignerSession {
   /** The model connection and model a turn calls. */
   connectionId: string;
   model: string;
+  /** How hard the model is asked to work, when the person chose; absent at the model's own default. */
+  effort?: RunEffort | undefined;
   createdAt: number;
   updatedAt: number;
   /** How many turns were started. */

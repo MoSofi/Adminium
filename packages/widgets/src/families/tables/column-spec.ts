@@ -90,6 +90,9 @@ export function isTemporalColumn(column: GridColumnSpec): boolean {
 /** End-align money and plain numbers (comp keeper: mono end-aligned). */
 export function columnAlign(column: GridColumnSpec): 'start' | 'end' {
   if (column.align !== undefined) return column.align;
+  // An FK column stores an integer id but draws a name chip — words, which
+  // read from the start edge like every other text column.
+  if (column.fk !== undefined && column.display === undefined && column.semantic !== 'money') return 'start';
   return isNumericColumn(column) ? 'end' : 'start';
 }
 

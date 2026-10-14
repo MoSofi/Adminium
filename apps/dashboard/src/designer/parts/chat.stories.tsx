@@ -7,6 +7,7 @@
 
 import type { StepRow } from '../build/turns.js';
 import { BuildComposer } from './BuildComposer.js';
+import { PickedTray, SentPicked } from './picked.js';
 import {
   AddOnCard,
   DesignerMessage,
@@ -171,6 +172,28 @@ export const Composer = {
     <div className="flex w-[420px] flex-col gap-4 bg-surface-2 p-3">
       <BuildComposer value="" onChange={noop} onSend={noop} onStop={noop} working={false} canSend placeholder="Describe a change…" model={<span className="px-2 text-xs font-bold text-fg-muted">Claude Sonnet 5.5</span>} />
       <BuildComposer value="" onChange={noop} onSend={noop} onStop={noop} working canSend={false} placeholder="Describe a change…" model={<span className="px-2 text-xs font-bold text-fg-muted">Claude Sonnet 5.5</span>} />
+    </div>
+  ),
+};
+
+const PICKED = { side: 'customer' as const, path: '/menu', page: 1280, part: 'button btn primary', text: 'Add to cart', label: '', within: ['div card'], nth: 3, of: 12, width: 120, height: 40 };
+
+/** The element a person pointed at in the preview: waiting above the box, and under a sent message. */
+export const PickedElement = {
+  render: () => (
+    <div className="flex w-[420px] flex-col gap-4 bg-surface-2 p-3">
+      <BuildComposer
+        value=""
+        onChange={noop}
+        onSend={noop}
+        onStop={noop}
+        working={false}
+        canSend
+        placeholder="Say what to change about this element…"
+        model={<span className="px-2 text-xs font-bold text-fg-muted">Claude Sonnet 5.5</span>}
+        tray={<PickedTray picked={PICKED} onRemove={noop} />}
+      />
+      <SentPicked picked={{ ...PICKED, part: 'img hero', text: '', label: 'The house burger on a wooden board, seen from above' }} />
     </div>
   ),
 };

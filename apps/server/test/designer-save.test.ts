@@ -321,6 +321,17 @@ describe.skipIf(!canBuildSides)('the files of an app, opened and saved by hand',
     expect((await client.call('GET', `${filesUrl(id)}/content`)).status).toBe(422);
     expect((await client.call('GET', `${filesUrl(id)}/content?path=${'a'.repeat(301)}`)).status).toBe(422);
 
+    // A search looks through the files of the list and no other: what the link, the hook and the file beside the app hold is never found.
+    const found = await client.call('GET', `${filesUrl(id)}/search?q=${encodeURIComponent('plain and QUICK')}`);
+    expect(found.status, JSON.stringify(found.body)).toBe(200);
+    expect(found.headers['cache-control']).toBe('no-store');
+    expect(found.body).toEqual({ files: [{ path: BRIEF, hash: all.get(BRIEF)?.hash, hits: [{ line: 3, col: 0, len: 15, text: 'Plain and quick.', at: 0 }] }], more: false });
+    expect((await client.call('GET', `${filesUrl(id)}/search?q=${encodeURIComponent('plain and QUICK')}&case=1`)).body).toEqual({ files: [], more: false });
+    expect((await client.call('GET', `${filesUrl(id)}/search?q=${encodeURIComponent('Plain and qui')}&word=1`)).body).toEqual({ files: [], more: false });
+    for (const hidden of ['export const key', 'export {};']) expect((await client.call('GET', `${filesUrl(id)}/search?q=${encodeURIComponent(hidden)}`)).body, hidden).toEqual({ files: [], more: false });
+    expect((await client.call('GET', `${filesUrl(id)}/search`)).status).toBe(422);
+    expect((await client.call('GET', `${filesUrl(id)}/search?q=${'a'.repeat(201)}`)).status).toBe(422);
+
     // A file that is not text is on no list, and opening it says why, with no new kind of error.
     writeFileSync(join(root, APP, 'customer/src/blob.ts'), Buffer.from([0x61, 0x00, 0x62]));
     expect((await listed(client, id)).all.has(`${APP}/customer/src/blob.ts`)).toBe(false);

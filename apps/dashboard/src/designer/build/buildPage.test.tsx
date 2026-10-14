@@ -613,7 +613,12 @@ describe('the build page', () => {
   it('tells the server it is watching the preview when a turn starts: only while the preview shows one of the app’s own screens, and not once a person switched the look off', async () => {
     window.localStorage.removeItem('adminium.designer.sees');
     await open();
-    // No preview on one of the app's screens (nothing applied yet, or the Dashboard tab): a turn told "watching" would wait for a picture that never comes.
+    // The app has no screen of its own yet: the turn may make its first, the preview turns to it, and that screen is looked at.
+    await userEvent.type(screen.getByRole('textbox', { name: 'Message to Adminium Designer' }), 'Make me a website.{Enter}');
+    await waitFor(() => expect(posted('/turns')).toEqual([{ text: 'Make me a website.', sees: true }]));
+    calls = [];
+    // The Dashboard tab of an app that has screens: a turn told "watching" would wait for a picture that never comes.
+    previewShows('dashboard');
     await userEvent.type(screen.getByRole('textbox', { name: 'Message to Adminium Designer' }), 'Add a notes field.{Enter}');
     await waitFor(() => expect(posted('/turns')).toEqual([{ text: 'Add a notes field.' }]));
     calls = [];
@@ -680,6 +685,18 @@ describe('the build page', () => {
     await userEvent.click(await screen.findByRole('button', { name: /Try again|Retry/ }));
     await waitFor(() => expect(posted('/turns')).toEqual([{ text: 'Like this picture.', attachments: ['att_00000000000000000007'] }]));
     expect(uploads).toBe(0);
+  });
+
+  it('shows the element a sent message was about, and asks again with a failed turn’s own element', async () => {
+    const picked = { side: 'customer' as const, path: '/menu', page: 1280, part: 'button btn primary', text: 'Add to cart', label: '', within: ['div card'], nth: 1, of: 1, width: 120, height: 40 };
+    stored = [ev(1, { kind: 'turn-started', text: 'Make it larger.', picked }), ev(1, { kind: 'error', code: 'server', message: 'The model’s server failed.' }), ev(1, { kind: 'turn-finished', outcome: 'failed' })];
+    await open();
+    const chip = await screen.findByRole('group', { name: 'Picked element' });
+    expect(chip.textContent).toBe('<button>Add to cart/menu');
+    // Under a sent message it is what was said: there is nothing to take off.
+    expect(within(chip).queryByRole('button')).toBeNull();
+    await userEvent.click(await screen.findByRole('button', { name: /Try again|Retry/ }));
+    await waitFor(() => expect(posted('/turns')).toEqual([{ text: 'Make it larger.', picked }]));
   });
 
   it('keeps the message and says why when the server refuses a file', async () => {

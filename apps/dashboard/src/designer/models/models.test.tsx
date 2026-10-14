@@ -321,7 +321,7 @@ describe('Add a model', () => {
 describe('the model button', () => {
   it('is a skeleton while the models load', () => {
     const { container } = render(
-      <ModelButton model={{ loading: true, hasModels: false, models: undefined, canAdd: true, picked: null, canBuild: null, cannotBuildMessage: null, pick: () => undefined }} />,
+      <ModelButton model={{ loading: true, hasModels: false, models: undefined, canAdd: true, picked: null, canBuild: null, cannotBuildMessage: null, pick: () => undefined, efforts: [], effort: null, pickEffort: () => undefined }} />,
     );
     expect(container.querySelector('[aria-hidden="true"]')).not.toBeNull();
   });

@@ -51,8 +51,8 @@ export type ProposalState = 'unchecked' | 'open' | 'refused' | 'superseded' | 'e
 export interface ProposalRefusal {
   code: string;
   message: string;
-  /** The columns a route named, when it named any. */
-  fields?: string[];
+  /** The columns a route named, when it named any, each with the route's own reason (`required`, `invalid`, `unknown`, …). */
+  fields?: { column: string; code: string }[];
 }
 
 export type ProposalPreview =
@@ -211,12 +211,23 @@ function clip(row: unknown): Record<string, unknown> {
 
 /** A route's refusal, read from its error envelope. */
 function refusalOf(reply: DoorReply): ProposalRefusal {
-  const error = (reply.body as { error?: { code?: unknown; message?: unknown; details?: { fields?: unknown } } } | null)?.error;
-  const fields = error?.details?.fields;
+  const error = (reply.body as { error?: { code?: unknown; message?: unknown; details?: { fields?: unknown; column?: unknown } } } | null)?.error;
+  const code = typeof error?.code === 'string' ? error.code : `HTTP_${String(reply.status)}`;
+  const named = error?.details?.fields;
+  // Which column, and why: "Some values were refused" alone leaves a person, and the model
+  // asked to put it right, with nothing to act on.
+  const fields: { column: string; code: string }[] =
+    typeof named === 'object' && named !== null
+      ? Object.entries(named as Record<string, unknown>)
+          .slice(0, 20)
+          .map(([column, issue]) => ({ column, code: typeof (issue as { code?: unknown } | null)?.code === 'string' ? (issue as { code: string }).code : 'invalid' }))
+      : code === 'UNKNOWN_IDENTIFIER' && typeof error?.details?.column === 'string'
+        ? [{ column: error.details.column, code: 'unknown' }]
+        : [];
   return {
-    code: typeof error?.code === 'string' ? error.code : `HTTP_${String(reply.status)}`,
+    code,
     message: typeof error?.message === 'string' ? error.message : 'The server refused this.',
-    ...(typeof fields === 'object' && fields !== null ? { fields: Object.keys(fields).slice(0, 20) } : {}),
+    ...(fields.length > 0 ? { fields } : {}),
   };
 }
 
@@ -272,9 +283,23 @@ async function checkSend(input: { action: CheckedAction; abilities: CheckDocInpu
   if (row === null) return { checked: { ...action, refused: { code: 'NOT_FOUND', message: 'That mail is not there.' } } };
   if (row.kind !== 'campaign') return { checked: { ...action, refused: { code: 'NOT_A_CAMPAIGN', message: 'Only a campaign can be sent to people.' } } };
   if (row.archivedAt !== null) return { checked: { ...action, refused: { code: 'ARCHIVED', message: 'An archived campaign cannot be sent.' } } };
-  // A mail the assistant drafted is saved switched off. It is sent only after a person has
-  // looked at it and switched it on: the assistant never sends what only it has read.
-  if (!row.enabled) return { checked: { ...action, refused: { code: 'NOT_LIVE', message: 'A draft is switched on by a person before it can be sent.' } } };
+  // The assistant never sends what only it has read. A mail it wrote (drafted, saved over,
+  // added as a language) carries a mark until a person saves it or says it looks right; a
+  // campaign goes out in every language that is not waiting for a translation, so each of
+  // those is asked. (`enabled` is not the test: a campaign has no switch for it.)
+  const sent = [row, ...(await emailTemplatesRepo(deps.meta).siblings(row.key)).filter((sibling) => sibling.id !== row.id && sibling.archivedAt === null && !sibling.needsTranslation)];
+  const unread = sent.filter((mail) => mail.assistantWroteAt !== null);
+  if (unread.length > 0) {
+    return {
+      checked: {
+        ...action,
+        refused: {
+          code: 'NOT_SEEN',
+          message: `The assistant wrote the latest version of this campaign (${unread.map((mail) => mail.locale).join(', ')}) and nobody has looked at it since. Open it in the editor and say it looks right first.`,
+        },
+      },
+    };
+  }
   const known = await rolesRepo(deps.meta).list();
   const roles: { id: string; name: string }[] = [];
   for (const asked of action.roles) {

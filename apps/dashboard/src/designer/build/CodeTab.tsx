@@ -7,14 +7,20 @@
  * The files are the model's (`useCodeFiles`); this draws them and hosts the
  * editor. Above the editor one line says why it cannot be typed in, or what
  * became of a save, with what can be done about it.
+ *
+ * Two searches: one of the open file, in a bar above the editor (Ctrl+F or
+ * Cmd+F), and one of every file, above the list, whose places take the
+ * list's place while something is looked for (`CodeSearch`).
  */
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
-import { ChevronRight, FileCode, FileJson, FileText, Folder, FolderOpen, LoaderCircle, TriangleAlert } from 'lucide-react';
-import { Button } from '@adminium/ui';
+import { ChevronRight, FileCode, FileJson, FileText, Folder, FolderOpen, LoaderCircle, Search, TriangleAlert } from 'lucide-react';
+import { Button, Tooltip } from '@adminium/ui';
 
 import { t } from '../../i18n/t.js';
-import type { DesignerFileGroup } from '../api.js';
+import type { DesignerFileGroup, DesignerFileHit } from '../api.js';
 import { createCodeEditor, type CodeEditor } from './code/editor.js';
+import type { FindSpec } from './code/find.js';
+import { FindBar, FindField, NO_FIND, SearchResults, useFilesSearch, type FoundInFile } from './CodeSearch.js';
 import { findFile, foldersOf, nameOf, treeRows, type TreeRow } from './fileTree.js';
 import type { CodeFiles, CodeLock } from './useCodeFiles.js';
 
@@ -55,6 +61,21 @@ export default function CodeTab({ code, compact, onFix }: { code: CodeFiles; /**
   const saving = useRef(code.save);
   saving.current = code.save;
 
+  /** The open file's search: its bar, what is looked for, and what the editor found. */
+  const [bar, setBar] = useState<{ open: boolean; spec: FindSpec }>({ open: false, spec: NO_FIND });
+  const [places, setPlaces] = useState<FoundInFile>({ count: 0, at: -1, more: false });
+  const findInput = useRef<HTMLInputElement>(null);
+  /** Every file's search. */
+  const [all, setAll] = useState<FindSpec>(NO_FIND);
+  const allInput = useRef<HTMLInputElement>(null);
+  const results = useRef<HTMLDivElement>(null);
+  const search = useFilesSearch(code, all);
+  const searching = all.query !== '';
+  const searchingNow = useRef(searching);
+  searchingNow.current = searching;
+  /** A place chosen in a file the editor does not show yet: gone to when it does. */
+  const pending = useRef<{ path: string; hit: DesignerFileHit } | null>(null);
+
   const { attach, onText } = code;
   useEffect(() => {
     if (host.current === null) return;
@@ -62,7 +83,9 @@ export default function CodeTab({ code, compact, onFix }: { code: CodeFiles; /**
       onChange: onText,
       onSave: () => void saving.current(),
       // Tab types here, so Escape is the keyboard's way out: to the open file's row.
-      onLeave: () => (files.current?.querySelector<HTMLElement>('[aria-current="page"]') ?? files.current?.querySelector<HTMLElement>('button'))?.focus(),
+      // While the places of a search have the list's place, the way out is to the search.
+      onLeave: () => (searchingNow.current ? allInput.current : (files.current?.querySelector<HTMLElement>('[aria-current="page"]') ?? files.current?.querySelector<HTMLElement>('button')))?.focus(),
+      onFound: setPlaces,
     });
     editor.current = made;
     attach(made);
@@ -81,8 +104,48 @@ export default function CodeTab({ code, compact, onFix }: { code: CodeFiles; /**
   useEffect(() => {
     if (!ready || open === null) return;
     const text = textFor(open);
-    if (text !== null) editor.current?.open(open, text);
+    if (text === null) return;
+    editor.current?.open(open, text);
+    const to = pending.current;
+    if (to === null || to.path !== open) return;
+    pending.current = null;
+    editor.current?.reveal(to.hit.line, to.hit.col, to.hit.len);
   }, [open, ready, textFor]);
+
+  /** Set what the bar holds, have the editor look for it, and (`jump`) go to the nearest place. */
+  const look = (next: { open: boolean; spec: FindSpec }, jump: boolean): void => {
+    setBar(next);
+    const spec = next.open && next.spec.query !== '' ? next.spec : null;
+    editor.current?.find(spec);
+    if (jump && spec !== null) editor.current?.step(0);
+  };
+  const [asked, askFind] = useState(0);
+  const openFind = (): void => {
+    // What is selected is what is looked for, as an editor has it.
+    const selected = editor.current?.selected() ?? '';
+    look({ open: true, spec: selected === '' ? bar.spec : { ...bar.spec, query: selected } }, true);
+    askFind((count) => count + 1);
+  };
+  const closeFind = (): void => {
+    look({ ...bar, open: false }, false);
+    editor.current?.focus();
+  };
+  useEffect(() => {
+    if (asked === 0) return;
+    findInput.current?.focus();
+    findInput.current?.select();
+  }, [asked]);
+
+  /** A place chosen from every file's search: its file is opened, the editor looks for the same words, and the place is selected. */
+  const go = (path: string, hit: DesignerFileHit): void => {
+    look({ open: true, spec: search.spec }, false);
+    if (path === open && ready && editor.current?.shown() === path) {
+      editor.current.reveal(hit.line, hit.col, hit.len);
+      return;
+    }
+    pending.current = { path, hit };
+    code.setOpen(path);
+  };
 
   const gone = open !== null && code.gone.has(open);
   const held = code.lock !== null || gone;
@@ -117,7 +180,7 @@ export default function CodeTab({ code, compact, onFix }: { code: CodeFiles; /**
   const stop = at !== null && groups.some((group) => group.rows.some((row) => row.key === at)) ? at : (open ?? groups[0]?.rows[0]?.key ?? null);
 
   const onListKey = (event: KeyboardEvent<HTMLElement>): void => {
-    const rows = [...(files.current?.querySelectorAll<HTMLElement>('button[data-row]') ?? [])];
+    const rows = [...event.currentTarget.querySelectorAll<HTMLElement>('button[data-row]')];
     const index = rows.indexOf(document.activeElement as HTMLElement);
     if (index === -1) return;
     const to = event.key === 'ArrowDown' ? index + 1 : event.key === 'ArrowUp' ? index - 1 : event.key === 'Home' ? 0 : event.key === 'End' ? rows.length - 1 : -1;
@@ -271,17 +334,47 @@ export default function CodeTab({ code, compact, onFix }: { code: CodeFiles; /**
     <div
       // The save key works anywhere in the tab; inside the editor it is the editor's own key.
       onKeyDownCapture={(event) => {
-        if ((event.metaKey || event.ctrlKey) && !event.altKey && event.key.toLowerCase() === 's' && !(event.target instanceof HTMLElement && event.target.closest('.cm-editor') !== null)) {
+        if (!(event.metaKey || event.ctrlKey) || event.altKey) return;
+        const key = event.key.toLowerCase();
+        if (key === 's' && !(event.target instanceof HTMLElement && event.target.closest('.cm-editor') !== null)) {
           event.preventDefault();
           void code.save();
+        } else if (key === 'f' && event.shiftKey) {
+          event.preventDefault();
+          allInput.current?.focus();
+          allInput.current?.select();
+        } else if (key === 'f' && ready) {
+          event.preventDefault();
+          openFind();
         }
       }}
       className={`flex min-h-0 flex-1 bg-surface leading-[normal] ${compact ? 'flex-col' : 'flex-row'}`}
     >
-      <nav ref={files} aria-label={t('designer:code.files', 'Files')} onKeyDown={onListKey} className={`flex min-h-0 flex-col bg-surface ${compact ? 'max-h-[220px] w-full shrink-0 border-b border-border' : 'w-60 shrink-0 border-e border-border'}`}>
-        <div className="nb-scroll flex min-h-0 flex-1 flex-col gap-3.5 overflow-y-auto px-2 py-3">{listBody()}</div>
+      <div className={`flex min-h-0 flex-col bg-surface ${compact ? 'max-h-[260px] w-full shrink-0 border-b border-border' : 'w-60 shrink-0 border-e border-border'}`}>
+        <div role="search" aria-label={t('designer:code.searchAll', 'Search in all files')} className="flex shrink-0 border-b border-border p-2">
+          <FindField
+            spec={all}
+            onSpec={setAll}
+            label={t('designer:code.searchAll', 'Search in all files')}
+            inputRef={allInput}
+            onKeyDown={(event) => {
+              if (event.key === 'Escape' && searching) {
+                event.preventDefault();
+                setAll({ ...all, query: '' });
+              } else if (event.key === 'ArrowDown' && searching) {
+                event.preventDefault();
+                results.current?.querySelector<HTMLElement>('button[data-row]')?.focus();
+              }
+            }}
+          />
+        </div>
+        {/* Kept while a search has its place: the folders a person opened are as they left them. */}
+        <nav ref={files} aria-label={t('designer:code.files', 'Files')} onKeyDown={onListKey} hidden={searching} className={searching ? 'hidden' : 'nb-scroll flex min-h-0 flex-1 flex-col gap-3.5 overflow-y-auto px-2 py-3'}>
+          {listBody()}
+        </nav>
+        {searching ? <SearchResults search={search} open={open} listRef={results} onGo={go} onKeyDown={onListKey} /> : null}
         <p className="m-0 border-t border-border px-3.5 pb-3 pt-2.5 text-[11.5px] leading-[1.5] text-fg-subtle">{t('designer:code.foot', 'Only the files you can safely change are shown here.')}</p>
-      </nav>
+      </div>
       <div className="flex min-h-0 min-w-0 flex-1 flex-col bg-surface">
         {line()}
         {open !== null && code.content.state === 'loading' ? (
@@ -297,7 +390,23 @@ export default function CodeTab({ code, compact, onFix }: { code: CodeFiles; /**
             {small(t('designer:code.tryAgain', 'Try again'), code.retryContent, true)}
           </div>
         ) : null}
-        <div ref={host} dir="ltr" data-part="code-editor" className={`min-h-0 flex-1 overflow-hidden ${ready ? '' : 'invisible'}`} />
+        {bar.open && ready ? <FindBar spec={bar.spec} onSpec={(spec) => look({ open: true, spec }, true)} found={places} inputRef={findInput} onStep={(direction) => editor.current?.step(direction)} onClose={closeFind} /> : null}
+        <div className="relative flex min-h-0 flex-1 flex-col">
+          <div ref={host} dir="ltr" data-part="code-editor" className={`min-h-0 flex-1 overflow-hidden ${ready ? '' : 'invisible'}`} />
+          {ready && !bar.open ? (
+            <Tooltip content={t('designer:code.find', 'Find in this file')}>
+              <button
+                type="button"
+                onClick={openFind}
+                aria-label={t('designer:code.find', 'Find in this file')}
+                aria-keyshortcuts="Control+F Meta+F"
+                className="absolute end-5 top-2 flex size-7 items-center justify-center rounded-[8px] border border-border bg-surface text-fg-muted shadow-sm hover:text-fg focus-visible:outline-2 focus-visible:outline-accent"
+              >
+                <Search aria-hidden="true" className="size-3.5" />
+              </button>
+            </Tooltip>
+          ) : null}
+        </div>
       </div>
     </div>
   );

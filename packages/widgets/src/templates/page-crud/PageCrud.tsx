@@ -430,15 +430,23 @@ export function PageCrud({
     }
   }, [columns, list.rows]);
 
+  /** What narrows the rows: the search and the filters. The list and its count are asked with the same. */
+  const narrowing = useMemo<Pick<CrudListParams, 'q' | 'where'>>(
+    () => ({
+      ...(q === '' ? {} : { q }),
+      ...(filters.length === 0 ? {} : { where: filters.length === 1 ? (filters[0] as CrudFilterCondition) : { and: [...filters] } }),
+    }),
+    [q, filters],
+  );
+
   const listParams = useMemo<CrudListParams>(
     () => ({
       limit: pageSize,
       cursor,
-      ...(q === '' ? {} : { q }),
-      ...(filters.length === 0 ? {} : { where: filters.length === 1 ? (filters[0] as CrudFilterCondition) : { and: [...filters] } }),
+      ...narrowing,
       ...(sort === null ? {} : { order: [sort] }),
     }),
-    [pageSize, cursor, q, filters, sort],
+    [pageSize, cursor, narrowing, sort],
   );
 
   /**
@@ -493,10 +501,12 @@ export function PageCrud({
 
   // Count probe — keyset replies carry no total, so the footer's
   // "of 8,402" and the unique-check microcopy come from one estimated count.
+  // It counts the rows the list shows: a total of the whole table under a
+  // filtered grid reads "of 800" beside 76 rows.
   useEffect(() => {
     let alive = true;
     api
-      .list({ limit: 1, offset: 0, count: 'estimated', ...(q === '' ? {} : { q }) })
+      .list({ limit: 1, offset: 0, count: 'estimated', ...narrowing })
       .then((result) => {
         if (alive) setTotal(result.page?.total ?? null);
       })
@@ -506,7 +516,7 @@ export function PageCrud({
     return () => {
       alive = false;
     };
-  }, [api, q, filters, reloadTick]);
+  }, [api, narrowing, reloadTick]);
 
   const refetch = useCallback(() => {
     setReloadTick((tick) => tick + 1);

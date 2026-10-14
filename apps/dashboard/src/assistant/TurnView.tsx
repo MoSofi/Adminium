@@ -77,8 +77,36 @@ export function failureText(turn: ThreadTurn, name: string, canConfigure: boolea
       // The bar across the window says when it starts again; this is the turn's own line.
       return t('assistant:error.budget', 'This stopped part way: today’s allowance is used up.');
     default:
+      // The two a person can act on are worded; the provider's own text stands under them.
+      if (turn.providerFailure === 'unreachable') return t('assistant:error.unreachable', 'Nothing answers at the model’s address. Check that it is running, then try again.');
+      if (turn.providerFailure === 'no-model') {
+        return canConfigure
+          ? t('assistant:error.noModel', 'The model is not there: its provider does not have it. Choose another model in Settings → AI.')
+          : t('assistant:error.noModelAsk', 'The model is not there: its provider does not have it. Ask an administrator to choose another model.');
+      }
       return turn.errorMessage ?? t('assistant:error.generic', 'That did not work. Try asking again.');
   }
+}
+
+/**
+ * What the steps card is headed, by how the turn ENDED. The page's own title
+ * ("Drafted a new email template") is true only of a turn that drafted: a
+ * request to send a campaign, a rule the model declined to draft and a turn
+ * that failed were all headed with it.
+ */
+export function stepsTitle(turn: Pick<ThreadTurn, 'status' | 'result' | 'ask' | 'answer'>, working: boolean, workTitle: string, drafts = true): string {
+  if (working) return t('assistant:steps.working', 'Working on it');
+  if (turn.status === 'failed') return t('assistant:steps.title.failed', 'Could not finish');
+  if (turn.result !== null) return turn.result.workTitle ?? workTitle;
+  if ((turn.answer?.proposal ?? null) !== null) return t('assistant:steps.title.proposed', 'Worked out what would change');
+  if (turn.ask !== null) return t('assistant:steps.title.asked', 'Has a question for you');
+  // A page that drafts nothing ("Read the data") is titled truly by its own words whatever it answered.
+  return drafts ? t('assistant:steps.title.answered', 'Looked it up') : workTitle;
+}
+
+/** The provider's own words, kept under a failure this app worded itself; `null` when they ARE the sentence. */
+export function failureDetail(turn: ThreadTurn): string | null {
+  return turn.errorKind === null && turn.providerFailure !== null ? turn.errorMessage : null;
 }
 
 export function TurnView({
@@ -123,7 +151,7 @@ export function TurnView({
       {steps.length === 0 && !working ? null : (
         <AssistantBubble>
           <StepsCard
-            title={working ? t('assistant:steps.working', 'Working on it') : (turn.result?.workTitle ?? workTitle)}
+            title={stepsTitle(turn, working, workTitle, context !== 'data' && context !== 'general')}
             steps={steps}
             state={working ? 'working' : failed ? 'failed' : 'done'}
             context={context}
@@ -197,6 +225,7 @@ export function TurnView({
           <div className="min-w-0 flex-1 overflow-hidden rounded-[16px] border border-border bg-surface pt-4 shadow-menu">
             <Warning
               text={failureText(turn, name, canConfigure)}
+              {...(failureDetail(turn) === null ? {} : { detail: failureDetail(turn) as string })}
               {...(onRetry === null || turn.errorKind === 'model-format' || turn.errorKind === 'budget'
                 ? {}
                 : {

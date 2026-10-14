@@ -51,6 +51,8 @@ export interface LiveProposalProps {
   blocked: boolean;
   /** The turn changed on the server: read it again. */
   onChanged: () => void;
+  /** A confirmed card saved a draft over this stored document: its page reloads it as saved. */
+  onSavedOver?: ((documentId: string) => void) | undefined;
   /** Open a mail in its editor, from a send's card. */
   onOpenTemplate?: ((id: string) => void) | undefined;
   rtl?: boolean;
@@ -85,7 +87,7 @@ export function forgetProposals(): void {
 /** How far along a proposal is: a copy further along is the newer one. */
 const rank = (proposal: AssistantProposal): number => (proposal.state === 'unchecked' ? 0 : proposal.state === 'open' ? 1 : 2);
 
-export function LiveProposal({ sessionId, turnId, proposal: stored, name, newest, atHome, homeTitle, onOpenHome, onAsk, blocked, onChanged, onOpenTemplate, rtl = typeof document !== 'undefined' && document.documentElement.dir === 'rtl', now = Date.now }: LiveProposalProps) {
+export function LiveProposal({ sessionId, turnId, proposal: stored, name, newest, atHome, homeTitle, onOpenHome, onAsk, blocked, onChanged, onSavedOver, onOpenTemplate, rtl = typeof document !== 'undefined' && document.documentElement.dir === 'rtl', now = Date.now }: LiveProposalProps) {
   const memory = remembered.get(turnId);
   // What the server last said of it: the turn's own copy, until a check or a confirm answers a newer one.
   const [fresh, setFresh] = useState<AssistantProposal | null>(memory?.fresh ?? null);
@@ -157,7 +159,13 @@ export function LiveProposal({ sessionId, turnId, proposal: stored, name, newest
     const count = proposal.actions.length;
     assistantApi.applyProposal(sessionId, turnId, { hash: proposal.hash, pick: picked.map((entry) => entry.index) }).then(
       (reply) => {
-        setFresh(readProposal(reply.proposal));
+        const after = readProposal(reply.proposal);
+        setFresh(after);
+        // What was saved over a stored document is told to its page, which is showing the old one.
+        for (const entry of after?.outcome?.done ?? []) {
+          const preview = after?.actions[entry.index]?.preview;
+          if (preview?.kind === 'doc.change' && preview.id !== '') onSavedOver?.(preview.id);
+        }
         const tokens = reply.undo ?? [];
         setUndo({ tokens, at: tokens.length === 0 ? 0 : began, given: tokens.length });
         setChanged(false);
@@ -180,7 +188,7 @@ export function LiveProposal({ sessionId, turnId, proposal: stored, name, newest
         onChanged();
       },
     );
-  }, [sessionId, turnId, proposal.hash, proposal.actions.length, picked, phase, now, onChanged]);
+  }, [sessionId, turnId, proposal.hash, proposal.actions.length, picked, phase, now, onChanged, onSavedOver]);
 
   const takeBack = useCallback(() => {
     if (undo === null || undo.tokens.length === 0 || phase !== 'idle') return;

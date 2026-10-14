@@ -67,6 +67,9 @@ export function stepLine(row: StepRow): string {
     case 'name_app':
       if (running) return t('designer:step.naming', 'Naming the app');
       return row.state === 'failed' || row.subject === undefined ? t('designer:step.notNamed', 'The app was not named') : t('designer:step.named', 'Named the app {subject}', S);
+    case 'use_pictures':
+      if (running) return t('designer:step.ownPicturesAdding', 'Adding your pictures');
+      return row.outcome === 'added' ? t('designer:step.ownPicturesAdded', 'Your pictures added: {count}', { count: row.count ?? 0 }) : t('designer:step.ownPicturesFailed', 'Your pictures were not added');
     case 'find_pictures':
       if (running) return t('designer:step.picturesLooking', 'Looking for pictures');
       switch (row.outcome) {

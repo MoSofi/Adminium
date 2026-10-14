@@ -45,6 +45,7 @@ import {
   summarizeTables,
   wizardHasProgress,
   wizardStepLabel,
+  type MetaPlacement,
   type WizardState,
   type WizardStepId,
 } from './wizardState.js';
@@ -145,6 +146,9 @@ export function ConnectWizard({
    * mean the same thing to this component: offer no move.
    */
   const [placement, setPlacement] = useState<MetaStoreLocation | null>(null);
+  // Whether that question has been ANSWERED. Until it has, the meta step cannot say whether
+  // Continue moves anything, so it waits: pressed early, it used to go on without moving.
+  const [placementKnown, setPlacementKnown] = useState(false);
   useEffect(() => {
     let cancelled = false;
     void studioApi
@@ -154,6 +158,9 @@ export function ConnectWizard({
       })
       .catch(() => {
         if (!cancelled) setPlacement(null);
+      })
+      .finally(() => {
+        if (!cancelled) setPlacementKnown(true);
       });
     return () => {
       cancelled = true;
@@ -162,6 +169,9 @@ export function ConnectWizard({
 
   /** The store is embedded and this server can move it — the step can act. */
   const canMoveMetaStore = placement !== null && placement.embedded && placement.canRelocate;
+
+  /** What the meta step would do on Continue: nothing (`keep`) until another answer is picked. */
+  const metaChoice: MetaPlacement = state.metaPlacement ?? 'keep';
 
   /** Non-null while the header's "Start over" confirm is open. */
   const [startOverOpen, setStartOverOpen] = useState(false);
@@ -232,8 +242,12 @@ export function ConnectWizard({
       case 'tables':
         return state.includedTables === null || state.includedTables.length > 0 || state.mode === 'file';
       case 'meta': {
-        if (state.metaPlacement === null) return false;
-        if (state.metaPlacement === 'same-db') {
+        if (!placementKnown) return false;
+        // A store this server cannot move has nothing to choose here: the step says where it is.
+        if (!canMoveMetaStore) return true;
+        // The first-run wizard already asked, and the file it kept is the answer until another is picked.
+        if (metaChoice === 'keep') return true;
+        if (metaChoice === 'same-db') {
           return (
             sameDbDisabledReason({
               readOnly: state.readOnly,
@@ -264,9 +278,9 @@ export function ConnectWizard({
     // existed by the time anyone could be asked where it should live, and
     // picking "same database" here left the embedded SQLite store in place.
     // Now the answer is carried out — copy, then restart onto the new store.
-    if (state.step === 'meta' && canMoveMetaStore && state.metaPlacement !== null) {
+    if (state.step === 'meta' && canMoveMetaStore && metaChoice !== 'keep') {
       const target =
-        state.metaPlacement === 'same-db' ? effectiveDsn(state) : state.separateMetaDsn.trim();
+        metaChoice === 'same-db' ? effectiveDsn(state) : state.separateMetaDsn.trim();
       setRelocating('copying');
       setPersistError(null);
       void studioApi
@@ -420,7 +434,7 @@ export function ConnectWizard({
           />
         ) : null}
         {state.step === 'meta' ? (
-          <MetaStep state={state} onPatch={patch} placement={placement} relocating={relocating} />
+          <MetaStep state={state} onPatch={patch} placement={placement} placementKnown={placementKnown} relocating={relocating} />
         ) : null}
         {state.step === 'enrich' ? (
           <EnrichStep

@@ -35,6 +35,7 @@ function turn(over: Partial<ThreadTurn>): ThreadTurn {
     errorMessage: null,
     tooLong: false,
     errorKind: null,
+    providerFailure: null,
     usedUpUntil: null,
     answer: readAnswer({ sources: ['shop.main.orders', 'shop.main.customers'], reads: [], followups: ['Compare with last year', 'Who comes next?'] }),
     context: 'data',

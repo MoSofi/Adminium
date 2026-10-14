@@ -129,7 +129,7 @@ export type AssistantEcho =
    * COUNTS, not a sentence — the sentence is the dashboard's, in the
    * operator's own language.
    */
-  | { kind: 'resampled'; refreshed: number; refused: number };
+  | { kind: 'resampled'; refreshed: number; refused: number; /** Why the first source that could not be read could not. */ why?: string };
 
 export interface AssistantActionResult {
   echo: AssistantEcho;
@@ -314,6 +314,8 @@ async function createDraft(input: AssistantActionInput, at: number): Promise<Ass
         // A draft: the manager's Draft pill, not a live document.
         enabled: false,
         createdBy: input.actor.id,
+        // Written by the assistant: nobody has read it until they save it or say it looks right.
+        assistantWroteAt: at,
         ...documentColumns(document),
       },
       at,
@@ -499,6 +501,7 @@ async function addLanguage(input: AssistantActionInput, at: number): Promise<Ass
         starter: source.starter,
         enabled: false,
         createdBy: input.actor.id,
+        assistantWroteAt: at,
         ...documentColumns(document),
       },
       at,
@@ -645,7 +648,7 @@ async function sampleAgain(input: AssistantActionInput): Promise<AssistantAction
   return {
     echo:
       run.label === undefined
-        ? { kind: 'resampled', refreshed: run.refreshed, refused: run.refused.length }
+        ? { kind: 'resampled', refreshed: run.refreshed, refused: run.refused.length, ...(run.refused[0] === undefined ? {} : { why: run.refused[0].message.slice(0, 300) }) }
         : { kind: 'sampled', label: run.label },
     sample: { artefact: run.artefact, label: run.label ?? label },
   };

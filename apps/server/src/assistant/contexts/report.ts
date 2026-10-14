@@ -30,7 +30,7 @@ import { starterCards } from '../../report-documents/starters.js';
 import { connectionsSection, countLabel, documentNamesSection, readableConnections, tablesSummary } from '../page-facts.js';
 import { aggregateTool } from '../tools/aggregate.js';
 import type { AssistantArtefactCheck, AssistantContextAdapter, AssistantDetailRow, AssistantDocument, AssistantResample } from '../types.js';
-import { blockVocabulary, clip, jsonSchemaOf } from './format.js';
+import { blockVocabulary, clip, diffPieces, jsonSchemaOf } from './format.js';
 
 const BLOCK_MEANINGS: Readonly<Record<string, string>> = {
   heading: 'a section heading',
@@ -64,6 +64,12 @@ const BLOCK_MEANINGS: Readonly<Record<string, string>> = {
 const sourceSchema = z.object({
   /** The block these numbers were written into. */
   blockId: z.string().min(1).max(64),
+  /**
+   * The connection `aggregate` was run on. The tool takes it BESIDE the
+   * descriptor, so "the descriptor you ran" does not hold it: a source that
+   * kept only the descriptor could never be run again.
+   */
+  connectionId: z.string().min(1).max(64).optional(),
   /** The `aggregate` descriptor that produced them, so they can be re-run. */
   descriptor: z.record(z.string(), z.unknown()),
   /** One line on why this source answers the question. */
@@ -96,7 +102,7 @@ function str(value: unknown): string {
   return typeof value === 'string' ? value : '';
 }
 
-/** Kicker, title, subtitle, then one line per block — the diff's canonical form. */
+/** Kicker, title, subtitle, then every block with what it holds — the diff's canonical form. */
 function projectForDiff(artefact: Record<string, unknown>): string[] {
   const body = bodyOf(artefact);
   if (body === null) return [];
@@ -105,10 +111,28 @@ function projectForDiff(artefact: Record<string, unknown>): string[] {
     `title: ${str(body.reportTitle)}`,
     `subtitle: ${str(body.subtitle)}`,
   ];
-  for (const block of blocksOf(artefact)) {
-    lines.push(`block: ${str(block.block) || str(block.kind) || '?'} "${clip(str(block.title), 60)}" (${str(block.w) || 'full'})`);
-  }
+  for (const block of blocksOf(artefact)) lines.push(...linesOfBlock(block));
   return lines;
+}
+
+/** What a block's own line already says, and its `id`, which a redraft may renumber without changing anything. */
+const HEAD_FIELDS: readonly string[] = ['id', 'block', 'kind', 'title', 'w'];
+
+/**
+ * One block as lines: its kind, title and width, then everything it holds —
+ * a figure, a chart point, a table row or a sentence a line.
+ *
+ * It used to be the first line alone, so a KPI that went from 3 to 4, a chart
+ * with another bar and a rewritten paragraph all compared as "+0 −0" against
+ * the open report. A block that is drawn says nothing about `show`; a hidden
+ * one says so.
+ */
+function linesOfBlock(block: Record<string, unknown>): string[] {
+  const held = Object.fromEntries(Object.entries(block).filter(([key, value]) => !HEAD_FIELDS.includes(key) && !(key === 'show' && value === true)));
+  return [
+    `block: ${str(block.block) || str(block.kind) || '?'} "${str(block.title)}" (${str(block.w) || 'full'})`,
+    ...diffPieces(held).map((entry) => `  ${entry.label}: ${entry.piece}`),
+  ];
 }
 
 /** The blocks a descriptor can fill — the ones that hold figures. */
@@ -177,6 +201,14 @@ function writeFigures(block: Record<string, unknown>, shaped: Record<string, unk
   return false;
 }
 
+/** The connection a source was run on: beside its descriptor, or (as older drafts wrote it) inside. */
+function sourceConnection(source: { connectionId?: unknown; descriptor?: unknown }): string {
+  const beside = str(source.connectionId);
+  if (beside !== '') return beside;
+  const descriptor = source.descriptor;
+  return typeof descriptor === 'object' && descriptor !== null && !Array.isArray(descriptor) ? str((descriptor as Record<string, unknown>).connectionId) : '';
+}
+
 /** What this page drafts: its format, its worked examples, its own validator and what a diff compares. */
 const reportDocument: AssistantDocument = {
   formatSpec() {
@@ -192,7 +224,7 @@ const reportDocument: AssistantDocument = {
       blockVocabulary(REPORT_BLOCK_KINDS, BLOCK_MEANINGS),
       '',
       'Blocks hold VALUES, not queries. Compute the figures with `aggregate` and write them into the block.',
-      'For every block you filled from an aggregate, add `{ blockId, descriptor, reason }` to `sources` — the same descriptor you ran. That is what lets the person re-run the numbers later.',
+      'For every block you filled from an aggregate, add `{ blockId, connectionId, descriptor, reason }` to `sources` — the same connectionId and the same descriptor you passed to `aggregate`. That is what lets the person re-run the numbers later.',
       'A report you draft is saved as a draft. Publishing is the person`s own act.',
     ].join('\n');
   },
@@ -240,6 +272,19 @@ const reportDocument: AssistantDocument = {
         })),
       });
     }
+    // …and so is one that does not say where it was run: told now, the model adds
+    // the connection; stored, the person finds out when the re-run reads nothing.
+    const placeless = (parsed.data.sources ?? []).filter((source) => sourceConnection(source) === '');
+    if (placeless.length > 0) {
+      return Promise.resolve({
+        ok: false,
+        errors: placeless.map((source) => ({
+          path: 'sources',
+          code: 'SOURCE_NO_CONNECTION',
+          message: `The source for block ${JSON.stringify(source.blockId)} has no connectionId. Write it as { blockId, connectionId, descriptor, reason }, with the connectionId you passed to aggregate.`,
+        })),
+      });
+    }
     return Promise.resolve({
       ok: true,
       artefact: {
@@ -284,13 +329,13 @@ const reportDocument: AssistantDocument = {
 
     for (const entry of sources) {
       if (typeof entry !== 'object' || entry === null || Array.isArray(entry)) continue;
-      const source = entry as { blockId?: unknown; descriptor?: unknown };
+      const source = entry as { blockId?: unknown; connectionId?: unknown; descriptor?: unknown };
       const blockId = str(source.blockId);
       const block = byId.get(blockId);
       if (block === undefined) continue;
       const descriptor = source.descriptor;
       if (typeof descriptor !== 'object' || descriptor === null || Array.isArray(descriptor)) continue;
-      const connectionId = str((descriptor as Record<string, unknown>).connectionId);
+      const connectionId = sourceConnection(source as { connectionId?: unknown; descriptor?: unknown });
       if (connectionId === '') {
         refused.push({ blockId, message: 'That source names no connection.' });
         continue;

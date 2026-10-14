@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Wave 0057 — the parts of an app, and a role's name in other languages.
+ * Wave 0058 — the parts of an app, and a role's name in other languages.
  *
  * ─── `adminium_manifests.modules` ──────────────────────────────────────────
  * An app may be made of parts its owner switches on and off (`modules` in

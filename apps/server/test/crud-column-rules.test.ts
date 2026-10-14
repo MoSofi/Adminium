@@ -202,6 +202,21 @@ describe('the rules a table carries', () => {
     expect(rules?.fills).toEqual([]);
   });
 
+  it('fills a zone-less timestamp itself where the database would fill UTC`s', () => {
+    const columns = [
+      ...OWNER_CASE.slice(0, 2),
+      // SQLite's `current_timestamp`: UTC as text, marked so by the introspector.
+      { name: 'created_at', logicalType: 'timestamp', nullable: false, default: { kind: 'now', utc: true } },
+      // `unixepoch()` on a column typed as a timestamp: a count of seconds, which text would break.
+      { name: 'clock_in', logicalType: 'timestamp', nullable: false, default: { kind: 'now' } },
+      { name: 'made_epoch', logicalType: 'integer', nullable: false, default: { kind: 'now' } },
+    ];
+    expect(tableRulesFor(target('sqlite', columns as never))?.fills).toEqual([{ column: 'created_at', logicalType: 'timestamp', kind: 'now', onUpdate: false, implicit: true }]);
+    // MySQL's session is pinned to UTC, so every database-filled DATETIME there is the case.
+    expect(tableRulesFor(target('mysql', columns as never))?.fills.map((fill) => fill.column)).toEqual(['created_at', 'clock_in']);
+    expect(tableRulesFor(target('postgres', columns as never))?.fills).toEqual([]);
+  });
+
   it('leaves a generated column alone', () => {
     const rules = tableRulesFor(
       target('postgres', [

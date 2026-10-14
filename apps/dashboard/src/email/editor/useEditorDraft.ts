@@ -44,6 +44,12 @@ export interface EditorActions {
   queueMirrorOp: (op: EmailMirrorOp) => void;
   /** PUTs the draft; resolves with the reply, rejects with the API error (the chip shows *Couldn't save*). */
   save: () => Promise<EmailDocumentDetail>;
+  /**
+   * Take a stored version as both the draft and the saved baseline: what
+   * somebody else's save (the assistant's, confirmed by this person) left in
+   * the store. One undo step, so what was on screen can still be had back.
+   */
+  adopt: (detail: EmailDocumentDetail) => void;
 }
 
 function applyPatch(draft: EditorDraft, patch: Partial<EditorDraft> | ((draft: EditorDraft) => EditorDraft)): EditorDraft {
@@ -112,6 +118,14 @@ export function useEditorDraft(detail: EmailDocumentDetail): [EditorState, Edito
     return reply;
   }, [saveMutation]);
 
+  const adopt = useCallback((stored: EmailDocumentDetail) => {
+    const next = draftFromDetail(stored);
+    setHistory((h) => pushHistory(h, draftRef.current));
+    setDraft(next);
+    setSaved(next);
+    setMirrorOps([]);
+  }, []);
+
   const status: SaveStatus = saveMutation.isPending ? 'saving' : saveMutation.isError && !dirty ? 'error' : dirty ? 'dirty' : 'saved';
   const error = saveMutation.isError ? (saveMutation.error instanceof Error ? saveMutation.error.message : String(saveMutation.error)) : null;
 
@@ -126,6 +140,6 @@ export function useEditorDraft(detail: EmailDocumentDetail): [EditorState, Edito
       canRedo: history.future.length > 0,
       mirrorOps,
     },
-    { beginEdit, mutate, histMutate, undo, redo, queueMirrorOp, save },
+    { beginEdit, mutate, histMutate, undo, redo, queueMirrorOp, save, adopt },
   ];
 }

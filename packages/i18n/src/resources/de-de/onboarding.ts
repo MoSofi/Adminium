@@ -112,7 +112,7 @@ export default {
       "timeout": "Adminium hat seine Daten verschoben, ist aber noch nicht zurück. Sie liegen sicher in der neuen Datenbank — laden Sie diese Seite gleich neu."
     },
     "pinned": {
-      "body": "Diese Instanz wurde mit konfiguriertem Meta-Speicher gestartet, es gibt also nichts zu verschieben. Sie können das später in den Studio-Einstellungen ändern.",
+      "body": "Diese Instanz wurde mit konfiguriertem Meta-Speicher gestartet, es gibt also nichts zu verschieben.",
       "title": "Adminiums Daten haben bereits ein Zuhause"
     },
     "sameDb": {

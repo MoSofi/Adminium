@@ -14,7 +14,8 @@ The short form of `SKILL.md`. Hold every screen people see to it.
 - **Colour and type**: only the theme's values. The accent for the main action and a few marks.
   One band in another colour gives a page rhythm. Two fonts: the theme's heading and body.
 - **Pictures**: a page about food, rooms, people or things shows them. Get them with
-  find_pictures or from what the person attached; never another site's address on your own.
+  find_pictures, or the person's own (attached, and put in the app with use_pictures); never
+  another site's address on your own.
   Every picture a fixed shape, and alt text.
 - **Icons**: from the icon set, one size. Never an emoji as an icon.
 - **Logo**: every public side has one, `assets/logo.svg`, in the header.

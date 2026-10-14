@@ -188,7 +188,9 @@ export function PanelView({
       )}
     >
       {/* ── header ─────────────────────────────────────────────────────────── */}
-      <header className="flex shrink-0 items-center gap-[11px] border-b border-border bg-surface py-[13px] pe-3 ps-4">
+      {/* `min-h-[71px]` is the top bar's own height (16 + its 38 px bell + 16 + the
+          rule), so the two bottom rules meet in one line where the panel docks. */}
+      <header className="flex min-h-[71px] shrink-0 items-center gap-[11px] border-b border-border bg-surface py-3 pe-3 ps-4">
         <span className="flex size-9 shrink-0 items-center justify-center rounded-[12px] bg-accent text-accent-fg shadow-[0_3px_10px_color-mix(in_srgb,var(--accent)_38%,transparent)]">
           <Sparkles className="size-[18px]" aria-hidden="true" />
         </span>

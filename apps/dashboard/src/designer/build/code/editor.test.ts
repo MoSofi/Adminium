@@ -195,3 +195,63 @@ describe('the packages the editor stands on', () => {
     expect(named).toEqual([]);
   });
 });
+
+describe('the code editor’s search', () => {
+  const spec = { query: 'menu', matchCase: false, wholeWord: false };
+  const marks = (): string[] => [...host.querySelectorAll('.cm-found')].map((mark) => `${mark.textContent ?? ''}${mark.classList.contains('cm-found-at') ? ' *' : ''}`);
+  const chosen = (): [number, number] => [view().state.selection.main.from, view().state.selection.main.to];
+
+  it('marks every place, goes from one to the next and round again, and says how many and which', () => {
+    host = document.createElement('div');
+    document.body.append(host);
+    const onFound = vi.fn<(found: { count: number; at: number; more: boolean }) => void>();
+    editor = createCodeEditor(host, { onChange: vi.fn(), onSave: vi.fn(), onLeave: vi.fn(), onFound });
+    editor.open('a.tsx', 'const menu = Menu;\n// menu\n');
+    editor.find(spec);
+    expect(marks()).toEqual(['menu', 'Menu', 'menu']);
+    expect(onFound).toHaveBeenLastCalledWith({ count: 3, at: -1, more: false });
+
+    editor.step(0);
+    expect(chosen()).toEqual([6, 10]);
+    expect(marks()).toEqual(['menu *', 'Menu', 'menu']);
+    expect(onFound).toHaveBeenLastCalledWith({ count: 3, at: 0, more: false });
+    // The nearest place from the one it is on is that one: typing another letter does not walk away from it.
+    editor.step(0);
+    expect(chosen()).toEqual([6, 10]);
+    editor.step(1);
+    editor.step(1);
+    expect(chosen()).toEqual([22, 26]);
+    editor.step(1);
+    expect(chosen()).toEqual([6, 10]);
+    editor.step(-1);
+    expect(chosen()).toEqual([22, 26]);
+    expect(onFound).toHaveBeenLastCalledWith({ count: 3, at: 2, more: false });
+
+    // Typing changes the places; asking for nothing takes the marks away.
+    type('menu ', 0);
+    expect(marks()).toHaveLength(4);
+    editor.find({ ...spec, matchCase: true });
+    expect(marks().map((mark) => mark.replace(' *', ''))).toEqual(['menu', 'menu', 'menu']);
+    editor.find(null);
+    expect(marks()).toEqual([]);
+    expect(onFound).toHaveBeenLastCalledWith({ count: 0, at: -1, more: false });
+  });
+
+  it('looks in whichever file is shown, selects a place by its line, and works while held', () => {
+    const { editor } = mount();
+    editor.open('a.tsx', 'menu\n');
+    editor.find(spec);
+    editor.open('b.tsx', 'one\n  the menu here\n');
+    expect(marks()).toEqual(['menu']);
+    editor.setHeld(true);
+    editor.reveal(2, 6, 4);
+    expect(chosen()).toEqual([10, 14]);
+    expect(marks()).toEqual(['menu *']);
+    expect(editor.selected()).toBe('menu');
+    // A place that is no longer there is brought inside the text.
+    editor.reveal(99, 400, 4);
+    expect(chosen()).toEqual([20, 20]);
+    view().dispatch({ selection: { anchor: 0, head: 8 } });
+    expect(editor.selected()).toBe('');
+  });
+});

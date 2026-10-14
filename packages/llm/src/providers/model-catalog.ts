@@ -12,15 +12,15 @@
  * fetch is always attempted first, so a stale entry here never blocks a real model.
  */
 import { requestJson } from './http.js';
-import { ProviderError, type ModelInfo } from './types.js';
+import { ProviderError, RUN_EFFORTS, type ModelInfo, type RunEffort } from './types.js';
 
 // ─── Static fallback lists ───────────────────────────────────────────────────
 
 export const ANTHROPIC_STATIC_MODELS: readonly ModelInfo[] = [
-  { id: 'claude-sonnet-5-5', label: 'Claude Sonnet 5.5' },
-  { id: 'claude-haiku-5-5', label: 'Claude Haiku 5.5' },
-  { id: 'claude-opus-5-5', label: 'Claude Opus 5.5' },
-  { id: 'claude-fable-5-1', label: 'Claude Fable 5.1' },
+  { id: 'claude-sonnet-5-5', label: 'Claude Sonnet 5.5', efforts: [...RUN_EFFORTS] },
+  { id: 'claude-haiku-5-5', label: 'Claude Haiku 5.5', efforts: [...RUN_EFFORTS] },
+  { id: 'claude-opus-5-5', label: 'Claude Opus 5.5', efforts: [...RUN_EFFORTS] },
+  { id: 'claude-fable-5-1', label: 'Claude Fable 5.1', efforts: [...RUN_EFFORTS] },
 ];
 
 export const OPENAI_STATIC_MODELS: readonly ModelInfo[] = [
@@ -80,6 +80,31 @@ export function anthropicAcceptsTemperature(model: string): boolean {
   return minor <= maxMinor;
 }
 
+/**
+ * The effort levels an Anthropic model takes, by its generation: what is known
+ * when the service's own list does not say. `xhigh` came with Opus 4.7; 4.6 has
+ * the other four; Opus 4.5 the first three; anything older, and Sonnet 4.5 and
+ * Haiku 4.5, refuse the field. An id with no generation we can read gets none:
+ * a level sent to a model that does not take it costs the whole request.
+ */
+export function anthropicEfforts(model: string): RunEffort[] {
+  const generation = anthropicGeneration(model);
+  if (generation === null) return [];
+  const [major, minor] = generation;
+  if (major >= 5 || (major === 4 && minor >= 7)) return [...RUN_EFFORTS];
+  if (major === 4 && minor === 6) return ['low', 'medium', 'high', 'max'];
+  if (major === 4 && minor === 5 && /opus/.test(model)) return ['low', 'medium', 'high'];
+  return [];
+}
+
+/** The levels a model of the service's own list says it takes (`capabilities.effort.<level>.supported`); null when it does not say. */
+function listedEfforts(capabilities: unknown): RunEffort[] | null {
+  const effort = (capabilities as { effort?: Record<string, unknown> } | null | undefined)?.effort;
+  if (effort === null || typeof effort !== 'object') return null;
+  if ((effort as { supported?: unknown }).supported === false) return [];
+  return RUN_EFFORTS.filter((level) => (effort[level] as { supported?: unknown } | undefined)?.supported === true);
+}
+
 const ANTHROPIC_VERSION = '2023-06-01';
 
 export interface CatalogFetchOptions {
@@ -91,7 +116,7 @@ export interface CatalogFetchOptions {
 // ─── Live fetchers ───────────────────────────────────────────────────────────
 
 interface AnthropicModelsResponse {
-  data?: { id?: string; display_name?: string }[];
+  data?: { id?: string; display_name?: string; capabilities?: unknown }[];
 }
 
 /** `GET {baseUrl}/v1/models`; on any failure returns the static Anthropic list. */
@@ -106,8 +131,11 @@ export async function listAnthropicModels(opts: CatalogFetchOptions): Promise<Mo
       ...(opts.timeoutMs !== undefined ? { timeoutMs: opts.timeoutMs } : {}),
     });
     const models = (json.data ?? [])
-      .filter((m): m is { id: string; display_name?: string } => typeof m.id === 'string')
-      .map((m) => ({ id: m.id, label: m.display_name ?? m.id }));
+      .filter((m): m is { id: string; display_name?: string; capabilities?: unknown } => typeof m.id === 'string')
+      .map((m) => {
+        const efforts = listedEfforts(m.capabilities) ?? anthropicEfforts(m.id);
+        return { id: m.id, label: m.display_name ?? m.id, ...(efforts.length === 0 ? {} : { efforts }) };
+      });
     return models.length > 0 ? models : [...ANTHROPIC_STATIC_MODELS];
   } catch {
     return [...ANTHROPIC_STATIC_MODELS];
@@ -179,7 +207,7 @@ export async function listOpenAiCompatibleModels(opts: CatalogFetchOptions): Pro
 }
 
 interface OllamaTagsResponse {
-  models?: { name?: string }[];
+  models?: { name?: string; remote_host?: unknown }[];
 }
 
 /** `GET {baseUrl}/api/tags`; no static fallback — propagates `ProviderError` on failure. */
@@ -190,6 +218,7 @@ export async function listOllamaModels(opts: CatalogFetchOptions): Promise<Model
     ...(opts.timeoutMs !== undefined ? { timeoutMs: opts.timeoutMs } : {}),
   });
   return (json.models ?? [])
-    .filter((m): m is { name: string } => typeof m.name === 'string')
-    .map((m) => ({ id: m.name, label: m.name }));
+    .filter((m): m is { name: string; remote_host?: unknown } => typeof m.name === 'string')
+    // Ollama gives a model it runs on another host that host's address.
+    .map((m) => ({ id: m.name, label: m.name, ...(typeof m.remote_host === 'string' && m.remote_host !== '' ? { remote: true } : {}) }));
 }

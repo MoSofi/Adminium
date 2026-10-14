@@ -13,6 +13,10 @@ import { tags } from '@lezer/highlight';
 /** The class the editor carries while it may only be read. */
 export const HELD_CLASS = 'cm-held';
 
+/** A place the words looked for are, and the one of them the selection is on. */
+export const FOUND_CLASS = 'cm-found';
+export const FOUND_AT_CLASS = 'cm-found-at';
+
 const look = EditorView.theme({
   '&': { height: '100%', fontSize: '12.5px', color: 'var(--fg)', backgroundColor: 'var(--surface)' },
   // The caret is what says the editor has the keyboard, as in any text field.
@@ -29,6 +33,9 @@ const look = EditorView.theme({
   '.cm-activeLineGutter': { backgroundColor: 'transparent', color: 'var(--fg)' },
   '.cm-cursor, .cm-dropCursor': { borderInlineStartColor: 'var(--fg)' },
   '&.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground, .cm-selectionBackground, .cm-content ::selection': { backgroundColor: 'var(--accent-selection, var(--accent-soft))' },
+  // What is looked for: the selection's own ground (the syntax colours are measured on it) inside a line of the accent; the place the selection is on has the whole line.
+  [`.${FOUND_CLASS}`]: { backgroundColor: 'var(--accent-selection, var(--accent-soft))', borderRadius: '3px', boxShadow: 'inset 0 0 0 1px color-mix(in srgb, var(--accent) 45%, transparent)' },
+  [`.${FOUND_AT_CLASS}`]: { boxShadow: 'inset 0 0 0 1.5px var(--accent)' },
   // Held: only the caret line's tint steps back. The text and the line numbers keep their full strength:
   // both are read while held, and neither grey survives being dimmed (the numbers at 60 % measure 2.7:1).
   [`&.${HELD_CLASS} .cm-activeLine`]: { backgroundColor: 'color-mix(in srgb, var(--cur-line) 60%, transparent)' },

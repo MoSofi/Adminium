@@ -14,7 +14,7 @@ import { Eye, LoaderCircle } from 'lucide-react';
 import { Tabs, TabsContent } from '@adminium/ui';
 
 import { getI18nInstance, t } from '../../i18n/t.js';
-import type { DesignerSession } from '../api.js';
+import type { DesignerPicked, DesignerSession } from '../api.js';
 import { AddressBar } from './AddressBar.js';
 import { CodeBarEnd } from './CodeBar.js';
 import { firstLevel, nextLevel, type BarLevel } from './barLevel.js';
@@ -83,6 +83,8 @@ export function WorkArea({
   onFix,
   onNotice,
   onFoldedNeed,
+  onPicked,
+  onShot,
 }: {
   session: DesignerSession;
   turns: readonly TurnView[];
@@ -95,10 +97,14 @@ export function WorkArea({
   onNotice: (text: string) => void;
   /** What the preview's bar needs at its most folded, once it has been measured. */
   onFoldedNeed?: (need: number) => void;
+  /** The person pointed at an element of the previewed page. */
+  onPicked?: (picked: DesignerPicked) => void;
+  /** The person dragged over a part of the previewed page: a picture of it. */
+  onShot?: (file: File) => void;
 }): ReactNode {
   const [tab, setTab] = useState('preview');
   const narrow = useNarrow();
-  const preview = usePreview(session, turns);
+  const preview = usePreview(session, turns, onPicked);
   const onPreview = tab === 'preview';
   const tabs: WorkTab[] = [
     { value: 'preview', label: t('designer:work.preview', 'Preview') },
@@ -221,7 +227,7 @@ export function WorkArea({
           too, for a pointer, the keyboard and a screen reader.
         */}
         <TabsContent value="preview" forceMount inert={!onPreview} className={`absolute inset-0 flex flex-col pt-0 ${onPreview ? '' : 'invisible'}`}>
-          <Preview preview={preview} session={session} turns={turns} onFix={onFix} compact={narrow} />
+          <Preview preview={preview} session={session} turns={turns} onFix={onFix} compact={narrow} onNotice={onNotice} {...(onShot === undefined ? {} : { onShot })} />
         </TabsContent>
         <TabsContent value="architecture" className="relative flex min-h-0 flex-1 flex-col bg-surface-2">
           {tab === 'architecture' ? (

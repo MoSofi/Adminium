@@ -7,11 +7,13 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 
-import { modelsQuery, type DesignerModels } from '../api.js';
+import { DESIGNER_EFFORTS, modelsQuery, type DesignerEffort, type DesignerModels } from '../api.js';
 
 export interface PickedModel {
   connectionId: string;
   model: string;
+  /** How hard the model is asked to work; absent at the model's own default. */
+  effort?: DesignerEffort | undefined;
 }
 
 const KEY = 'adminium.designer.model';
@@ -21,7 +23,8 @@ function remembered(): PickedModel | null {
     const raw = window.localStorage.getItem(KEY);
     if (raw === null) return null;
     const parsed = JSON.parse(raw) as Partial<PickedModel>;
-    return typeof parsed.connectionId === 'string' && typeof parsed.model === 'string' ? { connectionId: parsed.connectionId, model: parsed.model } : null;
+    const effort = DESIGNER_EFFORTS.find((level) => level === parsed.effort);
+    return typeof parsed.connectionId === 'string' && typeof parsed.model === 'string' ? { connectionId: parsed.connectionId, model: parsed.model, ...(effort === undefined ? {} : { effort }) } : null;
   } catch {
     return null;
   }
@@ -43,8 +46,21 @@ export function useDesignerModel(session?: { picked: PickedModel; onPick: (next:
   const picked: PickedModel | null = session !== undefined ? session.picked : data === undefined ? null : offered(data, mine) ? mine : data.selected;
   const verdict = data === undefined || picked === null ? undefined : data.verdicts.find((entry) => entry.connectionId === picked.connectionId && entry.model === picked.model);
 
+  /** The levels a model takes, as its connection lists them. */
+  const effortsOf = useCallback(
+    (of: { connectionId: string; model: string } | null): DesignerEffort[] =>
+      of === null ? [] : (data?.connections.find((connection) => connection.id === of.connectionId)?.models.find((entry) => entry.id === of.model)?.efforts ?? []),
+    [data],
+  );
+  const efforts = effortsOf(picked);
+  // A level kept from another model, which this one does not take, is not shown and not sent.
+  const effort = picked?.effort !== undefined && efforts.includes(picked.effort) ? picked.effort : null;
+
   const onSessionPick = session?.onPick;
-  const pick = useCallback((next: PickedModel) => {
+  const pick = useCallback((chosen: PickedModel) => {
+    // Another model keeps the level only when it takes it too.
+    const kept = chosen.effort ?? effort ?? undefined;
+    const next: PickedModel = { connectionId: chosen.connectionId, model: chosen.model, ...(kept !== undefined && effortsOf(chosen).includes(kept) ? { effort: kept } : {}) };
     if (onSessionPick !== undefined) {
       onSessionPick(next);
       return;
@@ -55,7 +71,24 @@ export function useDesignerModel(session?: { picked: PickedModel; onPick: (next:
     } catch {
       // A private window: remembered for this page only.
     }
-  }, [onSessionPick]);
+  }, [onSessionPick, effort, effortsOf]);
+
+  const onSessionEffort = session?.onPick;
+  /** `null`: the model's own default. */
+  const pickEffort = useCallback((level: DesignerEffort | null) => {
+    if (picked === null) return;
+    const next: PickedModel = { connectionId: picked.connectionId, model: picked.model, ...(level === null ? {} : { effort: level }) };
+    if (onSessionEffort !== undefined) {
+      onSessionEffort(next);
+      return;
+    }
+    setMine(next);
+    try {
+      window.localStorage.setItem(KEY, JSON.stringify(next));
+    } catch {
+      // A private window: remembered for this page only.
+    }
+  }, [picked, onSessionEffort]);
 
   // A remembered model whose connection went away is forgotten.
   useEffect(() => {
@@ -74,5 +107,10 @@ export function useDesignerModel(session?: { picked: PickedModel; onPick: (next:
     canBuild: verdict === undefined ? null : verdict.canBuild,
     cannotBuildMessage: verdict?.canBuild === false ? verdict.message : null,
     pick,
+    /** The effort levels the picked model takes, the least first: empty when it takes none, and no menu is shown. */
+    efforts,
+    /** The level picked, or `null` at the model's own default. */
+    effort,
+    pickEffort,
   };
 }

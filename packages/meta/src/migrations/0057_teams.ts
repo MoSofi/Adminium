@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Wave 0056 — teams.
+ * Wave 0057 — teams.
  *
  * ─── `adminium_teams`, `adminium_team_members` ─────────────────────────────
  * A role's read of a table can be limited to the rows a person owns, or to

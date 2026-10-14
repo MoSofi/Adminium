@@ -31,8 +31,11 @@ import { starterParts } from '../project/apps/scaffold-app.js';
 import type { DesignerSession } from './session-store.js';
 import type { Skills } from './skills.js';
 
-/** The output a turn's step may use. A step writes a file or two, not a book. */
-export const DESIGNER_MAX_OUTPUT_TOKENS = 8000;
+/**
+ * The output a turn's step may use. A step writes a file or two, not a book: but one of those files is a whole
+ * page, and a page drawn from a design ran past 8000 (a call cut off there cannot be run, and the step is paid twice).
+ */
+export const DESIGNER_MAX_OUTPUT_TOKENS = 16_000;
 /** Room kept for what the estimate gets wrong. */
 const SLACK_TOKENS = 2000;
 /** How much of an old tool result is kept once it is cut. */
@@ -50,11 +53,13 @@ How it works:
 - The app is in English. Other languages only when the person asks.
 - For a screen of the app's own, call add_side ("staff" or "customer") first: it writes a working starter screen, chooses a style, and asks the person once for what the screens need. Then write its src/App.tsx again for this app's tables. A screen that shows nothing real is not finished: a customer page lists what customers may read and has the form they send.{{addresses}}
 - You DESIGN the staff and customer screens: they must look made for this business, not like a template. Write the brief first (apps/<key>/design.md), follow it, and follow the design checklist below. Use a made part when one fits and write what is missing in src/design.css: every class a screen uses must exist. Colours, fonts, corners and spacing only through the theme's values; to change them call set_style. Write the words a real business of this kind would write. Never design or restyle a dashboard page: those are Adminium's own.
+- A picture the person attached that shows a page or a screen (a design, a mock-up, a screenshot of a site) IS the design, and it comes before the style and before your own taste: the style is only where the theme's values start. Build what the picture shows. Write the brief from it, section by section from the top: for each section its place in the order, how it is laid out (how many columns, what is beside what, what lies over what, how wide it runs), its background, how large and how heavy its heading is beside the body text, the shape of its buttons, cards and fields, and its words as the picture writes them. Take the colours and the corners from the picture with set_style. Add no section the picture does not have, leave none of its sections out, and do not move one. A part you cannot read: say so in a sentence, and do not invent it.
+- When the person says they will give the pictures themselves, or asks for placeholders or empty boxes, do not call find_pictures and suggest no pictures: where each picture goes, draw an empty frame of the picture's own shape in the theme's surface colour, and say they can send the pictures when they have them.
 - A new app is named first: when "The app now" says it has no name yet, call name_app as your first step, alone, with what the business would call it, two or three words ("Cake Orders"), not the words of the request. Its folder is made from the name; write nothing before.
 - A first preview must not be empty. In the turn that first builds the app, for each table customers read (a menu, the services, the rooms) write 4 to 8 believable sample rows: manifest/sample.json ({ "sampleData": { "file": "seeds/sample.json" } }) and seeds/sample.json. They are added once, when the app is first applied, and the person can remove them.
 - In a screen, call every React hook (useState, useEffect, useMemo) at the top of its component, before any return: a hook after an early return builds, and the screen is blank when it opens. Split the part that needs the loaded value into its own component, as the starter screen does.
 - What the app needs from outside the project (an npm package, a font, a site to show pictures from) the person is asked for on a card with a checkbox each: add_side asks for what screens always need, and request_package asks for anything more, all of it in one call. Never give a version. Never ask the person in words whether to add a package, a font or pictures: call the tool, and the card asks. What they leave out, do without, and do not ask again.
-- A page loads nothing from another site: no script, stylesheet or font from a CDN, and a picture only from this server or from a site the person allowed. A picture from anywhere else is an empty frame. So never put a stock photo's address in a screen or in sample rows on your own. For pictures call find_pictures (free pictures, the person ticks the ones to use, and they are copied into the app); a picture the person attached is theirs to use; without either, draw a tile in the theme's colours or an inline SVG.
+- A page loads nothing from another site: no script, stylesheet or font from a CDN, and a picture only from this server or from a site the person allowed. A picture from anywhere else is an empty frame. So never put a stock photo's address in a screen or in sample rows on your own. For pictures call find_pictures (free pictures, the person ticks the ones to use, and they are copied into the app); a picture the person attached for the app is theirs: put it there with use_pictures (its attachment id is in the message it came with), never with find_pictures; without either, draw a tile in the theme's colours or an inline SVG.
 - A picture a table keeps (a dish's photo, staff upload it in the dashboard) is shown to visitors through "pictures" in access.json, with the table's "id" in that entry's "select", and its address is built with pictureUrl from @adminiumjs/public-client: never put the column's own value in an <img>. Read adminium-app/references/manifest/public-access--pictures.md first; check_app says exactly how when a screen gets it wrong.
 - Keep the app's key as it is. Never put a build command in app.json.
 - Before you design a table for invoices, quotes or receipts, for stock, or for discounts, codes or gift cards, call list_add_ons: an add-on does it, and the app builds on the add-on. For invoices, quotes and receipts call build_on_shape: it writes the shape's tables, emails and requirement exactly. For stock that goes down when a row is saved, write your own table first (its id, its link to the order or visit, a quantity), then call post_to_ledger with that table: it adds the link column and the rule, with the add-on's own names. For a discount, a code or a gift card on an order, write the order's tables first, then call build_on_shape with the Offers shape and your tables: it adds the columns and the rule to them. An add-on that is not on this server yet is asked for on the way: the person gets a card, and a yes installs it (get_add_on does the same by itself). Never write a shape's columns, a "postings" rule or an "adjust" rule by hand. Never build a stock table, a code table or a card table of the app's own. Write the app's own tables first (the people the emails go to), then the pages and grants.
@@ -69,6 +74,7 @@ How it works:
 - The person sees the app in the preview beside this chat, and the server applies it for them. Never tell them to run a command or open a file.
 - Work in few steps. Put every tool call that does not wait on another into ONE reply: all the table files at once, then all the pages and the roles at once. Do not read a file you have just written.
 - When the person says a screen stopped with an error, a clean check_app does not show it is mended: the check reads the files, and the error happens when the page runs. Say it is fixed only when the page was looked at after your change and nothing was reported. Otherwise say what you changed and why, and ask them to open the page and tell you what they see.
+- When the person says they see no change ("nothing changed", "I still see it"), they mean the change you made in the turn before this one: go back to that part of the screen, not to an older request. The preview opens the page again by itself after every build, so never tell them to refresh, reload or clear anything. Read the file: when your change is there, it was too small to see, or another rule decides how that part looks. Make a change a person sees at a glance, and say in one sentence what looks different now.
 
 End every turn the same way: check_app, fix every error it names, apply_app, then tell the person in a few plain sentences what you built and what they can do next. Do not list files, and use no words of the trade ("rung", "CRUD", "manifest", "endpoint"): say what they can now do, in their words.`;
 
@@ -118,6 +124,10 @@ export const MENTIONS_WEB = /\b(web ?site|web ?page|web app|landing page|home ?p
  * "A booking website, and a mobile app later" asks for the website too.
  */
 export const asksOnlyForPhoneApp = (text: string): boolean => MENTIONS_PHONE_APP.test(text) && !MENTIONS_WEB.test(text);
+
+/** Words that say the person brings the pictures, or wants the frames left empty: nothing is looked for then. */
+export const WANTS_OWN_PICTURES =
+  /\b(place ?holders?|empty (box|boxes|frames?|tiles?|squares?)|no (stock )?(pictures|photos|images)|(i|we)( will|'ll|’ll| shall| am going to| are going to)? (provide|give|send|add|upload|supply)\b[^.?!\n]{0,40}\b(pictures?|photos?|images?)|(my|our) own (pictures|photos|images))\b/i;
 
 /** Words that say an add-on may do the job: invoices, stock. English, and not the only way in (an app that names an add-on carries the skill too). */
 export const MENTIONS_ADD_ON = /\b(add-?ons?|invoices?|quotes?|receipts?|stock|inventory|supplies|ingredients|warehouse|batch(es)?|expir(y|es|ed|ing)|reorder(s|ing)?|stock ?take|discounts?|coupons?|vouchers?|gift ?cards?|store credit|loyalty|happy hour)\b/i;
@@ -337,10 +347,12 @@ export function requestTokens(system: string, messages: readonly RunMessage[]): 
 
 const tokensOf = (messages: readonly RunMessage[]): number => estimateTokens(JSON.stringify(withoutBytes(messages)));
 
-/** The pictures still worth sending: those attached in the newest turns. */
+/** How long a picture the server took of the page is still worth sending: the turn it was taken in, and the next. */
 const PICTURE_TURNS = 2;
-/** The most pictures, and bytes of pictures, one request carries: providers cap a request's size. */
-const PICTURES_MAX = 6;
+/** The most pictures, and bytes of pictures, one request carries: providers cap a request's size. (A tall picture goes as several parts.) */
+const PICTURES_MAX = 16;
+/** A picture the server took of the page: nobody attached it. */
+const PAGE_PICTURE = /^the (staff|customer) page as it shows\.jpg$/;
 const PICTURES_MAX_BYTES = 12 * 1024 * 1024;
 
 export interface PictureOpts {
@@ -354,12 +366,14 @@ export interface PictureOpts {
 }
 
 /**
- * Pictures, made ready to send (D134). One attached in the two newest turns is
- * given its bytes when the model reads pictures; any other becomes a line of
- * text, so the model knows a picture was there and is not sent megabytes at
- * every step. "Newest" is by the turn the picture was attached in, as the
- * session recorded it: a line the server sends back mid-turn is not a turn,
- * and a turn that failed does not keep its picture with every later message.
+ * Pictures, made ready to send. A picture the person attached is given its
+ * bytes for as long as the session runs, when the model reads pictures: it is
+ * most often the design the app is built from, and a model that no longer sees
+ * it cannot be held to it (ruled 2026-10-11; before, only the two newest turns
+ * carried it). A picture the server took of the page is sent in the turn it
+ * was taken in and the next, then becomes a line of text. Under the caps the
+ * newest come first. "Turn" is the turn the picture was attached in, as the
+ * session recorded it: a line the server sends back mid-turn is not a turn.
  */
 export function withPictures(messages: readonly RunMessage[], opts: PictureOpts): RunMessage[] {
   if (!messages.some((message) => message.content.some((block) => block.type === 'image'))) return [...messages];
@@ -370,7 +384,7 @@ export function withPictures(messages: readonly RunMessage[], opts: PictureOpts)
     for (const block of [...message.content].reverse()) {
       if (block.type !== 'image' || block.ref === undefined || !opts.reads) continue;
       const attached = opts.turnOf(block.ref);
-      if (attached === undefined || attached <= opts.turn - PICTURE_TURNS) continue;
+      if (PAGE_PICTURE.test(block.name ?? '') && (attached === undefined || attached <= opts.turn - PICTURE_TURNS)) continue;
       const size = opts.bytesOf(block.ref)?.length ?? null;
       if (size === null || sendable.size >= PICTURES_MAX || bytes + size > PICTURES_MAX_BYTES) continue;
       sendable.add(block.ref);
@@ -393,12 +407,13 @@ export function withPictures(messages: readonly RunMessage[], opts: PictureOpts)
         const data = block.ref !== undefined && sendable.has(block.ref) ? opts.bytesOf(block.ref) : null;
         if (data !== null) return { ...block, data: data.toString('base64') };
         // A picture the server took of the page: nobody attached it, and a later one replaced it.
-        if (/^the (staff|customer) page as it shows\.jpg$/.test(block.name ?? '')) return { type: 'text', text: '\n(A picture of the page as it showed then. It is not sent again.)' };
+        if (PAGE_PICTURE.test(block.name ?? '')) return { type: 'text', text: '\n(A picture of the page as it showed then. It is not sent again.)' };
+        // Read, and still left out: there were more pictures than one request carries, and newer ones went first.
         const attached = block.ref === undefined ? undefined : opts.turnOf(block.ref);
-        if (opts.reads && attached !== undefined && attached <= opts.turn - PICTURE_TURNS) {
+        if (opts.reads && attached !== undefined && attached < opts.turn) {
           return { type: 'text', text: `\n(A picture the person attached earlier: "${name}". It is not sent again.)` };
         }
-        return { type: 'text', text: `\n(The person attached a picture, "${name}". You cannot see it: ${opts.reads ? 'it could not be sent with this request' : 'this model does not read pictures'}. Say so in one sentence, ask them to describe what matters in it, and go on with what their words say.)` };
+        return { type: 'text', text: `\n(The person attached a picture, "${name}". You cannot see it: ${opts.reads ? 'it could not be sent with this request' : 'this model does not read pictures'}. Say so in one sentence, ask them to describe what matters in it, and go on with what their words say. A picture meant for the app can still be put there with use_pictures, by its attachment id.)` };
       }),
     };
   });

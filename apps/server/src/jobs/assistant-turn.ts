@@ -21,7 +21,7 @@
  */
 
 import type { AddOnInstalls } from '../apps/table-ref.js';
-import { assistantSessionsRepo, type MetaDb } from '@adminium/meta';
+import { assistantSessionsRepo, automationsRepo, emailTemplatesRepo, invoiceDocumentsRepo, reportDocumentsRepo, type AssistantContextKey, type MetaDb } from '@adminium/meta';
 import { ASSISTANT_INPUT_TOKEN_LIMIT, assistantStepEventMessage } from '@adminium/llm';
 import { z } from 'zod';
 
@@ -86,6 +86,15 @@ export function registerAssistantTurnHandler(registry: JobRegistry, deps: Assist
     },
     { internal: true },
   );
+}
+
+/** What the document a draft is compared with is called, on the page it belongs to; `null` when it is not there. */
+async function baseNameOf(meta: MetaDb, context: AssistantContextKey, id: string): Promise<string | null> {
+  if (context === 'email') return (await emailTemplatesRepo(meta).findById(id))?.name ?? null;
+  if (context === 'report') return (await reportDocumentsRepo(meta).findById(id))?.name ?? null;
+  if (context === 'automation') return (await automationsRepo(meta).findById(id))?.name ?? null;
+  if (context === 'invoices' || context === 'invoice-template') return (await invoiceDocumentsRepo(meta).findById(id))?.name ?? null;
+  return null;
 }
 
 /** A failure, as the turn row stores it: always a list, always readable back. */
@@ -228,6 +237,10 @@ export async function executeAssistantTurn(
         ? Promise.resolve({ ok: false as const, errors: [{ path: 'result', code: 'NO_DOCUMENT', message: 'This page has no document.' }] })
         : document.acceptArtefact(artefact, setup.deps),
     baseLines: (basedOn) => (document === undefined ? Promise.resolve(null) : document.baseForDiff(basedOn, setup.deps)),
+    // The two editors where a draft made with a document open is a change to that document. (A
+    // rule names the rule it changes itself: a draft that names none is a different rule.)
+    ...(setup.deps.context === 'email' || setup.deps.context === 'report' ? { openDocumentId: setup.deps.host.documentId } : {}),
+    baseName: (id) => baseNameOf(deps.meta, setup.deps.context, id),
     onStep: async (event, _percent, steps) => {
       // The step envelope IS the message: the dashboard parses it and draws
       // the row. `pct` is advisory — a turn does not know how many rounds it

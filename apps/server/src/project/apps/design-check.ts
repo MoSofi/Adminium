@@ -107,7 +107,9 @@ export function classesDefined(css: string): Set<string> {
   const bare = css.replace(/\/\*[\s\S]*?\*\//g, '');
   for (const found of bare.matchAll(/\.((?:\\.|[A-Za-z0-9_-])+)/g)) {
     const name = (found[1] as string).replace(/\\(.)/g, '$1');
-    if (/^[A-Za-z_-]/.test(name) || /^\d/.test(name)) out.add(name);
+    // (A class may begin with "[": Tailwind's own way to write a selector in a class, as the made accordion does. Left out, that part's
+    // class was said to be styled nowhere in every session, and a model wrote design.css over to answer it.)
+    if (/^[A-Za-z_[-]/.test(name) || /^\d/.test(name)) out.add(name);
   }
   return out;
 }

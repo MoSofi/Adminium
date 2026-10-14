@@ -10,11 +10,13 @@
  */
 import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands';
 import { indentUnit } from '@codemirror/language';
-import { Compartment, EditorState } from '@codemirror/state';
-import { EditorView, highlightActiveLine, highlightActiveLineGutter, keymap, lineNumbers } from '@codemirror/view';
+import { Compartment, EditorSelection, EditorState, StateEffect, StateField } from '@codemirror/state';
+import { Decoration, EditorView, highlightActiveLine, highlightActiveLineGutter, keymap, lineNumbers, type DecorationSet } from '@codemirror/view';
+
+import { findRanges, type FindRange, type FindSpec } from './find.js';
 
 import { languageFor } from './languages.js';
-import { editorLook, HELD_CLASS } from './theme.js';
+import { editorLook, FOUND_AT_CLASS, FOUND_CLASS, HELD_CLASS } from './theme.js';
 
 export interface CodeEditorEvents {
   /** A file's text is now this (after typing, an undo, or a discard). */
@@ -23,7 +25,41 @@ export interface CodeEditorEvents {
   onSave: () => void;
   /** Escape: the keyboard's way out, since Tab types here. */
   onLeave: () => void;
+  /** What is being looked for was found this many times in the file shown; `at` is the one the selection is on (from 0), or -1. */
+  onFound?: (found: { count: number; at: number; more: boolean }) => void;
 }
+
+/** What is looked for in a file, the places it is, and which of them the selection is on. */
+interface Found {
+  spec: FindSpec | null;
+  ranges: readonly FindRange[];
+  more: boolean;
+  at: number;
+  marks: DecorationSet;
+}
+const setFind = StateEffect.define<FindSpec | null>();
+const foundMark = Decoration.mark({ class: FOUND_CLASS });
+const foundAtMark = Decoration.mark({ class: `${FOUND_CLASS} ${FOUND_AT_CLASS}` });
+const found = StateField.define<Found>({
+  create: () => ({ spec: null, ranges: [], more: false, at: -1, marks: Decoration.none }),
+  update(value, tr) {
+    let spec = value.spec;
+    let asked = false;
+    for (const effect of tr.effects) {
+      if (!effect.is(setFind)) continue;
+      spec = effect.value;
+      asked = true;
+    }
+    if (!asked && !tr.docChanged && tr.selection === undefined) return value;
+    const looked = asked || tr.docChanged;
+    const { ranges, more } = !looked ? value : spec === null ? { ranges: [], more: false } : findRanges(tr.newDoc.toString(), spec);
+    const { from, to } = tr.newSelection.main;
+    const at = ranges.findIndex((range) => range.from === from && range.to === to);
+    if (!looked && at === value.at) return value;
+    return { spec, ranges, more, at, marks: Decoration.set(ranges.map((range, index) => (index === at ? foundAtMark : foundMark).range(range.from, range.to))) };
+  },
+  provide: (field) => EditorView.decorations.from(field, (value) => value.marks),
+});
 
 export interface CodeEditor {
   /** Show a file. The first time, from `text`; after that, as it was left. */
@@ -41,6 +77,14 @@ export interface CodeEditor {
   setHeld: (held: boolean) => void;
   /** What the editor is called to a screen reader. */
   setLabel: (label: string) => void;
+  /** Look for some words in whatever file is shown, and mark every place; null: stop looking. */
+  find: (spec: FindSpec | null) => void;
+  /** Select a place and bring it into view: the next (1), the one before (-1), or the nearest at or after the caret (0). */
+  step: (direction: 1 | -1 | 0) => void;
+  /** Select a place by its line (from 1) and where in the line it is, and bring it into view. */
+  reveal: (line: number, col: number, len: number) => void;
+  /** What is selected, when it is within one line; else nothing. */
+  selected: () => string;
   focus: () => void;
   destroy: () => void;
 }
@@ -52,6 +96,7 @@ export function createCodeEditor(parent: HTMLElement, events: CodeEditorEvents):
   let current: string | null = null;
   let held = false;
   let label = '';
+  let looking: FindSpec | null = null;
 
   const holdValue = () => [EditorState.readOnly.of(held), EditorView.editorAttributes.of(held ? { class: HELD_CLASS } : {})];
   // `tabindex`: the text is editable and so already a tab stop, but a checker that looks for a way to scroll a long file by keyboard only believes one it can read.
@@ -78,8 +123,11 @@ export function createCodeEditor(parent: HTMLElement, events: CodeEditorEvents):
         editorLook,
         hold.of(holdValue()),
         name.of(nameValue()),
+        found,
         EditorView.updateListener.of((update) => {
           if (update.docChanged) events.onChange(path, update.state.doc.toString());
+          const now = update.state.field(found);
+          if (now !== update.startState.field(found)) events.onFound?.({ count: now.ranges.length, at: now.at, more: now.more });
         }),
       ],
     });
@@ -95,9 +143,10 @@ export function createCodeEditor(parent: HTMLElement, events: CodeEditorEvents):
     current = path;
     states.set(path, state);
     view.setState(state);
-    // A state made or kept under another hold or name is brought to this one.
-    view.dispatch({ effects: [hold.reconfigure(holdValue()), name.reconfigure(nameValue())] });
+    // A state made or kept under another hold or name is brought to this one, and searched for what is looked for now.
+    view.dispatch({ effects: [hold.reconfigure(holdValue()), name.reconfigure(nameValue()), setFind.of(looking)] });
   };
+  const select = (from: number, to: number): void => view.dispatch({ selection: EditorSelection.single(from, to), effects: EditorView.scrollIntoView(from, { y: 'center' }), userEvent: 'select.search' });
 
   return {
     open: (path, text) => {
@@ -139,6 +188,28 @@ export function createCodeEditor(parent: HTMLElement, events: CodeEditorEvents):
       if (value === label) return;
       label = value;
       view.dispatch({ effects: name.reconfigure(nameValue()) });
+    },
+    find: (spec) => {
+      looking = spec;
+      view.dispatch({ effects: setFind.of(spec) });
+    },
+    step: (direction) => {
+      const { ranges } = view.state.field(found, false) ?? { ranges: [] };
+      if (ranges.length === 0) return;
+      const { from, to } = view.state.selection.main;
+      const next = direction === -1 ? (ranges.findLast((range) => range.to <= from) ?? ranges.at(-1)) : (ranges.find((range) => range.from >= (direction === 0 ? from : to)) ?? ranges[0]);
+      if (next !== undefined) select(next.from, next.to);
+    },
+    reveal: (line, col, len) => {
+      const { doc } = view.state;
+      const at = doc.line(Math.min(Math.max(line, 1), doc.lines));
+      const from = Math.min(at.from + Math.max(col, 0), at.to);
+      select(from, Math.min(from + Math.max(len, 0), at.to));
+    },
+    selected: () => {
+      const { from, to } = view.state.selection.main;
+      const text = view.state.sliceDoc(from, to);
+      return text.includes('\n') ? '' : text;
     },
     focus: () => view.focus(),
     destroy: () => view.destroy(),

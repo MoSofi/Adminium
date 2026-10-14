@@ -40,7 +40,8 @@ test.describe('studio connect wizard (DSN mode)', () => {
     await page.getByRole('button', { name: 'Continue', exact: true }).click();
 
     // Step 5 — meta placement: superuser DSN → same-db card is enabled.
-    await page.getByRole('radio', { name: /Same database/ }).click();
+    // Nothing to pick: the store stays where the first-run wizard left it unless another answer is chosen.
+    await expect(page.getByRole('heading', { name: 'Where should Adminium keep its own tables?' })).toBeVisible();
     await page.getByRole('button', { name: 'Continue', exact: true }).click();
 
     // Step 6 — Enrich with AI (M6): Continue stays disabled until a path is

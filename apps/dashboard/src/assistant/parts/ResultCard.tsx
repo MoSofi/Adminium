@@ -131,11 +131,18 @@ function LeftOut({ items }: { items: readonly { what: string; why: string }[] })
 }
 
 /** The warn strip under a preview — the model's caveat, or a turn that failed. */
-export function Warning({ text, action }: { text: string; action?: ReactNode }) {
+export function Warning({ text, detail, action }: { text: string; /** The raw words behind `text`, shown smaller under it. */ detail?: string; action?: ReactNode }) {
   return (
     <div className="mx-[18px] mb-4 flex items-start gap-[9px] rounded-[11px] bg-warn-soft px-[13px] py-[11px]">
       <TriangleAlert className="mt-px size-3.5 shrink-0 text-warn" aria-hidden="true" />
-      <span className="text-caption leading-[1.55] text-pretty text-fg-muted">{text}</span>
+      <span className="min-w-0 text-caption leading-[1.55] text-pretty text-fg-muted">
+        {text}
+        {detail === undefined || detail === '' ? null : (
+          <span data-testid="assistant-failure-detail" className="mt-1 block font-mono text-[11px] break-words text-fg-muted">
+            {detail}
+          </span>
+        )}
+      </span>
       {action === undefined ? null : <span className="ms-auto shrink-0">{action}</span>}
     </div>
   );

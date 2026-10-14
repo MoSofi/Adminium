@@ -25,7 +25,7 @@
  * being exactly what it was: a compatibility check, now saying so accurately
  * instead of claiming relocation is an unimplemented ops task.
  */
-import { Database, DatabaseZap } from 'lucide-react';
+import { Database, DatabaseZap, HardDrive } from 'lucide-react';
 import { useState } from 'react';
 import { Alert, Button, FormField, Input, RadioGroup, RadioCard } from '@adminium/ui';
 
@@ -44,11 +44,13 @@ export interface MetaStepProps {
   onPatch: (patch: Partial<WizardState>) => void;
   /** Where the store lives now; null while loading, or when the route is absent. */
   placement: MetaStoreLocation | null;
+  /** False until the placement question has been answered (or has failed). Absent reads as answered. */
+  placementKnown?: boolean;
   /** Non-null while Continue is carrying the choice out. */
   relocating: 'copying' | 'restarting' | null;
 }
 
-export function MetaStep({ state, onPatch, placement, relocating }: MetaStepProps) {
+export function MetaStep({ state, onPatch, placement, placementKnown = true, relocating }: MetaStepProps) {
   const [testing, setTesting] = useState(false);
   const [testError, setTestError] = useState<string | null>(null);
 
@@ -90,6 +92,44 @@ export function MetaStep({ state, onPatch, placement, relocating }: MetaStepProp
       .finally(() => setTesting(false));
   };
 
+  // An embedded store this server can still move: the one case where the step is a real choice.
+  const movable = placement !== null && placement.embedded && placement.canRelocate;
+  // The first-run wizard already asked this, and "a file on this machine" was kept: that stays
+  // the answer until another is picked, so Continue works at once and nothing is moved by default.
+  const choice: MetaPlacement = state.metaPlacement ?? 'keep';
+
+  if (!placementKnown) {
+    return (
+      <section aria-label={t('studio:meta.title', 'Where should Adminium keep its own tables?')} className="flex flex-col gap-4">
+        <h2 className="text-section text-fg">{t('studio:meta.title', 'Where should Adminium keep its own tables?')}</h2>
+        <p role="status" data-testid="meta-step-checking" className="text-body-sm text-fg-muted">
+          {t('studio:meta.checking', 'Checking where Adminium keeps its own tables…')}
+        </p>
+      </section>
+    );
+  }
+
+  // Already in a database of its own, or pinned by the environment: nothing here can change it,
+  // so nothing is asked. (It used to make the person pick a card that did nothing.)
+  if (!movable) {
+    return (
+      <section aria-label={t('studio:meta.title', 'Where should Adminium keep its own tables?')} className="flex flex-col gap-4">
+        <div>
+          <h2 className="text-section text-fg">{t('studio:meta.title', 'Where should Adminium keep its own tables?')}</h2>
+        </div>
+        <Alert
+          tone="info"
+          data-testid="meta-step-settled"
+          title={t('studio:meta.v1Note.title', 'About this install')}
+          body={
+            placement?.reason ??
+            t('studio:meta.settled.body', 'Adminium keeps its own tables where they are now, and this step does not move them. There is nothing to choose here.')
+          }
+        />
+      </section>
+    );
+  }
+
   return (
     <section aria-label={t('studio:meta.title', 'Where should Adminium keep its own tables?')} className="flex flex-col gap-4">
       <div>
@@ -106,10 +146,16 @@ export function MetaStep({ state, onPatch, placement, relocating }: MetaStepProp
 
       <RadioGroup
         aria-label={t('studio:meta.title', 'Where should Adminium keep its own tables?')}
-        value={state.metaPlacement ?? ''}
+        value={choice}
         onValueChange={(value) => onPatch({ metaPlacement: value as MetaPlacement })}
         className="grid gap-2.5"
       >
+        <RadioCard
+          value="keep"
+          title={t('studio:meta.keep.title', 'Keep it in the file on this machine')}
+          description={t('studio:meta.keep.description', 'Where Adminium keeps its own tables now. Nothing is moved, and your database is not written to.')}
+          icon={<HardDrive />}
+        />
         <RadioCard
           value="same-db"
           disabled={disabledReason !== null}
@@ -134,7 +180,7 @@ export function MetaStep({ state, onPatch, placement, relocating }: MetaStepProp
         />
       </RadioGroup>
 
-      {state.metaPlacement === 'separate-db' ? (
+      {choice === 'separate-db' ? (
         <div className="flex flex-col gap-3 rounded-lg border border-border bg-surface-2 p-3.5">
           <FormField
             label={t('studio:meta.separate.dsn', 'Meta database connection string')}
@@ -200,9 +246,10 @@ export function MetaStep({ state, onPatch, placement, relocating }: MetaStepProp
                 )
           }
         />
-      ) : placement !== null && placement.embedded && placement.canRelocate ? (
+      ) : choice === 'keep' ? null : placement !== null && placement.embedded && placement.canRelocate ? (
         <Alert
           tone="info"
+          data-testid="meta-step-will-move"
           title={t('studio:meta.willMove.title', 'This will move Adminium’s tables')}
           body={t(
             'studio:meta.willMove.body',

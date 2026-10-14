@@ -149,11 +149,18 @@ export const llmAssistantTestReply = z.object({
   latencyMs: z.number(),
   failure: z.enum(['format', 'no-tool', 'wrong-value', 'provider']).nullable(),
   message: z.string().nullable(),
+  /** The provider failure's own code, so the screen can word "nothing answers" and "the model is not there". */
+  code: z.string().nullable().optional(),
 });
 export type LlmAssistantTestReply = z.infer<typeof llmAssistantTestReply>;
 
 /** `GET /models` reply — the active provider's models + whether they are live. */
-export const llmModelInfo = z.object({ id: z.string(), label: z.string() });
+export const llmModelInfo = z.object({
+  id: z.string(),
+  label: z.string(),
+  /** True for a model its provider runs somewhere else: what it reads leaves this machine. */
+  remote: z.boolean().optional(),
+});
 export const llmModelsReply = z.object({
   models: z.array(llmModelInfo),
   /** `live` = fetched from the provider; `static` = the bundled fallback list. */

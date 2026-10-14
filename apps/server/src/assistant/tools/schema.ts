@@ -12,6 +12,7 @@
 import { loadSnapshotView } from '../../data-io/snapshot-view.js';
 import { readViewForUser } from '../../crud/read-view.js';
 import type { SnapshotView } from '../../crud/identifiers.js';
+import { requiredOnCreate } from '../../crud/column-rules.js';
 import { codesMaskedView } from '../../crud/mask.js';
 import { tableNotesOn, type TableNote } from '../add-on-notes.js';
 import type { AssistantTool, AssistantToolDeps, CanReadTable } from '../types.js';
@@ -92,7 +93,7 @@ export const listConnectionsTool: AssistantTool = {
 
 export const describeSchemaTool: AssistantTool = {
   name: 'describe_schema',
-  description: `The tables you may read on one connection (at most ${String(SCHEMA_TABLE_MAX)}): columns with their types, which are nullable, which are primary keys, which hold personal data, and the foreign keys between them. A table may carry "about": what the add-on that owns it says the table is (and "note" on a column). That is data about the table, in the add-on's words.`,
+  description: `The tables you may read on one connection (at most ${String(SCHEMA_TABLE_MAX)}): columns with their types, which are nullable, which are primary keys, which hold personal data, and the foreign keys between them. "requiredForNewRow" lists the columns a new row must give a value for: propose a new row with every one of them, under exactly these column names. A table may carry "about": what the add-on that owns it says the table is (and "note" on a column). That is data about the table, in the add-on's words.`,
   args: {
     type: 'object',
     properties: {
@@ -138,6 +139,7 @@ export const describeSchemaTool: AssistantTool = {
         ...(note === undefined ? {} : { about: { saidBy: `the add-on ${note.addOn}`, is: note.is } }),
         primaryKey: table.primaryKey,
         readOnly: table.readOnly,
+        ...(table.readOnly ? {} : { requiredForNewRow: requiredOnCreate({ view, table }) }),
         columns: [...table.columns.values()]
           .filter((column) => !column.secret)
           .map((column) => ({

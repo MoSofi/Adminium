@@ -141,9 +141,9 @@ export interface AdminiumRolesTable {
   appKey: string | null;
   /** Opens the app's own screens and never the dashboard (wave 0039). */
   screensOnly: BoolColumn;
-  /** JSON array of the parts of its app the role belongs to (wave 0057); null when it names none. */
+  /** JSON array of the parts of its app the role belongs to (wave 0058); null when it names none. */
   modules: JsonColumn | null;
-  /** `{from, names}`: the name it was installed under and that name in other languages (wave 0057). */
+  /** `{from, names}`: the name it was installed under and that name in other languages (wave 0058). */
   names: JsonColumn | null;
 }
 
@@ -595,7 +595,7 @@ export interface AdminiumAutomationsTable {
   managedBy: string | null;
   /** The name the manifest gave the rule; one a manifest and a database (0051). */
   templateKey: string | null;
-  /** The part of its app a shipped rule belongs to (wave 0057). */
+  /** The part of its app a shipped rule belongs to (wave 0058). */
   module: string | null;
   /** A fingerprint of what was written for the manifest: a rule that no longer matches it was edited (0051). */
   contentHash: string | null;
@@ -703,6 +703,8 @@ export interface AdminiumEmailTemplatesTable {
   /** Which starter minted the family; NULL for blank and built-in documents. */
   starter: string | null;
   needsTranslation: BoolColumn;
+  /** When the assistant last wrote this mail, while no person has looked at it since; NULL otherwise. */
+  assistantWroteAt: Ts | null;
   /** Delete is archive. */
   archivedAt: Ts | null;
   preheader: string;
@@ -1036,7 +1038,7 @@ export interface AdminiumManifestsTable {
    * Added by 0037.
    */
   packageFileId: Id | null;
-  /** `{defs, on}`: the parts of the app and the owner's switch for each (wave 0057); null for an app with none. */
+  /** `{defs, on}`: the parts of the app and the owner's switch for each (wave 0058); null for an app with none. */
   modules: JsonColumn | null;
   installedBy: Id | null;
   installedAt: Ts;
@@ -1252,7 +1254,7 @@ export interface AdminiumAppTablesTable {
   builtOn: string | null;
   /** JSON array of the column names the shape owns (wave 0044). */
   shapeColumns: string | null;
-  /** The part of its app the table belongs to (wave 0057). */
+  /** The part of its app the table belongs to (wave 0058). */
   module: string | null;
   createdAt: Ts;
   updatedAt: Ts;
@@ -1432,7 +1434,7 @@ export interface AdminiumAssistantUseTable {
   voiceSeconds: ColumnType<number, number | undefined, number>;
 }
 
-/** A named set of people (0056): a role's rows can reach "those of the teams this person leads". */
+/** A named set of people (0057): a role's rows can reach "those of the teams this person leads". */
 export interface AdminiumTeamsTable {
   id: Id;
   /** Unique. */
@@ -1450,7 +1452,7 @@ export interface AdminiumTeamMembersTable {
   createdAt: Ts;
 }
 
-/** A rule's spell for one row (wave 0058): composite PK (automation_id, row_key); goes with its rule. */
+/** A rule's spell for one row (wave 0059): composite PK (automation_id, row_key); goes with its rule. */
 export interface AdminiumAutomationSpellsTable {
   automationId: Id;
   /** The row's key, as a run's own key spells it. */
@@ -1462,7 +1464,7 @@ export interface AdminiumAutomationSpellsTable {
   lastTick: Ts;
 }
 
-/** When a person is told (wave 0058): one row a person who set something. */
+/** When a person is told (wave 0059): one row a person who set something. */
 export interface AdminiumNotificationSchedulesTable {
   userId: Id;
   /** IANA zone; null follows the database's own. */

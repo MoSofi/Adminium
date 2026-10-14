@@ -64,6 +64,11 @@ describe('reading the classes a screen uses', () => {
     const css = '.a, .b-c:hover > .d_e::before { } @media (min-width: 1px) { .inside { } } .md\\:p-4 { } .w-\\[12px\\] { } /* .commented { } */ a[href$=".pdf"] { }';
     expect([...classesDefined(css)].sort()).toEqual(['a', 'b-c', 'd_e', 'inside', 'md:p-4', 'pdf', 'w-[12px]']);
   });
+
+  it('reads a class that begins with a bracket, as Tailwind writes a selector into one: the made accordion has such a class', () => {
+    const css = '.\\[\\&\\:\\:-webkit-details-marker\\]\\:hidden::-webkit-details-marker { display: none }';
+    expect([...classesDefined(css)]).toContain('[&::-webkit-details-marker]:hidden');
+  });
 });
 
 describe('the design checks', () => {

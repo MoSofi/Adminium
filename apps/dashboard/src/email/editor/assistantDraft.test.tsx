@@ -15,7 +15,7 @@
  */
 import { QueryClientProvider } from '@tanstack/react-query';
 import { RouterProvider, createMemoryHistory } from '@tanstack/react-router';
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
@@ -95,15 +95,18 @@ function detail(): EmailDocumentDetail {
   };
 }
 
+/** What the server holds for et_1: a test replaces it to play a save made from the panel. */
+let stored: EmailDocumentDetail = detail();
+
 async function renderEditor() {
   vi.stubGlobal('WebSocket', FakeWebSocket);
-  const calls: { method: string; url: string }[] = [];
+  const calls: { method: string; url: string; body?: unknown }[] = [];
   vi.stubGlobal(
     'fetch',
     vi.fn().mockImplementation((input: unknown, init?: RequestInit) => {
       const url = String(input);
       const method = init?.method ?? 'GET';
-      calls.push({ method, url });
+      calls.push({ method, url, ...(typeof init?.body === 'string' ? { body: JSON.parse(init.body) as unknown } : {}) });
       if (url.startsWith('/api/v1/bootstrap')) {
         return Promise.resolve(
           jsonResponse(200, { data: makeBootstrap({ nav: { groups: [] }, assistant: { allowed: true, name: 'Milo' } }) }),
@@ -118,7 +121,11 @@ async function renderEditor() {
       if (method === 'GET' && url.startsWith('/api/v1/email-templates?')) {
         return Promise.resolve(jsonResponse(200, { items: [], counts: { template: 0, campaign: 0, archived: 0 } }));
       }
-      if (method === 'GET' && url === '/api/v1/email-templates/et_1') return Promise.resolve(jsonResponse(200, detail()));
+      if (method === 'GET' && url === '/api/v1/email-templates/et_1') return Promise.resolve(jsonResponse(200, stored));
+      if (method === 'PATCH' && url === '/api/v1/email-templates/et_1') {
+        stored = { ...stored, assistantWrote: false };
+        return Promise.resolve(jsonResponse(200, stored));
+      }
       return Promise.resolve(jsonResponse(404, { error: { code: 'NOT_FOUND', message: `no route: ${method} ${url}` } }));
     }),
   );
@@ -144,6 +151,7 @@ afterAll(() => {
 });
 afterEach(() => {
   host = null;
+  stored = detail();
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });
@@ -192,5 +200,40 @@ describe('a draft the assistant proposed', () => {
     });
     expect(screen.getByTestId('email-subject-input')).toHaveProperty('value', 'Welcome');
     expect(screen.getByTestId('email-undo').hasAttribute('disabled')).toBe(true);
+  });
+
+  it('reads as saved once the panel has saved the draft over this document, and says who wrote it until a person says it looks right', async () => {
+    const { calls, user } = await renderEditor();
+    await user.click(screen.getByTestId('apply-probe'));
+    expect(chip().textContent).toBe('Unsaved changes');
+    expect(screen.queryByTestId('email-assistant-wrote')).toBeNull();
+
+    // The card's "Save over" was confirmed: the store now holds the draft, marked as the assistant's.
+    const base = detail();
+    stored = { ...base, subject: 'Your payment is due', assistantWrote: true, document: { ...base.document, subject: 'Your payment is due', blocks: [{ id: 'b_9', block: 'email.heading', data: { text: 'A quick reminder' }, style: {} }] } };
+    act(() => host?.onSavedOver?.('et_1'));
+
+    await waitFor(() => {
+      expect(chip().textContent).toBe('All changes saved');
+    });
+    expect(screen.getByTestId('email-subject-input')).toHaveProperty('value', 'Your payment is due');
+    expect(calls.filter((call) => call.method === 'PUT')).toHaveLength(0);
+    const notice = await screen.findByTestId('email-assistant-wrote');
+    expect(notice.textContent).toContain('Milo wrote this version');
+
+    await user.click(screen.getByRole('button', { name: 'Looks right' }));
+    await waitFor(() => {
+      expect(screen.queryByTestId('email-assistant-wrote')).toBeNull();
+    });
+    expect(calls.find((call) => call.method === 'PATCH')?.body).toEqual({ reviewed: true });
+  });
+
+  it('leaves the editor alone when the panel saved over some other document', async () => {
+    const { calls, user } = await renderEditor();
+    await user.click(screen.getByTestId('apply-probe'));
+    const before = calls.length;
+    act(() => host?.onSavedOver?.('et_other'));
+    expect(calls.length).toBe(before);
+    expect(chip().textContent).toBe('Unsaved changes');
   });
 });

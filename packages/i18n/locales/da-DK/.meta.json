@@ -807,6 +807,14 @@
     "status": "mt",
     "srcHash": "e211c7b36efd"
   },
+  "assistant.error.noModel": {
+    "status": "mt",
+    "srcHash": "ed214b738cc1"
+  },
+  "assistant.error.noModelAsk": {
+    "status": "mt",
+    "srcHash": "32f6ec849fa9"
+  },
   "assistant.error.setup": {
     "status": "mt",
     "srcHash": "7e6255361dc5"
@@ -822,6 +830,10 @@
   "assistant.error.tryAgain": {
     "status": "mt",
     "srcHash": "042c862e4467"
+  },
+  "assistant.error.unreachable": {
+    "status": "mt",
+    "srcHash": "ea27b94760b2"
   },
   "assistant.general.blurb": {
     "status": "mt",
@@ -1411,6 +1423,34 @@
     "status": "mt",
     "srcHash": "0de8c5f8d30d"
   },
+  "assistant.proposal.refused.field.invalid": {
+    "status": "mt",
+    "srcHash": "c2accc0d5c04"
+  },
+  "assistant.proposal.refused.field.notAllowed": {
+    "status": "mt",
+    "srcHash": "12ae8a6f6330"
+  },
+  "assistant.proposal.refused.field.outOfRange": {
+    "status": "mt",
+    "srcHash": "281933cdb837"
+  },
+  "assistant.proposal.refused.field.required": {
+    "status": "mt",
+    "srcHash": "ff626538355e"
+  },
+  "assistant.proposal.refused.field.tooLong": {
+    "status": "mt",
+    "srcHash": "a59408848808"
+  },
+  "assistant.proposal.refused.field.unknown": {
+    "status": "mt",
+    "srcHash": "066b2dc1cf05"
+  },
+  "assistant.proposal.refused.fields": {
+    "status": "mt",
+    "srcHash": "7c6e4173cda7"
+  },
   "assistant.proposal.refused.generic": {
     "status": "mt",
     "srcHash": "a8440c357d52"
@@ -1442,6 +1482,10 @@
   "assistant.proposal.refused.notOffered": {
     "status": "mt",
     "srcHash": "daa4141b2c2b"
+  },
+  "assistant.proposal.refused.notSeen": {
+    "status": "mt",
+    "srcHash": "0ee9dbef9f63"
   },
   "assistant.proposal.refused.notThisTable": {
     "status": "mt",
@@ -1603,6 +1647,10 @@
     "status": "mt",
     "srcHash": "9de97de3ca34"
   },
+  "assistant.report.echo.resampledRefusedWhy": {
+    "status": "mt",
+    "srcHash": "1c16380fd575"
+  },
   "assistant.report.echo.sample": {
     "status": "mt",
     "srcHash": "d81896784b07"
@@ -1718,6 +1766,22 @@
   "assistant.steps.step": {
     "status": "mt",
     "srcHash": "bba82f993ac3"
+  },
+  "assistant.steps.title.answered": {
+    "status": "mt",
+    "srcHash": "587315461ce7"
+  },
+  "assistant.steps.title.asked": {
+    "status": "mt",
+    "srcHash": "908d7e8ee7c6"
+  },
+  "assistant.steps.title.failed": {
+    "status": "mt",
+    "srcHash": "955c4b2a2bca"
+  },
+  "assistant.steps.title.proposed": {
+    "status": "mt",
+    "srcHash": "b57566f43aac"
   },
   "assistant.steps.working": {
     "status": "mt",
@@ -10463,6 +10527,30 @@
     "status": "mt",
     "srcHash": "6ce6c512ea43"
   },
+  "designer.code.find": {
+    "status": "mt",
+    "srcHash": "594ccb8461d5"
+  },
+  "designer.code.findAt": {
+    "status": "mt",
+    "srcHash": "937c7f715d7a"
+  },
+  "designer.code.findClose": {
+    "status": "mt",
+    "srcHash": "9c897fe6a078"
+  },
+  "designer.code.findCount": {
+    "status": "mt",
+    "srcHash": "7e93b76453fb"
+  },
+  "designer.code.findNext": {
+    "status": "mt",
+    "srcHash": "d2f0cc5552fe"
+  },
+  "designer.code.findPrevious": {
+    "status": "mt",
+    "srcHash": "1e1f77c09a33"
+  },
   "designer.code.fixMessage": {
     "status": "mt",
     "srcHash": "8f3579372811"
@@ -10551,6 +10639,14 @@
     "status": "mt",
     "srcHash": "12fe6a280f4d"
   },
+  "designer.code.matchCase": {
+    "status": "mt",
+    "srcHash": "d18bbf9ea8b9"
+  },
+  "designer.code.noResults": {
+    "status": "mt",
+    "srcHash": "b993b0c53719"
+  },
   "designer.code.notApplied": {
     "status": "mt",
     "srcHash": "960627cbdfba"
@@ -10579,6 +10675,18 @@
     "status": "mt",
     "srcHash": "ecdf36d8a2aa"
   },
+  "designer.code.resultCount": {
+    "status": "mt",
+    "srcHash": "4d4235c98228"
+  },
+  "designer.code.resultLine": {
+    "status": "mt",
+    "srcHash": "4b524672d6c3"
+  },
+  "designer.code.resultsFirst": {
+    "status": "mt",
+    "srcHash": "f7315f0c4b2b"
+  },
   "designer.code.save": {
     "status": "mt",
     "srcHash": "efc007a393f6"
@@ -10598,6 +10706,22 @@
   "designer.code.saved": {
     "status": "mt",
     "srcHash": "fe48ff8a683b"
+  },
+  "designer.code.searchAll": {
+    "status": "mt",
+    "srcHash": "46ce16697d29"
+  },
+  "designer.code.searchFailed": {
+    "status": "mt",
+    "srcHash": "4011f2fba64e"
+  },
+  "designer.code.searchResults": {
+    "status": "mt",
+    "srcHash": "0144dae8fb18"
+  },
+  "designer.code.searching": {
+    "status": "mt",
+    "srcHash": "1a6a5ba8c23d"
   },
   "designer.code.sendAnyway": {
     "status": "mt",
@@ -10622,6 +10746,66 @@
   "designer.code.useChanged": {
     "status": "mt",
     "srcHash": "b6c80bf94221"
+  },
+  "designer.code.wholeWord": {
+    "status": "mt",
+    "srcHash": "6171b6598ab1"
+  },
+  "designer.effort.default": {
+    "status": "mt",
+    "srcHash": "808d7dca8a74"
+  },
+  "designer.effort.defaultLine": {
+    "status": "mt",
+    "srcHash": "e59535fa364a"
+  },
+  "designer.effort.high": {
+    "status": "mt",
+    "srcHash": "b1a5954a483f"
+  },
+  "designer.effort.highLine": {
+    "status": "mt",
+    "srcHash": "434bc9584c6f"
+  },
+  "designer.effort.label": {
+    "status": "mt",
+    "srcHash": "081964bfc3c0"
+  },
+  "designer.effort.low": {
+    "status": "mt",
+    "srcHash": "a124947cbd2d"
+  },
+  "designer.effort.lowLine": {
+    "status": "mt",
+    "srcHash": "e0be83896863"
+  },
+  "designer.effort.max": {
+    "status": "mt",
+    "srcHash": "a95e85aed563"
+  },
+  "designer.effort.maxLine": {
+    "status": "mt",
+    "srcHash": "821bbfa06185"
+  },
+  "designer.effort.medium": {
+    "status": "mt",
+    "srcHash": "d404968ea90b"
+  },
+  "designer.effort.mediumLine": {
+    "status": "mt",
+    "srcHash": "356e46f8011f"
+  },
+  "designer.effort.menu": {
+    "status": "mt",
+    "srcHash": "8c974bc65180"
+  },
+  "designer.effort.xhigh": {
+    "status": "mt",
+    "srcHash": "e8d4501278b7"
+  },
+  "designer.effort.xhighLine": {
+    "status": "mt",
+    "srcHash": "48476a60487b"
   },
   "designer.examples.bikes.label": {
     "status": "mt",
@@ -11355,6 +11539,26 @@
     "status": "mt",
     "srcHash": "43d993d1a714"
   },
+  "designer.pick.button": {
+    "status": "mt",
+    "srcHash": "649746399531"
+  },
+  "designer.pick.chip": {
+    "status": "mt",
+    "srcHash": "906e52318d67"
+  },
+  "designer.pick.hint": {
+    "status": "mt",
+    "srcHash": "f6b4cfe91962"
+  },
+  "designer.pick.placeholder": {
+    "status": "mt",
+    "srcHash": "cfcc3eaefdcd"
+  },
+  "designer.pick.remove": {
+    "status": "mt",
+    "srcHash": "3590af875c89"
+  },
   "designer.pictures.added": {
     "status": "mt",
     "srcHash": "766a4bb0d961"
@@ -11851,6 +12055,26 @@
     "status": "mt",
     "srcHash": "1cbf2d754df2"
   },
+  "designer.shot.area": {
+    "status": "mt",
+    "srcHash": "aea9aaa1a2bf"
+  },
+  "designer.shot.button": {
+    "status": "mt",
+    "srcHash": "c5b2ad418760"
+  },
+  "designer.shot.drawing": {
+    "status": "mt",
+    "srcHash": "9918afcc2e90"
+  },
+  "designer.shot.failed": {
+    "status": "mt",
+    "srcHash": "db13224a3a87"
+  },
+  "designer.shot.hint": {
+    "status": "mt",
+    "srcHash": "8513500cbe0b"
+  },
   "designer.spend.newSession": {
     "status": "mt",
     "srcHash": "a6d200884816"
@@ -12110,6 +12334,18 @@
   "designer.step.notNamed": {
     "status": "mt",
     "srcHash": "ade18486b6da"
+  },
+  "designer.step.ownPicturesAdded": {
+    "status": "mt",
+    "srcHash": "5d8c02aa8dcc"
+  },
+  "designer.step.ownPicturesAdding": {
+    "status": "mt",
+    "srcHash": "df09285f090e"
+  },
+  "designer.step.ownPicturesFailed": {
+    "status": "mt",
+    "srcHash": "63cfda3bcc5b"
   },
   "designer.step.packageAdded": {
     "status": "mt",
@@ -14198,6 +14434,22 @@
   "email.documentReady.subject": {
     "status": "mt",
     "srcHash": "cfe708491ced"
+  },
+  "email.editor.assistantWrote.campaign": {
+    "status": "mt",
+    "srcHash": "4793d2f5a9ec"
+  },
+  "email.editor.assistantWrote.looksRight": {
+    "status": "mt",
+    "srcHash": "b9fefb3f5b62"
+  },
+  "email.editor.assistantWrote.template": {
+    "status": "mt",
+    "srcHash": "97ab17cbdb41"
+  },
+  "email.editor.assistantWrote.title": {
+    "status": "mt",
+    "srcHash": "ac1d72c8d7d2"
   },
   "email.editor.discard.body": {
     "status": "mt",
@@ -24303,6 +24555,18 @@
     "status": "src",
     "srcHash": "cba2fb9c3015"
   },
+  "studio.meta.checking": {
+    "status": "mt",
+    "srcHash": "0c59cf224b81"
+  },
+  "studio.meta.keep.description": {
+    "status": "mt",
+    "srcHash": "eb0d937618fb"
+  },
+  "studio.meta.keep.title": {
+    "status": "mt",
+    "srcHash": "b253f1b3b78a"
+  },
   "studio.meta.move.copying": {
     "status": "mt",
     "srcHash": "e8ed6fb45335"
@@ -24382,6 +24646,10 @@
   "studio.meta.separate.title": {
     "srcHash": "5a9e32c92294",
     "status": "mt"
+  },
+  "studio.meta.settled.body": {
+    "status": "mt",
+    "srcHash": "c19c60a23867"
   },
   "studio.meta.subtitle": {
     "srcHash": "eb780da3a4c2",
@@ -27627,6 +27895,10 @@
     "status": "mt",
     "srcHash": "69ad5d440615"
   },
+  "studio.settingsAi.assistantTest.noModel": {
+    "status": "mt",
+    "srcHash": "76905cf7bcdf"
+  },
   "studio.settingsAi.assistantTest.noTool": {
     "status": "mt",
     "srcHash": "3b33cab59601"
@@ -27642,6 +27914,10 @@
   "studio.settingsAi.assistantTest.running": {
     "status": "mt",
     "srcHash": "899a3d71f713"
+  },
+  "studio.settingsAi.assistantTest.unreachable": {
+    "status": "mt",
+    "srcHash": "60d363f731eb"
   },
   "studio.settingsAi.assistantTest.wrongValue": {
     "status": "mt",
@@ -27814,6 +28090,10 @@
   "studio.settingsAi.field.noKeyBody": {
     "srcHash": "bee0cb485bf6",
     "status": "mt"
+  },
+  "studio.settingsAi.field.noKeyRemoteBody": {
+    "status": "mt",
+    "srcHash": "e19a61ebf7a1"
   },
   "studio.settingsAi.field.noKeyTitle": {
     "srcHash": "8d44d06a8e08",

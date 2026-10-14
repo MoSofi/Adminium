@@ -112,6 +112,8 @@ export interface EmailDocumentSummary {
   category: EmailCategory;
   enabled: boolean;
   needsTranslation: boolean;
+  /** The assistant wrote this version and no person has saved it or said it looks right since. Absent from an older server. */
+  assistantWrote?: boolean;
   archivedAt: number | null;
   updatedAt: number;
   /** A key the built-ins own — "Reset to built-in" instead of "Delete for
@@ -218,6 +220,8 @@ export interface EmailPatchBody {
   enabled?: boolean | undefined;
   category?: EmailCategory | undefined;
   archived?: boolean | undefined;
+  /** A person has read what the assistant wrote and says it looks right. */
+  reviewed?: true | undefined;
 }
 
 export interface EmailTestSendReply {

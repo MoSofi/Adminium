@@ -294,7 +294,13 @@
     },
     "saveFailed": "Kunne ikke gemme",
     "saved": "Ændringer gemt",
-    "loadFailed": "Denne e-mail kunne ikke indlæses"
+    "loadFailed": "Denne e-mail kunne ikke indlæses",
+    "assistantWrote": {
+      "campaign": "Læs den igennem. {name} kan først sende denne kampagne, når du har gemt den eller sagt, at den ser rigtig ud.",
+      "looksRight": "Ser rigtig ud",
+      "template": "Læs den igennem, og gem den eller sig, at den ser rigtig ud. En kampagne startet fra den holdes tilbage, indtil du gør det.",
+      "title": "{name} skrev denne version"
+    }
   },
   "empty": {
     "templates": {

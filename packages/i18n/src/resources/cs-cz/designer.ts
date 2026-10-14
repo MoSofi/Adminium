@@ -178,6 +178,22 @@ export default {
     "keptWindows": "na tomto počítači, zašifrovaný systémem Windows. Neukládá se do vašeho projektu, takže exportovaný nebo sdílený projekt žádný neobsahuje.",
     "keptLinux": "na tomto počítači, zašifrovaný úložištěm klíčů vašeho prostředí. Neukládá se do vašeho projektu, takže exportovaný nebo sdílený projekt žádný neobsahuje."
   },
+  "effort": {
+    "label": "Úsilí: {effort}",
+    "menu": "Úsilí",
+    "default": "Výchozí",
+    "defaultLine": "Co model dělá sám od sebe",
+    "low": "Nízké",
+    "lowLine": "Nejrychlejší a nejlevnější",
+    "medium": "Střední",
+    "mediumLine": "Rovnováha rychlosti a pečlivosti",
+    "high": "Vysoké",
+    "highLine": "Více přemýšlení v každém kroku",
+    "xhigh": "Velmi vysoké",
+    "xhighLine": "Pro těžké úlohy; pomalejší a dražší",
+    "max": "Maximální",
+    "maxLine": "Nejvíce přemýšlení; nejpomalejší a nejdražší"
+  },
   "provider": {
     "anthropic": "Anthropic",
     "openai": "OpenAI",
@@ -346,6 +362,9 @@ export default {
     "picturesDeclined": "Obešlo se bez obrázků",
     "picturesFailed": "Obrázky se nepodařilo přidat",
     "picturesRefused": "Žádné obrázky nepřidány",
+    "ownPicturesAdding": "Přidávají se vaše obrázky",
+    "ownPicturesAdded": "Vaše obrázky přidány: {count}",
+    "ownPicturesFailed": "Vaše obrázky nebyly přidány",
     "naming": "Pojmenovává aplikaci",
     "named": "Aplikace pojmenována {subject}",
     "notNamed": "Aplikace nebyla pojmenována",
@@ -751,7 +770,23 @@ export default {
     "composerUnsaved": "Máte neuložené změny v {count, plural, one {# souboru} few {# souborech} many {# souboru} other {# souborech}}. Designer je neuvidí.",
     "saveFirst": "Nejdřív uložit",
     "sendAnyway": "Přesto odeslat",
-    "groupMobile": "Aplikace pro telefon"
+    "groupMobile": "Aplikace pro telefon",
+    "searchAll": "Hledat ve všech souborech",
+    "searchResults": "Výsledky hledání",
+    "matchCase": "Rozlišovat velikost písmen",
+    "wholeWord": "Celé slovo",
+    "searching": "Hledání…",
+    "searchFailed": "Soubory se nepodařilo prohledat.",
+    "noResults": "Žádné výsledky",
+    "resultCount": "{count, plural, one {# výsledek} few {# výsledky} many {# výsledku} other {# výsledků}} v {files, plural, one {# souboru} few {# souborech} many {# souboru} other {# souborech}}",
+    "resultsFirst": "Prvních {count} výsledků, v {files, plural, one {# souboru} few {# souborech} many {# souboru} other {# souborech}}",
+    "resultLine": "Řádek {line}: {text}",
+    "find": "Hledat v tomto souboru",
+    "findAt": "{at} z {count}",
+    "findCount": "Nalezeno: {count}",
+    "findPrevious": "Předchozí výsledek",
+    "findNext": "Další výsledek",
+    "findClose": "Zavřít hledání"
   },
   "chat": {
     "copy": "Zkopírovat tuto zprávu",
@@ -868,5 +903,19 @@ export default {
     "show": "Zobrazit kód",
     "open": "Otevřít na telefonu",
     "webNote": "Vykresleno prohlížečem: blízko telefonu, ale není to telefon. Designer se na tuto stranu nedívá."
+  },
+  "pick": {
+    "button": "Vybrat prvek na stránce",
+    "hint": "Klikněte na část stránky, kterou chcete změnit. Esc výběr ukončí.",
+    "chip": "Vybraný prvek",
+    "remove": "Odebrat vybraný prvek",
+    "placeholder": "Napište, co se má na tomto prvku změnit…"
+  },
+  "shot": {
+    "button": "Pořídit obrázek části stránky",
+    "hint": "Táhněte přes část stránky, kterou máte na mysli. Esc ukončí výběr.",
+    "area": "Táhněte přes část stránky, jejíž obrázek chcete pořídit",
+    "drawing": "Pořizuje se obrázek…",
+    "failed": "Stránka tuto část nedokázala vykreslit. Zkuste to znovu nebo přiložte vlastní obrázek."
   }
 } as const;

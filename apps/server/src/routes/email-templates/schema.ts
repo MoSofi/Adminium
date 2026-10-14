@@ -49,6 +49,8 @@ export const emailDocumentSummary = z.object({
   category: emailCategorySchema,
   enabled: z.boolean(),
   needsTranslation: z.boolean(),
+  /** The assistant wrote this version and no person has saved it or said it looks right since. */
+  assistantWrote: z.boolean(),
   archivedAt: z.number().nullable(),
   updatedAt: z.number(),
   /** A key the built-ins own — "Reset to built-in" instead of "Delete for
@@ -164,6 +166,8 @@ export const emailPatchBody = z
     enabled: z.boolean().optional(),
     category: emailCategorySchema.optional(),
     archived: z.boolean().optional(),
+    /** A person has read what the assistant wrote and says it looks right. Only `true` means anything. */
+    reviewed: z.literal(true).optional(),
   })
   .refine((body) => Object.keys(body).length > 0, 'nothing to change');
 

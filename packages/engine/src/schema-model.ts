@@ -128,7 +128,17 @@ export type IndexModel = z.infer<typeof indexModelSchema>;
 export const columnDefaultSchema = z
   .union([
     z.strictObject({ kind: z.enum(['literal', 'expression']), text: z.string() }),
-    z.strictObject({ kind: z.enum(['autoincrement', 'now', 'uuid']) }),
+    z.strictObject({
+      kind: z.enum(['autoincrement', 'now', 'uuid']),
+      /**
+       * With `now` only, and only where an introspector can tell: the database
+       * fills this column with UTC's wall clock as text, whatever zone it runs
+       * in (SQLite's `current_timestamp`). A default that keeps local time, or
+       * counts seconds, does not carry it. Absent on every model read before
+       * the mark existed, which reads as "not known": nothing is assumed.
+       */
+      utc: z.literal(true).optional(),
+    }),
   ])
   .nullable();
 export type ColumnDefault = z.infer<typeof columnDefaultSchema>;

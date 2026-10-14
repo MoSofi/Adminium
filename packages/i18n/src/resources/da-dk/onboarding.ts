@@ -112,7 +112,7 @@ export default {
       "timeout": "Adminium flyttede sine data, men er ikke kommet tilbage endnu. De er sikre i den nye database — genindlæs siden om et øjeblik."
     },
     "pinned": {
-      "body": "Denne instans blev startet med sit metalager konfigureret, så der er intet at flytte. Du kan ændre det senere i Studio-indstillingerne.",
+      "body": "Denne instans blev startet med sit metalager konfigureret, så der er intet at flytte.",
       "title": "Adminiums data har allerede et hjem"
     },
     "sameDb": {

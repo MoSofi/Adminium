@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Wave 0058 — a rule's spells, and a person's quiet hours.
+ * Wave 0059 — a rule's spells, and a person's quiet hours.
  *
  * ─── `adminium_automation_spells` ──────────────────────────────────────────
  * A rule that runs by the clock may visit a row "once per spell": once for

@@ -180,7 +180,10 @@ export default {
     "modelFormatAsk": "此模型的回答方式不是 {name} 需要的。请让管理员换一个模型。",
     "setup": "刚才无法读取此页面。请再问一次。",
     "busy": "你的上一个问题还在处理中。请等待它完成，或先停止它。",
-    "budget": "处理到一半停下了：今天的额度已用完。"
+    "budget": "处理到一半停下了：今天的额度已用完。",
+    "unreachable": "模型的地址没有任何响应。请确认它正在运行，然后重试。",
+    "noModel": "模型不存在：提供方没有它。请在“设置 → AI”中选择其他模型。",
+    "noModelAsk": "模型不存在：提供方没有它。请让管理员选择其他模型。"
   },
   "invoiceTemplate": {
     "action1": "换一个示例预览",
@@ -269,6 +272,7 @@ export default {
       "editor": "已保存到报告，正在构建器中打开。",
       "resampled": "已重新运行数据源 — 更新了 {n, plural, other {# 项数据}}。",
       "resampledRefused": "已重新运行数据源 — 更新了 {n, plural, other {# 项数据}}；{refused, plural, other {# 个数据源}}无法读取。",
+      "resampledRefusedWhy": "已重新运行数据源 — 更新了 {n, plural, other {# 项数据}}；{refused, plural, other {# 个数据源}}无法读取：{why}",
       "sample": "已为 {record} 运行完整查询。",
       "saved": "已保存到报告。可在报告标题栏添加计划。",
       "test": "已向 {email} 发送测试。"
@@ -298,6 +302,12 @@ export default {
     },
     "readPage": "已读取此页面",
     "step": "第 {n} 步",
+    "title": {
+      "answered": "已查询",
+      "asked": "有一个问题要问你",
+      "failed": "未能完成",
+      "proposed": "已算出将会更改的内容"
+    },
     "working": "正在处理"
   },
   "tabs": {
@@ -434,7 +444,7 @@ export default {
     "someRefused": "{count, plural, other {#}} 项更改中有 {refused} 项无法执行。",
     "changedSince": "自向你展示后，此内容已发生变化。确认前请再看一遍。",
     "fix": "让 {name} 修正",
-    "fixAsk": "其中一部分无法执行。请去掉以下内容后重新提议：\n{reasons}",
+    "fixAsk": "其中一部分无法执行。请改正以下各项后重新提议，并使用表自身的列名；只去掉完全无法执行的内容：\n{reasons}",
     "send": {
       "template": "模板",
       "subject": "主题",
@@ -488,7 +498,17 @@ export default {
       "builtIn": "内置邮件需在其自己的页面上更改。",
       "notCampaign": "只有营销邮件可以发送给人员。",
       "noRecipients": "没有人会收到这封邮件。",
-      "notLive": "草稿需由人开启后才能发送。"
+      "notLive": "草稿需由人开启后才能发送。",
+      "fields": "已拒绝：{reasons}。",
+      "field": {
+        "invalid": "“{column}”不接受这个值",
+        "notAllowed": "此处不能设置“{column}”",
+        "outOfRange": "“{column}”超出范围",
+        "required": "“{column}”需要一个值",
+        "tooLong": "“{column}”太长",
+        "unknown": "没有“{column}”这一列"
+      },
+      "notSeen": "这个营销活动的最新版本由 {name} 撰写，之后还没有人看过。请先在编辑器中打开它并按“确认无误”，或保存它。"
     },
     "row": {
       "untitled": "未命名",

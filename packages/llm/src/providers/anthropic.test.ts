@@ -204,7 +204,8 @@ describe('createAnthropicClient.listModels', () => {
     expect(call.url).toBe('https://api.anthropic.com/v1/models');
     expect((call.init.headers as Record<string, string>)['x-api-key']).toBe(KEY);
     expect(models).toEqual([
-      { id: 'claude-opus-4-8', label: 'Claude Opus 4.8' },
+      { id: 'claude-opus-4-8', label: 'Claude Opus 4.8', efforts: ['low', 'medium', 'high', 'xhigh', 'max'] },
+      // Haiku 4.5 refuses the effort field: none is offered.
       { id: 'claude-haiku-4-5', label: 'claude-haiku-4-5' },
     ]);
   });

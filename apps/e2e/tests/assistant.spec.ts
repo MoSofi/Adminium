@@ -162,6 +162,8 @@ test.describe('the page assistant', () => {
     await expect(modal(page).getByTestId('assistant-steps')).toContainText('Read this page');
     await action(page, 'sample').click();
     await expect(modal(page).getByTestId('assistant-echo')).toContainText(/Re-ran the sources/i, { timeout: 30_000 });
+    // Re-run, not refused: a draft's source keeps the connection it was run on.
+    await expect(modal(page).getByTestId('assistant-echo')).not.toContainText(/could not be read/i);
 
     await action(page, 'save').click();
     await page.getByTestId('assistant-confirm-go').click();
@@ -318,6 +320,54 @@ test.describe('the page assistant', () => {
       // The audit page draws the mark.
       await page.goto('/audit');
       await expect(page.getByTestId('audit-via-assistant').first()).toBeVisible({ timeout: 20_000 });
+    } finally {
+      await settings({ create: true, change: false, send: false, delete: false });
+    }
+  });
+
+  test('(f) a campaign made in the dashboard is sent through the assistant, once a person confirms the card', async ({ page }) => {
+    await signIn(page);
+    const settings = async (abilities: Record<string, boolean>) => {
+      const res = await page.request.put('/api/v1/assistant/settings', { data: { abilities } });
+      expect(res.ok(), `the assistant's switches → ${String(res.status())}`).toBeTruthy();
+    };
+    // A template, and a campaign started from it by the route the manager's "New campaign" calls.
+    // A campaign is created switched off and no screen switches one on: it must be sendable as it is.
+    const template = (await (await page.request.post('/api/v1/email-templates', { data: { kind: 'template', name: 'Autumn hours (e2e)', starter: null } })).json()) as { id: string };
+    made.email.push(template.id);
+    const minted = await page.request.post(`/api/v1/email-templates/${template.id}/from-template`, { data: { name: 'Autumn news (e2e)' } });
+    expect(minted.status(), await minted.text()).toBe(201);
+    const campaign = (await minted.json()) as { id: string; enabled: boolean; assistantWrote: boolean };
+    made.email.push(campaign.id);
+    expect(campaign).toMatchObject({ enabled: false, assistantWrote: false });
+
+    try {
+      await settings({ create: true, change: false, send: true, delete: false });
+      await page.goto(`/email-templates/${campaign.id}`);
+      await expect(page.getByTestId('email-editor-header')).toBeVisible();
+      // A person's own campaign carries no "the assistant wrote this" notice.
+      await expect(page.getByTestId('email-assistant-wrote')).toHaveCount(0);
+
+      await openAssistant(page);
+      await modal(page).getByTestId('assistant-input').fill('Send the campaign "Autumn news (e2e)" to Super Admin');
+      await modal(page).getByTestId('assistant-send').click();
+      const card = modal(page).getByTestId('assistant-proposal');
+      await expect(card).toBeVisible({ timeout: 30_000 });
+      // The card names the mail and can be confirmed: it is not refused for a switch nobody can turn.
+      await expect(card).toContainText('Autumn news (e2e)');
+      await expect(card).not.toContainText(/switched on by a person|nobody has looked/i);
+      const confirm = card.getByTestId('assistant-proposal-confirm');
+      await expect(confirm).toBeEnabled();
+
+      const sent = page.waitForResponse((response) => response.request().method() === 'POST' && /\/assistant\/sessions\/[^/]+\/turns\/[^/]+\/actions$/.test(new URL(response.url()).pathname) && (response.request().postDataJSON() as { action?: string } | null)?.action === 'apply');
+      await confirm.click();
+      const reply = (await (await sent).json()) as { proposal: { outcome: { done: unknown[]; failed: { code: string; message: string }[] } } };
+      // The send reached the campaign's own route. With a relay it is queued; this stack may have
+      // none, and then the route says so in its own words. Either way the assistant was let through.
+      const { done, failed } = reply.proposal.outcome;
+      expect(done.length + failed.length).toBe(1);
+      for (const failure of failed) expect(failure.message).toContain('SMTP');
+      await expect(modal(page).getByTestId('assistant-proposal-result')).toBeVisible({ timeout: 30_000 });
     } finally {
       await settings({ create: true, change: false, send: false, delete: false });
     }

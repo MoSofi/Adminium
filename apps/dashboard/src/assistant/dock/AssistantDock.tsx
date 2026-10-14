@@ -38,6 +38,7 @@ import { AllowanceBar } from '../parts/AllowanceBar.js';
 import { AssistantBubble as Speaker } from '../parts/AssistantBubble.js';
 import { Idle } from '../parts/Idle.js';
 import { ReadOnlyBar } from '../parts/ReadOnlyBar.js';
+import { plainSay } from '../parts/RichSay.js';
 import { Warning } from '../parts/ResultCard.js';
 import { UnavailableBar } from '../parts/UnavailableBar.js';
 import { TurnView } from '../TurnView.js';
@@ -254,6 +255,16 @@ function proposalHome(turn: ThreadTurn, pages: unknown): DraftHome | null {
   return draftHome(turn.context, turn.on.documentId);
 }
 
+/**
+ * Whether the document a draft belongs to is the one this page has open: the
+ * one it was made on, or the one it was SAVED AS. A rule's page opens the rule
+ * a draft's save just made; the draft, made with nothing open, is at home there.
+ */
+export function draftIsHere(turn: { on: { documentId: string | null }; result: { saved: { id: string } | null } | null }, open: string | null): boolean {
+  if (turn.on.documentId === open) return true;
+  return turn.on.documentId === null && open !== null && turn.result?.saved?.id === open;
+}
+
 /** Whether a turn's draft is a change to the rule that is open on the rules page: it names that rule as what it was built from. */
 function changesOpenRule(turn: { context: string; result: { basedOn: string | null } | null }, page: AssistantHostContext | null): boolean {
   if (turn.context !== 'automation' || turn.result === null || turn.result.basedOn === null || page === null) return false;
@@ -342,8 +353,7 @@ export function AssistantDock({ visible, pages, layout: fixedLayout }: Assistant
     if (floating) setDockOpen(false);
   }, [floating]);
   /** A draft is at home on the page, and for an editor the document, it was made for. */
-  const atHome = (turn: ThreadTurn): boolean =>
-    !turn.on.gone && turn.context === page.context && turn.on.documentId === (page.host.documentId ?? null) && pageHost() !== null;
+  const atHome = (turn: ThreadTurn): boolean => !turn.on.gone && turn.context === page.context && draftIsHere(turn, page.host.documentId ?? null) && pageHost() !== null;
 
   // ── over the page it is a dialog: the page is inert, focus comes in, Escape closes ──
   useEffect(() => {
@@ -435,7 +445,8 @@ export function AssistantDock({ visible, pages, layout: fixedLayout }: Assistant
   };
   /** What is read of a turn: what it said, and one short line when there is something to look at. Never the thing itself. */
   const spokenOf = (turn: ThreadTurn): string => {
-    const said = turn.say ?? '';
+    // Without its marks: an asterisk and a path in brackets are noise read aloud.
+    const said = plainSay(turn.say ?? '');
     if (turn.result !== null) return `${said} ${t('assistant:speak.draft', 'There is a draft for you to look at.')}`.trim();
     if ((turn.answer?.proposal ?? null) !== null) return `${said} ${t('assistant:speak.proposal', 'I have put what would change on the screen for you to look at.')}`.trim();
     return said;
@@ -736,6 +747,7 @@ export function AssistantDock({ visible, pages, layout: fixedLayout }: Assistant
                       onAsk={submit}
                       blocked={blocked || working}
                       onChanged={() => conversation.loadWhole(turn.id)}
+                      onSavedOver={(id) => pageHost()?.onSavedOver?.(id)}
                       onOpenTemplate={(id) => {
                         if (floating) close();
                         void navigate({ to: '/email-templates/$id', params: { id } } as never);

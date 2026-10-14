@@ -170,7 +170,10 @@
     "modelFormatAsk": "This model does not answer in the way {name} needs. Ask an administrator to choose another model.",
     "setup": "This page could not be read just now. Try asking again.",
     "busy": "Your last question is still being worked on. Wait for it, or stop it first.",
-    "budget": "This stopped part way: today’s allowance is used up."
+    "budget": "This stopped part way: today’s allowance is used up.",
+    "unreachable": "Nothing answers at the model’s address. Check that it is running, then try again.",
+    "noModel": "The model is not there: its provider does not have it. Choose another model in Settings → AI.",
+    "noModelAsk": "The model is not there: its provider does not have it. Ask an administrator to choose another model."
   },
   "invoiceTemplate": {
     "action1": "Preview another sample",
@@ -259,6 +262,7 @@
       "editor": "Saved to Reports. Opening it in the builder.",
       "resampled": "Re-ran the sources — {n, plural, one {# figure} other {# figures}} updated.",
       "resampledRefused": "Re-ran the sources — {n, plural, one {# figure} other {# figures}} updated; {refused, plural, one {# source} other {# sources}} could not be read.",
+      "resampledRefusedWhy": "Re-ran the sources — {n, plural, one {# figure} other {# figures}} updated; {refused, plural, one {# source} other {# sources}} could not be read: {why}",
       "sample": "Ran the full query for {record}.",
       "saved": "Saved to Reports. Add a schedule from the report header.",
       "test": "Test sent to {email}."
@@ -288,6 +292,12 @@
     },
     "readPage": "Read this page",
     "step": "step {n}",
+    "title": {
+      "answered": "Looked it up",
+      "asked": "Has a question for you",
+      "failed": "Could not finish",
+      "proposed": "Worked out what would change"
+    },
     "working": "Working on it"
   },
   "tabs": {
@@ -424,7 +434,7 @@
     "someRefused": "{refused} of {count, plural, one {# change} other {# changes}} cannot be made.",
     "changedSince": "This changed since you were shown it. Look again before confirming.",
     "fix": "Ask {name} to fix this",
-    "fixAsk": "Some of that cannot be done. Propose it again without these:\n{reasons}",
+    "fixAsk": "Some of that cannot be done. Put these right and propose it again, using the table’s own column names; leave out only what cannot be done at all:\n{reasons}",
     "send": {
       "template": "Template",
       "subject": "Subject",
@@ -478,7 +488,17 @@
       "builtIn": "A built-in mail is changed on its own screen.",
       "notCampaign": "Only a campaign can be sent to people.",
       "noRecipients": "Nobody would get this mail.",
-      "notLive": "A draft is switched on by a person before it can be sent."
+      "notLive": "A draft is switched on by a person before it can be sent.",
+      "fields": "Refused: {reasons}.",
+      "field": {
+        "invalid": "“{column}” does not take that value",
+        "notAllowed": "“{column}” cannot be set here",
+        "outOfRange": "“{column}” is out of range",
+        "required": "“{column}” needs a value",
+        "tooLong": "“{column}” is too long",
+        "unknown": "there is no column “{column}”"
+      },
+      "notSeen": "{name} wrote the latest version of this campaign and nobody has looked at it since. Open it in the editor and press “Looks right”, or save it, first."
     },
     "row": {
       "untitled": "Untitled",

@@ -230,6 +230,10 @@
                                 "now",
                                 "uuid"
                               ]
+                            },
+                            "utc": {
+                              "type": "boolean",
+                              "const": true
                             }
                           },
                           "required": [

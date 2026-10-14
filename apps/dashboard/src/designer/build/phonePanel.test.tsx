@@ -62,6 +62,13 @@ function model(over: Partial<PreviewModel> = {}): PreviewModel {
     phoneError: null,
     openTab: vi.fn(),
     canOpenTab: true,
+    canPick: true,
+    picking: false,
+    setPicking: vi.fn(),
+    canShoot: true,
+    shooting: false,
+    setShooting: vi.fn(),
+    shoot: vi.fn(() => Promise.resolve(null)),
     ...over,
   };
 }

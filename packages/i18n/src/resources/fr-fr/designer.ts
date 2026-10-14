@@ -178,6 +178,22 @@ export default {
     "keptWindows": "sur cet ordinateur, chiffrée par Windows. Elle n’est pas placée dans votre projet ; un projet exporté ou partagé n’en contient donc aucune.",
     "keptLinux": "sur cet ordinateur, chiffrée par le trousseau de votre bureau. Elle n’est pas placée dans votre projet ; un projet exporté ou partagé n’en contient donc aucune."
   },
+  "effort": {
+    "label": "Effort : {effort}",
+    "menu": "Effort",
+    "default": "Par défaut",
+    "defaultLine": "Ce que le modèle fait de lui-même",
+    "low": "Faible",
+    "lowLine": "Le plus rapide et le moins cher",
+    "medium": "Moyen",
+    "mediumLine": "Un équilibre entre vitesse et soin",
+    "high": "Élevé",
+    "highLine": "Plus de réflexion à chaque étape",
+    "xhigh": "Très élevé",
+    "xhighLine": "Pour les tâches difficiles ; plus lent, plus cher",
+    "max": "Maximal",
+    "maxLine": "Le plus de réflexion ; le plus lent, le plus cher"
+  },
   "provider": {
     "anthropic": "Anthropic",
     "openai": "OpenAI",
@@ -346,6 +362,9 @@ export default {
     "picturesDeclined": "S’est passé d’images",
     "picturesFailed": "Impossible d’ajouter des images",
     "picturesRefused": "Aucune image ajoutée",
+    "ownPicturesAdding": "Ajout de vos images",
+    "ownPicturesAdded": "Vos images ajoutées : {count}",
+    "ownPicturesFailed": "Vos images n’ont pas été ajoutées",
     "naming": "Nomme l’application",
     "named": "A nommé l’application {subject}",
     "notNamed": "L’application n’a pas été nommée",
@@ -751,7 +770,23 @@ export default {
     "composerUnsaved": "Vous avez des modifications non enregistrées dans {count, plural, one {# fichier} other {# fichiers}}. Le Designer ne les verra pas.",
     "saveFirst": "Enregistrer d’abord",
     "sendAnyway": "Envoyer quand même",
-    "groupMobile": "Application mobile"
+    "groupMobile": "Application mobile",
+    "searchAll": "Rechercher dans tous les fichiers",
+    "searchResults": "Résultats de la recherche",
+    "matchCase": "Respecter la casse",
+    "wholeWord": "Mot entier",
+    "searching": "Recherche en cours…",
+    "searchFailed": "Impossible de rechercher dans les fichiers.",
+    "noResults": "Aucun résultat",
+    "resultCount": "{count, plural, one {# résultat} other {# résultats}} dans {files, plural, one {# fichier} other {# fichiers}}",
+    "resultsFirst": "Les {count} premiers résultats, dans {files, plural, one {# fichier} other {# fichiers}}",
+    "resultLine": "Ligne {line} : {text}",
+    "find": "Rechercher dans ce fichier",
+    "findAt": "{at} sur {count}",
+    "findCount": "{count} trouvés",
+    "findPrevious": "Résultat précédent",
+    "findNext": "Résultat suivant",
+    "findClose": "Fermer la recherche"
   },
   "chat": {
     "copy": "Copier ce message",
@@ -868,5 +903,19 @@ export default {
     "show": "Afficher le code",
     "open": "Ouvrir sur un téléphone",
     "webNote": "Dessiné par le navigateur : proche du téléphone, mais pas le téléphone. Le Designer ne regarde pas ce côté."
+  },
+  "pick": {
+    "button": "Choisir un élément de la page",
+    "hint": "Cliquez sur la partie de la page à modifier. Échap arrête.",
+    "chip": "Élément choisi",
+    "remove": "Retirer l’élément choisi",
+    "placeholder": "Dites ce qu’il faut changer sur cet élément…"
+  },
+  "shot": {
+    "button": "Prendre une image d’une partie de la page",
+    "hint": "Faites glisser sur la partie de la page concernée. Échap pour arrêter.",
+    "area": "Faites glisser sur la partie de la page à capturer",
+    "drawing": "Capture de l’image…",
+    "failed": "La page n’a pas pu dessiner cette partie. Réessayez ou joignez votre propre image."
   }
 } as const;

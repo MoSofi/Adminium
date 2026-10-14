@@ -110,10 +110,15 @@ describe('mapSqliteType — the SQLite column (declared → affinity)', () => {
 
 describe('classifyDefault — pragma dflt_value text', () => {
   it('CURRENT_TIMESTAMP family is now', () => {
-    expect(classifyDefault('CURRENT_TIMESTAMP')).toEqual({ kind: 'now' });
+    // UTC's wall clock as text is marked: the server fills such a column itself, on its own clock.
+    expect(classifyDefault('CURRENT_TIMESTAMP')).toEqual({ kind: 'now', utc: true });
+    expect(classifyDefault('current_timestamp')).toEqual({ kind: 'now', utc: true });
+    expect(classifyDefault("datetime('now')")).toEqual({ kind: 'now', utc: true });
+    // Local time already, a date alone, or a count of seconds: none is UTC text, none is marked.
+    expect(classifyDefault("datetime('now', 'localtime')")).toEqual({ kind: 'now' });
     expect(classifyDefault('CURRENT_DATE')).toEqual({ kind: 'now' });
-    expect(classifyDefault("datetime('now')")).toEqual({ kind: 'now' });
     expect(classifyDefault("strftime('%s','now')")).toEqual({ kind: 'now' });
+    expect(classifyDefault('unixepoch()')).toEqual({ kind: 'now' });
   });
 
   it('literals are read as their value: a quoted text without its quotes', () => {

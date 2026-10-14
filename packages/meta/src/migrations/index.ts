@@ -77,9 +77,10 @@ import { up as up0052 } from './0052_assistant_turn_page.js';
 import { up as up0053 } from './0053_assistant_use.js';
 import { up as up0054 } from './0054_assistant_abilities.js';
 import { up as up0055 } from './0055_assistant_proposal_claim.js';
-import { up as up0056 } from './0056_teams.js';
-import { up as up0057 } from './0057_app_modules.js';
-import { up as up0058 } from './0058_spells_and_quiet_hours.js';
+import { up as up0056 } from './0056_email_assistant_wrote.js';
+import { up as up0057 } from './0057_teams.js';
+import { up as up0058 } from './0058_app_modules.js';
+import { up as up0059 } from './0059_spells_and_quiet_hours.js';
 import { up as up0030 } from './0030_report_documents.js';
 
 export interface MetaMigration {
@@ -144,7 +145,8 @@ export const ALL_MIGRATIONS: readonly MetaMigration[] = [
   { name: '0053_assistant_use', up: up0053 },
   { name: '0054_assistant_abilities', up: up0054 },
   { name: '0055_assistant_proposal_claim', up: up0055 },
-  { name: '0056_teams', up: up0056 },
-  { name: '0057_app_modules', up: up0057 },
-  { name: '0058_spells_and_quiet_hours', up: up0058 },
+  { name: '0056_email_assistant_wrote', up: up0056 },
+  { name: '0057_teams', up: up0057 },
+  { name: '0058_app_modules', up: up0058 },
+  { name: '0059_spells_and_quiet_hours', up: up0059 },
 ];

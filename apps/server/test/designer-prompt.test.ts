@@ -15,7 +15,7 @@ import { join } from 'node:path';
 import { ASSISTANT_INPUT_TOKEN_LIMIT, estimateTokens, type RunMessage } from '@adminium/llm';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { ADDRESSES, appNow, asksOnlyForPhoneApp, createPrompt, MENTIONS_ADD_ON, MENTIONS_OWN_ROW, MENTIONS_PHONE_APP, MENTIONS_SCREENS, OWN_ROW_GUIDE, skillsFor, taskGuides, trimTranscript } from '../src/designer/prompt.js';
+import { ADDRESSES, appNow, asksOnlyForPhoneApp, createPrompt, MENTIONS_ADD_ON, MENTIONS_OWN_ROW, MENTIONS_PHONE_APP, MENTIONS_SCREENS, OWN_ROW_GUIDE, skillsFor, taskGuides, trimTranscript, WANTS_OWN_PICTURES } from '../src/designer/prompt.js';
 import { scaffoldApp } from '../src/project/apps/scaffold-app.js';
 import { emptyFirstPreview, placeholderScreens, unopenedTables, unreadPersonalColumns } from '../src/designer/service.js';
 import type { DesignerSession } from '../src/designer/session-store.js';
@@ -378,17 +378,27 @@ describe('pictures, made ready to send', () => {
     // Turn 3, with two "Before you finish" lines sent back by the server: the picture is still this turn's.
     const messages = [user('Make it look like this.', 'a'), said(''), user('Before you finish: one'), said(''), user('Before you finish: two')];
     expect(sent(withPictures(messages, { reads: true, bytesOf: bytesOf(), turnOf: (ref) => turns.get(ref), turn: 3 }))).toEqual(['a']);
-    // The turn after: still sent. Two turns after: a line saying it was there.
+    // A picture the person attached is the design the app is built from: it goes with every later turn of the session (owner ruling 2026-10-11).
     expect(sent(withPictures(messages, { reads: true, bytesOf: bytesOf(), turnOf: (ref) => turns.get(ref), turn: 4 }))).toEqual(['a']);
-    const later = withPictures(messages, { reads: true, bytesOf: bytesOf(), turnOf: (ref) => turns.get(ref), turn: 5 });
-    expect(sent(later)).toEqual([]);
-    expect(lines(later)).toContain('A picture the person attached earlier: "a.png"');
+    expect(sent(withPictures(messages, { reads: true, bytesOf: bytesOf(), turnOf: (ref) => turns.get(ref), turn: 9 }))).toEqual(['a']);
   });
 
-  it('a turn that failed does not keep its picture with every later message', () => {
-    // Turn 2 failed before any answer, so its message and turn 3's and 4's are one message to the provider.
-    const merged = [user('Like this.', 'a'), { role: 'user', content: [{ type: 'text', text: 'Again.' }] } as RunMessage, { role: 'user', content: [{ type: 'text', text: 'And again.' }] } as RunMessage];
-    expect(sent(withPictures(merged, { reads: true, bytesOf: bytesOf(), turnOf: () => 2, turn: 4 }))).toEqual([]);
+  it('sends a picture the server took of the page in its turn and the next, and no longer', () => {
+    const page: RunMessage = { role: 'user', content: [{ type: 'text', text: 'This picture is the customer page as it shows now.' }, { type: 'image', mediaType: 'image/jpeg', data: '', ref: 'page', name: 'the customer page as it shows.jpg' }] };
+    const messages = [user('Make it look like this.', 'a'), said(''), page];
+    const turns = new Map([['a', 1], ['page', 1]]);
+    expect(sent(withPictures(messages, { reads: true, bytesOf: bytesOf(), turnOf: (ref) => turns.get(ref), turn: 2 }))).toEqual(['a', 'page']);
+    const later = withPictures(messages, { reads: true, bytesOf: bytesOf(), turnOf: (ref) => turns.get(ref), turn: 3 });
+    expect(sent(later)).toEqual(['a']);
+    expect(lines(later)).toContain('(A picture of the page as it showed then. It is not sent again.)');
+  });
+
+  it('says an older picture was there when a request cannot carry them all', () => {
+    const five = 5 * 1024 * 1024;
+    const turns = new Map([['old', 1], ['p1', 3], ['p2', 3]]);
+    const out = withPictures([user('First.', 'old'), said('ok'), user('Now these.', 'p1', 'p2')], { reads: true, bytesOf: bytesOf(five), turnOf: (ref) => turns.get(ref), turn: 3 });
+    expect(sent(out)).toEqual(['p1', 'p2']);
+    expect(lines(out)).toContain('A picture the person attached earlier: "old.png"');
   });
 
   it('says a picture the server took of the page, since replaced, as that: nobody attached it, and the person is not asked to describe it', () => {
@@ -486,5 +496,22 @@ describe('a phone app', () => {
     expect((await prompt(session({ appKey: 'cafe' }), [say('user', 'Make the buttons bigger.')])).system).toContain(`===== ${MOBILE} =====`);
     expect((await prompt(session(), [say('user', 'Make the buttons bigger.')])).system).not.toContain(`===== ${MOBILE} =====`);
     expect((await prompt(session(), [say('user', 'I want a phone app for my customers.')])).system).toContain(`===== ${MOBILE} =====`);
+  });
+});
+
+describe('a person who brings the pictures', () => {
+  it('is heard in the words people use for it, and in no others', () => {
+    for (const said of [
+      'I will provide you with the properties images after you bootstrap the website. You can put an empty placeholder until I give you the images.',
+      'Leave empty boxes where the photos go.',
+      "We'll send the pictures next week.",
+      'Use our own photos, I upload them later.',
+      'No stock photos please.',
+    ]) {
+      expect(WANTS_OWN_PICTURES.test(said), said).toBe(true);
+    }
+    for (const said of ['A site for my bakery with nice pictures of the cakes.', 'Customers send a photo of the damage with the form.', 'I will give you the menu tomorrow.']) {
+      expect(WANTS_OWN_PICTURES.test(said), said).toBe(false);
+    }
   });
 });

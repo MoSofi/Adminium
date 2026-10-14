@@ -280,8 +280,24 @@ export interface AssistantProposalAction {
   table: string | null;
   id: string | null;
   preview: AssistantProposalPreview | null;
-  /** Why it cannot be done. `message` is the server route's own sentence. */
-  refused: { code: string; message: string } | null;
+  /** Why it cannot be done. `message` is the server route's own sentence; `fields` the columns it named, each with its reason. */
+  refused: AssistantRefusal | null;
+}
+
+export interface AssistantRefusal {
+  code: string;
+  message: string;
+  fields: { column: string; code: string }[];
+}
+
+/** The columns a refusal names, each with the route's own reason for it. */
+function readRefusedFields(raw: unknown): { column: string; code: string }[] {
+  const out: { column: string; code: string }[] = [];
+  for (const entry of Array.isArray(raw) ? raw : []) {
+    const field = record(entry);
+    if (field !== null && typeof field.column === 'string' && field.column !== '') out.push({ column: field.column, code: typeof field.code === 'string' ? field.code : 'invalid' });
+  }
+  return out;
 }
 
 export interface AssistantProposalOutcome {
@@ -361,7 +377,7 @@ export function readProposal(raw: unknown): AssistantProposal | null {
     const action = record(entry);
     // Kept in its place, as something that cannot be done: the ticks and the outcome go by index.
     if (action === null || typeof action.do !== 'string') {
-      actions.push({ do: '', table: null, id: null, preview: null, refused: { code: 'NOT_OFFERED', message: '' } });
+      actions.push({ do: '', table: null, id: null, preview: null, refused: { code: 'NOT_OFFERED', message: '', fields: [] } });
       continue;
     }
     const refused = record(action.refused);
@@ -370,7 +386,7 @@ export function readProposal(raw: unknown): AssistantProposal | null {
       table: typeof action.table === 'string' ? action.table : null,
       id: typeof action.id === 'string' ? action.id : null,
       preview: readPreview(action.preview),
-      refused: refused === null ? null : { code: typeof refused.code === 'string' ? refused.code : '', message: typeof refused.message === 'string' ? refused.message : '' },
+      refused: refused === null ? null : { code: typeof refused.code === 'string' ? refused.code : '', message: typeof refused.message === 'string' ? refused.message : '', fields: readRefusedFields(refused.fields) },
     });
   }
   const refusal = record(proposal.refusal);
@@ -491,7 +507,7 @@ export interface AssistantResult {
   sources: string[];
   /** The document this draft was already saved as, when the server recorded one. */
   saved: { id: string; kind: string; name: string } | null;
-  diff: { against: string | null; adds: number; dels: number; lines: AssistantDiffLine[]; truncated: boolean };
+  diff: { against: string | null; /** What that document is called, when the server could say. */ againstName?: string; adds: number; dels: number; lines: AssistantDiffLine[]; truncated: boolean };
 }
 
 /** `result.saved`, when it reads; anything else means "not saved yet". */
@@ -540,6 +556,7 @@ export function readResult(raw: Record<string, unknown> | null): AssistantResult
     saved: savedOf(raw.saved),
     diff: {
       against: typeof diff?.against === 'string' ? diff.against : null,
+      ...(typeof diff?.againstName === 'string' && diff.againstName !== '' ? { againstName: diff.againstName } : {}),
       adds: num(diff?.adds),
       dels: num(diff?.dels),
       lines: lines
@@ -648,6 +665,18 @@ export type AssistantErrorKind = 'too-long' | 'model-format' | 'setup' | 'budget
 export function readErrorKind(raw: Record<string, unknown> | null): AssistantErrorKind | null {
   const kind = raw === null ? null : raw.kind;
   return kind === 'too-long' || kind === 'model-format' || kind === 'setup' || kind === 'budget' ? kind : null;
+}
+
+/** The two provider failures worded for the person: nothing answers at the address, or the model is not there. */
+export type AssistantProviderFailure = 'unreachable' | 'no-model';
+
+/** Which worded provider failure a provider's own code is; `null` for one shown in the provider's words alone. */
+export function providerFailureOf(code: unknown): AssistantProviderFailure | null {
+  return code === 'network' ? 'unreachable' : code === 'not_found' ? 'no-model' : null;
+}
+
+export function readProviderFailure(raw: Record<string, unknown> | null): AssistantProviderFailure | null {
+  return raw === null || raw.kind !== 'provider' ? null : providerFailureOf(raw.code);
 }
 
 /**

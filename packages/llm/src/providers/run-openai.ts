@@ -66,6 +66,8 @@ export function openAiMessages(system: string, messages: readonly RunMessage[]):
           ? [{ id: block.id, type: 'function', function: { name: block.name, arguments: JSON.stringify(block.input) } }]
           : [],
       );
+      // An assistant message with neither words nor calls is refused ("expected a string, got null"): it is not sent.
+      if (text.length === 0 && calls.length === 0) continue;
       out.push({
         role: 'assistant',
         content: text.length > 0 ? text : null,

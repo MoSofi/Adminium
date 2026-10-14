@@ -190,6 +190,12 @@ export function AutomationRulesPage(): ReactNode {
       setInspectId(incompleteNodeId);
       return true;
     },
+    onSavedOver: (id) => {
+      // What was on screen as an unsaved change is now the stored rule (saved switched off).
+      if (selected === null || selected.id !== id) return;
+      setDraft(null);
+      setByAssistant(null);
+    },
   });
   const changedByAssistant = byAssistant !== null && selected !== null && byAssistant.ruleId === selected.id && dirty ? byAssistant : null;
 

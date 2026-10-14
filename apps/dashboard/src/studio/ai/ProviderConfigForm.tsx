@@ -49,6 +49,7 @@ import {
 } from '@adminium/ui';
 
 import { bootstrapQuery } from '../../app/bootstrap.js';
+import { providerFailureOf } from '../../assistant/api.js';
 import { getI18nInstance, t } from '../../i18n/t.js';
 import { useAppToasts } from '../../pages/toasts.js';
 import {
@@ -111,7 +112,7 @@ function providerDescription(id: ConfigurableProvider): string {
         'Any endpoint that speaks the OpenAI wire format — Groq, Together, vLLM, LM Studio.',
       );
     case 'ollama':
-      return t('studio:settingsAi.provider.ollama.desc', 'Models running locally through Ollama — no key, no cloud.');
+      return t('studio:settingsAi.provider.ollama.desc', 'Models run through your own Ollama — no key.');
   }
 }
 
@@ -189,6 +190,8 @@ export function ProviderConfigForm({
     enabled: savedForSelected && entry !== null && !entry.freeTextModel,
     staleTime: 5 * 60_000,
   });
+
+  const remoteModel = draft !== null && draft.provider === 'ollama' && isRemoteOllamaModel(draft.model, savedForSelected ? modelsQuery.data?.models : undefined);
 
   const saveMutation = useMutation({
     mutationFn: (next: DraftState) => {
@@ -382,9 +385,17 @@ export function ProviderConfigForm({
               />
             ) : (
               <Alert
-                tone="info"
+                tone={remoteModel ? 'warn' : 'info'}
+                data-testid={remoteModel ? 'ollama-remote-model' : 'ollama-local-model'}
                 title={t('studio:settingsAi.field.noKeyTitle', 'No API key needed')}
-                body={t('studio:settingsAi.field.noKeyBody', 'Ollama runs locally, so nothing leaves this machine.')}
+                body={
+                  remoteModel
+                    ? t(
+                        'studio:settingsAi.field.noKeyRemoteBody',
+                        'This is an Ollama cloud model: Ollama runs it on its own servers, so what the model is given leaves this machine.',
+                      )
+                    : t('studio:settingsAi.field.noKeyBody', 'Ollama runs locally, so nothing leaves this machine.')
+                }
               />
             )}
 
@@ -610,6 +621,18 @@ function AssistantTestResult({
   return <Alert tone="warn" role="alert" data-testid="assistant-model-test-failed" title={assistantTestFailure(result, name)} />;
 }
 
+/**
+ * Whether an Ollama model runs somewhere other than this machine. Ollama's own
+ * list says so (`remote`); for a name not in the list yet (typed, not saved),
+ * its cloud models are the ones named `…:cloud` or `…-cloud`.
+ */
+export function isRemoteOllamaModel(model: string, live: readonly LlmModelInfo[] | undefined): boolean {
+  const name = model.trim();
+  if (name === '') return false;
+  const listed = live?.find((entry) => entry.id === name);
+  return listed !== undefined ? listed.remote === true : /[:-]cloud$/i.test(name);
+}
+
 /** One literal key a kind, so each sentence is in the catalogue and none is built from parts. */
 function assistantTestFailure(result: LlmAssistantTestResult, name: string): string {
   switch (result.failure) {
@@ -622,6 +645,13 @@ function assistantTestFailure(result: LlmAssistantTestResult, name: string): str
     case 'wrong-value':
       return t('studio:settingsAi.assistantTest.wrongValue', 'This model used the tool and then reported something else. Choose another model.');
     case 'provider':
+      // The two a person can act on are worded; the provider's own text follows them.
+      if (providerFailureOf(result.code) === 'unreachable') {
+        return t('studio:settingsAi.assistantTest.unreachable', 'Nothing answers at the model’s address. Check that it is running. ({message})', { message: result.message ?? '' });
+      }
+      if (providerFailureOf(result.code) === 'no-model') {
+        return t('studio:settingsAi.assistantTest.noModel', 'The model is not there: its provider does not have it. Choose another model. ({message})', { message: result.message ?? '' });
+      }
       return t('studio:settingsAi.assistantTest.provider', 'The model did not answer: {message}', { message: result.message ?? '' });
     default:
       return t('studio:settingsAi.assistantTest.format', 'This model answers, but not in the way {name} needs. Choose another model.', { name });

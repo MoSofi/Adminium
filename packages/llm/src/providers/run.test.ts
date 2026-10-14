@@ -15,7 +15,7 @@ import { fileURLToPath } from 'node:url';
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { anthropicMessages } from './run-anthropic.js';
+import { ANTHROPIC_THINKING_ROOM, anthropicMaxTokens, anthropicMessages, anthropicRunBody } from './run-anthropic.js';
 import { canBuild, createProviderRunner, PROBE_PICTURE, readsImages } from './run-factory.js';
 import { ollamaMessages } from './run-ollama.js';
 import { forgetOpenAiRunShapes, openAiMessages } from './run-openai.js';
@@ -314,6 +314,52 @@ describe('whether a model reads pictures', () => {
     expect(await readsImages(answering(new ProviderError({ provider: 'ollama', code: 'network', message: 'offline' })), 'm')).toBeNull();
     expect(await readsImages(answering(new ProviderError({ provider: 'ollama', code: 'rate_limit', status: 429, message: 'slow down' })), 'm')).toBeNull();
     await expect(readsImages(answering(new ProviderError({ provider: 'ollama', code: 'aborted', message: 'stopped' })), 'm')).rejects.toMatchObject({ code: 'aborted' });
+  });
+});
+
+describe('a message with nothing in it', () => {
+  // What a session stored before 2026-10-11 when a reply was cut off before its first word: both services refuse it (HTTP 400).
+  const stored: RunMessage[] = [
+    { role: 'user', content: [{ type: 'text', text: 'Make a jobs table.' }] },
+    { role: 'assistant', content: [{ type: 'text', text: '' }] },
+    { role: 'user', content: [{ type: 'text', text: 'Continue.' }] },
+  ];
+
+  it('Anthropic: an empty text block is not sent, nor a message left with no block', () => {
+    expect(anthropicMessages(stored)).toEqual([
+      { role: 'user', content: [{ type: 'text', text: 'Make a jobs table.' }] },
+      { role: 'user', content: [{ type: 'text', text: 'Continue.' }] },
+    ]);
+    expect(anthropicMessages([{ role: 'assistant', content: [{ type: 'text', text: ' \n' }, { type: 'tool_call', id: 't1', name: 'check_app', input: {} }] }])).toEqual([
+      { role: 'assistant', content: [{ type: 'tool_use', id: 't1', name: 'check_app', input: {} }] },
+    ]);
+  });
+
+  it('OpenAI and compatible: an assistant message with neither words nor calls is not sent', () => {
+    expect(openAiMessages('', stored)).toEqual([
+      { role: 'user', content: 'Make a jobs table.' },
+      { role: 'user', content: 'Continue.' },
+    ]);
+  });
+});
+
+describe('the effort a person chose', () => {
+  it('goes to Anthropic as output_config.effort, with more room for a level that thinks longer; left out, the field is not sent', () => {
+    const base = { system: '', messages: [], tools: [], maxTokens: 8000 };
+    expect(anthropicRunBody({ ...base, model: 'claude-sonnet-5-5', effort: 'low' })).toMatchObject({ output_config: { effort: 'low' }, max_tokens: 16_000 });
+    expect(anthropicRunBody({ ...base, model: 'claude-sonnet-5-5', effort: 'max' })).toMatchObject({ output_config: { effort: 'max' }, max_tokens: 56_000 });
+    expect(anthropicRunBody({ ...base, model: 'claude-sonnet-5-5' })).not.toHaveProperty('output_config');
+  });
+});
+
+describe('room for thinking', () => {
+  it('is added for the Anthropic models that think unless told otherwise, and for no other', () => {
+    expect(anthropicMaxTokens('claude-sonnet-5-5', 8000)).toBe(8000 + ANTHROPIC_THINKING_ROOM);
+    expect(anthropicMaxTokens('claude-haiku-5-5', 8000)).toBe(8000 + ANTHROPIC_THINKING_ROOM);
+    expect(anthropicMaxTokens('claude-fable-5-1', 8000)).toBe(8000 + ANTHROPIC_THINKING_ROOM);
+    expect(anthropicMaxTokens('claude-opus-4-8', 8000)).toBe(8000);
+    expect(anthropicMaxTokens('claude-3-5-sonnet-20241022', 8000)).toBe(8000);
+    expect(anthropicMaxTokens('the-model', 8000)).toBe(8000);
   });
 });
 
@@ -811,7 +857,7 @@ describe('a reply recorded from Anthropic (claude-haiku-5-5)', () => {
   it('says the tokens ran out when all of them went to thinking, with nothing of the thinking kept', async () => {
     serve(fixture('anthropic-recorded-max-tokens'));
     const { result, events } = await collect(ANTHROPIC());
-    expect(result).toEqual({ blocks: [], stop: 'max_tokens', malformed: [], usage: { inputTokens: 43, outputTokens: 32 } });
+    expect(result).toEqual({ blocks: [], stop: 'max_tokens', malformed: [], usage: { inputTokens: 43, outputTokens: 32 }, detail: 'stop_reason max_tokens; blocks not kept: thinking' });
     expect(events.filter((event) => event.type === 'text')).toEqual([]);
   });
 

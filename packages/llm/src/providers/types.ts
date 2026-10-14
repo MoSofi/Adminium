@@ -85,7 +85,21 @@ export interface CompleteResult {
 export interface ModelInfo {
   id: string;
   label: string;
+  /**
+   * The effort levels the model takes, the least first; absent when it takes
+   * none, or when its provider has no such setting we send.
+   */
+  efforts?: RunEffort[];
+  /**
+   * True when a LOCAL provider runs this model somewhere else (an Ollama
+   * `:cloud` model runs on ollama.com). What is sent to it leaves the machine.
+   */
+  remote?: boolean;
 }
+
+/** How hard a model is asked to work on a reply, the least first. */
+export const RUN_EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max'] as const;
+export type RunEffort = (typeof RUN_EFFORTS)[number];
 
 export const DEFAULT_MAX_OUTPUT_TOKENS = 16_000 as const;
 export const DEFAULT_TIMEOUT_MS = 60_000 as const;

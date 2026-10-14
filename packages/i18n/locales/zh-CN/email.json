@@ -294,7 +294,13 @@
     },
     "saveFailed": "保存失败",
     "saved": "更改已保存",
-    "loadFailed": "无法加载这封邮件"
+    "loadFailed": "无法加载这封邮件",
+    "assistantWrote": {
+      "campaign": "请通读一遍。只有在你保存或确认无误之后，{name} 才能发送这个营销活动。",
+      "looksRight": "确认无误",
+      "template": "请通读一遍，然后保存或确认无误。在此之前，由它创建的营销活动会被暂缓发送。",
+      "title": "这个版本由 {name} 撰写"
+    }
   },
   "empty": {
     "templates": {

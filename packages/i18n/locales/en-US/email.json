@@ -294,7 +294,13 @@
     },
     "saveFailed": "Could not save",
     "saved": "Changes saved",
-    "loadFailed": "Couldn’t load this email"
+    "loadFailed": "Couldn’t load this email",
+    "assistantWrote": {
+      "campaign": "Read it through. {name} can send this campaign only after you save it or say it looks right.",
+      "looksRight": "Looks right",
+      "template": "Read it through, then save it or say it looks right. A campaign started from it stays held back until you do.",
+      "title": "{name} wrote this version"
+    }
   },
   "empty": {
     "templates": {

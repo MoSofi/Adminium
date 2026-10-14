@@ -145,10 +145,10 @@ for (const dialect of TEST_DIALECTS) {
 
       if (m.dialect !== 'mysql') {
         const before = await allColumnTypes(m);
-        expect((await applyMigrations(m.db, { dialect: m.dialect })).applied).toEqual(['0047_mysql_longtext', '0048_public_key_peak', '0049_project_apps', '0050_catalog_default', '0051_automation_ownership', '0052_assistant_turn_page', '0053_assistant_use', '0054_assistant_abilities', '0055_assistant_proposal_claim', '0056_teams', '0057_app_modules', '0058_spells_and_quiet_hours']);
+        expect((await applyMigrations(m.db, { dialect: m.dialect })).applied).toEqual(['0047_mysql_longtext', '0048_public_key_peak', '0049_project_apps', '0050_catalog_default', '0051_automation_ownership', '0052_assistant_turn_page', '0053_assistant_use', '0054_assistant_abilities', '0055_assistant_proposal_claim', '0056_email_assistant_wrote', '0057_teams', '0058_app_modules', '0059_spells_and_quiet_hours']);
         // Nothing of 0047's here; 0048 adds a key's peak, two columns of its own, and 0049 a table of its own.
         expect(
-          (await allColumnTypes(m)).filter((column) => !/^adminium_public_keys\.peak_(reads|writes):|^adminium_project_apps\.|^adminium_automations\.(managed_by|template_key|content_hash|module):|^adminium_manifests\.modules:|^adminium_roles\.(modules|names):|^adminium_app_tables\.module:|^adminium_automation_spells\.|^adminium_notification_schedules\.|^adminium_assistant_turns\.(context|host|draft|answer|proposal_claimed_at|proposal_done_at):|^adminium_assistant_sessions\.kind:|^adminium_assistant_use\.|^adminium_team(s|_members)\./.test(column)),
+          (await allColumnTypes(m)).filter((column) => !/^adminium_public_keys\.peak_(reads|writes):|^adminium_project_apps\.|^adminium_automations\.(managed_by|template_key|content_hash|module):|^adminium_manifests\.modules:|^adminium_roles\.(modules|names):|^adminium_app_tables\.module:|^adminium_automation_spells\.|^adminium_notification_schedules\.|^adminium_assistant_turns\.(context|host|draft|answer|proposal_claimed_at|proposal_done_at):|^adminium_assistant_sessions\.kind:|^adminium_assistant_use\.|^adminium_team(s|_members)\.|^adminium_email_templates\.assistant_wrote_at:/.test(column)),
         ).toEqual(before);
       } else {
         const before = await textColumns(m);
@@ -167,7 +167,7 @@ for (const dialect of TEST_DIALECTS) {
           publicEndpointsRepo(m).create({ connectionId, ref: 'refused', origin: 'custom', definition: BIG }, T0),
         ).rejects.toThrow(/Data too long/);
 
-        expect((await applyMigrations(m.db, { dialect: m.dialect })).applied).toEqual(['0047_mysql_longtext', '0048_public_key_peak', '0049_project_apps', '0050_catalog_default', '0051_automation_ownership', '0052_assistant_turn_page', '0053_assistant_use', '0054_assistant_abilities', '0055_assistant_proposal_claim', '0056_teams', '0057_app_modules', '0058_spells_and_quiet_hours']);
+        expect((await applyMigrations(m.db, { dialect: m.dialect })).applied).toEqual(['0047_mysql_longtext', '0048_public_key_peak', '0049_project_apps', '0050_catalog_default', '0051_automation_ownership', '0052_assistant_turn_page', '0053_assistant_use', '0054_assistant_abilities', '0055_assistant_proposal_claim', '0056_email_assistant_wrote', '0057_teams', '0058_app_modules', '0059_spells_and_quiet_hours']);
         const after = await textColumns(m);
         expect(after).toEqual(before.map((c) => ({ ...c, type: 'longtext' })));
       }

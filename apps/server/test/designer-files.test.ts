@@ -15,7 +15,7 @@ import { dirname, join } from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { appJsonProblem, FILE_PART, FILES_LISTED_MAX, groupFiles, hashOf, isText, listEditable, saveLabel, withLineEnds } from '../src/designer/files.js';
+import { appJsonProblem, FILE_PART, FILES_LISTED_MAX, groupFiles, hashOf, isText, listEditable, saveLabel, searchText, withLineEnds } from '../src/designer/files.js';
 import { createTurnReads, noCardRefusal, plainPath } from '../src/designer/write-guard.js';
 
 let root: string;
@@ -251,5 +251,46 @@ describe('a save’s small rules', () => {
   it('names a version for the file, or for how many', () => {
     expect(saveLabel(['apps/shop/customer/src/pages/Menu.tsx'])).toBe('Your edit to Menu.tsx');
     expect(saveLabel(['a/b.ts', 'a/c.ts', 'a/d.ts'])).toBe('Your edit to 3 files');
+  });
+});
+
+describe('a search of a file’s text', () => {
+  const plain = { matchCase: false, wholeWord: false };
+  const places = (text: string, query: string, opts = plain): [number, number, number][] => searchText(text, query, opts).hits.map((hit) => [hit.line, hit.col, hit.len]);
+
+  it('finds every place, line by line, whatever the line ends', () => {
+    expect(places('const menu = Menu;\r\n// menu\rmenu()\n', 'menu')).toEqual([
+      [1, 6, 4],
+      [1, 13, 4],
+      [2, 3, 4],
+      [3, 0, 4],
+    ]);
+    expect(places('one\ntwo\n', '')).toEqual([]);
+    expect(places('one\ntwo\n', 'three')).toEqual([]);
+  });
+
+  it('holds capitals apart, and finds whole words only, when asked', () => {
+    expect(places('Menu menu MENU', 'menu', { matchCase: true, wholeWord: false })).toEqual([[1, 5, 4]]);
+    expect(places('menu menus submenu menu_ menu', 'menu', { matchCase: false, wholeWord: true })).toEqual([
+      [1, 0, 4],
+      [1, 25, 4],
+    ]);
+    expect(places('été étés', 'été', { matchCase: false, wholeWord: true })).toEqual([[1, 0, 3]]);
+  });
+
+  it('takes the words as they are: a mark that means something in a pattern is only itself', () => {
+    expect(places('a.b a+b (a|b) [x] {y} a\\b ^$ a*b a-b', '.')).toEqual([[1, 1, 1]]);
+    for (const words of ['a+b', '(a|b)', '[x]', '{y}', 'a\\b', '^$', 'a*b', 'a-b', '(', ']', '\\']) expect(places('a.b a+b (a|b) [x] {y} a\\b ^$ a*b a-b', words).length, words).toBeGreaterThan(0);
+    expect(places('aaaa', '.*')).toEqual([]);
+  });
+
+  it('shows a long line around the place, and stops at the most it names', () => {
+    const [hit] = searchText(`${'x'.repeat(500)}needle${'y'.repeat(500)}`, 'needle', plain).hits;
+    expect(hit).toMatchObject({ line: 1, col: 500, len: 6, at: 40 });
+    expect(hit?.text).toHaveLength(240);
+    expect(hit?.text.slice(40, 46)).toBe('needle');
+    const many = searchText('a '.repeat(300), 'a', plain);
+    expect([many.hits.length, many.more]).toEqual([100, true]);
+    expect(searchText('a a', 'a', plain, 2)).toMatchObject({ more: false });
   });
 });

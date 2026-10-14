@@ -1193,6 +1193,11 @@
     }
   },
   "meta": {
+    "checking": "正在檢查 Adminium 存放自身資料表的位置…",
+    "keep": {
+      "description": "Adminium 目前存放自身資料表的位置。不會搬移任何內容，也不會寫入你的資料庫。",
+      "title": "保留在這台機器上的檔案中"
+    },
     "move": {
       "copying": "正在搬移 Adminium 的資料表…",
       "copyingBody": "正在將每張 adminium_ 資料表複製到新資料庫。您的來源資料不會被更動，且必須通過驗證後才會切換。",
@@ -1218,6 +1223,9 @@
       "ok": "相容——寫入 ✓ · DDL ✓",
       "test": "測試連線",
       "title": "獨立的資料庫"
+    },
+    "settled": {
+      "body": "Adminium 的自身資料表保留在目前位置，此步驟不會搬移它們。這裡沒有需要選擇的內容。"
     },
     "subtitle": "頁面、角色、稽核記錄與設定存放在以 adminium_ 為前綴的資料表中——絕不混入你的資料。",
     "testFailed": "連線失敗。",
@@ -2203,6 +2211,7 @@
       "modelPlaceholder": "選擇一個模型…",
       "modelStatic": "一份經過驗證的清單；儲存後輸入自訂 ID 可重新整理。",
       "noKeyBody": "Ollama 在本機執行，因此沒有任何內容離開這台機器。",
+      "noKeyRemoteBody": "這是 Ollama 雲端模型：Ollama 在自己的伺服器上執行它，因此交給模型的內容會離開這台機器。",
       "noKeyTitle": "不需要 API 金鑰"
     },
     "history": {
@@ -2232,7 +2241,7 @@
       "networkDisabledBody": "此 Adminium 設定為無對外網路存取，無法連線服務商 API。請使用下方的複製貼上往返方式——不需金鑰，也不需連網。",
       "networkDisabledTitle": "此安裝已關閉直連 AI 服務商",
       "ollama": {
-        "desc": "透過 Ollama 在本機執行模型——免金鑰，免雲端。",
+        "desc": "透過你自己的 Ollama 執行的模型 — 不需金鑰。",
         "label": "Ollama（本機）"
       },
       "openai": {
@@ -2292,7 +2301,9 @@
       "noTool": "此模型沒有使用給它的工具就回答了。{name} 會用猜的，而不是讀取你的資料。請換一個模型。",
       "wrongValue": "此模型用了工具，卻回報了別的內容。請換一個模型。",
       "provider": "模型沒有回答：{message}",
-      "error": "測試無法執行。請再試一次。"
+      "error": "測試無法執行。請再試一次。",
+      "unreachable": "模型的位址沒有任何回應。請確認它正在執行。（{message}）",
+      "noModel": "模型不存在：提供者沒有它。請選擇其他模型。（{message}）"
     },
     "allowance": {
       "title": "每日額度",

@@ -102,7 +102,7 @@
       "timeout": "Adminium a déplacé ses données mais n’est pas encore revenu. Elles sont en sécurité dans la nouvelle base — rechargez cette page dans un instant."
     },
     "pinned": {
-      "body": "Cette instance a démarré avec son magasin méta déjà configuré : il n’y a rien à déplacer. Vous pourrez le changer plus tard depuis les réglages du Studio.",
+      "body": "Cette instance a démarré avec son magasin méta déjà configuré : il n’y a rien à déplacer.",
       "title": "Les données d’Adminium ont déjà un logement"
     },
     "sameDb": {

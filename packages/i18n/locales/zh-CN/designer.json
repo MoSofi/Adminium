@@ -168,6 +168,22 @@
     "keptWindows": "保存在这台电脑上，由 Windows 加密。它不会放进你的项目，因此你导出或共享的项目不包含任何密钥。",
     "keptLinux": "保存在这台电脑上，由桌面的密钥存储加密。它不会放进你的项目，因此你导出或共享的项目不包含任何密钥。"
   },
+  "effort": {
+    "label": "投入程度：{effort}",
+    "menu": "投入程度",
+    "default": "默认",
+    "defaultLine": "由模型自行决定",
+    "low": "低",
+    "lowLine": "最快、最省",
+    "medium": "中",
+    "mediumLine": "兼顾速度与细致",
+    "high": "高",
+    "highLine": "每一步思考更多",
+    "xhigh": "超高",
+    "xhighLine": "适合困难的构建；更慢、更贵",
+    "max": "最高",
+    "maxLine": "思考最多；最慢、最贵"
+  },
   "provider": {
     "anthropic": "Anthropic",
     "openai": "OpenAI",
@@ -336,6 +352,9 @@
     "picturesDeclined": "未使用图片",
     "picturesFailed": "无法添加图片",
     "picturesRefused": "未添加图片",
+    "ownPicturesAdding": "正在添加您的图片",
+    "ownPicturesAdded": "已添加您的图片：{count}",
+    "ownPicturesFailed": "未添加您的图片",
     "naming": "正在为应用命名",
     "named": "已将应用命名为 {subject}",
     "notNamed": "应用未命名",
@@ -741,7 +760,23 @@
     "composerUnsaved": "你在 {count, plural, other {# 个文件}}中有未保存的更改。Designer 不会看到它们。",
     "saveFirst": "先保存",
     "sendAnyway": "仍然发送",
-    "groupMobile": "手机应用"
+    "groupMobile": "手机应用",
+    "searchAll": "在所有文件中搜索",
+    "searchResults": "搜索结果",
+    "matchCase": "区分大小写",
+    "wholeWord": "全字匹配",
+    "searching": "正在搜索…",
+    "searchFailed": "无法搜索文件。",
+    "noResults": "无结果",
+    "resultCount": "{files, plural, other {# 个文件}}中有 {count, plural, other {# 条结果}}",
+    "resultsFirst": "前 {count} 条结果，位于 {files, plural, other {# 个文件}}中",
+    "resultLine": "第 {line} 行：{text}",
+    "find": "在此文件中查找",
+    "findAt": "第 {at} 项，共 {count} 项",
+    "findCount": "找到 {count} 项",
+    "findPrevious": "上一个结果",
+    "findNext": "下一个结果",
+    "findClose": "关闭搜索"
   },
   "chat": {
     "copy": "复制这条消息",
@@ -858,5 +893,19 @@
     "show": "显示二维码",
     "open": "在手机上打开",
     "webNote": "由浏览器绘制：接近手机，但不是手机。Designer 不会查看这一侧。"
+  },
+  "pick": {
+    "button": "在页面上选取元素",
+    "hint": "点击页面上要修改的部分。按 Esc 停止。",
+    "chip": "已选取的元素",
+    "remove": "移除已选取的元素",
+    "placeholder": "说明要对这个元素做什么修改…"
+  },
+  "shot": {
+    "button": "为页面的一部分截图",
+    "hint": "在页面上拖动选出您指的部分。按 Esc 停止。",
+    "area": "拖动选出要截图的页面部分",
+    "drawing": "正在截图…",
+    "failed": "页面无法绘制这一部分。请重试，或附上您自己的图片。"
   }
 }

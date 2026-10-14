@@ -180,7 +180,10 @@ export default {
     "modelFormatAsk": "Denne model svarer ikke på den måde, {name} har brug for. Bed en administrator om at vælge en anden model.",
     "setup": "Denne side kunne ikke læses lige nu. Prøv at spørge igen.",
     "busy": "Dit seneste spørgsmål er stadig i gang. Vent på det, eller stop det først.",
-    "budget": "Dette stoppede undervejs: dagens kvote er brugt op."
+    "budget": "Dette stoppede undervejs: dagens kvote er brugt op.",
+    "unreachable": "Intet svarer på modellens adresse. Tjek, at den kører, og prøv igen.",
+    "noModel": "Modellen findes ikke: udbyderen har den ikke. Vælg en anden model under Indstillinger → AI.",
+    "noModelAsk": "Modellen findes ikke: udbyderen har den ikke. Bed en administrator om at vælge en anden model."
   },
   "invoiceTemplate": {
     "action1": "Se en anden prøve",
@@ -269,6 +272,7 @@ export default {
       "editor": "Gemt i Rapporter. Åbner den i byggeren.",
       "resampled": "Kilderne blev kørt igen — {n, plural, one {# tal} other {# tal}} opdateret.",
       "resampledRefused": "Kilderne blev kørt igen — {n, plural, one {# tal} other {# tal}} opdateret; {refused, plural, one {# kilde} other {# kilder}} kunne ikke læses.",
+      "resampledRefusedWhy": "Kilderne blev kørt igen — {n, plural, one {# tal} other {# tal}} opdateret; {refused, plural, one {# kilde} other {# kilder}} kunne ikke læses: {why}",
       "sample": "Fuld forespørgsel kørt for {record}.",
       "saved": "Gemt i Rapporter. Tilføj en tidsplan fra rapportens header.",
       "test": "Test sendt til {email}."
@@ -298,6 +302,12 @@ export default {
     },
     "readPage": "Læste denne side",
     "step": "trin {n}",
+    "title": {
+      "answered": "Slog det op",
+      "asked": "Har et spørgsmål til dig",
+      "failed": "Kunne ikke gøres færdig",
+      "proposed": "Fandt ud af, hvad der ville ændre sig"
+    },
     "working": "Arbejder på det"
   },
   "tabs": {
@@ -434,7 +444,7 @@ export default {
     "someRefused": "{refused} af {count, plural, one {# ændring} other {# ændringer}} kan ikke laves.",
     "changedSince": "Dette har ændret sig, siden du fik det vist. Se igen, før du bekræfter.",
     "fix": "Bed {name} om at rette dette",
-    "fixAsk": "Noget af det kan ikke lade sig gøre. Foreslå det igen uden disse:\n{reasons}",
+    "fixAsk": "Noget af det kan ikke lade sig gøre. Ret disse, og foreslå det igen med tabellens egne kolonnenavne; udelad kun det, der slet ikke kan lade sig gøre:\n{reasons}",
     "send": {
       "template": "Skabelon",
       "subject": "Emne",
@@ -488,7 +498,17 @@ export default {
       "builtIn": "En indbygget mail ændres på sin egen skærm.",
       "notCampaign": "Kun en kampagne kan sendes til personer.",
       "noRecipients": "Ingen ville få denne mail.",
-      "notLive": "Et udkast slås til af en person, før det kan sendes."
+      "notLive": "Et udkast slås til af en person, før det kan sendes.",
+      "fields": "Afvist: {reasons}.",
+      "field": {
+        "invalid": "“{column}” kan ikke have den værdi",
+        "notAllowed": "“{column}” kan ikke sættes her",
+        "outOfRange": "“{column}” er uden for området",
+        "required": "“{column}” skal have en værdi",
+        "tooLong": "“{column}” er for lang",
+        "unknown": "der er ingen kolonne “{column}”"
+      },
+      "notSeen": "{name} skrev den seneste version af denne kampagne, og ingen har set på den siden. Åbn den i editoren, og tryk på “Ser rigtig ud”, eller gem den først."
     },
     "row": {
       "untitled": "Uden titel",

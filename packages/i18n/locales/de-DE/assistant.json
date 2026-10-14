@@ -170,7 +170,10 @@
     "modelFormatAsk": "Dieses Modell antwortet nicht so, wie {name} es braucht. Bitten Sie einen Administrator, ein anderes Modell zu wählen.",
     "setup": "Diese Seite konnte gerade nicht gelesen werden. Fragen Sie noch einmal.",
     "busy": "Ihre letzte Frage wird noch bearbeitet. Warten Sie darauf oder halten Sie sie zuerst an.",
-    "budget": "Das wurde mittendrin angehalten: Das heutige Kontingent ist aufgebraucht."
+    "budget": "Das wurde mittendrin angehalten: Das heutige Kontingent ist aufgebraucht.",
+    "unreachable": "Unter der Adresse des Modells antwortet nichts. Prüfen Sie, ob es läuft, und versuchen Sie es erneut.",
+    "noModel": "Das Modell ist nicht vorhanden: Der Anbieter hat es nicht. Wählen Sie unter Einstellungen → KI ein anderes Modell.",
+    "noModelAsk": "Das Modell ist nicht vorhanden: Der Anbieter hat es nicht. Bitten Sie einen Administrator, ein anderes Modell zu wählen."
   },
   "invoiceTemplate": {
     "action1": "Anderes Beispiel ansehen",
@@ -259,6 +262,7 @@
       "editor": "In Berichten gespeichert. Wird im Builder geöffnet.",
       "resampled": "Quellen erneut ausgeführt — {n, plural, one {# Wert} other {# Werte}} aktualisiert.",
       "resampledRefused": "Quellen erneut ausgeführt — {n, plural, one {# Wert} other {# Werte}} aktualisiert; {refused, plural, one {# Quelle} other {# Quellen}} konnten nicht gelesen werden.",
+      "resampledRefusedWhy": "Quellen erneut ausgeführt — {n, plural, one {# Wert} other {# Werte}} aktualisiert; {refused, plural, one {# Quelle} other {# Quellen}} konnten nicht gelesen werden: {why}",
       "sample": "Vollständige Abfrage für {record} ausgeführt.",
       "saved": "In Berichten gespeichert. Einen Zeitplan fügst du in der Berichtskopfzeile hinzu.",
       "test": "Test an {email} gesendet."
@@ -288,6 +292,12 @@
     },
     "readPage": "Diese Seite gelesen",
     "step": "Schritt {n}",
+    "title": {
+      "answered": "Nachgeschlagen",
+      "asked": "Hat eine Frage an Sie",
+      "failed": "Konnte nicht abgeschlossen werden",
+      "proposed": "Ermittelt, was sich ändern würde"
+    },
     "working": "Arbeitet daran"
   },
   "tabs": {
@@ -424,7 +434,7 @@
     "someRefused": "{refused} von {count, plural, one {# Änderung} other {# Änderungen}} können nicht gemacht werden.",
     "changedSince": "Das hat sich geändert, seit es dir gezeigt wurde. Sieh es dir vor dem Bestätigen noch einmal an.",
     "fix": "{name} bitten, das zu korrigieren",
-    "fixAsk": "Ein Teil davon geht nicht. Schlage es ohne diese noch einmal vor:\n{reasons}",
+    "fixAsk": "Ein Teil davon geht nicht. Korrigiere diese Punkte und schlage es noch einmal vor, mit den eigenen Spaltennamen der Tabelle; lass nur weg, was gar nicht geht:\n{reasons}",
     "send": {
       "template": "Vorlage",
       "subject": "Betreff",
@@ -478,7 +488,17 @@
       "builtIn": "Eine eingebaute Mail wird auf ihrer eigenen Seite geändert.",
       "notCampaign": "Nur eine Kampagne kann an Personen gesendet werden.",
       "noRecipients": "Niemand würde diese Mail bekommen.",
-      "notLive": "Ein Entwurf wird von einer Person eingeschaltet, bevor er gesendet werden kann."
+      "notLive": "Ein Entwurf wird von einer Person eingeschaltet, bevor er gesendet werden kann.",
+      "fields": "Abgelehnt: {reasons}.",
+      "field": {
+        "invalid": "„{column}“ nimmt diesen Wert nicht an",
+        "notAllowed": "„{column}“ kann hier nicht gesetzt werden",
+        "outOfRange": "„{column}“ liegt außerhalb des Bereichs",
+        "required": "„{column}“ braucht einen Wert",
+        "tooLong": "„{column}“ ist zu lang",
+        "unknown": "es gibt keine Spalte „{column}“"
+      },
+      "notSeen": "{name} hat die neueste Version dieser Kampagne geschrieben, und seitdem hat niemand sie angesehen. Öffnen Sie sie zuerst im Editor und drücken Sie „Stimmt so“, oder speichern Sie sie."
     },
     "row": {
       "untitled": "Ohne Titel",

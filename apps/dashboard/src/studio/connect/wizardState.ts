@@ -341,7 +341,12 @@ export function formatRowEstimate(estimate: number | null, quality: RowEstimateQ
 
 // --- meta placement ----------------------------------------------------
 
-export type MetaPlacement = 'same-db' | 'separate-db';
+/**
+ * `keep` leaves an embedded store where it is: the built-in file the first-run
+ * wizard was already asked about. It is the answer in place until another is
+ * picked, so a `null` here reads as `keep` on a store that can be moved.
+ */
+export type MetaPlacement = 'keep' | 'same-db' | 'separate-db';
 
 /**
  * The decision tree, wizard-side mirror of

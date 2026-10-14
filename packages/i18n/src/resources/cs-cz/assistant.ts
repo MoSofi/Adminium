@@ -180,7 +180,10 @@ export default {
     "modelFormatAsk": "Tento model neodpovídá tak, jak asistent {name} potřebuje. Požádejte správce, aby vybral jiný model.",
     "setup": "Tuto stránku se teď nepodařilo přečíst. Zeptejte se znovu.",
     "busy": "Na vaší poslední otázce se ještě pracuje. Počkejte na ni, nebo ji nejdřív zastavte.",
-    "budget": "Zastavilo se to v půli: dnešní příděl je vyčerpán."
+    "budget": "Zastavilo se to v půli: dnešní příděl je vyčerpán.",
+    "unreachable": "Na adrese modelu nic neodpovídá. Zkontrolujte, že běží, a zkuste to znovu.",
+    "noModel": "Model tam není: poskytovatel ho nemá. Vyberte jiný model v Nastavení → AI.",
+    "noModelAsk": "Model tam není: poskytovatel ho nemá. Požádejte správce, aby vybral jiný model."
   },
   "invoiceTemplate": {
     "action1": "Zobrazit jinou ukázku",
@@ -269,6 +272,7 @@ export default {
       "editor": "Uloženo do Sestav. Otevírá se v nástroji.",
       "resampled": "Zdroje znovu spuštěny — aktualizováno {n, plural, one {# číslo} few {# čísla} other {# čísel}}.",
       "resampledRefused": "Zdroje znovu spuštěny — aktualizováno {n, plural, one {# číslo} few {# čísla} other {# čísel}}; {refused, plural, one {# zdroj nelze přečíst} few {# zdroje nelze přečíst} other {# zdrojů nelze přečíst}}.",
+      "resampledRefusedWhy": "Zdroje znovu spuštěny — aktualizováno {n, plural, one {# číslo} few {# čísla} other {# čísel}}; {refused, plural, one {# zdroj nelze přečíst} few {# zdroje nelze přečíst} other {# zdrojů nelze přečíst}}: {why}",
       "sample": "Spuštěn plný dotaz pro {record}.",
       "saved": "Uloženo do Sestav. Plán přidáš v záhlaví sestavy.",
       "test": "Test odeslán na {email}."
@@ -298,6 +302,12 @@ export default {
     },
     "readPage": "Přečteno na této stránce",
     "step": "krok {n}",
+    "title": {
+      "answered": "Vyhledáno",
+      "asked": "Má na vás otázku",
+      "failed": "Nepodařilo se dokončit",
+      "proposed": "Zjištěno, co by se změnilo"
+    },
     "working": "Pracuje na tom"
   },
   "tabs": {
@@ -434,7 +444,7 @@ export default {
     "someRefused": "{refused} z {count, plural, one {# změny} few {# změn} other {# změn}} nelze provést.",
     "changedSince": "Od chvíle, kdy vám to bylo ukázáno, se to změnilo. Před potvrzením se podívejte znovu.",
     "fix": "Požádat {name}, ať to opraví",
-    "fixAsk": "Část z toho nelze provést. Navrhni to znovu bez těchto:\n{reasons}",
+    "fixAsk": "Část z toho nelze provést. Oprav tyto body a navrhni to znovu s vlastními názvy sloupců tabulky; vynech jen to, co nelze provést vůbec:\n{reasons}",
     "send": {
       "template": "Šablona",
       "subject": "Předmět",
@@ -488,7 +498,17 @@ export default {
       "builtIn": "Vestavěný e-mail se mění na vlastní obrazovce.",
       "notCampaign": "Lidem lze odeslat jen kampaň.",
       "noRecipients": "Tento e-mail by nikdo nedostal.",
-      "notLive": "Koncept musí před odesláním zapnout člověk."
+      "notLive": "Koncept musí před odesláním zapnout člověk.",
+      "fields": "Odmítnuto: {reasons}.",
+      "field": {
+        "invalid": "„{column}“ tuto hodnotu nepřijímá",
+        "notAllowed": "„{column}“ zde nelze nastavit",
+        "outOfRange": "„{column}“ je mimo rozsah",
+        "required": "„{column}“ potřebuje hodnotu",
+        "tooLong": "„{column}“ je příliš dlouhé",
+        "unknown": "sloupec „{column}“ neexistuje"
+      },
+      "notSeen": "Poslední verzi této kampaně napsal {name} a nikdo se na ni od té doby nepodíval. Nejprve ji otevřete v editoru a stiskněte „Je v pořádku“, nebo ji uložte."
     },
     "row": {
       "untitled": "Bez názvu",

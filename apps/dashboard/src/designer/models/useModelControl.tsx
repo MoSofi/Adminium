@@ -11,6 +11,7 @@ import { t } from '../../i18n/t.js';
 import { useAppToasts } from '../../pages/toasts.js';
 import { designerKeys } from '../api.js';
 import { AddModelDialog, type SavedModel } from './AddModelDialog.js';
+import { EffortPicker } from './EffortPicker.js';
 import type { DesignerModelState } from './ModelButton.js';
 import { ModelPicker } from './ModelPicker.js';
 
@@ -33,6 +34,7 @@ export function useModelControl(model: DesignerModelState): { element: ReactNode
     element: (
       <>
         <ModelPicker model={model} open={picking} onOpenChange={setPicking} onAdd={() => setAdding(true)} />
+        <EffortPicker model={model} />
         <AddModelDialog open={adding} onOpenChange={setAdding} models={model.models} onSaved={(entry) => void saved(entry)} />
       </>
     ),

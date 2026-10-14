@@ -22,7 +22,8 @@ import { ApiError } from '../../app/api.js';
 import { t } from '../../i18n/t.js';
 import { useAppToasts } from '../../pages/toasts.js';
 import { AttachTray, SentFiles, useAttach, useReadsImages } from '../parts/attach.js';
-import { designerApi, designerKeys, sessionQuery, versionsQuery, yourAppsQuery, type DesignerCard, type DesignerVersion } from '../api.js';
+import { PickedTray, SentPicked } from '../parts/picked.js';
+import { designerApi, designerKeys, sessionQuery, versionsQuery, yourAppsQuery, type DesignerCard, type DesignerEffort, type DesignerPicked, type DesignerVersion } from '../api.js';
 import { useDesignerModel } from '../models/useModel.js';
 import { useModelControl } from '../models/useModelControl.js';
 import { BuildComposer } from '../parts/BuildComposer.js';
@@ -177,16 +178,20 @@ export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
   const fail = (title: string) => (error: unknown) => toasts.push({ variant: 'error', title, description: errorText(error) });
 
   const patch = useMutation({
-    mutationFn: (change: { title?: string; connectionId?: string; model?: string }) => designerApi.patchSession(sessionId, change),
+    mutationFn: (change: { title?: string; connectionId?: string; model?: string; effort?: DesignerEffort | null }) => designerApi.patchSession(sessionId, change),
     onSuccess: (reply) => queryClient.setQueryData(designerKeys.session(sessionId), reply),
     onError: fail(t('designer:build.saveFailed', 'The change was not saved')),
   });
   const attach = useAttach();
+  /** The element of the preview the next message is about. */
+  const [picked, setPicked] = useState<DesignerPicked | null>(null);
   const start = useMutation({
     // The files go up first; the turn names them. A file the server refuses stops here, with its words, and the message stays in the box.
-    mutationFn: async (input: string | { message: string; attachments: readonly string[] }) =>
+    mutationFn: async (input: string | { message: string; attachments: readonly string[]; picked?: DesignerPicked | null }) =>
       // A message from the box takes the files waiting with it. One the page sends itself ("Continue.", a retry, a fix) names its own, or none.
-      typeof input === 'string' ? designerApi.startTurn(sessionId, input, await attach.upload(sessionId), looksNow()) : designerApi.startTurn(sessionId, input.message, input.attachments, looksNow()),
+      typeof input === 'string'
+        ? designerApi.startTurn(sessionId, input, await attach.upload(sessionId), looksNow(), picked)
+        : designerApi.startTurn(sessionId, input.message, input.attachments, looksNow(), input.picked ?? null),
     onSuccess: (_reply, input) => {
       if (typeof input !== 'string') {
         follow.pin();
@@ -194,6 +199,7 @@ export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
       }
       setText('');
       attach.clear();
+      setPicked(null);
       follow.pin();
     },
     onError: (error) => {
@@ -270,8 +276,8 @@ export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
     session.data === undefined
       ? undefined
       : {
-          picked: { connectionId: session.data.session.connectionId, model: session.data.session.model },
-          onPick: (next) => patch.mutate({ connectionId: next.connectionId, model: next.model }),
+          picked: { connectionId: session.data.session.connectionId, model: session.data.session.model, effort: session.data.session.effort },
+          onPick: (next) => patch.mutate({ connectionId: next.connectionId, model: next.model, effort: next.effort ?? null }),
         },
   );
   const readsImages = useReadsImages(model.picked, attach.hasImage);
@@ -299,7 +305,7 @@ export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
   const canStartNew = data !== undefined && !working && !busy && turns.length > 0;
   const versionList = versions.data?.versions ?? [];
   const current: DesignerVersion | null = versionList.find((version) => version.current) ?? null;
-  const placeholder = question !== null && (answering || question.choices.length === 0) ? t('designer:build.answerPlaceholder', 'Answer the question above…') : t('designer:build.placeholder', 'Describe a change…');
+  const placeholder = question !== null && (answering || question.choices.length === 0) ? t('designer:build.answerPlaceholder', 'Answer the question above…') : picked !== null ? t('designer:pick.placeholder', 'Say what to change about this element…') : t('designer:build.placeholder', 'Describe a change…');
   const canSend = model.picked !== null && model.canBuild !== false && !busy && (!working || question !== null);
 
   const send = (): void => {
@@ -368,6 +374,7 @@ export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
       <div key={turn.turn} className="flex flex-col gap-5">
         {turn.text === null ? null : <PersonMessage text={turn.text} />}
         <SentFiles sessionId={sessionId} files={turn.attachments} />
+        <SentPicked picked={turn.picked} />
         <DesignerMessage text={turn.reply} streaming={live}>
           <StepsBlock rows={turn.steps} stepCount={turn.stepCount} live={live} ms={ms} open={isOpen} onToggle={() => setOpen((map) => ({ ...map, [turn.turn]: !isOpen }))} />
           {live && turn.usage !== null ? <UsageLine step={turn.usage.step} tokens={turn.usage.tokens} /> : null}
@@ -490,7 +497,7 @@ export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
             />
           ) : null}
           {turn.outcome === 'failed' && turn.error !== null ? (
-            <FailedNote error={turn.error} busy={busy} onRetry={actionable && turn.text !== null ? () => start.mutate({ message: turn.text ?? '', attachments: turn.attachments.map((file) => file.id) }) : undefined} />
+            <FailedNote error={turn.error} busy={busy} onRetry={actionable && turn.text !== null ? () => start.mutate({ message: turn.text ?? '', attachments: turn.attachments.map((file) => file.id), picked: turn.picked }) : undefined} />
           ) : null}
           {turn.look === null ? null : <LookChip direction={turn.look} />}
           {/* One row under the reply: what it was saved as, then the way to change the style. What the style was changed to comes after it. */}
@@ -602,7 +609,14 @@ export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
             model={control.element}
             inputRef={box}
             attach={question === null && !start.isPending ? attach : undefined}
-            tray={question === null ? <AttachTray state={attach} modelName={model.picked?.model ?? null} readsImages={readsImages} /> : null}
+            tray={
+              question === null ? (
+                <>
+                  <PickedTray picked={picked} onRemove={() => setPicked(null)} />
+                  <AttachTray state={attach} modelName={model.picked?.model ?? null} readsImages={readsImages} />
+                </>
+              ) : null
+            }
           />
         </aside>
         <div
@@ -634,6 +648,18 @@ export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
               onFix={(message) => (working || busy ? undefined : start.mutate({ message, attachments: [] }))}
               onNotice={(title) => toasts.push({ variant: 'info', title })}
               onFoldedNeed={setFoldedNeed}
+              onPicked={(element) => {
+                // The chip is in the chat, and so is where the person says what to change: both are brought to them.
+                setPicked(element);
+                setView('chat');
+                window.setTimeout(() => box.current?.focus(), 0);
+              }}
+              onShot={(file) => {
+                // It waits with the message like any file a person attaches, and they say what is wrong in it.
+                attach.add([file]);
+                setView('chat');
+                window.setTimeout(() => box.current?.focus(), 0);
+              }}
             />
           )}
         </section>

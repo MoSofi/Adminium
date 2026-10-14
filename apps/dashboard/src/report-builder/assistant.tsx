@@ -86,9 +86,11 @@ export function useReportEditorAssistant(input: {
   documentId: string;
   draft: ReportBody;
   applyBody: (body: ReportBody) => void;
+  /** The stored report was saved over from the panel: reload it as saved. */
+  onSavedOver?: (documentId: string) => void;
 }): AssistantHostContext {
   const { renderPreview, onCreated } = useReportHostParts();
-  const { documentId, draft, applyBody } = input;
+  const { documentId, draft, applyBody, onSavedOver } = input;
   const applyDraft = useCallback(
     (artefact: Record<string, unknown>) => {
       applyBody(bodyOf(artefact));
@@ -103,7 +105,8 @@ export function useReportEditorAssistant(input: {
       renderPreview,
       onCreated,
       applyDraft,
+      ...(onSavedOver === undefined ? {} : { onSavedOver }),
     }),
-    [applyDraft, documentId, draft, onCreated, renderPreview],
+    [applyDraft, documentId, draft, onCreated, onSavedOver, renderPreview],
   );
 }

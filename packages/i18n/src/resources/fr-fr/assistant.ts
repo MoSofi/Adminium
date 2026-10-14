@@ -180,7 +180,10 @@ export default {
     "modelFormatAsk": "Ce modèle ne répond pas de la manière dont {name} a besoin. Demandez à un administrateur de choisir un autre modèle.",
     "setup": "Cette page n’a pas pu être lue pour l’instant. Reposez votre question.",
     "busy": "Votre dernière question est encore en cours. Attendez-la ou arrêtez-la d’abord.",
-    "budget": "Cela s’est arrêté en cours de route : le quota du jour est épuisé."
+    "budget": "Cela s’est arrêté en cours de route : le quota du jour est épuisé.",
+    "unreachable": "Rien ne répond à l’adresse du modèle. Vérifiez qu’il est lancé, puis réessayez.",
+    "noModel": "Le modèle est introuvable : son fournisseur ne l’a pas. Choisissez un autre modèle dans Paramètres → IA.",
+    "noModelAsk": "Le modèle est introuvable : son fournisseur ne l’a pas. Demandez à un administrateur d’en choisir un autre."
   },
   "invoiceTemplate": {
     "action1": "Voir un autre échantillon",
@@ -269,6 +272,7 @@ export default {
       "editor": "Enregistré dans Rapports. Ouverture dans le générateur.",
       "resampled": "Sources ré-exécutées — {n, plural, one {# chiffre mis à jour} other {# chiffres mis à jour}}.",
       "resampledRefused": "Sources ré-exécutées — {n, plural, one {# chiffre mis à jour} other {# chiffres mis à jour}} ; {refused, plural, one {# source illisible} other {# sources illisibles}}.",
+      "resampledRefusedWhy": "Sources ré-exécutées — {n, plural, one {# chiffre mis à jour} other {# chiffres mis à jour}} ; {refused, plural, one {# source illisible} other {# sources illisibles}} : {why}",
       "sample": "Requête complète exécutée pour {record}.",
       "saved": "Enregistré dans Rapports. Ajoutez une planification depuis l’en-tête du rapport.",
       "test": "Test envoyé à {email}."
@@ -298,6 +302,12 @@ export default {
     },
     "readPage": "Page lue",
     "step": "étape {n}",
+    "title": {
+      "answered": "A cherché la réponse",
+      "asked": "A une question pour vous",
+      "failed": "N’a pas pu aboutir",
+      "proposed": "A déterminé ce qui changerait"
+    },
     "working": "Au travail"
   },
   "tabs": {
@@ -434,7 +444,7 @@ export default {
     "someRefused": "{refused} sur {count, plural, one {# modification} other {# modifications}} ne peuvent pas être faites.",
     "changedSince": "Cela a changé depuis qu’on vous l’a montré. Regardez à nouveau avant de confirmer.",
     "fix": "Demander à {name} de corriger",
-    "fixAsk": "Une partie ne peut pas être faite. Propose-le à nouveau sans ceci :\n{reasons}",
+    "fixAsk": "Une partie ne peut pas être faite. Corrige ces points et propose-le à nouveau, avec les noms de colonnes de la table ; ne retire que ce qui est impossible :\n{reasons}",
     "send": {
       "template": "Modèle",
       "subject": "Objet",
@@ -488,7 +498,17 @@ export default {
       "builtIn": "Un e-mail intégré se modifie sur son propre écran.",
       "notCampaign": "Seule une campagne peut être envoyée à des personnes.",
       "noRecipients": "Personne ne recevrait cet e-mail.",
-      "notLive": "Un brouillon est activé par une personne avant de pouvoir être envoyé."
+      "notLive": "Un brouillon est activé par une personne avant de pouvoir être envoyé.",
+      "fields": "Refusé : {reasons}.",
+      "field": {
+        "invalid": "« {column} » n’accepte pas cette valeur",
+        "notAllowed": "« {column} » ne peut pas être défini ici",
+        "outOfRange": "« {column} » est hors limites",
+        "required": "« {column} » doit avoir une valeur",
+        "tooLong": "« {column} » est trop long",
+        "unknown": "il n’y a pas de colonne « {column} »"
+      },
+      "notSeen": "{name} a écrit la dernière version de cette campagne et personne ne l’a relue depuis. Ouvrez-la d’abord dans l’éditeur et appuyez sur « C’est bon », ou enregistrez-la."
     },
     "row": {
       "untitled": "Sans titre",

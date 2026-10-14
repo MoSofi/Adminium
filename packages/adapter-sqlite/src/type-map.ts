@@ -161,6 +161,7 @@ export function mapSqliteType(
 }
 
 const NOW_DEFAULT = /^(current_timestamp|current_date|current_time|datetime\(\s*'now'[^)]*\)|strftime\(\s*'%s'[^)]*\)|unixepoch\(\s*\))$/i;
+const UTC_TEXT_NOW = /^\(?\s*(current_timestamp|datetime\(\s*'now'\s*\))\s*\)?$/i;
 const LITERAL_DEFAULT = /^('(?:[^']|'')*'|-?\d+(\.\d+)?|true|false|null|x'[0-9a-f]*')$/i;
 
 /** A quoted string literal, `'it''s'`: its value is what is between the quotes. */
@@ -181,6 +182,9 @@ export function classifyDefault(defaultText: string | null): ColumnDefault {
   if (defaultText === null || defaultText === '') return null;
   const text = defaultText.trim();
   if (/^null$/i.test(text)) return null;
+  // UTC's wall clock as text: `current_timestamp`, and `datetime('now')` with nothing after it.
+  // (`'localtime'` keeps the server's clock, and `unixepoch()` counts seconds: neither is marked.)
+  if (UTC_TEXT_NOW.test(text)) return { kind: 'now', utc: true };
   if (NOW_DEFAULT.test(text)) return { kind: 'now' };
   if (LITERAL_DEFAULT.test(text)) {
     const quoted = QUOTED_TEXT.exec(text);

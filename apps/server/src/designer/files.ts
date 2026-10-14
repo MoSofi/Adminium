@@ -198,6 +198,58 @@ export async function listEditable(root: string, appKey: string, opts: { look: b
   return out;
 }
 
+/** The most places a search names: in one file, and in all of them. */
+export const SEARCH_FILE_HITS_MAX = 100;
+export const SEARCH_HITS_MAX = 500;
+/** How much of a long line a place is shown with. */
+const SEARCH_LINE_SHOWN = 240;
+
+export interface SearchOptions {
+  matchCase: boolean;
+  wholeWord: boolean;
+}
+
+/** One place the words were found: its line (from 1), where in the line, how long, and the line as it is shown. */
+export interface SearchHit {
+  line: number;
+  col: number;
+  len: number;
+  /** The line, or the part of a long one around the place. */
+  text: string;
+  /** Where the place is in `text`. */
+  at: number;
+}
+
+/**
+ * What a search looks for, as a pattern: the words as they are, never a
+ * pattern of the person's own (so none can be written that takes for ever).
+ * The page's Code tab makes the same one (`code/find.ts`), and the two must
+ * agree: what a person typed and has not saved is searched there.
+ */
+export function searchPattern(query: string, opts: SearchOptions): RegExp {
+  const words = query.replace(/[\\^$.*+?()[\]{}|]/g, '\\$&');
+  const whole = opts.wholeWord ? `(?<![\\p{L}\\p{N}_])${words}(?![\\p{L}\\p{N}_])` : words;
+  return new RegExp(whole, opts.matchCase ? 'gu' : 'giu');
+}
+
+/** Every place in a text, line by line, up to `max`; `more` when there were others. */
+export function searchText(text: string, query: string, opts: SearchOptions, max = SEARCH_FILE_HITS_MAX): { hits: SearchHit[]; more: boolean } {
+  const hits: SearchHit[] = [];
+  if (query === '') return { hits, more: false };
+  const pattern = searchPattern(query, opts);
+  for (const [index, line] of text.split(/\r\n|\r|\n/).entries()) {
+    pattern.lastIndex = 0;
+    for (let found = pattern.exec(line); found !== null; found = pattern.exec(line)) {
+      if (hits.length >= max) return { hits, more: true };
+      const col = found.index;
+      const len = found[0].length;
+      const from = line.length <= SEARCH_LINE_SHOWN ? 0 : Math.max(0, Math.min(col - 40, line.length - SEARCH_LINE_SHOWN));
+      hits.push({ line: index + 1, col, len, text: line.slice(from, from + SEARCH_LINE_SHOWN), at: col - from });
+    }
+  }
+  return { hits, more: false };
+}
+
 export interface FileGroup {
   key: FileGroupKey;
   files: { path: string; label: string; hash: string; size: number; note?: 'brief' }[];

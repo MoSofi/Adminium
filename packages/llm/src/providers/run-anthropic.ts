@@ -7,6 +7,7 @@
  * piece by piece in `input_json_delta` and are only whole when the block
  * stops. An `error` event can arrive inside a reply that began with a 200.
  */
+import { anthropicGeneration } from './model-catalog.js';
 import { parseItem, streamError, streamRequest } from './run-http.js';
 import {
   parseCallArguments,
@@ -20,28 +21,51 @@ import {
   type RunResult,
   type RunStop,
 } from './run-types.js';
-import { requireApiKey, stripTrailingSlash, type ProviderConfig, type ProviderErrorCode } from './types.js';
+import { requireApiKey, stripTrailingSlash, type ProviderConfig, type ProviderErrorCode, type RunEffort } from './types.js';
 
 const ANTHROPIC_VERSION = '2023-06-01';
 const DEFAULT_BASE_URL = 'https://api.anthropic.com';
 
-/** Our messages as Anthropic's content blocks. */
+/**
+ * Our messages as Anthropic's content blocks. The API refuses a text block with
+ * no words in it, and a message with no block at all (HTTP 400, seen on the real
+ * service 2026-10-11): neither is sent, whatever a stored conversation holds.
+ */
 export function anthropicMessages(messages: readonly RunMessage[]): { role: string; content: unknown[] }[] {
-  return messages.map((message) => ({
-    role: message.role,
-    // A picture with no bytes (kept elsewhere, not filled in) is not sent.
-    content: message.content.filter((block) => block.type !== 'image' || block.data.length > 0).map((block) => {
-      if (block.type === 'text') return { type: 'text', text: block.text };
-      if (block.type === 'tool_call') return { type: 'tool_use', id: block.id, name: block.name, input: block.input };
-      if (block.type === 'image') return { type: 'image', source: { type: 'base64', media_type: block.mediaType, data: block.data } };
-      return {
-        type: 'tool_result',
-        tool_use_id: block.callId,
-        content: block.content,
-        ...(block.isError === true ? { is_error: true } : {}),
-      };
-    }),
-  }));
+  return messages.flatMap((message) => {
+    const content = message.content
+      // A picture with no bytes (kept elsewhere, not filled in) is not sent.
+      .filter((block) => (block.type === 'image' ? block.data.length > 0 : block.type !== 'text' || block.text.trim() !== ''))
+      .map((block) => {
+        if (block.type === 'text') return { type: 'text', text: block.text };
+        if (block.type === 'tool_call') return { type: 'tool_use', id: block.id, name: block.name, input: block.input };
+        if (block.type === 'image') return { type: 'image', source: { type: 'base64', media_type: block.mediaType, data: block.data } };
+        return {
+          type: 'tool_result',
+          tool_use_id: block.callId,
+          content: block.content,
+          ...(block.isError === true ? { is_error: true } : {}),
+        };
+      });
+    return content.length === 0 ? [] : [{ role: message.role, content }];
+  });
+}
+
+/**
+ * Room for a model's own thinking, on top of what the caller asked for. Every
+ * model from generation 5 on thinks before it answers unless told otherwise,
+ * and what it thinks is counted against `max_tokens` like what it writes: a
+ * limit sized for the answer alone was spent whole on thinking, and the reply
+ * came back with nothing in it (seen 2026-10-11, claude-sonnet-5-5, 8000).
+ * A higher effort thinks longer, so it is given more. An id with no
+ * generation we can read is left as the caller sized it.
+ */
+export const ANTHROPIC_THINKING_ROOM = 16_000;
+const THINKING_ROOM: Record<RunEffort, number> = { low: 8000, medium: ANTHROPIC_THINKING_ROOM, high: ANTHROPIC_THINKING_ROOM, xhigh: 32_000, max: 48_000 };
+
+export function anthropicMaxTokens(model: string, asked: number, effort?: RunEffort): number {
+  const generation = anthropicGeneration(model);
+  return generation !== null && generation[0] >= 5 ? asked + (effort === undefined ? ANTHROPIC_THINKING_ROOM : THINKING_ROOM[effort]) : asked;
 }
 
 /** Marks the end of what the API may keep from one call to the next. */
@@ -64,8 +88,9 @@ export function anthropicRunBody(req: RunRequest): Record<string, unknown> {
   }
   return {
     model: req.model,
-    max_tokens: req.maxTokens,
+    max_tokens: anthropicMaxTokens(req.model, req.maxTokens, req.effort),
     stream: true,
+    ...(req.effort === undefined ? {} : { output_config: { effort: req.effort } }),
     ...(req.system.length > 0 ? { system: [{ type: 'text', text: req.system, ...CACHE }] } : {}),
     messages,
     ...(req.tools.length > 0
@@ -124,6 +149,9 @@ export function createAnthropicRunner(config: ProviderConfig): ProviderRunner {
       let inputTokens: number | undefined;
       let outputTokens: number | undefined;
       let finished = false;
+      /** The service's own word for why it stopped, and the kinds of block it sent that are not kept. */
+      let reason = '';
+      const passed: string[] = [];
 
       const stream = streamRequest({
         provider: 'anthropic',
@@ -155,6 +183,7 @@ export function createAnthropicRunner(config: ProviderConfig): ProviderRunner {
             req.onEvent?.({ type: 'tool_call', id: block.id, name: block.name });
           }
           // Any other block (thinking, a server tool) is not part of what we keep.
+          else if (typeof block?.type === 'string') passed.push(block.type);
         } else if (type === 'content_block_delta') {
           const at = open.get(Number(event['index']));
           const delta = event['delta'] as { type?: unknown; text?: unknown; partial_json?: unknown } | undefined;
@@ -178,8 +207,11 @@ export function createAnthropicRunner(config: ProviderConfig): ProviderRunner {
             }
           }
         } else if (type === 'message_delta') {
-          const reason = (event['delta'] as { stop_reason?: unknown } | undefined)?.stop_reason;
-          if (typeof reason === 'string') stop = STOPS[reason] ?? 'end';
+          const given = (event['delta'] as { stop_reason?: unknown } | undefined)?.stop_reason;
+          if (typeof given === 'string') {
+            stop = STOPS[given] ?? 'end';
+            reason = given;
+          }
           const usage = event['usage'] as (Usage & { output_tokens?: unknown }) | undefined;
           if (typeof usage?.output_tokens === 'number') outputTokens = usage.output_tokens;
           // The closing count, when the API gives one, is read the same way: its `input_tokens` alone would drop what the cache carried.
@@ -215,6 +247,8 @@ export function createAnthropicRunner(config: ProviderConfig): ProviderRunner {
         stop: kept.some((block) => block.type === 'tool_call') && stop === 'end' ? 'tool_calls' : stop,
         malformed,
         ...(typeof inputTokens === 'number' && typeof outputTokens === 'number' ? { usage: { inputTokens, outputTokens } } : {}),
+        // Only for a reply with nothing kept in it: that is the one a log line has to explain.
+        ...(kept.length > 0 || (reason === '' && passed.length === 0) ? {} : { detail: `stop_reason ${reason === '' ? 'not given' : reason}${passed.length === 0 ? '' : `; blocks not kept: ${passed.join(', ')}`}` }),
       };
     },
   };

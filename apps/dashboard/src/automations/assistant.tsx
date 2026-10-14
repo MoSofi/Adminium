@@ -122,6 +122,8 @@ export function useAutomationAssistant(input: {
   /** After a save that asked to open the rule: the page selects it and opens the unfinished step. */
   /** Opens a rule that was just made. False when the page keeps the one it has (unsaved work on it). */
   onOpen: (id: string, incompleteNodeId: string | null) => boolean;
+  /** The open rule was saved over from the panel: the page drops its unsaved copy and shows the stored rule. */
+  onSavedOver: (id: string) => void;
 }): AssistantHostContext {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -131,6 +133,14 @@ export function useAutomationAssistant(input: {
   onOpen.current = input.onOpen;
   const onApply = useRef(input.onApply);
   onApply.current = input.onApply;
+  const savedOver = useRef(input.onSavedOver);
+  savedOver.current = input.onSavedOver;
+  const onSavedOver = useCallback(
+    (id: string) => {
+      void invalidateRules(queryClient).then(() => savedOver.current(id));
+    },
+    [queryClient],
+  );
   const openId = open?.id ?? null;
   const openGraph = open?.graph ?? null;
 
@@ -170,7 +180,8 @@ export function useAutomationAssistant(input: {
             renderPreview,
             onCreated,
             applyDraft,
+            onSavedOver,
           },
-    [onCreated, renderPreview, applyDraft, open],
+    [onCreated, renderPreview, applyDraft, onSavedOver, open],
   );
 }

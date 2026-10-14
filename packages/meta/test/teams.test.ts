@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Teams (wave 0056), on every available dialect.
+ * Teams (wave 0057), on every available dialect.
  *
  * - A team has a name no other team has; its members go with it, and with
  *   the person.

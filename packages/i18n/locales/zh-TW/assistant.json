@@ -170,7 +170,10 @@
     "modelFormatAsk": "此模型的回答方式不是 {name} 需要的。請讓管理員換一個模型。",
     "setup": "剛才無法讀取此頁面。請再問一次。",
     "busy": "你的上一個問題還在處理中。請等它完成，或先停止它。",
-    "budget": "處理到一半停下了：今天的額度已用完。"
+    "budget": "處理到一半停下了：今天的額度已用完。",
+    "unreachable": "模型的位址沒有任何回應。請確認它正在執行，然後重試。",
+    "noModel": "模型不存在：提供者沒有它。請在「設定 → AI」中選擇其他模型。",
+    "noModelAsk": "模型不存在：提供者沒有它。請讓管理員選擇其他模型。"
   },
   "invoiceTemplate": {
     "action1": "換一個範例預覽",
@@ -259,6 +262,7 @@
       "editor": "已儲存到報表，正在建構器中開啟。",
       "resampled": "已重新執行資料來源 — 更新了 {n, plural, other {# 項數據}}。",
       "resampledRefused": "已重新執行資料來源 — 更新了 {n, plural, other {# 項數據}}；{refused, plural, other {# 個資料來源}}無法讀取。",
+      "resampledRefusedWhy": "已重新執行資料來源 — 更新了 {n, plural, other {# 項數據}}；{refused, plural, other {# 個資料來源}}無法讀取：{why}",
       "sample": "已為 {record} 執行完整查詢。",
       "saved": "已儲存到報表。可在報表標題列新增排程。",
       "test": "已向 {email} 傳送測試。"
@@ -288,6 +292,12 @@
     },
     "readPage": "已讀取此頁面",
     "step": "第 {n} 步",
+    "title": {
+      "answered": "已查詢",
+      "asked": "有一個問題要問你",
+      "failed": "未能完成",
+      "proposed": "已算出將會變更的內容"
+    },
     "working": "正在處理"
   },
   "tabs": {
@@ -424,7 +434,7 @@
     "someRefused": "{count, plural, other {#}} 項變更中有 {refused} 項無法執行。",
     "changedSince": "自向你顯示後，此內容已有變化。確認前請再看一次。",
     "fix": "請 {name} 修正",
-    "fixAsk": "其中一部分無法執行。請去掉以下內容後重新提議：\n{reasons}",
+    "fixAsk": "其中一部分無法執行。請改正以下各項後重新提議，並使用資料表本身的欄位名稱；只去掉完全無法執行的內容：\n{reasons}",
     "send": {
       "template": "範本",
       "subject": "主旨",
@@ -478,7 +488,17 @@
       "builtIn": "內建郵件需在其自己的頁面上變更。",
       "notCampaign": "只有行銷郵件可以傳送給人員。",
       "noRecipients": "沒有人會收到這封郵件。",
-      "notLive": "草稿需由人開啟後才能傳送。"
+      "notLive": "草稿需由人開啟後才能傳送。",
+      "fields": "已拒絕：{reasons}。",
+      "field": {
+        "invalid": "「{column}」不接受這個值",
+        "notAllowed": "此處不能設定「{column}」",
+        "outOfRange": "「{column}」超出範圍",
+        "required": "「{column}」需要一個值",
+        "tooLong": "「{column}」太長",
+        "unknown": "沒有「{column}」這個欄位"
+      },
+      "notSeen": "這個行銷活動的最新版本由 {name} 撰寫，之後還沒有人看過。請先在編輯器中開啟它並按「確認無誤」，或儲存它。"
     },
     "row": {
       "untitled": "未命名",

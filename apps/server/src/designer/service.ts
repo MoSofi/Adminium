@@ -34,7 +34,7 @@ import { appKeyProblem, DEFAULT_LOOK, nameFromKey, scaffoldApp } from '../projec
 import { APPS_DIR } from '../project/apps/read-app.js';
 import { findProject } from '../project/locate.js';
 import { personLog, type DesignerEvent, type DesignerEventBody, type EventLog } from './events.js';
-import { appJsonProblem, groupFiles, hashOf, isAppJson, isLookFile, isText, listEditable, saveLabel, withLineEnds, FILES_SAVED_MAX, type FileGroup } from './files.js';
+import { appJsonProblem, groupFiles, hashOf, isAppJson, isLookFile, isText, listEditable, saveLabel, searchText, withLineEnds, FILES_SAVED_MAX, SEARCH_FILE_HITS_MAX, SEARCH_HITS_MAX, type FileGroup, type SearchHit, type SearchOptions } from './files.js';
 import { createJail, JailError, MAX_WRITE_BYTES } from './jail.js';
 import { HAND_EDITS_MAX, noCardRefusal } from './write-guard.js';
 import { cleanSight, createSights, sightText } from './sight.js';
@@ -42,7 +42,8 @@ import { createDesignerRunner, type Actor, type BusyKind, type DesignerLimits, t
 import { createSessionStore, DESIGNER_TARGETS, type DesignerSession, type DesignerTarget, type SessionStore } from './session-store.js';
 import type { DesignerTool } from './tool-types.js';
 import type { Versions } from './versions.js';
-import { DESIGNER_MAX_OUTPUT_TOKENS, MENTIONS_WEB, asksOnlyForPhoneApp } from './prompt.js';
+import { anthropicEfforts, type RunEffort } from '@adminium/llm';
+import { DESIGNER_MAX_OUTPUT_TOKENS, MENTIONS_WEB, WANTS_OWN_PICTURES, asksOnlyForPhoneApp } from './prompt.js';
 
 export interface DesignerHost {
   /** The project folder. */
@@ -94,6 +95,8 @@ export interface CreateSessionInput {
   target: DesignerTarget;
   connectionId: string;
   model: string;
+  /** How hard the model is asked to work; left out for its own default. */
+  effort?: RunEffort | undefined;
   /** A style picked at the start: a design skill's key. */
   style?: string | undefined;
 }
@@ -108,6 +111,11 @@ export interface Designer {
   listFiles(sessionId: string): Promise<{ groups: FileGroup[]; busy: BusyKind | null; version: number | null }>;
   /** One file of that list, as text, with the hash of its bytes. 404 for a path that is not on the list, whatever the reason. */
   readFile(sessionId: string, path: string): Promise<{ path: string; content: string; hash: string }>;
+  /**
+   * Every place some words are in the files of that list, as they are on disk: each file with its hash, so the page
+   * knows which it holds another text for. `more`: there were more places than are named.
+   */
+  searchFiles(sessionId: string, query: string, opts: SearchOptions): Promise<{ files: { path: string; hash: string; hits: SearchHit[] }[]; more: boolean }>;
   /**
    * Save files by hand, all or none: each must be on the list and still be
    * what the person opened (`base`). Then the engine's check, build and apply,
@@ -449,7 +457,10 @@ export function createDesigner(host: DesignerHost): Designer {
       accessWarnings.set(key, result.accessWarnings ?? []);
     }
     const kept = pageWarnings.get(key) ?? [];
-    const warnings = kept.length === 0 ? {} : { warnings: kept };
+    // What is served now, as a mark: the build's own, and more when applying it changed the server (a table made, a page
+    // written), since open pages are then told to open again whatever the build was.
+    const mark = `${app?.hash ?? ''}:${app?.sidesHash ?? ''}`;
+    const warnings = { ...(kept.length === 0 ? {} : { warnings: kept }), built: result?.state === 'unchanged' ? mark : `${mark}:${result?.state ?? ''}@${String(Date.now())}` };
     followName(session);
     if (opts.version === false || host.versions == null) return { ok: true, version: null, ...warnings };
     const version = await host.versions.commit(session, opts.label);
@@ -519,12 +530,24 @@ export function createDesigner(host: DesignerHost): Designer {
           // The session holds as many files as it may: the measured lines go without the picture.
         }
       }
-      const text = sightText(sight, session.appKey, image !== undefined);
-      return text === null ? null : { text, ...(image === undefined ? {} : { image }), side: sight.side, path: sight.path ?? '/' };
+      // The pictures the person attached go with it again (the two newest): a page is held to the design only by a model that sees both at once.
+      const designs =
+        image === undefined || host.attachments === undefined
+          ? []
+          : host.attachments
+              .list(session.id)
+              // (A tall picture's parts are the picture again: the runner sends them in its place.)
+              .filter((entry) => entry.kind === 'image' && entry.partOf === undefined && !SIGHT_FILE.test(entry.label))
+              .slice(-2)
+              .map((entry) => ({ ref: entry.id, mediaType: entry.mediaType, name: entry.label }));
+      const text = sightText(sight, session.appKey, image !== undefined, false, designs.length > 0);
+      return text === null ? null : { text, ...(image === undefined ? {} : { image }), ...(designs.length === 0 ? {} : { designs }), side: sight.side, path: sight.path ?? '/' };
     },
     runnerFor: async (session) => {
       const resolved = await host.connections.runner(session.connectionId as ConnectionId, session.model);
-      return { runner: resolved.runner, maxTokens: DESIGNER_MAX_OUTPUT_TOKENS };
+      // The level the person chose goes only to a model that takes it: one kept from another model would cost the whole request.
+      const effort = session.effort !== undefined && resolved.provider === 'anthropic' && anthropicEfforts(session.model).includes(session.effort) ? session.effort : undefined;
+      return { runner: resolved.runner, maxTokens: DESIGNER_MAX_OUTPUT_TOKENS, ...(effort === undefined ? {} : { effort }) };
     },
     ...(host.attachments === undefined ? {} : { attachments: host.attachments }),
     tools: (session) => host.tools?.(session) ?? [],
@@ -583,12 +606,22 @@ export function createDesigner(host: DesignerHost): Designer {
     },
     // The design, held last: a class nothing styles, an emoji for an icon, no logo, no brief.
     design: async (session) => {
+      // The person brings the pictures, or asked for empty frames: a page without one is then as asked, and nothing is looked for.
+      // (Only what the person wrote, the first message of each turn: never the engine's own notes to the model.)
+      const opened = new Set<number>();
+      const wrote: string[] = [];
+      for (const { turn, message } of store.messages(session.id)) {
+        if (opened.has(turn)) continue;
+        opened.add(turn);
+        if (message.role === 'user') for (const block of message.content) if (block.type === 'text') wrote.push(block.text);
+      }
+      const ownPictures = WANTS_OWN_PICTURES.test(wrote.join(' '));
       const lines = (
         await designIssues(host.root, session.appKey, {
           builtInDir: stylesDir,
           fresh: session.createdApp && session.version === null,
           icons: listedPackages(host.root).has(ICONS_PACKAGE),
-          ...(host.findsPictures?.() === true ? { emptyPictureColumns: emptyPictureColumns(host.root, session.appKey, checkApp(host.root, session.appKey, { version: host.version }).manifest) } : {}),
+          ...(host.findsPictures?.() === true && !ownPictures ? { emptyPictureColumns: emptyPictureColumns(host.root, session.appKey, checkApp(host.root, session.appKey, { version: host.version }).manifest) } : {}),
         })
       ).map((issue) => issue.line);
       // Asked for a look, and a dashboard page was written in this turn: those are Adminium's own.
@@ -723,6 +756,7 @@ export function createDesigner(host: DesignerHost): Designer {
         target: input.target,
         connectionId: connection.id,
         model: input.model,
+        ...(input.effort === undefined ? {} : { effort: input.effort }),
         createdApp,
         // A key that is no style here is left out: the Designer chooses, as if none was picked.
         ...(input.style !== undefined && findDesignSkill(host.root, stylesDir, input.style)?.problem === undefined && findDesignSkill(host.root, stylesDir, input.style) !== null ? { style: input.style } : {}),
@@ -770,6 +804,34 @@ export function createDesigner(host: DesignerHost): Designer {
       const bytes = await readFile(jailOf(session.appKey).resolve(path, 'read'));
       if (!isText(bytes)) throw new ValidationFailedError('This file is not text, so it cannot be opened here.', { reason: 'NOT_TEXT', path });
       return { path, content: bytes.toString('utf8'), hash: await hashOf(bytes) };
+    },
+    async searchFiles(sessionId, query, opts) {
+      const session = store.read(sessionId);
+      const jail = jailOf(session.appKey);
+      const files: { path: string; hash: string; hits: SearchHit[] }[] = [];
+      let more = false;
+      let left = SEARCH_HITS_MAX;
+      for (const listed of await editable(session.appKey)) {
+        if (!listed.text) continue;
+        if (left <= 0) {
+          more = true;
+          break;
+        }
+        let bytes: Buffer;
+        try {
+          bytes = await readFile(jail.resolve(listed.path, 'read'));
+        } catch {
+          // Gone since the list was made: the next list says so.
+          continue;
+        }
+        if (!isText(bytes)) continue;
+        const found = searchText(bytes.toString('utf8'), query, opts, Math.min(left, SEARCH_FILE_HITS_MAX));
+        if (found.more) more = true;
+        if (found.hits.length === 0) continue;
+        left -= found.hits.length;
+        files.push({ path: listed.path, hash: await hashOf(bytes), hits: found.hits });
+      }
+      return { files, more };
     },
     async saveFiles(sessionId, files, by) {
       const session = store.read(sessionId);

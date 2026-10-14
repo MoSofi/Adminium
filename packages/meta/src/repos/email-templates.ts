@@ -65,6 +65,12 @@ export interface EmailTemplate {
   /** Which starter minted the family; null for blank and built-in documents. */
   starter: string | null;
   needsTranslation: boolean;
+  /**
+   * When the assistant last wrote this mail (saved a draft, saved over it,
+   * added it as a language), while no person has saved it or said it looks
+   * right since. The assistant does not send a campaign that carries one.
+   */
+  assistantWroteAt: number | null;
   /** Delete is archive; null = live in the manager. */
   archivedAt: number | null;
   preheader: string;
@@ -115,6 +121,8 @@ export interface CreateEmailTemplateInput extends EmailEnvelopeInput {
   enabled?: boolean | undefined;
   isBuiltinCopy?: boolean | undefined;
   createdBy?: string | null | undefined;
+  /** Set when the assistant is what wrote it, or it is a copy of a mail that carries the mark. */
+  assistantWroteAt?: number | null | undefined;
 }
 
 /** Everything `PUT`/`PATCH` may change; absent = untouched. */
@@ -126,6 +134,8 @@ export interface PatchEmailTemplateInput extends EmailEnvelopeInput {
   /** Editor writes pass false explicitly; the reset path passes true. */
   isBuiltinCopy?: boolean | undefined;
   updatedBy?: string | null | undefined;
+  /** A time when the assistant wrote this save; `null` when a person did, or looked. Absent = untouched. */
+  assistantWroteAt?: number | null | undefined;
 }
 
 export interface ListEmailTemplatesFilter {
@@ -249,6 +259,7 @@ function decode(row: Selectable<AdminiumEmailTemplatesTable>): EmailTemplate {
     category: emailCategorySchema.parse(row.category),
     starter: row.starter,
     needsTranslation: readBool(row.needsTranslation),
+    assistantWroteAt: row.assistantWroteAt === null || row.assistantWroteAt === undefined ? null : Number(row.assistantWroteAt),
     archivedAt: row.archivedAt,
     preheader: row.preheader,
     footer: lifted.footer,
@@ -351,6 +362,7 @@ export function emailTemplatesRepo(meta: MetaDb) {
         ? {}
         : { isBuiltinCopy: writeBool(meta, input.isBuiltinCopy) }),
       ...(input.updatedBy === undefined ? {} : { updatedBy: input.updatedBy }),
+      ...(input.assistantWroteAt === undefined ? {} : { assistantWroteAt: input.assistantWroteAt }),
       ...envelopeColumns(input),
       updatedAt: at,
     };
@@ -474,6 +486,7 @@ export function emailTemplatesRepo(meta: MetaDb) {
           category: emailCategorySchema.parse(input.category ?? 'transactional'),
           starter: input.starter ?? null,
           needsTranslation: writeBool(meta, input.needsTranslation ?? false),
+          assistantWroteAt: input.assistantWroteAt ?? null,
           archivedAt: null,
           preheader: input.preheader ?? '',
           footer: input.footer ?? '',

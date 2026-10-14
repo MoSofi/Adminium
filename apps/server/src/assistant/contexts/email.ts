@@ -29,7 +29,7 @@ import type {
   AssistantDetailRow,
   AssistantToolDeps,
 } from '../types.js';
-import { blockVocabulary, clip, jsonSchemaOf, varsUsedIn } from './format.js';
+import { blockVocabulary, diffPieces, jsonSchemaOf, varsUsedIn } from './format.js';
 
 /** One line per block kind, in the vocabulary's own order. */
 const BLOCK_MEANINGS: Readonly<Record<string, string>> = {
@@ -177,7 +177,7 @@ async function acceptArtefact(
   };
 }
 
-/** Subject, preheader, one line per block, footer — the diff's canonical form. */
+/** Subject, preheader, every block's words and settings, footer — the diff's canonical form. */
 function projectForDiff(artefact: Record<string, unknown>): string[] {
   const document = documentOf(artefact);
   if (document === null) return [];
@@ -190,20 +190,34 @@ function projectForDiff(artefact: Record<string, unknown>): string[] {
   for (const entry of blocks) {
     const block = asRecord(entry);
     if (block === null) continue;
-    lines.push(`  ${asString(block.block) || '?'}: ${summaryOfBlock(block)}`);
+    lines.push(...linesOfBlock(block));
   }
   lines.push(`footer: ${asString(document.footer)}`);
   return lines;
 }
 
-/** One block as one readable line: its first piece of text, or nothing. */
-function summaryOfBlock(block: Record<string, unknown>): string {
+/** The keys a block's headline is read from, in order: what the block is "about". */
+const HEAD_KEYS = ['text', 'title', 'label', 'heading', 'html', 'url'];
+
+/**
+ * One block as lines: its kind with its first words, then everything else it
+ * holds, one value (and one sentence) a line.
+ *
+ * EVERYTHING, because two blocks that differ must not project the same. This
+ * used to be one line per block, read from six keys: a text block keeps its
+ * words in `paras`, so its line was always empty and a paragraph added to an
+ * open template compared as "+0 −0". A sentence a line, so that one added
+ * sentence is one added line and not a paragraph replaced.
+ */
+function linesOfBlock(block: Record<string, unknown>): string[] {
+  const kind = asString(block.block) || '?';
   const data = asRecord(block.data) ?? {};
-  for (const key of ['text', 'title', 'label', 'heading', 'html', 'url']) {
-    const value = data[key];
-    if (typeof value === 'string' && value.length > 0) return clip(value, 80);
-  }
-  return '';
+  const pieces = [...diffPieces(data), ...diffPieces(block.style, 'style'), ...diffPieces(block.showWhen, 'showWhen'), ...diffPieces(block.otherwise, 'otherwise')];
+  const headKey = HEAD_KEYS.find((key) => typeof data[key] === 'string' && data[key] !== '');
+  // No headline key: the block's first words stand there (a text block's first sentence).
+  const headAt = pieces.findIndex((entry) => (headKey === undefined ? !/^(style|showWhen|otherwise)(\.|$)/.test(entry.label) : entry.label === headKey));
+  const head = headAt === -1 ? '' : (pieces[headAt]?.piece ?? '');
+  return [`  ${kind}: ${head}`, ...pieces.filter((_, index) => index !== headAt).map((entry) => `    ${entry.label}: ${entry.piece}`)];
 }
 
 function asRecord(value: unknown): Record<string, unknown> | null {

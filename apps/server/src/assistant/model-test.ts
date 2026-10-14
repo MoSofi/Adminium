@@ -42,6 +42,8 @@ export interface AssistantModelTestResult {
   failure: AssistantModelTestFailure | null;
   /** The provider's own sentence when it failed; never the key. */
   message: string | null;
+  /** The provider failure's own code (`network`, `not_found`, …), so the screen can word the common ones. */
+  code: string | null;
   /** What the test cost, reported or estimated: it is the pressing person's use like any turn. */
   tokens: number;
 }
@@ -119,12 +121,13 @@ export async function testAssistantModel(input: {
     now,
   });
 
-  const done = (failure: AssistantModelTestFailure | null, message: string | null = null): AssistantModelTestResult => ({
+  const done = (failure: AssistantModelTestFailure | null, message: string | null = null, code: string | null = null): AssistantModelTestResult => ({
     ok: failure === null,
     rounds,
     latencyMs: now() - started,
     failure,
     message,
+    code,
     tokens,
   });
 
@@ -136,7 +139,7 @@ export async function testAssistantModel(input: {
     const provider = outcome.errors.find((error) => 'kind' in error && error.kind === 'provider');
     // Out of rounds, or a reply that never became the format: the model's doing either way.
     if (outcome.reason === 'model-format' || provider === undefined || rounds >= ASSISTANT_MODEL_TEST_ROUNDS) return done('format');
-    return done('provider', 'message' in provider ? provider.message : null);
+    return done('provider', 'message' in provider ? provider.message : null, 'code' in provider && typeof provider.code === 'string' ? provider.code : null);
   }
   // Asked a question back, or stopped at the cap mid-way: it did not do the one thing asked.
   return done(pinged ? 'wrong-value' : 'format');

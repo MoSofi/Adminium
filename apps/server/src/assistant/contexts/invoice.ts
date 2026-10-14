@@ -37,7 +37,7 @@ import type {
   AssistantResample,
   AssistantToolDeps,
 } from '../types.js';
-import { clip, jsonSchemaOf } from './format.js';
+import { diffPieces, jsonSchemaOf } from './format.js';
 
 /** The grant every save on these pages rides — the blurb says plainly whether this session holds it. */
 const SETTINGS_MANAGE = PERMISSIONS.settingsManage;
@@ -111,7 +111,14 @@ function acceptBody(raw: unknown): { body: InvoiceBody } | { errors: { path: str
   }
 }
 
-/** The lines a diff compares: the header facts, then one line per item. */
+/**
+ * The lines a diff compares: the header facts, the items, the sections that
+ * are drawn, then everything else the document holds.
+ *
+ * Everything, because two documents that differ must not project the same:
+ * this used to stop at the items and the section switches, so a changed note,
+ * due date, address or currency compared as "+0 −0".
+ */
 function projectForDiff(artefact: Record<string, unknown>): string[] {
   const body = bodyOf(artefact);
   if (body === null) return [];
@@ -120,19 +127,21 @@ function projectForDiff(artefact: Record<string, unknown>): string[] {
     `number: ${str(body.number)}`,
     `customer: ${str(body.customerName)}`,
     'items:',
+    // An item is one line, its values side by side, whatever it holds.
+    ...diffPieces({ items: body.items }).map((entry) => `  ${entry.piece}`),
+    `tax: ${str(body.taxRate)}`,
+    `discount: ${str(body.discountRate)}`,
+    'sections:',
   ];
-  const items = Array.isArray(body.items) ? body.items : [];
-  for (const entry of items) {
-    const item = typeof entry === 'object' && entry !== null ? (entry as Record<string, unknown>) : {};
-    lines.push(`  ${clip(str(item.desc) || str(item.name), 60)} × ${str(item.qty)} @ ${str(item.rate)}`);
-  }
-  lines.push(`tax: ${str(body.taxRate)}`);
-  lines.push(`discount: ${str(body.discountRate)}`);
-  lines.push('sections:');
+  const said = ['title', 'number', 'customerName', 'items', 'taxRate', 'discountRate'];
   for (const section of DEFAULT_BLOCK_ORDER) {
     const shown = sectionShown(body, section);
-    if (shown !== null) lines.push(`  ${section}: ${shown ? 'on' : 'off'}`);
+    if (shown === null) continue;
+    lines.push(`  ${section}: ${shown ? 'on' : 'off'}`);
+    said.push(`${SECTION_SWITCHES[section] ?? ''}Show`);
   }
+  const rest = Object.fromEntries(Object.entries(body).filter(([key]) => !said.includes(key)));
+  lines.push('details:', ...diffPieces(rest).map((entry) => `  ${entry.label}: ${entry.piece}`));
   return lines;
 }
 

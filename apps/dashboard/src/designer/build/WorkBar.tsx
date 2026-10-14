@@ -9,7 +9,7 @@
  * boxes with nothing live in them, for the copy that is measured off-screen.
  */
 import type { KeyboardEvent, ReactNode, Ref } from 'react';
-import { Camera, ChevronDown, ExternalLink, Eye, IdCard, LayoutDashboard, Monitor, RotateCw, Smartphone, Tablet, UserRound } from 'lucide-react';
+import { Camera, ChevronDown, Crop, ExternalLink, Eye, IdCard, LayoutDashboard, Monitor, MousePointerClick, RotateCw, Smartphone, Tablet, UserRound } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger, TabsList, TabsTrigger, Tooltip } from '@adminium/ui';
 
 import { t } from '../../i18n/t.js';
@@ -170,7 +170,15 @@ export function WorkBar({
 }): ReactNode {
   const live = !measuring;
   const rows = level === 4;
-  const { side, sides, width, sees } = preview;
+  const { side, sides, width, sees, picking, shooting } = preview;
+  const setShooting = (on: boolean): void => {
+    preview.setShooting(on);
+    if (on) onNotice(t('designer:shot.hint', 'Drag over the part of the page you mean. Esc stops.'));
+  };
+  const setPicking = (on: boolean): void => {
+    preview.setPicking(on);
+    if (on) onNotice(t('designer:pick.hint', 'Click the part of the page you want changed. Esc stops.'));
+  };
   // Before the first build, and on a live server, there is no preview to have tools for.
   const tools = tab === 'preview' && !preview.noPreview && preview.app !== null;
   const seen = seenAs(side, preview.ticket?.seenAs ?? null);
@@ -298,6 +306,38 @@ export function WorkBar({
               <RotateCw aria-hidden="true" className="size-3.5" />
             </button>,
           )}
+          {/* Only a side of the app's own can be pointed at: its own script does the pointing. */}
+          {side === 'staff' || side === 'customer'
+            ? tip(
+                t('designer:pick.button', 'Pick an element on the page'),
+                <button
+                  type="button"
+                  aria-pressed={picking}
+                  disabled={live && !preview.canPick}
+                  onClick={() => setPicking(!picking)}
+                  aria-label={name(t('designer:pick.button', 'Pick an element on the page'))}
+                  className="flex size-8 shrink-0 items-center justify-center rounded-[9px] border border-transparent text-fg-muted hover:text-fg focus-visible:outline-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-45 aria-pressed:border-accent/35 aria-pressed:bg-accent-soft aria-pressed:text-accent"
+                >
+                  <MousePointerClick aria-hidden="true" className="size-3.5" />
+                </button>,
+              )
+            : null}
+          {/* And only such a side draws a part of itself: the picture goes with the next message. */}
+          {side === 'staff' || side === 'customer'
+            ? tip(
+                t('designer:shot.button', 'Take a picture of a part of the page'),
+                <button
+                  type="button"
+                  aria-pressed={shooting}
+                  disabled={live && !preview.canShoot}
+                  onClick={() => setShooting(!shooting)}
+                  aria-label={name(t('designer:shot.button', 'Take a picture of a part of the page'))}
+                  className="flex size-8 shrink-0 items-center justify-center rounded-[9px] border border-transparent text-fg-muted hover:text-fg focus-visible:outline-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-45 aria-pressed:border-accent/35 aria-pressed:bg-accent-soft aria-pressed:text-accent"
+                >
+                  <Crop aria-hidden="true" className="size-3.5" />
+                </button>,
+              )
+            : null}
           {phone ? <span className="min-w-0 flex-1" /> : address}
           {level === 0 && !phone
             ? tip(

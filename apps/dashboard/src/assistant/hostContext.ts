@@ -55,6 +55,13 @@ export interface AssistantHostContext {
    * select the first changed block. One undo step, because one thing happened.
    */
   applyDraft?: (artefact: Record<string, unknown>) => void;
+  /**
+   * Editor hosts only: a confirmed card saved a draft OVER a stored document.
+   * When that document is the one open, the editor takes the stored version
+   * as its saved baseline; without it, the page goes on reading "Unsaved
+   * changes" over a document that was just saved.
+   */
+  onSavedOver?: (documentId: string) => void;
 }
 
 /** Does this host have somewhere to put a draft without saving it? */
