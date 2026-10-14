@@ -46,7 +46,29 @@ export function canonicalChannels(meta: MetaDb): (channel: string) => Promise<st
   };
 }
 
+/** How long a connection's view is kept for the frames that follow one another: a burst of writes, to many subscribers, reads the schema once. */
+const VIEW_KEPT_MS = 5_000;
+
 export function readLimitedFrames(meta: MetaDb): FrameFor {
+  /*
+   * Every frame that carries a row is read as its reader reads the table,
+   * which needs the connection's view. Loading it reads and parses the whole
+   * schema, so it is kept a few seconds and shared by the frames and the
+   * subscribers of a burst. A rule changed meanwhile (a column hidden) is
+   * heard by the frames after that.
+   */
+  const views = new Map<string, { at: number; view: ReturnType<typeof loadSnapshotView> }>();
+  const viewOf = (connectionId: string): ReturnType<typeof loadSnapshotView> => {
+    const kept = views.get(connectionId);
+    if (kept !== undefined && Date.now() - kept.at < VIEW_KEPT_MS) return kept.view;
+    const view = loadSnapshotView(meta, connectionId);
+    views.set(connectionId, { at: Date.now(), view });
+    // A load that failed is not kept: the next frame asks again.
+    view.catch(() => {
+      if (views.get(connectionId)?.view === view) views.delete(connectionId);
+    });
+    return view;
+  };
   return async (user, channel) => {
     const parsed = parseChannel(channel);
     if (parsed?.kind !== 'widget-data') return null;
@@ -62,7 +84,7 @@ export function readLimitedFrames(meta: MetaDb): FrameFor {
       // Read as this person reads the table: without the columns their role does not show, and without a code no
       // desk hands out (`code.hiddenFromStaff`), which is left out for everybody, a role with no limit and the
       // Super Admin included. So no reader skips this, whatever their role.
-      const view = readViewOf(await loadSnapshotView(meta, parsed.connectionId), permissions);
+      const view = readViewOf(await viewOf(parsed.connectionId), permissions);
       return { ...shown, data: { ...data, row: readableImage(view, parsed.table, data.row) } };
     };
   };

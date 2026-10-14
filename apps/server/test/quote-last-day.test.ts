@@ -41,7 +41,8 @@ const id = { ref: 'id', type: 'int', role: 'pk' };
 const invoicesAddOn = (): Doc => ({ ...(JSON.parse(readFileSync(new URL('./fixtures/invoices-add-on.json', import.meta.url), 'utf8')) as Doc), version: '1.1.0' });
 
 /** Two zones a day apart at every instant: the calendar of one is always behind the other's. */
-const BEHIND = 'Etc/GMT+12';
+// A Region/City name: the public API takes no other for a business's zone (`Etc/GMT+12` made every key of the install invalid, for the eleven hours a day this zone is the one chosen).
+const BEHIND = 'Pacific/Pago_Pago';
 const AHEAD = 'Pacific/Kiritimati';
 /**
  * The zone the install is in for the customer's writes: whichever of the two is on another day than UTC right now (one

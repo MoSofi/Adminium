@@ -44,6 +44,7 @@
 import { teamsRepo, usersRepo, type MetaDb } from '@adminium/meta';
 
 import { permissionSetAllows, resolvePermissionSet } from '../rbac/resolver.js';
+import { rowReachesOf } from '../rbac/row-limits.js';
 import { sql, type Kysely } from 'kysely';
 
 import type { BelongsWay, EffectiveTable } from '../connections/effective-schema.js';
@@ -394,12 +395,25 @@ export async function assertStaffColumns(ctx: RowLimitContext | null, meta: Meta
           throw new ValidationFailedError('Some values were refused.', { fields: { [column]: { code: 'cannot-open' } } });
         }
       }
-      // A row handed over goes to somebody who can open it: a person whose roles do not read this table would be
-      // given a row that then answers to nobody but an admin (the hand-over of everything a person holds refuses the same).
+      /*
+       * A ROW HANDED OVER GOES TO SOMEBODY WHO CAN WORK IT. Not to a person
+       * who has not arrived or is a sample; not to one whose roles do not
+       * read AND change this table; not to one whose reach of it waits for a
+       * state the row is not in (an account manager reads a deal once it is
+       * won: an open deal given to her would answer to nobody but an admin).
+       * Handing over everything a person holds refuses the same.
+       */
       if (opts.handOver === true && opts.connectionId !== undefined) {
-        const theirs = await resolvePermissionSet(meta, { kind: 'user', id: user.id, label: user.id });
-        if (!permissionSetAllows(theirs, `table:${opts.connectionId}:${table.id}:read`)) {
+        const cannot = (): never => {
           throw new ValidationFailedError('Some values were refused.', { fields: { [column]: { code: 'cannot-open' } } });
+        };
+        if (user.status !== 'active') cannot();
+        const theirs = await resolvePermissionSet(meta, { kind: 'user', id: user.id, label: user.id });
+        const next: Row = { ...(before ?? {}), ...values };
+        for (const action of ['read', 'update'] as const) {
+          if (!permissionSetAllows(theirs, `table:${opts.connectionId}:${table.id}:${action}`)) cannot();
+          const held = rowReachesOf(theirs, opts.connectionId, table.id, action);
+          if (held !== null && !held.some((one) => one.while === undefined || one.while.in.some((value) => String(value) === String(next[one.while!.column])))) cannot();
         }
       }
     }

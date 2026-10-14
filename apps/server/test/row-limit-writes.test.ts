@@ -180,6 +180,23 @@ for (const [dialect, available] of ENGINES) {
           expect(json<{ error: { details: { fields: unknown } } }>(lost).error.details.fields).toEqual({ owner_id: { code: 'cannot-open' } });
         }
         expect(await one('SELECT owner_id FROM deals WHERE id = 1')).toEqual({ owner_id: w.people.dana });
+        // Nor to somebody who reads deals and can change none, nor to somebody who reads a deal only once it is won (this one is open).
+        await w.role('viewer', { deals: { actions: ['read'] } });
+        await w.role('after-sale', { deals: { actions: ['read', 'update'], rows: { read: { reach: 'all', while: { column: 'state', in: ['won'] } }, update: { reach: 'all', while: { column: 'state', in: ['won'] } } } } });
+        await w.give('sam', 'viewer');
+        await w.give('kim', 'after-sale');
+        for (const taker of ['sam', 'kim'] as const) {
+          const lost = await call('dana', 'POST', 'deals/1/actions/give', { from: 'open', values: { owner_id: w.people[taker] } });
+          expect(lost.statusCode, `${taker}: ${lost.body}`).toBe(422);
+          expect(json<{ error: { details: { fields: unknown } } }>(lost).error.details.fields).toEqual({ owner_id: { code: 'cannot-open' } });
+        }
+        await w.take('sam', 'viewer');
+        await w.take('kim', 'after-sale');
+        // Nor to somebody who has not arrived yet.
+        await w.meta.db.updateTable('adminium_users').set({ status: 'invited' } as never).where('id', '=', w.people.omar).execute();
+        expect((await call('dana', 'POST', 'deals/1/actions/give', { from: 'open', values: { owner_id: w.people.omar } })).statusCode).toBe(422);
+        await w.meta.db.updateTable('adminium_users').set({ status: 'active' } as never).where('id', '=', w.people.omar).execute();
+        expect(await one('SELECT owner_id FROM deals WHERE id = 1')).toEqual({ owner_id: w.people.dana });
         const given = await call('dana', 'POST', 'deals/1/actions/give', { from: 'open', values: { owner_id: w.people.omar } });
         expect(given.statusCode, given.body).toBe(200);
         expect(json<{ data: Record<string, unknown> }>(given).data).toEqual({ id: 1, _handedOver: true });
