@@ -23,12 +23,12 @@
 | `references/manifest/requiredschema--column-rules-5.md` | requiredSchema — Column rules (part 5) | 7393 |
 | `references/manifest/requiredschema--column-rules-6.md` | requiredSchema — Column rules (part 6) | 7212 |
 | `references/manifest/requiredschema--column-rules-7.md` | requiredSchema — Column rules (part 7) | 7811 |
-| `references/manifest/requiredschema--column-rules-8.md` | requiredSchema — Column rules (part 8) | 6569 |
+| `references/manifest/requiredschema--column-rules-8.md` | requiredSchema — Column rules (part 8) | 7485 |
 | `references/manifest/requiredschema--moments.md` | requiredSchema — Moments | 2748 |
 | `references/manifest/requiredschema--capacity.md` | requiredSchema — Capacity | 7647 |
 | `references/manifest/requiredschema--capacity-2.md` | requiredSchema — Capacity (part 2) | 5558 |
 | `references/manifest/requiredschema--booking.md` | requiredSchema — Booking | 5565 |
-| `references/manifest/requiredschema--a-resource-and-a-time.md` | requiredSchema — A resource and a time | 4419 |
+| `references/manifest/requiredschema--a-resource-and-a-time.md` | requiredSchema — A resource and a time | 4769 |
 | `references/manifest/requiredschema--states.md` | requiredSchema — States | 7335 |
 | `references/manifest/requiredschema--states-2.md` | requiredSchema — States (part 2) | 7686 |
 | `references/manifest/requiredschema--states-3.md` | requiredSchema — States (part 3) | 7400 |

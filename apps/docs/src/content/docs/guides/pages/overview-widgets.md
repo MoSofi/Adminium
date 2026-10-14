@@ -139,6 +139,46 @@ The `window` picks which days are folded. An hour with no rows has no bar. The h
 venue's, UTC where the connection names no time zone. It is a bucket only: a `window` in
 `hour-of-day`, a date column, and an `ohlc` chart are refused with `422`.
 
+## Which day a period is
+
+A chart's `bucket` cuts rows into hours, days, weeks, months, quarters or years, and each point's
+`t` says which.
+
+- **A week, a month, a quarter, a year** is said by its first day at midnight UTC: July 2026 is
+  `2026-07-01T00:00:00.000Z` on every database, wherever the server and the database keep their
+  clocks. It is a day of the calendar, not a moment: read it in UTC fields, as the charts do.
+- **A `date` column** has no clock. Its days and longer periods are the days it holds.
+- **A column of times** is cut on the venue's clock where the connection names a time zone: a
+  sale at half past midnight on the 1st belongs to the month it is in there. Where it names
+  none, the UTC calendar is used. A week starts on Monday.
+- **An hour and a day of a column of times** are the venue's too, and are said as the moment
+  they begin there.
+
+:::note[Upgrading]
+On Postgres a period used to be cut on the database's own clock, which is the host's when nobody
+set another: July could come back as 30 June, 22:00 UTC. It is now the same day as on MySQL and
+SQLite. And with a time zone on the connection, a week, a month, a quarter and a year of a column
+of times are now the venue's on all three, as an hour and a day already were; they used to be
+UTC's.
+:::
+
+## A figure is a number
+
+`count` and `count_distinct` count anything. `sum`, `avg`, `min`, `max` and `percentile` take a
+number column. Over a `date` or a time column they are refused with `422`
+(`details.reason: "not-a-number"`, with the `column` and the aggregation's alias): the earliest
+of a date column is a day, and a card reads a figure as a number. Ask for the row instead, which
+is read as its reader reaches the rows:
+
+```json
+{ "shape": "record-list", "source": { "name": "followups" },
+  "select": ["id", "due_on"], "orderBy": [{ "column": "due_on", "dir": "asc" }], "limit": 1 }
+```
+
+:::note[Upgrading]
+Such a figure used to answer `0` (and a sum of dates whatever the database made of them).
+:::
+
 ## KPIs over a limit
 
 A table with a [limit](/reference/manifest/#capacity) knows what is taken of each pool. A binding
@@ -461,7 +501,7 @@ A card's refusal is its own: in a batch, the other cards are answered. Codes are
 
 | Code | Status | When |
 |---|---|---|
-| `VALIDATION_FAILED` | 422 | Filters: a group too deep or empty, more than 16 conditions, a day that breaks its rules. A ranking ordered through another link. `hour-of-day` as a window or on a date column. `counts` beside anything but a list, over rows that are not the limit's pools, on a slot limit, on a table with no limit, without the key selected, or under a name the list has. A `capacity-counts` binding with query parts or a `metric` on a list or a chart, `earnings` off a night limit priced by the night or over rows with their own currency, a limit number the table does not have, a week where the counts take one day. |
+| `VALIDATION_FAILED` | 422 | Filters: a group too deep or empty, more than 16 conditions, a day that breaks its rules. A ranking ordered through another link. `hour-of-day` as a window or on a date column. A `sum`, `avg`, `min`, `max` or `percentile` of a date or a time column. `counts` beside anything but a list, over rows that are not the limit's pools, on a slot limit, on a table with no limit, without the key selected, or under a name the list has. A `capacity-counts` binding with query parts or a `metric` on a list or a chart, `earnings` off a night limit priced by the night or over rows with their own currency, a limit number the table does not have, a week where the counts take one day. |
 | `TABLE_FORBIDDEN` | 403 | The reader may not read the card's table, a table a filter or an order reaches, the limited table, a pools' table, or the rates behind earnings. |
 | `COLUMN_FORBIDDEN` | 403 | A column one link away, a column asked `under`, or the price behind earnings is masked for the reader or outside their role's columns. |
 | `NOT_FOUND` | 404 | A `capacity-counts` binding over a table with no limit. |

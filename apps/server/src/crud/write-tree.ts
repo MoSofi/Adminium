@@ -118,6 +118,14 @@ export interface CreateTreeInput {
   inside?: ((db: Db, root: Row) => Promise<void>) | undefined;
   /** The retry key, looked up again inside the transaction after the locks (a save only). */
   replay?: ((db: Db) => Promise<TreeReplay | null>) | undefined;
+  /**
+   * A root whose table takes a resource for a time (a booking, a cover), with
+   * no rows below it, is placed as a single create places it: under its day's
+   * lock, judged by the rule inside the transaction. The desk's create with a
+   * retry key asks for it. Absent, such a root is refused as it always was
+   * (`CAPACITY_ONE_AT_A_TIME`); with rows below it, or as a quote, it still is.
+   */
+  placeRoot?: boolean | undefined;
   /** The person found or created by address, as the root's link values (a save only; never in a quote). */
   identity?: ((db: Db) => Promise<Row>) | undefined;
   /** Named locks of the door's own taken with the write's (a person's address on MySQL), a save only. */

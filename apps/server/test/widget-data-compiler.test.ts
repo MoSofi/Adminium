@@ -188,10 +188,11 @@ describe('widget-data compiler — SQL', () => {
       bucket: { column: 'order_date', unit: 'month' },
     });
     const q = compiled.query.compile();
-    expect(q.sql).toContain(`date_trunc('month', "order_date")`);
+    // A zone-less time's month, said as its first day at midnight UTC, as MySQL and SQLite say it (`postgresBucketExpr`).
+    expect(q.sql).toContain(`(date_trunc('month', "order_date") at time zone 'UTC')`);
     expect(q.sql).toContain('sum("freight") as "revenue"');
-    expect(q.sql).toContain('group by date_trunc');
-    expect(q.sql).toContain('order by date_trunc');
+    expect(q.sql).toContain('group by (date_trunc');
+    expect(q.sql).toContain('order by (date_trunc');
     expect(q.sql).toContain('from "public"."orders"');
     expect(compiled.bucketAlias).toBe('__bucket');
   });
@@ -548,7 +549,7 @@ describe('widget-data compiler — per-dialect bucket/window SQL', () => {
   it('sqlite buckets compile to strftime for every unit — never date_trunc', () => {
     // Full bucket expressions (identical text drives SELECT, GROUP BY, ORDER BY).
     const expected: Record<string, string> = {
-      hour: `strftime('%Y-%m-%d %H:00:00', "order_date")`,
+      hour: `strftime('%Y-%m-%dT%H:00:00', "order_date") || case when "order_date" like '%Z' or "order_date" like '%+__:__' then 'Z' else '' end`,
       day: `strftime('%Y-%m-%d', "order_date")`,
       week: `date("order_date", '-' || ((strftime('%w', "order_date") + 6) % 7) || ' days')`,
       month: `strftime('%Y-%m-01', "order_date")`,

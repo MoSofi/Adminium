@@ -47,6 +47,32 @@ The column has to be one of those you are bringing in.
 A line with nothing in the match column is refused: there is nothing to match it
 by.
 
+## What the table fills in by itself
+
+A line that becomes a new row is a row **you** create, and a line that updates a
+row is a change **you** make. Whatever the table works out for a save by hand,
+it works out for a line of a file:
+
+- a default, a code, a running number, a value copied from a linked row and a
+  formula, as for any new row;
+- a **stamp** (when a row was made, who made it, when it was closed): written
+  into a column the line leaves out or leaves empty. The time is the time of
+  the import, and the person is you;
+- the totals a parent row keeps of its children, once the rows are in.
+
+So a file does not have to carry a column the table fills. A list of enquiries
+with a name and an email is enough for a table that stamps `received_at`, and
+somebody whose role may not write that column can still bring the list in.
+
+A value the file does carry is kept: bring `received_at` and the old enquiries
+keep the days they really came. That needs a role that may give a new row that
+column. A file that carries a column your role may not write is refused whole,
+when it is made and again at the preview and the run, with **Your role may not
+give a new row … on this table, so it is not imported.**
+
+Rows an app's sample data adds are different: they are history, written as they
+were, and no stamp is added to them.
+
 A column you see masked (personal data your role is not shown) cannot be the
 match column, for the same reason you cannot filter by it.
 
@@ -82,7 +108,9 @@ import runs:
   chose. A line that is new by that column and repeats a value in another unique
   column, or points at a row that is not there, is refused by the database when
   it runs. So is a line whose key of several columns is already taken (a key of
-  one column is looked for by the preview).
+  one column is looked for by the preview), and a line that leaves empty a
+  column that must hold a value and that nothing fills: no stamp, no default,
+  not the database itself.
 
 After the run, the lines that were refused are in a report you can download,
 each with its reason. Lines that were already here and left alone are counted,

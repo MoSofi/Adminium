@@ -27,17 +27,22 @@
  *   the insert, and says no more than this does.
  * - WHAT A ROW NAMES. For somebody held to some rows, each link names a row
  *   they reach and each staff column a person the table lets them name.
- * - THE TABLE'S RULES, through the write service's fill and check.
+ * - THE TABLE'S RULES, through the write service's fill and check. A line
+ *   that becomes a row is a create by the person who brought the file, and a
+ *   line that changes one a change by them: a default, a code, a copy, a
+ *   formula and a number are worked out as for any save, and a stamp is
+ *   written into a column the line leaves out or empty. What a line carries
+ *   is kept, and is held to what its bringer may give a new row.
  *
  * ONE DIFFERENCE, and the preview says so (`hooksNotRun`): a project's hooks
  * run only in the job. A preview that ran them would run somebody's code for
  * rows nobody wrote.
  */
-import type { DataImport, MetaDb } from '@adminium/meta';
+import { usersRepo, type DataImport, type MetaDb } from '@adminium/meta';
 import { sql, type Kysely } from 'kysely';
 
 import type { ConnectionManager, SourceDatabase } from '../connections/manager.js';
-import type { FieldIssues } from '../crud/column-rules.js';
+import { tableRulesFor, type FieldIssues } from '../crud/column-rules.js';
 import type { ResolvedColumn, ResolvedTable, SnapshotView } from '../crud/identifiers.js';
 import { UNMASK_PERMISSION, type Row } from '../crud/mask.js';
 import { assertImportReadable, readViewOf } from '../crud/read-view.js';
@@ -251,12 +256,23 @@ export async function openImportJudge(deps: ImportJudgeDeps, row: DataImport, ac
   const dialect = data.dialect;
   const writes = deps.writes ?? createWriteService(writeStores(deps.meta));
   const writeTarget: WriteTarget = { connectionId: row.connectionId, view, table, db: data.db, dialect };
+  // Who the lines are written as, by the name a save of theirs is stamped with (`rbac/principal.ts`).
+  const importer = actorId === undefined ? null : await usersRepo(deps.meta).findById(actorId);
   const context: WriteContext = {
     origin: 'import',
     hops: 0,
-    actor: actorId === undefined ? { kind: 'system', id: null, label: 'system' } : { kind: 'user', id: actorId, label: actorId },
+    actor: actorId === undefined ? { kind: 'system', id: null, label: 'system' } : { kind: 'user', id: actorId, label: importer?.name || importer?.email || actorId },
     request: null,
+    // Each line is its bringer's create or change: a stamp fills what the line leaves out (`crud/decide.ts`).
+    stamps: 'left-out',
   };
+  /**
+   * The columns Adminium fills by itself: a stamp, a default. An empty cell
+   * under one that must hold a value is a cell left out, for the rule to fill,
+   * and not a line to refuse.
+   */
+  const rules = tableRulesFor(writeTarget);
+  const filledByRule = new Set([...(rules?.stamps ?? []).map((stamp) => stamp.column), ...(rules?.fills ?? []).filter((fill) => fill.kind !== 'none').map((fill) => fill.column)]);
   // Hooks judge rows one at a time, so a table with any hook for this import
   // is written row by row. Asked once: the hooks in force when the import
   // started decide how the whole file is written.
@@ -456,6 +472,21 @@ export async function openImportJudge(deps: ImportJudgeDeps, row: DataImport, ac
     return out;
   };
 
+  /**
+   * A row as the table's rules left it, judged again for a requester who
+   * reaches only some rows: null when nothing refuses it, or when the rules
+   * wrote nothing the line did not bring.
+   */
+  const judgedAgain = async (values: Row, brought: Row, before: Row | null): Promise<LineVerdict | null> => {
+    if (!held || !Object.keys(values).some((column) => !Object.prototype.hasOwnProperty.call(brought, column) || values[column] !== brought[column])) return null;
+    try {
+      await judge(values, before);
+      return null;
+    } catch (error) {
+      return thrown(error);
+    }
+  };
+
   /** A line whose row is here: left alone, or judged as the update it would be. */
   const hereOf = async (item: ImportLine, before: Row, earlierLine: number | undefined, opts: JudgeOptions): Promise<LineVerdict> => {
     const earlier = earlierLine === undefined ? {} : { earlierLine };
@@ -467,13 +498,13 @@ export async function openImportJudge(deps: ImportJudgeDeps, row: DataImport, ac
         const checked = await writes.check('update', writeTarget, context, [item.values], { ...HISTORY, quote: true });
         const values = checked.rows[0];
         if (values === null || values === undefined) return refusedBy(checked.issues[0] ?? null);
-        return { status: 'here', before, values, ...earlier };
+        return (await judgedAgain(values, item.values, before)) ?? { status: 'here', before, values, ...earlier };
       }
       // Prepared against the row as it is: a formula over it (a line's
       // amount, when only its qty is in the file) reads the stored inputs.
       const [prepared] = await writes.beforeEach('update', writeTarget, context, [{ values: item.values, record: before }], opts.hooks ? HISTORY : { ...HISTORY, quote: true });
       if (prepared === undefined || prepared.issues !== null) return refusedBy(prepared?.issues ?? null);
-      return { status: 'here', before, values: prepared.values, ...earlier };
+      return (await judgedAgain(prepared.values, item.values, before)) ?? { status: 'here', before, values: prepared.values, ...earlier };
     } catch (error) {
       return thrown(error);
     }
@@ -548,7 +579,7 @@ export async function openImportJudge(deps: ImportJudgeDeps, row: DataImport, ac
           await judge(item.values, null);
           if (opts.hooks && hooked.create) {
             const [prepared] = await writes.beforeEach('create', writeTarget, context, [{ values: item.values }], HISTORY);
-            out[index] = prepared === undefined || prepared.issues !== null ? refusedBy(prepared?.issues ?? null) : { status: 'new', values: prepared.values };
+            out[index] = prepared === undefined || prepared.issues !== null ? refusedBy(prepared?.issues ?? null) : ((await judgedAgain(prepared.values, item.values, null)) ?? { status: 'new', values: prepared.values });
           } else unchecked.push(index);
         } catch (error) {
           out[index] = thrown(error);
@@ -569,6 +600,8 @@ export async function openImportJudge(deps: ImportJudgeDeps, row: DataImport, ac
       for (const [n, index] of indexes.entries()) {
         const values = checked.rows[n];
         out[index] = values === null || values === undefined ? refusedBy(checked.issues[n] ?? null) : { status: 'new', values };
+        // What a rule wrote into the row (a stamp that copies a column into the one saying whose the row is) is judged as what the line brought was.
+        if (values !== null && values !== undefined) out[index] = (await judgedAgain(values, items[index]!.values, null)) ?? out[index];
       }
     };
     if (fast) {
@@ -643,6 +676,7 @@ export async function openImportJudge(deps: ImportJudgeDeps, row: DataImport, ac
       const issues: CellIssue[] = [];
       for (const target of mapped) {
         const raw = record[target.index] ?? '';
+        if (raw.trim() === '' && !target.column.nullable && filledByRule.has(target.column.name)) continue;
         const result = coerceCell(raw, target.column);
         if (!result.ok) {
           issues.push({ row: rowNumber, column: target.column.name, code: result.code, message: result.message, raw });

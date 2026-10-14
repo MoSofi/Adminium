@@ -53,9 +53,20 @@ stamp would.
 
 A public write stamps like any other write, except `user-name` and `user-id`: a browser key is
 nobody, so they write nothing. What it knows of the person is their own signed-in row, which is
-what `claim` reads. For an automation, `user-name` is the rule's name. Imports, sample data and
-undo stamp nothing, since a stamp of today's time over history would be false; an import keeps
-the stamped values it brings. A stamped column takes
+what `claim` reads. For an automation, `user-name` is the rule's name. Sample data, an app's seed
+rows and undo stamp nothing, since a stamp of today's time over history would be false.
+
+A file somebody brings in is different: each line is their own create or their own change. A
+stamp is written into a column the line leaves out or leaves empty, as it would be for a save
+(`now` is the moment of the import, `user-id` and `user-name` are the person who brought the
+file, a `byOrigin` column gets its `staff` value). So a role that may not write `received_at`
+still brings a list of enquiries in, and each row says when it arrived. A value the line does
+carry is kept, where a save would lose it to the stamp: the day an old enquiry really came is
+the file's to say. Whether the person may say it is their role's create limit, which refuses a
+file that carries a column they may not give a new row. A line that changes a stored row (an
+import that updates the rows it matches) fires the stamps a change by hand would, against the
+row as stored: moving a status stamps its moment once, and the same file brought in again
+stamps nothing. A stamped column takes
 no `copy`, `default`, `sequence`, `format`, `code`, `rollup`, `formula`, `lookup` or `perNight` as
 well, and a stamp watches a column other than its own.
 

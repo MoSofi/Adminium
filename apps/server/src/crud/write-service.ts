@@ -1952,6 +1952,7 @@ function decideContext(target: WriteTarget, context: WriteContext, now: Date, zo
     claimed: context.claimed ?? null,
     relations: target.view?.model?.relations,
     rights: target.rights,
+    stamps: context.stamps,
   };
 }
 
@@ -3620,6 +3621,8 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       const memo: CopyMemo = new Map();
       const out: (CheckedRow | null)[] = [];
       const issues: (FieldIssues | null)[] = [];
+      /** The venue's zone for a file's stamps, read once for the batch. */
+      let stampZone: { zone: string | undefined } | undefined;
       for (const [index, row] of rows.entries()) {
         if (unposted[index] != null) {
           issues.push(unposted[index] as FieldIssues);
@@ -3639,7 +3642,19 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
           out.push(null);
           continue;
         }
-        const formulated = await formulate(rules, action, target, prepared, null, context.origin);
+        // A line of a file somebody brings in is their create: the stamps it leaves out are written (`decide.ts`).
+        let stamped: Row = prepared;
+        if (action === 'create' && context.stamps === 'left-out') {
+          try {
+            stamped = await decideRow(rules, 'create', prepared, null, decideContext(target, context, stampNow(clock), (stampZone ??= { zone: await zoneFor(rules, target) }).zone));
+          } catch (error) {
+            const column = String(((error as { details?: { column?: unknown } }).details?.column ?? '') || 'row');
+            issues.push({ [column]: { code: 'not-allowed' } });
+            out.push(null);
+            continue;
+          }
+        }
+        const formulated = await formulate(rules, action, target, stamped, null, context.origin);
         // A place and an area as their columns keep them: a line of a file is read as a save is.
         const geo = action === 'delete' ? null : await geoValues(target, formulated);
         const values = geo?.values ?? formulated;
@@ -3892,12 +3907,30 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
           );
         }
       }
-      if (rulesOf(rootRow.target)?.booking !== undefined) await at(rootRow.node, () => Promise.reject(new GuardedBatchError(rootRow.target.table.name)));
+      /*
+       * A ROOT THAT TAKES A RESOURCE FOR A TIME (a booking, a cover). With
+       * rows below it, or as a quote, it is refused as it always was: such a
+       * row is written alone. A save of the one row, from a door that asks
+       * for it (`placeRoot`: the desk's create with a retry key), is made as
+       * a single create makes it (`create`): its day's lock is named with the
+       * write's other locks, and the row is judged under it, inside the
+       * transaction. So a create sent with a retry key, which comes this way
+       * to be found again, is placed like any other; and a second key for a
+       * time that is taken is refused by the rule, as an unkeyed create is.
+       */
+      const rootBooking = rulesOf(rootRow.target)?.booking;
+      if (rootBooking !== undefined && (input.placeRoot !== true || dry || everyRow.length > 1)) await at(rootRow.node, () => Promise.reject(new GuardedBatchError(rootRow.target.table.name)));
 
       // 2. The root, prepared as a single create prepares its row; its before hooks run for a save only.
       const root = await at(rootRow.node, () =>
         prepareOne({ target: rootRow.target, values: rootRow.node.values, context, clock, mode, hooks: !dry, grants: true }),
       );
+      // What the rule must check of the root (nothing for a row that holds no time), and the day it is locked by.
+      const rootNeed = rootBooking === undefined ? null : bookingNeed(rootBooking, root.checked, null);
+      const rootDay = rootBooking === undefined || rootNeed === null ? null : bookingDay(rootBooking, root.checked, root.zone ?? 'UTC');
+      if (rootBooking !== undefined && rootNeed !== null && rootDay === null) {
+        await at(rootRow.node, () => Promise.reject(bookingRefusal('BOOKING_OUT_OF_RANGE', bookingColumn(rootBooking))));
+      }
       // Every column the tree's totals write in other rows, granted, before anything is written.
       for (const target of rights.values()) {
         const rules = rulesOf(target);
@@ -3985,6 +4018,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         );
         return [
           ...limits,
+          ...(rootDay === null ? [] : [{ name: `${rootRow.target.connectionId}|${rootRow.target.table.id}|booking|${rootDay}`, busy: 'BOOKING_BUSY' as const }]),
           ...series,
           ...(input.locks ?? []),
           ...(treePosting === null
@@ -4025,8 +4059,13 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
           const within: WriteTarget = { ...row.target, db: trx, timezone: prepared.zone ?? row.target.timezone };
           const parent = row.parent === null ? null : written.get(row.parent)!;
           await input.checks?.(trx, row.node, prepared.checked, parent);
+          // A root that takes a resource for a time, judged under its day's lock: "anyone" comes back as the person the rule picked.
+          const placed =
+            row === rootRow && rootBooking !== undefined && rootNeed !== null
+              ? brand({ ...prepared.checked, ...(await checkBooking(rootBooking, { ...within, origin: context.origin }, { row: prepared.checked, before: null, need: rootNeed, now: new Date() })) })
+              : prepared.checked;
           // The root was prepared before the write began: a copy that follows its parent is read again from the parent, held.
-          const current = !dry && row === rootRow ? brand(await followNow({ db: trx, dialect: within.dialect, rules: prepared.rules, values: prepared.checked, currency })) : prepared.checked;
+          const current = !dry && row === rootRow ? brand(await followNow({ db: trx, dialect: within.dialect, rules: prepared.rules, values: placed, currency })) : placed;
           const counted = dry ? current : brand(await claimSequences(prepared.rules, 'create', within, current, opts.sequences));
           let out: { row: Row; values: CheckedRow };
           try {

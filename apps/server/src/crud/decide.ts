@@ -44,9 +44,11 @@
  *    cancel online, and ring to move it. Staff are never refused.
  *
  * An update whose stored row is gone decides nothing here: it matches
- * nothing. Nor does a write that brings in HISTORY — an import, sample data,
- * an undo: those rows say what happened then, and a stamp of today's time or
- * today's person over them would be false.
+ * nothing. Nor does a write that brings in HISTORY — sample data, an app's
+ * seed rows, an undo: those rows say what happened then, and a stamp of
+ * today's time or today's person over them would be false. A file a person
+ * brings in is the one exception, and a narrow one: its stamps fill what a
+ * line leaves out and nothing else is decided (`stampLeftOut`).
  */
 import type { Kysely } from 'kysely';
 import type { Dialect, Relation } from '@adminium/engine';
@@ -87,6 +89,8 @@ export interface DecideContext {
   relations?: readonly Relation[] | undefined;
   /** What the connection's role may write: a renewed code it may not is refused by name. */
   rights?: TablePrivileges | null | undefined;
+  /** A file a person brings in: a stamp fills what a line leaves out (`WriteContext.stamps`). */
+  stamps?: 'left-out' | undefined;
 }
 
 /** Writes that put back what already happened: nothing is decided over them. */
@@ -142,7 +146,8 @@ export async function decideRow(
   before: Row | null,
   context: DecideContext,
 ): Promise<Row> {
-  if (rules === null || action === 'delete' || HISTORY.has(context.origin)) return values;
+  if (rules === null || action === 'delete') return values;
+  if (HISTORY.has(context.origin)) return context.origin === 'import' && context.stamps === 'left-out' ? stampLeftOut(rules, action, values, before, context) : values;
   if (action === 'update' && before === null) return values;
   let out = values;
   const late = lateRule(rules);
@@ -161,6 +166,24 @@ export async function decideRow(
   if (cleared.length > 0) moved = { ...moved, ...Object.fromEntries(cleared.map((column) => [column, null])) };
   // A code renewed by this change — judged last, so a column a stamp just set (the holder copied in on accept) sets it off too — in the same statement, so the old one stops at the commit.
   return renewCodes(rules.codes, action, moved, before, context);
+}
+
+/**
+ * A LINE OF A FILE SOMEBODY BRINGS IN. A new row is made now, by them; a
+ * stored row the file changes is changed now, by them. So each stamp that a
+ * person's save would fire is written, as that person (a `user-id` is theirs,
+ * a `byOrigin` word the staff side's), into a column the line leaves out or
+ * empty. A value the line carries is kept, where a person's save would lose
+ * it to the stamp: the day an old enquiry really came is the file's to say,
+ * and whether its bringer may say it is the create limit's to judge
+ * (`rbac/update-limits.ts`). Nothing else is decided: no late flag, no code
+ * made anew, no undo move.
+ */
+async function stampLeftOut(rules: TableRules, action: WriteAction, values: Row, before: Row | null, context: DecideContext): Promise<Row> {
+  if (action === 'update' && before === null) return values;
+  const stamps = (rules.stamps ?? []).filter((stamp) => empty(values[stamp.column]));
+  if (stamps.length === 0) return values;
+  return stampRow(stamps, action, values, before, context, await momentStamps(stamps, action, values, before, context));
 }
 
 // ─── moments, read before the write ───────────────────────────────────────

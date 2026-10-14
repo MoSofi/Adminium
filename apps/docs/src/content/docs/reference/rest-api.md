@@ -1052,6 +1052,12 @@ in, or, on a table no guest creates rows of (a desk's payments), a column the ap
 key makes another record, and a guest's key never finds a desk's. A key of the wrong form, a
 table that keeps none, or a key sent with `repeat` is refused `422` with `fields.clientKey`.
 
+A table whose rows take a resource for a time (a [booking](/reference/manifest/#booking), a
+cover) takes a keyed create of one row like any other: the row is placed under the rule's lock,
+and a retry answers it. The key is no way round the rule: a second key for a time that is taken
+is refused `409` `BOOKING_TAKEN`, as a create with no key is. With `children` such a create is
+refused `409` (`details.reason: "CAPACITY_ONE_AT_A_TIME"`): those rows are written one at a time.
+
 ### The state a form loaded, and undo
 
 On a table with [states](/reference/manifest/#states), `from` on a `PATCH` names the state the

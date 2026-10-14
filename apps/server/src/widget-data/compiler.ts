@@ -528,12 +528,21 @@ function venueBucketExpr(
   dialect: Dialect,
   ref: Ref,
   column: ResolvedColumn,
-  unit: 'hour' | 'day' | 'hour-of-day',
+  unit: PeriodUnit | 'hour-of-day',
   timezone: string,
   range: { from: Date; to: Date },
 ): RawBuilder<unknown> {
-  const pgFormat = unit === 'hour-of-day' ? 'HH24' : unit === 'hour' ? 'YYYY-MM-DD HH24:00:00' : 'YYYY-MM-DD 00:00:00';
-  const format = unit === 'hour-of-day' ? '%H' : unit === 'hour' ? '%Y-%m-%d %H:00:00' : '%Y-%m-%d 00:00:00';
+  /*
+   * A WEEK, A MONTH, A QUARTER, A YEAR: the venue's own (a sale at half past
+   * midnight on the 1st is this month's there, whatever month UTC is in), and
+   * said as every engine says a period of days — its first day, a day of the
+   * calendar with no clock (`YYYY-MM-DD`), which the shaper reads as that day
+   * at midnight UTC and a chart reads in UTC fields. The row is moved onto
+   * the venue's clock exactly as for a day, then cut as a plain bucket is.
+   */
+  const long = unit === 'week' || unit === 'month' || unit === 'quarter' || unit === 'year';
+  const pgFormat = unit === 'hour-of-day' ? 'HH24' : unit === 'hour' ? 'YYYY-MM-DD HH24:00:00' : long ? 'YYYY-MM-DD' : 'YYYY-MM-DD 00:00:00';
+  const format = unit === 'hour-of-day' ? '%H' : unit === 'hour' ? '%Y-%m-%d %H:00:00' : long ? '%Y-%m-%d %H:%M:%S' : '%Y-%m-%d 00:00:00';
   const spans = dialect === 'mysql' || dialect === 'sqlite' ? offsetSpans(timezone, serverZone(), range.from, range.to) : [];
   /** The minutes a row is moved by, chosen by `compared` (the row as `YYYY-MM-DD HH:MM:SS` on the clock `boundary` spells). */
   const perRow = (compared: RawBuilder<unknown> | Ref, minutes: (span: OffsetSpan) => number, boundary: (at: number, span: OffsetSpan) => string, spell: (n: number) => RawBuilder<unknown>) => {
@@ -549,15 +558,18 @@ function venueBucketExpr(
   const text = (n: number) => sql.lit(`${String(n)} minutes`);
   switch (dialect) {
     case 'mysql': {
-      // A DATETIME keeps the server's wall clock: compared as such.
-      const minutes = perRow(ref, (span) => span.venue - span.server, (at, span) => wallText(at, span.server), (n) => sql.lit(n));
-      return sql`date_format(date_add(${ref}, interval ${minutes} minute), ${sql.lit(format)})`;
+      // A DATETIME keeps the server's wall clock: compared as such. A TIMESTAMP is an instant, read on a UTC session whatever zone the server is in.
+      const instant = column.logicalType === 'timestamptz';
+      const minutes = perRow(ref, (span) => (instant ? span.venue : span.venue - span.server), (at, span) => wallText(at, instant ? 0 : span.server), (n) => sql.lit(n));
+      const moved = sql`date_add(${ref}, interval ${minutes} minute)`;
+      return long ? mysqlBucketExpr(moved, unit, column) : sql`date_format(${moved}, ${sql.lit(format)})`;
     }
     case 'sqlite': {
       const read = sql`strftime('%Y-%m-%d %H:%M:%S', ${ref})`;
       const zoned = perRow(read, (span) => span.venue, (at) => wallText(at, 0), text);
       const wall = perRow(read, (span) => span.venue - span.server, (at, span) => wallText(at, span.server), text);
-      return sql`strftime(${sql.lit(format)}, ${ref}, case when ${ref} like '%Z' or ${ref} like '%+__:__' then ${zoned} else ${wall} end)`;
+      const moved = sql`strftime(${sql.lit(format)}, ${ref}, case when ${ref} like '%Z' or ${ref} like '%+__:__' then ${zoned} else ${wall} end)`;
+      return long ? sqliteBucketExpr(moved, unit) : moved;
     }
     default: {
       const wall =
@@ -592,24 +604,57 @@ function bucketRange(bounds: { start: Date; end: Date | null } | null, now: Date
  * and every format token is a source constant — no caller string is inlined;
  * the only interpolation is the snapshot's own column ref.
  */
-function bucketExpr(dialect: Dialect, ref: Ref, unit: PeriodUnit): RawBuilder<unknown> {
+function bucketExpr(dialect: Dialect, ref: Ref, unit: PeriodUnit, column: ResolvedColumn): RawBuilder<unknown> {
   switch (dialect) {
     case 'mysql':
-      return mysqlBucketExpr(ref, unit);
+      return mysqlBucketExpr(ref, unit, column);
     case 'sqlite':
       return sqliteBucketExpr(ref, unit);
     // 'postgres' and the schema-only 'generic' fall through to date_trunc,
     // which covers every unit natively.
+    default:
+      return postgresBucketExpr(ref, unit, column);
+  }
+}
+
+/**
+ * Postgres bucket start. `date_trunc` cuts a `timestamptz` — and a `date`,
+ * which it first reads as one — on the SESSION's clock, and no Adminium
+ * session names a zone: the database's own is used, often the host's. On a
+ * host in Berlin July came back as 30 June 22:00Z, where the other two
+ * engines answer 1 July 00:00Z, and a screen reading the month off the
+ * bucket put July's figure under June. So the clock is named here:
+ *
+ *  - a `date` has none: cut as the day it is, and said as that day at
+ *    midnight UTC, as MySQL and SQLite say it;
+ *  - a `timestamptz` is cut on the UTC calendar, as the other two cut an
+ *    instant (a MySQL session is in UTC; SQLite keeps ISO text in UTC);
+ *  - a zone-less `timestamp` is cut as it is written. Its day or longer is
+ *    said as that day at midnight UTC, as the other two say it; its hour
+ *    stays the wall hour it is, on the server's clock.
+ *
+ * Where the connection names a zone that is not UTC, a column of times is
+ * cut on that clock instead ({@link venueBucketExpr}).
+ */
+function postgresBucketExpr(ref: Ref, unit: PeriodUnit, column: ResolvedColumn): RawBuilder<unknown> {
+  switch (column.logicalType) {
+    case 'date':
+      return sql`(date_trunc(${sql.lit(unit)}, cast(${ref} as timestamp)) at time zone 'UTC')`;
+    case 'timestamptz':
+      return sql`(date_trunc(${sql.lit(unit)}, ${ref} at time zone 'UTC') at time zone 'UTC')`;
+    case 'timestamp':
+      return unit === 'hour' ? sql`date_trunc(${sql.lit(unit)}, ${ref})` : sql`(date_trunc(${sql.lit(unit)}, ${ref}) at time zone 'UTC')`;
     default:
       return sql`date_trunc(${sql.lit(unit)}, ${ref})`;
   }
 }
 
 /** MySQL bucket start (`DATE_FORMAT` / calendar arithmetic). */
-function mysqlBucketExpr(ref: Ref, unit: PeriodUnit): RawBuilder<unknown> {
+function mysqlBucketExpr(ref: Ref | RawBuilder<unknown>, unit: PeriodUnit, column: ResolvedColumn): RawBuilder<unknown> {
   switch (unit) {
     case 'hour':
-      return sql`date_format(${ref}, '%Y-%m-%d %H:00:00')`;
+      // A `TIMESTAMP` is an instant, read on a UTC session: said with its zone, so no reader takes it for its own wall clock.
+      return column.logicalType === 'timestamptz' ? sql`date_format(${ref}, '%Y-%m-%dT%H:00:00Z')` : sql`date_format(${ref}, '%Y-%m-%d %H:00:00')`;
     case 'day':
       return sql`date_format(${ref}, '%Y-%m-%d')`;
     case 'week':
@@ -626,10 +671,11 @@ function mysqlBucketExpr(ref: Ref, unit: PeriodUnit): RawBuilder<unknown> {
 }
 
 /** SQLite bucket start (`strftime` over ISO-text/epoch storage). */
-function sqliteBucketExpr(ref: Ref, unit: PeriodUnit): RawBuilder<unknown> {
+function sqliteBucketExpr(ref: Ref | RawBuilder<unknown>, unit: PeriodUnit): RawBuilder<unknown> {
   switch (unit) {
     case 'hour':
-      return sql`strftime('%Y-%m-%d %H:00:00', ${ref})`;
+      // Text written with a zone is an instant, and `strftime` reads it in UTC: said with its zone. Text without one stays the wall hour it is.
+      return sql`strftime('%Y-%m-%dT%H:00:00', ${ref}) || case when ${ref} like '%Z' or ${ref} like '%+__:__' then 'Z' else '' end`;
     case 'day':
       return sql`strftime('%Y-%m-%d', ${ref})`;
     case 'week':
@@ -706,6 +752,28 @@ function quantileAggregations(
   return { column, quantiles };
 }
 
+/** The types that keep a day or a time: nothing of them adds up, and their smallest is a day, not a figure. */
+const TEMPORAL_TYPES: ReadonlySet<string> = new Set(['date', 'time', 'timestamp', 'timestamptz']);
+
+/**
+ * A FIGURE IS A NUMBER. Every envelope carries an aggregation as one, and
+ * every card reads it as one; the earliest of a date column is a date, and
+ * was shaped into `0` (and a sum of dates into whatever the engine made of
+ * their text). Refused instead, saying what answers the question: the row
+ * itself, read as its reader reaches the rows. Counting dates stays a figure.
+ */
+function refuseTemporal(aggregation: Aggregation, column: ResolvedColumn): void {
+  if (!TEMPORAL_TYPES.has(column.logicalType)) return;
+  const what = aggregation.fn === 'min' ? 'earliest' : aggregation.fn === 'max' ? 'latest' : aggregation.fn;
+  reject(
+    `"${aggregation.fn}" of ${column.name} is no figure: ${column.name} keeps ${column.logicalType === 'date' ? 'a day' : 'a time'}, and a figure is a number. ` +
+      (aggregation.fn === 'min' || aggregation.fn === 'max'
+        ? `Ask for the ${what} row instead: a "record-list" ordered by ${column.name} with a limit of 1.`
+        : 'Count the rows, or add up a number column.'),
+    { aggregation: aggregation.alias, column: column.name, type: column.logicalType, reason: 'not-a-number' },
+  );
+}
+
 /** Validate + resolve one aggregation; returns its select expression factory. */
 function compileAggregation(
   db: Kysely<SourceDatabase>,
@@ -725,6 +793,7 @@ function compileAggregation(
       reject('Aggregation "percentile" requires `p` (0–1).', { alias: aggregation.alias });
     }
     const column = view.readableColumn(table, aggregation.column, canReadPii);
+    refuseTemporal(aggregation, column);
     return { alias: aggregation.alias, expr: percentileExpr(db.dynamic.ref(column.name), aggregation.p) };
   }
   if (aggregation.column === undefined) {
@@ -736,6 +805,7 @@ function compileAggregation(
   // 403 COLUMN_FORBIDDEN when masked and the caller lacks the unmask grant.
   const column = view.readableColumn(table, aggregation.column, canReadPii);
   const ref = db.dynamic.ref(column.name);
+  if (aggregation.fn !== 'count' && aggregation.fn !== 'count_distinct') refuseTemporal(aggregation, column);
   switch (aggregation.fn) {
     case 'count':
       return { alias: aggregation.alias, expr: sql`count(${ref})` };
@@ -1267,19 +1337,18 @@ export function compileWidgetQuery(opts: CompileWidgetQueryOptions): CompiledWid
       // A week asked for by the day control is drawn in days, not 168 hours.
       const unit = descriptor.bucket.unit === 'hour' && span?.unit === 'week' && followed !== undefined ? 'day' : descriptor.bucket.unit;
       // The venue's hours and days, where the venue is not on UTC.
-      bucketZone =
-        opts.timezone !== undefined && opts.timezone !== 'UTC' && (unit === 'hour' || unit === 'day') && bucketColumn.logicalType !== 'date'
-          ? opts.timezone
-          : null;
+      // …and its weeks, months, quarters and years: cut on its clock too, and said as a day of the calendar.
+      const venueZone = opts.timezone !== undefined && opts.timezone !== 'UTC' && bucketColumn.logicalType !== 'date' ? opts.timezone : null;
+      bucketZone = venueZone !== null && (unit === 'hour' || unit === 'day') ? venueZone : null;
       /*
        * The hours of the day are always the venue's (UTC where it names no
        * zone): each row's own hour on that clock, whatever day it fell on.
        */
       const bucket = hourOfDay
         ? venueBucketExpr(dialect, dynamic.ref(bucketColumn.name), bucketColumn, 'hour-of-day', zone, bucketRange(window, now()))
-        : bucketZone === null
-          ? bucketExpr(dialect, dynamic.ref(bucketColumn.name), unit as PeriodUnit)
-          : venueBucketExpr(dialect, dynamic.ref(bucketColumn.name), bucketColumn, unit as 'hour' | 'day', bucketZone, bucketRange(window, now()));
+        : venueZone === null
+          ? bucketExpr(dialect, dynamic.ref(bucketColumn.name), unit as PeriodUnit, bucketColumn)
+          : venueBucketExpr(dialect, dynamic.ref(bucketColumn.name), bucketColumn, unit as PeriodUnit, venueZone, bucketRange(window, now()));
       qb = qb.select(bucket.as(BUCKET_ALIAS));
       if (ohlcColumn !== null) {
         // Candles are folded in process, so the ONE thing SQL must guarantee is

@@ -58,4 +58,8 @@ work with `BOOKING_CLOSED` (409), one outside the opening times with `BOOKING_OU
 whose time cannot be read or is too long with `BOOKING_OUT_OF_RANGE` (both 422). The public API
 answers as it does for a booking. Two writers of one resource take turns, so two requests for the
 same hour cannot both win. As on a booking table, rows are written one at a time: a batch of
-new rows, or a batch change that could move a row's time or resource, is refused.
+new rows, or a batch change that could move a row's time or resource, is refused. A create of
+one row may carry a retry key (`clientKey`), on this table and on a booking table: it is placed
+under the same lock and judged by the same rule, the same key again answers the row the first
+made, and another key for a time that is taken is refused `BOOKING_TAKEN`. A create with rows
+below it is still refused (`CAPACITY_ONE_AT_A_TIME`).

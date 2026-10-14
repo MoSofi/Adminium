@@ -1278,6 +1278,8 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         root,
         context,
         mode,
+        // A row that takes a resource for a time, sent alone with a retry key: placed under its lock, as a create with no key is.
+        placeRoot: guards.retry !== undefined,
         checks: rules.checks,
         siblings: rules.siblings,
         // The record's link rows, in the same transaction (a quote links nothing).
