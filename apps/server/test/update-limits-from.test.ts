@@ -6,7 +6,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { assertMovedFrom, changesRow, mergeLimits, movedFromSeen, type UpdateLimit } from '../src/rbac/update-limits.js';
+import { assertMovedFrom, assertWithinLimit, changesRow, mergeLimits, movedFromSeen, type UpdateLimit } from '../src/rbac/update-limits.js';
 
 const LIMIT: UpdateLimit = { writable: ['status'], writableFrom: { status: ['booked', 'roomed'], floor: [1, 2] } };
 const refusal = (run: () => void) => {
@@ -95,5 +95,25 @@ describe('the rows a limited update reaches', () => {
     expect(changesRow({ extra: 1 }, { status: 'roomed' })).toBe(true);
     expect(changesRow({}, { status: 'roomed' })).toBe(false);
     expect(changesRow({ status: 'roomed' }, null)).toBe(true);
+  });
+});
+
+describe('a json column outside the writable list', () => {
+  const limit: UpdateLimit = { writable: ['name'] };
+  const stored = { name: 'Depot', place: { placeId: 2644688, label: 'Leeds' } };
+
+  it('is refused when its document changes, as Postgres and MySQL answer it (an object) and as SQLite does (its text)', () => {
+    for (const before of [stored, { ...stored, place: JSON.stringify(stored.place) }]) {
+      expect(() => assertWithinLimit(limit, 'settings', { place: { placeId: 2643743, label: 'London' } }, before)).toThrow(/place/);
+      expect(() => assertWithinLimit(limit, 'settings', { place: JSON.stringify({ placeId: 2643743 }) }, before)).toThrow(/place/);
+    }
+  });
+
+  it('is let through when the same document is sent back, in any key order; a value that is not json is a change', () => {
+    expect(changesRow({ place: { label: 'Leeds', placeId: 2644688 } }, stored)).toBe(false);
+    expect(changesRow({ place: '{"label":"Leeds","placeId":2644688}' }, stored)).toBe(false);
+    expect(changesRow({ place: { placeId: 2644688, label: 'Leeds' } }, { place: '{"placeId":2644688,"label":"Leeds"}' })).toBe(false);
+    expect(changesRow({ place: [1, 2] }, { place: [2, 1] })).toBe(true);
+    expect(changesRow({ place: 'not json' }, stored)).toBe(true);
   });
 });

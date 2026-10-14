@@ -34,6 +34,7 @@
  */
 import type { RolePermission, TableActions, UpdateLimit } from '@adminium/meta';
 
+import { sameValue as sameWrittenValue } from '../crud/write-values.js';
 import { ForbiddenError } from '../errors.js';
 import { grantMatches, isGranted } from './permissions.js';
 
@@ -207,6 +208,8 @@ function sameValue(sent: unknown, stored: unknown): boolean {
     const ms = (text: string) => new Date(/^\d{4}-\d{2}-\d{2} \d/.test(text) ? text.replace(' ', 'T') : text).getTime();
     return !Number.isNaN(ms(sent)) && ms(sent) === ms(stored);
   }
+  // A json value: the same document, whatever order its keys come in (Postgres and MySQL answer an object, SQLite its text).
+  if ((typeof sent === 'object' && !(sent instanceof Date)) || (typeof stored === 'object' && !(stored instanceof Date))) return sameWrittenValue(sent, stored);
   const text = (value: unknown): string => {
     if (value instanceof Date) return value.toISOString();
     if (typeof value === 'boolean') return value ? '1' : '0';
