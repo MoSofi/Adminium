@@ -198,6 +198,28 @@ describe.each(LEGS)('an app\'s roles on an add-on\'s tables — %s', (dialect, a
     expect(await held('night')).toEqual(WRITTEN);
   });
 
+  it.skipIf(!available)('what the owner took away stays away when the add-on is switched off and on again', async () => {
+    await start();
+    expect((await addKit()).statusCode).toBe(200);
+    const role = (await rolesRepo(h.meta).findBySlug('shop-floor'))!;
+    const row = (await permissionsRepo(h.meta).listForRole(role.id)).find((one) => one.resourceRef.endsWith('ledger_kit_accounts'))!;
+    // The owner takes the update away; the settings row whole.
+    await permissionsRepo(h.meta).grant(role.id, 'table', row.resourceRef, { ...(row.actions as Doc), update: false } as never);
+    const settingsRow = (await permissionsRepo(h.meta).listForRole(role.id)).find((one) => one.resourceRef.endsWith('ledger_kit_settings'))!;
+    await permissionsRepo(h.meta).revoke(role.id, 'table', settingsRow.resourceRef);
+    for (const enabled of [false, true]) {
+      const res = await h.inject({ method: 'PATCH', url: `/add-ons/${KIT}`, payload: { attachedTo: 'shop', enabled } });
+      expect(res.statusCode, res.body).toBe(200);
+    }
+    // Given again: what the owner had left; not given again: what the owner took.
+    expect((await held('floor'))['ledger_kit_accounts']).toMatchObject({ read: true });
+    expect((await held('floor'))['ledger_kit_accounts']).not.toHaveProperty('update');
+    expect(await held('floor')).not.toHaveProperty('ledger_kit_settings');
+    expect((await held('floor'))['ledger_kit_entries']).toEqual(WRITTEN.ledger_kit_entries);
+    // The other role, untouched by the owner, has it all back.
+    expect(await held('night')).toEqual(WRITTEN);
+  });
+
   it.skipIf(!available)('a column, or a table, the add-on does not have skips the entry — never a grant without its limit', async () => {
     await start(
       shop({

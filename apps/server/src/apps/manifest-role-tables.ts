@@ -106,12 +106,15 @@ export async function settleRoleTables(input: { meta: MetaDb; app: Manifest; con
    * Takes these actions of one table back from a role: the row goes when
    * nothing is left on it. The ledger forgets a pair only once its action is
    * off the row (or the role is gone): a table that cannot be found right now
-   * keeps its pairs, so the next event tries again.
+   * keeps its pairs, so the next event tries again. An action the row no
+   * longer held (the owner took it away) keeps its pair: given once, it is
+   * not given again when the add-on returns.
    */
   const takeBack = async (slug: string, addOn: string, table: string, actions: readonly string[]): Promise<void> => {
     const role = await roles.findBySlug(slug);
     // Never another's role: neither its row nor its pairs are this app's to touch.
     if (role !== null && role.appKey !== app.key) return;
+    let forget: readonly string[] = actions;
     if (role !== null) {
       // The table wherever it still stands — a record the add-on has let go of names it too: the row must be found to be narrowed.
       const name = records.find((one) => one.appKey === addOn && one.ref === table)?.tableName;
@@ -119,6 +122,9 @@ export async function settleRoleTables(input: { meta: MetaDb; app: Manifest; con
       if (real === null) return;
       const ref = `${connectionId}/${real}`;
       const existing = await permissions.find(role.id, 'table', ref);
+      // Only what the row still held was this grant's to take; what the owner already took stays remembered
+      // while the add-on is away, so its return gives nothing back. An entry the app itself no longer asks for is forgotten whole.
+      if (!live.has(addOn)) forget = actions.filter((action) => (existing?.actions as Record<string, unknown> | undefined)?.[action] === true);
       if (existing !== null) {
         const held = { ...(existing.actions as Record<string, unknown>) };
         for (const action of actions) held[action] = false;
@@ -137,7 +143,7 @@ export async function settleRoleTables(input: { meta: MetaDb; app: Manifest; con
         else await permissions.revoke(role.id, 'table', ref);
       }
     }
-    for (const action of actions) changed = seeded.delete(pairOf(slug, addOn, table, action)) || changed;
+    for (const action of forget) changed = seeded.delete(pairOf(slug, addOn, table, action)) || changed;
   };
 
   const live = new Map(input.live.map((addOn) => [addOn.key, addOn.manifest]));

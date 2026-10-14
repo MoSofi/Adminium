@@ -168,6 +168,9 @@ export function ledgerRoutes(deps: LedgerRoutesDeps): FastifyPluginAsyncZod {
         const db = resolved === null ? null : (await manager.data(connectionId)).db;
         const postings: z.infer<typeof postingsReply>['postings'] = [];
         for (const table of view.model.tables) {
+          // Only the rules of a table the person reads: a rule's counts are counts of that table's rows.
+          if (!(table.postings ?? []).some((posting) => posting.into.addOn === addOn && posting.into.ledger === ledgerId)) continue;
+          if (!(await request.can(`table:${connectionId}:${table.id}:read`))) continue;
           for (const posting of table.postings ?? []) {
             if (posting.into.addOn !== addOn || posting.into.ledger !== ledgerId) continue;
             const at = tableOf(view, table.id);
@@ -192,7 +195,8 @@ export function ledgerRoutes(deps: LedgerRoutesDeps): FastifyPluginAsyncZod {
 
     app.get(
       '/ledgers/:addOn/:ledger/sources',
-      { preHandler: requireSession, schema: { params: ledgerParams, querystring: ledgerQuery, response: { 200: sourcesReply } } },
+      // Every table of the connection with its columns: what somebody drawing a rule needs, and only they.
+      { preHandler: app.rbac.require(SCHEMA_REMAP), schema: { params: ledgerParams, querystring: ledgerQuery, response: { 200: sourcesReply } } },
       async (request) => {
         const { addOn, ledger: ledgerId } = request.params;
         const { connectionId } = request.query;
