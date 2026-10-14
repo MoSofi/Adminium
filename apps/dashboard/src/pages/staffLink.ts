@@ -47,6 +47,8 @@ export function staffTargetFor(bootstrap: BootstrapData, pageId: string, path = 
       at.pathname = `${at.pathname.replace(/\/?$/, '/')}${path}`;
       at.search = '';
       at.hash = '';
+      // A path that begins `//` would leave this server: no link.
+      if (relative && at.pathname.startsWith('//')) return null;
       return { external: true, href: relative ? at.pathname : at.toString() };
     } catch {
       return null;

@@ -263,6 +263,11 @@ describe('“Open the desk” — the app’s staff screens', () => {
     await renderAt('/p/overview', { href: '@staff/approvals', staff: { placement: 'external', url: '/apps/crm/staff/' } });
     await userEvent.click(await screen.findByTestId('page-dashboard-link'));
     expect(open).toHaveBeenLastCalledWith('/apps/crm/staff/approvals', '_blank', 'noopener,noreferrer');
+    cleanup();
+    // …and one whose path would begin `//` (another server) draws no link.
+    await renderAt('/p/overview', { href: '@staff/approvals', staff: { placement: 'external', url: '/.//evil.example/' } });
+    await screen.findAllByText('42');
+    expect(screen.queryByTestId('page-dashboard-link')).toBeNull();
   });
 
   it('draws no button for a path that could leave the side', async () => {

@@ -180,5 +180,16 @@ describe.each(LEGS)('an add-on\'s ceiling on an app\'s roles — %s', (dialect, 
     const allowed = await h.inject({ method: 'POST', url: '/apps/shop/update', payload: { roleTables: true } });
     expect(allowed.statusCode, allowed.body).toBe(200);
     expect((await held('floor'))['ledger_kit_accounts']).toMatchObject({ readLimit: { readable: ['id', 'name', 'balance', 'reorder_at'] } });
+
+    // 1.0.3 drops the value the floor's change of a name was held to: no new column, and a widening all the same.
+    const roles = structuredClone((shop([...ACCOUNTS_ASKED.readable, 'reorder_at']) as { roles: { tables?: { table: string; limit?: Doc }[] }[] }).roles);
+    delete roles[0]!.tables!.find((one) => one.table === 'accounts')!.limit!['writableFrom'];
+    await h.stageApp(shop([...ACCOUNTS_ASKED.readable, 'reorder_at'], { version: '1.0.3', roles }));
+    expect((await plan('1.0.3')).filter((entry) => entry['wider'] !== undefined)).toEqual([
+      expect.objectContaining({ role: 'floor', table: 'accounts', wider: { actions: [], columns: ['(writableFrom)'] } }),
+    ]);
+    const loosened = await h.inject({ method: 'POST', url: '/apps/shop/update', payload: {} });
+    expect(loosened.statusCode, loosened.body).toBe(422);
+    expect(loosened.json()).toMatchObject({ error: { details: { reason: 'ROLE_TABLES_WIDER' } } });
   });
 });

@@ -98,6 +98,9 @@ function holdOf(entry: RoleTable, addOn: AddOnManifest | undefined): Omit<RoleTa
  * add-on's manifest where one is at hand; with `before` (the running
  * version), what each holds more than it did.
  */
+/** The parts of a grant's limit that narrow it beyond its columns. */
+const NARROWING = ['rows', 'writableValues', 'creatableValues', 'writableFrom'] as const;
+
 export function roleTablesChecked(app: Manifest, addOns: ReadonlyMap<string, AddOnManifest>, before?: Manifest | null): RoleTableCheck[] {
   if (app.kind !== 'app') return [];
   const roles = app.roles ?? [];
@@ -109,7 +112,11 @@ export function roleTablesChecked(app: Manifest, addOns: ReadonlyMap<string, Add
       if (earlier === null) return out;
       const was = earlier.find((one) => one.key === role.key);
       const old = was === undefined ? undefined : roleTablesOf(was, earlier).find((one) => one.addOn === entry.addOn && one.table === entry.table);
-      const wider = holdWider(old === undefined ? null : holdOf(old, addOns.get(entry.addOn)), hold);
+      let wider = holdWider(old === undefined ? null : holdOf(old, addOns.get(entry.addOn)), hold);
+      // Which rows it reaches and which values it may write narrow a grant as its columns do: one the running version
+      // held that this one drops or changes is a widening too, said by the limit's name (`rows`, `writableValues`, …).
+      const loosened = old === undefined ? [] : NARROWING.filter((key) => old.limit?.[key] !== undefined && JSON.stringify(old.limit[key]) !== JSON.stringify(entry.limit?.[key]));
+      if (loosened.length > 0) wider = { actions: wider?.actions ?? [], columns: [...(wider?.columns ?? []), ...loosened.map((key) => `(${key})`)] };
       return wider === null ? out : { ...out, wider };
     }),
   );

@@ -4944,7 +4944,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
           mergeIssues(mergeIssues(geo?.issues ?? null, checkRow(judged, action, worked, { dialect: target.dialect, stored: record, columns: target.table.columns })), await boundIssues(rules, action, target, context, worked, record)),
           mergeIssues(
             mergeIssues(await linkIssues(rules, action, target, context, worked, undefined, record), action === 'delete' ? null : reservedIssue(rules, worked)),
-            await linkableIssues(rules, action, target, context, worked, record ?? null),
+            mergeIssues(await linkableIssues(rules, action, target, context, worked, record ?? null), await fileIssues(action, target, context, worked, record ?? null)),
           ),
         );
         // A refused row is not written, so it is given no number.
