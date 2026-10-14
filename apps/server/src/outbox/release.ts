@@ -34,7 +34,7 @@ import type { Kysely } from 'kysely';
 
 import type { SourceDatabase } from '../connections/manager.js';
 import type { Row } from '../crud/mask.js';
-import { skipSentence } from './timing.js';
+import { skipSentence } from './skip-sentence.js';
 
 type Db = Kysely<SourceDatabase>;
 

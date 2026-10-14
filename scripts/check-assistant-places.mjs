@@ -42,6 +42,8 @@ export function routesOf(source) {
   for (const match of source.matchAll(/function (\w+)\([^)]*\)[^{]*\{([\s\S]*?)\n\}/g)) {
     guardOf.set(match[1], guardIn(match[2]) ?? 'none');
   }
+  // …or made by the router's helper, which wraps the screen in `<StudioGuard requires={…}>`: `guardedRoute('users.manage', …)`.
+  for (const match of source.matchAll(/const (\w+) = guardedRoute\(\s*'([^']+)'/g)) guardOf.set(match[1], match[2]);
   const routes = new Map();
   for (const match of source.matchAll(/createRoute\(\{([\s\S]*?)\n\s*\}\)/g)) {
     const block = match[1];

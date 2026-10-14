@@ -33,7 +33,9 @@ import { sameValue } from '../crud/write-values.js';
 
 export type DueSpec = NonNullable<OutboxProducer['due']>;
 export type DropCondition = NonNullable<OutboxProducer['dropWhen']>[number];
-export type SkipReason = 'overtaken' | 'paid' | 'void' | 'no-longer-needed' | 'by-hand';
+import type { SkipReason } from './skip-sentence.js';
+
+export { skipSentence, type SkipReason } from './skip-sentence.js';
 
 const DAY_MS = 86_400_000;
 /** When a held message wakes, on the venue's clock, unless its producer says. */
@@ -201,18 +203,3 @@ export function cameDue(status: unknown, due: unknown, now: number): boolean {
   return instant !== null && instant.getTime() <= now;
 }
 
-/** What the error column says of a skip when the outbox keeps no reason column. */
-export function skipSentence(reason: SkipReason): string {
-  switch (reason) {
-    case 'overtaken':
-      return 'Overtaken by a later message';
-    case 'paid':
-      return 'No longer needed: paid';
-    case 'void':
-      return 'No longer needed: void';
-    case 'by-hand':
-      return 'Skipped by hand';
-    default:
-      return 'No longer needed';
-  }
-}

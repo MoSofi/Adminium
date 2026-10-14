@@ -103,7 +103,7 @@ test('says each reach in words with nothing to pick, keeps the actions it draws,
   await expect(card).toContainText('while region is empty');
   const several = page.getByTestId(`roles-rows-${orders}-read-several`);
   await expect(several).toContainText('Any one of these is enough.');
-  await expect(page.getByTestId(`roles-rows-${orders}-read-sentence`).getByRole('listitem')).toHaveText(['Every row, only while ship_country is Germany.', 'Only rows that belong to this person.']);
+  await expect(page.getByTestId(`roles-rows-${orders}-read-sentence`).getByRole('listitem')).toHaveText(['Every row of orders, only while ship_country is Germany.', 'Only rows of orders where customer_id is this person or this person is listed in customers.']);
   await expect(page.getByTestId(`roles-rows-${orders}-read`)).toHaveCount(0);
   await expect(page.getByTestId(`roles-rows-${orders}-update`)).toBeVisible();
   // Tried as a person: counted whole, both reaches together.
@@ -121,7 +121,8 @@ test('is walked with the keyboard: the reaches take no stop, the next choice doe
     await page.keyboard.press('Tab');
     const inside = await page.evaluate((id) => document.querySelector(`[data-testid="roles-rows-${id}-read-several"]`)?.contains(document.activeElement) ?? false, orders);
     expect(inside).toBe(false);
-    reached = await update.evaluate((el) => el === document.activeElement);
+    // The choice is a group of radios (one stop): reached when the focus is inside it.
+    reached = await update.evaluate((el) => el.contains(document.activeElement));
   }
   expect(reached).toBe(true);
   await page.keyboard.press('Escape');

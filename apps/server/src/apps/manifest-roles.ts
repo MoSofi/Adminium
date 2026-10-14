@@ -37,7 +37,7 @@ import type { Manifest, RowReach } from '@adminium/manifest';
 import { pagesRepo, permissionsRepo, rolesRepo, settingsRepo, snapshotsRepo, type MetaDb, type ReadLimit, type RowLimit, type TableActions, type UpdateLimit } from '@adminium/meta';
 
 import { matrixRowsFromGrants } from '../rbac/permissions.js';
-import type { RoleTableResult } from './manifest-role-tables.js';
+import type { RoleTableResult } from '@adminium/manifest';
 import { ownsBlocks } from './owns-blocks.js';
 
 type ManifestRole = NonNullable<Extract<Manifest, { kind: 'app' }>['roles']>[number];

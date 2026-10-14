@@ -468,8 +468,11 @@ test('in Arabic, at 390 wide and dark: both parts read right to left, are styled
   const button = await pad.getByRole('button', { name: 'وقّع بخط اليد بدلًا من ذلك' }).or(pad.getByRole('button', { name: 'اكتب الاسم بدلًا من ذلك' })).first().evaluate((el) => getComputedStyle(el).color);
   expect(Math.min(...(button.match(/\d+/g) ?? []).slice(0, 3).map(Number))).toBeGreaterThan(120);
   // The first button of the row sits at the right, as Arabic reads.
-  const actions = await pad.locator('.adm-kit-files-actions button').evaluateAll((all) => all.map((one) => one.getBoundingClientRect().x));
-  expect(actions[0]!).toBeGreaterThan(actions[actions.length - 1]!);
+  // Read on the first line of the row: at 390 wide the row may wrap, and a wrapped line starts at the right again.
+  const actions = await pad.locator('.adm-kit-files-actions button').evaluateAll((all) => all.map((one) => ({ x: one.getBoundingClientRect().x, y: one.getBoundingClientRect().y })));
+  const firstLine = actions.filter((one) => Math.abs(one.y - actions[0]!.y) < 4);
+  expect(firstLine.length).toBeGreaterThan(1);
+  expect(firstLine[0]!.x).toBeGreaterThan(firstLine[firstLine.length - 1]!.x);
 
   await sign(page);
   await pad.getByRole('button', { name: 'احتفظ بهذا التوقيع' }).click();
