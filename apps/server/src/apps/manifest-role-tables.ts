@@ -26,7 +26,7 @@
  * Reads and writes the meta store only.
  */
 import { parseDatabaseModel } from '@adminium/engine';
-import { addOnRoleTableHold, holdWider, type RoleTableResult, type AddOnManifest, type Manifest, type RoleTableHold, type RoleTableNarrowed, type RoleTableSkip } from '@adminium/manifest';
+import { addOnRoleTableHold, holdWider, type RoleTableResult, type AddOnManifest, type Manifest, type RoleTableHold } from '@adminium/manifest';
 import { appTablesRepo, permissionsRepo, rolesRepo, settingsRepo, snapshotsRepo, type MetaDb, type ReadLimit, type TableActions, type UpdateLimit } from '@adminium/meta';
 
 import { roleSlugFor, SEEDED_APP_ROLE_GRANTS_KEY, storedRowLimit } from './manifest-roles.js';

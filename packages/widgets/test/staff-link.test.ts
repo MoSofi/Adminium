@@ -5,7 +5,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { staffLinkPath } from './staff-link.js';
+import { staffLinkPath } from '../src/page-config/staff-link.js';
 
 describe('a link to the app\'s staff side', () => {
   it('names the side itself, or a path inside it', () => {

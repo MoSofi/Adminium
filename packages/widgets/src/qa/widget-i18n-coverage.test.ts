@@ -107,6 +107,8 @@ describe('widget-chrome i18n coverage', () => {
   const srcRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
   // @adminium/charts wires the top-level `charts.*` primitive defaults.
   const chartsSrcRoot = join(srcRoot, '..', '..', 'charts', 'src');
+  // The kit's file parts (a signature, photos) are drawn by the dashboard's kit host and speak `widgets.files.*`.
+  const kitHostSrcRoot = join(srcRoot, '..', '..', '..', 'apps', 'dashboard', 'src', 'kit-host');
   const fullRefs = new Set<string>();
   const prefixRefs = new Set<string>();
   // `ui:widgets.…` runtime refs (t() calls) and bare `widgets.…` string
@@ -118,7 +120,7 @@ describe('widget-chrome i18n coverage', () => {
   // guard on the line form keeps 'https://…' inside strings intact).
   const stripComments = (text: string): string =>
     text.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|\s)\/\/.*$/gm, '$1');
-  for (const file of [...sourceFiles(srcRoot, []), ...sourceFiles(chartsSrcRoot, [])]) {
+  for (const file of [...sourceFiles(srcRoot, []), ...sourceFiles(chartsSrcRoot, []), ...sourceFiles(kitHostSrcRoot, [])]) {
     const text = stripComments(readFileSync(file, 'utf8'));
     for (const match of text.matchAll(refPattern)) {
       const key = match[2]!;

@@ -11,7 +11,7 @@ import { filesRepo, overridesRepo, permissionsRepo, rolesRepo, snapshotsRepo } f
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { runIntrospection } from '../src/connections/introspect.js';
-import { gif, jpeg, png, pngChunk } from './picture-images.js';
+import { png } from './picture-images.js';
 import { ENGINES, world, type PersonName, type World } from './row-limit-world.js';
 
 type Who = PersonName | 'owner';
@@ -19,16 +19,6 @@ type Reply = { statusCode: number; body: string; rawPayload: Buffer };
 
 const OWN = { reach: 'own' } as const;
 const PDF = Buffer.concat([Buffer.from('%PDF-1.7\n'), Buffer.alloc(64, 0x20)]);
-/** A clean PNG of some 6 KB: what the cleaning keeps (its picture data) is what makes it large. */
-function bigPng(): Buffer {
-  const { clean } = png();
-  const at = clean.length - 12;
-  return Buffer.concat([clean.subarray(0, at), pngChunk('IDAT', Buffer.alloc(6000, 7)), clean.subarray(at)]);
-}
-
-/** What a camera writes beside a picture, as the fixtures spell it. */
-const CAMERA = /GPS|Elm Row|kitchen|xmpmeta|IPTC/;
-
 for (const [dialect, available] of ENGINES) {
   describe.skipIf(!available)(`a column that holds files: a sign-off's signature and photos [${dialect}]`, () => {
     let w: World;
@@ -60,10 +50,6 @@ for (const [dialect, available] of ENGINES) {
     const create = async (who: Who, values: Record<string, unknown>): Promise<{ res: Reply; id: number }> => {
       nextId += 1;
       return { res: await call(who, 'POST', rows(), { values: { id: nextId, delivery_id: 1, signer_name: 'Ada Customer', ...values } }), id: nextId };
-    };
-    const refusedWith = (res: Reply, column: string, code: string): void => {
-      expect(res.statusCode, res.body).toBe(422);
-      expect(json<{ error: { code: string; details: { fields: Record<string, { code: string }> } } }>(res).error).toMatchObject({ code: 'VALIDATION_FAILED', details: { fields: { [column]: { code } } } });
     };
     const fileOf = async (id: string) => filesRepo(w.meta).findById(id);
 
