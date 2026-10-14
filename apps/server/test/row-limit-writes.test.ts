@@ -12,7 +12,7 @@
  */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { ENGINES, world, type PersonName, type World } from './row-limit-world.js';
+import { BELONGS, ENGINES, world, type PersonName, type World } from './row-limit-world.js';
 
 const OWN = { reach: 'own' } as const;
 const TEAM = { reach: 'team' } as const;
@@ -211,6 +211,25 @@ for (const [dialect, available] of ENGINES) {
           expect(await one('SELECT owner_id FROM deals WHERE id = 1')).toEqual({ owner_id: w.people.dana });
         }
         await w.run(`UPDATE deals SET owner_id = '${w.people.dana}' WHERE id = 1`);
+      });
+
+      it('a column that may name anybody names, by a plain change as by the button, only somebody who can work the row', async () => {
+        // The button is not the only door to the column: a PATCH naming somebody who cannot open the row is refused the same.
+        await w.belongs('deals', [{ column: 'owner_id', set: 'anyone' }]);
+        try {
+          const lost = await call('dana', 'PATCH', 'deals/1', { values: { owner_id: w.people.kim } });
+          expect(lost.statusCode, lost.body).toBe(422);
+          expect(json<{ error: { details: { fields: unknown } } }>(lost).error.details.fields).toEqual({ owner_id: { code: 'cannot-open' } });
+          const made = await call('dana', 'POST', 'deals', { values: deal(fresh(), { owner_id: w.people.kim }) });
+          expect(made.statusCode, made.body).toBe(422);
+          expect(await one('SELECT owner_id FROM deals WHERE id = 1')).toEqual({ owner_id: w.people.dana });
+          // Somebody who can work it is named as before; and nobody limited is asked (an admin's change is an admin's).
+          expect((await call('dana', 'PATCH', 'deals/1', { values: { owner_id: w.people.omar } })).statusCode).toBe(200);
+          expect((await call('lena', 'PATCH', 'deals/1', { values: { owner_id: w.people.kim } })).statusCode).toBe(200);
+        } finally {
+          await w.run(`UPDATE deals SET owner_id = '${w.people.dana}' WHERE id = 1`);
+          await w.belongs('deals', BELONGS.deals!);
+        }
       });
 
       it('a new row with no owner is not made by somebody held to their own rows: it would be nobody\'s, and not theirs to open again', async () => {

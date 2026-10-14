@@ -2524,6 +2524,13 @@ sets it to anybody.
 { "id": "hand-over", "label": { "en-US": "Hand over" }, "set": {}, "in": ["open"], "ask": ["owner_id"], "handOver": true }
 ```
 
+Anybody, that is, who can work the row: an active person whose roles read and change the table,
+with a reach that holds the row in the state it is in (an account manager who reaches a deal
+once it is won is not given an open one). Anyone else is refused 422, the field marked
+`cannot-open`. A writer held to some rows who names somebody by a plain change, in a column
+whose `belongs` way says `set: "anyone"`, is held to the same: the button is not the only door
+to the column.
+
 ## Roles
 
 `roles` declares roles the app brings, such as a cashier and a manager. Each is installed as

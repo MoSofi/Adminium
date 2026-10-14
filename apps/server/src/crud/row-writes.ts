@@ -401,9 +401,13 @@ export async function assertStaffColumns(ctx: RowLimitContext | null, meta: Meta
        * read AND change this table; not to one whose reach of it waits for a
        * state the row is not in (an account manager reads a deal once it is
        * won: an open deal given to her would answer to nobody but an admin).
-       * Handing over everything a person holds refuses the same.
+       * Handing over everything a person holds refuses the same. So does a
+       * limited writer naming anybody (`set: anyone`) in a column that
+       * decides whose a row is by a plain write: the button is not the only
+       * door to that column, and the row would answer to nobody either way.
        */
-      if (opts.handOver === true && opts.connectionId !== undefined) {
+      const handing = opts.handOver === true || (reaches !== null && deciding.has(column) && rule.set === 'anyone');
+      if (handing && opts.connectionId !== undefined) {
         const cannot = (): never => {
           throw new ValidationFailedError('Some values were refused.', { fields: { [column]: { code: 'cannot-open' } } });
         };
