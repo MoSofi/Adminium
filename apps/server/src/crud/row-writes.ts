@@ -31,6 +31,17 @@
  * helper on a colleague's deal, or whoever covers for its owner, works on
  * the deal and adds nobody to it.
  *
+ * A ROW HUNG UNDER A PARENT IS HUNG WHERE ITS OWN TABLE'S REACH REACHES.
+ * A table whose rows are whoever's their parent is (`via`) is read, by
+ * somebody held to their own rows of it, under the parents that are theirs.
+ * The link check asks only whether the writer READS the parent, and that
+ * may be wider: an account manager reads every won deal, and comments only
+ * on a deal he is on. So the link is also judged by the reach the writer has
+ * of the row's own table: the parent is theirs (or somebody's they lead), or
+ * nobody's where they reach the rows nobody owns. A comment hung on a won
+ * deal he is not on would be a comment he could not read back, and its
+ * mentions would tell people about a deal in his name.
+ *
  * A LISTING NAMES SOMEBODY WHO CAN OPEN WHAT IT LISTS THEM ON. A table other
  * tables are read through (the people on a deal, who covers whom) holds, in
  * its person column, only somebody who reads at least one of those tables.
@@ -136,6 +147,65 @@ export async function assertLinksReached(ctx: RowLimitContext | null, db: Db, ta
     if (rowLimitFor(ctx, link.tableId, 'read') === null) continue;
     if (!(await reachesKey(ctx, db, link.tableId, link.keys, whole))) throw link.soft ? softLinkRefused(link.columns[0]!) : linkRefused();
   }
+  await assertParentReached(ctx, db, table, values, before);
+}
+
+/**
+ * Refuse a write that hangs a row of a table read through its parent
+ * (`via`) under a parent the writer's reach of THIS table does not reach
+ * (see the header). Judged only when the write sets or moves such a link,
+ * for a writer held to some rows of the table, and only where the table says
+ * nothing else that could make the row theirs: a staff column that names
+ * them makes it theirs whatever its parent; a way through a listing, or
+ * through a person's row, is not judged here (a new row is listed nowhere
+ * yet), and then the write is as it always was.
+ */
+async function assertParentReached(ctx: RowLimitContext, db: Db, table: EffectiveTable, values: Row, before: Row | null): Promise<void> {
+  const ways = table.belongs ?? [];
+  const vias = ways.filter((way): way is Extract<BelongsWay, { via: string }> => 'via' in way);
+  if (vias.length === 0 || ways.some((way) => 'through' in way || ('column' in way && way.person !== undefined))) return;
+  // Set by this write: sent, with a value the stored row does not already hold there.
+  const moved = vias.filter((way) => Object.prototype.hasOwnProperty.call(values, way.via) && (before === null || !same(values[way.via], before[way.via])));
+  if (moved.length === 0) return;
+  const reaches = writerReaches(ctx, table.id);
+  // Nothing limits them here, or a reach of every row (only while a column of the row holds a value) hangs it anywhere they read.
+  if (reaches === null || reaches.some((reach) => reach.reach === 'all')) return;
+  const me = ctx.set.reach?.userId ?? null;
+  if (me === null) throw linkRefused();
+  const ids = new Set([me, ...(reaches.some((reach) => reach.reach === 'team') ? (ctx.set.reach?.ledIds ?? []) : [])]);
+  // Theirs by a staff column of its own: as the row will hold it, or as a stamp of its maker will fill it.
+  for (const way of ways) {
+    if (!('column' in way)) continue;
+    const column = table.columns.find((candidate) => candidate.name === way.column);
+    // A copy of the parent's person says whose the parent is: that is the question asked below, not an answer to it.
+    if (column?.copy?.mode === 'always') continue;
+    const stamp = column?.stamp as { set?: unknown; on?: unknown } | undefined;
+    const held = Object.prototype.hasOwnProperty.call(values, way.column) ? values[way.column] : before === null ? (stamp?.set === 'user-id' && stamp.on === 'create' ? me : undefined) : before[way.column];
+    if (!empty(held) && ids.has(String(held))) return;
+  }
+  // Theirs through a parent: any one of its links, as the row will hold them, names a parent their reach of this table reaches.
+  const asParent: RowLimitContext = {
+    ...ctx,
+    nobody: undefined,
+    set: {
+      superAdmin: false,
+      reach: ctx.set.reach,
+      // The person's reaches of THIS table, asked of the parent: who it belongs to. A `while` or a `by` reads this table's own columns.
+      rowLimits: { read: [{ limited: [], unlimited: new Set<string>() }] },
+    },
+  };
+  for (const way of vias) {
+    const link = Object.prototype.hasOwnProperty.call(values, way.via) ? values[way.via] : before?.[way.via];
+    if (empty(link)) continue;
+    const relation = ctx.model.relations.find((r) => r.through === null && r.from.tableId === table.id && r.from.columns.length === 1 && r.from.columns[0] === way.via && r.to.columns.length === 1);
+    if (relation === undefined) continue;
+    const parentId = relation.to.tableId;
+    const limited = reaches.map((reach) => ({ grant: `table:${ctx.connectionId}:${parentId}:read`, reach: { reach: reach.reach, ...(reach.unowned === true ? { unowned: true as const } : {}) } }));
+    const judged = { ...asParent, set: { ...asParent.set, rowLimits: { read: [{ limited, unlimited: new Set<string>() }] } } };
+    if (await reachesKey(judged, db, parentId, relation.to.columns[0]!, link)) return;
+  }
+  const column = moved[0]!.via;
+  throw new ForbiddenError('Your role adds here only under a record that is yours.', 'COLUMN_FORBIDDEN', { table: table.id, column, reason: 'parent-not-theirs' });
 }
 
 /** Who is writing, as the link check needs them where no role limits their rows: what they read, and who they are. */
@@ -277,11 +347,19 @@ export async function assertStaffColumns(ctx: RowLimitContext | null, meta: Meta
     return copy?.mode === 'always' ? copy : undefined;
   };
   const underParent = opts.parentLater === true || opts.parentValues !== undefined;
+  /*
+   * A reach of every row (only while a column holds some values) holds a
+   * stored row only when the row is one it reaches. Beside another reach —
+   * every won deal, and their own — the row a write names may be reached by
+   * the other one alone: an open deal somebody only helps on is not theirs
+   * to take because they also read every won one.
+   */
+  const reachesWhole = (row: Row): boolean => (reaches ?? []).some((reach) => reach.reach === 'all' && (reach.while === undefined || reach.while.in.some((value) => same(value, row[reach.while!.column]))));
   let holds: boolean | null = null;
   const holdsItself = async (): Promise<boolean> => {
     if (holds !== null) return holds;
     if (before === null || reaches === null) return (holds = true);
-    if (reaches.some((reach) => reach.reach === 'all')) return (holds = true);
+    if (reachesWhole(before)) return (holds = true);
     const people = [...deciding].map((column) => before[column]).filter((value) => !empty(value)).map((value) => String(value));
     if (people.length === 0) return (holds = reaches.some((reach) => reach.unowned === true));
     if (me !== null && people.includes(me)) return (holds = true);
@@ -380,8 +458,9 @@ export async function assertStaffColumns(ctx: RowLimitContext | null, meta: Meta
       named = (held as { person: unknown }).person;
     }
     if (empty(named)) {
-      // Nobody's: a row a limited writer could then not see, unless their reach includes those.
-      if (reaches !== null && !reaches.some((reach) => reach.reach === 'all' || reach.unowned === true)) refuse(column, 'staff-column');
+      // Nobody's: a row a limited writer could then not see, unless their reach includes those (or, for a stored row, every
+      // row it is: a reach of every won deal empties the owner of a won deal, not of an open one held another way).
+      if (reaches !== null && !reaches.some((reach) => reach.unowned === true || (reach.reach === 'all' && before === null)) && !(before !== null && reachesWhole(before))) refuse(column, 'staff-column');
       continue;
     }
     if (!viaPerson) {

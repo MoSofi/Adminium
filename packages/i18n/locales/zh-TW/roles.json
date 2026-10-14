@@ -117,7 +117,10 @@
       "person": "{column} 中的人員",
       "listingDated": "當天在 {table} 中為它登記的任何人",
       "listing": "在 {table} 中為它登記的任何人",
-      "parent": "能存取其所屬{table}的人"
+      "parent": "能存取其所屬{table}的人",
+      "whileIn": "僅當 {column} 為 {values} 時",
+      "whileEmpty": "僅當 {column} 為空時",
+      "whileSet": "僅當 {column} 已填寫時"
     },
     "follows": "跟隨：{table}",
     "belongs": "一列屬於{ways}。",
@@ -153,7 +156,8 @@
     "widened": "此角色透過範圍較寬的權限開啟該資料表。儲存限制時，也會依名稱將該資料表授予它。",
     "count": "{name} 將看到 {total} 列中的 {reached} 列。",
     "capped": "此人帶領的人數超過單一範圍的上限，因此未統計其整個團隊。",
-    "lifted": "{name} 還擁有 {roles}，該角色可存取每一列。此限制對其不生效。"
+    "lifted": "{name} 還擁有 {roles}，該角色可存取每一列。此限制對其不生效。",
+    "several": "符合其中任一條即可。這些由應用程式設定，並依應用程式所寫保留。"
   },
   "partsOff": "它所屬的應用程式部分已關閉：在該部分開啟之前不授予任何權限。",
   "people": {

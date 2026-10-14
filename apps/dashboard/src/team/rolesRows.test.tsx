@@ -60,9 +60,9 @@ function installFetch() {
         return Promise.resolve(jsonResponse(200, { roleId: 'role_rep', grants: [], rows: {} }));
       }
       if (url === '/api/v1/roles/rows/preview') {
-        const body = JSON.parse(String(init?.body)) as { userId: string; reach: { reach: string } };
+        const body = JSON.parse(String(init?.body)) as { userId: string; reach: { reach: string } | { reach: string }[] };
         previews.push(body as unknown as Record<string, unknown>);
-        const own = body.reach.reach === 'own';
+        const own = !Array.isArray(body.reach) && body.reach.reach === 'own';
         return Promise.resolve(jsonResponse(200, { reached: own ? 6 : 14, total: 14, capped: false, liftedBy: body.userId === 'usr_ivy' ? ['Sales manager'] : [] }));
       }
       if (url === '/api/v1/roles') return Promise.resolve(jsonResponse(200, { roles: ROLES }));
@@ -152,6 +152,51 @@ describe('which rows a role reaches', () => {
     expect(previews.at(-1)).toMatchObject({ connectionId: 'conn_1', table: 'main.deals', userId: 'usr_dana', roleId: 'role_rep', reach: { reach: 'own' } });
     await user.selectOptions(screen.getByTestId('roles-rows-person'), 'usr_ivy');
     await waitFor(() => expect(screen.getByTestId('roles-rows-main.deals-count').textContent).toContain('Ivy Sandoval also holds Sales manager, which gives every row. This limit does not hold for them.'));
+  });
+});
+
+describe('several reaches an app wrote for one action', () => {
+  const WON = { reach: 'all' as const, while: { column: 'state', in: ['won'] } };
+  const several = (): RoleRowsTable[] => [
+    table({
+      limit: { read: [WON, { reach: 'own' }] },
+      ways: [
+        { kind: 'person', column: 'owner_id', label: 'Owner' },
+        { kind: 'listing', table: 'main.deal_members', label: 'Deal members', dated: false, when: { column: 'ended_on', label: 'Ended on', isNull: true } },
+      ],
+    }),
+  ];
+  async function openSeveral() {
+    const user = userEvent.setup();
+    const io = installFetch();
+    const fetcher = globalThis.fetch as unknown as (input: unknown, init?: RequestInit) => Promise<Response>;
+    vi.stubGlobal('fetch', vi.fn((input: unknown, init?: RequestInit) => (String(input) === '/api/v1/roles/role_rep/rows' ? Promise.resolve(jsonResponse(200, { roleId: 'role_rep', locked: false, tables: several() })) : fetcher(input, init))));
+    renderRoles();
+    await user.click(await screen.findByTestId('roles-rows-rep'));
+    await screen.findByTestId('roles-rows-tables');
+    return { user, ...io };
+  }
+
+  it('are said in words, each its own line, with nothing to pick; a listing that counts while a column is empty says so', async () => {
+    await openSeveral();
+    const deals = within(screen.getByTestId('roles-rows-table-main.deals'));
+    expect(deals.getByText('A row belongs to the person in Owner or anyone listed for it in Deal members, while Ended on is empty.')).toBeTruthy();
+    expect(screen.queryByTestId('roles-rows-main.deals-read')).toBeNull();
+    expect(screen.getByTestId('roles-rows-main.deals-read-several').textContent).toContain('Any one of these is enough.');
+    const lines = within(screen.getByTestId('roles-rows-main.deals-read-sentence')).getAllByRole('listitem').map((item) => item.textContent);
+    expect(lines).toEqual(['Every row, only while state is won.', 'Only rows that belong to this person.']);
+    // Change is still the dialog's to choose.
+    expect(screen.queryByTestId('roles-rows-main.deals-update')).not.toBeNull();
+  });
+
+  it('are kept as written through a save of another action, and tried whole as a person', async () => {
+    const { user, puts, previews } = await openSeveral();
+    await user.selectOptions(screen.getByTestId('roles-rows-person'), 'usr_dana');
+    await waitFor(() => expect(previews.at(-1)).toMatchObject({ reach: [WON, { reach: 'own' }] }));
+    await user.selectOptions(screen.getByTestId('roles-rows-main.deals-update'), 'own');
+    await user.click(screen.getByTestId('roles-rows-save'));
+    await waitFor(() => expect(puts).toHaveLength(1));
+    expect(puts[0]!.body.rows).toEqual({ 'conn_1/main.deals': { read: [WON, { reach: 'own' }], update: { reach: 'own' } } });
   });
 });
 

@@ -33,7 +33,7 @@
  * longer than the column holds.
  */
 import { parseDatabaseModel } from '@adminium/engine';
-import type { Manifest } from '@adminium/manifest';
+import type { Manifest, RowReach } from '@adminium/manifest';
 import { pagesRepo, permissionsRepo, rolesRepo, settingsRepo, snapshotsRepo, type MetaDb, type ReadLimit, type RowLimit, type TableActions, type UpdateLimit } from '@adminium/meta';
 
 import { matrixRowsFromGrants } from '../rbac/permissions.js';
@@ -76,18 +76,19 @@ function limitsOf(role: ManifestRole, roles: readonly ManifestRole[]): Record<st
   return { ...(from?.limits ?? {}), ...(role.limits ?? {}) };
 }
 
-/** A manifest's `rows` as a grant keeps it: each action's reach, copied whole (a column keeps its name through an install). */
+/** A manifest's `rows` as a grant keeps it: each action's reach, or its several, copied whole (a column keeps its name through an install). */
 export function storedRowLimit(rows: NonNullable<RoleLimit['rows']>): RowLimit {
   const out: RowLimit = {};
+  const copied = (reach: RowReach): RowReach => ({
+    reach: reach.reach,
+    ...(reach.unowned === true ? { unowned: true as const } : {}),
+    ...(reach.while === undefined ? {} : { while: { column: reach.while.column, in: [...reach.while.in] } }),
+    ...(reach.by === undefined ? {} : { by: reach.by }),
+  });
   for (const action of ['read', 'update', 'delete'] as const) {
-    const reach = rows[action];
-    if (reach === undefined) continue;
-    out[action] = {
-      reach: reach.reach,
-      ...(reach.unowned === true ? { unowned: true as const } : {}),
-      ...(reach.while === undefined ? {} : { while: { column: reach.while.column, in: [...reach.while.in] } }),
-      ...(reach.by === undefined ? {} : { by: reach.by }),
-    };
+    const written = rows[action];
+    if (written === undefined) continue;
+    out[action] = Array.isArray(written) ? written.map(copied) : copied(written as RowReach);
   }
   return out;
 }

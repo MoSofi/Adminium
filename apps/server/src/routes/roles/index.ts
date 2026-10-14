@@ -16,7 +16,7 @@
 import { sameLanguage } from '../../i18n/bcp47.js';
 import { loadAppParts, roleIsOffered } from '../../rbac/app-parts.js';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
-import { permissionsRepo, rolesRepo, usersRepo, type Role, type TableActions, type ReadLimit, type RowLimit, type UpdateLimit, roleNameFor, userPrefsRepo } from '@adminium/meta';
+import { permissionsRepo, rolesRepo, rowReachList, usersRepo, type Role, type TableActions, type ReadLimit, type RowLimit, type UpdateLimit, roleNameFor, userPrefsRepo } from '@adminium/meta';
 
 import { ConflictError, ForbiddenError, NotFoundError, ValidationFailedError } from '../../errors.js';
 import {
@@ -328,14 +328,15 @@ export const rolesRoutes: FastifyPluginAsyncZod = async (app) => {
         const wrong = model === null ? ({ code: 'no-such-table', message: 'That table is not there.', action: '' } as const) : rowLimitIssue(model, tableId, limit);
         if (wrong !== null) throw new ValidationFailedError(wrong.message, { fields: { rows: { code: wrong.code, table: ref, ...(wrong.action === '' ? {} : { action: wrong.action }), ...('column' in wrong && wrong.column !== undefined ? { column: wrong.column } : {}) } } });
         const own = rows.find((row) => row.resourceKind === 'table' && row.resourceRef === ref)?.actions as TableActions | undefined;
-        for (const [action, reach] of Object.entries(limit)) {
+        for (const [action, written] of Object.entries(limit)) {
           // A limit is stored on the table's own row and read from it: an action that row does not give is given, if at all, by a
           // wider grant, which no limit here narrows. The screen would say "their own rows" and the role would reach every row.
-          if (reach !== undefined && own?.[action as 'read' | 'update' | 'delete'] !== true) {
+          if (written !== undefined && own?.[action as 'read' | 'update' | 'delete'] !== true) {
             throw new ValidationFailedError(`A row limit narrows an action the role is given on that table itself: it is not given "${action}" there.`, { fields: { rows: { code: 'action-not-granted', table: ref, action } } });
           }
-          // "Every row" is the plain grant; it is written as a limit only to say "only while".
-          if (reach !== undefined && reach.reach === 'all' && reach.while === undefined) {
+          // "Every row" is the plain grant; it is written as a limit only to say "only while". Each of several reaches alike:
+          // one of them that reached every row would make the others say nothing.
+          if (rowReachList(written).some((reach) => reach.reach === 'all' && reach.while === undefined)) {
             throw new ValidationFailedError('"Every row" is the grant itself: take the limit off, or say only while.', { fields: { rows: { code: 'all-without-while', table: ref, action } } });
           }
         }

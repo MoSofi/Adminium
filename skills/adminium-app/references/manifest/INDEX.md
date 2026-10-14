@@ -50,7 +50,7 @@
 | `references/manifest/pages--a-page-kept-off-the-sidebar.md` | Pages — A page kept off the sidebar | 1236 |
 | `references/manifest/pages--navlinks.md` | Pages — navLinks | 2645 |
 | `references/manifest/frontends.md` | Frontends | 5714 |
-| `references/manifest/whose-a-row-is.md` | Whose a row is | 6091 |
+| `references/manifest/whose-a-row-is.md` | Whose a row is | 7698 |
 | `references/manifest/roles.md` | Roles | 7316 |
 | `references/manifest/roles--a-role-on-an-add-on-s-tables.md` | Roles — A role on an add-on's tables | 1422 |
 | `references/manifest/settings.md` | Settings | 1211 |

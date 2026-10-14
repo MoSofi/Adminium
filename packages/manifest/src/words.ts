@@ -102,6 +102,8 @@ export const INSTALL_FLOOR_WORD_NAMES = [
   'table.belongs',
   'table.private',
   'roles.rows',
+  'rows.several',
+  'listing.while',
   'states.handOver',
   'app.modules',
   'roles.names',
@@ -163,6 +165,10 @@ export const WORD_FLOORS: Readonly<Partial<Record<ManifestWordName, string>>> = 
   'table.belongs': '0.3.28',
   'table.private': '0.3.28',
   'roles.rows': '0.3.28',
+  // An action that names several reaches, any one enough (every won deal, or an open one the person is listed on);
+  // a listing that counts only while a column of it holds some values, or is empty.
+  'rows.several': '0.3.28',
+  'listing.while': '0.3.28',
   // A record's button that hands the row to anybody: the one write a role limited to its own rows names a colleague in.
   'states.handOver': '0.3.28',
   // A total that is the newest child row's value, not a sum or a count (a deal's amount from its last sent quote).
@@ -290,6 +296,9 @@ export function installFloorWords(document: unknown): ManifestWord[] {
     if (table['postings'] !== undefined) out.push({ word: 'table.postings', path: `${at}.postings` });
     if (table['adjust'] !== undefined) out.push({ word: 'table.adjust', path: `${at}.adjust` });
     if (table['belongs'] !== undefined) out.push({ word: 'table.belongs', path: `${at}.belongs` });
+    list(table['belongs']).forEach((way, w) => {
+      if (isDoc(way) && isDoc(way['through']) && way['through']['while'] !== undefined) out.push({ word: 'listing.while', path: `${at}.belongs.${String(w)}.through.while` });
+    });
     if (table['private'] !== undefined) out.push({ word: 'table.private', path: `${at}.private` });
     if (table['occupies'] !== undefined) out.push({ word: 'table.occupies', path: `${at}.occupies` });
     if (isDoc(table['states']) && table['states']['actions'] !== undefined) out.push({ word: 'states.actions', path: `${at}.states.actions` });
@@ -337,6 +346,9 @@ export function installFloorWords(document: unknown): ManifestWord[] {
       if (isDoc(limit) && limit['writableFrom'] !== undefined) out.push({ word: 'roles.writableFrom', path: `roles.${String(r)}.limits.${ref}.writableFrom` });
       // A read, an update or a delete that reaches only some rows.
       if (isDoc(limit) && limit['rows'] !== undefined) out.push({ word: 'roles.rows', path: `roles.${String(r)}.limits.${ref}.rows` });
+      for (const [action, reach] of Object.entries(isDoc(limit) && isDoc(limit['rows']) ? limit['rows'] : {})) {
+        if (Array.isArray(reach)) out.push({ word: 'rows.several', path: `roles.${String(r)}.limits.${ref}.rows.${action}` });
+      }
     }
     list(role['tables']).forEach((grant, g) => {
       if (isDoc(grant) && isDoc(grant['limit']) && grant['limit']['writableFrom'] !== undefined) {
@@ -344,6 +356,9 @@ export function installFloorWords(document: unknown): ManifestWord[] {
       }
       if (isDoc(grant) && isDoc(grant['limit']) && grant['limit']['rows'] !== undefined) {
         out.push({ word: 'roles.rows', path: `roles.${String(r)}.tables.${String(g)}.limit.rows` });
+        for (const [action, reach] of Object.entries(isDoc(grant['limit']['rows']) ? grant['limit']['rows'] : {})) {
+          if (Array.isArray(reach)) out.push({ word: 'rows.several', path: `roles.${String(r)}.tables.${String(g)}.limit.rows.${action}` });
+        }
       }
     });
   });

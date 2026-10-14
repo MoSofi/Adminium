@@ -127,7 +127,10 @@ export default {
       "person": "la personne indiquée dans {column}",
       "listingDated": "toute personne inscrite pour elle dans {table} ce jour-là",
       "listing": "toute personne inscrite pour elle dans {table}",
-      "parent": "quiconque atteint son élément {table}"
+      "parent": "quiconque atteint son élément {table}",
+      "whileIn": "tant que {column} vaut {values}",
+      "whileEmpty": "tant que {column} est vide",
+      "whileSet": "tant que {column} est renseigné"
     },
     "follows": "Suit : {table}",
     "belongs": "Une ligne appartient à {ways}.",
@@ -163,7 +166,8 @@ export default {
     "widened": "Ce rôle ouvre la table par une autorisation plus large. Enregistrer une limite lui donne aussi cette table nommément.",
     "count": "{name} verrait {reached} sur {total}.",
     "capped": "Cette personne dirige plus de personnes qu’une portée n’en contient : toute son équipe n’est pas comptée.",
-    "lifted": "{name} a aussi {roles}, qui donne toutes les lignes. Cette limite ne vaut pas pour cette personne."
+    "lifted": "{name} a aussi {roles}, qui donne toutes les lignes. Cette limite ne vaut pas pour cette personne.",
+    "several": "Une seule suffit. L’application les a fixées, et elles restent telles qu’elle les a écrites."
   },
   "partsOff": "Sa partie de l’application est désactivée : il ne donne rien tant qu’elle n’est pas activée.",
   "people": {

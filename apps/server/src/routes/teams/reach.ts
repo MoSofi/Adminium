@@ -16,7 +16,7 @@
  * touches a private table.
  */
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
-import { permissionsRepo, rolesRepo, rowLimitSchema, rowReachSchema, teamsRepo, usersRepo, type MetaDb, type TableActions } from '@adminium/meta';
+import { permissionsRepo, rolesRepo, rowLimitSchema, rowReachesSchema, rowReachList, teamsRepo, usersRepo, type MetaDb, type TableActions } from '@adminium/meta';
 import { sql, type Kysely } from 'kysely';
 import { z } from 'zod';
 
@@ -37,7 +37,8 @@ const previewBody = z.object({
   table: z.string().min(1).max(300),
   userId: z.string().min(1),
   action: z.enum(['read', 'update', 'delete']).default('read'),
-  reach: rowReachSchema,
+  /** One reach, or several of which any one is enough (an app's account manager: every won deal, or an open one he is on). */
+  reach: rowReachesSchema,
   /** The role being edited: the person's OTHER roles are then asked whether one of them reaches every row anyway. */
   roleId: z.string().min(1).optional(),
 });
@@ -52,7 +53,14 @@ const previewReply = z.object({
 /** How a table says whose a row is, for a screen to say in words. */
 const wayDto = z.union([
   z.object({ kind: z.literal('person'), column: z.string(), label: z.string() }),
-  z.object({ kind: z.literal('listing'), table: z.string(), label: z.string(), dated: z.boolean() }),
+  z.object({
+    kind: z.literal('listing'),
+    table: z.string(),
+    label: z.string(),
+    dated: z.boolean(),
+    /** The listing counts only while this column of it holds one of `in`, or is empty (`isNull`) or not. */
+    when: z.object({ column: z.string(), label: z.string(), in: z.array(z.string()).optional(), isNull: z.boolean().optional() }).optional(),
+  }),
   z.object({ kind: z.literal('parent'), column: z.string(), table: z.string(), label: z.string() }),
 ]);
 const roleRowsReply = z.object({
@@ -108,13 +116,16 @@ export function rowReachRoutes(deps: { meta: MetaDb; manager: ConnectionManager 
       await (app.rbac.require(`table:${connectionId}:${tableId}:read`) as unknown as (req: typeof request, rep: typeof reply) => Promise<void>)(request, reply);
       // A private table's rows are its people's alone, and "only while" names a column everybody who reads the table sees:
       // under a hidden one, the count would tell its values.
-      const wrong = rowReachIssue(view.model, tableId, reach);
-      if (wrong !== null) throw new ValidationFailedError(wrong.message, { fields: { table: { code: wrong.code, ...(wrong.column === undefined ? {} : { column: wrong.column }) } } });
-      const led = reach.reach === 'team' ? await teamsRepo(meta).leadReach(userId) : { ids: [], capped: false };
-      // The person, holding this one limit on this one table and nothing else.
+      const reaches = rowReachList(reach);
+      for (const one of reaches) {
+        const wrong = rowReachIssue(view.model, tableId, one);
+        if (wrong !== null) throw new ValidationFailedError(wrong.message, { fields: { table: { code: wrong.code, ...(wrong.column === undefined ? {} : { column: wrong.column }) } } });
+      }
+      const led = reaches.some((one) => one.reach === 'team') ? await teamsRepo(meta).leadReach(userId) : { ids: [], capped: false };
+      // The person, holding this one limit (one reach, or several of which any one is enough) on this one table and nothing else.
       const set = {
         superAdmin: false,
-        rowLimits: { [action]: [{ limited: [{ grant: `table:${connectionId}:${tableId}:${action}`, reach }], unlimited: new Set<string>() }] },
+        rowLimits: { [action]: [{ limited: reaches.map((one) => ({ grant: `table:${connectionId}:${tableId}:${action}`, reach: one })), unlimited: new Set<string>() }] },
         reach: { userId, ledIds: led.ids },
       };
       const ctx = await rowLimitContextOf(meta, set, connectionId, view.model);
@@ -167,7 +178,20 @@ export function rowReachRoutes(deps: { meta: MetaDb; manager: ConnectionManager 
           const granted = (action: string): boolean => isGranted(held, `table:${connection.id}:${table.id}:${action}`);
           if (!granted('read') && !granted('update') && !granted('delete')) continue;
           const ways = (table.belongs ?? []).flatMap((way): z.infer<typeof wayDto>[] => {
-            if ('through' in way) return [{ kind: 'listing' as const, table: way.through.table, label: labelOf(way.through.table), dated: way.through.from !== undefined || way.through.to !== undefined }];
+            if ('through' in way) {
+              const when = way.through.while;
+              const list = view.model.tables.find((candidate) => candidate.id === way.through.table);
+              const columnLabel = (name: string): string => list?.columns.find((candidate) => candidate.name === name)?.label ?? name;
+              return [
+                {
+                  kind: 'listing' as const,
+                  table: way.through.table,
+                  label: labelOf(way.through.table),
+                  dated: way.through.from !== undefined || way.through.to !== undefined,
+                  ...(when === undefined ? {} : { when: { column: when.column, label: columnLabel(when.column), ...('in' in when ? { in: when.in.map(String) } : { isNull: when.isNull }) } }),
+                },
+              ];
+            }
             if ('via' in way) {
               const relation = view.model.relations.find((r) => r.through === null && r.from.tableId === table.id && r.from.columns.length === 1 && r.from.columns[0] === way.via);
               return relation === undefined ? [] : [{ kind: 'parent' as const, column: way.via, table: relation.to.tableId, label: labelOf(relation.to.tableId) }];

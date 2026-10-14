@@ -168,6 +168,10 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   // Whose a row is, and a role whose read, update or delete reaches only some rows: the test every read and write of a row carries.
   'table.belongs',
   'roles.rows',
+  // Several reaches for one action, any one enough; a listing that counts only while a column of it holds some values:
+  // both inside that same test, on every door that carries it.
+  'rows.several',
+  'listing.while',
   // A record's button that hands its row to anybody a role could not otherwise name.
   'states.handOver',
   // A total that is the newest child row's value, settled by the statement that settles a sum.

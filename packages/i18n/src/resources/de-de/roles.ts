@@ -127,7 +127,10 @@ export default {
       "person": "die Person in {column}",
       "listingDated": "alle, die am jeweiligen Tag in {table} dafür eingetragen sind",
       "listing": "alle, die in {table} dafür eingetragen sind",
-      "parent": "wer {table} dazu erreicht"
+      "parent": "wer {table} dazu erreicht",
+      "whileIn": "solange {column} {values} ist",
+      "whileEmpty": "solange {column} leer ist",
+      "whileSet": "solange {column} ausgefüllt ist"
     },
     "follows": "Folgt: {table}",
     "belongs": "Eine Zeile gehört {ways}.",
@@ -163,7 +166,8 @@ export default {
     "widened": "Diese Rolle öffnet die Tabelle über eine weiter gefasste Berechtigung. Beim Speichern einer Einschränkung erhält sie die Tabelle zusätzlich namentlich.",
     "count": "{name} würde {reached} von {total} sehen.",
     "capped": "Diese Person leitet mehr Personen, als eine Reichweite fasst; es wird nicht ihr ganzes Team gezählt.",
-    "lifted": "{name} hat außerdem {roles}, was jede Zeile gibt. Diese Einschränkung gilt für diese Person nicht."
+    "lifted": "{name} hat außerdem {roles}, was jede Zeile gibt. Diese Einschränkung gilt für diese Person nicht.",
+    "several": "Eine davon genügt. Die App hat sie festgelegt, und sie bleiben so, wie sie sie geschrieben hat."
   },
   "partsOff": "Sein Teil der App ist ausgeschaltet: Die Rolle gewährt nichts, bis dieser Teil eingeschaltet ist.",
   "people": {

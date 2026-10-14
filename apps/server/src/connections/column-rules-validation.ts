@@ -1509,6 +1509,9 @@ export function belongsRuleIssue(raw: unknown, table: TableModel, model: Databas
         // A day, never a time of day: the listing counts on the business's calendar day.
         if (dated.logicalType !== 'date') return `A listing counts from one day to another; ${JSON.stringify(through[key])} of ${list.name} is ${dated.logicalType}.`;
       }
+      // Counts only while a column of the listing holds some values, or is empty: a column it has.
+      const when = through['while'] as { column?: unknown } | undefined;
+      if (when !== undefined && !has(list, when.column)) return `${JSON.stringify(when.column)} is not a column of ${list.name}.`;
     }
   }
   return null;

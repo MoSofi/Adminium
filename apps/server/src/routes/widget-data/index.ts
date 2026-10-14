@@ -32,7 +32,7 @@ import { SnapshotView } from '../../crud/identifiers.js';
 import { resolveLookups } from '../../crud/lookups.js';
 import { canReadPii, piiCheckFor } from '../../crud/mask.js';
 import type { Row } from '../../crud/mask.js';
-import type { RowTest } from '../../crud/row-limit.js';
+import { rowTestTables, type RowTest } from '../../crud/row-limit.js';
 import { limitProjections, rowLimitContextOf, rowTestOf } from '../../crud/row-limit-context.js';
 import { ROW_ACTIONS } from '../../rbac/row-limits.js';
 import { WidgetDataCache, cacheKeyOf } from '../../widget-data/cache.js';
@@ -374,7 +374,8 @@ export function widgetDataRoutes(deps: WidgetDataRoutesDeps): FastifyPluginAsync
         'widget-data query',
       );
 
-      cache.set(key, result, connectionId, compiled.table.id, countsTablesOf(view, descriptor));
+      // …and, for a reader held to some rows, until a table that says whose a row is changes: a listing ended is no longer counted.
+      cache.set(key, result, connectionId, compiled.table.id, [...countsTablesOf(view, descriptor), ...(rowsCtx === null ? [] : rowTestTables(view.model, compiled.table.id))]);
       return { result, cached: false };
     }
 

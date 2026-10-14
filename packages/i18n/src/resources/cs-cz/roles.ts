@@ -127,7 +127,10 @@ export default {
       "person": "osobě ve sloupci {column}",
       "listingDated": "komukoli, kdo je k němu ten den zapsán v tabulce {table}",
       "listing": "komukoli, kdo je k němu zapsán v tabulce {table}",
-      "parent": "každému, kdo dosáhne na jeho záznam v tabulce {table}"
+      "parent": "každému, kdo dosáhne na jeho záznam v tabulce {table}",
+      "whileIn": "dokud je {column} {values}",
+      "whileEmpty": "dokud je {column} prázdné",
+      "whileSet": "dokud je {column} vyplněné"
     },
     "follows": "Řídí se podle: {table}",
     "belongs": "Řádek patří {ways}.",
@@ -163,7 +166,8 @@ export default {
     "widened": "Tato role otevírá tabulku přes širší oprávnění. Uložením omezení dostane tabulku také jmenovitě.",
     "count": "{name} by viděl(a) {reached} z {total}.",
     "capped": "Tato osoba vede víc lidí, než kolik se do jednoho dosahu vejde, takže se nepočítá celý její tým.",
-    "lifted": "{name} má také {roles}, což dává každý řádek. Toto omezení pro ni neplatí."
+    "lifted": "{name} má také {roles}, což dává každý řádek. Toto omezení pro ni neplatí.",
+    "several": "Stačí kterákoli z nich. Nastavila je aplikace a zůstávají tak, jak je zapsala."
   },
   "partsOff": "Její část aplikace je vypnutá: dokud se nezapne, role nic neuděluje.",
   "people": {

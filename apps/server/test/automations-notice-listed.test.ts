@@ -58,7 +58,7 @@ function crm(): Record<string, unknown> {
           ref: 'deals',
           belongs: [
             { column: 'owner_id', set: 'team' },
-            { through: { table: 'deal_members', link: 'deal_id', user: 'user_id' } },
+            { through: { table: 'deal_members', link: 'deal_id', user: 'user_id', while: { column: 'ended_on', isNull: true } } },
             { through: { table: 'covers', link: 'owner_id', on: 'owner_id', user: 'cover_id', from: 'starts_on', to: 'ends_on' } },
           ],
           indexes: [['owner_id']],
@@ -68,7 +68,7 @@ function crm(): Record<string, unknown> {
           ref: 'deal_members',
           belongs: [{ via: 'deal_id' }],
           indexes: [['deal_id'], ['user_id']],
-          columns: [id, { ref: 'deal_id', type: 'fk', references: 'deals' }, staff('user_id')],
+          columns: [id, { ref: 'deal_id', type: 'fk', references: 'deals' }, staff('user_id'), { ref: 'ended_on', type: 'date', nullable: true }],
         },
         {
           ref: 'covers',
@@ -170,6 +170,13 @@ for (const [dialect, reachable] of LEGS) {
       // Sue cannot sign in; Sal is a sample person. Dana and Mia are not listed, so they are not told.
       expect(await note(key)).toEqual(['ada', 'sam']);
       expect((await runs()).filter((run) => run.status === 'failed')).toEqual([]);
+    });
+
+    it('a listing that counts only while its member row is open: somebody whose row has ended is not listed, whatever else they read', async () => {
+      // Ada reads every deal, Sam reaches it by being listed: both rows ended, nobody is told.
+      const key = await deal('dana', ['ada', 'sam']);
+      await s.rows(`UPDATE crm_deal_members SET ended_on = '${day(-1)}' WHERE deal_id = ${String(key)}`);
+      expect(await note(key)).toEqual([]);
     });
 
     it('a manager listed on another team’s deal is told: being listed is her reach to it', async () => {

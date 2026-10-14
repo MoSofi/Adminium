@@ -339,12 +339,20 @@ export interface RowReach {
 }
 export type RowAction = 'read' | 'update' | 'delete';
 export const ROW_ACTIONS: readonly RowAction[] = ['read', 'update', 'delete'];
-export type RowLimit = Partial<Record<RowAction, RowReach>>;
+/** One reach for an action, or several of which any one is enough: an app may write a list (`rows.read: [ … ]`). */
+export type RowLimit = Partial<Record<RowAction, RowReach | RowReach[]>>;
 
 /** How a table says whose a row is. */
 export type RowWay =
   | { kind: 'person'; column: string; label: string }
-  | { kind: 'listing'; table: string; label: string; dated: boolean }
+  | {
+      kind: 'listing';
+      table: string;
+      label: string;
+      dated: boolean;
+      /** The listing counts only while this column of it holds one of `in`, or is empty (`isNull`) or not. */
+      when?: { column: string; label: string; in?: string[]; isNull?: boolean };
+    }
   | { kind: 'parent'; column: string; table: string; label: string };
 
 export interface RoleRowsTable {
@@ -397,7 +405,7 @@ export interface RowsPreview {
 }
 
 /** "Dana would see 6 of 14": counted on the server as that person, under a limit that need not be saved yet. */
-export function rowsPreviewQuery(input: { roleId: string; table: RoleRowsTable; userId: string; reach: RowReach | null }) {
+export function rowsPreviewQuery(input: { roleId: string; table: RoleRowsTable; userId: string; reach: RowReach | RowReach[] | null }) {
   return queryOptions({
     queryKey: ['roles', 'rows-preview', input.roleId, input.table.ref, input.userId, input.reach] as const,
     queryFn: () =>
@@ -412,9 +420,18 @@ export function rowsPreviewQuery(input: { roleId: string; table: RoleRowsTable; 
   });
 }
 
-/** One action's reach as the editor holds it: every row, or a limit. */
+/** One action's reach as the editor holds it: every row, or a limit. A list of one is that one; a longer list is `null` here (see `severalOf`). */
 export function reachOf(limit: RowLimit | null | undefined, action: RowAction): RowReach | null {
-  return limit?.[action] ?? null;
+  const written = limit?.[action];
+  if (written === undefined) return null;
+  if (!Array.isArray(written)) return written;
+  return written.length === 1 ? written[0]! : null;
+}
+
+/** An action's reaches when the app wrote more than one: shown in words and kept as written, never edited here. */
+export function severalOf(limit: RowLimit | null | undefined, action: RowAction): RowReach[] | null {
+  const written = limit?.[action];
+  return Array.isArray(written) && written.length > 1 ? written : null;
 }
 
 /** A table's limit with one action's reach replaced; `null` when no action is limited any more. */

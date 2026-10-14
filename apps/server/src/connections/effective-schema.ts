@@ -670,13 +670,17 @@ export interface EffectiveTable extends Omit<TableModel, 'columns'> {
  * the staff member a column holds (with `person`, the column is a link and
  * `person` the staff column of the row it points at); a table that lists
  * people against the row (its `link` holds this row's key or its `on`
- * column, between `from` and `to` when it names them); or whoever belongs to
- * the row a link points at (`via`). `through.table` is a table's id.
+ * column, between `from` and `to` when it names them, and only while its
+ * `while` column holds what it names); or whoever belongs to the row a link
+ * points at (`via`). `through.table` is a table's id.
  */
 export type BelongsWay =
   | { column: string; person?: string; set?: 'self' | 'team' | 'anyone' }
-  | { through: { table: string; link: string; on?: string; user: string; person?: string; from?: string; to?: string } }
+  | { through: { table: string; link: string; on?: string; user: string; person?: string; from?: string; to?: string; while?: ListingWhile } }
   | { via: string };
+
+/** What a listing row must hold to count: one of some values in a column of it, or that column empty (or not). */
+export type ListingWhile = { column: string; in: (string | number | boolean)[] } | { column: string; isNull: boolean };
 
 export interface EffectiveRelation extends Relation {
   label?: string;

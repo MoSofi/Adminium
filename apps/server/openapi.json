@@ -122809,184 +122809,391 @@
                         "type": "object",
                         "properties": {
                           "read": {
-                            "type": "object",
-                            "properties": {
-                              "reach": {
-                                "type": "string",
-                                "enum": [
-                                  "own",
-                                  "team",
-                                  "all"
-                                ]
-                              },
-                              "unowned": {
-                                "type": "boolean",
-                                "enum": [
-                                  true
-                                ]
-                              },
-                              "while": {
+                            "anyOf": [
+                              {
                                 "type": "object",
                                 "properties": {
-                                  "column": {
+                                  "reach": {
                                     "type": "string",
-                                    "minLength": 1
+                                    "enum": [
+                                      "own",
+                                      "team",
+                                      "all"
+                                    ]
                                   },
-                                  "in": {
-                                    "minItems": 1,
-                                    "maxItems": 32,
-                                    "type": "array",
-                                    "items": {
-                                      "anyOf": [
-                                        {
-                                          "type": "string"
-                                        },
-                                        {
-                                          "type": "number"
-                                        },
-                                        {
-                                          "type": "boolean"
+                                  "unowned": {
+                                    "type": "boolean",
+                                    "enum": [
+                                      true
+                                    ]
+                                  },
+                                  "while": {
+                                    "type": "object",
+                                    "properties": {
+                                      "column": {
+                                        "type": "string",
+                                        "minLength": 1
+                                      },
+                                      "in": {
+                                        "minItems": 1,
+                                        "maxItems": 32,
+                                        "type": "array",
+                                        "items": {
+                                          "anyOf": [
+                                            {
+                                              "type": "string"
+                                            },
+                                            {
+                                              "type": "number"
+                                            },
+                                            {
+                                              "type": "boolean"
+                                            }
+                                          ]
                                         }
-                                      ]
-                                    }
+                                      }
+                                    },
+                                    "required": [
+                                      "column",
+                                      "in"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  "by": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 64
                                   }
                                 },
                                 "required": [
-                                  "column",
-                                  "in"
+                                  "reach"
                                 ],
                                 "additionalProperties": false
                               },
-                              "by": {
-                                "type": "string",
-                                "minLength": 1,
-                                "maxLength": 64
+                              {
+                                "minItems": 1,
+                                "maxItems": 4,
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "reach": {
+                                      "type": "string",
+                                      "enum": [
+                                        "own",
+                                        "team",
+                                        "all"
+                                      ]
+                                    },
+                                    "unowned": {
+                                      "type": "boolean",
+                                      "enum": [
+                                        true
+                                      ]
+                                    },
+                                    "while": {
+                                      "type": "object",
+                                      "properties": {
+                                        "column": {
+                                          "type": "string",
+                                          "minLength": 1
+                                        },
+                                        "in": {
+                                          "minItems": 1,
+                                          "maxItems": 32,
+                                          "type": "array",
+                                          "items": {
+                                            "anyOf": [
+                                              {
+                                                "type": "string"
+                                              },
+                                              {
+                                                "type": "number"
+                                              },
+                                              {
+                                                "type": "boolean"
+                                              }
+                                            ]
+                                          }
+                                        }
+                                      },
+                                      "required": [
+                                        "column",
+                                        "in"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    "by": {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 64
+                                    }
+                                  },
+                                  "required": [
+                                    "reach"
+                                  ],
+                                  "additionalProperties": false
+                                }
                               }
-                            },
-                            "required": [
-                              "reach"
-                            ],
-                            "additionalProperties": false
+                            ]
                           },
                           "update": {
-                            "type": "object",
-                            "properties": {
-                              "reach": {
-                                "type": "string",
-                                "enum": [
-                                  "own",
-                                  "team",
-                                  "all"
-                                ]
-                              },
-                              "unowned": {
-                                "type": "boolean",
-                                "enum": [
-                                  true
-                                ]
-                              },
-                              "while": {
+                            "anyOf": [
+                              {
                                 "type": "object",
                                 "properties": {
-                                  "column": {
+                                  "reach": {
                                     "type": "string",
-                                    "minLength": 1
+                                    "enum": [
+                                      "own",
+                                      "team",
+                                      "all"
+                                    ]
                                   },
-                                  "in": {
-                                    "minItems": 1,
-                                    "maxItems": 32,
-                                    "type": "array",
-                                    "items": {
-                                      "anyOf": [
-                                        {
-                                          "type": "string"
-                                        },
-                                        {
-                                          "type": "number"
-                                        },
-                                        {
-                                          "type": "boolean"
+                                  "unowned": {
+                                    "type": "boolean",
+                                    "enum": [
+                                      true
+                                    ]
+                                  },
+                                  "while": {
+                                    "type": "object",
+                                    "properties": {
+                                      "column": {
+                                        "type": "string",
+                                        "minLength": 1
+                                      },
+                                      "in": {
+                                        "minItems": 1,
+                                        "maxItems": 32,
+                                        "type": "array",
+                                        "items": {
+                                          "anyOf": [
+                                            {
+                                              "type": "string"
+                                            },
+                                            {
+                                              "type": "number"
+                                            },
+                                            {
+                                              "type": "boolean"
+                                            }
+                                          ]
                                         }
-                                      ]
-                                    }
+                                      }
+                                    },
+                                    "required": [
+                                      "column",
+                                      "in"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  "by": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 64
                                   }
                                 },
                                 "required": [
-                                  "column",
-                                  "in"
+                                  "reach"
                                 ],
                                 "additionalProperties": false
                               },
-                              "by": {
-                                "type": "string",
-                                "minLength": 1,
-                                "maxLength": 64
+                              {
+                                "minItems": 1,
+                                "maxItems": 4,
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "reach": {
+                                      "type": "string",
+                                      "enum": [
+                                        "own",
+                                        "team",
+                                        "all"
+                                      ]
+                                    },
+                                    "unowned": {
+                                      "type": "boolean",
+                                      "enum": [
+                                        true
+                                      ]
+                                    },
+                                    "while": {
+                                      "type": "object",
+                                      "properties": {
+                                        "column": {
+                                          "type": "string",
+                                          "minLength": 1
+                                        },
+                                        "in": {
+                                          "minItems": 1,
+                                          "maxItems": 32,
+                                          "type": "array",
+                                          "items": {
+                                            "anyOf": [
+                                              {
+                                                "type": "string"
+                                              },
+                                              {
+                                                "type": "number"
+                                              },
+                                              {
+                                                "type": "boolean"
+                                              }
+                                            ]
+                                          }
+                                        }
+                                      },
+                                      "required": [
+                                        "column",
+                                        "in"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    "by": {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 64
+                                    }
+                                  },
+                                  "required": [
+                                    "reach"
+                                  ],
+                                  "additionalProperties": false
+                                }
                               }
-                            },
-                            "required": [
-                              "reach"
-                            ],
-                            "additionalProperties": false
+                            ]
                           },
                           "delete": {
-                            "type": "object",
-                            "properties": {
-                              "reach": {
-                                "type": "string",
-                                "enum": [
-                                  "own",
-                                  "team",
-                                  "all"
-                                ]
-                              },
-                              "unowned": {
-                                "type": "boolean",
-                                "enum": [
-                                  true
-                                ]
-                              },
-                              "while": {
+                            "anyOf": [
+                              {
                                 "type": "object",
                                 "properties": {
-                                  "column": {
+                                  "reach": {
                                     "type": "string",
-                                    "minLength": 1
+                                    "enum": [
+                                      "own",
+                                      "team",
+                                      "all"
+                                    ]
                                   },
-                                  "in": {
-                                    "minItems": 1,
-                                    "maxItems": 32,
-                                    "type": "array",
-                                    "items": {
-                                      "anyOf": [
-                                        {
-                                          "type": "string"
-                                        },
-                                        {
-                                          "type": "number"
-                                        },
-                                        {
-                                          "type": "boolean"
+                                  "unowned": {
+                                    "type": "boolean",
+                                    "enum": [
+                                      true
+                                    ]
+                                  },
+                                  "while": {
+                                    "type": "object",
+                                    "properties": {
+                                      "column": {
+                                        "type": "string",
+                                        "minLength": 1
+                                      },
+                                      "in": {
+                                        "minItems": 1,
+                                        "maxItems": 32,
+                                        "type": "array",
+                                        "items": {
+                                          "anyOf": [
+                                            {
+                                              "type": "string"
+                                            },
+                                            {
+                                              "type": "number"
+                                            },
+                                            {
+                                              "type": "boolean"
+                                            }
+                                          ]
                                         }
-                                      ]
-                                    }
+                                      }
+                                    },
+                                    "required": [
+                                      "column",
+                                      "in"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  "by": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 64
                                   }
                                 },
                                 "required": [
-                                  "column",
-                                  "in"
+                                  "reach"
                                 ],
                                 "additionalProperties": false
                               },
-                              "by": {
-                                "type": "string",
-                                "minLength": 1,
-                                "maxLength": 64
+                              {
+                                "minItems": 1,
+                                "maxItems": 4,
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "reach": {
+                                      "type": "string",
+                                      "enum": [
+                                        "own",
+                                        "team",
+                                        "all"
+                                      ]
+                                    },
+                                    "unowned": {
+                                      "type": "boolean",
+                                      "enum": [
+                                        true
+                                      ]
+                                    },
+                                    "while": {
+                                      "type": "object",
+                                      "properties": {
+                                        "column": {
+                                          "type": "string",
+                                          "minLength": 1
+                                        },
+                                        "in": {
+                                          "minItems": 1,
+                                          "maxItems": 32,
+                                          "type": "array",
+                                          "items": {
+                                            "anyOf": [
+                                              {
+                                                "type": "string"
+                                              },
+                                              {
+                                                "type": "number"
+                                              },
+                                              {
+                                                "type": "boolean"
+                                              }
+                                            ]
+                                          }
+                                        }
+                                      },
+                                      "required": [
+                                        "column",
+                                        "in"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    "by": {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 64
+                                    }
+                                  },
+                                  "required": [
+                                    "reach"
+                                  ],
+                                  "additionalProperties": false
+                                }
                               }
-                            },
-                            "required": [
-                              "reach"
-                            ],
-                            "additionalProperties": false
+                            ]
                           }
                         },
                         "additionalProperties": false
@@ -123033,184 +123240,391 @@
                           "type": "object",
                           "properties": {
                             "read": {
-                              "type": "object",
-                              "properties": {
-                                "reach": {
-                                  "type": "string",
-                                  "enum": [
-                                    "own",
-                                    "team",
-                                    "all"
-                                  ]
-                                },
-                                "unowned": {
-                                  "type": "boolean",
-                                  "enum": [
-                                    true
-                                  ]
-                                },
-                                "while": {
+                              "anyOf": [
+                                {
                                   "type": "object",
                                   "properties": {
-                                    "column": {
+                                    "reach": {
                                       "type": "string",
-                                      "minLength": 1
+                                      "enum": [
+                                        "own",
+                                        "team",
+                                        "all"
+                                      ]
                                     },
-                                    "in": {
-                                      "minItems": 1,
-                                      "maxItems": 32,
-                                      "type": "array",
-                                      "items": {
-                                        "anyOf": [
-                                          {
-                                            "type": "string"
-                                          },
-                                          {
-                                            "type": "number"
-                                          },
-                                          {
-                                            "type": "boolean"
+                                    "unowned": {
+                                      "type": "boolean",
+                                      "enum": [
+                                        true
+                                      ]
+                                    },
+                                    "while": {
+                                      "type": "object",
+                                      "properties": {
+                                        "column": {
+                                          "type": "string",
+                                          "minLength": 1
+                                        },
+                                        "in": {
+                                          "minItems": 1,
+                                          "maxItems": 32,
+                                          "type": "array",
+                                          "items": {
+                                            "anyOf": [
+                                              {
+                                                "type": "string"
+                                              },
+                                              {
+                                                "type": "number"
+                                              },
+                                              {
+                                                "type": "boolean"
+                                              }
+                                            ]
                                           }
-                                        ]
-                                      }
+                                        }
+                                      },
+                                      "required": [
+                                        "column",
+                                        "in"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    "by": {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 64
                                     }
                                   },
                                   "required": [
-                                    "column",
-                                    "in"
+                                    "reach"
                                   ],
                                   "additionalProperties": false
                                 },
-                                "by": {
-                                  "type": "string",
-                                  "minLength": 1,
-                                  "maxLength": 64
+                                {
+                                  "minItems": 1,
+                                  "maxItems": 4,
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "reach": {
+                                        "type": "string",
+                                        "enum": [
+                                          "own",
+                                          "team",
+                                          "all"
+                                        ]
+                                      },
+                                      "unowned": {
+                                        "type": "boolean",
+                                        "enum": [
+                                          true
+                                        ]
+                                      },
+                                      "while": {
+                                        "type": "object",
+                                        "properties": {
+                                          "column": {
+                                            "type": "string",
+                                            "minLength": 1
+                                          },
+                                          "in": {
+                                            "minItems": 1,
+                                            "maxItems": 32,
+                                            "type": "array",
+                                            "items": {
+                                              "anyOf": [
+                                                {
+                                                  "type": "string"
+                                                },
+                                                {
+                                                  "type": "number"
+                                                },
+                                                {
+                                                  "type": "boolean"
+                                                }
+                                              ]
+                                            }
+                                          }
+                                        },
+                                        "required": [
+                                          "column",
+                                          "in"
+                                        ],
+                                        "additionalProperties": false
+                                      },
+                                      "by": {
+                                        "type": "string",
+                                        "minLength": 1,
+                                        "maxLength": 64
+                                      }
+                                    },
+                                    "required": [
+                                      "reach"
+                                    ],
+                                    "additionalProperties": false
+                                  }
                                 }
-                              },
-                              "required": [
-                                "reach"
-                              ],
-                              "additionalProperties": false
+                              ]
                             },
                             "update": {
-                              "type": "object",
-                              "properties": {
-                                "reach": {
-                                  "type": "string",
-                                  "enum": [
-                                    "own",
-                                    "team",
-                                    "all"
-                                  ]
-                                },
-                                "unowned": {
-                                  "type": "boolean",
-                                  "enum": [
-                                    true
-                                  ]
-                                },
-                                "while": {
+                              "anyOf": [
+                                {
                                   "type": "object",
                                   "properties": {
-                                    "column": {
+                                    "reach": {
                                       "type": "string",
-                                      "minLength": 1
+                                      "enum": [
+                                        "own",
+                                        "team",
+                                        "all"
+                                      ]
                                     },
-                                    "in": {
-                                      "minItems": 1,
-                                      "maxItems": 32,
-                                      "type": "array",
-                                      "items": {
-                                        "anyOf": [
-                                          {
-                                            "type": "string"
-                                          },
-                                          {
-                                            "type": "number"
-                                          },
-                                          {
-                                            "type": "boolean"
+                                    "unowned": {
+                                      "type": "boolean",
+                                      "enum": [
+                                        true
+                                      ]
+                                    },
+                                    "while": {
+                                      "type": "object",
+                                      "properties": {
+                                        "column": {
+                                          "type": "string",
+                                          "minLength": 1
+                                        },
+                                        "in": {
+                                          "minItems": 1,
+                                          "maxItems": 32,
+                                          "type": "array",
+                                          "items": {
+                                            "anyOf": [
+                                              {
+                                                "type": "string"
+                                              },
+                                              {
+                                                "type": "number"
+                                              },
+                                              {
+                                                "type": "boolean"
+                                              }
+                                            ]
                                           }
-                                        ]
-                                      }
+                                        }
+                                      },
+                                      "required": [
+                                        "column",
+                                        "in"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    "by": {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 64
                                     }
                                   },
                                   "required": [
-                                    "column",
-                                    "in"
+                                    "reach"
                                   ],
                                   "additionalProperties": false
                                 },
-                                "by": {
-                                  "type": "string",
-                                  "minLength": 1,
-                                  "maxLength": 64
+                                {
+                                  "minItems": 1,
+                                  "maxItems": 4,
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "reach": {
+                                        "type": "string",
+                                        "enum": [
+                                          "own",
+                                          "team",
+                                          "all"
+                                        ]
+                                      },
+                                      "unowned": {
+                                        "type": "boolean",
+                                        "enum": [
+                                          true
+                                        ]
+                                      },
+                                      "while": {
+                                        "type": "object",
+                                        "properties": {
+                                          "column": {
+                                            "type": "string",
+                                            "minLength": 1
+                                          },
+                                          "in": {
+                                            "minItems": 1,
+                                            "maxItems": 32,
+                                            "type": "array",
+                                            "items": {
+                                              "anyOf": [
+                                                {
+                                                  "type": "string"
+                                                },
+                                                {
+                                                  "type": "number"
+                                                },
+                                                {
+                                                  "type": "boolean"
+                                                }
+                                              ]
+                                            }
+                                          }
+                                        },
+                                        "required": [
+                                          "column",
+                                          "in"
+                                        ],
+                                        "additionalProperties": false
+                                      },
+                                      "by": {
+                                        "type": "string",
+                                        "minLength": 1,
+                                        "maxLength": 64
+                                      }
+                                    },
+                                    "required": [
+                                      "reach"
+                                    ],
+                                    "additionalProperties": false
+                                  }
                                 }
-                              },
-                              "required": [
-                                "reach"
-                              ],
-                              "additionalProperties": false
+                              ]
                             },
                             "delete": {
-                              "type": "object",
-                              "properties": {
-                                "reach": {
-                                  "type": "string",
-                                  "enum": [
-                                    "own",
-                                    "team",
-                                    "all"
-                                  ]
-                                },
-                                "unowned": {
-                                  "type": "boolean",
-                                  "enum": [
-                                    true
-                                  ]
-                                },
-                                "while": {
+                              "anyOf": [
+                                {
                                   "type": "object",
                                   "properties": {
-                                    "column": {
+                                    "reach": {
                                       "type": "string",
-                                      "minLength": 1
+                                      "enum": [
+                                        "own",
+                                        "team",
+                                        "all"
+                                      ]
                                     },
-                                    "in": {
-                                      "minItems": 1,
-                                      "maxItems": 32,
-                                      "type": "array",
-                                      "items": {
-                                        "anyOf": [
-                                          {
-                                            "type": "string"
-                                          },
-                                          {
-                                            "type": "number"
-                                          },
-                                          {
-                                            "type": "boolean"
+                                    "unowned": {
+                                      "type": "boolean",
+                                      "enum": [
+                                        true
+                                      ]
+                                    },
+                                    "while": {
+                                      "type": "object",
+                                      "properties": {
+                                        "column": {
+                                          "type": "string",
+                                          "minLength": 1
+                                        },
+                                        "in": {
+                                          "minItems": 1,
+                                          "maxItems": 32,
+                                          "type": "array",
+                                          "items": {
+                                            "anyOf": [
+                                              {
+                                                "type": "string"
+                                              },
+                                              {
+                                                "type": "number"
+                                              },
+                                              {
+                                                "type": "boolean"
+                                              }
+                                            ]
                                           }
-                                        ]
-                                      }
+                                        }
+                                      },
+                                      "required": [
+                                        "column",
+                                        "in"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    "by": {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 64
                                     }
                                   },
                                   "required": [
-                                    "column",
-                                    "in"
+                                    "reach"
                                   ],
                                   "additionalProperties": false
                                 },
-                                "by": {
-                                  "type": "string",
-                                  "minLength": 1,
-                                  "maxLength": 64
+                                {
+                                  "minItems": 1,
+                                  "maxItems": 4,
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "reach": {
+                                        "type": "string",
+                                        "enum": [
+                                          "own",
+                                          "team",
+                                          "all"
+                                        ]
+                                      },
+                                      "unowned": {
+                                        "type": "boolean",
+                                        "enum": [
+                                          true
+                                        ]
+                                      },
+                                      "while": {
+                                        "type": "object",
+                                        "properties": {
+                                          "column": {
+                                            "type": "string",
+                                            "minLength": 1
+                                          },
+                                          "in": {
+                                            "minItems": 1,
+                                            "maxItems": 32,
+                                            "type": "array",
+                                            "items": {
+                                              "anyOf": [
+                                                {
+                                                  "type": "string"
+                                                },
+                                                {
+                                                  "type": "number"
+                                                },
+                                                {
+                                                  "type": "boolean"
+                                                }
+                                              ]
+                                            }
+                                          }
+                                        },
+                                        "required": [
+                                          "column",
+                                          "in"
+                                        ],
+                                        "additionalProperties": false
+                                      },
+                                      "by": {
+                                        "type": "string",
+                                        "minLength": 1,
+                                        "maxLength": 64
+                                      }
+                                    },
+                                    "required": [
+                                      "reach"
+                                    ],
+                                    "additionalProperties": false
+                                  }
                                 }
-                              },
-                              "required": [
-                                "reach"
-                              ],
-                              "additionalProperties": false
+                              ]
                             }
                           },
                           "additionalProperties": false
@@ -123267,184 +123681,391 @@
                         "type": "object",
                         "properties": {
                           "read": {
-                            "type": "object",
-                            "properties": {
-                              "reach": {
-                                "type": "string",
-                                "enum": [
-                                  "own",
-                                  "team",
-                                  "all"
-                                ]
-                              },
-                              "unowned": {
-                                "type": "boolean",
-                                "enum": [
-                                  true
-                                ]
-                              },
-                              "while": {
+                            "anyOf": [
+                              {
                                 "type": "object",
                                 "properties": {
-                                  "column": {
+                                  "reach": {
                                     "type": "string",
-                                    "minLength": 1
+                                    "enum": [
+                                      "own",
+                                      "team",
+                                      "all"
+                                    ]
                                   },
-                                  "in": {
-                                    "minItems": 1,
-                                    "maxItems": 32,
-                                    "type": "array",
-                                    "items": {
-                                      "anyOf": [
-                                        {
-                                          "type": "string"
-                                        },
-                                        {
-                                          "type": "number"
-                                        },
-                                        {
-                                          "type": "boolean"
+                                  "unowned": {
+                                    "type": "boolean",
+                                    "enum": [
+                                      true
+                                    ]
+                                  },
+                                  "while": {
+                                    "type": "object",
+                                    "properties": {
+                                      "column": {
+                                        "type": "string",
+                                        "minLength": 1
+                                      },
+                                      "in": {
+                                        "minItems": 1,
+                                        "maxItems": 32,
+                                        "type": "array",
+                                        "items": {
+                                          "anyOf": [
+                                            {
+                                              "type": "string"
+                                            },
+                                            {
+                                              "type": "number"
+                                            },
+                                            {
+                                              "type": "boolean"
+                                            }
+                                          ]
                                         }
-                                      ]
-                                    }
+                                      }
+                                    },
+                                    "required": [
+                                      "column",
+                                      "in"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  "by": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 64
                                   }
                                 },
                                 "required": [
-                                  "column",
-                                  "in"
+                                  "reach"
                                 ],
                                 "additionalProperties": false
                               },
-                              "by": {
-                                "type": "string",
-                                "minLength": 1,
-                                "maxLength": 64
+                              {
+                                "minItems": 1,
+                                "maxItems": 4,
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "reach": {
+                                      "type": "string",
+                                      "enum": [
+                                        "own",
+                                        "team",
+                                        "all"
+                                      ]
+                                    },
+                                    "unowned": {
+                                      "type": "boolean",
+                                      "enum": [
+                                        true
+                                      ]
+                                    },
+                                    "while": {
+                                      "type": "object",
+                                      "properties": {
+                                        "column": {
+                                          "type": "string",
+                                          "minLength": 1
+                                        },
+                                        "in": {
+                                          "minItems": 1,
+                                          "maxItems": 32,
+                                          "type": "array",
+                                          "items": {
+                                            "anyOf": [
+                                              {
+                                                "type": "string"
+                                              },
+                                              {
+                                                "type": "number"
+                                              },
+                                              {
+                                                "type": "boolean"
+                                              }
+                                            ]
+                                          }
+                                        }
+                                      },
+                                      "required": [
+                                        "column",
+                                        "in"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    "by": {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 64
+                                    }
+                                  },
+                                  "required": [
+                                    "reach"
+                                  ],
+                                  "additionalProperties": false
+                                }
                               }
-                            },
-                            "required": [
-                              "reach"
-                            ],
-                            "additionalProperties": false
+                            ]
                           },
                           "update": {
-                            "type": "object",
-                            "properties": {
-                              "reach": {
-                                "type": "string",
-                                "enum": [
-                                  "own",
-                                  "team",
-                                  "all"
-                                ]
-                              },
-                              "unowned": {
-                                "type": "boolean",
-                                "enum": [
-                                  true
-                                ]
-                              },
-                              "while": {
+                            "anyOf": [
+                              {
                                 "type": "object",
                                 "properties": {
-                                  "column": {
+                                  "reach": {
                                     "type": "string",
-                                    "minLength": 1
+                                    "enum": [
+                                      "own",
+                                      "team",
+                                      "all"
+                                    ]
                                   },
-                                  "in": {
-                                    "minItems": 1,
-                                    "maxItems": 32,
-                                    "type": "array",
-                                    "items": {
-                                      "anyOf": [
-                                        {
-                                          "type": "string"
-                                        },
-                                        {
-                                          "type": "number"
-                                        },
-                                        {
-                                          "type": "boolean"
+                                  "unowned": {
+                                    "type": "boolean",
+                                    "enum": [
+                                      true
+                                    ]
+                                  },
+                                  "while": {
+                                    "type": "object",
+                                    "properties": {
+                                      "column": {
+                                        "type": "string",
+                                        "minLength": 1
+                                      },
+                                      "in": {
+                                        "minItems": 1,
+                                        "maxItems": 32,
+                                        "type": "array",
+                                        "items": {
+                                          "anyOf": [
+                                            {
+                                              "type": "string"
+                                            },
+                                            {
+                                              "type": "number"
+                                            },
+                                            {
+                                              "type": "boolean"
+                                            }
+                                          ]
                                         }
-                                      ]
-                                    }
+                                      }
+                                    },
+                                    "required": [
+                                      "column",
+                                      "in"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  "by": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 64
                                   }
                                 },
                                 "required": [
-                                  "column",
-                                  "in"
+                                  "reach"
                                 ],
                                 "additionalProperties": false
                               },
-                              "by": {
-                                "type": "string",
-                                "minLength": 1,
-                                "maxLength": 64
+                              {
+                                "minItems": 1,
+                                "maxItems": 4,
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "reach": {
+                                      "type": "string",
+                                      "enum": [
+                                        "own",
+                                        "team",
+                                        "all"
+                                      ]
+                                    },
+                                    "unowned": {
+                                      "type": "boolean",
+                                      "enum": [
+                                        true
+                                      ]
+                                    },
+                                    "while": {
+                                      "type": "object",
+                                      "properties": {
+                                        "column": {
+                                          "type": "string",
+                                          "minLength": 1
+                                        },
+                                        "in": {
+                                          "minItems": 1,
+                                          "maxItems": 32,
+                                          "type": "array",
+                                          "items": {
+                                            "anyOf": [
+                                              {
+                                                "type": "string"
+                                              },
+                                              {
+                                                "type": "number"
+                                              },
+                                              {
+                                                "type": "boolean"
+                                              }
+                                            ]
+                                          }
+                                        }
+                                      },
+                                      "required": [
+                                        "column",
+                                        "in"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    "by": {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 64
+                                    }
+                                  },
+                                  "required": [
+                                    "reach"
+                                  ],
+                                  "additionalProperties": false
+                                }
                               }
-                            },
-                            "required": [
-                              "reach"
-                            ],
-                            "additionalProperties": false
+                            ]
                           },
                           "delete": {
-                            "type": "object",
-                            "properties": {
-                              "reach": {
-                                "type": "string",
-                                "enum": [
-                                  "own",
-                                  "team",
-                                  "all"
-                                ]
-                              },
-                              "unowned": {
-                                "type": "boolean",
-                                "enum": [
-                                  true
-                                ]
-                              },
-                              "while": {
+                            "anyOf": [
+                              {
                                 "type": "object",
                                 "properties": {
-                                  "column": {
+                                  "reach": {
                                     "type": "string",
-                                    "minLength": 1
+                                    "enum": [
+                                      "own",
+                                      "team",
+                                      "all"
+                                    ]
                                   },
-                                  "in": {
-                                    "minItems": 1,
-                                    "maxItems": 32,
-                                    "type": "array",
-                                    "items": {
-                                      "anyOf": [
-                                        {
-                                          "type": "string"
-                                        },
-                                        {
-                                          "type": "number"
-                                        },
-                                        {
-                                          "type": "boolean"
+                                  "unowned": {
+                                    "type": "boolean",
+                                    "enum": [
+                                      true
+                                    ]
+                                  },
+                                  "while": {
+                                    "type": "object",
+                                    "properties": {
+                                      "column": {
+                                        "type": "string",
+                                        "minLength": 1
+                                      },
+                                      "in": {
+                                        "minItems": 1,
+                                        "maxItems": 32,
+                                        "type": "array",
+                                        "items": {
+                                          "anyOf": [
+                                            {
+                                              "type": "string"
+                                            },
+                                            {
+                                              "type": "number"
+                                            },
+                                            {
+                                              "type": "boolean"
+                                            }
+                                          ]
                                         }
-                                      ]
-                                    }
+                                      }
+                                    },
+                                    "required": [
+                                      "column",
+                                      "in"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  "by": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 64
                                   }
                                 },
                                 "required": [
-                                  "column",
-                                  "in"
+                                  "reach"
                                 ],
                                 "additionalProperties": false
                               },
-                              "by": {
-                                "type": "string",
-                                "minLength": 1,
-                                "maxLength": 64
+                              {
+                                "minItems": 1,
+                                "maxItems": 4,
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "reach": {
+                                      "type": "string",
+                                      "enum": [
+                                        "own",
+                                        "team",
+                                        "all"
+                                      ]
+                                    },
+                                    "unowned": {
+                                      "type": "boolean",
+                                      "enum": [
+                                        true
+                                      ]
+                                    },
+                                    "while": {
+                                      "type": "object",
+                                      "properties": {
+                                        "column": {
+                                          "type": "string",
+                                          "minLength": 1
+                                        },
+                                        "in": {
+                                          "minItems": 1,
+                                          "maxItems": 32,
+                                          "type": "array",
+                                          "items": {
+                                            "anyOf": [
+                                              {
+                                                "type": "string"
+                                              },
+                                              {
+                                                "type": "number"
+                                              },
+                                              {
+                                                "type": "boolean"
+                                              }
+                                            ]
+                                          }
+                                        }
+                                      },
+                                      "required": [
+                                        "column",
+                                        "in"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    "by": {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 64
+                                    }
+                                  },
+                                  "required": [
+                                    "reach"
+                                  ],
+                                  "additionalProperties": false
+                                }
                               }
-                            },
-                            "required": [
-                              "reach"
-                            ],
-                            "additionalProperties": false
+                            ]
                           }
                         },
                         "additionalProperties": false
@@ -124339,64 +124960,133 @@
                     ]
                   },
                   "reach": {
-                    "type": "object",
-                    "properties": {
-                      "reach": {
-                        "type": "string",
-                        "enum": [
-                          "own",
-                          "team",
-                          "all"
-                        ]
-                      },
-                      "unowned": {
-                        "type": "boolean",
-                        "enum": [
-                          true
-                        ]
-                      },
-                      "while": {
+                    "anyOf": [
+                      {
                         "type": "object",
                         "properties": {
-                          "column": {
+                          "reach": {
                             "type": "string",
-                            "minLength": 1
+                            "enum": [
+                              "own",
+                              "team",
+                              "all"
+                            ]
                           },
-                          "in": {
-                            "minItems": 1,
-                            "maxItems": 32,
-                            "type": "array",
-                            "items": {
-                              "anyOf": [
-                                {
-                                  "type": "string"
-                                },
-                                {
-                                  "type": "number"
-                                },
-                                {
-                                  "type": "boolean"
+                          "unowned": {
+                            "type": "boolean",
+                            "enum": [
+                              true
+                            ]
+                          },
+                          "while": {
+                            "type": "object",
+                            "properties": {
+                              "column": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "in": {
+                                "minItems": 1,
+                                "maxItems": 32,
+                                "type": "array",
+                                "items": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "number"
+                                    },
+                                    {
+                                      "type": "boolean"
+                                    }
+                                  ]
                                 }
-                              ]
-                            }
+                              }
+                            },
+                            "required": [
+                              "column",
+                              "in"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "by": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 64
                           }
                         },
                         "required": [
-                          "column",
-                          "in"
+                          "reach"
                         ],
                         "additionalProperties": false
                       },
-                      "by": {
-                        "type": "string",
-                        "minLength": 1,
-                        "maxLength": 64
+                      {
+                        "minItems": 1,
+                        "maxItems": 4,
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "reach": {
+                              "type": "string",
+                              "enum": [
+                                "own",
+                                "team",
+                                "all"
+                              ]
+                            },
+                            "unowned": {
+                              "type": "boolean",
+                              "enum": [
+                                true
+                              ]
+                            },
+                            "while": {
+                              "type": "object",
+                              "properties": {
+                                "column": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "in": {
+                                  "minItems": 1,
+                                  "maxItems": 32,
+                                  "type": "array",
+                                  "items": {
+                                    "anyOf": [
+                                      {
+                                        "type": "string"
+                                      },
+                                      {
+                                        "type": "number"
+                                      },
+                                      {
+                                        "type": "boolean"
+                                      }
+                                    ]
+                                  }
+                                }
+                              },
+                              "required": [
+                                "column",
+                                "in"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "by": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 64
+                            }
+                          },
+                          "required": [
+                            "reach"
+                          ],
+                          "additionalProperties": false
+                        }
                       }
-                    },
-                    "required": [
-                      "reach"
-                    ],
-                    "additionalProperties": false
+                    ]
                   },
                   "roleId": {
                     "type": "string",
@@ -124544,6 +125234,31 @@
                                     },
                                     "dated": {
                                       "type": "boolean"
+                                    },
+                                    "when": {
+                                      "type": "object",
+                                      "properties": {
+                                        "column": {
+                                          "type": "string"
+                                        },
+                                        "label": {
+                                          "type": "string"
+                                        },
+                                        "in": {
+                                          "type": "array",
+                                          "items": {
+                                            "type": "string"
+                                          }
+                                        },
+                                        "isNull": {
+                                          "type": "boolean"
+                                        }
+                                      },
+                                      "required": [
+                                        "column",
+                                        "label"
+                                      ],
+                                      "additionalProperties": false
                                     }
                                   },
                                   "required": [
@@ -124613,184 +125328,391 @@
                                 "type": "object",
                                 "properties": {
                                   "read": {
-                                    "type": "object",
-                                    "properties": {
-                                      "reach": {
-                                        "type": "string",
-                                        "enum": [
-                                          "own",
-                                          "team",
-                                          "all"
-                                        ]
-                                      },
-                                      "unowned": {
-                                        "type": "boolean",
-                                        "enum": [
-                                          true
-                                        ]
-                                      },
-                                      "while": {
+                                    "anyOf": [
+                                      {
                                         "type": "object",
                                         "properties": {
-                                          "column": {
+                                          "reach": {
                                             "type": "string",
-                                            "minLength": 1
+                                            "enum": [
+                                              "own",
+                                              "team",
+                                              "all"
+                                            ]
                                           },
-                                          "in": {
-                                            "minItems": 1,
-                                            "maxItems": 32,
-                                            "type": "array",
-                                            "items": {
-                                              "anyOf": [
-                                                {
-                                                  "type": "string"
-                                                },
-                                                {
-                                                  "type": "number"
-                                                },
-                                                {
-                                                  "type": "boolean"
+                                          "unowned": {
+                                            "type": "boolean",
+                                            "enum": [
+                                              true
+                                            ]
+                                          },
+                                          "while": {
+                                            "type": "object",
+                                            "properties": {
+                                              "column": {
+                                                "type": "string",
+                                                "minLength": 1
+                                              },
+                                              "in": {
+                                                "minItems": 1,
+                                                "maxItems": 32,
+                                                "type": "array",
+                                                "items": {
+                                                  "anyOf": [
+                                                    {
+                                                      "type": "string"
+                                                    },
+                                                    {
+                                                      "type": "number"
+                                                    },
+                                                    {
+                                                      "type": "boolean"
+                                                    }
+                                                  ]
                                                 }
-                                              ]
-                                            }
+                                              }
+                                            },
+                                            "required": [
+                                              "column",
+                                              "in"
+                                            ],
+                                            "additionalProperties": false
+                                          },
+                                          "by": {
+                                            "type": "string",
+                                            "minLength": 1,
+                                            "maxLength": 64
                                           }
                                         },
                                         "required": [
-                                          "column",
-                                          "in"
+                                          "reach"
                                         ],
                                         "additionalProperties": false
                                       },
-                                      "by": {
-                                        "type": "string",
-                                        "minLength": 1,
-                                        "maxLength": 64
+                                      {
+                                        "minItems": 1,
+                                        "maxItems": 4,
+                                        "type": "array",
+                                        "items": {
+                                          "type": "object",
+                                          "properties": {
+                                            "reach": {
+                                              "type": "string",
+                                              "enum": [
+                                                "own",
+                                                "team",
+                                                "all"
+                                              ]
+                                            },
+                                            "unowned": {
+                                              "type": "boolean",
+                                              "enum": [
+                                                true
+                                              ]
+                                            },
+                                            "while": {
+                                              "type": "object",
+                                              "properties": {
+                                                "column": {
+                                                  "type": "string",
+                                                  "minLength": 1
+                                                },
+                                                "in": {
+                                                  "minItems": 1,
+                                                  "maxItems": 32,
+                                                  "type": "array",
+                                                  "items": {
+                                                    "anyOf": [
+                                                      {
+                                                        "type": "string"
+                                                      },
+                                                      {
+                                                        "type": "number"
+                                                      },
+                                                      {
+                                                        "type": "boolean"
+                                                      }
+                                                    ]
+                                                  }
+                                                }
+                                              },
+                                              "required": [
+                                                "column",
+                                                "in"
+                                              ],
+                                              "additionalProperties": false
+                                            },
+                                            "by": {
+                                              "type": "string",
+                                              "minLength": 1,
+                                              "maxLength": 64
+                                            }
+                                          },
+                                          "required": [
+                                            "reach"
+                                          ],
+                                          "additionalProperties": false
+                                        }
                                       }
-                                    },
-                                    "required": [
-                                      "reach"
-                                    ],
-                                    "additionalProperties": false
+                                    ]
                                   },
                                   "update": {
-                                    "type": "object",
-                                    "properties": {
-                                      "reach": {
-                                        "type": "string",
-                                        "enum": [
-                                          "own",
-                                          "team",
-                                          "all"
-                                        ]
-                                      },
-                                      "unowned": {
-                                        "type": "boolean",
-                                        "enum": [
-                                          true
-                                        ]
-                                      },
-                                      "while": {
+                                    "anyOf": [
+                                      {
                                         "type": "object",
                                         "properties": {
-                                          "column": {
+                                          "reach": {
                                             "type": "string",
-                                            "minLength": 1
+                                            "enum": [
+                                              "own",
+                                              "team",
+                                              "all"
+                                            ]
                                           },
-                                          "in": {
-                                            "minItems": 1,
-                                            "maxItems": 32,
-                                            "type": "array",
-                                            "items": {
-                                              "anyOf": [
-                                                {
-                                                  "type": "string"
-                                                },
-                                                {
-                                                  "type": "number"
-                                                },
-                                                {
-                                                  "type": "boolean"
+                                          "unowned": {
+                                            "type": "boolean",
+                                            "enum": [
+                                              true
+                                            ]
+                                          },
+                                          "while": {
+                                            "type": "object",
+                                            "properties": {
+                                              "column": {
+                                                "type": "string",
+                                                "minLength": 1
+                                              },
+                                              "in": {
+                                                "minItems": 1,
+                                                "maxItems": 32,
+                                                "type": "array",
+                                                "items": {
+                                                  "anyOf": [
+                                                    {
+                                                      "type": "string"
+                                                    },
+                                                    {
+                                                      "type": "number"
+                                                    },
+                                                    {
+                                                      "type": "boolean"
+                                                    }
+                                                  ]
                                                 }
-                                              ]
-                                            }
+                                              }
+                                            },
+                                            "required": [
+                                              "column",
+                                              "in"
+                                            ],
+                                            "additionalProperties": false
+                                          },
+                                          "by": {
+                                            "type": "string",
+                                            "minLength": 1,
+                                            "maxLength": 64
                                           }
                                         },
                                         "required": [
-                                          "column",
-                                          "in"
+                                          "reach"
                                         ],
                                         "additionalProperties": false
                                       },
-                                      "by": {
-                                        "type": "string",
-                                        "minLength": 1,
-                                        "maxLength": 64
+                                      {
+                                        "minItems": 1,
+                                        "maxItems": 4,
+                                        "type": "array",
+                                        "items": {
+                                          "type": "object",
+                                          "properties": {
+                                            "reach": {
+                                              "type": "string",
+                                              "enum": [
+                                                "own",
+                                                "team",
+                                                "all"
+                                              ]
+                                            },
+                                            "unowned": {
+                                              "type": "boolean",
+                                              "enum": [
+                                                true
+                                              ]
+                                            },
+                                            "while": {
+                                              "type": "object",
+                                              "properties": {
+                                                "column": {
+                                                  "type": "string",
+                                                  "minLength": 1
+                                                },
+                                                "in": {
+                                                  "minItems": 1,
+                                                  "maxItems": 32,
+                                                  "type": "array",
+                                                  "items": {
+                                                    "anyOf": [
+                                                      {
+                                                        "type": "string"
+                                                      },
+                                                      {
+                                                        "type": "number"
+                                                      },
+                                                      {
+                                                        "type": "boolean"
+                                                      }
+                                                    ]
+                                                  }
+                                                }
+                                              },
+                                              "required": [
+                                                "column",
+                                                "in"
+                                              ],
+                                              "additionalProperties": false
+                                            },
+                                            "by": {
+                                              "type": "string",
+                                              "minLength": 1,
+                                              "maxLength": 64
+                                            }
+                                          },
+                                          "required": [
+                                            "reach"
+                                          ],
+                                          "additionalProperties": false
+                                        }
                                       }
-                                    },
-                                    "required": [
-                                      "reach"
-                                    ],
-                                    "additionalProperties": false
+                                    ]
                                   },
                                   "delete": {
-                                    "type": "object",
-                                    "properties": {
-                                      "reach": {
-                                        "type": "string",
-                                        "enum": [
-                                          "own",
-                                          "team",
-                                          "all"
-                                        ]
-                                      },
-                                      "unowned": {
-                                        "type": "boolean",
-                                        "enum": [
-                                          true
-                                        ]
-                                      },
-                                      "while": {
+                                    "anyOf": [
+                                      {
                                         "type": "object",
                                         "properties": {
-                                          "column": {
+                                          "reach": {
                                             "type": "string",
-                                            "minLength": 1
+                                            "enum": [
+                                              "own",
+                                              "team",
+                                              "all"
+                                            ]
                                           },
-                                          "in": {
-                                            "minItems": 1,
-                                            "maxItems": 32,
-                                            "type": "array",
-                                            "items": {
-                                              "anyOf": [
-                                                {
-                                                  "type": "string"
-                                                },
-                                                {
-                                                  "type": "number"
-                                                },
-                                                {
-                                                  "type": "boolean"
+                                          "unowned": {
+                                            "type": "boolean",
+                                            "enum": [
+                                              true
+                                            ]
+                                          },
+                                          "while": {
+                                            "type": "object",
+                                            "properties": {
+                                              "column": {
+                                                "type": "string",
+                                                "minLength": 1
+                                              },
+                                              "in": {
+                                                "minItems": 1,
+                                                "maxItems": 32,
+                                                "type": "array",
+                                                "items": {
+                                                  "anyOf": [
+                                                    {
+                                                      "type": "string"
+                                                    },
+                                                    {
+                                                      "type": "number"
+                                                    },
+                                                    {
+                                                      "type": "boolean"
+                                                    }
+                                                  ]
                                                 }
-                                              ]
-                                            }
+                                              }
+                                            },
+                                            "required": [
+                                              "column",
+                                              "in"
+                                            ],
+                                            "additionalProperties": false
+                                          },
+                                          "by": {
+                                            "type": "string",
+                                            "minLength": 1,
+                                            "maxLength": 64
                                           }
                                         },
                                         "required": [
-                                          "column",
-                                          "in"
+                                          "reach"
                                         ],
                                         "additionalProperties": false
                                       },
-                                      "by": {
-                                        "type": "string",
-                                        "minLength": 1,
-                                        "maxLength": 64
+                                      {
+                                        "minItems": 1,
+                                        "maxItems": 4,
+                                        "type": "array",
+                                        "items": {
+                                          "type": "object",
+                                          "properties": {
+                                            "reach": {
+                                              "type": "string",
+                                              "enum": [
+                                                "own",
+                                                "team",
+                                                "all"
+                                              ]
+                                            },
+                                            "unowned": {
+                                              "type": "boolean",
+                                              "enum": [
+                                                true
+                                              ]
+                                            },
+                                            "while": {
+                                              "type": "object",
+                                              "properties": {
+                                                "column": {
+                                                  "type": "string",
+                                                  "minLength": 1
+                                                },
+                                                "in": {
+                                                  "minItems": 1,
+                                                  "maxItems": 32,
+                                                  "type": "array",
+                                                  "items": {
+                                                    "anyOf": [
+                                                      {
+                                                        "type": "string"
+                                                      },
+                                                      {
+                                                        "type": "number"
+                                                      },
+                                                      {
+                                                        "type": "boolean"
+                                                      }
+                                                    ]
+                                                  }
+                                                }
+                                              },
+                                              "required": [
+                                                "column",
+                                                "in"
+                                              ],
+                                              "additionalProperties": false
+                                            },
+                                            "by": {
+                                              "type": "string",
+                                              "minLength": 1,
+                                              "maxLength": 64
+                                            }
+                                          },
+                                          "required": [
+                                            "reach"
+                                          ],
+                                          "additionalProperties": false
+                                        }
                                       }
-                                    },
-                                    "required": [
-                                      "reach"
-                                    ],
-                                    "additionalProperties": false
+                                    ]
                                   }
                                 },
                                 "additionalProperties": false

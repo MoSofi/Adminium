@@ -88,6 +88,18 @@ export async function listedIdsOf(ctx: Pick<ActionContext, 'meta' | 'source' | '
       q = q.where(sql<SqlBool>`(${sql.ref(`adm_l.${column}`)} is null or ${sql.ref(`adm_l.${column}`)} ${sign} ${today})`);
     }
   }
+  // …and only while a column of it holds what the way names, as a row limit reads it: a member row whose end is set lists nobody.
+  const whilst = (through as { while?: { column: string; in?: readonly unknown[]; isNull?: boolean } }).while;
+  if (whilst !== undefined) {
+    if (!has(list, whilst.column)) return [];
+    const ref = sql.ref(`adm_l.${whilst.column}`);
+    // Empty text counts as empty, as the row limit reads it; a column of another kind is empty only when it holds nothing.
+    const textual = ['text', 'varchar', 'enum', 'uuid'].includes(String(list.columns.find((candidate) => candidate.name === whilst.column)?.logicalType));
+    const empty = textual ? sql<SqlBool>`(${ref} is null or ${ref} = '')` : sql<SqlBool>`${ref} is null`;
+    if (whilst.isNull !== undefined) q = q.where(whilst.isNull ? empty : sql<SqlBool>`not ${empty}`);
+    else if (whilst.in !== undefined && whilst.in.length > 0) q = q.where(sql<SqlBool>`${ref} in (${sql.join(whilst.in as unknown[])})`);
+    else return [];
+  }
   const rows = (await q.distinct().limit(LISTED_MAX + 1).execute()) as { adm_who: unknown }[];
   let ids = rows.map((row) => row.adm_who).filter((one) => !blank(one));
   if (person !== undefined && target !== null && ids.length > 0) {

@@ -18987,6 +18987,10 @@
     "status": "mt",
     "srcHash": "75b7801cd982"
   },
+  "roles.rows.several": {
+    "status": "mt",
+    "srcHash": "cfd8165e4c63"
+  },
   "roles.rows.title": {
     "status": "mt",
     "srcHash": "1e64ea1b7cb3"
@@ -19018,6 +19022,18 @@
   "roles.rows.way.person": {
     "status": "mt",
     "srcHash": "779ed156d49e"
+  },
+  "roles.rows.way.whileEmpty": {
+    "status": "mt",
+    "srcHash": "9975a777aedb"
+  },
+  "roles.rows.way.whileIn": {
+    "status": "mt",
+    "srcHash": "6afa5c50a767"
+  },
+  "roles.rows.way.whileSet": {
+    "status": "mt",
+    "srcHash": "59bda9a9b9b7"
   },
   "roles.rows.widened": {
     "status": "mt",

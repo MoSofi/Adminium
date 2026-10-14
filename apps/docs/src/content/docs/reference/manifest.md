@@ -2520,7 +2520,7 @@ a person is read from:
 | Way | Fields |
 |---|---|
 | a column | `column`: a staff column of this table. `set` says whom a writer limited on the table may put there: `self` (the default: only themselves), `team` (somebody in a team they lead) or `anyone`. With `person`, `column` is instead a link to a row of the app, and `person` names the staff column on that row (a ticket's `assignee_id` to an agent's `user_id`). |
-| a listing | `through`: `table` lists people against rows; `link` is the listing's column that equals this row's key, or this row's `on` column when it is not the key; `user` is the listing's staff column (or, with `person`, a link to a row that holds one). `from` and `to` are date columns of the listing: the listing counts from the first to the second, by the business's day, and either may be empty. |
+| a listing | `through`: `table` lists people against rows; `link` is the listing's column that equals this row's key, or this row's `on` column when it is not the key; `user` is the listing's staff column (or, with `person`, a link to a row that holds one). `from` and `to` are date columns of the listing: the listing counts from the first to the second, by the business's day, and either may be empty. `while` makes a listing row count only while another column of it holds one of some values (`{ "column": "kind", "in": ["helper"] }`) or is empty, or not (`{ "column": "ended_on", "isNull": true }`, for a nullable column): a member row whose end is set lists nobody, from that moment, on every read. Not the `user` or the `link` column. `while` needs Adminium 0.3.28. |
 | a parent | `via`: a link of this table. Whoever reaches the row it points at reaches this one. |
 
 A row is reached through at most two links (`via` of a table that is itself reached `via`
@@ -2561,6 +2561,28 @@ on the parent reads every row and each changes only their own:
 
 A rep reads every note of the deals they reach, and changes the ones `author_id` names them in.
 The column must be a staff column (`rules.staff`).
+
+An action may name **several reaches**, as a list of one to four: any one of them is enough, and
+each is its own whole test (its `while`, `unowned` and `by` hold for it alone), as two roles'
+reaches are. An account manager reads every won deal, and an open one only while he is listed on
+it:
+
+```json
+"limits": { "deals": { "rows": { "read": [
+  { "reach": "all", "while": { "column": "state", "in": ["won"] } },
+  { "reach": "own" } ] } } }
+```
+
+No reach of the list is written twice, and the checks above hold for each. A private table's
+reach stays `{ "reach": "own" }` alone. A list needs Adminium 0.3.28.
+
+A row of a table reached through its parent (`via`) is hung, by a writer held to some rows of it,
+only under a parent their reach of THAT table reaches: a parent that is theirs (or somebody's
+they lead, with `team`), or nobody's when the reach takes `unowned` rows. Reading the parent is
+not enough: the account manager above reads every won deal and comments only on a deal he is on
+(403, reason `parent-not-theirs`). A row a staff column of its own names them in (a stamp of
+its maker, say) is theirs whatever its parent; a table that also lists people `through`, or reads
+a person from a linked row, is not judged this way.
 
 Apart from any limit, **the columns that decide whose a row is** (the staff columns the table's
 own `belongs` names) are changed only by somebody the stored row names in one of them, or who

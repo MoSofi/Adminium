@@ -10,7 +10,7 @@
  * of …" may name only a column staff read plainly: under a hidden one, the
  * count of rows reached tells its values to whoever edits roles.
  */
-import type { RowLimit, RowReach } from '@adminium/meta';
+import { rowReachList, type RowLimit, type RowReach } from '@adminium/meta';
 
 import type { EffectiveModel } from '../connections/effective-schema.js';
 
@@ -42,12 +42,13 @@ export function rowReachIssue(model: EffectiveModel, tableId: string, reach: Row
   return null;
 }
 
-/** The first thing wrong with a table's whole limit, with the action it is under. */
+/** The first thing wrong with a table's whole limit, with the action it is under: each of an action's several reaches is asked. */
 export function rowLimitIssue(model: EffectiveModel, tableId: string, limit: RowLimit): (RowLimitIssue & { action: string }) | null {
-  for (const [action, reach] of Object.entries(limit)) {
-    if (reach === undefined) continue;
-    const issue = rowReachIssue(model, tableId, reach);
-    if (issue !== null) return { ...issue, action };
+  for (const [action, reaches] of Object.entries(limit)) {
+    for (const reach of rowReachList(reaches)) {
+      const issue = rowReachIssue(model, tableId, reach);
+      if (issue !== null) return { ...issue, action };
+    }
   }
   return null;
 }

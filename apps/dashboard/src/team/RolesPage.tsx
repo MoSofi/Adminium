@@ -65,6 +65,7 @@ import {
   peopleQuery,
   putRoleRows,
   reachOf,
+  severalOf,
   roleRowsQuery,
   rowLimitsSave,
   rowsPreviewQuery,
@@ -822,10 +823,21 @@ function wayText(way: RowWay): string {
   switch (way.kind) {
     case 'person':
       return t('roles:rows.way.person', 'the person in {column}', { column: way.label });
-    case 'listing':
-      return way.dated
+    case 'listing': {
+      const listed = way.dated
         ? t('roles:rows.way.listingDated', 'anyone listed for it in {table} on the day', { table: way.label })
         : t('roles:rows.way.listing', 'anyone listed for it in {table}', { table: way.label });
+      const when = way.when;
+      if (when === undefined) return listed;
+      // Counts only while a column of the listing holds a value: said in the same sentence, after who is listed.
+      const holds =
+        when.in !== undefined
+          ? t('roles:rows.way.whileIn', 'while {column} is {values}', { column: when.label, values: anyOf(when.in) })
+          : when.isNull === true
+            ? t('roles:rows.way.whileEmpty', 'while {column} is empty', { column: when.label })
+            : t('roles:rows.way.whileSet', 'while {column} is filled in', { column: when.label });
+      return `${listed}, ${holds}`;
+    }
     case 'parent':
       return t('roles:rows.way.parent', 'whoever reaches its {table}', { table: way.label });
   }
@@ -982,7 +994,7 @@ function RoleRowsTableCard(props: {
   onChange: (action: RowAction, reach: RowReach | null) => void;
 }): ReactNode {
   const { table, limit, person } = props;
-  const read = reachOf(limit, 'read');
+  const read = severalOf(limit, 'read') ?? reachOf(limit, 'read');
   const preview = useQuery({
     ...rowsPreviewQuery({ roleId: props.roleId, table, userId: person?.id ?? '', reach: read }),
     enabled: person !== null && !table.private && table.granted.read,
@@ -1004,6 +1016,21 @@ function RoleRowsTableCard(props: {
             {ROW_ACTIONS.filter((action) => table.granted[action]).map((action) => {
               const reach = reachOf(limit, action);
               const label = rowActionLabel(action);
+              const several = severalOf(limit, action);
+              // Several reaches the app wrote, any one enough: said in words and kept as written; there is nothing to pick.
+              if (several !== null) {
+                return (
+                  <div key={action} className="flex flex-col gap-1" data-testid={`roles-rows-${table.tableId}-${action}-several`}>
+                    <span className="text-body-sm font-semibold text-fg">{label}</span>
+                    <p className="text-caption text-fg-muted">{t('roles:rows.several', 'Any one of these is enough. The app set them, and they are kept as it wrote them.')}</p>
+                    <ul className="flex list-disc flex-col gap-0.5 ps-5 text-caption text-fg-subtle" data-testid={`roles-rows-${table.tableId}-${action}-sentence`}>
+                      {several.map((one, n) => (
+                        <li key={n}>{reachSentence(one)}</li>
+                      ))}
+                    </ul>
+                  </div>
+                );
+              }
               return (
                 <div key={action} className="flex flex-col gap-1">
                   <div className="flex flex-wrap items-center gap-3">

@@ -127,7 +127,10 @@ export default {
       "person": "personen i {column}",
       "listingDated": "enhver, der er opført for den i {table} den pågældende dag",
       "listing": "enhver, der er opført for den i {table}",
-      "parent": "den, der kan nå dens {table}"
+      "parent": "den, der kan nå dens {table}",
+      "whileIn": "så længe {column} er {values}",
+      "whileEmpty": "så længe {column} er tom",
+      "whileSet": "så længe {column} er udfyldt"
     },
     "follows": "Følger: {table}",
     "belongs": "En række tilhører {ways}.",
@@ -163,7 +166,8 @@ export default {
     "widened": "Denne rolle åbner tabellen gennem en bredere tilladelse. Når en begrænsning gemmes, får rollen også tabellen ved navn.",
     "count": "{name} ville se {reached} af {total}.",
     "capped": "Denne person leder flere, end én rækkevidde kan rumme, så hele teamet tælles ikke med.",
-    "lifted": "{name} har også {roles}, som giver alle rækker. Denne begrænsning gælder ikke for personen."
+    "lifted": "{name} har også {roles}, som giver alle rækker. Denne begrænsning gælder ikke for personen.",
+    "several": "Én af dem er nok. Appen har sat dem, og de bevares, som den skrev dem."
   },
   "partsOff": "Dens del af appen er slået fra: den giver intet, før delen er slået til.",
   "people": {

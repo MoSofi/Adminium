@@ -217,6 +217,84 @@ describe('a role’s rows', () => {
   });
 });
 
+describe('several reaches for one action', () => {
+  // The account manager: every won deal, and an open one only while he is listed on it.
+  const reaches = [{ reach: 'all', while: { column: 'state', in: ['won'] } }, own];
+  const onDeals = (read: unknown, more: Doc = {}) => messages(manifest({ roles: [{ ...accounts, permissions: ['table:@deals:read', 'table:@quotes:read'], limits: { deals: { rows: { read } }, ...more } }] }));
+
+  it('validates as a list of one to four reaches, any one enough', () => {
+    expect(onDeals(reaches)).toEqual([]);
+    expect(onDeals([own])).toEqual([]);
+    expect(onDeals(reaches, { quotes: { rows: { read: [own] } } })).toEqual([]);
+    expect(onDeals([])).not.toEqual([]);
+    expect(onDeals([own, { reach: 'team' }, { reach: 'own', unowned: true }, { reach: 'all', while: { column: 'state', in: ['lost'] } }, { reach: 'all', while: { column: 'state', in: ['open'] } }])).not.toEqual([]);
+  });
+
+  it('is a word of 0.3.28 where a list is written, and only there', () => {
+    const doc = manifest({ roles: [{ ...accounts, limits: { deals: { rows: { read: reaches } } } }] });
+    expect(installFloorWords(doc)).toContainEqual({ word: 'rows.several', path: 'roles.0.limits.deals.rows.read' });
+    expect(WORD_FLOORS['rows.several']).toBe('0.3.28');
+    expect(installFloorWords(manifest()).some((found) => found.word === 'rows.several')).toBe(false);
+    const grant = { ...accounts, tables: [{ addOn: 'invoices', table: 'invoices', actions: ['read'], limit: { rows: { read: [{ reach: 'all', while: { column: 'status', in: ['sent'] } }] } } }] };
+    expect(installFloorWords(manifest({ roles: [grant] }))).toContainEqual({ word: 'rows.several', path: 'roles.0.tables.0.limit.rows.read' });
+  });
+
+  it('checks each reach of the list where it is written', () => {
+    expect(onDeals([own, { reach: 'own', while: { column: 'stage', in: ['open'] } }])).toContain('roles.0.limits.deals.rows.read.1.while.column: "deals" has no column "stage"');
+    expect(onDeals([{ reach: 'all', while: { column: 'state', in: ['gone'] } }, own])).toContain('roles.0.limits.deals.rows.read.0.while.in: "gone" is not a value of "deals.state"');
+    expect(onDeals([own, own])).toContain('roles.0.limits.deals.rows.read.1: this reach is written twice');
+    // A reach of every row with nothing to narrow it would make the others say nothing.
+    expect(onDeals([{ reach: 'all' }, own]).length).toBeGreaterThan(0);
+    // On a table that does not say whose its rows are, a reach of one's own is refused in a list as alone.
+    const crews = messages(manifest({ roles: [{ ...accounts, permissions: ['table:@crews:read'], limits: { crews: { rows: { read: [{ reach: 'all', while: { column: 'name', in: ['North'] } }, own] } } } }] }));
+    expect(crews).toContain('roles.0.limits.crews.rows.read.1.reach: "crews" does not say how people belong to its rows: give the table "belongs"');
+  });
+
+  it('is no way round a private table: its people\'s own rows, one reach', () => {
+    const role = (read: unknown) => ({ ...rep, limits: { ...rep.limits, one_to_ones: { rows: { read, update: own } } } });
+    expect(messages(manifest({ roles: [role([own])] })).filter((message) => message.includes('one_to_ones'))).toEqual([]);
+    expect(messages(manifest({ roles: [role([own, { reach: 'team' }])] }))).toContain('roles.0.limits.one_to_ones.rows.read: "one_to_ones" is private: the role\'s read reaches the person\'s own rows only ({ "reach": "own" })');
+  });
+
+  it('on an add-on’s table are each limited by a value', () => {
+    const named = { addOns: { requires: [{ key: 'invoices', range: '>=1.0.8', reason: { 'en-US': 'Prints quotes.' } }] } };
+    const grant = (read: unknown) => ({ ...accounts, tables: [{ addOn: 'invoices', table: 'invoices', actions: ['read'], limit: { rows: { read } } }] });
+    const said = (read: unknown) => messages(manifest({ roles: [grant(read)], extra: named })).filter((message) => message.startsWith('roles.0.tables'));
+    expect(said([{ reach: 'all', while: { column: 'status', in: ['sent'] } }, { reach: 'all', while: { column: 'status', in: ['paid'] } }])).toEqual([]);
+    expect(said([{ reach: 'all', while: { column: 'status', in: ['sent'] } }, own])).toEqual(['roles.0.tables.0.limit.rows.read.1.reach: an add-on\'s table does not say how people belong to its rows: limit it by a value ({ "reach": "all", "while": … })']);
+  });
+});
+
+describe('a listing that counts only while a column of it holds a value', () => {
+  const membersWith = (extra: Doc[]) => withTable('deal_members', (table) => ({ ...table, columns: [...(table['columns'] as Doc[]), ...extra] }));
+  const dealsListing = (when: unknown) => (table: Doc): Doc => ({ ...table, belongs: [{ column: 'owner_id', set: 'team' }, { through: { table: 'deal_members', link: 'deal_id', user: 'user_id', while: when } }] });
+  const said = (columns: Doc[], when: unknown) => {
+    const changed = membersWith(columns).map((table) => (table['ref'] === 'deals' ? dealsListing(when)(table) : table));
+    return messages(manifest({ tables: changed }));
+  };
+  const ended = { ref: 'ended_on', type: 'date', nullable: true };
+  const kind = { ref: 'kind', type: 'enum', enum: ['helper', 'following'] };
+
+  it('counts while the column is empty, or holds one of some values', () => {
+    expect(said([ended], { column: 'ended_on', isNull: true })).toEqual([]);
+    expect(said([kind], { column: 'kind', in: ['helper'] })).toEqual([]);
+  });
+
+  it('is a word of 0.3.28', () => {
+    const changed = membersWith([ended]).map((table) => (table['ref'] === 'deals' ? dealsListing({ column: 'ended_on', isNull: true })(table) : table));
+    expect(installFloorWords(manifest({ tables: changed }))).toContainEqual({ word: 'listing.while', path: 'requiredSchema.tables.0.belongs.1.through.while' });
+    expect(WORD_FLOORS['listing.while']).toBe('0.3.28');
+  });
+
+  it('names a column of the listing, values it holds, and a column that can be empty', () => {
+    expect(said([ended], { column: 'left_on', isNull: true })).toContain('requiredSchema.tables.0.belongs.1.through.while.column: "deal_members" has no column "left_on"');
+    expect(said([kind], { column: 'kind', in: ['boss'] })).toContain('requiredSchema.tables.0.belongs.1.through.while.in: "boss" is not a value of "deal_members.kind"');
+    expect(said([kind], { column: 'kind', isNull: true }).join('\n')).toMatch(/"deal_members\.kind" is never empty, so the listing would count never/);
+    expect(said([ended], { column: 'user_id', isNull: false }).join('\n')).toMatch(/not the person, nor the link/);
+    expect(said([ended], { column: 'ended_on', isNull: true, in: ['x'] })).not.toEqual([]);
+  });
+});
+
 describe('a screen anyone can walk up to (a staff-bound key)', () => {
   const floor = { key: 'floor', name: 'Shop floor', screensOnly: true, permissions: ['app:@:staff'] };
   const screen = (table: string) => manifest({

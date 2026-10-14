@@ -127,7 +127,10 @@ export default {
       "person": "the person in {column}",
       "listingDated": "anyone listed for it in {table} on the day",
       "listing": "anyone listed for it in {table}",
-      "parent": "whoever reaches its {table}"
+      "parent": "whoever reaches its {table}",
+      "whileIn": "while {column} is {values}",
+      "whileEmpty": "while {column} is empty",
+      "whileSet": "while {column} is filled in"
     },
     "follows": "Follows: {table}",
     "belongs": "A row belongs to {ways}.",
@@ -163,7 +166,8 @@ export default {
     "widened": "This role opens the table through a wider permission. Saving a limit also gives it this table by name.",
     "count": "{name} would see {reached} of {total}.",
     "capped": "This person leads more people than one reach holds, so not all of their team is counted.",
-    "lifted": "{name} also holds {roles}, which gives every row. This limit does not hold for them."
+    "lifted": "{name} also holds {roles}, which gives every row. This limit does not hold for them.",
+    "several": "Any one of these is enough. The app set them, and they are kept as it wrote them."
   },
   "partsOff": "Its part of the app is switched off: it gives nothing until that part is on.",
   "people": {

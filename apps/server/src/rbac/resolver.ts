@@ -126,8 +126,9 @@ export async function resolveForRoles(meta: MetaDb, roles: readonly Role[]): Pro
           if (read !== null && grant.endsWith(':read')) readLimited.push({ grant, limit: read });
           else readUnlimited.add(grant);
           for (const action of ROW_ACTIONS) {
-            const reach = rowReachOfRow(row, action);
-            if (reach !== null && grant.endsWith(`:${action}`)) rows[action].limited.push({ grant, reach });
+            const reaches = rowReachOfRow(row, action);
+            // Each reach of several its own entry: any one of them is enough, as any one role's is.
+            if (reaches !== null && grant.endsWith(`:${action}`)) rows[action].limited.push(...reaches.map((reach) => ({ grant, reach })));
             else rows[action].unlimited.add(grant);
           }
         }

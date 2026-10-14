@@ -23,7 +23,7 @@
  * Reads and writes the meta store only.
  */
 import { parseDatabaseModel } from '@adminium/engine';
-import { ledgersOf, type AddOnManifest, type Manifest } from '@adminium/manifest';
+import { ledgersOf, reachList, type AddOnManifest, type Manifest } from '@adminium/manifest';
 import { appTablesRepo, permissionsRepo, rolesRepo, settingsRepo, snapshotsRepo, type MetaDb, type ReadLimit, type TableActions, type UpdateLimit } from '@adminium/meta';
 
 import { roleSlugFor, SEEDED_APP_ROLE_GRANTS_KEY, storedRowLimit } from './manifest-roles.js';
@@ -174,7 +174,7 @@ export async function settleRoleTables(input: { meta: MetaDb; app: Manifest; con
       const written = ledgers.some((ledger) => Object.prototype.hasOwnProperty.call(ledger.writes ?? {}, entry.table));
       const actions = [...new Set(entry.actions)].filter((action) => !written || action === 'read');
       const limit = entry.limit;
-      const named = [...(limit?.readable ?? []), ...(limit?.writable ?? []), ...(limit?.creatable ?? []), ...Object.keys(limit?.writableValues ?? {}), ...Object.keys(limit?.writableFrom ?? {}), ...Object.keys(limit?.creatableValues ?? {}), ...Object.values(limit?.rows ?? {}).flatMap((reach) => (reach?.while === undefined ? [] : [reach.while.column]))];
+      const named = [...(limit?.readable ?? []), ...(limit?.writable ?? []), ...(limit?.creatable ?? []), ...Object.keys(limit?.writableValues ?? {}), ...Object.keys(limit?.writableFrom ?? {}), ...Object.keys(limit?.creatableValues ?? {}), ...Object.values(limit?.rows ?? {}).flatMap((written) => reachList(written).flatMap((reach) => (reach.while === undefined ? [] : [reach.while.column])))];
       const columns = new Set(shape.columns.map((column) => column.ref));
       // A grant is never written without its limit: a limit that names a column the table has not skips the whole entry.
       if (named.some((column) => !columns.has(column))) {

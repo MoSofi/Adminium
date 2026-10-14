@@ -52,6 +52,17 @@
  * yet, and `while` keeps only the rows whose column holds one of some values
  * now. Roles add up here too: someone whose other role reads the table with
  * no `rows` reads every row.
+ *
+ * An action may also name SEVERAL reaches, any one of which is enough: an
+ * account manager reads every won deal, and an open one only while he is
+ * listed on it —
+ *
+ * ```json
+ * "rows": { "read": [{ "reach": "all", "while": { "column": "state", "in": ["won"] } }, { "reach": "own" }] }
+ * ```
+ *
+ * Each reach is its own whole test (its `while` and its `by` hold for it
+ * alone), as two roles' reaches are.
  */
 import { z } from 'zod';
 
@@ -82,15 +93,34 @@ export type RowReach = z.infer<typeof rowReachSchema>;
 /** The actions a row limit narrows. A create makes a new row: it is held by the links and people it names. */
 export const ROW_LIMIT_ACTIONS = ['read', 'update', 'delete'] as const;
 
+/** The most reaches one action names. */
+export const ROW_REACHES_MAX = 4;
+
+/** One action's reach, or several of which any one is enough (every won deal, or an open one the person is listed on). */
+export const rowReachesSchema = z.union([rowReachSchema, z.array(rowReachSchema).min(1).max(ROW_REACHES_MAX)]);
+export type RowReaches = z.infer<typeof rowReachesSchema>;
+
+/** An action's reaches as a list, whether the manifest wrote one or several. */
+export function reachList(reaches: RowReaches | undefined): readonly RowReach[] {
+  return reaches === undefined ? [] : Array.isArray(reaches) ? reaches : [reaches as RowReach];
+}
+
 /** Which rows a role's read, update and delete reach, each on its own. */
 export const rowsLimitSchema = z
-  .object({ read: rowReachSchema.optional(), update: rowReachSchema.optional(), delete: rowReachSchema.optional() })
+  .object({ read: rowReachesSchema.optional(), update: rowReachesSchema.optional(), delete: rowReachesSchema.optional() })
   .strict()
   .refine((rows) => rows.read !== undefined || rows.update !== undefined || rows.delete !== undefined, { message: 'name the action whose rows are limited: read, update or delete' });
 export type RowsLimit = z.infer<typeof rowsLimitSchema>;
 
 /** Who a person who is limited to some rows may put in a staff column: themselves, someone they reach, or anyone. */
 export const STAFF_SET_RULES = ['self', 'team', 'anyone'] as const;
+
+/** What a listing row must hold to count: one of some values in a column, or a column empty (or not). */
+export const listingWhileSchema = z.union([
+  z.object({ column: refSchema, in: z.array(scalarSchema).min(1).max(32) }).strict(),
+  z.object({ column: refSchema, isNull: z.boolean() }).strict(),
+]);
+export type ListingWhile = z.infer<typeof listingWhileSchema>;
 
 /**
  * One way a person belongs to a row of the table:
@@ -100,8 +130,11 @@ export const STAFF_SET_RULES = ['self', 'team', 'anyone'] as const;
  *    ticket's agent, whose own row holds the staff member);
  *  - `through`: a table that lists people against the row — its `link` holds
  *    this row's key (or this row's `on` column), its `user` the staff member
- *    (or, with `person`, a link to the row that holds one), and `from` / `to`
- *    the days the listing counts on, both `date` columns (cover for a colleague on leave);
+ *    (or, with `person`, a link to the row that holds one), `from` / `to`
+ *    the days the listing counts on, both `date` columns (cover for a colleague on leave),
+ *    and `while` a column of the listing it counts only while it holds one of
+ *    some values, or while it is empty or not (`isNull`): a member row whose
+ *    `ended_at` is set lists nobody;
  *  - `via`: whoever belongs to the row this link points at (a quote's deal).
  */
 export const belongsWaySchema = z.union([
@@ -109,7 +142,7 @@ export const belongsWaySchema = z.union([
   z
     .object({
       through: z
-        .object({ table: refSchema, link: refSchema, on: refSchema.optional(), user: refSchema, person: refSchema.optional(), from: refSchema.optional(), to: refSchema.optional() })
+        .object({ table: refSchema, link: refSchema, on: refSchema.optional(), user: refSchema, person: refSchema.optional(), from: refSchema.optional(), to: refSchema.optional(), while: listingWhileSchema.optional() })
         .strict(),
     })
     .strict(),
@@ -235,27 +268,36 @@ export function roleLimitIssues<C extends ColumnShape>(roles: readonly RoleShape
         }
       }
       for (const action of ROW_LIMIT_ACTIONS) {
-        const reach = limit.rows?.[action];
-        if (reach === undefined) continue;
+        const written = limit.rows?.[action];
+        if (written === undefined) continue;
         if (!grants.has(`table:@${ref}:${action}`)) out.push({ path: at('rows', action), message: `the role does not grant table:@${ref}:${action}, so there is nothing to limit` });
-        if (reach.reach !== 'all' && rowTables?.belongs(ref) !== true) {
-          out.push({ path: at('rows', action, 'reach'), message: `"${ref}" does not say how people belong to its rows: give the table "belongs"` });
-        }
-        if (reach.unowned === true && rowTables?.belongs(ref) !== true) {
-          out.push({ path: at('rows', action, 'unowned'), message: `"${ref}" does not say how people belong to its rows, so none is unowned` });
-        }
-        if (reach.while !== undefined) {
-          const found = index.column(ref, reach.while.column);
-          if (found === undefined) out.push({ path: at('rows', action, 'while', 'column'), message: `"${ref}" has no column "${reach.while.column}"` });
-          else for (const value of reach.while.in) {
-            if (!valueFits(found, value)) out.push({ path: at('rows', action, 'while', 'in'), message: `${JSON.stringify(value)} is not a value of "${ref}.${reach.while.column}"` });
+        const several = Array.isArray(written);
+        const seen = new Set<string>();
+        reachList(written).forEach((reach, n) => {
+          // Where one reach of several is written: its place in the list.
+          const where = (...rest: string[]) => at('rows', action, ...(several ? [n] : []), ...rest);
+          const key = JSON.stringify(reach);
+          if (seen.has(key)) out.push({ path: where(), message: 'this reach is written twice' });
+          seen.add(key);
+          if (reach.reach !== 'all' && rowTables?.belongs(ref) !== true) {
+            out.push({ path: where('reach'), message: `"${ref}" does not say how people belong to its rows: give the table "belongs"` });
           }
-        }
-        if (reach.by !== undefined) {
-          const found = index.column(ref, reach.by);
-          if (found === undefined) out.push({ path: at('rows', action, 'by'), message: `"${ref}" has no column "${reach.by}"` });
-          else if ((found as { rules?: { staff?: boolean } }).rules?.staff !== true) out.push({ path: at('rows', action, 'by'), message: `"${ref}.${reach.by}" does not hold a staff member (rules.staff): \`by\` names the column that says who a row is by` });
-        }
+          if (reach.unowned === true && rowTables?.belongs(ref) !== true) {
+            out.push({ path: where('unowned'), message: `"${ref}" does not say how people belong to its rows, so none is unowned` });
+          }
+          if (reach.while !== undefined) {
+            const found = index.column(ref, reach.while.column);
+            if (found === undefined) out.push({ path: where('while', 'column'), message: `"${ref}" has no column "${reach.while.column}"` });
+            else for (const value of reach.while.in) {
+              if (!valueFits(found, value)) out.push({ path: where('while', 'in'), message: `${JSON.stringify(value)} is not a value of "${ref}.${reach.while.column}"` });
+            }
+          }
+          if (reach.by !== undefined) {
+            const found = index.column(ref, reach.by);
+            if (found === undefined) out.push({ path: where('by'), message: `"${ref}" has no column "${reach.by}"` });
+            else if ((found as { rules?: { staff?: boolean } }).rules?.staff !== true) out.push({ path: where('by'), message: `"${ref}.${reach.by}" does not hold a staff member (rules.staff): \`by\` names the column that says who a row is by` });
+          }
+        });
       }
     }
     // A private table: every action the role holds there reaches the person's own rows, and no others.
@@ -263,7 +305,8 @@ export function roleLimitIssues<C extends ColumnShape>(roles: readonly RoleShape
       const limit = role.cloneFrom === undefined ? role.limits?.[ref] : (role.limits?.[ref] ?? roles.find((other) => other.key === role.cloneFrom)?.limits?.[ref]);
       for (const action of ROW_LIMIT_ACTIONS) {
         if (!grants.has(`table:@${ref}:${action}`)) continue;
-        const reach = limit?.rows?.[action];
+        const written = limit?.rows?.[action];
+        const reach = Array.isArray(written) ? (written.length === 1 ? written[0] : undefined) : written;
         if (reach === undefined || reach.reach !== 'own' || reach.unowned !== undefined || reach.while !== undefined || reach.by !== undefined) {
           out.push({ path: ['roles', r, 'limits', ref, 'rows', action], message: `"${ref}" is private: the role's ${action} reaches the person's own rows only ({ "reach": "own" })` });
         }
@@ -369,6 +412,21 @@ export function belongsIssues<C extends ColumnShape>(tables: readonly BelongsTab
           if (found === undefined) out.push({ path: [...at, 'through', key], message: `"${through.table}" has no column "${ref}"` });
           else if (!DATES.includes(found.type)) out.push({ path: [...at, 'through', key], message: `"${through.table}.${ref}" is not a date` });
         }
+        // Counts only while a column of the listing holds some values, or is empty (or not).
+        const when = through.while;
+        if (when !== undefined) {
+          const found = index.column(through.table, when.column);
+          if (found === undefined) out.push({ path: [...at, 'through', 'while', 'column'], message: `"${through.table}" has no column "${when.column}"` });
+          else if ('in' in when) {
+            for (const value of when.in) {
+              if (!valueFits(found, value)) out.push({ path: [...at, 'through', 'while', 'in'], message: `${JSON.stringify(value)} is not a value of "${through.table}.${when.column}"` });
+            }
+          } else if (found.nullable !== true) {
+            // A column that is never empty: the listing would count always, or never.
+            out.push({ path: [...at, 'through', 'while', 'isNull'], message: `"${through.table}.${when.column}" is never empty, so the listing would count ${when.isNull ? 'never' : 'always'}: make it nullable, or name the values it counts for (in)` });
+          }
+          if (when.column === through.user || when.column === through.link) out.push({ path: [...at, 'through', 'while', 'column'], message: 'the listing counts while one of its other columns holds a value: not the person, nor the link' });
+        }
         return;
       }
       const parent = parentOf(table.ref, way.via);
@@ -446,12 +504,14 @@ export function roleAddOnTableIssues(roles: readonly { key: string; tables?: rea
         if (limit[key] !== undefined && !grant.actions.includes(action)) out.push({ path: at('limit', key), message: `the grant has no "${action}", so there is nothing for "${key}" to limit` });
       }
       for (const action of ROW_LIMIT_ACTIONS) {
-        const reach = limit.rows?.[action];
-        if (reach === undefined) continue;
+        const written = limit.rows?.[action];
+        if (written === undefined) continue;
         // An add-on's grant is read, create and update: its rows are never deleted through one.
         if (!(grant.actions as readonly string[]).includes(action)) out.push({ path: at('limit', 'rows', action), message: `the grant has no "${action}", so there is nothing for its rows to limit` });
         // An add-on's table does not say whose its rows are yet: its rows are limited by a value only.
-        if (reach.reach !== 'all' || reach.unowned !== undefined) out.push({ path: at('limit', 'rows', action, 'reach'), message: 'an add-on\'s table does not say how people belong to its rows: limit it by a value ({ "reach": "all", "while": … })' });
+        reachList(written).forEach((reach, n) => {
+          if (reach.reach !== 'all' || reach.unowned !== undefined) out.push({ path: at('limit', 'rows', action, ...(Array.isArray(written) ? [n] : []), 'reach'), message: 'an add-on\'s table does not say how people belong to its rows: limit it by a value ({ "reach": "all", "while": … })' });
+        });
       }
       for (const [values, columns] of [['writableValues', 'writable'], ['creatableValues', 'creatable']] as const) {
         for (const column of Object.keys(limit[values] ?? {})) {

@@ -26,11 +26,16 @@ table may use several (any one is enough):
 | Way | Says | For example |
 |---|---|---|
 | A **staff column** | "the person in Owner" | a deal's owner, a follow-up's owner |
-| A **listing** in another table, which may have dates | "anyone listed for this row" | helpers added to a deal; whoever covers a colleague between two dates |
+| A **listing** in another table, which may have dates, or count only while a column of it holds a value | "anyone listed for this row" | helpers added to a deal; whoever covers a colleague between two dates; a member of a deal until his row is ended |
 | **Its parent** | "whoever reaches its deal" | a quote, its lines, the notes on a deal |
 
 An app declares this in its manifest ([`belongs`](/reference/manifest/#whose-a-row-is)). A table
 that says nothing is everybody's who holds the table.
+
+A listing that counts **only while** a column of it holds a value (`while`) is judged when a row
+is read, on every door: the moment a member row's end is filled in, its person no longer reaches
+the deal by it, in lists, counts, search, figures, files and the rest. Clearing the end puts it
+back. Keeping the ended row, rather than deleting it, keeps who was on the deal and until when.
 
 A staff column names a person and nothing else. Its name may look like a link (`rep_id` in a
 database that also has a `reps` table), but Adminium never reads it as one unless a foreign key the
@@ -53,6 +58,10 @@ Two things to know:
   second role with a plain grant lifts it. The dialog says so for the person you try it as.
 - Two limited roles are not blended. Each is its own test, and a person reaches a row when any
   one role's whole test passes.
+- An app may give one role **several reaches** for an action, any one enough: an account manager
+  reads every won deal, and an open deal only while he is listed on it. They are held exactly as
+  two roles' reaches are. The dialog shows such an action in words and leaves it as the app
+  wrote it; **Try it as** counts it whole.
 
 Super Admin reaches every row and cannot be limited.
 
@@ -110,6 +119,13 @@ unasked the day a role is added. A file brought in by somebody nothing limits is
 A link that is refused is refused exactly as a link to a row that is not there. Only a link this
 write sets is asked about: one the row already holds is left alone. A file brought in is judged
 the same way, row by row. A table that says nothing of its rows is not judged: its key is a key.
+
+**A row hung under its parent is hung where the role's own reach of it reaches.** A table read
+through its parent (a deal's comments, its quotes) is judged by the reach the writer has of that
+table, not only by whether they read the parent. An account manager reads every won deal; his
+comments are reached through the deals he is on, so he comments on a deal he is on and on no
+other, won or not (refused with reason `parent-not-theirs`). A row that a staff column of its own
+names its writer in is theirs whatever its parent.
 
 When you design an app, give a role that must hang rows on a record a way to reach that record
 (a read with a limit, or a link through a row they do reach), or let a rule make the row.

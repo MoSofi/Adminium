@@ -150,8 +150,17 @@ export const rowReachSchema = z
   .strict();
 export type RowReach = z.infer<typeof rowReachSchema>;
 
+/** One action's reach, or several of which any one is enough (an app's account manager: every won deal, or an open one he is on). */
+export const rowReachesSchema = z.union([rowReachSchema, z.array(rowReachSchema).min(1).max(4)]);
+export type RowReaches = z.infer<typeof rowReachesSchema>;
+
+/** An action's reaches as a list, however it is stored: one, or several. */
+export function rowReachList(reaches: RowReaches | null | undefined): RowReach[] {
+  return reaches === undefined || reaches === null ? [] : Array.isArray(reaches) ? reaches : [reaches];
+}
+
 /** Which rows a grant's read, update and delete reach, each on its own; an action left out reaches every row. */
-export const rowLimitSchema = z.object({ read: rowReachSchema.optional(), update: rowReachSchema.optional(), delete: rowReachSchema.optional() }).strict();
+export const rowLimitSchema = z.object({ read: rowReachesSchema.optional(), update: rowReachesSchema.optional(), delete: rowReachesSchema.optional() }).strict();
 export type RowLimit = z.infer<typeof rowLimitSchema>;
 
 export const tableActionsSchema = z.object({
@@ -935,7 +944,22 @@ const storedBelongsWay = z.union([
   z
     .object({
       through: z
-        .object({ table: z.string().min(1), link: ruleColumn, on: ruleColumn.optional(), user: ruleColumn, person: ruleColumn.optional(), from: ruleColumn.optional(), to: ruleColumn.optional() })
+        .object({
+          table: z.string().min(1),
+          link: ruleColumn,
+          on: ruleColumn.optional(),
+          user: ruleColumn,
+          person: ruleColumn.optional(),
+          from: ruleColumn.optional(),
+          to: ruleColumn.optional(),
+          // Counts only while a column of the listing holds one of some values, or is empty (or not).
+          while: z
+            .union([
+              z.object({ column: ruleColumn, in: z.array(z.union([z.string(), z.number(), z.boolean()])).min(1).max(32) }).strict(),
+              z.object({ column: ruleColumn, isNull: z.boolean() }).strict(),
+            ])
+            .optional(),
+        })
         .strict(),
     })
     .strict(),

@@ -244,7 +244,7 @@ class Build {
     return this.exists(linked.table, inner, [sql<SqlBool>`${this.ref(inner, linked.key)} = ${this.ref(alias, column)}`, judge(this.ref(inner, person))]);
   }
 
-  /** The listing rows that count for this row today, as conditions on the listing's alias; null when the way cannot be read. */
+  /** The listing rows that count for this row today (and while their `while` column holds what it names), as conditions on the listing's alias; null when the way cannot be read. */
   listed(table: EffectiveTable, alias: string, way: Extract<BelongsWay, { through: unknown }>['through'], ids: readonly string[] | 'anybody'): { list: EffectiveTable; inner: string; conditions: Bool[]; on: string; own: Bool[] } | null {
     const list = this.table(way.table);
     const on = way.on ?? (table.primaryKey.length === 1 ? table.primaryKey[0] : undefined);
@@ -265,6 +265,14 @@ class Build {
       const between = sql<SqlBool>`(${this.ref(inner, column)} is null or ${this.ref(inner, column)} ${sign} ${this.ctx.today})`;
       conditions.push(between);
       own.push(between);
+    }
+    // …and only while a column of it holds what the way names: a member row whose end is set lists nobody.
+    if (way.while !== undefined) {
+      const holds = 'in' in way.while ? this.whilst(list, inner, way.while) : this.emptiness(list, inner, way.while.column, way.while.isNull);
+      // A column the listing no longer has: the way cannot be read, and reaches nobody.
+      if (holds === null) return null;
+      conditions.push(holds);
+      own.push(holds);
     }
     return { list, inner, conditions, on, own };
   }
@@ -320,11 +328,24 @@ class Build {
   }
 
   /**
+   * "The column is empty" (or, with `empty` false, "holds something"): text
+   * is empty in either of its two ways, as a staff column is. Null for a
+   * column the table has not.
+   */
+  emptiness(table: EffectiveTable, alias: string, column: string, empty: boolean): Bool | null {
+    const kind = this.kind(table, column);
+    if (kind === undefined) return null;
+    const ref = this.ref(alias, column);
+    const holds = TEXT_TYPES.has(kind) ? holdsSomeone(ref) : sql<SqlBool>`${ref} is not null`;
+    return empty ? not(holds) : holds;
+  }
+
+  /**
    * "The column holds one of these values now." A column the table has not,
    * or a value that is not the column's kind, is no match: text compared with
    * a number matches every row on one engine and none on another.
    */
-  whilst(table: EffectiveTable, alias: string, condition: NonNullable<RowReach['while']>): Bool {
+  whilst(table: EffectiveTable, alias: string, condition: { column: string; in: readonly (string | number | boolean)[] }): Bool {
     const kind = this.kind(table, condition.column);
     if (kind === undefined || condition.in.length === 0) return never();
     const dialect = this.ctx.model.dialect;
@@ -428,6 +449,32 @@ export function rowLimitFor(ctx: RowLimitContext, tableId: string, action: RowAc
     };
   }
   return test;
+}
+
+/**
+ * Every other table a row test of `tableId` reads to say whose a row is: the
+ * listings its ways go through, and the parents its links are followed to
+ * (with theirs). A figure kept for a while under the test is kept only until
+ * one of them is written to: a member row taken off, or ended, is an answer
+ * that no longer counts that deal, at once.
+ */
+export function rowTestTables(model: Pick<EffectiveModel, 'tables' | 'relations'>, tableId: string): string[] {
+  const out = new Set<string>();
+  const walk = (id: string, steps: number, seen: ReadonlySet<string>): void => {
+    const table = model.tables.find((candidate) => candidate.id === id);
+    for (const way of table?.belongs ?? []) {
+      if ('through' in way) out.add(way.through.table);
+      else if ('via' in way && steps < BELONGS_VIA_MAX_STEPS) {
+        const relation = model.relations.find((r) => r.through === null && r.from.tableId === id && r.from.columns.length === 1 && r.from.columns[0] === way.via && r.to.columns.length === 1);
+        if (relation === undefined || seen.has(relation.to.tableId)) continue;
+        out.add(relation.to.tableId);
+        walk(relation.to.tableId, steps + 1, new Set([...seen, id]));
+      }
+    }
+  };
+  walk(tableId, 0, new Set());
+  out.delete(tableId);
+  return [...out];
 }
 
 /** Whether this person is held to some rows of the table for the action. */

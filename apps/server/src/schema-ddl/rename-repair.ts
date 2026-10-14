@@ -307,6 +307,12 @@ export function renamedInListing(value: unknown, table: string, from: string, to
         changed = true;
       }
     }
+    // …and the column the listing counts only while it holds some values.
+    const when = next['while'] as Record<string, unknown> | undefined;
+    if (when !== undefined && when['column'] === from) {
+      next['while'] = { ...when, column: to };
+      changed = true;
+    }
     return { ...way, through: next };
   });
   return changed ? { ...rule, ways } : value;

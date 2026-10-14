@@ -20,9 +20,11 @@
  * TWO LIMITED ROLES are never blended. Each role's reach is its own test, and
  * the person reaches a row when any ONE role's whole test passes: a role that
  * reaches the team's rows while they are open, and another that reaches the
- * person's own rows always, do not add up to "the team's rows always".
+ * person's own rows always, do not add up to "the team's rows always". ONE
+ * role may name several reaches for an action, and they are held the same
+ * way: each its own whole test, any one enough.
  */
-import type { RolePermission, RowReach, TableActions } from '@adminium/meta';
+import { rowReachList, type RolePermission, type RowReach, type TableActions } from '@adminium/meta';
 
 import { grantMatches, isGranted } from './permissions.js';
 
@@ -69,11 +71,18 @@ export interface RowReachOf {
   capped?: true;
 }
 
-/** How far one matrix row's `action` reaches, when the row grants it with a limit. */
-export function rowReachOfRow(row: RolePermission, action: RowAction): RowReach | null {
+/**
+ * How far one matrix row's `action` reaches, when the row grants it with a
+ * limit: one reach, or several of which any one is enough (an account
+ * manager's every won deal, and an open one he is listed on). Null when the
+ * row grants it plainly, or not at all.
+ */
+export function rowReachOfRow(row: RolePermission, action: RowAction): readonly RowReach[] | null {
   if (row.resourceKind !== 'table') return null;
   const actions = row.actions as TableActions;
-  return actions[action] === true ? (actions.rowLimit?.[action] ?? null) : null;
+  if (actions[action] !== true) return null;
+  const reaches = rowReachList(actions.rowLimit?.[action]);
+  return reaches.length === 0 ? null : reaches;
 }
 
 /**
