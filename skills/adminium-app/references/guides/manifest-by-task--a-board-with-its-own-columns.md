@@ -62,7 +62,7 @@ owner, an amount and a day it should close. Say which columns those are, and the
 Each heading then reads "Proposal 50%", its count, and the two totals. Each card shows the
 company's name, the owner as a person, the amount, how many days the deal has been in its stage
 (amber from 14, red from 30) and the day it should close. Keep the weighted value as a
-[formula](https://docs.adminium.dev/reference/manifest/#formula) column of the deal, so the server can add it up. Every
+[formula](https://docs.adminium.dev/reference/manifest/#formulas) column of the deal, so the server can add it up. Every
 figure and every name is the reader's own: a rep held to their own deals sees their own counts and
 totals, and a company or a person they may not be shown is left blank. The rules are under
 [Pages](https://docs.adminium.dev/reference/manifest/#pages).

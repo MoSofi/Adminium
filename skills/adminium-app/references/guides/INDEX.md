@@ -9,7 +9,7 @@
 | `references/guides/manifest-by-task--link-two-tables.md` | Link two tables | 2757 |
 | `references/guides/manifest-by-task--a-choice-column.md` | A choice column | 1243 |
 | `references/guides/manifest-by-task--add-a-dashboard-page.md` | Add a dashboard page | 3201 |
-| `references/guides/manifest-by-task--a-board-with-its-own-columns.md` | A board with its own columns | 5350 |
+| `references/guides/manifest-by-task--a-board-with-its-own-columns.md` | A board with its own columns | 5351 |
 | `references/guides/manifest-by-task--buttons-on-a-record-page.md` | Buttons on a record page | 1587 |
 | `references/guides/manifest-by-task--add-a-role.md` | Add a role | 2153 |
 | `references/guides/manifest-by-task--let-customers-read-or-add.md` | Let customers read or add | 2783 |
