@@ -1,5 +1,80 @@
 # @adminium/desktop
 
+## 0.3.28
+
+### Patch Changes
+
+- 96d2faf: The map is drawn by MapLibre from the install's map server, in the light or dark style, and Leaflet and the CARTO tiles are gone: the server's address reaches a signed-in page with the session and is written nowhere in the build. A map is never a blank frame: when the map server cannot be reached the list of places is shown under "The map could not be reached. Here is the list.", and with maps switched off (Settings → Maps, the operator, or the desktop app) the list is shown under "Maps are switched off", with no map code fetched and nothing asked outside. `MapView` also draws pins known only by their town (hollow, "by town", spread in a ring when several share one), a pin dragged to the exact spot (`onPlace`), areas and the drawing of one (`areas`, `onAreaChange`), and a route with each leg's length (`route`, `units`: "about" for a straight line, "unknown" where there is none). A record's place column gets a field of its own (type a town, paste coordinates or a map link, "Where I am", or drag the pin) and an area column the drawing of the shape; a list shows a place by its name and an area by its point count. Settings → Maps has the two switches and says which server learns what.
+- Updated dependencies [d8cf1b2]
+- Updated dependencies [d50a6e3]
+- Updated dependencies [ef21cc2]
+- Updated dependencies [d8cf1b2]
+- Updated dependencies [96d2faf]
+- Updated dependencies [e9c44aa]
+- Updated dependencies [68829fc]
+- Updated dependencies [d50a6e3]
+- Updated dependencies [e7b4e1a]
+- Updated dependencies [4a587ff]
+- Updated dependencies [d50a6e3]
+- Updated dependencies [68829fc]
+- Updated dependencies [1f79d90]
+- Updated dependencies [3733d1f]
+- Updated dependencies [e54570c]
+- Updated dependencies [4e7ebd4]
+- Updated dependencies [96d2faf]
+- Updated dependencies [33e06bb]
+- Updated dependencies [c29f6e6]
+- Updated dependencies [655a465]
+- Updated dependencies [c29f6e6]
+- Updated dependencies [8bc1e22]
+- Updated dependencies [643da19]
+- Updated dependencies [a420ab7]
+- Updated dependencies [c5fd399]
+- Updated dependencies [ba19440]
+- Updated dependencies [6091993]
+- Updated dependencies [3afa60e]
+- Updated dependencies [723027b]
+- Updated dependencies [96d2faf]
+- Updated dependencies [d8cf1b2]
+- Updated dependencies [1974f03]
+- Updated dependencies [66579fe]
+- Updated dependencies [d8cf1b2]
+- Updated dependencies [caa5f1c]
+- Updated dependencies [d6b1b5f]
+- Updated dependencies [64ab81f]
+- Updated dependencies [79940bf]
+- Updated dependencies [bbd6da0]
+- Updated dependencies [65298e7]
+- Updated dependencies [89b06de]
+- Updated dependencies [723027b]
+- Updated dependencies [e514388]
+- Updated dependencies [64ab81f]
+- Updated dependencies [dba5e78]
+- Updated dependencies [64ab81f]
+- Updated dependencies [68829fc]
+- Updated dependencies [409246f]
+- Updated dependencies [3a89ed0]
+- Updated dependencies [be202a2]
+- Updated dependencies [4a587ff]
+- Updated dependencies [6a447d1]
+- Updated dependencies [88b2baf]
+- Updated dependencies [d50a6e3]
+- Updated dependencies [036d404]
+- Updated dependencies [d396106]
+- Updated dependencies [f6ad6ad]
+- Updated dependencies [dba5e78]
+- Updated dependencies [38a6381]
+- Updated dependencies [e54570c]
+- Updated dependencies [10ecd5c]
+- Updated dependencies [64ab81f]
+- Updated dependencies [96d2faf]
+- Updated dependencies [1408627]
+- Updated dependencies [dba5e78]
+  - @adminium/server@0.3.28
+  - @adminium/adapter-mysql@0.3.28
+  - @adminium/adapter-postgres@0.3.28
+  - @adminium/adapter-sqlite@0.3.28
+
 ## 0.3.27
 
 ### Patch Changes

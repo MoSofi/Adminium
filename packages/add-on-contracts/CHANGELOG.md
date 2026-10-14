@@ -1,5 +1,13 @@
 # @adminium/add-on-contracts
 
+## 0.3.28
+
+### Patch Changes
+
+- 96d2faf: Maps come from a map server the operator names (OpenFreeMap by default, `ADMINIUM_MAP_SERVER`), and the page's security policy names it only while maps are on: Settings → Maps, the desktop app and `ADMINIUM_MAP_SERVER=off` each switch them off, and then no outside server is named at all. A column can hold a place (`{ lat, lng, by }`, where a town's position is always the server's own) or an area (a GeoJSON polygon). Towns are found by name from a list of 170,000 places that ships with the server, with no site asked. The way between stops is straight-line estimates until routes along roads are switched on, and a leg inside one town is unknown, never zero.
+- 64ab81f: The project UI kit (`@adminiumjs/adminium/ui`) gains four parts: `TextArea`, and three that are loaded when first drawn — `Board` (cards in columns, moved by drag or by the keyboard, put back when the save fails), `ImportWizard` (the import wizard for one table) and `MapView` (pins with a list beside them).
+- 64ab81f: A text column can be marked for mentions: its box offers the people who sign in after an @, and each person newly named is told who mentioned them and on which record, never what was written.
+
 ## 0.3.27
 
 ## 0.3.26

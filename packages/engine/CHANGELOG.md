@@ -1,5 +1,28 @@
 # @adminium/engine
 
+## 0.3.28
+
+### Patch Changes
+
+- 96d2faf: A board page can take its columns from a table. `config.board` on a `page-board` names the column a card is placed by and, with `columnsFrom`, the table whose rows are the board's columns: every row of it in its own order, a row with no card too, so a team adds, renames and reorders its stages with no update of the app. Without `columnsFrom` the column is an enum of the app's choosing, whatever its values. Each column's header shows the count the server made of its cards, and up to two `totals` (a sum or an average of a number or money column, money in the install's currency), over the rows the person may read; the count is no longer the number of cards listed, which stops at 200. A drop that is refused puts the card back and now says why, on the board and aloud, in the server's words: on every board, an enum board included. A link that holds a number places its card (it landed on no column before). The kit's `Board` takes a `count` and a `total` for a column and shows a rejected move's message, and `useRecords` takes `measures` to read such counts and sums with the rows. A board may be of some of its table's rows: `config.board.only` names one to three columns and the value, or the values, each must hold (`"only": { "state": "open" }` is a pipeline of the open deals), and the cards listed and each column's count and totals are of those rows alike. For that a read-time measure (`compute`) takes a `where`, up to three `{ column, in: [values] }` on the table it folds, all of which must hold; a measure whose `where` names a column the reader may not read answers `null` with the `_masked` marker, as a measure over a table they may not read does. The kit's `useRecords` measures take the same `where`. Needs Adminium 0.3.28.
+- 33e06bb: A board page says more. Its page's `config.board` may give each heading a badge read from the column's own row (`columnsFrom.badge`: a stage's odds), a card the name of a linked row, a person by name, an amount, the days since a date as the server counts them and a day (`card`), and the board one sentence above its columns (`note`). A heading with two totals shows both in full. A chart grouped by a staff column, and a list that asks (`people`), call a person by name and never by id, by the people list's rule; somebody it does not name is "Unnamed person". A dashboard card may be a whole team's figures (`"kind": "team-figures"`): counts and sums a person, a target and its cover, answered only to somebody no row limit holds on the tables it reads; anybody else is told the figure is the whole team's and is shown none.
+- 96d2faf: The map is drawn by MapLibre from the install's map server, in the light or dark style, and Leaflet and the CARTO tiles are gone: the server's address reaches a signed-in page with the session and is written nowhere in the build. A map is never a blank frame: when the map server cannot be reached the list of places is shown under "The map could not be reached. Here is the list.", and with maps switched off (Settings → Maps, the operator, or the desktop app) the list is shown under "Maps are switched off", with no map code fetched and nothing asked outside. `MapView` also draws pins known only by their town (hollow, "by town", spread in a ring when several share one), a pin dragged to the exact spot (`onPlace`), areas and the drawing of one (`areas`, `onAreaChange`), and a route with each leg's length (`route`, `units`: "about" for a straight line, "unknown" where there is none). A record's place column gets a field of its own (type a town, paste coordinates or a map link, "Where I am", or drag the pin) and an area column the drawing of the shape; a list shows a place by its name and an area by its point count. Settings → Maps has the two switches and says which server learns what.
+- Updated dependencies [96d2faf]
+- Updated dependencies [96d2faf]
+- Updated dependencies [33e06bb]
+- Updated dependencies [c29f6e6]
+- Updated dependencies [c29f6e6]
+- Updated dependencies [0c63050]
+- Updated dependencies [d6b1b5f]
+- Updated dependencies [64ab81f]
+- Updated dependencies [79940bf]
+- Updated dependencies [64ab81f]
+- Updated dependencies [6a447d1]
+- Updated dependencies [64ab81f]
+- Updated dependencies [96d2faf]
+- Updated dependencies [5b917c8]
+  - @adminium/widgets@0.3.28
+
 ## 0.3.27
 
 ### Patch Changes
