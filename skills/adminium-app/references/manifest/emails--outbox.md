@@ -72,10 +72,5 @@ approval (`hold: true`) cannot be sent from a link at all. Then exactly one of:
 | `onCreate` | `{ "table", "via"?, "where"? }` | When a row of the table is created. |
 | `onChange` | `{ "table", "via"?, "column", "to", "where"? }` | When the column changes to `to`, a value or a list of 1–16 values. |
 | `onChange` | `{ "table", "via"?, "columns", "changed": true, "where"? }` | When any of 1–8 columns changes, compared with the row as it was stored (a stay's dates, whatever they became). Numbers compare as numbers and dates by day. |
+| `onDelete` | `{ "table", "where"? }` | When a row of the table is removed, by anyone: one message for each removal, written once the row is gone. See [A row that is removed](https://docs.adminium.dev/reference/manifest/#a-row-that-is-removed). Needs Adminium 0.3.28. |
 | `before` | `{ "table", "at", "lead", "where"? }` | A lead time before `at`, a `timestamptz` of the row: a reminder. `lead.at` (`"HH:MM"`) sends it at that wall time on the venue's day the lead reaches: 24 hours before a 20:00 show, at 09:00, is 09:00 the day before. |
-
-With `via`, the source is a **child** row and the message is about the row its foreign key `via`
-points at: a version posted to a deliverable makes a message linked to the deliverable, and
-addressed through it. `link` then points at that parent's table.
-
-A producer may also say:

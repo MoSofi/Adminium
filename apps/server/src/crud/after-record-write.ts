@@ -55,6 +55,7 @@ import type { ResolvedTable } from './identifiers.js';
 import { keptImages, type Row } from './mask.js';
 import { occurredAtOf } from './occurred-at.js';
 import type { FileReconciler } from '../files/reconcile.js';
+import type { ReleasedLink } from '../outbox/release.js';
 import { publishWidgetDataStream } from '../widget-data/stream-publisher.js';
 import type { WidgetDataCache } from '../widget-data/cache.js';
 
@@ -111,6 +112,8 @@ export interface AutomationDispatcher {
 /** What queues an installed app's emails from its writes; decorated by compose. */
 export interface OutboxDispatcher {
   onRecordEvent(event: RecordWriteEvent): Promise<void>;
+  /** The outbox links that let go of a table's rows as they are removed (`outbox/release.ts`). */
+  releasing?(connectionId: string, tableId: string): Promise<readonly ReleasedLink[]>;
 }
 
 /**

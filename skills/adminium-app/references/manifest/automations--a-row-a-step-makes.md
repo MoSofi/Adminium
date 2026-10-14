@@ -37,3 +37,7 @@ add-ons" or "From your apps". The owner may switch it, test it and copy it; a sh
 is never edited or deleted there (`409` `AUTOMATION_MANAGED`). An update rewrites a rule nobody
 changed, keeping the owner's switch, and removes one the new version no longer ships. While its
 add-on is switched off a rule is skipped. Uninstalling removes the shipped rules.
+
+Whether each of an app's own rules is switched on can be read by the app's own people, for a
+screen that depends on one: see
+[Whether a rule is switched on](https://docs.adminium.dev/guides/apps/building-a-side/#whether-a-rule-is-switched-on).

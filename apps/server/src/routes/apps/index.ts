@@ -86,7 +86,7 @@ import { addOnsHereFor, asInstalledHere, partsLeftOut, planModulesOf, tickedByDe
 import { surfacesOfInstalled } from '../../apps/installed.js';
 import { refusalReason, uploadRefusalMessage } from '../../add-ons/upload-refusal.js';
 import { audited, auditExempt } from '../../audit/coverage.js';
-import { AppError, ConflictError, NotFoundError, ValidationFailedError } from '../../errors.js';
+import { AppError, ConflictError, ForbiddenError, NotFoundError, ValidationFailedError } from '../../errors.js';
 import {
   appEntryFromCache,
   APP_CATALOG_REFRESH_KIND,
@@ -131,6 +131,7 @@ import {
   appPartOpenReply,
   appPartParams,
   appPartsReply,
+  appRulesReply,
   appListReply,
   discardStagedAppReply,
   downloadAppBody,
@@ -1790,6 +1791,56 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
           rules: (await automationsRepo(deps.meta).listManagedBy(key, connectionId)).filter((rule) => rule.enabled && rule.module === module.id).length,
           pages: (document.pages ?? []).filter((page) => page.module === module.id).length,
           stranded,
+        };
+      },
+    );
+
+    /*
+     * THE APP'S OWN RULES, EACH ON OR OFF, for the app's own people.
+     *
+     * A screen of the app that depends on a rule ("the owner is told when a
+     * deal sits too long") has to say whether that rule runs, and switching a
+     * rule is the work of somebody who manages rules, which no role of an app
+     * does. So anybody who may open the app's staff side (`app:<key>:staff`)
+     * reads this much, and no more: for each rule THE INSTALLED MANIFEST ships,
+     * its key, its name in the reader's language, and whether it is on.
+     *
+     * Not listed: a rule somebody made by hand (it is no rule of the app's,
+     * whatever table it watches), another app's or an add-on's, a rule of a
+     * part that is switched off, and a rule of a stage that is not installed
+     * (the installed manifest does not ship it). A shipped rule that is not
+     * there (the rules page never removes one; a restore may) is listed as
+     * off: it does not run. The name is the manifest's own, never one
+     * somebody typed since.
+     */
+    app.get(
+      '/apps/:key/rules',
+      {
+        onRequest: app.requireAuth,
+        schema: { params: appKeyParams, response: { 200: appRulesReply } },
+      },
+      async (request) => {
+        const key = request.params.key;
+        // Asked first, and of the key as typed: somebody with no grant learns nothing of the app, not even whether it is installed.
+        if (typeof request.can !== 'function' || !(await request.can(`app:${key}:staff` as never))) {
+          throw new ForbiddenError('This account cannot open this app’s staff screens.', 'FORBIDDEN', { reason: 'NO_STAFF_ACCESS', appKey: key });
+        }
+        const row = await installedRow(key);
+        if (row.row.status !== 'installed') throw new NotFoundError(`"${key}" is not installed.`);
+        const document = (row.document as Manifest | null) ?? null;
+        const shipped = document?.kind === 'app' ? (document.automations ?? []) : [];
+        if (shipped.length === 0) return { rules: [] };
+        const locale = await readerLocale(request);
+        const parts = (await loadAppParts(deps.meta, [key])).get(key);
+        const stored = new Map((await automationsRepo(deps.meta).listManagedBy(key, row.row.connectionId)).map((rule) => [rule.templateKey, rule] as const));
+        return {
+          rules: shipped
+            .filter((rule) => rule.module === undefined || parts === undefined || !parts.off.has(rule.module))
+            .map((rule) => ({
+              key: rule.key,
+              name: typeof rule.name === 'string' ? rule.name : (pickLabel(rule.name, locale) ?? rule.key),
+              on: stored.get(rule.key)?.enabled === true,
+            })),
         };
       },
     );

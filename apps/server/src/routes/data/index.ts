@@ -133,6 +133,7 @@ import { withSeenState } from '../../crud/seen-state.js';
 import { recordActionRoutes } from './actions.js';
 import { priceTryRoutes } from './adjust-try.js';
 import { moveBackOf, undoRolesOf } from '../../crud/undo-moves.js';
+import type { ReleasedLink } from '../../outbox/release.js';
 import { publishWidgetDataStream } from '../../widget-data/stream-publisher.js';
 import { parseJsonColumn } from '../audit/index.js';
 import { cursorText } from '../../security/nul-bytes.js';
@@ -458,6 +459,9 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
   /** The caller's context of a request whose reads are limited: its refusals leave out what they may not read. */
   const readersOf = new WeakMap<FastifyRequest, DataContext>();
   return async (app) => {
+    /** The outbox links that let go of a table's rows as they are removed: a message never stops its row from going (`outbox/release.ts`). */
+    const releasedFor = async (connectionId: string, tableId: string): Promise<readonly ReleasedLink[]> =>
+      app.hasDecorator('outbox') ? ((await app.outbox.releasing?.(connectionId, tableId)) ?? []) : [];
     /*
      * A write judges the row whole, and its refusal repeats some of what it
      * judged (a strict row's stamps, a pool's key, a balance). A caller whose
@@ -1160,7 +1164,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
           throw new ValidationFailedError('Some values were refused.', { fields: prepared.issues, relation: child.relationId });
         }
         try {
-          await deleteRows(db, child.child, key, undefined, prepared === undefined ? undefined : { dialect: ctx.dialect, prepared: prepared.values });
+          await deleteRows(db, child.child, key, undefined, prepared === undefined ? undefined : { dialect: ctx.dialect, prepared: prepared.values }, await releasedFor(ctx.connectionId, child.child.id));
         } catch (error) {
           mapDbError(error, child.child);
         }
@@ -2066,7 +2070,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
           await still(key, children.addedRows?.[i]);
           const record = children.addedRows?.[i] ?? (await fetchByPk(db, child, key));
           await judge('delete', { match: key, values: {}, record: children.addedRows?.[i] });
-          await deleteRows(db, child, key);
+          await deleteRows(db, child, key, undefined, undefined, await releasedFor(target.connectionId, child.id));
           if (record !== undefined) gone.push({ record, before: null });
         }
         for (const row of children.removed) {
@@ -2179,7 +2183,8 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
           // …and the child rows for the same reason, before the parent they
           // point at is gone.
           await undoChildren(tdb, target, entry, context, conflict, moved);
-          await deleteRows(tdb, table, pk);
+          // A message already written about the row made by mistake lets go of it, as of any row that goes.
+          await deleteRows(tdb, table, pk, undefined, undefined, await releasedFor(target.connectionId, table.id));
           restored.push(pkLabel(table, pk));
           written.push({ pk, before: null, record: current });
         }
@@ -2345,6 +2350,8 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
          * inside the transaction, where a row given away meanwhile joins them.
          */
         const out = new Set<number>();
+        // The messages that name a removed row let go of it as it goes.
+        const released = action === 'delete' ? await releasedFor(ctx.connectionId, ctx.table.id) : [];
         if (ctx.rows !== null) {
           for (const [i, pk] of pks.entries()) {
             const stored = await startRow(ctx, pk, action);
@@ -2355,7 +2362,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
             // What the batch names, judged for each row before a hook reads anything through it; named by the row it was refused for.
             try {
               if (values !== null) await judgeWrite(ctx, ctx.table.id, values, stored);
-              else await assertNoUnreachedChildren(ctx.rows, ctx.db, ctx.table.id, stored);
+              else await assertNoUnreachedChildren(ctx.rows, ctx.db, ctx.table.id, stored, released);
             } catch (error) {
               if (!(error instanceof AppError)) throw error;
               throw new AppError(error.statusCode, error.code, error.message, { ...(error.details as object), id: request.body.ids[i] });
@@ -2429,13 +2436,13 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
               if (action === 'update') assertMovedFrom(limit, ctx.table.id, before, values ?? undefined);
               // …nor a person or a row it may not name, nor a delete that would take rows out of the caller's sight with it.
               if (action === 'update') await judgeWrite(ctx, ctx.table.id, values ?? {}, before, undefined, tdb);
-              else await assertNoUnreachedChildren(ctx.rows, tdb, ctx.table.id, before);
+              else await assertNoUnreachedChildren(ctx.rows, tdb, ctx.table.id, before, released);
             } catch (error) {
               throw new AppError((error as AppError).statusCode, (error as AppError).code, (error as AppError).message, { ...((error as AppError).details as object), id });
             }
             try {
               if (action === 'delete') {
-                await deleteRows(tdb, ctx.table, pk, undefined, { dialect: ctx.dialect, prepared: prepared[i]!.values });
+                await deleteRows(tdb, ctx.table, pk, undefined, { dialect: ctx.dialect, prepared: prepared[i]!.values }, released);
                 beforeImages.push(before);
                 events.push({ pk, before, after: null });
               } else {
@@ -3882,7 +3889,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         if (refused !== null) throw refused;
         // Rows the caller cannot see still hang off it: not theirs to carry away, and not counted for them either — asked before
         // anything is counted, so a try and a delete answer alike.
-        await assertNoUnreachedChildren(ctx.rows, ctx.db, ctx.table.id, before);
+        await assertNoUnreachedChildren(ctx.rows, ctx.db, ctx.table.id, before, await releasedFor(ctx.connectionId, ctx.table.id));
         const references: ReferenceCount[] = await referenceCounts(ctx.db, ctx.view, ctx.table, pk, readerOf(request, ctx));
         const inbound = references.reduce((sum, r) => sum + r.count, 0);
         if (request.query.dryRun === true) {

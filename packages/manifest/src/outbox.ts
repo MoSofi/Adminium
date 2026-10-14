@@ -10,8 +10,8 @@
  * a kind already there for the same source is what stops a second send.
  *
  * Producers queue rows by themselves: when a row is created, when a column
- * changes to a value, or a lead time before a timestamp (a reminder at the
- * time each patient chose).
+ * changes to a value, when a row is removed, or a lead time before a timestamp
+ * (a reminder at the time each patient chose).
  *
  * Templates are stored with the app as their owner. An operator who edits
  * one keeps the edit across the app's updates.
@@ -183,7 +183,9 @@ const producerBase = {
    * The columns of the changed row as they were before the change (a stay's
    * old dates, its old total), kept on the message in the outbox's `was`
    * column and read by its template as `{{was.<column>}}`, in every form the
-   * column has. On a producer that listens for changes (`onChange`).
+   * column has. On a producer that listens for changes (`onChange`), and on
+   * one that listens for a removal (`onDelete`): there they are the removed
+   * row's own values, all a message can still say of it.
    */
   was: z.array(refSchema).min(1).max(8).optional(),
   /**
@@ -232,6 +234,21 @@ export const outboxProducerSchema = z.union([
           })
           .strict(),
       ]),
+    })
+    .strict(),
+  z
+    .object({
+      ...producerBase,
+      /**
+       * A row of the table was removed, by anyone: one message for it, written
+       * once it is gone. Its `link` is the outbox's link to that table, and is
+       * EMPTY on this message (there is no row to name); what the template
+       * says of the row it reads from `was`. `where` is judged on the row as
+       * it was. Every other message that named the row through that link
+       * loses the link as the row goes, and one still waiting is skipped: a
+       * message never stops the row it is about from being removed.
+       */
+      onDelete: z.object({ table: refSchema, where: conditionSchema.optional() }).strict(),
     })
     .strict(),
   z
@@ -458,6 +475,18 @@ export type EmailTemplate = z.infer<typeof emailTemplateSchema>;
 const DECIDING_RULES = ['copy', 'default', 'sequence', 'format', 'code', 'rollup', 'formula', 'stamp', 'perNight'] as const;
 /** The column rules that refuse a value: Adminium's own writes to the column would be refused by them. */
 const REFUSING_RULES = ['options', 'validation', 'required', 'requiredWhen', 'notAfter', 'notBefore'] as const;
+/**
+ * What a producer of a removal (`onDelete`) does not take: each reads the row
+ * again after the message is written (to date it, drop it, overtake it, hold
+ * it for a person, change it, or find who a reply goes to), and the row is gone.
+ */
+export const NOT_ON_REMOVAL = ['hold', 'due', 'batchMinutes', 'holdSeconds', 'dropWhen', 'supersede', 'repeatBy', 'onSent', 'replyTo'] as const;
+
+/** The table whose rows' removal a producer announces, or undefined for any other producer. */
+export function removalTableOf(producer: OutboxProducer): string | undefined {
+  return 'onDelete' in producer ? producer.onDelete.table : undefined;
+}
+
 /** How long a `repeatKey` is: a SHA-256 digest in base64url. */
 export const REPEAT_KEY_LENGTH = 43;
 /** The fewest characters a bounded `was` column holds: the columns a message keeps, as they were. */
@@ -765,13 +794,25 @@ export function outboxIssues(
     if (producer.optIn === true && r.optIn === undefined) {
       out.push({ path: here('optIn'), message: 'the recipient names no opt-in column' });
     }
-    const source = 'onCreate' in producer ? producer.onCreate : 'onChange' in producer ? producer.onChange : producer.before;
+    const source = 'onCreate' in producer ? producer.onCreate : 'onChange' in producer ? producer.onChange : 'onDelete' in producer ? producer.onDelete : producer.before;
     if (index.table(source.table) === undefined) {
       out.push({ path: here(), message: `"${source.table}" is not a table of this app` });
       return;
     }
+    // A removed row is read once, as it goes: nothing that reads it again later.
+    if ('onDelete' in producer) {
+      for (const word of NOT_ON_REMOVAL) {
+        if (producer[word] !== undefined) out.push({ path: here(word), message: `a message about a removed row takes no ${word}: the row is gone once the message is written, and ${word} reads it again` });
+      }
+      if (source.table === box.table) out.push({ path: here('onDelete', 'table'), message: 'the outbox does not write a message about one of its own messages being removed' });
+      // A message about the row that had not gone yet is skipped as the row goes: the reason column takes that reason.
+      const reason = box.columns.skipReason === undefined ? undefined : index.column(box.table, box.columns.skipReason);
+      if (reason?.type === 'enum' && !(reason.enum ?? []).includes('no-longer-needed')) {
+        out.push({ path: at('columns', 'skipReason'), message: `a message still waiting when its row is removed is skipped as "no-longer-needed", so "${box.table}.${reason.ref}" offers it` });
+      }
+    }
     // A child source links the row its foreign key points at.
-    const via = 'via' in source ? source.via : undefined;
+    const via = 'onCreate' in producer ? producer.onCreate.via : 'onChange' in producer ? producer.onChange.via : undefined;
     let linked = source.table;
     if (via !== undefined) {
       const found = fk(source.table, via, undefined, here('via'));
@@ -907,9 +948,9 @@ export function outboxIssues(
     }
     // The changed row's columns as they were: kept on the message, read as {{was.<column>}}.
     if (producer.was !== undefined) {
-      if (!('onChange' in producer)) out.push({ path: here('was'), message: 'a message keeps what a row was before a change on a producer that listens for changes (onChange)' });
+      if (!('onChange' in producer) && !('onDelete' in producer)) out.push({ path: here('was'), message: 'a message keeps what a row was on a producer that listens for changes (onChange) or for a removal (onDelete)' });
       else {
-        const table = producer.onChange.table;
+        const table = 'onChange' in producer ? producer.onChange.table : producer.onDelete.table;
         producer.was.forEach((column, c) => {
           const found = col(table, column, null, here('was', c), '');
           if (producer.was!.indexOf(column) !== c) out.push({ path: here('was', c), message: `"${column}" is listed twice` });

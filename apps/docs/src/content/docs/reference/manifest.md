@@ -2955,11 +2955,48 @@ approval (`hold: true`) cannot be sent from a link at all. Then exactly one of:
 | `onCreate` | `{ "table", "via"?, "where"? }` | When a row of the table is created. |
 | `onChange` | `{ "table", "via"?, "column", "to", "where"? }` | When the column changes to `to`, a value or a list of 1–16 values. |
 | `onChange` | `{ "table", "via"?, "columns", "changed": true, "where"? }` | When any of 1–8 columns changes, compared with the row as it was stored (a stay's dates, whatever they became). Numbers compare as numbers and dates by day. |
+| `onDelete` | `{ "table", "where"? }` | When a row of the table is removed, by anyone: one message for each removal, written once the row is gone. See [A row that is removed](#a-row-that-is-removed). Needs Adminium 0.3.28. |
 | `before` | `{ "table", "at", "lead", "where"? }` | A lead time before `at`, a `timestamptz` of the row: a reminder. `lead.at` (`"HH:MM"`) sends it at that wall time on the venue's day the lead reaches: 24 hours before a 20:00 show, at 09:00, is 09:00 the day before. |
 
 With `via`, the source is a **child** row and the message is about the row its foreign key `via`
 points at: a version posted to a deliverable makes a message linked to the deliverable, and
 addressed through it. `link` then points at that parent's table.
+
+#### A row that is removed
+
+`onDelete` writes a message when a row of `table` is removed: from the dashboard, by a bulk
+removal (one message a row), from an app's own screen, or through a public entry that may delete.
+`where` is judged on the row as it was. The row is gone when the message is written, so:
+
+- the message's `link` (the outbox's link to that table) is **empty**, and nothing is read from the
+  row again. What the template says of it comes from `was`: `{{was.starts_at.date}}`. The outbox's
+  other links are filled from the removed row as on any message (the contact and the deal a visit
+  named), so `{{contact.name}}` and `{{deal.name}}` read as usual;
+- it goes to the outbox's recipient, found through those links, or to `recipient.column`, an
+  address the removed row held. That address is read once, as the row goes, and kept in the
+  message's own address column and nowhere else; the name beside it is not kept, so
+  `{{recipient.first_name}}` is empty for such a message;
+- it takes none of `hold`, `due`, `batchMinutes`, `holdSeconds`, `dropWhen`, `supersede`,
+  `repeatBy`, `onSent` and `replyTo`: each reads the row again after the message is written. A
+  reply goes to the outbox's own `settings.replyTo`, when it has one;
+- each removal is its own message. A sample row, a row taken back by an undo of its creation, and
+  a child row removed inside its parent's own save write none.
+
+Naming a table in `onDelete` also means **its rows are never held by their messages**. Without it,
+a row that any message links (sent last year, or still waiting) cannot be removed: the database
+refuses it (`409`). With it, as a row of that table goes, every message that named it through the
+producer's `link` loses that link and stays in the log with what it kept, and one that had not
+gone yet (queued, or held) is skipped with the reason `no-longer-needed`. A `skipReason` column
+that is an enum therefore offers `no-longer-needed`. This holds for every removal made through
+Adminium, also while the app is switched off; a row removed by SQL of your own is still refused by
+the database while a message names it. Nothing is altered in the database for it, so an install
+made before this word gets it with the update that adds the producer.
+
+```json
+{ "kind": "visit-cancelled", "link": "visit_id",
+  "onDelete": { "table": "visits" },
+  "was": ["starts_at", "place"] }
+```
 
 A producer may also say:
 
@@ -2974,7 +3011,7 @@ A producer may also say:
 | `holdSeconds` | 1–3600: the message waits this many seconds before it may go, so a move taken back at once (an order marked ready by mistake) drops it by `dropWhen` before anyone is told. A message dropped so does not stop the next one of its kind. Needs the outbox's `due` column; not on a `before` producer, nor with `hold`, `due` or `batchMinutes`. |
 | `repeatBy` | A column of the row the message is about: one message for each value it holds, not one for the row for ever (a ticket offered again, its link made afresh, is emailed again). A message for an earlier value not yet sent is skipped as overtaken. Needs the outbox's `repeatKey` column; not on a `before` producer, nor with `batchMinutes`. |
 | `repeat` | `true`: one message for each change it hears of, not one for the row for ever ("Resend tickets" twice is two messages). Only on an `onChange` producer, and not with `repeatBy` or `batchMinutes`. |
-| `was` | 1–8 columns of the changed row kept as they were before the change (a stay's old dates, its old total), read by the template as `{{was.<column>}}` in every form the column has. Only on an `onChange` producer; needs the outbox's `was` column. Never a secret, personal, code, share-code, withheld or typed-code column. |
+| `was` | 1–8 columns of the changed row kept as they were before the change (a stay's old dates, its old total), read by the template as `{{was.<column>}}` in every form the column has. On an `onChange` producer, and on an `onDelete` producer, where they are the removed row's own values; needs the outbox's `was` column. Never a secret, personal, code, share-code, withheld or typed-code column. |
 | `batchMinutes` | 1–240: one message per linked row in each window of this many minutes. The first event opens a message due at the window's end; every event while it still waits is taken in by it (five versions posted in ten minutes make one email). The window's end is its due, so it takes no `due`; it may still be dropped (`dropWhen`) or overtaken (`supersede`) while it waits. Not on a `before` producer. |
 | `onSent` | `{ "table", "via"?, "set" }`: a change made once the message has gone. Without `via`, `table` is the row the message is about; with it, `via` is that row's foreign key to `table`. `set` maps columns to values (`null` empties a nullable column). |
 
@@ -3133,7 +3170,7 @@ its label in the message's language (`{{order.paid_method.label}}` is "Card", no
 column of up to 8 characters holding a time of day has `.time`, in the reader's clock ("3:00 PM" in
 the US, "15:00" in Britain); a [code](#column-rules) column has `.grouped` (`K7QX-M2PD`) and `.qr`
 (see [Emails that list rows](#emails-that-list-rows)). A `{{was.<column>}}` reads a
-[`was`](#outbox) column as it was before a change, in the same forms. A
+[`was`](#outbox) column as it was before a change, or as a removed row held it, in the same forms. A
 date has `.day_month` and `.days_since` only: a template asking a column for a form its type does
 not have (`{{invoice.due_on.date}}` on a `date` column) is refused at install and on update with
 `EMAIL_TEMPLATE_INVALID`, naming the template and the variable.
@@ -4191,6 +4228,10 @@ add-ons" or "From your apps". The owner may switch it, test it and copy it; a sh
 is never edited or deleted there (`409` `AUTOMATION_MANAGED`). An update rewrites a rule nobody
 changed, keeping the owner's switch, and removes one the new version no longer ships. While its
 add-on is switched off a rule is skipped. Uninstalling removes the shipped rules.
+
+Whether each of an app's own rules is switched on can be read by the app's own people, for a
+screen that depends on one: see
+[Whether a rule is switched on](/guides/apps/building-a-side/#whether-a-rule-is-switched-on).
 
 ## Sample data
 

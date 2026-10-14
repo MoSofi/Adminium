@@ -121,7 +121,7 @@ function pageShows(page: NonNullable<AppManifest['pages']>[number]): string[] {
 
 type Producer = NonNullable<NonNullable<AppManifest['outbox']>['producers']>[number];
 
-/** A producer's trigger: on a new row, on a change, or ahead of a date. */
+/** A producer's trigger: on a new row, on a change, on a removal, or ahead of a date. */
 function trigger(producer: Producer): { table: string; words: string } {
   const p = producer as unknown as Record<string, unknown>;
   const due = producer.due === undefined ? '' : ` (${String(producer.due.days)} days after ${producer.due.date})`;
@@ -135,6 +135,8 @@ function trigger(producer: Producer): { table: string; words: string } {
     }
     return { table: changed.table, words: `a ${changed.table} row changes${due}` };
   }
+  const removed = p['onDelete'] as { table: string } | undefined;
+  if (removed !== undefined) return { table: removed.table, words: `a ${removed.table} row is removed` };
   const before = p['before'] as { table: string; at: string } | undefined;
   if (before !== undefined) return { table: before.table, words: `ahead of ${before.table}.${before.at}` };
   return { table: '', words: 'a row changes' };

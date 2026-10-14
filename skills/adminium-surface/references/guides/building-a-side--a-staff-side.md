@@ -31,6 +31,7 @@ The session `useStaff()` gives:
 | `create(table, values)` | Adds a row and returns it |
 | `update(table, id, values)` | Changes a row and returns it |
 | `remove(table, id)` | Deletes a row |
+| `rules()` | The rules the app ships, each with whether it is switched on: see [below](https://docs.adminium.dev/guides/apps/building-a-side/#whether-a-rule-is-switched-on) |
 | `can(table, action)` | Whether the signed-in person may `read`, `create`, `update` or `delete` there. Use it to leave out a button whose write would be refused |
 | `user` | `{ id, name, email }` of the person signed in |
 | `settings` | The app's settings values |
@@ -57,6 +58,31 @@ people are mentioned, without bundling it: see
 The person must hold a role that may open the app's staff screens (`app:@:staff` in the app's
 `roles.json`), and their grants on the app's tables decide what the reads and writes above may do.
 See [App roles and staff access](https://docs.adminium.dev/guides/apps/roles-and-staff-access/).
+
+### Whether a rule is switched on
+
+An app may ship rules that start switched off, and a screen that depends on one should say so.
+Switching a rule belongs to whoever manages rules in Adminium, which no role of an app does, but
+anybody who may open the app's staff screens can read the switches:
+
+```ts
+const rules = await staff.rules();
+// [{ key: 'nudge-stale', name: 'A deal sits too long: tell its manager', on: false }, …]
+```
+
+`staff.rules()` asks `GET /api/v1/apps/<key>/rules`, which a screen built without this module can
+ask itself.
+
+Each entry is one rule the installed app ships: its `key` from the manifest, its `name` in the
+reader's language, and whether it is `on` now. Nothing else of a rule is answered: not what
+starts it, its steps, who it tells, or its runs. A rule somebody made by hand is not listed (also
+one on the app's own tables), nor is another app's or an add-on's, a rule of a
+[part](https://docs.adminium.dev/guides/apps/parts/) that is switched off, or a rule of a later version that is not
+installed. Somebody without `app:@:staff` on the app gets `403`.
+
+The answer is the state when it is asked. Ask when the screen opens: a switch flipped since shows
+at the next ask, without a reload. Name who to ask in the screen's own words; the answer names
+nobody.
 
 ### Its place in the dashboard
 

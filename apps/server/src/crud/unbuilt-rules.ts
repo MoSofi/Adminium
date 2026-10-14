@@ -203,6 +203,8 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   // A reply to the person a staff column names: their sign-in address, looked up when the message goes; nobody there is no header.
   'automations.replyTo',
   'outbox.replyTo',
+  // A message about a row that was removed, with the row's own values kept for it; a message no longer stops its row being removed.
+  'outbox.onDelete',
   // Where a table's record opens on the app's staff side: a notice, its email and a search hit open there (apps/record-address.ts).
   'frontend.records',
   // A page kept off the sidebar, and an entry of the app's section that is not a page: both read when the menu is built.

@@ -1217,7 +1217,7 @@ export function shapeDefinitionIssues(
       out.push(...mappingIssues(profile.part, profile.mapping, index, at));
     });
     (shape.outbox?.producers ?? []).forEach((producer, p) => {
-      const source = 'onCreate' in producer ? producer.onCreate : 'onChange' in producer ? producer.onChange : producer.before;
+      const source = 'onCreate' in producer ? producer.onCreate : 'onChange' in producer ? producer.onChange : 'onDelete' in producer ? producer.onDelete : producer.before;
       if (shape.parts[source.table] === undefined) {
         out.push({ path: ['addOn', 'shapes', s, 'outbox', 'producers', p], message: `"${id}" has no part "${source.table}"` });
       }

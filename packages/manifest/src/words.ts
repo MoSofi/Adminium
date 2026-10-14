@@ -118,6 +118,7 @@ export const INSTALL_FLOOR_WORD_NAMES = [
   'automations.many',
   'automations.replyTo',
   'outbox.replyTo',
+  'outbox.onDelete',
   'column.mentions',
   'column.place',
   'column.area',
@@ -193,6 +194,7 @@ export const WORD_FLOORS: Readonly<Partial<Record<ManifestWordName, string>>> = 
   // A reply that goes to the person a staff column of the row names: a rule's email, an outbox producer's message.
   'automations.replyTo': '0.3.28',
   'outbox.replyTo': '0.3.28',
+  'outbox.onDelete': '0.3.28',
   // A text column in which people are mentioned.
   'column.mentions': '0.3.28',
   // A json column that holds a position on the map, read and checked on every write; one that holds an area.
@@ -341,6 +343,8 @@ export function installFloorWords(document: unknown): ManifestWord[] {
   if (isDoc(outbox['pages']) && outbox['pages']['app'] !== undefined) out.push({ word: 'outbox.pages.app', path: 'outbox.pages.app' });
   list(outbox['producers']).forEach((producer, p) => {
     if (isDoc(producer) && producer['replyTo'] !== undefined) out.push({ word: 'outbox.replyTo', path: `outbox.producers.${String(p)}.replyTo` });
+    // A message about a row that was removed.
+    if (isDoc(producer) && producer['onDelete'] !== undefined) out.push({ word: 'outbox.onDelete', path: `outbox.producers.${String(p)}.onDelete` });
   });
   list(document['emailTemplates']).forEach((template, t) => {
     for (const [locale, content] of Object.entries(isDoc(template) && isDoc(template['locales']) ? template['locales'] : {})) {

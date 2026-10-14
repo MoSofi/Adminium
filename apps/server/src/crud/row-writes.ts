@@ -432,10 +432,23 @@ export async function assertStaffColumns(ctx: RowLimitContext | null, meta: Meta
  * refused here first, in the words of any link that still holds — and
  * nothing says how many, or whose.
  */
-export async function assertNoUnreachedChildren(ctx: RowLimitContext | null, db: Db, tableId: string, row: Row): Promise<void> {
+export async function assertNoUnreachedChildren(
+  ctx: RowLimitContext | null,
+  db: Db,
+  tableId: string,
+  row: Row,
+  /**
+   * The outbox links that let go of this table's rows (`outbox/release.ts`):
+   * the app's own messages about the row, which the app said never hold it.
+   * Whether any is there, the delete answers the same, so nothing is counted
+   * for the person either way.
+   */
+  released: readonly { outbox: string; link: string }[] = [],
+): Promise<void> {
   if (ctx === null) return;
   for (const relation of ctx.model.relations) {
     if (relation.through !== null || relation.to.tableId !== tableId || relation.from.columns.length !== 1 || relation.to.columns.length !== 1) continue;
+    if (released.some((link) => link.outbox === relation.from.tableId && link.link === relation.from.columns[0])) continue;
     const test = rowLimitFor(ctx, relation.from.tableId, 'read');
     const value = row[relation.to.columns[0]!];
     if (test === null || empty(value)) continue;

@@ -1049,6 +1049,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       (await outboxProducers.watches(connectionId, tableId)) || (await automationsMatcher.current?.watchesChange(connectionId, tableId)) === true,
     // What the connection's role may write, whichever door the write came through.
     rights: async (connectionId, tableId) => privilegesOf(await manager.tablePrivilegesById(connectionId), tableId),
+    // A message never stops the row it is about from being removed, where the app writes to people about removals.
+    releases: (connectionId, tableId) => outboxProducers.releasing(connectionId, tableId),
   });
   /*
    * AN APP'S EMAILS. The producers queue rows in an installed app's outbox

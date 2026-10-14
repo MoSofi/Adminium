@@ -50,7 +50,7 @@ its label in the message's language (`{{order.paid_method.label}}` is "Card", no
 column of up to 8 characters holding a time of day has `.time`, in the reader's clock ("3:00 PM" in
 the US, "15:00" in Britain); a [code](https://docs.adminium.dev/reference/manifest/#column-rules) column has `.grouped` (`K7QX-M2PD`) and `.qr`
 (see [Emails that list rows](https://docs.adminium.dev/reference/manifest/#emails-that-list-rows)). A `{{was.<column>}}` reads a
-[`was`](https://docs.adminium.dev/reference/manifest/#outbox) column as it was before a change, in the same forms. A
+[`was`](https://docs.adminium.dev/reference/manifest/#outbox) column as it was before a change, or as a removed row held it, in the same forms. A
 date has `.day_month` and `.days_since` only: a template asking a column for a form its type does
 not have (`{{invoice.due_on.date}}` on a `date` column) is refused at install and on update with
 `EMAIL_TEMPLATE_INVALID`, naming the template and the variable.

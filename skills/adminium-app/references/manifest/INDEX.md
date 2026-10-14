@@ -59,11 +59,12 @@
 | `references/manifest/documents--a-list-of-an-add-on-s-rows.md` | Documents — A list of an add-on's rows | 1524 |
 | `references/manifest/documents--documents-that-print-a-money-code.md` | Documents — Documents that print a money code | 987 |
 | `references/manifest/emails.md` | Emails | 850 |
-| `references/manifest/emails--outbox.md` | Emails — outbox | 7734 |
-| `references/manifest/emails--outbox-2.md` | Emails — outbox (part 2) | 6374 |
+| `references/manifest/emails--outbox.md` | Emails — outbox | 7724 |
+| `references/manifest/emails--outbox-2.md` | Emails — outbox (part 2) | 7602 |
+| `references/manifest/emails--outbox-3.md` | Emails — outbox (part 3) | 1660 |
 | `references/manifest/emails--a-reply-to-the-rep.md` | Emails — A reply to the rep | 1672 |
 | `references/manifest/emails--held-messages.md` | Emails — Held messages | 2873 |
-| `references/manifest/emails--emailtemplates.md` | Emails — emailTemplates | 7727 |
+| `references/manifest/emails--emailtemplates.md` | Emails — emailTemplates | 7756 |
 | `references/manifest/emails--emailtemplates-2.md` | Emails — emailTemplates (part 2) | 3407 |
 | `references/manifest/public-access.md` | Public access | 2014 |
 | `references/manifest/public-access-2.md` | Public access (part 2) | 7731 |
@@ -88,6 +89,5 @@
 | `references/manifest/automations.md` | Automations | 4374 |
 | `references/manifest/automations--the-person-on-the-row.md` | Automations — The person on the row | 1425 |
 | `references/manifest/automations--once-per-spell.md` | Automations — Once per spell | 691 |
-| `references/manifest/automations--quiet-hours-and-urgent.md` | Automations — Quiet hours and urgent | 856 |
 
 More: `references/manifest/INDEX-2.md`

@@ -717,7 +717,8 @@ export function withoutUnmetBlocks<T extends { blocks: readonly unknown[] }>(tem
 }
 
 /**
- * What a message keeps of its row as it was before the change that queued it
+ * What a message keeps of its row as it was before the change that queued it,
+ * or of a row that was removed, as it was when it went
  * (`producer.was`, in the outbox's `was` column): the row's table, the values
  * and the columns named — or null when its producer keeps none, or what is
  * kept cannot be read (the message then reads `{{was.*}}` as unfilled and
@@ -909,10 +910,13 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     vars['recipient.first_name'] = '';
     // Sent to an address the producing row holds: greeted by the name the row holds with it.
     const rowName = addressed?.byColumn?.name ?? null;
+    // Sent to an address a removed row held: the name it held with it is not kept, and the person the message links may be somebody else.
+    const sender = producerOf(box.definition, row[box.definition.columns.kind]);
+    const toRemovedRow = sender !== undefined && 'onDelete' in sender && columnRecipientOf(sender) !== null;
     if (rowName !== null) {
       vars['recipient.name'] = rowName;
       vars['recipient.first_name'] = rowName.split(/\s+/)[0] ?? rowName;
-    } else if (addressed?.bySetting !== true && addressed?.byColumn === undefined) {
+    } else if (!toRemovedRow && addressed?.bySetting !== true && addressed?.byColumn === undefined) {
       const recipient = box.definition.recipient;
       const person = await rowOf(db, view, recipient.table, row[recipient.via]);
       let name: unknown = person !== null && recipient.name !== undefined ? person[recipient.name] : undefined;
@@ -971,7 +975,8 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     if (column === undefined || producer === undefined) return undefined;
     const manifest = (await appFacts(box.row.manifestId)).manifest;
     const declared = (manifest?.outbox?.producers ?? []).find((candidate) => candidate.kind === producer.kind);
-    const source = declared === undefined ? undefined : 'onCreate' in declared ? declared.onCreate : 'onChange' in declared ? declared.onChange : declared.before;
+    // A removed row opens nothing: no key reads it.
+    const source = declared === undefined || 'onDelete' in declared ? undefined : 'onCreate' in declared ? declared.onCreate : 'onChange' in declared ? declared.onChange : declared.before;
     if (source === undefined || ('via' in source && source.via !== undefined)) return undefined;
     const opener = (manifest?.publicAccess ?? []).find((entry) => {
       const claim = entry.claim;
@@ -1108,7 +1113,9 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     const cols = box.definition.columns;
     const named = row[cols.to];
     const blank = named === null || named === undefined || (typeof named === 'string' && named.trim() === '');
-    const again = producer !== undefined && (producer.hold === true || producer.recipient !== undefined);
+    // An address a removed row held is read once, as the row goes: the message keeps it, and there is no row to read it from again.
+    const ofRemovedRow = producer !== undefined && 'onDelete' in producer && columnRecipientOf(producer) !== null;
+    const again = producer !== undefined && !ofRemovedRow && (producer.hold === true || producer.recipient !== undefined);
     if (!again && !blank) return { addressed: null, to: named, lookedUp: false };
     const addressed = await addressFor({ db: ctx.db, view: ctx.view, outboxId: ctx.outbox.id, read: settingReader(deps.meta, ctx.db) }, box.definition, producer, row);
     return { addressed, to: addressed.address, lookedUp: true };

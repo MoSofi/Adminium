@@ -8,8 +8,9 @@
  * need: signing in and out, their own account, the records their roles grant,
  * the live-update stream, the translations, the schema of their app's own
  * database, what an add-on their app uses says of the rows a screen shows
- * (its stock words), and bringing a file in to a table their role may import
- * (a "paste a list" screen of their app). Forty-odd routes check only that someone is signed in, so this
+ * (its stock words), which of their app's own rules are switched on, and
+ * bringing a file in to a table their role may import (a "paste a list"
+ * screen of their app). Forty-odd routes check only that someone is signed in, so this
  * list — not those routes — is the boundary.
  */
 import type { FastifyRequest } from 'fastify';
@@ -113,6 +114,9 @@ export function allowedForScreensOnly(
   const key = (params as { key?: unknown } | null)?.key;
   if (method === 'POST' && rest === '/apps/:key/documents/render' && typeof key === 'string' && appKeys.includes(key)) return true;
   if (method === 'GET' && (rest === '/documents/:id/content' || rest === '/documents/:id/print')) return true;
+  // Which of their app's own rules are switched on, for a screen that depends on one. The route asks the app's own staff grant, and says a
+  // rule's key, name and switch: nothing of what it does.
+  if (method === 'GET' && rest === '/apps/:key/rules' && typeof key === 'string' && appKeys.includes(key)) return true;
   // What an add-on of their app says of the rows their screen shows. The route still asks that they read the table asked about.
   const addOn = (params as { addOn?: unknown } | null)?.addOn;
   if (method === 'GET' && route === STAFF_WORDS_ROUTE && typeof addOn === 'string' && addOns.has(addOn)) return true;

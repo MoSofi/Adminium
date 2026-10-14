@@ -148,7 +148,7 @@ export function shapeParts(input: ShapePartsInput): ShapePartsResult {
   const mappedProducers = [...used].flatMap(([id, shape]) =>
     (shape.outbox?.producers ?? []).map((producer) => {
       const out: Json = { ...(producer as Json) };
-      for (const when of ['onCreate', 'onChange', 'before'] as const) {
+      for (const when of ['onCreate', 'onChange', 'onDelete', 'before'] as const) {
         const rule = out[when] as { table?: string } | undefined;
         if (rule?.table === undefined) continue;
         const table = mapFor(id)(rule.table);
@@ -196,7 +196,7 @@ export function shapeParts(input: ShapePartsInput): ShapePartsResult {
     // The foreign keys a producer links by, and the table each points at: the one its producer hears.
     const links = new Map<string, string>();
     for (const producer of mappedProducers) {
-      const heard = (['onCreate', 'onChange', 'before'] as const).map((when) => (producer[when] as { table?: string } | undefined)?.table).find((found) => found !== undefined);
+      const heard = (['onCreate', 'onChange', 'onDelete', 'before'] as const).map((when) => (producer[when] as { table?: string } | undefined)?.table).find((found) => found !== undefined);
       if (heard !== undefined && !links.has(producer.link)) links.set(producer.link, heard);
     }
     const holds = mappedProducers.some((producer) => producer['hold'] === true);

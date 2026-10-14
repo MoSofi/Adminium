@@ -173,6 +173,7 @@ export function producerOf(definition: Outbox, kind: unknown): OutboxProducer | 
 export function sourceOf(producer: OutboxProducer): { table: string; via: string | undefined } {
   if ('onCreate' in producer) return { table: producer.onCreate.table, via: producer.onCreate.via };
   if ('onChange' in producer) return { table: producer.onChange.table, via: producer.onChange.via };
+  if ('onDelete' in producer) return { table: producer.onDelete.table, via: undefined };
   return { table: producer.before.table, via: undefined };
 }
 

@@ -1186,6 +1186,23 @@ export const appPartDto = z.object({
 export const appPartsReply = z.object({ parts: z.array(appPartDto) });
 
 /**
+ * One rule the app ships, as the app's own people read it: the key the
+ * manifest gives it, its name in the reader's language, and whether it is
+ * switched on. Nothing else of a rule is ever part of this answer (`.strict()`
+ * holds it to these three): not what starts it, its steps, who it tells, an
+ * address, or its runs.
+ */
+export const appRuleDto = z
+  .object({
+    key: z.string(),
+    name: z.string(),
+    on: z.boolean(),
+  })
+  .strict();
+
+export const appRulesReply = z.object({ rules: z.array(appRuleDto) }).strict();
+
+/**
  * What switching a part off would stop, for the question asked first: the
  * rows of its tables that are part way through their states, the rules that
  * are switched on, and the people whose every role is of this part.

@@ -64,6 +64,7 @@ export const ROW_COVERAGE: Readonly<Record<string, RowMark>> = {
   'POST /api/v1/apps/:key/enable': noRows('The list of apps, their packages, their settings and where they are served: no source row.'),
   'PUT /api/v1/apps/:key/instances': noRows('The list of apps, their packages, their settings and where they are served: no source row.'),
   'GET /api/v1/apps/:key/overview': rows('all', 'A count of a table the reader is limited on is left out.'),
+  'GET /api/v1/apps/:key/rules': noRows('The rules an app ships, each by its key, its name and whether it is switched on, for whoever may open the app\'s own screens: no source row.'),
   'GET /api/v1/apps/:key/parts': noRows('The parts of an app and their switches, with how many pages, rules and people each has: no source row.'),
   'GET /api/v1/apps/:key/parts/:part/open': rows('all', 'Counts only, of rows part way through their states; a table the reader is limited on is left out.'),
   'PUT /api/v1/apps/:key/parts/:part': noRows('The switch of one part of an app: no source row.'),

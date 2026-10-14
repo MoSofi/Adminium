@@ -2259,6 +2259,7 @@ function personIssues(
         // Sent by the kind's own rules: never past a person's approval, and never skipped at send as a message already sent.
         const declared = (box.producers ?? []).find((producer) => producer.kind === entry.newLink!.kind);
         if (declared?.hold === true) out.push({ path: here('kind'), message: `"${entry.newLink.kind}" waits for a person to approve it, so it is never sent again from a link` });
+        if (declared !== undefined && 'onDelete' in declared) out.push({ path: here('kind'), message: `"${entry.newLink.kind}" is written when a row is removed, so it is never sent from a link of a row that is there` });
         if (declared?.repeatBy !== undefined && declared.repeatBy !== entry.newLink.column) {
           out.push({ path: here('kind'), message: `"${entry.newLink.kind}" is sent once per "${declared.repeatBy}", so one sent again for a new "${entry.newLink.column}" would be skipped: its producer repeats by "${entry.newLink.column}" or by nothing` });
         }

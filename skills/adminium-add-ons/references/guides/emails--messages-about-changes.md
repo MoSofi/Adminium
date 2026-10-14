@@ -46,8 +46,26 @@ change. An **undo** of a change of dates is a change too: the guest is told the 
 and `{{was.*}}` holds the dates the undo replaced. An undo never sets off a message of a value
 reached ("changed to cancelled") or of a row created. An **import** is history and sends nothing.
 
-`repeat` and `was` are for a producer that listens for changes (`onChange`), and `repeat` does not
-combine with `repeatBy` or `batchMinutes`.
+`repeat` is for a producer that listens for changes (`onChange`), and does not combine with
+`repeatBy` or `batchMinutes`. `was` is for one that listens for changes, or for a removal
+([below](https://docs.adminium.dev/guides/apps/emails/#messages-about-a-row-that-is-removed)).
+
+A visit moved to another time is the same case. The customer gets one mail with both times:
+
+```json
+{
+  "kind": "visit-moved",
+  "link": "visit_id",
+  "onChange": { "table": "visits", "columns": ["starts_at"], "changed": true },
+  "repeat": true,
+  "was": ["starts_at"]
+}
+```
+
+```text
+Your visit was on {{was.starts_at.date}} at {{was.starts_at.time}}.
+It is now on {{visit.starts_at.date}} at {{visit.starts_at.time}}.
+```
 
 ### One message per value
 

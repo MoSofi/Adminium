@@ -139,6 +139,7 @@ import { storedReductions } from './adjust/stored.js';
 import { adjustOrigin, createAdjuster, usesRefusal, type AdjustedOrder, type AdjustFor, type AdjustPeek, type AdjustTried, type AdjustTry } from './adjust/step.js';
 import { venueClock } from './venue-time.js';
 import { isOutboxWrite } from '../outbox/context.js';
+import { releaseLinks, restoreLinks, type ReleasedLink } from '../outbox/release.js';
 import { normaliseAddress } from '../public-api/claim-code.js';
 import {
   claimSequences,
@@ -621,18 +622,34 @@ export async function deleteRows(
    * sample data's own rows going).
    */
   judged?: { dialect: Dialect; prepared: Row } | undefined,
+  /**
+   * The outbox links that let go of this table's rows (`outbox/release.ts`):
+   * emptied in the same transaction, just before the row goes, and put back
+   * when the statement then removes nothing. Only for a row named by its one key.
+   */
+  released?: readonly ReleasedLink[] | undefined,
 ): Promise<number> {
+  const key = table.primaryKey.length === 1 ? table.primaryKey[0] : undefined;
+  const named = key === undefined || Object.keys(match).length !== 1 ? undefined : match[key];
+  const links = released === undefined || named === undefined || named === null ? [] : released;
+  const lets = links.length > 0;
   const run = async (tx: Db) => {
+    const freed = lets ? await releaseLinks(tx, links, named) : [];
     let query = tx.deleteFrom(table.id) as unknown as AnyDelete;
     for (const [column, value] of Object.entries(match)) {
       query = query.where((eb) => eb(tx.dynamic.ref(column), '=', value));
     }
     if (refine !== undefined) query = refine(query);
     const result = await query.executeTakeFirst();
-    return Number(result.numDeletedRows);
+    const count = Number(result.numDeletedRows);
+    // The row did not go (out of the caller's reach, or gone already): its messages are as they were.
+    if (count === 0 && freed.length > 0) await restoreLinks(tx, freed);
+    return count;
   };
-  if (judged === undefined) return run(db);
-  return guardedDelete(db, judged.dialect, table, match, guardOf(judged.prepared), run);
+  // The links and the row go together, or neither does.
+  const whole = (tx: Db) => (lets && !inTransaction(tx) ? tx.transaction().execute((inner) => run(inner as unknown as Db)) : run(tx));
+  if (judged === undefined) return whole(db);
+  return guardedDelete(db, judged.dialect, table, match, guardOf(judged.prepared), whole);
 }
 
 /**
@@ -1810,6 +1827,13 @@ export interface RecordWriteService {
 export interface WriteServiceOptions {
   /** Read on every write, so a reload swaps the hooks for the next one. */
   hooks?: (() => RecordHooks) | undefined;
+  /**
+   * The outbox links that let go of a table's rows as they are removed (an
+   * app that writes to people about a removal: `outbox/release.ts`). Asked
+   * before each delete; a service without it removes a row as the database
+   * allows, and a message that names the row still stops it.
+   */
+  releases?: ((connectionId: string, tableId: string) => Promise<readonly ReleasedLink[]>) | undefined;
   /** The place list a town in a place column is read from; the one this server ships unless a test says otherwise. */
   places?: Places | undefined;
   /**
@@ -4689,6 +4713,8 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       if (pricing !== null && inTransaction(target.db)) await ledgerStep(() => Promise.reject(pricedAlone()), { target, context }, input.mapError);
       const clock = writeClock(context);
       let adjusted: AdjustedOrder[] = [];
+      // The messages that name the row let go of it as it goes (an app that writes to people about a removal).
+      const released = opts.releases === undefined ? undefined : await opts.releases(target.connectionId, target.table.id);
       const count = rolls || posts !== null || pricing !== null || leaving !== null
         ? await conflicted(() => withDeciders([...new Set([...(pricing?.addOns ?? []), ...(leaving === null ? [] : [leaving.adjuster.addOn])])].sort(), () => atomically(target, async (db) => {
             // The parent the row fed, held first; then the row, read — and held — before it goes.
@@ -4700,14 +4726,14 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
             const gone = (await fetchHeld(db, target, pk, false)) ?? null;
             if (posts !== null && gone !== null) await ledgerStep(() => ledgerWriter.guard(db, { target, rules, action: 'delete', stood: gone }), { target, context }, input.mapError);
             const held = await holdParents(rules, within, [{ record: null, before: gone }], currency);
-            const removed = await statement(() => deleteRows(db, target.table, pk, input.refine, judged), input.mapError);
+            const removed = await statement(() => deleteRows(db, target.table, pk, input.refine, judged, released), input.mapError);
             // The price, asked once the row is gone and before any total is worked out.
             if (removed > 0 && orders.length > 0) adjusted = await ledgerStep(() => adjustHeld(db, orders, { mode: 'save', context, clock }), { target, context }, input.mapError);
             if (removed > 0 && leaving !== null && gone !== null) await adjuster.forget(db, leaving, gone[leaving.adjust.key]);
             if (removed > 0) await guarded(() => settleRows(rules, within, [{ record: null, before: gone }], currency, held), input.mapError);
             return removed;
           })), input.mapError)
-        : await conflicted(() => statement(() => deleteRows(target.db, target.table, pk, input.refine, judged), input.mapError), input.mapError);
+        : await conflicted(() => statement(() => deleteRows(target.db, target.table, pk, input.refine, judged, released), input.mapError), input.mapError);
       if (count === 0 && input.skipIfNone === true) return 0;
       await input.announce(count, before, adjusted);
       if (count > 0 && before !== null && (await hooks.wants('after', 'delete', target, context))) {
