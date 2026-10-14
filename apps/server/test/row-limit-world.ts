@@ -140,7 +140,7 @@ export interface World {
   /** The whole model as the server reads it now. */
   model: () => Promise<EffectiveModel>;
   /** A role holding these table actions, each with the rows it reaches; `also` are grant rows made as given. */
-  role: (slug: string, tables: Partial<Record<TableName, { actions: ('create' | 'export' | 'import' | RowAction)[]; rows?: RowLimit }>>) => Promise<string>;
+  role: (slug: string, tables: Partial<Record<TableName, { actions: ('create' | 'export' | 'import' | RowAction)[]; rows?: RowLimit; limit?: { writable: string[] } }>>) => Promise<string>;
   /** Give a role workspace rights by their keys (`exports.manage`, `audit.read`). */
   system: (slug: string, keys: string[]) => Promise<void>;
   /** Run every job that is waiting, as the worker would. */
@@ -358,7 +358,7 @@ export async function world(dialect: Dialect, opts: { staticRoot?: string } = {}
       const role = (await rolesRepo(meta).findBySlug(slug)) ?? (await rolesRepo(meta).create({ slug, name: slug }));
       for (const [table, grant] of Object.entries(tables)) {
         const actions = { read: false, create: false, update: false, delete: false, export: false, import: false, ...Object.fromEntries(grant.actions.map((action) => [action, true])) };
-        await permissionsRepo(meta).grant(role.id, 'table', `${connection.id}/${id(table as TableName)}`, { ...actions, ...(grant.rows === undefined ? {} : { rowLimit: grant.rows }) } as never);
+        await permissionsRepo(meta).grant(role.id, 'table', `${connection.id}/${id(table as TableName)}`, { ...actions, ...(grant.rows === undefined ? {} : { rowLimit: grant.rows }), ...(grant.limit === undefined ? {} : { updateLimit: grant.limit }) } as never);
       }
       return role.id;
     },

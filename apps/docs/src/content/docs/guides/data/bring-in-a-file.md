@@ -47,6 +47,12 @@ The column has to be one of those you are bringing in.
 A line with nothing in the match column is refused: there is nothing to match it
 by.
 
+**Update them** changes a row as your role may change it by hand. A column your
+role may not change, or a row it may change only in some states, refuses that
+line with **Your role may not change …**, as a change on the row's page would;
+the other lines go on. A value the line sends back as the row already holds it
+is no change, and is not refused.
+
 ## What the table fills in by itself
 
 A line that becomes a new row is a row **you** create, and a line that updates a

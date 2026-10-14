@@ -89,6 +89,9 @@ for (const [dialect, available] of ENGINES) {
       await w.give('kim', 'bringer');
       for (const person of ['sam', 'mara', 'lena'] as const) await w.give(person, 'desk');
       await w.give('dana', 'rep');
+      // Reads and brings in deals, and may change a deal's title and nothing else of it.
+      await w.role('clerk', { deals: { actions: ['read', 'create', 'update', 'import'], limit: { writable: ['title'] } } });
+      await w.give('omar', 'clerk');
     }, 180_000);
     afterAll(async () => w?.close());
 
@@ -129,6 +132,25 @@ for (const [dialect, available] of ENGINES) {
         await w.take('sam', 'bringer');
         await w.give('sam', 'desk');
       }
+    });
+
+    it('changes a row a line matches only as the role may change it: a column outside its list is refused, one sent back as it stands is not', async () => {
+      const stored = (await w.rows('SELECT id, title, amount FROM deals WHERE id = 3'))[0]!;
+      const amount = Number(stored['amount']);
+      const csv = `id,title,amount\n3,Renamed by a list,${String(amount + 500)}\n3,Renamed by a list,${String(amount)}\n`;
+      const made = await readyImport('omar', csv, { mode: 'upsert', matchColumn: 'id' });
+      expect(made.statusCode, made.body).toBe(201);
+      const preview = await previewOf('omar', made.id);
+      // The first line changes the amount: refused, as a PATCH of it is. The second sends the amount back unchanged: its title is hers to change.
+      expect(preview.lines.map((line) => [line.row, line.status, line.code ?? null])).toEqual([
+        [1, 'refused', 'COLUMN_FORBIDDEN'],
+        [2, 'here', null],
+      ]);
+      const ran = await ranImport('omar', made.id);
+      expect(ran.refused).toEqual([[1, 'COLUMN_FORBIDDEN']]);
+      expect((await w.rows('SELECT title, amount FROM deals WHERE id = 3'))[0]).toMatchObject({ title: 'Renamed by a list' });
+      expect(Number((await w.rows('SELECT amount FROM deals WHERE id = 3'))[0]!['amount'])).toBe(amount);
+      await w.run(`UPDATE deals SET title = '${String(stored['title']).replace(/'/g, "''")}' WHERE id = 3`);
     });
 
     it('says which line each one is: the match value as the file has it, else its first mapped cell', async () => {

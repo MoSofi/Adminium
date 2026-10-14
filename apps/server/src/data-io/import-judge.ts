@@ -62,7 +62,7 @@ import {
 import { writeStores } from '../crud/write-stores.js';
 import { AppError, ForbiddenError, ValidationFailedError } from '../errors.js';
 import { permissionSetAllows, resolvePermissionSet } from '../rbac/resolver.js';
-import { assertImportCreatable, createLimitOf, updateLimitOf } from '../rbac/update-limits.js';
+import { assertImportCreatable, assertMovedFrom, assertWithinLimit, changesRow, createLimitOf, updateLimitOf, type MergedLimit } from '../rbac/update-limits.js';
 import { scrubRefusal } from '../routes/data/refusal-scrub.js';
 import { coerceCell } from './coerce.js';
 import { loadSnapshotView } from './snapshot-view.js';
@@ -301,8 +301,11 @@ export async function openImportJudge(deps: ImportJudgeDeps, row: DataImport, ac
   let reach: RowLimitContext | null = null;
   /** The requester as a link is judged by, where the file's table links into one they do not read and that says whose its rows are. */
   let writer: LinkWriter | null = null;
+  /** What the requester's role may change in a row that is already here: a matched line is that change, judged as a PATCH is. */
+  let updateLimit: MergedLimit | null = null;
   if (row.requestedBy !== null) {
     const permissions = await resolvePermissionSet(deps.meta, { kind: 'user', id: row.requestedBy, label: row.requestedBy });
+    updateLimit = updateLimitOf(permissions, row.connectionId, table.id);
     reach = await rowLimitContextOf(deps.meta, permissions, row.connectionId, view.model);
     const unread = view.model.relations.some((relation) => {
       if (relation.through !== null || relation.from.tableId !== table.id) return false;
@@ -492,6 +495,15 @@ export async function openImportJudge(deps: ImportJudgeDeps, row: DataImport, ac
     const earlier = earlierLine === undefined ? {} : { earlierLine };
     if (mode === 'skip') return { status: 'here', before, values: null, ...earlier };
     try {
+      // The columns the role may change, and the rows it may change them in: a value sent back as it stands is no change.
+      try {
+        assertWithinLimit(updateLimit, table.id, item.values, before);
+        if (changesRow(item.values, before)) assertMovedFrom(updateLimit, table.id, before, item.values);
+      } catch (error) {
+        if (!(error instanceof AppError) || error.code !== 'COLUMN_FORBIDDEN') throw error;
+        const column = String((error.details as { column?: unknown } | undefined)?.column ?? '');
+        return { status: 'refused', code: 'COLUMN_FORBIDDEN', column, message: error.message };
+      }
       await judge(item.values, before);
       if (!opts.hooks && hooked.update) {
         // No hook runs for a preview: the row is filled and checked as a hook-less write would be.
