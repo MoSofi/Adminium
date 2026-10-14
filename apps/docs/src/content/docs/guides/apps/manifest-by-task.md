@@ -127,7 +127,17 @@ when that row does not meet them, by whoever writes and on every door; a row alr
 retired since keeps it while its other columns change. Hiding retired lines on a screen is not
 enough on its own: a direct call, an import or a rule could still name one.
 
-Reference: [Columns](/reference/manifest/#columns), [Links to some rows](/reference/manifest/#links-to-some-rows).
+To compare the named row with the row being written, say `same`: a site visit names only a
+contact of the company of the visit's deal.
+
+```json
+{ "ref": "contact_id", "type": "fk", "references": "contacts", "nullable": true,
+  "rules": { "linkable": { "same": [{ "column": "company_id", "as": "deal_id.company_id" }] } } }
+```
+
+A change that moves the visit to another deal is judged too.
+
+Reference: [Columns](/reference/manifest/#columns), [Links to some rows](/reference/manifest/#links-to-some-rows), [A row that must match the row written](/reference/manifest/#a-row-that-must-match-the-row-written).
 
 ## A choice column
 
@@ -670,7 +680,7 @@ next number in a series and `done_at` is written when the status becomes `done`.
 | `lookup` | A foreign key filled from a code a person types into another column. |
 | `perNight` | A price worked out night by night. |
 | `notAfter`, `notBefore` | A date kept on one side of today, or of another date. |
-| `linkable` | A foreign key that names only a row meeting some conditions (a price still offered). |
+| `linkable` | A foreign key that names only a row meeting some conditions (a price still offered), or holding what the row written holds (a contact of the deal's company). |
 | `venueLocal` | A time given with no zone is read in the venue's time zone. |
 | `personal`, `secret` | Whether the column is personal data, or a secret no reply carries. |
 | `retryKey` | The column a staff create keeps its retry key in. |

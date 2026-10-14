@@ -116,7 +116,7 @@
       "account": "账户"
     },
     "back": "返回",
-    "team": "团队",
+    "team": "人员",
     "roles": "角色与权限",
     "audit": "审计日志",
     "security": "密码与会话",
@@ -128,7 +128,8 @@
       "openStaffInstance": "打开员工界面 · {instance}"
     },
     "drawerTitle": "导航",
-    "emptyPartsOff": "目前没有为你开启的内容。请联系管理员。"
+    "emptyPartsOff": "目前没有为你开启的内容。请联系管理员。",
+    "teams": "团队"
   },
   "apps": {
     "frame": {
@@ -1683,14 +1684,16 @@
       "remove": "删除",
       "resend": "新链接",
       "roles": "角色",
-      "suspend": "暂停"
+      "suspend": "暂停",
+      "handOn": "移交其行"
     },
     "column": {
       "actions": "操作",
       "lastSeen": "最后活动",
       "person": "人员",
       "roles": "角色",
-      "status": "状态"
+      "status": "状态",
+      "teams": "团队"
     },
     "counts": "活跃 {active} · 已邀请 {invited} · 已暂停 {suspended}",
     "empty": {
@@ -1753,8 +1756,6 @@
       "failed": "未删除该账户",
       "rows": {
         "needed": "请先选择由谁接手这些行。",
-        "title": "{name} 出现在 {count, plural, other {# 行}}中",
-        "body": "永久删除后，这些行将不属于任何人。请选择由谁接手。",
         "line": "{table}：{count}",
         "to": "移交给",
         "choose": "选择人员…",
@@ -1779,32 +1780,68 @@
       "sample": "示例人员",
       "suspended": "已暂停"
     },
-    "subtitle": "谁在这份 Adminium 上拥有账户，以及他们各自可以做什么。",
-    "title": "团队",
+    "subtitle": "所有可以登录的人，以及他们的角色和团队。",
+    "title": "人员",
     "twoFactorOn": "已开启双重验证",
     "twoFactorShort": "2FA",
     "actionFailed": "未能完成此更改",
     "teams": {
       "title": "团队",
-      "intro": "当某个角色被限制为“其团队的行”时，团队负责人可访问团队中每个人的行。成员只能访问自己的行。",
       "failed": "团队未更改",
       "over": "{name} 带领的人数超过 {max}。只能访问前 {max} 人的行。",
-      "newName": "新团队名称",
-      "create": "添加团队",
-      "empty": "还没有团队。",
+      "empty": "还没有团队",
       "deleteTitle": "删除“{name}”？",
       "deleteBody": "其负责人将不再能访问成员的行。任何人的账号和行都不会受到影响。",
       "delete": "删除团队",
       "memberCount": "{count, plural, other {# 人}}",
-      "rename": "重命名",
       "noMembers": "这个团队里还没有人。",
-      "leads": "带领该团队",
+      "leads": "负责人",
       "removeLabel": "将 {name} 从 {team} 移除",
-      "remove": "移除",
-      "addMemberLabel": "要加入 {team} 的人员",
-      "addMember": "添加人员…",
+      "addMember": "选择人员…",
       "sample": "{name}（示例）",
-      "add": "添加"
+      "add": "添加",
+      "pageSubtitle": "一组组人员，每组都有负责人。",
+      "notice": "当角色设为“其团队的”时，团队决定一个人能打开谁的记录。",
+      "rolesLink": "角色与访问",
+      "newTeam": "新建团队",
+      "summary": "{teams, plural, other {# 个团队}} · {people, plural, other {# 人}}属于至少一个团队",
+      "loadFailed": "无法读取团队。",
+      "caption": "团队、各自的负责人及成员",
+      "colTeam": "团队",
+      "colLead": "负责人",
+      "colMembers": "成员",
+      "noLead": "无负责人",
+      "onlyLead": "仅负责人",
+      "inAll": "{names} · 共 {count, plural, other {# 人}}",
+      "emptyBody": "在有团队之前，设为“其团队的”的角色与“自己的”能打开的行相同。",
+      "untitled": "未命名团队",
+      "sheetEyebrow": "团队",
+      "nameLabel": "名称",
+      "namePlaceholder": "例如：北区",
+      "people": "人员",
+      "peopleHint": "勾选负责人。负责人的“其团队的”涵盖这里的每个人。",
+      "addLabel": "添加人员",
+      "save": "保存团队",
+      "needName": "请先为团队命名。"
+    },
+    "teamLeads": "{team}（负责人）",
+    "handOver": {
+      "title": "将其 {count, plural, other {# 行}}移交给…",
+      "remove": "这些归 {name} 所有。永久删除后它们将无人负责：请选择由谁接手。",
+      "suspend": "这些归 {name} 所有。暂停后它们仍归 {name}，直到有人接手。",
+      "later": "{name} 已被暂停，这些仍归其所有。请选择由谁接手。",
+      "keep": "暂不移交",
+      "laterTitle": "移交 {name} 的行",
+      "unknown": "无法读取哪些行指向 {name}。",
+      "none": "没有行指向 {name}。",
+      "failed": "行未移交",
+      "confirm": "移交"
+    },
+    "suspend": {
+      "title": "暂停 {name}？",
+      "body": "{name} 将无法再登录，并会在所有地方退出登录。其账号、角色和历史都会保留，你可以重新启用。",
+      "failed": "账号未暂停",
+      "confirmHand": "移交并暂停"
     }
   },
   "invoices": {
@@ -1830,20 +1867,28 @@
     }
   },
   "quietHours": {
-    "title": "免打扰时段与摘要",
-    "help": "在免打扰时段，通知仍会显示在铃铛中，但不发出声音、不弹出，其邮件会等到时段结束再发送。标记为紧急的内容会立即送达。",
+    "title": "免打扰时段",
+    "leadOn": "在这些时段内，通知仍会显示在铃铛中，但不发出声音。只有其邮件会等待，在时段结束时发送。规则标为紧急的内容会立即发送。",
+    "leadOff": "已关闭。通知及其邮件会即时送达。",
+    "on": "开",
+    "off": "关",
     "zone": "你的时区",
     "zoneDefault": "企业的时区（{zone}）",
-    "none": "无免打扰时段",
+    "days": "日期和时间",
+    "fromShort": "从",
+    "toShort": "至",
     "from": "免打扰开始，{day}",
-    "until": "至",
     "to": "免打扰结束，{day}",
-    "nextDay": "次日",
-    "daySwitch": "{day}的免打扰时段",
-    "copy": "将{day}的时段复制到每一天",
-    "digestDay": "在以下日期发送我的摘要",
+    "endsOn": "{day}结束",
+    "copy": "每天使用{day}的时间",
+    "example": "{day} {from} 到达的邮件会在{endDay} {to} 发送，除非其类型已在下方勾选。",
+    "always": "仍立即通知我以下内容…",
+    "alwaysNote": "摘要有自己的日期和时间，见下方。",
+    "summariesTitle": "摘要",
+    "summariesLead": "规则发给你的、包含你自己的行的邮件，例如每周摘要。每份都是邮件：在你的免打扰时段，它会像其他邮件一样等待。",
+    "summariesOff": "已关闭。没有规则会给你发送摘要。你的日期和时间会保留，等你重新开启时使用。",
+    "digestDay": "日期",
     "digestWhenRun": "各摘要生成的当天",
-    "digestTime": "时间",
-    "always": "始终通知我，即使在免打扰时段"
+    "digestTime": "时间"
   }
 }

@@ -78,7 +78,16 @@ export interface DigestSection {
   limit: number;
 }
 
-export type WriteValue = string | { now: true };
+/**
+ * A value a step writes: text, "now", what a column of the app's settings row
+ * holds, or a day so many days after a date of the record (or after now). The
+ * last two are written by an app's own rules; the step's editor shows them.
+ */
+export type WriteValue =
+  | string
+  | { now: true }
+  | { setting: { table: string; column: string } }
+  | { daysAfter: { column?: string; now?: true; days: number; setting?: { table: string; column: string }; at?: string } };
 
 export type Action =
   | {

@@ -167,7 +167,7 @@ describe('SidebarNav on a fresh instance (no connection)', () => {
 
   it('still offers the platform tail an admin needs before any database exists', async () => {
     await renderShellWithNav(empty, ['admin']);
-    for (const name of ['Team', 'Roles & permissions', 'Audit log']) {
+    for (const name of ['People', 'Teams', 'Roles & permissions', 'Audit log']) {
       expect(screen.getByRole('link', { name })).toBeTruthy();
     }
     expect(screen.getByRole('link', { name: 'Import data' })).toBeTruthy();
@@ -179,12 +179,13 @@ describe('SidebarNav on a fresh instance (no connection)', () => {
     // It sits ALONGSIDE the tail rather than replacing it: the sentence is
     // about generated pages, and those really are absent.
     expect(screen.getByText('Pages appear here once a database is connected.')).toBeTruthy();
-    expect(screen.getByRole('link', { name: 'Team' })).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'People' })).toBeTruthy();
   });
 
   it('still respects the admin gate with nothing connected', async () => {
     await renderShellWithNav(empty, ['viewer']);
-    expect(screen.queryByRole('link', { name: 'Team' })).toBeNull();
+    expect(screen.queryByRole('link', { name: 'People' })).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Teams' })).toBeNull();
     expect(screen.queryByRole('link', { name: 'Roles & permissions' })).toBeNull();
     // …and the ungated rows are what a viewer is left with, not an empty rail.
     expect(screen.getByRole('link', { name: 'Password & sessions' })).toBeTruthy();

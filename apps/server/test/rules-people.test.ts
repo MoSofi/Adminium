@@ -344,6 +344,85 @@ for (const [dialect, reachable] of LEGS) {
       expect(mails).toHaveLength(2);
     });
 
+    it('keeps quiet hours switched off with their hours, and brings the same hours back when switched on', async () => {
+      await s.emails();
+      const clock = (ms: number): string => new Date(ms).toISOString().slice(11, 16);
+      const ends = Math.floor((Date.now() + 2 * 3_600_000) / 60_000) * 60_000;
+      const always = Object.fromEntries(['0', '1', '2', '3', '4', '5', '6'].map((day) => [day, { from: clock(Date.now() - 2 * 3_600_000), to: clock(ends) }]));
+      const hours = { timezone: 'UTC', quiet: always, digestDay: null, digestTime: null };
+      const schedule = async () => (await s.get('dana', '/api/v1/me/notification-schedule')).json().data as Record<string, unknown>;
+      const followUp = async (note: string) => {
+        expect(said(await s.make('owner', 'follow_ups', { deal_id: await dealId('Atrium'), note }))).toBe('ok');
+        await s.jobs({ except: ['digest.send'] });
+        return (await s.emails()).filter((mail) => mail.to === 'dana@sales.test');
+      };
+
+      expect(said(await s.send('dana', 'PUT', '/api/v1/me/notification-schedule', { ...hours, quietOn: false }))).toBe('ok');
+      expect(await schedule()).toMatchObject({ quiet: always, quietOn: false, summariesOn: true });
+      // A write that does not name the switch leaves it where it was: a client that knows only the hours never switches them on.
+      expect(said(await s.send('dana', 'PUT', '/api/v1/me/notification-schedule', hours))).toBe('ok');
+      expect(await schedule()).toMatchObject({ quiet: always, quietOn: false });
+      // Off: inside the hours, nothing waits.
+      const atOnce = await followUp('Off');
+      expect(atOnce).toHaveLength(1);
+      expect(atOnce[0]!.runAt).toBeLessThanOrEqual(Date.now());
+
+      // On again: the very same hours, and the email waits for their end.
+      expect(said(await s.send('dana', 'PUT', '/api/v1/me/notification-schedule', { ...hours, quietOn: true }))).toBe('ok');
+      expect(await schedule()).toMatchObject({ quiet: always, quietOn: true });
+      const held = await followUp('On');
+      expect(held).toHaveLength(1);
+      expect(held[0]!.runAt).toBe(ends);
+
+      // With no hours there is nothing to switch: "off" is not kept, and the next hours set are on.
+      expect(said(await s.send('dana', 'PUT', '/api/v1/me/notification-schedule', { timezone: null, quiet: null, digestDay: null, digestTime: null, quietOn: false }))).toBe('ok');
+      expect(await schedule()).toMatchObject({ quiet: null, quietOn: true });
+      expect(said(await s.send('dana', 'PUT', '/api/v1/me/notification-schedule', { quietOn: 'no' }))).toBe('422 VALIDATION_FAILED');
+    });
+
+    it('makes no summary for somebody who said "not me", keeps their day and time, and still sends the one they ask for', async () => {
+      await s.emails();
+      const rule = (await automationsRepo(s.meta).listManagedBy('sales', s.connectionId)).find((one) => one.templateKey === 'weekly')!;
+      const queuedFor = async (): Promise<string[]> => {
+        const rows = await s.meta.db.selectFrom('adminium_jobs').select('payload').where('kind', '=', 'digest.send').where('status', '=', 'pending').execute();
+        return rows.map((row) => (typeof row.payload === 'string' ? JSON.parse(row.payload) : row.payload).userId as string).sort();
+      };
+      await s.meta.db.deleteFrom('adminium_jobs').where('kind', '=', 'digest.send').execute();
+
+      const notMe = await s.send('dana', 'PUT', '/api/v1/me/notification-schedule', { timezone: null, quiet: null, digestDay: 1, digestTime: '08:00', summariesOn: false });
+      expect(notMe.statusCode, notMe.body).toBe(200);
+      expect(notMe.json().data).toMatchObject({ digestDay: 1, digestTime: '08:00', summariesOn: false });
+      // Nothing else set: the switch alone keeps her row.
+      expect(said(await s.send('dana', 'PUT', '/api/v1/me/notification-schedule', { timezone: null, quiet: null, digestDay: null, digestTime: null }))).toBe('ok');
+      expect((await s.get('dana', '/api/v1/me/notification-schedule')).json().data).toMatchObject({ digestDay: null, summariesOn: false });
+
+      // The rule's run makes one for each of the others, none for her.
+      await s.tick();
+      await s.jobs({ except: ['digest.send'] });
+      expect(await queuedFor()).toEqual([s.ids['noor'], s.ids['ivy']].sort());
+      await s.meta.db.deleteFrom('adminium_jobs').where('kind', '=', 'digest.send').execute();
+
+      // Queued while she still took them, "not me" said before it was sent: none is sent.
+      expect(said(await s.send('dana', 'PUT', '/api/v1/me/notification-schedule', { timezone: null, quiet: null, digestDay: null, digestTime: null, summariesOn: true }))).toBe('ok');
+      await s.tick();
+      await s.jobs({ except: ['digest.send'] });
+      expect(await queuedFor()).toContain(s.ids['dana']);
+      expect(said(await s.send('dana', 'PUT', '/api/v1/me/notification-schedule', { timezone: null, quiet: null, digestDay: null, digestTime: null, summariesOn: false }))).toBe('ok');
+      await s.jobs({ all: true });
+      const mails = (await s.emails()).filter((mail) => mail.templateKey === 'sales-week');
+      expect(mails.map((mail) => mail.to)).not.toContain('dana@sales.test');
+      expect(mails.map((mail) => mail.to)).toContain('ivy@sales.test');
+
+      // Asked for by herself, it is hers: "not me" is about the rule's sending, not hers.
+      expect(said(await s.send('dana', 'POST', `/api/v1/me/summaries/${rule.id}/send`))).toBe('ok');
+      expect((await s.emails()).filter((mail) => mail.templateKey === 'sales-week').map((mail) => mail.to)).toEqual(['dana@sales.test']);
+
+      // Somebody else's switch is not this door's: nothing in the body names a person.
+      expect(said(await s.send('dana', 'PUT', '/api/v1/me/notification-schedule', { timezone: null, quiet: null, digestDay: null, digestTime: null, summariesOn: true, userId: s.ids['ivy'] }))).toBe('422 VALIDATION_FAILED');
+      expect((await s.get('ivy', '/api/v1/me/notification-schedule')).json().data).toMatchObject({ summariesOn: true });
+      expect(said(await s.send('dana', 'PUT', '/api/v1/me/notification-schedule', { timezone: null, quiet: null, digestDay: null, digestTime: null, summariesOn: true }))).toBe('ok');
+    });
+
     it('sends a manager, on request, her team as the manifest wrote it: rows, a line a person, sums and target cover', async () => {
       await s.emails();
       const teams = teamsRepo(s.meta);

@@ -135,13 +135,17 @@ export default {
     "follows": "Suit : {table}",
     "belongs": "Une ligne appartient à {ways}.",
     "sentence": {
-      "all": "Atteint toutes les lignes.",
-      "allWhile": "Toutes les lignes",
+      "all": "Toutes les lignes de {table}.",
+      "allWhile": "Toutes les lignes de {table}",
       "team": "Seulement les lignes qui appartiennent à cette personne, ou à quelqu’un d’une équipe qu’elle dirige",
       "own": "Seulement les lignes qui appartiennent à cette personne",
       "unowned": "et les lignes qui n’appartiennent encore à personne",
       "while": "seulement tant que {column} vaut {values}",
-      "by": "et seulement celles où {column} les désigne"
+      "by": "et seulement celles où {column} les désigne",
+      "allWho": "Toutes les lignes de {table}, quel que soit {column}.",
+      "only": "Seulement les lignes de {table} où {ways}",
+      "onlyTeam": "Seulement les lignes de {table} où {ways}, ou quelqu’un d’une équipe qu’elle dirige",
+      "onlyTeamWays": "Seulement les lignes de {table} où {ways}, ou de même pour quelqu’un d’une équipe qu’elle dirige"
     },
     "title": "Quelles lignes « {role} » atteint",
     "intro": "Un rôle atteint toutes les lignes d’une table qu’il peut ouvrir, sauf s’il est limité ici. Une limite ne vaut pour une personne que si chaque rôle qui lui donne la table est limité.",
@@ -158,16 +162,22 @@ export default {
     "reachLabel": "{action} : quelles lignes",
     "reach": {
       "all": "Toutes les lignes",
-      "own": "Ses propres lignes",
-      "team": "Ses propres lignes et celles de son équipe",
+      "own": "Les siennes",
+      "team": "Celles de son équipe",
       "allWhile": "Toutes les lignes, seulement tant que…"
     },
     "unowned": "et les lignes qui n’appartiennent encore à personne",
     "widened": "Ce rôle ouvre la table par une autorisation plus large. Enregistrer une limite lui donne aussi cette table nommément.",
-    "count": "{name} verrait {reached} sur {total}.",
+    "count": "{name} verrait {reached} lignes sur {total} de {table}.",
     "capped": "Cette personne dirige plus de personnes qu’une portée n’en contient : toute son équipe n’est pas comptée.",
     "lifted": "{name} a aussi {roles}, qui donne toutes les lignes. Cette limite ne vaut pas pour cette personne.",
-    "several": "Une seule suffit. L’application les a fixées, et elles restent telles qu’elle les a écrites."
+    "several": "Une seule suffit. L’application les a fixées, et elles restent telles qu’elle les a écrites.",
+    "wayIs": {
+      "person": "{column} est cette personne",
+      "listing": "cette personne est inscrite dans {table}",
+      "listingDated": "cette personne est inscrite dans {table} ce jour-là",
+      "parent": "cette personne atteint son élément {table}"
+    }
   },
   "partsOff": "Sa partie de l’application est désactivée : il ne donne rien tant qu’elle n’est pas activée.",
   "people": {

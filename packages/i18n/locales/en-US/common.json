@@ -116,7 +116,7 @@
       "account": "Account"
     },
     "back": "Back",
-    "team": "Team",
+    "team": "People",
     "roles": "Roles & permissions",
     "audit": "Audit log",
     "security": "Password & sessions",
@@ -128,7 +128,8 @@
       "openStaffInstance": "Open the staff screens · {instance}"
     },
     "drawerTitle": "Navigation",
-    "emptyPartsOff": "Nothing is switched on for you right now. Ask an administrator."
+    "emptyPartsOff": "Nothing is switched on for you right now. Ask an administrator.",
+    "teams": "Teams"
   },
   "apps": {
     "frame": {
@@ -1683,14 +1684,16 @@
       "remove": "Delete",
       "resend": "New link",
       "roles": "Roles",
-      "suspend": "Suspend"
+      "suspend": "Suspend",
+      "handOn": "Hand on rows"
     },
     "column": {
       "actions": "Actions",
       "lastSeen": "Last seen",
       "person": "Person",
       "roles": "Roles",
-      "status": "Status"
+      "status": "Status",
+      "teams": "Teams"
     },
     "counts": "{active} active · {invited} invited · {suspended} suspended",
     "empty": {
@@ -1753,8 +1756,6 @@
       "failed": "The account was not deleted",
       "rows": {
         "needed": "Choose who takes the rows first.",
-        "title": "{name} is named in {count, plural, one {# row} other {# rows}}",
-        "body": "Removed for good, those rows would be nobody’s. Choose who takes them.",
         "line": "{table}: {count}",
         "to": "Hand them to",
         "choose": "Choose a person…",
@@ -1779,32 +1780,68 @@
       "sample": "Sample person",
       "suspended": "Suspended"
     },
-    "subtitle": "Who has an account on this Adminium, and what each of them can do.",
-    "title": "Team",
+    "subtitle": "Everyone who can sign in, with their roles and teams.",
+    "title": "People",
     "twoFactorOn": "Two-factor authentication is on",
     "twoFactorShort": "2FA",
     "actionFailed": "That change was not made",
     "teams": {
       "title": "Teams",
-      "intro": "Where a role is held to “their team’s rows”, a team’s lead reaches the rows of everyone in it. A member reaches only their own.",
       "failed": "The team was not changed",
       "over": "{name} leads more than {max} people. Only the first {max} are reached.",
-      "newName": "New team name",
-      "create": "Add team",
-      "empty": "No teams yet.",
+      "empty": "No teams yet",
       "deleteTitle": "Delete “{name}”?",
       "deleteBody": "Its lead stops reaching the members’ rows. Nobody’s account and nobody’s rows are touched.",
       "delete": "Delete team",
       "memberCount": "{count, plural, one {# person} other {# people}}",
-      "rename": "Rename",
       "noMembers": "Nobody is in this team yet.",
-      "leads": "Leads the team",
+      "leads": "Leads",
       "removeLabel": "Remove {name} from {team}",
-      "remove": "Remove",
-      "addMemberLabel": "Person to add to {team}",
-      "addMember": "Add a person…",
+      "addMember": "Pick someone…",
       "sample": "{name} (sample)",
-      "add": "Add"
+      "add": "Add",
+      "pageSubtitle": "Groups of people, each with someone who leads it.",
+      "notice": "A team decides whose records a person can open when their role says “their team’s”.",
+      "rolesLink": "Roles & access",
+      "newTeam": "New team",
+      "summary": "{teams, plural, one {# team} other {# teams}} · {people, plural, one {# person} other {# people}} in one or more",
+      "loadFailed": "The teams could not be read.",
+      "caption": "Teams, who leads each and who is in it",
+      "colTeam": "Team",
+      "colLead": "Lead",
+      "colMembers": "Members",
+      "noLead": "Nobody leads it",
+      "onlyLead": "Only the lead",
+      "inAll": "{names} · {count, plural, one {# person} other {# people}} in all",
+      "emptyBody": "Until there is one, a role set to “their team’s” opens the same rows as “their own”.",
+      "untitled": "Untitled team",
+      "sheetEyebrow": "Team",
+      "nameLabel": "Name",
+      "namePlaceholder": "e.g. North",
+      "people": "People",
+      "peopleHint": "Tick who leads. A lead’s “their team’s” covers everyone here.",
+      "addLabel": "Add a person",
+      "save": "Save team",
+      "needName": "Give the team a name first."
+    },
+    "teamLeads": "{team} (leads)",
+    "handOver": {
+      "title": "Hand their {count, plural, one {# row} other {# rows}} to…",
+      "remove": "{name} owns these. Removed for good, they would be nobody’s: choose who takes them.",
+      "suspend": "{name} owns these. Suspended, they stay {name}’s until somebody takes them.",
+      "later": "{name} is suspended and still owns these. Choose who takes them.",
+      "keep": "Nobody for now",
+      "laterTitle": "Hand {name}’s rows on",
+      "unknown": "Which rows name {name} could not be read.",
+      "none": "No row names {name}.",
+      "failed": "The rows were not handed over",
+      "confirm": "Hand them over"
+    },
+    "suspend": {
+      "title": "Suspend {name}?",
+      "body": "{name} can no longer sign in, and is signed out everywhere. Their account, roles and history stay, and you can reactivate them.",
+      "failed": "The account was not suspended",
+      "confirmHand": "Hand over and suspend"
     }
   },
   "invoices": {
@@ -1830,20 +1867,28 @@
     }
   },
   "quietHours": {
-    "title": "Quiet hours and summaries",
-    "help": "In your quiet hours a notice still shows in the bell, without a sound or a pop-up, and its email waits until the hours end. Something marked urgent reaches you at once.",
+    "title": "Quiet hours",
+    "leadOn": "In these hours a notice still shows in the bell, without a sound. Only its e-mail waits, and goes when they end. Something a rule marks urgent is sent at once.",
+    "leadOff": "Off. Notices and their e-mails arrive as they happen.",
+    "on": "On",
+    "off": "Off",
     "zone": "Your time zone",
     "zoneDefault": "The business’s ({zone})",
-    "none": "No quiet hours",
+    "days": "Days and times",
+    "fromShort": "From",
+    "toShort": "to",
     "from": "Quiet from, {day}",
-    "until": "until",
     "to": "Quiet until, {day}",
-    "nextDay": "the next day",
-    "daySwitch": "Quiet hours on {day}",
-    "copy": "Copy {day}’s hours to every day",
-    "digestDay": "Send my summaries on",
+    "endsOn": "ends {day}",
+    "copy": "Use {day}’s times every day",
+    "example": "An e-mail that comes at {from} on {day} is sent at {to} on {endDay}, unless its kind is ticked below.",
+    "always": "Still tell me at once about…",
+    "alwaysNote": "Summaries keep their own day and time, below.",
+    "summariesTitle": "Summaries",
+    "summariesLead": "E-mails a rule sends you with your own rows, such as a weekly digest. Each is an e-mail: in your quiet hours it waits like any other.",
+    "summariesOff": "Off. No rule sends you a summary. Your day and time are kept for when you switch them on.",
+    "digestDay": "Day",
     "digestWhenRun": "The day each one is made",
-    "digestTime": "At",
-    "always": "Always tell me, also in quiet hours"
+    "digestTime": "Time"
   }
 }

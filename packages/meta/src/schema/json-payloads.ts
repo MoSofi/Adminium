@@ -1535,9 +1535,17 @@ export const overridePatchSchema = z.discriminatedUnion('op', [
         where: z
           .array(stateCondition.strict().refine((c) => [c.eq, c.in, c.isNull, c.gt, c.gte, c.lt, c.lte].filter((part) => part !== undefined).length === 1, { message: 'a condition says one of eq, in, isNull, gt, gte, lt or lte' }))
           .min(1)
-          .max(8),
+          .max(8)
+          .optional(),
+        /** A column of the named row that holds what this row holds in `as`: a column of its own, or `<link>.<column>` of the row a link of it names. */
+        same: z
+          .array(z.object({ column: z.string().min(1).max(128), as: z.string().regex(/^[^.]{1,128}(\.[^.]{1,128})?$/) }).strict())
+          .min(1)
+          .max(4)
+          .optional(),
       })
-      .strict(),
+      .strict()
+      .refine((value) => value.where !== undefined || value.same !== undefined, { message: 'a link says which rows it may name: where, same, or both' }),
   }),
   /* How a person belongs to a row of the table, each way with its table names as the real tables' ids. */
   z.object({ op: z.literal('table.belongs'), value: z.object({ ways: z.array(storedBelongsWay).min(1).max(6) }).strict() }),
@@ -1912,9 +1920,37 @@ export type AutomationTrigger = z.infer<typeof automationTriggerSchema>;
  * (the `$generate` lesson); the runner resolves this marker through the same
  * coercion the generated defaults use.
  */
+const automationSettingRefSchema = z.object({ table: z.string().max(200), column: z.string().max(128) }).strict();
+
 export const automationWriteValueSchema = z.union([
   z.string().max(4000),
   z.object({ now: z.literal(true) }),
+  /**
+   * What a column of the app's settings row (its row with the lowest key)
+   * holds when the step runs, read as the rule reads the connection. A staff
+   * column filled so is left empty unless it names somebody who signs in.
+   */
+  z.object({ setting: automationSettingRefSchema }).strict(),
+  /**
+   * A day so many days after a date column of the record (`column`) or after
+   * the run (`now`), on the business's calendar: `days`, or the whole number
+   * a setting holds when it holds one from 1 to 3650. `at`: the wall time on
+   * that day, for a column that holds a moment (else the time it counts from).
+   */
+  z
+    .object({
+      daysAfter: z
+        .object({
+          column: z.string().max(128).optional(),
+          now: z.literal(true).optional(),
+          days: z.number().int().min(0).max(3650),
+          setting: automationSettingRefSchema.optional(),
+          at: z.string().regex(HHMM).optional(),
+        })
+        .strict()
+        .refine((after) => (after.column === undefined) !== (after.now === undefined), { message: 'days after a column of the record or after now, one of the two' }),
+    })
+    .strict(),
 ]);
 export type AutomationWriteValue = z.infer<typeof automationWriteValueSchema>;
 

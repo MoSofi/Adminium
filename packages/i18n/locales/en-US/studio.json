@@ -905,7 +905,8 @@
       "checkSubtitle": "Check the tables this version uses.",
       "pickFirst": "Pick what to do with {table} before you update.",
       "checkFirst": "Check the tables again before you update.",
-      "nothingYet": "Nothing changes until you press Update."
+      "nothingYet": "Nothing changes until you press Update.",
+      "rolesSubtitle": "Check what this version’s roles may do with add-ons’ tables."
     },
     "veto": {
       "title": "This deployment cannot browse online",
@@ -3422,7 +3423,32 @@
       "kept": "{addOn} stays installed. Uninstall it from Add-ons if nothing else uses it.",
       "link": "Its link to {addOn}"
     },
-    "updateToo": "Update it too"
+    "updateToo": "Update it too",
+    "roleTables": {
+      "summary": "{app}’s roles get {count, plural, one {# of its tables} other {# of its tables}}. See what they read and change.",
+      "unchecked": "{addOn} isn’t on this server yet, so this is what {app} asks for. The add-on may allow less.",
+      "keyAndLinks": "A read also shows each row’s key and its links to other rows.",
+      "everyColumn": "every column",
+      "reads": "Reads {columns}",
+      "readsAll": "Reads every column",
+      "changes": "Changes {columns}",
+      "changesAll": "Changes every column",
+      "adds": "Adds rows, filling in {columns}",
+      "addsAll": "Adds rows, filling in any column",
+      "notOffered": "Not given: {addOn} shares this table with no app.",
+      "keptBack": "Not given: {addOn} keeps this table to itself.",
+      "unknown": "Not given: {addOn} has no such table or column.",
+      "allowsLess": "Not given: {addOn} allows less than this.",
+      "notGiven": "Asked for, not given: {what}",
+      "wider": "New in this version: {what}",
+      "updateTitle": "Roles get more of add-ons’ tables",
+      "updateBody": "This version lets these roles do more with tables that belong to add-ons. Updating allows it.",
+      "action": {
+        "read": "read",
+        "create": "add rows",
+        "update": "change rows"
+      }
+    }
   },
   "featurePage": {
     "ask": "Someone who manages apps can install it.",

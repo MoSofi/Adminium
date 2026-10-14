@@ -54,6 +54,7 @@ export {
   MAX_SEED_ROWS,
   installsLikeAnApp,
   ledgersOf,
+  addOnRoleTableHold,
   adjusterOf,
   lookUpOf,
   wordsOf,
@@ -91,6 +92,7 @@ export {
   type RequiredTableShape,
   type ShapeDefinition,
 } from './schema.js';
+export { EVERY_COLUMN, appGrantsIssues, appGrantsSchema, declaresAppGrants, holdWider, roleTableHold, type AppGrants, type RoleAddOnAction, type RoleTableHold, type RoleTableNarrowed, type RoleTableSkip } from './app-grants.js';
 export { ROLE_ADD_ON_ACTIONS, roleAddOnTableSchema, roleAddOnTablesSchema, roleLimitSchema, roleLimitsSchema, type RoleAddOnTable, type RoleLimit } from './roles.js';
 export { BELONGS_VIA_MAX_STEPS, ROW_LIMIT_ACTIONS, ROW_REACHES, ROW_REACHES_MAX, STAFF_SET_RULES, belongsSchema, belongsWaySchema, listingWhileSchema, reachList, rowReachSchema, rowReachesSchema, rowsLimitSchema, type BelongsWay, type ListingWhile, type RowReach, type RowReaches, type RowsLimit } from './roles.js';
 export { lookUpIssues, lookUpKindSchema, lookUpSchema, type LookUp, type LookUpKind, type LookUpTable } from './look-up.js';
@@ -485,6 +487,7 @@ export {
   type ManifestCondition,
   type ManifestNode,
   type ManifestTrigger,
+  type ManifestWriteValue,
 } from './automations.js';
 
 export {

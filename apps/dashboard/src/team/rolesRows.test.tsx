@@ -18,7 +18,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest
 import { installTestI18n } from '../i18n/testing.js';
 import { jsonResponse, makeBootstrap } from '../test/fixtures.js';
 import { ShellHarness } from '../test/shellHarness.js';
-import { RolesPage } from './RolesPage.js';
+import { RolesPage, reachSentence } from './RolesPage.js';
 import { rowLimitsSave, withReach, type RoleListItem, type RoleRowsTable } from './rolesApi.js';
 
 const role = (id: string, slug: string, name: string): RoleListItem => ({ id, slug, name, description: null, isBuiltin: false, memberCount: 1, createdAt: 1, updatedAt: 1 });
@@ -117,8 +117,15 @@ describe('which rows a role reaches', () => {
     expect(screen.queryByTestId('roles-rows-main.deals-read')).not.toBeNull();
     expect(screen.queryByTestId('roles-rows-main.deals-update')).not.toBeNull();
     expect(screen.queryByTestId('roles-rows-main.deals-delete')).toBeNull();
-    expect(screen.getByTestId('roles-rows-main.deals-read-sentence').textContent).toBe('Reaches every row.');
-    expect(within(screen.getByTestId('roles-rows-table-main.quotes')).getByText('Follows: Deals')).toBeTruthy();
+    // In the design's sentences: the table named, and every way its rows are somebody's.
+    expect(screen.getByTestId('roles-rows-main.deals-read-sentence').textContent).toBe('Every row of Deals.');
+    // A table reached through its parent keeps a limit of its own: said like any other, never "Follows: Deals".
+    const quotes = within(screen.getByTestId('roles-rows-table-main.quotes'));
+    expect(quotes.getByText('A row belongs to whoever reaches its Deals.')).toBeTruthy();
+    expect(quotes.queryByText(/Follows/)).toBeNull();
+    expect(screen.getByTestId('roles-rows-main.quotes-read-sentence').textContent).toBe('Every row of Quotes.');
+    // The three choices, in the design's order and words.
+    expect(within(screen.getByTestId('roles-rows-main.deals-read')).getAllByRole('radio').map((one) => one.textContent)).toEqual(['All rows', 'Their team’s', 'Their own']);
     const notes = within(screen.getByTestId('roles-rows-table-main.notes'));
     expect(notes.getByText('Read by the people each row belongs to, and by nobody else. There is nothing to choose.')).toBeTruthy();
     expect(screen.queryByTestId('roles-rows-main.notes-read')).toBeNull();
@@ -129,12 +136,17 @@ describe('which rows a role reaches', () => {
   it('saves only what changed, with the role\'s other grants as they were', async () => {
     const { user, puts } = await open();
     expect((screen.getByTestId('roles-rows-save') as HTMLButtonElement).disabled).toBe(true);
-    await user.selectOptions(screen.getByTestId('roles-rows-main.deals-read'), 'team');
-    expect(screen.getByTestId('roles-rows-main.deals-read-sentence').textContent).toBe('Only rows that belong to this person, or to someone in a team they lead.');
+    await user.click(within(screen.getByTestId('roles-rows-main.deals-read')).getByRole('radio', { name: 'Their team’s' }));
+    expect(screen.getByTestId('roles-rows-main.deals-read-sentence').textContent).toBe(
+      'Only rows of Deals where Owner is this person or this person is listed in Deal members, or the same for someone in a team they lead.',
+    );
     await user.click(within(screen.getByTestId('roles-rows-table-main.deals')).getAllByRole('checkbox')[0]!);
-    expect(screen.getByTestId('roles-rows-main.deals-read-sentence').textContent).toBe('Only rows that belong to this person, or to someone in a team they lead, and rows nobody owns yet.');
+    expect(screen.getByTestId('roles-rows-main.deals-read-sentence').textContent).toBe(
+      'Only rows of Deals where Owner is this person or this person is listed in Deal members, or the same for someone in a team they lead, and rows nobody owns yet.',
+    );
     // Quotes are opened by the wider "read every table": a limit names the table for the role as well.
-    await user.selectOptions(screen.getByTestId('roles-rows-main.quotes-read'), 'own');
+    await user.click(within(screen.getByTestId('roles-rows-main.quotes-read')).getByRole('radio', { name: 'Their own' }));
+    expect(screen.getByTestId('roles-rows-main.quotes-read-sentence').textContent).toBe('Only rows of Quotes where this person reaches its Deals.');
     await user.click(screen.getByTestId('roles-rows-save'));
     await waitFor(() => expect(puts).toHaveLength(1));
     expect(puts[0]!.url).toBe('/api/v1/roles/role_rep/permissions');
@@ -145,9 +157,9 @@ describe('which rows a role reaches', () => {
   it('counts what a chosen person would see under the limit as drawn, and says when another role lifts it', async () => {
     const { user, previews } = await open();
     await user.selectOptions(screen.getByTestId('roles-rows-person'), 'usr_dana');
-    expect((await screen.findByTestId('roles-rows-main.deals-count')).textContent).toContain('Dana Whitlock would see 14 of 14.');
-    await user.selectOptions(screen.getByTestId('roles-rows-main.deals-read'), 'own');
-    await waitFor(() => expect(screen.getByTestId('roles-rows-main.deals-count').textContent).toContain('Dana Whitlock would see 6 of 14.'));
+    expect((await screen.findByTestId('roles-rows-main.deals-count')).textContent).toContain('Dana Whitlock would see 14 of 14 rows of Deals.');
+    await user.click(within(screen.getByTestId('roles-rows-main.deals-read')).getByRole('radio', { name: 'Their own' }));
+    await waitFor(() => expect(screen.getByTestId('roles-rows-main.deals-count').textContent).toContain('Dana Whitlock would see 6 of 14 rows of Deals.'));
     // Asked as that person, about this role, with the limit not yet saved.
     expect(previews.at(-1)).toMatchObject({ connectionId: 'conn_1', table: 'main.deals', userId: 'usr_dana', roleId: 'role_rep', reach: { reach: 'own' } });
     await user.selectOptions(screen.getByTestId('roles-rows-person'), 'usr_ivy');
@@ -184,7 +196,7 @@ describe('several reaches an app wrote for one action', () => {
     expect(screen.queryByTestId('roles-rows-main.deals-read')).toBeNull();
     expect(screen.getByTestId('roles-rows-main.deals-read-several').textContent).toContain('Any one of these is enough.');
     const lines = within(screen.getByTestId('roles-rows-main.deals-read-sentence')).getAllByRole('listitem').map((item) => item.textContent);
-    expect(lines).toEqual(['Every row, only while state is won.', 'Only rows that belong to this person.']);
+    expect(lines).toEqual(['Every row of Deals, only while state is won.', 'Only rows of Deals where Owner is this person or this person is listed in Deal members.']);
     // Change is still the dialog's to choose.
     expect(screen.queryByTestId('roles-rows-main.deals-update')).not.toBeNull();
   });
@@ -193,10 +205,22 @@ describe('several reaches an app wrote for one action', () => {
     const { user, puts, previews } = await openSeveral();
     await user.selectOptions(screen.getByTestId('roles-rows-person'), 'usr_dana');
     await waitFor(() => expect(previews.at(-1)).toMatchObject({ reach: [WON, { reach: 'own' }] }));
-    await user.selectOptions(screen.getByTestId('roles-rows-main.deals-update'), 'own');
+    await user.click(within(screen.getByTestId('roles-rows-main.deals-update')).getByRole('radio', { name: 'Their own' }));
     await user.click(screen.getByTestId('roles-rows-save'));
     await waitFor(() => expect(puts).toHaveLength(1));
     expect(puts[0]!.body.rows).toEqual({ 'conn_1/main.deals': { read: [WON, { reach: 'own' }], update: { reach: 'own' } } });
+  });
+});
+
+describe('the sentence a limit is said in', () => {
+  const one = { label: 'Deals', ways: [{ kind: 'person' as const, column: 'owner_id', label: 'Owner' }] };
+  it('names the table and its one column as the design does', () => {
+    expect(reachSentence(one, null)).toBe('Every row of Deals, whoever Owner is.');
+    expect(reachSentence(one, { reach: 'own' })).toBe('Only rows of Deals where Owner is this person.');
+    expect(reachSentence(one, { reach: 'team', unowned: true })).toBe('Only rows of Deals where Owner is this person, or someone in a team they lead, and rows nobody owns yet.');
+    expect(reachSentence(one, { reach: 'own', while: { column: 'state', in: ['won'] } })).toBe('Only rows of Deals where Owner is this person, only while state is won.');
+    expect(reachSentence(one, { reach: 'all', while: { column: 'state', in: ['won', 'lost'] } })).toBe('Every row of Deals, only while state is won or lost.');
+    expect(reachSentence({ label: 'Follow-ups', ways: [{ kind: 'listing', table: 'main.x', label: 'Crew days', dated: true }] }, { reach: 'own' })).toBe('Only rows of Follow-ups where this person is listed in Crew days on the day.');
   });
 });
 

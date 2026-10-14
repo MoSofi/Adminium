@@ -92,7 +92,9 @@ personal column, or a private table, holds no such number.
 
 Each person sets their own quiet hours under **Account → Notifications**, a window for each
 weekday on their own clock. A notice that arrives at 19:00 to somebody whose evening is quiet
-from 18:00 to 08:00 is in the app at once; its email is sent at 08:00. Add `"urgent": true` to a
+from 18:00 to 08:00 is in the app at once; only its email waits, and is sent at 08:00. Quiet
+hours have a switch of their own: switched off, nothing is held and the hours are kept for when
+they are on again. Add `"urgent": true` to a
 notice that cannot wait (today's day sheet changed): it is never held. A person can also mark a
 kind of notice "always tell me".
 
@@ -101,7 +103,9 @@ kind of notice "always tell me".
 A `digest` step sends each person who holds one of its roles an email of their own rows: the
 deals they own that close this week, the follow-ups due today. It is read as that person when it
 is sent, so it never lists a row they could not open, and it is sent on the weekday and at the
-time they chose. See [the reference](/reference/manifest/#a-summary-for-each-person).
+time they chose. Anybody may say "not me" with the switch on the Summaries card of their
+notification settings: no rule then makes them one, and their day and time are kept. A summary
+they ask for themselves is still sent. See [the reference](/reference/manifest/#a-summary-for-each-person).
 
 A manager's summary is the same step with a section that reads further, and only as far as the
 manager does:
@@ -137,6 +141,28 @@ Give a "create a record" step a `name` and the steps after it read the row it ma
   "values": { "name": "Deal for {{steps.contact.name}}", "contact_id": "{{steps.contact.id}}" } },
 { "kind": "record.create", "table": "follow_ups", "values": { "deal_id": "{{steps.deal.id}}" } }
 ```
+
+A notice or a mail to a person that reads `{{steps.deal.amount}}` carries it only for somebody who
+reads that row: a person whose roles do not read the table, or do not reach the row, gets it empty,
+as a column their role is not shown is. Give such a placeholder its own words around it.
+
+## A call so many days later, owned by who the settings name
+
+A row a rule makes may take a value from the app's settings row, and a day so many days after a
+date of the record, on the business's calendar. An aftercare call 28 days after a job is signed
+off (or as many days as the Settings screen says), for the person the business named:
+
+```json
+{ "kind": "record.create", "table": "follow_ups", "values": {
+    "job_id": "{{record.job_id}}",
+    "owner_id": { "setting": { "table": "settings", "column": "aftercare_owner_id" } },
+    "due_at": { "daysAfter": { "column": "signed_at", "days": 28,
+                               "setting": { "table": "settings", "column": "aftercare_days" }, "at": "09:00" } } } }
+```
+
+A setting that names nobody who signs in leaves the owner empty, and the run's log says so: make
+the column nullable, or the step fails on it. A secret or personal setting, and a private table,
+are refused. See [the reference](/reference/manifest/#a-value-from-the-settings-row-and-a-day-so-many-days-on).
 
 ## Mentions
 

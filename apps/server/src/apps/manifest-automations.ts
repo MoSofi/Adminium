@@ -25,7 +25,7 @@ import type { AddOnStep } from '@adminium/add-on-contracts';
 import type { RuleSteps } from '../automations/validate.js';
 import { createHash } from 'node:crypto';
 
-import type { ManifestAutomation, ManifestCondition, ManifestNode, Manifest } from '@adminium/manifest';
+import type { ManifestAutomation, ManifestCondition, ManifestNode, ManifestWriteValue, Manifest } from '@adminium/manifest';
 import { auditRepo, automationsRepo, emailTemplatesRepo, rolesRepo, settingsRepo, type Automation, type AutomationGraph, type AutomationTrigger, type MetaDb } from '@adminium/meta';
 
 import { forgetSpellsIfChosenAnew, nextTickFor } from '../automations/schedule.js';
@@ -77,6 +77,13 @@ function boundCondition(condition: ManifestCondition, b: Binding): unknown {
   if (!('count' in condition.left)) return condition;
   const count = condition.left.count;
   return { ...condition, left: { count: { ...count, table: b.realId(count.table) } } };
+}
+
+function boundValue(value: ManifestWriteValue, b: Binding): unknown {
+  if (typeof value !== 'object') return value;
+  if ('setting' in value) return { setting: { ...value.setting, table: b.realId(value.setting.table) } };
+  if ('daysAfter' in value && value.daysAfter.setting !== undefined) return { daysAfter: { ...value.daysAfter, setting: { ...value.daysAfter.setting, table: b.realId(value.daysAfter.setting.table) } } };
+  return value;
 }
 
 function boundNode(node: unknown, b: Binding): unknown {
@@ -132,7 +139,11 @@ function boundNode(node: unknown, b: Binding): unknown {
       },
     };
   }
-  if (action.kind === 'record.create') return { ...base, action: { ...action, table: b.realId(action['table'] as string) } };
+  // A value read from the settings row, or days kept there: from the settings table as it is named here.
+  if (action.kind === 'record.create' || action.kind === 'record.update') {
+    const values = Object.fromEntries(Object.entries(action['values'] as Record<string, ManifestWriteValue>).map(([ref, value]) => [ref, boundValue(value, b)]));
+    return { ...base, action: { ...action, values, ...(action.kind === 'record.create' ? { table: b.realId(action['table'] as string) } : {}) } };
+  }
   // A mail to the people a listing names: the listing's table as it is named here.
   if (action.kind === 'email' && (action['to'] as { kind?: string } | undefined)?.kind === 'listed') {
     const to = action['to'] as { kind: 'listed'; table: string };

@@ -33,6 +33,7 @@ import {
   ScrollText,
   ShieldCheck,
   Upload,
+  UserRound,
   Users,
   Workflow,
   type LucideIcon,
@@ -189,7 +190,8 @@ const PLATFORM_NAV: ReadonlyArray<{ group: NavGroupKey; links: readonly Platform
     // engine with no way to reach it" looked like in the rail.
     group: 'people',
     links: [
-      { to: '/settings/team', labelKey: 'nav.team', fallback: 'Team', icon: Users, requires: 'users.manage' },
+      { to: '/settings/team', labelKey: 'nav.team', fallback: 'People', icon: UserRound, requires: 'users.manage' },
+      { to: '/settings/teams', labelKey: 'nav.teams', fallback: 'Teams', icon: Users, requires: 'users.manage' },
       {
         to: '/settings/roles',
         labelKey: 'nav.roles',

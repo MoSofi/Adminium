@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `/settings/team` — the user directory, and the surface that closes the v1
+ * `/settings/team` — "People": the user directory, and the surface that closes the v1
  * blocker: before it, a self-hosted Adminium could create exactly ONE account
  * during setup and had no API or UI to create a second, while a complete RBAC
  * engine sat unreachable behind that one user.
@@ -26,7 +26,7 @@
  * possible response to a network blip.
  */
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { MailCheck, MailWarning, ShieldCheck, UserPlus, Users } from 'lucide-react';
+import { MailCheck, MailWarning, ShieldCheck, UserMinus, UserPlus, Users } from 'lucide-react';
 import { useMemo, useState, type ReactNode } from 'react';
 import {
   Alert,
@@ -62,7 +62,6 @@ import { t } from '../i18n/t.js';
 import { useCommonWords } from '../i18n/commonWords.js';
 import { CopyButton } from '../studio/connect/CopyButton.js';
 import { peopleQuery, rolesQuery, type RoleListItem } from './rolesApi.js';
-import { TeamsCard } from './TeamsCard.js';
 import {
   EMPTY_USER_FILTERS,
   TEAM_USERS_KEY,
@@ -71,13 +70,16 @@ import {
   deleteUser,
   formatSince,
   formatStamp,
+  handOverRows,
   namedRowsByTable,
   patchUser,
   resendInvite,
   setUserRoles,
+  teamsQuery,
   userRowsQuery,
   userStatusTone,
   usersQuery,
+  type NamedRows,
   type UserDto,
   type UserFilters,
   type UserInvite,
@@ -442,6 +444,134 @@ function RolesDialog(props: {
   );
 }
 
+// --- the rows a person leaves -------------------------------------------------
+
+/** Why the rows are being handed on: decides the words, and whether "nobody for now" is an answer. */
+type HandOverMode = 'remove' | 'suspend' | 'later';
+
+/**
+ * "Hand their N rows to…": the rows that are this person's, a line a table,
+ * and who takes them. A private table's rows are said to stay, never counted;
+ * a database that could not be read is named. Suspending may leave the rows
+ * where they are ("Nobody for now"); removing for good may not.
+ */
+function HandOverRows(props: { person: UserDto; rows: NamedRows; mode: HandOverMode; takerId: string; onTaker: (id: string) => void; testId: string }): ReactNode {
+  const { person, rows } = props;
+  const takers = useQuery({ ...peopleQuery(), enabled: rows.total > 0 });
+  const owed = namedRowsByTable(rows);
+  if (rows.named.length + rows.unreadable.length === 0 && !rows.private) return null;
+  return (
+    <div className="mt-3 flex flex-col gap-2 rounded-lg border border-border p-3" data-testid={props.testId}>
+      {rows.total === 0 ? null : (
+        <>
+          <p className="font-semibold text-fg">{t('team.handOver.title', 'Hand their {count, plural, one {# row} other {# rows}} to…', { count: rows.total })}</p>
+          <p>
+            {props.mode === 'remove'
+              ? t('team.handOver.remove', '{name} owns these. Removed for good, they would be nobody’s: choose who takes them.', { name: person.name })
+              : props.mode === 'suspend'
+                ? t('team.handOver.suspend', '{name} owns these. Suspended, they stay {name}’s until somebody takes them.', { name: person.name })
+                : t('team.handOver.later', '{name} is suspended and still owns these. Choose who takes them.', { name: person.name })}
+          </p>
+          <ul className="list-disc ps-5">
+            {owed.moved.map((line) => (
+              <li key={line.label}>{t('team.remove.rows.line', '{table}: {count}', { table: line.label, count: line.rows })}</li>
+            ))}
+          </ul>
+          <FormField label={t('team.remove.rows.to', 'Hand them to')} required={props.mode !== 'suspend'}>
+            <Select value={props.takerId} onChange={(event) => props.onTaker(event.target.value)} data-testid={`${props.testId}-to`}>
+              <option value="">{props.mode === 'suspend' ? t('team.handOver.keep', 'Nobody for now') : t('team.remove.rows.choose', 'Choose a person…')}</option>
+              {(takers.data ?? [])
+                .filter((one) => one.id !== person.id)
+                .map((one) => (
+                  <option key={one.id} value={one.id}>
+                    {one.name}
+                  </option>
+                ))}
+            </Select>
+          </FormField>
+        </>
+      )}
+      {!owed.kept ? null : <p data-testid={`${props.testId}-kept`}>{t('team.remove.rows.kept', 'Rows of private tables stay as they are: nobody else may read them.')}</p>}
+      {rows.unreadable.length === 0 ? null : (
+        <p data-testid={`${props.testId}-unreadable`}>
+          {t('team.remove.rows.unreadable', 'Could not check {names}. Rows there may still name this person.', { names: rows.unreadable.map((one) => one.connectionName).join(', ') })}
+        </p>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Suspend, asking first who takes the person's rows; or, for somebody already
+ * suspended, hand their rows on. Suspending is one call that hands the rows
+ * over only once the server has agreed to the suspension, so a refused
+ * suspension moves nothing.
+ */
+function SuspendDialog(props: { user: UserDto; mode: 'suspend' | 'later'; onClose: () => void; onDone: () => Promise<void> }): ReactNode {
+  const { user, mode } = props;
+  const rows = useQuery(userRowsQuery(user.id));
+  const [takerId, setTakerId] = useState('');
+  const act = useMutation({
+    mutationFn: async () => {
+      if (mode === 'later') {
+        if (takerId === '') throw new Error(t('team.remove.rows.needed', 'Choose who takes the rows first.'));
+        await handOverRows(user.id, takerId);
+      } else await deleteUser(user.id, false, takerId === '' ? undefined : takerId);
+    },
+    onSuccess: props.onDone,
+  });
+  const nothing = mode === 'later' && rows.data !== undefined && rows.data.total === 0;
+  return (
+    <Modal open size="md" onOpenChange={(next) => { if (!next && !act.isPending) props.onClose(); }}>
+      <ModalHeader
+        icon={<UserMinus />}
+        title={mode === 'suspend' ? t('team.suspend.title', 'Suspend {name}?', { name: user.name }) : t('team.handOver.laterTitle', 'Hand {name}’s rows on', { name: user.name })}
+        closeLabel={t('common.close', 'Close')}
+      />
+      <ModalBody className="text-body-sm text-fg-muted" data-testid="team-suspend-dialog">
+        {mode === 'suspend' ? (
+          <p>{t('team.suspend.body', '{name} can no longer sign in, and is signed out everywhere. Their account, roles and history stay, and you can reactivate them.', { name: user.name })}</p>
+        ) : null}
+        {rows.isError ? (
+          <Alert role="alert" tone="warn" className="mt-3" title={t('team.handOver.unknown', 'Which rows name {name} could not be read.', { name: user.name })} body={rows.error.message} />
+        ) : rows.data === undefined ? null : (
+          <HandOverRows person={user} rows={rows.data} mode={mode} takerId={takerId} onTaker={setTakerId} testId="team-suspend-rows" />
+        )}
+        {nothing ? <p className="mt-3" data-testid="team-suspend-nothing">{t('team.handOver.none', 'No row names {name}.', { name: user.name })}</p> : null}
+        {act.error === null ? null : (
+          <Alert
+            role="alert"
+            tone="danger"
+            className="mt-3"
+            data-testid="team-suspend-error"
+            title={mode === 'suspend' ? t('team.suspend.failed', 'The account was not suspended') : t('team.handOver.failed', 'The rows were not handed over')}
+            body={act.error.message}
+          />
+        )}
+      </ModalBody>
+      <ModalFooter>
+        <Button variant="secondary" onClick={props.onClose} disabled={act.isPending}>
+          {t('common.cancel', 'Cancel')}
+        </Button>
+        <Button
+          variant={mode === 'suspend' ? 'destructive' : 'primary'}
+          // Asked once the rows are known: a suspension sent before the question is shown would move nothing it should.
+          disabled={rows.isPending || nothing}
+          loading={act.isPending}
+          onClick={() => act.mutate()}
+          data-testid="team-suspend-confirm"
+        >
+          {mode === 'later'
+            ? t('team.handOver.confirm', 'Hand them over')
+            : takerId === ''
+              ? t('team.action.suspend', 'Suspend')
+              : t('team.suspend.confirmHand', 'Hand over and suspend')}
+        </Button>
+      </ModalFooter>
+    </Modal>
+  );
+}
+
 // --- page --------------------------------------------------------------------
 
 export function TeamPage(): ReactNode {
@@ -472,6 +602,14 @@ export function TeamPage(): ReactNode {
   const [inviteOpen, setInviteOpen] = useState(false);
   const [editingRoles, setEditingRoles] = useState<UserDto | null>(null);
   const [removing, setRemoving] = useState<UserDto | null>(null);
+  const [suspending, setSuspending] = useState<{ user: UserDto; mode: 'suspend' | 'later' } | null>(null);
+  // Which teams each person is in, for the list's Teams column: the same "manage users" this page needs.
+  const teams = useQuery(teamsQuery());
+  const teamsOf = useMemo(() => {
+    const out = new Map<string, { name: string; lead: boolean }[]>();
+    for (const team of teams.data?.teams ?? []) for (const member of team.members) out.set(member.userId, [...(out.get(member.userId) ?? []), { name: team.name, lead: member.lead }]);
+    return out;
+  }, [teams.data]);
 
   const localeTag = tagForLocale((bootstrap?.prefs.locale ?? 'en_US') as LocaleId);
   // Captured once per mount: a per-render Date.now() makes every relative
@@ -553,9 +691,7 @@ export function TeamPage(): ReactNode {
   // nobody's that a colleague held to "their own rows" could reach; the server refuses the delete while any
   // such row is left, so the dialog asks whom to hand them to and names them in the delete itself.
   const namedRows = useQuery({ ...userRowsQuery(removing?.id ?? ''), enabled: removing !== null });
-  const handTo = useQuery({ ...peopleQuery(), enabled: removing !== null && (namedRows.data?.total ?? 0) > 0 });
   const [takerId, setTakerId] = useState('');
-  const owed = namedRows.data === undefined ? null : namedRowsByTable(namedRows.data);
   const remove = useMutation({
     mutationFn: async (user: UserDto) => {
       const owes = (namedRows.data?.total ?? 0) > 0;
@@ -580,8 +716,8 @@ export function TeamPage(): ReactNode {
   return (
     <PageSurface width="page" className="flex flex-col gap-5">
       <PageActions
-        title={t('team.title', 'Team')}
-        subtitle={t('team.subtitle', 'Who has an account on this Adminium, and what each of them can do.')}
+        title={t('team.title', 'People')}
+        subtitle={t('team.subtitle', 'Everyone who can sign in, with their roles and teams.')}
       >
         <Button
           iconLeft={<UserPlus className="size-4" />}
@@ -726,6 +862,9 @@ export function TeamPage(): ReactNode {
                       {t('team.column.roles', 'Roles')}
                     </th>
                     <th scope="col" className="px-4 py-2 text-start font-bold">
+                      {t('team.column.teams', 'Teams')}
+                    </th>
+                    <th scope="col" className="px-4 py-2 text-start font-bold">
                       {t('team.column.lastSeen', 'Last seen')}
                     </th>
                     <th scope="col" className="px-4 py-2 text-end font-bold">
@@ -738,6 +877,7 @@ export function TeamPage(): ReactNode {
                     <UserRow
                       key={user.id}
                       user={user}
+                      teams={teamsOf.get(user.id) ?? []}
                       localeTag={localeTag}
                       now={now}
                       busy={setStatus.isPending || resend.isPending}
@@ -751,12 +891,11 @@ export function TeamPage(): ReactNode {
                         setEditingRoles(user);
                       }}
                       onResend={() => resend.mutate(user)}
+                      // Suspending asks who takes their rows first; reactivating asks nothing.
                       onToggleSuspended={() =>
-                        setStatus.mutate({
-                          id: user.id,
-                          status: user.status === 'suspended' ? 'active' : 'suspended',
-                        })
+                        user.status === 'suspended' ? setStatus.mutate({ id: user.id, status: 'active' }) : setSuspending({ user, mode: 'suspend' })
                       }
+                      onHandOn={() => setSuspending({ user, mode: 'later' })}
                       onRemove={() => {
                         remove.reset();
                         setRemoving(user);
@@ -769,8 +908,6 @@ export function TeamPage(): ReactNode {
           )}
         </CardBody>
       </Card>
-
-      <TeamsCard />
 
       {users.hasNextPage ? (
         <div className="flex justify-center">
@@ -813,6 +950,19 @@ export function TeamPage(): ReactNode {
         />
       )}
 
+      {suspending === null ? null : (
+        <SuspendDialog
+          key={`${suspending.user.id}-${suspending.mode}`}
+          user={suspending.user}
+          mode={suspending.mode}
+          onClose={() => setSuspending(null)}
+          onDone={async () => {
+            setSuspending(null);
+            await queryClient.invalidateQueries({ queryKey: TEAM_USERS_KEY });
+          }}
+        />
+      )}
+
       {removing === null ? null : (
         <ConfirmModal
           open
@@ -832,44 +982,8 @@ export function TeamPage(): ReactNode {
                 'This erases {name}’s account, their preferences and their sign-in sessions, and blanks their name from the record of settings they changed. Suspending instead keeps all of it and only stops them signing in. This cannot be undone.',
                 { name: removing.name },
               )}
-              {namedRows.data === undefined || owed === null || namedRows.data.named.length + namedRows.data.unreadable.length === 0 && !namedRows.data.private ? null : (
-                <div className="mt-3 flex flex-col gap-2 rounded-lg border border-border p-3" data-testid="team-remove-rows">
-                  {namedRows.data.total === 0 ? null : (
-                    <>
-                      <p className="font-semibold text-fg">
-                        {t('team.remove.rows.title', '{name} is named in {count, plural, one {# row} other {# rows}}', { name: removing.name, count: namedRows.data.total })}
-                      </p>
-                      <p>{t('team.remove.rows.body', 'Removed for good, those rows would be nobody’s. Choose who takes them.')}</p>
-                      <ul className="list-disc ps-5">
-                        {owed.moved.map((line) => (
-                          <li key={line.label}>{t('team.remove.rows.line', '{table}: {count}', { table: line.label, count: line.rows })}</li>
-                        ))}
-                      </ul>
-                      <FormField label={t('team.remove.rows.to', 'Hand them to')} required>
-                        <Select value={takerId} onChange={(event) => setTakerId(event.target.value)} data-testid="team-remove-rows-to">
-                          <option value="">{t('team.remove.rows.choose', 'Choose a person…')}</option>
-                          {(handTo.data ?? [])
-                            .filter((person) => person.id !== removing.id)
-                            .map((person) => (
-                              <option key={person.id} value={person.id}>
-                                {person.name}
-                              </option>
-                            ))}
-                        </Select>
-                      </FormField>
-                    </>
-                  )}
-                  {!owed.kept ? null : (
-                    <p data-testid="team-remove-rows-kept">{t('team.remove.rows.kept', 'Rows of private tables stay as they are: nobody else may read them.')}</p>
-                  )}
-                  {namedRows.data.unreadable.length === 0 ? null : (
-                    <p data-testid="team-remove-rows-unreadable">
-                      {t('team.remove.rows.unreadable', 'Could not check {names}. Rows there may still name this person.', {
-                        names: namedRows.data.unreadable.map((one) => one.connectionName).join(', '),
-                      })}
-                    </p>
-                  )}
-                </div>
+              {namedRows.data === undefined ? null : (
+                <HandOverRows person={removing} rows={namedRows.data} mode="remove" takerId={takerId} onTaker={setTakerId} testId="team-remove-rows" />
               )}
               {remove.error === null ? null : (
                 <Alert
@@ -917,6 +1031,8 @@ function mayActOn(actor: { id: string; superAdmin: boolean } | null, user: UserD
 
 function UserRow(props: {
   user: UserDto;
+  /** The teams this person is in, and whether they lead each. */
+  teams: readonly { name: string; lead: boolean }[];
   localeTag: string;
   now: number;
   busy: boolean;
@@ -933,6 +1049,8 @@ function UserRow(props: {
   onEditRoles: () => void;
   onResend: () => void;
   onToggleSuspended: () => void;
+  /** A suspended person's rows, handed on afterwards. */
+  onHandOn: () => void;
   onRemove: () => void;
 }): ReactNode {
   const { user } = props;
@@ -970,6 +1088,13 @@ function UserRow(props: {
           </div>
         )}
       </td>
+      <td className="px-4 py-2.5 text-fg-muted" data-testid="team-row-teams">
+        {props.teams.length === 0 ? (
+          <span className="text-fg-subtle">—</span>
+        ) : (
+          props.teams.map((team) => (team.lead ? t('team.teamLeads', '{team} (leads)', { team: team.name }) : team.name)).join(', ')
+        )}
+      </td>
       <td className="px-4 py-2.5 text-fg-muted">
         {lastSeen === null ? (
           <span className="text-fg-subtle">{t('team.neverSignedIn', 'Never signed in')}</span>
@@ -1000,6 +1125,11 @@ function UserRow(props: {
           {props.mayActOn && user.status === 'invited' ? (
             <Button variant="ghost" size="sm" disabled={props.busy} onClick={props.onResend}>
               {t('team.action.resend', 'New link')}
+            </Button>
+          ) : null}
+          {props.mayActOn && !props.isSelf && user.status === 'suspended' ? (
+            <Button variant="ghost" size="sm" disabled={props.busy} onClick={props.onHandOn}>
+              {t('team.action.handOn', 'Hand on rows')}
             </Button>
           ) : null}
           {props.mayActOn && !props.isSelf ? (

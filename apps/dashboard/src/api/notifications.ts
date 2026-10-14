@@ -53,6 +53,10 @@ export interface NotificationScheduleDto {
   quiet: Partial<Record<'0' | '1' | '2' | '3' | '4' | '5' | '6', { from: string; to: string }>> | null;
   digestDay: number | null;
   digestTime: string | null;
+  /** Quiet hours on. Off holds nothing and keeps the hours for when they are on again. */
+  quietOn: boolean;
+  /** Summaries made for this person; false is "not me", the day and time kept. */
+  summariesOn: boolean;
   /** The zone used while the person has chosen none: the business's own. */
   fallbackTimezone: string;
 }

@@ -283,6 +283,34 @@ describe('the Add-ons card', () => {
     expect(rowOf(card, 'holiday-calendars').querySelector('[data-part="add-on-grant"]')).toBeNull();
   });
 
+  it('lists what the app’s roles would hold of an add-on’s tables, with the columns, behind a disclosure', async () => {
+    const hold = { addOn: 'invoices', table: 'payments', actions: ['read'], readable: ['id', 'amount', 'paid_on'], narrowed: { actions: ['update'], readable: ['card_last4'] }, skipped: 'ceiling' };
+    plans = [
+      {
+        ...planWith([INVOICES, HOLIDAYS]),
+        roleTables: [
+          { role: 'manager', roleName: 'Studio manager', ...hold },
+          { role: 'viewer', roleName: 'Read-only', ...hold },
+          { role: 'manager', roleName: 'Studio manager', addOn: 'invoices', table: 'settings', actions: [], narrowed: { actions: ['read'] }, skipped: 'not-offered' },
+        ],
+      },
+    ];
+    const user = userEvent.setup();
+    const card = await reachCheck(user);
+    const details = rowOf(card, 'invoices').querySelector('details[data-part="add-on-role-tables"]') as HTMLDetailsElement;
+    expect(details.open).toBe(false);
+    expect(details.querySelector('summary')?.textContent).toBe('Client Portal’s roles get 1 of its tables. See what they read and change.');
+    await user.click(details.querySelector('summary')!);
+    expect(details.open).toBe(true);
+    // Two roles holding the same share a line.
+    const lines = [...details.querySelectorAll('[data-role-table]')].map((line) => [...line.querySelectorAll('p')].map((p) => p.textContent));
+    expect(lines).toEqual([
+      ['paymentsStudio manager and Read-only', 'Reads id, amount, paid_on', 'Asked for, not given: change rows, card_last4'],
+      ['settingsStudio manager', 'Not given: Invoices & Receipts shares this table with no app.'],
+    ]);
+    expect(rowOf(card, 'holiday-calendars').querySelector('[data-part="add-on-role-tables"]')).toBeNull();
+  });
+
   it('leaves an unticked suggestion out, and says it won’t be connected', async () => {
     const user = userEvent.setup();
     const card = await reachCheck(user);

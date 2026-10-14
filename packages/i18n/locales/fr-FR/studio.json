@@ -905,7 +905,8 @@
       "checkSubtitle": "Vérifiez les tables utilisées par cette version.",
       "pickFirst": "Choisissez quoi faire de {table} avant de mettre à jour.",
       "checkFirst": "Vérifiez à nouveau les tables avant de mettre à jour.",
-      "nothingYet": "Rien ne change tant que vous n’avez pas cliqué sur Mettre à jour."
+      "nothingYet": "Rien ne change tant que vous n’avez pas cliqué sur Mettre à jour.",
+      "rolesSubtitle": "Vérifiez ce que les rôles de cette version peuvent faire des tables des modules."
     },
     "veto": {
       "title": "Ce déploiement ne peut pas consulter le catalogue en ligne",
@@ -3422,7 +3423,32 @@
       "kept": "{addOn} reste installé. Désinstallez-le depuis Modules si rien d’autre ne l’utilise.",
       "link": "Sa connexion à {addOn}"
     },
-    "updateToo": "Le mettre à jour aussi"
+    "updateToo": "Le mettre à jour aussi",
+    "roleTables": {
+      "summary": "Les rôles de {app} accèdent à {count, plural, one {# de ses tables} other {# de ses tables}}. Voyez ce qu’ils lisent et modifient.",
+      "unchecked": "{addOn} n’est pas encore sur ce serveur : voici donc ce que demande {app}. Le module peut en permettre moins.",
+      "keyAndLinks": "Une lecture montre aussi la clé de chaque ligne et ses liens vers d’autres lignes.",
+      "everyColumn": "toutes les colonnes",
+      "reads": "Lit {columns}",
+      "readsAll": "Lit toutes les colonnes",
+      "changes": "Modifie {columns}",
+      "changesAll": "Modifie toutes les colonnes",
+      "adds": "Ajoute des lignes en remplissant {columns}",
+      "addsAll": "Ajoute des lignes en remplissant n’importe quelle colonne",
+      "notOffered": "Non accordé : {addOn} ne partage cette table avec aucune app.",
+      "keptBack": "Non accordé : {addOn} garde cette table pour lui.",
+      "unknown": "Non accordé : {addOn} n’a pas cette table ou cette colonne.",
+      "allowsLess": "Non accordé : {addOn} en permet moins.",
+      "notGiven": "Demandé, non accordé : {what}",
+      "wider": "Nouveau dans cette version : {what}",
+      "updateTitle": "Des rôles obtiennent plus des tables des modules",
+      "updateBody": "Cette version permet à ces rôles d’en faire plus avec des tables qui appartiennent à des modules. Mettre à jour l’autorise.",
+      "action": {
+        "read": "lire",
+        "create": "ajouter des lignes",
+        "update": "modifier des lignes"
+      }
+    }
   },
   "featurePage": {
     "ask": "Une personne qui gère les apps peut l’installer.",

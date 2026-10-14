@@ -191,7 +191,7 @@ export function downloadApp(key: string, version: string): Promise<{ jobId: stri
 export function updateApp(
   key: string,
   /** The check the operator saw for the new version: its checksum, what they chose, and their say on its public access. */
-  checked?: { planChecksum?: string; choices?: InstallAnswers['choices']; shares?: InstallAnswers['shares']; publicAccess?: boolean },
+  checked?: { planChecksum?: string; choices?: InstallAnswers['choices']; shares?: InstallAnswers['shares']; publicAccess?: boolean; roleTables?: boolean },
 ): Promise<{ app: InstalledAppResult; from: string; to: string; pruned: string[] }> {
   return api.post<{ app: InstalledAppResult; from: string; to: string; pruned: string[] }>(
     `/api/v1/apps/${encodeURIComponent(key)}/update`,
@@ -684,6 +684,33 @@ export interface AppInstallPlan {
    * add-on serves. Absent when none, and from an older server.
    */
   addOnGrants?: { role: string; roleName: string; addOn: string; grant: 'settings' }[];
+  /**
+   * What each role would hold of the tables of the add-ons the app names, with
+   * the columns of each action, cut to each add-on's own words. Absent when
+   * none, and from an older server.
+   */
+  roleTables?: PlanRoleTable[];
+}
+
+/** One role's hold on one of an add-on's tables, as the check shows it (mirrors the server's `roleTables`). */
+export interface PlanRoleTable {
+  role: string;
+  roleName: string;
+  addOn: string;
+  table: string;
+  /** What the role will hold. */
+  actions: string[];
+  /** The columns each action reaches; absent, every column. */
+  readable?: string[];
+  writable?: string[];
+  creatable?: string[];
+  /** What the app asks for and the role will not get. */
+  narrowed?: { actions: string[]; readable?: string[]; writable?: string[]; creatable?: string[] };
+  skipped?: string;
+  /** The add-on is not on this server: what the app asks, before the add-on's own words cut it. */
+  unchecked?: true;
+  /** An update's check: what this version's role holds that the running one's did not (`*`: every column). */
+  wider?: { actions: string[]; columns: string[] };
 }
 
 export type TableClass = 'new' | 'own-leftover' | 'shared' | 'taken';

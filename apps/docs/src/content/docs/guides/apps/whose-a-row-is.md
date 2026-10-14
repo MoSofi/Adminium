@@ -132,21 +132,28 @@ When you design an app, give a role that must hang rows on a record a way to rea
 
 ## Teams
 
-**Settings → Team → Teams.** A team is a named set of people, and some of its members **lead**
-it. A lead reaches the rows of everyone in the teams they lead; a member reaches no more than
+**People → Teams**, a page of its own beside the People list. A team is a named set of people,
+and some of its members **lead** it. A lead reaches the rows of everyone in the teams they lead; a member reaches no more than
 their own. A person may be in several teams, and leading one says nothing of another.
 
 Adding yourself to a team as its lead is giving yourself its rows, so teams are managed by
 whoever may **manage users**, reading included.
 
-One person's reach holds at most 2,000 people. The Teams card says so when somebody leads more.
+A team opens in a side sheet: its name, who is in it and who leads it are a draft until **Save
+team**. The People list has a Teams column that says which teams each person is in and which
+they lead.
+
+One person's reach holds at most 2,000 people. The Teams page says so when somebody leads more.
 
 Rows follow the person. When someone changes team, their rows go with them at once, and their
 old lead stops reaching them.
 
 ## When a person leaves
 
-Suspending an account changes nothing about its rows, unless you say who takes them.
+**Suspend** on the People list first looks for rows that are the person's, and asks who takes
+them; "Nobody for now" leaves them where they are. Suspending and handing over are one call, so a
+suspension that is refused moves nothing. A suspended person's row on the list has **Hand on
+rows**, for rows left with them.
 
 Deleting an account **permanently** first looks for rows that are the person's. If there are
 any, the dialog lists them by table and asks who takes them. The removal names that person, and

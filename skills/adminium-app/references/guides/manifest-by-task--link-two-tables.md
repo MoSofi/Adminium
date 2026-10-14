@@ -46,4 +46,14 @@ when that row does not meet them, by whoever writes and on every door; a row alr
 retired since keeps it while its other columns change. Hiding retired lines on a screen is not
 enough on its own: a direct call, an import or a rule could still name one.
 
-Reference: [Columns](https://docs.adminium.dev/reference/manifest/#columns), [Links to some rows](https://docs.adminium.dev/reference/manifest/#links-to-some-rows).
+To compare the named row with the row being written, say `same`: a site visit names only a
+contact of the company of the visit's deal.
+
+```json
+{ "ref": "contact_id", "type": "fk", "references": "contacts", "nullable": true,
+  "rules": { "linkable": { "same": [{ "column": "company_id", "as": "deal_id.company_id" }] } } }
+```
+
+A change that moves the visit to another deal is judged too.
+
+Reference: [Columns](https://docs.adminium.dev/reference/manifest/#columns), [Links to some rows](https://docs.adminium.dev/reference/manifest/#links-to-some-rows), [A row that must match the row written](https://docs.adminium.dev/reference/manifest/#a-row-that-must-match-the-row-written).

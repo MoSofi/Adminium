@@ -2,6 +2,34 @@
 
 # Manifest spec: requiredSchema — Column rules
 
+A capped write is refused with `BALANCE_EXCEEDED` and the balance it would have gone below. So is a
+change to the parent that lowers `of` under what is already paid. Only a write that takes the
+balance below zero, or further below it, is refused: a row already negative from older data can
+still be edited or voided. Two payments at once are judged one after the other, so they cannot
+both pass.
+
+A write that touches several rows of a table feeding a capped total is refused with
+`BALANCE_ONE_AT_A_TIME`, because it cannot be judged row by row. Imports and sample data are
+settled but not capped: they record what already happened.
+
+A total or a balance a writer sends is dropped, not refused, so a form that sends the whole row
+still saves.
+
+#### Totals that count and climb
+
+A total may count its child rows instead of adding a column up: how many tickets an order holds,
+how many lines a kitchen ticket has.
+
+```json
+{ "ref": "ticket_count", "type": "int", "default": 0,
+  "rules": { "rollup": { "from": "tickets", "via": "order_id", "count": true,
+                         "unlessSet": "refunded_at" } } }
+```
+
+A rollup names `sum` or `"count": true`, never both. A count is kept in an `int` or `bigint`
+column, and takes no `times`, `balance` or `cap`; `where` and `unlessSet` leave rows out as they do
+for a sum.
+
 A total may also add up another table's totals: an option's price into its line, the line into
 its order, the order into the customer's lifetime total. Such totals **climb**, at most three
 tables high, and never in a circle (a table adding up its own rows, or two tables adding up each
@@ -93,13 +121,3 @@ may not read itself, formulas may not read each other in a circle, and an expres
 #### Hours between two moments
 
 `hoursBetween` works a time entry's hours out from its start and its stop:
-
-```json
-{ "ref": "hours", "type": "decimal", "scale": 2, "nullable": true,
-  "rules": { "formula": { "hoursBetween": ["started_at", "stopped_at"] } } }
-```
-
-09:15 → 11:45 is `2.50`; 22:30 → 01:15 the next day is `2.75`. The hours are exact and rounded
-once to the column's scale, like any formula, and they can be counted with further:
-`{ "mul": [{ "hoursBetween": ["started_at", "stopped_at"] }, "rate"] }` is the pay at a rate. An
-update that moves only the stop works the hours out again from the start as stored.

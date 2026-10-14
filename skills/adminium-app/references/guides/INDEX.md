@@ -6,7 +6,7 @@
 |---|---|---|
 | `references/guides/manifest-by-task--overview.md` | A manifest, task by task | 1610 |
 | `references/guides/manifest-by-task--add-a-table.md` | Add a table | 2907 |
-| `references/guides/manifest-by-task--link-two-tables.md` | Link two tables | 2757 |
+| `references/guides/manifest-by-task--link-two-tables.md` | Link two tables | 3273 |
 | `references/guides/manifest-by-task--a-choice-column.md` | A choice column | 1243 |
 | `references/guides/manifest-by-task--add-a-dashboard-page.md` | Add a dashboard page | 3201 |
 | `references/guides/manifest-by-task--a-board-with-its-own-columns.md` | A board with its own columns | 5351 |
@@ -20,7 +20,7 @@
 | `references/guides/manifest-by-task--build-on-an-add-on.md` | Build on an add-on | 1236 |
 | `references/guides/manifest-by-task--stock-from-the-inventory-add-on.md` | Stock from the Inventory add-on | 2189 |
 | `references/guides/manifest-by-task--discounts-codes-and-gift-cards-from-the-offers-add-on.md` | Discounts, codes and gift cards from the Offers add-on | 2174 |
-| `references/guides/manifest-by-task--values-adminium-fills-in.md` | Values Adminium fills in | 2552 |
+| `references/guides/manifest-by-task--values-adminium-fills-in.md` | Values Adminium fills in | 2625 |
 | `references/guides/manifest-by-task--things-a-manifest-cannot-do.md` | Things a manifest cannot do | 941 |
 | `references/guides/sample-data--overview.md` | Sample data | 414 |
 | `references/guides/sample-data--adding-it.md` | Adding it | 3778 |

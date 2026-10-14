@@ -71,7 +71,10 @@ test.describe('the words of the screens behind lazy routes', () => {
     await signIn(page);
     for (const [path, heading] of [
       ['/help', 'Knowledge Base'],
-      ['/settings/team', 'Team'],
+      ['/settings/team', 'People'],
+      ['/settings/teams', 'Teams'],
+      // And the account screen's, which joined them to make room for People and Teams in the rail.
+      ['/account', 'Account'],
       ['/about', 'About Adminium'],
       // The groups that joined them: the audit log and the setup checklist.
       ['/audit', 'Audit log'],

@@ -158,13 +158,15 @@ async function formattedValues(ctx: ActionContext, locale: string): Promise<Toke
     return undefined;
   };
   for (const [name, column] of source.table.columns) {
+    // A secret is written in no mail, as a date or an amount no more than as it is stored.
+    if (column.secret) continue;
     const text = formatted(name, column, source.row[name]);
     if (text !== undefined) {
       out[`record.${name}`] = text;
       out[name] = text;
     }
-    // The record as it was before a change, read the same way; a secret never.
-    const was = source.was === undefined || source.was === null || column.secret ? undefined : formatted(name, column, source.was[name]);
+    // The record as it was before a change, read the same way.
+    const was = source.was === undefined || source.was === null ? undefined : formatted(name, column, source.was[name]);
     if (was !== undefined) out[`was.${name}`] = was;
   }
   return out;

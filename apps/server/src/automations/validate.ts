@@ -431,7 +431,7 @@ function checkAction(
       }
       const target = tableOrThrow(ctx, action.table, where);
       assertNotSystem(target, where);
-      checkValues(action.values, target, where);
+      checkValues(action.values, target, where, ctx, table);
       return;
     }
     case 'record.update': {
@@ -452,7 +452,7 @@ function checkAction(
         );
       }
       assertNotSystem(table, where);
-      checkValues(action.values, table, where);
+      checkValues(action.values, table, where, ctx, table);
       return;
     }
     case 'webhook': {
@@ -528,12 +528,32 @@ function assertNotSystem(table: ResolvedTable, where: string): void {
   }
 }
 
+/**
+ * A column of the app's settings row a value reads: a table the author reads
+ * (`requiredGrants` asks it), not private, and a column shown to them that is
+ * neither secret nor personal. A value written into another row is a way to
+ * read it, the Super Admin's rules included.
+ */
+function settingColumn(setting: { table: string; column: string }, ctx: ResolveContext, where: string): ResolvedColumn & { staff: boolean } {
+  const held = tableOrThrow(ctx, setting.table, where);
+  assertNotPrivate(held, 'no rule reads its values');
+  const column = readColumn(held, setting.column, where);
+  if (column === undefined) throw new ValidationFailedError(`${where}: ${held.id} has no column ${setting.column}.`, { column: setting.column });
+  if (column.secret || column.masked) {
+    throw new ValidationFailedError(`${where}: ${held.id}.${setting.column} is a protected column, so no rule writes it into another row.`, { column: setting.column, reason: 'setting-protected' });
+  }
+  return { ...column, staff: held.table.columns.find((candidate) => candidate.name === setting.column)?.staff === true };
+}
+
 function checkValues(
   values: Record<string, unknown>,
   table: ResolvedTable,
   where: string,
+  ctx?: ResolveContext,
+  /** The run's record: what a day so many days on counts from. */
+  record: ResolvedTable | null = null,
 ): void {
-  for (const column of Object.keys(values)) {
+  for (const [column, value] of Object.entries(values)) {
     const resolved = table.columns.get(column);
     if (resolved === undefined) {
       throw new ValidationFailedError(`${where}: ${table.id} has no column ${column}.`, { column });
@@ -543,6 +563,32 @@ function checkValues(
         `${where}: ${column} is a protected column and cannot be written by a rule.`,
         { column },
       );
+    }
+    if (typeof value !== 'object' || value === null || ctx === undefined) continue;
+    if ('setting' in value) {
+      const setting = (value as { setting: { table: string; column: string } }).setting;
+      const held = settingColumn(setting, ctx, where);
+      // A person is filled from a column that holds one.
+      if (table.table.columns.find((candidate) => candidate.name === column)?.staff === true && !held.staff) {
+        throw new ValidationFailedError(`${where}: ${table.id}.${column} holds a staff member, and ${setting.table}.${setting.column} does not.`, { column, reason: 'not-staff' });
+      }
+    }
+    if ('daysAfter' in value) {
+      const after = (value as { daysAfter: { column?: string; setting?: { table: string; column: string } } }).daysAfter;
+      if (!isDateColumn(resolved)) throw new ValidationFailedError(`${where}: ${column} is not a date column, so it takes no day.`, { column });
+      if (after.column !== undefined) {
+        if (record === null) throw new ValidationFailedError(`${where}: this rule has no record, so there is no date of it to count from. ${NO_RECORD_REMEDY}`, {});
+        const from = readColumn(record, after.column, where);
+        if (from === undefined) throw new ValidationFailedError(`${where}: ${record.id} has no column ${after.column}.`, { column: after.column });
+        if (!isDateColumn(from)) throw new ValidationFailedError(`${where}: ${after.column} is not a date column, so no days are counted from it.`, { column: after.column });
+        if (from.secret || from.masked) throw new ValidationFailedError(`${where}: ${after.column} is a protected column, so no rule counts days from it.`, { column: after.column, reason: 'protected' });
+      }
+      if (after.setting !== undefined) {
+        const held = settingColumn(after.setting, ctx, where);
+        if (held.logicalType !== 'integer' && held.logicalType !== 'bigint') {
+          throw new ValidationFailedError(`${where}: ${after.setting.table}.${after.setting.column} is not a whole-number column, so it holds no number of days.`, { column: after.setting.column, reason: 'setting-not-a-number' });
+        }
+      }
     }
   }
   // A state reached only by a move marked undo is a person's to make, naming the state they saw: a rule never can.
@@ -742,6 +788,14 @@ export function requiredGrants(
     if (node.kind !== 'action') continue;
     if (node.action.kind === 'record.create' && node.action.table !== null) {
       add(node.action.table, 'create');
+    }
+    // A value read from the settings row, or a number of days kept there: its author must read that table.
+    if (node.action.kind === 'record.create' || node.action.kind === 'record.update') {
+      for (const value of Object.values(node.action.values)) {
+        if (typeof value !== 'object') continue;
+        if ('setting' in value) add(value.setting.table, 'read');
+        if ('daysAfter' in value && value.daysAfter.setting !== undefined) add(value.daysAfter.setting.table, 'read');
+      }
     }
     if (node.action.kind === 'record.update' && subject !== null) add(subject, 'update');
     // Telling the people a listing names reads that listing's rows.

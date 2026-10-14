@@ -17,13 +17,16 @@
  *    that stands for a moment without its limit;
  *  - never widened past what the add-on's own shape allows: no hold at all on
  *    a ledger's receipts, read only on a table a ledger's code writes;
+ *  - never past what the add-on lets an app's role hold (`appGrants`): an
+ *    action or a column outside it is left out, by name, and a grant on such
+ *    a table is written with its column lists — never whole;
  *  - a table or a column the add-on does not have skips the entry, by name —
  *    a role is then narrower than the app asked, never wider.
  *
  * Reads and writes the meta store only.
  */
 import { parseDatabaseModel } from '@adminium/engine';
-import { ledgersOf, reachList, type AddOnManifest, type Manifest } from '@adminium/manifest';
+import { addOnRoleTableHold, holdWider, type AddOnManifest, type Manifest, type RoleTableHold, type RoleTableNarrowed, type RoleTableSkip } from '@adminium/manifest';
 import { appTablesRepo, permissionsRepo, rolesRepo, settingsRepo, snapshotsRepo, type MetaDb, type ReadLimit, type TableActions, type UpdateLimit } from '@adminium/meta';
 
 import { roleSlugFor, SEEDED_APP_ROLE_GRANTS_KEY, storedRowLimit } from './manifest-roles.js';
@@ -39,8 +42,14 @@ export interface RoleTableResult {
   table: string;
   /** What the role holds of the table now by this grant (after any narrowing below). */
   actions: string[];
+  /** The columns each action reaches; absent, every column (only where the add-on sets no `appGrants`). */
+  readable?: string[];
+  writable?: string[];
+  creatable?: string[];
+  /** What the app asked for and does not get, by name. */
+  narrowed?: RoleTableNarrowed;
   /** Why the entry, or part of it, was left out. */
-  skipped?: 'unknown-table' | 'unknown-column' | 'ledger-table';
+  skipped?: RoleTableSkip;
 }
 
 /** A role's grants on add-on tables: the ones of the role it clones, then its own over them — a clone of a limited role is limited alike. */
@@ -56,6 +65,54 @@ export function roleTablesAsked(app: Manifest): { role: string; roleName: string
   if (app.kind !== 'app') return [];
   const roles = app.roles ?? [];
   return roles.flatMap((role) => roleTablesOf(role, roles).map((entry) => ({ role: role.key, roleName: role.name, addOn: entry.addOn, table: entry.table, actions: [...entry.actions] })));
+}
+
+/** One role's hold on one of an add-on's tables, as an install or update check shows it. */
+export interface RoleTableCheck extends Omit<RoleTableHold, 'limit'> {
+  role: string;
+  roleName: string;
+  addOn: string;
+  table: string;
+  /** The add-on is not on this server to judge the grant by: what the app asks, before the add-on's own words cut it. */
+  unchecked?: true;
+  /** An update's check: what this version's role holds here that the running version's did not (`*`: every column). */
+  wider?: { actions: string[]; columns: string[] };
+}
+
+/** What a grant comes to against the add-on's words — or, with no add-on to judge it by, as the app asks it. */
+function holdOf(entry: RoleTable, addOn: AddOnManifest | undefined): Omit<RoleTableHold, 'limit'> & { unchecked?: true } {
+  if (addOn !== undefined) {
+    const { limit: _limit, ...hold } = addOnRoleTableHold(entry, addOn);
+    return hold;
+  }
+  const actions = [...new Set(entry.actions)];
+  const list = (action: Action, columns: readonly string[] | undefined) => (columns === undefined || !actions.includes(action) ? undefined : [...columns]);
+  const readable = list('read', entry.limit?.readable);
+  const writable = list('update', entry.limit?.writable);
+  const creatable = list('create', entry.limit?.creatable);
+  return { actions, ...(readable === undefined ? {} : { readable }), ...(writable === undefined ? {} : { writable }), ...(creatable === undefined ? {} : { creatable }), unchecked: true };
+}
+
+/**
+ * What each role of the app will hold of the add-ons' tables, judged by each
+ * add-on's manifest where one is at hand; with `before` (the running
+ * version), what each holds more than it did.
+ */
+export function roleTablesChecked(app: Manifest, addOns: ReadonlyMap<string, AddOnManifest>, before?: Manifest | null): RoleTableCheck[] {
+  if (app.kind !== 'app') return [];
+  const roles = app.roles ?? [];
+  const earlier = before?.kind === 'app' ? (before.roles ?? []) : null;
+  return roles.flatMap((role) =>
+    roleTablesOf(role, roles).map((entry) => {
+      const hold = holdOf(entry, addOns.get(entry.addOn));
+      const out: RoleTableCheck = { role: role.key, roleName: role.name, addOn: entry.addOn, table: entry.table, ...hold, actions: [...hold.actions] };
+      if (earlier === null) return out;
+      const was = earlier.find((one) => one.key === role.key);
+      const old = was === undefined ? undefined : roleTablesOf(was, earlier).find((one) => one.addOn === entry.addOn && one.table === entry.table);
+      const wider = holdWider(old === undefined ? null : holdOf(old, addOns.get(entry.addOn)), hold);
+      return wider === null ? out : { ...out, wider };
+    }),
+  );
 }
 
 const PAIR = /^table:@([a-z][a-z0-9-]{1,79})\/([A-Za-z0-9_]+):(read|create|update)$/;
@@ -154,37 +211,26 @@ export async function settleRoleTables(input: { meta: MetaDb; app: Manifest; con
       const manifest = live.get(entry.addOn);
       // Not here for this app: nothing is written, and what was given before is taken back below.
       if (manifest === undefined) continue;
-      const result = (actions: readonly string[], skipped?: RoleTableResult['skipped']): void => {
-        out.push({ role: declaredRole.key, addOn: entry.addOn, table: entry.table, actions: [...actions], ...(skipped === undefined ? {} : { skipped }) });
+      const result = (hold: RoleTableHold): void => {
+        const { limit: _limit, ...said } = hold;
+        out.push({ role: declaredRole.key, addOn: entry.addOn, table: entry.table, ...said, actions: [...said.actions] });
       };
       const role = await roles.findBySlug(slug);
       if (role === null || role.appKey !== app.key) continue;
       const id = tableId(entry.addOn, entry.table);
-      const shape = (manifest.requiredSchema?.tables ?? []).find((table) => table.ref === entry.table);
-      if (id === null || shape === undefined) {
-        result([], 'unknown-table');
+      // Cut to the add-on's own words: its shape (receipts, ledger tables), its columns, and what it lets an app's role hold (`appGrants`).
+      const hold = addOnRoleTableHold(entry, manifest);
+      if (id === null || hold.skipped === 'unknown-table') {
+        result({ actions: [], narrowed: { actions: [...new Set(entry.actions)] }, skipped: 'unknown-table' });
         continue;
       }
-      // Never widened past the add-on's own shape: no hold on a receipt, read only on what a ledger's code writes.
-      const ledgers = ledgersOf(manifest);
-      if (ledgers.some((ledger) => ledger.receipts === entry.table)) {
-        result([], 'ledger-table');
+      // Nothing left to give: the whole entry is said, and what was given before is taken back below.
+      if (hold.actions.length === 0) {
+        result(hold);
         continue;
       }
-      const written = ledgers.some((ledger) => Object.prototype.hasOwnProperty.call(ledger.writes ?? {}, entry.table));
-      const actions = [...new Set(entry.actions)].filter((action) => !written || action === 'read');
-      const limit = entry.limit;
-      const named = [...(limit?.readable ?? []), ...(limit?.writable ?? []), ...(limit?.creatable ?? []), ...Object.keys(limit?.writableValues ?? {}), ...Object.keys(limit?.writableFrom ?? {}), ...Object.keys(limit?.creatableValues ?? {}), ...Object.values(limit?.rows ?? {}).flatMap((written) => reachList(written).flatMap((reach) => (reach.while === undefined ? [] : [reach.while.column])))];
-      const columns = new Set(shape.columns.map((column) => column.ref));
-      // A grant is never written without its limit: a limit that names a column the table has not skips the whole entry.
-      if (named.some((column) => !columns.has(column))) {
-        result([], 'unknown-column');
-        continue;
-      }
-      if (actions.length === 0) {
-        result([], 'ledger-table');
-        continue;
-      }
+      const actions = hold.actions;
+      const limit = hold.limit;
       asked.add(`${slug}|${entry.addOn}/${entry.table}`);
 
       const ref = `${connectionId}/${id}`;
@@ -207,7 +253,7 @@ export async function settleRoleTables(input: { meta: MetaDb; app: Manifest; con
        * state on the row right now: an owner who unticks "read" and ticks it
        * again finds it limited as the app wrote it, never whole.
        */
-      const asks = (action: Action): boolean => actions.includes(action);
+      const asks = (action: Action): boolean => (actions as readonly string[]).includes(action);
       const update: UpdateLimit | undefined = limit?.writable === undefined || !asks('update') ? undefined : { writable: [...limit.writable], ...(limit.writableValues === undefined ? {} : { writableValues: limit.writableValues }), ...(limit.writableFrom === undefined ? {} : { writableFrom: limit.writableFrom }) };
       const read: ReadLimit | undefined = limit?.readable === undefined || !asks('read') ? undefined : { readable: [...limit.readable] };
       const create: UpdateLimit | undefined = limit?.creatable === undefined || !asks('create') ? undefined : { writable: [...limit.creatable], ...(limit.creatableValues === undefined ? {} : { writableValues: limit.creatableValues }) };
@@ -224,7 +270,7 @@ export async function settleRoleTables(input: { meta: MetaDb; app: Manifest; con
       for (const pair of giving) seeded.add(pair);
       for (const before of leaving) seeded.delete(before.pair);
       changed = changed || giving.length > 0 || leaving.length > 0;
-      result(actions.filter((action) => next[action] === true), actions.length === new Set(entry.actions).size ? undefined : 'ledger-table');
+      result({ ...hold, actions: actions.filter((action) => next[action] === true) });
     }
   }
 

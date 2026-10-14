@@ -126,7 +126,7 @@ export default {
       "account": "帳戶"
     },
     "back": "返回",
-    "team": "團隊",
+    "team": "人員",
     "roles": "角色與權限",
     "audit": "稽核紀錄",
     "security": "密碼與工作階段",
@@ -138,7 +138,8 @@ export default {
       "openStaffInstance": "開啟員工畫面 · {instance}"
     },
     "drawerTitle": "導覽",
-    "emptyPartsOff": "目前沒有為你開啟的內容。請聯絡管理員。"
+    "emptyPartsOff": "目前沒有為你開啟的內容。請聯絡管理員。",
+    "teams": "團隊"
   },
   "apps": {
     "frame": {
@@ -1693,14 +1694,16 @@ export default {
       "remove": "刪除",
       "resend": "新連結",
       "roles": "角色",
-      "suspend": "停權"
+      "suspend": "停權",
+      "handOn": "移交其資料列"
     },
     "column": {
       "actions": "操作",
       "lastSeen": "上次活動",
       "person": "人員",
       "roles": "角色",
-      "status": "狀態"
+      "status": "狀態",
+      "teams": "團隊"
     },
     "counts": "{active} 位啟用中 · {invited} 位已邀請 · {suspended} 位已停權",
     "empty": {
@@ -1763,8 +1766,6 @@ export default {
       "failed": "未刪除該帳戶",
       "rows": {
         "needed": "請先選擇由誰接手這些資料列。",
-        "title": "{name} 出現在 {count, plural, other {# 列}}中",
-        "body": "永久刪除後，這些資料列將不屬於任何人。請選擇由誰接手。",
         "line": "{table}：{count}",
         "to": "移交給",
         "choose": "選擇人員…",
@@ -1789,32 +1790,68 @@ export default {
       "sample": "範例人員",
       "suspended": "已停權"
     },
-    "subtitle": "誰在這個 Adminium 上擁有帳戶，以及他們各自可以做什麼。",
-    "title": "團隊",
+    "subtitle": "所有可以登入的人，以及他們的角色和團隊。",
+    "title": "人員",
     "twoFactorOn": "已啟用兩步驟驗證",
     "twoFactorShort": "2FA",
     "actionFailed": "未能完成此變更",
     "teams": {
       "title": "團隊",
-      "intro": "當某個角色被限制為「其團隊的資料列」時，團隊負責人可存取團隊中每個人的資料列。成員只能存取自己的。",
       "failed": "團隊未變更",
       "over": "{name} 帶領的人數超過 {max}。只能存取前 {max} 人的資料列。",
-      "newName": "新團隊名稱",
-      "create": "新增團隊",
-      "empty": "尚無團隊。",
+      "empty": "尚無團隊",
       "deleteTitle": "刪除「{name}」？",
       "deleteBody": "其負責人將無法再存取成員的資料列。任何人的帳號和資料列都不受影響。",
       "delete": "刪除團隊",
       "memberCount": "{count, plural, other {# 人}}",
-      "rename": "重新命名",
       "noMembers": "這個團隊裡還沒有人。",
-      "leads": "帶領此團隊",
+      "leads": "負責人",
       "removeLabel": "將 {name} 從 {team} 移除",
-      "remove": "移除",
-      "addMemberLabel": "要加入 {team} 的人員",
-      "addMember": "新增人員…",
+      "addMember": "選擇人員…",
       "sample": "{name}（範例）",
-      "add": "新增"
+      "add": "新增",
+      "pageSubtitle": "一組組人員，每組都有負責人。",
+      "notice": "當角色設為「其團隊的」時，團隊決定一個人能開啟誰的記錄。",
+      "rolesLink": "角色與存取",
+      "newTeam": "新增團隊",
+      "summary": "{teams, plural, other {# 個團隊}} · {people, plural, other {# 人}}屬於至少一個團隊",
+      "loadFailed": "無法讀取團隊。",
+      "caption": "團隊、各自的負責人及成員",
+      "colTeam": "團隊",
+      "colLead": "負責人",
+      "colMembers": "成員",
+      "noLead": "無負責人",
+      "onlyLead": "僅負責人",
+      "inAll": "{names} · 共 {count, plural, other {# 人}}",
+      "emptyBody": "在有團隊之前，設為「其團隊的」的角色與「自己的」能開啟的資料列相同。",
+      "untitled": "未命名團隊",
+      "sheetEyebrow": "團隊",
+      "nameLabel": "名稱",
+      "namePlaceholder": "例如：北區",
+      "people": "人員",
+      "peopleHint": "勾選負責人。負責人的「其團隊的」涵蓋這裡的每個人。",
+      "addLabel": "新增人員",
+      "save": "儲存團隊",
+      "needName": "請先為團隊命名。"
+    },
+    "teamLeads": "{team}（負責人）",
+    "handOver": {
+      "title": "將其 {count, plural, other {# 列}}移交給…",
+      "remove": "這些歸 {name} 所有。永久移除後它們將無人負責：請選擇由誰接手。",
+      "suspend": "這些歸 {name} 所有。停權後它們仍歸 {name}，直到有人接手。",
+      "later": "{name} 已被停權，這些仍歸其所有。請選擇由誰接手。",
+      "keep": "暫不移交",
+      "laterTitle": "移交 {name} 的資料列",
+      "unknown": "無法讀取哪些資料列指向 {name}。",
+      "none": "沒有資料列指向 {name}。",
+      "failed": "資料列未移交",
+      "confirm": "移交"
+    },
+    "suspend": {
+      "title": "停權 {name}？",
+      "body": "{name} 將無法再登入，並會在所有地方登出。其帳號、角色和歷史都會保留，你可以重新啟用。",
+      "failed": "帳號未停權",
+      "confirmHand": "移交並停權"
     }
   },
   "invoices": {
@@ -1840,20 +1877,28 @@ export default {
     }
   },
   "quietHours": {
-    "title": "勿擾時段與摘要",
-    "help": "在勿擾時段，通知仍會顯示在鈴鐺中，但不發出聲音、不彈出，其郵件會等到時段結束再傳送。標記為緊急的內容會立即送達。",
+    "title": "勿擾時段",
+    "leadOn": "在這些時段內，通知仍會顯示在鈴鐺中，但不發出聲音。只有其郵件會等待，在時段結束時傳送。規則標為緊急的內容會立即傳送。",
+    "leadOff": "已關閉。通知及其郵件會即時送達。",
+    "on": "開",
+    "off": "關",
     "zone": "你的時區",
     "zoneDefault": "企業的時區（{zone}）",
-    "none": "無勿擾時段",
+    "days": "日期和時間",
+    "fromShort": "從",
+    "toShort": "至",
     "from": "勿擾開始，{day}",
-    "until": "至",
     "to": "勿擾結束，{day}",
-    "nextDay": "隔日",
-    "daySwitch": "{day}的勿擾時段",
-    "copy": "將{day}的時段複製到每一天",
-    "digestDay": "在以下日期傳送我的摘要",
+    "endsOn": "{day}結束",
+    "copy": "每天使用{day}的時間",
+    "example": "{day} {from} 到達的郵件會在{endDay} {to} 傳送，除非其類型已在下方勾選。",
+    "always": "仍立即通知我以下內容…",
+    "alwaysNote": "摘要有自己的日期和時間，見下方。",
+    "summariesTitle": "摘要",
+    "summariesLead": "規則寄給你的、包含你自己的資料列的郵件，例如每週摘要。每份都是郵件：在你的勿擾時段，它會像其他郵件一樣等待。",
+    "summariesOff": "已關閉。沒有規則會寄給你摘要。你的日期和時間會保留，等你重新開啟時使用。",
+    "digestDay": "日期",
     "digestWhenRun": "各摘要產生的當天",
-    "digestTime": "時間",
-    "always": "一律通知我，即使在勿擾時段"
+    "digestTime": "時間"
   }
 } as const;

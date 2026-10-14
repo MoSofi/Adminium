@@ -46,7 +46,8 @@ describe('t() fallback contract (no runtime)', () => {
 describe.skipIf(i18nRuntime === null)('t() backed by the real i18next runtime', () => {
   it('resolves bundle text over the fallback after init', async () => {
     setI18nInstance(await i18nRuntime!.createI18n({ locale: 'en_US' }));
-    expect(t('account.title', 'different fallback')).toBe('Account');
+    // A key of the first paint's words (`account.*` is fetched with its screen).
+    expect(t('nav.notificationSettings', 'different fallback')).toBe('Notification settings');
     expect(t('ui:action.cancel', 'x')).toBe('Cancel');
     expect(t('missing.key', 'plain fallback', { name: 'Ava' })).toBe('plain fallback');
   });
@@ -63,7 +64,7 @@ describe.skipIf(i18nRuntime === null)('t() backed by the real i18next runtime', 
     window.localStorage.setItem('adminium-locale', 'en_US');
     const i18n = await initDashboardI18n();
     expect(i18n.language).toBe('en-US');
-    expect(t('account.preferences.title', 'x')).toBe('Preferences');
+    expect(t('nav.notificationSettings', 'x')).toBe('Notification settings');
   });
 
   it('loads real locale bundles through the package lazy loader', async () => {

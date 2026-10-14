@@ -29,6 +29,7 @@ import {
   namedAddOns,
   validateManifest,
   type InstallPlan,
+  type AddOnManifest,
   type Manifest,
   installsLikeAnApp,
   ledgerIndexes,
@@ -138,8 +139,8 @@ import {
 import { installOutbox, templateProblems, type OutboxResult } from './manifest-outbox.js';
 import { installAutomations } from './manifest-automations.js';
 import { announceRulesChanged } from '../documents/trigger-sync.js';
-import { liveAddOnsFor } from './live-add-ons.js';
-import { roleTablesAsked, settleRoleTables, type RoleTableResult } from './manifest-role-tables.js';
+import { addOnsNamedBy, liveAddOnsFor } from './live-add-ons.js';
+import { roleTablesAsked, roleTablesChecked, settleRoleTables, type RoleTableCheck, type RoleTableResult } from './manifest-role-tables.js';
 import { installAppDocuments } from '../documents/app-documents.js';
 import type { AddOnRuntimeState } from '../add-ons/runtime.js';
 import { EndpointInUse, KeyCreateRefused, type EndpointService } from '../public-api/endpoint-service.js';
@@ -1003,6 +1004,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
       }
     }
     const nameOf = (key: string) => appNames.get(key) ?? key;
+    const roleTables = await roleTablesForCheck(manifest, addOnRows);
     return {
       plan,
       shapeRecords: shapes === null ? new Map() : shapeRecordsFor(manifest, shapes),
@@ -1063,8 +1065,8 @@ export function createAppInstallService(deps: AppRoutesDeps) {
         // Whether this install asks if maps are shown: the app shows maps, and nobody has answered for this install yet.
         ...(manifest.kind === 'app' && manifest.maps === true && (await settingsRepo(deps.meta).get('maps.enabled')) === null ? { maps: true } : {}),
         ...(addOnGrantsOf(manifest).length === 0 ? {} : { addOnGrants: addOnGrantsOf(manifest) }),
-        // What each role would hold of the tables of the add-ons the app names, once each is there for it.
-        ...(roleTablesAsked(manifest).length === 0 ? {} : { roleTables: roleTablesAsked(manifest) }),
+        // What each role would hold of the tables of the add-ons the app names, once each is there for it: with the columns, cut to the add-on's words.
+        ...(roleTables.length === 0 ? {} : { roleTables }),
         pageWarnings:
           manifest.kind === 'app'
             ? checkManifestPages(manifest).map((issue) => ({
@@ -1202,6 +1204,45 @@ export function createAppInstallService(deps: AppRoutesDeps) {
       });
     }
     return out;
+  }
+
+  /**
+   * The add-ons an app's role grants are judged by on a check: the version
+   * the install or update would bring (a staged package), else the one
+   * installed here. One with neither, or that cannot be read, is left out:
+   * the check shows its grants as the app asks them.
+   */
+  async function addOnManifestsForCheck(manifest: Manifest, rows: readonly AppAddOnRow[] | undefined): Promise<Map<string, AddOnManifest>> {
+    const out = new Map<string, AddOnManifest>();
+    for (const key of addOnsNamedBy(manifest)) {
+      const row = rows?.find((one) => one.key === key);
+      let addOn: Manifest | null = null;
+      try {
+        if (row !== undefined && (row.action === 'install' || row.action === 'update') && row.staged && row.offeredVersion !== null && deps.addOns !== undefined) {
+          addOn = (await addOnManifestFromStore({ ...deps.addOns.installer, unbuiltWords: {} }, key, row.offeredVersion)).manifest;
+        } else {
+          const found = await manifests.findByKey(key);
+          const read = found === null || found.row.kind !== 'add-on' ? null : validateManifest(found.document);
+          addOn = read?.ok === true ? read.manifest : null;
+        }
+      } catch {
+        addOn = null;
+      }
+      if (addOn !== null && isAddOnManifest(addOn)) out.set(key, addOn);
+    }
+    return out;
+  }
+
+  /**
+   * What each role of the app will hold of the add-ons' tables, as the check
+   * shows it: cut to each add-on's own words, with the columns of each
+   * action; and, for an app already installed, what it holds more than the
+   * running version (`wider`), which an update gives only when allowed.
+   */
+  async function roleTablesForCheck(manifest: Manifest, rows: readonly AppAddOnRow[] | undefined): Promise<RoleTableCheck[]> {
+    if (roleTablesAsked(manifest).length === 0) return [];
+    const installed = (await manifests.list('app')).find((m) => m.row.manifestKey === manifest.key);
+    return roleTablesChecked(manifest, await addOnManifestsForCheck(manifest, rows), installed === undefined ? null : (installed.document as Manifest | null));
   }
 
   /** What the app's guests could do, for the check step: its endpoints, what would stop them, who may allow them. */
@@ -2782,6 +2823,23 @@ export function createAppInstallService(deps: AppRoutesDeps) {
     const addOnSteps = decideAddOnSteps(manifest.name, addOnRows, (input.body?.addOns ?? []) as AddOnChoice[]);
     // A part built on an add-on that is not there for the app is left out of this version too.
     manifest = asInstalledHere(manifest, addOnsHereFor(addOnRows, addOnSteps.map((step) => step.key)), await tablesMadeFor(key, installed.row.connectionId));
+
+    /*
+     * WHAT THE NEW VERSION'S ROLES HOLD MORE OF AN ADD-ON'S TABLES is said on
+     * the check and given only when the operator allows it (`roleTables:
+     * true`): a role that may now read a supplier's address, or change rows
+     * it only read, is the owner's call, never an update's side effect.
+     * Refused before anything moves.
+     */
+    const wider = (await roleTablesForCheck(manifest, addOnRows)).filter((entry) => entry.wider !== undefined);
+    if (wider.length > 0 && input.body?.roleTables !== true) {
+      const said = wider.map((entry) => `${entry.roleName} on ${entry.addOn}'s "${entry.table}" (${[...entry.wider!.actions, ...entry.wider!.columns.map((column) => (column === '*' ? 'every column' : column))].join(', ')})`);
+      throw new ValidationFailedError(
+        `"${key}" ${to} lets its roles do more with an add-on's tables than ${from} did: ${said.join('; ')}. ` +
+          'Check the update and allow it ("roleTables": true), or keep the running version.',
+        { reason: 'ROLE_TABLES_WIDER', roleTables: wider.map((entry) => ({ role: entry.role, roleName: entry.roleName, addOn: entry.addOn, table: entry.table, wider: entry.wider! })) },
+      );
+    }
 
     /*
      * Tables against the connection the installed row ALREADY has, never a

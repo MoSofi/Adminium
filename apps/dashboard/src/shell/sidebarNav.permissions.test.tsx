@@ -105,7 +105,8 @@ describe('platform rail rows follow the session\'s system keys', () => {
   it('shows the built-in Admin only the surfaces its keys open', async () => {
     await renderRail({ roles: ['admin'], systemActions: ADMIN_KEYS });
     const links = railLinks();
-    expect(links).toContain('Team');
+    expect(links).toContain('People');
+    expect(links).toContain('Teams');
     expect(links).toContain('Audit log');
     for (const refused of ['Roles & permissions', 'Automations', 'Workflow logs']) {
       expect(links, refused).not.toContain(refused);
@@ -118,13 +119,14 @@ describe('platform rail rows follow the session\'s system keys', () => {
     expect(links).toContain('Roles & permissions');
     expect(links).toContain('Automations');
     expect(links).toContain('Workflow logs');
-    expect(links).not.toContain('Team');
+    expect(links).not.toContain('People');
+    expect(links).not.toContain('Teams');
   });
 
   it('shows a Super Admin every row', async () => {
     await renderRail({ roles: ['super-admin'] });
     const links = railLinks();
-    for (const row of ['Team', 'Roles & permissions', 'Audit log', 'Automations', 'Workflow logs']) {
+    for (const row of ['People', 'Teams', 'Roles & permissions', 'Audit log', 'Automations', 'Workflow logs']) {
       expect(links, row).toContain(row);
     }
   });

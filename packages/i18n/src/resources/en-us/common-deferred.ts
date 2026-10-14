@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * GENERATED MIRROR of ../../../locales/en-US/common.json (its builder, kb, about, team, quietHours, security, reports, changelog, onboarding, audit, capabilities, palette groups: en-US's deferred part of `common`) — do not edit by hand.
+ * GENERATED MIRROR of ../../../locales/en-US/common.json (its builder, kb, about, team, quietHours, security, reports, changelog, onboarding, audit, capabilities, palette, account groups: en-US's deferred part of `common`) — do not edit by hand.
  * The JSON file is the canonical hand-authored bundle;
  * this TS mirror exists so the runtime can bundle a namespace (en-US's eager
  * ones) or chunk-split it (every other locale, and en-US's deferred `studio`)
@@ -452,14 +452,16 @@ export default {
       "remove": "Delete",
       "resend": "New link",
       "roles": "Roles",
-      "suspend": "Suspend"
+      "suspend": "Suspend",
+      "handOn": "Hand on rows"
     },
     "column": {
       "actions": "Actions",
       "lastSeen": "Last seen",
       "person": "Person",
       "roles": "Roles",
-      "status": "Status"
+      "status": "Status",
+      "teams": "Teams"
     },
     "counts": "{active} active · {invited} invited · {suspended} suspended",
     "empty": {
@@ -522,8 +524,6 @@ export default {
       "failed": "The account was not deleted",
       "rows": {
         "needed": "Choose who takes the rows first.",
-        "title": "{name} is named in {count, plural, one {# row} other {# rows}}",
-        "body": "Removed for good, those rows would be nobody’s. Choose who takes them.",
         "line": "{table}: {count}",
         "to": "Hand them to",
         "choose": "Choose a person…",
@@ -548,50 +548,94 @@ export default {
       "sample": "Sample person",
       "suspended": "Suspended"
     },
-    "subtitle": "Who has an account on this Adminium, and what each of them can do.",
-    "title": "Team",
+    "subtitle": "Everyone who can sign in, with their roles and teams.",
+    "title": "People",
     "twoFactorOn": "Two-factor authentication is on",
     "twoFactorShort": "2FA",
     "actionFailed": "That change was not made",
     "teams": {
       "title": "Teams",
-      "intro": "Where a role is held to “their team’s rows”, a team’s lead reaches the rows of everyone in it. A member reaches only their own.",
       "failed": "The team was not changed",
       "over": "{name} leads more than {max} people. Only the first {max} are reached.",
-      "newName": "New team name",
-      "create": "Add team",
-      "empty": "No teams yet.",
+      "empty": "No teams yet",
       "deleteTitle": "Delete “{name}”?",
       "deleteBody": "Its lead stops reaching the members’ rows. Nobody’s account and nobody’s rows are touched.",
       "delete": "Delete team",
       "memberCount": "{count, plural, one {# person} other {# people}}",
-      "rename": "Rename",
       "noMembers": "Nobody is in this team yet.",
-      "leads": "Leads the team",
+      "leads": "Leads",
       "removeLabel": "Remove {name} from {team}",
-      "remove": "Remove",
-      "addMemberLabel": "Person to add to {team}",
-      "addMember": "Add a person…",
+      "addMember": "Pick someone…",
       "sample": "{name} (sample)",
-      "add": "Add"
+      "add": "Add",
+      "pageSubtitle": "Groups of people, each with someone who leads it.",
+      "notice": "A team decides whose records a person can open when their role says “their team’s”.",
+      "rolesLink": "Roles & access",
+      "newTeam": "New team",
+      "summary": "{teams, plural, one {# team} other {# teams}} · {people, plural, one {# person} other {# people}} in one or more",
+      "loadFailed": "The teams could not be read.",
+      "caption": "Teams, who leads each and who is in it",
+      "colTeam": "Team",
+      "colLead": "Lead",
+      "colMembers": "Members",
+      "noLead": "Nobody leads it",
+      "onlyLead": "Only the lead",
+      "inAll": "{names} · {count, plural, one {# person} other {# people}} in all",
+      "emptyBody": "Until there is one, a role set to “their team’s” opens the same rows as “their own”.",
+      "untitled": "Untitled team",
+      "sheetEyebrow": "Team",
+      "nameLabel": "Name",
+      "namePlaceholder": "e.g. North",
+      "people": "People",
+      "peopleHint": "Tick who leads. A lead’s “their team’s” covers everyone here.",
+      "addLabel": "Add a person",
+      "save": "Save team",
+      "needName": "Give the team a name first."
+    },
+    "teamLeads": "{team} (leads)",
+    "handOver": {
+      "title": "Hand their {count, plural, one {# row} other {# rows}} to…",
+      "remove": "{name} owns these. Removed for good, they would be nobody’s: choose who takes them.",
+      "suspend": "{name} owns these. Suspended, they stay {name}’s until somebody takes them.",
+      "later": "{name} is suspended and still owns these. Choose who takes them.",
+      "keep": "Nobody for now",
+      "laterTitle": "Hand {name}’s rows on",
+      "unknown": "Which rows name {name} could not be read.",
+      "none": "No row names {name}.",
+      "failed": "The rows were not handed over",
+      "confirm": "Hand them over"
+    },
+    "suspend": {
+      "title": "Suspend {name}?",
+      "body": "{name} can no longer sign in, and is signed out everywhere. Their account, roles and history stay, and you can reactivate them.",
+      "failed": "The account was not suspended",
+      "confirmHand": "Hand over and suspend"
     }
   },
   "quietHours": {
-    "title": "Quiet hours and summaries",
-    "help": "In your quiet hours a notice still shows in the bell, without a sound or a pop-up, and its email waits until the hours end. Something marked urgent reaches you at once.",
+    "title": "Quiet hours",
+    "leadOn": "In these hours a notice still shows in the bell, without a sound. Only its e-mail waits, and goes when they end. Something a rule marks urgent is sent at once.",
+    "leadOff": "Off. Notices and their e-mails arrive as they happen.",
+    "on": "On",
+    "off": "Off",
     "zone": "Your time zone",
     "zoneDefault": "The business’s ({zone})",
-    "none": "No quiet hours",
+    "days": "Days and times",
+    "fromShort": "From",
+    "toShort": "to",
     "from": "Quiet from, {day}",
-    "until": "until",
     "to": "Quiet until, {day}",
-    "nextDay": "the next day",
-    "daySwitch": "Quiet hours on {day}",
-    "copy": "Copy {day}’s hours to every day",
-    "digestDay": "Send my summaries on",
+    "endsOn": "ends {day}",
+    "copy": "Use {day}’s times every day",
+    "example": "An e-mail that comes at {from} on {day} is sent at {to} on {endDay}, unless its kind is ticked below.",
+    "always": "Still tell me at once about…",
+    "alwaysNote": "Summaries keep their own day and time, below.",
+    "summariesTitle": "Summaries",
+    "summariesLead": "E-mails a rule sends you with your own rows, such as a weekly digest. Each is an e-mail: in your quiet hours it waits like any other.",
+    "summariesOff": "Off. No rule sends you a summary. Your day and time are kept for when you switch them on.",
+    "digestDay": "Day",
     "digestWhenRun": "The day each one is made",
-    "digestTime": "At",
-    "always": "Always tell me, also in quiet hours"
+    "digestTime": "Time"
   },
   "security": {
     "password": {
@@ -883,5 +927,41 @@ export default {
     "records": "Records",
     "empty": "No results for \"{query}\"",
     "apps": "Apps"
+  },
+  "account": {
+    "title": "Account",
+    "subtitle": "The identity of your current session. Manage display preferences and notification settings on their dedicated pages.",
+    "preferencesLink": "Preferences",
+    "notificationsLink": "Notification settings",
+    "name": "Name",
+    "email": "Email",
+    "roles": "Roles",
+    "twoFactor": "Two-factor",
+    "on": "Enabled",
+    "off": "Off",
+    "nameRequired": "Enter your name.",
+    "emailHelper": "Used to sign in. Changing it needs your password.",
+    "confirmPassword": "Current password",
+    "confirmPasswordHelper": "Confirm it is you before your sign-in address changes.",
+    "save": "Save changes",
+    "saveFailed": "Could not save your profile",
+    "saved": "Profile updated",
+    "savedBody": "Your new details are in use across this workspace. If you changed your email, sign in with the new address from now on.",
+    "accessTitle": "Access",
+    "accessSubtitle": "What this account may do, and how it proves who it is.",
+    "rolesHelper": "Roles are granted by an administrator and cannot be changed from your own account.",
+    "manageTwoFactor": "Manage",
+    "setUpTwoFactor": "Set up",
+    "securityLink": "Password & sessions",
+    "preferences": {
+      "title": "Preferences",
+      "subtitle": "How Adminium looks and reads for you — on this and every device you sign in from.",
+      "workspaceDefault": "Workspace default",
+      "personal": "Personal",
+      "usingDefault": "Using workspace default ({value})",
+      "reset": "Reset to workspace default",
+      "resetFailed": "Could not reset this preference. Try again.",
+      "appliesInstantly": "Changes apply instantly and are saved to your profile."
+    }
   }
 } as const;

@@ -115,7 +115,8 @@ export const NOT_FOR_A_DRAFT: Readonly<Record<string, string>> = {
   // The rule format's budget is spent; these words of 0.3.28 are an app's or a person's to write, not a draft's.
   lead: 'a notice to the lead of the person on the row is written in an app\'s manifest',
   else: 'the roles told when nobody is on the row are written in an app\'s manifest',
-  setting: 'an amount read from a setting is written in an app\'s manifest',
+  setting: 'an amount, or a value, read from a setting is written in an app\'s manifest',
+  daysAfter: 'a day so many days after a date of the record is written in an app\'s manifest',
   // A notice's `{ listed }`, and an e-mail's `{ kind: "listed" }` with it: the people a listing names, an app's word.
   listed: 'the people a table lists against the record are told by a rule an app\'s manifest writes',
 };
@@ -196,7 +197,8 @@ export function schemaFieldNames(): string[] {
     if (Array.isArray(value)) return value.forEach(walk);
     if (!isJson(value)) return;
     if (isJson(value['properties'])) for (const name of Object.keys(value['properties'])) out.add(name);
-    for (const child of Object.values(value)) walk(child);
+    // A field hidden from a draft hides what it holds with it.
+    for (const [key, child] of Object.entries(value)) walk(key === 'properties' && isJson(child) ? Object.fromEntries(Object.entries(child).filter(([name]) => !(name in NOT_FOR_A_DRAFT))) : child);
   };
   const { trigger, graph } = schemas();
   walk(trigger);

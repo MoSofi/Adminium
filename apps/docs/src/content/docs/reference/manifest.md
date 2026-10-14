@@ -395,7 +395,7 @@ change or delete is theirs from then on.
 | `perNight` | `{ "from", "to", "rate", "adjust"? }` | A price worked out night by night: a stay's room total. See [Prices by the night](#prices-by-the-night). |
 | `notAfter` | `"today"` or `{ "column", "via"?, "when"?, "strict"? }` | A `date` column is never later than today, in the venue's time zone; or than another date, read as `notBefore` reads it (a credit's nights end by its stay's `depart`). A later date is refused (`out-of-range`). |
 | `notBefore` | `{ "column", "via"?, "when"?, "strict"? }` | A `date` column is never earlier than another date column: of the same row, or, with `via`, of the row its foreign key `via` points at (a payment never before its invoice's `issued_on`). `when`: 1–8 [conditions](#conditions-a-move-waits-for) on the row as the write leaves it; the bound holds only while they are met. `strict`: the same day is out too — `true`, or 1–8 conditions it is out under (a guest who left early is credited from the day after the arrival, one who never came from the arrival itself). |
-| `linkable` | `{ "where" }` | On a foreign key: it names only a row of the table it points at that meets 1–8 conditions (`where`, the shape a move's [`linked`](#conditions-a-move-waits-for) takes) — a price-list line still offered. Judged when a new row names one and when a change moves the link, for every writer. See [Links to some rows](#links-to-some-rows). Needs Adminium 0.3.28. |
+| `linkable` | `{ "where"?, "same"? }` | On a foreign key: it names only a row of the table it points at that meets 1–8 conditions (`where`, the shape a move's [`linked`](#conditions-a-move-waits-for) takes) — a price-list line still offered — and, with `same`, whose columns hold what this row holds (a visit's contact works for the company of the visit's deal). Judged when a new row names one and when a change moves the link, for every writer. See [Links to some rows](#links-to-some-rows). Needs Adminium 0.3.28. |
 | `retryKey` | `true` | The column a staff create keeps its retry key in, as a 43-letter hash, on a table no public entry creates rows of: a desk's payment sent again after a lost reply answers the payment the first one made (see the REST API's `clientKey`). A `text` column, `unique`, nullable, at least 43 long; one a table. |
 | `rollup` | `{ "from", "via", "sum" or "count", "times"?, "unlessSet"?, "where"?, "balance"?, "cap"? }` | A total over child rows, kept up to date as they change. `from` is the child table, `via` its foreign key back to this table, `sum` the column to add up, or `"count": true` to count the rows instead; see [Totals that count and climb](#totals-that-count-and-climb). `times` multiplies each row (a quantity); a child row with a value in `unlessSet` is left out (a voided line). See [Totals and balances](#totals-and-balances) for `where`, `balance` and `cap`. |
 | `stamp` | `{ "set", "on", "clearOnBack"? }` | A value Adminium writes when something happens: the moment, who did it, or a deadline. See [Stamps](#stamps). |
@@ -534,6 +534,37 @@ table it points at that is not a `secret`.
 - **A rule that can no longer be read.** When the link's relation is gone, or a column a condition
   reads is no longer on the table, no row can be shown to meet the rule: every new link is refused,
   and rows that already hold one keep it. Put the column back, or change the rule in Studio.
+
+##### A row that must match the row written
+
+`same` compares the named row with the row being written instead of with a fixed value: a site
+visit names only a contact who works for the company of the visit's deal.
+
+```json
+{ "ref": "contact_id", "type": "fk", "references": "contacts", "nullable": true,
+  "rules": { "linkable": { "same": [{ "column": "company_id", "as": "deal_id.company_id" }] } } }
+```
+
+`same` is 1–4 pairs. `column` is a column of the row the link names (here a contact's
+`company_id`); `as` is a column of the row being written, or one link further, `<link
+column>.<column>`: the column of the row a foreign key of it names (here the visit's deal's
+`company_id`). Each pair must hold: both sides hold the same value. An empty side holds nothing,
+so a deal with no company yet matches no contact; an empty link is still taken. `where` and
+`same` may be given together, and a rule gives at least one of them. Needs Adminium 0.3.28
+(`linkable.same`).
+
+- **When it is judged.** As `where` is, and also when a change moves the column `as` reads on the
+  row (a visit moved to another deal), the contact staying: the visit would no longer be the
+  deal's company's. The far row is read as it stands when the write is judged: a deal moved to
+  another company, or a contact who changes company, keeps the visits that name them.
+- **What the refusal says.** The same `422` `not-allowed` on the link's field, naming nothing of
+  either row. The far row of `as` is read through the write's own handle; a writer who names a
+  deal out of their reach is refused for that deal before this rule is asked, whichever contact
+  the visit names.
+- The validator refuses a column the linked table does not have, a secret on either side, a hop
+  through a column that is not a foreign key, the link compared with itself, and two columns that
+  can never hold one value (a number and a text). Studio checks that each column and link is
+  there.
 
 An operator may set the same rule on a column in Studio; Studio refuses one whose column is not a
 foreign key, or whose conditions name a column the linked table does not have. The screens are
@@ -2743,6 +2774,15 @@ the entry gives: `readable` needs `read`, `writable` needs `update`, `creatable`
 The grant is live while the add-on is connected to the app; the add-on's table and column names
 are checked then. An add-on's own roles grant its tables through `permissions`, not `tables`.
 
+The add-on may say how far an app's role goes on each of its tables
+([`appGrants`](#what-an-apps-role-may-hold-of-an-add-ons-table)). An entry is then cut to it: an
+action or a column past it is left out, and an entry that asks for every column is given the
+add-on's columns, never all of them. Nothing past it is ever written. The install check lists each
+role's hold with its columns, and says what was asked for and not given. An update whose roles
+would hold more than the running version's (a new action, a new column, a column list that becomes
+every column) is refused with `ROLE_TABLES_WIDER` until the update is sent with
+`"roleTables": true`. The update's check in Studio shows what is new, and pressing Update sends it.
+
 ## Settings
 
 `settings` declares values the operator sets for the app, such as a business type or a currency.
@@ -4150,7 +4190,13 @@ A step's action is one of six:
 | `add-on.step` | `addOn`, `step`, `inputs` | Runs a [step an add-on gives](#steps-for-automations): the add-on's key, the step's key, and a text for each input. An add-on's own step is checked here; another add-on's is checked where the rule is installed, and fails by name while that add-on is not there. Needs `minAdminiumVersion` `0.3.22`. |
 
 A value is a text, which may carry `{{record.<column>}}`, or `{ "now": true }`. It may also carry
-[the record as it was](#the-record-as-it-was) and [the name of a person](#a-persons-name-and-the-records-address).
+[the record as it was](#the-record-as-it-was) and [the name of a person](#a-persons-name-and-the-records-address),
+or be [a value of the settings row, or a day so many days on](#a-value-from-the-settings-row-and-a-day-so-many-days-on).
+
+A mail never carries a `secret` column of its record, whoever it goes to: not to the address a
+column holds, not to a person, not written as a date or an amount, not as it was. A personal
+column goes in a mail to the address a column of the record holds (the mail goes to that person),
+and in a mail to a person only when their role is shown that table's personal columns.
 
 A notice is about its record, and its title and body carry the record's values. So a notice to
 roles, or to people listed by hand in the dashboard, goes only to those of them whose roles **open
@@ -4285,6 +4331,34 @@ private table whose rows a condition counts), and somebody who saves such a rule
 must read the table the number is kept in. A run reads it as a rule reads the connection: a table
 made private since holds nothing, and `amount` is used. Needs Adminium 0.3.28.
 
+### A value from the settings row, and a day so many days on
+
+A value a `record.create` or `record.update` step writes may be read from the app's settings row,
+or be a day so many days after a date of the record. An aftercare call 28 days after a job is
+signed off, owned by the person the business names on its Settings screen:
+
+```json
+{ "kind": "record.create", "table": "follow_ups", "values": {
+    "job_id": "{{record.job_id}}",
+    "owner_id": { "setting": { "table": "settings", "column": "aftercare_owner_id" } },
+    "due_at": { "daysAfter": { "column": "signed_at", "days": 28,
+                               "setting": { "table": "settings", "column": "aftercare_days" }, "at": "09:00" } },
+    "kind": "aftercare", "text": "Aftercare call" } }
+```
+
+| Value | What it writes |
+|---|---|
+| `{ "setting": { "table", "column" } }` | What that column of the settings row (the row of that table with the lowest key) holds when the step runs. Into a staff column, from a staff column only, and only somebody who signs in: a setting that names nobody, somebody since removed or suspended, leaves the value empty, and the run's log says so. Any other column takes it from a column of its own type. |
+| `{ "daysAfter": { "column" or "now", "days", "setting"?, "at"? } }` | A day `days` (0–3650) after a `date` or `timestamptz` column of the rule's record, or after the run (`"now": true`), counted on the business's calendar (the connection's time zone). `setting`: a whole-number column of the settings row whose number is used while it holds one from 1 to 3650 (else `days`: an empty setting or a 0 is none). Written into a `date` column as the day; into a `timestamptz` column at `at` (`"HH:MM"`) on the business's clock, else at the wall time it counts from (midnight for a date), so a call booked at 09:30 is due at 09:30 after the clocks change. A record whose date is empty leaves the value empty, and the log says so. |
+
+A value is no way to read a table. The settings are read as a rule reads the connection, when the
+step runs: a [private](#whose-a-row-is) table, a `secret` or a personal column are refused by the
+validator and when a rule is saved, and a rule stored before holds nothing from one; so is a day
+counted from a secret or personal date of the record, which it would tell. Somebody who
+saves such a rule in the dashboard must read the table the setting is kept in. A clock with no rows
+to visit has no record to count from: `"now": true` only. Both need Adminium 0.3.28
+(`automations.settingValue`, `automations.daysAfter`).
+
 ### Once per spell
 
 `forEach.once` is `false` (every time the rule runs), `true` (once ever, for each row) or
@@ -4302,6 +4376,14 @@ in the app at once and its email waits for the hours to end; so does a rule's em
 of notice the person marked "always tell me". A person who chose no time zone is read on the
 business's. Where one window ends as the next begins (Friday evening into a Saturday that is
 quiet all day), what is held waits for the end of the last of them.
+
+Two switches are kept beside these (`quietOn` and `summariesOn` on
+`/api/v1/me/notification-schedule`). Quiet hours switched off hold nothing, and keep their hours
+for when they are switched on again. Summaries switched off are "not me": no rule's `digest` step
+makes this person one, whichever of its roles they hold, and one already waiting for its hour is
+not sent; the day and time are kept. A summary the person asks for themselves
+(`POST /api/v1/me/summaries/{ruleId}/send`) is still sent. A write that leaves either switch out
+leaves it as it was.
 
 ### A summary for each person
 
@@ -4404,6 +4486,11 @@ A `record.create` step with `"name": "contact"` keeps the row it made, and every
 read `{{steps.contact.<column>}}`: an enquiry makes a contact, then a deal for that contact, then
 a follow-up on that deal, in one rule. The row is kept in the run's stored trace, so it is still
 there after a `wait`.
+
+A notice, or a mail to a person, carries what **that person** reads of the row: nothing of it for
+somebody whose roles do not read its table or reach that row (a costing made for an approver, told
+to the deal's owner), and nothing of a column their role is not shown. A personal or secret column
+of the row is never kept for the steps after.
 
 A `{{steps.…}}` that names a row no step before it makes, or a column that row's table has not,
 is refused by the validator and when a rule is saved. A run that reaches a step whose row was not
@@ -4697,6 +4784,7 @@ Adminium runs add-on code, and why only first-party add-ons are accepted, is exp
 | `requiredSchema.prefixed` | `true`. Every table is created as `<key with _ for ->_<ref>`: `stock-kit` and `items` make `stock_kit_items`. A name that is taken is a problem on the check, never a rename. |
 | `requiredSchema.tables[].indexes` | Up to six sets of one to five columns, each made as an index. A set equal to a unique set is refused. |
 | `seeds` | `[{ "table", "rows" }]` or `[{ "table", "file" }]`: rows written once, at install, into a table that is empty. A value is a plain value, `{ "@t": { "en-US": "…", "de-DE": "…" } }` (written in the installing person's language) or `{ "@ref": "<label>" }` (the key of an earlier row that carries `"@label"`). Never for a ledger or a receipt table. The add-on's sample data may point at a labelled row written in `rows` (not one in a `file`) with the same `{ "@ref" }`: the row is found again by its one-of-a-kind column (`"unique": true`), else by its table's `keyField`. If the owner deleted it, the sample row that names it is left out. |
+| `requiredSchema.tables[].appGrants` | The most an app's role may hold of the table. See [What an app's role may hold of an add-on's table](#what-an-apps-role-may-hold-of-an-add-ons-table). |
 | `addOn.settingsTable` | A table that holds exactly one row. It is made at install from the columns' defaults, so every required column has one. |
 | `roles` | As an app's. A role grants the add-on's own tables (`table:@items:read`), its own pages (`page:@stock-kit-items:view`) and its settings (`addOn:<key>:settings`). Never `screensOnly`. |
 | `sampleData` | As an app's, for its own tables. |
@@ -4705,6 +4793,37 @@ Adminium runs add-on code, and why only first-party add-ons are accepted, is exp
 
 A column may keep the name of a table (`"rules": { "tableRef": true }`): Adminium stores it so
 that renaming the table it names keeps the rows pointing at it.
+
+### What an app's role may hold of an add-on's table
+
+An app gives its roles a hold on an add-on's tables with [`roles[].tables`](#a-role-on-an-add-ons-tables).
+The table is the add-on's, so the add-on says how far that may go, on the table itself:
+
+```json
+{ "ref": "suppliers", "columns": [ … ],
+  "appGrants": { "actions": ["read"], "readable": ["id", "name", "lead_days", "active"] } }
+```
+
+| Field | Rule |
+|---|---|
+| `actions` | The most an app's role is given here: `read`, `create`, `update`. |
+| `readable` | The only columns an app's read shows. Absent: every column but those in `never`, and never a secret. |
+| `writable` | The only columns an app's update may change. Required when `actions` has `update`. |
+| `creatable` | The only columns a new row an app's role adds may be given. Required when `actions` has `create`. |
+| `never` | Columns no app's grant reaches, whatever else is listed. Not the key or a link: every read shows those. |
+
+Once an add-on sets `appGrants` on one table, a table without it is given to no app's role. An
+add-on that sets it on none is held only by its own shape: no hold on a ledger's receipt table,
+read only on a table a ledger's code writes. A ledger's receipt table takes no `appGrants`, and a
+table a ledger's code writes allows only `read`. Each column named must be one of the table's.
+
+An app's entry is cut to it when it is written, and again whenever the add-on is installed,
+updated, connected or switched back on. Whatever is cut is named: in the install check, and in the
+reply as `narrowed` with `skipped: "ceiling"`, or `skipped: "not-offered"` for a table given to no
+app. A grant on such a table always carries its column lists. The key and the links to other rows
+are read with any read, as with every read limit.
+
+A manifest that uses `appGrants` sets `compatibility.minAdminiumVersion` to `0.3.28` or later.
 
 ### Ledgers
 

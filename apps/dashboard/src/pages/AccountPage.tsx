@@ -52,6 +52,7 @@ import { bootstrapQuery, type BootstrapData, type SessionUser } from '../app/boo
 import { patchMe, type MePatch } from '../account/meApi.js';
 import { PasswordCard } from '../account/PasswordCard.js';
 import { PageSurface } from '../shell/PageSurface.js';
+import { useCommonWords } from '../i18n/commonWords.js';
 import { t } from '../i18n/t.js';
 
 /**
@@ -281,6 +282,8 @@ function AccessCard({ user, roles }: { user: SessionUser; roles: readonly string
 }
 
 export function AccountPage() {
+  // This screen's words load with it, not with the first paint (the `account` group of `common`).
+  useCommonWords();
   const { data: bootstrap } = useSuspenseQuery(bootstrapQuery());
   const { user, roles } = bootstrap;
 

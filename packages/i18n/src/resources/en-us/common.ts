@@ -126,7 +126,7 @@ export default {
       "account": "Account"
     },
     "back": "Back",
-    "team": "Team",
+    "team": "People",
     "roles": "Roles & permissions",
     "audit": "Audit log",
     "security": "Password & sessions",
@@ -138,7 +138,8 @@ export default {
       "openStaffInstance": "Open the staff screens · {instance}"
     },
     "drawerTitle": "Navigation",
-    "emptyPartsOff": "Nothing is switched on for you right now. Ask an administrator."
+    "emptyPartsOff": "Nothing is switched on for you right now. Ask an administrator.",
+    "teams": "Teams"
   },
   "apps": {
     "frame": {
@@ -384,42 +385,6 @@ export default {
       "label": "Language",
       "directionNote": "Text direction: right to left (set automatically by the language)",
       "communityDraft": "This translation is a community draft — it has not been reviewed by a native speaker yet."
-    }
-  },
-  "account": {
-    "title": "Account",
-    "subtitle": "The identity of your current session. Manage display preferences and notification settings on their dedicated pages.",
-    "preferencesLink": "Preferences",
-    "notificationsLink": "Notification settings",
-    "name": "Name",
-    "email": "Email",
-    "roles": "Roles",
-    "twoFactor": "Two-factor",
-    "on": "Enabled",
-    "off": "Off",
-    "nameRequired": "Enter your name.",
-    "emailHelper": "Used to sign in. Changing it needs your password.",
-    "confirmPassword": "Current password",
-    "confirmPasswordHelper": "Confirm it is you before your sign-in address changes.",
-    "save": "Save changes",
-    "saveFailed": "Could not save your profile",
-    "saved": "Profile updated",
-    "savedBody": "Your new details are in use across this workspace. If you changed your email, sign in with the new address from now on.",
-    "accessTitle": "Access",
-    "accessSubtitle": "What this account may do, and how it proves who it is.",
-    "rolesHelper": "Roles are granted by an administrator and cannot be changed from your own account.",
-    "manageTwoFactor": "Manage",
-    "setUpTwoFactor": "Set up",
-    "securityLink": "Password & sessions",
-    "preferences": {
-      "title": "Preferences",
-      "subtitle": "How Adminium looks and reads for you — on this and every device you sign in from.",
-      "workspaceDefault": "Workspace default",
-      "personal": "Personal",
-      "usingDefault": "Using workspace default ({value})",
-      "reset": "Reset to workspace default",
-      "resetFailed": "Could not reset this preference. Try again.",
-      "appliesInstantly": "Changes apply instantly and are saved to your profile."
     }
   },
   "settings": {

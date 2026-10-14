@@ -561,6 +561,7 @@ export function InstallAppWizard({ onClose, preselected, quick = false, onMoreCh
             onDownload={(row) => download.mutate(row)}
             busy={busy}
             grants={plan.addOnGrants}
+            roleTables={plan.roleTables}
           />
         )}
         {plan.modules === undefined ? null : (

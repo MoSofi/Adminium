@@ -16,7 +16,7 @@ import { Suspense } from 'react';
 import type { PageEnvelope } from '@adminium/engine/config';
 
 import { PageSettingsBinding, eventLabel } from '../pages/PageSettingsBinding.js';
-import { QuietHoursCard } from './QuietHoursCard.js';
+import { QuietHoursCard, SummariesCard } from './QuietHoursCard.js';
 import type { PageTemplateAdapters } from '../pages/templates.js';
 import { t } from '../i18n/t.js';
 import { PageActions } from '../shell/PageActionsProvider.js';
@@ -60,6 +60,7 @@ export function NotificationSettingsPage() {
       <PageSettingsBinding page={envelope} adapters={adapters} />
       <Suspense fallback={null}>
         <QuietHoursCard eventLabel={eventLabel} />
+        <SummariesCard />
       </Suspense>
     </PageSurface>
   );

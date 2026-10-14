@@ -59,6 +59,10 @@ export interface TraceText {
   digestWould(people: number): string;
   /** A test run's stand-in for the row a named step would make. */
   createStandIn(name: string, pairs: string): string;
+  /** A staff column a value of the settings row fills, which names nobody who signs in: left empty. */
+  settingNobody(column: string, setting: string): string;
+  /** A day so many days after a date of the record that is empty: left empty. */
+  noDateFrom(column: string, from: string): string;
   trigger(label: string, summary: string): string;
   scheduleTick(stamp: string): string;
   evaluated(result: boolean): string;
@@ -142,10 +146,12 @@ export const TRACE_EN: TraceText = {
     listed === 0 ? `Nobody is listed in ${table} on this record: nobody was told.` : `Nobody of the ${String(listed)} listed in ${table} on this record can sign in and open it: nobody was told.`,
   heldUntil: (name, at) => `Held for ${name} until ${at}: their quiet hours.`,
   emailQueued: (name) => `Queued for ${name}.`,
-  digestNobody: () => 'Nobody holds the roles this summary is for: none was made.',
+  digestNobody: () => 'Nobody who holds the roles this summary is for takes summaries: none was made.',
   digestQueued: (people, later) => (later === 0 ? `A summary queued for ${String(people)} ${people === 1 ? 'person' : 'people'}.` : `A summary queued for ${String(people)} ${people === 1 ? 'person' : 'people'}, ${String(later)} at the time they chose.`),
   digestWould: (people) => `Would make a summary for ${String(people)} ${people === 1 ? 'person' : 'people'}, each of their own rows.`,
   createStandIn: (name, pairs) => `Would create ${pairs}. The steps after this read a stand-in for the row "${name}": it was not made.`,
+  settingNobody: (column, setting) => `${column} was left empty: the settings row's ${setting} names nobody who can sign in.`,
+  noDateFrom: (column, from) => `${column} was left empty: ${from} is empty on this record.`,
   ruleOff: () => 'Rule was switched off while waiting',
 };
 

@@ -915,7 +915,8 @@ export default {
       "checkSubtitle": "Zkontrolujte tabulky, které tato verze používá.",
       "pickFirst": "Před aktualizací vyberte, co udělat s {table}.",
       "checkFirst": "Před aktualizací tabulky zkontrolujte znovu.",
-      "nothingYet": "Dokud nestisknete Aktualizovat, nic se nezmění."
+      "nothingYet": "Dokud nestisknete Aktualizovat, nic se nezmění.",
+      "rolesSubtitle": "Zkontrolujte, co smějí role této verze dělat s tabulkami doplňků."
     },
     "veto": {
       "title": "Toto nasazení nemůže procházet online",
@@ -3432,7 +3433,32 @@ export default {
       "kept": "{addOn} zůstane nainstalován. Pokud ho nic jiného nepoužívá, odinstalujte ho v sekci Doplňky.",
       "link": "Jeho propojení s {addOn}"
     },
-    "updateToo": "Aktualizovat také"
+    "updateToo": "Aktualizovat také",
+    "roleTables": {
+      "summary": "Role aplikace {app} získají přístup k {count, plural, one {# jeho tabulce} few {# jeho tabulkám} many {# jeho tabulkám} other {# jeho tabulkám}}. Podívejte se, co čtou a mění.",
+      "unchecked": "{addOn} na tomto serveru zatím není, proto vidíte, co žádá {app}. Doplněk může povolit méně.",
+      "keyAndLinks": "Čtení zobrazí také klíč každého řádku a jeho odkazy na jiné řádky.",
+      "everyColumn": "každý sloupec",
+      "reads": "Čte {columns}",
+      "readsAll": "Čte každý sloupec",
+      "changes": "Mění {columns}",
+      "changesAll": "Mění každý sloupec",
+      "adds": "Přidává řádky a vyplňuje {columns}",
+      "addsAll": "Přidává řádky a vyplňuje libovolný sloupec",
+      "notOffered": "Neuděleno: {addOn} tuto tabulku nesdílí s žádnou aplikací.",
+      "keptBack": "Neuděleno: {addOn} si tuto tabulku nechává pro sebe.",
+      "unknown": "Neuděleno: {addOn} takovou tabulku ani sloupec nemá.",
+      "allowsLess": "Neuděleno: {addOn} povoluje méně.",
+      "notGiven": "Požadováno, neuděleno: {what}",
+      "wider": "Nové v této verzi: {what}",
+      "updateTitle": "Role získají víc z tabulek doplňků",
+      "updateBody": "Tato verze umožní těmto rolím víc s tabulkami, které patří doplňkům. Aktualizací to povolíte.",
+      "action": {
+        "read": "číst",
+        "create": "přidávat řádky",
+        "update": "měnit řádky"
+      }
+    }
   },
   "featurePage": {
     "ask": "Může ho nainstalovat někdo, kdo spravuje aplikace.",

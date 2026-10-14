@@ -88,12 +88,18 @@ export const digestSendPayloadSchema = z.object({
 });
 export type DigestSendPayload = z.infer<typeof digestSendPayloadSchema>;
 
-/** The people a summary is made for: everybody who holds one of its roles and can sign in. */
+/**
+ * The people a summary is made for: everybody who holds one of its roles and
+ * can sign in, but for whoever said "not me" to summaries.
+ */
 async function recipientsOf(meta: MetaDb, roleIds: readonly string[]): Promise<string[]> {
   const roles = rolesRepo(meta);
+  const schedules = notificationSchedulesRepo(meta);
   const out = new Set<string>();
   for (const roleId of roleIds) for (const userId of await roles.usersInRole(roleId)) out.add(userId);
-  return [...out];
+  const wanted: string[] = [];
+  for (const userId of out) if ((await schedules.find(userId))?.summariesOff !== true) wanted.push(userId);
+  return wanted;
 }
 
 function checked(action: DigestAction, ctx: Pick<ActionContext, 'rule' | 'source'>): { templateKey: string; roles: string[]; connectionId: string } {
@@ -149,7 +155,7 @@ export interface DigestSendDeps {
   secret?: string | undefined;
 }
 
-export type DigestOutcome = { sent: true; rows: Record<string, number> } | { sent: false; why: 'gone' | 'away' | 'no-role' | 'rule-off' | 'nothing' | 'no-template' | 'no-email' };
+export type DigestOutcome = { sent: true; rows: Record<string, number> } | { sent: false; why: 'gone' | 'away' | 'not-me' | 'no-role' | 'rule-off' | 'nothing' | 'no-template' | 'no-email' };
 
 /** Read one person's summary as that person, and queue its email. */
 export async function sendDigest(deps: DigestSendDeps, payload: DigestSendPayload, now: number = Date.now(), opts: { /** Asked for by the person themselves: sent also while the rule is switched off. */ asked?: boolean } = {}): Promise<DigestOutcome> {
@@ -157,6 +163,8 @@ export async function sendDigest(deps: DigestSendDeps, payload: DigestSendPayloa
   const user = await usersRepo(meta).findById(payload.userId);
   if (user === null) return { sent: false, why: 'gone' };
   if (user.status !== 'active') return { sent: false, why: 'away' };
+  // "Not me", said after the summary was queued: none is sent. Asked for by the person themselves, it is.
+  if (opts.asked !== true && (await notificationSchedulesRepo(meta).find(user.id))?.summariesOff === true) return { sent: false, why: 'not-me' };
   // Still one of the people the step writes to: a role taken away since, or one whose part of its app is now off, ends it.
   const held = await offeredRoles(meta, await rolesRepo(meta).rolesForUser(user.id));
   if (!held.some((role) => payload.roles.includes(role.id))) return { sent: false, why: 'no-role' };

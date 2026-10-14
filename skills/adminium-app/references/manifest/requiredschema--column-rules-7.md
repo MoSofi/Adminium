@@ -2,6 +2,16 @@
 
 # Manifest spec: requiredSchema — Column rules
 
+| `from` | Reads |
+|---|---|
+| `"connection.currency"` | The connection's currency, a three-letter code. The column is `text` of at least 3 characters. |
+| `{ "table", "column" }` | A column of the app's one-row settings table. |
+| `{ "addOn", "setting" }` | A setting of an add-on. The app must require that add-on in [`addOns.requires`](https://docs.adminium.dev/reference/manifest/#add-ons), so the setting is always there. |
+
+The same three settings (the last two) are what `sequence.startSetting` and `format.prefixSetting`
+read. A column with a `default` rule is nullable: when there is nothing to read, it stays empty
+rather than taking a made-up value. An update never refills it.
+
 A `{ "table", "column" }` setting, wherever a rule reads one (a default, a limit's size, a move's
 condition, a moment's time), names a table that holds **one row**: the outbox's
 [`settings.table`](https://docs.adminium.dev/reference/manifest/#outbox), or a table that stands alone, with no foreign key of its own, none

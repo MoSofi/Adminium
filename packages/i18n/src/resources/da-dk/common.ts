@@ -126,7 +126,7 @@ export default {
       "account": "Konto"
     },
     "back": "Tilbage",
-    "team": "Team",
+    "team": "Personer",
     "roles": "Roller og rettigheder",
     "audit": "Auditlog",
     "security": "Adgangskode og sessioner",
@@ -138,7 +138,8 @@ export default {
       "openStaffInstance": "Åbn personaleskærmene · {instance}"
     },
     "drawerTitle": "Navigation",
-    "emptyPartsOff": "Intet er slået til for dig lige nu. Spørg en administrator."
+    "emptyPartsOff": "Intet er slået til for dig lige nu. Spørg en administrator.",
+    "teams": "Teams"
   },
   "apps": {
     "frame": {
@@ -1693,14 +1694,16 @@ export default {
       "remove": "Slet",
       "resend": "Nyt link",
       "roles": "Roller",
-      "suspend": "Suspendér"
+      "suspend": "Suspendér",
+      "handOn": "Overdrag rækker"
     },
     "column": {
       "actions": "Handlinger",
       "lastSeen": "Sidst set",
       "person": "Person",
       "roles": "Roller",
-      "status": "Status"
+      "status": "Status",
+      "teams": "Teams"
     },
     "counts": "{active} aktive · {invited} inviterede · {suspended} suspenderede",
     "empty": {
@@ -1763,8 +1766,6 @@ export default {
       "failed": "Kontoen blev ikke slettet",
       "rows": {
         "needed": "Vælg først, hvem der overtager rækkerne.",
-        "title": "{name} er nævnt i {count, plural, one {# række} other {# rækker}}",
-        "body": "Når kontoen er slettet for altid, ville de rækker ikke tilhøre nogen. Vælg, hvem der overtager dem.",
         "line": "{table}: {count}",
         "to": "Overdrag dem til",
         "choose": "Vælg en person…",
@@ -1789,32 +1790,68 @@ export default {
       "sample": "Eksempelperson",
       "suspended": "Suspenderet"
     },
-    "subtitle": "Hvem der har en konto på dette Adminium, og hvad hver enkelt kan.",
-    "title": "Team",
+    "subtitle": "Alle, der kan logge ind, med deres roller og teams.",
+    "title": "Personer",
     "twoFactorOn": "Tofaktorgodkendelse er slået til",
     "twoFactorShort": "2FA",
     "actionFailed": "Ændringen blev ikke foretaget",
     "teams": {
       "title": "Teams",
-      "intro": "Når en rolle er begrænset til “sit teams rækker”, når et teams leder rækkerne for alle i teamet. Et medlem når kun sine egne.",
       "failed": "Teamet blev ikke ændret",
       "over": "{name} leder flere end {max} personer. Kun de første {max} nås.",
-      "newName": "Navn på nyt team",
-      "create": "Tilføj team",
-      "empty": "Ingen teams endnu.",
+      "empty": "Ingen teams endnu",
       "deleteTitle": "Slet “{name}”?",
       "deleteBody": "Lederen når ikke længere medlemmernes rækker. Ingen konto og ingen række berøres.",
       "delete": "Slet team",
       "memberCount": "{count, plural, one {# person} other {# personer}}",
-      "rename": "Omdøb",
       "noMembers": "Der er ingen i dette team endnu.",
-      "leads": "Leder teamet",
+      "leads": "Leder",
       "removeLabel": "Fjern {name} fra {team}",
-      "remove": "Fjern",
-      "addMemberLabel": "Person, der skal føjes til {team}",
-      "addMember": "Tilføj en person…",
+      "addMember": "Vælg en person…",
       "sample": "{name} (eksempel)",
-      "add": "Tilføj"
+      "add": "Tilføj",
+      "pageSubtitle": "Grupper af personer, hver med en, der leder den.",
+      "notice": "Et team afgør, hvis poster en person kan åbne, når rollen siger “teamets”.",
+      "rolesLink": "Roller og adgang",
+      "newTeam": "Nyt team",
+      "summary": "{teams, plural, one {# team} other {# teams}} · {people, plural, one {# person} other {# personer}} i ét eller flere",
+      "loadFailed": "Teamene kunne ikke læses.",
+      "caption": "Teams, hvem der leder hvert, og hvem der er med",
+      "colTeam": "Team",
+      "colLead": "Leder",
+      "colMembers": "Medlemmer",
+      "noLead": "Ingen leder det",
+      "onlyLead": "Kun lederen",
+      "inAll": "{names} · {count, plural, one {# person} other {# personer}} i alt",
+      "emptyBody": "Indtil der er et, åbner en rolle sat til “teamets” de samme rækker som “egne”.",
+      "untitled": "Unavngivet team",
+      "sheetEyebrow": "Team",
+      "nameLabel": "Navn",
+      "namePlaceholder": "f.eks. Nord",
+      "people": "Personer",
+      "peopleHint": "Sæt flueben ved, hvem der leder. For en leder dækker “teamets” alle her.",
+      "addLabel": "Tilføj en person",
+      "save": "Gem team",
+      "needName": "Giv først teamet et navn."
+    },
+    "teamLeads": "{team} (leder)",
+    "handOver": {
+      "title": "Overdrag {count, plural, one {deres # række} other {deres # rækker}} til…",
+      "remove": "{name} ejer dem. Fjernet for altid ville de ikke tilhøre nogen: vælg, hvem der overtager dem.",
+      "suspend": "{name} ejer dem. Suspenderet beholder {name} dem, indtil nogen overtager dem.",
+      "later": "{name} er suspenderet og ejer dem stadig. Vælg, hvem der overtager dem.",
+      "keep": "Ingen indtil videre",
+      "laterTitle": "Overdrag rækkerne fra {name}",
+      "unknown": "Det kunne ikke læses, hvilke rækker der nævner {name}.",
+      "none": "Ingen række nævner {name}.",
+      "failed": "Rækkerne blev ikke overdraget",
+      "confirm": "Overdrag dem"
+    },
+    "suspend": {
+      "title": "Suspendér {name}?",
+      "body": "{name} kan ikke længere logge ind og bliver logget ud overalt. Konto, roller og historik bevares, og du kan genaktivere dem.",
+      "failed": "Kontoen blev ikke suspenderet",
+      "confirmHand": "Overdrag og suspendér"
     }
   },
   "invoices": {
@@ -1840,20 +1877,28 @@ export default {
     }
   },
   "quietHours": {
-    "title": "Stilletimer og overblik",
-    "help": "I dine stilletimer vises en besked stadig i klokken uden lyd eller pop op, og dens e-mail venter, til timerne er slut. Noget, der er markeret som haster, når dig med det samme.",
+    "title": "Stilletimer",
+    "leadOn": "I disse timer vises en besked stadig i klokken, uden lyd. Kun dens e-mail venter og sendes, når de slutter. Noget, en regel markerer som hastende, sendes med det samme.",
+    "leadOff": "Fra. Beskeder og deres e-mails kommer, når de sker.",
+    "on": "Til",
+    "off": "Fra",
     "zone": "Din tidszone",
     "zoneDefault": "Virksomhedens ({zone})",
-    "none": "Ingen stilletimer",
+    "days": "Dage og tidspunkter",
+    "fromShort": "Fra",
+    "toShort": "til",
     "from": "Stille fra, {day}",
-    "until": "til",
     "to": "Stille til, {day}",
-    "nextDay": "næste dag",
-    "daySwitch": "Stilletimer {day}",
-    "copy": "Kopiér timerne for {day} til alle dage",
-    "digestDay": "Send mine overblik",
+    "endsOn": "slutter {day}",
+    "copy": "Brug tiderne for {day} hver dag",
+    "example": "En e-mail, der kommer {day} kl. {from}, sendes {endDay} kl. {to}, medmindre dens slags er markeret nedenfor.",
+    "always": "Giv mig stadig besked med det samme om…",
+    "alwaysNote": "Overblik har deres egen dag og tid, nedenfor.",
+    "summariesTitle": "Overblik",
+    "summariesLead": "E-mails, som en regel sender dig med dine egne rækker, f.eks. et ugentligt overblik. Hver er en e-mail: i dine stilletimer venter den som alle andre.",
+    "summariesOff": "Fra. Ingen regel sender dig et overblik. Din dag og tid gemmes, til du slår dem til igen.",
+    "digestDay": "Dag",
     "digestWhenRun": "Den dag, hvert af dem laves",
-    "digestTime": "Kl.",
-    "always": "Giv mig altid besked, også i stilletimer"
+    "digestTime": "Tid"
   }
 } as const;

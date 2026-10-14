@@ -128,8 +128,20 @@ const scheduleFields = {
     .nullable(),
 };
 
-export const notificationSchedulePutBody = z.object(scheduleFields).strict();
+/**
+ * The two switches a person keeps beside the hours. Left out of a write, each
+ * stays as it was: a client that knows only the four fields above never
+ * switches either one by saving.
+ */
+const switchFields = {
+  /** Quiet hours on. Off holds nothing, and keeps the hours for when they are on again. */
+  quietOn: z.boolean(),
+  /** Summaries made for this person; false is "not me", the day and time kept. */
+  summariesOn: z.boolean(),
+};
+
+export const notificationSchedulePutBody = z.object({ ...scheduleFields, quietOn: switchFields.quietOn.optional(), summariesOn: switchFields.summariesOn.optional() }).strict();
 
 export const notificationScheduleReply = z.object({
-  data: z.object({ ...scheduleFields, fallbackTimezone: z.string() }),
+  data: z.object({ ...scheduleFields, ...switchFields, fallbackTimezone: z.string() }),
 });

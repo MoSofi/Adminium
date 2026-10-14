@@ -230,9 +230,11 @@ export const UI_DEFERRED_GROUPS = ['widgets', 'templates', 'pages'] as const;
  * the router, the sidebar and the server is a permission's name, not a key
  * of the group. With them, `capabilities` (the desktop app's card of what an
  * add-on may use, on its settings page) and `palette` (the command palette,
- * whose code is itself fetched when it is first opened).
+ * whose code is itself fetched when it is first opened). And `account`: the
+ * words of `/account` and `/account/preferences`, two lazy screens, moved out
+ * to make room for the People and Teams entries of the rail (plan 67, T30).
  */
-export const COMMON_DEFERRED_GROUPS = ['builder', 'kb', 'about', 'team', 'quietHours', 'security', 'reports', 'changelog', 'onboarding', 'audit', 'capabilities', 'palette'] as const;
+export const COMMON_DEFERRED_GROUPS = ['builder', 'kb', 'about', 'team', 'quietHours', 'security', 'reports', 'changelog', 'onboarding', 'audit', 'capabilities', 'palette', 'account'] as const;
 
 /** The namespaces en-US delivers in two parts, and the groups of each that come later. */
 export const DEFERRED_GROUPS = { ui: UI_DEFERRED_GROUPS, common: COMMON_DEFERRED_GROUPS } as const;

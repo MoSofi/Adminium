@@ -522,12 +522,24 @@ export function columnRuleIssue(
       if (relation === undefined) return `Only a foreign key names a row; ${name} is not one.`;
       const linked = model.tables.find((candidate) => candidate.id === relation.to.tableId);
       const where = value['where'];
-      if (!Array.isArray(where) || where.length === 0) return `Say which rows ${name} may name.`;
-      for (const condition of where as { column?: unknown; gt?: unknown; gte?: unknown; lt?: unknown; lte?: unknown }[]) {
+      const same = value['same'];
+      if ((!Array.isArray(where) || where.length === 0) && (!Array.isArray(same) || same.length === 0)) return `Say which rows ${name} may name.`;
+      for (const condition of (Array.isArray(where) ? where : []) as { column?: unknown; gt?: unknown; gte?: unknown; lt?: unknown; lte?: unknown }[]) {
         const read = linked?.columns.find((c) => c.name === condition.column);
         if (read === undefined) return `${linked?.name ?? 'The linked table'} has no column ${JSON.stringify(condition.column)}.`;
         const ordered = [condition.gt, condition.gte, condition.lt, condition.lte].some((part) => part !== undefined);
         if (ordered && !NUMERIC_TYPES.has(read.logicalType)) return `${JSON.stringify(read.name)} is not a number, so it cannot be compared.`;
+      }
+      // Each pair: a column of the named row, and one of this row or of the row a link of it names.
+      for (const pair of (Array.isArray(same) ? same : []) as { column?: unknown; as?: unknown }[]) {
+        if (linked?.columns.some((c) => c.name === pair.column) !== true) return `${linked?.name ?? 'The linked table'} has no column ${JSON.stringify(pair.column)}.`;
+        const [own, far] = String(pair.as).split('.') as [string, string | undefined];
+        if (own === column.name || table?.columns.some((c) => c.name === own) !== true) return `${table?.name ?? 'The table'} has no other column ${JSON.stringify(own)} to compare with.`;
+        if (far === undefined) continue;
+        const hop = model.relations.find((r) => r.through === null && r.from.tableId === table?.id && r.from.columns.length === 1 && r.from.columns[0] === own && r.to.columns.length === 1);
+        const reached = hop === undefined ? undefined : model.tables.find((candidate) => candidate.id === hop.to.tableId);
+        if (reached === undefined) return `${JSON.stringify(own)} is not a foreign key, so it names no row to read ${JSON.stringify(far)} of.`;
+        if (!reached.columns.some((c) => c.name === far)) return `${reached.name} has no column ${JSON.stringify(far)}.`;
       }
       return null;
     }

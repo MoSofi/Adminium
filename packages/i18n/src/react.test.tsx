@@ -17,7 +17,7 @@ function Probe() {
   const fmt = useFmt();
   return (
     <div>
-      <p data-testid="title">{t('account.title', 'fallback-title')}</p>
+      <p data-testid="title">{t('nav.notificationSettings', 'fallback-title')}</p>
       <p data-testid="missing">{t('no.such.key', 'the fallback')}</p>
       <p data-testid="locale">{locale}</p>
       <p data-testid="dir">{rtl ? 'rtl' : 'ltr'}</p>
@@ -30,7 +30,7 @@ async function setup(): Promise<I18nInstance> {
   const i18n = await createI18n({
     locale: 'en_US',
     loadBundle: async (tag, ns) =>
-      tag === 'de-DE' && ns === 'common' ? { account: { title: 'Konto' } } : null,
+      tag === 'de-DE' && ns === 'common' ? { nav: { notificationSettings: 'Konto' } } : null,
   });
   render(
     <I18nProvider i18n={i18n}>
@@ -45,7 +45,7 @@ describe('I18nProvider bindings', () => {
 
   it('translates with the key+fallback signature and exposes locale metadata', async () => {
     await setup();
-    expect(screen.getByTestId('title').textContent).toBe('Account');
+    expect(screen.getByTestId('title').textContent).toBe('Notification settings');
     expect(screen.getByTestId('missing').textContent).toBe('the fallback');
     expect(screen.getByTestId('locale').textContent).toBe('en_US');
     expect(screen.getByTestId('dir').textContent).toBe('ltr');
@@ -67,7 +67,7 @@ function MaybeProbe() {
   const t = useMaybeT();
   return (
     <div>
-      <p data-testid="maybe-title">{t('account.title', 'fallback-title')}</p>
+      <p data-testid="maybe-title">{t('nav.notificationSettings', 'fallback-title')}</p>
       <p data-testid="maybe-icu">{t('no.such.key', '{count, plural, one {# card} other {# cards}}', { count: 2 })}</p>
       <p data-testid="maybe-arg">{t('no.such.key', 'Moved {title}.', { title: 'Invoice' })}</p>
     </div>
@@ -84,7 +84,7 @@ describe('useMaybeT', () => {
         <MaybeProbe />
       </I18nProvider>,
     );
-    expect(screen.getByTestId('maybe-title').textContent).toBe('Account');
+    expect(screen.getByTestId('maybe-title').textContent).toBe('Notification settings');
   });
 
   it('ICU-formats the English fallback outside a provider instead of throwing', () => {

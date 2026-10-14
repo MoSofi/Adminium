@@ -238,8 +238,10 @@ export function notificationsRoutes(deps: NotificationsRoutesDeps): FastifyPlugi
 
     /*
      * WHEN A PERSON IS TOLD: their own time zone, the hours of each weekday
-     * they are not to be disturbed in, and when their summaries are sent.
-     * Theirs alone to read and to set; nothing here is on until they set it.
+     * they are not to be disturbed in, and when their summaries are sent;
+     * and two switches kept beside them, quiet hours on or off (the hours
+     * kept) and summaries on or "not me" (the day and time kept). Theirs
+     * alone to read and to set; nothing here is on until they set it.
      */
     const scheduleView = async (userId: string) => {
       const held = await notificationSchedulesRepo(meta).find(userId);
@@ -248,6 +250,8 @@ export function notificationsRoutes(deps: NotificationsRoutesDeps): FastifyPlugi
         quiet: held?.quiet ?? null,
         digestDay: held?.digestDay ?? null,
         digestTime: held?.digestTime ?? null,
+        quietOn: held?.quietOff !== true,
+        summariesOn: held?.summariesOff !== true,
         fallbackTimezone: await businessZone(meta),
       };
     };
@@ -263,11 +267,21 @@ export function notificationsRoutes(deps: NotificationsRoutesDeps): FastifyPlugi
       { schema: { body: notificationSchedulePutBody, response: { 200: notificationScheduleReply } } },
       async (request) => {
         const userId = requireUserId(request);
-        const { timezone, quiet, digestDay, digestTime } = request.body;
+        const { timezone, quiet, digestDay, digestTime, quietOn, summariesOn } = request.body;
         if (timezone !== null && usableZone(timezone) === null) {
           throw new ValidationFailedError(`"${timezone}" is not a time zone this server knows.`, { fields: { timezone: { code: 'invalid' } } });
         }
-        await notificationSchedulesRepo(meta).set(userId, { timezone, quiet, digestDay, digestTime });
+        const schedules = notificationSchedulesRepo(meta);
+        // A switch the write leaves out stays as it was.
+        const held = quietOn === undefined || summariesOn === undefined ? await schedules.find(userId) : null;
+        await schedules.set(userId, {
+          timezone,
+          quiet,
+          digestDay,
+          digestTime,
+          quietOff: quietOn === undefined ? held?.quietOff === true : !quietOn,
+          summariesOff: summariesOn === undefined ? held?.summariesOff === true : !summariesOn,
+        });
         return { data: await scheduleView(userId) };
       },
     );

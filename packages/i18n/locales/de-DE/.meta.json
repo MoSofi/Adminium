@@ -2923,6 +2923,18 @@
     "status": "mt",
     "srcHash": "65ba00e95e60"
   },
+  "automations.rec.dayCount": {
+    "status": "mt",
+    "srcHash": "e7c9e031e81b"
+  },
+  "automations.rec.daysAfter": {
+    "status": "mt",
+    "srcHash": "503cba78fd40"
+  },
+  "automations.rec.fromSetting": {
+    "status": "mt",
+    "srcHash": "118b0af33437"
+  },
   "automations.rec.name": {
     "status": "mt",
     "srcHash": "cb27f8edcf9e"
@@ -6240,8 +6252,12 @@
     "status": "mt"
   },
   "common.nav.team": {
-    "status": "src",
+    "status": "mt",
     "srcHash": "218887269ad5"
+  },
+  "common.nav.teams": {
+    "status": "src",
+    "srcHash": "cbfd44d9c70c"
   },
   "common.nav.workflowLogs": {
     "status": "mt",
@@ -6695,13 +6711,17 @@
     "status": "mt",
     "srcHash": "a85754680d39"
   },
+  "common.quietHours.alwaysNote": {
+    "status": "mt",
+    "srcHash": "8ad28375d0a3"
+  },
   "common.quietHours.copy": {
     "status": "mt",
     "srcHash": "6e4f89c26676"
   },
-  "common.quietHours.daySwitch": {
+  "common.quietHours.days": {
     "status": "mt",
-    "srcHash": "b0da043beb7d"
+    "srcHash": "14a039aaaad7"
   },
   "common.quietHours.digestDay": {
     "status": "mt",
@@ -6715,21 +6735,49 @@
     "status": "mt",
     "srcHash": "0a452c96bcc4"
   },
+  "common.quietHours.endsOn": {
+    "status": "mt",
+    "srcHash": "40f400495cd1"
+  },
+  "common.quietHours.example": {
+    "status": "mt",
+    "srcHash": "075479d6b613"
+  },
   "common.quietHours.from": {
     "status": "mt",
     "srcHash": "6fe9e0a48629"
   },
-  "common.quietHours.help": {
+  "common.quietHours.fromShort": {
     "status": "mt",
-    "srcHash": "fff865899c41"
+    "srcHash": "3f66052a107e"
   },
-  "common.quietHours.nextDay": {
+  "common.quietHours.leadOff": {
     "status": "mt",
-    "srcHash": "b738402511fb"
+    "srcHash": "7ffc9190dfa9"
   },
-  "common.quietHours.none": {
+  "common.quietHours.leadOn": {
     "status": "mt",
-    "srcHash": "b74f30a6e38d"
+    "srcHash": "f596171807ba"
+  },
+  "common.quietHours.off": {
+    "status": "mt",
+    "srcHash": "e3de5ab0ca4c"
+  },
+  "common.quietHours.on": {
+    "status": "mt",
+    "srcHash": "e0049a66519c"
+  },
+  "common.quietHours.summariesLead": {
+    "status": "mt",
+    "srcHash": "7c55a09033c5"
+  },
+  "common.quietHours.summariesOff": {
+    "status": "mt",
+    "srcHash": "454f564456c1"
+  },
+  "common.quietHours.summariesTitle": {
+    "status": "mt",
+    "srcHash": "e065a82138fa"
   },
   "common.quietHours.title": {
     "status": "mt",
@@ -6739,9 +6787,9 @@
     "status": "mt",
     "srcHash": "b74dafe49b73"
   },
-  "common.quietHours.until": {
+  "common.quietHours.toShort": {
     "status": "mt",
-    "srcHash": "b310f4d4d89b"
+    "srcHash": "4374aaee247f"
   },
   "common.quietHours.zone": {
     "status": "mt",
@@ -7943,6 +7991,10 @@
     "srcHash": "86ed280cb63d",
     "status": "mt"
   },
+  "common.team.action.handOn": {
+    "status": "mt",
+    "srcHash": "c03bffc2d747"
+  },
   "common.team.action.reactivate": {
     "status": "mt",
     "srcHash": "cd28a172590d"
@@ -7987,6 +8039,10 @@
     "status": "src",
     "srcHash": "bae7d5be7082"
   },
+  "common.team.column.teams": {
+    "status": "src",
+    "srcHash": "cbfd44d9c70c"
+  },
   "common.team.counts": {
     "status": "mt",
     "srcHash": "e953e6097cce"
@@ -8022,6 +8078,46 @@
   "common.team.filterStatusAny": {
     "status": "mt",
     "srcHash": "55201ac9166b"
+  },
+  "common.team.handOver.confirm": {
+    "status": "mt",
+    "srcHash": "5637f1fd6dab"
+  },
+  "common.team.handOver.failed": {
+    "status": "mt",
+    "srcHash": "c05b2a70768e"
+  },
+  "common.team.handOver.keep": {
+    "status": "mt",
+    "srcHash": "6f25df8834c3"
+  },
+  "common.team.handOver.later": {
+    "status": "mt",
+    "srcHash": "840d2db2a22b"
+  },
+  "common.team.handOver.laterTitle": {
+    "status": "mt",
+    "srcHash": "615eb99257c6"
+  },
+  "common.team.handOver.none": {
+    "status": "mt",
+    "srcHash": "941101e071a2"
+  },
+  "common.team.handOver.remove": {
+    "status": "mt",
+    "srcHash": "7a5847054592"
+  },
+  "common.team.handOver.suspend": {
+    "status": "mt",
+    "srcHash": "d1195221c217"
+  },
+  "common.team.handOver.title": {
+    "status": "mt",
+    "srcHash": "fd34acc8b8cf"
+  },
+  "common.team.handOver.unknown": {
+    "status": "mt",
+    "srcHash": "32235cde1209"
   },
   "common.team.invite.copied": {
     "status": "mt",
@@ -8151,10 +8247,6 @@
     "status": "mt",
     "srcHash": "cd2eee2ffd7e"
   },
-  "common.team.remove.rows.body": {
-    "status": "mt",
-    "srcHash": "6c1f415d2705"
-  },
   "common.team.remove.rows.choose": {
     "status": "mt",
     "srcHash": "e16fd51f4df3"
@@ -8170,10 +8262,6 @@
   "common.team.remove.rows.needed": {
     "status": "mt",
     "srcHash": "842bc9e52291"
-  },
-  "common.team.remove.rows.title": {
-    "status": "mt",
-    "srcHash": "346612fa9705"
   },
   "common.team.remove.rows.to": {
     "status": "mt",
@@ -8235,21 +8323,53 @@
     "status": "mt",
     "srcHash": "d96589005b64"
   },
+  "common.team.suspend.body": {
+    "status": "mt",
+    "srcHash": "694c159d15a6"
+  },
+  "common.team.suspend.confirmHand": {
+    "status": "mt",
+    "srcHash": "1ce677a027ad"
+  },
+  "common.team.suspend.failed": {
+    "status": "mt",
+    "srcHash": "2b564143ee31"
+  },
+  "common.team.suspend.title": {
+    "status": "mt",
+    "srcHash": "cb1f1b5de491"
+  },
+  "common.team.teamLeads": {
+    "status": "mt",
+    "srcHash": "1fd2909f847e"
+  },
   "common.team.teams.add": {
     "status": "mt",
     "srcHash": "61cc55aa0453"
+  },
+  "common.team.teams.addLabel": {
+    "status": "mt",
+    "srcHash": "cdfcbc0a1dd9"
   },
   "common.team.teams.addMember": {
     "status": "mt",
     "srcHash": "8629ea1b62ec"
   },
-  "common.team.teams.addMemberLabel": {
+  "common.team.teams.caption": {
     "status": "mt",
-    "srcHash": "4b0f5842f891"
+    "srcHash": "ca1799f6046e"
   },
-  "common.team.teams.create": {
+  "common.team.teams.colLead": {
     "status": "mt",
-    "srcHash": "046c3ad7b2ee"
+    "srcHash": "c6f71d85aeaa"
+  },
+  "common.team.teams.colMembers": {
+    "status": "mt",
+    "srcHash": "1cb449c11266"
+  },
+  "common.team.teams.colTeam": {
+    "status": "src",
+    "srcHash": "218887269ad5"
   },
   "common.team.teams.delete": {
     "status": "mt",
@@ -8267,56 +8387,112 @@
     "status": "mt",
     "srcHash": "9210826956ae"
   },
+  "common.team.teams.emptyBody": {
+    "status": "mt",
+    "srcHash": "02b0eacede52"
+  },
   "common.team.teams.failed": {
     "status": "mt",
     "srcHash": "95ccfbbf50fa"
   },
-  "common.team.teams.intro": {
+  "common.team.teams.inAll": {
     "status": "mt",
-    "srcHash": "5777c71cfd50"
+    "srcHash": "5f0f5f41e1a2"
   },
   "common.team.teams.leads": {
     "status": "mt",
     "srcHash": "fc18f8cc807f"
   },
+  "common.team.teams.loadFailed": {
+    "status": "mt",
+    "srcHash": "09e5a791cd16"
+  },
   "common.team.teams.memberCount": {
     "status": "mt",
     "srcHash": "82b265c87785"
   },
-  "common.team.teams.newName": {
+  "common.team.teams.nameLabel": {
+    "status": "src",
+    "srcHash": "709a23220f2c"
+  },
+  "common.team.teams.namePlaceholder": {
     "status": "mt",
-    "srcHash": "999fc5c415eb"
+    "srcHash": "d8efef2dc2a7"
+  },
+  "common.team.teams.needName": {
+    "status": "mt",
+    "srcHash": "f81cc915d60c"
+  },
+  "common.team.teams.newTeam": {
+    "status": "mt",
+    "srcHash": "7ff544391e3c"
+  },
+  "common.team.teams.noLead": {
+    "status": "mt",
+    "srcHash": "43b0e31f6b61"
   },
   "common.team.teams.noMembers": {
     "status": "mt",
     "srcHash": "0050b74d3fa7"
   },
+  "common.team.teams.notice": {
+    "status": "mt",
+    "srcHash": "defceb67761b"
+  },
+  "common.team.teams.onlyLead": {
+    "status": "mt",
+    "srcHash": "7407813ea33e"
+  },
   "common.team.teams.over": {
     "status": "mt",
     "srcHash": "f5dcea9a13aa"
   },
-  "common.team.teams.remove": {
+  "common.team.teams.pageSubtitle": {
     "status": "mt",
-    "srcHash": "e963907dac5c"
+    "srcHash": "d3489afe2fbf"
+  },
+  "common.team.teams.people": {
+    "status": "mt",
+    "srcHash": "b37554f695b1"
+  },
+  "common.team.teams.peopleHint": {
+    "status": "mt",
+    "srcHash": "0183c7999075"
   },
   "common.team.teams.removeLabel": {
     "status": "mt",
     "srcHash": "240765cbfe2f"
   },
-  "common.team.teams.rename": {
+  "common.team.teams.rolesLink": {
     "status": "mt",
-    "srcHash": "d3f4cb898fbe"
+    "srcHash": "2b89b2511372"
   },
   "common.team.teams.sample": {
     "status": "mt",
     "srcHash": "14069b7485b7"
   },
+  "common.team.teams.save": {
+    "status": "mt",
+    "srcHash": "ee3ae9b9bbbd"
+  },
+  "common.team.teams.sheetEyebrow": {
+    "status": "src",
+    "srcHash": "218887269ad5"
+  },
+  "common.team.teams.summary": {
+    "status": "mt",
+    "srcHash": "b4aa63b29f94"
+  },
   "common.team.teams.title": {
     "status": "src",
     "srcHash": "cbfd44d9c70c"
   },
+  "common.team.teams.untitled": {
+    "status": "mt",
+    "srcHash": "ea31d215254e"
+  },
   "common.team.title": {
-    "status": "src",
+    "status": "mt",
     "srcHash": "218887269ad5"
   },
   "common.team.twoFactorOn": {
@@ -18967,9 +19143,25 @@
     "status": "mt",
     "srcHash": "ad197f9c6e9b"
   },
+  "roles.rows.sentence.allWho": {
+    "status": "mt",
+    "srcHash": "6875f3d8060e"
+  },
   "roles.rows.sentence.by": {
     "status": "mt",
     "srcHash": "f941ade6155c"
+  },
+  "roles.rows.sentence.only": {
+    "status": "mt",
+    "srcHash": "36320e909649"
+  },
+  "roles.rows.sentence.onlyTeam": {
+    "status": "mt",
+    "srcHash": "9cd8352527b9"
+  },
+  "roles.rows.sentence.onlyTeamWays": {
+    "status": "mt",
+    "srcHash": "db1f43d1f952"
   },
   "roles.rows.sentence.own": {
     "status": "mt",
@@ -19034,6 +19226,22 @@
   "roles.rows.way.whileSet": {
     "status": "mt",
     "srcHash": "59bda9a9b9b7"
+  },
+  "roles.rows.wayIs.listing": {
+    "status": "mt",
+    "srcHash": "f24c2f4d2db6"
+  },
+  "roles.rows.wayIs.listingDated": {
+    "status": "mt",
+    "srcHash": "175a5a308dc7"
+  },
+  "roles.rows.wayIs.parent": {
+    "status": "mt",
+    "srcHash": "5c5bf228795a"
+  },
+  "roles.rows.wayIs.person": {
+    "status": "mt",
+    "srcHash": "d2d7aa52b8cc"
   },
   "roles.rows.widened": {
     "status": "mt",
@@ -20518,6 +20726,90 @@
   "studio.appAddOns.plan.creates": {
     "status": "mt",
     "srcHash": "4460689411e8"
+  },
+  "studio.appAddOns.roleTables.action.create": {
+    "status": "mt",
+    "srcHash": "11858f93ca90"
+  },
+  "studio.appAddOns.roleTables.action.read": {
+    "status": "mt",
+    "srcHash": "a7afddb68260"
+  },
+  "studio.appAddOns.roleTables.action.update": {
+    "status": "mt",
+    "srcHash": "99fbcef87274"
+  },
+  "studio.appAddOns.roleTables.adds": {
+    "status": "mt",
+    "srcHash": "231f63bfda2f"
+  },
+  "studio.appAddOns.roleTables.addsAll": {
+    "status": "mt",
+    "srcHash": "3764842c63a7"
+  },
+  "studio.appAddOns.roleTables.allowsLess": {
+    "status": "mt",
+    "srcHash": "580ccfffc1dd"
+  },
+  "studio.appAddOns.roleTables.changes": {
+    "status": "mt",
+    "srcHash": "1a12e14f0328"
+  },
+  "studio.appAddOns.roleTables.changesAll": {
+    "status": "mt",
+    "srcHash": "16774c6f0b5d"
+  },
+  "studio.appAddOns.roleTables.everyColumn": {
+    "status": "mt",
+    "srcHash": "588d53151c6b"
+  },
+  "studio.appAddOns.roleTables.keptBack": {
+    "status": "mt",
+    "srcHash": "6ac646548519"
+  },
+  "studio.appAddOns.roleTables.keyAndLinks": {
+    "status": "mt",
+    "srcHash": "3557d42b5b8c"
+  },
+  "studio.appAddOns.roleTables.notGiven": {
+    "status": "mt",
+    "srcHash": "608846689839"
+  },
+  "studio.appAddOns.roleTables.notOffered": {
+    "status": "mt",
+    "srcHash": "d8b2aacc9313"
+  },
+  "studio.appAddOns.roleTables.reads": {
+    "status": "mt",
+    "srcHash": "ecb8b4dc22e1"
+  },
+  "studio.appAddOns.roleTables.readsAll": {
+    "status": "mt",
+    "srcHash": "7cfe2a0d775b"
+  },
+  "studio.appAddOns.roleTables.summary": {
+    "status": "mt",
+    "srcHash": "b687420ef0b9"
+  },
+  "studio.appAddOns.roleTables.unchecked": {
+    "status": "mt",
+    "srcHash": "fb6480b8b3f6"
+  },
+  "studio.appAddOns.roleTables.unknown": {
+    "status": "mt",
+    "srcHash": "64425010e7c9"
+  },
+  "studio.appAddOns.roleTables.updateBody": {
+    "status": "mt",
+    "srcHash": "79466fe6cbe8"
+  },
+  "studio.appAddOns.roleTables.updateTitle": {
+    "status": "mt",
+    "srcHash": "7a0d38759b62"
+  },
+  "studio.appAddOns.roleTables.wider": {
+    "status": "mt",
+    "srcHash": "252ed5e15a3f"
   },
   "studio.appAddOns.running.attach": {
     "status": "mt",
@@ -23662,6 +23954,10 @@
   "studio.hostedApps.update.pickFirst": {
     "status": "mt",
     "srcHash": "671f9e83074f"
+  },
+  "studio.hostedApps.update.rolesSubtitle": {
+    "status": "mt",
+    "srcHash": "eb36d8558cc2"
   },
   "studio.hostedApps.update.subtitle": {
     "status": "mt",

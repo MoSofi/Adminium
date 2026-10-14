@@ -257,6 +257,7 @@ export async function walkRule(deps: RunnerDeps, input: WalkInput): Promise<RunO
       // The rows the steps so far made, read back from the trace: there after a wait too, when nothing else is.
       ...stepTokensOf(trace.steps),
     };
+    ctx.made = trace.steps.flatMap((step) => (step.made === undefined || step.status !== 'ok' ? [] : [step.made]));
   };
   refreshTokens();
 

@@ -905,7 +905,8 @@
       "checkSubtitle": "检查此版本使用的数据表。",
       "pickFirst": "更新前请选择如何处理 {table}。",
       "checkFirst": "更新前请重新检查数据表。",
-      "nothingYet": "按下“更新”之前不会有任何更改。"
+      "nothingYet": "按下“更新”之前不会有任何更改。",
+      "rolesSubtitle": "检查此版本的角色可以对附加组件的表做什么。"
     },
     "veto": {
       "title": "此部署无法在线浏览",
@@ -3422,7 +3423,32 @@
       "kept": "{addOn} 将保持安装。如果没有其他内容使用它，可在“附加组件”中卸载。",
       "link": "它与 {addOn} 的连接"
     },
-    "updateToo": "一并更新"
+    "updateToo": "一并更新",
+    "roleTables": {
+      "summary": "{count, plural, other {{app} 的角色可访问它的 # 张表。查看它们读取和更改的内容。}}",
+      "unchecked": "{addOn} 尚未安装在此服务器上，因此这里显示的是 {app} 请求的内容。附加组件可能允许的更少。",
+      "keyAndLinks": "读取时也会显示每行的键及其指向其他行的链接。",
+      "everyColumn": "所有列",
+      "reads": "读取 {columns}",
+      "readsAll": "读取所有列",
+      "changes": "更改 {columns}",
+      "changesAll": "更改所有列",
+      "adds": "添加行，填写 {columns}",
+      "addsAll": "添加行，可填写任意列",
+      "notOffered": "未授予：{addOn} 不与任何应用共享此表。",
+      "keptBack": "未授予：{addOn} 将此表留给自己使用。",
+      "unknown": "未授予：{addOn} 没有这样的表或列。",
+      "allowsLess": "未授予：{addOn} 允许的更少。",
+      "notGiven": "已请求但未授予：{what}",
+      "wider": "此版本新增：{what}",
+      "updateTitle": "角色可获得更多附加组件表的权限",
+      "updateBody": "此版本让这些角色可以对属于附加组件的表做更多操作。更新即表示允许。",
+      "action": {
+        "read": "读取",
+        "create": "添加行",
+        "update": "更改行"
+      }
+    }
   },
   "featurePage": {
     "ask": "管理应用的人员可以安装它。",

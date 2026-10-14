@@ -15,6 +15,7 @@ import type { AddOnManifest, InstallPlan, Manifest } from '@adminium/manifest';
 import type { InstalledManifest } from '@adminium/meta';
 
 import type { ExistingTable } from './install-ddl.js';
+import type { RoleTableResult } from '../apps/manifest-role-tables.js';
 
 /** Who an install or update is done by. */
 export interface InstallActor {
@@ -71,7 +72,7 @@ export interface CoreUninstallList {
 /** What settling an app after one of its add-ons moved did to the app's public key. */
 export interface HostSettled {
   /** What the app's roles hold of the add-on's tables after it: each entry, with what was left out and why; null when nothing was settled. */
-  roleTables: { role: string; addOn: string; table: string; actions: string[]; skipped?: string }[] | null;
+  roleTables: RoleTableResult[] | null;
   publicAccess: { granted: string[]; withdrawn: string[]; skipped: { ref: string; reason: string }[] };
 }
 

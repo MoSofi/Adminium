@@ -606,8 +606,13 @@ export interface EffectiveColumn extends ColumnModel {
   customerKey?: { of: string };
   /** `column.bounds`: a date never later than today, never earlier than another date. */
   bounds?: { notAfter?: 'today' | EffectiveDateBound; notBefore?: EffectiveDateBound };
-  /** `column.linkable`: a foreign key that names only a row meeting these conditions, read on the row it names. */
-  linkable?: { where: StateCondition[] };
+  /**
+   * `column.linkable`: a foreign key that names only a row meeting these
+   * conditions, read on the row it names; and (`same`) whose `column` holds
+   * what the written row holds in `as`: a column of its own, or
+   * `<link>.<column>` of the row a link of it names.
+   */
+  linkable?: { where?: StateCondition[]; same?: { column: string; as: string }[] };
 }
 
 export interface EffectiveTable extends Omit<TableModel, 'columns'> {
@@ -1565,7 +1570,10 @@ export function applyOverrides(
       }
       case 'column.linkable': {
         const column = columnOf(table, row.columnName);
-        if (column !== undefined) column.linkable = { where: structuredClone((value as { where: StateCondition[] }).where) };
+        if (column !== undefined) {
+          const rule = value as { where?: StateCondition[]; same?: { column: string; as: string }[] };
+          column.linkable = { ...(rule.where === undefined ? {} : { where: structuredClone(rule.where) }), ...(rule.same === undefined ? {} : { same: structuredClone(rule.same) }) };
+        }
         break;
       }
       case 'table.belongs': {

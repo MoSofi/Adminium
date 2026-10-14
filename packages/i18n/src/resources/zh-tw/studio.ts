@@ -915,7 +915,8 @@ export default {
       "checkSubtitle": "檢查此版本使用的資料表。",
       "pickFirst": "更新前請選擇如何處理 {table}。",
       "checkFirst": "更新前請重新檢查資料表。",
-      "nothingYet": "按下「更新」之前不會有任何變更。"
+      "nothingYet": "按下「更新」之前不會有任何變更。",
+      "rolesSubtitle": "檢查此版本的角色可以對附加元件的資料表做什麼。"
     },
     "veto": {
       "title": "此部署無法線上瀏覽",
@@ -3432,7 +3433,32 @@ export default {
       "kept": "{addOn} 將保持安裝。如果沒有其他項目使用它，可在「附加元件」中解除安裝。",
       "link": "它與 {addOn} 的連接"
     },
-    "updateToo": "一併更新"
+    "updateToo": "一併更新",
+    "roleTables": {
+      "summary": "{count, plural, other {{app} 的角色可存取它的 # 張資料表。查看它們讀取與變更的內容。}}",
+      "unchecked": "{addOn} 尚未安裝在此伺服器上，因此這裡顯示的是 {app} 要求的內容。附加元件可能允許的更少。",
+      "keyAndLinks": "讀取時也會顯示每列的鍵及其指向其他列的連結。",
+      "everyColumn": "所有欄位",
+      "reads": "讀取 {columns}",
+      "readsAll": "讀取所有欄位",
+      "changes": "變更 {columns}",
+      "changesAll": "變更所有欄位",
+      "adds": "新增資料列，填寫 {columns}",
+      "addsAll": "新增資料列，可填寫任何欄位",
+      "notOffered": "未授予：{addOn} 不與任何應用程式共用此資料表。",
+      "keptBack": "未授予：{addOn} 將此資料表留給自己使用。",
+      "unknown": "未授予：{addOn} 沒有這樣的資料表或欄位。",
+      "allowsLess": "未授予：{addOn} 允許的更少。",
+      "notGiven": "已要求但未授予：{what}",
+      "wider": "此版本新增：{what}",
+      "updateTitle": "角色可取得更多附加元件資料表的權限",
+      "updateBody": "此版本讓這些角色可以對屬於附加元件的資料表做更多操作。更新即表示允許。",
+      "action": {
+        "read": "讀取",
+        "create": "新增資料列",
+        "update": "變更資料列"
+      }
+    }
   },
   "featurePage": {
     "ask": "管理應用程式的人員可以安裝它。",

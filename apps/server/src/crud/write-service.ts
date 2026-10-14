@@ -116,6 +116,7 @@ import {
   type ColumnCode,
   type DateBound,
   type DateBoundSide,
+  type LinkableSame,
   type RequiredGuard,
   type FieldIssues,
   type RollupInto,
@@ -2223,27 +2224,58 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
   async function linkableIssues(rules: TableRules | null, action: WriteAction, target: WriteTarget, context: WriteContext, values: Row, stored: Row | null): Promise<FieldIssues | null> {
     if ((rules?.linkable?.length ?? 0) === 0 || action === 'delete' || context.origin === 'undo') return null;
     let issues: FieldIssues | null = null;
+    /** Whether this write sets a column to something other than what the row holds. */
+    const moves = (column: string): boolean => Object.prototype.hasOwnProperty.call(values, column) && (stored === null || !sameValue(values[column], stored[column]));
     for (const rule of rules!.linkable!) {
-      if (!Object.prototype.hasOwnProperty.call(values, rule.column)) continue;
-      const value = values[rule.column];
+      // Judged when the link moves; with `same`, also when what the row's side reads moves (a visit moved to another deal).
+      if (!moves(rule.column) && !rule.same.some((pair) => moves(pair.own))) continue;
+      const value = Object.prototype.hasOwnProperty.call(values, rule.column) ? values[rule.column] : stored?.[rule.column];
       if (value === null || value === undefined || value === '') continue;
-      if (stored !== null && sameValue(value, stored[rule.column])) continue;
       if (rule.unresolved === true) {
         (issues ??= {})[rule.column] = { code: 'not-allowed' };
         continue;
       }
       // A value that could never be a key is not asked of the database (Postgres answers it with an error): the column's own check refuses it.
       if (!couldBeKey(rule.keyType, value)) continue;
-      const read = [...new Set(rule.where.map((condition) => condition.column))];
+      const read = [...new Set([...rule.where.map((condition) => condition.column), ...rule.same.map((pair) => pair.column)])];
       const found = (await target.db
         .selectFrom(rule.table)
         .select(read.map((column) => sql.ref(column).as(column)) as never)
         .where((eb) => eb(target.db.dynamic.ref(rule.key), '=', value))
         .limit(1)
         .executeTakeFirst()) as Row | undefined;
-      if (found !== undefined && !rule.where.every((condition) => holds(condition, found))) (issues ??= {})[rule.column] = { code: 'not-allowed' };
+      if (found === undefined) continue;
+      let meets = rule.where.every((condition) => holds(condition, found));
+      // Each pair: the named row's column holds what the written row holds, as the write leaves it. An empty side matches nothing.
+      for (const pair of rule.same) {
+        if (!meets) break;
+        const ours = await sameSideOf(target, pair, { ...(stored ?? {}), ...values });
+        const theirs = found[pair.column];
+        meets = ours !== null && theirs !== null && theirs !== undefined && theirs !== '' && sameValue(ours, theirs);
+      }
+      if (!meets) (issues ??= {})[rule.column] = { code: 'not-allowed' };
     }
     return issues;
+  }
+
+  /**
+   * The written row's side of a `same` pair: its own column, or the column of
+   * the row a link of it names, read as it stands through the write's own
+   * handle. Null when it is empty, when the link is empty or names no row.
+   */
+  async function sameSideOf(target: WriteTarget, pair: LinkableSame, row: Row): Promise<unknown> {
+    const own = row[pair.own];
+    if (own === null || own === undefined || own === '') return null;
+    if (pair.far === undefined) return own;
+    if (!couldBeKey(pair.far.keyType, own)) return null;
+    const far = (await target.db
+      .selectFrom(pair.far.table)
+      .select(sql.ref(pair.far.column).as('value') as never)
+      .where((eb) => eb(target.db.dynamic.ref(pair.far!.key), '=', own))
+      .limit(1)
+      .executeTakeFirst()) as { value?: unknown } | undefined;
+    const value = far?.value;
+    return value === null || value === undefined || value === '' ? null : value;
   }
 
   /** CHECK, then the dates a rule keeps within dates; the caller's own refusal when there is one. */

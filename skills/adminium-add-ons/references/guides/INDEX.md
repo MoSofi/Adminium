@@ -18,7 +18,7 @@
 | `references/guides/building-on-an-add-on--an-add-on-that-keeps-its-own-tables.md` | An add-on that keeps its own tables | 2415 |
 | `references/guides/building-on-an-add-on--take-stock-when-a-row-is-saved.md` | Take stock when a row is saved | 3284 |
 | `references/guides/building-on-an-add-on--discounts-codes-and-gift-cards-on-an-order.md` | Discounts, codes and gift cards on an order | 4441 |
-| `references/guides/building-on-an-add-on--an-add-on-with-tables-of-its-own.md` | An add-on with tables of its own | 3778 |
+| `references/guides/building-on-an-add-on--an-add-on-with-tables-of-its-own.md` | An add-on with tables of its own | 4279 |
 | `references/guides/emails--overview.md` | An app's emails | 915 |
 | `references/guides/emails--the-outbox-table.md` | The outbox table | 1443 |
 | `references/guides/emails--what-queues-a-row.md` | What queues a row | 6745 |

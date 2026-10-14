@@ -74,9 +74,9 @@ export async function opensRecord(ctx: Pick<ActionContext, 'meta' | 'source' | '
  * at all when they do not read its table or reach it; the record's label as
  * their screen names it. `mail`: a mail to them, which carries a personal
  * column of a table whose personal columns they are shown, and no other.
- * The rows the run's steps made are read as the rule reads them.
+ * The rows the run's steps made, so too (`madeRowsAs`).
  */
-export async function tokensAs(ctx: Pick<ActionContext, 'meta' | 'source' | 'now' | 'rule' | 'tokens'>, reader: RecordReader, mail = false): Promise<TokenMap> {
+export async function tokensAs(ctx: Pick<ActionContext, 'meta' | 'source' | 'now' | 'rule' | 'tokens' | 'made'>, reader: RecordReader, mail = false): Promise<TokenMap> {
   const source = ctx.source;
   if (source === null) return ctx.tokens;
   const shown = (table: ResolvedTable): ResolvedTable => reader.view.linkTable(table.id) ?? table;
@@ -98,7 +98,7 @@ export async function tokensAs(ctx: Pick<ActionContext, 'meta' | 'source' | 'now
   const labelColumn = labelColumnFor(reader.view, readTableOf(reader.view, source.table));
   const labelled = labelColumn === null ? undefined : source.row[labelColumn];
   const recordLabel = !reader.view.readLimited ? source.record.label : labelled !== null && labelled !== undefined && String(labelled).trim() !== '' ? String(labelled) : pkLabel(source.table, source.record.pk as Row);
-  const steps = Object.fromEntries(Object.entries(ctx.tokens).filter(([key]) => key.startsWith('steps.')));
+  const steps = await madeRowsAs(ctx, reader);
   return {
     ...tokensFor({
       row: source.row,
@@ -114,6 +114,36 @@ export async function tokensAs(ctx: Pick<ActionContext, 'meta' | 'source' | 'now
     }),
     ...steps,
   };
+}
+
+/**
+ * The rows the run's steps made (`{{steps.<name>.<column>}}`), as one reader
+ * reads them: nothing of a row whose table they do not read, of a private
+ * table, or that is not among the rows they reach; nothing of a column their
+ * role is not shown. A test run's stand-in was never made, so somebody whose
+ * reach of its table is limited cannot be shown to reach it. A value the run
+ * holds and cannot place (no row it came from) is written as nothing.
+ */
+async function madeRowsAs(ctx: Pick<ActionContext, 'source' | 'tokens' | 'made'>, reader: RecordReader): Promise<TokenMap> {
+  const source = ctx.source;
+  const out: TokenMap = Object.fromEntries(Object.keys(ctx.tokens).filter((key) => key.startsWith('steps.')).map((key) => [key, '']));
+  if (source === null) return out;
+  for (const made of ctx.made ?? []) {
+    const table = source.view.linkTable(made.table) ?? null;
+    const theirs = reader.view.linkTable(made.table) ?? null;
+    let open = table !== null && theirs !== null && table.table.private !== true && permissionSetAllows(reader.set, `table:${source.connectionId}:${made.table}:read`);
+    if (open && reader.reach !== null) {
+      open =
+        made.standIn === true
+          ? rowReachesOf(reader.set, source.connectionId, made.table, 'read') === null
+          : (await fetchVisible(reader.reach, source.db, table!, made.pk as Row, 'read')) !== undefined;
+    }
+    for (const [column, value] of Object.entries(made.values)) {
+      const shown = theirs?.columns.get(column);
+      out[`steps.${made.name}.${column}`] = open && shown !== undefined && shown.unreadable !== true && !shown.secret && !shown.masked ? value : '';
+    }
+  }
+  return out;
 }
 
 /** `config.source.table` of a page: which table it shows. */

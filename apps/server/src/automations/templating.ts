@@ -77,9 +77,9 @@ export interface TokenContext {
   recordLabel: string;
   now: number;
   /**
-   * Include masked columns. Only the email step's recipient resolution sets
-   * this, and only for the column it is addressing. As a test of the table, a
-   * mail to a person: the personal columns of a table they are shown.
+   * Include masked (personal) columns: a mail's values, which go to the
+   * person the row is about. As a test of the table, a mail to a person: the
+   * personal columns of a table they are shown. Never a secret column.
    */
   includeMasked?: boolean | ((table: ResolvedTable) => boolean) | undefined;
   /**
@@ -146,7 +146,8 @@ export function tokensFor(ctx: TokenContext): TokenMap {
       }
       continue;
     }
-    if (!withMasked && (column.masked || column.secret)) continue;
+    // A secret is no placeholder anywhere, a mail to the address a column holds included; a personal column only in a mail.
+    if (column.secret || (!withMasked && column.masked)) continue;
     const value = asText(ctx.row[name], column.logicalType);
     tokens[`record.${name}`] = value;
     tokens[name] = value;

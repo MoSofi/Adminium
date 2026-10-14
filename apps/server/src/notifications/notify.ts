@@ -98,7 +98,8 @@ export interface NotifyOptions {
 export async function heldUntil(meta: MetaDb, userId: string, kind: string, at: number, opts: { urgent?: boolean | undefined } = {}): Promise<number | null> {
   if (opts.urgent === true) return null;
   const schedule = await notificationSchedulesRepo(meta).find(userId);
-  if (schedule === null || schedule.quiet === null) return null;
+  // No hours, or hours the person switched off for now (kept for when they are on again).
+  if (schedule === null || schedule.quiet === null || schedule.quietOff) return null;
   // "Always tell me" for this kind of notice: the person said so themselves.
   if ((await notificationPrefsRepo(meta).channelsFor(userId, kind)).always === true) return null;
   return quietUntil(schedule, await businessZone(meta), at);

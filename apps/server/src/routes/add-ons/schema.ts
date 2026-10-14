@@ -354,7 +354,23 @@ export const patchAddOnReply = z.object({
   /** The app's key: what the switch took off it, or put back on it. */
   publicAccess: settledAccess.optional(),
   /** What the app's roles hold of the add-on's tables after the switch, entry by entry; on a switch-off, nothing. */
-  roleTables: z.array(z.object({ role: z.string(), addOn: z.string(), table: z.string(), actions: z.array(z.string()), skipped: z.string().optional() })).optional(),
+  roleTables: z
+    .array(
+      z.object({
+        role: z.string(),
+        addOn: z.string(),
+        table: z.string(),
+        actions: z.array(z.string()),
+        /** The columns each action reaches now. Absent: every column (only on an add-on that sets no `appGrants`). */
+        readable: z.array(z.string()).optional(),
+        writable: z.array(z.string()).optional(),
+        creatable: z.array(z.string()).optional(),
+        /** What the app asked for and the role does not get, by name. */
+        narrowed: z.object({ actions: z.array(z.string()), readable: z.array(z.string()).optional(), writable: z.array(z.string()).optional(), creatable: z.array(z.string()).optional() }).optional(),
+        skipped: z.string().optional(),
+      }),
+    )
+    .optional(),
 });
 
 /** `POST /add-ons/:key/attachments` — mount an installed add-on on one more host. */

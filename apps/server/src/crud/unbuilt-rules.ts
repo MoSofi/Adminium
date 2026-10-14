@@ -121,6 +121,8 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   'toolbar.links',
   // What an app's role holds of a table of an add-on it names: written while the add-on is there for the app, taken back when it is not.
   'roles.tables',
+  // What an add-on lets an app's role hold of its tables: every grant above is cut to it, and a grant on such a table carries its columns.
+  'table.appGrants',
   // An update a role's limit lets reach a row only while a column of it holds some value: judged on the stored row.
   'roles.writableFrom',
   // An add-on that may use another (`addOns.suggests`): a document the other draws waits for it, and is mailed without it meanwhile.
@@ -165,6 +167,8 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   'column.area',
   // A link that may name only a row meeting some conditions: judged when a write sets or moves it, on every door but an undo.
   'column.linkable',
+  // Such a link whose named row must hold what the row written holds: judged also when a write moves what the row's side reads.
+  'linkable.same',
   // Whose a row is, and a role whose read, update or delete reaches only some rows: the test every read and write of a row carries.
   'table.belongs',
   'roles.rows',
@@ -220,6 +224,9 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   'automations.was',
   // An amount of time read from the app's settings row when a scan's or a step's conditions are read.
   'automations.settingAmount',
+  // A value a step writes read from the settings row as the rule reads it (a person only while they sign in); a day so many days on, on the business's calendar.
+  'automations.settingValue',
+  'automations.daysAfter',
   // A message about a row that was removed, with the row's own values kept for it; a message no longer stops its row being removed.
   'outbox.onDelete',
   // Where a table's record opens on the app's staff side: a notice, its email and a search hit open there (apps/record-address.ts).

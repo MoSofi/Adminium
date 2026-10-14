@@ -519,6 +519,12 @@ and lets it serve [public entries through the app's key](/guides/apps/public-acc
 What such an add-on declares, and how it is installed, is in
 [Add-ons that keep tables of their own](/guides/add-ons-with-tables/).
 
+Your roles reach its tables with [`roles[].tables`](/reference/manifest/#a-role-on-an-add-ons-tables).
+Ask for the columns each role needs, by name. The add-on may allow less
+([`appGrants`](/reference/manifest/#what-an-apps-role-may-hold-of-an-add-ons-table)): what it does
+not allow is left out, and the owner sees it on the install check. A later version of your app
+whose roles hold more than the version before is asked about before it is given.
+
 ### Your app's roles on an add-on's tables
 
 An add-on's own roles grant its tables. Your app's roles may too, with

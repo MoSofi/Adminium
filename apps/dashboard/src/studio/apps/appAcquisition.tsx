@@ -41,6 +41,13 @@
  * key did not reach) shows it on the same check, with the install's own
  * "Allow this public access" card, listing only what is new. The answer goes
  * with the update; unticked, the app's key gains nothing.
+ *
+ * ── …AND BEFORE ITS ROLES HOLD MORE OF AN ADD-ON'S TABLES ─────────────────
+ *
+ * A version whose roles would read or change more of an add-on's tables than
+ * the running one's (a supplier's address, a row they only read) shows what is
+ * new on the same check; Update is the say, and sends it. The server refuses
+ * such an update without it.
  */
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -68,6 +75,7 @@ import {
 import { SURFACES_QUERY_KEY } from './hostedAppsApi.js';
 import { CheckHint, TableCheck, type TakenPick } from './InstallCheck.js';
 import { PublicAccessInstallCard, publicAccessBlocked } from './PublicAccessInstallCard.js';
+import { RoleTablesUpdateCard } from './RoleTablesList.js';
 
 /** Which card an action belongs to, so its answer renders beside it. */
 export type AcquisitionOrigin = 'shelf' | 'installed';
@@ -99,6 +107,13 @@ export interface UpdateChecked {
   choices?: InstallAnswers['choices'];
   shares?: InstallAnswers['shares'];
   publicAccess?: boolean;
+  /** The operator saw what the new version's roles hold more of add-ons' tables, and allows it. */
+  roleTables?: boolean;
+}
+
+/** What a new version's roles hold more of add-ons' tables than the running one's: the update asks before it gives it. */
+function roleTablesWider(plan: AppInstallPlan): NonNullable<AppInstallPlan['roleTables']> {
+  return (plan.roleTables ?? []).filter((entry) => entry.wider !== undefined);
 }
 
 /** Whether a new version's check has anything to show or ask. */
@@ -280,7 +295,7 @@ export function useAppAcquisition() {
           if (plan.tables !== undefined) {
             const askable = plan.problems.every((problem) => problem.code === 'TABLE_TAKEN');
             const asksShare = (plan.shareOffers ?? []).length > 0;
-            if ((checkAsks(plan.tables) || asksShare || publicAccessAdded(plan) !== null) && (plan.installable || askable)) {
+            if ((checkAsks(plan.tables) || asksShare || publicAccessAdded(plan) !== null || roleTablesWider(plan).length > 0) && (plan.installable || askable)) {
               setConsent({ key: app.key, to, plan, connectionId: app.connectionId });
               return;
             }
@@ -518,6 +533,7 @@ function UpdateCheckDialog({
   // A menu another app already has is a question too: its own, or that app's.
   const asksTables = checkAsks(tables) || (plan.shareOffers ?? []).length > 0;
   const access = publicAccessAdded(plan);
+  const wider = roleTablesWider(plan);
   return (
     <Modal
       open
@@ -534,7 +550,9 @@ function UpdateCheckDialog({
         subtitle={
           asksTables
             ? t('studio:hostedApps.update.checkSubtitle', 'Check the tables this version uses.')
-            : t('studio:hostedApps.update.accessSubtitle', 'Check what this version lets the app’s customers do.')
+            : access !== null
+              ? t('studio:hostedApps.update.accessSubtitle', 'Check what this version lets the app’s customers do.')
+              : t('studio:hostedApps.update.rolesSubtitle', 'Check what this version’s roles may do with add-ons’ tables.')
         }
         closeLabel={t('studio:hostedApps.update.close', 'Close')}
       />
@@ -583,6 +601,7 @@ function UpdateCheckDialog({
           {access === null ? null : (
             <PublicAccessInstallCard access={access} checked={allowPublic} onChange={setAllowPublic} />
           )}
+          <RoleTablesUpdateCard entries={wider} />
         </div>
       </ModalBody>
       <ModalFooter>
@@ -606,6 +625,8 @@ function UpdateCheckDialog({
                 ...(checked === undefined ? {} : { choices: checked }),
                 ...(checkedShares === undefined ? {} : { shares: checkedShares }),
                 ...(access === null ? {} : { publicAccess: allowPublic && !publicAccessBlocked(access) }),
+                // Shown above: the Update button is the say.
+                ...(wider.length === 0 ? {} : { roleTables: true }),
               })
             }
           >

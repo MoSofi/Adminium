@@ -101,6 +101,7 @@ export const INSTALL_FLOOR_WORD_NAMES = [
   'column.staff',
   'table.belongs',
   'table.private',
+  'table.appGrants',
   'roles.rows',
   'rows.several',
   'listing.while',
@@ -125,12 +126,15 @@ export const INSTALL_FLOOR_WORD_NAMES = [
   'automations.recordUrl',
   'automations.was',
   'automations.settingAmount',
+  'automations.settingValue',
+  'automations.daysAfter',
   'outbox.replyTo',
   'outbox.onDelete',
   'column.mentions',
   'column.place',
   'column.area',
   'column.linkable',
+  'linkable.same',
   'config.board',
   'states.notPast',
   'publicAccess.requiresWhen',
@@ -164,6 +168,8 @@ export const WORD_FLOORS: Readonly<Partial<Record<ManifestWordName, string>>> = 
   'column.staff': '0.3.28',
   'table.belongs': '0.3.28',
   'table.private': '0.3.28',
+  // What an app's role may be given of an add-on's table: the add-on's ceiling, cut to at every grant.
+  'table.appGrants': '0.3.28',
   'roles.rows': '0.3.28',
   // An action that names several reaches, any one enough (every won deal, or an open one the person is listed on);
   // a listing that counts only while a column of it holds some values, or is empty.
@@ -217,6 +223,9 @@ export const WORD_FLOORS: Readonly<Partial<Record<ManifestWordName, string>>> = 
   'automations.was': '0.3.28',
   // An amount of time a condition reads from a column of the app's settings row.
   'automations.settingAmount': '0.3.28',
+  // A value a step writes read from a column of the app's settings row; a day so many days after a date of the record, or after now.
+  'automations.settingValue': '0.3.28',
+  'automations.daysAfter': '0.3.28',
   'outbox.replyTo': '0.3.28',
   'outbox.onDelete': '0.3.28',
   // A text column in which people are mentioned.
@@ -226,6 +235,8 @@ export const WORD_FLOORS: Readonly<Partial<Record<ManifestWordName, string>>> = 
   'column.area': '0.3.28',
   // A foreign key that may name only a row meeting some conditions (a price-list line still offered).
   'column.linkable': '0.3.28',
+  // Such a link whose named row must hold what the row written holds (a visit's contact of the visit's deal's company).
+  'linkable.same': '0.3.28',
   // A board whose columns an app names: the rows of a table, or the values of an enum it picks.
   'config.board': '0.3.28',
   // A move refused once a date of its row has passed, for every writer.
@@ -300,6 +311,7 @@ export function installFloorWords(document: unknown): ManifestWord[] {
       if (isDoc(way) && isDoc(way['through']) && way['through']['while'] !== undefined) out.push({ word: 'listing.while', path: `${at}.belongs.${String(w)}.through.while` });
     });
     if (table['private'] !== undefined) out.push({ word: 'table.private', path: `${at}.private` });
+    if (table['appGrants'] !== undefined) out.push({ word: 'table.appGrants', path: `${at}.appGrants` });
     if (table['occupies'] !== undefined) out.push({ word: 'table.occupies', path: `${at}.occupies` });
     if (isDoc(table['states']) && table['states']['actions'] !== undefined) out.push({ word: 'states.actions', path: `${at}.states.actions` });
     list(isDoc(table['states']) ? table['states']['actions'] : undefined).forEach((action, a) => {
@@ -326,6 +338,7 @@ export function installFloorWords(document: unknown): ManifestWord[] {
       if (rules['place'] !== undefined) out.push({ word: 'column.place', path: `${here}.place` });
       if (rules['area'] !== undefined) out.push({ word: 'column.area', path: `${here}.area` });
       if (rules['linkable'] !== undefined) out.push({ word: 'column.linkable', path: `${here}.linkable` });
+      if (isDoc(rules['linkable']) && rules['linkable']['same'] !== undefined) out.push({ word: 'linkable.same', path: `${here}.linkable.same` });
       for (const key of ['announce', 'plainText', 'customerKey', 'codeLast4'] as const) {
         if (rules[key] !== undefined) out.push({ word: `column.${key}`, path: `${here}.${key}` });
       }
@@ -444,6 +457,11 @@ export function installFloorWords(document: unknown): ManifestWord[] {
           });
         }
         if (action['kind'] === 'record.create' && action['name'] !== undefined) out.push({ word: 'automations.stepName', path: `${at}.${String(n)}.action.name` });
+        // A value read from the settings row, a day so many days on.
+        for (const [ref, value] of Object.entries(isDoc(action['values']) ? action['values'] : {})) {
+          if (isDoc(value) && value['setting'] !== undefined) out.push({ word: 'automations.settingValue', path: `${at}.${String(n)}.action.values.${ref}` });
+          if (isDoc(value) && value['daysAfter'] !== undefined) out.push({ word: 'automations.daysAfter', path: `${at}.${String(n)}.action.values.${ref}` });
+        }
         list(node['branches']).forEach((branch, b) => steps(isDoc(branch) ? branch['nodes'] : undefined, `${at}.${String(n)}.branches.${String(b)}.nodes`));
       });
     };

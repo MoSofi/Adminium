@@ -135,13 +135,17 @@ export default {
     "follows": "Follows: {table}",
     "belongs": "A row belongs to {ways}.",
     "sentence": {
-      "all": "Reaches every row.",
-      "allWhile": "Every row",
+      "all": "Every row of {table}.",
+      "allWhile": "Every row of {table}",
       "team": "Only rows that belong to this person, or to someone in a team they lead",
       "own": "Only rows that belong to this person",
       "unowned": "and rows nobody owns yet",
       "while": "only while {column} is {values}",
-      "by": "and only the ones {column} names them in"
+      "by": "and only the ones {column} names them in",
+      "allWho": "Every row of {table}, whoever {column} is.",
+      "only": "Only rows of {table} where {ways}",
+      "onlyTeam": "Only rows of {table} where {ways}, or someone in a team they lead",
+      "onlyTeamWays": "Only rows of {table} where {ways}, or the same for someone in a team they lead"
     },
     "title": "Which rows “{role}” reaches",
     "intro": "A role reaches every row of a table it may open, unless it is limited here. A limit holds for a person only when every role that gives them the table is limited.",
@@ -157,17 +161,23 @@ export default {
     "private": "Read by the people each row belongs to, and by nobody else. There is nothing to choose.",
     "reachLabel": "{action}: which rows",
     "reach": {
-      "all": "Every row",
-      "own": "Their own rows",
-      "team": "Their own rows, and their team’s",
+      "all": "All rows",
+      "own": "Their own",
+      "team": "Their team’s",
       "allWhile": "Every row, only while…"
     },
     "unowned": "and rows nobody owns yet",
     "widened": "This role opens the table through a wider permission. Saving a limit also gives it this table by name.",
-    "count": "{name} would see {reached} of {total}.",
+    "count": "{name} would see {reached} of {total} rows of {table}.",
     "capped": "This person leads more people than one reach holds, so not all of their team is counted.",
     "lifted": "{name} also holds {roles}, which gives every row. This limit does not hold for them.",
-    "several": "Any one of these is enough. The app set them, and they are kept as it wrote them."
+    "several": "Any one of these is enough. The app set them, and they are kept as it wrote them.",
+    "wayIs": {
+      "person": "{column} is this person",
+      "listing": "this person is listed in {table}",
+      "listingDated": "this person is listed in {table} on the day",
+      "parent": "this person reaches its {table}"
+    }
   },
   "partsOff": "Its part of the app is switched off: it gives nothing until that part is on.",
   "people": {

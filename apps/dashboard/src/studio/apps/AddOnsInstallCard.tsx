@@ -27,7 +27,8 @@ import { ArrowRight, CircleAlert, Download, KeyRound, Link2, Minus, Puzzle, Tabl
 
 import { t } from '../../i18n/t.js';
 import { docsUrl } from '../../kb/docsLinks.js';
-import type { AddOnChoice, AppAddOnRow } from './appsApi.js';
+import type { AddOnChoice, AppAddOnRow, PlanRoleTable } from './appsApi.js';
+import { RoleTablesDisclosure } from './RoleTablesList.js';
 import {
   NeedPill,
   manifestWords,
@@ -178,6 +179,8 @@ export interface AddOnsInstallCardProps {
   busy: boolean;
   /** The add-on settings the app's roles would be given, by add-on key (`addOnGrants`). */
   grants?: readonly { roleName: string; addOn: string }[] | undefined;
+  /** What the app's roles would hold of each add-on's tables, with the columns (`roleTables`). */
+  roleTables?: readonly PlanRoleTable[] | undefined;
 }
 
 export function AddOnsInstallCard(props: AddOnsInstallCardProps) {
@@ -289,6 +292,7 @@ function AddOnRow({ row, ...props }: AddOnsInstallCardProps & { row: AppAddOnRow
             </span>
           </p>
         )}
+        <RoleTablesDisclosure entries={(props.roleTables ?? []).filter((entry) => entry.addOn === row.key)} appName={appName} addOnName={row.name} />
         {selected && problems.length > 0 ? (
           <ul className="mt-1.5 flex flex-col gap-1" data-part="add-on-problems">
             {problems.map((problem) => (

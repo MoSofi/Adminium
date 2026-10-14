@@ -288,8 +288,19 @@ export interface DateBound {
  * is refused).
  */
 export type LinkableRule =
-  | { column: string; table: string; key: string; keyType?: string; where: StateCondition[]; unresolved?: undefined }
-  | { column: string; where: StateCondition[]; unresolved: true };
+  | { column: string; table: string; key: string; keyType?: string; where: StateCondition[]; same: LinkableSame[]; unresolved?: undefined }
+  | { column: string; where: StateCondition[]; same: LinkableSame[]; unresolved: true };
+
+/**
+ * `linkable.same`, resolved: the named row's `column` holds what the written
+ * row holds in `own`, or (with `far`) what the row `own` links to holds in
+ * `far.column`, read through its one-column key.
+ */
+export interface LinkableSame {
+  column: string;
+  own: string;
+  far?: { table: string; key: string; keyType?: string; column: string } | undefined;
+}
 
 /** `column.default { kind: 'from' }`: a create's empty value, filled from elsewhere. */
 export interface ColumnDefaultFrom {
@@ -791,17 +802,35 @@ export function tableRulesFor(target: { view: SnapshotView; table: ResolvedTable
     }
     if (column.linkable !== undefined) {
       // Through the one-column foreign key the snapshot has; a link it lost, or a column of the linked table it lost, fails closed.
-      const where = column.linkable.where;
-      const relation = target.view?.model?.relations.find(
-        (r) => r.through === null && r.from.tableId === target.table.id && r.from.columns.length === 1 && r.from.columns[0] === column.name && r.to.columns.length === 1,
-      );
+      const where = column.linkable.where ?? [];
+      const pairs = column.linkable.same ?? [];
+      const linkOf = (name: string) =>
+        target.view?.model?.relations.find((r) => r.through === null && r.from.tableId === target.table.id && r.from.columns.length === 1 && r.from.columns[0] === name && r.to.columns.length === 1);
+      const relation = linkOf(column.name);
       const linked = relation === undefined ? undefined : target.view?.model?.tables.find((table) => table.id === relation.to.tableId);
-      const readable = linked !== undefined && where.every((condition) => linked.columns.some((other) => other.name === condition.column));
+      const readable = linked !== undefined && [...where.map((condition) => condition.column), ...pairs.map((pair) => pair.column)].every((name) => linked.columns.some((other) => other.name === name));
       const keyType = linked?.columns.find((other) => other.name === relation?.to.columns[0])?.logicalType;
+      // The written row's side of each pair: a column of its own, or one of the row a link of it names; one it lost fails closed too.
+      const same: LinkableSame[] = [];
+      let sides = true;
+      for (const pair of pairs) {
+        const [own, farColumn] = pair.as.split('.') as [string, string | undefined];
+        if (!columns.some((other) => other.name === own)) sides = false;
+        else if (farColumn === undefined) same.push({ column: pair.column, own });
+        else {
+          const hop = linkOf(own);
+          const far = hop === undefined ? undefined : target.view?.model?.tables.find((table) => table.id === hop.to.tableId);
+          if (hop === undefined || far === undefined || !far.columns.some((other) => other.name === farColumn)) sides = false;
+          else {
+            const farKeyType = far.columns.find((other) => other.name === hop.to.columns[0])?.logicalType;
+            same.push({ column: pair.column, own, far: { table: far.id, key: hop.to.columns[0]!, ...(farKeyType === undefined ? {} : { keyType: farKeyType }), column: farColumn } });
+          }
+        }
+      }
       linkable.push(
-        relation === undefined || !readable
-          ? { column: column.name, where, unresolved: true }
-          : { column: column.name, table: relation.to.tableId, key: relation.to.columns[0]!, ...(keyType === undefined ? {} : { keyType }), where },
+        relation === undefined || !readable || !sides
+          ? { column: column.name, where, same, unresolved: true }
+          : { column: column.name, table: relation.to.tableId, key: relation.to.columns[0]!, ...(keyType === undefined ? {} : { keyType }), where, same },
       );
     }
     const values = enumValuesOf(column, enums);

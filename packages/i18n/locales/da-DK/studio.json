@@ -905,7 +905,8 @@
       "checkSubtitle": "Tjek de tabeller, denne version bruger.",
       "pickFirst": "Vælg, hvad der skal ske med {table}, før du opdaterer.",
       "checkFirst": "Tjek tabellerne igen, før du opdaterer.",
-      "nothingYet": "Intet ændres, før du trykker på Opdater."
+      "nothingYet": "Intet ændres, før du trykker på Opdater.",
+      "rolesSubtitle": "Tjek, hvad denne versions roller må gøre med tilføjelsers tabeller."
     },
     "veto": {
       "title": "Denne installation kan ikke gennemse online",
@@ -3422,7 +3423,32 @@
       "kept": "{addOn} forbliver installeret. Afinstallér den under Tilføjelser, hvis intet andet bruger den.",
       "link": "Dens forbindelse til {addOn}"
     },
-    "updateToo": "Opdatér den også"
+    "updateToo": "Opdatér den også",
+    "roleTables": {
+      "summary": "Rollerne i {app} får adgang til {count, plural, one {# af dens tabeller} other {# af dens tabeller}}. Se, hvad de læser og ændrer.",
+      "unchecked": "{addOn} er ikke på denne server endnu, så dette er, hvad {app} beder om. Tilføjelsen tillader måske mindre.",
+      "keyAndLinks": "En læsning viser også hver rækkes nøgle og dens links til andre rækker.",
+      "everyColumn": "alle kolonner",
+      "reads": "Læser {columns}",
+      "readsAll": "Læser alle kolonner",
+      "changes": "Ændrer {columns}",
+      "changesAll": "Ændrer alle kolonner",
+      "adds": "Tilføjer rækker og udfylder {columns}",
+      "addsAll": "Tilføjer rækker og udfylder enhver kolonne",
+      "notOffered": "Ikke givet: {addOn} deler ikke denne tabel med nogen app.",
+      "keptBack": "Ikke givet: {addOn} holder denne tabel for sig selv.",
+      "unknown": "Ikke givet: {addOn} har ingen sådan tabel eller kolonne.",
+      "allowsLess": "Ikke givet: {addOn} tillader mindre end dette.",
+      "notGiven": "Bedt om, ikke givet: {what}",
+      "wider": "Nyt i denne version: {what}",
+      "updateTitle": "Roller får mere af tilføjelsers tabeller",
+      "updateBody": "Denne version lader disse roller gøre mere med tabeller, der hører til tilføjelser. Når du opdaterer, tillader du det.",
+      "action": {
+        "read": "læse",
+        "create": "tilføje rækker",
+        "update": "ændre rækker"
+      }
+    }
   },
   "featurePage": {
     "ask": "En person, der administrerer apps, kan installere den.",

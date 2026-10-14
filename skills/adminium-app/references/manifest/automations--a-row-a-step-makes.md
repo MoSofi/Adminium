@@ -9,6 +9,11 @@ read `{{steps.contact.<column>}}`: an enquiry makes a contact, then a deal for t
 a follow-up on that deal, in one rule. The row is kept in the run's stored trace, so it is still
 there after a `wait`.
 
+A notice, or a mail to a person, carries what **that person** reads of the row: nothing of it for
+somebody whose roles do not read its table or reach that row (a costing made for an approver, told
+to the deal's owner), and nothing of a column their role is not shown. A personal or secret column
+of the row is never kept for the steps after.
+
 A `{{steps.…}}` that names a row no step before it makes, or a column that row's table has not,
 is refused by the validator and when a rule is saved. A run that reaches a step whose row was not
 made (it was made on the other side of a branch) stops there and fails by name: the text is never

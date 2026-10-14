@@ -49,6 +49,7 @@ import {
   ModalFooter,
   ModalHeader,
   PermissionMatrix,
+  SegmentedControl,
   Select,
   Textarea,
   type PermissionGrant,
@@ -853,24 +854,51 @@ function anyOf(parts: readonly string[]): string {
   }
 }
 
-/** How the table says whose a row is: "Follows: Deal" when it is reached through its parent alone, else every way. */
+/**
+ * How the table says whose a row is, every way of it. A table reached through
+ * its parent says so in the same words, never as "Follows: Deal": it keeps a
+ * limit of its own, which the controls under it set (the owner's ruling).
+ */
 function belongsText(table: RoleRowsTable): string {
-  const parents = table.ways.filter((way) => way.kind === 'parent');
-  if (parents.length > 0 && parents.length === table.ways.length) {
-    return t('roles:rows.follows', 'Follows: {table}', { table: anyOf(parents.map((way) => way.label)) });
-  }
   return t('roles:rows.belongs', 'A row belongs to {ways}.', { ways: anyOf(table.ways.map(wayText)) });
 }
 
-/** A reach in words, never as a code. */
-function reachSentence(reach: RowReach | null): string {
-  if (reach === null) return t('roles:rows.sentence.all', 'Reaches every row.');
+/** One way a row is this person's, as the sentence says it: "Owner is this person". */
+function wayIs(way: RowWay): string {
+  switch (way.kind) {
+    case 'person':
+      return t('roles:rows.wayIs.person', '{column} is this person', { column: way.label });
+    case 'listing':
+      return way.dated
+        ? t('roles:rows.wayIs.listingDated', 'this person is listed in {table} on the day', { table: way.label })
+        : t('roles:rows.wayIs.listing', 'this person is listed in {table}', { table: way.label });
+    case 'parent':
+      return t('roles:rows.wayIs.parent', 'this person reaches its {table}', { table: way.label });
+  }
+}
+
+/**
+ * A reach in words, never as a code, and in the design's sentences: the
+ * table and the column that decide it are named ("Only rows of Deals where
+ * Owner is this person."). A table whose rows are somebody's in more than one
+ * way names every way, so the sentence is never narrower than the rule.
+ */
+export function reachSentence(table: Pick<RoleRowsTable, 'label' | 'ways'>, reach: RowReach | null): string {
+  const only = table.ways.length === 1 ? table.ways[0] : undefined;
+  if (reach === null) {
+    return only?.kind === 'person'
+      ? t('roles:rows.sentence.allWho', 'Every row of {table}, whoever {column} is.', { table: table.label, column: only.label })
+      : t('roles:rows.sentence.all', 'Every row of {table}.', { table: table.label });
+  }
+  const ways = anyOf(table.ways.map(wayIs));
   const parts = [
     reach.reach === 'all'
-      ? t('roles:rows.sentence.allWhile', 'Every row')
-      : reach.reach === 'team'
-        ? t('roles:rows.sentence.team', 'Only rows that belong to this person, or to someone in a team they lead')
-        : t('roles:rows.sentence.own', 'Only rows that belong to this person'),
+      ? t('roles:rows.sentence.allWhile', 'Every row of {table}', { table: table.label })
+      : reach.reach === 'own'
+        ? t('roles:rows.sentence.only', 'Only rows of {table} where {ways}', { table: table.label, ways })
+        : only !== undefined
+          ? t('roles:rows.sentence.onlyTeam', 'Only rows of {table} where {ways}, or someone in a team they lead', { table: table.label, ways })
+          : t('roles:rows.sentence.onlyTeamWays', 'Only rows of {table} where {ways}, or the same for someone in a team they lead', { table: table.label, ways }),
     ...(reach.unowned === true ? [t('roles:rows.sentence.unowned', 'and rows nobody owns yet')] : []),
     ...(reach.while === undefined
       ? []
@@ -1025,7 +1053,7 @@ function RoleRowsTableCard(props: {
                     <p className="text-caption text-fg-muted">{t('roles:rows.several', 'Any one of these is enough. The app set them, and they are kept as it wrote them.')}</p>
                     <ul className="flex list-disc flex-col gap-0.5 ps-5 text-caption text-fg-subtle" data-testid={`roles-rows-${table.tableId}-${action}-sentence`}>
                       {several.map((one, n) => (
-                        <li key={n}>{reachSentence(one)}</li>
+                        <li key={n}>{reachSentence(table, one)}</li>
                       ))}
                     </ul>
                   </div>
@@ -1035,25 +1063,23 @@ function RoleRowsTableCard(props: {
                 <div key={action} className="flex flex-col gap-1">
                   <div className="flex flex-wrap items-center gap-3">
                     <span className="w-16 text-body-sm font-semibold text-fg">{label}</span>
-                    <Select
-                      className="min-w-56 flex-1"
+                    <SegmentedControl
                       aria-label={t('roles:rows.reachLabel', '{action}: which rows', { action: label })}
-                      value={reach === null ? 'all' : reach.reach === 'all' ? 'all-while' : reach.reach}
+                      value={reach === null || reach.reach === 'all' ? 'all' : reach.reach}
                       disabled={props.disabled}
-                      onChange={(event) => {
-                        const value = event.target.value;
+                      options={[
+                        // "Only the ones a column names them in" is the app's own narrowing, and every row has no such thing: not offered over it.
+                        { value: 'all', label: t('roles:rows.reach.all', 'All rows'), disabled: reach?.by !== undefined },
+                        { value: 'team', label: t('roles:rows.reach.team', 'Their team’s') },
+                        { value: 'own', label: t('roles:rows.reach.own', 'Their own') },
+                      ]}
+                      onValueChange={(value) => {
                         // "Only while…" is a condition the app wrote: choosing every row keeps it (every row, only while), never drops it unsaid.
                         if (value === 'all') props.onChange(action, reach?.while === undefined ? null : { reach: 'all', while: reach.while });
                         else if (value === 'own' || value === 'team') props.onChange(action, { ...(reach ?? {}), reach: value });
                       }}
                       data-testid={`roles-rows-${table.tableId}-${action}`}
-                    >
-                      {/* "Only the ones a column names them in" is the app's own narrowing, and every row has no such thing: not offered over it. */}
-                      <option value="all" disabled={reach?.by !== undefined}>{t('roles:rows.reach.all', 'Every row')}</option>
-                      <option value="own">{t('roles:rows.reach.own', 'Their own rows')}</option>
-                      <option value="team">{t('roles:rows.reach.team', 'Their own rows, and their team’s')}</option>
-                      {reach?.reach === 'all' ? <option value="all-while">{t('roles:rows.reach.allWhile', 'Every row, only while…')}</option> : null}
-                    </Select>
+                    />
                     {reach === null ? null : (
                       <label className="flex items-center gap-2 text-body-sm text-fg">
                         <Checkbox
@@ -1069,7 +1095,7 @@ function RoleRowsTableCard(props: {
                     )}
                   </div>
                   <p className="text-caption text-fg-subtle" data-testid={`roles-rows-${table.tableId}-${action}-sentence`}>
-                    {reachSentence(reach)}
+                    {reachSentence(table, reach)}
                   </p>
                 </div>
               );
@@ -1083,7 +1109,7 @@ function RoleRowsTableCard(props: {
           {person === null || preview.data === undefined ? null : (
             <div className="mt-3 flex flex-col gap-1 text-body-sm" data-testid={`roles-rows-${table.tableId}-count`}>
               <p className="text-fg">
-                {t('roles:rows.count', '{name} would see {reached} of {total}.', { name: person.name, reached: preview.data.reached, total: preview.data.total })}
+                {t('roles:rows.count', '{name} would see {reached} of {total} rows of {table}.', { name: person.name, reached: preview.data.reached, total: preview.data.total, table: table.label })}
               </p>
               {preview.data.capped ? (
                 <p className="text-fg-muted">{t('roles:rows.capped', 'This person leads more people than one reach holds, so not all of their team is counted.')}</p>

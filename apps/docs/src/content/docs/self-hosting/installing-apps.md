@@ -174,6 +174,11 @@ Two boxes can sit under the table check:
   the records are added after the install finishes, and a failure there does not undo the install.
   See [Sample data](/guides/apps/sample-data/).
 
+When the app's roles reach tables of an add-on it works with, that add-on's row on the **Add-ons**
+card says how many of its tables they get. Open it to see each table, the roles, and the columns
+each one reads, changes or fills in. What the app asked for and the add-on does not allow is listed
+as not given. See [What an app's roles may hold of its tables](/guides/add-ons-with-tables/#what-an-apps-roles-may-hold-of-its-tables).
+
 ### If the database changed in the meantime
 
 **Install** sends the check you looked at. If a table was created, dropped or changed after the
@@ -225,6 +230,11 @@ first if it has to, then checks the tables again:
   the API, send `"publicAccess": true` with the update; without it nothing new is given. What the
   version no longer declares is taken back from the app's keys on every update, and a key it no
   longer declares is revoked. An endpoint the new version would widen is left as it was.
+- **Roles that get more of an add-on's tables are shown first.** When the new version's roles
+  would read or change more of an add-on's tables than the running version's (a new action, a new
+  column, or every column where before it was some), the check lists what is new, and pressing
+  **Update** allows it. Through the API, send `"roleTables": true` with the update; without it the
+  update is refused with `ROLE_TABLES_WIDER` and nothing runs.
 - The app keeps its place: same row, same database connection, same mounts. Older versions of the
   package are removed from disk only after the update succeeds.
 

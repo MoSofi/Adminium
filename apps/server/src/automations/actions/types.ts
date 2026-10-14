@@ -75,6 +75,12 @@ export interface ActionContext {
   source: ActionSource | null;
   /** `{{record.x}}`, `{{now}}`, `{{ruleName}}`, `{{recordLabel}}` (D16). */
   tokens: TokenMap;
+  /**
+   * The rows the run's steps made so far (`{{steps.<name>.<column>}}`), each
+   * with its table and key: what a notice or a mail to a person reads of them
+   * is judged again as that person (`record-link.ts` `tokensAs`).
+   */
+  made?: readonly NonNullable<AutomationTraceStep['made']>[] | undefined;
   text: TraceText;
   /** `ADMINIUM_SECRET` — opens the SMTP password and a webhook's header value. */
   /** The steps installed add-ons give, as they stand now (`add-on-steps.ts`). Absent: none can be found, and such a step fails saying so. */

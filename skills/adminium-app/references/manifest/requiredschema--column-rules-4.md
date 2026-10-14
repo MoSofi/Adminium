@@ -29,6 +29,37 @@ table it points at that is not a `secret`.
   reads is no longer on the table, no row can be shown to meet the rule: every new link is refused,
   and rows that already hold one keep it. Put the column back, or change the rule in Studio.
 
+##### A row that must match the row written
+
+`same` compares the named row with the row being written instead of with a fixed value: a site
+visit names only a contact who works for the company of the visit's deal.
+
+```json
+{ "ref": "contact_id", "type": "fk", "references": "contacts", "nullable": true,
+  "rules": { "linkable": { "same": [{ "column": "company_id", "as": "deal_id.company_id" }] } } }
+```
+
+`same` is 1–4 pairs. `column` is a column of the row the link names (here a contact's
+`company_id`); `as` is a column of the row being written, or one link further, `<link
+column>.<column>`: the column of the row a foreign key of it names (here the visit's deal's
+`company_id`). Each pair must hold: both sides hold the same value. An empty side holds nothing,
+so a deal with no company yet matches no contact; an empty link is still taken. `where` and
+`same` may be given together, and a rule gives at least one of them. Needs Adminium 0.3.28
+(`linkable.same`).
+
+- **When it is judged.** As `where` is, and also when a change moves the column `as` reads on the
+  row (a visit moved to another deal), the contact staying: the visit would no longer be the
+  deal's company's. The far row is read as it stands when the write is judged: a deal moved to
+  another company, or a contact who changes company, keeps the visits that name them.
+- **What the refusal says.** The same `422` `not-allowed` on the link's field, naming nothing of
+  either row. The far row of `as` is read through the write's own handle; a writer who names a
+  deal out of their reach is refused for that deal before this rule is asked, whichever contact
+  the visit names.
+- The validator refuses a column the linked table does not have, a secret on either side, a hop
+  through a column that is not a foreign key, the link compared with itself, and two columns that
+  can never hold one value (a number and a text). Studio checks that each column and link is
+  there.
+
 An operator may set the same rule on a column in Studio; Studio refuses one whose column is not a
 foreign key, or whose conditions name a column the linked table does not have. The screens are
 still the app's to filter: a picker that offers only active lines is kinder than a refusal.
@@ -58,31 +89,3 @@ that would take the balance below zero: what a visit's fee, its payments and its
 over the same payments, `taken` (`where` `kind` `taken`) and `given_back` (`where` `kind`
 `given_back`, `balance: { "column": "refundable", "of": "taken" }`, `cap: true`). A refund past what
 was taken is refused, and so is lowering a payment taken below what already went back.
-
-A capped write is refused with `BALANCE_EXCEEDED` and the balance it would have gone below. So is a
-change to the parent that lowers `of` under what is already paid. Only a write that takes the
-balance below zero, or further below it, is refused: a row already negative from older data can
-still be edited or voided. Two payments at once are judged one after the other, so they cannot
-both pass.
-
-A write that touches several rows of a table feeding a capped total is refused with
-`BALANCE_ONE_AT_A_TIME`, because it cannot be judged row by row. Imports and sample data are
-settled but not capped: they record what already happened.
-
-A total or a balance a writer sends is dropped, not refused, so a form that sends the whole row
-still saves.
-
-#### Totals that count and climb
-
-A total may count its child rows instead of adding a column up: how many tickets an order holds,
-how many lines a kitchen ticket has.
-
-```json
-{ "ref": "ticket_count", "type": "int", "default": 0,
-  "rules": { "rollup": { "from": "tickets", "via": "order_id", "count": true,
-                         "unlessSet": "refunded_at" } } }
-```
-
-A rollup names `sum` or `"count": true`, never both. A count is kept in an `int` or `bigint`
-column, and takes no `times`, `balance` or `cap`; `where` and `unlessSet` leave rows out as they do
-for a sum.

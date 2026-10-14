@@ -36,7 +36,8 @@ import { pageCalendarIssues } from './page-calendar.js';
 import { pageConfigIssues } from './page-config.js';
 import { emailTemplateSchema, outboxIssues, outboxProducerSchema, outboxSchema } from './outbox.js';
 import { codeWhereSchema, personalColumn, publicAccessIssues, publicAccessSchema, publicKeysSchema, shareCodeColumns, unlistedColumn, type PublicAccess } from './public-access.js';
-import { belongsIssues, belongsSchema, privateTableIssues, roleAddOnTableIssues, roleAddOnTablesSchema, roleLimitIssues, roleLimitsSchema, rowTablesOf, type RoleShape, privateShapeIssues, storedTotalIssues } from './roles.js';
+import { appGrantsIssues, appGrantsSchema, roleTableHold, type AppGrantTableShape, type RoleTableHold } from './app-grants.js';
+import { belongsIssues, belongsSchema, privateTableIssues, roleAddOnTableIssues, roleAddOnTablesSchema, type RoleAddOnTable, roleLimitIssues, roleLimitsSchema, rowTablesOf, type RoleShape, privateShapeIssues, storedTotalIssues } from './roles.js';
 import { conditionIssues, stateConditionSchema, statesIssues, statesSchema, type States } from './states.js';
 import { MOMENT_LIMITS, clockTimeSchema, momentIssues, momentSchema, settingRefSchema } from './refs.js';
 import {
@@ -783,8 +784,23 @@ export const columnRulesSchema = z
      * price-list line still offered): judged when a new row names one and
      * when a change moves the link, whoever writes. A row already naming one
      * that later stops meeting them keeps it while its other columns change.
+     * `same`: a column of the named row holds what this row holds in `as`, a
+     * column of its own or one of the row a link of it names (a visit's
+     * contact works for the company of the visit's deal); judged also when a
+     * change moves what `as` reads.
      */
-    linkable: z.object({ where: z.array(stateConditionSchema).min(1).max(8) }).strict().optional(),
+    linkable: z
+      .object({
+        where: z.array(stateConditionSchema).min(1).max(8).optional(),
+        same: z
+          .array(z.object({ column: refSchema, as: z.string().regex(/^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)?$/, 'a column, or <link column>.<column>') }).strict())
+          .min(1)
+          .max(4)
+          .optional(),
+      })
+      .strict()
+      .refine((rule) => rule.where !== undefined || rule.same !== undefined, { message: 'a link says which rows it may name: "where", "same", or both' })
+      .optional(),
   })
   .strict();
 export type ColumnRules = z.infer<typeof columnRulesSchema>;
@@ -994,6 +1010,8 @@ export const requiredTableSchema = z
     belongs: belongsSchema.optional(),
     /** Rows read by the people they belong to and by nobody and nothing else: no rule, public entry, document or export. */
     private: z.literal(true).optional(),
+    /** An add-on's table: the most an app's role may be given of it (see `app-grants.ts`). */
+    appGrants: appGrantsSchema.optional(),
   })
   .strict()
   .refine(
@@ -2219,11 +2237,36 @@ export function appReferenceIssues(
           out.push({ path: here('linkable'), message: 'only a foreign key names a row, so only one takes linkable' });
         } else {
           const linked = column.references;
-          rules.linkable.where.forEach((condition, w) => {
+          (rules.linkable.where ?? []).forEach((condition, w) => {
             out.push(...conditionIssues(linked, condition, index, here('linkable', 'where', w)));
             // A refusal says whether the named row meets the condition: never asked of a value kept from every reader.
             if (tables.get(linked)?.columns.find((x) => x.ref === condition.column)?.rules?.secret === true) {
               out.push({ path: here('linkable', 'where', w, 'column'), message: `"${linked}.${condition.column}" is a secret, and a link is never judged by one` });
+            }
+          });
+          // What a column holds as a value to compare: a link holds the key of the row it names.
+          const held = (of: NonNullable<ReturnType<typeof index.column>>): string => (of.type === 'fk' && of.references !== undefined ? (index.pk(of.references)?.type ?? 'fk') : of.type).replace(/^bigint$/, 'int');
+          (rules.linkable.same ?? []).forEach((pair, p) => {
+            const at = (...rest: (string | number)[]) => here('linkable', 'same', p, ...rest);
+            const theirs = index.column(linked, pair.column);
+            if (theirs === undefined) out.push({ path: at('column'), message: `"${linked}" has no column "${pair.column}"` });
+            else if (theirs.rules?.secret === true) out.push({ path: at('column'), message: `"${linked}.${pair.column}" is a secret, and a link is never judged by one` });
+            // This row's side: a column of its own, or one of the row a link of it names.
+            const [first, second] = pair.as.split('.') as [string, string | undefined];
+            const own = index.column(table.ref, first);
+            let ours: ReturnType<typeof index.column>;
+            if (own === undefined) out.push({ path: at('as'), message: `"${table.ref}" has no column "${first}"` });
+            else if (second === undefined) {
+              if (own.ref === column.ref) out.push({ path: at('as'), message: 'a link is compared with another column, not with itself' });
+              else ours = own;
+            } else if (own.type !== 'fk' || own.references === undefined) out.push({ path: at('as'), message: `"${table.ref}.${first}" is not a foreign key, so it names no row to read "${second}" of` });
+            else {
+              ours = index.column(own.references, second);
+              if (ours === undefined) out.push({ path: at('as'), message: `"${own.references}" has no column "${second}"` });
+              else if (ours.rules?.secret === true) out.push({ path: at('as'), message: `"${own.references}.${second}" is a secret, and a link is never judged by one` });
+            }
+            if (theirs !== undefined && ours !== undefined && held(theirs) !== held(ours)) {
+              out.push({ path: at('as'), message: `"${linked}.${pair.column}" holds ${held(theirs)} and "${pair.as}" holds ${held(ours)}: they never hold the same value` });
             }
           });
         }
@@ -2794,6 +2837,13 @@ export function appReferenceIssues(
       table.columns.forEach((column, c) => {
         if (column.rules?.staff !== undefined) out.push({ path: ['requiredSchema', 'tables', t, 'columns', c, 'rules', 'staff'], message: 'a staff column is not read on an add-on\'s table yet' });
       });
+    });
+  }
+  // What an app's role may be given of an add-on's table: the add-on's to say, of its own tables.
+  if (m.kind === 'add-on') out.push(...appGrantsIssues(m.requiredSchema.tables as unknown as readonly AppGrantTableShape[], m.ledgers ?? []));
+  else {
+    m.requiredSchema.tables.forEach((table, t) => {
+      if ((table as { appGrants?: unknown }).appGrants !== undefined) out.push({ path: ['requiredSchema', 'tables', t, 'appGrants'], message: 'an app\'s table is granted by its own roles: "appGrants" is how an add-on says what an app may be given of its tables' });
     });
   }
   // A role's grants on an add-on's tables: an app's to give, on the add-ons it names.
@@ -3627,6 +3677,11 @@ export function ledgersOf(m: Manifest): Ledger[] {
   if (m.kind !== 'add-on' || m.addOn.ledgers === undefined) return [];
   const parsed = ledgersSchema.safeParse(m.addOn.ledgers);
   return parsed.success ? parsed.data : [];
+}
+
+/** What an app's grant on one of this add-on's tables comes to: its shape, its columns and its `appGrants` (see `app-grants.ts`). */
+export function addOnRoleTableHold(entry: RoleAddOnTable, addOn: AddOnManifest): RoleTableHold {
+  return roleTableHold(entry, { tables: (addOn.requiredSchema?.tables ?? []) as readonly AppGrantTableShape[], ledgers: ledgersOf(addOn) });
 }
 
 /** Everything wrong with an add-on that installs like an app, beyond what its blocks say of themselves. */

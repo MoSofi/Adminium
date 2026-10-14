@@ -135,13 +135,17 @@ export default {
     "follows": "跟随：{table}",
     "belongs": "一行属于{ways}。",
     "sentence": {
-      "all": "可访问每一行。",
-      "allWhile": "每一行",
+      "all": "{table} 的每一行。",
+      "allWhile": "{table} 的每一行",
       "team": "仅属于此人的行，或属于其所带团队成员的行",
       "own": "仅属于此人的行",
       "unowned": "以及尚无人负责的行",
       "while": "仅当 {column} 为 {values} 时",
-      "by": "且仅限 {column} 指明为其本人的行"
+      "by": "且仅限 {column} 指明为其本人的行",
+      "allWho": "{table} 的每一行，无论 {column} 是谁。",
+      "only": "仅 {table} 中{ways}的行",
+      "onlyTeam": "仅 {table} 中{ways}的行，或其所带团队成员的行",
+      "onlyTeamWays": "仅 {table} 中{ways}的行，或对其所带团队成员同样成立的行"
     },
     "title": "“{role}”可访问哪些行",
     "intro": "角色可以访问它能打开的表中的每一行，除非在此加以限制。只有当给某人该表的每个角色都受限时，限制才对此人生效。",
@@ -157,17 +161,23 @@ export default {
     "private": "仅由每行所属的人员读取，其他人都不能读取。这里没有可选项。",
     "reachLabel": "{action}：哪些行",
     "reach": {
-      "all": "每一行",
-      "own": "自己的行",
-      "team": "自己的行和团队的行",
+      "all": "所有行",
+      "own": "自己的",
+      "team": "团队的",
       "allWhile": "每一行，仅当…"
     },
     "unowned": "以及尚无人负责的行",
     "widened": "此角色通过范围更宽的权限打开该表。保存限制时，也会按名称把该表授予它。",
-    "count": "{name} 将看到 {total} 行中的 {reached} 行。",
+    "count": "{name} 将看到 {table} 的 {total} 行中的 {reached} 行。",
     "capped": "此人带领的人数超过了单个范围的上限，因此未统计其整个团队。",
     "lifted": "{name} 还拥有 {roles}，该角色可访问每一行。此限制对其不生效。",
-    "several": "满足其中任意一条即可。这些由应用设定，并按应用所写保留。"
+    "several": "满足其中任意一条即可。这些由应用设定，并按应用所写保留。",
+    "wayIs": {
+      "person": "{column} 为此人",
+      "listing": "此人登记在 {table} 中",
+      "listingDated": "此人当天登记在 {table} 中",
+      "parent": "此人能访问其所属{table}"
+    }
   },
   "partsOff": "它所属的应用部分已关闭：在该部分开启之前不授予任何权限。",
   "people": {

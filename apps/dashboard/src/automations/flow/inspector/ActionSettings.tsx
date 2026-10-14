@@ -31,6 +31,7 @@ import type { SourceStepInput, SourceTable, Sources } from '../../api.js';
 import { addOnNameOf, columnOfInput, inLanguage, inputMode, stepOf, type StepAction } from '../../model/addOnSteps.js';
 import type { Action, DigestSection, WriteValue } from '../../model/graph.js';
 import { columnOfValue, holdsAddresses, linkedColumns, placeholderRows, templateOf, varsFor, type PlaceholderRow } from '../../model/placeholders.js';
+import { writeValueText } from '../../model/summaries.js';
 import { Card, Field } from './primitives.js';
 
 export interface ActionSettingsProps {
@@ -883,8 +884,8 @@ function RecordSettings({
                   data-testid={`rec-value-${column}`}
                 />
               ) : (
-                <div className="flex h-9 items-center rounded-md border border-border-strong bg-surface px-3 text-[12.5px] text-fg-muted">
-                  {t('automations:rec.now', 'Now')}
+                <div className="flex min-h-9 items-center rounded-md border border-border-strong bg-surface px-3 text-[12.5px] text-fg-muted">
+                  {writeValueText(value)}
                 </div>
               )}
             </Field>

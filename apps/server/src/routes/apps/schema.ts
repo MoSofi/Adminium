@@ -430,7 +430,30 @@ export const appInstallPlanDto = z.object({
    * names (`roles[].tables`), for the check step to show: written when that
    * add-on is there for the app, taken back when it is not. Absent when none.
    */
-  roleTables: z.array(z.object({ role: z.string(), roleName: z.string(), addOn: z.string(), table: z.string(), actions: z.array(z.string()) })).optional(),
+  roleTables: z
+    .array(
+      z.object({
+        role: z.string(),
+        roleName: z.string(),
+        addOn: z.string(),
+        table: z.string(),
+        /** What the role will hold: cut to the add-on's own words (its shape and its `appGrants`). */
+        actions: z.array(z.string()),
+        /** The columns each action reaches. Absent: every column (only on an add-on that sets no `appGrants`). */
+        readable: z.array(z.string()).optional(),
+        writable: z.array(z.string()).optional(),
+        creatable: z.array(z.string()).optional(),
+        /** What the app asks for and the role will not get, by name. */
+        narrowed: z.object({ actions: z.array(z.string()), readable: z.array(z.string()).optional(), writable: z.array(z.string()).optional(), creatable: z.array(z.string()).optional() }).optional(),
+        /** Why the entry, or part of it, is left out: `not-offered` (the add-on gives the table to no app), `ceiling` (cut to what it gives), `ledger-table`, `unknown-column`, `unknown-table`. */
+        skipped: z.string().optional(),
+        /** The add-on is not on this server: what the app asks, before the add-on's own words cut it. */
+        unchecked: z.literal(true).optional(),
+        /** An update's check: what this version's role holds that the running one's did not (`*`: every column). The update gives it only with `"roleTables": true`. */
+        wider: z.object({ actions: z.array(z.string()), columns: z.array(z.string()) }).optional(),
+      }),
+    )
+    .optional(),
   /**
    * What the app's guests could do through the public API, as it asks, for
    * the check step to show and the installer to allow or not. Absent for an
@@ -692,7 +715,23 @@ export const installedAppReply = z.object({
       created: z.array(z.string()),
       seeded: z.number(),
       /** What the roles hold of the tables of the add-ons that are here for the app, entry by entry — and what was left out, by name. */
-      tables: z.array(z.object({ role: z.string(), addOn: z.string(), table: z.string(), actions: z.array(z.string()), skipped: z.enum(['unknown-table', 'unknown-column', 'ledger-table']).optional() })).optional(),
+      tables: z
+        .array(
+          z.object({
+            role: z.string(),
+            addOn: z.string(),
+            table: z.string(),
+            actions: z.array(z.string()),
+            /** The columns each action reaches now. Absent: every column (only on an add-on that sets no `appGrants`). */
+            readable: z.array(z.string()).optional(),
+            writable: z.array(z.string()).optional(),
+            creatable: z.array(z.string()).optional(),
+            /** What the app asked for and the role does not get, by name. */
+            narrowed: z.object({ actions: z.array(z.string()), readable: z.array(z.string()).optional(), writable: z.array(z.string()).optional(), creatable: z.array(z.string()).optional() }).optional(),
+            skipped: z.enum(['unknown-table', 'unknown-column', 'ledger-table', 'not-offered', 'ceiling']).optional(),
+          }),
+        )
+        .optional(),
     })
     .optional(),
   /** The public endpoints the manifest asked for, saved now, and the guests' key if one was made now. */
@@ -895,6 +934,13 @@ export const updateAppBody = z
     publicAccess: z.boolean().optional(),
     /** As the install's: the add-ons the new version needs, installed, connected or updated first. */
     addOns: z.array(appAddOnChoice).max(16).optional(),
+    /**
+     * The check's say on what the new version's roles hold MORE of an
+     * add-on's tables (`roleTables[].wider`): an action, or a column, the
+     * running version's did not. Only `true` allows it; without it such an
+     * update is refused (422 `ROLE_TABLES_WIDER`) before anything moves.
+     */
+    roleTables: z.boolean().optional(),
   })
   // A POST with no body at all arrives as null.
   .nullish();

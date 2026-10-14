@@ -44,7 +44,13 @@ A step's action is one of six:
 | `add-on.step` | `addOn`, `step`, `inputs` | Runs a [step an add-on gives](https://docs.adminium.dev/reference/manifest/#steps-for-automations): the add-on's key, the step's key, and a text for each input. An add-on's own step is checked here; another add-on's is checked where the rule is installed, and fails by name while that add-on is not there. Needs `minAdminiumVersion` `0.3.22`. |
 
 A value is a text, which may carry `{{record.<column>}}`, or `{ "now": true }`. It may also carry
-[the record as it was](https://docs.adminium.dev/reference/manifest/#the-record-as-it-was) and [the name of a person](https://docs.adminium.dev/reference/manifest/#a-persons-name-and-the-records-address).
+[the record as it was](https://docs.adminium.dev/reference/manifest/#the-record-as-it-was) and [the name of a person](https://docs.adminium.dev/reference/manifest/#a-persons-name-and-the-records-address),
+or be [a value of the settings row, or a day so many days on](https://docs.adminium.dev/reference/manifest/#a-value-from-the-settings-row-and-a-day-so-many-days-on).
+
+A mail never carries a `secret` column of its record, whoever it goes to: not to the address a
+column holds, not to a person, not written as a date or an amount, not as it was. A personal
+column goes in a mail to the address a column of the record holds (the mail goes to that person),
+and in a mail to a person only when their role is shown that table's personal columns.
 
 A notice is about its record, and its title and body carry the record's values. So a notice to
 roles, or to people listed by hand in the dashboard, goes only to those of them whose roles **open

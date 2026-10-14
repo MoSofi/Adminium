@@ -11,3 +11,11 @@ in the app at once and its email waits for the hours to end; so does a rule's em
 of notice the person marked "always tell me". A person who chose no time zone is read on the
 business's. Where one window ends as the next begins (Friday evening into a Saturday that is
 quiet all day), what is held waits for the end of the last of them.
+
+Two switches are kept beside these (`quietOn` and `summariesOn` on
+`/api/v1/me/notification-schedule`). Quiet hours switched off hold nothing, and keep their hours
+for when they are switched on again. Summaries switched off are "not me": no rule's `digest` step
+makes this person one, whichever of its roles they hold, and one already waiting for its hour is
+not sent; the day and time are kept. A summary the person asks for themselves
+(`POST /api/v1/me/summaries/{ruleId}/send`) is still sent. A write that leaves either switch out
+leaves it as it was.

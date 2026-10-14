@@ -391,6 +391,14 @@ export function userRowsQuery(userId: string) {
   });
 }
 
+/**
+ * A suspended person's rows, handed on afterwards (`POST /users/:id/rows/hand-over`). The server refuses it while the
+ * person is still active: an active colleague's rows are theirs.
+ */
+export function handOverRows(userId: string, to: string): Promise<unknown> {
+  return api.post<unknown>(`/api/v1/users/${userId}/rows/hand-over`, { to });
+}
+
 /** The named rows as a hand-over dialog lists them: one line per table, and whether a private table's rows stay behind. */
 export function namedRowsByTable(rows: NamedRows): { moved: { label: string; rows: number }[]; kept: boolean } {
   const moved = new Map<string, { label: string; rows: number }>();

@@ -135,13 +135,17 @@ export default {
     "follows": "跟隨：{table}",
     "belongs": "一列屬於{ways}。",
     "sentence": {
-      "all": "可存取每一列。",
-      "allWhile": "每一列",
+      "all": "{table} 的每一列。",
+      "allWhile": "{table} 的每一列",
       "team": "僅屬於此人的資料列，或屬於其帶領團隊成員的資料列",
       "own": "僅屬於此人的資料列",
       "unowned": "以及尚無人負責的資料列",
       "while": "僅當 {column} 為 {values} 時",
-      "by": "且僅限 {column} 指明為其本人的列"
+      "by": "且僅限 {column} 指明為其本人的列",
+      "allWho": "{table} 的每一列，無論 {column} 是誰。",
+      "only": "僅 {table} 中{ways}的資料列",
+      "onlyTeam": "僅 {table} 中{ways}的資料列，或其帶領團隊成員的資料列",
+      "onlyTeamWays": "僅 {table} 中{ways}的資料列，或對其帶領團隊成員同樣成立的資料列"
     },
     "title": "「{role}」可存取哪些資料列",
     "intro": "角色可以存取它能開啟的資料表中的每一列，除非在此加以限制。只有當給某人該資料表的每個角色都受限時，限制才對此人生效。",
@@ -157,17 +161,23 @@ export default {
     "private": "僅由每一列所屬的人員讀取，其他人都不能讀取。這裡沒有可選項目。",
     "reachLabel": "{action}：哪些資料列",
     "reach": {
-      "all": "每一列",
-      "own": "自己的資料列",
-      "team": "自己的資料列和團隊的資料列",
+      "all": "所有資料列",
+      "own": "自己的",
+      "team": "團隊的",
       "allWhile": "每一列，僅當…"
     },
     "unowned": "以及尚無人負責的資料列",
     "widened": "此角色透過範圍較寬的權限開啟該資料表。儲存限制時，也會依名稱將該資料表授予它。",
-    "count": "{name} 將看到 {total} 列中的 {reached} 列。",
+    "count": "{name} 將看到 {table} 的 {total} 列中的 {reached} 列。",
     "capped": "此人帶領的人數超過單一範圍的上限，因此未統計其整個團隊。",
     "lifted": "{name} 還擁有 {roles}，該角色可存取每一列。此限制對其不生效。",
-    "several": "符合其中任一條即可。這些由應用程式設定，並依應用程式所寫保留。"
+    "several": "符合其中任一條即可。這些由應用程式設定，並依應用程式所寫保留。",
+    "wayIs": {
+      "person": "{column} 為此人",
+      "listing": "此人登記在 {table} 中",
+      "listingDated": "此人當天登記在 {table} 中",
+      "parent": "此人能存取其所屬{table}"
+    }
   },
   "partsOff": "它所屬的應用程式部分已關閉：在該部分開啟之前不授予任何權限。",
   "people": {

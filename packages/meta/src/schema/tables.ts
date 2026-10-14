@@ -1475,6 +1475,10 @@ export interface AdminiumNotificationSchedulesTable {
   digestDay: number | null;
   /** `HH:MM` in the person's zone; null sends a summary when its rule runs. */
   digestTime: string | null;
+  /** Quiet hours switched off, the hours kept for when they are on again (wave 0060). */
+  quietOff: BoolColumn;
+  /** "Not me": no rule's summary is made for this person (wave 0060). */
+  summariesOff: BoolColumn;
   updatedAt: Ts;
 }
 

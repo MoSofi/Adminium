@@ -169,7 +169,10 @@ variable that carries its own backup is marked **Has its own backup text** and
 needs nothing from the rule.
 
 For a date column you can also pick **Now** instead of typing a value;
-Adminium writes the timestamp your database expects.
+Adminium writes the timestamp your database expects. A rule an app ships may
+also fill a value from the app's settings (**From settings: …**) or with a day
+so many days after a date of the record (**28 days after signed_at**): the step
+shows such a value as it is, and it is worked out when the step runs.
 
 A column the product masks (an email address, a phone number) can be *read* by
 a rule and *sent to*, but never *written* by one.

@@ -19,7 +19,7 @@ import { columnOfInput } from './addOnSteps.js';
 import { holdsAddresses, knowsColumn } from './placeholders.js';
 import { t } from '../../i18n/t.js';
 import type { SourceTable } from '../api.js';
-import type { Action, Condition, FlowNode, Trigger } from './graph.js';
+import type { Action, Condition, FlowNode, Trigger, WriteValue } from './graph.js';
 import { OP_LABELS } from './vocabulary.js';
 
 function tableLabel(id: string, table: SourceTable | null): string {
@@ -130,11 +130,7 @@ function actionSentence(action: Action, table: SourceTable | null): string {
       if (entries.length === 0) return t('automations:node.update.sub', 'Set a value');
       return t('automations:node.update.summary', '{pairs}', {
         pairs: entries
-          .map(([column, value]) =>
-            typeof value === 'string'
-              ? `${column} = ${value}`
-              : `${column} = ${t('automations:rec.now', 'Now')}`,
-          )
+          .map(([column, value]) => `${column} = ${writeValueText(value)}`)
           .join(', '),
       });
     }
@@ -188,4 +184,19 @@ export function subLineFor(node: FlowNode, table: SourceTable | null): string {
     case 'stop':
       return t('automations:node.stop.sub', 'Ends the run');
   }
+}
+
+/** A value a step writes, as the step's editor and its summary say it: the text, "Now", a setting, or days on. */
+export function writeValueText(value: WriteValue): string {
+  if (typeof value === 'string') return value;
+  if ('setting' in value) return t('automations:rec.fromSetting', 'From settings: {column}', { column: value.setting.column });
+  if ('daysAfter' in value) {
+    const after = value.daysAfter;
+    const count = t('automations:rec.dayCount', '{count, plural, one {# day} other {# days}}', { count: after.days });
+    return t('automations:rec.daysAfter', '{days} after {from}', {
+      days: after.setting === undefined ? count : `${t('automations:rec.fromSetting', 'From settings: {column}', { column: after.setting.column })} (${count})`,
+      from: after.column ?? t('automations:rec.now', 'Now'),
+    });
+  }
+  return t('automations:rec.now', 'Now');
 }

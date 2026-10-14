@@ -62,6 +62,7 @@ import {
   findPageBySlug,
   type BootstrapData,
   type ResolvedPrefs,
+  type SystemAction,
 } from './bootstrap.js';
 import { isHostedPlanSurface } from './capabilities.js';
 import { requestIdForError, stateIdForError } from './query.js';
@@ -944,19 +945,26 @@ const changelogRoute = createRoute({
 // guarded: it acts on the caller's own account, so every signed-in user needs
 // it (a viewer changing their own password is the common case).
 
-const TeamPageLazy = lazy(async () => {
-  const mod = await import('../team/TeamPage.js');
-  return { default: mod.TeamPage };
-});
+/** A screen behind `StudioGuard`, its code fetched when it is first opened: `lazyRoute`, guarded. */
+function guardedRoute(requires: SystemAction, load: () => Promise<ComponentType>): () => ReactElement {
+  const Screen = lazyRoute(load);
+  return function GuardedRoute() {
+    return (
+      <StudioGuard requires={requires}>
+        <Screen />
+      </StudioGuard>
+    );
+  };
+}
+
+const TeamRouteComponent = guardedRoute('users.manage', async () => (await import('../team/TeamPage.js')).TeamPage);
+/** Teams: every team route asks for "manage users", reading included. */
+const TeamsRouteComponent = guardedRoute('users.manage', async () => (await import('../team/TeamsPage.js')).TeamsPage);
+const AuditRouteComponent = guardedRoute('audit.read', async () => (await import('../audit/AuditLogPage.js')).AuditLogPage);
 
 const RolesPageLazy = lazy(async () => {
   const mod = await import('../team/RolesPage.js');
   return { default: mod.RolesPage };
-});
-
-const AuditLogPageLazy = lazy(async () => {
-  const mod = await import('../audit/AuditLogPage.js');
-  return { default: mod.AuditLogPage };
 });
 
 const FilesPageLazy = lazy(async () => {
@@ -968,16 +976,6 @@ const SecurityPageLazy = lazy(async () => {
   const mod = await import('../account/SecurityPage.js');
   return { default: mod.SecurityPage };
 });
-
-function TeamRouteComponent() {
-  return (
-    <StudioGuard requires="users.manage">
-      <Suspense fallback={null}>
-        <TeamPageLazy />
-      </Suspense>
-    </StudioGuard>
-  );
-}
 
 /** Same choreography as `EmailMessages` — see the note above it. */
 function RolesMessages({ children }: { children: ReactElement }) {
@@ -992,16 +990,6 @@ function RolesRouteComponent() {
         <RolesMessages>
           <RolesPageLazy />
         </RolesMessages>
-      </Suspense>
-    </StudioGuard>
-  );
-}
-
-function AuditRouteComponent() {
-  return (
-    <StudioGuard requires="audit.read">
-      <Suspense fallback={null}>
-        <AuditLogPageLazy />
       </Suspense>
     </StudioGuard>
   );
@@ -1047,6 +1035,12 @@ const settingsTeamRoute = createRoute({
   getParentRoute: () => appRoute,
   path: '/settings/team',
   component: TeamRouteComponent,
+});
+
+const settingsTeamsRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/settings/teams',
+  component: TeamsRouteComponent,
 });
 
 const settingsRolesRoute = createRoute({
@@ -1113,6 +1107,7 @@ const routeTree = rootRoute.addChildren([
     knowledgeBaseRoute,
     changelogRoute,
     settingsTeamRoute,
+    settingsTeamsRoute,
     settingsRolesRoute,
     auditRoute,
     filesRoute,
