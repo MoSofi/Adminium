@@ -251,6 +251,70 @@ leave the first line. An empty value is left out of the second line.
 "secondary": ["room_type", "depart"]
 ```
 
+## Groups by a person
+
+A group keyed by a staff column (`"groupBy": ["owner_id"]`, a column with `rules.staff`) is called
+by the person's name without asking; `groupLabel` is for links. The rule is the people list's: a
+signed-in reader is told the name of anybody who is here, or is a sample person. Somebody
+suspended, only invited or removed is called "Unnamed person" in the reader's language, and so is
+everybody when the reader is an API key. A group is never called by an id. The groups are still
+only those of the rows the reader reaches, so a rep held to their own rows sees one bar, their own.
+A `matrix` carries keys and no labels at all, for a person as for anything else.
+
+A `record-list` may ask the same of its rows: `"people": ["owner_id"]` (up to four staff columns,
+each among `select`) adds `people` to the answer, the name of each person those rows hold by
+their id. `"daysSince": ["days:entered_stage_at"]` (up to two, `alias:column`) puts on each row,
+under `alias`, the whole days from a date or time column to today, counted by the server on the
+calendar of where the business is; a row with no date has none, a date to come counts 0.
+
+## A whole team's figures
+
+Every other card answers what its reader reaches: a rep's "open pipeline" is the rep's own. Under
+a heading that says "the team" that would be wrong twice: her own figure read as the business's,
+and a colleague's target beside it. A binding of `"kind": "team-figures"` is for those cards. It
+is answered **whole or not at all**: only to a person no row limit holds on the rows' table and on
+the targets' table, whose roles read both. Anybody else gets no figure; the card says "For the
+whole team only" and why. It never shows a part of the figure, and never a zero.
+
+```json
+"binding": {
+  "kind": "team-figures",
+  "source": { "name": "deals" },
+  "shape": "record-list",
+  "team": {
+    "owner": "owner_id",
+    "figures": [
+      { "key": "open", "fn": "count", "where": [{ "column": "state", "in": ["open"] }] },
+      { "key": "weighted", "fn": "sum", "column": "weighted_value", "where": [{ "column": "state", "in": ["open"] }] },
+      { "key": "booked", "fn": "sum", "column": "amount", "where": [{ "column": "state", "in": ["won"] }], "thisYear": "closed_on" }
+    ],
+    "target": { "table": "targets", "owner": "rep_id", "column": "amount", "year": "year" },
+    "cover": ["weighted", "booked"]
+  }
+}
+```
+
+- `owner` is the staff column of the table that says whose a row is.
+- `figures` (one to four) are each a `count` of rows or a `sum` of a number column, over the rows
+  that pass `where` (up to three `{ column, in }`) and, with `thisYear`, whose date column falls
+  in the current year where the business is. A key is lower-case letters, digits and `_`, and not
+  `name`, `person`, `target` or `cover`.
+- `target` names a table with a staff column and a number column. With `year` (a column holding
+  the year as a number), this year's targets are read.
+- `cover` lists the sums added up and measured against the target: 0.53 is 53 %. A person with no
+  target above zero has no cover, and neither has a team with none.
+
+As `record-list` the answer is a line a person, by name: `name`, each figure under its key,
+`target` and `cover`, with the team's own line under `totals`. Rows nobody owns are a line of
+their own, named "—", so the lines add up to the team's. Give a `mini-table` or a `data-grid` its
+`columns` by those names. As `single-metric` it is one figure over everybody: `"metric"` is a
+figure's key, `"target"` or `"cover"` (`cover` when there is one, else the first figure), so a
+`kpi-stat-card` with a percent format draws the team's cover.
+
+A role that should see these cards needs the table rights with no row limit (`rows` left out of
+its grant) on both tables. A manager whose role reads "their team's rows" is held by a limit, and
+is shown no figure: give such a manager cards of the ordinary kind, which answer her own reach.
+
 ## A chart's figures as a table
 
 Every chart and map card also carries its figures as a table: hidden from sight, read by a screen
@@ -401,6 +465,7 @@ A card's refusal is its own: in a batch, the other cards are answered. Codes are
 | `TABLE_FORBIDDEN` | 403 | The reader may not read the card's table, a table a filter or an order reaches, the limited table, a pools' table, or the rates behind earnings. |
 | `COLUMN_FORBIDDEN` | 403 | A column one link away, a column asked `under`, or the price behind earnings is masked for the reader or outside their role's columns. |
 | `NOT_FOUND` | 404 | A `capacity-counts` binding over a table with no limit. |
+| `TEAM_FIGURE_WHOLE_ONLY` | 403 | A `team-figures` binding asked by somebody a row limit holds on the rows' table or the targets' table. The card says the figure is the whole team's. |
 
 For the rules a limit counts by, see [Capacity](/reference/manifest/#capacity); for a booking that
 takes a person's time rather than a seat, see [Booking rules](/guides/apps/booking-rules/).

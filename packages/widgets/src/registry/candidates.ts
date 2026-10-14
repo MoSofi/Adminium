@@ -28,6 +28,7 @@
  */
 import type { DataShape } from '../page-config/data-shapes.js';
 import type { QueryDescriptor } from '../page-config/query-descriptor.js';
+import { BOARD_CARD_DAYS_ALIAS, BOARD_CARD_LINK_ALIAS, type BoardBadge, type BoardCardFacts, type BoardNote } from './board-facts.js';
 import type { WidgetFamily } from './types.js';
 
 /* ------------------------------------------------------------------ inputs */
@@ -165,6 +166,8 @@ export interface CandidateContext {
   board?: BoardColumns | undefined;
 }
 
+export { BOARD_CARD_DAYS_ALIAS, BOARD_CARD_LINK_ALIAS, type BoardBadge, type BoardCardFacts, type BoardNote };
+
 /** How a board header's figure is worked out of a column's cards. */
 export type BoardTotalFn = 'sum' | 'avg';
 
@@ -181,8 +184,14 @@ export interface BoardColumns {
         label: string;
         /** The column the board's columns are ordered by; absent ⇒ by their key. */
         order?: string | undefined;
+        /** One more column of those rows, shown small beside the heading (a stage's odds). */
+        badge?: BoardBadge | undefined;
       }
     | undefined;
+  /** What a card shows under its title, each from a column of the cards' table. */
+  card?: BoardCardFacts | undefined;
+  /** One sentence drawn above the board. */
+  note?: BoardNote | undefined;
   /** The column a card is titled with; absent ⇒ the table's display column. */
   title?: string | undefined;
   /** Figures a column's header shows beside its count (two at most). */
@@ -1437,7 +1446,26 @@ const boardsNamed: CandidateRule = {
     const from = board.columnsFrom;
     const title = board.title ?? view.displayColumn;
     const totals = (board.totals ?? []).filter((total) => view.columns.some((c) => c.name === total.column));
-    const read = [status.name, ...(title === null ? [] : [title]), ...totals.map((total) => total.column)];
+    /*
+     * What a card shows. Each piece is kept only where the table can answer
+     * it (the install says which could not, `boardColumnsProblem`): a link
+     * column, a staff column, a number, a date. The rows are asked for them
+     * here, so the card draws what the SERVER read as this reader: a name
+     * looked up through a link is empty out of their reach, a person is
+     * named by the people list's rule, and the days are the server's count.
+     */
+    const has = (name: string | undefined): name is string => name !== undefined && view.columns.some((c) => c.name === name);
+    const asked = board.card ?? {};
+    const linkColumn = asked.link?.split('.')[0];
+    const card: BoardCardFacts = {
+      ...(asked.link !== undefined && has(linkColumn) ? { link: asked.link } : {}),
+      ...(has(asked.person) ? { person: asked.person } : {}),
+      ...(has(asked.amount) ? { amount: asked.amount } : {}),
+      ...(asked.daysSince !== undefined && has(asked.daysSince.column) ? { daysSince: { ...asked.daysSince } } : {}),
+      ...(has(asked.date) ? { date: asked.date } : {}),
+    };
+    const shown = [card.link === undefined ? undefined : linkColumn, card.person, card.amount, card.daysSince?.column, card.date].filter((name): name is string => name !== undefined);
+    const read = [...new Set([status.name, ...(title === null ? [] : [title]), ...totals.map((total) => total.column), ...shown])];
     const select = listSelect(view);
     // The cards on the board. A test of a column the table lacks is no board at all: left out, it would draw every row.
     const only = board.only ?? [];
@@ -1458,6 +1486,10 @@ const boardsNamed: CandidateRule = {
         binding: descriptor(view, ctx, 'record-list', {
           select: [...read.filter((name) => !select.includes(name)), ...select],
           ...filters,
+          ...(card.link === undefined ? {} : { lookups: [`${BOARD_CARD_LINK_ALIAS}:${card.link}`] }),
+          ...(card.person === undefined ? {} : { people: [card.person] }),
+          // The longest-waiting first: the cards drawn stop at the list's limit, and those are the ones to see.
+          ...(card.daysSince === undefined ? {} : { daysSince: [`${BOARD_CARD_DAYS_ALIAS}:${card.daysSince.column}`], orderBy: [{ column: card.daysSince.column, dir: 'asc' as const }] }),
           limit: 200,
         }),
         config: {
@@ -1494,8 +1526,11 @@ const boardsNamed: CandidateRule = {
                   key: (status.references as { column: string }).column,
                   label: from.label,
                   ...(from.order === undefined ? {} : { order: from.order }),
+                  ...(from.badge === undefined ? {} : { badge: { column: from.badge.column, ...(from.badge.as === undefined ? {} : { as: from.badge.as }) } }),
                 },
               }),
+          ...(Object.keys(card).length === 0 ? {} : { card }),
+          ...(board.note === undefined ? {} : { note: { text: board.note.text, ...(board.note.texts === undefined ? {} : { texts: { ...board.note.texts } }), ...(board.note.href === undefined ? {} : { href: board.note.href }) } }),
           ...(title === null ? {} : { titleColumn: title }),
           ...(totals.length === 0 ? {} : { totals: totals.map((total) => ({ column: total.column, fn: total.fn })) }),
         },

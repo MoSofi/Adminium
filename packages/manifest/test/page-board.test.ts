@@ -25,7 +25,7 @@ function manifest(board: unknown, over: { template?: string; floor?: string; bin
     requiredSchema: {
       prefixed: true,
       tables: [
-        { ref: 'stages', columns: [id, { ref: 'name', type: 'text', maxLength: 80 }, { ref: 'position', type: 'int' }] },
+        { ref: 'stages', columns: [id, { ref: 'name', type: 'text', maxLength: 80 }, { ref: 'position', type: 'int' }, { ref: 'odds', type: 'decimal', scale: 2 }] },
         { ref: 'companies', columns: [id, { ref: 'name', type: 'text', maxLength: 80 }] },
         {
           ref: 'deals',
@@ -41,6 +41,8 @@ function manifest(board: unknown, over: { template?: string; floor?: string; bin
             { ref: 'hot', type: 'bool', default: false },
             { ref: 'region', type: 'text', maxLength: 40, nullable: true },
             { ref: 'closes_on', type: 'date', nullable: true },
+            { ref: 'owner_id', type: 'text', maxLength: 36, nullable: true, rules: { staff: true } },
+            { ref: 'entered_stage_at', type: 'timestamptz', nullable: true },
             { ref: 'notes', type: 'json', nullable: true },
           ],
         },
@@ -209,5 +211,60 @@ describe('a board page names its columns', () => {
     expect(WORD_FLOORS['config.board']).toBe('0.3.28');
     const old = issuesOf({ column: 'stage_id', columnsFrom: FROM }, { floor: '0.3.26' }).map((issue) => issue.message);
     expect(old.some((message) => message.includes('"config.board" is read by Adminium 0.3.28 and later'))).toBe(true);
+  });
+});
+
+describe('a board page says what its headings, its cards and itself show', () => {
+  const CARD = { link: 'company_id.name', person: 'owner_id', amount: 'amount', daysSince: { column: 'entered_stage_at', warnFrom: 14, alertFrom: 30 }, date: 'closes_on' };
+  const messages = (board: Record<string, unknown>) => issuesOf({ column: 'stage_id', columnsFrom: FROM, ...board }).map((issue) => `${Array.isArray(issue.path) ? issue.path.join('.') : String(issue.path)}: ${issue.message}`);
+
+  it('takes a badge from the columns’ table, a card’s facts from its own, a note, and a second total', () => {
+    expect(
+      messages({
+        columnsFrom: { ...FROM, badge: { column: 'odds', as: 'percent' } },
+        totals: [{ column: 'amount', fn: 'sum' }, { column: 'weight', fn: 'sum' }],
+        card: CARD,
+        note: { text: 'Columns come from Stages', texts: { 'de-DE': 'Die Spalten kommen aus den Phasen' }, href: '/p/crm-stages' },
+      }),
+    ).toEqual([]);
+    // Each piece of a card stands alone.
+    for (const [key, value] of Object.entries(CARD)) expect(messages({ card: { [key]: value } }), key).toEqual([]);
+  });
+
+  it('refuses a badge of a column the columns’ table lacks, or a share of one that is no number', () => {
+    expect(messages({ columnsFrom: { ...FROM, badge: { column: 'chance' } } })).toEqual(['pages.0.config.board.columnsFrom.badge.column: "stages" has no column "chance"']);
+    expect(messages({ columnsFrom: { ...FROM, badge: { column: 'name', as: 'percent' } } })[0]).toContain('is not a number, so it cannot be written as a percent');
+    expect(messages({ columnsFrom: { ...FROM, badge: { column: 'name' } } })).toEqual([]);
+    expect(messages({ columnsFrom: { ...FROM, badge: { column: 'odds', as: 'stars' } } }).length).toBeGreaterThan(0);
+  });
+
+  it('refuses a card’s link that is no link or reads a column its table lacks', () => {
+    expect(messages({ card: { link: 'region.name' } })[0]).toContain('"deals.region" is not a link');
+    expect(messages({ card: { link: 'company_id.town' } })[0]).toContain('"companies" has no column "town"');
+    expect(messages({ card: { link: 'nope.name' } })[0]).toContain('"deals" has no column "nope"');
+    expect(messages({ card: { link: 'company_id' } }).length).toBeGreaterThan(0);
+    expect(messages({ card: { link: 'company_id.name.more' } }).length).toBeGreaterThan(0);
+  });
+
+  it('refuses a person that is no staff column, an amount that is no number, and a day that is no date', () => {
+    expect(messages({ card: { person: 'region' } })[0]).toContain('is not a staff column');
+    expect(messages({ card: { person: 'nope' } })[0]).toContain('"deals" has no column "nope"');
+    expect(messages({ card: { amount: 'name' } })[0]).toContain('is not a number or money');
+    expect(messages({ card: { date: 'name' } })[0]).toContain('not a date or a time');
+    expect(messages({ card: { daysSince: { column: 'amount' } } })[0]).toContain('not a date or a time');
+    expect(messages({ card: { daysSince: { column: 'entered_stage_at', warnFrom: 30, alertFrom: 14 } } })[0]).toContain('warnFrom comes before alertFrom');
+    expect(messages({ card: { daysSince: { column: 'entered_stage_at', warnFrom: 0 } } }).length).toBeGreaterThan(0);
+  });
+
+  it('refuses an empty card, a key it does not know, and a note that opens anything but a path of the workspace', () => {
+    expect(messages({ card: {} }).length).toBeGreaterThan(0);
+    expect(messages({ card: { weighted: 'weight' } }).length).toBeGreaterThan(0);
+    expect(messages({ note: { text: '' } }).length).toBeGreaterThan(0);
+    expect(messages({ note: { text: 'x'.repeat(201) } }).length).toBeGreaterThan(0);
+    for (const href of ['https://evil.example', '//evil.example', 'javascript:alert(1)', '/p/a b', '/\\evil.example']) {
+      expect(messages({ note: { text: 'Stages', href } }).length, href).toBeGreaterThan(0);
+    }
+    expect(messages({ note: { text: 'Stages', texts: { nope_tag: 'x' } } }).length).toBeGreaterThan(0);
+    expect(pageBoardSchema.safeParse({ column: 'stage_id', note: { text: 'Stages', href: '/p/crm-stages' } }).success).toBe(true);
   });
 });

@@ -155,5 +155,8 @@
     "capped": "Tato osoba vede víc lidí, než kolik se do jednoho dosahu vejde, takže se nepočítá celý její tým.",
     "lifted": "{name} má také {roles}, což dává každý řádek. Toto omezení pro ni neplatí."
   },
-  "partsOff": "Její část aplikace je vypnutá: dokud se nezapne, role nic neuděluje."
+  "partsOff": "Její část aplikace je vypnutá: dokud se nezapne, role nic neuděluje.",
+  "people": {
+    "unnamed": "Nepojmenovaná osoba"
+  }
 }

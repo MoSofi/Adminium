@@ -444,6 +444,76 @@ describe('a board that takes its columns from a table', () => {
   });
 });
 
+describe('a board whose headings and cards say more', () => {
+  const page = boardPage({
+    title: 'Deals',
+    statusColumn: 'stage_id',
+    titleColumn: 'name',
+    columnsFrom: { table: 'public.stages', key: 'id', label: 'name', order: 'position', badge: { column: 'odds', as: 'percent' } },
+    totals: [
+      { column: 'amount', fn: 'sum' },
+      { column: 'weighted_value', fn: 'sum' },
+    ],
+    card: { amount: 'amount' },
+    note: { text: 'Columns come from Stages', href: '/p/stages' },
+    binding: CARDS,
+  });
+  const WITH_ODDS = [
+    { id: 2, name: 'Qualified', odds: '0.25', board_count: 0, board_total_0: '0', board_total_1: '0' },
+    { id: 1, name: 'Lead', odds: '0.10', board_count: 340, board_total_0: '12400.00', board_total_1: '1240.00' },
+    { id: 3, name: 'Proposal', odds: 0.125, board_count: 1, board_total_0: '300.00', board_total_1: '37.50' },
+  ];
+
+  it('asks for the badge’s column with the columns, and a measure for each total', async () => {
+    await renderBoard({ stages: WITH_ODDS, page });
+    await screen.findByText('Qualified');
+    await settle();
+    expect(columnReads).toHaveLength(1);
+    expect(columnReads[0]!.searchParams.get('select')).toBe('id,name,odds');
+    expect((JSON.parse(columnReads[0]!.searchParams.get('compute')!) as { measures: { id: string }[] }).measures.map((measure) => measure.id)).toEqual(['board_count', 'board_total_0', 'board_total_1']);
+  });
+
+  it('heads each column with the stage’s odds and both of the server’s totals, each named', async () => {
+    await renderBoard({ stages: WITH_ODDS, page });
+    await screen.findByText('Qualified');
+    expect(part('1', 'column-badge')).toBe('10%');
+    expect(part('2', 'column-badge')).toBe('25%');
+    expect(part('3', 'column-badge')).toBe('12.5%');
+    expect(part('1', 'column-total')).toBe('Amount €12,400 · weighted_value 1,240');
+  });
+
+  it('draws a card’s amount as its column is kept, and the page’s note', async () => {
+    await renderBoard({ stages: WITH_ODDS, page });
+    await screen.findByText('Qualified');
+    expect(within(screen.getByTestId('column-drop-1')).getByText('€100')).toBeDefined();
+    expect(screen.getByTestId('board-note').textContent).toBe('Columns come from Stages');
+  });
+
+  it('reads the columns again without the badge when the reader’s role does not show its column, and draws the board', async () => {
+    let asked = 0;
+    await renderBoard({
+      stages: WITH_ODDS,
+      page,
+      stagesReply: () => {
+        asked += 1;
+        return asked === 1
+          ? jsonResponse(403, { error: { code: 'COLUMN_FORBIDDEN', message: 'Column "odds" is not shown to your role.', requestId: 'r' } })
+          : jsonResponse(200, { data: WITH_ODDS.map(({ odds: _odds, ...rest }) => rest), page: { limit: 100, offset: 0, total: 3 } });
+      },
+    });
+    await screen.findByText('Qualified');
+    expect(columnReads.map((read) => read.searchParams.get('select'))).toEqual(['id,name,odds', 'id,name']);
+    expect(part('1', 'column-badge')).toBeUndefined();
+    expect(part('1', 'column-count')).toBe('340');
+  });
+
+  it('keeps any other refusal a refusal', async () => {
+    await renderBoard({ stages: WITH_ODDS, page, stagesReply: () => jsonResponse(403, { error: { code: 'TABLE_FORBIDDEN', message: 'You do not have access to this table.', requestId: 'r' } }) });
+    await screen.findByText(/could not be read/);
+    expect(columnReads).toHaveLength(1);
+  });
+});
+
 describe('a board over an enum the page named', () => {
   const TASKS = boardPage({
     title: 'Deals',

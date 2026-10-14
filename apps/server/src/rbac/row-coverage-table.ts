@@ -494,9 +494,9 @@ export const ROW_COVERAGE: Readonly<Record<string, RowMark>> = {
   'GET /api/v1/users/:id/rows': rows('system', 'Counts, for whoever manages people, of the rows that name a person in a staff column; no row is shown.'),
   'POST /api/v1/users/:id/rows/hand-over': rows('system', 'Moves the rows that name a person to another, for whoever manages people; a private table\'s rows are never moved.'),
   // --- /widget-data
-  'POST /api/v1/widget-data/batch': rows(['sub', 'whole'], 'The base table and every table joined, counted or labelled under its own test; the cache key carries the limit itself; a capacity card as the capacity counts.'),
+  'POST /api/v1/widget-data/batch': rows(['sub', 'whole'], 'The base table and every table joined, counted or labelled under its own test; the cache key carries the limit itself; a capacity card as the capacity counts; a whole team\'s figures only to a reader no limit holds on the tables they read, and refused to anybody else; a person named by the people list\'s rule, from the ids in the rows answered.'),
   'POST /api/v1/widget-data/link-filters': noRows('Compiles filters from a page\'s links and runs no query.'),
-  'POST /api/v1/widget-data/query': rows(['sub', 'whole'], 'The base table and every table joined, counted or labelled under its own test; the cache key carries the limit itself; a capacity card as the capacity counts.'),
+  'POST /api/v1/widget-data/query': rows(['sub', 'whole'], 'The base table and every table joined, counted or labelled under its own test; the cache key carries the limit itself; a capacity card as the capacity counts; a whole team\'s figures only to a reader no limit holds on the tables they read, and refused to anybody else; a person named by the people list\'s rule, from the ids in the rows answered.'),
   // --- /words
   'GET /api/v1/words/:addOn/:wordsId': rows(['whole', 'sub'], 'The ledger read is whole; the rows asked about are cut to the reached ones.'),
 };

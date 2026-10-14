@@ -230,6 +230,30 @@ the server over the deals the person may read. A stage somebody adds is a column
 second, for everybody who has the board open, with no update of the app. Give the app a records page over `stages`, so its people
 can keep the list, and give each role `table:@stages:read`.
 
+**What the headings and the cards say.** A stage keeps its odds, and a deal has a company, an
+owner, an amount and a day it should close. Say which columns those are, and the board draws them:
+
+```json
+"config": { "board": {
+  "column": "stage_id",
+  "columnsFrom": { "table": "stages", "label": "name", "order": "position", "badge": { "column": "odds", "as": "percent" } },
+  "title": "name",
+  "totals": [{ "column": "amount", "fn": "sum" }, { "column": "weighted_value", "fn": "sum" }],
+  "only": { "state": "open" },
+  "card": { "link": "company_id.name", "person": "owner_id", "amount": "amount",
+            "daysSince": { "column": "entered_stage_at", "warnFrom": 14, "alertFrom": 30 }, "date": "expected_close" },
+  "note": { "text": "Columns come from Stages", "href": "/p/sales-stages" }
+} }
+```
+
+Each heading then reads "Proposal 50%", its count, and the two totals. Each card shows the
+company's name, the owner as a person, the amount, how many days the deal has been in its stage
+(amber from 14, red from 30) and the day it should close. Keep the weighted value as a
+[formula](/reference/manifest/#formula) column of the deal, so the server can add it up. Every
+figure and every name is the reader's own: a rep held to their own deals sees their own counts and
+totals, and a company or a person they may not be shown is left blank. The rules are under
+[Pages](/reference/manifest/#pages).
+
 **The columns are the values of a choice column.** Use this when the list is fixed and the app's
 rules hang on it: a deal that is open, won or lost, with [states](/reference/manifest/#states)
 that say which moves are allowed. Name the column, and any `enum` will do, whatever its values:

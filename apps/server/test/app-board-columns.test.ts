@@ -76,7 +76,7 @@ const MANIFEST = {
   requiredSchema: {
     prefixed: true,
     tables: [
-      { ref: 'stages', columns: [id, { ref: 'name', type: 'text', maxLength: 80 }, { ref: 'position', type: 'int' }] },
+      { ref: 'stages', columns: [id, { ref: 'name', type: 'text', maxLength: 80 }, { ref: 'position', type: 'int' }, { ref: 'odds', type: 'decimal', scale: 2, nullable: true }] },
       {
         ref: 'deals',
         columns: [
@@ -87,6 +87,8 @@ const MANIFEST = {
           { ref: 'state', type: 'enum', enum: ['open', 'won', 'lost'], default: 'open' },
           { ref: 'owner_id', type: 'text', maxLength: 36, nullable: true, rules: { staff: true } },
           { ref: 'hot', type: 'bool', default: false },
+          { ref: 'entered_at', type: 'timestamptz', nullable: true },
+          { ref: 'closes_on', type: 'date', nullable: true },
           // Personal data: masked for whoever does not hold the grant to read it.
           { ref: 'region', type: 'text', maxLength: 40, nullable: true, rules: { personal: true } },
         ],
@@ -143,6 +145,24 @@ const MANIFEST = {
       bindings: { rows: 'deals' },
       config: { board: { column: 'state', title: 'name', totals: [{ column: 'amount', fn: 'sum' }], only: { hot: true } } },
     },
+    // The pipeline as its people read it: a stage's odds in its heading, and on a card its stage's name, its owner, its worth, its days and its day.
+    {
+      ref: 'crm-cards',
+      template: 'page-board',
+      title: { key: 'c', fallback: 'Pipeline, in full' },
+      nav: { group: 'records', icon: 'square-kanban', order: 6 },
+      bindings: { rows: 'deals' },
+      config: {
+        board: {
+          column: 'stage_id',
+          columnsFrom: { table: 'stages', label: 'name', order: 'position', badge: { column: 'odds', as: 'percent' } },
+          title: 'name',
+          totals: [{ column: 'amount', fn: 'sum' }],
+          card: { link: 'stage_id.name', person: 'owner_id', amount: 'amount', daysSince: { column: 'entered_at', warnFrom: 14, alertFrom: 30 }, date: 'closes_on' },
+          note: { text: 'Columns come from Stages', texts: { 'de-DE': 'Die Spalten kommen aus den Phasen' }, href: '/p/crm-pipeline' },
+        },
+      },
+    },
     {
       ref: 'crm-tasks',
       template: 'page-board',
@@ -156,14 +176,14 @@ const MANIFEST = {
     {
       key: 'rep',
       name: 'Sales rep',
-      permissions: ['table:@deals:read', 'table:@deals:update', 'table:@stages:read', 'page:@crm-pipeline:view', 'page:@crm-outcomes:view', 'page:@crm-open:view', 'page:@crm-hot:view'],
+      permissions: ['table:@deals:read', 'table:@deals:update', 'table:@stages:read', 'page:@crm-pipeline:view', 'page:@crm-outcomes:view', 'page:@crm-open:view', 'page:@crm-hot:view', 'page:@crm-cards:view'],
       // Their own deals, and a deal only while it is open: a won deal is not theirs to move.
       limits: { deals: { rows: { read: { reach: 'own' }, update: { reach: 'own' } }, writable: ['stage_id', 'name', 'amount'], writableFrom: { state: ['open'] } } },
     },
     {
       key: 'manager',
       name: 'Sales manager',
-      permissions: ['table:@deals:read', 'table:@deals:update', 'table:@stages:read', 'table:@stages:create', 'page:@crm-pipeline:view', 'page:@crm-outcomes:view', 'page:@crm-open:view', 'page:@crm-hot:view'],
+      permissions: ['table:@deals:read', 'table:@deals:update', 'table:@stages:read', 'table:@stages:create', 'page:@crm-pipeline:view', 'page:@crm-outcomes:view', 'page:@crm-open:view', 'page:@crm-hot:view', 'page:@crm-cards:view'],
       limits: { deals: { rows: { read: { reach: 'team' }, update: { reach: 'team' } } } },
     },
     {
@@ -399,6 +419,73 @@ for (const [dialect, available] of ENGINES) {
         totals: [{ column: 'amount', fn: 'sum' }],
       });
       expect((board?.config['binding'] as { select: string[] }).select).toEqual(expect.arrayContaining(['stage_id', 'name', 'amount']));
+    });
+
+    describe('a board that says what its headings and cards show', () => {
+      const stored = async () => {
+        const page = (await pagesRepo(s.meta).findBySlug(s.connectionId, 'crm-cards'))!;
+        const body = page.config as { config: { layout: { items: { i: string; widget: string; config: Record<string, unknown> }[] } } };
+        return body.config.layout.items.find((item) => item.widget === 'kanban-board')!;
+      };
+      const cards = async (who: keyof typeof people) => {
+        const board = await stored();
+        const res = await s.app.inject({ method: 'POST', url: '/api/v1/widget-data/batch', headers: { cookie: people[who].cookie }, payload: { requests: [{ instanceId: board.i, descriptor: board.config['binding'] }], params: {} } });
+        expect(res.statusCode, res.body).toBe(200);
+        const result = (res.json() as { results: Record<string, { ok: boolean; result: { rows: Record<string, unknown>[]; people?: Record<string, string> } }> }).results[board.i]!;
+        expect(result.ok, res.body).toBe(true);
+        return { ...result.result, body: res.body };
+      };
+
+      it('is stored with the badge, the card and the note the manifest named, and asks the server for each fact', async () => {
+        const board = await stored();
+        expect(board.config).toMatchObject({
+          columnsFrom: { table: s.table.stages, key: 'id', label: 'name', order: 'position', badge: { column: 'odds', as: 'percent' } },
+          card: { link: 'stage_id.name', person: 'owner_id', amount: 'amount', daysSince: { column: 'entered_at', warnFrom: 14, alertFrom: 30 }, date: 'closes_on' },
+          note: { text: 'Columns come from Stages', texts: { 'de-DE': 'Die Spalten kommen aus den Phasen' }, href: '/p/crm-pipeline' },
+        });
+        expect(board.config['binding']).toMatchObject({ lookups: ['adm_card_link:stage_id.name'], people: ['owner_id'], daysSince: ['adm_card_days:entered_at'], orderBy: [{ column: 'entered_at', dir: 'asc' }] });
+        expect((board.config['binding'] as { select: string[] }).select).toEqual(expect.arrayContaining(['stage_id', 'name', 'amount', 'owner_id', 'entered_at', 'closes_on']));
+      });
+
+      it('answers a rep her own cards, each with its stage’s name, her own name and no colleague’s, and the days the server counted', async () => {
+        // The calendar day where the server runs (this world sets no zone of its own), at noon: not UTC's day, which is another for an hour or two around midnight.
+        const ago = (days: number): string => `${new Date(Date.now() - days * 86_400_000).toLocaleDateString('en-CA')} 12:00:00${dialect === 'postgres' ? '+00' : ''}`;
+        await s.run(`UPDATE crm_deals SET entered_at = '${ago(20)}' WHERE id = 1`);
+        await s.run(`UPDATE crm_deals SET entered_at = '${ago(2)}' WHERE id = 3`);
+        const hers = await cards('dana');
+        expect(hers.rows.map((row) => [row['name'], row['adm_card_link'], row['adm_card_days']]).sort()).toEqual([
+          ['Deal 1', 'Lead', 20],
+          ['Deal 2', 'Proposal', null],
+          ['Deal 5', null, null],
+        ]);
+        expect(hers.people).toEqual({ [people.dana.id]: 'dana' });
+        expect(hers.body).not.toContain(people.omar.id);
+        expect(hers.body).not.toContain('omar');
+        // Her manager's are the team's, with both names.
+        const team = await cards('mara');
+        expect(Object.values(team.people ?? {}).sort()).toEqual(['dana', 'omar']);
+        expect(team.rows.find((row) => row['name'] === 'Deal 3')?.['adm_card_days']).toBe(2);
+      });
+
+      it('gives the stage’s name on a card only to somebody whose role reads the stages', async () => {
+        // The teller reads every deal and not the stages: the cards are theirs, with no stage's name on any.
+        const blind = await cards('tess');
+        expect(blind.rows.length).toBe(6);
+        expect(new Set(blind.rows.map((row) => row['adm_card_link']))).toEqual(new Set([null]));
+        expect(blind.body).not.toContain('Qualified');
+      });
+
+      it('reads each stage’s odds with its heading', async () => {
+        await s.run(`UPDATE crm_stages SET odds = 0.1 WHERE name = 'Lead'`);
+        const res = await get('dana', `${s.table.stages}?select=id,name,odds&order=position.asc&limit=101`);
+        expect(res.statusCode, res.body).toBe(200);
+        expect((res.json() as { data: Record<string, unknown>[] }).data.map((row) => [row['name'], row['odds'] === null ? null : Number(row['odds'])])).toEqual([
+          ['Lead', 0.1],
+          ['Qualified', null],
+          ['Proposal', null],
+          ['Closing', null],
+        ]);
+      });
     });
 
     it('answers every stage in its order, an empty one too, with a count and a sum of the deals a reader reaches', async () => {

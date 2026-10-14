@@ -1612,6 +1612,10 @@
         "title": "Widget není k dispozici",
         "bodyLead": "Není registrován žádný widget s identifikátorem",
         "bodyTail": "Může patřit k novější verzi nebo k odinstalovanému rozšíření."
+      },
+      "wholeOnly": {
+        "title": "Jen pro celý tým",
+        "body": "Tento údaj je za celý tým. Nezobrazuje se vám, protože vaše role čte jen část řádků, ze kterých se počítá."
       }
     }
   },
@@ -1940,7 +1944,8 @@
       "invalidOnly": "Tato tabule má zobrazovat jen některé řádky své tabulky a toto nastavení nelze přečíst, proto se tabule nezobrazí. Vygenerujte stránku znovu.",
       "columnsError": "Sloupce této tabule se nepodařilo načíst z tabulky {table}.",
       "columnsCut": "{count, plural, one {Zobrazuje se jen první sloupec: tabulka, ze které tato tabule bere sloupce, má více řádků.} few {Zobrazují se první # sloupce: tabulka, ze které tato tabule bere sloupce, má více řádků.} many {Zobrazuje se prvních # sloupce: tabulka, ze které tato tabule bere sloupce, má více řádků.} other {Zobrazuje se prvních # sloupců: tabulka, ze které tato tabule bere sloupce, má více řádků.}}",
-      "noRowsBody": "Karty se tu objeví, jakmile bude mít tabulka řádky."
+      "noRowsBody": "Karty se tu objeví, jakmile bude mít tabulka řádky.",
+      "days": "{count, plural, one {# den} few {# dny} many {# dne} other {# dní}}"
     },
     "calendar": {
       "eventCount": "{count, plural, one {{n} událost} few {{n} události} many {{n} události} other {{n} událostí}}",

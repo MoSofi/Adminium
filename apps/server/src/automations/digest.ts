@@ -289,15 +289,17 @@ function summable(reader: Reader, table: ResolvedTable, name: string): string | 
 
 /**
  * Figures over EVERY row of a table that meets `mandatory` and that the person
- * reaches: how many, and each column added up; for the whole, or a line an
+ * reaches (also what a dashboard's team figures are added up with,
+ * `widget-data/team-figures.ts`): how many, and each column added up; for the whole, or a line an
  * owner. Read by the database in one statement, through the same row test a
  * list of theirs is read through, so a figure is never of a row they could
  * not open.
  */
-async function fold(
-  reader: Reader,
+export async function fold(
+  reader: Pick<Reader, 'db' | 'dialect' | 'view' | 'reach'>,
   table: ResolvedTable,
-  mandatory: RecordFilter,
+  /** Null: every row the person reaches. */
+  mandatory: RecordFilter | null,
   columns: readonly string[],
   by: string | null,
 ): Promise<{ owner: string | null; count: number; sums: Record<string, number | null>; currency: string | null | undefined }[]> {
@@ -314,8 +316,8 @@ async function fold(
       ...columns.map((name, n) => eb.fn.sum(dynamic.ref(name)).as(`adm_s${String(n)}`)),
       ...(currency ? [eb.fn.min(dynamic.ref('currency')).as('adm_c0'), eb.fn.max(dynamic.ref('currency')).as('adm_c1')] : []),
       ...(by === null ? [] : [sql`${sql.ref(by)}`.as('adm_by')]),
-    ])
-    .where((eb) => compileFilter(eb as never, { view, table, canReadPii: false, dynamic, dialect }, mandatory));
+    ]);
+  if (mandatory !== null) qb = qb.where((eb) => compileFilter(eb as never, { view, table, canReadPii: false, dynamic, dialect }, mandatory)) as typeof qb;
   // Selected plainly, the table goes by its own name: that is what the test's subqueries reach back to.
   if (rowTest !== null) qb = qb.where(rowTest(db, table.name));
   if (by !== null) qb = qb.groupBy(dynamic.ref(by));

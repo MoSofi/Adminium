@@ -165,5 +165,8 @@ export default {
     "capped": "Cette personne dirige plus de personnes qu’une portée n’en contient : toute son équipe n’est pas comptée.",
     "lifted": "{name} a aussi {roles}, qui donne toutes les lignes. Cette limite ne vaut pas pour cette personne."
   },
-  "partsOff": "Sa partie de l’application est désactivée : il ne donne rien tant qu’elle n’est pas activée."
+  "partsOff": "Sa partie de l’application est désactivée : il ne donne rien tant qu’elle n’est pas activée.",
+  "people": {
+    "unnamed": "Personne sans nom"
+  }
 } as const;

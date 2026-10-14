@@ -1612,6 +1612,10 @@
         "title": "Widget indisponible",
         "bodyLead": "Aucun widget n’est enregistré sous",
         "bodyTail": "Il appartient peut-être à une version plus récente ou à une extension désinstallée."
+      },
+      "wholeOnly": {
+        "title": "Réservé à toute l’équipe",
+        "body": "Ce chiffre est celui de toute l’équipe. Il ne vous est pas affiché, car votre rôle ne lit qu’une partie des lignes à partir desquelles il est calculé."
       }
     }
   },
@@ -1940,7 +1944,8 @@
       "invalidOnly": "Ce tableau ne doit afficher qu’une partie des lignes de sa table, et ce réglage est illisible ; le tableau n’est donc pas affiché. Régénérez la page.",
       "columnsError": "Les colonnes de ce tableau n’ont pas pu être lues depuis {table}.",
       "columnsCut": "{count, plural, one {Seule la première colonne est affichée : la table dont ce tableau tire ses colonnes compte davantage de lignes.} other {Seules les # premières colonnes sont affichées : la table dont ce tableau tire ses colonnes compte davantage de lignes.}}",
-      "noRowsBody": "Les cartes apparaissent ici dès que la table contient des lignes."
+      "noRowsBody": "Les cartes apparaissent ici dès que la table contient des lignes.",
+      "days": "{count, plural, one {# jour} other {# jours}}"
     },
     "calendar": {
       "eventCount": "{count, plural, one {{n} événement} other {{n} événements}}",

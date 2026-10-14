@@ -10,10 +10,12 @@
  * ```json
  * "config": { "board": {
  *   "column": "stage_id",
- *   "columnsFrom": { "table": "crm_stages", "label": "name", "order": "position" },
+ *   "columnsFrom": { "table": "crm_stages", "label": "name", "order": "position", "badge": { "column": "odds", "as": "percent" } },
  *   "title": "name",
- *   "totals": [{ "column": "amount", "fn": "sum" }],
- *   "only": { "state": "open" }
+ *   "totals": [{ "column": "amount", "fn": "sum" }, { "column": "weighted_value", "fn": "sum" }],
+ *   "only": { "state": "open" },
+ *   "card": { "link": "company_id.name", "person": "owner_id", "amount": "amount", "daysSince": { "column": "entered_stage_at", "warnFrom": 14, "alertFrom": 30 }, "date": "expected_close" },
+ *   "note": { "text": "Columns come from Stages", "href": "/p/crm-stages" }
  * } }
  * ```
  *
@@ -22,13 +24,32 @@
  *    and the board's columns are the enum's values;
  *  - `columnsFrom`: the table whose rows are the board's columns — every row,
  *    a row with no card too — headed by its `label` column and ordered by its
- *    `order` column (left out: by its key);
+ *    `order` column (left out: by its key). `badge` names one more column of
+ *    those rows, shown small beside the heading: `as: "percent"` writes a
+ *    share kept as a fraction (0.1) as "10%", `"number"` a plain number, and
+ *    left out it is written as it is kept;
  *  - `title`: the column of the page's table a card is titled with;
  *  - `totals` (at most two): a number or money column of the page's table,
  *    summed or averaged over each column's cards and shown in its header;
  *  - `only` (one to three columns): which cards are on the board — a card is
  *    one when each column named holds its value, or one of its values. Both
  *    the cards listed and each header's count and totals are of those cards.
+ *
+ *  - `card`: what a card shows under its title, each from a column of the
+ *    page's table: `link` (`<link column>.<column of the row it points at>`:
+ *    the company's name), `person` (a staff column, shown as the person's
+ *    name), `amount` (a number or money), `daysSince` (days from a date or
+ *    time column to today, by the server's clock; from `warnFrom` days the
+ *    figure is amber and from `alertFrom` red; the longest-waiting cards come
+ *    first) and `date` (a date or time, as a day);
+ *  - `note`: one sentence drawn above the board, in the page's language
+ *    (`text`, and `texts` by language as a page's `titles` are), with an
+ *    optional `href` the whole note opens.
+ *
+ * Every figure and every name on the board is the READER's: a count and a
+ * total are of the cards their roles reach, a looked-up name is empty when
+ * its row is out of their reach, and a person is named as the people list
+ * names them.
  *
  * Every name is the app's own (a column ref), checked here against
  * `requiredSchema`, so an app's CI refuses a typo long before an install.
@@ -50,6 +71,9 @@ export const PAGE_BOARD_ONLY_VALUES_MAX = 20;
 /** Column types `only` compares: a choice, a yes/no, a link, text, a whole number. */
 export const PAGE_BOARD_ONLY_TYPES: readonly string[] = ['enum', 'bool', 'fk', 'text', 'int', 'bigint'];
 
+/** Column types a card's `daysSince` and `date` read. */
+export const PAGE_BOARD_DAY_TYPES: readonly string[] = ['date', 'timestamp', 'timestamptz', 'datetime'];
+
 const onlyValueSchema = z.union([z.string().min(1).max(200), z.number().finite(), z.boolean()]);
 
 export const pageBoardOnlySchema = z
@@ -63,10 +87,47 @@ export function pageBoardOnlyValues(value: z.infer<typeof onlyValueSchema> | z.i
   return Array.isArray(value) ? value : [value];
 }
 
+/** How a column's badge is written. */
+export const PAGE_BOARD_BADGE_AS = ['text', 'number', 'percent'] as const;
+
+/** The most days a card's `warnFrom` / `alertFrom` names. */
+export const PAGE_BOARD_DAYS_MAX = 3650;
+
+const localeTag = z.string().regex(/^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$/);
+
+export const pageBoardCardSchema = z
+  .object({
+    link: z.string().regex(/^[A-Za-z_][A-Za-z0-9_]*\.[A-Za-z_][A-Za-z0-9_]*$/).optional(),
+    person: refSchema.optional(),
+    amount: refSchema.optional(),
+    daysSince: z
+      .object({ column: refSchema, warnFrom: z.number().int().min(1).max(PAGE_BOARD_DAYS_MAX).optional(), alertFrom: z.number().int().min(1).max(PAGE_BOARD_DAYS_MAX).optional() })
+      .strict()
+      .refine((days) => days.warnFrom === undefined || days.alertFrom === undefined || days.warnFrom < days.alertFrom, { message: 'warnFrom comes before alertFrom' })
+      .optional(),
+    date: refSchema.optional(),
+  })
+  .strict()
+  .refine((card) => Object.keys(card).length > 0, { message: 'a card names at least one thing to show' });
+
+export const pageBoardNoteSchema = z
+  .object({
+    text: z.string().min(1).max(200),
+    texts: z.record(localeTag, z.string().min(1).max(200)).optional(),
+    // A path of this workspace: never an address elsewhere, and never a script.
+    href: z.string().regex(/^\/(?!\/)[^\s\\]{0,299}$/).optional(),
+  })
+  .strict();
+
 export const pageBoardSchema = z
   .object({
     column: refSchema,
-    columnsFrom: z.object({ table: refSchema, label: refSchema, order: refSchema.optional() }).strict().optional(),
+    columnsFrom: z
+      .object({ table: refSchema, label: refSchema, order: refSchema.optional(), badge: z.object({ column: refSchema, as: z.enum(PAGE_BOARD_BADGE_AS).optional() }).strict().optional() })
+      .strict()
+      .optional(),
+    card: pageBoardCardSchema.optional(),
+    note: pageBoardNoteSchema.optional(),
     title: refSchema.optional(),
     totals: z
       .array(z.object({ column: refSchema, fn: z.enum(PAGE_BOARD_TOTAL_FNS) }).strict())
@@ -128,6 +189,11 @@ export function pageBoardIssues<C extends ColumnShape>(pages: readonly PageShape
           const name = from[key];
           if (name !== undefined && !index.has(from.table, name)) out.push({ path: at('columnsFrom', key), message: `"${from.table}" has no column "${name}"` });
         }
+        const badge = from.badge === undefined ? undefined : index.column(from.table, from.badge.column);
+        if (from.badge !== undefined && badge === undefined) out.push({ path: at('columnsFrom', 'badge', 'column'), message: `"${from.table}" has no column "${from.badge.column}"` });
+        else if (badge !== undefined && from.badge?.as !== undefined && from.badge.as !== 'text' && !NUMERIC_TYPES.includes(badge.type)) {
+          out.push({ path: at('columnsFrom', 'badge', 'as'), message: `"${from.table}.${badge.ref}" is not a number, so it cannot be written as a ${from.badge.as}` });
+        }
       }
     }
     if (board.title !== undefined && !index.has(table, board.title)) {
@@ -141,6 +207,32 @@ export function pageBoardIssues<C extends ColumnShape>(pages: readonly PageShape
         out.push({ path: at('totals', t), message: `"${total.column}" is totalled this way twice` });
       }
     });
+    const card = board.card ?? {};
+    if (card.link !== undefined) {
+      const [via, shown] = card.link.split('.') as [string, string];
+      const link = index.column(table, via);
+      if (link === undefined) out.push({ path: at('card', 'link'), message: `"${table}" has no column "${via}"` });
+      else if (link.type !== 'fk' || link.references === undefined) out.push({ path: at('card', 'link'), message: `"${table}.${via}" is not a link, so a card has no row to read "${shown}" from` });
+      // A link to a table the manifest cannot see (an add-on's) is judged at the install, by the real table.
+      else if (index.table(link.references) !== undefined && !index.has(link.references, shown)) out.push({ path: at('card', 'link'), message: `"${link.references}" has no column "${shown}"` });
+    }
+    if (card.person !== undefined) {
+      const person = index.column(table, card.person) as (C & { rules?: { staff?: unknown } }) | undefined;
+      if (person === undefined) out.push({ path: at('card', 'person'), message: `"${table}" has no column "${card.person}"` });
+      else if (person.rules?.staff !== true) out.push({ path: at('card', 'person'), message: `"${table}.${card.person}" is not a staff column (rules.staff), so it holds no person to name` });
+    }
+    if (card.amount !== undefined) {
+      const amount = index.column(table, card.amount);
+      if (amount === undefined) out.push({ path: at('card', 'amount'), message: `"${table}" has no column "${card.amount}"` });
+      else if (!NUMERIC_TYPES.includes(amount.type)) out.push({ path: at('card', 'amount'), message: `"${table}.${card.amount}" is not a number or money` });
+    }
+    for (const [key, name] of [['daysSince', card.daysSince?.column], ['date', card.date]] as const) {
+      if (name === undefined) continue;
+      const day = index.column(table, name);
+      const here = key === 'daysSince' ? at('card', 'daysSince', 'column') : at('card', 'date');
+      if (day === undefined) out.push({ path: here, message: `"${table}" has no column "${name}"` });
+      else if (!PAGE_BOARD_DAY_TYPES.includes(day.type)) out.push({ path: here, message: `"${table}.${name}" is a ${day.type}, not a date or a time` });
+    }
     for (const [name, written] of Object.entries(board.only ?? {})) {
       const tested = index.column(table, name);
       if (tested === undefined) {

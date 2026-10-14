@@ -1622,6 +1622,10 @@ export default {
         "title": "Widget ikke tilgængelig",
         "bodyLead": "Ingen widget er registreret som",
         "bodyTail": "Den hører måske til en nyere version eller en afinstalleret udvidelse."
+      },
+      "wholeOnly": {
+        "title": "Kun for hele teamet",
+        "body": "Dette tal gælder hele teamet. Det vises ikke for dig, fordi din rolle kun læser nogle af de rækker, det er beregnet ud fra."
       }
     }
   },
@@ -1950,7 +1954,8 @@ export default {
       "invalidOnly": "Denne tavle skal kun vise nogle af rækkerne i sin tabel, og den indstilling kan ikke læses, så tavlen vises ikke. Generér siden igen.",
       "columnsError": "Tavlens kolonner kunne ikke læses fra {table}.",
       "columnsCut": "{count, plural, one {Kun den første kolonne vises: tabellen, som tavlen henter sine kolonner fra, har flere rækker.} other {De første # kolonner vises: tabellen, som tavlen henter sine kolonner fra, har flere rækker.}}",
-      "noRowsBody": "Kort vises her, så snart tabellen har rækker."
+      "noRowsBody": "Kort vises her, så snart tabellen har rækker.",
+      "days": "{count, plural, one {# dag} other {# dage}}"
     },
     "calendar": {
       "eventCount": "{count, plural, one {{n} begivenhed} other {{n} begivenheder}}",

@@ -90676,7 +90676,8 @@
                         "type": "string",
                         "enum": [
                           "table-query",
-                          "capacity-counts"
+                          "capacity-counts",
+                          "team-figures"
                         ]
                       },
                       "connectionId": {
@@ -90738,6 +90739,25 @@
                         "type": "array",
                         "items": {
                           "type": "string"
+                        }
+                      },
+                      "people": {
+                        "minItems": 1,
+                        "maxItems": 4,
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 128
+                        }
+                      },
+                      "daysSince": {
+                        "minItems": 1,
+                        "maxItems": 2,
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "pattern": "^[a-z][a-z0-9_]{0,62}:[A-Za-z_][A-Za-z0-9_]{0,127}$"
                         }
                       },
                       "aggregations": {
@@ -91350,6 +91370,13 @@
                         "required": [
                           "table"
                         ]
+                      },
+                      "team": {
+                        "type": "object",
+                        "propertyNames": {
+                          "type": "string"
+                        },
+                        "additionalProperties": {}
                       }
                     },
                     "required": [
@@ -91570,7 +91597,8 @@
                               "type": "string",
                               "enum": [
                                 "table-query",
-                                "capacity-counts"
+                                "capacity-counts",
+                                "team-figures"
                               ]
                             },
                             "connectionId": {
@@ -91632,6 +91660,25 @@
                               "type": "array",
                               "items": {
                                 "type": "string"
+                              }
+                            },
+                            "people": {
+                              "minItems": 1,
+                              "maxItems": 4,
+                              "type": "array",
+                              "items": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 128
+                              }
+                            },
+                            "daysSince": {
+                              "minItems": 1,
+                              "maxItems": 2,
+                              "type": "array",
+                              "items": {
+                                "type": "string",
+                                "pattern": "^[a-z][a-z0-9_]{0,62}:[A-Za-z_][A-Za-z0-9_]{0,127}$"
                               }
                             },
                             "aggregations": {
@@ -92244,6 +92291,13 @@
                               "required": [
                                 "table"
                               ]
+                            },
+                            "team": {
+                              "type": "object",
+                              "propertyNames": {
+                                "type": "string"
+                              },
+                              "additionalProperties": {}
                             }
                           },
                           "required": [

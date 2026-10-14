@@ -1488,6 +1488,10 @@ export default {
         "title": "Widget unavailable",
         "bodyLead": "No widget is registered as",
         "bodyTail": "It may belong to a newer version or an uninstalled extension."
+      },
+      "wholeOnly": {
+        "title": "For the whole team only",
+        "body": "This figure is the whole team’s. It is not shown to you, because your role reads only some of the rows it is worked out from."
       }
     }
   },
@@ -1804,7 +1808,8 @@ export default {
       "invalidOnly": "This board is set to show only some of its table’s rows, and that setting cannot be read, so the board is not drawn. Regenerate the page.",
       "columnsError": "This board’s columns could not be read from {table}.",
       "columnsCut": "{count, plural, one {Showing the first column only: the table this board takes its columns from has more rows.} other {Showing the first # columns: the table this board takes its columns from has more rows.}}",
-      "noRowsBody": "Cards appear here as soon as the table has rows."
+      "noRowsBody": "Cards appear here as soon as the table has rows.",
+      "days": "{count, plural, one {# day} other {# days}}"
     },
     "calendar": {
       "eventCount": "{count, plural, one {{n} event} other {{n} events}}",

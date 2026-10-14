@@ -18503,6 +18503,10 @@
     "status": "mt",
     "srcHash": "324136b3fd63"
   },
+  "roles.people.unnamed": {
+    "status": "mt",
+    "srcHash": "0ffd21b5b828"
+  },
   "roles.permission.apiKeysManage": {
     "status": "mt",
     "srcHash": "85a7ad27ceab"
@@ -30431,6 +30435,10 @@
     "status": "mt",
     "srcHash": "d55e93676db5"
   },
+  "ui.templates.board.days": {
+    "status": "mt",
+    "srcHash": "e7c9e031e81b"
+  },
   "ui.templates.board.invalidLayout": {
     "status": "mt",
     "srcHash": "00212c6295c1"
@@ -35570,6 +35578,14 @@
   "ui.widgets.system.statusPill.description": {
     "srcHash": "f43a01539b28",
     "status": "mt"
+  },
+  "ui.widgets.system.wholeOnly.body": {
+    "status": "mt",
+    "srcHash": "40631bc64a7a"
+  },
+  "ui.widgets.system.wholeOnly.title": {
+    "status": "mt",
+    "srcHash": "e5afb97e8bc1"
   },
   "ui.widgets.system.widgetMissing.bodyLead": {
     "srcHash": "f999ff0f4286",

@@ -167,11 +167,20 @@ export function WidgetHost({
     logConfigWarnings(instanceId, parsed);
   }, [instanceId, parsed]);
 
+  /*
+   * A figure that is the whole team's, asked by somebody whose role reads
+   * only some of the rows it is worked out from: the server refuses it
+   * (`TEAM_FIGURE_WHOLE_ONLY`). That is no failure and there is nothing to
+   * try again: the card says so in plain words, with no figure at all.
+   */
+  const wholeOnly = data.status === 'error' && (data.error as { code?: unknown } | null | undefined)?.code === 'TEAM_FIGURE_WHOLE_ONLY';
   const state: WidgetFrameState = missing
     ? 'loaded'
     : data.status === 'loading'
       ? 'skeleton'
-      : data.status === 'error'
+      : wholeOnly
+        ? 'empty'
+        : data.status === 'error'
         ? 'error'
         : isEmptyData(data.data, definition.dataContract)
           ? 'empty'
@@ -316,9 +325,14 @@ export function WidgetHost({
       // @adminium/i18n; passed through raw here so overrides stay visible
       // even before the i18n hookup (wires the translator).
       empty={
-        emptyOverride === undefined
-          ? undefined
-          : { title: emptyOverride.titleKey, body: emptyOverride.bodyKey }
+        wholeOnly
+          ? {
+              title: t('ui:widgets.system.wholeOnly.title', 'For the whole team only'),
+              body: t('ui:widgets.system.wholeOnly.body', 'This figure is the whole team’s. It is not shown to you, because your role reads only some of the rows it is worked out from.'),
+            }
+          : emptyOverride === undefined
+            ? undefined
+            : { title: emptyOverride.titleKey, body: emptyOverride.bodyKey }
       }
       errorMessage={data.status === 'error' ? errorMessageOf(data.error) : undefined}
       onRetry={data.refetch}

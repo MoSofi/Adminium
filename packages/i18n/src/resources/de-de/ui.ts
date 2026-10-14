@@ -1622,6 +1622,10 @@ export default {
         "title": "Widget nicht verfügbar",
         "bodyLead": "Es ist kein Widget registriert als",
         "bodyTail": "Es gehört möglicherweise zu einer neueren Version oder zu einer nicht installierten Erweiterung."
+      },
+      "wholeOnly": {
+        "title": "Nur für das ganze Team",
+        "body": "Diese Zahl gilt für das ganze Team. Sie wird Ihnen nicht angezeigt, weil Ihre Rolle nur einen Teil der Zeilen liest, aus denen sie berechnet wird."
       }
     }
   },
@@ -1950,7 +1954,8 @@ export default {
       "invalidOnly": "Dieses Board soll nur einen Teil der Zeilen seiner Tabelle zeigen, und diese Einstellung lässt sich nicht lesen. Deshalb wird das Board nicht angezeigt. Generieren Sie die Seite neu.",
       "columnsError": "Die Spalten dieses Boards konnten nicht aus {table} gelesen werden.",
       "columnsCut": "{count, plural, one {Es wird nur die erste Spalte angezeigt: Die Tabelle, aus der dieses Board seine Spalten nimmt, hat mehr Zeilen.} other {Es werden die ersten # Spalten angezeigt: Die Tabelle, aus der dieses Board seine Spalten nimmt, hat mehr Zeilen.}}",
-      "noRowsBody": "Karten erscheinen hier, sobald die Tabelle Zeilen hat."
+      "noRowsBody": "Karten erscheinen hier, sobald die Tabelle Zeilen hat.",
+      "days": "{count, plural, one {# Tag} other {# Tage}}"
     },
     "calendar": {
       "eventCount": "{count, plural, one {{n} Termin} other {{n} Termine}}",

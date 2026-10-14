@@ -204,6 +204,8 @@ export interface ShapedRecordList {
   total: number;
   /** The column each row is opened by (the table's one-column key); absent when the table has none. Every row carries it, in `columns` or not. */
   key?: string;
+  /** The name each person in the rows' staff columns goes by (`descriptor.people`); an id the reader is told no name for is not in it. */
+  people?: Record<string, string>;
 }
 
 export interface ShapedRecord {
@@ -521,6 +523,8 @@ export interface ShapeInput {
   connectionId?: string | undefined;
   /** What a foreign-key group is called, read by the route (`descriptor.groupLabel`). */
   groupLabels?: ReadonlyMap<string, string> | undefined;
+  /** What the second key's groups are called (a matrix's columns keyed by a staff column). */
+  colLabels?: ReadonlyMap<string, string> | undefined;
 }
 
 function columnMetaOf(compiled: CompiledWidgetQuery): ColumnMeta[] {
@@ -593,7 +597,7 @@ export function shapeRows(input: ShapeInput): ShapedPayload {
   const priorZoned = input.priorRows === undefined ? undefined : venueBuckets(compiled, input.priorRows);
   const priorRows = priorZoned === undefined || scan === null ? priorZoned : foldPercentileScan(scan, priorZoned);
   const groupNames = labelsOf(compiled, 0, input.groupLabels);
-  const colNames = labelsOf(compiled, 1, undefined);
+  const colNames = labelsOf(compiled, 1, input.colLabels);
 
   switch (compiled.shape) {
     case 'single-metric':

@@ -30,7 +30,9 @@
  * card is then placed by a link (a number as often as a word), and a drop
  * writes the column row's own key.
  */
-import { useMaybeT } from '../../lib/i18n.js';
+import { getFormatters } from '@adminium/i18n';
+import { useMaybeI18n, useMaybeT } from '../../lib/i18n.js';
+import { pickLocalized } from '../../lib/localized.js';
 import { useCallback, useMemo, useState } from 'react';
 
 import { KanbanBoard } from '../../families/boards/KanbanBoard.js';
@@ -48,6 +50,7 @@ import {
   type LaneDefInput,
 } from '../../families/boards/board-lib.js';
 import { servedChoicesOf } from '../../families/tables/choices.js';
+import { BOARD_CARD_DAYS_ALIAS, BOARD_CARD_LINK_ALIAS, type BoardBadge, type BoardCardFacts, type BoardNote } from '../../registry/board-facts.js';
 import { WidgetFrame } from '../../frame/WidgetFrame.js';
 import { UnplacedRowsNotice, nothingPlaced } from '../planning/UnplacedRowsNotice.js';
 import { WidgetHost, type WidgetDataState } from '../../frame/WidgetHost.js';
@@ -101,6 +104,8 @@ export interface BoardColumnRow {
   count?: number | undefined;
   /** The column's totals, formatted and joined, for its header. */
   total?: string | undefined;
+  /** A few quiet characters beside the heading, already written ("10%": a stage's odds, read from the column's own row). */
+  badge?: string | undefined;
 }
 
 /** The host's read of a board's columns. */
@@ -148,6 +153,12 @@ export interface PageBoardProps {
    * card's money) — merged as the page draws, never into the stored layout.
    */
   currency?: string | undefined;
+  /**
+   * How a card's amount is written, by the column it is read from: the host
+   * knows which columns are money and in which currency. Absent ⇒ a plain
+   * number in the reader's language.
+   */
+  formatAmount?: ((column: string, amount: number) => string) | undefined;
 }
 
 /** The stored board item config, normalized from the candidate vocabulary. */
@@ -174,6 +185,10 @@ interface BoardItemConfig {
    * (or list cards its headers do not count).
    */
   onlyInvalid: boolean;
+  /** What a card shows under its title (an app's `config.board.card`). */
+  card: BoardCardFacts;
+  /** A sentence above the board (an app's `config.board.note`). */
+  note: BoardNote | undefined;
 }
 
 /** One test a card passes to be on its board: its `column` holds one of `in`. */
@@ -187,6 +202,8 @@ export interface BoardColumnsFrom {
   key: string;
   label: string;
   order: string | undefined;
+  /** One more column of the columns' rows, drawn small beside each heading. */
+  badge?: BoardBadge | undefined;
 }
 
 export interface BoardTotal {
@@ -201,7 +218,46 @@ function columnsFromOf(config: Record<string, unknown>): BoardColumnsFrom | unde
   const table = configString(from, 'table');
   const label = configString(from, 'label');
   if (table === undefined || label === undefined) return undefined;
-  return { table, label, key: configString(from, 'key') ?? 'id', order: configString(from, 'order') };
+  const rawBadge = typeof from['badge'] === 'object' && from['badge'] !== null ? (from['badge'] as Record<string, unknown>) : undefined;
+  const badgeColumn = rawBadge === undefined ? undefined : configString(rawBadge, 'column');
+  const as = rawBadge?.['as'];
+  return {
+    table,
+    label,
+    key: configString(from, 'key') ?? 'id',
+    order: configString(from, 'order'),
+    ...(badgeColumn === undefined ? {} : { badge: { column: badgeColumn, ...(as === 'text' || as === 'number' || as === 'percent' ? { as } : {}) } }),
+  };
+}
+
+/** The stored `card`: each piece that names a column, and nothing it cannot read. */
+function cardFactsOf(config: Record<string, unknown>): BoardCardFacts {
+  const raw = config['card'];
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return {};
+  const card = raw as Record<string, unknown>;
+  const rawDays = typeof card['daysSince'] === 'object' && card['daysSince'] !== null ? (card['daysSince'] as Record<string, unknown>) : undefined;
+  const daysColumn = rawDays === undefined ? undefined : configString(rawDays, 'column');
+  const whole = (value: unknown): number | undefined => (typeof value === 'number' && Number.isInteger(value) && value > 0 ? value : undefined);
+  const link = configString(card, 'link');
+  return {
+    ...(link === undefined || !/^[A-Za-z_][A-Za-z0-9_]*\.[A-Za-z_][A-Za-z0-9_]*$/.test(link) ? {} : { link }),
+    ...(configString(card, 'person') === undefined ? {} : { person: configString(card, 'person') }),
+    ...(configString(card, 'amount') === undefined ? {} : { amount: configString(card, 'amount') }),
+    ...(daysColumn === undefined ? {} : { daysSince: { column: daysColumn, warnFrom: whole(rawDays?.['warnFrom']), alertFrom: whole(rawDays?.['alertFrom']) } }),
+    ...(configString(card, 'date') === undefined ? {} : { date: configString(card, 'date') }),
+  };
+}
+
+/** The stored `note`: its sentence, by language, and an address inside this workspace (any other is dropped). */
+function noteOf(config: Record<string, unknown>): BoardNote | undefined {
+  const raw = config['note'];
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return undefined;
+  const note = raw as Record<string, unknown>;
+  const text = configString(note, 'text');
+  if (text === undefined) return undefined;
+  const texts = typeof note['texts'] === 'object' && note['texts'] !== null ? Object.fromEntries(Object.entries(note['texts'] as Record<string, unknown>).filter((entry): entry is [string, string] => typeof entry[1] === 'string' && entry[1] !== '')) : undefined;
+  const href = configString(note, 'href');
+  return { text, ...(texts === undefined ? {} : { texts }), ...(href !== undefined && /^\/(?!\/)[^\s\\]*$/.test(href) ? { href } : {}) };
 }
 
 function totalsOf(config: Record<string, unknown>): BoardTotal[] {
@@ -316,6 +372,8 @@ export function boardItemConfigOf(config: Record<string, unknown>): BoardItemCon
     totals: totalsOf(config),
     only: only ?? [],
     onlyInvalid: only === null || !cardsAskOnly(config, only),
+    card: cardFactsOf(config),
+    note: noteOf(config),
   };
 }
 
@@ -333,6 +391,7 @@ export function boardColumnDefsOf(
   const figures = (row: BoardColumnRow | undefined) => ({
     ...(row?.count === undefined ? {} : { count: row.count }),
     ...(row?.total === undefined ? {} : { total: row.total }),
+    ...(row?.badge === undefined ? {} : { badge: row.badge }),
   });
   if (fromTable) {
     const base = resolveColumns([], read.map((row) => ({ id: row.id, ...(row.label === undefined ? {} : { label: row.label }) })), words);
@@ -354,6 +413,8 @@ export function boardCardsOf(
   dates: PlanningDateOptions = {},
   /** The column a row is opened by, as the answer names it. */
   keyField?: string,
+  /** How the card's own facts (`cfg.card`) are written; absent ⇒ none is drawn. */
+  facts?: BoardCardWriter | undefined,
 ): BoardCardData[] {
   return rows.map((row, index) => {
     const card = toBoardCard(row, index, {
@@ -369,8 +430,52 @@ export function boardCardsOf(
     if (cfg.roadmap && cfg.dateColumn !== undefined) {
       card.column = quarterKeyOf(splitInstant(row[cfg.dateColumn], dates)?.day ?? '');
     }
+    if (facts !== undefined) writeCardFacts(card, row, cfg.card, facts);
     return card;
   });
+}
+
+/** What turns a row's raw values into a card's words: the host's formats and the answer's own names. */
+export interface BoardCardWriter {
+  /** The name each person in the rows goes by, as the server answered (`people`): an id that is not in it is drawn as nobody. */
+  people: Readonly<Record<string, string>>;
+  amount: (column: string, value: number) => string;
+  /** A stored day or instant as a day in the reader's language; undefined when it is no date. */
+  day: (column: string, value: unknown) => string | undefined;
+  /** "12 days", in the reader's language. */
+  days: (count: number) => string;
+}
+
+/**
+ * The card's declared facts, each from what the SERVER answered: the name
+ * looked up through a link (empty when its row is out of the reader's
+ * reach), the person's name (never the id), the amount, the days the server
+ * counted, the date. A fact with no value is simply not drawn.
+ */
+function writeCardFacts(card: BoardCardData, row: Record<string, unknown>, asked: BoardCardFacts, facts: BoardCardWriter): void {
+  if (asked.link !== undefined) {
+    const name = row[BOARD_CARD_LINK_ALIAS];
+    card.client = typeof name === 'string' && name !== '' ? name : typeof name === 'number' ? String(name) : undefined;
+  }
+  if (asked.person !== undefined) {
+    const id = row[asked.person];
+    card.owner = typeof id === 'string' ? facts.people[id] : undefined;
+  }
+  if (asked.amount !== undefined) {
+    const raw = row[asked.amount];
+    const amount = raw === null || raw === undefined || raw === '' ? Number.NaN : Number(raw);
+    card.budget = Number.isFinite(amount) ? facts.amount(asked.amount, amount) : undefined;
+  }
+  if (asked.daysSince !== undefined) {
+    const count = row[BOARD_CARD_DAYS_ALIAS];
+    if (typeof count === 'number' && Number.isFinite(count)) {
+      card.tag = facts.days(count);
+      card.tagTone = asked.daysSince.alertFrom !== undefined && count >= asked.daysSince.alertFrom ? 'danger' : asked.daysSince.warnFrom !== undefined && count >= asked.daysSince.warnFrom ? 'warn' : 'neutral';
+    } else {
+      card.tag = undefined;
+    }
+  }
+  if (asked.date !== undefined) card.due = facts.day(asked.date, row[asked.date]);
 }
 
 /** Roadmap columns: the distinct quarters present, chronologically. */
@@ -396,7 +501,9 @@ function BoardSlot({
   addRefusal,
   onDismissAddRefusal,
   trackAdd,
+  formatAmount,
 }: {
+  formatAmount: PageBoardProps['formatAmount'];
   item: LayoutItem;
   state: WidgetDataState;
   boardColumns: BoardColumnsState | undefined;
@@ -430,9 +537,26 @@ function BoardSlot({
   const dateKind = planningDateKindOf(state.data, cfg.dateColumn);
   const answered = state.data as { key?: unknown } | null | undefined;
   const keyField = typeof answered?.key === 'string' ? answered.key : undefined;
+  const language = useMaybeI18n()?.locale ?? locale;
+  // The card's own facts, written from what the server answered: its names for the people in these rows, its count of days.
+  const people = (state.data as { people?: unknown } | null | undefined)?.people;
+  const writer = useMemo<BoardCardWriter | undefined>(() => {
+    if (Object.keys(cfg.card).length === 0) return undefined;
+    const fmt = getFormatters(language ?? 'en-US');
+    return {
+      people: typeof people === 'object' && people !== null ? (people as Record<string, string>) : {},
+      amount: (column, value) => formatAmount?.(column, value) ?? fmt.number(value, { maximumFractionDigits: 2 }),
+      day: (column, value) => {
+        // A day with no time is that day everywhere; an instant is the day it falls on where the board's dates are read.
+        const day = splitInstant(value, { timeZone, kind: planningDateKindOf(state.data, column) })?.day;
+        return day === undefined || day === '' ? undefined : fmt.date(`${day}T12:00:00Z`, 'medium', { timeZone: 'UTC' });
+      },
+      days: (count) => t('ui:templates.board.days', '{count, plural, one {# day} other {# days}}', { count }),
+    };
+  }, [cfg.card, people, language, formatAmount, timeZone, state.data, t]);
   const cards = useMemo(
-    () => boardCardsOf(rows, cfg, { timeZone, kind: dateKind }, keyField),
-    [rows, cfg, timeZone, dateKind, keyField],
+    () => boardCardsOf(rows, cfg, { timeZone, kind: dateKind }, keyField, writer),
+    [rows, cfg, timeZone, dateKind, keyField, writer],
   );
   const roadmap = cfg.roadmap && cfg.dateColumn !== undefined;
   // The answer's words for a status and a lane, read in the reader's language.
@@ -569,6 +693,22 @@ function BoardSlot({
           `h-full`, and as a plain sibling below the notice it overflowed the
           slot by the notice's height, into the composer placed under it. */}
       <div className="flex h-full min-h-0 flex-col">
+        {cfg.note === undefined ? null : (
+          // The page's own sentence about its board ("Columns come from Stages"), in the reader's language.
+          <p data-testid="board-note" className="px-3 pt-2 text-caption text-fg-muted">
+            {cfg.note.href === undefined || onEvent === undefined ? (
+              pickLocalized(cfg.note.text, cfg.note.texts, language)
+            ) : (
+              <button
+                type="button"
+                className="rounded-sm text-start underline decoration-dotted underline-offset-2 hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                onClick={() => void onEvent(item.i, { type: 'drill-through', href: cfg.note?.href ?? '' })}
+              >
+                {pickLocalized(cfg.note.text, cfg.note.texts, language)}
+              </button>
+            )}
+          </p>
+        )}
         {state.status === 'success' && fromTable && columns.length > 0 && placed > 0 && unplaced > 0 ? (
           // Some cards are on the board and some are on no column: a stage row
           // that was deleted, one past the columns that are read, or no stage
@@ -749,6 +889,7 @@ export function PageBoard({
   className,
   testId,
   currency,
+  formatAmount,
 }: PageBoardProps) {
   const t = useMaybeT();
   const parsed = useMemo(() => parseTemplateConfig(config), [config]);
@@ -797,6 +938,7 @@ export function PageBoard({
               addRefusal={addRefusal}
               onDismissAddRefusal={dismissAddRefusal}
               trackAdd={trackAdd}
+              formatAmount={formatAmount}
             />
           );
         }

@@ -1612,6 +1612,10 @@
         "title": "小工具無法使用",
         "bodyLead": "沒有小工具註冊為",
         "bodyTail": "它可能屬於較新的版本，或未安裝的擴充功能。"
+      },
+      "wholeOnly": {
+        "title": "僅限整個團隊",
+        "body": "此數字屬於整個團隊。由於你的角色只能讀取用來計算它的部分資料列，因此不向你顯示。"
       }
     }
   },
@@ -1940,7 +1944,8 @@
       "invalidOnly": "此看板設定為只顯示其資料表中的部分列，但該設定無法讀取，因此看板未顯示。請重新產生此頁面。",
       "columnsError": "無法從 {table} 讀取此看板的欄。",
       "columnsCut": "{count, plural, other {僅顯示前 # 欄：此看板取欄的資料表還有更多列。}}",
-      "noRowsBody": "資料表中一有列，卡片就會顯示在這裡。"
+      "noRowsBody": "資料表中一有列，卡片就會顯示在這裡。",
+      "days": "{count, plural, other {# 天}}"
     },
     "calendar": {
       "eventCount": "{count, plural, other {{n} events}}",

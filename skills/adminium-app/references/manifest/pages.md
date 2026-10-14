@@ -72,30 +72,17 @@ open that form, with the day filled in.
 ```json
 "config": { "board": {
   "column": "stage_id",
-  "columnsFrom": { "table": "stages", "label": "name", "order": "position" },
+  "columnsFrom": { "table": "stages", "label": "name", "order": "position", "badge": { "column": "odds", "as": "percent" } },
   "title": "name",
-  "totals": [{ "column": "amount", "fn": "sum" }],
-  "only": { "state": "open" }
+  "totals": [{ "column": "amount", "fn": "sum" }, { "column": "weighted_value", "fn": "sum" }],
+  "only": { "state": "open" },
+  "card": {
+    "link": "company_id.name",
+    "person": "owner_id",
+    "amount": "amount",
+    "daysSince": { "column": "entered_stage_at", "warnFrom": 14, "alertFrom": 30 },
+    "date": "expected_close"
+  },
+  "note": { "text": "Columns come from Stages", "texts": { "de-DE": "Die Spalten kommen aus den Phasen" }, "href": "/p/crm-stages" }
 } }
 ```
-
-| Field | Required | Rule |
-|---|---|---|
-| `column` | yes | The column of the page's table a card is placed by. With `columnsFrom` it is a link (`"type": "fk"`) to that table. Without `columnsFrom` it is an `enum` column, and the board's columns are its values. |
-| `columnsFrom` | no | `{ "table", "label", "order" }`: the table of the app whose rows are the board's columns, the column of it a board column is headed with, and the column the board's columns are ordered by. `order` may be left out; the columns are then in the order of their key. |
-| `title` | no | The column of the page's table a card is titled with. Left out: the table's own title column. |
-| `totals` | no | One or two `{ "column", "fn" }`: a number or money column of the page's table, and `sum` or `avg`. Each column's header shows the figure beside its count. |
-| `only` | no | Which rows of the page's table are cards on the board: one to three `"column": value` or `"column": [values]` (up to 20 values each). A row is a card when every column named holds its value, or one of its values. Left out: every row. |
-
-With `columnsFrom` the board draws one column for each row of that table, a row with no card
-too, and reads them when the page opens. A row added, renamed, moved or removed there changes the
-board for everybody looking at it who may read that table, about a second later, with no update of
-the app; so does a card a colleague saves. A card whose link is empty is on no column. Dropping a card on a column saves that row's key in the card's link, as any save of the
-record would: where a role's limit or a state rule refuses the save, the card goes back and the
-board shows the reason.
-
-The count and the totals in a column's header are worked out on the server, over the rows the
-person may read: a rep held to their own deals sees the count and the worth of their own. Money
-is shown in the column's own currency when it has one, else in the install's. A board draws the
-first 200 cards of its table; the count is of all of them. It draws the first 100 rows of
-`columnsFrom.table` as columns, and says so when that table has more.

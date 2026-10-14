@@ -1622,6 +1622,10 @@ export default {
         "title": "小组件不可用",
         "bodyLead": "没有小组件注册为",
         "bodyTail": "它可能属于更高版本，或来自某个未安装的扩展。"
+      },
+      "wholeOnly": {
+        "title": "仅限整个团队",
+        "body": "此数字属于整个团队。由于你的角色只能读取用于计算它的部分行，因此不向你显示。"
       }
     }
   },
@@ -1950,7 +1954,8 @@ export default {
       "invalidOnly": "此看板被设置为只显示其数据表中的部分行，但该设置无法读取，因此看板未显示。请重新生成此页面。",
       "columnsError": "无法从 {table} 读取此看板的列。",
       "columnsCut": "{count, plural, other {仅显示前 # 列：此看板取列的数据表还有更多行。}}",
-      "noRowsBody": "表中一有行，卡片就会显示在这里。"
+      "noRowsBody": "表中一有行，卡片就会显示在这里。",
+      "days": "{count, plural, other {# 天}}"
     },
     "calendar": {
       "eventCount": "{count, plural, other {{n} events}}",

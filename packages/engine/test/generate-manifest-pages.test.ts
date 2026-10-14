@@ -96,6 +96,7 @@ const SALES: ManifestPagesInput['requiredSchema'] = {
         { ref: 'id', type: 'int', role: 'pk' },
         { ref: 'name', type: 'text', maxLength: 80 },
         { ref: 'position', type: 'int' },
+        { ref: 'odds', type: 'decimal', nullable: true },
       ],
     },
     {
@@ -106,6 +107,9 @@ const SALES: ManifestPagesInput['requiredSchema'] = {
         { ref: 'stage_id', type: 'fk', references: 'stages', nullable: true },
         { ref: 'amount', type: 'money', nullable: true },
         { ref: 'tier', type: 'enum', enum: ['bronze', 'silver', 'gold'] },
+        { ref: 'owner_id', type: 'text', maxLength: 36, nullable: true },
+        { ref: 'entered_at', type: 'timestamptz', nullable: true },
+        { ref: 'closes_on', type: 'date', nullable: true },
       ],
     },
   ],
@@ -196,6 +200,43 @@ describe('a board whose columns a page names', () => {
     expect((all?.config['binding'] as { filters?: unknown }).filters).toBeUndefined();
     expect((all?.config['columnsBinding'] as { filters?: unknown }).filters).toEqual([{ column: 'tier', op: 'in', value: ['bronze', 'silver', 'gold'] }]);
     expect(all?.config['only']).toBeUndefined();
+  });
+
+  it('carries a heading’s badge, a card’s facts and the note to the stored board, and asks the server for each fact', () => {
+    const written = {
+      ...BOARD,
+      columnsFrom: { ...BOARD.columnsFrom, badge: { column: 'odds', as: 'percent' } },
+      card: { link: 'stage_id.name', person: 'owner_id', amount: 'amount', daysSince: { column: 'entered_at', warnFrom: 14, alertFrom: 30 }, date: 'closes_on' },
+      note: { text: 'Columns come from Stages', texts: { 'de-DE': 'Die Spalten kommen aus den Phasen' }, href: '/p/stages' },
+    };
+    const board = boardColumnsOf(written, (name) => `public.${name}`)!;
+    expect(board).toMatchObject({ columnsFrom: { table: 'public.stages', badge: { column: 'odds', as: 'percent' } }, card: written.card, note: written.note });
+    const model = modelFromRequiredSchema({ requiredSchema: SALES });
+    const built = composeRequestedPage(model, 'public.deals', 'page-board', { ...CONTEXT, board });
+    expect(built.reason).toBe('');
+    const item = (built.envelope?.['config'] as { layout: { items: { widget: string; config: Record<string, unknown> }[] } }).layout.items.find((candidate) => candidate.widget === 'kanban-board');
+    expect(item?.config).toMatchObject({ columnsFrom: { badge: { column: 'odds', as: 'percent' } }, card: written.card, note: written.note });
+    const binding = item?.config['binding'] as { select: string[]; lookups: string[]; people: string[]; daysSince: string[]; orderBy: unknown };
+    expect(binding).toMatchObject({ lookups: ['adm_card_link:stage_id.name'], people: ['owner_id'], daysSince: ['adm_card_days:entered_at'], orderBy: [{ column: 'entered_at', dir: 'asc' }] });
+    expect(binding.select).toEqual(expect.arrayContaining(['stage_id', 'name', 'amount', 'owner_id', 'entered_at', 'closes_on']));
+    // A board that names none of it is stored as it always was.
+    const plain = composeRequestedPage(model, 'public.deals', 'page-board', { ...CONTEXT, board: boardColumnsOf(BOARD, (name) => `public.${name}`)! });
+    const bare = (plain.envelope?.['config'] as { layout: { items: { widget: string; config: Record<string, unknown> }[] } }).layout.items.find((candidate) => candidate.widget === 'kanban-board');
+    for (const key of ['card', 'note']) expect(bare?.config[key]).toBeUndefined();
+    for (const key of ['lookups', 'people', 'daysSince', 'orderBy']) expect((bare?.config['binding'] as Record<string, unknown>)[key]).toBeUndefined();
+  });
+
+  it('says which of a card’s facts or which badge the real table cannot answer, and builds no other board', () => {
+    const model = modelFromRequiredSchema({ requiredSchema: SALES });
+    const from = { table: 'public.stages', label: 'name' };
+    const reason = (more: Record<string, unknown>) => composeRequestedPage(model, 'public.deals', 'page-board', { ...CONTEXT, board: { column: 'stage_id', columnsFrom: from, ...more } as never }).reason;
+    expect(reason({ columnsFrom: { ...from, badge: { column: 'chance' } } })).toBe("stages has no column chance for the board's columns");
+    expect(reason({ card: { link: 'tier.name' } })).toBe('deals.tier is not a link, so a card has no row to read name from');
+    expect(reason({ card: { link: 'stage_id.colour' } })).toBe('stages has no column colour for a card');
+    expect(reason({ card: { person: 'nobody' } })).toBe("deals has no column nobody for a card's person");
+    expect(reason({ card: { amount: 'name' } })).toBe('deals.name is not a number, so a card cannot show it as an amount');
+    expect(reason({ card: { daysSince: { column: 'amount' } } })).toBe('deals.amount is not a date or a time, so a card cannot read a day from it');
+    expect(reason({ card: { date: 'nope' } })).toBe("deals has no column nope for a card's date");
   });
 
   it('reads only as the manifest writes it, and refuses a board whose only cannot be asked rather than draw every row', () => {

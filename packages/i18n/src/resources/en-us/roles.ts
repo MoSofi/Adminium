@@ -165,5 +165,8 @@ export default {
     "capped": "This person leads more people than one reach holds, so not all of their team is counted.",
     "lifted": "{name} also holds {roles}, which gives every row. This limit does not hold for them."
   },
-  "partsOff": "Its part of the app is switched off: it gives nothing until that part is on."
+  "partsOff": "Its part of the app is switched off: it gives nothing until that part is on.",
+  "people": {
+    "unnamed": "Unnamed person"
+  }
 } as const;

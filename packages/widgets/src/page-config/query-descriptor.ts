@@ -146,7 +146,7 @@ export const countsJoinSchema = z.object({
 });
 
 export const queryDescriptorSchema = z.object({
-  kind: z.enum(['table-query', 'capacity-counts']).default('table-query'),
+  kind: z.enum(['table-query', 'capacity-counts', 'team-figures']).default('table-query'),
   connectionId: z.string(), // adminium_connections.id
   source: z.object({
     schema: z.string().optional(), // pg schema; omitted for MySQL/SQLite
@@ -163,7 +163,27 @@ export const queryDescriptorSchema = z.object({
    * patient's name without the page authoring a join.
    */
   lookups: z.array(z.string()).max(4).optional(),
+  /**
+   * Staff columns of the rows listed (a deal's owner): the answer carries
+   * `people`, each id those rows hold with the name its person goes by in
+   * Adminium. `record-list` only. A name is answered to a signed-in person
+   * and never to an API key, and only for somebody the people list would
+   * name (here, or the sample's): any other id is left out of `people`.
+   */
+  people: z.array(z.string().min(1).max(128)).min(1).max(4).optional(),
+  /**
+   * `alias:column` — whole days from a date or time column to today, on the
+   * venue's calendar and by the server's clock, put on each row under
+   * `alias` ("days in the stage"). `record-list` only. A row with no date
+   * has none; a date still to come counts 0.
+   */
+  daysSince: z.array(z.string().regex(/^[a-z][a-z0-9_]{0,62}:[A-Za-z_][A-Za-z0-9_]{0,127}$/)).min(1).max(2).optional(),
   aggregations: z.array(aggregationSchema).max(8).optional(),
+  /**
+   * A group keyed by a staff column is called by the person's name without
+   * asking, on the rule `people` states; somebody that rule does not name is
+   * called "Unnamed person" in the reader's language, never by their id.
+   */
   groupBy: z.array(z.string()).max(2).optional(),
   /**
    * `fkColumn.labelColumn` — what a group keyed by a foreign key is called:
@@ -222,6 +242,37 @@ export const queryDescriptorSchema = z.object({
   capacity: capacityCountsSchema.optional(),
   /** A `record-list` only: what a table's limit has taken from each row listed. */
   counts: countsJoinSchema.optional(),
+  /**
+   * `kind: 'team-figures'` — figures of a WHOLE team: what every person owns
+   * of a table, added up, with a target from a second table and the cover of
+   * it. `source` is the table of the rows (the deals); `owner` its staff
+   * column that says whose a row is.
+   *
+   * EACH FIGURE IS WHOLE OR LEFT OUT. It is answered only to a person no row
+   * limit holds on `source` and on the target's table, whose roles read both
+   * and show every column named. Anybody else is refused
+   * (`403 TEAM_FIGURE_WHOLE_ONLY`) and the card says the figure is the whole
+   * team's and is not shown to them: never a figure of the rows they do reach
+   * under the team's heading, and never a zero.
+   *
+   *
+   * Its parts are checked by the server (`widget-data/team-figures.ts`), not here: a browser only passes it on.
+   *
+   * - `figures` (one to four): a count of the rows, or a sum of a number
+   *   column, of the rows that pass its `where` (a column holds one of some
+   *   values; three at most) and, with `thisYear`, whose date column falls in
+   *   the year it is now on the venue's calendar;
+   * - `target`: a table with a staff column, a number column and, when it
+   *   keeps a target a year, its year column: this year's are read;
+   * - `cover`: the figures added up and measured against the target
+   *   (0.53 for 53 %); answered only where there is a target above zero.
+   *
+   * Answered as `single-metric` (one figure over the whole team: `metric` is a
+   * figure's key, `target` or `cover`; `cover` when there is one, else the
+   * first figure) or `record-list` (a line a person: `name`, each figure by
+   * its key, `target` and `cover`, with the team's own line under `totals`).
+   */
+  team: z.record(z.string(), z.unknown()).optional(),
 });
 
 export type QueryDescriptor = z.infer<typeof queryDescriptorSchema>;

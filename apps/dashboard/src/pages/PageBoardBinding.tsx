@@ -23,10 +23,11 @@
  */
 import { useTheme } from '@adminium/ui';
 import { PageBoard } from '@adminium/widgets';
+import { useCallback } from 'react';
 
 import { getI18nInstance, t } from '../i18n/t.js';
 import { EmptyLayoutNotice, layoutIsEmpty } from './planning/EmptyLayoutNotice.js';
-import { useBoardColumns } from './planning/boardColumns.js';
+import { amountWriter, useBoardColumns } from './planning/boardColumns.js';
 import { useBoardLive } from './planning/boardLive.js';
 import { PlanningRecordDrawer } from './planning/PlanningRecordDrawer.js';
 import { usePlanningStates } from './planning/planningData.js';
@@ -46,6 +47,9 @@ export function PageBoardBinding({ page, adapters, recordId, columnFacts, curren
   // The page's direction, as the shell resolved it for the person's language: the board lays its columns out by it
   // (the first one at the start side) and its arrow keys read it. Unsaid, a board is left to right on any page.
   const { dir } = useTheme();
+  // A card's amount as its column is kept: money in the column's own currency, else the connection's; any other number plainly.
+  const language = getI18nInstance()?.language ?? 'en-US';
+  const formatAmount = useCallback((column: string, amount: number) => amountWriter(column, formColumns, currency, language)(amount), [formColumns, currency, language]);
 
   // An empty layout renders an empty grid — nothing at all. A page created
   // without a table is the way in; the notice names the missing binding.
@@ -66,6 +70,7 @@ export function PageBoardBinding({ page, adapters, recordId, columnFacts, curren
         config={page.config}
         states={states}
         dir={dir}
+        formatAmount={formatAmount}
         {...(boardColumns === undefined ? {} : { boardColumns })}
         labels={{
           addLabel: t('board.addCard', 'Add card'),

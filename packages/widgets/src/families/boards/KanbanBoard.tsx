@@ -287,7 +287,8 @@ export function KanbanBoard({
                 data-board-column={column.id}
                 className="flex w-72 shrink-0 flex-col rounded-xl bg-surface-2/60"
               >
-                <header className="flex items-center gap-2 px-3 py-2.5">
+                {/* It wraps: a total of two figures takes a line of its own under the heading, never cut short. */}
+                <header className="flex flex-wrap items-center gap-x-2 gap-y-1 px-3 py-2.5">
                   <span aria-hidden="true" className={`size-2.5 shrink-0 rounded-full ${DOT_TONE[column.tone]}`} />
                   <span className="min-w-0 truncate text-body-sm font-semibold text-fg">{column.label}</span>
                   {column.badge === undefined ? null : (
@@ -305,7 +306,7 @@ export function KanbanBoard({
                     {column.wip === undefined ? held : `${held}/${column.wip}`}
                   </span>
                   {column.total === undefined ? null : (
-                    <span data-part="column-total" className="ms-auto min-w-0 truncate font-mono text-[11px] font-semibold tabular-nums text-fg-muted">
+                    <span data-part="column-total" title={column.total} className="ms-auto min-w-0 max-w-full truncate font-mono text-[11px] font-semibold tabular-nums text-fg-muted">
                       {column.total}
                     </span>
                   )}

@@ -14,6 +14,11 @@
  * table's rows (`only`: the open deals) asks each measure of those rows, with
  * the measure's `where`, so a header says what its cards say.
  *
+ * A heading's badge (`columnsFrom.badge`: a stage's odds) is one more column
+ * of that same read, so it is the reader's too: somebody whose role does not
+ * show the column is refused it by name, and the board then reads its columns
+ * again without the badge rather than not at all.
+ *
  * ── A BOARD OVER AN ENUM (`columnsBinding`) ────────────────────────────────
  * The columns are the stored values; their counts and totals are one more
  * query of the page's batch (`planningData.ts`), a group per value.
@@ -72,7 +77,7 @@ export interface BoardRead {
   cardsTable: string;
   /** The column of the cards a card is placed by. */
   column: string;
-  from: { table: string; key: string; label: string; order: string | undefined } | undefined;
+  from: { table: string; key: string; label: string; order: string | undefined; badge?: { column: string; as?: 'text' | 'number' | 'percent' | undefined } | undefined } | undefined;
   /** An enum board's own count-and-total query is part of the page's batch. */
   counted: boolean;
   totals: BoardTotal[];
@@ -141,6 +146,12 @@ function totalFormats(totals: readonly BoardTotal[], columns: readonly FormColum
   });
 }
 
+/** How one column's amounts are written on a card: as a header's total of that column is. */
+export function amountWriter(column: string, columns: readonly FormColumnFactReply[] | undefined, currency: string | undefined, locale: string): (amount: number) => string {
+  const format = totalFormats([{ column, fn: 'sum' }], columns, currency)[0] as TotalFormat;
+  return (amount) => (format.money ? formatMoney(amount, { locale, ...(format.currency === undefined ? {} : { currency: format.currency }) }) : getFormatters(locale).number(amount, { maximumFractionDigits: 2 }));
+}
+
 /** A column's totals as its header shows them; one alone is the bare figure, two are each named. */
 function totalText(values: readonly unknown[], formats: readonly TotalFormat[], locale: string): string | undefined {
   const parts: string[] = [];
@@ -161,6 +172,17 @@ const numberOr = (value: unknown): number | undefined => {
   return Number.isFinite(n) ? n : undefined;
 };
 
+/** A column's badge as its heading shows it: a share kept as a fraction as "10%", a number, or the text as kept (cut short). */
+export function badgeText(value: unknown, as: 'text' | 'number' | 'percent' | undefined, locale: string): string | undefined {
+  if (value === null || value === undefined || value === '') return undefined;
+  if (as === 'percent' || as === 'number') {
+    const n = numberOr(value);
+    if (n === undefined) return undefined;
+    return as === 'percent' ? getFormatters(locale).percent(n, { fractionDigits: Number.isInteger(Math.round(n * 10000) / 100) ? 0 : 1 }) : getFormatters(locale).number(n, { maximumFractionDigits: 2 });
+  }
+  return typeof value === 'string' || typeof value === 'number' ? String(value).slice(0, 24) : undefined;
+}
+
 /** The table's rows as the board's columns. */
 export function columnsFromRows(rows: readonly Record<string, unknown>[], read: BoardRead, formats: readonly TotalFormat[], locale: string): BoardColumnRow[] {
   const from = read.from;
@@ -173,12 +195,14 @@ export function columnsFromRows(rows: readonly Record<string, unknown>[], read: 
     const label = row[from.label];
     const count = numberOr(row[COUNT_ALIAS]);
     const total = totalText(read.totals.map((_, index) => row[totalAlias(index)]), formats, locale);
+    const badge = from.badge === undefined ? undefined : badgeText(row[from.badge.column], from.badge.as, locale);
     out.push({
       id: String(key),
       value: key,
       label: label === null || label === undefined || label === '' ? String(key) : String(label),
       ...(count === undefined ? {} : { count }),
       ...(total === undefined ? {} : { total }),
+      ...(badge === undefined ? {} : { badge }),
     });
   }
   return out;
@@ -206,7 +230,7 @@ export function columnsFromGroups(data: unknown, read: BoardRead, formats: reado
  */
 export function boardColumnsKey(pageId: string, read: Pick<BoardRead, 'connectionId' | 'from'> | null, compute: string | undefined) {
   const from = read?.from;
-  return [WIDGET_DATA_KEY_ROOT, pageId, 'board-columns', read?.connectionId ?? null, from?.table ?? null, from?.key ?? null, from?.label ?? null, from?.order ?? null, compute ?? null] as const;
+  return [WIDGET_DATA_KEY_ROOT, pageId, 'board-columns', read?.connectionId ?? null, from?.table ?? null, from?.key ?? null, from?.label ?? null, from?.order ?? null, compute ?? null, from?.badge?.column ?? null] as const;
 }
 
 /**
@@ -237,15 +261,24 @@ export function useBoardColumns(
     queryKey: boardColumnsKey(page.id, read, compute),
     enabled: read !== null && from !== undefined,
     staleTime: 0,
-    queryFn: () => {
+    queryFn: async () => {
       const target = from as NonNullable<typeof from>;
-      return createCrudApi((read as BoardRead).connectionId, target.table).list({
-        select: [...new Set([target.key, target.label])],
-        order: [{ column: target.order ?? target.key, dir: 'asc' }],
-        ...(compute === undefined ? {} : { compute }),
-        // One more than is drawn: a table with more rows than that is then known to have more.
-        limit: BOARD_COLUMNS_LIMIT + 1,
-      });
+      const ask = (badge: string | undefined) =>
+        createCrudApi((read as BoardRead).connectionId, target.table).list({
+          select: [...new Set([target.key, target.label, ...(badge === undefined ? [] : [badge])])],
+          order: [{ column: target.order ?? target.key, dir: 'asc' }],
+          ...(compute === undefined ? {} : { compute }),
+          // One more than is drawn: a table with more rows than that is then known to have more.
+          limit: BOARD_COLUMNS_LIMIT + 1,
+        });
+      if (target.badge === undefined) return ask(undefined);
+      try {
+        return await ask(target.badge.column);
+      } catch (error) {
+        // The badge's column is one this reader's role does not show: the board is theirs without it.
+        if ((error as { code?: unknown } | null)?.code !== 'COLUMN_FORBIDDEN') throw error;
+        return ask(undefined);
+      }
     },
   });
   const refetch = useCallback(() => {

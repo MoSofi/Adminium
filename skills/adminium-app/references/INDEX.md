@@ -10,5 +10,5 @@ file. Every file is 8 KB or less.
 | projects | 10 | `references/projects/INDEX.md` |
 | guides | 173 | `references/guides/INDEX.md` |
 | install | 12 | `references/install/INDEX.md` |
-| manifest | 102 | `references/manifest/INDEX.md` |
+| manifest | 103 | `references/manifest/INDEX.md` |
 | cli | 25 | `references/cli/INDEX.md` |

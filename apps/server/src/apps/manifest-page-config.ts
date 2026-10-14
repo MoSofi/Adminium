@@ -244,6 +244,15 @@ export function bindLayout(
         if (limited === undefined) problem ??= `"${named}" is not a table of this connection`;
         else node['counts'] = { ...(counts as object), table: model.dialect === 'postgres' && limited.schema !== null ? `${limited.schema}.${limited.name}` : limited.name };
       }
+      // A team's figures name the targets' table too (`team.target.table`): bound the same way.
+      const team = node['team'];
+      const target = typeof team === 'object' && team !== null ? (team as { target?: unknown }).target : undefined;
+      if (typeof target === 'object' && target !== null && typeof (target as { table?: unknown }).table === 'string') {
+        const named = (target as { table: string }).table;
+        const goals = model.tables.find((t) => t.name === (names[named] ?? named));
+        if (goals === undefined) problem ??= `"${named}" is not a table of this connection`;
+        else node['team'] = { ...(team as object), target: { ...(target as object), table: model.dialect === 'postgres' && goals.schema !== null ? `${goals.schema}.${goals.name}` : goals.name } };
+      }
     }
     for (const child of Object.values(node)) visit(child);
   };
@@ -263,6 +272,8 @@ export function layoutTables(layout: PageLayout): string[] {
       out.add(source.name);
       const counts = node['counts'] as { table?: unknown } | undefined;
       if (typeof counts?.table === 'string') out.add(counts.table);
+      const goals = (node['team'] as { target?: { table?: unknown } } | undefined)?.target;
+      if (typeof goals?.table === 'string') out.add(goals.table);
     }
     for (const child of Object.values(node)) visit(child);
   };

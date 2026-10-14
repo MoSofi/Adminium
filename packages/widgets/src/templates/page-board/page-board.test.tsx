@@ -668,3 +668,102 @@ describe('PageBoard — a stored `only` that cannot be trusted', () => {
     expect(document.querySelector('[data-board-column="1"]')).not.toBeNull();
   });
 });
+
+describe('PageBoard — what a named board’s headings, cards and note show', () => {
+  const U1 = 'usr_dana';
+  const U2 = 'usr_gone';
+  const PIPELINE = {
+    title: 'Deals',
+    statusColumn: 'stage_id',
+    titleColumn: 'name',
+    columnsFrom: { table: 'public.stages', key: 'id', label: 'name', badge: { column: 'odds', as: 'percent' } },
+    totals: [
+      { column: 'amount', fn: 'sum' },
+      { column: 'weighted_value', fn: 'sum' },
+    ],
+    card: { link: 'company_id.name', person: 'owner_id', amount: 'amount', daysSince: { column: 'entered_stage_at', warnFrom: 14, alertFrom: 30 }, date: 'expected_close' },
+    note: { text: 'Columns come from Stages', texts: { 'de-DE': 'Die Spalten kommen aus den Phasen' }, href: '/p/crm-stages' },
+    binding: binding('deals'),
+  };
+  const DEALS = [
+    { id: 1, name: 'Fourth-floor desk rows', stage_id: 1, owner_id: U1, company_id: 7, adm_card_link: 'Cobalt Legal', amount: '52800.00', adm_card_days: 3, entered_stage_at: '2026-07-25T09:00:00Z', expected_close: '2026-09-30' },
+    { id: 2, name: 'Showroom refit', stage_id: 1, owner_id: U2, company_id: 8, adm_card_link: null, amount: 38000, adm_card_days: 32, entered_stage_at: '2026-06-26T09:00:00Z', expected_close: null },
+    { id: 3, name: 'Depot stations', stage_id: 1, owner_id: null, company_id: null, amount: null, adm_card_days: 14, entered_stage_at: '2026-07-14T09:00:00Z', expected_close: '2026-08-04' },
+    { id: 4, name: 'No date at all', stage_id: 1, owner_id: U1, company_id: 7, adm_card_link: 'Cobalt Legal', amount: 10, adm_card_days: null, entered_stage_at: null, expected_close: null },
+  ];
+  const listed = { status: 'success' as const, data: { rows: DEALS, columns: [{ name: 'expected_close', logicalType: 'date' }, { name: 'entered_stage_at', logicalType: 'timestamptz' }], total: DEALS.length, people: { [U1]: 'Dana Whitlock' } } };
+  const STAGES = { status: 'success' as const, columns: [{ id: '1', value: 1, label: 'Proposal', count: 4, total: 'Amount £87,000.00 · Weighted value £43,500.00', badge: '50%' }] };
+  const cardOf = (title: string): HTMLElement => screen.getByRole('button', { name: title });
+  const draw = (over: Record<string, unknown> = {}, props: Record<string, unknown> = {}) =>
+    render(<PageBoard config={boardConfig({ ...PIPELINE, ...over })} states={{ 'board-1': listed }} boardColumns={STAGES} locale="en-US" formatAmount={(_column, amount) => `£${amount.toFixed(2)}`} {...props} />);
+
+  it('heads a column with its badge and both totals', () => {
+    draw();
+    const header = document.querySelector('[data-board-column="1"] header') as HTMLElement;
+    expect(within(header).getByText('50%').getAttribute('data-part')).toBe('column-badge');
+    expect(header.querySelector('[data-part="column-total"]')?.textContent).toBe('Amount £87,000.00 · Weighted value £43,500.00');
+    // The whole figure is there to read where the heading has no room for it.
+    expect(header.querySelector('[data-part="column-total"]')?.getAttribute('title')).toBe('Amount £87,000.00 · Weighted value £43,500.00');
+  });
+
+  it('draws on a card the company, the person by name, the amount, the days the server counted and the date', () => {
+    draw();
+    const card = cardOf('Fourth-floor desk rows');
+    expect(within(card).getByText('Cobalt Legal')).toBeDefined();
+    expect(within(card).getByText('£52800.00')).toBeDefined();
+    expect(within(card).getByText('3 days')).toBeDefined();
+    expect(within(card).getByText('Sep 30, 2026')).toBeDefined();
+    // The owner is drawn as a person, by the name the server gave.
+    expect(card.innerHTML).toContain('Dana Whitlock');
+  });
+
+  it('never draws a person’s id: somebody the server gave no name for is drawn as nobody', () => {
+    draw();
+    const card = cardOf('Showroom refit');
+    expect(card.innerHTML).not.toContain(U2);
+    expect(document.body.innerHTML).not.toContain(U2);
+    expect(document.body.innerHTML).not.toContain(U1);
+    // A company out of the reader’s reach is no line at all, and a missing date no chip.
+    expect(within(card).queryByText('Cobalt Legal')).toBeNull();
+    expect(within(card).getByText('£38000.00')).toBeDefined();
+  });
+
+  it('colours the days by the page’s own two limits, and leaves out what has no value', () => {
+    draw();
+    const tone = (title: string, text: string): string => within(cardOf(title)).getByText(text).className;
+    expect(tone('Showroom refit', '32 days')).not.toBe(tone('Fourth-floor desk rows', '3 days'));
+    expect(tone('Depot stations', '14 days')).not.toBe(tone('Fourth-floor desk rows', '3 days'));
+    expect(tone('Depot stations', '14 days')).not.toBe(tone('Showroom refit', '32 days'));
+    const bare = cardOf('No date at all');
+    expect(within(bare).queryByText(/days?$/)).toBeNull();
+    expect(within(cardOf('Depot stations')).queryByText(/£/)).toBeNull();
+    expect(within(cardOf('Depot stations')).getByText('Aug 4, 2026')).toBeDefined();
+  });
+
+  it('a board that declares no card draws its title alone, as before', () => {
+    draw({ card: undefined });
+    const card = cardOf('Fourth-floor desk rows');
+    expect(within(card).queryByText('Cobalt Legal')).toBeNull();
+    expect(within(card).queryByText('3 days')).toBeNull();
+  });
+
+  it('draws the page’s note above the board and opens its address through the host', () => {
+    const onEvent = vi.fn();
+    draw({}, { onEvent });
+    const note = screen.getByTestId('board-note');
+    expect(note.textContent).toBe('Columns come from Stages');
+    fireEvent.click(within(note).getByRole('button'));
+    expect(onEvent).toHaveBeenCalledWith('board-1', { type: 'drill-through', href: '/p/crm-stages' });
+  });
+
+  it('a note with no address is plain words, and one that leaves the workspace is not a link', () => {
+    draw({ note: { text: 'Cards sit longest first' } }, { onEvent: vi.fn() });
+    expect(within(screen.getByTestId('board-note')).queryByRole('button')).toBeNull();
+    cleanup();
+    for (const href of ['https://evil.example', '//evil.example', 'javascript:alert(1)']) {
+      draw({ note: { text: 'Stages', href } }, { onEvent: vi.fn() });
+      expect(within(screen.getByTestId('board-note')).queryByRole('button'), href).toBeNull();
+      cleanup();
+    }
+  });
+});
