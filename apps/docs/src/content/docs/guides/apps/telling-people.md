@@ -21,10 +21,14 @@ Mark the column that holds the person as a staff column, then address a notice o
 ```
 
 On a table that links to the record, go one link further: `"deal_id.owner_id"` on a follow-up is
-the deal's owner. A record with nobody in the column tells nobody, and the run's log says so.
+the deal's owner. A record with nobody in the column tells nobody, and the run's log says so. So
+does one whose person cannot open it (an approver whose role reaches only his own deals): add
+`"else": { "roles": [...] }` to tell those roles instead.
 
 A notice to a role goes only to the people of the role who can open the record: a manager whose
-role reads her own team's deals is not told of another team's.
+role reads her own team's deals is not told of another team's. Each is told the record as they
+read it: a column their role is not shown is empty in theirs, so give it a backup,
+`{{record.cost|-}}`.
 
 ## Tell the person's team lead
 
@@ -37,14 +41,16 @@ role reads her own team's deals is not told of another team's.
 
 The lead is whoever leads a team the asker is in (Settings → Teams) and can open the quote. With
 none (she leads her own team and nobody leads her, or she is in no team), the `else` roles are told,
-and still never she. `{{asked_by_id.name}}` is her name.
+and still never she. Somebody who leads a team with her is not her lead. `{{asked_by_id.name}}` is
+her name.
 
 ## Say what it was
 
 A rule run by a change reads the record as it was: `{{was.stage}}`. Copy it into a column of its
 own (`"values": { "came_from": "{{was.stage}}" }`) or say it: "moved from {{was.stage}} to
 {{record.stage}}". An e-mail step to a person may carry `{{recordUrl}}`, the record's address,
-given only to somebody who can open it.
+and is sent only to somebody who can open the record, as they read it. The run keeps only the
+columns as they were that the rule reads, never a secret one.
 
 ## Once each time it happens
 
@@ -59,8 +65,9 @@ the deal goes quiet: when it is worked on and then goes quiet again, they are to
 ```
 
 The 14 may be the business's to choose: `"right": { "amount": 14, "unit": "days", "setting":
-{ "table": "settings", "column": "nudge_quiet_days" } }` reads it from the app's settings row at each
-tick, and keeps 14 while the setting is empty.
+{ "table": "settings", "column": "nudge_quiet_days" } }` reads it from the app's settings row (the
+one with the lowest key) at each tick, and keeps 14 while the setting is empty. A secret or
+personal column, or a private table, holds no such number.
 
 ## Quiet hours
 

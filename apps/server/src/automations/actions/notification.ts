@@ -24,8 +24,8 @@
 import { pagesRepo, rolesRepo, teamsRepo, usersRepo, type AutomationAction } from '@adminium/meta';
 
 import { notify } from '../../notifications/notify.js';
-import { opensRecord } from '../record-link.js';
-import { substitute } from '../templating.js';
+import { opensRecord, readerOfRecord, tokensAs } from '../record-link.js';
+import { substitute, type TokenMap } from '../templating.js';
 import { AUTOMATION_NOTICE_KIND } from './notice-kind.js';
 import { staffAt } from '../staff-recipient.js';
 import { ActionFailure, type ActionContext, type ActionResult } from './types.js';
@@ -37,13 +37,15 @@ export { AUTOMATION_NOTICE_KIND };
 /**
  * The people who lead a team the person is in, other than the person: each
  * once, and only those who sign in and can open the record the notice is
- * about. Somebody who leads their own team and is led by nobody else has none.
+ * about. A team the person leads themselves leads them not, so somebody who
+ * leads their own team (alone or with others) and is led by nobody else has none.
  */
 async function leadsOf(ctx: ActionContext, userId: string): Promise<string[]> {
   const teams = teamsRepo(ctx.meta);
   const users = usersRepo(ctx.meta);
   const out: string[] = [];
   for (const membership of await teams.teamsOf(userId)) {
+    if (membership.lead) continue;
     for (const member of await teams.members(membership.teamId)) {
       if (!member.lead || member.userId === userId || out.includes(member.userId)) continue;
       if ((await users.findById(member.userId))?.status !== 'active') continue;
@@ -86,7 +88,11 @@ async function recipientsFor(action: NotificationAction, ctx: ActionContext): Pr
     const found = await staffAt(ctx.meta, ctx, to.column);
     const fallback = to.else?.roles ?? [];
     if (!('user' in found)) return fallback.length > 0 ? readersOf(ctx, await holdersOf(ctx, fallback)) : { note: ctx.text.staffNobody(to.column, found.nobody) };
-    if (to.lead !== true) return [found.user.id];
+    // The person on the row is told of it only when they can open it: an approver named on a deal their roles do not reach is not.
+    if (to.lead !== true) {
+      if (await opensRecord(ctx, found.user.id)) return [found.user.id];
+      return fallback.length > 0 ? readersOf(ctx, await holdersOf(ctx, fallback)) : { note: ctx.text.staffNobody(to.column, 'closed') };
+    }
     // Never the person themselves: a lead of nobody, or led by nobody who can open the record, is the roles' to hear.
     const leads = await leadsOf(ctx, found.user.id);
     if (leads.length > 0) return leads;
@@ -120,11 +126,24 @@ async function actionUrlFor(ctx: ActionContext): Promise<string> {
   return `/p/${page.slug}/r/${encodeURIComponent(recordId)}`;
 }
 
-function renderText(action: NotificationAction, ctx: ActionContext): { title: string; body: string | null } {
-  const title = substitute(action.title, ctx.tokens).trim();
-  if (title === '') throw new ActionFailure('This step has no title.');
-  const body = action.body === null ? null : substitute(action.body, ctx.tokens);
-  return { title, body };
+function renderText(action: NotificationAction, tokens: TokenMap, fallback?: string): { title: string; body: string | null } {
+  const title = substitute(action.title, tokens).trim();
+  if (title === '' && fallback === undefined) throw new ActionFailure('This step has no title.');
+  const body = action.body === null ? null : substitute(action.body, tokens);
+  return { title: title === '' ? fallback! : title, body };
+}
+
+/**
+ * The notice as this person reads the record: a column their role is not
+ * shown is empty in theirs. A rule about no record says the same to all; on
+ * one about a record, somebody who cannot open it is told nothing (null).
+ */
+async function textFor(action: NotificationAction, ctx: ActionContext, userId: string): Promise<{ title: string; body: string | null } | null> {
+  if (ctx.source === null) return renderText(action, ctx.tokens);
+  const reader = await readerOfRecord(ctx, userId);
+  if (reader === null) return null;
+  // A title that is all columns this reader is not shown is the rule's name, never an empty notice.
+  return renderText(action, await tokensAs(ctx, reader), ctx.rule.name);
 }
 
 export async function runNotificationAction(
@@ -134,7 +153,7 @@ export async function runNotificationAction(
   const recipients = await recipientsFor(action, ctx);
   if (!Array.isArray(recipients)) return { log: recipients.note };
   if (recipients.length === 0) throw new ActionFailure('Nobody holds the roles this step notifies.');
-  const { title, body } = renderText(action, ctx);
+  renderText(action, ctx.tokens);
   const actionUrl = await actionUrlFor(ctx);
 
   const users = usersRepo(ctx.meta);
@@ -143,6 +162,9 @@ export async function runNotificationAction(
     // A user deleted between the rule's save and this run is skipped, not a
     // failure: the rule is still doing what it was asked.
     if ((await users.findById(userId)) === null) continue;
+    const text = await textFor(action, ctx, userId);
+    if (text === null) continue;
+    const { title, body } = text;
     await notify(
       ctx.meta,
       {
@@ -168,6 +190,6 @@ export async function dryRunNotificationAction(
   ctx: ActionContext,
 ): Promise<ActionResult> {
   const recipients = await recipientsFor(action, ctx);
-  renderText(action, ctx);
+  renderText(action, ctx.tokens);
   return { log: Array.isArray(recipients) ? ctx.text.notifOk(recipients.length) : recipients.note };
 }

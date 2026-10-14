@@ -78,9 +78,17 @@ export interface TokenContext {
   now: number;
   /**
    * Include masked columns. Only the email step's recipient resolution sets
-   * this, and only for the column it is addressing.
+   * this, and only for the column it is addressing. As a test of the table, a
+   * mail to a person: the personal columns of a table they are shown.
    */
-  includeMasked?: boolean | undefined;
+  includeMasked?: boolean | ((table: ResolvedTable) => boolean) | undefined;
+  /**
+   * The record as ONE reader reads it (`record-link.ts` `tokensAs`): a column
+   * their role is not shown writes nothing, as it does on their screen — the
+   * record's, as it was, and the name of the person a staff column names.
+   * Absent: the rule's own reading, every column but the protected ones.
+   */
+  hidden?: ((table: ResolvedTable, column: string) => boolean) | undefined;
   /**
    * The rows the record's links point at, for the ones the rule names:
    * `{{customer_id.name}}` reads the customer's name. A link whose row is
@@ -122,10 +130,23 @@ export function tokensFor(ctx: TokenContext): TokenMap {
     recordLabel: ctx.recordLabel,
   };
   if (ctx.row === null || ctx.table === null) return tokens;
+  const masked = (table: ResolvedTable): boolean => (typeof ctx.includeMasked === 'function' ? ctx.includeMasked(table) : (ctx.includeMasked ?? false));
+  const hidden = (table: ResolvedTable, name: string): boolean => ctx.hidden?.(table, name) ?? false;
+  const withMasked = masked(ctx.table);
   for (const [name, column] of ctx.table.columns) {
-    if (!(ctx.includeMasked ?? false) && (column.masked || column.secret)) continue;
     // A code no desk hands out is no placeholder of a rule: a rule's text reaches whoever its author says.
     if (codeKeptFromStaff(ctx.table, name)) continue;
+    // Not the reader's to read: written as nothing, never left as written (a mail's "{{record.cost}}" is no answer either).
+    if (hidden(ctx.table, name)) {
+      tokens[`record.${name}`] = '';
+      tokens[name] = '';
+      if (holdsStaff(ctx.table, name) && !(ctx.related?.has(name) ?? false)) {
+        tokens[`record.${name}.name`] = '';
+        tokens[`${name}.name`] = '';
+      }
+      continue;
+    }
+    if (!withMasked && (column.masked || column.secret)) continue;
     const value = asText(ctx.row[name], column.logicalType);
     tokens[`record.${name}`] = value;
     tokens[name] = value;
@@ -138,17 +159,21 @@ export function tokensFor(ctx: TokenContext): TokenMap {
   }
   if (ctx.was !== undefined) {
     for (const [name, column] of ctx.table.columns) {
-      if (!(ctx.includeMasked ?? false) && (column.masked || column.secret)) continue;
       if (column.secret || codeKeptFromStaff(ctx.table, name)) continue;
+      if (hidden(ctx.table, name)) {
+        tokens[`was.${name}`] = '';
+        continue;
+      }
+      if (!withMasked && column.masked) continue;
       tokens[`was.${name}`] = ctx.was === null ? '' : asText(ctx.was[name], column.logicalType);
     }
   }
   for (const [link, far] of ctx.related ?? []) {
     for (const [name, column] of far.table.columns) {
       // A secret is never a placeholder; a masked column is one exactly where the record's own are (a mail's values).
-      if (column.secret || (column.masked && !(ctx.includeMasked ?? false))) continue;
+      if (column.secret || (column.masked && !masked(far.table))) continue;
       if (codeKeptFromStaff(far.table, name)) continue;
-      const value = far.row === null ? '' : asText(far.row[name], column.logicalType);
+      const value = far.row === null || hidden(far.table, name) ? '' : asText(far.row[name], column.logicalType);
       tokens[`record.${link}.${name}`] = value;
       tokens[`${link}.${name}`] = value;
       if (ctx.people !== undefined && holdsStaff(far.table, name)) {

@@ -267,7 +267,7 @@ export async function judgeMove(box: LiveOutbox, event: BeforeWriteEvent, deps: 
      */
     if (worded !== undefined) {
       const addressed = await addressFor(
-        { db: target.db, view: target.view, outboxId: target.table.id, read: settingReader(deps.meta, target.db) },
+        { db: target.db, view: target.view, outboxId: target.table.id, read: settingReader(deps.meta, target.db, target.view) },
         definition,
         undefined,
         values,
@@ -354,7 +354,7 @@ export async function judgeMove(box: LiveOutbox, event: BeforeWriteEvent, deps: 
   if (producer === undefined && overrides.some((column) => !empty(record[column]))) {
     const merged: Row = { ...record, ...values };
     const onFile = (
-      await addressFor({ db: target.db, view: target.view, outboxId: target.table.id, read: settingReader(deps.meta, target.db) }, definition, undefined, merged)
+      await addressFor({ db: target.db, view: target.view, outboxId: target.table.id, read: settingReader(deps.meta, target.db, target.view) }, definition, undefined, merged)
     ).address;
     const typed = merged[cols.to];
     if (onFile === null || (!empty(typed) && String(typed).trim().toLowerCase() !== onFile.toLowerCase())) {
@@ -377,7 +377,7 @@ export async function judgeMove(box: LiveOutbox, event: BeforeWriteEvent, deps: 
   if (producer === undefined) return;
   const merged: Row = { ...record, ...values };
   const addressed = await addressFor(
-    { db: target.db, view: target.view, outboxId: target.table.id, read: settingReader(deps.meta, target.db) },
+    { db: target.db, view: target.view, outboxId: target.table.id, read: settingReader(deps.meta, target.db, target.view) },
     definition,
     producer,
     merged,

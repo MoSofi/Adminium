@@ -63,8 +63,7 @@ import {
   AUTOMATION_SCAN_PAGE,
 } from './kinds.js';
 import { toRecordFilterAll } from './relative-time.js';
-import { readsSettings, withSettingAmounts } from './setting-operands.js';
-import { settingReader } from '../outbox/timing.js';
+import { readsSettings, ruleSettingReader, withSettingAmounts } from './setting-operands.js';
 
 const MINUTE_MS = 60_000;
 
@@ -168,7 +167,7 @@ async function runOneSchedule(input: {
   }
 
   // An amount a setting holds (`nudge_quiet_days`) is read once for this tick.
-  const where = readsSettings(forEach.where) ? await withSettingAmounts(forEach.where, settingReader(deps.meta, db as never)) : forEach.where;
+  const where = readsSettings(forEach.where) ? await withSettingAmounts(forEach.where, ruleSettingReader(deps.meta, db as never, view)) : forEach.where;
   const filter = toRecordFilterAll(where, { table, dialect, now });
   const page = deps.page ?? AUTOMATION_SCAN_PAGE;
   const cap = deps.cap ?? AUTOMATION_SCAN_CAP;

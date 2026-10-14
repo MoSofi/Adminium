@@ -29,6 +29,11 @@
  * the trace, and the trace line is built from the trimmed address the same
  * way the comp draws it. A masked column stays out of the token map for
  * every other purpose (`templating.ts`).
+ *
+ * A mail TO A PERSON (`to.kind: staff`) is not about them: it goes only to
+ * somebody who can open the record, and reads it as they do — a column their
+ * role is not shown is empty, a personal column is there only when they are
+ * shown that table's personal columns (`record-link.ts` `tokensAs`).
  */
 
 import {
@@ -53,7 +58,7 @@ import { resolveRuleTemplate, templateRequiredPlaceholders } from '../templates.
 import { substitute, tokensFor, type TokenMap } from '../templating.js';
 import { enqueueEmail } from '../../email/send.js';
 import { heldUntil } from '../../notifications/notify.js';
-import { recordUrlFor } from '../record-link.js';
+import { readerOfRecord, recordUrlFor, tokensAs, type RecordReader } from '../record-link.js';
 import { staffAt, staffReplyTo } from '../staff-recipient.js';
 import { AUTOMATION_NOTICE_KIND } from './notice-kind.js';
 import { ActionFailure, type ActionContext, type ActionResult } from './types.js';
@@ -172,8 +177,18 @@ async function formattedValues(ctx: ActionContext, locale: string): Promise<Toke
  * and sent about many tables, and `{{first_name}}` on a table whose column
  * is `name` is filled by the step saying so, not by renaming a column.
  */
-async function varsFor(action: EmailAction, ctx: ActionContext, locale: string): Promise<Record<string, string>> {
+async function varsFor(action: EmailAction, ctx: ActionContext, locale: string, reader?: RecordReader): Promise<Record<string, string>> {
   const appName = await settingsRepo(ctx.meta).get('branding.appName');
+  // A mail to a person: the record as they read it, a personal column only of a table whose personal columns they are shown.
+  if (reader !== undefined) {
+    const theirs = await tokensAs(ctx, reader, true);
+    // A date or an amount as a person reads it, of what they are shown and nothing else.
+    const formatted = Object.entries(await formattedValues(ctx, locale)).filter(([name]) => (theirs[name] ?? '') !== '');
+    const read: Record<string, string> = { ...theirs, ...Object.fromEntries(formatted), appName };
+    const mapped: Record<string, string> = {};
+    for (const [name, text] of Object.entries(action.vars)) mapped[name] = substitute(text, read);
+    return { ...read, ...mapped };
+  }
   const unmasked =
     ctx.source === null
       ? {}
@@ -216,14 +231,18 @@ async function runStaffEmail(action: EmailAction & { to: { kind: 'staff'; column
   const found = await staffAt(ctx.meta, ctx, action.to.column);
   if (!('user' in found)) return { log: ctx.text.staffNobody(action.to.column, found.nobody) };
   const user = found.user;
+  // The mail is about the record: somebody named on it who cannot open it is not written to (an approver whose roles reach other deals).
+  const reader = await readerOfRecord(ctx, user.id);
+  if (reader === null) return { log: ctx.text.staffNobody(action.to.column, 'closed') };
   const locale = await recipientLocale(ctx.meta, user.id);
   const template = await resolveRuleTemplate(ctx.meta, action.templateKey, locale);
   if (template === null) {
     const exists = await existsInAnyLocale(ctx.meta, action.templateKey, locale);
     throw new ActionFailure(exists ? `Template ${action.templateKey} is archived or switched off.` : `Template ${action.templateKey} no longer exists.`);
   }
-  // The record's address, for a person who can open it: what a notice's e-mail button carries, and nothing for anybody else.
-  const vars = { recordUrl: await recordUrlFor(ctx, user), ...(await varsFor(action, ctx, template.locale)) };
+  // The record's address, for a person who can open it: what a notice's e-mail button carries. Last, so neither a
+  // column nor a step's own vars named `recordUrl` can put another address in its place.
+  const vars = { ...(await varsFor(action, ctx, template.locale, reader)), recordUrl: await recordUrlFor(ctx, user) };
   const unfilled = unfilledIn(template, vars);
   if (dryRun) {
     const prepared = await prepareEmail(ctx.meta, template);

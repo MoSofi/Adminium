@@ -181,6 +181,9 @@ export function automationRunsRepo(meta: MetaDb) {
   return {
     findById,
 
+    /** Let go of a deleted row's values and a changed row as it was, without ending the run: its job gave up. */
+    forgetValues,
+
     /**
      * Claim an occurrence. Returns the new `pending` run, or null when the
      * unique index says another producer got there first — which is not an

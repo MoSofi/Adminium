@@ -78,8 +78,7 @@ import { evaluateCondition, type ConditionContext } from './conditions.js';
 import { countRelatedRows } from './related-count.js';
 import { loadRelated, relatedUses } from './related.js';
 import { staffNamesOf } from './staff-recipient.js';
-import { readsSettings, withSettingAmounts } from './setting-operands.js';
-import { settingReader } from '../outbox/timing.js';
+import { readsSettings, ruleSettingReader, withSettingAmounts } from './setting-operands.js';
 import type { StepLookup } from './add-on-steps.js';
 import { flattenNodes } from './validate.js';
 import { tokensFor } from './templating.js';
@@ -263,7 +262,7 @@ export async function walkRule(deps: RunnerDeps, input: WalkInput): Promise<RunO
 
   // A condition whose amount a setting holds reads it as the step reaches it.
   const settled = async (condition: AutomationCondition): Promise<AutomationCondition> =>
-    source === null || !readsSettings([condition]) ? condition : ((await withSettingAmounts([condition], settingReader(deps.meta, source.db)))[0] as AutomationCondition);
+    source === null || !readsSettings([condition]) ? condition : ((await withSettingAmounts([condition], ruleSettingReader(deps.meta, source.db, source.view)))[0] as AutomationCondition);
   const conditionCtx = (): ConditionContext => ({
     row: source?.row ?? null,
     table: source?.table ?? null,

@@ -54,6 +54,8 @@ import { UNDO_TTL_MS } from '../crud/undo.js';
 import { evaluateAll, type ConditionContext, type RelatedCountSpec } from './conditions.js';
 import { recordOccurrenceKey } from './events.js';
 import { AUTOMATION_RUN_KIND } from './kinds.js';
+import { resolveRuleTemplate } from './templates.js';
+import { flattenNodes } from './validate.js';
 import { changeStampColumn } from './watch-columns.js';
 
 /** Past this many automation-caused hops an event is refused. */
@@ -228,7 +230,7 @@ export class AutomationMatcher {
           event.action === 'update' ? await this.#dialectOf(event.connectionId) : undefined,
         ),
         origin: event.origin,
-        triggerEvent: triggerEventFor(event, hops, image, readsWas(rule)),
+        triggerEvent: triggerEventFor(event, hops, image, event.action === 'update' && readsWas(rule) ? await wasColumnsOf(this.#deps.meta, rule) : false),
         wakeAt: delayed ? wakeAt : null,
       },
       at,
@@ -335,19 +337,51 @@ export function occurrenceKeyFor(
 /**
  * Whether a rule may read the changed row as it was (`{{was.<column>}}`): its
  * steps say so, or it sends an e-mail, whose template may. Such a rule's
- * update is announced with the row as it was, read first, and its run keeps it.
+ * update is announced with the row as it was, read first, and its run keeps
+ * the columns of it the rule reads (`wasColumnsOf`).
  */
 export function readsWas(rule: Pick<Automation, 'graph'>): boolean {
   const text = JSON.stringify(rule.graph);
   return /\{\{\s*was\./.test(text) || /"kind":"email"/.test(text);
 }
 
+/** A `{{was.<column>}}` placeholder, with or without its backup. */
+const WAS_PLACEHOLDER = /\{\{\s*was\.([A-Za-z0-9_-]+)/g;
+
+/**
+ * The columns of the record as it was that a rule reads: named in its steps,
+ * or in a template one of its e-mail steps sends, in any language. A run
+ * keeps those and no others (`triggerEventFor`); a template changed while a
+ * run waits reads any other column as it was as nothing.
+ */
+export async function wasColumnsOf(meta: MetaDb, rule: Pick<Automation, 'graph'>): Promise<Set<string>> {
+  const out = new Set<string>();
+  const take = (text: string): void => {
+    for (const match of text.matchAll(WAS_PLACEHOLDER)) out.add(match[1]!);
+  };
+  take(JSON.stringify(rule.graph));
+  const keys = new Set<string>();
+  for (const node of flattenNodes(rule.graph)) {
+    if (node.kind === 'action' && node.action.kind === 'email' && node.action.templateKey !== null && node.action.templateKey !== '') keys.add(node.action.templateKey);
+  }
+  for (const key of keys) {
+    for (const row of await meta.db.selectFrom('adminium_email_templates').selectAll().where('key', '=', key).execute()) take(JSON.stringify(row));
+    // A template the product ships is no row of the store.
+    const shipped = await resolveRuleTemplate(meta, key, 'en_US');
+    if (shipped !== null) take(JSON.stringify(shipped));
+  }
+  return out;
+}
+
 export function triggerEventFor(
   event: RecordWriteEvent,
   hops: number,
   image: Row,
-  /** The rule reads the changed row as it was: keep it for the run (`before`). */
-  keepBefore = false,
+  /**
+   * The rule reads the changed row as it was: keep for the run (`before`) the
+   * columns it reads, never a secret one, nor a code no desk hands out.
+   */
+  keepBefore: ReadonlySet<string> | false = false,
 ): AutomationTriggerEvent {
   const name =
     event.action === 'create'
@@ -371,7 +405,19 @@ export function triggerEventFor(
     // never served, and dropped when the run ends (`values`).
     ...(event.action === 'delete' ? { values: image } : {}),
     // A changed row as it was, for `{{was.<column>}}`: never served either, and dropped when the run ends.
-    ...(keepBefore && event.action === 'update' && event.before !== null && event.before !== undefined ? { before: event.before } : {}),
+    ...(keepBefore !== false && event.action === 'update' && event.before !== null && event.before !== undefined ? keptBefore(event, event.before, keepBefore) : {}),
     occurredAt: event.occurredAt ?? Date.now(),
   };
+}
+
+/** Of the row as it was, the columns a rule reads and may: nothing at all when that is none. */
+function keptBefore(event: RecordWriteEvent, before: Row, read: ReadonlySet<string>): { before?: Row } {
+  const out: Row = {};
+  for (const name of read) {
+    const column = event.table.columns.get(name);
+    if (column === undefined || column.secret || !(name in before)) continue;
+    if ((event.table.table as { columns?: readonly { name: string; code?: { hiddenFromStaff?: boolean } }[] } | undefined)?.columns?.find((one) => one.name === name)?.code?.hiddenFromStaff === true) continue;
+    out[name] = before[name];
+  }
+  return Object.keys(out).length === 0 ? {} : { before: out };
 }

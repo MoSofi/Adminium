@@ -12,12 +12,19 @@
  *
  * The setting is read when the conditions are read: once per tick of a
  * schedule's scan, and as a step of the run reaches a condition. It is read
- * from the app's own table as the rule reads the connection, whole: a setting
- * is a number, and decides which rows are visited, not what anybody is shown.
+ * as the rule reads the connection (`ruleSettingReader`): a private table is
+ * not there, a secret or personal column holds nothing, and the row read is
+ * the one with the lowest key. Which rows a rule visits answers the question
+ * "is this number above that one", so a number is no way to read a table:
+ * the rule's author must read the table it is kept in (`requiredGrants`), and
+ * a protected column is refused when the rule is saved (`checkCondition`).
  */
-import type { AutomationCondition } from '@adminium/meta';
+import type { AutomationCondition, MetaDb } from '@adminium/meta';
+import type { Kysely } from 'kysely';
 
-import type { SettingReader } from '../outbox/timing.js';
+import type { SourceDatabase } from '../connections/manager.js';
+import type { SnapshotView } from '../crud/identifiers.js';
+import { settingReader, type SettingReader } from '../outbox/timing.js';
 
 type Relative = { amount: number; unit: 'minutes' | 'hours' | 'days'; setting?: { table: string; column: string } | undefined };
 
@@ -49,4 +56,21 @@ export async function withSettingAmounts(conditions: readonly AutomationConditio
     out.push({ ...condition, right: { amount: held ?? right.amount, unit: right.unit } } as AutomationCondition);
   }
   return out;
+}
+
+/**
+ * A rule's reader of the amounts its conditions keep in a setting, through
+ * the view the rule reads the connection in (private tables left out): a
+ * table that is not there, a column that is not, or one that is secret,
+ * personal or hidden, holds nothing, and the rule's own amount is used. An
+ * add-on's setting is no amount of a rule.
+ */
+export function ruleSettingReader(meta: MetaDb, db: Kysely<SourceDatabase>, view: SnapshotView): SettingReader {
+  const read = settingReader(meta, db, view);
+  return async (source) => {
+    if ('addOn' in source) return undefined;
+    const column = view.linkTable(source.table)?.columns.get(source.column);
+    if (column === undefined || column.secret || column.masked || column.unreadable === true) return undefined;
+    return read(source);
+  };
 }

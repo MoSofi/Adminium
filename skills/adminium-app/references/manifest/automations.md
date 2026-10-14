@@ -53,3 +53,6 @@ reach is her own team is not told of another team's quote. Nobody left is a line
 (`notified 0 people`), not a failure. A notice about a row that was removed goes only to those
 whose read of its table is not limited to some rows, since a removed row cannot be read again to
 ask. A rule that runs for no record (a clock with no rows to visit) tells everybody it names.
+Each of them is told the record **as they read it**: a column their role is not shown is empty in
+their notice (`{{record.<column>}}`, `{{was.<column>}}` and the name a staff column names alike),
+so give such a placeholder a backup, `{{record.cost|-}}`.

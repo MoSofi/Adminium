@@ -48,7 +48,7 @@ export interface TraceText {
   ownerOff(): string;
   partOff(): string;
   /** A staff column that names nobody for this record: said, and the run goes on. */
-  staffNobody(column: string, why: 'empty' | 'gone' | 'away'): string;
+  staffNobody(column: string, why: 'empty' | 'gone' | 'away' | 'closed'): string;
   /** A notice or a mail held to the end of a person's quiet hours. */
   heldUntil(name: string, at: string): string;
   emailQueued(name: string): string;
@@ -129,7 +129,13 @@ export const TRACE_EN: TraceText = {
   ownerOff: () => 'Its add-on is switched off.',
   partOff: () => 'Its part of the app is switched off.',
   staffNobody: (column, why) =>
-    why === 'empty' ? `Nobody is named in ${column} on this record: nobody was told.` : why === 'gone' ? `The person named in ${column} is no longer here: nobody was told.` : `The person named in ${column} cannot sign in: nobody was told.`,
+    why === 'empty'
+      ? `Nobody is named in ${column} on this record: nobody was told.`
+      : why === 'gone'
+        ? `The person named in ${column} is no longer here: nobody was told.`
+        : why === 'closed'
+          ? `The person named in ${column} cannot open this record: nobody was told.`
+          : `The person named in ${column} cannot sign in: nobody was told.`,
   heldUntil: (name, at) => `Held for ${name} until ${at}: their quiet hours.`,
   emailQueued: (name) => `Queued for ${name}.`,
   digestNobody: () => 'Nobody holds the roles this summary is for: none was made.',

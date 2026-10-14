@@ -9,7 +9,8 @@
  * roles do not read quotes, or whose row limit does not reach this one, is
  * passed over. Somebody who leads her own team and is led by nobody else, and
  * somebody in no team, have no lead: the admins are told instead (never the
- * asker, should she be one of them).
+ * asker, should she be one of them). A rule's mail to a person goes only to
+ * one who can open the quote.
  */
 import { settingsRepo, teamsRepo } from '@adminium/meta';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
@@ -214,28 +215,25 @@ for (const [dialect, reachable] of LEGS) {
       expect(bodies).toEqual(['Asked by nobody.', 'Asked by nobody.']);
     });
 
-    it('a rule’s mail to a person names the asker, and carries the quote’s address only to an approver who can open it', async () => {
-      const approve = async (asker: string, approver: string): Promise<{ subject: string; text: string; html: string }> => {
+    it('a rule’s mail to a person names the asker, and goes, with the quote’s address, only to an approver who can open it', async () => {
+      const approve = async (asker: string, approver: string): Promise<{ subject: string; text: string; html: string }[]> => {
         await s.emails();
         quotes += 1;
         await s.rows(`INSERT INTO crm_quotes (id, name, asked_by_id, approver_id, stage) VALUES (${String(quotes)}, 'Quote ${String(quotes)}', '${s.ids[asker]!}', '${s.ids[approver]!}', 'draft')`);
         expect(said(await s.change('owner', 'quotes', quotes, { stage: 'asked' }))).toBe('ok');
         await s.jobs();
-        const mail = (await s.emails()).filter((one) => one.templateKey === 'crm-approve');
-        expect(mail.map((one) => one.to)).toEqual([`${approver}@crm.test`]);
-        return mail[0]!;
+        return (await s.emails()).filter((one) => one.templateKey === 'crm-approve');
       };
       // Mia reads every quote: the link to its page.
-      const mia = await approve('dana', 'mia');
-      expect(mia.subject).toBe(`Approve Quote ${String(quotes)} for Dana`);
-      expect(mia.text).toContain(`https://desk.crm.example/p/crm-quotes/r/${String(quotes)}`);
-      // Lee reaches only his own quotes: no address, the template's own words instead.
-      const lee = await approve('dana', 'lee');
-      expect(lee.subject).toBe(`Approve Quote ${String(quotes)} for Dana`);
-      expect(`${lee.text} ${lee.html}`).not.toContain('/p/crm-quotes/r/');
-      expect(lee.text).toContain('you cannot open it');
+      const [mia] = await approve('dana', 'mia');
+      expect(mia!.subject).toBe(`Approve Quote ${String(quotes)} for Dana`);
+      expect(mia!.text).toContain(`https://desk.crm.example/p/crm-quotes/r/${String(quotes)}`);
+      // Lee reaches only his own quotes: he is not written to about Dana's, and the run says so.
+      expect(await approve('dana', 'lee')).toEqual([]);
+      const runs = (await s.meta.db.selectFrom('adminium_automation_runs').select(['trace', 'status']).execute()) as { trace: unknown; status: string }[];
+      expect(JSON.stringify(runs)).toContain('cannot open this record');
       // His own quote he can open.
-      expect((await approve('lee', 'lee')).text).toContain(`https://desk.crm.example/p/crm-quotes/r/${String(quotes)}`);
+      expect((await approve('lee', 'lee'))[0]!.text).toContain(`https://desk.crm.example/p/crm-quotes/r/${String(quotes)}`);
     });
   });
 }

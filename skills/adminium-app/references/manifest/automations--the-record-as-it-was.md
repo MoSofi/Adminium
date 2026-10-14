@@ -18,6 +18,7 @@ A rule run when its record is updated may read the record as it was **before** t
 
 It follows the record's own rules: a personal column only in an e-mail, a secret never, and a mail
 writes a date or an amount as it writes the record's. A rule run when a row is made or removed, or
-by the clock, has no "as it was", and the validator refuses `{{was.*}}` there. The row as it was
-is kept with the run for its steps, is never shown in Workflow Logs, and is dropped when the run
-ends. Needs Adminium 0.3.28.
+by the clock, has no "as it was", and the validator refuses `{{was.*}}` there. Of the row as it
+was, the run keeps only the columns its steps and its e-mails' templates read, never a secret one;
+they are never shown in Workflow Logs, and are dropped when the run ends, or when it cannot go on.
+Needs Adminium 0.3.28.

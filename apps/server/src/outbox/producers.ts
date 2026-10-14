@@ -495,7 +495,7 @@ export function createOutboxProducers(deps: OutboxDeps): OutboxProducers {
       // An email of a part of the app that is switched off is not queued.
       if (producer.module !== undefined && !(await appPartIsOn(deps.meta, box.appKey, producer.module))) return null;
       if (producer.gate !== undefined && !(await switchedOn(db, box, producer.gate))) return null;
-      const read = settingReader(deps.meta, db);
+      const read = settingReader(deps.meta, db, view);
       // The log is the dedupe.
       let seen = db
         .selectFrom(outbox.id as never)
@@ -778,7 +778,7 @@ export function createOutboxProducers(deps: OutboxDeps): OutboxProducers {
     const changed: Row[] = [];
     await withNamedLock({ db: handle.db, dialect: handle.dialect }, `outbox|${box.connectionId}|${box.appKey}`, 'CAPACITY_BUSY', async (db) => {
       const kinds = [...new Set(judged.map((producer) => producer.kind))];
-      const read = settingReader(deps.meta, db);
+      const read = settingReader(deps.meta, db, view);
       // Every waiting message, a page at a time.
       let last: unknown;
       for (;;) {

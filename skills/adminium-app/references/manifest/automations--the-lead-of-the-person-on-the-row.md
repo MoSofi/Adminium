@@ -15,4 +15,5 @@ lead who can open the record. When there is none (she is in no team, she leads h
 nobody leads her, or her lead's roles do not reach the record) the holders of the `else` roles who
 can open the record are told instead, again never the person. A notice to a lead always says
 `else`; the validator refuses one without. `else` also works without `lead`: a record whose column
-names nobody then tells those roles instead of nobody. Needs Adminium 0.3.28.
+names nobody then tells those roles instead of nobody. A team she leads herself, alone or with
+others, leads her not: a co-lead of her own team is not told as her lead. Needs Adminium 0.3.28.

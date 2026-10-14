@@ -13,5 +13,6 @@ table, whatever its name: `rep_id` beside a `reps` table names a person, not a r
 An e-mail step sent to a person (`"to": { "kind": "staff", … }`) may carry the record's address,
 `{{recordUrl}}`: the address a notice's e-mail button gives, the app's own screen for the record
 when the person's roles open it, on the operator's host. Somebody who cannot open the record gets
-no address, so give it a backup or tie its block to it. A mail to an address a column holds has
-no `{{recordUrl}}`; the validator refuses it there. Both need Adminium 0.3.28.
+no address, so give it a backup or tie its block to it. A step's own `vars` never set it. A mail to
+an address a column holds has no `{{recordUrl}}`; the validator refuses it there. Both need
+Adminium 0.3.28.

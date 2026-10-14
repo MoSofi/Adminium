@@ -34,6 +34,7 @@ import { yesNo } from './yes-no.js';
 import { isRelativeAutomationOp } from '@adminium/meta';
 
 import { ValidationFailedError } from '../errors.js';
+import { assertNotPrivate } from '../crud/row-limit.js';
 import type { ResolvedColumn, ResolvedTable, SnapshotView } from '../crud/identifiers.js';
 import { guardOutboundUrl } from '../connections/dsn.js';
 import { isConditionComplete } from './conditions.js';
@@ -244,14 +245,20 @@ function checkCondition(
       throw new ValidationFailedError(`${where}: an amount read from a setting is read by a schedule's conditions and by a condition step, not here.`, { reason: 'setting-not-here' });
     }
     const held = tableOrThrow(ctx, right.setting.table, where);
+    // Which rows a rule visits tells what the number is: a number nobody may read is no amount, the Super Admin's rules included.
+    assertNotPrivate(held, 'no rule reads its numbers');
     const column = readColumn(held, right.setting.column, where);
     if (column === undefined) throw new ValidationFailedError(`${where}: ${held.id} has no column ${right.setting.column}.`, { column: right.setting.column });
+    if (column.secret || column.masked) {
+      throw new ValidationFailedError(`${where}: ${held.id}.${right.setting.column} is a protected column, so it holds no amount a rule may read.`, { column: right.setting.column, reason: 'setting-protected' });
+    }
     if (column.logicalType !== 'integer' && column.logicalType !== 'bigint') {
       throw new ValidationFailedError(`${where}: ${held.id}.${right.setting.column} is not a whole-number column, so it holds no amount of time.`, { column: right.setting.column, reason: 'setting-not-a-number' });
     }
   }
   if ('count' in condition.left) {
     const counted = tableOrThrow(ctx, condition.left.count.table, where);
+    assertNotPrivate(counted, 'no rule counts its rows');
     const match = readColumn(counted, condition.left.count.matchColumn, where);
     if (condition.left.count.matchColumn !== '' && match === undefined) {
       throw new ValidationFailedError(
@@ -705,7 +712,18 @@ export function requiredGrants(
     add(trigger.forEach.table, 'read');
   }
 
+  // A table a condition reads beside the record: one whose rows it counts, one a setting's amount is kept in. Which
+  // way a condition goes tells what that table holds, so its author must read it as surely as one a step reads.
+  const besides = (condition: AutomationCondition): void => {
+    if ('count' in condition.left) add(condition.left.count.table, 'read');
+    const right = condition.right;
+    if (typeof right === 'object' && right !== null && right.setting !== undefined) add(right.setting.table, 'read');
+  };
+  if (trigger.kind === 'record') for (const condition of trigger.when ?? []) besides(condition);
+  else if (trigger.forEach !== undefined) for (const condition of trigger.forEach.where) besides(condition);
+
   for (const node of flattenNodes(graph)) {
+    if (node.kind === 'condition' || node.kind === 'branch') besides(node.condition);
     if (node.kind !== 'action') continue;
     if (node.action.kind === 'record.create' && node.action.table !== null) {
       add(node.action.table, 'create');

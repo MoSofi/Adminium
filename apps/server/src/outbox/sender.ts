@@ -1117,7 +1117,7 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     const ofRemovedRow = producer !== undefined && 'onDelete' in producer && columnRecipientOf(producer) !== null;
     const again = producer !== undefined && !ofRemovedRow && (producer.hold === true || producer.recipient !== undefined);
     if (!again && !blank) return { addressed: null, to: named, lookedUp: false };
-    const addressed = await addressFor({ db: ctx.db, view: ctx.view, outboxId: ctx.outbox.id, read: settingReader(deps.meta, ctx.db) }, box.definition, producer, row);
+    const addressed = await addressFor({ db: ctx.db, view: ctx.view, outboxId: ctx.outbox.id, read: settingReader(deps.meta, ctx.db, ctx.view) }, box.definition, producer, row);
     return { addressed, to: addressed.address, lookedUp: true };
   }
 
@@ -1543,7 +1543,7 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     }
     const rows = (await query.orderBy(key as never).limit(OUTBOX_BATCH).execute()) as Row[];
     // Judged again, all together, just before they go.
-    const verdicts = await verdictsFor({ db, view, outbox, definition: box.definition, zone, read: settingReader(deps.meta, db), now }, rows, 'send');
+    const verdicts = await verdictsFor({ db, view, outbox, definition: box.definition, zone, read: settingReader(deps.meta, db, view), now }, rows, 'send');
     const settled: Row[] = [];
     for (const row of rows) {
       const pk = { [key]: row[key] };

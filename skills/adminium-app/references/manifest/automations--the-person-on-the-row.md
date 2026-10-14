@@ -11,8 +11,13 @@ follow-up is on. The column must be a staff column; the validator refuses any ot
 
 A record that names nobody there (a deal with no owner yet, an empty link, a person since removed
 or suspended) tells nobody, and the run goes on: its log says who was not there. That is not a
-failure. An email to a person goes to the address they sign in with, in their language, and waits
-for the end of their quiet hours like a notice does.
+failure. Nor does it tell somebody who **cannot open the record**: an approver named on a deal
+whose roles do not read deals, or reach other people's only, is neither told nor mailed. A notice
+then tells its `else` roles (those of them who can open it); without them, and for an email
+always, the log says so. An email to a person goes to the address they sign in with, in their
+language, and waits for the end of their quiet hours like a notice does. It reads the record as
+they do: a column their role is not shown is empty, and a personal column is there only for
+somebody shown that table's personal columns.
 
 An email step may also say where a reply goes: `"replyTo": { "staff": "owner_id" }`, or one link
 further, `"deal_id.owner_id"`. The mail then carries the sign-in address of that person as its

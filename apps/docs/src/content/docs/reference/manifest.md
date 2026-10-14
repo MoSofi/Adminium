@@ -4137,6 +4137,9 @@ reach is her own team is not told of another team's quote. Nobody left is a line
 (`notified 0 people`), not a failure. A notice about a row that was removed goes only to those
 whose read of its table is not limited to some rows, since a removed row cannot be read again to
 ask. A rule that runs for no record (a clock with no rows to visit) tells everybody it names.
+Each of them is told the record **as they read it**: a column their role is not shown is empty in
+their notice (`{{record.<column>}}`, `{{was.<column>}}` and the name a staff column names alike),
+so give such a placeholder a backup, `{{record.cost|-}}`.
 
 ### The lead of the person on the row
 
@@ -4151,7 +4154,8 @@ lead who can open the record. When there is none (she is in no team, she leads h
 nobody leads her, or her lead's roles do not reach the record) the holders of the `else` roles who
 can open the record are told instead, again never the person. A notice to a lead always says
 `else`; the validator refuses one without. `else` also works without `lead`: a record whose column
-names nobody then tells those roles instead of nobody. Needs Adminium 0.3.28.
+names nobody then tells those roles instead of nobody. A team she leads herself, alone or with
+others, leads her not: a co-lead of her own team is not told as her lead. Needs Adminium 0.3.28.
 
 ### The record as it was
 
@@ -4169,9 +4173,10 @@ A rule run when its record is updated may read the record as it was **before** t
 
 It follows the record's own rules: a personal column only in an e-mail, a secret never, and a mail
 writes a date or an amount as it writes the record's. A rule run when a row is made or removed, or
-by the clock, has no "as it was", and the validator refuses `{{was.*}}` there. The row as it was
-is kept with the run for its steps, is never shown in Workflow Logs, and is dropped when the run
-ends. Needs Adminium 0.3.28.
+by the clock, has no "as it was", and the validator refuses `{{was.*}}` there. Of the row as it
+was, the run keeps only the columns its steps and its e-mails' templates read, never a secret one;
+they are never shown in Workflow Logs, and are dropped when the run ends, or when it cannot go on.
+Needs Adminium 0.3.28.
 
 ### A person's name, and the record's address
 
@@ -4184,8 +4189,9 @@ table, whatever its name: `rep_id` beside a `reps` table names a person, not a r
 An e-mail step sent to a person (`"to": { "kind": "staff", … }`) may carry the record's address,
 `{{recordUrl}}`: the address a notice's e-mail button gives, the app's own screen for the record
 when the person's roles open it, on the operator's host. Somebody who cannot open the record gets
-no address, so give it a backup or tie its block to it. A mail to an address a column holds has
-no `{{recordUrl}}`; the validator refuses it there. Both need Adminium 0.3.28.
+no address, so give it a backup or tie its block to it. A step's own `vars` never set it. A mail to
+an address a column holds has no `{{recordUrl}}`; the validator refuses it there. Both need
+Adminium 0.3.28.
 
 ### The person on the row
 
@@ -4196,8 +4202,13 @@ follow-up is on. The column must be a staff column; the validator refuses any ot
 
 A record that names nobody there (a deal with no owner yet, an empty link, a person since removed
 or suspended) tells nobody, and the run goes on: its log says who was not there. That is not a
-failure. An email to a person goes to the address they sign in with, in their language, and waits
-for the end of their quiet hours like a notice does.
+failure. Nor does it tell somebody who **cannot open the record**: an approver named on a deal
+whose roles do not read deals, or reach other people's only, is neither told nor mailed. A notice
+then tells its `else` roles (those of them who can open it); without them, and for an email
+always, the log says so. An email to a person goes to the address they sign in with, in their
+language, and waits for the end of their quiet hours like a notice does. It reads the record as
+they do: a column their role is not shown is empty, and a personal column is there only for
+somebody shown that table's personal columns.
 
 An email step may also say where a reply goes: `"replyTo": { "staff": "owner_id" }`, or one link
 further, `"deal_id.owner_id"`. The mail then carries the sign-in address of that person as its
@@ -4208,7 +4219,8 @@ Reply-To. Needs Adminium 0.3.28.
 ### An amount of time the business sets
 
 A relative condition (`within_next`, `within_last`, `more_than_ago`, `more_than_ahead`) may read its
-amount from a whole-number column of the app's settings row (the first row of that table):
+amount from a whole-number column of the app's settings row (the row of that table with the
+lowest key):
 
 ```json
 { "left": { "field": "last_activity_at" }, "op": "more_than_ago",
@@ -4219,8 +4231,12 @@ amount from a whole-number column of the app's settings row (the first row of th
 rule by the clock (in `forEach.where`) and as a run reaches a condition step, so a change on the
 app's Settings screen counts from the next tick. `amount` is the number used while the setting holds
 none from 1 to 3650 (empty, 0, a text). A trigger's own `when`, a summary's sections and a count do
-not read settings; the validator refuses one there, and a column that is not a whole number. Needs
-Adminium 0.3.28.
+not read settings; the validator refuses one there, and a column that is not a whole number.
+Which rows a rule visits tells what the number is, so it is read like any other table a rule
+reads: a secret or personal column, and a [private](#whose-a-row-is) table, are refused (as is a
+private table whose rows a condition counts), and somebody who saves such a rule in the dashboard
+must read the table the number is kept in. A run reads it as a rule reads the connection: a table
+made private since holds nothing, and `amount` is used. Needs Adminium 0.3.28.
 
 ### Once per spell
 
