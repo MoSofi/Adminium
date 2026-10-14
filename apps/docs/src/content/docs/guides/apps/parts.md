@@ -13,9 +13,13 @@ Open **Studio → Apps**, the app, and its **Parts** card. Each part shows what 
 the rules that are on, and its roles.
 
 - A part marked **Always on** has no switch.
-- A part marked **Needs an add-on** is off until that add-on is connected to the app, on the
-  Add-ons card of the same page.
+- A part built on an add-on is drawn under that add-on, which says whether it is connected. A
+  part marked **Needs an add-on** is off until that add-on is connected to the app, on the Add-ons
+  card of the same page.
 - Every other part has a switch, and the switch asks before it acts.
+
+Under the parts, the card names the roles left with nothing to open: a role every part of which is
+off now (a role of no part, and one of a part that is on, is never named).
 
 **Switching off** first lists what is open in the part: records that are part way through (a job
 not signed off), the rules that will stop, and the people who will be left with nothing switched
@@ -26,7 +30,13 @@ a rule of the part did not run for what changed while the part was off, and does
 now.
 
 When you install an app made of parts, the install check has a **Parts** card with a tick for each
-part that has a switch. The ticks are only where the parts start.
+part that has a switch. The ticks are only where the parts start. A part built on an add-on sits
+under that add-on, which is ticked on the Add-ons card: unticked, the part is left out and reads
+"Waiting for the … add-on". As you tick, the card names the roles the ticks leave with nothing to
+open, and says what the install will make, worked out from the ticks: the tables it makes (the
+app's and those of the add-ons ticked), the roles offered (of no part, or of a part that starts
+on) and the rules (of no part, or of a part that starts on). A part that starts off still has its
+tables made, so its tables count either way.
 
 ## What "off" stops
 

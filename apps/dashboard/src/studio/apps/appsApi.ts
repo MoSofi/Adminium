@@ -615,6 +615,8 @@ export interface AppInstallPlan {
   sampleData?: boolean;
   /** The parts of the app its owner switches on and off. Absent for an app with none. */
   modules?: PlanModule[];
+  /** Beside `modules`: the roles and the rules of no part, for the Parts card's counts. Absent from an older server. */
+  whole?: PlanWhole;
   /** The app shows maps and nobody has said yet whether this install shows them: the check asks. */
   maps?: boolean;
   /**
@@ -911,6 +913,14 @@ export interface PlanModule {
   leftOut: boolean;
   tables: string[];
   roles: string[];
+  /** How many of the app's rules are of this part. Absent from an older server. */
+  rules?: number;
+}
+
+/** The app's roles with the parts each is of (none: offered whatever is on), and its rules of no part. */
+export interface PlanWhole {
+  roles: { name: string; parts: string[] }[];
+  rules: number;
 }
 
 /** One part of an installed app, as its page shows it. */
@@ -923,6 +933,8 @@ export interface AppPart {
   /** Whether it is on now: its switch, and every add-on it needs connected. */
   on: boolean;
   waiting: { key: string; name: string }[];
+  /** Every add-on it is built on, connected or not. Absent from an older server. */
+  needs?: { key: string; name: string }[];
   leftOut: boolean;
   pages: number;
   tables: number;

@@ -492,5 +492,12 @@
   "appFilter": {
     "note": "Es werden nur die Regeln von {app} angezeigt.",
     "clear": "Alle Regeln anzeigen"
+  },
+  "listed": {
+    "summary": "die in {table} eingetragenen Personen",
+    "option": "Die bei diesem Datensatz eingetragenen Personen",
+    "pick": "Eingetragen in",
+    "choose": "Tabelle wählen…",
+    "help": "Von den eingetragenen Personen werden nur die benachrichtigt, die sich anmelden und diesen Datensatz öffnen können. Ein Datensatz ohne eingetragene Personen benachrichtigt niemanden, und der Lauf vermerkt das."
   }
 }

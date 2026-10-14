@@ -2367,6 +2367,26 @@
     "status": "mt",
     "srcHash": "68b8e24203fa"
   },
+  "automations.listed.choose": {
+    "status": "mt",
+    "srcHash": "9cd9ec452dd6"
+  },
+  "automations.listed.help": {
+    "status": "mt",
+    "srcHash": "776d5b826824"
+  },
+  "automations.listed.option": {
+    "status": "mt",
+    "srcHash": "e8d272acedd6"
+  },
+  "automations.listed.pick": {
+    "status": "mt",
+    "srcHash": "23db98967160"
+  },
+  "automations.listed.summary": {
+    "status": "mt",
+    "srcHash": "29c7cd08a82e"
+  },
   "automations.logs.duration": {
     "status": "mt",
     "srcHash": "1370004da76f"
@@ -20583,6 +20603,26 @@
     "status": "mt",
     "srcHash": "bbfa773e5a63"
   },
+  "studio.appParts.groupAddOn": {
+    "status": "mt",
+    "srcHash": "5a1122363800"
+  },
+  "studio.appParts.groupConnected": {
+    "status": "mt",
+    "srcHash": "8446931d06ad"
+  },
+  "studio.appParts.groupNotConnected": {
+    "status": "mt",
+    "srcHash": "e9f5308d4d09"
+  },
+  "studio.appParts.groupTicked": {
+    "status": "mt",
+    "srcHash": "d9d4928359b9"
+  },
+  "studio.appParts.groupWaiting": {
+    "status": "mt",
+    "srcHash": "4fff71f85ba2"
+  },
   "studio.appParts.help": {
     "status": "mt",
     "srcHash": "e9c638aa22d6"
@@ -20591,21 +20631,29 @@
     "status": "mt",
     "srcHash": "5030b90a1fab"
   },
+  "studio.appParts.installCount": {
+    "status": "mt",
+    "srcHash": "172124393d53"
+  },
+  "studio.appParts.installCountFixed": {
+    "status": "mt",
+    "srcHash": "757c31ad7243"
+  },
   "studio.appParts.installHelp": {
     "status": "mt",
     "srcHash": "04a792057cad"
   },
-  "studio.appParts.installLeftOut": {
+  "studio.appParts.installStranded": {
     "status": "mt",
-    "srcHash": "3340844154ca"
-  },
-  "studio.appParts.installNeeds": {
-    "status": "mt",
-    "srcHash": "d2bcc8bd5168"
+    "srcHash": "3d4b3664ce15"
   },
   "studio.appParts.installTick": {
     "status": "mt",
     "srcHash": "42d7f8a2baa8"
+  },
+  "studio.appParts.installWaiting": {
+    "status": "mt",
+    "srcHash": "164831650b0d"
   },
   "studio.appParts.leftOut": {
     "status": "mt",
@@ -20714,6 +20762,14 @@
   "studio.appParts.waiting": {
     "status": "mt",
     "srcHash": "0492b03efc65"
+  },
+  "studio.appParts.willMake": {
+    "status": "mt",
+    "srcHash": "ab879d19e123"
+  },
+  "studio.appParts.willMakeCounts": {
+    "status": "mt",
+    "srcHash": "afe335496008"
   },
   "studio.appPublicAccess.allow": {
     "status": "mt",

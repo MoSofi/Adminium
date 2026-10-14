@@ -82,7 +82,7 @@ import {
   type AppCatalogEntry,
   type UnavailableApp,
 } from '../../apps/catalog.js';
-import { addOnsHereFor, asInstalledHere, partsLeftOut, planModulesOf, tickedByDefault } from '../../apps/app-modules.js';
+import { addOnsHereFor, asInstalledHere, partsLeftOut, planModulesOf, planWholeOf, tickedByDefault } from '../../apps/app-modules.js';
 import { surfacesOfInstalled } from '../../apps/installed.js';
 import { refusalReason, uploadRefusalMessage } from '../../add-ons/upload-refusal.js';
 import { audited, auditExempt } from '../../audit/coverage.js';
@@ -1118,7 +1118,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
             ...(addOnProblems.length === 0 ? {} : { installable: false, problems: [...dto.problems, ...addOnProblems] }),
             ...(publicAccess === undefined ? {} : { publicAccess }),
             ...(addOns.length === 0 ? {} : { addOns }),
-            ...(declared.kind !== 'app' || declared.modules === undefined ? {} : { modules: planModulesOf(declared, leftOut, installed === undefined ? null : readAppModules(installed.row.modules)) }),
+            ...(declared.kind !== 'app' || declared.modules === undefined ? {} : { modules: planModulesOf(declared, leftOut, installed === undefined ? null : readAppModules(installed.row.modules)), whole: planWholeOf(declared) }),
           },
         };
       },
@@ -1684,6 +1684,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
       const members = new Map<string, number>();
       for (const role of appRoles) members.set(role.id, (await rolesRepo(deps.meta).usersInRole(role.id)).length);
       const rules = (await automationsRepo(deps.meta).listManagedBy(key, row.row.connectionId)).filter((rule) => rule.enabled);
+      const needs = new Map((declared.addOns?.features ?? []).map((feature) => [feature.id, feature.requires]));
       return {
         parts: (declared.modules ?? []).map((module) => {
           const tables = (declared.requiredSchema?.tables ?? []).filter((table) => 'module' in table && table.module === module.id);
@@ -1694,6 +1695,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
             switch: switchOf(state.modules!, module.id),
             on: !state.off.has(module.id),
             waiting: (state.waiting.get(module.id) ?? []).map((addOn) => ({ key: addOn, name: addOnNames.get(addOn) ?? addOn })),
+            needs: (module.feature === undefined ? [] : (needs.get(module.feature) ?? [])).map((addOn) => ({ key: addOn, name: addOnNames.get(addOn) ?? addOn })),
             leftOut: tables.some((table) => !made.has(table.ref)),
             pages: (declared.pages ?? []).filter((page) => page.module === module.id).length,
             tables: tables.length,

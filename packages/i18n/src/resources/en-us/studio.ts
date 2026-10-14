@@ -3479,8 +3479,17 @@ export default {
     "installHelp": "Choose the parts of {app} to start with. Any of them can be switched on or off later, in the app’s settings.",
     "installTick": "Start with {part}",
     "installAlways": "always on",
-    "installLeftOut": "Left out of this install: it needs {addOns}. Tick it under Add-ons, or connect it later and the part is put in.",
-    "installNeeds": "Works with {addOns}, which is installed with the app."
+    "installWaiting": "Waiting for the {addOns} add-on.",
+    "installCount": "{count, plural, one {# part.} other {# parts.}}",
+    "installCountFixed": "{count, plural, one {# part.} other {# parts.}} {fixed} {always, plural, one {is} other {are}} always part of it.",
+    "groupAddOn": "add-on",
+    "groupTicked": "Ticked under Add-ons: the parts below come with it.",
+    "groupWaiting": "Not ticked under Add-ons: the parts below wait for it. Tick it there, or connect it later and they are put in.",
+    "groupConnected": "Connected: the parts below work with it.",
+    "groupNotConnected": "Not connected: the parts below wait for it. Connect it under Add-ons and they are put in.",
+    "installStranded": "{roles} {count, plural, one {is} other {are}} left with nothing to open with these parts.",
+    "willMake": "Will make",
+    "willMakeCounts": "{tables, plural, one {# table} other {# tables}}, {roles, plural, one {# role} other {# roles}}, {rules, plural, one {# rule} other {# rules}}"
   },
   "installMaps": {
     "title": "Maps",

@@ -99,6 +99,11 @@ export interface SourceTable {
    */
   links?: SourceLink[];
   /**
+   * The tables that list people against this table's rows: what a step may
+   * tell as "the people listed". Absent from a server before it said.
+   */
+  listings?: { table: string; label: string }[];
+  /**
    * Tables whose rows point at this one — collection picker.
    *
    * Already filtered by the server to edges a document mapping can store; see

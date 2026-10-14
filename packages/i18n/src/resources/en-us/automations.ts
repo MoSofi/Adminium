@@ -502,5 +502,12 @@ export default {
   "appFilter": {
     "note": "Only the rules of {app} are shown.",
     "clear": "Show all rules"
+  },
+  "listed": {
+    "summary": "the people listed in {table}",
+    "option": "The people listed on this record",
+    "pick": "Listed in",
+    "choose": "Choose a table…",
+    "help": "Of the people listed, only those who can sign in and open this record are told. A record that lists nobody tells nobody, and the run says so."
   }
 } as const;

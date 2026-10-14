@@ -305,3 +305,46 @@ describe('ActionSettings — an email step that reaches the row a link points at
   });
 });
 
+
+describe('ActionSettings — the people listed on the record', () => {
+  const DEALS = table('main.deals', 'Deals', {
+    columns: [column('owner_id', { label: 'Owner', staff: true })],
+    listings: [
+      { table: 'main.deal_members', label: 'People on deals' },
+      { table: 'main.covers', label: 'Covers' },
+    ],
+  });
+  const WITH: Sources = { ...SOURCES, templates: [{ key: 'news', name: 'News', placeholders: [], ownedByApp: false }] };
+
+  function renderStep(action: Action, of: SourceTable = DEALS) {
+    const onChange = vi.fn();
+    render(<ActionSettings action={action} sources={WITH} table={of} connectionId="cnx_1" onChange={onChange} />);
+    return { onChange, user: userEvent.setup() };
+  }
+
+  it('offers a notice to them where the table lists people, and picks which listing', async () => {
+    const { user, onChange } = renderStep({ kind: 'notification', to: null, title: 'Hello', body: null });
+    await user.selectOptions(screen.getByTestId('notif-mode'), 'The people listed on this record');
+    expect(onChange).toHaveBeenLastCalledWith({ to: { listed: '' } });
+    cleanup();
+    const again = renderStep({ kind: 'notification', to: { listed: '' }, title: 'Hello', body: null });
+    expect(within(screen.getByTestId('notif-listed')).getAllByRole('option').map((option) => option.textContent)).toEqual(['Choose a table…', 'People on deals', 'Covers']);
+    await again.user.selectOptions(screen.getByTestId('notif-listed'), 'People on deals');
+    expect(again.onChange).toHaveBeenLastCalledWith({ to: { listed: 'main.deal_members' } });
+    expect(screen.getByText(/only those who can sign in and open this record are told/)).toBeTruthy();
+  });
+
+  it('offers a mail to each of them, and nothing of the kind where the table lists nobody', async () => {
+    const { user, onChange } = renderStep({ kind: 'email', templateKey: 'news', to: null, vars: {} });
+    await user.selectOptions(screen.getByTestId('email-to-kind'), 'The people listed on this record');
+    expect(onChange).toHaveBeenLastCalledWith({ to: { kind: 'listed', table: '' } });
+    cleanup();
+    renderStep({ kind: 'email', templateKey: 'news', to: null, vars: {} }, table('main.orders', 'Orders'));
+    expect(within(screen.getByTestId('email-to-kind')).queryByText('The people listed on this record')).toBeNull();
+    cleanup();
+    // A step that already says it keeps it, and its table, whatever the table lists now.
+    renderStep({ kind: 'notification', to: { listed: 'main.gone' }, title: 'Hello', body: null }, table('main.orders', 'Orders'));
+    expect((screen.getByTestId('notif-mode') as HTMLSelectElement).value).toBe('listed');
+    expect((screen.getByTestId('notif-listed') as HTMLSelectElement).value).toBe('main.gone');
+  });
+});

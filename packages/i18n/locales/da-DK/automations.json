@@ -492,5 +492,12 @@
   "appFilter": {
     "note": "Kun reglerne fra {app} vises.",
     "clear": "Vis alle regler"
+  },
+  "listed": {
+    "summary": "de personer, der står i {table}",
+    "option": "De personer, der står på denne post",
+    "pick": "Står i",
+    "choose": "Vælg en tabel…",
+    "help": "Af de personer, der står på listen, får kun dem besked, som kan logge ind og åbne denne post. En post uden nogen på listen giver ingen besked, og kørslen siger det."
   }
 }

@@ -62,9 +62,11 @@ export type EmailRecipient =
   | { kind: 'field'; column: string }
   | { kind: 'fixed'; addresses: string[] }
   /** The person a staff column of the record names (`owner_id`, or `<link>.<staff column>`). */
-  | { kind: 'staff'; column: string };
+  | { kind: 'staff'; column: string }
+  /** The people a table that lists people against the record names for it, by that table's id: those of them who can open it. */
+  | { kind: 'listed'; table: string };
 
-export type NotificationAudience = { roles: string[] } | { users: string[] } | { column: string };
+export type NotificationAudience = { roles: string[] } | { users: string[] } | { column: string } | { listed: string };
 
 /** One section of a summary: the rows of a table whose `owner` is the person written to. */
 export interface DigestSection {

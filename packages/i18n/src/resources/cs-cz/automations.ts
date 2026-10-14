@@ -502,5 +502,12 @@ export default {
   "appFilter": {
     "note": "Zobrazují se jen pravidla aplikace {app}.",
     "clear": "Zobrazit všechna pravidla"
+  },
+  "listed": {
+    "summary": "lidé uvedení v {table}",
+    "option": "Lidé uvedení u tohoto záznamu",
+    "pick": "Uvedeni v",
+    "choose": "Vyberte tabulku…",
+    "help": "Z uvedených lidí dostanou zprávu jen ti, kdo se mohou přihlásit a tento záznam otevřít. Záznam, u kterého nikdo uveden není, nikoho neupozorní a běh to uvede."
   }
 } as const;

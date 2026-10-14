@@ -13,6 +13,9 @@
  *     meanwhile is caught up. The Screens card's switches act at once.
  *  2. A part that waits for an add-on shows a pill in place of a switch that
  *     could not do anything: the add-on is connected on the Add-ons card.
+ *  3. A part built on an add-on is drawn under that add-on, connected or not
+ *     (the install canvas's boxes); under the parts, the roles left with
+ *     nothing to open while every part of theirs is off.
  *
  * Every row is the server's (`GET /apps/:key/parts`); the card decides nothing
  * about what "off" means.
@@ -23,8 +26,8 @@ import { Badge, Button, Checkbox, Modal, ModalBody, ModalFooter, ModalHeader, Sp
 import { LayoutGrid, Map as MapIcon, Power, PowerOff } from 'lucide-react';
 
 import { t } from '../../i18n/t.js';
-import { appPartsKey, appPartsQuery, fetchAppPartOpen, setAppPart, type AppAddOnRow, type AppPart, type AppPartOpen, type PlanModule } from './appsApi.js';
-import { manifestWords } from './addOnWords.js';
+import { appPartsKey, appPartsQuery, fetchAppPartOpen, setAppPart, type AppAddOnRow, type AppPart, type AppPartOpen, type PlanModule, type PlanWhole } from './appsApi.js';
+import { manifestWords, namesList } from './addOnWords.js';
 
 const CARD = 'rounded-[14px] border border-border bg-surface px-[19px] py-[18px] shadow-sm';
 const PILL = 'gap-[5px] px-[9px] py-[3px] leading-[normal]';
@@ -37,6 +40,32 @@ function holdsWords(part: AppPart): string {
   ].join(' · ');
   if (part.roles.length === 0) return counts;
   return `${counts} · ${t('studio:appParts.roles', 'Roles: {roles}', { roles: part.roles.map((role) => role.name).join(', ') })}`;
+}
+
+/** The parts built on add-ons, grouped by the add-ons they need, in the order the parts come. */
+function groupsOf(parts: readonly AppPart[]): { key: string; names: string[]; connected: boolean; parts: AppPart[] }[] {
+  const out: { key: string; names: string[]; connected: boolean; parts: AppPart[] }[] = [];
+  for (const part of parts) {
+    const needs = part.needs ?? [];
+    if (needs.length === 0) continue;
+    const key = needs.map((addOn) => addOn.key).join('+');
+    const group = out.find((one) => one.key === key) ?? out[out.push({ key, names: needs.map((addOn) => addOn.name), connected: true, parts: [] }) - 1]!;
+    group.parts.push(part);
+    if (part.waiting.length > 0) group.connected = false;
+  }
+  return out;
+}
+
+/** The app's roles every part of which is off now: left with nothing to open. A role of no part is never one. */
+export function strandedRoles(parts: readonly AppPart[]): string[] {
+  const of = new Map<string, { name: string; on: boolean }>();
+  for (const part of parts) {
+    for (const role of part.roles) {
+      const seen = of.get(role.slug) ?? { name: role.name, on: false };
+      of.set(role.slug, { name: seen.name, on: seen.on || part.on });
+    }
+  }
+  return [...of.values()].filter((role) => !role.on).map((role) => role.name);
 }
 
 export function AppPartsCard({ appKey }: { appKey: string }) {
@@ -62,6 +91,44 @@ export function AppPartsCard({ appKey }: { appKey: string }) {
   // An app with no parts has no card.
   if (parts.data === undefined || parts.data.parts.length === 0) return null;
   const failure = ask.error ?? flip.error;
+  const stranded = strandedRoles(parts.data.parts);
+
+  const item = (part: AppPart) => (
+    <li key={part.id} className="flex items-start gap-3 rounded-[11px] border border-border bg-surface px-3 py-2.5" data-part={part.id} data-on={part.on}>
+      <div className="min-w-0 flex-1">
+        <p className="text-[13px] font-bold leading-[normal]">{part.label}</p>
+        <p className="mt-1 text-xs leading-[1.5] text-fg-muted">{holdsWords(part)}</p>
+        {part.waiting.length === 0 ? null : (
+          <p className="mt-1 text-xs leading-[1.5] text-fg-muted" data-part="waiting">
+            {part.leftOut
+              ? t('studio:appParts.leftOut', 'Not set up yet. Connect {addOns} under Add-ons and it is put in.', { addOns: part.waiting.map((addOn) => addOn.name).join(', ') })
+              : t('studio:appParts.waiting', 'Off until {addOns} is connected, under Add-ons.', { addOns: part.waiting.map((addOn) => addOn.name).join(', ') })}
+          </p>
+        )}
+      </div>
+      {part.default === 'always' ? (
+        <Badge tone="neutral" className={PILL}>
+          {t('studio:appParts.always', 'Always on')}
+        </Badge>
+      ) : part.waiting.length > 0 ? (
+        <Badge tone="warn" className={PILL}>
+          {t('studio:appParts.needs', 'Needs an add-on')}
+        </Badge>
+      ) : (
+        <span className="flex items-center gap-2">
+          <Switch
+            checked={part.switch}
+            disabled={ask.isPending || flip.isPending}
+            aria-label={t('studio:appParts.switch', '{part}, on or off', { part: part.label })}
+            onCheckedChange={(next) => ask.mutate({ part, on: next })}
+          />
+          <span className={`min-w-6 text-xs font-extrabold ${part.switch ? 'text-accent' : 'text-fg-subtle'}`}>
+            {part.switch ? t('studio:appParts.on', 'On') : t('studio:appParts.off', 'Off')}
+          </span>
+        </span>
+      )}
+    </li>
+  );
 
   return (
     <section className={CARD} data-testid="app-parts">
@@ -72,44 +139,25 @@ export function AppPartsCard({ appKey }: { appKey: string }) {
       <p className="mb-[13px] text-[12.5px] leading-[1.5] text-fg-muted">
         {t('studio:appParts.help', 'Switch off the parts this business does not use. A part that is off has no pages, rules or roles; its records stay.')}
       </p>
-      <ul className="flex flex-col gap-[9px]">
-        {parts.data.parts.map((part) => (
-          <li key={part.id} className="flex items-start gap-3 rounded-[11px] border border-border px-3 py-2.5" data-part={part.id} data-on={part.on}>
-            <div className="min-w-0 flex-1">
-              <p className="text-[13px] font-bold leading-[normal]">{part.label}</p>
-              <p className="mt-1 text-xs leading-[1.5] text-fg-muted">{holdsWords(part)}</p>
-              {part.waiting.length === 0 ? null : (
-                <p className="mt-1 text-xs leading-[1.5] text-fg-muted" data-part="waiting">
-                  {part.leftOut
-                    ? t('studio:appParts.leftOut', 'Not set up yet. Connect {addOns} under Add-ons and it is put in.', { addOns: part.waiting.map((addOn) => addOn.name).join(', ') })
-                    : t('studio:appParts.waiting', 'Off until {addOns} is connected, under Add-ons.', { addOns: part.waiting.map((addOn) => addOn.name).join(', ') })}
-                </p>
-              )}
-            </div>
-            {part.default === 'always' ? (
-              <Badge tone="neutral" className={PILL}>
-                {t('studio:appParts.always', 'Always on')}
-              </Badge>
-            ) : part.waiting.length > 0 ? (
-              <Badge tone="warn" className={PILL}>
-                {t('studio:appParts.needs', 'Needs an add-on')}
-              </Badge>
-            ) : (
-              <span className="flex items-center gap-2">
-                <Switch
-                  checked={part.switch}
-                  disabled={ask.isPending || flip.isPending}
-                  aria-label={t('studio:appParts.switch', '{part}, on or off', { part: part.label })}
-                  onCheckedChange={(next) => ask.mutate({ part, on: next })}
-                />
-                <span className={`min-w-6 text-xs font-extrabold ${part.switch ? 'text-accent' : 'text-fg-subtle'}`}>
-                  {part.switch ? t('studio:appParts.on', 'On') : t('studio:appParts.off', 'Off')}
-                </span>
-              </span>
-            )}
-          </li>
-        ))}
-      </ul>
+      <ul className="flex flex-col gap-[9px]">{parts.data.parts.filter((part) => (part.needs ?? []).length === 0).map(item)}</ul>
+      {groupsOf(parts.data.parts).map((group) => (
+        <div key={group.key} className="mt-[9px] rounded-[11px] border border-border bg-surface-2 px-3 py-2.5" data-part-addon={group.key}>
+          <p className="text-[13px] leading-[normal] text-fg-muted">
+            <span className="font-bold text-fg">{namesList(group.names)}</span> · {t('studio:appParts.groupAddOn', 'add-on')}
+          </p>
+          <p className="mb-2 mt-1 text-xs leading-[1.5] text-fg-muted" data-part="addon-state">
+            {group.connected
+              ? t('studio:appParts.groupConnected', 'Connected: the parts below work with it.')
+              : t('studio:appParts.groupNotConnected', 'Not connected: the parts below wait for it. Connect it under Add-ons and they are put in.')}
+          </p>
+          <ul className="flex flex-col gap-[9px]">{group.parts.map(item)}</ul>
+        </div>
+      ))}
+      {stranded.length === 0 ? null : (
+        <p role="status" className="mt-3 rounded-[10px] bg-warn-soft px-3 py-2 text-xs font-bold leading-[1.5] text-warn" data-part="stranded">
+          {t('studio:appParts.installStranded', '{roles} {count, plural, one {is} other {are}} left with nothing to open with these parts.', { roles: namesList(stranded), count: stranded.length })}
+        </p>
+      )}
       {failure === null ? null : (
         <p role="alert" className="mt-2.5 text-[12.5px] text-danger">
           {failure.message}
@@ -197,10 +245,41 @@ export function partChoicesOf(modules: readonly PlanModule[], picks: Readonly<Re
   return Object.fromEntries(modules.filter((module) => module.default !== 'always').map((module) => [module.id, partTicked(module, picks)]));
 }
 
+/** Whether a part comes on with this install: ticked, and not left out for an add-on that is not ticked. */
+export function partStartsOn(module: PlanModule, picks: Readonly<Record<string, boolean>>): boolean {
+  return !module.leftOut && partTicked(module, picks);
+}
+
+/**
+ * What the ticks would make, worked out (never an example): the tables the
+ * install makes, the roles offered (a role of no part, or of a part that
+ * starts on) and the rules (of no part, or of a part that starts on); and the
+ * roles of the app left with nothing to open, every part of theirs being off.
+ * Null without the server's `whole` (an older server): nothing is guessed.
+ */
+export function partsSummary(
+  modules: readonly PlanModule[],
+  picks: Readonly<Record<string, boolean>>,
+  whole: PlanWhole | undefined,
+  tables: number,
+): { tables: number; roles: number; rules: number; stranded: string[] } | null {
+  if (whole === undefined) return null;
+  const on = new Set(modules.filter((module) => partStartsOn(module, picks)).map((module) => module.id));
+  const offered = whole.roles.filter((role) => role.parts.length === 0 || role.parts.some((part) => on.has(part)));
+  return {
+    tables,
+    roles: offered.length,
+    rules: whole.rules + modules.filter((module) => on.has(module.id)).reduce((sum, module) => sum + (module.rules ?? 0), 0),
+    stranded: whole.roles.filter((role) => role.parts.length > 0 && !role.parts.some((part) => on.has(part))).map((role) => role.name),
+  };
+}
+
 /**
  * The install check's "Parts" card: a tick for each part that has a switch.
- * A part built on an add-on that is not ticked says it is left out, and which
- * add-on would put it in.
+ * The parts that wait for an add-on are drawn under that add-on, which is
+ * ticked on the Add-ons card: unticked, they are left out and say what they
+ * wait for. Under them, the roles the ticks leave with nothing to open, and
+ * what the install will make, worked out from the ticks.
  */
 export function PartsInstallCard({
   appName,
@@ -209,6 +288,8 @@ export function PartsInstallCard({
   addOns,
   onTick,
   busy,
+  whole,
+  tables,
 }: {
   appName: string;
   modules: readonly PlanModule[];
@@ -216,8 +297,45 @@ export function PartsInstallCard({
   addOns: readonly AppAddOnRow[];
   onTick: (id: string, next: boolean) => void;
   busy: boolean;
+  /** The app's roles and rules of no part (`plan.whole`); absent from an older server. */
+  whole?: PlanWhole | undefined;
+  /** The tables this install makes, with the add-ons ticked: the app's and theirs. */
+  tables: number;
 }) {
   const nameOf = (key: string) => addOns.find((row) => row.key === key)?.name ?? key;
+  const fixed = modules.filter((module) => module.default === 'always').map((module) => manifestWords(module.label));
+  // The add-ons parts wait for, each once, in the order the parts name them.
+  const groups: string[][] = [];
+  for (const module of modules) if (module.needs.length > 0 && !groups.some((needs) => needs.join('+') === module.needs.join('+'))) groups.push(module.needs);
+  const summary = partsSummary(modules, picks, whole, tables);
+
+  const row = (module: PlanModule) => {
+    const label = manifestWords(module.label);
+    const always = module.default === 'always';
+    return (
+      <li key={module.id} data-part={module.id}>
+        <label className={`flex items-start gap-2.5 ${always || module.leftOut ? '' : 'cursor-pointer'}`}>
+          <Checkbox
+            checked={partStartsOn(module, picks)}
+            disabled={always || module.leftOut || busy}
+            aria-label={t('studio:appParts.installTick', 'Start with {part}', { part: label })}
+            onCheckedChange={(next) => onTick(module.id, next === true)}
+          />
+          <span className="text-[12.5px] leading-[1.5] text-fg-muted">
+            <span className={`font-bold ${module.leftOut ? 'text-fg-subtle' : 'text-fg'}`}>{label}</span>
+            {always ? ` — ${t('studio:appParts.installAlways', 'always on')}` : null}
+            {module.roles.length === 0 ? null : <span className="block">{t('studio:appParts.roles', 'Roles: {roles}', { roles: module.roles.join(', ') })}</span>}
+            {module.leftOut ? (
+              <span className="block" data-part="needs">
+                {t('studio:appParts.installWaiting', 'Waiting for the {addOns} add-on.', { addOns: namesList(module.needs.map(nameOf)) })}
+              </span>
+            ) : null}
+          </span>
+        </label>
+      </li>
+    );
+  };
+
   return (
     <section className="rounded-[14px] border border-border bg-surface p-[18px] shadow-sm" data-testid="install-parts">
       <h3 className="mb-[11px] flex items-center gap-[9px]">
@@ -225,42 +343,49 @@ export function PartsInstallCard({
         <span className="text-[13.5px] font-extrabold tracking-[-0.01em]">{t('studio:appParts.title', 'Parts')}</span>
       </h3>
       <p className="mb-2.5 text-[12.5px] leading-[1.5] text-fg-muted">
+        {fixed.length === 0
+          ? t('studio:appParts.installCount', '{count, plural, one {# part.} other {# parts.}}', { count: modules.length })
+          : t('studio:appParts.installCountFixed', '{count, plural, one {# part.} other {# parts.}} {fixed} {always, plural, one {is} other {are}} always part of it.', {
+              count: modules.length,
+              fixed: namesList(fixed),
+              always: fixed.length,
+            })}{' '}
         {t('studio:appParts.installHelp', 'Choose the parts of {app} to start with. Any of them can be switched on or off later, in the app’s settings.', { app: appName })}
       </p>
-      <ul className="flex flex-col gap-2">
-        {modules.map((module) => {
-          const label = manifestWords(module.label);
-          const always = module.default === 'always';
-          return (
-            <li key={module.id} data-part={module.id}>
-              <label className={`flex items-start gap-2.5 ${always ? '' : 'cursor-pointer'}`}>
-                <Checkbox
-                  checked={partTicked(module, picks)}
-                  disabled={always || busy}
-                  aria-label={t('studio:appParts.installTick', 'Start with {part}', { part: label })}
-                  onCheckedChange={(next) => onTick(module.id, next === true)}
-                />
-                <span className="text-[12.5px] leading-[1.5] text-fg-muted">
-                  <span className="font-bold text-fg">{label}</span>
-                  {always ? ` — ${t('studio:appParts.installAlways', 'always on')}` : null}
-                  {module.roles.length === 0 ? null : (
-                    <span className="block">{t('studio:appParts.roles', 'Roles: {roles}', { roles: module.roles.join(', ') })}</span>
-                  )}
-                  {module.needs.length === 0 ? null : (
-                    <span className="block" data-part="needs">
-                      {module.leftOut
-                        ? t('studio:appParts.installLeftOut', 'Left out of this install: it needs {addOns}. Tick it under Add-ons, or connect it later and the part is put in.', {
-                            addOns: module.needs.map(nameOf).join(', '),
-                          })
-                        : t('studio:appParts.installNeeds', 'Works with {addOns}, which is installed with the app.', { addOns: module.needs.map(nameOf).join(', ') })}
-                    </span>
-                  )}
-                </span>
-              </label>
-            </li>
-          );
-        })}
-      </ul>
+      <ul className="flex flex-col gap-2">{modules.filter((module) => module.needs.length === 0).map(row)}</ul>
+      {groups.map((needs) => {
+        const ticked = modules.some((module) => module.needs.join('+') === needs.join('+') && !module.leftOut);
+        return (
+          <div key={needs.join('+')} className="mt-2.5 rounded-[10px] border border-border bg-surface-2 px-3 py-2.5" data-part-addon={needs.join('+')}>
+            <p className="text-[12.5px] leading-[1.5] text-fg-muted">
+              <span className="font-bold text-fg">{namesList(needs.map(nameOf))}</span> · {t('studio:appParts.groupAddOn', 'add-on')}
+            </p>
+            <p className="mb-1.5 text-[11.5px] leading-[1.45] text-fg-subtle" data-part="addon-state">
+              {ticked
+                ? t('studio:appParts.groupTicked', 'Ticked under Add-ons: the parts below come with it.')
+                : t('studio:appParts.groupWaiting', 'Not ticked under Add-ons: the parts below wait for it. Tick it there, or connect it later and they are put in.')}
+            </p>
+            <ul className="flex flex-col gap-2 ps-[30px]">{modules.filter((module) => module.needs.join('+') === needs.join('+')).map(row)}</ul>
+          </div>
+        );
+      })}
+      {summary === null || summary.stranded.length === 0 ? null : (
+        <p role="status" className="mt-3 rounded-[10px] bg-warn-soft px-3 py-2 text-xs font-bold leading-[1.5] text-warn" data-part="stranded">
+          {t('studio:appParts.installStranded', '{roles} {count, plural, one {is} other {are}} left with nothing to open with these parts.', { roles: namesList(summary.stranded), count: summary.stranded.length })}
+        </p>
+      )}
+      {summary === null ? null : (
+        <p className="mt-3 flex flex-wrap items-baseline gap-x-2 text-[12.5px] leading-[1.5]" data-part="will-make">
+          <span className="font-bold text-fg-muted">{t('studio:appParts.willMake', 'Will make')}</span>
+          <span aria-live="polite" className="font-mono font-semibold text-fg">
+            {t('studio:appParts.willMakeCounts', '{tables, plural, one {# table} other {# tables}}, {roles, plural, one {# role} other {# roles}}, {rules, plural, one {# rule} other {# rules}}', {
+              tables: summary.tables,
+              roles: summary.roles,
+              rules: summary.rules,
+            })}
+          </span>
+        </p>
+      )}
     </section>
   );
 }

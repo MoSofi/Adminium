@@ -51,11 +51,19 @@ function type(schema: Json, printer: Printer, inCondition = false): string {
   const options = alternatives(schema);
   if (options.length > 1) {
     const kinds = options.flatMap(kindsOf);
-    // A union told apart by `kind`: each variant with its kind first.
+    // A union told apart by `kind`: each variant with its kind first; one whose kind is a word a draft never writes is left out.
     if (kinds.length > 0 && options.every((option) => kindsOf(option).length > 0)) {
-      return options.map((option) => `{ kind: ${kindsOf(option).map((kind) => JSON.stringify(kind)).join('|')}${fields(option, printer, ['kind'], inCondition)} }`).join(' | ');
+      return options
+        .filter((option) => !kindsOf(option).every((kind) => kind in NOT_FOR_A_DRAFT))
+        .map((option) => `{ kind: ${kindsOf(option).map((kind) => JSON.stringify(kind)).join('|')}${fields(option, printer, ['kind'], inCondition)} }`)
+        .join(' | ');
     }
-    return [...new Set(options.map((option) => type(option, printer, inCondition)))].join(' | ');
+    // A shape every field of which a draft never writes is no shape a draft can take.
+    const hidden = (option: Json): boolean =>
+      (kindsOf(option).length > 0 && kindsOf(option).every((kind) => kind in NOT_FOR_A_DRAFT)) ||
+      (isJson(option['properties']) && Object.keys(option['properties']).length > 0 && Object.keys(option['properties']).every((name) => name in NOT_FOR_A_DRAFT));
+    const shown = options.filter((option) => !hidden(option));
+    return [...new Set(shown.map((option) => type(option, printer, inCondition)))].join(' | ');
   }
   if (schema['const'] !== undefined) return JSON.stringify(schema['const']);
   if (Array.isArray(schema['enum'])) return schema['enum'].map((one) => JSON.stringify(one)).join('|');
@@ -108,6 +116,8 @@ export const NOT_FOR_A_DRAFT: Readonly<Record<string, string>> = {
   lead: 'a notice to the lead of the person on the row is written in an app\'s manifest',
   else: 'the roles told when nobody is on the row are written in an app\'s manifest',
   setting: 'an amount read from a setting is written in an app\'s manifest',
+  // A notice's `{ listed }`, and an e-mail's `{ kind: "listed" }` with it: the people a listing names, an app's word.
+  listed: 'the people a table lists against the record are told by a rule an app\'s manifest writes',
 };
 
 /** `, a: T, b?: T` — a field that may be left out, or that has a default, carries the `?`. */

@@ -571,6 +571,9 @@ export function InstallAppWizard({ onClose, preselected, quick = false, onMoreCh
             addOns={addOnRows}
             onTick={(id, next) => setPartPicks((picks) => ({ ...picks, [id]: next }))}
             busy={busy}
+            whole={plan.whole}
+            // What the install makes: the app's new tables, and those of each add-on it brings.
+            tables={plan.create.length + addOnRows.filter((row) => isSelected(row, addOnPicks)).reduce((sum, row) => sum + (row.plan?.create.length ?? 0), 0)}
           />
         )}
         {plan.maps === true ? (

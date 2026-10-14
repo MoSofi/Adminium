@@ -3469,8 +3469,17 @@
     "installHelp": "اختر أجزاء {app} التي تبدأ بها. يمكن تشغيل أي منها أو إيقافه لاحقًا من إعدادات التطبيق.",
     "installTick": "البدء بـ {part}",
     "installAlways": "مشغَّل دائمًا",
-    "installLeftOut": "مستبعَد من هذا التثبيت: يحتاج إلى {addOns}. حدّده ضمن الإضافات، أو اربطه لاحقًا وسيُضاف الجزء.",
-    "installNeeds": "يعمل مع {addOns} الذي يُثبَّت مع التطبيق."
+    "installWaiting": "في انتظار الإضافة {addOns}.",
+    "installCount": "{count, plural, zero {لا أجزاء.} one {جزء واحد.} two {جزءان.} few {# أجزاء.} many {# جزءًا.} other {# جزء.}}",
+    "installCountFixed": "{count, plural, zero {لا أجزاء.} one {جزء واحد.} two {جزءان.} few {# أجزاء.} many {# جزءًا.} other {# جزء.}} {fixed} {always, plural, zero {جزء} one {جزء} two {جزءان} few {أجزاء} many {أجزاء} other {أجزاء}} منه دائمًا.",
+    "groupAddOn": "إضافة",
+    "groupTicked": "محدَّدة ضمن الإضافات: الأجزاء أدناه تأتي معها.",
+    "groupWaiting": "غير محدَّدة ضمن الإضافات: الأجزاء أدناه في انتظارها. حدّدها هناك، أو اربطها لاحقًا وستُضاف.",
+    "groupConnected": "مربوطة: الأجزاء أدناه تعمل معها.",
+    "groupNotConnected": "غير مربوطة: الأجزاء أدناه في انتظارها. اربطها ضمن الإضافات وستُضاف.",
+    "installStranded": "{roles} {count, plural, zero {لا يبقى له ما يفتحه} one {لا يبقى له ما يفتحه} two {لا يبقى لهما ما يفتحانه} few {لا يبقى لهم ما يفتحونه} many {لا يبقى لهم ما يفتحونه} other {لا يبقى لهم ما يفتحونه}} بهذه الأجزاء.",
+    "willMake": "سيُنشئ",
+    "willMakeCounts": "{tables, plural, zero {لا جداول} one {جدول واحد} two {جدولان} few {# جداول} many {# جدولًا} other {# جدول}}، {roles, plural, zero {لا أدوار} one {دور واحد} two {دوران} few {# أدوار} many {# دورًا} other {# دور}}، {rules, plural, zero {لا قواعد} one {قاعدة واحدة} two {قاعدتان} few {# قواعد} many {# قاعدة} other {# قاعدة}}"
   },
   "installMaps": {
     "title": "الخرائط",

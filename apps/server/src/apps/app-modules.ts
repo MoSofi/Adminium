@@ -97,6 +97,29 @@ export interface PlanModule {
   leftOut: boolean;
   tables: string[];
   roles: string[];
+  /** How many of the app's rules are of this part: made with it, and run while it is on. */
+  rules: number;
+}
+
+/**
+ * What the check counts beside the parts: the app's roles, each with the
+ * parts it is of (none: it is offered whatever is on), and how many of its
+ * rules are of no part. With the parts' own counts, the check works out "N
+ * tables, N roles, N rules" and the roles left with nothing to open.
+ */
+export interface PlanWhole {
+  roles: { name: string; parts: string[] }[];
+  rules: number;
+}
+
+/** The roles and the rules of no part of an app with parts, for the check step. */
+export function planWholeOf(declared: Manifest): PlanWhole | undefined {
+  if (declared.kind !== 'app' || declared.modules === undefined) return undefined;
+  const ids = new Set(declared.modules.map((module) => module.id));
+  return {
+    roles: (declared.roles ?? []).map((role) => ({ name: role.name, parts: (role.modules ?? []).filter((id) => ids.has(id)) })),
+    rules: (declared.automations ?? []).filter((rule) => rule.module === undefined || !ids.has(rule.module)).length,
+  };
 }
 
 /** The parts of `declared` (the app's whole manifest) for a check step: `leftOut` are the ones this install does not make. */
@@ -112,5 +135,6 @@ export function planModulesOf(declared: Manifest, leftOut: readonly string[], st
     leftOut: leftOut.includes(module.id),
     tables: (declared.requiredSchema?.tables ?? []).filter((table) => 'module' in table && table.module === module.id).map((table) => table.ref),
     roles: (declared.roles ?? []).filter((role) => role.modules?.includes(module.id) === true).map((role) => role.name),
+    rules: (declared.automations ?? []).filter((rule) => rule.module === module.id).length,
   }));
 }

@@ -207,6 +207,8 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   'outbox.replyTo',
   // A notice to the people who lead a team of the person a staff column names, who can open the record; roles when there is none.
   'automations.lead',
+  // A notice or an e-mail to the people a table lists against the record, of them only who sign in and can open it when it goes (automations/listed-recipients.ts).
+  'automations.listed',
   // A person's name read from a staff column in a rule's text and e-mail; the record's address in a rule's e-mail to a person who can open it.
   'automations.staffName',
   'automations.recordUrl',

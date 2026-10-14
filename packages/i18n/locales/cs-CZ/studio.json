@@ -3469,8 +3469,17 @@
     "installHelp": "Vyberte části aplikace {app}, se kterými začnete. Každou lze později zapnout nebo vypnout v nastavení aplikace.",
     "installTick": "Začít s částí {part}",
     "installAlways": "vždy zapnuto",
-    "installLeftOut": "Při této instalaci vynecháno: vyžaduje {addOns}. Zaškrtněte jej v oddílu Doplňky, nebo jej připojte později a část se doplní.",
-    "installNeeds": "Funguje s doplňkem {addOns}, který se nainstaluje s aplikací."
+    "installWaiting": "Čeká na doplněk {addOns}.",
+    "installCount": "{count, plural, one {# část.} few {# části.} other {# částí.}}",
+    "installCountFixed": "{count, plural, one {# část.} few {# části.} other {# částí.}} {fixed} {always, plural, one {je} few {jsou} other {jsou}} vždy součástí aplikace.",
+    "groupAddOn": "doplněk",
+    "groupTicked": "Zaškrtnuto v oddílu Doplňky: části níže přijdou s ním.",
+    "groupWaiting": "V oddílu Doplňky nezaškrtnuto: části níže na něj čekají. Zaškrtněte jej tam, nebo jej připojte později a doplní se.",
+    "groupConnected": "Připojeno: části níže s ním pracují.",
+    "groupNotConnected": "Nepřipojeno: části níže na něj čekají. Připojte jej v oddílu Doplňky a doplní se.",
+    "installStranded": "{roles} {count, plural, one {nemá} few {nemají} other {nemají}} s těmito částmi co otevřít.",
+    "willMake": "Vytvoří",
+    "willMakeCounts": "{tables, plural, one {# tabulka} few {# tabulky} other {# tabulek}}, {roles, plural, one {# role} few {# role} other {# rolí}}, {rules, plural, one {# pravidlo} few {# pravidla} other {# pravidel}}"
   },
   "installMaps": {
     "title": "Mapy",

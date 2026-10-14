@@ -27,6 +27,7 @@ import { notify } from '../../notifications/notify.js';
 import { opensRecord, readerOfRecord, tokensAs } from '../record-link.js';
 import { substitute, type TokenMap } from '../templating.js';
 import { AUTOMATION_NOTICE_KIND } from './notice-kind.js';
+import { listedAt } from '../listed-recipients.js';
 import { staffAt } from '../staff-recipient.js';
 import { ActionFailure, type ActionContext, type ActionResult } from './types.js';
 
@@ -83,6 +84,11 @@ async function recipientsFor(action: NotificationAction, ctx: ActionContext): Pr
   const to = action.to;
   if (to === null) throw new ActionFailure('This step has nobody to notify.');
   if ('users' in to) return readersOf(ctx, [...new Set(to.users)]);
+  // The people a listing names for the record, of them only who sign in and can open it now: nobody left is said, not a failure.
+  if ('listed' in to) {
+    const found = await listedAt(ctx, to.listed);
+    return found.told.length > 0 ? found.told : { note: ctx.text.listedNobody(to.listed, found.listed) };
+  }
   // The person on the row, or whoever leads them: a record that names nobody tells the step's other roles, else nobody, and the run says so.
   if ('column' in to) {
     const found = await staffAt(ctx.meta, ctx, to.column);

@@ -311,6 +311,7 @@ function EmailSettings({
             if (kind === 'field') onChange({ to: { kind: 'field', column: '' } });
             else if (kind === 'fixed') onChange({ to: { kind: 'fixed', addresses: [] } });
             else if (kind === 'staff') onChange({ to: { kind: 'staff', column: '' } });
+            else if (kind === 'listed') onChange({ to: { kind: 'listed', table: '' } });
             else onChange({ to: null });
           }}
           data-testid="email-to-kind"
@@ -318,6 +319,8 @@ function EmailSettings({
           <option value="">{t('automations:email.to', 'To')}</option>
           <option value="field">{t('automations:email.toField', "This record's email")}</option>
           <option value="staff">{t('automations:email.toStaff', 'The person on this record')}</option>
+          {/* Offered where the table lists people against its rows, and kept for a step that already says it. */}
+          {(table?.listings?.length ?? 0) > 0 || to?.kind === 'listed' ? <option value="listed">{t('automations:listed.option', 'The people listed on this record')}</option> : null}
           <option value="fixed">{t('automations:email.toFixed', 'Addresses')}</option>
         </Select>
       </Field>
@@ -325,6 +328,8 @@ function EmailSettings({
       {to?.kind === 'staff' ? (
         <StaffColumnField table={table} value={to.column} onChange={(column) => onChange({ to: { kind: 'staff', column } })} testId="email-to-staff" />
       ) : null}
+
+      {to?.kind === 'listed' ? <ListingField table={table} value={to.table} onChange={(listed) => onChange({ to: { kind: 'listed', table: listed } })} testId="email-to-listed" /> : null}
 
       {to?.kind === 'field' ? (
         <Field label={t('automations:email.column', 'Column')}>
@@ -512,7 +517,7 @@ function PlaceholderLine({
 function NotificationSettings(props: ActionSettingsProps & { action: Extract<Action, { kind: 'notification' }> }): ReactNode {
   const { action, sources, onChange } = props;
   const to = action.to;
-  const mode = to === null ? '' : 'roles' in to ? 'roles' : 'column' in to ? 'column' : 'users';
+  const mode = to === null ? '' : 'roles' in to ? 'roles' : 'column' in to ? 'column' : 'listed' in to ? 'listed' : 'users';
   return (
     <Card title={t('automations:pick.notification', 'Send notification')}>
       <Field label={t('automations:notif.to', 'Send to')}>
@@ -523,12 +528,14 @@ function NotificationSettings(props: ActionSettingsProps & { action: Extract<Act
             if (next === 'roles') onChange({ to: { roles: [] } });
             else if (next === 'users') onChange({ to: { users: [] } });
             else if (next === 'column') onChange({ to: { column: '' } });
+            else if (next === 'listed') onChange({ to: { listed: '' } });
             else onChange({ to: null });
           }}
           data-testid="notif-mode"
         >
           <option value="">{t('automations:notif.to', 'Send to')}</option>
           <option value="column">{t('automations:notif.column', 'The person on this record')}</option>
+          {(props.table?.listings?.length ?? 0) > 0 || mode === 'listed' ? <option value="listed">{t('automations:listed.option', 'The people listed on this record')}</option> : null}
           <option value="roles">{t('automations:notif.roles', 'Everyone with a role')}</option>
           <option value="users">{t('automations:notif.users', 'Specific people')}</option>
         </Select>
@@ -537,6 +544,8 @@ function NotificationSettings(props: ActionSettingsProps & { action: Extract<Act
       {to !== null && 'column' in to ? (
         <StaffColumnField table={props.table} value={to.column} onChange={(column) => onChange({ to: { column } })} testId="notif-column" />
       ) : null}
+
+      {to !== null && 'listed' in to ? <ListingField table={props.table} value={to.listed} onChange={(listed) => onChange({ to: { listed } })} testId="notif-listed" /> : null}
 
       {to !== null && 'roles' in to ? (
         <Field label={t('automations:notif.roles', 'Everyone with a role')}>
@@ -627,6 +636,28 @@ function StaffColumnField({ table, value, onChange, testId }: { table: SourceTab
       ) : (
         <p className="mt-1 text-[11px] leading-[1.45] text-fg-subtle">{t('automations:notif.columnEmpty', 'A record with nobody in that column tells nobody, and the run says so.')}</p>
       )}
+    </Field>
+  );
+}
+
+/** Which table's people: one that lists people against the record's rows. Only those who can open the record are told. */
+function ListingField({ table, value, onChange, testId }: { table: SourceTable | null; value: string; onChange: (listed: string) => void; testId: string }): ReactNode {
+  const options = table?.listings ?? [];
+  return (
+    <Field label={t('automations:listed.pick', 'Listed in')}>
+      <Select value={value} onChange={(event) => onChange(event.target.value)} data-testid={testId}>
+        <option value="">{t('automations:listed.choose', 'Choose a table…')}</option>
+        {/* A table the step already names stays listed, whatever the table says of it now. */}
+        {value !== '' && !options.some((option) => option.table === value) ? <option value={value}>{value}</option> : null}
+        {options.map((option) => (
+          <option key={option.table} value={option.table}>
+            {option.label}
+          </option>
+        ))}
+      </Select>
+      <p className="mt-1 text-[11px] leading-[1.45] text-fg-subtle">
+        {t('automations:listed.help', 'Of the people listed, only those who can sign in and open this record are told. A record that lists nobody tells nobody, and the run says so.')}
+      </p>
     </Field>
   );
 }

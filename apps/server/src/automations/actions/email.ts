@@ -40,9 +40,11 @@ import {
   connectionTenantConfig,
   emailTemplatesRepo,
   settingsRepo,
+  usersRepo,
   type AutomationAction,
   type EmailTemplate,
   type MetaDb,
+  type User,
 } from '@adminium/meta';
 
 import { createSmtpTransport, emailSecretKey, resolveSmtpConfig } from '../../email/config.js';
@@ -59,6 +61,7 @@ import { substitute, tokensFor, type TokenMap } from '../templating.js';
 import { enqueueEmail } from '../../email/send.js';
 import { heldUntil } from '../../notifications/notify.js';
 import { readerOfRecord, recordUrlFor, tokensAs, type RecordReader } from '../record-link.js';
+import { listedAt } from '../listed-recipients.js';
 import { staffAt, staffReplyTo } from '../staff-recipient.js';
 import { AUTOMATION_NOTICE_KIND } from './notice-kind.js';
 import { ActionFailure, type ActionContext, type ActionResult } from './types.js';
@@ -73,7 +76,7 @@ export function recipientsFor(action: EmailAction, ctx: ActionContext): string[]
     return to.addresses.map((address) => address.trim()).filter((address) => address.length > 0);
   }
   // The person on the row is looked up, and written to through the queue (`runStaffEmail`): never an address read off a column.
-  if (to.kind === 'staff') return [];
+  if (to.kind === 'staff' || to.kind === 'listed') return [];
   if (ctx.source === null) return [];
   // The address of a related row: the order's customer's, `customer_id.email`.
   const related = parseRelated(to.column);
@@ -122,7 +125,7 @@ async function existsInAnyLocale(meta: MetaDb, key: string, locale: string): Pro
 // Where a template's placeholders are read: beside what a template key means, which this step also asks.
 export { templatePlaceholders } from '../templates.js';
 
-/** What every rule's email can read whatever its record is. A mail to a person (`to.kind: staff`) also reads `recordUrl`. */
+/** What every rule's email can read whatever its record is. A mail to a person (`to.kind: staff` or `listed`) also reads `recordUrl`. */
 export const RULE_EMAIL_VARS = ['now', 'ruleName', 'recordLabel', 'appName'] as const;
 
 /**
@@ -234,11 +237,37 @@ async function runStaffEmail(action: EmailAction & { to: { kind: 'staff'; column
   // The mail is about the record: somebody named on it who cannot open it is not written to (an approver whose roles reach other deals).
   const reader = await readerOfRecord(ctx, user.id);
   if (reader === null) return { log: ctx.text.staffNobody(action.to.column, 'closed') };
+  return { log: await mailPerson(action, ctx, user, reader, dryRun) };
+}
+
+/**
+ * To each of the people a listing names for the record, who signs in and can
+ * open it now (`listed-recipients.ts`): one mail each, in their own language,
+ * read as they read the record, with its address. Nobody left is a line in the log.
+ */
+async function runListedEmail(action: EmailAction & { to: { kind: 'listed'; table: string } }, ctx: ActionContext, dryRun: boolean): Promise<ActionResult> {
+  if (action.templateKey === null || action.templateKey === '') throw new ActionFailure('This step has no template.');
+  const found = await listedAt(ctx, action.to.table);
+  if (found.told.length === 0) return { log: ctx.text.listedNobody(action.to.table, found.listed) };
+  const users = usersRepo(ctx.meta);
+  const said: string[] = [];
+  for (const id of found.told) {
+    const user = await users.findById(id);
+    const reader = user === null ? null : await readerOfRecord(ctx, user.id);
+    if (user !== null && reader !== null) said.push(await mailPerson(action, ctx, user, reader, dryRun));
+  }
+  if (said.length === 0) return { log: ctx.text.listedNobody(action.to.table, found.listed) };
+  return { log: said.join(' · ') };
+}
+
+/** One person's mail of a step: written in their language and as they read the record, queued (or, in a test run, drawn); the log's line for it. */
+async function mailPerson(action: EmailAction, ctx: ActionContext, user: User, reader: RecordReader, dryRun: boolean): Promise<string> {
+  const templateKey = action.templateKey as string;
   const locale = await recipientLocale(ctx.meta, user.id);
-  const template = await resolveRuleTemplate(ctx.meta, action.templateKey, locale);
+  const template = await resolveRuleTemplate(ctx.meta, templateKey, locale);
   if (template === null) {
-    const exists = await existsInAnyLocale(ctx.meta, action.templateKey, locale);
-    throw new ActionFailure(exists ? `Template ${action.templateKey} is archived or switched off.` : `Template ${action.templateKey} no longer exists.`);
+    const exists = await existsInAnyLocale(ctx.meta, templateKey, locale);
+    throw new ActionFailure(exists ? `Template ${templateKey} is archived or switched off.` : `Template ${templateKey} no longer exists.`);
   }
   // The record's address, for a person who can open it: what a notice's e-mail button carries. Last, so neither a
   // column nor a step's own vars named `recordUrl` can put another address in its place.
@@ -248,18 +277,18 @@ async function runStaffEmail(action: EmailAction & { to: { kind: 'staff'; column
     const prepared = await prepareEmail(ctx.meta, template);
     const rendered = renderEmail({ ...prepared.render, locale: template.locale, vars, dir: 'ltr' });
     if (unfilled.length > 0) throw new ActionFailure(ctx.text.emailUnfilledStop(listed(unfilled)));
-    return { log: ctx.text.emailWould(rendered.subject, user.name) };
+    return ctx.text.emailWould(rendered.subject, user.name);
   }
   const held = await heldUntil(ctx.meta, user.id, AUTOMATION_NOTICE_KIND, ctx.now);
   const replyTo = await staffReplyTo(ctx.meta, ctx, action.replyTo?.staff);
   const job = await enqueueEmail(
     { meta: ctx.meta, secret: ctx.secret, ...(held === null ? {} : { runAt: held }) },
-    { to: user.email, templateKey: action.templateKey, locale, vars, template, ...(replyTo === null ? {} : { replyTo }) } as never,
+    { to: user.email, templateKey, locale, vars, template, ...(replyTo === null ? {} : { replyTo }) } as never,
   );
   if (job === null) throw new ActionFailure(ctx.text.emailNoSmtp());
   const said = [held === null ? ctx.text.emailQueued(user.name) : ctx.text.heldUntil(user.name, new Date(held).toISOString())];
   if (unfilled.length > 0) said.push(ctx.text.emailUnfilled(listed(unfilled)));
-  return { log: said.join(' · ') };
+  return said.join(' · ');
 }
 
 export async function runEmailAction(
@@ -267,6 +296,7 @@ export async function runEmailAction(
   ctx: ActionContext,
 ): Promise<ActionResult> {
   if (action.to?.kind === 'staff') return runStaffEmail(action as EmailAction & { to: { kind: 'staff'; column: string } }, ctx, false);
+  if (action.to?.kind === 'listed') return runListedEmail(action as EmailAction & { to: { kind: 'listed'; table: string } }, ctx, false);
   const { template, recipients } = await resolve(action, ctx);
 
   const config = await resolveSmtpConfig(ctx.meta, emailSecretKey(ctx.secret));
@@ -306,6 +336,7 @@ export async function dryRunEmailAction(
   ctx: ActionContext,
 ): Promise<ActionResult> {
   if (action.to?.kind === 'staff') return runStaffEmail(action as EmailAction & { to: { kind: 'staff'; column: string } }, ctx, true);
+  if (action.to?.kind === 'listed') return runListedEmail(action as EmailAction & { to: { kind: 'listed'; table: string } }, ctx, true);
   const { template, recipients } = await resolve(action, ctx);
   // Everything the real send does except the last line: the document is
   // resolved and RENDERED, so a broken template fails the test too.

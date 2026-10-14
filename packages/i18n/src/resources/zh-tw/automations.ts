@@ -502,5 +502,12 @@ export default {
   "appFilter": {
     "note": "僅顯示 {app} 的規則。",
     "clear": "顯示全部規則"
+  },
+  "listed": {
+    "summary": "{table} 中列出的人員",
+    "option": "此記錄上列出的人員",
+    "pick": "列於",
+    "choose": "選擇一個資料表…",
+    "help": "列出的人員中，只有能夠登入並開啟此記錄的人才會收到通知。未列出任何人的記錄不會通知任何人，執行記錄中會註明。"
   }
 } as const;

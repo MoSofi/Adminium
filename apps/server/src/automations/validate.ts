@@ -107,10 +107,10 @@ export function isActionComplete(action: AutomationAction): boolean {
     case 'email':
       if (action.templateKey === null || action.templateKey === '') return false;
       if (action.to === null) return false;
-      return action.to.kind === 'fixed' ? action.to.addresses.length > 0 : action.to.column !== '';
+      return action.to.kind === 'fixed' ? action.to.addresses.length > 0 : action.to.kind === 'listed' ? action.to.table !== '' : action.to.column !== '';
     case 'notification':
       if (action.to === null || action.title.trim() === '') return false;
-      return 'users' in action.to ? action.to.users.length > 0 : 'column' in action.to ? action.to.column !== '' : action.to.roles.length > 0;
+      return 'users' in action.to ? action.to.users.length > 0 : 'column' in action.to ? action.to.column !== '' : 'listed' in action.to ? action.to.listed !== '' : action.to.roles.length > 0;
     case 'digest':
       if (action.templateKey === null || action.templateKey === '' || action.to === null || action.to.roles.length === 0 || action.sections.length === 0) return false;
       return action.sections.every((section) => section.table !== '' && section.owner !== '' && section.where.every(isConditionComplete));
@@ -228,6 +228,19 @@ function staffColumn(path: string, table: ResolvedTable | null, ctx: ResolveCont
   }
 }
 
+/**
+ * A table that lists people against the rule's record: one of the record's
+ * table's `belongs` ways reads `through` it. Named by its id; an empty name is
+ * a step not finished yet, as an empty column is.
+ */
+function listingTable(listed: string, table: ResolvedTable | null, where: string): void {
+  if (listed === '') return;
+  if (table === null) throw new ValidationFailedError(`${where}: this rule has no record, so nobody is listed on it to tell. ${NO_RECORD_REMEDY}`, {});
+  if (!(table.table.belongs ?? []).some((way) => 'through' in way && way.through.table === listed)) {
+    throw new ValidationFailedError(`${where}: ${listed} lists nobody against ${table.id}, so it names nobody to tell.`, { table: listed, reason: 'not-a-listing' });
+  }
+}
+
 /** A typed address, as a mail server would take it: one @, something on both sides, a dot after it, no spaces. */
 const ADDRESS = /^[^\s@,;<>]+@[^\s@,;<>]+\.[^\s@,;<>]+$/;
 
@@ -314,6 +327,7 @@ function checkAction(
         );
       }
       if (action.to?.kind === 'staff' && action.to.column !== '') staffColumn(action.to.column, table, ctx, where);
+      if (action.to?.kind === 'listed') listingTable(action.to.table, table, where);
       // A reply goes to a person a staff column names, and to nobody an address column or a typed text could name.
       if (action.replyTo !== undefined) staffColumn(action.replyTo.staff, table, ctx, where);
       if (action.to?.kind === 'field' && action.to.column !== '') {
@@ -340,6 +354,7 @@ function checkAction(
     }
     case 'notification': {
       if (action.to !== null && 'column' in action.to && action.to.column !== '') staffColumn(action.to.column, table, ctx, where);
+      if (action.to !== null && 'listed' in action.to) listingTable(action.to.listed, table, where);
       // A notice to a lead goes somewhere when there is none: it is never quietly nobody's.
       if (action.to !== null && 'column' in action.to && action.to.lead === true && (action.to.else?.roles.length ?? 0) === 0) {
         throw new ValidationFailedError(`${where}: a notice to the lead of the person in ${action.to.column} says which roles are told when there is none.`, { column: action.to.column, reason: 'lead-without-else' });
@@ -729,6 +744,9 @@ export function requiredGrants(
       add(node.action.table, 'create');
     }
     if (node.action.kind === 'record.update' && subject !== null) add(subject, 'update');
+    // Telling the people a listing names reads that listing's rows.
+    if (node.action.kind === 'notification' && node.action.to !== null && 'listed' in node.action.to) add(node.action.to.listed, 'read');
+    if (node.action.kind === 'email' && node.action.to?.kind === 'listed') add(node.action.to.table, 'read');
     if (node.action.kind === 'add-on.step' && steps !== undefined && node.action.addOn !== '' && node.action.step !== '') {
       const answer = steps(node.action.addOn, node.action.step);
       if (answer.state === 'ok' && answer.step.table !== null) add(answer.step.table, 'create');

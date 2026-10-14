@@ -222,6 +222,14 @@ export const appPlanModule = z.object({
   tables: z.array(z.string()),
   /** The roles that are offered only while this part (or another of theirs) is on. */
   roles: z.array(z.string()),
+  /** How many of the app's rules are of this part. Absent from an older server. */
+  rules: z.number().int().optional(),
+});
+
+/** The app's roles with the parts each is of, and its rules of no part: what the check counts beside the parts. */
+export const appPlanWhole = z.object({
+  roles: z.array(z.object({ name: z.string(), parts: z.array(z.string()) })),
+  rules: z.number().int(),
 });
 
 export const planAppBody = z.object({
@@ -488,6 +496,8 @@ export const appInstallPlanDto = z.object({
    * `leftOut` says its tables are not made by this install, with the tables.
    */
   modules: z.array(appPlanModule).optional(),
+  /** Beside `modules`: the roles and the rules of no part, for the check's counts. Absent for an app with no parts. */
+  whole: appPlanWhole.optional(),
 });
 
 export const appInstallPlanReply = z.object({ plan: appInstallPlanDto });
@@ -1174,6 +1184,8 @@ export const appPartDto = z.object({
   on: z.boolean(),
   /** The add-ons it still waits for, by name. */
   waiting: z.array(z.object({ key: z.string(), name: z.string() })),
+  /** Every add-on it is built on, by name, connected or not: the add-on the card draws it under. Absent from an older server. */
+  needs: z.array(z.object({ key: z.string(), name: z.string() })).optional(),
   /** Its tables were not made by the install: they are when the add-on it waits for is connected. */
   leftOut: z.boolean(),
   pages: z.number().int(),

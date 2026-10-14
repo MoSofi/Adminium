@@ -17,7 +17,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createQueryClient } from '../../app/query.js';
 import { installTestI18n } from '../../i18n/testing.js';
 import { jsonResponse } from '../../test/fixtures.js';
-import { AppPartsCard, PartsInstallCard, partChoicesOf } from './AppPartsCard.js';
+import { AppPartsCard, PartsInstallCard, partChoicesOf, partsSummary, strandedRoles } from './AppPartsCard.js';
 import type { AppPart, PlanModule } from './appsApi.js';
 
 const part = (over: Partial<AppPart> & { id: string; label: string }): AppPart => ({ default: 'on', switch: true, on: true, waiting: [], leftOut: false, pages: 1, tables: 1, rules: 0, roles: [], ...over });
@@ -121,6 +121,27 @@ describe('the Parts card of an app', () => {
     await waitFor(() => expect(calls.find((call) => call.method === 'PUT')).toMatchObject({ body: { on: true } }));
   });
 
+  it('draws a part built on an add-on under that add-on, and names the roles left with nothing to open', async () => {
+    parts = [
+      part({ id: 'selling', label: 'Selling', default: 'always', pages: 12, roles: [{ slug: 'crm-rep', name: 'Sales rep', members: 4 }] }),
+      part({ id: 'jobs', label: 'Jobs on site', default: 'off', switch: false, on: false, roles: [{ slug: 'crm-crew', name: 'Field crew', members: 2 }, { slug: 'crm-ops', name: 'Operations manager', members: 1 }] }),
+      part({ id: 'quotes', label: 'Quotes', needs: [{ key: 'invoices', name: 'Invoices & Receipts' }], roles: [{ slug: 'crm-rep', name: 'Sales rep', members: 4 }] }),
+      part({ id: 'supply', label: 'Supply', on: false, leftOut: true, needs: [{ key: 'inventory', name: 'Inventory' }], waiting: [{ key: 'inventory', name: 'Inventory' }], roles: [{ slug: 'crm-ops', name: 'Operations manager', members: 1 }] }),
+    ];
+    card();
+    const list = await screen.findByTestId('app-parts');
+    const invoices = list.querySelector('[data-part-addon="invoices"]') as HTMLElement;
+    const inventory = list.querySelector('[data-part-addon="inventory"]') as HTMLElement;
+    expect(within(invoices).getByText('Quotes')).toBeTruthy();
+    expect(invoices.textContent).toContain('Connected: the parts below work with it.');
+    expect(within(inventory).getByText('Supply')).toBeTruthy();
+    expect(inventory.textContent).toContain('Not connected: the parts below wait for it.');
+    expect(within(inventory).getByText('Not set up yet. Connect Inventory under Add-ons and it is put in.')).toBeTruthy();
+    // Jobs is off and Supply waits: both of their roles have nothing; the rep has Selling.
+    expect(within(list).getByRole('status').textContent).toBe('Field crew and Operations manager are left with nothing to open with these parts.');
+    expect(strandedRoles(parts)).toEqual(['Field crew', 'Operations manager']);
+  });
+
   it('draws nothing for an app with no parts', async () => {
     parts = [];
     const { container } = card();
@@ -144,16 +165,69 @@ describe('the parts in the install check', () => {
     const onTick = vi.fn((id: string, next: boolean) => {
       picks[id] = next;
     });
-    render(<PartsInstallCard appName="Sales CRM" modules={modules} picks={picks} addOns={addOns} onTick={onTick} busy={false} />);
+    render(<PartsInstallCard appName="Sales CRM" modules={modules} picks={picks} addOns={addOns} onTick={onTick} busy={false} tables={4} />);
     const always = screen.getByRole('checkbox', { name: 'Start with Selling' });
     expect(always.getAttribute('aria-checked')).toBe('true');
     expect(always.hasAttribute('disabled')).toBe(true);
     expect(screen.getByRole('checkbox', { name: 'Start with Jobs on site' }).getAttribute('aria-checked')).toBe('false');
     expect(screen.getByRole('checkbox', { name: 'Start with Inbox' }).getAttribute('aria-checked')).toBe('true');
-    expect(screen.getByText(/Left out of this install: it needs Invoices & Receipts\./)).toBeTruthy();
+    expect(screen.getByText('Waiting for the Invoices & Receipts add-on.')).toBeTruthy();
     await user.click(screen.getByRole('checkbox', { name: 'Start with Jobs on site' }));
     expect(onTick).toHaveBeenCalledWith('jobs', true);
     expect(partChoicesOf(modules, picks)).toEqual({ jobs: true, inbox: true, quotes: true });
+  });
+
+  it('draws a part that waits for an add-on under that add-on, and counts what the ticks make', async () => {
+    const user = userEvent.setup();
+    const crm: PlanModule[] = [
+      { ...modules[0]!, rules: 3 },
+      { id: 'accounts', label: { 'en-US': 'Accounts' }, default: 'always', needs: [], leftOut: false, tables: ['companies'], roles: ['Sales rep', 'Marketer'], rules: 0 },
+      { ...modules[1]!, rules: 2 },
+      { ...modules[2]!, rules: 1 },
+      { id: 'quotes', label: { 'en-US': 'Quotes' }, default: 'on', needs: ['invoices'], leftOut: false, tables: ['quotes'], roles: ['Sales rep'], rules: 4 },
+      { id: 'supply', label: { 'en-US': 'Supply' }, default: 'on', needs: ['inventory'], leftOut: true, tables: [], roles: ['Operations manager'], rules: 0 },
+    ];
+    const whole = {
+      roles: [
+        { name: 'CRM admin', parts: [] },
+        { name: 'Sales rep', parts: ['selling', 'quotes', 'accounts'] },
+        { name: 'Marketer', parts: ['accounts', 'inbox'] },
+        { name: 'Field crew', parts: ['jobs'] },
+        { name: 'Operations manager', parts: ['jobs', 'supply'] },
+      ],
+      rules: 1,
+    };
+    const both = [
+      { key: 'invoices', name: 'Invoices & Receipts' },
+      { key: 'inventory', name: 'Inventory' },
+    ] as never;
+    const picks: Record<string, boolean> = {};
+    const { rerender } = render(<PartsInstallCard appName="Sales CRM" modules={crm} picks={picks} addOns={both} onTick={(id, next) => (picks[id] = next)} busy={false} whole={whole} tables={40} />);
+    const card = screen.getByTestId('install-parts');
+    expect(card.textContent).toContain('6 parts. Selling and Accounts are always part of it.');
+    // Quotes sits in the Invoices & Receipts box, Supply in Inventory's: one ticked under Add-ons, one not.
+    const invoices = card.querySelector('[data-part-addon="invoices"]') as HTMLElement;
+    const inventory = card.querySelector('[data-part-addon="inventory"]') as HTMLElement;
+    expect(within(invoices).getByRole('checkbox', { name: 'Start with Quotes' }).getAttribute('aria-checked')).toBe('true');
+    expect(invoices.textContent).toContain('Ticked under Add-ons');
+    const supply = within(inventory).getByRole('checkbox', { name: 'Start with Supply' });
+    expect(supply.getAttribute('aria-checked')).toBe('false');
+    expect(supply.hasAttribute('disabled')).toBe(true);
+    expect(inventory.textContent).toContain('Waiting for the Inventory add-on.');
+    // Jobs is off and Supply waits: the field crew and the operations manager have nothing to open.
+    expect(within(card).getByRole('status').textContent).toBe('Field crew and Operations manager are left with nothing to open with these parts.');
+    // 40 tables; the admin, the rep and the marketer; 1 + 3 + 1 + 4 rules (selling, inbox, quotes, and one of no part).
+    expect(card.querySelector('[data-part="will-make"]')!.textContent).toBe('Will make40 tables, 3 roles, 9 rules');
+    await user.click(screen.getByRole('checkbox', { name: 'Start with Jobs on site' }));
+    rerender(<PartsInstallCard appName="Sales CRM" modules={crm} picks={{ ...picks }} addOns={both} onTick={(id, next) => (picks[id] = next)} busy={false} whole={whole} tables={40} />);
+    expect(card.querySelector('[data-part="stranded"]')).toBeNull();
+    expect(card.querySelector('[data-part="will-make"]')!.textContent).toBe('Will make40 tables, 5 roles, 11 rules');
+  });
+
+  it('works nothing out from an older server that does not say the roles', () => {
+    expect(partsSummary(modules, {}, undefined, 3)).toBeNull();
+    render(<PartsInstallCard appName="Sales CRM" modules={modules} picks={{}} addOns={addOns} onTick={() => undefined} busy={false} tables={3} />);
+    expect(screen.getByTestId('install-parts').querySelector('[data-part="will-make"]')).toBeNull();
   });
 
   it('starts from how a part stands on an app that is already installed', () => {

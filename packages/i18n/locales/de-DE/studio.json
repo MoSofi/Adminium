@@ -3469,8 +3469,17 @@
     "installHelp": "Wählen Sie die Teile von {app}, mit denen Sie beginnen. Jeder lässt sich später in den Einstellungen der App ein- oder ausschalten.",
     "installTick": "Mit {part} beginnen",
     "installAlways": "immer an",
-    "installLeftOut": "Bei dieser Installation ausgelassen: braucht {addOns}. Haken Sie es unter „Add-ons“ an oder verbinden Sie es später, dann wird der Teil eingerichtet.",
-    "installNeeds": "Arbeitet mit {addOns}, das mit der App installiert wird."
+    "installWaiting": "Wartet auf das Add-on {addOns}.",
+    "installCount": "{count, plural, one {# Teil.} other {# Teile.}}",
+    "installCountFixed": "{count, plural, one {# Teil.} other {# Teile.}} {fixed} {always, plural, one {gehört} other {gehören}} immer dazu.",
+    "groupAddOn": "Add-on",
+    "groupTicked": "Unter „Add-ons“ angehakt: Die Teile darunter kommen damit.",
+    "groupWaiting": "Unter „Add-ons“ nicht angehakt: Die Teile darunter warten darauf. Haken Sie es dort an oder verbinden Sie es später, dann werden sie eingerichtet.",
+    "groupConnected": "Verbunden: Die Teile darunter arbeiten damit.",
+    "groupNotConnected": "Nicht verbunden: Die Teile darunter warten darauf. Verbinden Sie es unter „Add-ons“, dann werden sie eingerichtet.",
+    "installStranded": "{roles} {count, plural, one {hat} other {haben}} mit diesen Teilen nichts zu öffnen.",
+    "willMake": "Wird anlegen",
+    "willMakeCounts": "{tables, plural, one {# Tabelle} other {# Tabellen}}, {roles, plural, one {# Rolle} other {# Rollen}}, {rules, plural, one {# Regel} other {# Regeln}}"
   },
   "installMaps": {
     "title": "Karten",

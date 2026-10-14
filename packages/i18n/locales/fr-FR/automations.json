@@ -492,5 +492,12 @@
   "appFilter": {
     "note": "Seules les règles de {app} sont affichées.",
     "clear": "Afficher toutes les règles"
+  },
+  "listed": {
+    "summary": "les personnes inscrites dans {table}",
+    "option": "Les personnes inscrites sur cet enregistrement",
+    "pick": "Inscrites dans",
+    "choose": "Choisir une table…",
+    "help": "Parmi les personnes inscrites, seules celles qui peuvent se connecter et ouvrir cet enregistrement sont prévenues. Un enregistrement où personne n’est inscrit ne prévient personne, et l’exécution le dit."
   }
 }

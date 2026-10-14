@@ -91,8 +91,9 @@ function boundNode(node: unknown, b: Binding): unknown {
   const action = anyNode['action'] as { kind: string } & Record<string, unknown>;
   if (action.kind === 'notification') {
     // To the people of a role, by the role's id here; or to the person a staff column names (or their lead), as written, with its roles for nobody by id.
-    const to = action['to'] as { roles: string[] } | { column: string; lead?: true; else?: { roles: string[] } };
-    const bound = 'roles' in to ? { roles: to.roles.map((key) => b.roleId(key)) } : to.else === undefined ? to : { ...to, else: { roles: to.else.roles.map((key) => b.roleId(key)) } };
+    // To the people a listing names: the listing's table as it is named here.
+    const to = action['to'] as { roles: string[] } | { listed: string } | { column: string; lead?: true; else?: { roles: string[] } };
+    const bound = 'roles' in to ? { roles: to.roles.map((key) => b.roleId(key)) } : 'listed' in to ? { listed: b.realId(to.listed) } : to.else === undefined ? to : { ...to, else: { roles: to.else.roles.map((key) => b.roleId(key)) } };
     return { ...base, action: { ...action, to: bound, title: one(action['title'] as Words, b.language), ...(action['body'] === undefined ? {} : { body: one(action['body'] as Words, b.language) }) } };
   }
   if (action.kind === 'digest') {
@@ -132,6 +133,11 @@ function boundNode(node: unknown, b: Binding): unknown {
     };
   }
   if (action.kind === 'record.create') return { ...base, action: { ...action, table: b.realId(action['table'] as string) } };
+  // A mail to the people a listing names: the listing's table as it is named here.
+  if (action.kind === 'email' && (action['to'] as { kind?: string } | undefined)?.kind === 'listed') {
+    const to = action['to'] as { kind: 'listed'; table: string };
+    return { ...base, action: { ...action, to: { kind: 'listed', table: b.realId(to.table) } } };
+  }
   return base;
 }
 

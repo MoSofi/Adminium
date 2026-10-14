@@ -80,6 +80,12 @@ function conditionSentence(condition: Condition, table: SourceTable | null): str
   return `${column} ${op} ${right}`.trim();
 }
 
+/** A table that lists people against the record, by its label: "the people listed in {table}". */
+function listingLabel(listed: string, table: SourceTable | null): string {
+  const label = table?.listings?.find((one) => one.table === listed)?.label ?? listed;
+  return t('automations:listed.summary', 'the people listed in {table}', { table: label });
+}
+
 function actionSentence(action: Action, table: SourceTable | null): string {
   switch (action.kind) {
     case 'email': {
@@ -90,7 +96,9 @@ function actionSentence(action: Action, table: SourceTable | null): string {
       const to =
         recipient.kind === 'fixed'
           ? recipient.addresses.join(', ')
-          : (table?.columns.find((column) => column.name === recipient.column)?.label ?? recipient.column);
+          : recipient.kind === 'listed'
+            ? listingLabel(recipient.table, table)
+            : (table?.columns.find((column) => column.name === recipient.column)?.label ?? recipient.column);
       return t('automations:node.email.summary', 'Template · {template} → {to}', {
         template: action.templateKey,
         to,
@@ -102,6 +110,7 @@ function actionSentence(action: Action, table: SourceTable | null): string {
         const named = action.to.column;
         return t('automations:node.notification.summary', 'To · {who}', { who: table?.columns.find((column) => column.name === named)?.label ?? named });
       }
+      if ('listed' in action.to) return t('automations:node.notification.summary', 'To · {who}', { who: listingLabel(action.to.listed, table) });
       const who = 'roles' in action.to ? action.to.roles.length : action.to.users.length;
       return t('automations:node.notification.summary', 'To · {who}', { who: String(who) });
     }

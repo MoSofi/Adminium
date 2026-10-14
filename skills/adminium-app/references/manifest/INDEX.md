@@ -87,7 +87,7 @@
 | `references/manifest/public-access--availability.md` | Public access — Availability | 1991 |
 | `references/manifest/public-access--limits-on-a-stranger-s-create.md` | Public access — Limits on a stranger's create | 3390 |
 | `references/manifest/public-access--publickeys.md` | Public access — publicKeys | 3463 |
-| `references/manifest/automations.md` | Automations | 5686 |
+| `references/manifest/automations.md` | Automations | 5977 |
 | `references/manifest/automations--the-lead-of-the-person-on-the-row.md` | Automations — The lead of the person on the row | 1212 |
 
 More: `references/manifest/INDEX-2.md`

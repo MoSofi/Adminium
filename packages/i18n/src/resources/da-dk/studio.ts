@@ -3479,8 +3479,17 @@ export default {
     "installHelp": "Vælg de dele af {app}, du vil starte med. Hver af dem kan slås til eller fra senere i appens indstillinger.",
     "installTick": "Start med {part}",
     "installAlways": "altid til",
-    "installLeftOut": "Udeladt af denne installation: den kræver {addOns}. Sæt hak under Tilføjelser, eller tilslut senere, så bliver delen sat op.",
-    "installNeeds": "Virker med {addOns}, som installeres sammen med appen."
+    "installWaiting": "Venter på tilføjelsen {addOns}.",
+    "installCount": "{count, plural, one {# del.} other {# dele.}}",
+    "installCountFixed": "{count, plural, one {# del.} other {# dele.}} {fixed} {always, plural, one {er} other {er}} altid med.",
+    "groupAddOn": "tilføjelse",
+    "groupTicked": "Sat hak under Tilføjelser: delene herunder kommer med den.",
+    "groupWaiting": "Ikke sat hak under Tilføjelser: delene herunder venter på den. Sæt hak der, eller tilslut den senere, så bliver de sat op.",
+    "groupConnected": "Tilsluttet: delene herunder virker med den.",
+    "groupNotConnected": "Ikke tilsluttet: delene herunder venter på den. Tilslut den under Tilføjelser, så bliver de sat op.",
+    "installStranded": "{roles} {count, plural, one {har} other {har}} intet at åbne med disse dele.",
+    "willMake": "Opretter",
+    "willMakeCounts": "{tables, plural, one {# tabel} other {# tabeller}}, {roles, plural, one {# rolle} other {# roller}}, {rules, plural, one {# regel} other {# regler}}"
   },
   "installMaps": {
     "title": "Kort",

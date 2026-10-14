@@ -3479,8 +3479,17 @@ export default {
     "installHelp": "选择开始使用 {app} 的哪些部分。之后可在应用设置中随时开启或关闭任何一个。",
     "installTick": "开始时启用“{part}”",
     "installAlways": "始终开启",
-    "installLeftOut": "本次安装不包含：它需要 {addOns}。请在“附加组件”中勾选，或稍后连接后再加入这一部分。",
-    "installNeeds": "与 {addOns} 配合使用，后者会随应用一起安装。"
+    "installWaiting": "正在等待附加组件 {addOns}。",
+    "installCount": "{count, plural, other {共 # 个部分。}}",
+    "installCountFixed": "{count, plural, other {共 # 个部分。}}{fixed}{always, plural, other {始终包含在内。}}",
+    "groupAddOn": "附加组件",
+    "groupTicked": "已在“附加组件”中勾选：下面的部分随之加入。",
+    "groupWaiting": "未在“附加组件”中勾选：下面的部分在等待它。请在那里勾选，或稍后连接后再加入。",
+    "groupConnected": "已连接：下面的部分与它配合使用。",
+    "groupNotConnected": "未连接：下面的部分在等待它。在“附加组件”中连接后即会加入。",
+    "installStranded": "{roles}{count, plural, other {在这些部分下没有可打开的内容。}}",
+    "willMake": "将创建",
+    "willMakeCounts": "{tables, plural, other {# 个表}}、{roles, plural, other {# 个角色}}、{rules, plural, other {# 条规则}}"
   },
   "installMaps": {
     "title": "地图",

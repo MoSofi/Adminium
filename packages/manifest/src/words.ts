@@ -118,6 +118,7 @@ export const INSTALL_FLOOR_WORD_NAMES = [
   'automations.many',
   'automations.replyTo',
   'automations.lead',
+  'automations.listed',
   'automations.staffName',
   'automations.recordUrl',
   'automations.was',
@@ -201,6 +202,8 @@ export const WORD_FLOORS: Readonly<Partial<Record<ManifestWordName, string>>> = 
   'automations.replyTo': '0.3.28',
   // A notice to whoever leads a team the person a staff column names is in, and to roles when there is nobody.
   'automations.lead': '0.3.28',
+  // A notice or an e-mail to the people a table lists against the record, of them only who can open it when it goes.
+  'automations.listed': '0.3.28',
   // A rule's text or its e-mail naming the person a staff column names; a rule's e-mail to a person carrying the record's address.
   'automations.staffName': '0.3.28',
   'automations.recordUrl': '0.3.28',
@@ -415,6 +418,7 @@ export function installFloorWords(document: unknown): ManifestWord[] {
         if ((action['kind'] === 'notification' && to['column'] !== undefined) || (action['kind'] === 'email' && to['kind'] === 'staff')) out.push({ word: 'automations.staffRecipient', path: `${at}.${String(n)}.action.to` });
         if (action['kind'] === 'email' && action['replyTo'] !== undefined) out.push({ word: 'automations.replyTo', path: `${at}.${String(n)}.action.replyTo` });
         if (action['kind'] === 'notification' && (to['lead'] !== undefined || to['else'] !== undefined)) out.push({ word: 'automations.lead', path: `${at}.${String(n)}.action.to` });
+        if ((action['kind'] === 'notification' && to['listed'] !== undefined) || (action['kind'] === 'email' && to['kind'] === 'listed')) out.push({ word: 'automations.listed', path: `${at}.${String(n)}.action.to` });
         if (action['urgent'] !== undefined) out.push({ word: 'automations.urgent', path: `${at}.${String(n)}.action.urgent` });
         if (action['kind'] === 'digest') out.push({ word: 'automations.digest', path: `${at}.${String(n)}.action` });
         if (action['kind'] === 'digest') {

@@ -3479,8 +3479,17 @@ export default {
     "installHelp": "選擇開始使用 {app} 的哪些部分。之後可在應用程式設定中隨時開啟或關閉任何一個。",
     "installTick": "開始時啟用「{part}」",
     "installAlways": "一律開啟",
-    "installLeftOut": "本次安裝不包含：它需要 {addOns}。請在「附加元件」中勾選，或稍後連接後再加入這個部分。",
-    "installNeeds": "與 {addOns} 搭配使用，後者會隨應用程式一起安裝。"
+    "installWaiting": "正在等待附加元件 {addOns}。",
+    "installCount": "{count, plural, other {共 # 個部分。}}",
+    "installCountFixed": "{count, plural, other {共 # 個部分。}}{fixed}{always, plural, other {一律包含在內。}}",
+    "groupAddOn": "附加元件",
+    "groupTicked": "已在「附加元件」中勾選：下面的部分隨之加入。",
+    "groupWaiting": "未在「附加元件」中勾選：下面的部分在等待它。請在那裡勾選，或稍後連接後再加入。",
+    "groupConnected": "已連接：下面的部分與它搭配使用。",
+    "groupNotConnected": "未連接：下面的部分在等待它。在「附加元件」中連接後即會加入。",
+    "installStranded": "{roles}{count, plural, other {在這些部分下沒有可開啟的內容。}}",
+    "willMake": "將建立",
+    "willMakeCounts": "{tables, plural, other {# 個資料表}}、{roles, plural, other {# 個角色}}、{rules, plural, other {# 條規則}}"
   },
   "installMaps": {
     "title": "地圖",

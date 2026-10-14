@@ -1,6 +1,6 @@
 ---
 title: Telling the person on the row
-description: Rules that tell a record's own person, once per spell, at once or after their quiet hours; a summary for each person; and mentions in a text.
+description: Rules that tell a record's own person, its lead or the people listed on it, once per spell, at once or after their quiet hours; a summary for each person; and mentions in a text.
 ---
 
 An app that gives each record to a person (a deal to its owner, a job to its fitter) can tell
@@ -43,6 +43,25 @@ The lead is whoever leads a team the asker is in (Settings → Teams) and can op
 none (she leads her own team and nobody leads her, or she is in no team), the `else` roles are told,
 and still never she. Somebody who leads a team with her is not her lead. `{{asked_by_id.name}}` is
 her name.
+
+## Tell the people listed on it
+
+A deal's people (`deal_members`), a visit's crew (`crew_members`, through the visit's crew): when
+the record's table reads a listing `through` one of its `belongs` ways, a step can tell the people
+it lists for the record.
+
+```json
+{ "kind": "notification", "to": { "listed": "crew_members" }, "urgent": true,
+  "title": { "en-US": "Your day sheet changed: {{record.what}}" } }
+```
+
+```json
+{ "kind": "email", "templateKey": "crm-deal-news", "to": { "kind": "listed", "table": "deal_members" } }
+```
+
+Only those listed who can sign in and **open the record when the step runs** are told; being put
+on a list is not enough. Somebody whose role reads no visit, or reads only won deals, is passed
+over. A cover with two dates counts only between them, on the business's day.
 
 ## Say what it was
 

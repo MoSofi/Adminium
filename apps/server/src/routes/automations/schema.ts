@@ -145,6 +145,12 @@ const sourceTableSchema = z.object({
    */
   links: z.array(z.object({ column: z.string(), table: z.string(), label: z.string(), columns: z.array(sourceColumnSchema) })),
   /**
+   * The tables that list people against this one's rows (its `belongs` ways
+   * `through` them): what a step may tell as "the people listed". Only a
+   * table the asker may read is listed. Absent from a server before it said.
+   */
+  listings: z.array(z.object({ table: z.string(), label: z.string() })).optional(),
+  /**
    * Tables whose rows point AT this one, and the column that does it —
    * child-table picker, seeded from foreign keys.
    *

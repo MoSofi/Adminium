@@ -4120,8 +4120,8 @@ A step's action is one of six:
 
 | `kind` | Keys | What it does |
 |---|---|---|
-| `notification` | `to: { "roles" }` or `to: { "column", "lead"?, "else"? }`, `title`, `body`?, `urgent`? | Tells everyone who holds one of the manifest's own roles **and can open the record**, or [the person on the row](#the-person-on-the-row), or [the lead of that person](#the-lead-of-the-person-on-the-row). `"urgent": true` tells them at once, also in their quiet hours. |
-| `email` | `templateKey`, `to: { "kind": "field", "column" }` or `to: { "kind": "staff", "column" }`, `vars`?, `replyTo: { "staff": column }`? | Sends one of the manifest's own templates to the address a column of the record holds, or to [the person on the row](#the-person-on-the-row). |
+| `notification` | `to: { "roles" }`, `to: { "column", "lead"?, "else"? }` or `to: { "listed" }`, `title`, `body`?, `urgent`? | Tells everyone who holds one of the manifest's own roles **and can open the record**, or [the person on the row](#the-person-on-the-row), or [the lead of that person](#the-lead-of-the-person-on-the-row), or [the people listed on the row](#the-people-listed-on-the-row). `"urgent": true` tells them at once, also in their quiet hours. |
+| `email` | `templateKey`, `to: { "kind": "field", "column" }`, `to: { "kind": "staff", "column" }` or `to: { "kind": "listed", "table" }`, `vars`?, `replyTo: { "staff": column }`? | Sends one of the manifest's own templates to the address a column of the record holds, to [the person on the row](#the-person-on-the-row), or one to each of [the people listed on the row](#the-people-listed-on-the-row). |
 | `digest` | `templateKey`, `to: { "roles" }`, `sections`, `sendEmpty`? | Makes [a summary for each person](#a-summary-for-each-person) who holds one of the roles: their own rows, or theirs and those of the people they lead, read as they read. |
 | `record.create` | `table`, `values`, `name`? | Adds a row of one of the manifest's tables. With a `name`, [the steps after it read the row it made](#a-row-a-step-makes). |
 | `record.update` | `values` | Writes columns of the record. |
@@ -4156,6 +4156,31 @@ can open the record are told instead, again never the person. A notice to a lead
 `else`; the validator refuses one without. `else` also works without `lead`: a record whose column
 names nobody then tells those roles instead of nobody. A team she leads herself, alone or with
 others, leads her not: a co-lead of her own team is not told as her lead. Needs Adminium 0.3.28.
+
+### The people listed on the row
+
+```json
+{ "kind": "notification", "to": { "listed": "crew_members" }, "urgent": true,
+  "title": { "en-US": "Your day sheet changed: {{record.what}} at {{record.start_time}}" } }
+```
+
+`listed` names a table that lists people against the rule's record: one of the record's table's
+[`belongs` ways](#whose-a-row-is) reads `through` it (a deal's `deal_members`, a visit's crew
+through `crew_members`, a deal's owner's `covers`). The step tells the people that listing names
+for the record **when it runs**, each once; a dated listing (`from`, `to`) counts on the business's
+day, so a cover that ended or has not begun names nobody. On an e-mail step, `"to": { "kind":
+"listed", "table": "deal_members" }` sends one mail to each of them, in their own language, and may
+carry [`{{recordUrl}}`](#a-persons-name-and-the-records-address).
+
+**Being listed is no right to be told.** Of the people listed, only those who sign in (not
+suspended, not only invited, not a sample person) and whose own roles **open the record** at that
+moment are told: they read its table, and the row is among the rows they reach. A fitter on a crew
+whose role reads no visit, a marketer listed on a deal, a rep who has since lost her role, an
+account manager whose role reads won deals only, listed on an open one: none of them hears. A
+record that lists nobody, or nobody who may be told, is a line in the run's log, not a failure.
+The validator refuses a table the record's ways do not read through, and a rule that runs for no
+record. At most 100 people are told through one listing of one record; a listing that names more
+fails the step by name. Needs Adminium 0.3.28.
 
 ### The record as it was
 

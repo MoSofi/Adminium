@@ -192,6 +192,39 @@ describe('rules that tell the person on the row', () => {
     expect(changed((doc) => lead(doc, { column: 'owner_id', lead: true, else: { roles: [] } }))).not.toBe('');
   });
 
+  it('tells the people a table lists against the record, by a notice or a mail each, and says the word to an older server', () => {
+    /** The sales app with `deal_members` listing people on a deal, read `through` by the deal's own ways. */
+    const listing = (doc: Doc): Doc => {
+      doc.requiredSchema.tables.push({ ref: 'deal_members', belongs: [{ via: 'deal_id' }], columns: [id, { ref: 'deal_id', type: 'fk', references: 'deals' }, { ref: 'user_id', type: 'text', maxLength: 36, rules: { staff: true } }] } as never);
+      (doc.requiredSchema.tables.find((one) => one.ref === 'deals') as unknown as { belongs: unknown[] }).belongs.push({ through: { table: 'deal_members', link: 'deal_id', user: 'user_id' } });
+      return doc;
+    };
+    type Templates = { emailTemplates: { key: string; locales: Record<string, { blocks: { data: Record<string, unknown> }[] }> }[] };
+    const told = listing(sales() as Doc);
+    rule(told, 'quiet-deal').graph.nodes[1]!.action['to'] = { listed: 'deal_members' };
+    rule(told, 'deal-won').graph.nodes[1]!.action['to'] = { kind: 'listed', table: 'deal_members' };
+    // A mail to each of them may carry the record's address, as a mail to a person does.
+    (told as unknown as Templates).emailTemplates.find((one) => one.key === 'sales-won')!.locales['en-US']!.blocks[0]!.data['text'] = 'Open it: {{recordUrl}}';
+    expect(issuesOf(told)).toEqual([]);
+    const words = installFloorWords(told).map((found) => `${found.word} ${found.path}`);
+    expect(words).toContain('automations.listed automations.0.graph.nodes.1.action.to');
+    expect(words).toContain('automations.listed automations.3.graph.nodes.1.action.to');
+    expect(WORD_FLOORS['automations.listed']).toBe('0.3.28');
+    const wrong = (change: (doc: Doc) => void): string => {
+      const doc = listing(sales() as Doc);
+      change(doc);
+      return issuesOf(doc).join('\n');
+    };
+    // Only a table the record's own ways read through; never a table that merely has a staff column, nor one of another record.
+    expect(wrong((doc) => (rule(doc, 'quiet-deal').graph.nodes[1]!.action['to'] = { listed: 'targets' }))).toContain('"targets" lists nobody against "deals"');
+    expect(wrong((doc) => (rule(doc, 'deal-won').graph.nodes[1]!.action['to'] = { kind: 'listed', table: 'follow_ups' }))).toContain('"follow_ups" lists nobody against "deals"');
+    expect(wrong((doc) => (rule(doc, 'follow-up-made').graph.nodes[1]!.action['to'] = { listed: 'deal_members' }))).toContain('"deal_members" lists nobody against "follow_ups"');
+    // A rule about no record has nobody listed on it.
+    expect(wrong((doc) => (rule(doc, 'weekly').graph.nodes[1]!.action = { kind: 'notification', to: { listed: 'deal_members' }, title: en('Hello') }))).toContain('this rule runs for no record, so nobody is listed on it to tell');
+    // Nothing more is taken beside the table.
+    expect(wrong((doc) => (rule(doc, 'quiet-deal').graph.nodes[1]!.action['to'] = { listed: 'deal_members', lead: true }))).not.toBe('');
+  });
+
   it('fills the name of the person a staff column names, and the record\'s address only in a mail to a person', () => {
     type Templates = { emailTemplates: { key: string; locales: Record<string, { blocks: { data: Record<string, unknown> }[] }> }[] };
     const won = (doc: Doc) => (doc as unknown as Templates).emailTemplates.find((one) => one.key === 'sales-won')!.locales['en-US']!.blocks[0]!.data;

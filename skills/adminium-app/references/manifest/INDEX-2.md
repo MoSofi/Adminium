@@ -4,6 +4,7 @@
 
 | File | What it covers | Bytes |
 |---|---|---|
+| `references/manifest/automations--the-people-listed-on-the-row.md` | Automations — The people listed on the row | 1966 |
 | `references/manifest/automations--the-record-as-it-was.md` | Automations — The record as it was | 1279 |
 | `references/manifest/automations--a-person-s-name-and-the-record-s-address.md` | Automations — A person's name, and the record's address | 1290 |
 | `references/manifest/automations--the-person-on-the-row.md` | Automations — The person on the row | 1887 |

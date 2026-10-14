@@ -48,6 +48,7 @@ import { AppError, ForbiddenError, NotFoundError, ValidationFailedError } from '
 import { addressableTables, childTablesFor } from '../../connections/child-tables.js';
 import { loadSnapshotView } from '../../data-io/snapshot-view.js';
 import type { ResolvedColumn, ResolvedTable, SnapshotView } from '../../crud/identifiers.js';
+import type { EffectiveTable } from '../../connections/effective-schema.js';
 import { pkLabel } from '../../crud/records.js';
 import type { Row } from '../../crud/mask.js';
 import { PERMISSIONS } from '../../rbac/permissions.js';
@@ -234,6 +235,22 @@ export function automationsRoutes(deps: AutomationsRoutesDeps): FastifyPluginAsy
     return out;
   }
 
+  /**
+   * The tables that list people against a table's rows (its `belongs` ways
+   * `through` them), for a step to "the people listed": only those the asker
+   * may read, as a step's other tables are.
+   */
+  async function listingsOf(model: SnapshotView['model'], table: EffectiveTable, connectionId: string, request: FastifyRequest) {
+    const out: { table: string; label: string }[] = [];
+    for (const way of table.belongs ?? []) {
+      if (!('through' in way) || out.some((one) => one.table === way.through.table)) continue;
+      const list = model.tables.find((candidate) => candidate.id === way.through.table);
+      if (list === undefined || list.private === true || !(await request.can(`table:${connectionId}:${list.id}:read`))) continue;
+      out.push({ table: list.id, label: list.label ?? list.name });
+    }
+    return out;
+  }
+
   /** D2 — the SAVING USER must already hold every grant the rule will use. */
   async function assertAuthorGrants(
     request: FastifyRequest,
@@ -378,6 +395,7 @@ export function automationsRoutes(deps: AutomationsRoutesDeps): FastifyPluginAsy
               },
               columns: [...resolved.columns.values()].map((column) => columnOf(resolved, column)),
               links: await linksOf(view, resolved, connection.id, request),
+              listings: await listingsOf(view.model, resolved.table, connection.id, request),
               // The picker seed — only edges a mapping can store.
               children: childTablesFor(view.model, resolved.id, offered),
               pageSlug: page?.slug ?? null,

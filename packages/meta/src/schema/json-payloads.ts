@@ -1901,6 +1901,12 @@ const automationEmailRecipientSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('fixed'), addresses: z.array(z.string().max(320)).max(20) }),
   /** The person a staff column of the record names (`owner_id`, or `<link>.<staff column>`): Adminium looks their address up. */
   z.object({ kind: z.literal('staff'), column: z.string().max(260) }),
+  /**
+   * The people a table that lists people against the record names for it
+   * (a `belongs` way of the record's table `through` that table, by its id):
+   * one mail each, to those of them who can open the record when it goes.
+   */
+  z.object({ kind: z.literal('listed'), table: z.string().max(200) }),
 ]);
 
 /** One section of a summary: the rows of a table whose `owner` is the person written to, or one of the people they lead. */
@@ -1979,6 +1985,12 @@ export const automationActionSchema = z.discriminatedUnion('kind', [
          * who can open the record. `else`: the roles told when that names nobody; a lead has one.
          */
         z.object({ column: z.string().max(260), lead: z.literal(true).optional(), else: z.object({ roles: z.array(z.string()).min(1).max(20) }).optional() }),
+        /**
+         * The people a table that lists people against the record names for it (a `belongs` way
+         * of the record's table `through` that table, by its id), of those only who can open the
+         * record when the step runs.
+         */
+        z.object({ listed: z.string().max(200) }),
       ])
       .nullable()
       .default(null),

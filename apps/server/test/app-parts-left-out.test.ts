@@ -110,6 +110,9 @@ for (const [dialect, available] of ENGINES) {
         expect.objectContaining({ id: 'quotes', default: 'on', leftOut: true, needs: ['invoices'], tables: ['quotes', 'quote_lines'], roles: ['Sales rep', 'Quote clerk'] }),
       ]);
       expect(plan.tables.map((table: { ref: string }) => table.ref).sort()).toEqual(['deals', 'notes']);
+      // What the check counts beside the parts: each role with its parts, and the rules of no part.
+      expect(plan.whole).toEqual({ roles: [{ name: 'Sales rep', parts: ['selling', 'quotes'] }, { name: 'Quote clerk', parts: ['quotes'] }], rules: 0 });
+      expect(plan.modules.map((module: { rules: number }) => module.rules)).toEqual([0, 0]);
 
       const installed = await h.install('crm', '0.2.0', { planChecksum: plan.checksum });
       expect(installed.statusCode, installed.body).toBe(200);
@@ -131,8 +134,10 @@ for (const [dialect, available] of ENGINES) {
       expect(parts.statusCode, parts.body).toBe(200);
       expect(parts.json().parts).toEqual([
         expect.objectContaining({ id: 'selling', on: true, switch: true, leftOut: false }),
-        expect.objectContaining({ id: 'quotes', on: false, switch: true, leftOut: true, waiting: [expect.objectContaining({ key: 'invoices' })] }),
+        expect.objectContaining({ id: 'quotes', on: false, switch: true, leftOut: true, waiting: [expect.objectContaining({ key: 'invoices' })], needs: [expect.objectContaining({ key: 'invoices' })] }),
       ]);
+      // A part built on no add-on needs none.
+      expect(parts.json().parts[0].needs).toEqual([]);
     });
 
     it('is put in when the add-on is installed for the app afterwards', async () => {
@@ -156,7 +161,8 @@ for (const [dialect, available] of ENGINES) {
       const stored = await storedModules(h);
       expect(stored?.leftOut).toBeUndefined();
       const parts = await h.inject({ method: 'GET', url: '/apps/crm/parts' });
-      expect(parts.json().parts[1]).toMatchObject({ id: 'quotes', on: true, leftOut: false, waiting: [] });
+      // Connected, it is still drawn under the add-on it is built on.
+      expect(parts.json().parts[1]).toMatchObject({ id: 'quotes', on: true, leftOut: false, waiting: [], needs: [expect.objectContaining({ key: 'invoices' })] });
       const roles = (await rolesRepo(h.meta).list()).filter((role) => role.appKey === 'crm');
       expect(roles.map((role) => [role.slug, role.modules]).sort()).toEqual([
         ['crm-quoter', ['quotes']],

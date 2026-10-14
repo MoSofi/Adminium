@@ -3479,8 +3479,17 @@ export default {
     "installHelp": "Choisissez les parties de {app} avec lesquelles commencer. Chacune peut être activée ou désactivée plus tard, dans les réglages de l’application.",
     "installTick": "Commencer avec {part}",
     "installAlways": "toujours activée",
-    "installLeftOut": "Laissée de côté pour cette installation : elle nécessite {addOns}. Cochez-le sous Modules, ou connectez-le plus tard et la partie sera mise en place.",
-    "installNeeds": "Fonctionne avec {addOns}, installé avec l’application."
+    "installWaiting": "En attente du module {addOns}.",
+    "installCount": "{count, plural, one {# partie.} other {# parties.}}",
+    "installCountFixed": "{count, plural, one {# partie.} other {# parties.}} {fixed} {always, plural, one {en fait} other {en font}} toujours partie.",
+    "groupAddOn": "module",
+    "groupTicked": "Coché sous Modules : les parties ci-dessous viennent avec lui.",
+    "groupWaiting": "Non coché sous Modules : les parties ci-dessous l’attendent. Cochez-le là, ou connectez-le plus tard et elles seront mises en place.",
+    "groupConnected": "Connecté : les parties ci-dessous fonctionnent avec lui.",
+    "groupNotConnected": "Non connecté : les parties ci-dessous l’attendent. Connectez-le sous Modules et elles seront mises en place.",
+    "installStranded": "{roles} {count, plural, one {n’a} other {n’ont}} rien à ouvrir avec ces parties.",
+    "willMake": "Créera",
+    "willMakeCounts": "{tables, plural, one {# table} other {# tables}}, {roles, plural, one {# rôle} other {# rôles}}, {rules, plural, one {# règle} other {# règles}}"
   },
   "installMaps": {
     "title": "Cartes",

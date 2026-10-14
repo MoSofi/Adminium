@@ -147,9 +147,16 @@ export const manifestActionSchema = z.discriminatedUnion('kind', [
       /**
        * Who it goes to: `field`, the record's column that holds the address;
        * or `staff`, a staff column of the record (or `<link>.<staff column>`
-       * of the row a link of it names), whose person's address Adminium looks up.
+       * of the row a link of it names), whose person's address Adminium looks up;
+       * or `listed`, the people a table that lists people against the record
+       * (one of its `belongs` ways `through`) names for it: one mail each, to
+       * those of them who can open the record when it is sent.
        */
-      to: z.union([z.object({ kind: z.literal('field'), column: refSchema }).strict(), z.object({ kind: z.literal('staff'), column: staffPath }).strict()]),
+      to: z.union([
+        z.object({ kind: z.literal('field'), column: refSchema }).strict(),
+        z.object({ kind: z.literal('staff'), column: staffPath }).strict(),
+        z.object({ kind: z.literal('listed'), table: refSchema }).strict(),
+      ]),
       /**
        * Where a reply goes: to the person a staff column of the record names
        * (or `<link>.<staff column>` of the row a link of it names), by the
@@ -172,10 +179,13 @@ export const manifestActionSchema = z.discriminatedUnion('kind', [
        * that person but whoever leads a team they are in (never the person
        * themselves), and of those only who can open the record. `else`: the
        * roles told when the column, or its lead, names nobody; a lead always
-       * has one.
+       * has one. Or `listed`: the people a table that lists people against the
+       * record (one of its `belongs` ways `through`) names for it, of those
+       * only who can open the record when the step runs.
        */
       to: z.union([
         z.object({ roles: z.array(roleKey).min(1).max(20) }).strict(),
+        z.object({ listed: refSchema }).strict(),
         z
           .object({ column: staffPath, lead: z.literal(true).optional(), else: z.object({ roles: z.array(roleKey).min(1).max(20) }).strict().optional() })
           .strict()
@@ -327,6 +337,8 @@ export interface AutomationTableShape {
     references?: string | undefined;
     rules?: Readonly<Record<string, unknown>> | undefined;
   }[];
+  /** How people belong to its rows: a way `through` names a table that lists people against them. */
+  belongs?: readonly unknown[] | undefined;
 }
 
 /** What the checks read of an email template: its key and, per language, the text it is made of. */
@@ -496,6 +508,16 @@ export function automationIssues(m: {
       }
     };
 
+    /** A table that lists people against the rule's record (a `belongs` way `through` it): who a step to "the people listed" tells. */
+    const listedAt = (ref: string, where: (string | number)[]) => {
+      if (record === undefined) {
+        out.push({ path: where, message: 'this rule runs for no record, so nobody is listed on it to tell' });
+        return;
+      }
+      const lists = (record.belongs ?? []).some((way) => typeof way === 'object' && way !== null && 'through' in way && (way as { through?: { table?: unknown } }).through?.table === ref);
+      if (!lists) out.push({ path: where, message: `"${ref}" lists nobody against "${record.ref}": name a table one of its "belongs" ways reads "through"` });
+    };
+
     /** `{{was.<column>}}`: a column of the record, in a rule run by its change. */
     const changing = trigger.kind === 'record' && trigger.event === 'updated';
     const wasIssue = (ref: string, path: (string | number)[]): void => {
@@ -541,6 +563,8 @@ export function automationIssues(m: {
             action.to.roles.forEach((role, i) => {
               if (!m.roles.includes(role)) out.push({ path: here('to', 'roles', i), message: `"${role}" is not one of this manifest's roles` });
             });
+          } else if ('listed' in action.to) {
+            listedAt(action.to.listed, here('to', 'listed'));
           } else {
             staffAt(action.to.column, here('to', 'column'));
             (action.to.else?.roles ?? []).forEach((role, i) => {
@@ -689,6 +713,7 @@ export function automationIssues(m: {
         // An email: one of the manifest's own templates, to a column of the record, and only one a rule can fill.
         if (record === undefined) out.push({ path: here(), message: 'this rule runs for no record, so there is no address to send to' });
         if (action.to.kind === 'staff') staffAt(action.to.column, here('to', 'column'));
+        else if (action.to.kind === 'listed') listedAt(action.to.table, here('to', 'table'));
         else column(record, action.to.column, here('to', 'column'));
         if (action.replyTo !== undefined) staffAt(action.replyTo.staff, here('replyTo', 'staff'));
         const template = templates.get(action.templateKey);
@@ -701,7 +726,8 @@ export function automationIssues(m: {
         const columns = new Set((record?.columns ?? []).map((candidate) => candidate.ref));
         // The name of the person a staff column of the record names; the record's address, in a mail to a person.
         const people = new Set((record?.columns ?? []).filter((candidate) => candidate.rules?.['staff'] === true).flatMap((candidate) => [`${candidate.ref}.name`, `record.${candidate.ref}.name`]));
-        const toPerson = action.to.kind === 'staff';
+        // A mail to a person, or to each of the people listed on the record: each is somebody the address is worked out for.
+        const toPerson = action.to.kind === 'staff' || action.to.kind === 'listed';
         const filled = (name: string): boolean =>
           (RULE_EMAIL_VARS as readonly string[]).includes(name) ||
           Object.hasOwn(vars, name) ||
