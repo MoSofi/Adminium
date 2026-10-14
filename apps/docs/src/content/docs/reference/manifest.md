@@ -395,6 +395,7 @@ change or delete is theirs from then on.
 | `perNight` | `{ "from", "to", "rate", "adjust"? }` | A price worked out night by night: a stay's room total. See [Prices by the night](#prices-by-the-night). |
 | `notAfter` | `"today"` or `{ "column", "via"?, "when"?, "strict"? }` | A `date` column is never later than today, in the venue's time zone; or than another date, read as `notBefore` reads it (a credit's nights end by its stay's `depart`). A later date is refused (`out-of-range`). |
 | `notBefore` | `{ "column", "via"?, "when"?, "strict"? }` | A `date` column is never earlier than another date column: of the same row, or, with `via`, of the row its foreign key `via` points at (a payment never before its invoice's `issued_on`). `when`: 1–8 [conditions](#conditions-a-move-waits-for) on the row as the write leaves it; the bound holds only while they are met. `strict`: the same day is out too — `true`, or 1–8 conditions it is out under (a guest who left early is credited from the day after the arrival, one who never came from the arrival itself). |
+| `linkable` | `{ "where" }` | On a foreign key: it names only a row of the table it points at that meets 1–8 conditions (`where`, the shape a move's [`linked`](#conditions-a-move-waits-for) takes) — a price-list line still offered. Judged when a new row names one and when a change moves the link, for every writer. See [Links to some rows](#links-to-some-rows). Needs Adminium 0.3.28. |
 | `retryKey` | `true` | The column a staff create keeps its retry key in, as a 43-letter hash, on a table no public entry creates rows of: a desk's payment sent again after a lost reply answers the payment the first one made (see the REST API's `clientKey`). A `text` column, `unique`, nullable, at least 43 long; one a table. |
 | `rollup` | `{ "from", "via", "sum" or "count", "times"?, "unlessSet"?, "where"?, "balance"?, "cap"? }` | A total over child rows, kept up to date as they change. `from` is the child table, `via` its foreign key back to this table, `sum` the column to add up, or `"count": true` to count the rows instead; see [Totals that count and climb](#totals-that-count-and-climb). `times` multiplies each row (a quantity); a child row with a value in `unlessSet` is left out (a voided line). See [Totals and balances](#totals-and-balances) for `where`, `balance` and `cap`. |
 | `stamp` | `{ "set", "on", "clearOnBack"? }` | A value Adminium writes when something happens: the moment, who did it, or a deadline. See [Stamps](#stamps). |
@@ -434,7 +435,7 @@ The rules are kept on every door a row is written through: a form, a bulk edit, 
 automation, the public API and an outbox's `onSent` change. `normalize`, `formula` and the
 rounding to a `scale` apply on each of them. History keeps what it brings: an import and sample
 data are not [stamped](#stamps), not [capped](#totals-and-balances), and not held to `notAfter` or
-`notBefore`; an undo puts a row back exactly as it was, with no rule at all. A date refused by
+`notBefore` (they are held to [`linkable`](#links-to-some-rows)); an undo puts a row back exactly as it was, with no rule at all. A date refused by
 `notAfter` or `notBefore` answers `422` `VALIDATION_FAILED`, the field's code `out-of-range`.
 A bound is judged when the date is written, and when its `via` link or a column its conditions read changes. `required` and
 `requiredWhen` hold on an import and on sample data too; a value they refuse answers `422`
@@ -448,7 +449,7 @@ was refused for itself, in a column the entry lets the caller write, `params` na
 why: `{ "column": "name", "reason": "too-long" }`, the reason `too-long`, `format`,
 `invalid-character`, or on a create `required`. A batch adds the row's `index`. Anything else
 names no column: a value already taken or pointing at a row that is not there, a value outside
-`options`, a date out of bounds, and a column only a change leaves empty, since whether it may be
+`options` or a link its [`linkable`](#links-to-some-rows) leaves out, a date out of bounds, and a column only a change leaves empty, since whether it may be
 empty can turn on what the stored row holds.
 
 #### Required for some values
@@ -493,6 +494,50 @@ either (an order sent by email needs an address: its supplier's, or one typed on
   "rules": { "rollup": { "from": "ticket_items", "via": "ticket_id", "sum": "unit_price",
                          "times": "qty", "unlessSet": "voided_at" } } }
 ```
+
+#### Links to some rows
+
+`linkable` says that a foreign key names only a row meeting some conditions: a quote line names a
+price-list line that is still offered, so a rep cannot price a quote from a retired line the list
+no longer gives.
+
+```json
+{ "ref": "price_id", "type": "fk", "references": "price_list", "nullable": true,
+  "rules": { "linkable": { "where": [{ "column": "active", "eq": true }] } } },
+{ "ref": "list_rate", "type": "decimal", "scale": "currency", "nullable": true,
+  "rules": { "copy": { "via": "price_id", "from": "list_rate", "mode": "always" } } }
+```
+
+`where` is 1–8 conditions on the row the link names, in the shape a move's
+[`linked`](#conditions-a-move-waits-for) takes: `{ "column", <one test> }`, the test `eq` or `in`
+(values that fit the column), `isNull`, or `gt`, `gte`, `lt` or `lte` on a number column. Every
+condition must hold. The rule's column is a foreign key, and each condition names a column of the
+table it points at that is not a `secret`.
+
+- **When it is judged.** On a new row that names a row, and on a change that moves the link to
+  another row. A change that leaves the link as the row holds it, or sends it back as it stands (as
+  the record form sends every field), is no move: a line naming a price retired since keeps it while
+  its quantity changes. An empty link names nothing, and is taken.
+- **Who it holds.** Everybody, an admin and the owner too: it is the data's own rule, not a
+  permission. It holds on every door a row is written through: a form, a bulk edit, a record's
+  action, an automation, the public API, an import (a new line, and a matched line that moves the
+  link) and sample data. An undo puts a row back as it was. A row a rule or an
+  [effect](#effects) moves keeps the link it holds.
+- **The refusal.** `422` `VALIDATION_FAILED`, the field's code `not-allowed` (the code a value
+  outside `options` gets), naming nothing of the row the link named. Through the public API it is
+  `PUBLIC_WRITE_REFUSED` with no column. A key that names no row at all is the foreign key's to
+  refuse, as it always was; and somebody who does not [reach](#whose-a-row-is) the named row is
+  refused as for a row that is not there, before this rule is asked, so the rule never tells them
+  whether a row out of their reach meets it.
+- **Read as it stands.** The named row is read when the write is judged. A line retired at the same
+  moment as a quote names it may still be named, as if the quote had come first.
+- **A rule that can no longer be read.** When the link's relation is gone, or a column a condition
+  reads is no longer on the table, no row can be shown to meet the rule: every new link is refused,
+  and rows that already hold one keep it. Put the column back, or change the rule in Studio.
+
+An operator may set the same rule on a column in Studio; Studio refuses one whose column is not a
+foreign key, or whose conditions name a column the linked table does not have. The screens are
+still the app's to filter: a picker that offers only active lines is kinder than a refusal.
 
 #### Totals and balances
 

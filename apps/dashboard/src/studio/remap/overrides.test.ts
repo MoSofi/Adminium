@@ -184,6 +184,13 @@ describe('buildPutDocument — exact server contract', () => {
       row({ op: 'column.codeLast4', tableName: 'public.cards', columnName: 'last4', value: { of: 'code' } }),
       row({ op: 'column.plainText', tableName: 'public.order_lines', columnName: 'note', value: { plainText: { digits: 4, max: 80 } } }),
       row({ op: 'column.customerKey', tableName: 'public.orders', columnName: 'buyer_key', value: { of: 'buyer_email' } }),
+      // A CRM's people, mentions, places and links that name only some rows: two places of one table are two rows.
+      row({ op: 'column.staff', tableName: 'public.deals', columnName: 'owner_id', value: { staff: true } }),
+      row({ op: 'column.mentions', tableName: 'public.comments', columnName: 'body', value: { mentions: { about: 'deal_id' } } }),
+      row({ op: 'column.place', tableName: 'public.sites', columnName: 'spot', value: { place: true } }),
+      row({ op: 'column.place', tableName: 'public.sites', columnName: 'depot', value: { place: true } }),
+      row({ op: 'column.area', tableName: 'public.sites', columnName: 'zone', value: { area: true } }),
+      row({ op: 'column.linkable', tableName: 'public.quote_lines', columnName: 'price_id', value: { where: [{ column: 'active', eq: true }] } }),
       row({ op: 'table.postings', tableName: 'public.order_lines', value: { postings: [{ id: 'line', into: { addOn: 'kit', ledger: 'units', action: 'use' }, via: 'order_id', reserve: { on: { create: true } }, map: { account: 'item_id' } }] } }),
       row({ op: 'table.switchedOff', tableName: 'public.order_lines', value: { postings: ['line'] } }),
     ];

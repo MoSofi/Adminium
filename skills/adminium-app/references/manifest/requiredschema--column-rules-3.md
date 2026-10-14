@@ -2,6 +2,10 @@
 
 # Manifest spec: requiredSchema — Column rules
 
+One rule decides a column. The one pair allowed is a `copy` with a `default` behind it: the copy
+comes first, and the default fills the column when the copy comes back empty (a client's own tax
+rate, else the business's). A stamped column takes none of the others.
+
 The [outbox's](https://docs.adminium.dev/reference/manifest/#outbox) own columns that Adminium writes (`status`, `sentAt`, `error`,
 `skipReason`, `approvedBy`, `effectAt` and `effectError`) take none of these rules, nor `options`,
 `validation`, `required`, `requiredWhen`, `notAfter` or `notBefore`: a stamp of who approved a
@@ -22,7 +26,7 @@ The rules are kept on every door a row is written through: a form, a bulk edit, 
 automation, the public API and an outbox's `onSent` change. `normalize`, `formula` and the
 rounding to a `scale` apply on each of them. History keeps what it brings: an import and sample
 data are not [stamped](https://docs.adminium.dev/reference/manifest/#stamps), not [capped](https://docs.adminium.dev/reference/manifest/#totals-and-balances), and not held to `notAfter` or
-`notBefore`; an undo puts a row back exactly as it was, with no rule at all. A date refused by
+`notBefore` (they are held to [`linkable`](https://docs.adminium.dev/reference/manifest/#links-to-some-rows)); an undo puts a row back exactly as it was, with no rule at all. A date refused by
 `notAfter` or `notBefore` answers `422` `VALIDATION_FAILED`, the field's code `out-of-range`.
 A bound is judged when the date is written, and when its `via` link or a column its conditions read changes. `required` and
 `requiredWhen` hold on an import and on sample data too; a value they refuse answers `422`
@@ -36,7 +40,7 @@ was refused for itself, in a column the entry lets the caller write, `params` na
 why: `{ "column": "name", "reason": "too-long" }`, the reason `too-long`, `format`,
 `invalid-character`, or on a create `required`. A batch adds the row's `index`. Anything else
 names no column: a value already taken or pointing at a row that is not there, a value outside
-`options`, a date out of bounds, and a column only a change leaves empty, since whether it may be
+`options` or a link its [`linkable`](https://docs.adminium.dev/reference/manifest/#links-to-some-rows) leaves out, a date out of bounds, and a column only a change leaves empty, since whether it may be
 empty can turn on what the stored row holds.
 
 #### Required for some values
@@ -82,7 +86,21 @@ either (an order sent by email needs an address: its supplier's, or one typed on
                          "times": "qty", "unlessSet": "voided_at" } } }
 ```
 
-#### Totals and balances
+#### Links to some rows
 
-A rollup can also filter its child rows, keep a balance beside the total, and refuse a change
-that would take the balance below zero: what a visit's fee, its payments and its write-offs need.
+`linkable` says that a foreign key names only a row meeting some conditions: a quote line names a
+price-list line that is still offered, so a rep cannot price a quote from a retired line the list
+no longer gives.
+
+```json
+{ "ref": "price_id", "type": "fk", "references": "price_list", "nullable": true,
+  "rules": { "linkable": { "where": [{ "column": "active", "eq": true }] } } },
+{ "ref": "list_rate", "type": "decimal", "scale": "currency", "nullable": true,
+  "rules": { "copy": { "via": "price_id", "from": "list_rate", "mode": "always" } } }
+```
+
+`where` is 1–8 conditions on the row the link names, in the shape a move's
+[`linked`](https://docs.adminium.dev/reference/manifest/#conditions-a-move-waits-for) takes: `{ "column", <one test> }`, the test `eq` or `in`
+(values that fit the column), `isNull`, or `gt`, `gte`, `lt` or `lte` on a number column. Every
+condition must hold. The rule's column is a foreign key, and each condition names a column of the
+table it points at that is not a `secret`.

@@ -125,6 +125,8 @@ export function needsStored(rules: TableRules | null): boolean {
     rules?.states !== undefined ||
     (rules?.stateParents?.length ?? 0) > 0 ||
     (rules?.bounds ?? []).some((bound) => bound.notBefore !== undefined) ||
+    // A link that may name only some rows is judged when it moves: a value sent back as the row holds it is no move.
+    (rules?.linkable?.length ?? 0) > 0 ||
     // A column required while another holds a value is judged on the row as the write leaves it.
     (rules?.checks ?? []).some((check) => check.requiredWhen !== undefined) ||
     // A code renewed when the row changes hands: a change is judged against what is stored.

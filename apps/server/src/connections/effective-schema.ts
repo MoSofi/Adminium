@@ -606,6 +606,8 @@ export interface EffectiveColumn extends ColumnModel {
   customerKey?: { of: string };
   /** `column.bounds`: a date never later than today, never earlier than another date. */
   bounds?: { notAfter?: 'today' | EffectiveDateBound; notBefore?: EffectiveDateBound };
+  /** `column.linkable`: a foreign key that names only a row meeting these conditions, read on the row it names. */
+  linkable?: { where: StateCondition[] };
 }
 
 export interface EffectiveTable extends Omit<TableModel, 'columns'> {
@@ -1535,6 +1537,11 @@ export function applyOverrides(
       case 'column.area': {
         const column = columnOf(table, row.columnName);
         if (column !== undefined) column.area = true;
+        break;
+      }
+      case 'column.linkable': {
+        const column = columnOf(table, row.columnName);
+        if (column !== undefined) column.linkable = { where: structuredClone((value as { where: StateCondition[] }).where) };
         break;
       }
       case 'table.belongs': {

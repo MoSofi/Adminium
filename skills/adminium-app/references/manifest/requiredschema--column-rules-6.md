@@ -2,6 +2,46 @@
 
 # Manifest spec: requiredSchema — Column rules
 
+`daysBetween` counts calendar days the same way: two `date` columns of the row, the nights of a
+stay from its arrival to its departure. A night the clocks change is still one night. An empty
+date, or a `to` before its `from`, leaves the result empty.
+
+#### Joined text
+
+A `join` makes a `text` column from other columns and pieces of text: a guest's full name, a
+line's description.
+
+```json
+{ "ref": "full_name", "type": "text", "maxLength": 160, "nullable": true,
+  "rules": { "formula": { "join": ["first_name", " ", "last_name"] } } }
+```
+
+A part that reads as a snake_case name is a column of the row; any other part (a space, `" · "`)
+is text written as it is. A join reads `text`, `int` and `bigint` columns only: a decimal, a yes or
+no, or a time would be spelled differently by each database. An empty column is left out, and so
+is the text between it and its neighbour, so a guest with no last name is "Mia", not "Mia ". The
+result is trimmed, and empty when every column is. A join is the whole formula of its column,
+never a part of a sum.
+
+A join that reads personal data lands it only in a personal column. A guest's first and last
+names beside their email read as personal by their names, so the joined name needs
+`"personal": true` too; without it the check refuses the manifest. The same holds for a `copy`
+and a stamp's copy.
+
+#### Numbers without gaps
+
+A tax office expects an unbroken series of invoice numbers: none twice, none skipped. A
+`sequence` with `"gapless": true` numbers rows that way.
+
+```json
+{ "ref": "number_seq", "type": "int", "nullable": true,
+  "rules": { "sequence": { "gapless": true,
+                           "startSetting": { "addOn": "invoices", "setting": "number_start_invoice" } } } },
+{ "ref": "number", "type": "text", "maxLength": 24, "nullable": true, "unique": true,
+  "rules": { "format": { "from": "number_seq",
+                         "prefixSetting": { "addOn": "invoices", "setting": "prefix_invoice" }, "pad": 4 } } }
+```
+
 | Field | Rule |
 |---|---|
 | `gapless` | `true`. The column is an `int` or `bigint`, and nullable. |
@@ -87,35 +127,3 @@ refused, nothing is kept. A paid stay whose balance would fall below zero is ref
 `409` `BALANCE_EXCEEDED`.
 
 The rules that keep a follow sound:
-
-- it always wins (`mode: "always"`), and follows one level: the column it copies does not itself
-  follow another row;
-- it never follows a total, a balance or a stamp, nor a formula over one: those change without a
-  change of the row, so the copy would keep an old value;
-- the row it follows is not worked out from this table's own totals (a loop);
-- a total another table keeps of these rows reads none of what the follow writes, including the
-  link it groups by: a follow that moved rows between another table's totals would leave those
-  totals behind.
-
-More than 500 rows following one changed row refuse the whole write, `409` `FOLLOW_TOO_MANY`
-(`details.table`, `details.count`), rather than leave some behind. A bulk edit, an import or a
-public batch that would move a paid balance below zero through its followers, or could not write
-them under the caller's role, or would move more than 500, is refused before anything is written:
-`409` `BALANCE_ONE_AT_A_TIME`. Make such changes one row at a time.
-
-#### Prices by the night
-
-`perNight` works a price out night by night: for each night from `from` up to the day before `to`,
-the base rate read from the row `rate.via` points at, plus every adjustment row that matches that
-night (a weekend, a season). Each night is rounded to the column's [scale](https://docs.adminium.dev/reference/manifest/#decimal-places), and
-the column holds their sum.
-
-```json
-{ "ref": "room_total", "type": "money", "scale": "currency", "nullable": true,
-  "rules": { "perNight": {
-    "from": "arrive", "to": "depart",
-    "rate": { "via": "room_type_id", "column": "base_rate" },
-    "adjust": { "table": "rate_rules",
-                "match": { "via": "room_type_id", "weekdays": "weekdays", "from": "from_date", "to": "to_date" },
-                "add": "amount", "name": "name", "where": { "column": "active", "eq": true } } } } }
-```

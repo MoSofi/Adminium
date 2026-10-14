@@ -2,6 +2,41 @@
 
 # Manifest spec: requiredSchema — Column rules
 
+A capped balance whose `of` is a [formula](https://docs.adminium.dev/reference/manifest/#formulas) (a total of subtotal and tax) is judged
+against the cap one row at a time; a bulk edit or an import settles it afterwards, without the
+cap. So `validateManifest` [warns](https://docs.adminium.dev/reference/manifest/#validation) when the formula reads a column that stays
+writable while the capped rows can exist: lock those columns with the table's
+[states](https://docs.adminium.dev/reference/manifest/#states) (and the lines they add up with `lock: true`) in every state a capped row can be
+written in or reached from.
+
+#### Formulas
+
+A `formula` works a number out from the other columns of the same row: a line's amount, a
+document's tax and total.
+
+```json
+{ "ref": "amount", "type": "decimal", "scale": "currency", "nullable": true,
+  "rules": { "formula": { "max": [0, { "sub": [{ "mul": ["qty", "rate"] }, { "coalesce": ["discount", 0] }] }] } } }
+```
+
+An expression is a number, a column of the same row by its ref (`"qty"`), or one of these objects:
+
+| Expression | Value |
+|---|---|
+| `{ "add": [a, b, …] }` | The sum of 2–8 expressions. |
+| `{ "sub": [a, b] }` | `a − b`. |
+| `{ "mul": [a, b, …] }` | The product of 2–8 expressions. |
+| `{ "div": [a, b] }` | `a ÷ b`. Empty when `b` is zero. |
+| `{ "min": [a, b, …] }`, `{ "max": [a, b, …] }` | The smallest or largest of 2–8 expressions. |
+| `{ "round": a }` or `{ "round": [a, places] }` | `a` rounded half away from zero, to the column's scale or to `places` (0–4). |
+| `{ "coalesce": [a, b] }` | `a`, or `b` when `a` is empty. |
+| `{ "if": [condition, a, b] }` | `a` when the condition holds, else `b`. |
+| `{ "hoursBetween": [start, stop] }` | The hours from the `start` column to the `stop` column, both `timestamptz` columns of the row. See [Hours between two moments](https://docs.adminium.dev/reference/manifest/#hours-between-two-moments). |
+| `{ "daysBetween": [from, to] }` | The whole calendar days from the `from` date to the `to` date, two `date` columns of the row: a stay's nights. |
+| `{ "join": [part, part, …] }` | Text: 2–8 parts, each a column of the row or a piece of text, joined in order. The whole formula, of a `text` column; see [Joined text](https://docs.adminium.dev/reference/manifest/#joined-text). |
+
+A condition is one of:
+
 | Condition | Holds when |
 |---|---|
 | `{ "eq": [column, value] }`, `{ "neq": [column, value] }` | The column equals, or does not equal, a string, number or boolean. The column may be of any type (an enum, a bool). `neq` does not hold for an empty column. |
@@ -75,43 +110,3 @@ update that moves only the stop works the hours out again from the start as stor
   `422` `VALIDATION_FAILED` with the code `out-of-range` on the moments they are counted from, on
   every engine — never left for the database to refuse or, on SQLite, to keep. Any formula whose
   result its column cannot hold is refused the same way.
-
-`daysBetween` counts calendar days the same way: two `date` columns of the row, the nights of a
-stay from its arrival to its departure. A night the clocks change is still one night. An empty
-date, or a `to` before its `from`, leaves the result empty.
-
-#### Joined text
-
-A `join` makes a `text` column from other columns and pieces of text: a guest's full name, a
-line's description.
-
-```json
-{ "ref": "full_name", "type": "text", "maxLength": 160, "nullable": true,
-  "rules": { "formula": { "join": ["first_name", " ", "last_name"] } } }
-```
-
-A part that reads as a snake_case name is a column of the row; any other part (a space, `" · "`)
-is text written as it is. A join reads `text`, `int` and `bigint` columns only: a decimal, a yes or
-no, or a time would be spelled differently by each database. An empty column is left out, and so
-is the text between it and its neighbour, so a guest with no last name is "Mia", not "Mia ". The
-result is trimmed, and empty when every column is. A join is the whole formula of its column,
-never a part of a sum.
-
-A join that reads personal data lands it only in a personal column. A guest's first and last
-names beside their email read as personal by their names, so the joined name needs
-`"personal": true` too; without it the check refuses the manifest. The same holds for a `copy`
-and a stamp's copy.
-
-#### Numbers without gaps
-
-A tax office expects an unbroken series of invoice numbers: none twice, none skipped. A
-`sequence` with `"gapless": true` numbers rows that way.
-
-```json
-{ "ref": "number_seq", "type": "int", "nullable": true,
-  "rules": { "sequence": { "gapless": true,
-                           "startSetting": { "addOn": "invoices", "setting": "number_start_invoice" } } } },
-{ "ref": "number", "type": "text", "maxLength": 24, "nullable": true, "unique": true,
-  "rules": { "format": { "from": "number_seq",
-                         "prefixSetting": { "addOn": "invoices", "setting": "prefix_invoice" }, "pad": 4 } } }
-```

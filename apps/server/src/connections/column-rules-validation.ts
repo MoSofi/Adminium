@@ -170,7 +170,8 @@ export function columnRuleIssue(
     | 'column.staff'
     | 'column.mentions'
     | 'column.place'
-    | 'column.area',
+    | 'column.area'
+    | 'column.linkable',
   raw: unknown,
   column: ColumnModel,
   model: DatabaseModel,
@@ -511,6 +512,23 @@ export function columnRuleIssue(
       if (!holdsJson) return `${what} is kept in a json column; ${name} is ${column.logicalType}.`;
       const other = op === 'column.place' ? 'column.area' : 'column.place';
       if ((related?.rules ?? []).some((rule) => rule.op === other && rule.columnName === column.name)) return `${name} holds a place or an area, not both.`;
+      return null;
+    }
+
+    case 'column.linkable': {
+      // The conditions read the row the link names: the column is a one-column link, and they name that table's columns.
+      const table = model.tables.find((candidate) => candidate.columns.includes(column));
+      const relation = model.relations.find((r) => r.through === null && r.from.tableId === table?.id && r.from.columns.length === 1 && r.from.columns[0] === column.name && r.to.columns.length === 1);
+      if (relation === undefined) return `Only a foreign key names a row; ${name} is not one.`;
+      const linked = model.tables.find((candidate) => candidate.id === relation.to.tableId);
+      const where = value['where'];
+      if (!Array.isArray(where) || where.length === 0) return `Say which rows ${name} may name.`;
+      for (const condition of where as { column?: unknown; gt?: unknown; gte?: unknown; lt?: unknown; lte?: unknown }[]) {
+        const read = linked?.columns.find((c) => c.name === condition.column);
+        if (read === undefined) return `${linked?.name ?? 'The linked table'} has no column ${JSON.stringify(condition.column)}.`;
+        const ordered = [condition.gt, condition.gte, condition.lt, condition.lte].some((part) => part !== undefined);
+        if (ordered && !NUMERIC_TYPES.has(read.logicalType)) return `${JSON.stringify(read.name)} is not a number, so it cannot be compared.`;
+      }
       return null;
     }
 

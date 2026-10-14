@@ -163,6 +163,8 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   // A position on the map and an area, each in a json column: read, checked and made alike on every write.
   'column.place',
   'column.area',
+  // A link that may name only a row meeting some conditions: judged when a write sets or moves it, on every door but an undo.
+  'column.linkable',
   // Whose a row is, and a role whose read, update or delete reaches only some rows: the test every read and write of a row carries.
   'table.belongs',
   'roles.rows',

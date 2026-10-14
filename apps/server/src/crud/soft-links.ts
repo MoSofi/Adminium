@@ -43,7 +43,7 @@ export function inertLinkWritten(rules: Pick<TableRules, 'addOnLinks'> | null, v
  * "bench-desk" names no row — said here, because Postgres does not answer
  * that comparison with "no row" but with an error of its own.
  */
-function couldBeKey(keyType: string | undefined, value: unknown): boolean {
+export function couldBeKey(keyType: string | undefined, value: unknown): boolean {
   if (keyType === 'integer' || keyType === 'bigint') {
     if (typeof value === 'number') return Number.isSafeInteger(value);
     if (typeof value === 'bigint') return true;

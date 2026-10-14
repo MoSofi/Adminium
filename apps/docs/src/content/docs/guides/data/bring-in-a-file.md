@@ -47,6 +47,13 @@ The column has to be one of those you are bringing in.
 A line with nothing in the match column is refused: there is nothing to match it
 by.
 
+A value is matched as its column keeps it. A customer number kept as a code
+(upper case, without spaces or dashes) matches `C1003` whether the file says
+`c-1003`, `c 1003` or `C1003`, and two of those spellings in one file are one
+number: the second line is already here. An email address kept in lower case
+matches whatever its case in the file. The line is still named as the file
+spells it.
+
 **Update them** changes a row as your role may change it by hand. A column your
 role may not change, or a row it may change only in some states, refuses that
 line with **Your role may not change …**, as a change on the row's page would;

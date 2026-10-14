@@ -1499,6 +1499,22 @@ export const overridePatchSchema = z.discriminatedUnion('op', [
   /* A json column that holds a position on the map (`{ lat, lng, by }`), and one that holds an area (a GeoJSON polygon). */
   z.object({ op: z.literal('column.place'), value: z.object({ place: z.literal(true) }).strict() }),
   z.object({ op: z.literal('column.area'), value: z.object({ area: z.literal(true) }).strict() }),
+  /*
+   * A foreign key that may name only a row meeting these conditions, read on
+   * the row it names (a price-list line still offered). Each condition says
+   * one test, as a move's `linked` does.
+   */
+  z.object({
+    op: z.literal('column.linkable'),
+    value: z
+      .object({
+        where: z
+          .array(stateCondition.strict().refine((c) => [c.eq, c.in, c.isNull, c.gt, c.gte, c.lt, c.lte].filter((part) => part !== undefined).length === 1, { message: 'a condition says one of eq, in, isNull, gt, gte, lt or lte' }))
+          .min(1)
+          .max(8),
+      })
+      .strict(),
+  }),
   /* How a person belongs to a row of the table, each way with its table names as the real tables' ids. */
   z.object({ op: z.literal('table.belongs'), value: z.object({ ways: z.array(storedBelongsWay).min(1).max(6) }).strict() }),
   /* Rows read by the people they belong to, and by nobody and nothing else. */

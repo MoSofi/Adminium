@@ -69,6 +69,7 @@
               "column.mentions",
               "column.place",
               "column.area",
+              "column.linkable",
               "table.belongs",
               "table.private",
               "relation.add",

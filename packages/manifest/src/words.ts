@@ -122,6 +122,7 @@ export const INSTALL_FLOOR_WORD_NAMES = [
   'column.mentions',
   'column.place',
   'column.area',
+  'column.linkable',
   'config.board',
   'states.notPast',
   'publicAccess.requiresWhen',
@@ -200,6 +201,8 @@ export const WORD_FLOORS: Readonly<Partial<Record<ManifestWordName, string>>> = 
   // A json column that holds a position on the map, read and checked on every write; one that holds an area.
   'column.place': '0.3.28',
   'column.area': '0.3.28',
+  // A foreign key that may name only a row meeting some conditions (a price-list line still offered).
+  'column.linkable': '0.3.28',
   // A board whose columns an app names: the rows of a table, or the values of an enum it picks.
   'config.board': '0.3.28',
   // A move refused once a date of its row has passed, for every writer.
@@ -296,6 +299,7 @@ export function installFloorWords(document: unknown): ManifestWord[] {
       if (rules['mentions'] !== undefined) out.push({ word: 'column.mentions', path: `${here}.mentions` });
       if (rules['place'] !== undefined) out.push({ word: 'column.place', path: `${here}.place` });
       if (rules['area'] !== undefined) out.push({ word: 'column.area', path: `${here}.area` });
+      if (rules['linkable'] !== undefined) out.push({ word: 'column.linkable', path: `${here}.linkable` });
       for (const key of ['announce', 'plainText', 'customerKey', 'codeLast4'] as const) {
         if (rules[key] !== undefined) out.push({ word: `column.${key}`, path: `${here}.${key}` });
       }

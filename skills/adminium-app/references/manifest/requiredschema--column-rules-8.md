@@ -2,6 +2,35 @@
 
 # Manifest spec: requiredSchema — Column rules
 
+A ticket's code is the door's proof. When the ticket goes to somebody else, the old code must
+stop working at once, and the new holder gets one the old holder never saw. `code.renew` says
+what makes a new code:
+
+```json
+{ "ref": "code", "type": "text", "nullable": true,
+  "rules": { "code": { "length": 8, "renew": { "on": { "column": "holder_customer_id", "changed": true } } } } }
+```
+
+`on` is one trigger or a list of 2–3: `{ "column", "changed": true }`, any change of another
+column of the row, or `{ "column", "values" }`, that column moving to one of 1–16 values (a
+transfer accepted). The watched column is not a code itself, not `json` or `blob`, and a `changed`
+trigger watches a column a person changes or a stamp writes (a holder stamped in as an offer is
+taken renews too).
+
+The new code is written in the same statement as the change: the old one stops as the write
+commits, and every session a [token link](https://docs.adminium.dev/reference/manifest/#a-persons-own-rows) on that column opened stops with
+it. What never renews: a create (it makes a code anyway), an import or other history, a change that
+sends back the value the row already holds, and a server action that writes the code itself (a
+[new link](https://docs.adminium.dev/reference/manifest/#a-rows-own-link)). A [timed move's](https://docs.adminium.dev/reference/manifest/#timed-moves) `set` renews like any other change.
+Undoing a change of hands renews once more, so neither the old code nor the one handed on works
+after it; see [Undo of a move](https://docs.adminium.dev/reference/manifest/#undo-of-a-move). A renewed code is never shown to a public caller
+in the change's reply, and only to staff who may read the table.
+
+#### Stamps
+
+A stamp writes a value when a row is created, or when another column changes to one of a list of
+values: the time a patient checked in, who took a payment.
+
 ```json
 { "ref": "checked_in_at", "type": "timestamptz", "nullable": true,
   "rules": { "stamp": { "set": "now", "on": { "column": "status", "values": ["checked_in"] } } } }
@@ -55,38 +84,3 @@ A public write stamps like any other write, except `user-name` and `user-id`: a 
 nobody, so they write nothing. What it knows of the person is their own signed-in row, which is
 what `claim` reads. For an automation, `user-name` is the rule's name. Sample data, an app's seed
 rows and undo stamp nothing, since a stamp of today's time over history would be false.
-
-A file somebody brings in is different: each line is their own create or their own change. A
-stamp is written into a column the line leaves out or leaves empty, as it would be for a save
-(`now` is the moment of the import, `user-id` and `user-name` are the person who brought the
-file, a `byOrigin` column gets its `staff` value). So a role that may not write `received_at`
-still brings a list of enquiries in, and each row says when it arrived. A value the line does
-carry is kept, where a save would lose it to the stamp: the day an old enquiry really came is
-the file's to say. Whether the person may say it is their role's create limit, which refuses a
-file that carries a column they may not give a new row. A line that changes a stored row (an
-import that updates the rows it matches) fires the stamps a change by hand would, against the
-row as stored: moving a status stamps its moment once, and the same file brought in again
-stamps nothing. A stamped column takes
-no `copy`, `default`, `sequence`, `format`, `code`, `rollup`, `formula`, `lookup` or `perNight` as
-well, and a stamp watches a column other than its own.
-
-A stamp that works out a moment again whenever what it reads changes: a stay may be cancelled
-free until 48 hours before 15:00 on its arrival day, and moving the arrival moves the deadline.
-
-```json
-{ "ref": "cancel_by", "type": "timestamptz", "nullable": true,
-  "rules": { "stamp": {
-    "set": { "moment": { "column": "arrive", "time": { "table": "settings", "column": "arrive_from" },
-                         "minus": { "hours": { "table": "settings", "column": "cancel_hours" } } } },
-    "on": { "columns": ["arrive"] } } } }
-```
-
-An offer that lasts as many hours as the settings row says, but never past the show's doors:
-
-```json
-{ "ref": "offer_until", "type": "timestamptz", "nullable": true,
-  "rules": { "stamp": {
-    "set": { "addMinutes": { "hours": { "table": "settings", "column": "offer_hours" },
-                             "notAfter": { "column": "doors_at", "via": "event_id" } } },
-    "on": { "column": "status", "values": ["offered"] } } } }
-```

@@ -304,6 +304,46 @@ for (const [dialect, available] of ENGINES) {
       }
     });
 
+    it('matches a number kept as a code the way the column keeps it, so the preview and the run agree', async () => {
+      // Customer numbers kept upper case without spaces or dashes: "C1003" is here, typed "c-1003" in a file.
+      const companies = w.id('companies');
+      const rule = await overridesRepo(w.meta).create({ connectionId: w.connectionId, op: 'column.normalize', tableName: companies, columnName: 'name', value: { normalize: 'code' }, origin: 'user' } as never);
+      await w.run(`UPDATE companies SET name = 'C1003' WHERE id = 2`);
+      try {
+        // Two spellings of one new number in one file are one line made and one line here; a third number is new.
+        const skipped = await readyImport('owner', 'id,name\n21,c-1003\n22,c 1004\n23,C-1004\n24,c1005\n', { mode: 'skip', matchColumn: 'name' }, companies);
+        expect(skipped.statusCode, skipped.body).toBe(201);
+        const first = await previewOf('owner', skipped.id);
+        expect(statuses(first)).toEqual([
+          [1, 'here', null, null],
+          [2, 'new', null, null],
+          [3, 'here', null, 2],
+          [4, 'new', null, null],
+        ]);
+        // Each line is still named as the file spells it.
+        expect(first.lines.map((line) => line.label)).toEqual(['c-1003', 'c 1004', 'C-1004', 'c1005']);
+        expectAgreed(first, await ranImport('owner', skipped.id), 'skip');
+        expect((await w.rows('SELECT id, name FROM companies WHERE id > 2 ORDER BY id')).map((row) => [Number(row['id']), row['name']])).toEqual([[22, 'C1004'], [24, 'C1005']]);
+        await w.run('DELETE FROM companies WHERE id > 2');
+
+        // As changes: the line that sends the number back in another spelling changes nothing of it.
+        const upserted = await readyImport('owner', 'id,name\n2,c-1003\n31,c 2001\n31,C-2001\n', { mode: 'upsert', matchColumn: 'name' }, companies);
+        expect(upserted.statusCode, upserted.body).toBe(201);
+        const second = await previewOf('owner', upserted.id);
+        expect(statuses(second)).toEqual([
+          [1, 'here', null, null],
+          [2, 'new', null, null],
+          [3, 'here', null, 2],
+        ]);
+        expectAgreed(second, await ranImport('owner', upserted.id), 'upsert');
+        expect((await w.rows('SELECT id, name FROM companies ORDER BY id')).map((row) => [Number(row['id']), row['name']])).toEqual([[1, 'Harbour Hotels'], [2, 'C1003'], [31, 'C2001']]);
+      } finally {
+        await overridesRepo(w.meta).delete(rule.id);
+        await w.run('DELETE FROM companies WHERE id > 2');
+        await w.run(`UPDATE companies SET name = 'Northfield Dental' WHERE id = 2`);
+      }
+    });
+
     it('answers a long file’s lines as the run does, a few questions to the database for hundreds of lines', async () => {
       // Four hundred and fifty lines over three lookups: deals 1 to 9 are here, the rest are not.
       const csv = `id,title,state,amount,big\n${Array.from({ length: 450 }, (_, at) => `${String(at + 1)},Line ${String(at + 1)},open,1,0`).join('\n')}\n`;

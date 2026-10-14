@@ -54,6 +54,7 @@ import {
   HookRejectedError,
   bindValue,
   createWriteService,
+  normalizeText,
   type CheckedRow,
   type RecordWriteService,
   type WriteContext,
@@ -507,7 +508,7 @@ export async function openImportJudge(deps: ImportJudgeDeps, row: DataImport, ac
       await judge(item.values, before);
       if (!opts.hooks && hooked.update) {
         // No hook runs for a preview: the row is filled and checked as a hook-less write would be.
-        const checked = await writes.check('update', writeTarget, context, [item.values], { ...HISTORY, quote: true });
+        const checked = await writes.check('update', writeTarget, context, [item.values], { ...HISTORY, quote: true, stored: [before] });
         const values = checked.rows[0];
         if (values === null || values === undefined) return refusedBy(checked.issues[0] ?? null);
         return (await judgedAgain(values, item.values, before)) ?? { status: 'here', before, values, ...earlier };
@@ -696,7 +697,9 @@ export async function openImportJudge(deps: ImportJudgeDeps, row: DataImport, ac
         }
         values[target.column.name] = bindValue(dialect, result.value);
       }
-      return issues.length > 0 ? { line: null, issues } : { line: { rowNumber, values, raw: [...record] }, issues: null };
+      // Each cell as its column keeps it (a customer number upper case, without spaces or dashes): what a line
+      // is matched on, and told apart from an earlier line by, is the value its row would hold.
+      return issues.length > 0 ? { line: null, issues } : { line: { rowNumber, values: normalizeText(rules, values), raw: [...record] }, issues: null };
     },
     lines,
   };

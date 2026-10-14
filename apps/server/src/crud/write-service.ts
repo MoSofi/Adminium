@@ -79,7 +79,7 @@ import { withDeciders } from '../add-ons/decide.js';
 import { postingScope } from './ledger-points.js';
 import { createLedgerWriter, type PostedOutcome, type TreeRowIn, type UsesFor } from './ledger-write.js';
 import type { CustomerKeyOf } from '../public-api/customer-key.js';
-import { inertLinkWritten, softLinkIssues } from './soft-links.js';
+import { couldBeKey, inertLinkWritten, softLinkIssues } from './soft-links.js';
 import type { LedgerRuntime } from '../ledgers/registry.js';
 import type { FastifyRequest } from 'fastify';
 import { sql, type DeleteQueryBuilder, type DeleteResult, type Kysely, type UpdateQueryBuilder, type UpdateResult } from 'kysely';
@@ -1710,7 +1710,8 @@ export interface RecordWriteService {
     target: WriteTarget,
     context: WriteContext,
     rows: readonly Row[],
-    opts?: Pick<BeforeEachOptions, 'capacity' | 'quote'>,
+    /** `stored`: for a change, the row each one changes, by index (a link sent back as it stands is no change). */
+    opts?: Pick<BeforeEachOptions, 'capacity' | 'quote'> & { stored?: readonly (Row | null)[] },
   ): Promise<{ rows: (CheckedRow | null)[]; issues: (FieldIssues | null)[] }>;
   create(input: CreateRecordInput): Promise<Row>;
   /** A create with its child rows, every row or none; or a quote of one (`write-tree.ts`). */
@@ -1956,8 +1957,13 @@ function decideContext(target: WriteTarget, context: WriteContext, now: Date, zo
   };
 }
 
-/** Text a rule keeps trimmed, or trimmed and in lower case (an address). The same object when nothing changes. */
-function normalizeText(rules: TableRules | null, values: Row): Row {
+/**
+ * Text a rule keeps trimmed, or trimmed and in lower case (an address), or
+ * as a code (upper case, no spaces or dashes). The same object when nothing
+ * changes. An import reads a file's cells through it too, so a line is
+ * matched on the value its row would hold.
+ */
+export function normalizeText(rules: TableRules | null, values: Row): Row {
   let out: Row | null = null;
   for (const { column, how } of rules?.normalizes ?? []) {
     const value = values[column];
@@ -2200,6 +2206,46 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
     return issues;
   }
 
+  /**
+   * Links that may name only some rows (`column.linkable`): a new row's link,
+   * or one this change moves, names a row of the linked table that meets the
+   * rule's conditions — a price-list line still offered. It is the data's own
+   * rule, not a permission: judged for every writer and on every door but an
+   * undo (which puts back a row as it was), an import and sample data
+   * included, and read on the linked row as it stands, through the write's
+   * own handle. A link left as the row holds it (sent back unchanged, or not
+   * sent) is not judged again: a line naming a price retired since keeps it
+   * while its other columns change. An empty link names nothing, and a key
+   * that names no row at all is the foreign key's to refuse, so a refusal here
+   * tells nothing a row that is not there would not. Refused as the field's
+   * `not-allowed`, naming nothing of the linked row.
+   */
+  async function linkableIssues(rules: TableRules | null, action: WriteAction, target: WriteTarget, context: WriteContext, values: Row, stored: Row | null): Promise<FieldIssues | null> {
+    if ((rules?.linkable?.length ?? 0) === 0 || action === 'delete' || context.origin === 'undo') return null;
+    let issues: FieldIssues | null = null;
+    for (const rule of rules!.linkable!) {
+      if (!Object.prototype.hasOwnProperty.call(values, rule.column)) continue;
+      const value = values[rule.column];
+      if (value === null || value === undefined || value === '') continue;
+      if (stored !== null && sameValue(value, stored[rule.column])) continue;
+      if (rule.unresolved === true) {
+        (issues ??= {})[rule.column] = { code: 'not-allowed' };
+        continue;
+      }
+      // A value that could never be a key is not asked of the database (Postgres answers it with an error): the column's own check refuses it.
+      if (!couldBeKey(rule.keyType, value)) continue;
+      const read = [...new Set(rule.where.map((condition) => condition.column))];
+      const found = (await target.db
+        .selectFrom(rule.table)
+        .select(read.map((column) => sql.ref(column).as(column)) as never)
+        .where((eb) => eb(target.db.dynamic.ref(rule.key), '=', value))
+        .limit(1)
+        .executeTakeFirst()) as Row | undefined;
+      if (found !== undefined && !rule.where.every((condition) => holds(condition, found))) (issues ??= {})[rule.column] = { code: 'not-allowed' };
+    }
+    return issues;
+  }
+
   /** CHECK, then the dates a rule keeps within dates; the caller's own refusal when there is one. */
   /**
    * A link into an add-on's table has no foreign key behind it, so it is
@@ -2259,7 +2305,10 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
     if (geo !== null) values = geo.values;
     const issues = mergeIssues(
       mergeIssues(mergeIssues(geo?.issues ?? null, checkRow(judged, action, values, { dialect: target.dialect, stored, columns: target.table.columns })), await boundIssues(rules, action, target, context, values, stored)),
-      mergeIssues(await linkIssues(rules, action, target, context, values, mapError, stored), action === 'delete' ? null : reservedIssue(rules, values)),
+      mergeIssues(
+        mergeIssues(await linkIssues(rules, action, target, context, values, mapError, stored), action === 'delete' ? null : reservedIssue(rules, values)),
+        await linkableIssues(rules, action, target, context, values, stored),
+      ),
     );
     // What the check read of the stored row goes with the values, for the statement to hold it to.
     if (issues === null) return brand(attachRequiredGuards(values, requiredGuards(judged, action, values, stored)));
@@ -3667,7 +3716,11 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         }
         const issue = mergeIssues(
           mergeIssues(mergeIssues(geo?.issues ?? null, checkRow(judgedBy(rules, target, context), action, values, { dialect: target.dialect, columns: target.table.columns })), await boundIssues(rules, action, target, context, values, null)),
-          mergeIssues(await linkIssues(rules, action, target, context, values), action === 'delete' ? null : reservedIssue(rules, values)),
+          mergeIssues(
+            mergeIssues(await linkIssues(rules, action, target, context, values), action === 'delete' ? null : reservedIssue(rules, values)),
+            // A change judged here (an import's preview of a hooked table) is judged against the row it matched.
+            await linkableIssues(rules, action, target, context, values, checkOpts?.stored?.[index] ?? null),
+          ),
         );
         issues.push(issue);
         if (issue === null && checkOpts?.quote === true) {
@@ -4829,7 +4882,10 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         const judged = judgedBy(rules, target, context);
         const issues = mergeIssues(
           mergeIssues(mergeIssues(geo?.issues ?? null, checkRow(judged, action, worked, { dialect: target.dialect, stored: record, columns: target.table.columns })), await boundIssues(rules, action, target, context, worked, record)),
-          mergeIssues(await linkIssues(rules, action, target, context, worked, undefined, record), action === 'delete' ? null : reservedIssue(rules, worked)),
+          mergeIssues(
+            mergeIssues(await linkIssues(rules, action, target, context, worked, undefined, record), action === 'delete' ? null : reservedIssue(rules, worked)),
+            await linkableIssues(rules, action, target, context, worked, record ?? null),
+          ),
         );
         // A refused row is not written, so it is given no number.
         if (issues !== null) return { values: brand(worked), issues };

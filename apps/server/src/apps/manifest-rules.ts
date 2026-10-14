@@ -115,6 +115,7 @@ export type RuleOp =
   | 'column.mentions'
   | 'column.place'
   | 'column.area'
+  | 'column.linkable'
   | 'table.belongs'
   | 'table.private'
   | 'table.capacity'
@@ -255,6 +256,8 @@ export function opsForRules(appKey: string, rules: ColumnRules): { op: RuleOp; v
   if (rules.mentions !== undefined) out.push({ op: 'column.mentions', value: { mentions: rules.mentions === true ? true : { about: rules.mentions.about } } });
   if (rules.place === true) out.push({ op: 'column.place', value: { place: true } });
   if (rules.area === true) out.push({ op: 'column.area', value: { area: true } });
+  // The conditions name columns of the linked table, which keep their names: nothing to make real.
+  if (rules.linkable !== undefined) out.push({ op: 'column.linkable', value: { where: rules.linkable.where.map((condition) => ({ ...condition })) } });
   return out;
 }
 

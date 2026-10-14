@@ -33,4 +33,17 @@ A link is an `fk` column whose `references` is the other table's `ref`.
 - An `fk` takes no `default`. Make it `nullable` unless every row must have one.
 - Forms and lists show the linked row by its table's `keyField`, so give the target one.
 
-Reference: [Columns](https://docs.adminium.dev/reference/manifest/#columns).
+A link that may name only some rows says so with `linkable`: a quote line names a price-list
+line that is still offered.
+
+```json
+{ "ref": "price_id", "type": "fk", "references": "price_list", "nullable": true,
+  "rules": { "linkable": { "where": [{ "column": "active", "eq": true }] } } }
+```
+
+The conditions read the row the link names. A new row, or a change that moves the link, is refused
+when that row does not meet them, by whoever writes and on every door; a row already naming a line
+retired since keeps it while its other columns change. Hiding retired lines on a screen is not
+enough on its own: a direct call, an import or a rule could still name one.
+
+Reference: [Columns](https://docs.adminium.dev/reference/manifest/#columns), [Links to some rows](https://docs.adminium.dev/reference/manifest/#links-to-some-rows).

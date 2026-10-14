@@ -114,7 +114,20 @@ A link is an `fk` column whose `references` is the other table's `ref`.
 - An `fk` takes no `default`. Make it `nullable` unless every row must have one.
 - Forms and lists show the linked row by its table's `keyField`, so give the target one.
 
-Reference: [Columns](/reference/manifest/#columns).
+A link that may name only some rows says so with `linkable`: a quote line names a price-list
+line that is still offered.
+
+```json
+{ "ref": "price_id", "type": "fk", "references": "price_list", "nullable": true,
+  "rules": { "linkable": { "where": [{ "column": "active", "eq": true }] } } }
+```
+
+The conditions read the row the link names. A new row, or a change that moves the link, is refused
+when that row does not meet them, by whoever writes and on every door; a row already naming a line
+retired since keeps it while its other columns change. Hiding retired lines on a screen is not
+enough on its own: a direct call, an import or a rule could still name one.
+
+Reference: [Columns](/reference/manifest/#columns), [Links to some rows](/reference/manifest/#links-to-some-rows).
 
 ## A choice column
 
@@ -657,6 +670,7 @@ next number in a series and `done_at` is written when the status becomes `done`.
 | `lookup` | A foreign key filled from a code a person types into another column. |
 | `perNight` | A price worked out night by night. |
 | `notAfter`, `notBefore` | A date kept on one side of today, or of another date. |
+| `linkable` | A foreign key that names only a row meeting some conditions (a price still offered). |
 | `venueLocal` | A time given with no zone is read in the venue's time zone. |
 | `personal`, `secret` | Whether the column is personal data, or a secret no reply carries. |
 | `retryKey` | The column a staff create keeps its retry key in. |

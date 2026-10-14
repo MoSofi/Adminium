@@ -4,6 +4,7 @@
 
 | File | What it covers | Bytes |
 |---|---|---|
+| `references/manifest/automations--once-per-spell.md` | Automations — Once per spell | 691 |
 | `references/manifest/automations--quiet-hours-and-urgent.md` | Automations — Quiet hours and urgent | 856 |
 | `references/manifest/automations--a-summary-for-each-person.md` | Automations — A summary for each person | 6901 |
 | `references/manifest/automations--a-row-a-step-makes.md` | Automations — A row a step makes | 2836 |

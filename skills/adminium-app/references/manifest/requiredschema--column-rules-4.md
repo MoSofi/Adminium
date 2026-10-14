@@ -2,6 +2,36 @@
 
 # Manifest spec: requiredSchema — Column rules
 
+- **When it is judged.** On a new row that names a row, and on a change that moves the link to
+  another row. A change that leaves the link as the row holds it, or sends it back as it stands (as
+  the record form sends every field), is no move: a line naming a price retired since keeps it while
+  its quantity changes. An empty link names nothing, and is taken.
+- **Who it holds.** Everybody, an admin and the owner too: it is the data's own rule, not a
+  permission. It holds on every door a row is written through: a form, a bulk edit, a record's
+  action, an automation, the public API, an import (a new line, and a matched line that moves the
+  link) and sample data. An undo puts a row back as it was. A row a rule or an
+  [effect](https://docs.adminium.dev/reference/manifest/#effects) moves keeps the link it holds.
+- **The refusal.** `422` `VALIDATION_FAILED`, the field's code `not-allowed` (the code a value
+  outside `options` gets), naming nothing of the row the link named. Through the public API it is
+  `PUBLIC_WRITE_REFUSED` with no column. A key that names no row at all is the foreign key's to
+  refuse, as it always was; and somebody who does not [reach](https://docs.adminium.dev/reference/manifest/#whose-a-row-is) the named row is
+  refused as for a row that is not there, before this rule is asked, so the rule never tells them
+  whether a row out of their reach meets it.
+- **Read as it stands.** The named row is read when the write is judged. A line retired at the same
+  moment as a quote names it may still be named, as if the quote had come first.
+- **A rule that can no longer be read.** When the link's relation is gone, or a column a condition
+  reads is no longer on the table, no row can be shown to meet the rule: every new link is refused,
+  and rows that already hold one keep it. Put the column back, or change the rule in Studio.
+
+An operator may set the same rule on a column in Studio; Studio refuses one whose column is not a
+foreign key, or whose conditions name a column the linked table does not have. The screens are
+still the app's to filter: a picker that offers only active lines is kinder than a refusal.
+
+#### Totals and balances
+
+A rollup can also filter its child rows, keep a balance beside the total, and refuse a change
+that would take the balance below zero: what a visit's fee, its payments and its write-offs need.
+
 | Field | Rule |
 |---|---|
 | `where` | `{ "column", "eq" }`: only child rows whose column equals the value are added up (`voided` is `false`). The value must fit the column, and the column must not be nullable: a row left empty would drop out of the total unseen. |
@@ -64,38 +94,3 @@ crosswise; a line moved to another order while a write was reading it is refused
 
 Sums are exact on every engine, SQLite included: a total is added up from each row's decimal text,
 never through a floating-point number.
-
-A capped balance whose `of` is a [formula](https://docs.adminium.dev/reference/manifest/#formulas) (a total of subtotal and tax) is judged
-against the cap one row at a time; a bulk edit or an import settles it afterwards, without the
-cap. So `validateManifest` [warns](https://docs.adminium.dev/reference/manifest/#validation) when the formula reads a column that stays
-writable while the capped rows can exist: lock those columns with the table's
-[states](https://docs.adminium.dev/reference/manifest/#states) (and the lines they add up with `lock: true`) in every state a capped row can be
-written in or reached from.
-
-#### Formulas
-
-A `formula` works a number out from the other columns of the same row: a line's amount, a
-document's tax and total.
-
-```json
-{ "ref": "amount", "type": "decimal", "scale": "currency", "nullable": true,
-  "rules": { "formula": { "max": [0, { "sub": [{ "mul": ["qty", "rate"] }, { "coalesce": ["discount", 0] }] }] } } }
-```
-
-An expression is a number, a column of the same row by its ref (`"qty"`), or one of these objects:
-
-| Expression | Value |
-|---|---|
-| `{ "add": [a, b, …] }` | The sum of 2–8 expressions. |
-| `{ "sub": [a, b] }` | `a − b`. |
-| `{ "mul": [a, b, …] }` | The product of 2–8 expressions. |
-| `{ "div": [a, b] }` | `a ÷ b`. Empty when `b` is zero. |
-| `{ "min": [a, b, …] }`, `{ "max": [a, b, …] }` | The smallest or largest of 2–8 expressions. |
-| `{ "round": a }` or `{ "round": [a, places] }` | `a` rounded half away from zero, to the column's scale or to `places` (0–4). |
-| `{ "coalesce": [a, b] }` | `a`, or `b` when `a` is empty. |
-| `{ "if": [condition, a, b] }` | `a` when the condition holds, else `b`. |
-| `{ "hoursBetween": [start, stop] }` | The hours from the `start` column to the `stop` column, both `timestamptz` columns of the row. See [Hours between two moments](https://docs.adminium.dev/reference/manifest/#hours-between-two-moments). |
-| `{ "daysBetween": [from, to] }` | The whole calendar days from the `from` date to the `to` date, two `date` columns of the row: a stay's nights. |
-| `{ "join": [part, part, …] }` | Text: 2–8 parts, each a column of the row or a piece of text, joined in order. The whole formula, of a `text` column; see [Joined text](https://docs.adminium.dev/reference/manifest/#joined-text). |
-
-A condition is one of:

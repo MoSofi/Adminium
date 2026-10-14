@@ -778,6 +778,13 @@ export const columnRulesSchema = z
     customerKey: z.object({ of: refSchema }).strict().optional(),
     /** The last four characters of the code in `of`, written by Adminium: what a list shows of a code it never shows. */
     codeLast4: z.object({ of: refSchema }).strict().optional(),
+    /**
+     * A foreign key that may name only a row meeting these conditions (a
+     * price-list line still offered): judged when a new row names one and
+     * when a change moves the link, whoever writes. A row already naming one
+     * that later stops meeting them keeps it while its other columns change.
+     */
+    linkable: z.object({ where: z.array(stateConditionSchema).min(1).max(8) }).strict().optional(),
   })
   .strict();
 export type ColumnRules = z.infer<typeof columnRulesSchema>;
@@ -2205,6 +2212,21 @@ export function appReferenceIssues(
         // The conditions read this row, as the write leaves it.
         (bound.when ?? []).forEach((condition, w) => out.push(...conditionIssues(table.ref, condition, index, here(side, 'when', w))));
         if (Array.isArray(bound.strict)) bound.strict.forEach((condition, w) => out.push(...conditionIssues(table.ref, condition, index, here(side, 'strict', w))));
+      }
+      if (rules.linkable !== undefined) {
+        // The conditions read the row the link names, so the column is a link and they name that table's columns.
+        if (column.type !== 'fk' || column.references === undefined) {
+          out.push({ path: here('linkable'), message: 'only a foreign key names a row, so only one takes linkable' });
+        } else {
+          const linked = column.references;
+          rules.linkable.where.forEach((condition, w) => {
+            out.push(...conditionIssues(linked, condition, index, here('linkable', 'where', w)));
+            // A refusal says whether the named row meets the condition: never asked of a value kept from every reader.
+            if (tables.get(linked)?.columns.find((x) => x.ref === condition.column)?.rules?.secret === true) {
+              out.push({ path: here('linkable', 'where', w, 'column'), message: `"${linked}.${condition.column}" is a secret, and a link is never judged by one` });
+            }
+          });
+        }
       }
       if (rules.requiredWhen !== undefined) {
         const when = rules.requiredWhen;

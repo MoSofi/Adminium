@@ -2,6 +2,38 @@
 
 # Manifest spec: requiredSchema — Column rules
 
+- it always wins (`mode: "always"`), and follows one level: the column it copies does not itself
+  follow another row;
+- it never follows a total, a balance or a stamp, nor a formula over one: those change without a
+  change of the row, so the copy would keep an old value;
+- the row it follows is not worked out from this table's own totals (a loop);
+- a total another table keeps of these rows reads none of what the follow writes, including the
+  link it groups by: a follow that moved rows between another table's totals would leave those
+  totals behind.
+
+More than 500 rows following one changed row refuse the whole write, `409` `FOLLOW_TOO_MANY`
+(`details.table`, `details.count`), rather than leave some behind. A bulk edit, an import or a
+public batch that would move a paid balance below zero through its followers, or could not write
+them under the caller's role, or would move more than 500, is refused before anything is written:
+`409` `BALANCE_ONE_AT_A_TIME`. Make such changes one row at a time.
+
+#### Prices by the night
+
+`perNight` works a price out night by night: for each night from `from` up to the day before `to`,
+the base rate read from the row `rate.via` points at, plus every adjustment row that matches that
+night (a weekend, a season). Each night is rounded to the column's [scale](https://docs.adminium.dev/reference/manifest/#decimal-places), and
+the column holds their sum.
+
+```json
+{ "ref": "room_total", "type": "money", "scale": "currency", "nullable": true,
+  "rules": { "perNight": {
+    "from": "arrive", "to": "depart",
+    "rate": { "via": "room_type_id", "column": "base_rate" },
+    "adjust": { "table": "rate_rules",
+                "match": { "via": "room_type_id", "weekdays": "weekdays", "from": "from_date", "to": "to_date" },
+                "add": "amount", "name": "name", "where": { "column": "active", "eq": true } } } } }
+```
+
 | Field | Rule |
 |---|---|
 | `from`, `to` | Two different `date` columns of the row: the first night, and the day after the last. |
@@ -61,32 +93,3 @@ A code typed to **read** rows rather than write one (a presale code that shows i
 a public entry's [`unlockBy`](https://docs.adminium.dev/reference/manifest/#codes-that-unlock-rows).
 
 #### Codes that renew
-
-A ticket's code is the door's proof. When the ticket goes to somebody else, the old code must
-stop working at once, and the new holder gets one the old holder never saw. `code.renew` says
-what makes a new code:
-
-```json
-{ "ref": "code", "type": "text", "nullable": true,
-  "rules": { "code": { "length": 8, "renew": { "on": { "column": "holder_customer_id", "changed": true } } } } }
-```
-
-`on` is one trigger or a list of 2–3: `{ "column", "changed": true }`, any change of another
-column of the row, or `{ "column", "values" }`, that column moving to one of 1–16 values (a
-transfer accepted). The watched column is not a code itself, not `json` or `blob`, and a `changed`
-trigger watches a column a person changes or a stamp writes (a holder stamped in as an offer is
-taken renews too).
-
-The new code is written in the same statement as the change: the old one stops as the write
-commits, and every session a [token link](https://docs.adminium.dev/reference/manifest/#a-persons-own-rows) on that column opened stops with
-it. What never renews: a create (it makes a code anyway), an import or other history, a change that
-sends back the value the row already holds, and a server action that writes the code itself (a
-[new link](https://docs.adminium.dev/reference/manifest/#a-rows-own-link)). A [timed move's](https://docs.adminium.dev/reference/manifest/#timed-moves) `set` renews like any other change.
-Undoing a change of hands renews once more, so neither the old code nor the one handed on works
-after it; see [Undo of a move](https://docs.adminium.dev/reference/manifest/#undo-of-a-move). A renewed code is never shown to a public caller
-in the change's reply, and only to staff who may read the table.
-
-#### Stamps
-
-A stamp writes a value when a row is created, or when another column changes to one of a list of
-values: the time a patient checked in, who took a payment.

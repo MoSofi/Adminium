@@ -281,6 +281,16 @@ export interface DateBound {
   notBefore?: DateBoundSide;
 }
 
+/**
+ * `column.linkable`, resolved: the table the foreign key points at and its
+ * key, or `unresolved` when the snapshot no longer has the link or a column
+ * the conditions read (then no row can be shown to meet them, and a new link
+ * is refused).
+ */
+export type LinkableRule =
+  | { column: string; table: string; key: string; keyType?: string; where: StateCondition[]; unresolved?: undefined }
+  | { column: string; where: StateCondition[]; unresolved: true };
+
 /** `column.default { kind: 'from' }`: a create's empty value, filled from elsewhere. */
 export interface ColumnDefaultFrom {
   column: string;
@@ -476,6 +486,8 @@ export interface TableRules {
   normalizes?: { column: string; how: 'trim' | 'email' | 'code' }[];
   /** Dates kept within dates: never after today, never before another date. */
   bounds?: DateBound[];
+  /** Links that may name only a row meeting some conditions. */
+  linkable?: LinkableRule[];
   /** A document's life (`table.states`), and the rows of other tables that lock it. */
   states?: TableStatesRule;
   lockedBy?: LockedByReference[];
@@ -656,6 +668,7 @@ export function tableRulesFor(target: { view: SnapshotView; table: ResolvedTable
   const seals: ColumnStamp[] = [];
   const normalizes: { column: string; how: 'trim' | 'email' | 'code' }[] = [];
   const bounds: DateBound[] = [];
+  const linkable: LinkableRule[] = [];
   const states = target.table.table?.states;
   const lockedBy = target.table.table?.lockedBy ?? [];
   const stateParents = target.table.table?.stateParents ?? [];
@@ -765,6 +778,21 @@ export function tableRulesFor(target: { view: SnapshotView; table: ResolvedTable
         if (side !== undefined) bound.notBefore = side;
       }
       if (bound.notAfter !== undefined || bound.notBefore !== undefined) bounds.push(bound);
+    }
+    if (column.linkable !== undefined) {
+      // Through the one-column foreign key the snapshot has; a link it lost, or a column of the linked table it lost, fails closed.
+      const where = column.linkable.where;
+      const relation = target.view?.model?.relations.find(
+        (r) => r.through === null && r.from.tableId === target.table.id && r.from.columns.length === 1 && r.from.columns[0] === column.name && r.to.columns.length === 1,
+      );
+      const linked = relation === undefined ? undefined : target.view?.model?.tables.find((table) => table.id === relation.to.tableId);
+      const readable = linked !== undefined && where.every((condition) => linked.columns.some((other) => other.name === condition.column));
+      const keyType = linked?.columns.find((other) => other.name === relation?.to.columns[0])?.logicalType;
+      linkable.push(
+        relation === undefined || !readable
+          ? { column: column.name, where, unresolved: true }
+          : { column: column.name, table: relation.to.tableId, key: relation.to.columns[0]!, ...(keyType === undefined ? {} : { keyType }), where },
+      );
     }
     const values = enumValuesOf(column, enums);
     /*
@@ -895,6 +923,7 @@ export function tableRulesFor(target: { view: SnapshotView; table: ResolvedTable
     normalizes.length === 0 &&
     codeLookups.length === 0 &&
     bounds.length === 0 &&
+    linkable.length === 0 &&
     states === undefined &&
     stateParents.length === 0 &&
     capacity === undefined &&
@@ -940,6 +969,7 @@ export function tableRulesFor(target: { view: SnapshotView; table: ResolvedTable
           ...(normalizes.length === 0 ? {} : { normalizes }),
           ...(codeLookups.length === 0 ? {} : { codeLookups }),
           ...(bounds.length === 0 ? {} : { bounds }),
+          ...(linkable.length === 0 ? {} : { linkable }),
           ...(states === undefined ? {} : { states, ...(lockedBy.length === 0 ? {} : { lockedBy }) }),
           ...(stateParents.length === 0 ? {} : { stateParents }),
           ...(capacity === undefined ? {} : { capacity }),
