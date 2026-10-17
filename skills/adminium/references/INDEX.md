@@ -28,7 +28,7 @@ file. Every file is 8 KB or less.
 | `references/projects/apps--try-it-then-pack-it.md` | Try it, then pack it | 1640 |
 | `references/projects/apps--screens-of-its-own.md` | Screens of its own | 3662 |
 | `references/projects/folder--overview.md` | The project folder | 1500 |
-| `references/projects/folder--adminium-config-ts.md` | `adminium.config.ts` | 2052 |
+| `references/projects/folder--adminium-config-ts.md` | `adminium.config.ts` | 2111 |
 | `references/projects/folder--several-databases.md` | Several databases | 1476 |
 | `references/projects/folder--env.md` | `.env` | 741 |
 | `references/projects/folder--data.md` | `data/` | 421 |
@@ -47,7 +47,7 @@ file. Every file is 8 KB or less.
 | `references/cli/exit-codes.md` | Exit codes | 1102 |
 | `references/cli/project-files.md` | Project files | 1899 |
 | `references/cli/new.md` | `new` | 3070 |
-| `references/cli/dev.md` | `dev` | 2619 |
+| `references/cli/dev.md` | `dev` | 3010 |
 | `references/cli/design.md` | `design` | 1569 |
 | `references/cli/app-approve-build.md` | `app approve-build` | 1277 |
 | `references/cli/owner.md` | `owner` | 645 |

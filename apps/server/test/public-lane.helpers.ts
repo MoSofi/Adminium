@@ -6,6 +6,7 @@
  * gate, the resolver, the scope compiler, the write service, the job queue.
  */
 import { publicKeysRepo, settingsRepo } from '@adminium/meta';
+import type { Logger } from 'pino';
 
 import { composeServer } from '../src/compose.js';
 import { dsnCryptoFromSecret } from '../src/connections/crypto.js';
@@ -21,7 +22,7 @@ export const ORIGIN = 'https://studio.example.com';
 export type Served = Awaited<ReturnType<typeof servePublic>>;
 
 /** The composed server, and requests through one of its keys. */
-export async function servePublic(h: InvoicingHarness, keyId: string | null, env: Record<string, string> = {}, opts: { limiter?: PublicRateLimiter } = {}) {
+export async function servePublic(h: InvoicingHarness, keyId: string | null, env: Record<string, string> = {}, opts: { limiter?: PublicRateLimiter; /** The server's log, for a test that reads it; none by default. */ logger?: Logger } = {}) {
   await settingsRepo(h.meta).set('publicApi.enabled', true);
   const runService = createRunService({ meta: h.meta });
   const composed = await composeServer({
@@ -31,7 +32,7 @@ export async function servePublic(h: InvoicingHarness, keyId: string | null, env
     runService,
     applyService: createApplyService({ meta: h.meta, runService }),
     allowed: null,
-    logger: false,
+    logger: opts.logger ?? false,
     telemetry: false,
     publicLimiter: opts.limiter,
   });

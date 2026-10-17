@@ -46,6 +46,7 @@ import { seedSourceConnection } from '../../connections/seed.js';
 import { storageCryptoFromSecret } from '../../files/crypto.js';
 import { embeddedMetaWarning } from '../../meta/store.js';
 import { prepareProject } from '../../project/boot.js';
+import { publicApiRegistrationBlocked } from '../../routes/public/index.js';
 import { findProject } from '../../project/locate.js';
 import { markRunning, refuseIfRunning } from '../../project/running.js';
 import { withDefaults } from '../../project/config.js';
@@ -286,10 +287,17 @@ export async function startUp({ io, deps }: Pick<CommandContext, 'io' | 'deps'>,
      * boot, so an app's customer side would otherwise reach nothing until
      * somebody found the variable; `self` is the narrowest value there is,
      * and the API still answers nothing until it is switched on.
+     *
+     * And it listens on this computer only (127.0.0.1) unless HOST or --host
+     * says otherwise. On every other address the public API is not registered
+     * without ADMINIUM_TRUST_PROXY (`publicApiRegistrationBlocked`), so under
+     * the old default of 0.0.0.0 every customer side answered 404 "Route not
+     * found" with one log line to say why — found building a shop from a
+     * website template. `app try` and the Designer listen there too.
      */
     const developing = project !== null && projectMode === 'dev';
     const projectEnv =
-      project !== null && developing ? withDefaults(project.env, { ADMINIUM_PUBLIC_API_ORIGINS: 'self' }) : project?.env;
+      project !== null && developing ? withDefaults(project.env, { ADMINIUM_PUBLIC_API_ORIGINS: 'self', HOST: '127.0.0.1' }) : project?.env;
 
     const env = loadCliEnv(
       projectEnv ?? deps.env,
@@ -303,6 +311,12 @@ export async function startUp({ io, deps }: Pick<CommandContext, 'io' | 'deps'>,
       },
       project?.sources,
     );
+
+    // A dev server on another address: told in its own words, before anything starts, that its customer sides will not load.
+    const publicBlocked = developing ? publicApiRegistrationBlocked(env) : null;
+    if (developing && publicBlocked !== null && env.ADMINIUM_PUBLIC_API_ORIGINS !== undefined) {
+      io.err(`An app's customer side will not load on ${env.HOST}: ${publicBlocked}`);
+    }
 
     const runtime = await deps.openRuntime(env);
 

@@ -62,7 +62,7 @@ import {
 } from '../../public-api/runtime.js';
 import { publicConfigOf, type CompiledResource, type CompiledScope, type PublicAction, type ScopeChild } from '../../public-api/scope.js';
 import { foreignKeyOf, judgeAgrees, judgeCounts, judgeReadable, judgeSumMax, TreeCheckRefused } from '../../public-api/tree-checks.js';
-import { isWriteConflict, writeConflict } from '../../crud/db-errors.js';
+import { isWriteConflict, readDbRefusal, writeConflict } from '../../crud/db-errors.js';
 import type { TreeNode, TreeOutcome, TreePath, TreeReplay, TreeWritten } from '../../crud/write-tree.js';
 import { priceAnswer, type AppliedReply, type PriceAnswer } from '../../crud/adjust/replies.js';
 import type { AdjustedOrder } from '../../crud/adjust/step.js';
@@ -304,9 +304,45 @@ export interface PublicRoutesDeps {
  * `out-of-hours`, …) — nothing the day's availability does not already say.
  */
 class PublicWriteRefused extends Error {
-  constructor(readonly params?: Record<string, unknown>) {
+  constructor(
+    readonly params?: Record<string, unknown>,
+    /** What refused it, for the operator's log alone (`logRefused`): the caller is told no more than `params`. */
+    readonly why?: unknown,
+  ) {
     super('That write was refused.');
   }
+}
+
+/**
+ * A refusal the caller is told nothing of, said in the server's log: the
+ * column and the reason's code, never a value. A stranger is not told that
+ * a column the entry never writes cannot be empty, nor what the database
+ * said (`crud/db-errors.ts`, rule 4) — but the person building the app reads
+ * this log, and "That write was refused." with nothing beside it there sent
+ * them guessing at every column.
+ */
+function logRefused(request: FastifyRequest, ref: string, error: PublicWriteRefused, tables: readonly ResolvedTable[]): void {
+  if (error.params !== undefined || error.why === undefined) return;
+  const why = error.why;
+  let told: Record<string, unknown> | null = null;
+  if (why instanceof ValidationFailedError) {
+    const fields = ((why.details as { fields?: unknown } | undefined)?.fields ?? {}) as Record<string, { code?: unknown } | undefined>;
+    told = { fields: Object.fromEntries(Object.entries(fields).map(([column, issue]) => [column, typeof issue?.code === 'string' ? issue.code : 'invalid'])) };
+  } else {
+    for (const table of tables) {
+      const read = readDbRefusal(why, table);
+      if (read !== null) {
+        told = { table: table.name, ...(read.column === null ? {} : { column: read.column }), code: read.code };
+        break;
+      }
+    }
+    if (told === null && why instanceof AppError) {
+      // A posting's or a rule's no: its code, and the column and reason it gives (a code typed with no add-on to read it).
+      const details = (why.details ?? {}) as { reason?: unknown; column?: unknown };
+      told = { code: why.code, ...(typeof details.reason === 'string' ? { reason: details.reason } : {}), ...(typeof details.column === 'string' ? { column: details.column } : {}) };
+    }
+  }
+  if (told !== null) request.log.info({ ref, ...told }, 'a public write was refused, and its caller is told no more than "That write was refused."');
 }
 
 /**
@@ -646,7 +682,7 @@ const refuseWrite = (error?: unknown, told?: Told): never => {
   if (error instanceof AppError && error.code === 'CAPACITY_FULL') limitRefusal(error.details);
   // A ledger's own no: out of stock, or a refused card — and nothing else of it. Any other refusal of a posting has no name here.
   const ledger = publicLedgerRefusal(error);
-  if (ledger !== null) throw ledger.code === null ? new PublicWriteRefused() : new PublicSlotRefused(ledger.code, ledger.params);
+  if (ledger !== null) throw ledger.code === null ? new PublicWriteRefused(undefined, error) : new PublicSlotRefused(ledger.code, ledger.params);
   const slot = error instanceof AppError ? SLOT_REFUSALS[error.code] : undefined;
   if (slot !== undefined) throw new PublicSlotRefused(slot);
   // A move or a change judged against the clock: told when it opens, or that it has closed.
@@ -670,7 +706,7 @@ const refuseWrite = (error?: unknown, told?: Told): never => {
   }
   const named = told === undefined || !(error instanceof ValidationFailedError) ? null : namedIn((error.details as { fields?: unknown } | undefined)?.fields, told);
   asCard(named, told?.cards);
-  throw named === null ? new PublicWriteRefused() : new PublicWriteRefused(named);
+  throw named === null ? new PublicWriteRefused(undefined, error) : new PublicWriteRefused(named);
 };
 
 /** A write the engine gave up in a lock race, or one that met a row moving under it: the same write a moment later goes through. */
@@ -2533,7 +2569,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         }
       }
       if (dry) {
-        const shown = quotePlaceholders(view, table, resource.writable, resource.requires ?? [], values);
+        const shown = quotePlaceholders(view, table, resource.writable, resource.requires ?? [], values, resource.writableValues);
         Object.assign(values, shown);
         filledIn.set('', new Set([...Object.keys(shown), ...placeheldTexts(view, table, Object.keys(shown))]));
       }
@@ -2573,7 +2609,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
             if (own === null) return where;
             sent.set(place(at), new Set(Object.keys(row.values)));
             if (dry) {
-              const shown = quotePlaceholders(view, childTable, child.writable, child.requires ?? [], own);
+              const shown = quotePlaceholders(view, childTable, child.writable, child.requires ?? [], own, child.writableValues);
               Object.assign(own, shown);
               filledIn.set(place(at), new Set([...Object.keys(shown), ...placeheldTexts(view, childTable, Object.keys(shown))]));
             }
@@ -2961,7 +2997,10 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         const own = error instanceof PublicWriteRefused && typeof error.params?.['reason'] === 'string' && error.params['column'] !== undefined && TREE_NAMED.has(error.params['reason']) && error.params['reason'] !== 'used-up';
         if (own) await release?.();
         if (error instanceof PublicPriceChanged) return fail(reply, 409, 'PUBLIC_PRICE_CHANGED', error.message, error.params);
-        if (error instanceof PublicWriteRefused) return refused(error.params);
+        if (error instanceof PublicWriteRefused) {
+          logRefused(request, ref, error, [table, ...[...lists.values()].flatMap((child) => [child.table, ...Object.values(child.children ?? {}).map((grandchild) => grandchild.table)]).flatMap((name) => tableOf(name) ?? [])]);
+          return refused(error.params);
+        }
         if (error instanceof PublicSlotRefused) return fail(reply, 409, error.code, error.message, error.params);
         if (error instanceof HookRejectedError) return fail(reply, 400, 'PUBLIC_WRITE_REJECTED', error.message);
         // A move an app's outbox refuses: named for the desk, never for a public caller.
@@ -3262,6 +3301,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           if (error instanceof PublicSlotRefused && error.code !== 'PUBLIC_SLOT_BUSY') await releaseAllButVisitor?.();
           else await release?.();
           if (error instanceof PublicWriteRefused) {
+            logRefused(request, request.params.ref, error, [found.table]);
             return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'That write was refused.', error.params);
           }
           if (error instanceof PublicSlotRefused) return fail(reply, 409, error.code, error.message, error.params);
@@ -3613,6 +3653,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           if (error instanceof PublicPriceChanged && error.missed) guesses.missed(request);
           if (error instanceof PublicPriceChanged) return fail(reply, 409, 'PUBLIC_PRICE_CHANGED', error.message, error.params);
           if (error instanceof PublicWriteRefused) {
+            logRefused(request, request.params.ref, error, [found.table]);
             return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'That write was refused.', error.params);
           }
           if (error instanceof PublicSlotRefused) return fail(reply, 409, error.code, error.message, error.params);
@@ -3925,6 +3966,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           });
         } catch (error) {
           if (error instanceof PublicWriteRefused) {
+            logRefused(request, request.params.ref, error, [found.table]);
             return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'That write was refused.', error.params);
           }
           if (error instanceof PublicSlotRefused) return fail(reply, 409, error.code, error.message, error.params);
