@@ -300,17 +300,22 @@ describe('whether a model reads pictures', () => {
     },
   });
 
-  it('is asked: the two colours, in their order', async () => {
-    expect(await readsImages(answering('Yellow, blue.'), 'm')).toBe(true);
-    expect(await readsImages(answering('yellow\nBlue'), 'm')).toBe(true);
-    // A guess, the wrong order, or "I cannot see it".
-    expect(await readsImages(answering('Red and green'), 'm')).toBe(false);
-    expect(await readsImages(answering('Blue, yellow'), 'm')).toBe(false);
-    expect(await readsImages(answering('I cannot see any picture.'), 'm')).toBe(false);
+  it('is asked: the two colours, in either order', async () => {
+    const reads = { reads: true, from: 'answer' };
+    const blind = { reads: false, from: 'answer' };
+    expect(await readsImages(answering('Yellow, blue.'), 'm')).toEqual(reads);
+    expect(await readsImages(answering('yellow\nBlue'), 'm')).toEqual(reads);
+    // What Claude Sonnet 5.5 answers through OpenRouter, every time: it sees the picture.
+    expect(await readsImages(answering('Blue Yellow'), 'm')).toEqual(reads);
+    expect(await readsImages(answering('blue orange'), 'm')).toEqual(reads);
+    // A guess, one colour, or "I cannot see it".
+    expect(await readsImages(answering('Red and green'), 'm')).toEqual(blind);
+    expect(await readsImages(answering('Blue sky'), 'm')).toEqual(blind);
+    expect(await readsImages(answering('I cannot see any picture.'), 'm')).toEqual(blind);
   });
 
-  it('a request refused for its picture is a no; a server that could not be asked is no verdict', async () => {
-    expect(await readsImages(answering(new ProviderError({ provider: 'ollama', code: 'http', status: 400, message: 'this model does not support images' })), 'm')).toBe(false);
+  it('a request refused for its picture is a refusal; a server that could not be asked is no verdict', async () => {
+    expect(await readsImages(answering(new ProviderError({ provider: 'ollama', code: 'http', status: 400, message: 'this model does not support images' })), 'm')).toEqual({ reads: false, from: 'refusal' });
     expect(await readsImages(answering(new ProviderError({ provider: 'ollama', code: 'network', message: 'offline' })), 'm')).toBeNull();
     expect(await readsImages(answering(new ProviderError({ provider: 'ollama', code: 'rate_limit', status: 429, message: 'slow down' })), 'm')).toBeNull();
     await expect(readsImages(answering(new ProviderError({ provider: 'ollama', code: 'aborted', message: 'stopped' })), 'm')).rejects.toMatchObject({ code: 'aborted' });

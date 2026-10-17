@@ -188,6 +188,21 @@ describe('listOpenAiCompatibleModels', () => {
     expect(models).toEqual([{ id: 'local-model', label: 'local-model' }]);
   });
 
+  it('keeps whether a model reads pictures when the list says (OpenRouter), and nothing when it does not', async () => {
+    stubFetch({
+      data: [
+        { id: 'anthropic/claude-sonnet-5.5', architecture: { input_modalities: ['text', 'image', 'file'] } },
+        { id: 'text-only', architecture: { input_modalities: ['text'] } },
+        { id: 'plain' },
+      ],
+    });
+    expect(await listOpenAiCompatibleModels({ baseUrl: BASE })).toEqual([
+      { id: 'anthropic/claude-sonnet-5.5', label: 'anthropic/claude-sonnet-5.5', images: true },
+      { id: 'text-only', label: 'text-only', images: false },
+      { id: 'plain', label: 'plain' },
+    ]);
+  });
+
   it('treats a missing /models endpoint as "no catalog", not as an error', async () => {
     // `[]` is the signal the settings UI uses to offer a free-text model field.
     // It must be reachable both from a 404 and from a 200 with no `data`.

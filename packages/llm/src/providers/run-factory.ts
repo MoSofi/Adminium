@@ -123,14 +123,26 @@ export async function canBuild(runner: ProviderRunner, model: string, opts: { si
 export const PROBE_PICTURE = 'iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAAALklEQVR42u3NMQ0AAAgDsAnDvwqUcKGCg6RJ/2Y6pyIQCASCF0GqbwkEAoHgQ7BAmNxMGPuLHwAAAABJRU5ErkJggg==';
 
 /**
+ * What the picture probe learned: whether the model reads pictures, and
+ * whether the model said so (`answer`) or its server refused the request
+ * (`refusal`, which a passing fault on the server can also look like).
+ */
+export interface ImagesVerdict {
+  reads: boolean;
+  from: 'answer' | 'refusal';
+}
+
+/**
  * Whether a model reads pictures: asked, not guessed from its name.
  *
- * True when it names both colours in their order; false when it answers
- * anything else, or the provider refuses a request that carries a picture;
- * null when the model could not be asked at all (the network, the key, a
- * busy server), which says nothing about the model.
+ * It reads them when it names both colours, in either order: Claude Sonnet
+ * 5.5 through OpenRouter sees this picture and answers "Blue Yellow" every
+ * time, so the order says nothing about sight. Anything else is a no, and so
+ * is a request refused for carrying a picture. Null when the model could not
+ * be asked at all (the network, the key, a busy server), which says nothing
+ * about the model.
  */
-export async function readsImages(runner: ProviderRunner, model: string, opts: { signal?: AbortSignal } = {}): Promise<boolean | null> {
+export async function readsImages(runner: ProviderRunner, model: string, opts: { signal?: AbortSignal } = {}): Promise<ImagesVerdict | null> {
   try {
     const result = await runner.run({
       system: 'You are being checked. Follow the instruction exactly.',
@@ -149,11 +161,12 @@ export async function readsImages(runner: ProviderRunner, model: string, opts: {
       ...(opts.signal === undefined ? {} : { signal: opts.signal }),
     });
     const said = result.blocks.flatMap((block) => (block.type === 'text' ? [block.text] : [])).join(' ');
-    return /yellow[\s\S]*blue/i.test(said);
+    // "Orange" too: a small model has called this yellow that.
+    return { reads: /\b(yellow|gold|orange)\b/i.test(said) && /\bblue\b/i.test(said), from: 'answer' };
   } catch (error) {
     if (error instanceof ProviderError && error.code === 'aborted') throw error;
     // The request itself was refused: this model, or this server, takes no picture.
-    if (error instanceof ProviderError && (error.code === 'http' || error.code === 'bad_response' || error.code === 'empty_response')) return false;
+    if (error instanceof ProviderError && (error.code === 'http' || error.code === 'bad_response' || error.code === 'empty_response')) return { reads: false, from: 'refusal' };
     return null;
   }
 }

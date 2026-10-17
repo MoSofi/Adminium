@@ -13,7 +13,7 @@ export type { ProviderId } from '../types.js';
 
 export interface ProviderClient {
   readonly id: ProviderId;
-  listModels(): Promise<{ id: string; label: string }[]>; // throws ProviderError
+  listModels(): Promise<ModelInfo[]>; // throws ProviderError
   complete(req: {
     system: string;
     messages: { role: 'user' | 'assistant'; content: string }[];
@@ -95,6 +95,12 @@ export interface ModelInfo {
    * `:cloud` model runs on ollama.com). What is sent to it leaves the machine.
    */
   remote?: boolean;
+  /**
+   * Whether the model reads pictures, as its server's list says
+   * (`architecture.input_modalities`, which OpenRouter publishes); absent
+   * when the list does not say.
+   */
+  images?: boolean;
 }
 
 /** How hard a model is asked to work on a reply, the least first. */

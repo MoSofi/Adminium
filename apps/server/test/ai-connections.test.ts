@@ -13,9 +13,9 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import BetterSqlite3 from 'better-sqlite3';
-import { llmKeyCryptoFromSecret, ProviderError, type ProviderClient, type ProviderConfig, type ProviderRunner, type RunResult } from '@adminium/llm';
+import { llmKeyCryptoFromSecret, ProviderError, type ModelInfo, type ProviderClient, type ProviderConfig, type ProviderRunner, type RunResult } from '@adminium/llm';
 import { createSqliteMetaDb, firstRun, settingsRepo, type MetaDb } from '@adminium/meta';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { decryptSecret, deriveKey, encryptSecret } from '../src/config/secrets.js';
 import { createAiEnv, type AiEnv } from '../src/llm/ai-env.js';
@@ -367,6 +367,70 @@ describe('the model connections', () => {
     expect((await all.test({ provider: 'openai', apiKey: 'sk-1', model: 'gpt-x' })).error?.code).toBe('billing');
     failure = new ProviderError({ provider: 'ollama', code: 'not_found', status: 404, message: 'ollama: HTTP 404 — model "big" not found' });
     expect((await all.test({ provider: 'ollama', model: 'big' })).error?.code).toBe('not_found');
+  });
+
+  describe('whether a model reads pictures', () => {
+    const compatible = envOf({ ADMINIUM_AI_COMPATIBLE_BASE_URL: 'https://router.test/api/v1', ADMINIUM_AI_COMPATIBLE_API_KEY: 'sk-or-1' });
+    const listing = (models: ModelInfo[]): Partial<Parameters<typeof createAiConnections>[0]> => ({
+      createClient: () => ({
+        id: 'openai-compatible',
+        listModels: async () => models,
+        complete: async () => ({ text: '' }),
+        test: async () => ({ ok: true, model: '', latencyMs: 0 }),
+      }),
+    });
+    const probing = (answer: () => RunResult): { asked: () => number; over: Partial<Parameters<typeof createAiConnections>[0]> } => {
+      let asked = 0;
+      return {
+        asked: () => asked,
+        over: {
+          createRunner: (config) => ({
+            id: config.provider,
+            run: async () => {
+              asked += 1;
+              return answer();
+            },
+          }),
+        },
+      };
+    };
+
+    it('believes the server’s list when it says, and asks nothing', async () => {
+      const probe = probing(() => ({ blocks: [{ type: 'text', text: 'red green' }], stop: 'end', malformed: [] }));
+      const all = connections(compatible, { ...listing([{ id: 'claude', label: 'claude', images: true }, { id: 'text', label: 'text', images: false }]), ...probe.over });
+      expect(await all.readsImages('env:openai-compatible', 'claude')).toBe(true);
+      expect(await all.readsImages('env:openai-compatible', 'text')).toBe(false);
+      expect(probe.asked()).toBe(0);
+    });
+
+    it('asks a model the list says nothing about, and keeps its answer', async () => {
+      const probe = probing(() => ({ blocks: [{ type: 'text', text: 'Blue Yellow' }], stop: 'end', malformed: [] }));
+      const all = connections(compatible, { ...listing([{ id: 'm', label: 'm' }]), ...probe.over });
+      expect(await all.readsImages('env:openai-compatible', 'm')).toBe(true);
+      expect(await all.readsImages('env:openai-compatible', 'm')).toBe(true);
+      expect(probe.asked()).toBe(1);
+    });
+
+    it('says no to a refused picture for five minutes, then asks again', async () => {
+      vi.useFakeTimers({ toFake: ['Date'] });
+      try {
+        let refuse = true;
+        const probe = probing(() => {
+          if (refuse) throw new ProviderError({ provider: 'openai-compatible', code: 'http', status: 400, message: 'openai-compatible: HTTP 400' });
+          return { blocks: [{ type: 'text', text: 'yellow blue' }], stop: 'end', malformed: [] };
+        });
+        const all = connections(compatible, { ...listing([]), ...probe.over });
+        expect(await all.readsImages('env:openai-compatible', 'm')).toBe(false);
+        refuse = false;
+        expect(await all.readsImages('env:openai-compatible', 'm')).toBe(false);
+        expect(probe.asked()).toBe(1);
+        vi.advanceTimersByTime(5 * 60_000 + 1);
+        expect(await all.readsImages('env:openai-compatible', 'm')).toBe(true);
+        expect(probe.asked()).toBe(2);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
   });
 
   it('saves a model to the project’s .env and uses it at once', async () => {
