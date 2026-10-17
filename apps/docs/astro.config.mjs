@@ -204,6 +204,7 @@ export default defineConfig({
                 { label: 'Telling the person on the row', link: '/guides/apps/telling-people/' },
                 { label: 'Maps, places and routes', link: '/guides/apps/maps/' },
                 { label: 'Building an app’s screens', link: '/guides/apps/building-a-side/' },
+                { label: 'A website template as a working app', link: '/guides/apps/from-a-template/' },
                 { label: 'Adminium’s own parts on an app’s screen', link: '/guides/apps/kit-parts/' },
                 { label: 'A phone app for an app', link: '/guides/apps/phone-app/' },
                 { label: 'An app’s public access', link: '/guides/apps/public-access/' },
