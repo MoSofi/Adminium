@@ -765,16 +765,18 @@ describe('ColumnManager — the File section', () => {
     expect(screen.getAllByText('File')).toHaveLength(2);
   });
 
-  it('writes the default shape on, and removes the key entirely off', async () => {
+  it('writes the default shape on, showing it in the table, and removes the key entirely off', async () => {
     const user = userEvent.setup();
     const { calls } = renderManager();
 
     await user.click(await screen.findByTestId('studio-pages-file-title'));
     await saveAndCount(user, calls, 1);
-    // ONE key: every other field of the block means "whatever the workspace
-    // says" by being absent, so the smallest honest block is the shape alone.
-    expect(savedColumns(calls)[0]).toMatchObject({ name: 'title', file: { ref: 'url' } });
-    expect(Object.keys(savedColumns(calls)[0]?.['file'] as object)).toEqual(['ref']);
+    // The shape plus `inline`: every other field of the block means
+    // "whatever the workspace says" by being absent, but a new file column
+    // starts out shown in the table and is switched off from there.
+    expect(savedColumns(calls)[0]).toMatchObject({ name: 'title', file: { ref: 'url', inline: true } });
+    expect(Object.keys(savedColumns(calls)[0]?.['file'] as object)).toEqual(['ref', 'inline']);
+    expect((screen.getByTestId('studio-pages-file-inline-title') as HTMLElement).getAttribute('aria-checked')).toBe('true');
 
     await user.click(screen.getByTestId('studio-pages-file-title'));
     await saveAndCount(user, calls, 2);
@@ -832,14 +834,14 @@ describe('ColumnManager — the File section', () => {
     await user.click(within(chips).getByRole('button', { name: 'PDF' }));
     await user.click(within(chips).getByRole('button', { name: 'PNG' }));
     await saveAndCount(user, calls, 1);
-    expect(savedColumns(calls)[0]?.['file']).toEqual({ ref: 'url', accept: ['pdf', 'png'] });
+    expect(savedColumns(calls)[0]?.['file']).toEqual({ ref: 'url', accept: ['pdf', 'png'], inline: true });
 
     // Every chip off is NOT `accept: []` — that would read as "this column
     // accepts nothing", which nobody means. It is the key going away.
     await user.click(within(chips).getByRole('button', { name: 'PDF' }));
     await user.click(within(chips).getByRole('button', { name: 'PNG' }));
     await saveAndCount(user, calls, 2);
-    expect(savedColumns(calls)[0]?.['file']).toEqual({ ref: 'url' });
+    expect(savedColumns(calls)[0]?.['file']).toEqual({ ref: 'url', inline: true });
   });
 
   it('offers the destinations it can list, defaulting to the workspace default', async () => {
@@ -868,7 +870,7 @@ describe('ColumnManager — the File section', () => {
 
     await user.selectOptions(picker, 'dest_1');
     await saveAndCount(user, calls, 1);
-    expect(savedColumns(calls)[0]?.['file']).toEqual({ ref: 'url', destinationId: 'dest_1' });
+    expect(savedColumns(calls)[0]?.['file']).toEqual({ ref: 'url', destinationId: 'dest_1', inline: true });
   });
 
   it('degrades to the default option when destinations cannot be listed', async () => {
@@ -916,18 +918,19 @@ describe('ColumnManager — the File section', () => {
 
     await user.click(await screen.findByTestId('studio-pages-file-title'));
     await user.type(screen.getByTestId('studio-pages-file-max-title'), '5');
+    // The block starts shown in the table; switched off, `inline` is absent
+    // rather than `false`.
     await user.click(screen.getByTestId('studio-pages-file-inline-title'));
     await saveAndCount(user, calls, 1);
     expect(savedColumns(calls)[0]?.['file']).toEqual({
       ref: 'url',
       maxBytes: 5 * 1_048_576,
-      inline: true,
     });
 
     await user.clear(screen.getByTestId('studio-pages-file-max-title'));
     await user.click(screen.getByTestId('studio-pages-file-inline-title'));
     await saveAndCount(user, calls, 2);
-    expect(savedColumns(calls)[0]?.['file']).toEqual({ ref: 'url' });
+    expect(savedColumns(calls)[0]?.['file']).toEqual({ ref: 'url', inline: true });
   });
 
   it('leaves every other column alone when one grows a block', async () => {
@@ -948,13 +951,13 @@ describe('ColumnManager — the File section', () => {
     await user.click(await screen.findByTestId('studio-pages-file-title'));
     await user.click(screen.getByTestId('studio-pages-file-multiple-title'));
     await saveAndCount(user, calls, 1);
-    expect(savedColumns(calls)[0]?.['file']).toEqual({ ref: 'url', multiple: true });
+    expect(savedColumns(calls)[0]?.['file']).toEqual({ ref: 'url', inline: true, multiple: true });
 
     await user.click(screen.getByTestId('studio-pages-file-multiple-title'));
     await saveAndCount(user, calls, 2);
     // Absent, not `multiple: false` — a page toggled on and off again has to
     // be the page it was, which is the same rule the `inline` flag follows.
-    expect(savedColumns(calls)[0]?.['file']).toEqual({ ref: 'url' });
+    expect(savedColumns(calls)[0]?.['file']).toEqual({ ref: 'url', inline: true });
   });
 
   it('offers the per-record cap only for a list, and drops it with the flag', async () => {
@@ -969,13 +972,13 @@ describe('ColumnManager — the File section', () => {
     await user.click(screen.getByTestId('studio-pages-file-multiple-title'));
     await user.type(screen.getByTestId('studio-pages-file-max-count-title'), '3');
     await saveAndCount(user, calls, 1);
-    expect(savedColumns(calls)[0]?.['file']).toEqual({ ref: 'url', multiple: true, maxCount: 3 });
+    expect(savedColumns(calls)[0]?.['file']).toEqual({ ref: 'url', inline: true, multiple: true, maxCount: 3 });
 
     // Turning the list off takes the cap with it rather than leaving a number
     // nothing reads.
     await user.click(screen.getByTestId('studio-pages-file-multiple-title'));
     await saveAndCount(user, calls, 2);
-    expect(savedColumns(calls)[0]?.['file']).toEqual({ ref: 'url' });
+    expect(savedColumns(calls)[0]?.['file']).toEqual({ ref: 'url', inline: true });
   });
 
   it('clamps the cap to what the schema accepts', async () => {
@@ -989,7 +992,7 @@ describe('ColumnManager — the File section', () => {
     // unparseable — and the page route drops an unparseable column on read.
     await user.type(screen.getByTestId('studio-pages-file-max-count-title'), '9000');
     await saveAndCount(user, calls, 1);
-    expect(savedColumns(calls)[0]?.['file']).toEqual({ ref: 'url', multiple: true, maxCount: 500 });
+    expect(savedColumns(calls)[0]?.['file']).toEqual({ ref: 'url', inline: true, multiple: true, maxCount: 500 });
   });
 
   it('writes a block the grid schema actually accepts', async () => {

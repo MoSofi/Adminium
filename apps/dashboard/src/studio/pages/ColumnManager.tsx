@@ -688,16 +688,15 @@ export function ColumnManager({
         {table !== null && canAdd ? (
           <div className="border-t border-border p-2">
             {browse === null ? (
-              <IconButton
+              <Button
                 variant="ghost"
                 size="sm"
-                tooltip
-                label={t('studio:pages.columns.addOpen', 'Add column')}
                 onClick={() => setBrowse({ path: [], query: '' })}
                 data-testid="studio-pages-add-open"
               >
-                <Plus className="size-4" />
-              </IconButton>
+                <Plus className="size-4" aria-hidden="true" />
+                {t('studio:pages.columns.addOpen', 'Add column')}
+              </Button>
             ) : (
               <ColumnBrowser
                 table={table}
@@ -785,26 +784,31 @@ function SortableColumnRow({
         '--adm-sort-transform': CSS.Transform.toString(transform) ?? 'none',
         '--adm-sort-transition': transition ?? 'none',
       }}
-      className={`flex flex-wrap items-center gap-2 border-b border-border bg-surface p-3 last:border-b-0 [transform:var(--adm-sort-transform)] [transition:var(--adm-sort-transition)] ${
+      className={`flex flex-col gap-1 border-b border-border bg-surface p-3 last:border-b-0 [transform:var(--adm-sort-transform)] [transition:var(--adm-sort-transition)] ${
         isDragging ? 'relative z-10 shadow-card' : ''
       }`}
     >
-      <button
-        type="button"
-        ref={setActivatorNodeRef}
-        {...attributes}
-        {...listeners}
-        className="nb-ib inline-flex size-7 shrink-0 cursor-grab touch-none items-center justify-center rounded text-fg-subtle hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent"
-        aria-label={fmt(t('studio:pages.columns.dragHandle', 'Reorder {name}'), {
-          name: column.name,
-        })}
-        data-testid={`studio-pages-drag-${column.name}`}
-      >
-        <GripVertical className="size-4" aria-hidden="true" />
-      </button>
+      {/*
+        The header line carries the column-level actions — is it in the table
+        at all, remove it — beside the name, so the body below (header field,
+        presentation switches, the file block) gets the row's whole width.
+      */}
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          ref={setActivatorNodeRef}
+          {...attributes}
+          {...listeners}
+          className="nb-ib inline-flex size-7 shrink-0 cursor-grab touch-none items-center justify-center rounded text-fg-subtle hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent"
+          aria-label={fmt(t('studio:pages.columns.dragHandle', 'Reorder {name}'), {
+            name: column.name,
+          })}
+          data-testid={`studio-pages-drag-${column.name}`}
+        >
+          <GripVertical className="size-4" aria-hidden="true" />
+        </button>
 
-      <div className="flex min-w-0 flex-1 flex-col gap-1">
-        <div className="flex items-center gap-2">
+        <div className="flex min-w-0 flex-1 items-center gap-2">
           <span className="text-body-sm truncate font-mono text-fg-subtle">
             {column.lookup !== undefined
               ? `${column.lookup.path.join(' → ')} → ${column.lookup.select}`
@@ -838,6 +842,34 @@ function SortableColumnRow({
             <Badge tone="info">{t('studio:pages.columns.file.badge', 'File')}</Badge>
           ) : null}
         </div>
+
+        <label className="flex shrink-0 items-center gap-2">
+          <span className="text-body-sm text-fg-muted">
+            {t('studio:pages.columns.shown', 'Shown')}
+          </span>
+          <Switch
+            checked={column.hidden !== true}
+            aria-label={fmt(t('studio:pages.columns.toggle', 'Show {name} in the table'), {
+              name: column.name,
+            })}
+            onCheckedChange={(checked) => onPatch({ hidden: !checked })}
+          />
+        </label>
+
+        <IconButton
+          variant="ghost"
+          size="sm"
+          label={fmt(t('studio:pages.columns.remove', 'Remove {name}'), {
+            name: column.name,
+          })}
+          onClick={onRemove}
+        >
+          <Trash2 className="size-4" />
+        </IconButton>
+      </div>
+
+      {/* Indented to sit under the name, past the drag handle (size-7 + gap-2). */}
+      <div className="flex flex-col gap-1 ps-9">
         <Input
           value={column.label ?? ''}
           aria-label={fmt(t('studio:pages.columns.header', 'Header for {name}'), {
@@ -848,9 +880,9 @@ function SortableColumnRow({
 
         {/*
           Presentation switches, on their own line under the header field
-          rather than out on the row's trailing edge with "Shown": that edge is
-          where the column-level actions live (is it in the table at all,
-          remove it), while these two decide how the value is DRAWN once it is.
+          rather than up on the header line with "Shown": that line is where
+          the column-level actions live (is it in the table at all, remove it),
+          while these decide how the value is DRAWN once it is.
 
           Both are offered on EVERY column. The avatar was briefly limited to
           FK columns, on the reasoning that the chip is where the monogram is
@@ -906,49 +938,31 @@ function SortableColumnRow({
                   t('studio:pages.columns.file.switchToggle', '{name} stores a file'),
                   { name: column.name },
                 )}
-                // ON writes the default shape and nothing else: every
-                // other field of the block means "whatever the workspace says"
-                // by being absent, so the smallest honest block is one key.
-                onCheckedChange={(checked) => onFileChange(checked ? { ref: 'url' } : undefined)}
+                // ON writes the default shape plus `inline`: every other
+                // field of the block means "whatever the workspace says" by
+                // being absent. `inline` is the exception — an image column is
+                // expected to show its picture, so a new block starts with it
+                // on and the operator switches it off. Absent still reads as
+                // off, so blocks stored before this keep what they showed.
+                onCheckedChange={(checked) =>
+                  onFileChange(checked ? { ref: 'url', inline: true } : undefined)
+                }
                 data-testid={`studio-pages-file-${column.name}`}
               />
             </label>
           ) : null}
         </div>
-
-        {column.file === undefined ? null : (
-          <ColumnFileSection
-            columnName={column.name}
-            file={column.file}
-            maxLength={schemaColumn?.maxLength ?? null}
-            onChange={onFileChange}
-          />
-        )}
       </div>
 
-      <label className="flex items-center gap-2">
-        <span className="text-body-sm text-fg-muted">
-          {t('studio:pages.columns.shown', 'Shown')}
-        </span>
-        <Switch
-          checked={column.hidden !== true}
-          aria-label={fmt(t('studio:pages.columns.toggle', 'Show {name} in the table'), {
-            name: column.name,
-          })}
-          onCheckedChange={(checked) => onPatch({ hidden: !checked })}
+      {/* The full row width: the block's two-column grid needs it. */}
+      {column.file === undefined ? null : (
+        <ColumnFileSection
+          columnName={column.name}
+          file={column.file}
+          maxLength={schemaColumn?.maxLength ?? null}
+          onChange={onFileChange}
         />
-      </label>
-
-      <IconButton
-        variant="ghost"
-        size="sm"
-        label={fmt(t('studio:pages.columns.remove', 'Remove {name}'), {
-          name: column.name,
-        })}
-        onClick={onRemove}
-      >
-        <Trash2 className="size-4" />
-      </IconButton>
+      )}
     </li>
   );
 }
@@ -1016,7 +1030,7 @@ function ColumnFileSection({
 
   return (
     <div
-      className="grid gap-3 rounded-md border border-border bg-surface-2 p-3 sm:grid-cols-2"
+      className="mt-3 grid gap-3 rounded-md border border-border bg-surface-2 p-3 sm:grid-cols-2"
       data-testid={`studio-pages-file-block-${columnName}`}
     >
       <FormField

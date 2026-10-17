@@ -89,10 +89,8 @@ import {
   SearchInput,
   Spinner,
   cn,
-  IconTile,
 } from '@adminium/ui';
 import { tagForLocale, type LocaleId } from '@adminium/i18n';
-import { FILE_KIND_TONE, fileIconFor, kindOf } from '@adminium/widgets';
 import {
   Clock,
   Database,
@@ -132,6 +130,7 @@ import {
   type StorageUsageEntry,
   type TablePreset,
 } from './filesQueries.js';
+import { FilePreview, FileThumbnail, FileTypeIcon } from './FilePreview.js';
 import { UploadFilesDialog } from './UploadFilesDialog.js';
 
 /**
@@ -803,10 +802,17 @@ function FilesTable(props: FilesTableProps): ReactNode {
         <tbody>
           {props.rows.map((file) => (
             <tr key={file.id} className="border-b border-border/60 last:border-0" data-testid="files-row">
-              <td className="px-4 py-2.5">
+              {/*
+                The name takes whatever width the other columns leave, and no
+                more: `w-full max-w-0` stops its content from sizing the column,
+                which is how one long file name used to push the whole table
+                past its card. It truncates instead, full text in the title.
+              */}
+              <td className="w-full min-w-36 max-w-0 px-4 py-2.5">
                 <button
                   type="button"
-                  className="flex min-w-0 flex-col text-start"
+                  className="flex w-full min-w-0 flex-col text-start"
+                  title={file.filename}
                   onClick={() => props.onInspect(file)}
                   data-testid="files-row-inspect"
                 >
@@ -815,7 +821,7 @@ function FilesTable(props: FilesTableProps): ReactNode {
                 </button>
               </td>
               <td className="whitespace-nowrap px-4 py-2.5 text-fg-muted">{formatBytes(file.sizeBytes)}</td>
-              <td className="px-4 py-2.5">
+              <td className="min-w-36 px-4 py-2.5">
                 {file.entity === null ? (
                   // A library file belongs to a CONNECTION and to no row
                   // . Saying only "Not attached" would leave the
@@ -839,7 +845,7 @@ function FilesTable(props: FilesTableProps): ReactNode {
                   </div>
                 )}
               </td>
-              <td className="px-4 py-2.5 text-fg-muted">{destinationLabel(file.destinationId, props.destinationNames)}</td>
+              <td className="min-w-32 px-4 py-2.5 text-fg-muted">{destinationLabel(file.destinationId, props.destinationNames)}</td>
               <td className="whitespace-nowrap px-4 py-2.5 text-fg-muted">
                 {formatStamp(file.createdAt, props.localeTag)}
               </td>
@@ -936,6 +942,8 @@ function FileDrawer(props: {
         closeLabel={t('common.close', 'Close')}
       />
       <DrawerBody className="flex flex-col gap-5">
+        {/* Keyed so a failed preview does not stick to the next file opened. */}
+        <FilePreview key={file.id} file={file} />
         <KeyValueList
           items={[
             {
@@ -1045,20 +1053,25 @@ function FilesGrid({
             type="button"
             onClick={() => onInspect(file)}
             data-testid="files-grid-tile"
-            className="flex w-full flex-col gap-2 rounded-lg border border-border bg-surface p-3 text-start hover:border-accent/40"
+            title={file.filename}
+            className="flex w-full flex-col gap-2 rounded-lg border border-border bg-surface p-2 text-start hover:border-accent/40"
           >
-            {/*
-              The type icon the comp draws, from the vocabulary the media
-              family already owns — so a PDF here looks like a PDF in an
-              attachment list and on a `page-files` page, rather than being a
-              third opinion about what a PDF looks like.
-            */}
-            <IconTile size="md" tone={FILE_KIND_TONE[kindOf(undefined, file.mime, file.filename)]}
-              icon={fileIconFor(undefined, file.mime, file.filename)} />
-            <span className="truncate text-body-sm font-semibold text-fg">{file.filename}</span>
-            <span className="text-caption text-fg-muted">
-              {`${formatBytes(file.sizeBytes)} · ${formatStamp(file.createdAt, localeTag)}`}
-            </span>
+            {/* A picture where the browser can draw one, else the type icon — same height either way. */}
+            <FileThumbnail file={file} />
+            <div className="flex min-w-0 flex-col gap-0.5 px-1 pb-0.5">
+              {/*
+                The type icon from the vocabulary the media family already
+                owns — so a PDF here looks like a PDF in an attachment list and
+                on a `page-files` page, rather than a third opinion about it.
+              */}
+              <div className="flex min-w-0 items-center gap-2">
+                <FileTypeIcon file={file} />
+                <span className="min-w-0 flex-1 truncate text-body-sm font-semibold text-fg">{file.filename}</span>
+              </div>
+              <span className="truncate text-caption text-fg-muted">
+                {`${formatBytes(file.sizeBytes)} · ${formatStamp(file.createdAt, localeTag)}`}
+              </span>
+            </div>
           </button>
         </li>
       ))}
