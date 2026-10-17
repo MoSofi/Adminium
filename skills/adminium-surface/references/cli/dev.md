@@ -27,9 +27,14 @@ does not build is named with its file and field, and keeps what it had. What
 holds data and was taken out of a manifest is never dropped on the way: Studio
 asks.
 
-Under `dev` the public API answers the server's own pages
-(`ADMINIUM_PUBLIC_API_ORIGINS` defaults to `self`), and it is switched on when
-an app's public access is given, so a customer side works with nothing to set.
+Under `dev` the server listens on this computer only: `HOST` defaults to
+`127.0.0.1` (a `HOST` in the environment or `.env`, or `--host`, still wins).
+The public API answers the server's own pages (`ADMINIUM_PUBLIC_API_ORIGINS`
+defaults to `self`), and it is switched on when an app's public access is
+given, so a customer side works with nothing to set. On any other address,
+such as `--host 0.0.0.0` to try it from a phone, the public API also needs
+`ADMINIUM_TRUST_PROXY=1`, and `dev` says so when it starts: without it a
+customer side answers 404 "Route not found" to everything.
 
 The [project files](https://docs.adminium.dev/reference/cli/#project-files) are the master copy while it runs:
 
@@ -49,7 +54,7 @@ pages come from the files.
 | Flag | Default | |
 |---|---|---|
 | `-p`, `--port <n>` | `PORT` or 4600 | Port to listen on |
-| `--host <addr>` | `HOST` or 0.0.0.0 | Address to bind |
+| `--host <addr>` | `HOST` or 127.0.0.1 | Address to bind (this computer only) |
 | `--log-level <level>` | `ADMINIUM_LOG_LEVEL` or info | Server log level |
 
 ---

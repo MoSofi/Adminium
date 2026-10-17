@@ -505,6 +505,8 @@ export interface ApplyInPlaceReply {
   rowId: string;
   connectionId: string | null;
   schema?: { created: string[]; reused: string[] } | undefined;
+  /** Columns the manifest lets be empty that their table, which exists, keeps NOT NULL: nothing here relaxes them. */
+  stillRequired?: { table: string; column: string }[] | undefined;
   names: Record<string, string>;
   pages?: MaterialiseResult | undefined;
   publicAccess?: { endpoints: string[]; keyId: string | null; skipped: { ref: string; reason: string }[] } | undefined;
@@ -1823,7 +1825,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
     expectedChecksum?: string,
     answers: InstallAnswers = {},
     addOnRows?: readonly AppAddOnRow[],
-  ): Promise<{ created: string[]; reused: string[]; names: Record<string, string> }> {
+  ): Promise<{ created: string[]; reused: string[]; names: Record<string, string>; stillRequired: { table: string; column: string }[] }> {
     const checked = await checkedPlan(key, manifest, connectionId, verb, expectedChecksum, answers, addOnRows);
     const applied = await applyTables(checked, manifest, connectionId, opts);
     // Record what an update found and made, the same way an install does.
@@ -1845,7 +1847,8 @@ export function createAppInstallService(deps: AppRoutesDeps) {
         ...shapeRecordOf(checked.shapeRecords, table.ref),
       });
     }
-    return { ...applied, names: checked.plan.names ?? {} };
+    const stillRequired = (checked.plan.tables ?? []).flatMap((table) => (table.stillRequired ?? []).map((column) => ({ table: table.ref, column })));
+    return { ...applied, names: checked.plan.names ?? {}, stillRequired };
   }
 
   /**
@@ -2214,6 +2217,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
 
     let names: Record<string, string> | undefined;
     let applied: { created: string[]; reused: string[] } | undefined;
+    let stillRequired: { table: string; column: string }[] = [];
     try {
       // The plan first, with nothing written: a refusal leaves the app exactly as it was.
       if (wanted.length > 0 && connectionId !== null && (addOnSteps.length > 0 || !input.unattended.adaptForeignTables)) {
@@ -2236,6 +2240,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
           addOnSteps.length > 0 ? undefined : addOnRows,
         );
         applied = { created: made.created, reused: made.reused };
+        stillRequired = made.stillRequired;
         names = made.names;
       }
       stage = 'add-on-updates';
@@ -2337,6 +2342,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
       rowId: installed.row.id,
       connectionId,
       ...(applied === undefined ? {} : { schema: applied }),
+      ...(stillRequired.length === 0 ? {} : { stillRequired }),
       names: names ?? (connectionId === null ? {} : await appTablesRepo(deps.meta).realNames(connectionId, key)),
       pages: written.pages,
       ...(written.publicAccess === undefined

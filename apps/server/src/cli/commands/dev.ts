@@ -117,10 +117,11 @@ export const devCommand: Command = {
     'restart; a change to a page or widget rebuilds it, and open dashboards\n' +
     'load the new version. A change under apps/ rebuilds the apps: the server\n' +
     'installs a new one, applies a changed manifest in place, and an open\n' +
-    'screen of the app reloads. Stop it with Ctrl-C.',
+    'screen of the app reloads. It listens on this computer only (127.0.0.1)\n' +
+    'unless --host or HOST says otherwise. Stop it with Ctrl-C.',
   flags: {
     port: { type: 'string', short: 'p', placeholder: '<n>', describe: 'Port to listen on', defaultDescription: 'PORT or 4600' },
-    host: { type: 'string', placeholder: '<addr>', describe: 'Address to bind', defaultDescription: 'HOST or 0.0.0.0' },
+    host: { type: 'string', placeholder: '<addr>', describe: 'Address to bind', defaultDescription: 'HOST or 127.0.0.1, this computer only' },
     'log-level': {
       type: 'string',
       placeholder: '<level>',

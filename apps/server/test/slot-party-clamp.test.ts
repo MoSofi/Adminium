@@ -52,7 +52,7 @@ describe('a slot a guest may ask about', () => {
     (booked['columns'] as Doc[])[2] = { ref: 'covers', type: 'int', default: 2 };
     const result = validateManifest(open);
     expect(result.ok).toBe(false);
-    expect(JSON.stringify(result)).toContain('give it a largest value (validation.max)');
+    expect(JSON.stringify(result)).toContain('give it a largest value (rules.validation.max)');
     // A released app's slot rule (no kind, only its old keys) is answered as it always was, and validates as it did.
     booked['capacity'] = { slot: 'starts_at', amount: 'covers', perSlot: 6, slotMinutes: 60, windowDays: 3, opens: '11:00', closes: '14:00' };
     expect(validateManifest(open).ok).toBe(true);

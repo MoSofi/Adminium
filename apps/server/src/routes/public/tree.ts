@@ -10,7 +10,7 @@ import { createHmac, hkdfSync } from 'node:crypto';
 
 import type { Dialect, LogicalType } from '@adminium/engine';
 
-import { tableRulesFor } from '../../crud/column-rules.js';
+import { tableRulesFor, type ColumnCheck } from '../../crud/column-rules.js';
 import type { ResolvedTable, SnapshotView } from '../../crud/identifiers.js';
 import type { Row } from '../../crud/mask.js';
 import { TREE_MAX_ROWS, type TreePath } from '../../crud/write-tree.js';
@@ -140,7 +140,15 @@ export function hiddenInQuote(view: SnapshotView, table: ResolvedTable, also: re
  * take the placeholder like any other name, and the joined column is shown
  * empty beside them (`placeheldTexts`).
  */
-export function quotePlaceholders(view: SnapshotView, table: ResolvedTable, writable: Iterable<string>, requires: readonly string[], values: Row): Row {
+export function quotePlaceholders(
+  view: SnapshotView,
+  table: ResolvedTable,
+  writable: Iterable<string>,
+  requires: readonly string[],
+  values: Row,
+  /** The values the entry lets a guest write in a column (`writableValues`): a choice takes the first of them. */
+  pinned: Readonly<Record<string, readonly (string | number | boolean)[]>> = {},
+): Row {
   const rules = tableRulesFor({ view, table });
   const priced = new Set<string>([
     ...(rules?.formulas ?? []).filter((formula) => !joinsText(formula.expr)).flatMap((formula) => formula.reads),
@@ -153,14 +161,35 @@ export function quotePlaceholders(view: SnapshotView, table: ResolvedTable, writ
     const resolved = table.columns.get(column);
     const value = values[column];
     const empty = value === undefined || value === null || (typeof value === 'string' && value.trim() === '');
-    if (resolved === undefined || !resolved.textish || !empty || priced.has(column) || !needed.has(column)) continue;
+    if (resolved === undefined || !empty || priced.has(column) || !needed.has(column)) continue;
     const check = rules?.checks.find((c) => c.column === column);
+    /*
+     * A CHOICE (a country, a way to collect) takes one of its own values.
+     * On SQLite it is text held to its values by a CHECK, so the text
+     * placeholder below went in and the write was refused as "not allowed",
+     * a refusal that names no column: a page pricing its cart before the
+     * guest picked a country was told nothing it could act on.
+     */
+    const choice = choiceOf(check, pinned[column]);
+    if (choice !== undefined) {
+      out[column] = choice;
+      continue;
+    }
+    if (!resolved.textish) continue;
     const format = check?.validation?.format;
     const most = check?.validation?.maxLength;
     const text = format === 'email' ? 'quote@example.com' : format === 'url' ? 'https://example.com' : format === 'phone' ? '+15550100' : 'Quote';
     out[column] = most !== undefined && text.length > most ? text.slice(0, Math.max(1, most)) : text;
   }
   return out;
+}
+
+/** The first value a choice takes — of the entry's own list, else the column's — or undefined for a column that is no choice. */
+function choiceOf(check: ColumnCheck | undefined, pinned: readonly (string | number | boolean)[] | undefined): string | number | boolean | undefined {
+  const fixed = check?.enumValues ?? check?.options;
+  if (fixed === undefined) return pinned?.[0];
+  const both = check?.enumValues !== undefined && check.options !== undefined ? check.enumValues.filter((value) => check.options!.includes(value)) : fixed;
+  return pinned === undefined ? both[0] : pinned.find((value) => both.includes(String(value)));
 }
 
 /** A formula that puts text together, and so works out no figure. */

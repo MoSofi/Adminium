@@ -161,6 +161,26 @@ for (const [dialect, available] of ENGINES) {
       ]);
     });
 
+    it('says so when a column it now lets be empty stays NOT NULL in the table that exists', async () => {
+      h = await folderHarness(dialect, { mode: 'dev' });
+      await h.newApp('repairs');
+      await h.sync();
+      const title = (await h.harness.rows(`SELECT title FROM repairs_items`)).length;
+      expect(title).toBeGreaterThan(0);
+
+      h.edit('apps/repairs/manifest/tables/items.json', (table) => ({
+        ...table,
+        columns: (table['columns'] as Record<string, unknown>[]).map((column) => (column['ref'] === 'title' ? { ...column, nullable: true } : column)),
+      }));
+      expect(await h.sync()).toEqual([{ key: 'repairs', state: 'applied', hash: expect.any(String) }]);
+      // Found building a shop from a template: "applied", and every write leaving it empty still refused.
+      expect(h.lines.warn).toEqual([
+        'App "repairs": "items.title" may be empty in apps/repairs, and its table keeps it NOT NULL: an apply never changes whether a column of a table that exists may be empty. ' +
+          "Change it in Studio, in the table's Design view.",
+      ]);
+      await expect(h.harness.run(`INSERT INTO repairs_items (title) VALUES (NULL)`)).rejects.toThrow();
+    });
+
     it('leaves the app as it was when a change cannot be applied, says why, and does not try it again', async () => {
       h = await folderHarness(dialect, { mode: 'dev' });
       await h.newApp('repairs');
