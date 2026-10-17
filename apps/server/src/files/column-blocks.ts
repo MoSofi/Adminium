@@ -160,6 +160,35 @@ function columnsOf(config: unknown): StoredColumn[] {
   return Array.isArray(columns) ? (columns as StoredColumn[]) : [];
 }
 
+/** The form controls that upload a file into their column (`crud-form.ts`). */
+const FILE_CONTROLS: ReadonlySet<string> = new Set(['attachments', 'image', 'avatar']);
+
+/**
+ * The columns the page's FORM uploads into: `config.config.form.sections[].fields[]`
+ * whose control is a file control.
+ *
+ * A form field is a file column even where the grid's `columns` list does not
+ * carry the column at all — a generated app hides its picture column from the
+ * grid and still offers it on the form. Read from `columns` alone, such a
+ * column had no block: the upload fell back to a `url` reference, the save
+ * never attached the file, and the app's public picture route refused it.
+ */
+function formFileColumnsOf(config: unknown): string[] {
+  const sections = (bodyOf(config)['form'] as { sections?: unknown } | undefined)?.sections;
+  if (!Array.isArray(sections)) return [];
+  const out: string[] = [];
+  for (const section of sections as Array<{ fields?: unknown } | null>) {
+    const fields = section?.fields;
+    if (!Array.isArray(fields)) continue;
+    for (const field of fields as Array<{ column?: unknown; control?: unknown } | null>) {
+      if (typeof field?.column === 'string' && typeof field.control === 'string' && FILE_CONTROLS.has(field.control)) {
+        out.push(field.column);
+      }
+    }
+  }
+  return out;
+}
+
 export interface ColumnBlockReader {
   /** Every file column on a table, by column name. */
   forTable(connectionId: string, table: string): Promise<ColumnFileBlocks>;
@@ -182,9 +211,12 @@ export function createColumnBlockReader(meta: MetaDb, opts: { now?: () => number
     if (hit !== undefined && now() - hit.at < CACHE_TTL_MS) return hit.blocks;
 
     const byColumn = new Map<string, ColumnFile>();
+    // A form's file field with no block of its own: the upload route's default, applied after every page's blocks.
+    const formOnly = new Set<string>();
     let attachments: PageAttachments | null = null;
     for (const page of await pages.listForConnection(connectionId)) {
       if (sourceTableOf(page.config) !== table) continue;
+      for (const column of formFileColumnsOf(page.config)) formOnly.add(column);
       for (const column of columnsOf(page.config)) {
         if (typeof column.name !== 'string' || column.file === undefined || column.file === null) continue;
         if (byColumn.has(column.name)) continue;
@@ -209,6 +241,9 @@ export function createColumnBlockReader(meta: MetaDb, opts: { now?: () => number
           }
         }
       }
+    }
+    for (const column of formOnly) {
+      if (!byColumn.has(column)) byColumn.set(column, columnFileSchema.parse({}));
     }
     const blocks: ColumnFileBlocks = { byColumn, attachments };
     cache.set(key, { at: now(), blocks });

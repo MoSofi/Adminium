@@ -34,7 +34,7 @@
  */
 
 import type { FastifyBaseLogger } from 'fastify';
-import { filesRepo, type MetaDb, type RecordRef, type StoredFile } from '@adminium/meta';
+import { auditEntityKeyPart, filesRepo, type MetaDb, type RecordRef, type StoredFile } from '@adminium/meta';
 
 import type { ColumnBlockReader, ColumnFile } from './column-blocks.js';
 import { parseRefList } from './refs.js';
@@ -118,6 +118,24 @@ export interface FileReconcilerDeps {
   destinations: DestinationResolver;
   logger?: FastifyBaseLogger | undefined;
   now?: () => number;
+}
+
+/**
+ * Whether a file is attached to a row other than this one.
+ *
+ * Two rows can name one file: sample data written before each row got its own
+ * copy did, and a foreign app may. The file belongs to the row it is attached
+ * to, which still names it, so when THIS row stops naming it or is deleted the
+ * file must stay. An unattached file, or one attached here, is this row's to trash.
+ */
+function ownedElsewhere(file: StoredFile, entity: RecordRef): boolean {
+  if (file.attachedAt === null || file.entityId === null) return false;
+  // Compared as stored: the keys are cut to the audit key's length.
+  return (
+    file.entityConnectionId !== entity.connectionId ||
+    file.entityTable !== auditEntityKeyPart(entity.table) ||
+    file.entityId !== auditEntityKeyPart(entity.label)
+  );
 }
 
 export function createFileReconciler(deps: FileReconcilerDeps): FileReconciler {
@@ -219,7 +237,7 @@ export function createFileReconciler(deps: FileReconcilerDeps): FileReconciler {
         const { byColumn } = await deps.blocks.forTable(input.connectionId, input.table);
         for (const column of byColumn.keys()) {
           for (const file of await filesFor(input.row[column])) {
-            if (file.deletedAt === null) ids.add(file.id);
+            if (file.deletedAt === null && !ownedElsewhere(file, input.entity)) ids.add(file.id);
           }
         }
         const at = now();
@@ -274,6 +292,8 @@ export function createFileReconciler(deps: FileReconcilerDeps): FileReconciler {
           // retention sweep own the bytes.
           for (const file of previous) {
             if (nextIds.has(file.id)) continue;
+            // Another row's file, which this row only named as well: that row still shows it.
+            if (ownedElsewhere(file, input.entity)) continue;
             await files.markDeleted(file.id, now());
             result.trashed.push(file.id);
           }

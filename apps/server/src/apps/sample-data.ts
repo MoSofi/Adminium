@@ -1329,6 +1329,33 @@ export function createSampleDataService(deps: SampleDataDeps) {
     // Images first, into the Files library; to the bin if anything later fails.
     const fileIds = new Map<string, string>();
     const files = filesRepo(deps.meta);
+    /** Each image's bytes, by its file id: a second row that names it is given a copy of its own. */
+    const assetsById = new Map<string, { filename: string; mime: string; bytes: Buffer }>();
+    /** Sample images some row already owns, and the copies made for the rows after it. */
+    const owned = new Set<string>();
+    const copies: string[] = [];
+    /** A copy of one image for one more row: a file is attached to one row, and only that row's picture is shown. */
+    const copyFor = async (sourceId: string): Promise<string> => {
+      const asset = assetsById.get(sourceId)!;
+      const id = newId('file');
+      const stored = await deps.files.write({ id, kind: 'upload', filename: asset.filename, mime: asset.mime, bytes: asset.bytes });
+      await files.create({
+        id,
+        filename: asset.filename,
+        mime: asset.mime,
+        sizeBytes: stored.sizeBytes,
+        sha256: stored.sha256,
+        storageKey: stored.storageKey,
+        storage: stored.storage,
+        destinationId: stored.destinationId,
+        kind: 'upload',
+        entityConnectionId: connectionId,
+        uploadedBy: opts.userId,
+        attachedAt: now,
+      });
+      copies.push(id);
+      return id;
+    };
     try {
       for (const [label, asset] of Object.entries(bundle.assets)) {
         const { bytes, sha256: actual } = await filesOf(app).readVerifiedFile(app.key, app.version, asset.file);
@@ -1356,6 +1383,7 @@ export function createSampleDataService(deps: SampleDataDeps) {
           attachedAt: now,
         });
         fileIds.set(label, id);
+        assetsById.set(id, { filename, mime, bytes });
       }
       opts.progress?.(20, 'Added the images');
       const sampleFileIds = new Set(fileIds.values());
@@ -1754,6 +1782,12 @@ export function createSampleDataService(deps: SampleDataDeps) {
                 issues: checked.issues[0],
               });
             }
+            // An image an earlier row already owns: this row is written with a copy of its own.
+            for (const [column, value] of Object.entries(good)) {
+              if (typeof value !== 'string' || !sampleFileIds.has(value)) continue;
+              if (owned.has(value)) good[column] = await copyFor(value);
+              else owned.add(value);
+            }
             let stored: Row;
             try {
               stored = await insertRow(db, handle.dialect, resolved, good);
@@ -1767,8 +1801,8 @@ export function createSampleDataService(deps: SampleDataDeps) {
               labels.set(label, resolved.primaryKey.length === 1 ? stored[resolved.primaryKey[0]!] : key);
             }
             // A picture the row names is the row's own from here on: only a file attached to its row is shown to visitors.
-            for (const value of Object.values(values)) {
-              if (typeof value === 'string' && sampleFileIds.has(value)) {
+            for (const value of Object.values(good)) {
+              if (typeof value === 'string' && (sampleFileIds.has(value) || copies.includes(value))) {
                 await files.attach(value, { connectionId, table: resolved.id, pk: key, label: pkLabel(resolved, key) }, now);
               }
             }
@@ -1863,6 +1897,22 @@ export function createSampleDataService(deps: SampleDataDeps) {
             } as never)
             .execute();
         }
+        // The copies made for the rows after an image's first: removed with the sample, like the images.
+        for (const id of copies) {
+          seq += 1;
+          await db
+            .insertInto(ledger as never)
+            .values({
+              seq,
+              table_ref: FILE_REF,
+              pk: canonicalJson({ id }),
+              label: null,
+              row_hash: '',
+              col_hashes: '{}',
+              created_at: now,
+            } as never)
+            .execute();
+        }
         for (const [label, id] of fileIds) {
           seq += 1;
           await db
@@ -1920,7 +1970,7 @@ export function createSampleDataService(deps: SampleDataDeps) {
       await deps.publish?.(connectionId);
       return { counts, files: fileIds.size };
     } catch (error) {
-      for (const id of fileIds.values()) await files.markDeleted(id).catch(() => undefined);
+      for (const id of [...fileIds.values(), ...copies]) await files.markDeleted(id).catch(() => undefined);
       throw error;
     }
   }

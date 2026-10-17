@@ -166,6 +166,40 @@ describe('file reconcile', () => {
     expect(after?.entity?.pk).toEqual({ invoice_id: '1042' });
   });
 
+  it('attaches a file named by a FORM upload field the grid does not list', async () => {
+    // A generated app keeps its picture column off the grid and on the form:
+    // the form field is what uploads, so it is a file column all the same.
+    await pagesRepo(meta).create({
+      connectionId: CONN,
+      slug: 'cars',
+      type: 'page-crud',
+      title: 'Cars',
+      navOrder: 1,
+      config: {
+        v: 1,
+        kind: 'page',
+        template: 'page-crud',
+        source: { connectionId: CONN, table: TABLE },
+        config: {
+          columns: [{ name: 'invoice_id', label: 'Invoice' }],
+          form: { v: 2, sections: [{ id: 'main', fields: [{ column: 'picture', control: 'attachments' }] }] },
+        },
+      },
+    });
+    const { id, ref } = await upload();
+
+    const result = await reconciler.reconcile({
+      connectionId: CONN,
+      table: TABLE,
+      entity: entity('1042'),
+      before: { picture: null },
+      after: { invoice_id: '1042', picture: ref },
+    });
+
+    expect(result.attached).toEqual([id]);
+    expect((await filesRepo(meta).findById(id))?.entityId).toBe('1042');
+  });
+
   it('trashes the file a REPLACED reference used to name', async () => {
     await seedPage();
     const first = await upload('old.pdf');
@@ -191,6 +225,29 @@ describe('file reconcile', () => {
     // Trash, never delete: the bytes belong to the retention sweep (D12).
     expect((await filesRepo(meta).findById(first.id))?.deletedAt).not.toBeNull();
     expect((await filesRepo(meta).findById(second.id))?.attachedAt).not.toBeNull();
+  });
+
+  it('leaves a file another row owns when this row stops naming it', async () => {
+    // Two rows named one file (sample data did, a foreign app may): the file is
+    // the other row's, and replacing this row's picture must not take theirs.
+    await seedPage();
+    const { id, ref } = await upload();
+    await filesRepo(meta).attach(id, entity('2000'), Date.now());
+    const replacement = await upload('new.pdf');
+
+    const result = await reconciler.reconcile({
+      connectionId: CONN,
+      table: TABLE,
+      entity: entity('1042'),
+      before: { pdf_url: ref },
+      after: { pdf_url: replacement.ref },
+    });
+
+    expect(result.trashed).toEqual([]);
+    expect(result.attached).toEqual([replacement.id]);
+    const kept = await filesRepo(meta).findById(id);
+    expect(kept?.deletedAt).toBeNull();
+    expect(kept?.entityId).toBe('2000');
   });
 
   it('trashes on a CLEARED reference', async () => {
@@ -303,6 +360,21 @@ describe('file reconcile', () => {
 
       await reconciler.restoreAll(trashed);
       for (const id of trashed) expect((await filesRepo(meta).findById(id))?.deletedAt).toBeNull();
+    });
+
+    it('leaves a file the deleted row named but another row owns', async () => {
+      await seedPage();
+      const shared = await upload('shared.pdf');
+      await filesRepo(meta).attach(shared.id, entity('2000'), Date.now());
+
+      const trashed = await reconciler.trashForRecord({
+        connectionId: CONN,
+        table: TABLE,
+        entity: entity('1042'),
+        row: { invoice_id: '1042', pdf_url: shared.ref },
+      });
+      expect(trashed).toEqual([]);
+      expect((await filesRepo(meta).findById(shared.id))?.deletedAt).toBeNull();
     });
 
     it('leaves another record’s files alone', async () => {
@@ -627,6 +699,29 @@ describe('the sidecar block reader', () => {
     await page({});
     expect(await createColumnBlockReader(meta).attachmentsFor(conn, TABLE)).toBeNull();
     expect(await createColumnBlockReader(meta).attachmentsFor(conn, 'public.other')).toBeNull();
+  });
+
+  it('gives a form upload field the default block, and keeps a column’s own block over it', async () => {
+    await page({
+      columns: [{ name: 'photos', file: { ref: 'id', multiple: true } }],
+      form: {
+        v: 2,
+        sections: [
+          {
+            id: 'main',
+            fields: [
+              { column: 'picture', control: 'attachments' },
+              { column: 'photos', control: 'avatar' },
+              { column: 'name', control: 'text' },
+            ],
+          },
+        ],
+      },
+    });
+    const { byColumn } = await createColumnBlockReader(meta).forTable(conn, TABLE);
+    expect(byColumn.get('picture')).toEqual({ ref: 'url' });
+    expect(byColumn.get('photos')).toEqual({ ref: 'id', multiple: true });
+    expect(byColumn.has('name')).toBe(false);
   });
 
   it('ignores a malformed block rather than trusting it into the upload path', async () => {
