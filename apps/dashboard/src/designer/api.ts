@@ -148,7 +148,7 @@ export type SpendMark = 'turn-tokens' | 'session-tokens';
 export interface DesignerAttachment {
   id: string;
   label: string;
-  kind: 'image' | 'csv' | 'font';
+  kind: 'image' | 'csv' | 'font' | 'doc';
   mediaType: string;
   bytes: number;
   rows?: number;

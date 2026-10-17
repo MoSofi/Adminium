@@ -905,6 +905,44 @@ describe('the Designer’s tools', () => {
     expect((await call({ pictures: [{ attachment: sheet.id, for: 'page' }] })).isError).toBe(true);
   });
 
+  it('let a design document the person gave decide the look, and read it back by line', async () => {
+    rmSync(join(root, 'apps/repairs/customer'), { recursive: true, force: true });
+    rmSync(join(root, 'apps/repairs/look.json'), { force: true });
+    const attachments = createAttachments(root);
+    const text = ['# Harbour', '## Color Palette', '- Rausch `#ff385c`', '- Hof `#222222`', '- Faint `#f7f7f7`', '## Typography', ...Array.from({ length: 220 }, (_, index) => `- rule ${String(index + 1)}`)].join('\n');
+    const design = attachments.add(session.id, { filename: 'DESIGN.md', bytes: Buffer.from(text) });
+    const shot = attachments.add(session.id, { filename: 'logo.woff2', bytes: Buffer.concat([Buffer.from('wOF2'), Buffer.alloc(60, 7)]) });
+    // A restaurant by its words, which without a document is given "Warm table".
+    const wrote = [{ turn: 1, message: { role: 'user', content: [{ type: 'text', text: 'A website for my Italian restaurant, after the design system attached.' }] } }];
+    const mine = createDesignerTools(
+      { root, version: APP_VERSION, designer: () => ({ store: { messages: () => wrote } }) as never, skills: createSkills(), listAddOns: async () => [], attachments, newestVersion: async () => null, install: async () => null },
+      'repairs',
+    );
+    const signal = new AbortController().signal;
+    const ask = async (): Promise<CardAnswer> => ({ type: 'needs', accept: [] });
+    const ctx = { session, turn: 1, signal, ask, handle: { turn: 1, by: { id: null, label: 'x' }, signal, ask, events: createEventLog({ lastSeq: 0, append: () => undefined, publish: () => undefined }) } };
+    const call = (name: string, input: Record<string, unknown>) => (mine.find((candidate) => candidate.name === name) as DesignerTool).run(input, ctx);
+    const added = await call('add_side', { side: 'customer' });
+    expect(JSON.parse(readFileSync(join(root, 'apps/repairs/look.json'), 'utf8'))).toMatchObject({ skill: 'clean' });
+    expect(added.content).toContain('a plain base and nothing more, because the person gave a design document');
+    expect(added.content).not.toContain('picked for this kind of business');
+    expect(added.content).toContain(`1. Follow the design document the person gave ("DESIGN.md", attachment ${design.id}:`);
+
+    // Read again by line: 200 a call, fenced, and said where the rest starts.
+    const first = await call('read_attachment', { attachment: design.id });
+    expect(first.content).toContain('Lines 1 to 200 of 226 of "DESIGN.md"');
+    expect(first.content).toContain('\n```\n# Harbour\n');
+    expect(first.content).toContain('There is more: read from line 201.');
+    const rest = await call('read_attachment', { attachment: design.id, from: 201 });
+    expect(rest.content).toContain('Lines 201 to 226 of 226');
+    expect(rest.content).toContain('- rule 220\n```');
+    expect(rest.content).not.toContain('There is more');
+    expect((await call('read_attachment', { attachment: design.id, from: 500 })).content).toBe('"DESIGN.md" has 226 lines; there is none at 500.');
+    // A font still has nothing to read, and a document has no rows to load.
+    expect((await call('read_attachment', { attachment: shot.id })).content).toContain('is a font file, not a CSV');
+    expect((await call('load_rows', { attachment: design.id, table: 'jobs', columns: {} })).content).not.toContain('a picture');
+  });
+
   it('use a font file the person attached: copied under a name of ours, written into fonts.css, never asked for as a package, and kept when the style changes', async () => {
     const attachments = createAttachments(root);
     const woff2 = Buffer.concat([Buffer.from('wOF2'), Buffer.alloc(60, 7)]);
@@ -1250,5 +1288,18 @@ describe('the order of the work after a side is added', () => {
     const plain = designSteps('evergreen', 'customer', { tailwind: true, icons: true, picture: false });
     expect(plain).toContain('call find_pictures ONCE');
     expect(plain).toContain('a header with the logo and links');
+  });
+
+  it('takes the look from a design document the person gave, and names it with its id', () => {
+    const document = { label: 'DESIGN.md', id: 'att_00000000000000000001' };
+    const steps = designSteps('evergreen', 'customer', { tailwind: true, icons: true, picture: false, document });
+    expect(steps).toContain('1. Follow the design document the person gave ("DESIGN.md", attachment att_00000000000000000001: its text is in the message it came with, and read_attachment reads it again), and call set_style with a "theme" from its values FIRST.');
+    expect(steps).toContain('The brief is apps/evergreen/design.md.');
+    // It gives a look, not a page: the sections are still this business's own.
+    expect(steps).toContain('a header with the logo and links');
+    // Beside a picture, the picture lays the page out and the document names what it cannot show.
+    const both = designSteps('evergreen', 'customer', { tailwind: true, icons: true, picture: true, colours: true, document });
+    expect(both).toContain('it is the design');
+    expect(both).toContain("Where the picture does not show a value (a font's name, a colour's exact number, the spacing), take it from the design document the person gave");
   });
 });

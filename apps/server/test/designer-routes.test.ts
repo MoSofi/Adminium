@@ -421,6 +421,15 @@ describe.skipIf(!canBuildSides)('Adminium Designer’s routes', { timeout: 120_0
     expect(String(back.headers['content-security-policy'])).toMatch(/^default-src 'none'; sandbox/);
     expect((await client.call('GET', `/api/v1/designer/sessions/${session.id}/attachments/att_00000000000000000000`)).status).toBe(404);
 
+    // A document in Markdown is the one kind known by its name: taken as text, and given back as text nothing can draw.
+    const doc = await upload('../DESIGN.md', Buffer.from('# Harbour\n\n<script>alert(1)</script>\n- accent `#ff385c`\n'));
+    expect(doc.statusCode, doc.body).toBe(201);
+    const design = (doc.json() as { attachment: { id: string; label: string; kind: string; mediaType: string } }).attachment;
+    expect(design).toMatchObject({ label: 'DESIGN.md', kind: 'doc', mediaType: 'text/markdown' });
+    expect((await upload('DESIGN.md', Buffer.from([0x23, 0x00, 0xff]))).json()).toMatchObject({ error: { details: { reason: 'NOT_ACCEPTED' } } });
+    const docBack = await composed!.app.inject({ method: 'GET', url: `/api/v1/designer/sessions/${session.id}/attachments/${design.id}`, headers: { host: HOST, cookie: client.owner } });
+    expect(docBack.headers).toMatchObject({ 'content-type': 'text/plain; charset=utf-8', 'x-content-type-options': 'nosniff', 'content-disposition': 'attachment; filename="attachment.md"' });
+
     // A file of another session, or of none, does not go with a message.
     expect((await client.call('POST', `/api/v1/designer/sessions/${session.id}/turns`, { text: 'Load these.', attachments: ['att_00000000000000000000'] })).status).toBe(422);
 
