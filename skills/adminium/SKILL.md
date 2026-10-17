@@ -1,6 +1,6 @@
 ---
 name: adminium
-description: Build an app on Adminium, the open-source admin panel generator — from an empty folder to an installable app with tables, dashboard pages, roles and, when wanted, screens for staff and for customers. Use when someone asks to create, scaffold or change an Adminium app or project, mentions Adminium, `adminium app`, an app manifest, or wants an admin panel with a custom front end on their own database. Start here, then open the skill this one names.
+description: Build an app on Adminium, the open-source admin panel generator — from an empty folder to an installable app with tables, dashboard pages, roles and, when wanted, screens for staff and for customers. Use when someone asks to create, scaffold or change an Adminium app or project, mentions Adminium, `adminium app`, an app manifest, or wants an admin panel with a custom front end on their own database, or a downloaded HTML template or static site made into a working site ("make this site work"). Start here, then open the skill this one names.
 license: AGPL-3.0-only
 ---
 
@@ -36,6 +36,9 @@ has passed.
 
 A plain website with no data to manage needs no Adminium. Say so plainly rather than building one
 here. An app always has at least one table and one dashboard page.
+
+A website template or static site to make work (its products, posts and forms edited and received
+in the dashboard) is rung 3, with the template's look kept: `adminium-surface` says how.
 
 ## Core, add-on, or the app's own: decide before writing anything
 

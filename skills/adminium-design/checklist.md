@@ -2,6 +2,9 @@
 
 The short form of `SKILL.md`. Hold every screen people see to it.
 
+- **A design the person brought** (an HTML template, a static site): keep it exactly. Only the
+  access items of "Every screen" apply to it, and the author's credit line stays.
+
 - **Whose page, what it offers, what to do next**: plain within three seconds. A header with the
   logo and name, three to five links and ONE main button. A first screen that says what the
   business is in a customer's words, with the concrete promise under it. Never "Welcome" alone.
