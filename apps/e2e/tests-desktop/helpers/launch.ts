@@ -127,7 +127,7 @@ export function appOrigin(page: Page): string {
  * The mechanism, verbatim: "`session.webRequest` deny-all except `127.0.0.1`".
  * Every non-loopback `http(s)` request the renderer attempts is CANCELLED and
  * recorded; {@link readBlockedRequests} reads the log back, and the smoke test
- * asserts it is empty (no Google Fonts, no Leaflet/tile fetches, no CDN).
+ * asserts it is empty (no Google Fonts, no map engine or tile fetches, no CDN).
  *
  * Install this BEFORE the SPA loads (immediately after launch): the server boot
  * takes seconds, so the filter is in place long before the first paint. Opaque

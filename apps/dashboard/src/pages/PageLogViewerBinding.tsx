@@ -15,10 +15,13 @@
  * (M7 W1 stream contract) and mounts the app's shared multiplexed transport
  * around the template — the template folds record events into the tail.
  */
-import { useMemo } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { useEffect, useMemo } from 'react';
 import { PageLogViewer } from '@adminium/widgets';
 import { StreamTransportProvider, streamChannelForSource } from '@adminium/widgets/binding';
 
+import { isBareChange } from '../api/streamTransport.js';
+import { WIDGET_DATA_KEY_ROOT } from '../api/widgetData.js';
 import { appStreamTransport } from './lmc/stream.js';
 import { findItemDescriptor, usePageWidgetStates } from './lmc/widgetStates.js';
 import { LinkFilterBar, LinkNarrowingGate, useLinkNarrowing, useNarrowedPage } from './linkNarrowing.js';
@@ -35,6 +38,21 @@ export function PageLogViewerBinding({ page, adapters, currency, formColumns, co
     if (log === null) return undefined;
     return streamChannelForSource(log.descriptor.connectionId, log.descriptor.source);
   }, [page]);
+
+  /*
+   * A frame that names a row is put at the top of the log by the log itself.
+   * One that says only "this table changed" (somebody whose role reaches some
+   * rows of the table is sent no row that might not be theirs) has nothing to
+   * put there: the page asks again, once for a burst of them (the transport
+   * gathers it).
+   */
+  const queryClient = useQueryClient();
+  useEffect(() => {
+    if (liveChannel === undefined) return;
+    return appStreamTransport().subscribe(liveChannel, (event) => {
+      if (isBareChange(event.data)) void queryClient.invalidateQueries({ queryKey: [WIDGET_DATA_KEY_ROOT, page.id] });
+    });
+  }, [liveChannel, queryClient, page.id]);
 
   if (view.blocked) return <LinkNarrowingGate narrowing={narrowing} cannotCarry={view.cannotCarry} />;
 

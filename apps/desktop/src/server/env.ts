@@ -174,6 +174,9 @@ export const STRIPPED_INHERITED_ENV_KEYS: readonly string[] = [
   'ADMINIUM_TELEMETRY',
   'ADMINIUM_DISABLE_TELEMETRY',
   'ADMINIUM_STATIC_ROOT',
+  // The desktop app shows no outside map; an inherited address must not put a host in its policy either.
+  'ADMINIUM_MAP_SERVER',
+  'ADMINIUM_ROUTING_SERVER',
   // An inherited value here would decide whether the local user needs a
   // password. `config.json` decides that, and this block always states it —
   // but the strip is what makes "always" independent of the order the keys

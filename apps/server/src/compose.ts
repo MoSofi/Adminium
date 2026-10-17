@@ -145,6 +145,7 @@ import { architectureOf } from './designer/architecture.js';
 import { designerChannel } from './realtime/hub.js';
 import { createProjectApps, type ProjectApps } from './project/apps/project-apps.js';
 import { createColumnBlockReader } from './files/column-blocks.js';
+import { createFileColumnJudge, storedBytes } from './files/column-judge.js';
 import { createProjectService, isConfigWrite, type ProjectServerOptions } from './project/service.js';
 import { createActionRunner } from './project/code/actions.js';
 import { createProjectDb, type ProjectDbScope } from './project/code/db.js';
@@ -174,6 +175,7 @@ import { registerAddOnEventHandlers } from './jobs/add-on-events.js';
 import { registerJobsAndRealtime, type JobsAndRealtime } from './jobs/register.js';
 import { stepLookupOf } from './automations/add-on-steps.js';
 import { registerAutomationRunHandler } from './jobs/automation-run.js';
+import { registerDigestSendHandler } from './automations/digest.js';
 import { automationsRoutes } from './routes/automations/index.js';
 import { automationRunsRoutes } from './routes/automations/runs.js';
 import { sealStoredWebhookSecrets } from './automations/webhook-secrets.js';
@@ -253,13 +255,18 @@ import { invoicesRoutes } from './routes/invoices/index.js';
 import { reportDocumentsRoutes } from './routes/report-documents/index.js';
 import { llmRoutes } from './routes/llm/index.js';
 import { meViewsRoutes } from './routes/me-views/index.js';
-import { hiddenFileCheck } from './files/read-limited.js';
+import { fileHeldCheck, fileRecordCheck, hiddenFileCheck, ruledFileColumn, tableIdOf } from './files/read-limited.js';
 import { notificationsRoutes } from './routes/notifications/index.js';
+import { summariesRoutes } from './routes/summaries/index.js';
 import { onboardingRoutes } from './routes/onboarding/index.js';
 import { pagesRoutes } from './routes/pages/index.js';
 import { projectRoutes } from './routes/project/index.js';
 import { permissionsRoutes } from './routes/permissions/index.js';
 import { rolesRoutes } from './routes/roles/index.js';
+import { rowsNaming } from './crud/rows-naming.js';
+import { handOverRows } from './rbac/hand-over.js';
+import { teamsRoutes } from './routes/teams/index.js';
+import { rowReachRoutes } from './routes/teams/reach.js';
 import { scheduledReportsRoutes } from './routes/scheduled-reports/index.js';
 import { schemaDdlRoutes } from './routes/schema-ddl/index.js';
 import { installCustomerKey } from './public-api/customer-key.js';
@@ -269,6 +276,7 @@ import { optionListsRoutes } from './routes/option-lists/index.js';
 import { schemaRoutes } from './routes/schema/index.js';
 import { schemaImportRoutes } from './routes/schema-import/index.js';
 import { searchRoutes } from './routes/search/index.js';
+import { geoRoutes } from './routes/geo/index.js';
 import { storageRoutes } from './routes/storage/index.js';
 import { i18nRoutes } from './routes/i18n/index.js';
 import { settingsRoutes } from './routes/settings/index.js';
@@ -848,6 +856,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       const installs = await addOnInstalls.fresh();
       return (tableId) => installs.refOf(connectionId, tableId);
     },
+    // The moves an app's file asks of an add-on's rows are saves like any other (the service is made further down).
+    writes: () => recordWrites,
     get files() {
       return storage;
     },
@@ -1040,6 +1050,10 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       (await outboxProducers.watches(connectionId, tableId)) || (await automationsMatcher.current?.watchesChange(connectionId, tableId)) === true,
     // What the connection's role may write, whichever door the write came through.
     rights: async (connectionId, tableId) => privilegesOf(await manager.tablePrivilegesById(connectionId), tableId),
+    // A message never stops the row it is about from being removed, where the app writes to people about removals.
+    releases: (connectionId, tableId) => outboxProducers.releasing(connectionId, tableId),
+    // A file column names only a file its writer uploaded and no record holds; a picture, one cleaned as it came in.
+    files: createFileColumnJudge({ meta, bytesOf: storedBytes(storage) }),
   });
   /*
    * AN APP'S EMAILS. The producers queue rows in an installed app's outbox
@@ -1390,6 +1404,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   automationsMatcher.current = automations.matcher;
   // A document mapping writes a rule of its own; the matcher hears of it here.
   onMappingRulesChanged(meta, () => automations.matcher.onRulesChanged());
+  // A rule's summary, one job a person: read as that person when it is sent, at the hour they chose.
+  registerDigestSendHandler(jobs.registry, { meta, manager, secret: env.ADMINIUM_SECRET });
   registerAutomationRunHandler(jobs.registry, {
     meta,
     manager,
@@ -1779,14 +1795,15 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       await api.register(
         schemaDdlRoutes({ manager, meta, crypto: dsnCryptoFromSecret(env.ADMINIUM_SECRET) }),
       );
-      await api.register(dataRoutes({ manager, meta, undoStore, files: fileReconciler, writes: recordWrites, secret: env.ADMINIUM_SECRET }));
+      await api.register(dataRoutes({ manager, meta, undoStore, files: fileReconciler, writes: recordWrites, secret: env.ADMINIUM_SECRET, hub: jobs.hub }));
       // M7 data-io + reports/notifications (T5/T6): exports and imports share
       // the jobs pipeline wired above; scheduled reports ride the same registry
       // via the poll schedule below.
       const enqueueDataIo = (input: EnqueueJobInput) => jobs.enqueue(input);
       await api.register(exportsRoutes({ meta, manager, storage, enqueue: enqueueDataIo }));
-      await api.register(importsRoutes({ meta, manager, storage, enqueue: enqueueDataIo }));
+      await api.register(importsRoutes({ meta, manager, storage, enqueue: enqueueDataIo, writes: recordWrites }));
       await api.register(notificationsRoutes({ meta, hub: jobs.hub }));
+      await api.register(summariesRoutes({ meta, manager, secret: env.ADMINIUM_SECRET }));
       await api.register(scheduledReportsRoutes({ meta }));
       // `onRulesChanged` is what keeps the matcher's in-memory index honest:
       // a rule saved through this route is matched by the next write.
@@ -1804,7 +1821,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       );
       await api.register(automationRunsRoutes({ meta }));
       await api.register(
-        emailTemplatesRoutes({ meta, storage, cancelRunningJob: (jobId) => jobs.worker.requestCancel(jobId) }),
+        emailTemplatesRoutes({ meta, storage, reachesRecord: fileRecordCheck(meta, manager), cancelRunningJob: (jobId) => jobs.worker.requestCancel(jobId) }),
       );
       // The authored `/invoices` surface — the same deps shape as the
       // email documents; rendering is a later wave's.
@@ -1847,6 +1864,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       // ⌘K global search: pages by title + records via the crud quick-search
       // path, RBAC/PII-filtered like the data routes.
       await api.register(searchRoutes({ manager, meta }));
+      // Towns by name from the list this server ships, and the way between stops.
+      await api.register(geoRoutes({ meta }));
       await api.register(widgetDataRoutes({ manager, meta, cache: widgetDataCache }));
       await api.register(
         // `emailKey` is passed explicitly rather than letting the route derive it
@@ -1868,7 +1887,13 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           storageCrypto,
           // A file held only in a column the reader's role does not read is not theirs.
           hiddenFile: hiddenFileCheck(meta, manager),
-          columnFileBlock: (input) => columnBlocks.forColumn(input),
+          // …and a file of a record its reader's role does not reach is not theirs either.
+          reachesRecord: fileRecordCheck(meta, manager),
+          // An app's own file column first (its rule, read fresh), then a page's block.
+          columnFileBlock: async (input) => (await ruledFileColumn(meta, input)) ?? columnBlocks.forColumn(input),
+          tableIdOf: (connectionId, table) => tableIdOf(meta, connectionId, table),
+          // A file a record keeps in an app's own file column changes only with its record.
+          heldByRecord: fileHeldCheck(meta, manager),
           // The sidecar half: `config.attachments` narrows the allowlist, the
           // cap and the destination for an upload that names no column, and
           // enforces the per-record count.
@@ -1889,6 +1914,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
         documentRoutes({
           meta,
           storage,
+          manager,
           runtime: () => addOnRuntime,
           // An app's staff screen draws through the same pipeline as every other door.
           pipeline: documents,
@@ -1986,6 +2012,9 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
         store: appStore,
         files: appFiles,
         installed: installedApps,
+        mapsAnswered: () => {
+          if (app.hasDecorator('maps')) app.maps.drop();
+        },
         credentialCrypto: addOnCredentialCryptoFromSecret(env.ADMINIUM_SECRET),
         // An install may not shadow a surface the operator deployed by hand:
         // those own registered routes the installed-app hook yields to, so it
@@ -2484,6 +2513,11 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
         }),
       );
       await api.register(rolesRoutes);
+      await api.register(teamsRoutes);
+      await api.register(rowReachRoutes({ meta, manager }));
+      // A person named in rows is not removed for good until those rows are somebody's: the users routes ask this.
+      api.decorate('rowsNamingUser', (userId: string) => rowsNaming(meta, manager, userId));
+      api.decorate('handUserRows', (from: Parameters<typeof handOverRows>[1]['from'], toId: string, audit: Parameters<typeof handOverRows>[1]['audit']) => handOverRows({ meta, manager }, { from, toId, audit }));
       await api.register(usersRoutes);
       await api.register(permissionsRoutes);
       await api.register(apiKeysRoutes);

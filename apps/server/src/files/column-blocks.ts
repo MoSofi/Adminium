@@ -66,7 +66,35 @@ const columnFileSchema = z.object({
   /** Refuse a write that would put more than this many files on one record. */
   maxCount: z.number().int().min(1).max(500).optional(),
 });
-export type ColumnFile = z.infer<typeof columnFileSchema>;
+/**
+ * A column's file block. `ruled`: the block is the app's own `column.file`
+ * rule, not a page's: its writes are judged by the write service
+ * (`files/column-judge.ts`), its value is the file's id, and a picture
+ * uploaded for it is cleaned of what the camera wrote beside it.
+ */
+export type ColumnFile = z.infer<typeof columnFileSchema> & { ruled?: true };
+
+/** A `column.file` rule as a block: the file's id stored, one or a list, the kinds and the size it says. */
+export function ruledBlock(rule: { accept: readonly string[]; maxBytes: number; maxCount?: number | undefined }): ColumnFile {
+  return {
+    ref: 'id',
+    accept: [...rule.accept],
+    maxBytes: rule.maxBytes,
+    ...(rule.maxCount === undefined ? {} : { multiple: true, maxCount: rule.maxCount }),
+    ruled: true,
+  };
+}
+
+/**
+ * The file columns an app's own rule makes of a table, as blocks, by column
+ * name: read from the table as the write resolved it, so a rule installed a
+ * moment ago is heard at once (the page blocks above wait out their cache).
+ */
+export function ruledBlocksOf(columns: Iterable<{ name: string; file?: { accept: readonly string[]; maxBytes: number; maxCount?: number | undefined } | undefined }>): ReadonlyMap<string, ColumnFile> {
+  const out = new Map<string, ColumnFile>();
+  for (const column of columns) if (column.file !== undefined) out.set(column.name, ruledBlock(column.file));
+  return out;
+}
 
 /**
  * The page-level `config.attachments` block — the SIDECAR mode's configuration

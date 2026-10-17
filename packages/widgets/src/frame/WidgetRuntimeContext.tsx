@@ -12,7 +12,7 @@
  * SYNCHRONOUS BY DESIGN. The default is the browser, so an absent provider means
  * "online" — and that is why the provider must sit above every widget-rendering
  * route rather than be resolved from a query: a provider that arrived one render
- * late would let a `map-bubble` mount, and the Leaflet chunk fetch it triggers is
+ * late would let a `map-bubble` mount, and the map chunk fetch it triggers is
  * exactly the network touch the desktop app promises never to make. See
  * `apps/dashboard/src/lib/widget-runtime.ts` for why the bridge, not
  * `GET /api/v1/system/info`, is what feeds it.

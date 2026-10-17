@@ -65,6 +65,7 @@ import type {
   StateParent,
   TableStatesRule,
   TableBookingRule,
+  TableOccupiesRule,
   TableCapacityRule,
   EffectiveCapacityRule,
   TablePosting,
@@ -102,7 +103,20 @@ export type IssueCode =
   | 'plain-text'
   | 'not-found'
   // A discount code that starts as a voucher's or a card's code does.
-  | 'reserved';
+  | 'reserved'
+  // A place that is not a position, is off the map, names a town the list does not have, or is a link that says nothing until followed.
+  | 'place-unreadable'
+  | 'place-out-of-range'
+  | 'place-unknown'
+  | 'place-short-link'
+  // An area that is not a closed polygon on the map, or is larger than a column keeps.
+  | 'area-unreadable'
+  | 'area-too-large'
+  // A file column naming a file this write may not hand its record, one of a kind it does not take, one too large, or too many.
+  | 'file-not-here'
+  | 'file-type'
+  | 'file-too-large'
+  | 'too-many-files';
 
 /** `n` carries the bound a message needs ("Use at most {n} characters"). */
 export interface FieldIssue {
@@ -116,6 +130,8 @@ export interface SoftLink {
   addOn: string;
   tableId: string | null;
   key: string | null;
+  /** What kind of value the add-on's key holds, where the model says: a value that could never be one is not asked of the database. */
+  keyType?: string;
 }
 
 /** What `details.fields` on a 422 carries: one issue per column. */
@@ -270,6 +286,27 @@ export interface DateBound {
   notBefore?: DateBoundSide;
 }
 
+/**
+ * `column.linkable`, resolved: the table the foreign key points at and its
+ * key, or `unresolved` when the snapshot no longer has the link or a column
+ * the conditions read (then no row can be shown to meet them, and a new link
+ * is refused).
+ */
+export type LinkableRule =
+  | { column: string; table: string; key: string; keyType?: string; where: StateCondition[]; same: LinkableSame[]; unresolved?: undefined }
+  | { column: string; where: StateCondition[]; same: LinkableSame[]; unresolved: true };
+
+/**
+ * `linkable.same`, resolved: the named row's `column` holds what the written
+ * row holds in `own`, or (with `far`) what the row `own` links to holds in
+ * `far.column`, read through its one-column key.
+ */
+export interface LinkableSame {
+  column: string;
+  own: string;
+  far?: { table: string; key: string; keyType?: string; column: string } | undefined;
+}
+
 /** `column.default { kind: 'from' }`: a create's empty value, filled from elsewhere. */
 export interface ColumnDefaultFrom {
   column: string;
@@ -334,6 +371,12 @@ export interface RollupInto {
   sum: string;
   /** The child rows are counted instead (the stored rule's `count`). */
   count?: true;
+  /**
+   * Not a total at all: the value of `of` in the child row whose `by` is
+   * greatest (an empty `by` is no row; equal ones go to the greater `key`,
+   * the child's own). `row` is the parent's column that holds that key.
+   */
+  latest?: { of: string; by: string; key: string; row?: string };
   times?: string;
   /** Child rows whose column holds a value are left out of the total. */
   unlessSet?: string;
@@ -367,6 +410,11 @@ export interface RollupInto {
    * them after this one settles, up to three rows high.
    */
   climbs: RollupInto[];
+}
+
+/** A table's plain guard, as the write service carries it where a booking rule would be. */
+export interface PlainBooking {
+  plain: TableOccupiesRule;
 }
 
 export interface TableRules {
@@ -454,6 +502,8 @@ export interface TableRules {
   normalizes?: { column: string; how: 'trim' | 'email' | 'code' }[];
   /** Dates kept within dates: never after today, never before another date. */
   bounds?: DateBound[];
+  /** Links that may name only a row meeting some conditions. */
+  linkable?: LinkableRule[];
   /** A document's life (`table.states`), and the rows of other tables that lock it. */
   states?: TableStatesRule;
   lockedBy?: LockedByReference[];
@@ -468,7 +518,7 @@ export interface TableRules {
   /** Limits of other tables whose rows belong to this table's rows (an order's tickets): its changes may move them. */
   capacityOwners?: OwnedRule[];
   /** Booking people on this table: no overlap per resource. */
-  booking?: TableBookingRule;
+  booking?: TableBookingRule | PlainBooking;
   /** Columns whose zone-less wall times are read on the venue's clock. */
   venueLocal?: string[];
   /** The column priced night by night, and where its rate and adjustments are read. */
@@ -644,6 +694,7 @@ export function tableRulesFor(target: { view: SnapshotView; table: ResolvedTable
   const seals: ColumnStamp[] = [];
   const normalizes: { column: string; how: 'trim' | 'email' | 'code' }[] = [];
   const bounds: DateBound[] = [];
+  const linkable: LinkableRule[] = [];
   const states = target.table.table?.states;
   const lockedBy = target.table.table?.lockedBy ?? [];
   const stateParents = target.table.table?.stateParents ?? [];
@@ -754,6 +805,39 @@ export function tableRulesFor(target: { view: SnapshotView; table: ResolvedTable
       }
       if (bound.notAfter !== undefined || bound.notBefore !== undefined) bounds.push(bound);
     }
+    if (column.linkable !== undefined) {
+      // Through the one-column foreign key the snapshot has; a link it lost, or a column of the linked table it lost, fails closed.
+      const where = column.linkable.where ?? [];
+      const pairs = column.linkable.same ?? [];
+      const linkOf = (name: string) =>
+        target.view?.model?.relations.find((r) => r.through === null && r.from.tableId === target.table.id && r.from.columns.length === 1 && r.from.columns[0] === name && r.to.columns.length === 1);
+      const relation = linkOf(column.name);
+      const linked = relation === undefined ? undefined : target.view?.model?.tables.find((table) => table.id === relation.to.tableId);
+      const readable = linked !== undefined && [...where.map((condition) => condition.column), ...pairs.map((pair) => pair.column)].every((name) => linked.columns.some((other) => other.name === name));
+      const keyType = linked?.columns.find((other) => other.name === relation?.to.columns[0])?.logicalType;
+      // The written row's side of each pair: a column of its own, or one of the row a link of it names; one it lost fails closed too.
+      const same: LinkableSame[] = [];
+      let sides = true;
+      for (const pair of pairs) {
+        const [own, farColumn] = pair.as.split('.') as [string, string | undefined];
+        if (!columns.some((other) => other.name === own)) sides = false;
+        else if (farColumn === undefined) same.push({ column: pair.column, own });
+        else {
+          const hop = linkOf(own);
+          const far = hop === undefined ? undefined : target.view?.model?.tables.find((table) => table.id === hop.to.tableId);
+          if (hop === undefined || far === undefined || !far.columns.some((other) => other.name === farColumn)) sides = false;
+          else {
+            const farKeyType = far.columns.find((other) => other.name === hop.to.columns[0])?.logicalType;
+            same.push({ column: pair.column, own, far: { table: far.id, key: hop.to.columns[0]!, ...(farKeyType === undefined ? {} : { keyType: farKeyType }), column: farColumn } });
+          }
+        }
+      }
+      linkable.push(
+        relation === undefined || !readable || !sides
+          ? { column: column.name, where, same, unresolved: true }
+          : { column: column.name, table: relation.to.tableId, key: relation.to.columns[0]!, ...(keyType === undefined ? {} : { keyType }), where, same },
+      );
+    }
     const values = enumValuesOf(column, enums);
     /*
      * The answers this column accepts, from the rule.
@@ -836,9 +920,18 @@ export function tableRulesFor(target: { view: SnapshotView; table: ResolvedTable
     const beside = lastFours.filter((last) => last.of === code.column).map((last) => last.column);
     if (beside.length > 0) code.last4 = beside;
   }
-  const addOnLinks: SoftLink[] = columns.flatMap((column) => (column.addOnLink === undefined ? [] : [{ column: column.name, addOn: column.addOnLink.addOn, tableId: column.addOnLink.tableId, key: column.addOnLink.key }]));
+  const keyTypeOf = (tableId: string | null, key: string | null): string | undefined =>
+    tableId === null || key === null ? undefined : target.view?.model?.tables?.find((table) => table.id === tableId)?.columns.find((column) => column.name === key)?.logicalType;
+  const addOnLinks: SoftLink[] = columns.flatMap((column) => {
+    if (column.addOnLink === undefined) return [];
+    const { addOn, tableId, key } = column.addOnLink;
+    const keyType = keyTypeOf(tableId, key);
+    return [{ column: column.name, addOn, tableId, key, ...(keyType === undefined ? {} : { keyType }) }];
+  });
   const readOnly = [
     ...ownRollups.map((r) => r.column),
+    // The key of the row a "latest" took is Adminium's, like the value beside it.
+    ...ownRollups.flatMap((r) => (r.latest?.row === undefined ? [] : [r.latest.row])),
     ...balances.map((b) => b.column),
     ...formulas.map((f) => f.column),
     ...(perNight === undefined ? [] : [perNight.column]),
@@ -853,7 +946,9 @@ export function tableRulesFor(target: { view: SnapshotView; table: ResolvedTable
   const capacityRules = target.table.table?.capacityRules;
   // A hand-built target may carry no model: nothing belongs to its rows.
   const capacityOwners = target.view?.model === undefined || target.table.table === undefined ? [] : ownedRules(target.view, target.table);
-  const booking = target.table.table?.booking;
+  // One guard a table: the booking of people, or the plain rule (`occupies`), run by the same lock and the same steps.
+  const occupies = target.table.table?.occupies;
+  const booking: TableBookingRule | PlainBooking | undefined = target.table.table?.booking ?? (occupies === undefined ? undefined : { plain: occupies });
   // A copy through a link another copy fills runs after that copy.
   orderCopies(copies);
   const decided = copies.length + sequences.length + codes.length + stamps.length > 0;
@@ -872,6 +967,7 @@ export function tableRulesFor(target: { view: SnapshotView; table: ResolvedTable
     normalizes.length === 0 &&
     codeLookups.length === 0 &&
     bounds.length === 0 &&
+    linkable.length === 0 &&
     states === undefined &&
     stateParents.length === 0 &&
     capacity === undefined &&
@@ -917,6 +1013,7 @@ export function tableRulesFor(target: { view: SnapshotView; table: ResolvedTable
           ...(normalizes.length === 0 ? {} : { normalizes }),
           ...(codeLookups.length === 0 ? {} : { codeLookups }),
           ...(bounds.length === 0 ? {} : { bounds }),
+          ...(linkable.length === 0 ? {} : { linkable }),
           ...(states === undefined ? {} : { states, ...(lockedBy.length === 0 ? {} : { lockedBy }) }),
           ...(stateParents.length === 0 ? {} : { stateParents }),
           ...(capacity === undefined ? {} : { capacity }),
@@ -1071,7 +1168,7 @@ function modelRollups(model: { tables: readonly EffectiveTable[] }): Map<string,
   if (cached !== undefined) return cached;
   const out = new Map<string, RollupInto[]>();
   for (const table of model.tables) {
-    const totals = rollupsOf(table);
+    const totals = rollupsOf(table, model.tables);
     if (totals.length > 0) out.set(table.id, totals);
   }
   const all = [...out.values()].flat();
@@ -1081,7 +1178,7 @@ function modelRollups(model: { tables: readonly EffectiveTable[] }): Map<string,
       (above) =>
         above !== rollup &&
         above.child === rollup.parent &&
-        [above.sum, above.times, above.unlessSet, above.where?.column].some((column) => column !== undefined && column !== '' && moved.has(column)),
+        [above.sum, above.times, above.unlessSet, above.where?.column, above.latest?.of, above.latest?.by].some((column) => column !== undefined && column !== '' && moved.has(column)),
     );
   }
   ROLLUPS.set(model, out);
@@ -1089,15 +1186,20 @@ function modelRollups(model: { tables: readonly EffectiveTable[] }): Map<string,
 }
 
 /** A table's totals, as the writes to its child rows settle them; none for a table without a one-column key. */
-function rollupsOf(parent: EffectiveTable): RollupInto[] {
+function rollupsOf(parent: EffectiveTable, tables?: readonly EffectiveTable[]): RollupInto[] {
   if (parent.primaryKey?.length !== 1) return [];
+  /** A child's one-column key: what settles "the newest" between two rows of the same moment. */
+  const keyOf = (child: string): string | undefined => {
+    const key = tables?.find((table) => table.id === child)?.primaryKey;
+    return key?.length === 1 ? key[0] : undefined;
+  };
   const balances = balancesOf(parent);
   const formulas = formulasOf(parent);
   const currencyColumn = parent.columns.some((column) => column.name === 'currency') ? 'currency' : undefined;
   const siblings: RollupInto[] = [];
   for (const column of parent.columns) {
     if (column.rollup !== undefined) {
-      siblings.push(rollupOf(parent, column, column.rollup, balances, siblings, formulas, currencyColumn));
+      siblings.push(rollupOf(parent, column, column.rollup, balances, siblings, formulas, currencyColumn, keyOf(column.rollup.from)));
     }
   }
   return siblings;
@@ -1129,6 +1231,7 @@ function rollupOf(
   siblings: RollupInto[],
   formulas: ColumnFormula[],
   currencyColumn: string | undefined,
+  childKey?: string,
 ): RollupInto {
   const out: RollupInto = {
     parent: parent.id,
@@ -1138,6 +1241,7 @@ function rollupOf(
     via: rollup.via,
     sum: rollup.sum ?? '',
     ...(rollup.count === true ? { count: true as const } : {}),
+    ...(rollup.latest === undefined ? {} : { latest: { of: rollup.latest.of, by: rollup.latest.by, key: childKey ?? '', ...(rollup.latest.row === undefined ? {} : { row: rollup.latest.row }) } }),
     ...(rollup.times === undefined ? {} : { times: rollup.times }),
     ...(rollup.unlessSet === undefined ? {} : { unlessSet: rollup.unlessSet }),
     ...(rollup.where === undefined ? {} : { where: rollup.where }),

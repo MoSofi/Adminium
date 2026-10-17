@@ -51,7 +51,7 @@ import { BUILTIN_NAV_GROUP_KEYS } from '@adminium/add-on-contracts';
 import { newId, overridesRepo, pagesRepo, snapshotsRepo, type MetaDb } from '@adminium/meta';
 
 import { ownsBlocks } from './owns-blocks.js';
-import { bindForm, bindLayout, bindListConfig, calendarOf } from './manifest-page-config.js';
+import { bindForm, bindLayout, bindListConfig, boardOf, calendarOf } from './manifest-page-config.js';
 import { applyCompositionOverrides, applyOverrides, withEffectiveLabels } from '../connections/effective-schema.js';
 import { SnapshotView } from '../crud/identifiers.js';
 import { isUntouched, stamped } from '../pages/generated-stamp.js';
@@ -73,6 +73,8 @@ export interface ManifestPageSkip {
     | 'PAGE_LAYOUT_INVALID'
     // Created, plotted by the columns Adminium picks rather than the ones it named.
     | 'PAGE_CALENDAR_INVALID'
+    // Created empty: the board it named cannot be built, and no other board is built in its place.
+    | 'PAGE_BOARD_INVALID'
     | 'PAGE_FILTERS_INVALID'
     | 'PAGE_DEFAULT_FILTERS_INVALID'
     | 'PAGE_TABS_INVALID'
@@ -275,7 +277,9 @@ export async function materialiseManifestPages(input: MaterialiseInput): Promise
       const booked = composed?.view.table(tableId).table.booking?.start;
       const hinted = booked === undefined ? undefined : { start: booked };
       const named = calendarOf(page);
-      let built = composeRequestedPage(model, tableId, template, { ...context, calendar: named ?? hinted });
+      // A board is drawn with the columns the app names: the rows of a table its cards link to, or an enum's values.
+      const board = template === 'page-board' ? boardOf(page, model, input.names) : null;
+      let built = composeRequestedPage(model, tableId, template, { ...context, calendar: named ?? hinted, ...(board === null ? {} : { board }) });
       if (built.envelope === null && named !== null) {
         result.warnings.push({
           page: page.ref,
@@ -284,7 +288,22 @@ export async function materialiseManifestPages(input: MaterialiseInput): Promise
         });
         built = composeRequestedPage(model, tableId, template, { ...context, calendar: hinted });
       }
-      if (built.envelope === null) {
+      if (built.envelope === null && board !== null) {
+        /*
+         * The board the app named cannot be built — and no other board is
+         * built in its place. Composed again with the columns Adminium finds
+         * (the table's workflow enum), a board of the OPEN deals by stage
+         * became one of every deal by state: a different board under the same
+         * name, with nothing on screen to say so. The page is made empty, as
+         * one whose table cannot back its template is, and the reason is
+         * reported.
+         */
+        result.warnings.push({
+          page: page.ref,
+          reason: 'PAGE_BOARD_INVALID',
+          message: `${built.reason}, so the page was created empty`,
+        });
+      } else if (built.envelope === null) {
         result.warnings.push({
           page: page.ref,
           reason: 'PAGE_UNFIT',
@@ -346,6 +365,10 @@ export async function materialiseManifestPages(input: MaterialiseInput): Promise
     envelope = {
       ...envelope,
       app: manifest.key,
+      // The part of the app it belongs to: the page route and the menu read it here.
+      ...('module' in page && typeof page.module === 'string' ? { module: page.module } : { module: undefined }),
+      // Kept off the sidebar: the menu reads it here.
+      ...(page.nav.offRail === true ? { offRail: true } : { offRail: undefined }),
       nav: { ...nav, group: page.nav.group },
       title: {
         key: page.title.key,
@@ -387,6 +410,19 @@ export async function materialiseManifestPages(input: MaterialiseInput): Promise
       .where('id', '=', holder.id)
       .execute();
     if (stored === null || !isUntouched(stored.config)) {
+      /*
+       * A page its owner changed is theirs and is left as it is — but for the
+       * part of the app it belongs to, which is the app's to say: without it
+       * the page would stay in the menu, and answer, while its part is off.
+       */
+      const held = stored === null || typeof stored.config !== 'object' || stored.config === null ? null : (stored.config as Record<string, unknown>);
+      const part = 'module' in page && typeof page.module === 'string' ? page.module : undefined;
+      // Whether it is on the sidebar of the app's section is the app's to say too.
+      const offRail = page.nav.offRail === true ? true : undefined;
+      if (held !== null && (held['module'] !== part || held['offRail'] !== offRail)) {
+        const { module: _was, offRail: _rail, ...rest } = held;
+        await pages.replaceConfig(holder.id, { ...rest, ...(part === undefined ? {} : { module: part }), ...(offRail === undefined ? {} : { offRail }) });
+      }
       result.kept.push(slug);
       continue;
     }

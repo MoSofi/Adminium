@@ -36,7 +36,7 @@ or the person whose import makes a message, may link it only to rows they can re
 | *key*`.`*column* | The same row on its own, when no link has that name: `clinician.name`, `visit_type.name`. |
 | `recipient.name`, `recipient.first_name` | The person's name, and its first word. For a first visit by someone not yet on file, the name typed on the booking. |
 | `practice.`*column* | A column of the app's settings row: `practice.phone`, `practice.address`. |
-| `was.`*column* | For a message about a change, the column as it was before it ([above](https://docs.adminium.dev/guides/apps/emails/#messages-about-changes)). |
+| `was.`*column* | For a message about a change, the column as it was before it ([above](https://docs.adminium.dev/guides/apps/emails/#messages-about-changes)); for a message about a removed row, the column as the row held it ([above](https://docs.adminium.dev/guides/apps/emails/#messages-about-a-row-that-is-removed)). |
 | `row.`*column* | Inside a block that lists rows, a column of each row ([below](https://docs.adminium.dev/guides/apps/emails/#emails-that-list-rows)). |
 | `appName` | The name the app's emails are signed with, from its settings row, else the workspace's name. |
 | `manage_url`, `booking_url` | Links to the app's customer pages ([below](https://docs.adminium.dev/guides/apps/emails/#links)). |
@@ -60,6 +60,7 @@ A column's value is shown by its type:
 | *x*`.label` | Card | A choice column: the label the app gave the value, in the email's language ("Karte" in German), else the value itself. |
 | *x*`.time` | 3:00 PM | A text column of at most 8 characters that holds a time of day (`15:00`, `09:30:00`): the time on the reader's clock, "15:00" in Britain. |
 | *x*`.grouped` | K7QX-M2PD | A code column: the code in groups of four, the way a person reads it out. |
+| *x*`.name` | Dana Reyes | A staff column (`rules.staff`): the person it names, by the name the people list gives them. |
 | *x*`.qr` | (an image) | A code column, drawn as a QR code: only as the whole value of an image. See [QR codes](https://docs.adminium.dev/guides/apps/emails/#qr-codes). |
 
 Every form is written in the email's language: `morgen` rather than `tomorrow` in German, and
@@ -77,6 +78,7 @@ A form belongs to its column's type:
 | A choice (`enum`) | `.label` |
 | A text column of at most 8 characters | `.time` |
 | A code (a text column with a `code` rule) | `.grouped`, and `.qr` in an image |
+| A staff column (`rules.staff`) | `.name` |
 
 So a date column (`due_on`) has no clock, and reads as `{{invoice.due_on}}`, `.day_month` or
 `.days_since`, never `.date`, `.time` or `.relative_day`; and a longer text column (a note, a name)

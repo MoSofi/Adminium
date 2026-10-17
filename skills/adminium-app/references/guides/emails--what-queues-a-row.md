@@ -104,3 +104,4 @@ own language in place, and then the workspace's.
   the app has no held messages).
 - **A disabled app.** Nothing is queued while it is off. See
   [Disable and enable](https://docs.adminium.dev/guides/apps/settings/#disable-and-enable).
+- **A removal**, unless a producer listens for it ([below](https://docs.adminium.dev/guides/apps/emails/#messages-about-a-row-that-is-removed)).

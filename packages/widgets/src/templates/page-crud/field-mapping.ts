@@ -40,6 +40,12 @@ export interface ColumnFact {
    * away event names who is away). The server refuses the write otherwise.
    */
   requiredWhen?: { column: string; in: readonly (string | number | boolean)[] } | undefined;
+  /** People are mentioned in this text: its box offers who may be named. */
+  mentions?: true | undefined;
+  /** The column holds a position on the map (`{ lat, lng, by }`): the form offers a place field. */
+  place?: true | undefined;
+  /** The column holds an area on the map (a GeoJSON polygon): the form offers the drawing of one. */
+  area?: true | undefined;
   /** False for a generated column: shown, never sent. */
   writable: boolean;
   /**

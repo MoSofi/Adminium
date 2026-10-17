@@ -34,15 +34,18 @@
  * of a million-row table every hour is worse than one that fails.
  */
 
+import { rulePartOff } from '../rbac/app-parts.js';
 import type { Kysely } from 'kysely';
 import {
   auditRepo,
   automationRunsRepo,
+  automationSpellsRepo,
   automationsRepo,
   type Automation,
   type AutomationSchedule,
   type EnqueueJobInput,
   type Job,
+  type AutomationTrigger,
   type MetaDb,
 } from '@adminium/meta';
 
@@ -53,13 +56,14 @@ import { keptRow, type Row } from '../crud/mask.js';
 import { pkLabel } from '../crud/records.js';
 import { loadSnapshotView } from '../data-io/snapshot-view.js';
 import { nextRunAtOf } from '../schedule/next-run.js';
-import { scheduleOccurrenceKey } from './events.js';
+import { scheduleOccurrenceKey, spellRowKey } from './events.js';
 import {
   AUTOMATION_RUN_KIND,
   AUTOMATION_SCAN_CAP,
   AUTOMATION_SCAN_PAGE,
 } from './kinds.js';
 import { toRecordFilterAll } from './relative-time.js';
+import { readsSettings, ruleSettingReader, withSettingAmounts } from './setting-operands.js';
 
 const MINUTE_MS = 60_000;
 
@@ -138,6 +142,8 @@ async function runOneSchedule(input: {
 }): Promise<{ runsStarted: number; capped: boolean }> {
   const { deps, rule, now } = input;
   if (rule.trigger.kind !== 'schedule') return { runsStarted: 0, capped: false };
+  // A rule of a part that is off claims no run: a "once" row is not used up while nothing would be done for it.
+  if (await rulePartOff(deps.meta, rule)) return { runsStarted: 0, capped: false };
   const forEach = rule.trigger.forEach;
 
   // A bare tick: one run, no record. "Every night at 02:00, call this webhook."
@@ -148,11 +154,21 @@ async function runOneSchedule(input: {
 
   const connectionId = rule.trigger.connectionId;
   if (connectionId === null) return { runsStarted: 0, capped: false };
-  const view = await loadSnapshotView(deps.meta, connectionId);
+  // As a rule reads: a private table is not in its view, and a rule over one starts nothing.
+  const view = await loadSnapshotView(deps.meta, connectionId, { forOthers: true });
   const { db, dialect } = await deps.manager.data(connectionId);
-  const table = view.table(forEach.table);
+  let table: ResolvedTable;
+  try {
+    table = view.table(forEach.table);
+  } catch (error) {
+    // Only a private table is passed over; a table that is not there at all fails the tick, as it always did.
+    if ((await loadSnapshotView(deps.meta, connectionId)).linkTable(forEach.table)?.table.private === true) return { runsStarted: 0, capped: false };
+    throw error;
+  }
 
-  const filter = toRecordFilterAll(forEach.where, { table, dialect, now });
+  // An amount a setting holds (`nudge_quiet_days`) is read once for this tick.
+  const where = readsSettings(forEach.where) ? await withSettingAmounts(forEach.where, ruleSettingReader(deps.meta, db as never, view)) : forEach.where;
+  const filter = toRecordFilterAll(where, { table, dialect, now });
   const page = deps.page ?? AUTOMATION_SCAN_PAGE;
   const cap = deps.cap ?? AUTOMATION_SCAN_CAP;
 
@@ -160,12 +176,31 @@ async function runOneSchedule(input: {
   let scanned = 0;
   let after: Row | null = null;
   let capped = false;
+  /*
+   * ONCE PER SPELL. The rows that match now are gathered first, then set
+   * against the spells the rule holds: a row not held, or held with its
+   * spell closed, starts a spell and a run; a row held open is only stamped;
+   * every row held open that no longer matches has its spell closed, so the
+   * next time it matches is a new one. A tick that stopped at its cap closes
+   * none: the rows it did not reach may still match.
+   */
+  const perSpell = forEach.once === 'per-spell';
+  const matching = new Map<string, { row: Row; pk: Row }>();
 
   for (;;) {
     const rows = await readPage({ db, view, table, dialect, filter, page, after });
     if (rows.length === 0) break;
     for (const row of rows) {
       const pk = Object.fromEntries(table.primaryKey.map((c) => [c, row[c]]));
+      if (perSpell) {
+        matching.set(spellRowKey(table, pk), { row, pk });
+        scanned += 1;
+        if (scanned >= cap) {
+          capped = true;
+          break;
+        }
+        continue;
+      }
       const started = await claim({
         deps,
         rule,
@@ -175,7 +210,7 @@ async function runOneSchedule(input: {
         pk,
         // `once` drops the tick from the key, so every later tick that matches
         // the same row collapses onto the run the first one made.
-        tick: forEach.once ? undefined : now,
+        tick: forEach.once === false ? now : undefined,
       });
       if (started) runsStarted += 1;
       scanned += 1;
@@ -186,6 +221,22 @@ async function runOneSchedule(input: {
     }
     if (capped || rows.length < page) break;
     after = rows[rows.length - 1] ?? null;
+  }
+
+  if (perSpell) {
+    const spells = automationSpellsRepo(deps.meta);
+    const starts = await spells.settle(rule.id, [...matching.keys()], { at: now, complete: !capped });
+    for (const [at, start] of starts.entries()) {
+      const found = matching.get(start.rowKey)!;
+      const started = await claim({ deps, rule, now, table, row: found.row, pk: found.pk, tick: undefined, spell: start.spell }).catch(async (error: unknown) => {
+        // No run was made for this row, nor will one be for the rows after it in this tick: each of their
+        // spells is as it was, so the next tick starts them again. Left open, they would never be told.
+        for (const unrun of starts.slice(at)) await spells.undoStart(rule.id, unrun);
+        throw error;
+      });
+      if (started) runsStarted += 1;
+      else await spells.undoStart(rule.id, start);
+    }
   }
 
   if (capped) {
@@ -249,6 +300,8 @@ async function claim(input: {
   row: Row | null;
   pk?: Row | undefined;
   tick: number | undefined;
+  /** "Once per spell": the spell this run is for. */
+  spell?: number | undefined;
 }): Promise<boolean> {
   const { deps, rule, now, table, row } = input;
   if (rule.trigger.kind !== 'schedule') return false;
@@ -262,6 +315,7 @@ async function claim(input: {
         table,
         pk,
         ...(input.tick === undefined ? {} : { tick: input.tick }),
+        ...(input.spell === undefined ? {} : { spell: input.spell }),
       }),
       origin: 'schedule',
       triggerEvent: {
@@ -296,4 +350,14 @@ async function claim(input: {
   });
   await automationRunsRepo(deps.meta).attachJob(run.id, job.id);
   return true;
+}
+
+/**
+ * A rule whose rows are chosen differently starts every spell afresh: what
+ * it remembered was told of rows the old conditions chose. The same rows, the
+ * same conditions and the same table keep what was told.
+ */
+export async function forgetSpellsIfChosenAnew(meta: MetaDb, ruleId: string, before: AutomationTrigger, after: AutomationTrigger): Promise<void> {
+  const chosen = (trigger: AutomationTrigger): string => (trigger.kind === 'schedule' && trigger.forEach !== undefined && trigger.forEach !== null ? JSON.stringify(trigger.forEach) : '');
+  if (chosen(before) !== chosen(after)) await automationSpellsRepo(meta).clear(ruleId);
 }

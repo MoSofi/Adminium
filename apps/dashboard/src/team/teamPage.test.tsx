@@ -184,17 +184,35 @@ describe('TeamPage row actions', () => {
     expect(alert.textContent).toContain('Cannot remove the last Super Admin.');
   });
 
-  it('says above the table why a suspend was refused', async () => {
+  it('says in the suspend dialog why a suspend was refused', async () => {
     installFetch({
-      [`PATCH /api/v1/users/${colleague.id}`]: () =>
+      [`DELETE /api/v1/users/${colleague.id}`]: () =>
         jsonResponse(403, { error: { code: 'FORBIDDEN', message: 'Only a Super Admin can change a Super Admin account.' } }),
     });
     renderTeam(adminBootstrap);
     const row = await rowOf('Cleo Viewer');
     await userEvent.click(within(row).getByRole('button', { name: 'Suspend' }));
+    const dialog = await screen.findByRole('dialog');
+    await userEvent.click(within(dialog).getByTestId('team-suspend-confirm'));
+
+    const alert = await within(dialog).findByTestId('team-suspend-error');
+    expect(alert.textContent).toContain('The account was not suspended');
+    expect(alert.textContent).toContain('Only a Super Admin can change a Super Admin account.');
+  });
+
+  it('says above the table why a reactivation was refused', async () => {
+    const away = user({ id: 'usr_away', name: 'Abe Away', email: 'abe@example.test', status: 'suspended' });
+    installFetch({
+      'GET /api/v1/users': () => jsonResponse(200, { users: [me, away], nextCursor: null, counts: { active: 1, invited: 0, suspended: 1 } }),
+      [`PATCH /api/v1/users/${away.id}`]: () =>
+        jsonResponse(409, { error: { code: 'CONFLICT', message: 'This account has never set a password — resend the invite instead.' } }),
+    });
+    renderTeam(adminBootstrap);
+    const row = await rowOf('Abe Away');
+    await userEvent.click(within(row).getByRole('button', { name: 'Reactivate' }));
 
     const alert = await screen.findByTestId('team-action-error');
-    expect(alert.textContent).toContain('Only a Super Admin can change a Super Admin account.');
+    expect(alert.textContent).toContain('This account has never set a password — resend the invite instead.');
   });
 });
 

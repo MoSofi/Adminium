@@ -13,6 +13,13 @@
 export interface AutomationsSearch {
   /** Which rule the flow builder is showing. */
   rule?: string | undefined;
+  /** Only the rules one installed app brought (its key): an entry of the app's section opens the screen so. */
+  app?: string | undefined;
+}
+
+/** An installed app's key, as an address may carry it; anything else is no filter. */
+export function appKeyOf(value: unknown): string | undefined {
+  return typeof value === 'string' && /^[a-z][a-z0-9-]{0,62}$/.test(value) ? value : undefined;
 }
 
 export interface WorkflowLogsSearch {
@@ -24,7 +31,8 @@ export interface WorkflowLogsSearch {
 
 /** Unknown values fall away rather than fail the route. */
 export function validateAutomationsSearch(search: Record<string, unknown>): AutomationsSearch {
-  return { ...(typeof search['rule'] === 'string' ? { rule: search['rule'] } : {}) };
+  const app = appKeyOf(search['app']);
+  return { ...(typeof search['rule'] === 'string' ? { rule: search['rule'] } : {}), ...(app === undefined ? {} : { app }) };
 }
 
 export function validateWorkflowLogsSearch(search: Record<string, unknown>): WorkflowLogsSearch {

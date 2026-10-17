@@ -536,7 +536,7 @@ test("a hook's message is in the skipped-rows report of a CSV import", async ({ 
     buffer: Buffer.from('customer_id,company_name\nIMPRT,Imported Goods\nBLKCS,Blocked Traders\n'),
   });
   await page.getByTestId('wizard-validate').click();
-  await expect(page.getByTestId('validation-summary')).toContainText('2 of 2 rows ready to import');
+  await expect(page.getByTestId('validation-summary')).toContainText('2 new lines will be brought in.');
   await page.getByTestId('wizard-run').click();
 
   const review = page.getByTestId('import-review');

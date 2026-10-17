@@ -34,6 +34,8 @@ import {
   settingsDefaultsReply,
   settingsEmailPutBody,
   settingsEmailReply,
+  settingsMapsPutBody,
+  settingsMapsReply,
   settingsSecurityPutBody,
   settingsSecurityReply,
   settingsTelemetryPutBody,
@@ -43,6 +45,7 @@ import {
   type SettingsEmailPutBody,
   type SettingsEmailReply,
   type SettingsEmailView,
+  type SettingsMapsReply,
   type SettingsSecurityReply,
   type SettingsTelemetryReply,
   type SettingsWorkspaceReply,
@@ -456,6 +459,76 @@ export function settingsRoutes(deps: SettingsRoutesDeps): FastifyPluginAsyncZod 
         });
 
         return telemetryReply();
+      },
+    );
+
+    // --- maps ----------------------------------------------------------------
+    // The two switches of Settings → Maps. The servers' addresses are the
+    // environment's and only shown. A write drops what the policy remembered,
+    // so the next reply's content security policy already agrees.
+
+    // The policy reads the same store these routes write (a harness may build the server without one).
+    if (app.hasDecorator('maps')) app.maps.attach(settings);
+
+    async function mapsReply(): Promise<SettingsMapsReply> {
+      const [enabled, routing] = await Promise.all([settings.get('maps.enabled'), settings.get('maps.routing')]);
+      const policy = app.hasDecorator('maps') ? app.maps : null;
+      const routingServer = policy !== null && policy.networkFeatures ? policy.routingServer : null;
+      return {
+        data: {
+          enabled: enabled !== false,
+          routing,
+          mapServer: policy?.mapServer ?? null,
+          mapServerOff: policy === null || policy.mapServer === null,
+          routingServer,
+          routingServerOff: routingServer === null,
+          runtime: policy?.runtime ?? 'self-host',
+        },
+      };
+    }
+
+    app.get(
+      '/settings/maps',
+      {
+        preHandler: app.rbac.require(PERMISSIONS.settingsManage),
+        schema: { response: { 200: settingsMapsReply } },
+      },
+      async () => mapsReply(),
+    );
+
+    app.put(
+      '/settings/maps',
+      {
+        preHandler: app.rbac.require(PERMISSIONS.settingsManage),
+        schema: { body: settingsMapsPutBody, response: { 200: settingsMapsReply } },
+      },
+      async (request) => {
+        const before = (await mapsReply()).data;
+        const next = request.body;
+        const at = app.rbac.now();
+        const actingUserId =
+          request.apiKeyPrincipal === null
+            ? ((request as unknown as { user?: { id?: string } }).user?.id ?? null)
+            : null;
+
+        // `enabled` is written even when it reads the same: an unanswered switch shows as on, and saying yes is an answer.
+        if (next.enabled !== undefined) await settings.set('maps.enabled', next.enabled, { updatedBy: actingUserId, at });
+        if (next.routing !== undefined && next.routing !== before.routing) {
+          await settings.set('maps.routing', next.routing, { updatedBy: actingUserId, at });
+        }
+        if (app.hasDecorator('maps')) app.maps.drop();
+
+        const after = (await mapsReply()).data;
+        await app.rbac.audit(request, {
+          category: 'settings',
+          action: 'settings.maps.update',
+          changes: {
+            before: { enabled: before.enabled, routing: before.routing },
+            after: { enabled: after.enabled, routing: after.routing },
+          },
+        });
+
+        return { data: after };
       },
     );
 

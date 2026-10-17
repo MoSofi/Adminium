@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * GENERATED MIRROR of ../../../locales/en-US/common.json (its builder, kb, about, team groups: en-US's deferred part of `common`) — do not edit by hand.
+ * GENERATED MIRROR of ../../../locales/en-US/common.json (its builder, kb, about, team, quietHours, security, reports, changelog, onboarding, audit, capabilities, palette, account, templates groups: en-US's deferred part of `common`) — do not edit by hand.
  * The JSON file is the canonical hand-authored bundle;
  * this TS mirror exists so the runtime can bundle a namespace (en-US's eager
  * ones) or chunk-split it (every other locale, and en-US's deferred `studio`)
@@ -452,14 +452,16 @@ export default {
       "remove": "Delete",
       "resend": "New link",
       "roles": "Roles",
-      "suspend": "Suspend"
+      "suspend": "Suspend",
+      "handOn": "Hand on rows"
     },
     "column": {
       "actions": "Actions",
       "lastSeen": "Last seen",
       "person": "Person",
       "roles": "Roles",
-      "status": "Status"
+      "status": "Status",
+      "teams": "Teams"
     },
     "counts": "{active} active · {invited} invited · {suspended} suspended",
     "empty": {
@@ -519,7 +521,15 @@ export default {
       "confirm": "Delete permanently",
       "prompt": "Type “{email}” to confirm",
       "title": "Delete account permanently",
-      "failed": "The account was not deleted"
+      "failed": "The account was not deleted",
+      "rows": {
+        "needed": "Choose who takes the rows first.",
+        "line": "{table}: {count}",
+        "to": "Hand them to",
+        "choose": "Choose a person…",
+        "kept": "Rows of private tables stay as they are: nobody else may read them.",
+        "unreadable": "Could not check {names}. Rows there may still name this person."
+      }
     },
     "roles": {
       "unavailable": "Roles are not visible to your account, so none can be assigned here."
@@ -531,15 +541,527 @@ export default {
     },
     "rolesLocked": "Changing roles needs the “Manage roles” permission.",
     "search": "Search name or email",
+    "sampleNote": "{count} sample people came with an app’s sample data. They cannot sign in, and removing the sample data removes them.",
     "status": {
       "active": "Active",
       "invited": "Invited",
+      "sample": "Sample person",
       "suspended": "Suspended"
     },
-    "subtitle": "Who has an account on this Adminium, and what each of them can do.",
-    "title": "Team",
+    "subtitle": "Everyone who can sign in, with their roles and teams.",
+    "title": "People",
     "twoFactorOn": "Two-factor authentication is on",
     "twoFactorShort": "2FA",
-    "actionFailed": "That change was not made"
+    "actionFailed": "That change was not made",
+    "teams": {
+      "title": "Teams",
+      "failed": "The team was not changed",
+      "over": "{name} leads more than {max} people. Only the first {max} are reached.",
+      "empty": "No teams yet",
+      "deleteTitle": "Delete “{name}”?",
+      "deleteBody": "Its lead stops reaching the members’ rows. Nobody’s account and nobody’s rows are touched.",
+      "delete": "Delete team",
+      "memberCount": "{count, plural, one {# person} other {# people}}",
+      "noMembers": "Nobody is in this team yet.",
+      "leads": "Leads",
+      "removeLabel": "Remove {name} from {team}",
+      "addMember": "Pick someone…",
+      "sample": "{name} (sample)",
+      "add": "Add",
+      "pageSubtitle": "Groups of people, each with someone who leads it.",
+      "notice": "A team decides whose records a person can open when their role says “their team’s”.",
+      "rolesLink": "Roles & access",
+      "newTeam": "New team",
+      "summary": "{teams, plural, one {# team} other {# teams}} · {people, plural, one {# person} other {# people}} in one or more",
+      "loadFailed": "The teams could not be read.",
+      "caption": "Teams, who leads each and who is in it",
+      "colTeam": "Team",
+      "colLead": "Lead",
+      "colMembers": "Members",
+      "noLead": "Nobody leads it",
+      "onlyLead": "Only the lead",
+      "inAll": "{names} · {count, plural, one {# person} other {# people}} in all",
+      "emptyBody": "Until there is one, a role set to “their team’s” opens the same rows as “their own”.",
+      "untitled": "Untitled team",
+      "sheetEyebrow": "Team",
+      "nameLabel": "Name",
+      "namePlaceholder": "e.g. North",
+      "people": "People",
+      "peopleHint": "Tick who leads. A lead’s “their team’s” covers everyone here.",
+      "addLabel": "Add a person",
+      "save": "Save team",
+      "needName": "Give the team a name first."
+    },
+    "teamLeads": "{team} (leads)",
+    "handOver": {
+      "title": "Hand their {count, plural, one {# row} other {# rows}} to…",
+      "remove": "{name} owns these. Removed for good, they would be nobody’s: choose who takes them.",
+      "suspend": "{name} owns these. Suspended, they stay {name}’s until somebody takes them.",
+      "later": "{name} is suspended and still owns these. Choose who takes them.",
+      "keep": "Nobody for now",
+      "laterTitle": "Hand {name}’s rows on",
+      "unknown": "Which rows name {name} could not be read.",
+      "none": "No row names {name}.",
+      "failed": "The rows were not handed over",
+      "confirm": "Hand them over"
+    },
+    "suspend": {
+      "title": "Suspend {name}?",
+      "body": "{name} can no longer sign in, and is signed out everywhere. Their account, roles and history stay, and you can reactivate them.",
+      "failed": "The account was not suspended",
+      "confirmHand": "Hand over and suspend"
+    }
+  },
+  "quietHours": {
+    "title": "Quiet hours",
+    "leadOn": "In these hours a notice still shows in the bell, without a sound. Only its e-mail waits, and goes when they end. Something a rule marks urgent is sent at once.",
+    "leadOff": "Off. Notices and their e-mails arrive as they happen.",
+    "on": "On",
+    "off": "Off",
+    "zone": "Your time zone",
+    "zoneDefault": "The business’s ({zone})",
+    "days": "Days and times",
+    "fromShort": "From",
+    "toShort": "to",
+    "from": "Quiet from, {day}",
+    "to": "Quiet until, {day}",
+    "endsOn": "ends {day}",
+    "copy": "Use {day}’s times every day",
+    "example": "An e-mail that comes at {from} on {day} is sent at {to} on {endDay}, unless its kind is ticked below.",
+    "always": "Still tell me at once about…",
+    "alwaysNote": "Summaries keep their own day and time, below.",
+    "summariesTitle": "Summaries",
+    "summariesLead": "E-mails a rule sends you with your own rows, such as a weekly digest. Each is an e-mail: in your quiet hours it waits like any other.",
+    "summariesOff": "Off. No rule sends you a summary. Your day and time are kept for when you switch them on.",
+    "digestDay": "Day",
+    "digestWhenRun": "The day each one is made",
+    "digestTime": "Time"
+  },
+  "security": {
+    "password": {
+      "changedBody": "Use the new password the next time you sign in. Other devices stay signed in — end those sessions if you want them out.",
+      "changed": "Password changed",
+      "confirm": "Confirm new password",
+      "current": "Current password",
+      "failed": "Could not change your password",
+      "helper": "At least 8 characters.",
+      "mismatch": "The two passwords do not match.",
+      "new": "New password",
+      "submit": "Change password",
+      "title": "Password"
+    },
+    "sessions": {
+      "expires": "Expires {at}",
+      "failedBody": "This list is the only place that shows where your account is signed in, so treat an empty one as unknown rather than as none.",
+      "failed": "Could not read your sessions",
+      "ip": "IP {ip}",
+      "loading": "Looking for other signed-in devices…",
+      "noIp": "No IP recorded",
+      "revokeBody": "The session ends immediately and whoever is using it has to sign in again.",
+      "revokeFailed": "Could not sign that device out",
+      "revokeTitle": "Sign this device out",
+      "revoke": "Sign out",
+      "seenUnknown": "Last seen: unknown",
+      "seen": "Last seen {since}",
+      "thisDevice": "This device",
+      "title": "Signed in",
+      "unknownDevice": "Unrecognised device"
+    },
+    "subtitle": "Your password, your second factor, and everywhere you are signed in.",
+    "title": "Security",
+    "twoFactor": {
+      "activateFailed": "That code was not accepted",
+      "activate": "Turn on two-factor",
+      "body": "An authenticator app generates a 6-digit code that Adminium asks for after your password.",
+      "code": "Code from your app",
+      "copyKey": "Copy setup key",
+      "copyLink": "Copy setup link",
+      "disableBody": "Your account goes back to password-only, and your recovery codes stop working.",
+      "disableConfirm": "Turn it off",
+      "disableFailed": "Could not turn off two-factor",
+      "disablePassword": "Your password",
+      "disableTitle": "Turn off two-factor authentication",
+      "disable": "Turn off two-factor",
+      "enrollFailed": "Could not start setup",
+      "enroll": "Set up two-factor",
+      "hide": "Hide setup key",
+      "off": "Off",
+      "on": "On",
+      "recovery": {
+        "body": "Each code signs you in once if you lose your authenticator. They are shown only now.",
+        "copy": "Copy codes",
+        "title": "Save your recovery codes"
+      },
+      "reveal": "Show setup key",
+      "secretHelper": "Paste the setup link into your authenticator, or type the key in by hand.",
+      "secret": "Setup key",
+      "title": "Two-factor authentication"
+    }
+  },
+  "reports": {
+    "title": "Scheduled reports",
+    "subtitle": "Recurring data snapshots of a page, delivered as in-app notifications.",
+    "new": "New report",
+    "loadFailed": "Could not load scheduled reports.",
+    "saveFailed": "Could not save this report.",
+    "nextRun": "Next run",
+    "emptyTitle": "No scheduled reports yet",
+    "emptyBody": "Create one to get a recurring data snapshot of any table page.",
+    "createTitle": "New scheduled report",
+    "editTitle": "Edit scheduled report",
+    "nameLabel": "Name",
+    "namePlaceholder": "e.g. Weekly revenue",
+    "pageLabel": "Page",
+    "pagePlaceholder": "Choose a page…",
+    "frequencyLabel": "Frequency",
+    "frequency": {
+      "daily": "Daily",
+      "weekly": "Weekly",
+      "monthly": "Monthly"
+    },
+    "dayOfWeekLabel": "Day",
+    "dayOfMonthLabel": "Day of month",
+    "timeLabel": "Time",
+    "timezoneLabel": "Timezone",
+    "formatLabel": "Delivery",
+    "formatHint": "Data snapshot (PDF/PNG rendering arrives in a later release) — each run produces a CSV snapshot and an in-app notification.",
+    "recipientsLabel": "Recipients",
+    "recipientsHint": "Stored with the report. Email delivery arrives in a later release — runs notify you in-app for now.",
+    "deliveryBadge": "CSV snapshot",
+    "delete": "Delete",
+    "create": "Create",
+    "cadence": {
+      "daily": "Daily at {time} ({zone})",
+      "weekly": "Weekly · {day} at {time} ({zone})",
+      "monthly": "Monthly · day {day} at {time} ({zone})"
+    }
+  },
+  "changelog": {
+    "title": "Changelog",
+    "subtitle": "Product updates & releases.",
+    "allReleases": "All releases",
+    "tag": {
+      "new": "New",
+      "improved": "Improved",
+      "fixed": "Fixed",
+      "security": "Security"
+    },
+    "filter": {
+      "all": "All",
+      "label": "Filter changes by type"
+    },
+    "empty": {
+      "title": "Nothing under this filter",
+      "body": "No release has carried a change of this kind yet.",
+      "clear": "Show all changes"
+    }
+  },
+  "onboarding": {
+    "title": "Getting started",
+    "subtitle": "A few steps to get your workspace ready.",
+    "loading": "Loading your setup checklist…",
+    "welcome": "Welcome to Adminium, {name} 👋",
+    "progressBody": "You’ve completed {done} of {total} setup steps. Finish the rest to unlock the full workspace.",
+    "completeBody": "You’re all set — your workspace is fully configured.",
+    "ringLabel": "{done} of {total} steps complete",
+    "done": "Done",
+    "skip": "Skip for now",
+    "goToWorkspace": "Go to workspace",
+    "help": {
+      "title": "Need a hand?",
+      "body": "We’re here to help you get set up fast."
+    },
+    "steps": {
+      "connectDatabase": {
+        "title": "Connect a database",
+        "desc": "Point Adminium at your Postgres, MySQL or SQLite — a read-only role is welcome.",
+        "time": "5 min",
+        "action": "Connect"
+      },
+      "chooseTables": {
+        "title": "Choose your tables",
+        "desc": "Pick which tables become pages — PII is masked by default.",
+        "time": "2 min",
+        "action": "Choose"
+      },
+      "inviteTeammates": {
+        "title": "Invite teammates",
+        "desc": "Bring your team in to explore and collaborate.",
+        "time": "2 min",
+        "action": "Invite"
+      },
+      "workspaceDefaults": {
+        "title": "Set workspace defaults",
+        "desc": "Theme, accent, density and language everyone starts with.",
+        "time": "1 min",
+        "action": "Set defaults"
+      }
+    },
+    "entry": {
+      "wayBack": "Getting started · {done}/{total}",
+      "dismiss": "Dismiss setup checklist",
+      "continue": "Continue setup",
+      "banner": "Finish setting up your workspace — {done} of {total} steps done."
+    }
+  },
+  "audit": {
+    "action": {
+      "view": "View"
+    },
+    "actor": {
+      "apiKey": "API key",
+      "automation": "Automation",
+      "system": "System",
+      "user": "User"
+    },
+    "category": {
+      "auth": "Sign-in & accounts",
+      "automation": "Automations",
+      "connection": "Connections",
+      "data": "Records",
+      "export": "Imports & exports",
+      "llm": "AI assist",
+      "rbac": "Roles & permissions",
+      "schema": "Schema",
+      "settings": "Settings",
+      "system": "System"
+    },
+    "column": {
+      "action": "Action",
+      "actor": "Actor",
+      "category": "Category",
+      "details": "Details",
+      "when": "When"
+    },
+    "drawer": {
+      "actorId": "Actor id",
+      "actorKind": "Actor type",
+      "after": "After",
+      "before": "Before",
+      "category": "Category",
+      "changes": "Changes",
+      "connection": "Connection",
+      "field": "Field",
+      "ip": "IP address",
+      "noChanges": "This action recorded no before/after images.",
+      "none": "None",
+      "requestId": "Request id",
+      "resource": "Resource",
+      "subtitle": "{actor} · {when}",
+      "truncated": "Truncated at 16 KB",
+      "userAgent": "User agent",
+      "subtitleVia": "{actor}, through {name} · {when}"
+    },
+    "empty": {
+      "body": "Changes to data, schema, settings and permissions land here as they happen.",
+      "filtered": {
+        "body": "Widen the date range or clear the category filter.",
+        "title": "Nothing matches these filters"
+      },
+      "title": "Nothing has been logged yet"
+    },
+    "filterActor": "Actor id",
+    "filterCategoryAny": "Any category",
+    "filterCategory": "Filter by category",
+    "filterFrom": "From",
+    "filterTo": "To",
+    "listFailed": {
+      "title": "Could not load the audit log"
+    },
+    "loadMore": "Load older entries",
+    "subtitle": "Every change made in this workspace, who made it, and what it changed.",
+    "title": "Audit log",
+    "via": "through {name}"
+  },
+  "capabilities": {
+    "heading": "App permissions",
+    "description": "Apps you install can ask to use this computer’s hardware. You approve each one, and can revoke access anytime.",
+    "grantedTo": "Allowed for {app}",
+    "status": {
+      "available": "Available",
+      "stub": "Not available yet",
+      "unavailable": "Unavailable"
+    },
+    "allow": {
+      "action": "Allow…"
+    },
+    "revoke": {
+      "action": "Revoke",
+      "saved": "Access revoked",
+      "failed": "Could not revoke access. Try again."
+    },
+    "grant": {
+      "saved": "Access allowed",
+      "failed": "Could not allow access. Try again."
+    },
+    "catalog": {
+      "printerEscpos": {
+        "name": "Receipt printer (ESC/POS)",
+        "scope": "Print to receipt printers and open a connected cash drawer"
+      }
+    },
+    "consent": {
+      "title": "Allow {app}?",
+      "subtitle": "{app} is asking to use this computer’s hardware.",
+      "willAllow": "This will allow {app} to:",
+      "revokeNote": "You can revoke this at any time in Settings → Desktop. Only allow apps you trust.",
+      "deny": "Not now",
+      "approve": "Allow"
+    }
+  },
+  "palette": {
+    "dialog": "Command palette",
+    "placeholder": "Type a command or search…",
+    "navigate": "Navigate",
+    "actions": "Actions",
+    "askAi": "Ask AI",
+    "shortcuts": "Keyboard shortcuts",
+    "signOut": "Sign out",
+    "themeDark": "Dark mode",
+    "themeLight": "Light mode",
+    "footerNavigate": "navigate",
+    "footerOpen": "select",
+    "footerClose": "close",
+    "recent": "Recent",
+    "searching": "Searching records…",
+    "records": "Records",
+    "empty": "No results for \"{query}\"",
+    "apps": "Apps"
+  },
+  "account": {
+    "title": "Account",
+    "subtitle": "The identity of your current session. Manage display preferences and notification settings on their dedicated pages.",
+    "preferencesLink": "Preferences",
+    "notificationsLink": "Notification settings",
+    "name": "Name",
+    "email": "Email",
+    "roles": "Roles",
+    "twoFactor": "Two-factor",
+    "on": "Enabled",
+    "off": "Off",
+    "nameRequired": "Enter your name.",
+    "emailHelper": "Used to sign in. Changing it needs your password.",
+    "confirmPassword": "Current password",
+    "confirmPasswordHelper": "Confirm it is you before your sign-in address changes.",
+    "save": "Save changes",
+    "saveFailed": "Could not save your profile",
+    "saved": "Profile updated",
+    "savedBody": "Your new details are in use across this workspace. If you changed your email, sign in with the new address from now on.",
+    "accessTitle": "Access",
+    "accessSubtitle": "What this account may do, and how it proves who it is.",
+    "rolesHelper": "Roles are granted by an administrator and cannot be changed from your own account.",
+    "manageTwoFactor": "Manage",
+    "setUpTwoFactor": "Set up",
+    "securityLink": "Password & sessions",
+    "preferences": {
+      "title": "Preferences",
+      "subtitle": "How Adminium looks and reads for you — on this and every device you sign in from.",
+      "workspaceDefault": "Workspace default",
+      "personal": "Personal",
+      "usingDefault": "Using workspace default ({value})",
+      "reset": "Reset to workspace default",
+      "resetFailed": "Could not reset this preference. Try again.",
+      "appliesInstantly": "Changes apply instantly and are saved to your profile."
+    }
+  },
+  "templates": {
+    "crud": {
+      "title": "Records",
+      "description": "Rows in a searchable table."
+    },
+    "dashboard": {
+      "title": "Dashboard",
+      "description": "Charts and figures you arrange."
+    },
+    "board": {
+      "title": "Board",
+      "description": "Cards in columns by status."
+    },
+    "calendar": {
+      "title": "Calendar",
+      "description": "Records on a month grid, by date."
+    },
+    "scheduler": {
+      "title": "Scheduler",
+      "description": "A timeline per person."
+    },
+    "logViewer": {
+      "title": "Logs",
+      "description": "Filterable event lines."
+    },
+    "files": {
+      "title": "Files",
+      "description": "Files and folders to browse."
+    },
+    "chat": {
+      "title": "Chat",
+      "description": "Threaded conversations."
+    },
+    "builder": {
+      "title": "Builder",
+      "description": "A drag-and-drop document canvas."
+    },
+    "wizard": {
+      "title": "Wizard",
+      "description": "Guided steps to finish a task."
+    },
+    "settings": {
+      "title": "Settings",
+      "description": "Preference rows with toggles."
+    },
+    "directory": {
+      "title": "Directory",
+      "searchPlaceholder": "Search people…",
+      "allFilter": "All",
+      "clearFilters": "Clear filters",
+      "detailTitle": "Person",
+      "emptyTitle": "No people yet",
+      "emptyBody": "People appear here as rows land in the table.",
+      "noMatchesTitle": "No matching people",
+      "noMatchesBody": "Try a different search or remove a filter.",
+      "errorTitle": "This directory failed to load",
+      "loading": "Loading people",
+      "memberCount": "{count} people",
+      "description": "People cards and an org chart."
+    },
+    "masterDetail": {
+      "title": "List & detail",
+      "allFilter": "All",
+      "clearFilters": "Clear filters",
+      "emptyTitle": "Nothing here yet",
+      "emptyBody": "Records appear here as rows land in the table.",
+      "noMatchesTitle": "No matching records",
+      "noMatchesBody": "Try removing a filter.",
+      "errorTitle": "This list failed to load",
+      "loading": "Loading records",
+      "selectPrompt": "Select a record",
+      "description": "A list, with the record beside it."
+    },
+    "queueInbox": {
+      "title": "Queue",
+      "approve": "Approve",
+      "reject": "Reject",
+      "allSegment": "All",
+      "approvedToast": "{count} approved.",
+      "rejectedToast": "{count} rejected.",
+      "undoneToast": "Decision undone.",
+      "failedToast": "Decision failed.",
+      "bulkFailed": "{failed} of {total} selected rows could not be updated.",
+      "undoFailedToast": "Could not undo this decision.",
+      "rejectTitle": "Reject requests",
+      "rejectCount": "Selected · {count}",
+      "rejectNote": "The requester will be notified with your note.",
+      "rejectPlaceholder": "Add a note for the requester…",
+      "rejectConfirm": "Reject",
+      "emptyTitle": "Nothing in the queue",
+      "emptyBody": "New requests appear here as they arrive.",
+      "caughtUpTitle": "You’re all caught up",
+      "caughtUpBody": "No requests in this tab right now.",
+      "errorTitle": "This queue failed to load",
+      "loading": "Loading queue",
+      "selectPrompt": "Select a request",
+      "daysUnit": "{count} days",
+      "description": "A work queue with approve and reject."
+    }
   }
 } as const;

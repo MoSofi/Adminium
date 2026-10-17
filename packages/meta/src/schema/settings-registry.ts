@@ -232,6 +232,20 @@ export const SETTINGS_REGISTRY = {
    */
   'publicApi.enabled': def(z.boolean(), false, 'Serve the scoped public API at /api/v1/public'),
   /*
+   * Whether maps are shown: one switch for the whole install. `null` until
+   * somebody answers — the install of the first app that shows maps asks,
+   * with the tick on. NOT portable: showing a map makes each browser fetch
+   * map pictures from a map server, which is this install's own decision.
+   */
+  'maps.enabled': def<boolean | null>(z.boolean().nullable(), null, 'Show maps (their pictures come from the map server)'),
+  /*
+   * Whether the SERVER asks the routing server for a route along roads. Off
+   * until somebody switches it on in Settings → Maps: it sends the ordered
+   * positions of a route's stops to another server. NOT portable, for the
+   * same reason as the switch above.
+   */
+  'maps.routing': def(z.boolean(), false, 'Ask the routing server for routes along roads'),
+  /*
    * The public API documentation page, `/api-docs`. It shows anyone
    * the endpoints that live keys can call. DEFAULT FALSE and NOT portable, for
    * the reason above: publishing a description of this database is an

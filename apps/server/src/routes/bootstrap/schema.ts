@@ -81,6 +81,22 @@ export const bootstrapNavItem = z.object({
    * empty.
    */
   addOnPage: z.object({ key: z.string(), ref: z.string() }).optional(),
+  /**
+   * The page is kept off the sidebar by its app (`nav.offRail`). It travels
+   * with the section all the same, to the people who may view it: it opens by
+   * its address, and the palette, the record links and the import targets
+   * that read the section still find it. Only the sidebar leaves it out.
+   */
+  offRail: z.literal(true).optional(),
+  /**
+   * Set on an entry of an app's section that is not a page (`navLinks`):
+   * where it opens. `pageId` is then `link:<ref>` and `slug` is empty. The
+   * address is the server's own, never the manifest's: a dashboard screen
+   * narrowed to the app, or the app's staff side. `document` says the address
+   * is not the dashboard's to draw (a staff side on its own address): it is
+   * opened as a new document.
+   */
+  link: z.object({ href: z.string(), document: z.boolean() }).optional(),
 });
 export type BootstrapNavItem = z.infer<typeof bootstrapNavItem>;
 
@@ -310,6 +326,20 @@ export const bootstrapReply = z.object({
      * are connected is the connections page's to say, to whoever may manage them.
      */
     hasConnections: z.boolean(),
+    /**
+     * Whether this person could bring a file in to at least one table now, so
+     * the menu offers "Import data" only to somebody it is of use to. True for
+     * a Super Admin, and for a role that holds the `import` action on a table,
+     * by name or by a wildcard, of a connection that is neither paused nor
+     * read-only; a table of an app's part that is switched off is held by
+     * nobody while it is off, and does not count.
+     *
+     * A hint for the menu, never an authorisation. It is read off the grants
+     * and the connections alone: whether the table named still exists, is
+     * read-only or private, and what the database lets this server write, are
+     * judged by `POST /imports` for the table chosen.
+     */
+    canImport: z.boolean(),
     /** Resolved axes (system → global → user) + provenance. */
     prefs: mePrefsResolvedView,
     nav: bootstrapNavTree,
@@ -412,6 +442,35 @@ export const bootstrapReply = z.object({
         }),
       )
       .optional(),
+    /**
+     * Pages of a part of an app that its owner switched off. In no sidebar;
+     * listed so a bookmark lands on "this part is switched off". Absent when
+     * there are none.
+     */
+    partOffPages: z.array(bootstrapNavItem).optional(),
+    /** The reader holds roles, and every one is of a part that is switched off: nothing is on for them. */
+    partsOff: z.literal(true).optional(),
+    /**
+     * Whether maps are shown, and from where. `server` is the map server's
+     * origin and is null whenever maps are off: this reply carries the
+     * address only while a map may be drawn, and the files the dashboard
+     * ships with never hold it.
+     *
+     * That is not to say a signed-out page cannot learn it. While maps are
+     * on, the content policy of EVERY reply names the map server's host,
+     * signed in or not, and it has to: the dashboard is one document, loaded
+     * before sign-in, and that document's policy is the one a map is drawn
+     * under after sign-in with no reload. The host is no secret (it is the
+     * operator's choice of map server). With maps off, nothing names it.
+     *
+     * `routing` says whether a route between stops may follow roads (asked
+     * by the server).
+     */
+    maps: z.object({
+      enabled: z.boolean(),
+      server: z.string().nullable(),
+      routing: z.boolean(),
+    }),
     /** Only on a server that runs a project folder (`adminium start` in a project, `adminium dev`). */
     project: bootstrapProject.optional(),
   }),

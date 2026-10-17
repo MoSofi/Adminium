@@ -30,12 +30,13 @@
  * projection plus `roleIds`; neither ever carries `passwordHash`,
  * `totpSecretEncrypted` or `recoveryCodes`.
  */
-import { infiniteQueryOptions } from '@tanstack/react-query';
+import { infiniteQueryOptions, queryOptions } from '@tanstack/react-query';
 import type { Tone } from '@adminium/ui';
 
 import { api } from '../app/api.js';
 
-export type UserStatus = 'active' | 'invited' | 'suspended';
+/** `sample`: a person an app's sample data made. Listed and marked; never signs in, never edited by hand. */
+export type UserStatus = 'active' | 'invited' | 'suspended' | 'sample';
 
 /**
  * `invited` is NOT settable through PATCH — it is the invite route's outcome,
@@ -73,7 +74,7 @@ export interface UsersListReply {
   /** Pass back as `cursor` for the next page; `null` on the last page. */
   nextCursor: string | null;
   /** Whole-directory tallies — NOT page-scoped, so they survive paging. */
-  counts: { active: number; invited: number; suspended: number };
+  counts: { active: number; invited: number; suspended: number; sample?: number };
 }
 
 /**
@@ -187,6 +188,8 @@ export function userStatusTone(status: UserStatus): Tone {
       return 'warn';
     case 'suspended':
       return 'danger';
+    case 'sample':
+      return 'neutral';
   }
 }
 
@@ -199,8 +202,9 @@ export function userStatusTone(status: UserStatus): Tone {
  * then cannot explain. The screen therefore spends the flag deliberately — see
  * the note on `TeamPage`'s remove flow.
  */
-export function userDeletePath(id: string, permanent: boolean): string {
-  return permanent ? `/api/v1/users/${id}?permanent=true` : `/api/v1/users/${id}`;
+export function userDeletePath(id: string, permanent: boolean, handTo?: string): string {
+  const query = [...(permanent ? ['permanent=true'] : []), ...(handTo === undefined || handTo === '' ? [] : [`handTo=${encodeURIComponent(handTo)}`])];
+  return query.length === 0 ? `/api/v1/users/${id}` : `/api/v1/users/${id}?${query.join('&')}`;
 }
 
 // --- instant formatting ------------------------------------------------------
@@ -295,10 +299,115 @@ export function patchUser(id: string, patch: UserPatch): Promise<UserDto> {
   return api.patch<UserDto>(`/api/v1/users/${id}`, patch);
 }
 
-export function deleteUser(id: string, permanent: boolean): Promise<UserDeleteReply> {
-  return api.delete<UserDeleteReply>(userDeletePath(id, permanent));
+/**
+ * `handTo`: whom the rows that are this person's go to. The server hands them over itself, once every guard on the
+ * account has passed and before the account changes: a hand-over made first, by a call of its own, could not be
+ * taken back when the removal was then refused.
+ */
+export function deleteUser(id: string, permanent: boolean, handTo?: string): Promise<UserDeleteReply> {
+  return api.delete<UserDeleteReply>(userDeletePath(id, permanent, handTo));
 }
 
 export function setUserRoles(id: string, roleIds: readonly string[]): Promise<UserDto> {
   return api.put<UserDto>(`/api/v1/users/${id}/roles`, { roleIds: [...roleIds] });
 }
+
+// --- teams ---------------------------------------------------------------------
+
+export interface TeamMemberDto {
+  userId: string;
+  name: string;
+  email: string;
+  status: UserStatus;
+  /** A lead reaches the rows of everyone in the team, where a role is held to "their team's rows". */
+  lead: boolean;
+}
+
+export interface TeamDto {
+  id: string;
+  name: string;
+  members: TeamMemberDto[];
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface TeamsReply {
+  teams: TeamDto[];
+  /** The most people one person's reach holds; `over` names who leads more than that. */
+  reachMax: number;
+  over: { userId: string; name: string }[];
+}
+
+export const TEAMS_KEY = ['teams'] as const;
+
+export function teamsQuery() {
+  return queryOptions({ queryKey: TEAMS_KEY, queryFn: () => api.get<TeamsReply>('/api/v1/teams') });
+}
+
+export function createTeam(name: string): Promise<TeamDto> {
+  return api.post<TeamDto>('/api/v1/teams', { name });
+}
+
+export function renameTeam(id: string, name: string): Promise<TeamDto> {
+  return api.patch<TeamDto>(`/api/v1/teams/${id}`, { name });
+}
+
+export function deleteTeam(id: string): Promise<unknown> {
+  return api.delete<unknown>(`/api/v1/teams/${id}`);
+}
+
+export function setTeamMember(teamId: string, userId: string, lead: boolean): Promise<TeamDto> {
+  return api.put<TeamDto>(`/api/v1/teams/${teamId}/members/${userId}`, { lead });
+}
+
+export function removeTeamMember(teamId: string, userId: string): Promise<TeamDto> {
+  return api.delete<TeamDto>(`/api/v1/teams/${teamId}/members/${userId}`);
+}
+
+// --- the rows that name a person -------------------------------------------------
+
+export interface NamedRows {
+  /** The rows that are the person's, by table and column: never a private table's. */
+  named: { connectionId: string; connectionName: string; tableId: string; tableLabel: string; column: string; rows: number }[];
+  /** Whether rows of a private table name the person: said, never counted. */
+  private: boolean;
+  /** Connections that could not be read: nothing is known of their rows. */
+  unreadable: { connectionId: string; connectionName: string }[];
+  /** Rows a hand-over would move. */
+  total: number;
+}
+
+export function userRowsQuery(userId: string) {
+  return queryOptions({
+    queryKey: ['users', 'rows', userId] as const,
+    // Asked afresh each time the dialog opens: a count from an hour ago is not what is about to be orphaned.
+    staleTime: 0,
+    gcTime: 0,
+    queryFn: async (): Promise<NamedRows> => {
+      // Read field by field: an answer that is not this route's (an older server) is "nothing known", never a crash.
+      const reply = await api.get<Partial<NamedRows>>(`/api/v1/users/${userId}/rows`);
+      return { named: reply.named ?? [], private: reply.private === true, unreadable: reply.unreadable ?? [], total: reply.total ?? 0 };
+    },
+  });
+}
+
+/**
+ * A suspended person's rows, handed on afterwards (`POST /users/:id/rows/hand-over`). The server refuses it while the
+ * person is still active: an active colleague's rows are theirs.
+ */
+export function handOverRows(userId: string, to: string): Promise<unknown> {
+  return api.post<unknown>(`/api/v1/users/${userId}/rows/hand-over`, { to });
+}
+
+/** The named rows as a hand-over dialog lists them: one line per table, and whether a private table's rows stay behind. */
+export function namedRowsByTable(rows: NamedRows): { moved: { label: string; rows: number }[]; kept: boolean } {
+  const moved = new Map<string, { label: string; rows: number }>();
+  for (const one of rows.named) {
+    const key = `${one.connectionId}/${one.tableId}`;
+    const held = moved.get(key) ?? { label: one.tableLabel, rows: 0 };
+    held.rows += one.rows;
+    moved.set(key, held);
+  }
+  return { moved: [...moved.values()].sort((a, b) => b.rows - a.rows || a.label.localeCompare(b.label)), kept: rows.private };
+}
+

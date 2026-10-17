@@ -230,6 +230,7 @@ function definitionOf(
     ...(entry.writable === undefined ? (entry.visibleWith === undefined ? {} : { writable: [] }) : { writable: [...entry.writable] }),
     ...(entry.writableValues === undefined ? {} : { writable_values: { ...entry.writableValues } }),
     ...(entry.requires === undefined ? {} : { requires: [...entry.requires] }),
+    ...(entry.requiresWhen === undefined ? {} : { requires_when: structuredClone(entry.requiresWhen) }),
     ...(entry.files === undefined ? {} : { files: [...entry.files] }),
     ...(nested.writableWhen === undefined ? {} : { writable_when: structuredClone(nested.writableWhen) }),
     ...(entry.defaults === undefined ? {} : { defaults: { ...entry.defaults } }),

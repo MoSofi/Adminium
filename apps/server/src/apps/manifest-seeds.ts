@@ -160,7 +160,10 @@ export async function writeManifestSeeds(input: SeedsInput): Promise<SeedsResult
       const checked = await writes.check('create', target, context, [values], { capacity: 'unchecked' });
       const good = checked.rows[0];
       if (good === null || good === undefined) throw refused(ref, checked.issues[0]);
-      const stored = await insertRow(db, source.dialect, table, good);
+      // What the check does not judge, the database does (a key that names no row): said as a refused row, never in the database's own words.
+      const stored = await insertRow(db, source.dialect, table, good).catch((error: unknown) => {
+        throw refused(ref, [{ message: error instanceof Error ? error.message : String(error) }], `A starting row for "${ref}" was refused by the database: it names a row that is not there, or breaks a rule of the table.`);
+      });
       if (typeof label === 'string') {
         labels.set(label, table.primaryKey.length === 1 ? stored[table.primaryKey[0]!] : Object.fromEntries(table.primaryKey.map((column) => [column, stored[column]])));
       }

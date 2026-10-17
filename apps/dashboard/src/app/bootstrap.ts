@@ -120,6 +120,14 @@ export interface NavItem {
   addOnKey?: string | null;
   /** A page that is the add-on's own code: it opens at the add-on's page route, and has no slug. */
   addOnPage?: { key: string; ref: string };
+  /** An app's page its manifest keeps off the sidebar: it opens by its address and is found by search, and the rail leaves it out. */
+  offRail?: true;
+  /**
+   * An entry of an app's section that is not a page: where it opens. It has no
+   * slug. `document` is an address the dashboard does not draw (a staff side
+   * on its own address): it opens as a new document.
+   */
+  link?: { href: string; document: boolean };
 }
 
 export interface NavTree {
@@ -228,6 +236,13 @@ export interface BootstrapData {
    * always sends it.
    */
   hasConnections?: boolean;
+  /**
+   * Whether this person could bring a file in to at least one table now: the
+   * menu offers "Import data" unless this is false. A hint only; the import
+   * itself is judged by the server for the table chosen. Absent from an older
+   * server, which is read as "offer it", as before.
+   */
+  canImport?: boolean | undefined;
   prefs: ResolvedPrefs;
   nav: NavTree;
   version: string;
@@ -316,6 +331,21 @@ export interface BootstrapData {
    * instead of a 404. Absent when there are none, and from an older server.
    */
   featurePages?: FeaturePage[];
+  /**
+   * Pages of a part of an app that its owner switched off — in no sidebar,
+   * read only by the page route, which says so instead of a 404. Absent when
+   * there are none, and from an older server.
+   */
+  partOffPages?: NavItem[];
+  /** Every role the reader holds is of a part of an app that is switched off: nothing is on for them. */
+  partsOff?: true;
+  /**
+   * Whether maps are shown and from where. `server` is the map server's
+   * origin, null whenever maps are off (the operator, the desktop app or
+   * Settings → Maps said no): draw no map then. `routing` says whether a
+   * route between stops may follow roads. Absent from an older server.
+   */
+  maps?: { enabled: boolean; server: string | null; routing: boolean };
   /**
    * The project folder this server runs, absent on every other server. Read
    * through `project/client.ts`.
@@ -411,7 +441,7 @@ export function appSectionsOf(bootstrap: BootstrapData): AppSection[] {
 
 /** Every page the sections list that is opened by its slug: an add-on's page of its own code is not one. */
 export function appPagesOf(bootstrap: BootstrapData): NavItem[] {
-  return appSectionsOf(bootstrap).flatMap((section) => section.groups.flatMap((group) => group.items.filter((item) => item.addOnPage === undefined)));
+  return appSectionsOf(bootstrap).flatMap((section) => section.groups.flatMap((group) => group.items.filter((item) => item.addOnPage === undefined && item.link === undefined)));
 }
 
 /** The add-on rail rows and groups, never undefined — see the field's note. */

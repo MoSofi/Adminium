@@ -273,6 +273,18 @@ export const columnModelSchema = z.strictObject({
   isUnique: z.boolean().default(false),
   /** Computed/stored generated column. */
   isGenerated: z.boolean().default(false),
+  /**
+   * The column's rule says it holds a position on the map (`column.place`).
+   * Not introspected: overlaid by whoever composes a page, as `label` is, so
+   * the generator offers a map bound to this one column.
+   */
+  place: z.literal(true).optional(),
+  /**
+   * The column's rule says it holds an area on the map (`column.area`, a
+   * GeoJSON polygon). Overlaid as `place` is: a generated page gives it its
+   * field, and keeps it out of the list's default columns.
+   */
+  area: z.literal(true).optional(),
   /** EnumDef.id when logicalType='enum'. */
   enumRef: z.string().nullable().default(null),
   maxLength: z.number().int().positive().nullable().default(null),

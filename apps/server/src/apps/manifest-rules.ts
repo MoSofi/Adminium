@@ -74,8 +74,9 @@ import { installedShapes } from '../documents/app-profiles.js';
 import { ownsBlocks } from './owns-blocks.js';
 import { canonicalJson } from './sample-data.js';
 import { mapTableRefs } from './real-refs.js';
-import { adjustRuleIssue, bookingRuleIssue, capacityRuleIssue, columnRuleIssue, keptColumnIssue, postingsRuleIssue, statesRuleIssue } from '../connections/column-rules-validation.js';
+import { adjustRuleIssue, belongsRuleIssue, bookingRuleIssue, occupiesRuleIssue, capacityRuleIssue, columnRuleIssue, keptColumnIssue, postingsRuleIssue, statesRuleIssue } from '../connections/column-rules-validation.js';
 import { applyOverrides, columnsShown } from '../connections/effective-schema.js';
+import { ValidationFailedError } from '../errors.js';
 import { shareCodesOn, type ShareCodes } from '../public-api/share-codes.js';
 import { roleSlugFor } from './manifest-roles.js';
 
@@ -103,6 +104,7 @@ export type RuleOp =
   | 'column.pii'
   | 'column.secret'
   | 'column.label'
+  | 'column.semanticType'
   | 'column.lookup'
   | 'column.announce'
   | 'column.tableRef'
@@ -110,8 +112,17 @@ export type RuleOp =
   | 'column.codeLast4'
   | 'column.plainText'
   | 'column.customerKey'
+  | 'column.staff'
+  | 'column.mentions'
+  | 'column.place'
+  | 'column.area'
+  | 'column.linkable'
+  | 'column.file'
+  | 'table.belongs'
+  | 'table.private'
   | 'table.capacity'
   | 'table.booking'
+  | 'table.occupies'
   | 'table.states'
   | 'table.postings'
   | 'table.adjust'
@@ -119,9 +130,9 @@ export type RuleOp =
   | 'table.keyField';
 
 /** Ops that name things rather than rule a write: no column-rule check applies. */
-const NAMING_OPS: ReadonlySet<RuleOp> = new Set(['column.label', 'column.yesNo', 'table.label', 'table.keyField']);
+const NAMING_OPS: ReadonlySet<RuleOp> = new Set(['column.label', 'column.yesNo', 'column.semanticType', 'table.label', 'table.keyField']);
 /** Ops that belong to the table, not one of its columns. */
-const TABLE_OPS: ReadonlySet<RuleOp> = new Set(['table.capacity', 'table.booking', 'table.states', 'table.postings', 'table.adjust', 'table.label', 'table.keyField']);
+const TABLE_OPS: ReadonlySet<RuleOp> = new Set(['table.capacity', 'table.booking', 'table.occupies', 'table.states', 'table.postings', 'table.adjust', 'table.belongs', 'table.private', 'table.label', 'table.keyField']);
 
 interface DesiredRule {
   /** Written only on a table this app created, and silently left out elsewhere (Adminium asks it, not the manifest). */
@@ -243,6 +254,17 @@ export function opsForRules(appKey: string, rules: ColumnRules): { op: RuleOp; v
   if (rules.codeLast4 !== undefined) out.push({ op: 'column.codeLast4', value: { ...rules.codeLast4 } });
   if (rules.plainText !== undefined) out.push({ op: 'column.plainText', value: { plainText: rules.plainText === true ? true : { ...rules.plainText } } });
   if (rules.customerKey !== undefined) out.push({ op: 'column.customerKey', value: { ...rules.customerKey } });
+  if (rules.staff === true) out.push({ op: 'column.staff', value: { staff: true } });
+  if (rules.mentions !== undefined) out.push({ op: 'column.mentions', value: { mentions: rules.mentions === true ? true : { about: rules.mentions.about } } });
+  if (rules.place === true) out.push({ op: 'column.place', value: { place: true } });
+  if (rules.area === true) out.push({ op: 'column.area', value: { area: true } });
+  // The conditions, and the pairs of columns, name columns that keep their names: nothing to make real.
+  if (rules.linkable !== undefined) {
+    const { where, same } = rules.linkable;
+    out.push({ op: 'column.linkable', value: { ...(where === undefined ? {} : { where: where.map((condition) => ({ ...condition })) }), ...(same === undefined ? {} : { same: same.map((pair) => ({ ...pair })) }) } });
+  }
+  // A list of files is told by how many it holds: on SQLite a json column is TEXT, so the column's type cannot say it.
+  if (rules.file !== undefined) out.push({ op: 'column.file', value: { accept: [...rules.file.accept], maxBytes: rules.file.maxBytes, ...(rules.file.maxCount === undefined ? {} : { maxCount: rules.file.maxCount }) } });
   return out;
 }
 
@@ -255,18 +277,25 @@ export function opsForRules(appKey: string, rules: ColumnRules): { op: RuleOp; v
 export function tableOpsFor(table: {
   capacity?: unknown;
   booking?: unknown;
+  occupies?: unknown;
   states?: unknown;
   postings?: readonly object[] | undefined;
   adjust?: unknown;
-}): { op: 'table.capacity' | 'table.booking' | 'table.states' | 'table.postings' | 'table.adjust'; value: Record<string, unknown> }[] {
+  belongs?: readonly object[] | undefined;
+  private?: true | undefined;
+}): { op: 'table.capacity' | 'table.booking' | 'table.occupies' | 'table.states' | 'table.postings' | 'table.adjust' | 'table.belongs' | 'table.private'; value: Record<string, unknown> }[] {
   const out: ReturnType<typeof tableOpsFor> = [];
   for (const [op, value] of [
     ['table.capacity', table.capacity],
     ['table.booking', table.booking],
+    ['table.occupies', table.occupies],
     ['table.states', table.states],
     // The table's postings are one rule: `{postings}`, each kept as the manifest spells it.
     ['table.postings', table.postings === undefined ? undefined : { postings: table.postings.map((posting) => ({ ...posting })) }],
     ['table.adjust', table.adjust],
+    // Whose a row is: the ways are one rule, `{ways}`; a listing's table is named by its short ref and made real with the rest.
+    ['table.belongs', table.belongs === undefined ? undefined : { ways: table.belongs.map((way) => structuredClone(way)) }],
+    ['table.private', table.private === true ? { private: true } : undefined],
   ] as const) {
     if (value === undefined) continue;
     // Several limits are stored as `{rules}`; one stays the object a released app has always written.
@@ -454,9 +483,21 @@ export async function writeManifestRules(input: {
   manifest: Manifest;
   connectionId: string;
   createdBy: string | null;
+  /**
+   * Stop on a rule this server judges wrong for a table the install itself
+   * made (`RuleRefusedError`), instead of leaving it out and saying so only
+   * in the reply. Such a rule is the manifest's own fault — nothing of the
+   * operator's stands in its way — and an app installed without it runs
+   * without something it says it does (a quote's approval that remembers
+   * nothing). A rule left out for the operator's sake (they
+   * keep their own, a table is shared, a secret is theirs to show, an add-on
+   * is not here) is still only skipped.
+   */
+  refuse?: boolean;
 }): Promise<RulesResult> {
   const { meta, manifest, connectionId } = input;
   const result: RulesResult = { written: 0, skipped: [], removed: 0, lists: [] };
+  const refused: RuleSkip[] = [];
   if (!ownsBlocks(manifest)) return result;
 
   // ── option lists ──────────────────────────────────────────────────────
@@ -560,6 +601,10 @@ export async function writeManifestRules(input: {
         const shape = shapeOwned(table, column.ref, 'column.scale');
         desired.push({ ref: table.ref, table: real.id, column: column.ref, op: 'column.scale', value: { scale: column.scale }, ...(shape === undefined ? {} : { shape }) });
       }
+      // A column the app keeps money in (`semantic`, `type` or a currency's places): money wherever Adminium draws it — a board's totals, a chart's table — whatever it is called.
+      if (column.semantic === 'money' || column.type === 'money' || column.scale === 'currency') {
+        desired.push({ ref: table.ref, table: real.id, column: column.ref, op: 'column.semanticType', value: { semanticType: 'money' } });
+      }
       /*
        * `default: "now"` is filled by Adminium, on every create through every
        * door. On MySQL it has to be: the column is a `DATETIME`, which keeps
@@ -632,6 +677,11 @@ export async function writeManifestRules(input: {
     if (!wanted.has(target)) return;
     wanted.delete(target);
     const skip = (reason: string) => result.skipped.push({ table: rule.table, column: rule.column, op: rule.op, reason });
+    /** Judged wrong for the table as it is: on a table this install made, nobody's doing but the manifest's. */
+    const judged = (reason: string) => {
+      skip(reason);
+      if (record.state === 'created') refused.push({ table: rule.table, column: rule.column, op: rule.op, reason });
+    };
     // The live-model check every nested ref gets: a table this install does
     // not have is never stored, whatever op names it.
     if ((rule.missing ?? []).length > 0) {
@@ -679,7 +729,7 @@ export async function writeManifestRules(input: {
     const tableLevel = TABLE_OPS.has(rule.op);
     const column: ColumnModel | undefined = table.columns.find((c) => c.name === rule.column);
     if (!tableLevel && column === undefined) {
-      skip(`"${table.name}" has no column "${rule.column}".`);
+      judged(`"${table.name}" has no column "${rule.column}".`);
       return;
     }
     const request = {
@@ -695,21 +745,31 @@ export async function writeManifestRules(input: {
       validateOverrideInput(request);
     } catch (error) {
       if (error instanceof MetaValidationError) {
-        skip(error.message);
+        judged(error.message);
         return;
       }
       throw error;
     }
     if (rule.op === 'table.keyField' && !table.columns.some((c) => c.name === rule.value['column'])) {
-      skip(`"${table.name}" has no column "${String(rule.value['column'])}".`);
+      judged(`"${table.name}" has no column "${String(rule.value['column'])}".`);
       return;
     }
-    if (rule.op === 'table.capacity' || rule.op === 'table.booking' || rule.op === 'table.states' || rule.op === 'table.postings' || rule.op === 'table.adjust') {
+    if (rule.op === 'table.private') {
+      // Says nothing a table could contradict: whose its rows are is `table.belongs`, written beside it.
+    } else if (rule.op === 'table.belongs') {
+      const issue = belongsRuleIssue(rule.value, table, model);
+      if (issue !== null) {
+        judged(issue);
+        return;
+      }
+    } else if (rule.op === 'table.capacity' || rule.op === 'table.booking' || rule.op === 'table.occupies' || rule.op === 'table.states' || rule.op === 'table.postings' || rule.op === 'table.adjust') {
       const check =
         rule.op === 'table.capacity'
           ? capacityRuleIssue
           : rule.op === 'table.booking'
             ? bookingRuleIssue
+            : rule.op === 'table.occupies'
+              ? occupiesRuleIssue
             : rule.op === 'table.postings'
               ? postingsRuleIssue
               : rule.op === 'table.adjust'
@@ -717,19 +777,19 @@ export async function writeManifestRules(input: {
                 : statesRuleIssue;
       const issue = check(rule.value, table, model);
       if (issue !== null) {
-        skip(issue);
+        judged(issue);
         return;
       }
     } else if (!NAMING_OPS.has(rule.op) && rule.op !== 'column.enumLabels' && rule.op !== 'column.pii' && rule.op !== 'column.secret' && column !== undefined) {
       const issue = columnRuleIssue(
-        rule.op as Exclude<RuleOp, 'column.enumLabels' | 'column.pii' | 'column.secret' | 'column.label' | 'column.yesNo' | 'table.capacity' | 'table.booking' | 'table.states' | 'table.postings' | 'table.adjust' | 'table.label' | 'table.keyField'>,
+        rule.op as Exclude<RuleOp, 'column.enumLabels' | 'column.pii' | 'column.secret' | 'column.label' | 'column.yesNo' | 'column.semanticType' | 'table.capacity' | 'table.booking' | 'table.occupies' | 'table.states' | 'table.postings' | 'table.adjust' | 'table.belongs' | 'table.private' | 'table.label' | 'table.keyField'>,
         rule.value,
         column,
         model,
         knownLists,
       );
       if (issue !== null) {
-        skip(issue);
+        judged(issue);
         return;
       }
     }
@@ -823,7 +883,20 @@ export async function writeManifestRules(input: {
     for (const rule of desired.filter((r) => r.ref === record.ref && readsKept(r.op))) await place(record, kept, rule);
     await appTablesRepo(meta).setRules(record.id, kept);
   }
+  if (input.refuse === true && refused.length > 0) throw new RuleRefusedError(manifest.key, refused);
   return result;
+}
+
+/** A rule of a manifest that this server judged wrong for a table the install itself made. */
+export class RuleRefusedError extends ValidationFailedError {
+  constructor(key: string, rules: readonly RuleSkip[]) {
+    const first = rules[0]!;
+    const where = first.column === '' ? first.table : `${first.table}.${first.column}`;
+    super(
+      `"${key}" cannot be installed as it is written: ${rules.length === 1 ? 'a rule' : `${String(rules.length)} rules`} of its manifest cannot be kept on its own tables. ${where} (${first.op}): ${first.reason}`,
+      { reason: 'RULE_REFUSED', rules: rules.map((rule) => ({ table: rule.table, column: rule.column, op: rule.op, reason: rule.reason })) },
+    );
+  }
 }
 
 /** What stops being guaranteed when a shape's rule is switched off — the kind of promise it keeps. */
@@ -898,6 +971,9 @@ export async function ownRules(meta: MetaDb, records: readonly AppTableRecord[],
  * instead: its labels and choices stay, and are taken back when the last app
  * using the table leaves.
  */
+/** The rules that say whose a table's rows are: kept on a private table that outlives its app. */
+const WHOSE_ROWS_OPS: ReadonlySet<string> = new Set(['table.private', 'table.belongs', 'column.staff']);
+
 export async function removeManifestRules(meta: MetaDb, records: readonly AppTableRecord[], connectionId: string): Promise<number> {
   const all = await overridesRepo(meta).listForConnection(connectionId);
   const active = all.filter((o) => o.status === 'active');
@@ -920,8 +996,17 @@ export async function removeManifestRules(meta: MetaDb, records: readonly AppTab
       const handed = ours.filter((rule) => !held.has(rule.overrideId)).map((rule) => ({ ...rule, handedFrom: rule.handedFrom ?? record.appKey }));
       if (handed.length > 0) await repo.setRules(holder.id, [...holder.rules, ...handed]);
     } else {
-      for (const rule of ours) await overrides.delete(rule.overrideId);
-      removed += ours.length;
+      /*
+       * A table that stays behind when its app leaves stays private: its
+       * mark, the ways people belong to its rows and the columns that hold
+       * them are left where they are (they are nobody's rules to manage from
+       * then on, and read as before). Dropped with its table, they name
+       * nothing and do nothing.
+       */
+      const keepsPrivate = active.some((o) => o.op === 'table.private' && o.tableName === record.tableName);
+      const gone = ours.filter((rule) => !(keepsPrivate && WHOSE_ROWS_OPS.has(byId.get(rule.overrideId)?.op ?? '')));
+      for (const rule of gone) await overrides.delete(rule.overrideId);
+      removed += gone.length;
     }
     await repo.setRules(record.id, []);
   }

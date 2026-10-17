@@ -16,6 +16,8 @@
  * `json` is JSON-lines (one object per line). `xlsx` is rejected at the
  * route; a row that reaches here anyway fails cleanly.
  */
+import { assertNotPrivate } from '../crud/row-limit.js';
+import { permissionSetAllows, resolvePermissionSet } from '../rbac/resolver.js';
 import {
   auditRepo,
   exportsRepo,
@@ -35,6 +37,7 @@ import type { ConnectionManager } from '../connections/manager.js';
 import { LIST_LIMIT_MAX, runList, type ListResult } from '../crud/list.js';
 import { loadSnapshotView } from '../data-io/snapshot-view.js';
 import { readViewForUser } from '../crud/read-view.js';
+import { assertNoPrivateProjection, limitProjections, rowLimitContextForUser, rowTestOf } from '../crud/row-limit-context.js';
 import { filtersToWhere, resolveExportDefinition, sanitizeFileName } from '../export/definition.js';
 import { createRowWriter, type WriterColumn } from '../export/writer.js';
 import type { FileStore } from '../files/store.js';
@@ -158,7 +161,21 @@ async function runExport(
   const whole = await loadSnapshotView(deps.meta, row.connectionId);
   const view = payload.userId === undefined ? whole : await readViewForUser(deps.meta, payload.userId, whole);
   const table = view.table(row.source.table);
+  // A table marked private since the file was asked for (or a report scheduled): not written.
+  assertNotPrivate(table, 'it is not exported');
+  // …and only while they may still export the table at all: a grant taken away since they asked is not outlived by the queue.
+  if (payload.userId !== undefined && !permissionSetAllows(await resolvePermissionSet(deps.meta, { kind: 'user', id: payload.userId, label: payload.userId }), `table:${row.connectionId}:${table.id}:export`)) {
+    throw new Error('You no longer have export access to this table.');
+  }
   const { db, dialect } = await deps.manager.data(row.connectionId);
+  /*
+   * The rows the person who asked reaches, as their roles stand NOW: the file
+   * holds what they could list, and a limit put on them since they asked
+   * holds. With nobody behind the job, no row: a file is not a place to find
+   * out that nobody was asked.
+   */
+  const reach = await rowLimitContextForUser(deps.meta, payload.userId, row.connectionId, whole.model);
+  const rowTest = rowTestOf(reach, table.id, 'read') ?? undefined;
 
   const where = filtersToWhere(row.source.filters);
 
@@ -191,7 +208,7 @@ async function runExport(
     : NO_DERIVED;
   const columns: WriterColumn[] = definition.legacy
     ? [
-        ...definition.columns.map((column) => ({ key: column.key, header: column.key, numeric: false })),
+        ...definition.columns.map((column) => ({ key: column.key, header: column.key, numeric: false, place: column.place })),
         ...derived.measures.map((measure) => ({ key: measure.alias, header: measure.alias, numeric: false })),
         ...derived.fields.map((field) => ({ key: field.id, header: field.id, numeric: false })),
       ]
@@ -199,6 +216,7 @@ async function runExport(
         key: column.key,
         header: column.header,
         numeric: column.numeric,
+        place: column.place,
       }));
   const projection = definition.legacy
     ? {
@@ -215,6 +233,9 @@ async function runExport(
         measures: definition.measures,
         fields: definition.fields,
       };
+  // A looked-up value and a figure in the file: over the rows of its table the requester reaches.
+  assertNoPrivateProjection(projection.lookups, projection.measures);
+  limitProjections(reach, projection.lookups, projection.measures);
   const rowWriter = createRowWriter(row.format === 'csv' ? 'csv' : 'json', columns, {
     legacy: definition.legacy,
     headerRow: row.source.options?.headerRow,
@@ -264,6 +285,7 @@ async function runExport(
         },
         canReadPii: payload.unmasked,
         dialect,
+        rowTest,
         lookups: projection.lookups,
         measures: projection.measures,
         derivedFields: projection.fields,

@@ -26,14 +26,16 @@ import type { Kysely } from 'kysely';
 import type { SourceDatabase } from '../connections/manager.js';
 import { slotInstant } from '../crud/capacity-guard.js';
 import { addOnSetting } from '../crud/write-stores.js';
-import type { ResolvedColumn } from '../crud/identifiers.js';
+import type { ResolvedColumn, SnapshotView } from '../crud/identifiers.js';
 import type { Row } from '../crud/mask.js';
 import { venueClock, wallTimeToInstant } from '../crud/venue-time.js';
 import { sameValue } from '../crud/write-values.js';
 
 export type DueSpec = NonNullable<OutboxProducer['due']>;
 export type DropCondition = NonNullable<OutboxProducer['dropWhen']>[number];
-export type SkipReason = 'overtaken' | 'paid' | 'void' | 'no-longer-needed' | 'by-hand';
+import type { SkipReason } from './skip-sentence.js';
+
+export { skipSentence, type SkipReason } from './skip-sentence.js';
 
 const DAY_MS = 86_400_000;
 /** When a held message wakes, on the venue's clock, unless its producer says. */
@@ -43,12 +45,13 @@ export const DEFAULT_WAKE = '09:00';
 export type SettingReader = (source: SettingSource) => Promise<unknown>;
 
 /**
- * A setting as stored: the app's own settings row (its first row), or an
- * add-on's settings in the meta store — the saved value, else the default the
- * add-on declares (the write path's own reader, `crud/write-stores.ts`). A list kept as JSON text (a SQLite
- * `json` column, a text column) is read as the list.
+ * A setting as stored: the app's own settings row (its first row: the one
+ * with the lowest key, when `view` says what the key is), or an add-on's
+ * settings in the meta store — the saved value, else the default the add-on
+ * declares (the write path's own reader, `crud/write-stores.ts`). A list kept
+ * as JSON text (a SQLite `json` column, a text column) is read as the list.
  */
-export function settingReader(meta: MetaDb, db: Kysely<SourceDatabase>): SettingReader {
+export function settingReader(meta: MetaDb, db: Kysely<SourceDatabase>, view?: Pick<SnapshotView, 'linkTable'>): SettingReader {
   const memo = new Map<string, Promise<unknown>>();
   return (source) => {
     const key = 'addOn' in source ? `addOn:${source.addOn}:${source.setting}` : `table:${source.table}:${source.column}`;
@@ -58,7 +61,10 @@ export function settingReader(meta: MetaDb, db: Kysely<SourceDatabase>): Setting
         // The saved value, else the add-on's declared default: a ladder nobody
         // has saved yet is the one the add-on ships, not "no days".
         if ('addOn' in source) return parsed(await addOnSetting(meta, source.addOn, source.setting));
-        const row = (await db.selectFrom(source.table as never).select(source.column as never).limit(1).executeTakeFirst()) as Row | undefined;
+        // Ordered by the key: a table with a second row, by mistake or by a restore, still reads the same one on every engine.
+        let query = db.selectFrom(source.table as never).select(source.column as never);
+        for (const key of view?.linkTable(source.table)?.primaryKey ?? []) query = query.orderBy(key as never);
+        const row = (await query.limit(1).executeTakeFirst()) as Row | undefined;
         return parsed(row?.[source.column]);
       })();
       memo.set(key, found);
@@ -173,6 +179,7 @@ export function producerOf(definition: Outbox, kind: unknown): OutboxProducer | 
 export function sourceOf(producer: OutboxProducer): { table: string; via: string | undefined } {
   if ('onCreate' in producer) return { table: producer.onCreate.table, via: producer.onCreate.via };
   if ('onChange' in producer) return { table: producer.onChange.table, via: producer.onChange.via };
+  if ('onDelete' in producer) return { table: producer.onDelete.table, via: undefined };
   return { table: producer.before.table, via: undefined };
 }
 
@@ -196,18 +203,3 @@ export function cameDue(status: unknown, due: unknown, now: number): boolean {
   return instant !== null && instant.getTime() <= now;
 }
 
-/** What the error column says of a skip when the outbox keeps no reason column. */
-export function skipSentence(reason: SkipReason): string {
-  switch (reason) {
-    case 'overtaken':
-      return 'Overtaken by a later message';
-    case 'paid':
-      return 'No longer needed: paid';
-    case 'void':
-      return 'No longer needed: void';
-    case 'by-hand':
-      return 'Skipped by hand';
-    default:
-      return 'No longer needed';
-  }
-}

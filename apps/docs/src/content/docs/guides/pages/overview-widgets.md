@@ -139,6 +139,46 @@ The `window` picks which days are folded. An hour with no rows has no bar. The h
 venue's, UTC where the connection names no time zone. It is a bucket only: a `window` in
 `hour-of-day`, a date column, and an `ohlc` chart are refused with `422`.
 
+## Which day a period is
+
+A chart's `bucket` cuts rows into hours, days, weeks, months, quarters or years, and each point's
+`t` says which.
+
+- **A week, a month, a quarter, a year** is said by its first day at midnight UTC: July 2026 is
+  `2026-07-01T00:00:00.000Z` on every database, wherever the server and the database keep their
+  clocks. It is a day of the calendar, not a moment: read it in UTC fields, as the charts do.
+- **A `date` column** has no clock. Its days and longer periods are the days it holds.
+- **A column of times** is cut on the venue's clock where the connection names a time zone: a
+  sale at half past midnight on the 1st belongs to the month it is in there. Where it names
+  none, the UTC calendar is used. A week starts on Monday.
+- **An hour and a day of a column of times** are the venue's too, and are said as the moment
+  they begin there.
+
+:::note[Upgrading]
+On Postgres a period used to be cut on the database's own clock, which is the host's when nobody
+set another: July could come back as 30 June, 22:00 UTC. It is now the same day as on MySQL and
+SQLite. And with a time zone on the connection, a week, a month, a quarter and a year of a column
+of times are now the venue's on all three, as an hour and a day already were; they used to be
+UTC's.
+:::
+
+## A figure is a number
+
+`count` and `count_distinct` count anything. `sum`, `avg`, `min`, `max` and `percentile` take a
+number column. Over a `date` or a time column they are refused with `422`
+(`details.reason: "not-a-number"`, with the `column` and the aggregation's alias): the earliest
+of a date column is a day, and a card reads a figure as a number. Ask for the row instead, which
+is read as its reader reaches the rows:
+
+```json
+{ "shape": "record-list", "source": { "name": "followups" },
+  "select": ["id", "due_on"], "orderBy": [{ "column": "due_on", "dir": "asc" }], "limit": 1 }
+```
+
+:::note[Upgrading]
+Such a figure used to answer `0` (and a sum of dates whatever the database made of them).
+:::
+
 ## KPIs over a limit
 
 A table with a [limit](/reference/manifest/#capacity) knows what is taken of each pool. A binding
@@ -251,13 +291,81 @@ leave the first line. An empty value is left out of the second line.
 "secondary": ["room_type", "depart"]
 ```
 
+## Groups by a person
+
+A group keyed by a staff column (`"groupBy": ["owner_id"]`, a column with `rules.staff`) is called
+by the person's name without asking; `groupLabel` is for links. The rule is the people list's: a
+signed-in reader is told the name of anybody who is here, or is a sample person. Somebody
+suspended, only invited or removed is called "Unnamed person" in the reader's language, and so is
+everybody when the reader is an API key. A group is never called by an id. The groups are still
+only those of the rows the reader reaches, so a rep held to their own rows sees one bar, their own.
+A `matrix` carries keys and no labels at all, for a person as for anything else.
+
+A `record-list` may ask the same of its rows: `"people": ["owner_id"]` (up to four staff columns,
+each among `select`) adds `people` to the answer, the name of each person those rows hold by
+their id. `"daysSince": ["days:entered_stage_at"]` (up to two, `alias:column`) puts on each row,
+under `alias`, the whole days from a date or time column to today, counted by the server on the
+calendar of where the business is; a row with no date has none, a date to come counts 0.
+
+## A whole team's figures
+
+Every other card answers what its reader reaches: a rep's "open pipeline" is the rep's own. Under
+a heading that says "the team" that would be wrong twice: her own figure read as the business's,
+and a colleague's target beside it. A binding of `"kind": "team-figures"` is for those cards. It
+is answered **whole or not at all**: only to a person no row limit holds on the rows' table and on
+the targets' table, whose roles read both. Anybody else gets no figure; the card says "For the
+whole team only" and why. It never shows a part of the figure, and never a zero.
+
+```json
+"binding": {
+  "kind": "team-figures",
+  "source": { "name": "deals" },
+  "shape": "record-list",
+  "team": {
+    "owner": "owner_id",
+    "figures": [
+      { "key": "open", "fn": "count", "where": [{ "column": "state", "in": ["open"] }] },
+      { "key": "weighted", "fn": "sum", "column": "weighted_value", "where": [{ "column": "state", "in": ["open"] }] },
+      { "key": "booked", "fn": "sum", "column": "amount", "where": [{ "column": "state", "in": ["won"] }], "thisYear": "closed_on" }
+    ],
+    "target": { "table": "targets", "owner": "rep_id", "column": "amount", "year": "year" },
+    "cover": ["weighted", "booked"]
+  }
+}
+```
+
+- `owner` is the staff column of the table that says whose a row is.
+- `figures` (one to four) are each a `count` of rows or a `sum` of a number column, over the rows
+  that pass `where` (up to three `{ column, in }`) and, with `thisYear`, whose date column falls
+  in the current year where the business is. A key is lower-case letters, digits and `_`, and not
+  `name`, `person`, `target` or `cover`.
+- `target` names a table with a staff column and a number column. With `year` (a column holding
+  the year as a number), this year's targets are read.
+- `cover` lists the sums added up and measured against the target: 0.53 is 53 %. A person with no
+  target above zero has no cover, and neither has a team with none.
+
+As `record-list` the answer is a line a person, by name: `name`, each figure under its key,
+`target` and `cover`, with the team's own line under `totals`. Rows nobody owns are a line of
+their own, named "—", so the lines add up to the team's. Give a `mini-table` or a `data-grid` its
+`columns` by those names. As `single-metric` it is one figure over everybody: `"metric"` is a
+figure's key, `"target"` or `"cover"` (`cover` when there is one, else the first figure), so a
+`kpi-stat-card` with a percent format draws the team's cover.
+
+A role that should see these cards needs the table rights with no row limit (`rows` left out of
+its grant) on both tables. A manager whose role reads "their team's rows" is held by a limit, and
+is shown no figure: give such a manager cards of the ordinary kind, which answer her own reach.
+
 ## A chart's figures as a table
 
 Every chart and map card also carries its figures as a table: hidden from sight, read by a screen
 reader, captioned with the card's title and subtitle. Its **Show data** button swaps the chart for
 that table in place, and back. The figures are formatted as the card formats its own, a money
-card's in its currency, and periods as the axis reads them. A pair has a column per figure, named
-by the card's `series`. There is no table, and no button, while the card loads or when it has
+card's in its currency, and periods as the axis reads them. A figure that is a sum (an average,
+the least, the most, a percentile) of a money column is written in the card's currency whatever
+the card says: a column Adminium takes for money by its name (`amount`, `total`), or one the app
+declares money (`"semantic": "money"`, a `money` column or `"scale": "currency"`), so a pair of
+the deals' count and their weighted value reads `3` and `£3,635`. A count is a number. A pair has
+a column per figure, named by the card's `series`. There is no table, and no button, while the card loads or when it has
 nothing to draw.
 
 ## Words in the reader's language
@@ -271,6 +379,7 @@ A card's words may come in other languages, keyed by language tag like `titles`:
 | `metricLabels` | `metricLabel`, the caption on a KPI card |
 | `emptyState.titles`, `emptyState.bodies` | What an empty card says |
 | `series[].labels` | A chart's bar names |
+| `columns[].labels` | `columns[].label`, a `data-grid`'s column heading (a `detail-key-value`'s row name) |
 
 The reader's language picks one: the same tag, else any tag of the same language (a `fr-FR` word
 serves a reader in `fr-CA`), else the word it translates stands. Each is 1–240 characters (a title
@@ -278,6 +387,21 @@ serves a reader in `fr-CA`), else the word it translates stands. Each is 1–240
 
 A KPI with no figure (occupancy when there is nothing to sell) shows the card's empty state, never
 a zero. A figure of zero is shown as 0.
+
+## A card of an app's part
+
+A card of an app's dashboard may belong to one of the app's [parts](/guides/apps/parts/):
+`"module": "inbox"` on the layout entry, beside `i` and `widget`. While that part is off the card
+is not drawn, for everybody, and the rest of the page is; a layout saved meanwhile keeps the card
+where it was. An install that leaves the part out leaves the card out too, and so any card over
+one of the part's tables. Needs Adminium 0.3.28.
+
+## A link to the app's staff side
+
+A toolbar link, or a card's `href`, may open the app's own staff screens: `"@staff"` the first,
+`"@staff/approvals"` the screen at `approvals`, inside the dashboard or on the side's own address.
+The path is plain segments, with no query, no `#` and no `..`. See
+[the reference](/reference/manifest/#pages). `@staff/<path>` needs Adminium 0.3.28.
 
 ## KPI icons
 
@@ -397,10 +521,11 @@ A card's refusal is its own: in a batch, the other cards are answered. Codes are
 
 | Code | Status | When |
 |---|---|---|
-| `VALIDATION_FAILED` | 422 | Filters: a group too deep or empty, more than 16 conditions, a day that breaks its rules. A ranking ordered through another link. `hour-of-day` as a window or on a date column. `counts` beside anything but a list, over rows that are not the limit's pools, on a slot limit, on a table with no limit, without the key selected, or under a name the list has. A `capacity-counts` binding with query parts or a `metric` on a list or a chart, `earnings` off a night limit priced by the night or over rows with their own currency, a limit number the table does not have, a week where the counts take one day. |
+| `VALIDATION_FAILED` | 422 | Filters: a group too deep or empty, more than 16 conditions, a day that breaks its rules. A ranking ordered through another link. `hour-of-day` as a window or on a date column. A `sum`, `avg`, `min`, `max` or `percentile` of a date or a time column. `counts` beside anything but a list, over rows that are not the limit's pools, on a slot limit, on a table with no limit, without the key selected, or under a name the list has. A `capacity-counts` binding with query parts or a `metric` on a list or a chart, `earnings` off a night limit priced by the night or over rows with their own currency, a limit number the table does not have, a week where the counts take one day. |
 | `TABLE_FORBIDDEN` | 403 | The reader may not read the card's table, a table a filter or an order reaches, the limited table, a pools' table, or the rates behind earnings. |
 | `COLUMN_FORBIDDEN` | 403 | A column one link away, a column asked `under`, or the price behind earnings is masked for the reader or outside their role's columns. |
 | `NOT_FOUND` | 404 | A `capacity-counts` binding over a table with no limit. |
+| `TEAM_FIGURE_WHOLE_ONLY` | 403 | A `team-figures` binding asked by somebody a row limit holds on the rows' table or the targets' table. The card says the figure is the whole team's. |
 
 For the rules a limit counts by, see [Capacity](/reference/manifest/#capacity); for a booking that
 takes a person's time rather than a seat, see [Booking rules](/guides/apps/booking-rules/).

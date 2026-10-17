@@ -5,7 +5,10 @@
  * schema, chunked insert/upsert through the same snapshot-allowlisted
  * identifiers the POST /data path uses (view.table / view.column — the
  * -item-1 invariant), one audit entry, and a realtime fan-out on
- * `table:<conn>:<table>` so open grids refetch.
+ * `table:<conn>:<table>` so open grids refetch. What each line becomes (a new
+ * row, an update, a line left alone or refused) is decided by
+ * `data-io/import-judge.ts`, which the preview route asks as well; this file
+ * writes what it says.
  *
  * Grants are enforced AT REQUEST TIME: the imports route checks
  * `table:<conn>:<table>:import` before the row is created and again before
@@ -18,6 +21,7 @@
  * Every skipped row lands in the error-report CSV (`error_report_file_id`).
  * The invariant holds either way: total = inserted + updated + skipped.
  */
+import { tableFrameReach } from '../widget-data/stream-publisher.js';
 import {
   auditRepo,
   filesRepo,
@@ -30,31 +34,21 @@ import type { Kysely } from 'kysely';
 import { z } from 'zod';
 
 import type { ConnectionManager, SourceDatabase } from '../connections/manager.js';
-import type { ResolvedColumn, ResolvedTable, SnapshotView } from '../crud/identifiers.js';
-import { tableRulesFor, type FieldIssues } from '../crud/column-rules.js';
+import { tableRulesFor } from '../crud/column-rules.js';
 import type { Row } from '../crud/mask.js';
+import { rowRefinement } from '../crud/row-limit.js';
 import {
   HookFailedError,
   HookRejectedError,
-  bindValue,
-  createWriteService,
   insertRow,
   insertRows,
   updateRows,
   type CheckedRow,
   type RecordWriteService,
-  type WriteContext,
-  type WriteTarget,
 } from '../crud/write-service.js';
-import { writeStores } from '../crud/write-stores.js';
-import { coerceCell } from '../data-io/coerce.js';
 import { EXPORT_BOM, createCsvParser, serializeCsvRow } from '../data-io/csv.js';
-import { loadSnapshotView } from '../data-io/snapshot-view.js';
-import { assertImportReadable, readViewOf } from '../crud/read-view.js';
-import { AppError } from '../errors.js';
-import { scrubRefusal } from '../routes/data/refusal-scrub.js';
-import { resolvePermissionSet } from '../rbac/resolver.js';
-import { assertImportCreatable, createLimitOf, updateLimitOf } from '../rbac/update-limits.js';
+import { openImportJudge, type ImportLine, type MappedColumn } from '../data-io/import-judge.js';
+import { NotFoundError } from '../errors.js';
 import type { FileStore } from '../files/store.js';
 import { widgetDataChannel, type RealtimeHub } from '../realtime/hub.js';
 import type { WidgetDataCache } from '../widget-data/cache.js';
@@ -86,12 +80,6 @@ export interface ImportRunDeps {
   now?: (() => number) | undefined;
 }
 
-
-/**
- * An import brings in history: yesterday's bookings are not new ones for a
- * booking limit to judge, and a table that has one takes its rows here.
- */
-const HISTORY = { capacity: 'unchecked' } as const;
 
 export function registerImportRunHandler(registry: JobRegistry, deps: ImportRunDeps): void {
   const now = deps.now ?? Date.now;
@@ -138,30 +126,6 @@ async function executeImportRun(
   }
 }
 
-/** Resolve the mapping into (csv column index → resolved target column). */
-function resolveMapping(
-  header: readonly string[],
-  mapping: DataImport['mapping'],
-  view: SnapshotView,
-  table: ResolvedTable,
-): { index: number; from: string; column: ResolvedColumn }[] {
-  const byName = new Map<string, number>();
-  header.forEach((name, index) => byName.set(name.trim(), index));
-  const out: { index: number; from: string; column: ResolvedColumn }[] = [];
-  for (const entry of mapping.columns) {
-    if (entry.to === null) continue; // "Don't import"
-    // A code (a shared link's token) is Adminium's to make, never a file's to bring.
-    if (table.table.columns.find((column) => column.name === entry.to)?.code !== undefined) continue;
-    const index = byName.get(entry.from.trim());
-    if (index === undefined) {
-      throw new Error(`mapped source column ${JSON.stringify(entry.from)} is not in the file header`);
-    }
-    out.push({ index, from: entry.from, column: view.column(table, entry.to) });
-  }
-  if (out.length === 0) throw new Error('the mapping imports no columns');
-  return out;
-}
-
 async function runImport(
   row: DataImport,
   payload: ImportRunPayload,
@@ -172,66 +136,26 @@ async function runImport(
   const imports = importsRepo(deps.meta);
   const files = filesRepo(deps.meta);
 
-  const connection = await deps.manager.mustFind(row.connectionId);
-  if (connection.readOnly) {
-    throw new Error('This connection is read-only — Adminium never writes to it.');
-  }
-  const view = await loadSnapshotView(deps.meta, row.connectionId);
-  const table = view.table(row.tableName);
-  if (table.readOnly) throw new Error(`Table ${table.id} is read-only.`);
+  // The table, the requester as their roles stand now, and each line's verdict: `data-io/import-judge.ts`, which the preview asks too.
+  const judge = await openImportJudge(deps, row, payload.userId);
+  const { table, db, dialect, writes, writeTarget, context, hooked, mode, reach, updateTest } = judge;
+  const matchResolved = judge.match;
+  const toldOf = judge.told;
 
   const upload = await files.findById(row.fileId);
   if (upload === null) throw new Error(`import-run: upload file row missing: ${row.fileId}`);
-  const { db, dialect } = await deps.manager.data(row.connectionId);
-  const writes = deps.writes ?? createWriteService(writeStores(deps.meta));
-  const writeTarget: WriteTarget = { connectionId: row.connectionId, view, table, db, dialect };
-  const context: WriteContext = {
-    origin: 'import',
-    hops: 0,
-    actor:
-      payload.userId === undefined
-        ? { kind: 'system', id: null, label: 'system' }
-        : { kind: 'user', id: payload.userId, label: payload.userId },
-    request: null,
-  };
-  // Hooks judge rows one at a time, so a table with any hook for this import
-  // is written row by row. Asked once: the hooks in force when the import
-  // started decide how the whole file is written.
-  const hooked = {
-    create:
-      (await writes.wants('before', 'create', writeTarget, context)) ||
-      (await writes.wants('after', 'create', writeTarget, context)),
-    update:
-      (await writes.wants('before', 'update', writeTarget, context)) ||
-      (await writes.wants('after', 'update', writeTarget, context)),
-  };
-
-  const mode = row.options.mode ?? 'insert';
   const skipInvalid = row.options.skipInvalid ?? true;
-  const matchColumn = mode === 'upsert' ? (row.options.matchColumn ?? null) : null;
-  if (mode === 'upsert' && matchColumn === null) {
-    throw new Error('upsert mode requires options.matchColumn');
-  }
-  const matchResolved = matchColumn === null ? null : view.column(table, matchColumn);
-  // As the person who asked reads the table, again now: a role narrowed since the import was made is held to it.
-  let readView: SnapshotView | null = null;
-  if (row.requestedBy !== null) {
-    const permissions = await resolvePermissionSet(deps.meta, { kind: 'user', id: row.requestedBy, label: row.requestedBy });
-    readView = readViewOf(view, permissions);
-    assertImportReadable(readView, table.id, row.mapping.columns, matchColumn, updateLimitOf(permissions, row.connectionId, table.id)?.writable ?? null);
-    assertImportCreatable(createLimitOf(permissions, row.connectionId, table.id), table.id, row.mapping.columns);
-  }
-  /**
-   * A refused row's words, as the person who asked may read them: a role that
-   * reads the table only in part is told a refusal as the data routes tell it
-   * (no value of a column it may not read), and the database's own words
-   * (which may quote a stored value) not at all.
-   */
-  const toldOf = (error: unknown): string => {
-    if (readView === null || !readView.readLimited) return error instanceof Error ? error.message : String(error);
-    if (!(error instanceof AppError)) return 'the database refused the row';
-    return (scrubRefusal(error, readView, readView.table(table.id)) as AppError).message;
+  /** The stored row a file's row matches, among the rows the requester's update reaches. */
+  const matched = async (column: string, value: unknown): Promise<Row | undefined> => {
+    let query = (db as Kysely<SourceDatabase>).selectFrom(table.id).selectAll().where((eb) => eb(db.dynamic.ref(column), '=', value));
+    if (updateTest !== null) query = query.where(updateTest(db as Kysely<SourceDatabase>, table.name));
+    return (await query.limit(1).executeTakeFirst()) as Row | undefined;
   };
+  /** Whether a row that an UPDATE wrote nothing of left the requester's reach meanwhile (an engine also counts nothing for a row that already held the values). */
+  const handedOn = async (column: string, value: unknown): Promise<boolean> => updateTest !== null && (await matched(column, value)) === undefined;
+  /** …and the same test in the UPDATE itself: a row handed on between the match and the write is not written. */
+  // (Left out on MySQL for a table reached through a parent in the same table, which MySQL will not read inside its own UPDATE: there the match stands alone.)
+  const within = rowRefinement(reach, db as Kysely<SourceDatabase>, table, 'update') as never;
 
   // --- stream-parse the CSV ---------------------------------------------------
   const parser = createCsvParser();
@@ -239,14 +163,16 @@ async function runImport(
   stream.setEncoding('utf8');
 
   let header: string[] | null = null;
-  let mapped: { index: number; from: string; column: ResolvedColumn }[] | null = null;
+  let mapped: MappedColumn[] | null = null;
 
   const issues: RowIssue[] = [];
   let total = 0;
   let inserted = 0;
   let updated = 0;
   let skipped = 0;
-  let pending: { rowNumber: number; values: Record<string, unknown>; raw: string[] }[] = [];
+  /** Lines of a `skip` import whose row was already here: left alone, counted in `skipped`, and no error. */
+  let alreadyHere = 0;
+  let pending: ImportLine[] = [];
 
   const fail = (message: string): never => {
     throw new Error(message);
@@ -258,27 +184,17 @@ async function runImport(
     pending = [];
     if (ctx.signal.aborted) throw new JobCancelledError(ctx.jobId);
 
-    if (mode === 'upsert' || hooked.create) {
-      for (const item of chunk) await writeOne(item, mode === 'upsert');
+    if (!judge.fast) {
+      for (const item of chunk) await writeOne(item);
     } else {
-      /*
-       * THE FAST PATH, AND WHY IT HAS TO ASK FOR THE RULES ITSELF.
-       *
-       * No hook wants this write, so `beforeEach` never runs and the chunk
-       * goes straight into one INSERT. A rule placed inside the hook step
-       * would therefore never fire for a hook-less import — which is most
-       * imports. `check()` is the fill and the check without the hooks, and
-       * the branded rows it returns are the only thing `insertRows` accepts.
-       */
-      const checked = await writes.check('create', writeTarget, context, chunk.map((item) => item.values), HISTORY);
-      const good: { item: (typeof chunk)[number]; values: CheckedRow }[] = [];
+      // THE FAST PATH: no hook wants this write and nothing limits its requester, so the chunk is checked together and goes into one INSERT.
+      const verdicts = await judge.lines(chunk, { hooks: true });
+      const good: { item: ImportLine; values: CheckedRow }[] = [];
       for (const [i, item] of chunk.entries()) {
-        const values = checked.rows[i];
-        if (values === null || values === undefined) {
-          refuseRow(item, checked.issues[i] ?? null);
-          continue;
-        }
-        good.push({ item, values });
+        const verdict = verdicts[i]!;
+        // Every line of an import that matches nothing is new or refused.
+        if (verdict.status === 'new') good.push({ item, values: verdict.values });
+        else if (verdict.status === 'refused') refuseRow(item, verdict);
       }
       if (good.length === 0) {
         reportProgress();
@@ -300,7 +216,7 @@ async function runImport(
         written = true;
       } catch {
         // Isolate the offending row(s): replay the chunk row-by-row.
-        for (const entry of good) await writeOne(entry.item, false);
+        for (const entry of good) await writeOne(entry.item);
       }
       if (written) {
         inserted += good.length;
@@ -325,114 +241,49 @@ async function runImport(
   }
 
   /**
-   * A row the column rules refused. Reported with its FIELD and the reason —
-   * the import's whole value over a raw INSERT is telling somebody which cell
-   * to fix. With `skipInvalid` off it throws, exactly as a driver error does.
+   * A row the judge refused. Reported with its FIELD and the reason — the
+   * import's whole value over a raw INSERT is telling somebody which cell to
+   * fix. With `skipInvalid` off it throws, exactly as a driver error does.
    */
-  function refuseRow(
-    item: { rowNumber: number; values: Record<string, unknown>; raw: string[] },
-    fieldIssues: FieldIssues | null,
-  ): void {
-    const [column, issue] = Object.entries(fieldIssues ?? {})[0] ?? ['', null];
-    const code = issue?.code ?? 'invalid';
-    const message = column === '' ? `the value was refused (${code})` : `${column}: ${code}`;
-    if (!skipInvalid) fail(`row ${item.rowNumber}: ${message}`);
+  function refuseRow(item: ImportLine, verdict: { code: string; column: string; message: string }): void {
+    if (!skipInvalid) fail(`row ${item.rowNumber}: ${verdict.message}`);
     skipped += 1;
-    issues.push({ row: item.rowNumber, column, code: 'REFUSED', message, raw: item.raw.join(',') });
+    issues.push({ row: item.rowNumber, column: verdict.column, code: verdict.code, message: verdict.message, raw: item.raw.join(',') });
   }
 
-  async function writeOne(
-    item: { rowNumber: number; values: Record<string, unknown>; raw: string[] },
-    upsert: boolean,
-  ): Promise<void> {
+  /** One line judged, then written: on its own, so what stops it stops only it. */
+  async function writeOne(item: ImportLine): Promise<void> {
+    const [verdict] = await judge.lines([item], { hooks: true });
+    if (verdict === undefined) return;
+    if (verdict.status === 'refused') {
+      refuseRow(item, verdict);
+      return;
+    }
     try {
-      if (upsert && matchResolved !== null) {
-        const matchValue = item.values[matchResolved.name];
-        if (matchValue === undefined || matchValue === null) {
-          // An unmapped/empty match cell must never reach the driver: `= NULL`
-          // matches nothing (silent duplicate insert) or throws per driver.
-          const message = `the upsert match column ${matchResolved.name} has no value`;
-          if (!skipInvalid) fail(`row ${item.rowNumber}: ${message}`);
+      if (verdict.status === 'here') {
+        // Left as it is: the row is here, and this import was asked to change none.
+        if (verdict.values === null || matchResolved === null) {
           skipped += 1;
-          issues.push({
-            row: item.rowNumber,
-            column: matchResolved.name,
-            code: 'BAD_MATCH',
-            message,
-            raw: item.raw.join(','),
-          });
+          alreadyHere += 1;
           return;
         }
+        const existing = verdict.before;
+        const matchValue = item.values[matchResolved.name];
         const match = { [matchResolved.name]: matchValue };
-        if (hooked.update) {
-          const existing = await (db as Kysely<SourceDatabase>)
-            .selectFrom(table.id)
-            .selectAll()
-            .where((eb) => eb(db.dynamic.ref(matchResolved.name), '=', matchValue))
-            .limit(1)
-            .executeTakeFirst();
-          if (existing !== undefined) {
-            const before = existing as Row;
-            const [prepared] = await writes.beforeEach(
-              'update',
-              writeTarget,
-              context,
-              [{ values: item.values, record: before }],
-              HISTORY,
-            );
-            if (prepared === undefined) return;
-            if (prepared.issues !== null) {
-              refuseRow(item, prepared.issues);
-              return;
-            }
-            await updateRows(db, dialect, table, prepared.values, match);
-            updated += 1;
-            await afterImportWrite('update', match, before);
-            return;
-          }
-        } else {
-          // The whole row: the parent it fed before, when this update moves it to another.
-          const existing = (await (db as Kysely<SourceDatabase>)
-            .selectFrom(table.id)
-            .selectAll()
-            .where((eb) => eb(db.dynamic.ref(matchResolved.name), '=', matchValue))
-            .limit(1)
-            .executeTakeFirst()) as Row | undefined;
-          if (existing !== undefined) {
-            // Prepared against the row as it is: a formula over it (a line's
-            // amount, when only its qty is in the file) reads the stored inputs.
-            const [prepared] = await writes.beforeEach('update', writeTarget, context, [{ values: item.values, record: existing }], HISTORY);
-            const values = prepared?.values;
-            if (prepared === undefined || values === undefined || prepared.issues !== null) {
-              refuseRow(item, prepared?.issues ?? null);
-              return;
-            }
-            await updateRows(db, dialect, table, values, match);
-            updated += 1;
-            await writes.settle('update', writeTarget, [{ record: { ...existing, ...values, ...match }, before: existing }]);
-            return;
-          }
-        }
+        if ((await updateRows(db, dialect, table, verdict.values, match, within)) === 0 && (await handedOn(matchResolved.name, matchValue))) throw new NotFoundError('Record not found.');
+        updated += 1;
+        if (hooked.update) await afterImportWrite('update', match, existing);
+        // The whole row: the parent it fed before, when this update moves it to another.
+        else await writes.settle('update', writeTarget, [{ record: { ...existing, ...verdict.values, ...match }, before: existing }]);
+        return;
       }
       if (hooked.create) {
-        const [prepared] = await writes.beforeEach('create', writeTarget, context, [{ values: item.values }], HISTORY);
-        if (prepared === undefined) return;
-        if (prepared.issues !== null) {
-          refuseRow(item, prepared.issues);
-          return;
-        }
-        const stored = await insertRow(db, dialect, table, await writes.followed(writeTarget, db as Kysely<SourceDatabase>, prepared.values));
+        const stored = await insertRow(db, dialect, table, await writes.followed(writeTarget, db as Kysely<SourceDatabase>, verdict.values));
         inserted += 1;
         await writes.afterEach('create', writeTarget, context, [{ record: stored, before: null }]);
         return;
       }
-      const checked = await writes.check('create', writeTarget, context, [item.values], HISTORY);
-      const values = checked.rows[0];
-      if (values === null || values === undefined) {
-        refuseRow(item, checked.issues[0] ?? null);
-        return;
-      }
-      const current = await writes.followed(writeTarget, db as Kysely<SourceDatabase>, values);
+      const current = await writes.followed(writeTarget, db as Kysely<SourceDatabase>, verdict.values);
       await insertRows(db, dialect, table, [current]);
       inserted += 1;
       await writes.settle('create', writeTarget, [{ record: current, before: null }]);
@@ -464,31 +315,25 @@ async function runImport(
   async function handleRecord(record: string[]): Promise<void> {
     if (header === null) {
       header = record;
-      mapped = resolveMapping(header, row.mapping, view, table);
+      mapped = judge.mapping(header);
       return;
     }
     // Fully empty trailing lines are not data rows.
     if (record.length === 1 && record[0]?.trim() === '') return;
     total += 1;
     const rowNumber = total;
-    const values: Record<string, unknown> = {};
-    let bad = false;
-    for (const target of mapped ?? []) {
-      const raw = record[target.index] ?? '';
-      const result = coerceCell(raw, target.column);
-      if (!result.ok) {
-        bad = true;
-        issues.push({ row: rowNumber, column: target.column.name, code: result.code, message: result.message, raw });
-        if (!skipInvalid) fail(`row ${rowNumber}, ${target.column.name}: ${result.message}`);
-        continue;
+    const parsed = judge.parse(mapped ?? [], record, rowNumber);
+    if (parsed.line === null) {
+      const first = parsed.issues[0]!;
+      if (!skipInvalid) {
+        issues.push(first);
+        fail(`row ${rowNumber}, ${first.column}: ${first.message}`);
       }
-      values[target.column.name] = bindValue(dialect, result.value);
-    }
-    if (bad) {
+      issues.push(...parsed.issues);
       skipped += 1;
       return;
     }
-    pending.push({ rowNumber, values, raw: record });
+    pending.push(parsed.line);
     if (pending.length >= IMPORT_CHUNK_SIZE) await flushChunk();
   }
 
@@ -530,7 +375,7 @@ async function runImport(
   }
 
   const at = now();
-  const stats = { total, inserted, updated, skipped };
+  const stats = { total, inserted, updated, skipped, ...(mode === 'skip' ? { alreadyHere } : {}) };
   await imports.markFinished(row.id, { status: 'succeeded', stats, errorReportFileId }, at);
   await auditRepo(deps.meta).append(
     {
@@ -552,9 +397,7 @@ async function runImport(
     // subscribable widget-data channel — parseChannel (realtime/hub.ts) knows
     // no `table:` prefix, so only the second one ever reaches a client.
     deps.hub.publish(`table:${row.connectionId}:${table.id}`, 'record.bulk-create', { count: inserted });
-    deps.hub.publish(widgetDataChannel(row.connectionId, table.id), 'record.bulk-create', {
-      count: inserted,
-    });
+    deps.hub.publish(widgetDataChannel(row.connectionId, table.id), 'record.bulk-create', { count: inserted }, undefined, tableFrameReach(table));
   }
   ctx.progress(100, { step: 'done', message: `${inserted + updated} of ${total} rows imported` });
   ctx.log('import-run: succeeded', { importId: row.id, ...stats });

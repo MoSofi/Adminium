@@ -101,7 +101,13 @@ export default {
       "tooLarge": "Must be {max} or less.",
       "outOfRange": "This number is out of range.",
       "duplicate": "Already added.",
-      "form": "Some values were refused. Check the marked fields."
+      "form": "Some values were refused. Check the marked fields.",
+      "mentionUnknown": "Somebody mentioned here is not a person who signs in. Type @ and choose them from the list.",
+      "tooManyMentions": "Too many people are mentioned here. Mention fewer.",
+      "fileNotHere": "This file cannot be kept here. Upload it again from this field.",
+      "fileType": "This kind of file is not taken here.",
+      "fileTooLarge": "This file is too large for this field.",
+      "tooManyFiles": "Keep at most {n} files here."
     },
     "lines": {
       "add": "Add line",
@@ -237,5 +243,8 @@ export default {
     "deleteRefused": "This record cannot be deleted. Void it instead.",
     "timedMoveAt": "Moves to {to} on its own at {time}.",
     "timedMoveSoon": "Moves to {to} on its own."
+  },
+  "mentions": {
+    "people": "People to mention"
   }
 } as const;

@@ -194,6 +194,26 @@ describe('a staff side', () => {
     expect(refused).toMatchObject({ message: 'title is too long', code: 'VALIDATION_FAILED', status: 422, details: { column: 'title' } });
   });
 
+  it('asks which of the app’s rules are switched on, each time, and reads only a key, a name and a switch', async () => {
+    let on = false;
+    const { net, session } = connect({
+      'GET /api/v1/apps/': () => ({ body: { rules: [{ key: 'nudge-stale', name: 'A deal sits too long', on, steps: ['never read'] }, 'not a rule'] } }),
+    });
+    const staff = await session;
+    expect(await staff.rules()).toEqual([{ key: 'nudge-stale', name: 'A deal sits too long', on: false }, { key: '', name: '', on: false }]);
+    on = true;
+    expect((await staff.rules())[0]).toEqual({ key: 'nudge-stale', name: 'A deal sits too long', on: true });
+    const asked = net.calls.slice(1);
+    expect(asked.map((call) => call.method)).toEqual(['GET', 'GET']);
+    for (const call of asked) {
+      expect(call.url).toMatch(/^\/api\/v1\/apps\/[a-z0-9-]*\/rules$/);
+      expect(call.headers).not.toHaveProperty('x-adminium-csrf');
+    }
+    // Refused (no staff grant on the app): the server's own words and code.
+    const refused = connect({ 'GET /api/v1/apps/': () => ({ status: 403, body: { error: { code: 'FORBIDDEN', message: 'This account cannot open this app’s staff screens.' } } }) });
+    await expect((await refused.session).rules()).rejects.toMatchObject({ code: 'FORBIDDEN', status: 403 });
+  });
+
   it('falls back to UTC, flagged, when the database has no zone — never the browser’s', async () => {
     const net = scripted({ 'GET /surface-config.json': () => ({ body: { ...STAFF_CONFIG, timezone: null } }) });
     expect(await connectStaff({ fetch: net.fetch, pathname: '/' })).toMatchObject({ timezone: 'UTC', timezoneIsFallback: true });

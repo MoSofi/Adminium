@@ -30,7 +30,12 @@ import {
   type MetaDb,
 } from '@adminium/meta';
 
+import type { FastifyRequest } from 'fastify';
+
 import { auditExempt } from '../../audit/coverage.js';
+import { requiredGrants } from '../../automations/validate.js';
+import { reachOfRequest, requestReadsWhole } from '../../crud/row-reach-request.js';
+import { loadSnapshotView } from '../../data-io/snapshot-view.js';
 import { NotFoundError } from '../../errors.js';
 import { PERMISSIONS } from '../../rbac/permissions.js';
 import {
@@ -48,6 +53,12 @@ export interface AutomationRunsRoutesDeps {
 }
 
 /** The comp's list window (D22). */
+/** A step of a run as it is shown: without the row it made, which is kept for the steps after it and for nobody's eyes. */
+function withoutMade<S extends { made?: unknown }>(step: S): Omit<S, 'made'> {
+  const { made: _made, ...shown } = step;
+  return shown;
+}
+
 export const RUNS_WINDOW_MS = 7 * DAY_MS;
 export const RUNS_PAGE_SIZE = 50;
 
@@ -82,6 +93,28 @@ export function automationRunsRoutes(deps: AutomationRunsRoutesDeps): FastifyPlu
       durationMs: run.durationMs,
       wakeAt: run.wakeAt,
     };
+  }
+
+  /**
+   * Whether this caller reads every row of the tables a run read: the row
+   * that set it off, and each table its rule reads beside it. A run's trace
+   * and the row kept with it are those rows' values; somebody held to some
+   * rows of one of the tables (`crud/row-limit.ts`) is not shown them.
+   */
+  async function readsWhole(request: FastifyRequest, run: AutomationRun): Promise<boolean> {
+    const rule = await rules.findById(run.automationId);
+    const connectionId = run.triggerEvent.record?.connectionId ?? rule?.connectionId ?? null;
+    if (connectionId === null) return true;
+    // Nearly everyone: nothing could limit them, and nothing more is read.
+    if ((await reachOfRequest(meta, request, connectionId)) === null) return true;
+    const tables = new Set<string>();
+    if (run.triggerEvent.record !== null) tables.add(run.triggerEvent.record.table);
+    if (rule !== null) {
+      const view = await loadSnapshotView(meta, connectionId).catch(() => null);
+      for (const { permission, table } of requiredGrants(rule.trigger, rule.graph, connectionId, view)) if (permission.endsWith(':read')) tables.add(table);
+    }
+    for (const table of tables) if (!(await requestReadsWhole(meta, request, connectionId, table))) return false;
+    return true;
   }
 
   return async (app) => {
@@ -161,10 +194,23 @@ export function automationRunsRoutes(deps: AutomationRunsRoutesDeps): FastifyPlu
         const run = await runs.findById(request.params.id);
         if (run === null) throw new NotFoundError('No such run.', { id: request.params.id });
         const ruleNames = await names();
+        // What the run read is told to somebody who reads every row of the tables it read; anybody else is told how it went and when.
+        if (!(await readsWhole(request, run))) {
+          return {
+            run: {
+              ...row(run, ruleNames),
+              trace: run.trace === null ? null : { ...run.trace, steps: run.trace.steps.map((step) => ({ ...withoutMade(step), log: null })) },
+              triggerEvent: { ...withoutValues(run.triggerEvent), record: null, snapshot: null },
+              error: run.error === null ? null : 'This run failed. What it read is not shown: your role reads only some rows of its table.',
+            },
+          };
+        }
         return {
           run: {
             ...row(run, ruleNames),
-            trace: run.trace,
+            // The rows its steps made are kept for the run's own later steps, and are nobody's to read here: a reader
+            // of this run need not read the table a step wrote to, nor every column of it.
+            trace: run.trace === null ? null : { ...run.trace, steps: run.trace.steps.map(withoutMade) },
             triggerEvent: withoutValues(run.triggerEvent),
             error: run.error,
           },
@@ -174,9 +220,9 @@ export function automationRunsRoutes(deps: AutomationRunsRoutesDeps): FastifyPlu
   };
 }
 
-/** A run's trigger as Workflow Logs may read it: never a deleted row's values (`triggerEvent.values`). */
-function withoutValues(event: AutomationRun['triggerEvent']): Omit<AutomationRun['triggerEvent'], 'values'> {
-  const { values: _values, ...served } = event;
+/** A run's trigger as Workflow Logs may read it: never a deleted row's values, nor a changed row as it was (`values`, `before`). */
+function withoutValues(event: AutomationRun['triggerEvent']): Omit<AutomationRun['triggerEvent'], 'values' | 'before'> {
+  const { values: _values, before: _before, ...served } = event;
   return served;
 }
 

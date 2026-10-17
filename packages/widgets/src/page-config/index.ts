@@ -37,6 +37,7 @@ export {
   type QueryFilterNode,
 } from './query-descriptor.js';
 export { layoutItemSchema, pageLayoutSchema, type LayoutItem, type PageLayout } from './layout.js';
+export { STAFF_LINK, staffLinkPath } from './staff-link.js';
 export {
   crudAttachmentsConfigSchema,
   crudDetailConfigSchema,
@@ -173,6 +174,9 @@ export {
   MAX_FIELD_SCALE,
   MAX_MEASURES,
   MAX_MEASURE_TERMS,
+  MAX_MEASURE_WHERE,
+  MAX_MEASURE_WHERE_TEXT,
+  MAX_MEASURE_WHERE_VALUES,
   MAX_TERM_FACTORS,
   MAX_TEXT_OUTCOME_LENGTH,
   MEASURE_FNS,
@@ -188,6 +192,8 @@ export {
   measureEmptySchema,
   measureFnSchema,
   measureSchema,
+  measureWhereSchema,
+  measureTestProblem,
   measureTermSchema,
   measureTermSignSchema,
   parseCrudDerived,
@@ -204,6 +210,8 @@ export {
   type Measure,
   type MeasureBody,
   type MeasureEmpty,
+  type MeasureWhere,
+  type MeasureTestColumn,
   type MeasureFn,
   type MeasureTerm,
   type MeasureTermSign,

@@ -321,6 +321,110 @@ describe('CRUD measures (fake adapter)', () => {
     });
   });
 
+  // --- which rows are folded: a measure's `where` ---------------------------
+
+  describe('a measure folds only the rows its `where` passes', () => {
+    const RATE = { terms: [{ sign: 'plus', factors: ['rate'] }] };
+    const one = async (measure: Json, user = t.users.admin) => {
+      const answer = await list(`compute=${compute({ measures: [{ id: 'm', ...ITEMS, ...measure }] })}&select=invoice_id`, user);
+      return { status: answer.status, of: (id: number) => invoice(answer.body, id)['m'], row: (id: number) => invoice(answer.body, id) };
+    };
+
+    it('narrows count, sum, avg, min and max, and leaves the empty-fold policy as it was', async () => {
+      // Invoice 7 has items 1 and 2; invoice 8 has item 3; invoice 9 has none.
+      const count = await one({ fn: 'count', where: [{ column: 'item_id', in: [1, 3] }] });
+      expect(count.status).toBe(200);
+      expect([count.of(7), count.of(8), count.of(9)]).toEqual([1, 1, 0]);
+      const sum = await one({ fn: 'sum', of: { terms: [{ sign: 'plus', factors: ['line_total'] }] }, where: [{ column: 'item_id', in: [2] }] });
+      // Invoice 8's only item is left out: a sum of nothing reads zero, as it does with no `where`.
+      expect([sum.of(7), sum.of(8), sum.of(9)]).toEqual(['266', '0', '0']);
+      const avg = await one({ fn: 'avg', of: RATE, where: [{ column: 'qty', in: [2, 3] }] });
+      expect([avg.of(7), avg.of(8), avg.of(9)]).toEqual(['500', '40', null]);
+      const min = await one({ fn: 'min', of: RATE, where: [{ column: 'legacy_ref', in: ['L-7'] }] });
+      expect([min.of(7), min.of(8)]).toEqual(['300', null]);
+      const max = await one({ fn: 'max', of: RATE, where: [{ column: 'legacy_ref', in: ['L-7', 'L-8'] }] });
+      expect([max.of(7), max.of(8)]).toEqual(['500', '40']);
+    });
+
+    it('ANDs its tests, beside the link test, inside the measure’s own subquery', async () => {
+      const both = await one({ fn: 'count', where: [{ column: 'legacy_ref', in: ['L-7'] }, { column: 'item_id', in: [2, 3] }] });
+      expect([both.of(7), both.of(8)]).toEqual([1, 0]);
+      const sql = lastSelectFrom(sink, 'main.invoices');
+      expect(sql).toContain('where "ag0"."invoice_id" = "invoices"."invoice_id" and "ag0"."legacy_ref" in (?) and "ag0"."item_id" in (?, ?)');
+    });
+
+    it('binds every value: none reaches the statement', async () => {
+      const spliced = "L-7' OR '1'='1";
+      const answer = await one({ fn: 'count', where: [{ column: 'legacy_ref', in: [spliced, 'zebra-value'] }, { column: 'item_id', in: [987654] }] });
+      expect(answer.status).toBe(200);
+      expect([answer.of(7), answer.of(8)]).toEqual([0, 0]);
+      const sql = lastSelectFrom(sink, 'main.invoices');
+      expect(sql).toContain('"ag0"."legacy_ref" in (?, ?)');
+      for (const literal of ['OR', 'zebra-value', '987654']) expect(sql).not.toContain(literal);
+    });
+
+    it('answers the single record the same as the list', async () => {
+      const block = compute({ measures: [{ id: 'm', ...ITEMS, fn: 'count', where: [{ column: 'item_id', in: [2] }] }] });
+      const res = await t.app.inject({ method: 'GET', url: `/api/v1/data/${connId}/main.invoices/7?compute=${block}`, headers: asUser(t.users.admin) });
+      expect(res.statusCode, res.body).toBe(200);
+      expect((res.json() as { data: Json }).data['m']).toBe(1);
+    });
+
+    it('refuses the measure whose tested column is masked for this caller: null and the marker, whatever the value', async () => {
+      // 400 is item 1's, 150 item 2's, 30 item 3's; 999 is nobody's.
+      for (const value of [400, 150, 30, 999]) {
+        const viewer = await one({ fn: 'count', where: [{ column: 'payer_account_number', in: [value] }] }, t.users.viewer);
+        expect(viewer.status).toBe(200);
+        // Never the unfiltered count (2), and never a count that says whether the value exists.
+        expect(viewer.of(7)).toBeNull();
+        expect(viewer.row(7)['_masked']).toContain('m');
+        expect(viewer.of(9)).toBeNull();
+      }
+      // Refused before the database: the subquery is not sent at all.
+      expect(lastSelectFrom(sink, 'main.invoices')).not.toContain('payer_account_number');
+      // An admin holds the unmask grant and gets the number.
+      const admin = await one({ fn: 'count', where: [{ column: 'payer_account_number', in: [400] }] });
+      expect([admin.of(7), admin.of(8)]).toEqual([1, 0]);
+    });
+
+    it('refuses a measure over a table the caller cannot read, as before, with or without a `where`', async () => {
+      const editor = await one({ fn: 'count', where: [{ column: 'item_id', in: [1] }] }, t.users.editor);
+      expect(editor.status).toBe(200);
+      expect(editor.of(7)).toBeNull();
+      expect(editor.row(7)['_masked']).toContain('m');
+    });
+
+    it('422s a column the folded table lacks, and a value its column cannot hold', async () => {
+      const status = async (where: unknown) => (await one({ fn: 'count', where })).status;
+      expect(await status([{ column: 'nope', in: [1] }])).toBe(422);
+      // The page's own table has `number`; the folded one does not.
+      expect(await status([{ column: 'number', in: ['INV-007'] }])).toBe(422);
+      expect(await status([{ column: 'item_id', in: ['1'] }])).toBe(422);
+      expect(await status([{ column: 'item_id', in: [1.5] }])).toBe(422);
+      expect(await status([{ column: 'item_id', in: [true] }])).toBe(422);
+      expect(await status([{ column: 'legacy_ref', in: [7] }])).toBe(422);
+      expect(await status([{ column: 'qty', in: ['2'] }])).toBe(422);
+    });
+
+    it('422s a `where` over its own caps, and buys no subquery under the shared budget', async () => {
+      const status = async (where: unknown) => (await one({ fn: 'count', where })).status;
+      const test = (column: string) => ({ column, in: [1] });
+      expect(await status([])).toBe(422);
+      expect(await status([test('item_id'), test('qty'), test('rate'), test('discount_pct')])).toBe(422);
+      expect(await status([{ column: 'item_id', in: Array.from({ length: 21 }, (_, n) => n) }])).toBe(422);
+      expect(await status([test('item_id'), test('item_id')])).toBe(422);
+      expect(await status([{ column: 'item_id', in: [1], op: 'neq' }])).toBe(422);
+      // Twelve measures, each narrowed three ways, are twelve subqueries — the budget's whole and no more.
+      const where = [test('item_id'), { column: 'qty', in: [2] }, { column: 'legacy_ref', in: ['L-7'] }];
+      const twelve = Array.from({ length: 12 }, (_, n) => ({ id: `w${String(n)}`, ...ITEMS, fn: 'count', where }));
+      const full = await list(`compute=${compute({ measures: twelve })}&select=invoice_id`);
+      expect(full.status).toBe(200);
+      expect(invoice(full.body, 7)['w11']).toBe(1);
+      const over = await list(`compute=${compute({ measures: [...twelve, { id: 'w12', ...ITEMS, fn: 'count', where }] })}&select=invoice_id`);
+      expect(over.status).toBe(422);
+    });
+  });
+
   // ---: the audit gap -----------------------------------------------
 
   it('writes one audit row per refused projection', async () => {

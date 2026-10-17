@@ -54,6 +54,7 @@ import { notificationsApi, unreadCountQuery, type NotificationDto } from '../api
 import { holdsSystemAction, type BootstrapData } from '../app/bootstrap.js';
 import { t } from '../i18n/t.js';
 import { PageAssistantButton } from './PageAssistantButton.js';
+import { openHref } from '../app/openHref.js';
 import { hasStudioAccess } from '../studio/StudioGuard.js';
 import {
   PageActionsSlot,
@@ -155,10 +156,10 @@ function NotificationBell() {
 
   const openItem = (item: NotificationDto) => {
     setOpen(false);
-    // Server-authored internal paths only ('/exports', '/reports', …).
-    if (item.actionUrl !== null && item.actionUrl.startsWith('/')) {
-      router.history.push(item.actionUrl);
-    }
+    // Server-authored addresses only: the dashboard's own ('/exports', '/reports', …) in place,
+    // a record's own screen in its app as a document (app/openHref.ts).
+    // A notice's link is always a path of this server, never another host's.
+    if (item.actionUrl !== null && item.actionUrl.startsWith('/')) openHref(item.actionUrl, (path) => router.history.push(path));
   };
 
   return (

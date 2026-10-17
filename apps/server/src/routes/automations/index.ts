@@ -27,6 +27,8 @@
  * toast are built on.
  */
 
+import { assertNotPrivate } from '../../crud/row-limit.js';
+import { reachOfRequest, requestReadsWhole } from '../../crud/row-reach-request.js';
 import type { FastifyRequest } from 'fastify';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import {
@@ -46,10 +48,11 @@ import { AppError, ForbiddenError, NotFoundError, ValidationFailedError } from '
 import { addressableTables, childTablesFor } from '../../connections/child-tables.js';
 import { loadSnapshotView } from '../../data-io/snapshot-view.js';
 import type { ResolvedColumn, ResolvedTable, SnapshotView } from '../../crud/identifiers.js';
+import type { EffectiveTable } from '../../connections/effective-schema.js';
 import { pkLabel } from '../../crud/records.js';
 import type { Row } from '../../crud/mask.js';
 import { PERMISSIONS } from '../../rbac/permissions.js';
-import { nextTickFor } from '../../automations/schedule.js';
+import { forgetSpellsIfChosenAnew, nextTickFor } from '../../automations/schedule.js';
 import { walkRule, type RunnerDeps } from '../../automations/runner.js';
 import { isAddressColumn, relatedTargets } from '../../automations/related.js';
 import { readViewForUser } from '../../crud/read-view.js';
@@ -212,6 +215,8 @@ export function automationsRoutes(deps: AutomationsRoutesDeps): FastifyPluginAsy
       pii: column.masked || column.secret,
       emailLike: isAddressColumn(table, column.name),
       dateLike: isDateColumn(column),
+      // Holds a staff member: a step may tell "the person in this column".
+      ...(table.table.columns.find((c) => c.name === column.name)?.staff === true ? { staff: true } : {}),
     };
   }
 
@@ -230,6 +235,22 @@ export function automationsRoutes(deps: AutomationsRoutesDeps): FastifyPluginAsy
     return out;
   }
 
+  /**
+   * The tables that list people against a table's rows (its `belongs` ways
+   * `through` them), for a step to "the people listed": only those the asker
+   * may read, as a step's other tables are.
+   */
+  async function listingsOf(model: SnapshotView['model'], table: EffectiveTable, connectionId: string, request: FastifyRequest) {
+    const out: { table: string; label: string }[] = [];
+    for (const way of table.belongs ?? []) {
+      if (!('through' in way) || out.some((one) => one.table === way.through.table)) continue;
+      const list = model.tables.find((candidate) => candidate.id === way.through.table);
+      if (list === undefined || list.private === true || !(await request.can(`table:${connectionId}:${list.id}:read`))) continue;
+      out.push({ table: list.id, label: list.label ?? list.name });
+    }
+    return out;
+  }
+
   /** D2 — the SAVING USER must already hold every grant the rule will use. */
   async function assertAuthorGrants(
     request: FastifyRequest,
@@ -244,6 +265,37 @@ export function automationsRoutes(deps: AutomationsRoutesDeps): FastifyPluginAsy
         'TABLE_FORBIDDEN',
         { permission, table },
       );
+    }
+    await assertAuthorReadsWhole(request, rule, view);
+  }
+
+  /**
+   * WHOSE ROWS A RULE READS. A rule runs as the system: it is handed every
+   * row of the table it watches, and of each table it reads beside it, and
+   * its steps send what they read wherever its author says. So its author
+   * must be somebody who reads EVERY row of those tables — a person held to
+   * their own deals who could write "on any deal, mail me" would read
+   * everybody's by mail, and one who changes only their own could write
+   * "on any deal, set the owner". Asked whenever a rule is saved, switched on, copied
+   * or tried, of whoever does it.
+   */
+  async function assertAuthorReadsWhole(
+    request: FastifyRequest,
+    rule: { trigger: Automation['trigger']; graph: Automation['graph']; connectionId: string | null },
+    known?: SnapshotView | null,
+  ): Promise<void> {
+    if (rule.connectionId === null) return;
+    // Nearly everyone: nothing could limit them, and nothing more is read.
+    if ((await reachOfRequest(meta, request, rule.connectionId)) === null) return;
+    const view = known === undefined ? await viewFor(rule.connectionId).catch(() => null) : known;
+    for (const { permission, table } of requiredGrants(rule.trigger, rule.graph, rule.connectionId, view, await stepsFor(rule.connectionId))) {
+      // What the rule reads, and the row it changes: each of a table its author reaches every row of, for that.
+      const action = permission.endsWith(':read') ? 'read' : permission.endsWith(':update') ? 'update' : null;
+      // A private table: for everybody, whatever the rule would do there, and said as what it is.
+      assertNotPrivate(view?.linkTable(table) ?? null, 'no rule reads or changes it');
+      if (action === null) continue;
+      if (await requestReadsWhole(meta, request, rule.connectionId, table, action)) continue;
+      throw new ForbiddenError(`Your role reaches only some rows of ${table}, so this rule cannot use it.`, 'TABLE_FORBIDDEN', { permission, table, reason: 'row-limit' });
     }
   }
 
@@ -325,6 +377,8 @@ export function automationsRoutes(deps: AutomationsRoutesDeps): FastifyPluginAsy
             // sample data leaves an excluded ledger table behind, and
             // resolving it answered this whole request with a 422.
             if (table.system || table.excluded === true) continue;
+            // …nor a private one: no rule reads it, so none is offered it.
+            if (table.private === true) continue;
             const resolved = view.table(`${table.schema}.${table.name}`);
             const permission = (action: string): string =>
               `table:${connection.id}:${resolved.id}:${action}`;
@@ -341,6 +395,7 @@ export function automationsRoutes(deps: AutomationsRoutesDeps): FastifyPluginAsy
               },
               columns: [...resolved.columns.values()].map((column) => columnOf(resolved, column)),
               links: await linksOf(view, resolved, connection.id, request),
+              listings: await listingsOf(view.model, resolved.table, connection.id, request),
               // The picker seed — only edges a mapping can store.
               children: childTablesFor(view.model, resolved.id, offered),
               pageSlug: page?.slug ?? null,
@@ -513,6 +568,9 @@ export function automationsRoutes(deps: AutomationsRoutesDeps): FastifyPluginAsy
         if (body.trigger !== undefined || body.graph !== undefined || switchedOn) {
           await validateOrThrow(request, next);
           await assertAuthorGrants(request, next);
+        } else if (body.enabled === true && !rule.enabled) {
+          // Switching a rule on is setting it to read: by somebody who reads every row it will.
+          await assertAuthorReadsWhole(request, next);
         }
 
         const incomplete = firstIncompleteNode(next.graph, await stepsFor(next.connectionId));
@@ -543,6 +601,7 @@ export function automationsRoutes(deps: AutomationsRoutesDeps): FastifyPluginAsy
           },
           at,
         );
+        if (body.trigger !== undefined) await forgetSpellsIfChosenAnew(deps.meta, rule.id, rule.trigger, next.trigger);
         if (updated === null) throw new NotFoundError('No such rule.', { id: rule.id });
         await app.rbac.audit(request, {
           category: 'automation',
@@ -599,6 +658,8 @@ export function automationsRoutes(deps: AutomationsRoutesDeps): FastifyPluginAsy
       async (request, reply) => {
         const rule = await rules.findById(request.params.id);
         if (rule === null) throw new NotFoundError('No such rule.', { id: request.params.id });
+        // The copy is its maker's rule: of tables they read every row of.
+        await assertAuthorReadsWhole(request, rule);
         const at = now();
         const copy = await rules.create(
           {

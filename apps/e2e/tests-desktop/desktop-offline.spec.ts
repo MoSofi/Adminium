@@ -5,7 +5,7 @@
  * Launches the built app with a `session.webRequest` deny-all for every
  * non-loopback request, walks the same first-run → demo → dashboard → CRUD →
  * chart flow, and asserts ZERO blocked-request log entries: no Google Fonts, no
- * Leaflet/tile fetches (geo widgets render the choropleth grid), no CDN. Updates
+ * map engine or tile fetches (geo widgets render the choropleth grid), no CDN. Updates
  * are forced off with `ADMINIUM_DISABLE_UPDATES=1` and telemetry is off by
  * default, so an air-gapped install makes zero non-loopback requests — the
  * acceptance criterion.

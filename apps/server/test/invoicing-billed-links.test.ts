@@ -20,7 +20,7 @@
 import { Readable } from 'node:stream';
 
 import type { DatabaseModel } from '@adminium/engine';
-import { connectionTenantConfig, filesRepo, importsRepo, overridesRepo, rolesRepo, usersRepo } from '@adminium/meta';
+import { connectionTenantConfig, filesRepo, importsRepo, overridesRepo, permissionsRepo, rolesRepo, usersRepo } from '@adminium/meta';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { statesRuleIssue } from '../src/connections/column-rules-validation.js';
@@ -219,10 +219,15 @@ for (const [dialect, available] of LEGS) {
         },
       } as unknown as FileStore;
       const file = await filesRepo(h.meta).create({ filename: 'time.csv', mime: 'text/csv', sizeBytes: csv.length, sha256: 'x', kind: 'upload' });
+      const importer = String((await h.meta.db.selectFrom('adminium_users').select('id').executeTakeFirstOrThrow()).id);
+      // An import that matches its lines to stored rows is run for somebody who reads the table, as the routes would have made it.
+      const reads = (await rolesRepo(h.meta).findBySlug('import-reader')) ?? (await rolesRepo(h.meta).create({ slug: 'import-reader', name: 'Import reader' }));
+      await permissionsRepo(h.meta).grant(reads.id, 'table', `${h.connectionId}/${w.targetOf('time_entries').table.id}`, { read: true, create: true, update: true, delete: false, export: false, import: true } as never);
+      await rolesRepo(h.meta).assignToUser(importer, reads.id);
       const job = await importsRepo(h.meta).create({
         connectionId: h.connectionId,
         tableName: w.targetOf('time_entries').table.id,
-        requestedBy: String((await h.meta.db.selectFrom('adminium_users').select('id').executeTakeFirstOrThrow()).id),
+        requestedBy: importer,
         fileId: file.id,
         mapping: { columns: [{ from: 'id', to: 'id' }, { from: 'hours', to: 'hours' }] },
         options: { mode: 'upsert', matchColumn: 'id' },

@@ -544,7 +544,7 @@ a limit capped at 1000, and a cursor.
 ### Rendering
 
 `WidgetHost` is the binder. In order: resolve the offline id (`map-*` becomes a
-grid choropleth on desktop, so Leaflet is never imported), look up the
+grid choropleth on desktop, so the map engine is never imported), look up the
 definition, fall back to `widget-missing` on an unknown id, validate the stored
 config, derive one of four frame states, resolve the description key, and mount
 the lazy component inside a `<Suspense>` whose fallback is the same skeleton

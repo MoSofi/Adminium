@@ -91,7 +91,7 @@ describe.each(LEGS)('an owner\'s rule on a table, through the routes — %s', (d
     await w?.close();
   });
 
-  it.skipIf(!available)('the reads need a session; every write needs the grant that changes what a table means — an add-on\'s own role is not it', async () => {
+  it.skipIf(!available)('the reads need a session (the sources, the grant that changes what a table means); every write needs the grant that changes what a table means — an add-on\'s own role is not it', async () => {
     expect((await api('GET', `/ledgers/ledger-kit/units/postings?connectionId=${w.h.connectionId}`, undefined, '')).statusCode).toBe(401);
     expect((await api('GET', `/ledgers/ledger-kit/units/sources?connectionId=${w.h.connectionId}`, undefined, '')).statusCode).toBe(401);
     const writes: [string, string, unknown][] = [
@@ -105,6 +105,9 @@ describe.each(LEGS)('an owner\'s rule on a table, through the routes — %s', (d
       expect((await api(method, url, payload, 'keeper')).statusCode, `${method} ${url}`).toBe(403);
       expect((await api(method, url, payload, '')).statusCode, `${method} ${url}`).toBe(401);
     }
+    // Every table with its columns is for who draws a rule: somebody with a session alone is refused it.
+    for (const who of ['keeper', 'clerk']) expect((await api('GET', `/ledgers/ledger-kit/units/sources?connectionId=${w.h.connectionId}`, undefined, who)).statusCode, who).toBe(403);
+    expect((await api('GET', `/ledgers/ledger-kit/units/sources?connectionId=${w.h.connectionId}`, undefined, 'mapper')).statusCode).toBe(200);
     // The keeper reads the rules, and is told the page may change nothing.
     const seen = await listed('keeper');
     expect(seen.canChange).toBe(false);
@@ -130,6 +133,11 @@ describe.each(LEGS)('an owner\'s rule on a table, through the routes — %s', (d
     // A rule of the same name on another table holds nothing of it.
     expect((await api('PUT', rule('tallies', 'ask'), TAKE)).statusCode).toBe(200);
     expect(await one('tallies', 'ask')).toMatchObject({ holding: 0 });
+    // Somebody who reads one of the two tables is told of that table's rule and its counts only; nobody else of either.
+    expect((await listed('clerk')).postings.map((entry) => entry['table'])).toEqual([id('asks')]);
+    // The add-on's own manager reads neither of the owner's two tables: neither rule is listed to him.
+    expect((await listed('keeper')).postings.map((entry) => entry['table'])).not.toContain(id('asks'));
+    expect((await listed('keeper')).postings.map((entry) => entry['table'])).not.toContain(id('tallies'));
     expect((await api('DELETE', rule('tallies', 'ask'))).statusCode).toBe(204);
     // The posting left its own line in the audit log, by the one who saved.
     const audit = await w.h.meta.db.selectFrom('adminium_audit_log' as never).select(['action' as never]).where('action' as never, '=', 'ledger.posted' as never).execute();

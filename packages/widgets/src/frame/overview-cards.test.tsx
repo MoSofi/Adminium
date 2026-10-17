@@ -97,6 +97,44 @@ describe('a chart\'s figures as a table', () => {
   });
 });
 
+describe("a chart's figures that are money", () => {
+  const money = (n: number) => `£${n.toLocaleString('en-GB')}`;
+  it('writes in the currency only the figures the answer says are money, by alias', () => {
+    // A pair: the deals' value and their weighted value are money; their count is not.
+    expect(
+      chartTableOf(
+        { items: [{ key: '1', label: 'Discovery', value: 3, values: { deals: 3, value: 36350, weighted: 3635 } }], aggregates: ['deals', 'value', 'weighted'], money: ['value', 'weighted'] },
+        { ...opts, money },
+      )?.rows,
+    ).toEqual([['Discovery', '3', '£36,350', '£3,635']]);
+    // One figure, money: the value column (never the share).
+    expect(chartTableOf({ items: [{ key: 'a', label: 'July', value: 87670 }, { key: 'b', label: 'August', value: 2340 }], total: 90010, money: ['weighted'] }, { ...opts, money })?.rows).toEqual([
+      ['July', '£87,670', '97%'],
+      ['August', '£2,340', '3%'],
+    ]);
+    expect(chartTableOf({ points: [{ t: '2026-07-20T00:00:00Z', v: 4 }], compare: [{ t: '2026-07-13T00:00:00Z', v: 3 }], money: ['won'] }, { ...opts, money })?.rows).toEqual([['2026-07-20', '£4', '£3']]);
+    // Nothing said, or no way to write money: numbers.
+    expect(chartTableOf({ items: [{ key: 'a', label: 'July', value: 87670 }], total: 87670 }, { ...opts, money })?.rows[0]?.[1]).toBe('87670');
+    expect(chartTableOf({ items: [{ key: 'a', label: 'July', value: 87670 }], total: 87670, money: ['weighted'] }, opts)?.rows[0]?.[1]).toBe('87670');
+  });
+
+  it('reads them in the card\'s currency, whole amounts without pence', async () => {
+    const { container } = render(
+      <WidgetHost
+        widgetId="test-chart"
+        instanceId="c10"
+        config={{ title: 'Pipeline by stage', format: { locale: 'en-GB', currency: 'GBP' } }}
+        data={{ status: 'success', data: { shape: 'categorical', items: [{ key: '1', label: 'Discovery', value: 3, values: { deals: 3, value: 36350, weighted: 3635.5 } }], total: 3, aggregates: ['deals', 'value', 'weighted'], money: ['value', 'weighted'] }, refetch: () => {} }}
+        registry={registry}
+      />,
+    );
+    await screen.findByTestId('the-chart');
+    await screen.findByRole('button', { name: 'Show data' });
+    const cells = [...container.querySelectorAll('[data-part="chart-text-alternative"] tbody tr > *')].map((cell) => cell.textContent);
+    expect(cells).toEqual(['Discovery', '3', '£36,350', '£3,635.50']);
+  });
+});
+
 const chartDefinition = defineWidget({
   id: 'test-chart',
   family: 'charts',
@@ -192,6 +230,21 @@ describe("a card's words in the page's language", () => {
     // No translations: the config as it was, the same object.
     const plain = { title: 'Arrivals', emptyState: { titleKey: 'widgets.empty.allCaughtUp' } };
     expect(localizedConfig(plain, 'de_DE')).toBe(plain);
+  });
+
+  it("picks a table card's column headings as the title is picked, and keeps them through its schema", () => {
+    const config = miniTableConfigSchema.parse({
+      title: 'Reps',
+      columns: [
+        { name: 'name', label: 'Rep', labels: { 'de-DE': 'Verkäufer', 'ar-EG': 'المندوب' } },
+        { name: 'open', label: 'Open deals', labels: { 'de-DE': 'Offene Deals' } },
+        { name: 'cover', label: 'Cover' },
+      ],
+    });
+    expect((localizedConfig(config, 'de_DE')['columns'] as { label: string }[]).map((column) => column.label)).toEqual(['Verkäufer', 'Offene Deals', 'Cover']);
+    expect((localizedConfig(config, 'ar_EG')['columns'] as { label: string }[]).map((column) => column.label)).toEqual(['المندوب', 'Open deals', 'Cover']);
+    expect((localizedConfig(config, 'en_US')['columns'] as { label: string }[]).map((column) => column.label)).toEqual(['Rep', 'Open deals', 'Cover']);
+    expect(miniTableConfigSchema.safeParse({ columns: [{ name: 'name', label: 'Rep', labels: { German: 'Verkäufer' } }] }).success).toBe(false);
   });
 
   it('keeps the translations a card carries through its schema', () => {

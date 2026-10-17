@@ -40,6 +40,7 @@
  * gets to make twice.
  */
 
+import { rulePartOff } from '../rbac/app-parts.js';
 import type { Expression, ExpressionBuilder, Kysely, SqlBool } from 'kysely';
 import type { Dialect } from '@adminium/engine';
 import {
@@ -102,7 +103,8 @@ export async function pollWatchedTables(deps: WatchPollDeps): Promise<WatchTickR
     try {
       let view = views.get(connectionId);
       if (view === undefined) {
-        view = await loadSnapshotView(deps.meta, connectionId);
+        // As a rule reads: a private table is not in its view (the lookup below then fails, and the rule is passed over).
+        view = await loadSnapshotView(deps.meta, connectionId, { forOthers: true });
         views.set(connectionId, view);
       }
       let handle = handles.get(connectionId);
@@ -161,10 +163,12 @@ async function pollOneRule(input: {
   const rows = (await query.execute()) as Row[];
   if (rows.length === 0) return { rowsSeen: 0, runsStarted: 0 };
 
+  // A rule of a part that is off starts nothing, and the rows are still passed: switching the part on replays none of them.
+  const idle = await rulePartOff(deps.meta, rule);
   let runsStarted = 0;
   for (const row of rows) {
     const pk = Object.fromEntries(table.primaryKey.map((c) => [c, row[c]]));
-    if (await claimRow({ deps, rule, table, row, pk, event, watched, dialect, now })) runsStarted += 1;
+    if (!idle && (await claimRow({ deps, rule, table, row, pk, event, watched, dialect, now }))) runsStarted += 1;
   }
 
   // The LAST ROW OF THE PAGE, whatever happened to it. A row the conditions

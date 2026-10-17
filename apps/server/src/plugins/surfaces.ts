@@ -67,10 +67,13 @@ import {
   snapshotsRepo,
   type DsnCrypto,
   type MetaDb,
+  userPrefsRepo,
+  roleNameFor,
 } from '@adminium/meta';
 
 import type { Manifest } from '@adminium/manifest';
 
+import { kitOf } from '../apps/kit.js';
 import { sharedTablesOf } from '../apps/shared-tables.js';
 import type { InstalledApps } from '../apps/installed.js';
 import { settingValuesWithDefaults } from '../apps/settings-values.js';
@@ -78,7 +81,9 @@ import { auditAuth } from '../auth/audit.js';
 import { clearSessionCookie } from '../auth/sessions.js';
 import { resolveLabel, type HostedSurface, type SurfaceSide } from '../cli/surfaces-root.js';
 import { AppError, AppUnavailableError, ForbiddenError, NotFoundError } from '../errors.js';
-import { bcp47 } from '../i18n/bcp47.js';
+import { MAPS_OFF } from '../geo/map-policy.js';
+import { bcp47, sameLanguage } from '../i18n/bcp47.js';
+import { loadAppParts, offeredRoles } from '../rbac/app-parts.js';
 import { loadOverrideMap, recipientLocale } from '../i18n/server-i18n.js';
 import { openPublishableKey, storedPageKey } from '../public-api/keys.js';
 import { CSRF_FORM_FIELD, normalizeHost } from '../security/csrf.js';
@@ -322,7 +327,7 @@ async function sendNotFoundPage(meta: MetaDb, request: FastifyRequest, reply: Fa
 async function sendUnavailablePage(
   meta: MetaDb,
   surface: HostedSurface,
-  reason: 'app-disabled' | 'side-off' | 'no-access',
+  reason: 'app-disabled' | 'side-off' | 'no-access' | 'parts-off',
   settings: SurfaceSettings,
   request: FastifyRequest,
   reply: FastifyReply,
@@ -354,7 +359,7 @@ async function sendUnavailablePage(
   });
   await reply
     // Switched off is the app's state (503); no access is this person's (403).
-    .code(reason === 'no-access' ? 403 : 503)
+    .code(reason === 'no-access' || reason === 'parts-off' ? 403 : 503)
     .header('cache-control', 'no-store')
     .header('x-robots-tag', 'noindex')
     .type('text/html; charset=utf-8')
@@ -572,7 +577,8 @@ export const surfacesPlugin = fp<SurfacesPluginOptions>(
             // and a way to sign out; anything else the coded answer.
             if (isDocumentNavigation(request) && opts.metaDb !== undefined) {
               const settings = (await app.surfaceSettings?.read()) ?? NO_SURFACE_SETTINGS;
-              await sendUnavailablePage(opts.metaDb, surface, 'no-access', settings, request, reply);
+              // Every role they hold is of a part that is switched off: said as that, not as "no role".
+              await sendUnavailablePage(opts.metaDb, surface, request.rbacResolution?.partsOff === true ? 'parts-off' : 'no-access', settings, request, reply);
               return true;
             }
             throw new ForbiddenError('This account cannot open this app’s staff screens.', 'FORBIDDEN', {
@@ -660,11 +666,14 @@ export const surfacesPlugin = fp<SurfacesPluginOptions>(
          */
         const user = request.user;
         const session = request.session;
+        // The language this person chose in Adminium, and its direction: the screens speak as the rest of Adminium does to them.
+        const prefs = user === null || opts.metaDb === undefined ? null : await userPrefsRepo(opts.metaDb).resolve(user.id);
         const signedIn =
           user === null || session === null
             ? {}
             : {
                 user: { id: user.id, name: user.name, email: user.email },
+                ...(prefs === null ? {} : { locale: bcp47(prefs.locale), dir: prefs.dir }),
                 ...(request.server.hasDecorator('csrfTokenFor') ? { csrfToken: request.server.csrfTokenFor(session.id) } : {}),
               };
         /*
@@ -680,6 +689,15 @@ export const surfacesPlugin = fp<SurfacesPluginOptions>(
         const addOnTables = Object.values(addOns ?? {}).flatMap((addOn) => Object.values((addOn as { tables?: Record<string, string> }).tables ?? {}));
         const access = user === null || bound === null ? null : await accessOf(request, appKey, bound, tables, user.id, addOnTables);
         const sharedTables = bound === null || tables === null || opts.metaDb === undefined ? null : await sharedTablesOf(opts.metaDb, bound, appKey, tables);
+        /*
+         * THE KIT'S PARTS AND THE MAP, for a screen that draws them itself:
+         * the file to import for a part (the board, the map, the import, the
+         * mention box), and whether maps are on and where they come from. The
+         * same answer the dashboard's bootstrap gives, which these screens do
+         * not read.
+         */
+        const kit = await kitOf(request.server.hasDecorator('spaRoot') ? request.server.spaRoot : null);
+        const maps = request.server.hasDecorator('maps') ? await request.server.maps.read() : MAPS_OFF;
         return {
           connectionId: bound,
           appName,
@@ -689,12 +707,15 @@ export const surfacesPlugin = fp<SurfacesPluginOptions>(
           ...(access === null ? {} : { access }),
           ...(tables === null ? {} : { tables }),
           ...(values === null ? {} : { settings: values }),
+          ...(await partsOf(appKey)),
           ...(venue === null
             ? {}
             : { timezone: venue.timezone, timezoneSource: venue.timezoneSource, currency: venue.currency }),
           serverTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
           // The server's clock when this was answered: a device whose clock is off still asks for the venue's today.
           now: new Date().toISOString(),
+          ...(kit === null ? {} : { kit }),
+          maps: { enabled: maps.enabled, server: maps.server, routing: maps.routing },
           ...signedIn,
         };
       }
@@ -708,7 +729,17 @@ export const surfacesPlugin = fp<SurfacesPluginOptions>(
         connectionId === null
           ? await keys.newestLiveByApp(appKey, 'customer')
           : await keys.newestLiveByAppAndConnection(appKey, 'customer', connectionId);
-      if (key === null) {
+      const shared = await sharedLinkKeysFor(appKey, connectionId);
+      /*
+       * AN APP WHOSE ONLY PUBLIC DOOR IS A SHARED LINK (a quote its customer
+       * opens by the link in an e-mail) has no `customer` key: it serves
+       * nothing to somebody who holds no link. Its customer side is still the
+       * page behind that link and must load, so it is served the link's own
+       * key as its key (the first by name where there are several). That key
+       * opens one row to whoever holds a link, and nothing without one.
+       */
+      const linkOnly = key === null ? Object.keys(shared).sort()[0] : undefined;
+      if (key === null && linkOnly === undefined) {
         throw new NotFoundError('No live publishable key is bound to this surface.', {
           appKey,
           ...(slug === null ? {} : { instance: slug }),
@@ -720,17 +751,29 @@ export const surfacesPlugin = fp<SurfacesPluginOptions>(
       );
       const values = await settingsOf(appKey);
       const addOns = await addOnsOf(appKey, 'customer', connectionId ?? (slug === null ? await installConnectionOf(metaDb, appKey) : null));
-      const shared = await sharedLinkKeysFor(appKey, connectionId);
       return {
         baseUrl: '',
-        publishableKey: openPublishableKey(crypto, key.tokenEncrypted),
+        publishableKey: key === null ? shared[linkOnly as string]! : openPublishableKey(crypto, key.tokenEncrypted),
         appName,
         ...(addOns === null ? {} : { addOns }),
         ...(Object.keys(shared).length === 0 ? {} : { publicKeys: shared }),
         ...(tables === null ? {} : { tables }),
         ...(values === null ? {} : { settings: values }),
+        ...(await partsOf(appKey)),
         now: new Date().toISOString(),
       };
+    }
+
+    /**
+     * THE PARTS OF THE APP, each on or off: a screen of a part is inside the
+     * app's own bundle, so the app hides it. The server's own gate for what
+     * such a screen reads is the roles, which lapse with the part.
+     */
+    async function partsOf(appKey: string): Promise<{ modules?: Record<string, boolean> }> {
+      if (opts.metaDb === undefined) return {};
+      const parts = (await loadAppParts(opts.metaDb, [appKey])).get(appKey);
+      if (parts === undefined || parts.modules === null) return {};
+      return { modules: Object.fromEntries(parts.modules.defs.map((def) => [def.id, !parts.off.has(def.id)])) };
     }
 
     /**
@@ -765,9 +808,11 @@ export const surfacesPlugin = fp<SurfacesPluginOptions>(
         }
         if (held.length > 0) grants[ref] = held;
       }
+      // Each role under its name in the reader's language, while the owner has not renamed it.
+      const locale = (await userPrefsRepo(metaDb).resolve(userId)).locale;
       const roles = (await rolesRepo(metaDb).rolesForUser(userId))
         .filter((role) => role.appKey === appKey)
-        .map((role) => ({ slug: role.slug, name: role.name }));
+        .map((role) => ({ slug: role.slug, name: roleNameFor(role, (names) => sameLanguage(names, locale)) }));
       return { tables: grants, roles };
     }
 
@@ -783,7 +828,8 @@ export const surfacesPlugin = fp<SurfacesPluginOptions>(
       const crypto = opts.crypto;
       if (metaDb === undefined || crypto === undefined) return {};
       const roles = await rolesRepo(metaDb).rolesForUser(userId);
-      const held = new Set(roles.filter((role) => role.appKey === appKey).map((role) => role.slug));
+      // A role whose part of the app is off is not offered: it holds no kiosk key.
+      const held = new Set((await offeredRoles(metaDb, roles)).filter((role) => role.appKey === appKey).map((role) => role.slug));
       if (held.size === 0) return {};
       const keys = publicKeysRepo(metaDb);
       const out: Record<string, string> = {};

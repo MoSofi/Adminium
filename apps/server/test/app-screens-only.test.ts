@@ -117,6 +117,13 @@ describe('someone who opens only an app’s own screens', () => {
     expect((await get('/api/v1/documents/doc_1/print', cookie)).json().error?.code).not.toBe('APP_SCREENS_ONLY');
     expect((await get('/api/v1/documents/doc_1/content', cookie)).json().error?.code).not.toBe('APP_SCREENS_ONLY');
     expect((await get('/api/v1/documents', cookie)).json().error?.code).toBe('APP_SCREENS_ONLY');
+    // One import's own routes and its job's progress answer (each then asks the table's own rights, or whose it is);
+    // the list of imports and the list of jobs are the dashboard's.
+    expect((await get('/api/v1/imports/imp_none', cookie)).json().error?.code).not.toBe('APP_SCREENS_ONLY');
+    expect((await get('/api/v1/imports/imp_none/preview', cookie)).json().error?.code).not.toBe('APP_SCREENS_ONLY');
+    expect((await get('/api/v1/jobs/job_none', cookie)).json().error?.code).not.toBe('APP_SCREENS_ONLY');
+    expect((await get('/api/v1/imports', cookie)).json().error?.code).toBe('APP_SCREENS_ONLY');
+    expect((await get('/api/v1/jobs', cookie)).json().error?.code).toBe('APP_SCREENS_ONLY');
     // An add-on's stock words are for the screens of an app that uses it: no add-on is connected to theirs.
     for (const url of ['/api/v1/words/stock/item?table=stock:items&ids=1', '/%61pi/v1/words/stock/item?table=stock:items&ids=1']) {
       expect((await get(url, cookie)).json().error?.code, url).toBe('APP_SCREENS_ONLY');
@@ -206,6 +213,59 @@ describe('someone who opens only an app’s own screens', () => {
     expect(allowed('POST', RENDER, { key: 'stock' })).toBe(false);
     expect(allowed('GET', RENDER, { key: 'offers' })).toBe(false);
     expect(allowed('GET', '/api/v1/documents/print-once/:ticket', { ticket: 't' })).toBe(true);
+  });
+
+  it('may bring a file in to a table of their app: the seven routes of one import and its job, and no other of either', () => {
+    const allowed = (method: string, route: string) => allowedForScreensOnly(method, route, { id: 'imp_1' }, new Set(['conn_1']), ['clients']);
+    for (const [method, route] of [
+      ['POST', '/api/v1/imports/upload'],
+      ['POST', '/api/v1/imports'],
+      ['GET', '/api/v1/imports/:id'],
+      ['GET', '/api/v1/imports/:id/preview'],
+      ['POST', '/api/v1/imports/:id/run'],
+      ['GET', '/api/v1/imports/:id/error-report'],
+      ['GET', '/api/v1/jobs/:id'],
+    ] as const) {
+      expect(allowed(method, route), `${method} ${route}`).toBe(true);
+    }
+    // The list of everybody's imports, the exports, and the rest of the jobs stay the dashboard's.
+    for (const [method, route] of [
+      ['GET', '/api/v1/imports'],
+      ['DELETE', '/api/v1/imports/:id'],
+      ['POST', '/api/v1/exports'],
+      ['GET', '/api/v1/exports'],
+      ['GET', '/api/v1/jobs'],
+      ['POST', '/api/v1/jobs'],
+      ['POST', '/api/v1/jobs/:id/cancel'],
+      ['POST', '/api/v1/jobs/:id'],
+    ] as const) {
+      expect(allowed(method, route), `${method} ${route}`).toBe(false);
+    }
+  });
+
+  it('may upload a file for a record of their app, read one back and throw away one no record holds, and no other file route', () => {
+    const allowed = (method: string, route: string) => allowedForScreensOnly(method, route, { id: 'file_1' }, new Set(['conn_1']), ['clients']);
+    for (const [method, route] of [
+      ['POST', '/api/v1/files'],
+      ['GET', '/api/v1/files/:id'],
+      ['GET', '/api/v1/files/:id/content'],
+      ['DELETE', '/api/v1/files/:id'],
+    ] as const) {
+      expect(allowed(method, route), `${method} ${route}`).toBe(true);
+    }
+    // The list of files, the library's sizes, looking files up in bulk, renaming, moving and restoring them stay the dashboard's.
+    for (const [method, route] of [
+      ['GET', '/api/v1/files'],
+      ['GET', '/api/v1/files/usage'],
+      ['POST', '/api/v1/files/resolve'],
+      ['PATCH', '/api/v1/files/:id'],
+      ['POST', '/api/v1/files/:id/attach'],
+      ['POST', '/api/v1/files/:id/detach'],
+      ['POST', '/api/v1/files/:id/restore'],
+      ['GET', '/api/v1/storage/destinations'],
+    ] as const) {
+      expect(allowed(method, route), `${method} ${route}`).toBe(false);
+    }
   });
 
   it('finds who they are, and their token, in the staff config', async () => {

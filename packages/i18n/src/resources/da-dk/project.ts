@@ -24,5 +24,9 @@ export default {
   },
   "table": {
     "empty": "Ingen poster"
+  },
+  "kit": {
+    "partFailed": "Denne del af siden kunne ikke indlæses. Genindlæs siden for at prøve igen.",
+    "mapPlaces": "Steder"
   }
 } as const;

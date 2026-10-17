@@ -131,7 +131,9 @@ export default {
     "waitDesc": "Vor dem nächsten Schritt pausieren",
     "stop": "Ablauf stoppen",
     "stopDesc": "Diesen Lauf hier beenden",
-    "document": "Dokument erstellen"
+    "document": "Dokument erstellen",
+    "digest": "Jeder Person eine Übersicht senden",
+    "digestDesc": "Je eine E-Mail mit den eigenen Zeilen"
   },
   "node": {
     "email": {
@@ -179,6 +181,9 @@ export default {
     },
     "document": {
       "summary": "Erstellt ein Dokument"
+    },
+    "digest": {
+      "summary": "{template} · {count, plural, one {# Abschnitt} other {# Abschnitte}}"
     }
   },
   "event": {
@@ -254,7 +259,9 @@ export default {
     "timeSaved": "Gesparte Zeit pro Lauf",
     "timeSavedBody": "Minuten, die eine Person gebraucht hätte – erscheint als „spart“ an der Regel",
     "addCondition": "Bedingung hinzufügen",
-    "connection": "Verbindung"
+    "connection": "Verbindung",
+    "perSpell": "Erneut, wenn es wieder zutrifft",
+    "perSpellBody": "Ein Datensatz, der nicht mehr zutrifft und später wieder zutrifft, läuft erneut: einmal je solcher Phase"
   },
   "sched": {
     "interval": "Intervall",
@@ -289,14 +296,22 @@ export default {
     "noColumn": "Keine Spalte passt.",
     "addressColumns": "Adressspalten",
     "thisTable": "Diese Tabelle · {table}",
-    "fromLink": "Über {link} · {table}.{column}"
+    "fromLink": "Über {link} · {table}.{column}",
+    "toStaff": "Die Person an diesem Datensatz"
   },
   "notif": {
     "to": "Senden an",
     "roles": "Alle mit einer Rolle",
     "users": "Bestimmte Personen",
     "title": "Titel",
-    "body": "Nachricht"
+    "body": "Nachricht",
+    "column": "Die Person an diesem Datensatz",
+    "columnPick": "Welche Person",
+    "columnChoose": "Spalte wählen…",
+    "columnNone": "Diese Tabelle hat keine Spalte, die ein Teammitglied enthält.",
+    "columnEmpty": "Ein Datensatz ohne Person in dieser Spalte benachrichtigt niemanden, und der Lauf vermerkt das.",
+    "urgent": "Dringend",
+    "urgentBody": "Wird sofort gemeldet, auch in den Ruhezeiten einer Person"
   },
   "rec": {
     "table": "Tabelle",
@@ -305,8 +320,13 @@ export default {
     "column": "Spalte",
     "value": "Wert",
     "now": "Jetzt",
+    "fromSetting": "Aus den Einstellungen: {column}",
+    "dayCount": "{count, plural, one {# Tag} other {# Tage}}",
+    "daysAfter": "{days} nach {from}",
     "remove": "Diesen Wert entfernen",
-    "tokenHint": "Mit {token} aus dem Datensatz übernehmen"
+    "tokenHint": "Mit {token} aus dem Datensatz übernehmen",
+    "name": "Name der neuen Zeile für spätere Schritte (optional)",
+    "nameHint": "Ein späterer Schritt liest sie als {token}"
   },
   "hook": {
     "url": "URL",
@@ -468,5 +488,29 @@ export default {
     "changed": "{name} hat diese Regel geändert.",
     "undo": "Änderung von {name} rückgängig machen",
     "addedBy": "Von {name} hinzugefügt"
+  },
+  "digest": {
+    "help": "Eine E-Mail pro Person, nur mit den Zeilen, die ihr gehören und die sie lesen darf. Sie wird zu der Zeit gesendet, die die Person für Übersichten gewählt hat, sonst beim Lauf der Regel.",
+    "sectionKey": "Abschnittsname (der Zeilenblock der Vorlage nennt ihn)",
+    "chooseTable": "Tabelle wählen…",
+    "owner": "Zeilen, in denen diese Person steht als",
+    "conditions": "{count, plural, one {Und # weitere Bedingung, unverändert übernommen.} other {Und # weitere Bedingungen, unverändert übernommen.}}",
+    "limit": "Höchstens so viele Zeilen",
+    "removeSection": "Diesen Abschnitt entfernen",
+    "addSection": "Abschnitt hinzufügen",
+    "sendEmpty": "Auch senden, wenn nichts aufzulisten ist",
+    "sendEmptyBody": "Aus: Wer in keinem Abschnitt eine Zeile hat, bekommt keine E-Mail",
+    "readAt": "Stand der Zahlen: {when}."
+  },
+  "appFilter": {
+    "note": "Es werden nur die Regeln von {app} angezeigt.",
+    "clear": "Alle Regeln anzeigen"
+  },
+  "listed": {
+    "summary": "die in {table} eingetragenen Personen",
+    "option": "Die bei diesem Datensatz eingetragenen Personen",
+    "pick": "Eingetragen in",
+    "choose": "Tabelle wählen…",
+    "help": "Von den eingetragenen Personen werden nur die benachrichtigt, die sich anmelden und diesen Datensatz öffnen können. Ein Datensatz ohne eingetragene Personen benachrichtigt niemanden, und der Lauf vermerkt das."
   }
 } as const;

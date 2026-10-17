@@ -8,7 +8,7 @@ import type { Selectable } from 'kysely';
 import type { MetaDb } from '../connect.js';
 import { newId } from '../ids.js';
 import type { AdminiumRolesTable } from '../schema/tables.js';
-import { readBool, writeBool } from './util.js';
+import { packJson, readBool, readJsonOrNull, writeBool } from './util.js';
 
 export interface Role {
   id: string;
@@ -22,6 +22,22 @@ export interface Role {
   appKey: string | null;
   /** Opens the app's own screens and never the dashboard. */
   screensOnly: boolean;
+  /** The parts of its app the role belongs to; null when it names none (it is then always offered). */
+  modules: string[] | null;
+  /** The name its manifest gave it, and that name in other languages; null when it gave one language. */
+  names: RoleNames | null;
+}
+
+/** A role's name as its manifest wrote it: shown in the reader's language while the role still carries `from`. */
+export interface RoleNames {
+  from: string;
+  names: Record<string, string>;
+}
+
+/** The name of a role for a reader: their language while the owner has not renamed it. */
+export function roleNameFor(role: Pick<Role, 'name' | 'names'>, pick: (names: Record<string, string>) => string | undefined): string {
+  if (role.names === null || role.names.from !== role.name) return role.name;
+  return pick(role.names.names) ?? role.name;
 }
 
 export interface CreateRoleInput {
@@ -31,6 +47,8 @@ export interface CreateRoleInput {
   isBuiltin?: boolean;
   appKey?: string | null;
   screensOnly?: boolean;
+  modules?: readonly string[] | null;
+  names?: RoleNames | null;
 }
 
 function mapRole(row: Selectable<AdminiumRolesTable>): Role {
@@ -44,7 +62,20 @@ function mapRole(row: Selectable<AdminiumRolesTable>): Role {
     updatedAt: row.updatedAt,
     appKey: row.appKey ?? null,
     screensOnly: readBool(row.screensOnly ?? false),
+    modules: partsOf(row.modules),
+    names: namesOf(row.names),
   };
+}
+
+function partsOf(value: unknown): string[] | null {
+  const read = value === null || value === undefined ? null : readJsonOrNull<unknown>(value);
+  return Array.isArray(read) && read.every((id) => typeof id === 'string') && read.length > 0 ? (read as string[]) : null;
+}
+
+function namesOf(value: unknown): RoleNames | null {
+  const read = value === null || value === undefined ? null : readJsonOrNull<{ from?: unknown; names?: unknown }>(value);
+  if (read === null || typeof read !== 'object' || typeof read.from !== 'string' || typeof read.names !== 'object' || read.names === null) return null;
+  return { from: read.from, names: Object.fromEntries(Object.entries(read.names as Record<string, unknown>).filter((entry): entry is [string, string] => typeof entry[1] === 'string')) };
 }
 
 export function rolesRepo(meta: MetaDb) {
@@ -61,6 +92,9 @@ export function rolesRepo(meta: MetaDb) {
         updatedAt: at,
         appKey: input.appKey ?? null,
         screensOnly: writeBool(meta, input.screensOnly ?? false),
+        // Written only when there is something to write: a store part-way through its waves has neither column yet.
+        ...(input.modules === undefined || input.modules === null || input.modules.length === 0 ? {} : { modules: packJson(input.modules) }),
+        ...(input.names === undefined || input.names === null ? {} : { names: packJson(input.names) }),
       };
       await db.insertInto('adminium_roles').values(row).execute();
       return mapRole(row as Selectable<AdminiumRolesTable>);
@@ -79,6 +113,19 @@ export function rolesRepo(meta: MetaDb) {
     async list(): Promise<Role[]> {
       const rows = await db.selectFrom('adminium_roles').selectAll().orderBy('slug', 'asc').execute();
       return rows.map(mapRole);
+    },
+
+    /** What a manifest says of its role beside the grants: its parts and its name in other languages. */
+    async setParts(roleId: string, input: { modules: readonly string[] | null; names: RoleNames | null }, at: number = Date.now()): Promise<void> {
+      await db
+        .updateTable('adminium_roles')
+        .set({
+          modules: input.modules === null || input.modules.length === 0 ? null : packJson(input.modules),
+          names: input.names === null ? null : packJson(input.names),
+          updatedAt: at,
+        })
+        .where('id', '=', roleId)
+        .execute();
     },
 
     async rename(roleId: string, name: string, at: number = Date.now()): Promise<boolean> {

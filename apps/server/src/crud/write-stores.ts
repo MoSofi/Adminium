@@ -6,12 +6,14 @@
  * currency and an add-on's settings — and the roles of whoever writes, for a
  * move only some roles may make.
  */
+import { offeredRoles } from '../rbac/app-parts.js';
 import type { Manifest } from '@adminium/manifest';
 import { addOnSettingsRepo, apiKeysRepo, connectionTenantConfig, documentSequencesRepo, readJson, rolesRepo, type MetaDb } from '@adminium/meta';
 
 import { SUPER_ADMIN_SLUG } from '../rbac/resolver.js';
 import type { WriteServiceOptions } from './write-service.js';
 import { installedCustomerKey } from '../public-api/customer-key.js';
+import { createFileColumnJudge } from '../files/column-judge.js';
 
 /**
  * One of an add-on's settings: the value the install saved, else the default
@@ -34,8 +36,10 @@ export async function addOnSetting(meta: MetaDb, addOnKey: string, setting: stri
   return 'default' in declared ? declared.default : undefined;
 }
 
-export function writeStores(meta: MetaDb): Pick<WriteServiceOptions, 'sequences' | 'timezoneOf' | 'settings' | 'rolesOf' | 'customerKey'> {
+export function writeStores(meta: MetaDb): Pick<WriteServiceOptions, 'sequences' | 'timezoneOf' | 'settings' | 'rolesOf' | 'customerKey' | 'files'> {
   return {
+    // Which files a file column may be given: found in the meta store; a picture is shown clean only where the bytes can be read (the server's own service).
+    files: createFileColumnJudge({ meta }),
     // A customer's key, under the secret the server said as it started: every service built from these stores makes the same one.
     customerKey: installedCustomerKey,
     sequences: documentSequencesRepo(meta),
@@ -47,7 +51,8 @@ export function writeStores(meta: MetaDb): Pick<WriteServiceOptions, 'sequences'
     rolesOf: async (actor) => {
       const roles = rolesRepo(meta);
       let held: { slug: string }[] = [];
-      if (actor?.kind === 'user' && actor.id !== null) held = await roles.rolesForUser(actor.id);
+      // A role that is not offered (its part of the app is off) keeps no move for its holder.
+      if (actor?.kind === 'user' && actor.id !== null) held = await offeredRoles(meta, await roles.rolesForUser(actor.id));
       if (actor?.kind === 'api-key' && actor.id !== null) {
         const key = await apiKeysRepo(meta).findById(actor.id);
         const role = key === null ? null : await roles.findById(key.roleId);

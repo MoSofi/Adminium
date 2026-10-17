@@ -144,6 +144,12 @@ export const AUDIT_COVERAGE: Readonly<Record<string, AuditMark>> = {
   'PUT /api/v1/me/notification-prefs': auditExempt(
     'The caller’s own delivery preferences — a per-user setting, not a workspace one.',
   ),
+  'POST /api/v1/me/summaries/:ruleId/send': auditExempt(
+    'Sends the caller their own summary to their own address — nothing of the workspace changes, and it is held to three an hour.',
+  ),
+  'PUT /api/v1/me/notification-schedule': auditExempt(
+    'The caller’s own delivery preferences — a per-user setting, not a workspace one.',
+  ),
   // routes/me-views/index.ts:12, verbatim: "Overrides are personal and
   // reversible, so they are not audited — only shared-default writes are
   // (see routes/pages)."
@@ -236,6 +242,9 @@ export const AUDIT_COVERAGE: Readonly<Record<string, AuditMark>> = {
   'PUT /api/v1/settings/branding': audited('rbac'), // settings.branding.update
   'PUT /api/v1/settings/security': audited('rbac'), // settings.security.update
   'PUT /api/v1/settings/telemetry': audited('rbac'), // settings.telemetry.update
+  'PUT /api/v1/settings/maps': audited('rbac'), // settings.maps.update
+  'POST /api/v1/geo/places/match': auditExempt('The towns of up to 200 addresses, looked up in the shipped place list: read-only, a POST only for its body.'),
+  'POST /api/v1/geo/route': auditExempt('The legs between stops the caller sends: nothing is stored, a POST only for its body.'),
   'POST /api/v1/branding/logo': audited('rbac'), // settings.branding.logo.update
   'DELETE /api/v1/branding/logo': audited('rbac'), // settings.branding.logo.remove
   // Email documents: every write is
@@ -253,6 +262,13 @@ export const AUDIT_COVERAGE: Readonly<Record<string, AuditMark>> = {
   'PATCH /api/v1/roles/:id': audited('rbac'), // role.update
   'DELETE /api/v1/roles/:id': audited('rbac'), // role.delete
   'PUT /api/v1/roles/:id/permissions': audited('rbac'), // role.permission.change
+  'POST /api/v1/teams': audited('rbac'), // team.create
+  'POST /api/v1/users/:id/rows/hand-over': audited('rbac'), // user.rows.hand-over
+  'POST /api/v1/roles/rows/preview': auditExempt('A count of the rows one person would reach under a draft limit: read-only, a POST only for its body.'),
+  'PATCH /api/v1/teams/:id': audited('rbac'), // team.rename
+  'DELETE /api/v1/teams/:id': audited('rbac'), // team.delete
+  'PUT /api/v1/teams/:id/members/:userId': audited('rbac'), // team.member.add / team.member.change
+  'DELETE /api/v1/teams/:id/members/:userId': audited('rbac'), // team.member.remove
   'POST /api/v1/users/:id/roles': audited('rbac'), // user.role.assign
   'DELETE /api/v1/users/:id/roles/:roleId': audited('rbac'), // user.role.unassign
   'POST /api/v1/users': audited('rbac'), // user.invite

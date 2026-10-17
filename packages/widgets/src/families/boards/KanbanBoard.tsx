@@ -11,23 +11,28 @@ import {
 } from '@dnd-kit/core';
 import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core';
 import { Plus } from 'lucide-react';
-import { useState } from 'react';
-import type { KeyboardEvent as ReactKeyboardEvent } from 'react';
+import { useId, useMemo, useRef, useState } from 'react';
+import type { KeyboardEvent as ReactKeyboardEvent, ReactNode } from 'react';
 
 import { BoardCard } from './BoardCard.js';
+import { CardActions } from './CardActions.js';
 import { useMaybeT } from '../../lib/i18n.js';
 
 import {
+  BoardAddRefusalNotice,
   BoardLiveRegion,
+  BoardRefusalNotice,
   DraggableCard,
   DroppableCell,
   announcementsFromTemplates,
   silentDndAnnouncements,
   useBoardAnnouncements,
+  refusalReasonOf,
+  useAnnounceAddRefusal,
   useBoardMoves,
   useLiveRegion,
 } from './board-dnd.js';
-import type { BoardAnnouncements, MoveResult } from './board-dnd.js';
+import type { BoardAddRefusal, BoardAnnouncements, MoveResult } from './board-dnd.js';
 import { boardRowsOf, resolveColumns, toBoardCard } from './board-lib.js';
 import type { BoardCardData, ColumnDef } from './board-lib.js';
 import type { KanbanBoardConfig } from './boards-config.js';
@@ -83,7 +88,34 @@ export interface KanbanBoardProps {
   /** Fired on a committed move; return a promise to enable rollback-on-reject. */
   onCardMove?: ((cardId: string, fromColumn: string, toColumn: string) => MoveResult) | undefined;
   onCardOpen?: ((cardId: string) => void) | undefined;
-  onAdd?: ((columnId: string) => void) | undefined;
+  /**
+   * With `onCardOpen`: Shift+Enter opens a card that can be moved (Enter
+   * alone picks it up, so without this a keyboard has no way to open one),
+   * and each such card says so to a screen reader. Off unless asked for.
+   */
+  keyboardOpen?: boolean | undefined;
+  /**
+   * One of a card's own `actions` was chosen from its menu. Giving this is
+   * what draws the "more" button on every card that has actions.
+   */
+  onCardAction?: ((cardId: string, actionId: string) => void) | undefined;
+  /** Add a card to a column; return the save's promise so a refused add is said on the board instead of lost. */
+  onAdd?: ((columnId: string) => MoveResult) | undefined;
+  /**
+   * An add somebody else made for this board and that was refused (a composer
+   * beside it): shown where a refused move is, and said aloud. The board's own
+   * "add" button reports through the same line.
+   */
+  addRefusal?: BoardAddRefusal | null | undefined;
+  onDismissAddRefusal?: (() => void) | undefined;
+  /**
+   * Which cards may be moved. Left out, every card. A card that may not is
+   * not dragged and not picked up; with `onCardOpen`, Tab still stops at it
+   * and Enter opens it.
+   */
+  canMoveCard?: ((cardId: string) => boolean) | undefined;
+  /** Drawn at the foot of each column, under its cards (a composer of the host's). */
+  columnFooter?: ((column: ColumnDef) => ReactNode) | undefined;
   testId?: string | undefined;
 }
 
@@ -96,18 +128,31 @@ export function KanbanBoard({
   labels,
   onCardMove,
   onCardOpen,
+  keyboardOpen = false,
+  onCardAction,
   onAdd,
+  addRefusal,
+  onDismissAddRefusal,
+  canMoveCard,
+  columnFooter,
   testId,
 }: KanbanBoardProps) {
   const t = useMaybeT();
   const [activeId, setActiveId] = useState<string | null>(null);
   const { message, announce } = useLiveRegion();
+  // An add from a column's own button that was refused; the host's (a composer's) comes in `addRefusal`.
+  const [ownAddRefusal, setOwnAddRefusal] = useState<BoardAddRefusal | null>(null);
+  const notAdded = ownAddRefusal ?? addRefusal ?? null;
+  useAnnounceAddRefusal(notAdded, announce);
   const announcements: BoardAnnouncements = useBoardAnnouncements(labels?.announcements);
 
   const columnById = new Map(columns.map((column) => [column.id, column]));
   const labelOf = (columnId: string): string => columnById.get(columnId)?.label ?? columnId;
 
+  // The board's own element: a keyboard move is followed inside it (the column in view, the focus on the card).
+  const root = useRef<HTMLDivElement>(null);
   const moves = useBoardMoves({
+    root,
     cards,
     naturalCellKey: (card) => card.column,
     cellLabel: labelOf,
@@ -115,6 +160,10 @@ export function KanbanBoard({
     announce,
     announcements,
   });
+
+  // Shift+Enter opens, where the host asked for it: said once, in a line every movable card points at.
+  const opensByKey = keyboardOpen && onCardOpen !== undefined;
+  const openHintId = useId();
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
   const activeCard = activeId === null ? null : cards.find((card) => card.id === activeId) ?? null;
@@ -139,8 +188,31 @@ export function KanbanBoard({
     moves.requestMove(String(event.active.id), String(over.id));
   };
 
+  const addTo = (columnId: string): void => {
+    setOwnAddRefusal(null);
+    const result = onAdd?.(columnId);
+    if (result && typeof (result as Promise<unknown>).then === 'function') {
+      (result as Promise<unknown>).then(undefined, (error: unknown) => setOwnAddRefusal({ title: undefined, reason: refusalReasonOf(error) }));
+    }
+  };
+
+  const locked = (cardId: string): boolean => canMoveCard !== undefined && !canMoveCard(cardId);
+
   const onCardKeyDown = (event: ReactKeyboardEvent<HTMLElement>, card: BoardCardData): void => {
+    if (locked(card.id)) {
+      // A card that stays where it is has one thing a key can do: be opened.
+      if (onCardOpen !== undefined && (event.key === 'Enter' || event.key === ' ' || event.key === 'Spacebar')) {
+        event.preventDefault();
+        onCardOpen(card.id);
+      }
+      return;
+    }
     const grabbed = moves.isGrabbed(card.id);
+    if (opensByKey && !grabbed && event.key === 'Enter' && event.shiftKey) {
+      event.preventDefault();
+      onCardOpen(card.id);
+      return;
+    }
     if (event.key === 'Enter' || event.key === ' ' || event.key === 'Spacebar') {
       event.preventDefault();
       if (grabbed) moves.commit();
@@ -169,8 +241,21 @@ export function KanbanBoard({
   };
 
   return (
-    <div dir={dir} data-widget="kanban-board" data-testid={testId} className="flex h-full flex-col">
+    <div ref={root} dir={dir} data-widget="kanban-board" data-testid={testId} className="flex h-full flex-col">
       <BoardLiveRegion message={message} />
+      {opensByKey ? (
+        <p id={openHintId} data-part="board-open-hint" className="sr-only">
+          {t('ui:widgets.boards.a11y.openHint', 'Enter picks this card up to move it. Shift+Enter opens it.')}
+        </p>
+      ) : null}
+      <BoardRefusalNotice refusal={moves.refusal} onDismiss={moves.dismissRefusal} />
+      <BoardAddRefusalNotice
+        refusal={notAdded}
+        onDismiss={() => {
+          setOwnAddRefusal(null);
+          onDismissAddRefusal?.();
+        }}
+      />
       <DndContext
         sensors={sensors}
         collisionDetection={closestCorners}
@@ -179,35 +264,59 @@ export function KanbanBoard({
         onDragEnd={onDragEnd}
         onDragCancel={() => setActiveId(null)}
       >
-        <div className="flex h-full min-h-0 flex-1 items-stretch gap-3 overflow-x-auto p-3">
+        <div data-board-scroller="" className="flex h-full min-h-0 flex-1 items-stretch gap-3 overflow-x-auto p-3">
           {columns.map((column) => {
             const columnCards = cards.filter((card) => moves.cellKeyOf(card) === column.id);
-            const overWip = column.wip !== undefined && columnCards.length > column.wip;
+            // The count somebody made of ALL the column's cards, moved by the cards a drop has just put in or taken
+            // out and whose save has not answered yet: once it has, the next count has the move in it already, and
+            // moving it again would count the card twice. Without a count, the cards given.
+            const saving = cards.filter((card) => moves.isSaving(card.id));
+            const held =
+              column.count === undefined
+                ? columnCards.length
+                : Math.max(
+                    0,
+                    column.count +
+                      saving.filter((card) => moves.cellKeyOf(card) === column.id).length -
+                      saving.filter((card) => card.column === column.id).length,
+                  );
+            const overWip = column.wip !== undefined && held > column.wip;
             return (
               <section
                 key={column.id}
                 data-board-column={column.id}
                 className="flex w-72 shrink-0 flex-col rounded-xl bg-surface-2/60"
               >
-                <header className="flex items-center gap-2 px-3 py-2.5">
-                  <span aria-hidden="true" className={`size-2.5 rounded-full ${DOT_TONE[column.tone]}`} />
-                  <span className="text-body-sm font-semibold text-fg">{column.label}</span>
+                {/* It wraps: a total of two figures takes a line of its own under the heading, never cut short. */}
+                <header className="flex flex-wrap items-center gap-x-2 gap-y-1 px-3 py-2.5">
+                  <span aria-hidden="true" className={`size-2.5 shrink-0 rounded-full ${DOT_TONE[column.tone]}`} />
+                  <span className="min-w-0 truncate text-body-sm font-semibold text-fg">{column.label}</span>
+                  {column.badge === undefined ? null : (
+                    <span data-part="column-badge" className="shrink-0 rounded-full border border-border px-1.5 text-[10.5px] font-medium tabular-nums text-fg-muted">
+                      {column.badge}
+                    </span>
+                  )}
                   <span
                     data-part="column-count"
                     className={
-                      'ms-1 inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1.5 font-mono text-[10.5px] font-bold tabular-nums ' +
+                      'ms-1 inline-flex h-[18px] min-w-[18px] shrink-0 items-center justify-center rounded-full px-1.5 font-mono text-[10.5px] font-bold tabular-nums ' +
                       (overWip ? 'bg-danger text-accent-fg' : 'bg-surface-3 text-fg-muted')
                     }
                   >
-                    {column.wip === undefined ? columnCards.length : `${columnCards.length}/${column.wip}`}
+                    {column.wip === undefined ? held : `${held}/${column.wip}`}
                   </span>
+                  {column.total === undefined ? null : (
+                    <span data-part="column-total" title={column.total} className="ms-auto min-w-0 max-w-full truncate font-mono text-[11px] font-semibold tabular-nums text-fg-muted">
+                      {column.total}
+                    </span>
+                  )}
                   {allowAdd && (
                     <button
                       type="button"
                       data-part="column-add"
-                      onClick={() => onAdd?.(column.id)}
+                      onClick={() => addTo(column.id)}
                       aria-label={labels?.addLabel ?? t('ui:widgets.boards.addCard', 'Add card')}
-                      className="ms-auto flex size-6 items-center justify-center rounded-md text-fg-muted hover:bg-surface-3 hover:text-fg focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent"
+                      className={`${column.total === undefined ? 'ms-auto' : ''} flex size-6 shrink-0 items-center justify-center rounded-md text-fg-muted hover:bg-surface-3 hover:text-fg focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent`}
                     >
                       <Plus className="size-4" aria-hidden="true" />
                     </button>
@@ -219,26 +328,50 @@ export function KanbanBoard({
                   highlight={moves.grabTargetKey === column.id}
                   className="flex min-h-16 flex-1 flex-col gap-2 overflow-y-auto px-2 pb-2"
                 >
-                  {columnCards.map((card) => (
-                    <DraggableCard
-                      key={card.id}
-                      card={card}
-                      grabbed={moves.isGrabbed(card.id)}
-                      ariaLabel={card.title}
-                      className="rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-                      onKeyDown={(event) => onCardKeyDown(event, card)}
-                      {...(onCardOpen === undefined ? {} : { onClick: () => onCardOpen(card.id) })}
-                    >
-                      <BoardCard
+                  {columnCards.map((card) => {
+                    const actions = onCardAction === undefined ? undefined : card.actions;
+                    const withMenu = actions !== undefined && actions.length > 0;
+                    const shell = (
+                      <DraggableCard
+                        key={card.id}
                         card={card}
-                        columnTone={column.tone}
-                        {...(locale === undefined ? {} : { locale })}
-                        {...(labels?.gripLabel === undefined ? {} : { gripLabel: labels.gripLabel })}
-                        {...(labels?.pointsUnit === undefined ? {} : { pointsUnit: labels.pointsUnit })}
-                      />
-                    </DraggableCard>
-                  ))}
+                        grabbed={moves.isGrabbed(card.id)}
+                        {...(locked(card.id) ? { disabled: true, tabbable: onCardOpen !== undefined } : opensByKey ? { ariaDescribedBy: openHintId } : {})}
+                        ariaLabel={card.title}
+                        className={`${withMenu ? 'peer ' : ''}rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent`}
+                        onKeyDown={(event) => onCardKeyDown(event, card)}
+                        {...(onCardOpen === undefined ? {} : { onClick: () => onCardOpen(card.id) })}
+                      >
+                        <BoardCard
+                          card={card}
+                          columnTone={column.tone}
+                          {...(withMenu ? { actionsSpace: true } : {})}
+                          {...(locale === undefined ? {} : { locale })}
+                          {...(labels?.gripLabel === undefined ? {} : { gripLabel: labels.gripLabel })}
+                          {...(labels?.pointsUnit === undefined ? {} : { pointsUnit: labels.pointsUnit })}
+                        />
+                      </DraggableCard>
+                    );
+                    if (!withMenu) return shell;
+                    // The menu's button stands AFTER the card, over its corner, and is no part of it: see CardActions.
+                    return (
+                      <div key={card.id} data-part="board-card-shell" className="relative">
+                        {shell}
+                        <CardActions
+                          title={card.title}
+                          actions={actions}
+                          onAction={(actionId) => onCardAction?.(card.id, actionId)}
+                          className="absolute end-2 top-2 peer-data-[dragging]:opacity-40"
+                        />
+                      </div>
+                    );
+                  })}
                 </DroppableCell>
+                {columnFooter === undefined ? null : (
+                  <div data-part="column-footer" className="px-2 pb-2">
+                    {columnFooter(column)}
+                  </div>
+                )}
               </section>
             );
           })}
@@ -265,9 +398,10 @@ function sourceOf(config: KanbanBoardConfig): { connectionId?: string | undefine
 }
 
 export function KanbanBoardWidget({ config, data, onEvent }: WidgetProps<KanbanBoardConfig>) {
-  const rows = boardRowsOf(data);
-  const cards = rows.map((row, index) =>
-    toBoardCard(row, index, { columnField: config.columnField, titleField: config.titleField }),
+  // One array for one answer: the board lets go of a saved move when NEW cards arrive, and tells by the array.
+  const cards = useMemo(
+    () => boardRowsOf(data).map((row, index) => toBoardCard(row, index, { columnField: config.columnField, titleField: config.titleField })),
+    [data, config.columnField, config.titleField],
   );
   const columns = resolveColumns(cards, config.columnDefs);
   const source = sourceOf(config);
@@ -300,15 +434,15 @@ export function KanbanBoardWidget({ config, data, onEvent }: WidgetProps<KanbanB
       onCardOpen={(cardId) => {
         onEvent({ type: 'record-open', connectionId: source.connectionId, table: source.table, recordId: cardId });
       }}
-      onAdd={(columnId) => {
+      onAdd={(columnId) =>
         onEvent({
           type: 'mutate',
           intent: 'insert',
           connectionId: source.connectionId,
           table: source.table,
           values: { [config.columnField]: columnId },
-        });
-      }}
+        })
+      }
     />
   );
 }

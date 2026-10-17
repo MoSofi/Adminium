@@ -10,5 +10,5 @@ export { AttachmentListWidget } from './AttachmentList.js';
 export { FileBrowserWidget } from './FileBrowser.js';
 export { ImageBoardWidget } from './ImageBoard.js';
 export { LinkListWidget } from './LinkList.js';
-export { UploadDropzoneWidget } from './UploadDropzone.js';
+export { UploadDropzoneWidget } from './UploadDropzoneWidget.js';
 export { UploadProgressListWidget } from './UploadProgressList.js';

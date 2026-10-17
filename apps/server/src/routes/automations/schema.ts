@@ -122,6 +122,8 @@ const sourceColumnSchema = z.object({
   pii: z.boolean(),
   /** The classifier read this as an address; the email step offers it first. */
   emailLike: z.boolean(),
+  /** Holds a staff member: a step may tell "the person in this column". */
+  staff: z.boolean().optional(),
   /** A relative-time operator is offered only on these. */
   dateLike: z.boolean(),
 });
@@ -142,6 +144,12 @@ const sourceTableSchema = z.object({
    * asker may read is listed, with the columns their role is shown.
    */
   links: z.array(z.object({ column: z.string(), table: z.string(), label: z.string(), columns: z.array(sourceColumnSchema) })),
+  /**
+   * The tables that list people against this one's rows (its `belongs` ways
+   * `through` them): what a step may tell as "the people listed". Only a
+   * table the asker may read is listed. Absent from a server before it said.
+   */
+  listings: z.array(z.object({ table: z.string(), label: z.string() })).optional(),
   /**
    * Tables whose rows point AT this one, and the column that does it —
    * child-table picker, seeded from foreign keys.
@@ -263,7 +271,7 @@ export const runRowSchema = z.object({
 export const runViewSchema = runRowSchema.extend({
   trace: automationTraceSchema.nullable(),
   // A deleted row's values are the run's own, never served: the trace reads the masked snapshot.
-  triggerEvent: automationTriggerEventSchema.omit({ values: true }),
+  triggerEvent: automationTriggerEventSchema.omit({ values: true, before: true }),
   error: z.string().nullable(),
 });
 

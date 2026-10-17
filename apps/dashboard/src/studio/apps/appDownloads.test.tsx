@@ -903,6 +903,36 @@ describe('checking a new version and renaming to the prefix', () => {
     expect(posted('/api/v1/apps/clinic/update')[0]?.body).toEqual({ planChecksum: 'p'.repeat(64), publicAccess: false });
   });
 
+  it('shows what a new version’s roles hold more of an add-on’s tables, and Update sends the yes', async () => {
+    catalog = {
+      apps: [row({ version: '0.1.1', source: 'disk', state: 'installed', installed: true, updateTo: '0.1.2', updateStaged: true })],
+      catalogFetchedAt: 1,
+      onlineEnabled: true,
+    };
+    plan = {
+      ...contextPlan({ action: 'reuse', class: 'own-leftover', offers: ['reuse'] }),
+      checksum: 's'.repeat(64),
+      installable: true,
+      problems: [],
+      roleTables: [
+        // Held already: not asked about.
+        { role: 'desk', roleName: 'Front desk', addOn: 'inventory', table: 'items', actions: ['read'], readable: ['id', 'name'] },
+        { role: 'desk', roleName: 'Front desk', addOn: 'inventory', table: 'suppliers', actions: ['read'], readable: ['id', 'name', 'lead_days'], wider: { actions: [], columns: ['lead_days'] } },
+      ],
+    };
+    await renderPage();
+    await userEvent.click(await screen.findByRole('button', { name: 'Update' }));
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByText('Check what this version’s roles may do with add-ons’ tables.')).toBeTruthy();
+    const card = within(dialog).getByTestId('update-role-tables');
+    expect(card.querySelectorAll('[data-role-table]')).toHaveLength(1);
+    expect(within(card).getByText('New in this version: lead_days')).toBeTruthy();
+    expect(posted('/api/v1/apps/clinic/update')).toHaveLength(0);
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Update' }));
+    expect(await screen.findByText('clinic updated to v0.1.2')).toBeTruthy();
+    expect(posted('/api/v1/apps/clinic/update')[0]?.body).toEqual({ planChecksum: 's'.repeat(64), roleTables: true });
+  });
+
   it('asks an app installed without public access afresh, unticked', async () => {
     catalog = {
       apps: [row({ version: '0.1.1', source: 'disk', state: 'installed', installed: true, updateTo: '0.1.2', updateStaged: true })],

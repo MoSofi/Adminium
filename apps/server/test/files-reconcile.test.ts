@@ -36,7 +36,7 @@ import {
   type RecordRef,
 } from '@adminium/meta';
 
-import { createColumnBlockReader } from '../src/files/column-blocks.js';
+import { createColumnBlockReader, ruledBlock } from '../src/files/column-blocks.js';
 import { createDestinationResolver } from '../src/files/destinations.js';
 import { FILES_DIR } from '../src/files/drivers/local.js';
 import { createFileReconciler, type FileReconciler } from '../src/files/reconcile.js';
@@ -392,6 +392,51 @@ describe('file reconcile', () => {
       });
       expect((await filesRepo(meta).findById(mine.id))?.deletedAt).not.toBeNull();
       expect((await filesRepo(meta).findById(theirs.id))?.deletedAt).toBeNull();
+    });
+  });
+
+  /**
+   * A column an app's own rule makes a file column (`column.file`), handed
+   * in by the write as `ruled`: no page configures it, its value is the
+   * file's id (one, or a JSON list Postgres and MySQL hand back parsed), and
+   * a file another record holds is never taken over nor thrown away by a
+   * record that names it — the second lock behind the write's own refusal.
+   */
+  describe('an app’s own file column', () => {
+    const ruled = new Map([
+      ['signature', ruledBlock({ accept: ['pdf'], maxBytes: 4096 })],
+      ['photos', ruledBlock({ accept: ['pdf'], maxBytes: 4096, maxCount: 3 })],
+    ]);
+
+    it('attaches one id and a parsed list, and trashes what they let go of', async () => {
+      const one = await upload('one.pdf');
+      const a = await upload('a.pdf');
+      const b = await upload('b.pdf');
+      const made = await reconciler.reconcile({ connectionId: CONN, table: TABLE, entity: entity('7'), before: null, after: { signature: one.id, photos: [a.id, b.id] }, ruled });
+      expect(made.attached.sort()).toEqual([one.id, a.id, b.id].sort());
+      const changed = await reconciler.reconcile({ connectionId: CONN, table: TABLE, entity: entity('7'), before: { signature: one.id, photos: [a.id, b.id] }, after: { signature: one.id, photos: [b.id] }, ruled });
+      expect(changed).toEqual({ attached: [], trashed: [a.id] });
+      const gone = await reconciler.trashForRecord({ connectionId: CONN, table: TABLE, entity: entity('7'), row: { signature: one.id, photos: JSON.stringify([b.id]) }, ruled });
+      expect(new Set(gone)).toEqual(new Set([one.id, b.id]));
+    });
+
+    it('never takes over, nor throws away, a file another record holds', async () => {
+      const theirs = await upload('theirs.pdf');
+      await reconciler.reconcile({ connectionId: CONN, table: TABLE, entity: entity('1'), before: null, after: { signature: theirs.id }, ruled });
+      // Record 2 names record 1's file (a write the judge refuses; here, say one came through by another way).
+      const named = await reconciler.reconcile({ connectionId: CONN, table: TABLE, entity: entity('2'), before: null, after: { signature: theirs.id }, ruled });
+      expect(named.attached).toEqual([]);
+      expect(await filesRepo(meta).findById(theirs.id)).toMatchObject({ entityId: '1', deletedAt: null });
+      // …and letting go of it, or being removed, does not throw record 1's file away.
+      expect((await reconciler.reconcile({ connectionId: CONN, table: TABLE, entity: entity('2'), before: { signature: theirs.id }, after: { signature: null }, ruled })).trashed).toEqual([]);
+      expect(await reconciler.trashForRecord({ connectionId: CONN, table: TABLE, entity: entity('2'), row: { signature: theirs.id }, ruled })).toEqual([]);
+      expect(await filesRepo(meta).findById(theirs.id)).toMatchObject({ entityId: '1', deletedAt: null });
+    });
+
+    it('leaves a write’s list alone for the pages’ list check: the write service judges it', async () => {
+      await seedPage({ ref: 'id', multiple: true, maxCount: 1 });
+      expect(await reconciler.validateWrite({ connectionId: CONN, table: TABLE, values: { pdf_url: ['a', 'b'] }, ruled: new Set(['pdf_url']) })).toBeNull();
+      expect(await reconciler.validateWrite({ connectionId: CONN, table: TABLE, values: { pdf_url: ['a', 'b'] } })).toMatchObject({ reason: 'too-many', count: 2 });
     });
   });
 

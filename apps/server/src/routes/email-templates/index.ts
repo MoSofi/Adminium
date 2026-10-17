@@ -27,6 +27,8 @@
  * current state of the resource, and it lets the SPA tell the operator to go
  * configure SMTP instead of hunting for a bad field in their own payload.
  */
+import { assertNamedFiles, fileIdsOf } from '../../email/file-reach.js';
+import type { FileRecord } from '../../files/read-limited.js';
 import { createHash } from 'node:crypto';
 
 import type { FastifyRequest } from 'fastify';
@@ -122,6 +124,12 @@ export interface EmailTemplatesRoutesDeps {
   secret?: string | undefined;
   /** Bytes for export (fixed attachments inline) and import (files re-created in the library). */
   storage?: FileStore | undefined;
+  /**
+   * Whether the caller reaches the record a file hangs on (`files/read-
+   * limited.ts`): a file of a record out of their reach is not theirs to
+   * attach to an email, which would send its bytes to whoever they choose.
+   */
+  reachesRecord?: ((request: FastifyRequest, record: FileRecord, action: 'read' | 'update') => Promise<boolean>) | undefined;
   /**
    * `app.jobs.worker.requestCancel` — the cooperative cancel of a RUNNING
    * campaign. Optional: a harness without a worker cancels only scheduled
@@ -308,6 +316,18 @@ export function emailTemplatesRoutes(deps: EmailTemplatesRoutesDeps): FastifyPlu
     return doc;
   }
 
+  /**
+   * The files a document coming in names beyond what the stored one already
+   * does: each one its author may send (`email/file-reach.ts`). Before
+   * anything else reads them — their size is not told for a file refused.
+   */
+  async function assertFiles(request: FastifyRequest, stored: EmailTemplate, input: Parameters<typeof normalizeDocument>[0]): Promise<void> {
+    const reaches = deps.reachesRecord;
+    await assertNamedFiles(meta, normalizeDocument(input), new Set(fileIdsOf(stored)), async (file) =>
+      reaches === undefined ? true : reaches(request, { connectionId: file.entityConnectionId!, table: file.entityTable!, recordId: file.entityId, uploadedBy: file.uploadedBy }, 'read'),
+    );
+  }
+
   /** A scheduled run cannot outlive its campaign's archive or deletion. */
   async function cancelScheduledRun(templateId: string, at: number): Promise<void> {
     const run = await runs.active(templateId);
@@ -353,17 +373,23 @@ export function emailTemplatesRoutes(deps: EmailTemplatesRoutesDeps): FastifyPlu
       { schema: { querystring: emailDocumentsListQuery, response: { 200: emailDocumentsListReply } } },
       async (request) => {
         requireUserId(request);
-        const { kind, archived, q } = request.query;
-        const rows = await templates.list({ kind, archived: archived ?? false, q });
+        const { kind, archived, q, app: appKey } = request.query;
+        // One app's documents: a cut of the rows the list answers anyway, made after the read, so it can only narrow.
+        const ofApp = (list: EmailTemplate[]): EmailTemplate[] => (appKey === undefined ? list : list.filter((row) => row.managedBy === appKey));
+        const rows = ofApp(await templates.list({ kind, archived: archived ?? false, q }));
         // Topic labels come from the whole family, not the filtered page: a
         // search that matches only the German variant still labels the topic
         // with the English name.
-        const familyRows = q === undefined || q === '' ? rows : await templates.list({ kind, archived: archived ?? false });
+        const familyRows = q === undefined || q === '' ? rows : ofApp(await templates.list({ kind, archived: archived ?? false }));
         const labels = topicLabels(familyRows);
         const latest = await runs.latestByTemplates(rows.filter((r) => r.kind === 'campaign').map((r) => r.id));
         const items = [];
         for (const row of rows) items.push(await summaryOf(row, labels, latest));
-        return { items, counts: await templates.counts(archived ?? false) };
+        if (appKey === undefined) return { items, counts: await templates.counts(archived ?? false) };
+        // The badges count the same cut: this app's documents of each kind, and its archived ones.
+        const shown = ofApp(await templates.list({ archived: archived ?? false }));
+        const gone = archived === true ? shown : ofApp(await templates.list({ archived: true }));
+        return { items, counts: { template: shown.filter((row) => row.kind === 'template').length, campaign: shown.filter((row) => row.kind === 'campaign').length, archived: gone.length } };
       },
     );
 
@@ -523,6 +549,7 @@ export function emailTemplatesRoutes(deps: EmailTemplatesRoutesDeps): FastifyPlu
         const userId = requireUserId(request);
         await requireSettingsManage(request, 'edit email templates');
         const row = await mustFind(request.params.id);
+        await assertFiles(request, row, request.body.document);
         const doc = await acceptDocument(request.body.document);
         const at = app.rbac.now();
         const { name, category, enabled } = request.body;
@@ -831,6 +858,8 @@ export function emailTemplatesRoutes(deps: EmailTemplatesRoutesDeps): FastifyPlu
           );
         }
 
+        // The on-screen document, which may name files the stored one does not: asked as a save asks.
+        await assertFiles(request, row, request.body.document);
         const doc = await acceptDocument(request.body.document);
         const appName = await settings.get('branding.appName');
         const origin = await linkOrigin(meta, request);

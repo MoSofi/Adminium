@@ -205,9 +205,9 @@ const PROTOCOL_RELATIVE_PATTERN =
  * Hosts that fail even if a future edit adds them to the allowlist below.
  *
  * This list is redundant with the allowlist — an unknown host already fails — and
- * that redundancy is the point: it guards the guard. These are the four names an
+ * that redundancy is the point: it guards the guard. These are the names an
  * allowlist entry must never be able to cover, so the day someone is fighting a
- * red build at 6pm and reaches for the allowlist, the four that would silently
+ * red build at 6pm and reaches for the allowlist, the ones that would silently
  * void the offline guarantee reject the shortcut and say why.
  */
 const BLOCKED_HOSTS = [
@@ -221,7 +221,14 @@ const BLOCKED_HOSTS = [
   },
   {
     test: /(^|\.)tile\.openstreetmap\.org$/,
-    why: "the offline contract\'s maps row: Leaflet's default tile server. Its presence means a map is reaching for tiles — the desktop app resolves map-* to the tilegram precisely so nothing does",
+    why: "the offline contract\'s maps row: OpenStreetMap's own tile server. Its presence means a map is reaching for tiles — the desktop app resolves map-* to the tilegram precisely so nothing does",
+  },
+  {
+    test: /(^|\.)(openfreemap\.org|cartocdn\.com)$/,
+    why:
+      "the offline contract\'s maps row: a map server's address written INTO the build. The map server is the operator's (ADMINIUM_MAP_SERVER) and reaches a signed-in page through the session " +
+      '(bootstrap.maps), only while maps are on; the content security policy allows that one origin and no other. An address in the bundle is a second source of truth the policy knows nothing about, ' +
+      'and in the desktop app a map that could ask for it. The default server and the one it replaced are named here so neither can come back by a constant',
   },
   {
     test: /(^|\.)(unpkg\.com|cdn\.jsdelivr\.net|cdnjs\.cloudflare\.com|esm\.sh|code\.jquery\.com)$/,
@@ -256,6 +263,20 @@ const BLOCKED_HOSTS = [
  * disableable, runtime-asserted. A host that is merely "usually not used" does
  * not qualify and cannot ship.
  */
+/*
+ * AN ENTRY MAY BE NARROWER THAN ITS HOST (`onlyPath`). Most entries certify a
+ * whole host ("this name is never fetched"). Some certify ONE STRING — a link
+ * a person taps, a line of an error message — on a host that serves a great
+ * deal else, and for those the host alone is too wide: `maps.apple.com` was
+ * allowed for an `<a href>` and so also passed as an `img.src`, an `import()`
+ * and a `fetch()`. An entry with `onlyPath` covers its host only where
+ *   1. what follows the host (path, query, fragment) matches `onlyPath`, and
+ *   2. the string is not written where JavaScript loads it
+ *      ({@link LOADED_IN_SCRIPT}): the argument of `fetch(`, `import(`,
+ *      `importScripts(`, `new Worker(`…, or the value of a `src`.
+ * Anything else on that host fails by a rule of its own, so the report says
+ * the host is known and what about this use of it is not.
+ */
 const ALLOWED_HOSTS = [
   {
     test: /^www\.w3\.org$/,
@@ -274,13 +295,17 @@ const ALLOWED_HOSTS = [
     why: 'the AGPL-3.0 source link and the releases page on the About screen. shell.openExternal, same as the docs',
   },
   {
-    test: /^(react\.dev|www\.i18next\.com|locize\.com|leafletjs\.com)$/,
-    why: 'error-message and attribution strings baked into React, i18next and Leaflet. Printed to a console or an attribution corner, never requested',
+    test: /^www\.openstreetmap\.org$/,
+    why: 'the map\'s "open this place on a map" link for a device with no maps app (widgets families/geo/map-shapes.ts mapsSiteHref). An anchor the person presses, opened outside the app (shell.openExternal, same as the docs); nothing is requested from it. The map\'s TILES are a different host, named by the operator and switched off in the desktop build',
+  },
+  {
+    test: /^(react\.dev|www\.i18next\.com|locize\.com)$/,
+    why: 'error-message and attribution strings baked into React and i18next. Printed to a console, never requested',
   },
   {
     test: /^reactflow\.dev$/,
     why:
-      'the React Flow attribution badge in the schema diagram (@xyflow/react, studio/remap/diagram/DiagramMode.tsx). Same kind as the leafletjs.com entry above and, in the desktop build, the same kind as docs/github: ' +
+      'the React Flow attribution badge in the schema diagram (@xyflow/react, studio/remap/diagram/DiagramMode.tsx). Same kind as the react.dev entry above and, in the desktop build, the same kind as docs/github: ' +
       'the library renders `<a href="https://reactflow.dev?utm_source=attribution" target="_blank" rel="noopener noreferrer">React Flow</a>` in a corner Panel, plus the identical string in a `data-message` attribute. ' +
       'An anchor is not a fetch, and the navigation lockdown means a click cannot navigate the window either: `setWindowOpenHandler` allows only `http://127.0.0.1:<port>` and hands everything else to `shell.openExternal`, i.e. the system browser. ' +
       'Offline the badge still renders and a click simply fails in the browser, so nothing about the diagram degrades. NOTE the attribution is shown DELIBERATELY — DiagramMode sets `proOptions={{ hideAttribution: false }}`, and xyflow asks that it only be hidden under a React Flow Pro subscription. ' +
@@ -317,14 +342,21 @@ const ALLOWED_HOSTS = [
     why: 'the example request in the API-keys quick-start snippet — sample text in a <pre>, addressed to the user\'s own instance',
   },
   {
-    test: /^\{s\}\.basemaps\.cartocdn\.com$/,
+    test: /^maps\.apple\.com$/,
+    // The one address that is written: a position handed to the maps app.
+    onlyPath: /^\/\?ll=/,
     why:
-      'map-bubble\'s basemap tiles (families/geo/geo-lib.ts CARTO_TILES) — the ONE entry here that is a real remote asset, so it gets the long reason. ' +
-      'It cannot be removed: a bubble map on self-host is a bubble map, and it needs tiles. It is safe in the OFFLINE build because nothing ever reads it there — ' +
-      'The registry fallback (registry/offline.ts) resolves every map-* id to map-choropleth-grid before the lazy ref is touched, so MapBubble never mounts, ' +
-      'never imports Leaflet, and never constructs a tileLayer from this template. The string rides along in the bundle as dead weight; the guarantee is that no ' +
-      'code path reaches it, and the offline smoke test asserts the runtime half (zero tile requests). Note the {s} — this matches Leaflet\'s subdomain ' +
-      'template EXACTLY, so a plain cartocdn.com URL added by hand would not be covered by this entry and would fail the gate',
+      'the "Open in my maps app" link beside a place in the map\'s list, on Apple devices (families/geo/map-shapes.ts mapsAppHref; everywhere else the link is `geo:`, which is no URL at all). ' +
+      'An `<a href>` a person taps to hand one position to their own maps app. The app itself never asks this host for anything: no fetch, no image, no script',
+  },
+  {
+    test: /^(maplibre\.org|wiki\.openstreetmap\.org)$/,
+    // The two strings as MapLibre writes them: its home page, and one wiki page.
+    onlyPath: /^(\/?|\/wiki\/This_map_requires_WebGL)$/,
+    why:
+      'two strings baked into MapLibre GL JS (maplibre-gl, loaded only when a map is drawn). `maplibre.org` is the href of its optional logo control, an anchor this app never adds; ' +
+      '`wiki.openstreetmap.org/wiki/This_map_requires_WebGL` is printed in its "no WebGL" error message. Neither is requested. ' +
+      'THE MAP SERVER IS NOT HERE AND MUST NEVER BE: its address comes with the session (bootstrap.maps), is written nowhere in the bundle, and the default one is on the must-fail list above',
   },
   // ── Loopback: not remote at all ──────────────────────────────────────────
   {
@@ -450,6 +482,27 @@ const ASSET_POSITION_PATTERNS = [
 ];
 
 /**
+ * What comes just before a URL literal when JavaScript LOADS it rather than
+ * shows it: tested against the text up to the literal. An `<a href>` and a
+ * string in a message are not here; a `src` is (an image, a script, a frame),
+ * in a property (`img.src=`), an object (`{src:`) or markup in a string.
+ */
+const LOADED_IN_SCRIPT =
+  /(?:(?:\bfetch|\bimport|\bimportScripts|\bnew\s+(?:Worker|SharedWorker|Request|EventSource|WebSocket|Image))\s*\(\s*|(?:^|[^\w$])src\s*[=:]\s*)["'`]?$/;
+
+/** How much text before a literal is looked at for {@link LOADED_IN_SCRIPT}. */
+const LOADED_LOOKBEHIND = 64;
+
+/** What follows the host in a URL literal: path, query and fragment, as written. */
+function restOf(url) {
+  const normalized = url.replace(/\\\//g, '/');
+  const afterScheme = normalized.startsWith('//') ? normalized.slice(2) : normalized.slice(normalized.indexOf('://') + 3);
+  const start = afterScheme.search(/[/?#]/);
+  // A URL that ends an English sentence: the full stop is not part of it.
+  return start === -1 ? '' : afterScheme.slice(start).replace(/[.,;:!]+$/, '');
+}
+
+/**
  * The host of a URL literal, lowercased, port kept.
  *
  * The port stays because `localhost:11434` reads as itself in a report, and the
@@ -526,7 +579,30 @@ function checkFile(file, kind = 'classic') {
       violations.push({ file: where, url, rule: 'blocked-host', why: blocked.why });
       continue;
     }
-    if (matches(ALLOWED_HOSTS, host) !== undefined) continue;
+    const allowed = matches(ALLOWED_HOSTS, host);
+    if (allowed !== undefined) {
+      // An entry for one string, not for its whole host: see the note above ALLOWED_HOSTS.
+      if (allowed.onlyPath === undefined) continue;
+      if (!allowed.onlyPath.test(restOf(url))) {
+        violations.push({
+          file: where,
+          url,
+          rule: 'allowed-host-other-address',
+          why: `'${host}' is allowed for one address only (${String(allowed.onlyPath)}), and this is another. What is allowed there: ${allowed.why}`,
+        });
+        continue;
+      }
+      const before = text.slice(Math.max(0, match.index - LOADED_LOOKBEHIND), match.index);
+      if (LOADED_IN_SCRIPT.test(before)) {
+        violations.push({
+          file: where,
+          url,
+          rule: 'allowed-host-loaded',
+          why: `'${host}' is allowed as a link or a printed string, never as something the app loads, and here it is a fetch, an import or a src. What is allowed there: ${allowed.why}`,
+        });
+      }
+      continue;
+    }
     if (kind === 'project' && matches(PROJECT_REACHES, host) !== undefined) continue;
     if (kind !== 'project' && matches(PROJECT_REACHES, host) !== undefined) {
       violations.push({

@@ -113,5 +113,74 @@ export default {
   "apps": {
     "every": "Mitarbeiterbildschirme aller Apps öffnen",
     "one": "Mitarbeiterbildschirme von {app} öffnen"
+  },
+  "rows": {
+    "locked": "Super Admin erreicht jede Zeile.",
+    "saveFirst": "Speichern oder verwerfen Sie zuerst die Änderungen an den Berechtigungen.",
+    "action": "Zeilen",
+    "actionLabel": {
+      "read": "Lesen",
+      "update": "Ändern",
+      "delete": "Löschen"
+    },
+    "way": {
+      "person": "die Person in {column}",
+      "listingDated": "alle, die am jeweiligen Tag in {table} dafür eingetragen sind",
+      "listing": "alle, die in {table} dafür eingetragen sind",
+      "parent": "wer {table} dazu erreicht",
+      "whileIn": "solange {column} {values} ist",
+      "whileEmpty": "solange {column} leer ist",
+      "whileSet": "solange {column} ausgefüllt ist"
+    },
+    "follows": "Folgt: {table}",
+    "belongs": "Eine Zeile gehört {ways}.",
+    "sentence": {
+      "all": "Jede Zeile von {table}.",
+      "allWhile": "Jede Zeile von {table}",
+      "team": "Nur Zeilen, die dieser Person gehören oder jemandem in einem Team, das sie leitet",
+      "own": "Nur Zeilen, die dieser Person gehören",
+      "unowned": "und Zeilen, die noch niemandem gehören",
+      "while": "nur solange {column} {values} ist",
+      "by": "und nur die, in denen {column} sie nennt",
+      "allWho": "Jede Zeile von {table}, gleich wer {column} ist.",
+      "only": "Nur Zeilen von {table}, bei denen {ways}",
+      "onlyTeam": "Nur Zeilen von {table}, bei denen {ways} – oder jemand in einem Team, das sie leitet",
+      "onlyTeamWays": "Nur Zeilen von {table}, bei denen {ways} – oder dasselbe für jemanden in einem Team, das sie leitet"
+    },
+    "title": "Welche Zeilen „{role}“ erreicht",
+    "intro": "Eine Rolle erreicht jede Zeile einer Tabelle, die sie öffnen darf, sofern sie hier nicht eingeschränkt wird. Eine Einschränkung gilt für eine Person nur, wenn jede Rolle, die ihr die Tabelle gibt, eingeschränkt ist.",
+    "loadFailed": "Die Tabellen konnten nicht gelesen werden.",
+    "empty": {
+      "title": "Nichts einzuschränken",
+      "body": "Keine Tabelle, die diese Rolle öffnen darf, sagt, wem ihre Zeilen gehören."
+    },
+    "tryAs": "Ausprobieren als",
+    "tryAsNone": "Niemand",
+    "samplePerson": "{name} (Beispiel)",
+    "failed": "Die Zeileneinschränkungen konnten nicht gespeichert werden",
+    "private": "Wird von den Personen gelesen, denen die jeweilige Zeile gehört, und von niemandem sonst. Hier gibt es nichts zu wählen.",
+    "reachLabel": "{action}: welche Zeilen",
+    "reach": {
+      "all": "Alle Zeilen",
+      "own": "Die eigenen",
+      "team": "Die ihres Teams",
+      "allWhile": "Jede Zeile, nur solange …"
+    },
+    "unowned": "und Zeilen, die noch niemandem gehören",
+    "widened": "Diese Rolle öffnet die Tabelle über eine weiter gefasste Berechtigung. Beim Speichern einer Einschränkung erhält sie die Tabelle zusätzlich namentlich.",
+    "count": "{name} würde {reached} von {total} Zeilen von {table} sehen.",
+    "capped": "Diese Person leitet mehr Personen, als eine Reichweite fasst; es wird nicht ihr ganzes Team gezählt.",
+    "lifted": "{name} hat außerdem {roles}, was jede Zeile gibt. Diese Einschränkung gilt für diese Person nicht.",
+    "several": "Eine davon genügt. Die App hat sie festgelegt, und sie bleiben so, wie sie sie geschrieben hat.",
+    "wayIs": {
+      "person": "{column} diese Person ist",
+      "listing": "diese Person in {table} eingetragen ist",
+      "listingDated": "diese Person am jeweiligen Tag in {table} eingetragen ist",
+      "parent": "diese Person {table} dazu erreicht"
+    }
+  },
+  "partsOff": "Sein Teil der App ist ausgeschaltet: Die Rolle gewährt nichts, bis dieser Teil eingeschaltet ist.",
+  "people": {
+    "unnamed": "Unbenannte Person"
   }
 } as const;

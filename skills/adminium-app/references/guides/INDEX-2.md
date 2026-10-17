@@ -4,6 +4,9 @@
 
 | File | What it covers | Bytes |
 |---|---|---|
+| `references/guides/timed-moves--moves-that-wait-for-a-time.md` | Moves that wait for a time | 1130 |
+| `references/guides/timed-moves--late-moves.md` | Late moves | 1872 |
+| `references/guides/timed-moves--reminders-at-a-wall-time.md` | Reminders at a wall time | 1173 |
 | `references/guides/timed-moves--settings-a-moment-reads.md` | Settings a moment reads | 1274 |
 | `references/guides/timed-moves--a-hold-that-nobody-finishes.md` | A hold that nobody finishes | 1060 |
 | `references/guides/timed-moves--what-a-writer-is-told.md` | What a writer is told | 1166 |
@@ -52,13 +55,15 @@
 | `references/guides/shared-menu--upgrading.md` | Upgrading | 366 |
 | `references/guides/emails--overview.md` | An app's emails | 915 |
 | `references/guides/emails--the-outbox-table.md` | The outbox table | 1443 |
-| `references/guides/emails--what-queues-a-row.md` | What queues a row | 6600 |
-| `references/guides/emails--messages-about-changes.md` | Messages about changes | 3591 |
+| `references/guides/emails--what-queues-a-row.md` | What queues a row | 6745 |
+| `references/guides/emails--messages-about-changes.md` | Messages about changes | 4152 |
+| `references/guides/emails--messages-about-a-row-that-is-removed.md` | Messages about a row that is removed | 4293 |
 | `references/guides/emails--sending.md` | Sending | 4071 |
 | `references/guides/emails--held-messages.md` | Held messages | 1454 |
 | `references/guides/emails--attachments.md` | Attachments | 1702 |
 | `references/guides/emails--the-templates.md` | The templates | 1273 |
-| `references/guides/emails--variables.md` | Variables | 6889 |
+| `references/guides/emails--variables.md` | Variables | 7217 |
+| `references/guides/emails--variables--the-person-a-staff-column-names.md` | Variables — The person a staff column names | 1053 |
 | `references/guides/emails--emails-that-list-rows.md` | Emails that list rows | 5462 |
 | `references/guides/emails--links.md` | Links | 850 |
 | `references/guides/emails--upgrading.md` | Upgrading | 1762 |
@@ -83,3 +88,6 @@
 | `references/guides/public-access--origins.md` | Origins | 853 |
 | `references/guides/public-access--the-customer-domain.md` | The customer domain | 464 |
 | `references/guides/public-access--rate-limits.md` | Rate limits | 984 |
+| `references/guides/maps--overview.md` | Maps, places and routes | 367 |
+
+More: `references/guides/INDEX-3.md`

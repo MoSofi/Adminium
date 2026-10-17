@@ -6,7 +6,9 @@
  * generators without dragging component code into the eager chunk.
  */
 
-import { getFormatters } from '@adminium/i18n';
+// By their own path, not the package's whole surface: that one brings the translator (i18next) with it, and these
+// helpers are also drawn on an app's own screen (the kit's import part), where the translator must not be fetched.
+import { getFormatters } from '@adminium/i18n/format';
 
 /** Fall back to `en-US` when a widget's config carries no locale override. */
 export function resolveLocale(locale: string | undefined): string {

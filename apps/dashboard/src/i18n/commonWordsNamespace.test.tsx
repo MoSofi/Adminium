@@ -36,9 +36,31 @@ const SCREENS: Readonly<Record<string, readonly string[]>> = {
   'about/AboutPage.tsx': ['about/DesktopAboutSections.tsx'],
   'kb/KnowledgeBasePage.tsx': ['kb/articles.ts'],
   'team/TeamPage.tsx': [],
+  // The account and preferences screens: their group joined to make room for the rail's People and Teams.
+  'pages/AccountPage.tsx': [],
+  'account/PreferencesPage.tsx': [],
+  // Teams, a page of its own beside the People list: it waits for the same group's words.
+  'team/TeamsPage.tsx': [],
   'account/SecurityPage.tsx': [],
+  // The password form, on `/account` too: it waits for its own words wherever it is mounted.
+  'account/PasswordCard.tsx': [],
+  'reports/ScheduledReportsPage.tsx': [],
+  'changelog/ChangelogPage.tsx': [],
+  'audit/AuditLogPage.tsx': [],
+  // Fetched when the palette is first opened; its words come then too.
+  'app/palette/CommandPaletteHost.tsx': [],
+  'desktop/capabilities/CapabilitiesCard.tsx': ['desktop/capabilities/CapabilityConsentCard.tsx', 'desktop/capabilities/model.ts'],
+  // The setup checklist, and its banner on the Studio's settings, which waits for its own words when it is drawn.
+  'onboarding/OnboardingChecklist.tsx': ['onboarding/steps.ts'],
+  'onboarding/OnboardingEntry.tsx': [],
+  // A card of the notification settings that waits for its own words: the page around it is drawn without them.
+  'account/QuietHoursCard.tsx': [],
   'desktop/updates.tsx': [],
   'pages/builders/PageBuilderBinding.tsx': [],
+  // Three page templates' words (`templates`): each binding is fetched with its page.
+  'pages/PageDirectoryBinding.tsx': [],
+  'pages/PageQueueInboxBinding.tsx': [],
+  'pages/PageMasterDetailBinding.tsx': [],
   'pages/dashboard-builder/DashboardBuilder.tsx': [
     'pages/dashboard-builder/BuilderGrid.tsx',
     'pages/dashboard-builder/ConfigInspector.tsx',
@@ -70,7 +92,8 @@ function catalogued(key: string): unknown {
 
 describe('the modules that read a deferred group of common', () => {
   const readers = sourceFiles(SRC)
-    .filter((file) => keysIn(file).length > 0)
+    // A reader names a key the catalogue HAS: `audit.read` in the router is a permission's name, as on the server below.
+    .filter((file) => keysIn(file).some((key) => catalogued(key) !== undefined))
     .map((file) => relative(SRC, file).split('\\').join('/'))
     .sort();
 
@@ -91,8 +114,13 @@ describe('the modules that read a deferred group of common', () => {
     for (const [root, parts] of Object.entries(SCREENS)) {
       for (const part of parts) {
         const name = (part.split('/').pop() as string).replace(/\.tsx?$/, '');
+        // By the file an import leads to, not by its name alone: `model.js` is the name of more than one module here.
+        const leadsHere = (file: string): boolean =>
+          [...readFileSync(file, 'utf8').matchAll(new RegExp(`from '([^']*/${name})\\.js'`, 'g'))].some(
+            (found) => relative(SRC, join(file, '..', found[1] as string)).split('\\').join('/') === part.replace(/\.tsx?$/, ''),
+          );
         const importers = sourceFiles(SRC)
-          .filter((file) => new RegExp(`from '[^']*/${name}\\.js'`).test(readFileSync(file, 'utf8')))
+          .filter(leadsHere)
           .map((file) => relative(SRC, file).split('\\').join('/'));
         const family = [root, ...parts];
         // Every importer is the screen, one of its parts, or a module of the same folder that the screen draws.
@@ -103,7 +131,8 @@ describe('the modules that read a deferred group of common', () => {
   });
 
   it('name only keys the catalogue has', () => {
-    const missing = sourceFiles(SRC).flatMap((file) => keysIn(file).filter((key) => catalogued(key) === undefined).map((key) => `${relative(SRC, file)}: ${key}`));
+    // `audit.read` is spelled like a key of the `audit` group and is a permission's name (the router, the sidebar).
+    const missing = sourceFiles(SRC).flatMap((file) => keysIn(file).filter((key) => key !== 'audit.read' && catalogued(key) === undefined).map((key) => `${relative(SRC, file)}: ${key}`));
     expect(missing).toEqual([]);
   });
 

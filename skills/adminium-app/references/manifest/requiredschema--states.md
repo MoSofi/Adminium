@@ -51,6 +51,7 @@ A move's `requires` says what must be true first:
 | `linked` | 1–4 `{ "via", "where" }`: conditions (as `where`) on the row this row's foreign key `via` points at (the order a ticket belongs to is paid). |
 | `time` | `{ "after"?, "before"? }`: a window on the clock, each end a [moment](https://docs.adminium.dev/reference/manifest/#moments) (from half an hour before the doors, until the ticket's day ends). |
 | `setting` | 1–4 `{ "table", "column", "eq" }`: a value of the settings row (door sales switched on). |
+| `notPast` | A `date` column of the row: the move is refused once that day has passed. See [A move's last day](https://docs.adminium.dev/reference/manifest/#a-moves-last-day). |
 
 A move's `roles` (1–8 of the app's [role](https://docs.adminium.dev/reference/manifest/#roles) keys) keeps it for the people holding one of
 them: any role may void a draft, only a manager a sent invoice.

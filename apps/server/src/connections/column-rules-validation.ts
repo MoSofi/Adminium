@@ -18,7 +18,7 @@
  * contradicted by the database.
  */
 import { parseEnumCheck, type ColumnModel, type DatabaseModel, type LogicalType, type TableModel } from '@adminium/engine';
-import { dayColumns, formulaColumns, formulaExprSchema, isChangeEffect, isJoinColumn, momentColumns, undoMoveIssues, type States } from '@adminium/manifest';
+import { dayColumns, FILE_COLUMN_KINDS, formulaColumns, formulaExprSchema, isChangeEffect, isJoinColumn, momentColumns, notPastIssues, undoMoveIssues, type States } from '@adminium/manifest';
 
 import { storedAdjust, storedPosting } from '@adminium/meta';
 import { z } from 'zod';
@@ -166,7 +166,13 @@ export function columnRuleIssue(
     | 'column.addOnLink'
     | 'column.codeLast4'
     | 'column.plainText'
-    | 'column.customerKey',
+    | 'column.customerKey'
+    | 'column.staff'
+    | 'column.mentions'
+    | 'column.place'
+    | 'column.area'
+    | 'column.linkable'
+    | 'column.file',
   raw: unknown,
   column: ColumnModel,
   model: DatabaseModel,
@@ -492,6 +498,71 @@ export function columnRuleIssue(
       return TEXTUAL_TYPES.has(column.logicalType) ? null : `A table's name is kept in text; ${name} is ${column.logicalType}.`;
     }
 
+    case 'column.mentions': {
+      if (column.isGenerated || column.isPrimaryKey) return `${name} is not text people write.`;
+      return TEXTUAL_TYPES.has(column.logicalType) ? null : `People are mentioned in text; ${name} is ${column.logicalType}.`;
+    }
+
+    case 'column.place':
+    case 'column.area': {
+      // Kept whole, as JSON: the server reads and checks the value, and hands it back as an object on every database.
+      const what = op === 'column.place' ? 'A place' : 'An area';
+      if (column.isGenerated || column.isPrimaryKey) return `${name} cannot hold ${what.toLowerCase()}.`;
+      // SQLite has no JSON type: a json column of an app's is made as TEXT there and reported as `text`, so there a text column is one.
+      const holdsJson = column.logicalType === 'json' || (model.dialect === 'sqlite' && column.logicalType === 'text');
+      if (!holdsJson) return `${what} is kept in a json column; ${name} is ${column.logicalType}.`;
+      const other = op === 'column.place' ? 'column.area' : 'column.place';
+      if ((related?.rules ?? []).some((rule) => rule.op === other && rule.columnName === column.name)) return `${name} holds a place or an area, not both.`;
+      return null;
+    }
+
+    case 'column.linkable': {
+      // The conditions read the row the link names: the column is a one-column link, and they name that table's columns.
+      const table = model.tables.find((candidate) => candidate.columns.includes(column));
+      const relation = model.relations.find((r) => r.through === null && r.from.tableId === table?.id && r.from.columns.length === 1 && r.from.columns[0] === column.name && r.to.columns.length === 1);
+      if (relation === undefined) return `Only a foreign key names a row; ${name} is not one.`;
+      const linked = model.tables.find((candidate) => candidate.id === relation.to.tableId);
+      const where = value['where'];
+      const same = value['same'];
+      if ((!Array.isArray(where) || where.length === 0) && (!Array.isArray(same) || same.length === 0)) return `Say which rows ${name} may name.`;
+      for (const condition of (Array.isArray(where) ? where : []) as { column?: unknown; gt?: unknown; gte?: unknown; lt?: unknown; lte?: unknown }[]) {
+        const read = linked?.columns.find((c) => c.name === condition.column);
+        if (read === undefined) return `${linked?.name ?? 'The linked table'} has no column ${JSON.stringify(condition.column)}.`;
+        const ordered = [condition.gt, condition.gte, condition.lt, condition.lte].some((part) => part !== undefined);
+        if (ordered && !NUMERIC_TYPES.has(read.logicalType)) return `${JSON.stringify(read.name)} is not a number, so it cannot be compared.`;
+      }
+      // Each pair: a column of the named row, and one of this row or of the row a link of it names.
+      for (const pair of (Array.isArray(same) ? same : []) as { column?: unknown; as?: unknown }[]) {
+        if (linked?.columns.some((c) => c.name === pair.column) !== true) return `${linked?.name ?? 'The linked table'} has no column ${JSON.stringify(pair.column)}.`;
+        const [own, far] = String(pair.as).split('.') as [string, string | undefined];
+        if (own === column.name || table?.columns.some((c) => c.name === own) !== true) return `${table?.name ?? 'The table'} has no other column ${JSON.stringify(own)} to compare with.`;
+        if (far === undefined) continue;
+        const hop = model.relations.find((r) => r.through === null && r.from.tableId === table?.id && r.from.columns.length === 1 && r.from.columns[0] === own && r.to.columns.length === 1);
+        const reached = hop === undefined ? undefined : model.tables.find((candidate) => candidate.id === hop.to.tableId);
+        if (reached === undefined) return `${JSON.stringify(own)} is not a foreign key, so it names no row to read ${JSON.stringify(far)} of.`;
+        if (!reached.columns.some((c) => c.name === far)) return `${reached.name} has no column ${JSON.stringify(far)}.`;
+      }
+      return null;
+    }
+
+    case 'column.file': {
+      // One file is its id, as text; a list is kept whole, as JSON (TEXT on SQLite, which has no JSON type).
+      if (column.isGenerated || column.isPrimaryKey) return `${name} cannot hold a file.`;
+      const list = value['maxCount'] !== undefined;
+      const holdsJson = column.logicalType === 'json' || (model.dialect === 'sqlite' && column.logicalType === 'text');
+      if (list && !holdsJson) return `A list of files is kept in a json column; ${name} is ${column.logicalType}.`;
+      if (!list && !TEXTUAL_TYPES.has(column.logicalType)) return `A file is kept in text; ${name} is ${column.logicalType}.`;
+      const accept = value['accept'];
+      if (!Array.isArray(accept) || accept.some((kind) => !(FILE_COLUMN_KINDS as readonly unknown[]).includes(kind))) return `Say which kinds of file ${name} takes, from: ${FILE_COLUMN_KINDS.join(', ')}.`;
+      return null;
+    }
+
+    case 'column.staff': {
+      // A person's id is text on every database: a number or a uuid column would compare with nothing.
+      if (column.isGenerated || column.isPrimaryKey) return `${name} cannot hold a staff member.`;
+      return TEXTUAL_TYPES.has(column.logicalType) ? null : `A staff member is kept in text; ${name} is ${column.logicalType}.`;
+    }
+
     case 'column.addOnLink': {
       // No foreign key: the add-on may not be there. The column holds the key of a row of its table.
       if (column.isGenerated || column.isPrimaryKey) return `${name} cannot link into an add-on's table.`;
@@ -589,8 +660,10 @@ export function columnRuleIssue(
         const issue = table === undefined ? null : momentStampIssue(set as Value, table, model);
         if (issue !== null) return issue;
       }
+      // A copy writes what the column it copies holds: judged by that column below, never as a person's name.
+      const copied = typeof set === 'object' && set !== null && 'copy' in set;
       // A `byOrigin` side's word that is a stamp word writes what that word means (`today`: a date).
-      const words = momentous
+      const words = momentous || copied
         ? []
         : typeof set === 'object' && set !== null && 'byOrigin' in set
           ? Object.values((set as { byOrigin: Record<string, unknown> }).byOrigin).map(String)
@@ -606,7 +679,14 @@ export function columnRuleIssue(
       if (typeof set === 'object' && set !== null && 'copy' in set) {
         const source = String((set as { copy: unknown }).copy);
         if (source === column.name) return `A stamp copies another column, not ${name} itself.`;
-        if (table?.columns.some((c) => c.name === source) !== true) return `${table?.name ?? 'This table'} has no column ${JSON.stringify(source)} to copy.`;
+        const from = table?.columns.find((c) => c.name === source);
+        if (from === undefined) return `${table?.name ?? 'This table'} has no column ${JSON.stringify(source)} to copy.`;
+        // A copy lands in a column of its source's kind: a number in a number, a moment in a moment, text in text.
+        // (SQLite reports a date and a moment as text, so text there copies into text of any meaning.)
+        const kind = (type: LogicalType): string => (NUMERIC_TYPES.has(type) ? 'a number' : NOW_TYPES.has(type) ? 'a date or a time' : TEXTUAL_TYPES.has(type) || type === 'enum' ? 'text' : type);
+        if (kind(from.logicalType) !== kind(column.logicalType)) {
+          return `A stamp copies a column into one of its own kind; ${JSON.stringify(source)} is ${kind(from.logicalType)} and ${name} is ${kind(column.logicalType)}.`;
+        }
       }
       if (dated) {
         const days = (set as { addDays: Value }).addDays;
@@ -656,7 +736,8 @@ export function columnRuleIssue(
 
     case 'column.rollup': {
       if (column.isGenerated || column.isPrimaryKey) return `${name} cannot hold a total.`;
-      if (!NUMERIC_TYPES.has(column.logicalType)) return `A total needs a number column; ${name} is ${column.logicalType}.`;
+      const latest = value['latest'] as Value | undefined;
+      if (latest === undefined && !NUMERIC_TYPES.has(column.logicalType)) return `A total needs a number column; ${name} is ${column.logicalType}.`;
       const parent = model.tables.find((candidate) => candidate.columns.includes(column));
       const child = model.tables.find((candidate) => candidate.id === String(value['from']));
       if (child === undefined) return `There is no table ${JSON.stringify(value['from'])} to add up.`;
@@ -670,7 +751,30 @@ export function columnRuleIssue(
           r.from.columns[0] === via,
       );
       if (!links) return `${JSON.stringify(via)} does not link ${child.name} back to this table.`;
-      if ((value['sum'] === undefined) === (value['count'] === undefined)) return 'A total adds up a column or counts rows, not both.';
+      if ([value['sum'], value['count'], latest].filter((kind) => kind !== undefined).length !== 1) return 'A total adds up a column, counts rows or takes the newest row\'s value: one of the three.';
+      if (latest !== undefined) {
+        if (value['times'] !== undefined || value['balance'] !== undefined || value['cap'] !== undefined || value['capUnless'] !== undefined) return 'The newest row\'s value takes nothing to multiply, no balance and no cap.';
+        if (!column.nullable) return `${name} is empty while no row qualifies, so it must allow empty.`;
+        for (const part of [latest['of'], latest['by']]) {
+          if (!child.columns.some((c) => c.name === String(part))) return `${child.name} has no column ${JSON.stringify(part)}.`;
+        }
+        // Of one kind with what it is kept in, and told apart by something that has an order: the database refuses the rest on every write.
+        const kindOf = (type: string): string => ((NUMERIC_TYPES as ReadonlySet<string>).has(type) ? 'number' : type.startsWith('timestamp') ? 'timestamp' : type);
+        const of = child.columns.find((c) => c.name === String(latest['of']))!;
+        if (kindOf(of.logicalType) !== kindOf(column.logicalType)) return `${child.name}.${of.name} is ${of.logicalType} and ${name} is ${column.logicalType}: the newest row's value is kept in a column of its own kind.`;
+        const by = child.columns.find((c) => c.name === String(latest['by']))!;
+        if (!['number', 'timestamp', 'date', 'time'].includes(kindOf(by.logicalType))) return `${child.name}.${by.name} is ${by.logicalType}: the newest row is told by a date, a time or a number.`;
+        if (latest['row'] !== undefined) {
+          const row = parent?.columns.find((c) => c.name === String(latest['row']));
+          if (row === undefined) return `${parent?.name ?? 'This table'} has no column ${JSON.stringify(latest['row'])} to hold the row's key.`;
+          if (row === column) return 'The row\'s key is kept in a column of its own.';
+          if (!row.nullable) return `${parent?.name}.${row.name} is empty while no row qualifies, so it must allow empty.`;
+          // The key it names: one column, and of this column's kind.
+          const keys = child.columns.filter((c) => c.isPrimaryKey);
+          if (keys.length !== 1) return `${child.name} has no key of one column, so the row that was taken cannot be named.`;
+          if (kindOf(keys[0]!.logicalType) !== kindOf(row.logicalType)) return `${parent?.name}.${row.name} is ${row.logicalType} and the key of ${child.name} is ${keys[0]!.logicalType}: the row's key is kept in a column of that key's kind.`;
+        }
+      }
       if (value['count'] === true) {
         if (column.logicalType !== 'integer' && column.logicalType !== 'bigint') return `A count needs a whole-number column; ${name} is ${column.logicalType}.`;
         if (value['times'] !== undefined || value['balance'] !== undefined || value['cap'] !== undefined || value['capUnless'] !== undefined) return 'A count takes nothing to multiply, no balance and no cap.';
@@ -951,6 +1055,9 @@ function conditionedStatesIssue(states: States, table: TableModel, model: Databa
   for (const moves of Object.values(states.moves)) {
     for (const move of moves) {
       if (typeof move === 'string' || move.requires === undefined) continue;
+      // The date a move is not made after: a column of this table, never its state, on a move a person makes.
+      const lastDay = notPastIssues(table.name, states.column, move, (ref) => table.columns.find((c) => c.name === ref)?.logicalType)[0];
+      if (lastDay !== undefined) return `${lastDay.message}.`;
       for (const condition of move.requires.linked ?? []) {
         const issue = through(condition.via, condition.where.map((c) => c.column));
         if (issue !== null) return issue;
@@ -1202,6 +1309,45 @@ function oneCapacityRuleIssue(value: Value, table: TableModel, model: DatabaseMo
  * short name, or none) is caught here, before the guard would query a table
  * that is not there on every booking.
  */
+/**
+ * A plain guard (`table.occupies`) against the model as it stands: its own
+ * columns are there and of the kind each is read as, and the hours table has
+ * the columns the rule names.
+ */
+export function occupiesRuleIssue(raw: unknown, table: TableModel, model: DatabaseModel): string | null {
+  const value = (raw ?? {}) as Value;
+  const own = (name: unknown) => table.columns.find((c) => c.name === String(name));
+  for (const key of ['resource', 'start', 'minutes', 'end', 'day', 'until']) {
+    if (value[key] !== undefined && own(value[key]) === undefined) return `${table.name} has no column ${JSON.stringify(value[key])}.`;
+  }
+  const counted = (value['countWhere'] as Value | undefined)?.['column'];
+  if (counted !== undefined && own(counted) === undefined) return `${table.name} has no column ${JSON.stringify(counted)}.`;
+  if ((value['start'] === undefined) === (value['day'] === undefined)) return 'The time is a start or a whole day, one of the two.';
+  if (value['start'] !== undefined && (value['minutes'] === undefined) === (value['end'] === undefined)) return 'A start comes with its minutes or its end, one of the two.';
+  const minutes = value['minutes'] === undefined ? undefined : own(value['minutes']);
+  if (minutes !== undefined && !NUMERIC_TYPES.has(minutes.logicalType)) return `${minutes.name} is not a number, so it cannot be a length in minutes.`;
+  const day = value['day'] === undefined ? undefined : own(value['day']);
+  if (day !== undefined && day.logicalType !== 'date') return `${day.name} is not a date.`;
+  const hours = value['hours'] as Value | undefined;
+  // A span of whole days: its last day is a date of its own, and it is judged for overlap alone.
+  const until = value['until'] === undefined ? undefined : own(value['until']);
+  if (until !== undefined && value['day'] === undefined) return 'A last day (until) comes with the day the span starts on.';
+  if (until !== undefined && until.logicalType !== 'date') return `${until.name} is not a date.`;
+  if (until !== undefined && until.name === day?.name) return 'A span keeps its last day in a column of its own.';
+  if (until !== undefined && (hours !== undefined || value['shared'] === true)) return 'A span of days is judged for overlap alone: it has no hours and is not shared.';
+  if (value['shared'] === true && hours === undefined) return 'Rows that share the time are judged by the hours alone: name them.';
+  if (hours !== undefined) {
+    const id = String(hours['table'] ?? '');
+    const source = model.tables.find((candidate) => candidate.id === id);
+    if (source === undefined) return `There is no table ${JSON.stringify(id)} for the hours to be read from.`;
+    for (const [key, column] of Object.entries(hours)) {
+      if (key === 'table' || typeof column !== 'string') continue;
+      if (!source.columns.some((c) => c.name === column)) return `${source.name} has no column ${JSON.stringify(column)} for the hours.`;
+    }
+  }
+  return null;
+}
+
 export function bookingRuleIssue(raw: unknown, table: TableModel, model: DatabaseModel): string | null {
   const value = (raw ?? {}) as Value;
   const own = (name: unknown) => table.columns.find((c) => c.name === String(name));
@@ -1341,6 +1487,61 @@ export function viaPostingClash(rows: readonly { tableName: string; value: unkno
  * Whether the rule fits the add-on that answers it is judged with that
  * add-on's manifest at hand; this is what the database alone can say.
  */
+/**
+ * What is wrong with a table's `belongs` as it would be stored, against the
+ * live tables: a column that is not there, a listing table that is not in
+ * the database, a link that links nothing. Whether a column holds a staff
+ * member is the column's own rule (`column.staff`), checked where the two are
+ * written together.
+ */
+export function belongsRuleIssue(raw: unknown, table: TableModel, model: DatabaseModel): string | null {
+  const ways = (raw as { ways?: unknown } | null)?.ways;
+  if (!Array.isArray(ways) || ways.length === 0) return `Whose a row of ${table.name} is, is not spelled as Adminium stores it.`;
+  const has = (of: TableModel, column: unknown): boolean => typeof column === 'string' && of.columns.some((c) => c.name === column);
+  /** The table a single-column link of `of` points at. */
+  const linked = (of: TableModel, column: string): TableModel | undefined => {
+    const relation = model.relations.find((r) => r.through === null && r.from.tableId === of.id && r.from.columns.length === 1 && r.from.columns[0] === column);
+    return relation === undefined ? undefined : model.tables.find((candidate) => candidate.id === relation.to.tableId);
+  };
+  const person = (of: TableModel, column: unknown, personColumn: unknown): string | null => {
+    if (!has(of, column)) return `${JSON.stringify(column)} is not a column of ${of.name}.`;
+    if (personColumn === undefined) return null;
+    const target = linked(of, column as string);
+    if (target === undefined) return `${JSON.stringify(column)} of ${of.name} links to no table, so there is no row to read a person from.`;
+    return has(target, personColumn) ? null : `${JSON.stringify(personColumn)} is not a column of ${target.name}.`;
+  };
+  for (const way of ways as Record<string, unknown>[]) {
+    if (typeof way['column'] === 'string') {
+      const issue = person(table, way['column'], way['person']);
+      if (issue !== null) return issue;
+    } else if (typeof way['via'] === 'string') {
+      if (!has(table, way['via'])) return `${JSON.stringify(way['via'])} is not a column of ${table.name}.`;
+      if (linked(table, way['via']) === undefined) return `${JSON.stringify(way['via'])} of ${table.name} links to no table.`;
+    } else {
+      const through = (way['through'] ?? {}) as Record<string, unknown>;
+      const list = model.tables.find((candidate) => candidate.id === through['table']);
+      if (list === undefined) return `The table ${JSON.stringify(through['table'])} is not in this database.`;
+      if (!has(list, through['link'])) return `${JSON.stringify(through['link'])} is not a column of ${list.name}.`;
+      if (through['on'] === undefined ? table.primaryKey.length !== 1 : !has(table, through['on'])) {
+        return through['on'] === undefined ? `${table.name} has no single-column key for ${list.name} to hold.` : `${JSON.stringify(through['on'])} is not a column of ${table.name}.`;
+      }
+      const issue = person(list, through['user'], through['person']);
+      if (issue !== null) return issue;
+      for (const key of ['from', 'to'] as const) {
+        if (through[key] === undefined) continue;
+        const dated = list.columns.find((c) => c.name === through[key]);
+        if (dated === undefined) return `${JSON.stringify(through[key])} is not a column of ${list.name}.`;
+        // A day, never a time of day: the listing counts on the business's calendar day.
+        if (dated.logicalType !== 'date') return `A listing counts from one day to another; ${JSON.stringify(through[key])} of ${list.name} is ${dated.logicalType}.`;
+      }
+      // Counts only while a column of the listing holds some values, or is empty: a column it has.
+      const when = through['while'] as { column?: unknown } | undefined;
+      if (when !== undefined && !has(list, when.column)) return `${JSON.stringify(when.column)} is not a column of ${list.name}.`;
+    }
+  }
+  return null;
+}
+
 export function adjustRuleIssue(raw: unknown, table: TableModel, model: DatabaseModel): string | null {
   const parsed = storedAdjust.safeParse(raw);
   if (!parsed.success) return `The price rule of ${table.name} is not spelled as Adminium stores it: ${parsed.error.issues[0]?.message ?? 'invalid'}.`;

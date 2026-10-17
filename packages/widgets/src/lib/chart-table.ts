@@ -55,6 +55,12 @@ export interface ChartTableOptions {
   period: (iso: string) => string;
   /** What each of a pair's figures is called, by position; else its alias. */
   seriesNames?: readonly string[] | undefined;
+  /**
+   * An amount of money as the reader reads it (in the card's currency): for a
+   * figure the answer says is money (`money`, the aliases of the sums of a
+   * column the app declares as money). Absent ⇒ every figure is a `number`.
+   */
+  money?: ((value: number) => string) | undefined;
 }
 
 /** More rows than a person reads in a card's table: the rest are left out. */
@@ -74,15 +80,20 @@ const heading = (key: string): string => {
 };
 
 export function chartTableOf(data: unknown, opts: ChartTableOptions): ChartTable | null {
-  const { words, number } = opts;
-  const figure = (value: unknown) => {
+  const { words } = opts;
+  const r = rec(data);
+  if (r === null) return null;
+  // The figures the answer says are money (by alias): written as money, the rest as numbers.
+  const moneyAliases = Array.isArray(r['money']) ? (r['money'] as unknown[]).filter((alias): alias is string => typeof alias === 'string') : [];
+  const writer = (alias?: string): ((value: number) => string) =>
+    opts.money !== undefined && (alias === undefined ? moneyAliases.length > 0 : moneyAliases.includes(alias)) ? opts.money : opts.number;
+  const number = writer();
+  const figure = (value: unknown, write: (value: number) => string = number) => {
     const n = num(value);
-    return n === null ? '' : number(n);
+    return n === null ? '' : write(n);
   };
   const table = (headers: string[], rows: string[][], numeric: boolean[]): ChartTable | null =>
     rows.length === 0 ? null : { headers, rows: rows.slice(0, CHART_TABLE_MAX_ROWS), numeric };
-  const r = rec(data);
-  if (r === null) return null;
 
   const ts = asTimeseries(data);
   if (ts !== null) {
@@ -100,7 +111,7 @@ export function chartTableOf(data: unknown, opts: ChartTableOptions): ChartTable
       const names = cat.aggregates.map((alias, i) => opts.seriesNames?.[i] ?? alias);
       return table(
         [words.category, ...names],
-        cat.items.map((item) => [item.label, ...cat.aggregates!.map((alias) => figure(item.values?.[alias]))]),
+        cat.items.map((item) => [item.label, ...cat.aggregates!.map((alias) => figure(item.values?.[alias], writer(alias)))]),
         [false, ...names.map(() => true)],
       );
     }

@@ -18,8 +18,8 @@
  *  offline", whose payoff is a tilegram instead of a map.
  *  2. **It must be synchronous.** `system/info` is a fetch; the answer would land
  *     one or more renders after the first widget mounts. In that window a stored
- *     `map-bubble` mounts, its `lazy()` ref imports the map chunk, and Leaflet
- *     pulls tiles — the exact network touch the desktop app promises never to
+ *     `map-bubble` mounts, its `lazy()` ref imports the map chunk, and the map
+ *     asks for its pictures — the exact network touch the desktop app promises never to
  *     make, already made by the time the authoritative answer arrives. A guarantee
  *     that depends on a race is not one. `window.adminiumDesktop` is injected by
  *     the preload before the document runs, so it is knowable at first paint.
@@ -28,6 +28,11 @@
  *     tilegram. A false negative costs the offline guarantee. The signal that is
  *     available earliest and errs toward the fallback is the correct one, and the
  * server's `runtime` agrees with it by construction ("both must agree").
+ *
+ * WHERE MAPS COME FROM IS NOT DECIDED HERE. The map server's address is the
+ * session's answer (`bootstrap.maps`), written nowhere in this bundle; the root
+ * component lays it over this env. It can only ever take a map away from the
+ * desktop app, never give one: `mapServerOf` reads the runtime first.
  *
  * `offlineAssets` is second trigger and is `false` here: no self-host surface sets
  * it yet. It exists because the flag, not the shell, is what an air-gapped

@@ -52,7 +52,7 @@ describe('createI18n', () => {
   it('starts in the requested locale with the bundled en-US resources', async () => {
     const i18n = await createI18n({ locale: 'en_US' });
     expect(i18n.language).toBe('en-US');
-    expect(i18n.t('account.title')).toBe('Account');
+    expect(i18n.t('nav.notificationSettings')).toBe('Notification settings');
     // ui/errors namespaces resolve via the ns: prefix.
     expect(i18n.t('ui:action.cancel')).toBe('Cancel');
     expect(i18n.t('errors:NOT_FOUND')).toBe('That resource doesn’t exist or was removed.');
@@ -93,7 +93,7 @@ describe('createI18n', () => {
     // Present in de.
     expect(i18n.t('greeting', { name: 'Ava' })).toBe('Hallo Ava');
     // Missing in de → bundled en-US text.
-    expect(i18n.t('account.title')).toBe('Account');
+    expect(i18n.t('nav.notificationSettings')).toBe('Notification settings');
     // Missing everywhere → provided fallback.
     expect(i18n.t('not.a.key', { defaultValue: 'Fallback copy' })).toBe('Fallback copy');
   });
@@ -122,14 +122,14 @@ describe('createI18n', () => {
     expect(i18n.t('greeting', { name: 'Ava' })).toBe('Hallo Ava');
     expect(i18n.t('tables', { count: 1 })).toBe('Wir haben 1 Tabelle gefunden');
     // en-US remains the fallback for keys the lazy bundle lacks.
-    expect(i18n.t('account.title')).toBe('Account');
+    expect(i18n.t('nav.notificationSettings')).toBe('Notification settings');
     expect(loadBundle).toHaveBeenCalledWith('de-DE', 'common');
   });
 
   it('degrades to en-US when a locale has no bundles at all', async () => {
     const i18n = await createI18n({ locale: 'cs_CZ', loadBundle: async () => null });
     expect(i18n.language).toBe('cs-CZ');
-    expect(i18n.t('account.title')).toBe('Account');
+    expect(i18n.t('nav.notificationSettings')).toBe('Notification settings');
   });
 
   it('switchLocale is a no-op for the active locale', async () => {
@@ -151,7 +151,7 @@ describe('real locale bundles through loadLocaleBundle', () => {
   it('renders German after a live switch', async () => {
     const i18n = await createI18n({ locale: 'en_US', loadBundle: loadLocaleBundle });
     await switchLocale(i18n, 'de_DE');
-    expect(i18n.t('account.title')).toBe('Konto');
+    expect(i18n.t('nav.notificationSettings')).toBe('Benachrichtigungseinstellungen');
     expect(i18n.t('ui:action.cancel')).toBe('Abbrechen');
     expect(i18n.t('errors:CONNECTION_FAILED')).toBe('Adminium konnte die Datenbank nicht erreichen.');
   });
@@ -254,20 +254,20 @@ describe('real locale bundles through loadLocaleBundle', () => {
   // into the next. These two assert the store owns its own copy.
   it('does not let a store mutation reach a second instance', async () => {
     const first = await createI18n({ locale: 'en_US' });
-    first.addResourceBundle('en-US', 'common', { account: { title: 'OVERRIDDEN' } }, true, true);
-    expect(first.t('account.title')).toBe('OVERRIDDEN');
+    first.addResourceBundle('en-US', 'common', { nav: { notificationSettings: 'OVERRIDDEN' } }, true, true);
+    expect(first.t('nav.notificationSettings')).toBe('OVERRIDDEN');
 
     const second = await createI18n({ locale: 'en_US' });
-    expect(second.t('account.title')).toBe('Account');
+    expect(second.t('nav.notificationSettings')).toBe('Notification settings');
   });
 
   it('does not let a store mutation reach a lazily loaded bundle', async () => {
     const first = await createI18n({ locale: 'de_DE', loadBundle: loadLocaleBundle });
-    first.addResourceBundle('de-DE', 'common', { account: { title: 'ÜBERSCHRIEBEN' } }, true, true);
-    expect(first.t('account.title')).toBe('ÜBERSCHRIEBEN');
+    first.addResourceBundle('de-DE', 'common', { nav: { notificationSettings: 'ÜBERSCHRIEBEN' } }, true, true);
+    expect(first.t('nav.notificationSettings')).toBe('ÜBERSCHRIEBEN');
 
     const second = await createI18n({ locale: 'de_DE', loadBundle: loadLocaleBundle });
-    expect(second.t('account.title')).toBe('Konto');
+    expect(second.t('nav.notificationSettings')).toBe('Benachrichtigungseinstellungen');
   });
 
   it('keeps zh_CN and zh_TW independent at runtime', async () => {

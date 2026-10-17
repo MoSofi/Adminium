@@ -1,6 +1,6 @@
 {
   "name": "@adminium/widgets",
-  "version": "0.3.27",
+  "version": "0.3.28",
   "private": true,
   "license": "AGPL-3.0-only",
   "repository": {
@@ -33,6 +33,26 @@
     "./binding": {
       "types": "./dist/binding/index.d.ts",
       "default": "./dist/binding/index.js"
+    },
+    "./kit-board": {
+      "types": "./dist/kit-board.d.ts",
+      "default": "./dist/kit-board.js"
+    },
+    "./kit-import": {
+      "types": "./dist/kit-import.d.ts",
+      "default": "./dist/kit-import.js"
+    },
+    "./kit-map": {
+      "types": "./dist/kit-map.d.ts",
+      "default": "./dist/kit-map.js"
+    },
+    "./people-source": {
+      "types": "./dist/families/forms/people-source.d.ts",
+      "default": "./dist/families/forms/people-source.js"
+    },
+    "./mentions": {
+      "types": "./dist/mentions.d.ts",
+      "default": "./dist/mentions.js"
     }
   },
   "scripts": {
@@ -51,8 +71,8 @@
     "@dnd-kit/modifiers": "^9.0.0",
     "@dnd-kit/utilities": "^3.2.2",
     "@tanstack/react-table": "^8.21.3",
-    "leaflet": "^1.9.4",
     "lucide-react": "^0.525.0",
+    "maplibre-gl": "6.11.2",
     "react": "^19.2.8",
     "zod": "catalog:"
   },
@@ -60,7 +80,6 @@
     "@adminium/config": "workspace:*",
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^14.6.4",
-    "@types/leaflet": "^1.9.22",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
     "eslint": "catalog:",

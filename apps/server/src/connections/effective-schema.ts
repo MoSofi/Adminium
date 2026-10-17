@@ -122,6 +122,8 @@ export interface ColumnRollupRule {
   sum?: string;
   /** The child rows counted instead of a column added up. */
   count?: true;
+  /** Or the newest child row's value: `of` of the row whose `by` is greatest; `row`, a column of this table, holds that row's key. */
+  latest?: { of: string; by: string; row?: string };
   times?: string;
   /** A child row whose column holds a value is left out (a voided line). */
   unlessSet?: string;
@@ -335,6 +337,8 @@ export interface StateMoveRule {
     time?: TimeCondition;
     /** Values of the settings row (its table id). */
     setting?: SettingCondition[];
+    /** A date column of the row the move is not made after: refused once today, on the business's calendar, is later. */
+    notPast?: string;
   };
   roles?: string[];
   /** The move takes back the listed one the other way: made only by a write naming the state it saw. */
@@ -451,6 +455,26 @@ export interface BookingHoursTable {
 }
 
 /**
+ * `table.occupies`: a row takes a resource for a time (a room for an hour, a
+ * crew for a day). No two counted rows of one resource overlap, unless they
+ * `shared` it; with `hours`, the resource has a row for the weekday and a
+ * timed row lies inside it. `hours.table` is an id in the snapshot. A `day`
+ * with `until` is a span of whole days, both counted; an empty `until` has
+ * no end.
+ */
+export interface TableOccupiesRule {
+  resource: string;
+  start?: string;
+  minutes?: string;
+  end?: string;
+  day?: string;
+  until?: string;
+  countWhere?: { column: string; values: string[] };
+  shared?: true;
+  hours?: { table: string; resource: string; weekday: string; opens?: string; closes?: string };
+}
+
+/**
  * `table.booking`: booking PEOPLE. No two counted rows of one resource may
  * overlap, inside its weekly hours and outside its closures. Every nested
  * `table` is an id in the snapshot, mapped from the app's short names at
@@ -564,6 +588,14 @@ export interface EffectiveColumn extends ColumnModel {
   addOnLink?: ColumnAddOnLink;
   /** `column.tableRef`: the column holds a table's stored name. */
   tableRef?: true;
+  /** `column.staff`: the column holds a staff member's id — the one kind a table's `belongs` reads a person from. */
+  staff?: true;
+  /** `column.mentions`: people are mentioned in this text; `about` is the link to the record a mention there is about. */
+  mentions?: true | { about: string };
+  /** `column.place`: the column holds a position on the map (`{ lat, lng, by }`), read and checked on every write. */
+  place?: true;
+  /** `column.area`: the column holds an area on the map (a GeoJSON polygon). */
+  area?: true;
   /** `column.announce`: a change of this formula column is told after the save. */
   announce?: true;
   /** `column.codeLast4`: the last four characters of the code in `of`. */
@@ -574,6 +606,28 @@ export interface EffectiveColumn extends ColumnModel {
   customerKey?: { of: string };
   /** `column.bounds`: a date never later than today, never earlier than another date. */
   bounds?: { notAfter?: 'today' | EffectiveDateBound; notBefore?: EffectiveDateBound };
+  /**
+   * `column.linkable`: a foreign key that names only a row meeting these
+   * conditions, read on the row it names; and (`same`) whose `column` holds
+   * what the written row holds in `as`: a column of its own, or
+   * `<link>.<column>` of the row a link of it names.
+   */
+  linkable?: { where?: StateCondition[]; same?: { column: string; as: string }[] };
+  /** `column.file`: the column holds files a signed-in person uploaded for it. */
+  file?: EffectiveFileRule;
+}
+
+/**
+ * `column.file`, as kept: the kinds of file the column takes (the server's
+ * names for what a file's bytes are), the most bytes of each, and — for a
+ * column that holds a list (a json column) — how many. One file is its id in
+ * a text column; a list is a JSON array of ids.
+ */
+export interface EffectiveFileRule {
+  accept: string[];
+  maxBytes: number;
+  /** Present: the column holds a list of up to this many. Absent: one file. */
+  maxCount?: number;
 }
 
 export interface EffectiveTable extends Omit<TableModel, 'columns'> {
@@ -596,6 +650,8 @@ export interface EffectiveTable extends Omit<TableModel, 'columns'> {
   capacityRules?: EffectiveCapacityRule[];
   /** Booking people (`table.booking`). */
   booking?: TableBookingRule;
+  /** A row takes a resource for a time (`table.occupies`). */
+  occupies?: TableOccupiesRule;
   /**
    * A document's life (`table.states`). Carried in the model the dashboard
    * reads, so a record page draws a locked row's fields read-only: a field is
@@ -623,7 +679,28 @@ export interface EffectiveTable extends Omit<TableModel, 'columns'> {
   /** The links this table's states read through, resolved; a link the snapshot cannot follow is in `unresolvedStateLinks`. */
   stateLinks?: StateLink[];
   unresolvedStateLinks?: string[];
+  /** How a person belongs to a row (`table.belongs`): what a role's row limit is judged by. Absent: its rows are nobody's. */
+  belongs?: BelongsWay[];
+  /** Rows read by the people they belong to, and by nobody and nothing else (`table.private`). */
+  private?: true;
 }
+
+/**
+ * One way a person belongs to a row, as the table stores it (`table.belongs`):
+ * the staff member a column holds (with `person`, the column is a link and
+ * `person` the staff column of the row it points at); a table that lists
+ * people against the row (its `link` holds this row's key or its `on`
+ * column, between `from` and `to` when it names them, and only while its
+ * `while` column holds what it names); or whoever belongs to the row a link
+ * points at (`via`). `through.table` is a table's id.
+ */
+export type BelongsWay =
+  | { column: string; person?: string; set?: 'self' | 'team' | 'anyone' }
+  | { through: { table: string; link: string; on?: string; user: string; person?: string; from?: string; to?: string; while?: ListingWhile } }
+  | { via: string };
+
+/** What a listing row must hold to count: one of some values in a column of it, or that column empty (or not). */
+export type ListingWhile = { column: string; in: (string | number | boolean)[] } | { column: string; isNull: boolean };
 
 export interface EffectiveRelation extends Relation {
   label?: string;
@@ -945,7 +1022,43 @@ export function applyCompositionOverrides(
   model: DatabaseModel,
   overrides: readonly SchemaOverride[],
 ): DatabaseModel {
-  return applyYesNoColumns(applyColumnOptionValues(applyColumnSemanticOverrides(model, overrides), overrides), overrides);
+  return applyGeoColumns(applyYesNoColumns(applyColumnOptionValues(applyColumnSemanticOverrides(model, overrides), overrides), overrides), overrides);
+}
+
+/**
+ * A column called a place or an area (`column.place`, `column.area`), on the
+ * model a page is composed from — the composition path's half of those two
+ * cases in {@link applyOverrides}.
+ *
+ * A reader's model said so and the generator never heard: it parses the
+ * snapshot, where the column is only JSON (TEXT on SQLite). So no map was
+ * offered over a place column, and a generated list and form left the column
+ * out altogether, as they leave out any JSON.
+ */
+export function applyGeoColumns(model: DatabaseModel, overrides: readonly SchemaOverride[]): DatabaseModel {
+  const marked = new Map<string, 'place' | 'area'>();
+  for (const row of overrides) {
+    if (row.status !== 'active' || row.columnName === null) continue;
+    const op = row.op as string;
+    if (op === 'column.place') marked.set(`${row.tableName}\u0000${row.columnName}`, 'place');
+    else if (op === 'column.area') marked.set(`${row.tableName}\u0000${row.columnName}`, 'area');
+  }
+  if (marked.size === 0) return model;
+
+  let changed = false;
+  const tables = model.tables.map((table) => {
+    let touched = false;
+    const columns = table.columns.map((column) => {
+      const kind = marked.get(`${table.id}\u0000${column.name}`);
+      if (kind === undefined) return column;
+      touched = true;
+      return kind === 'place' ? { ...column, place: true as const } : { ...column, area: true as const };
+    });
+    if (!touched) return table;
+    changed = true;
+    return { ...table, columns };
+  });
+  return changed ? { ...model, tables } : model;
 }
 
 /**
@@ -1299,6 +1412,44 @@ function settleSecrets(
   }
 }
 
+/**
+ * The model as whatever reads rows FOR SOMEBODY OTHER than the person signed
+ * in is given it — a rule, a public door, a kiosk's key, an owner's code:
+ * without the private tables, and without the links that touch one. A
+ * private table's rows are read by the people they belong to and by nothing
+ * that acts for anyone else; taken out here, no door of that kind can name
+ * one, whatever it was configured with before the table was marked.
+ */
+export function withoutPrivateTables<M extends Pick<EffectiveModel, 'tables' | 'relations'>>(model: M): M {
+  const held = new Set(model.tables.filter((table) => table.private === true).map((table) => table.id));
+  if (held.size === 0) return model;
+  return {
+    ...model,
+    tables: model.tables.filter((table) => !held.has(table.id)),
+    relations: model.relations.filter((relation) => !held.has(relation.from.tableId) && !held.has(relation.to.tableId) && (relation.through === null || !held.has(relation.through.tableId))),
+  };
+}
+
+/**
+ * A column that holds a staff member names a person, never a row of another
+ * table: a link a guesser read into its name (`rep_id` → `reps`, a text
+ * holding a user's id against a table's whole-number key) is no link, and
+ * nothing may follow it — a message's template, a rule's `rep_id.name`, a
+ * mention's record. A foreign key the database keeps, or one a person or an
+ * app declared, stays as it was.
+ */
+function withoutGuessedStaffLinks(relations: EffectiveRelation[], tables: ReadonlyMap<string, EffectiveTable>): EffectiveRelation[] {
+  const staff = (tableId: string, columns: readonly string[]): boolean => {
+    const table = tables.get(tableId);
+    return table !== undefined && columns.some((name) => table.columns.find((column) => column.name === name)?.staff === true);
+  };
+  return relations.filter((relation) => {
+    if (relation.kind !== 'inferred-name' && relation.kind !== 'inferred-join-table') return true;
+    if (relation.through !== null) return !staff(relation.through.tableId, [...relation.through.fromColumns, ...relation.through.toColumns]);
+    return !staff(relation.from.tableId, relation.from.columns);
+  });
+}
+
 /** Apply active override rows (already in created_at order) onto a snapshot model. */
 export function applyOverrides(
   model: DatabaseModel,
@@ -1368,6 +1519,10 @@ export function applyOverrides(
         if (table !== undefined) table.booking = value as unknown as TableBookingRule;
         break;
       }
+      case 'table.occupies': {
+        if (table !== undefined) table.occupies = value as unknown as TableOccupiesRule;
+        break;
+      }
       case 'table.states': {
         if (table !== undefined) table.states = value as unknown as TableStatesRule;
         break;
@@ -1405,6 +1560,50 @@ export function applyOverrides(
       case 'column.addOnLink': {
         const column = columnOf(table, row.columnName);
         if (column !== undefined) column.addOnLink = { addOn: String(value.addOn), table: String(value.table), tableId: null, key: null };
+        break;
+      }
+      case 'column.staff': {
+        const column = columnOf(table, row.columnName);
+        if (column !== undefined) column.staff = true;
+        break;
+      }
+      case 'column.mentions': {
+        const column = columnOf(table, row.columnName);
+        const said = (value as { mentions?: unknown }).mentions;
+        if (column !== undefined) column.mentions = typeof said === 'object' && said !== null ? { about: String((said as { about: unknown }).about) } : true;
+        break;
+      }
+      case 'column.place': {
+        const column = columnOf(table, row.columnName);
+        if (column !== undefined) column.place = true;
+        break;
+      }
+      case 'column.area': {
+        const column = columnOf(table, row.columnName);
+        if (column !== undefined) column.area = true;
+        break;
+      }
+      case 'column.linkable': {
+        const column = columnOf(table, row.columnName);
+        if (column !== undefined) {
+          const rule = value as { where?: StateCondition[]; same?: { column: string; as: string }[] };
+          column.linkable = { ...(rule.where === undefined ? {} : { where: structuredClone(rule.where) }), ...(rule.same === undefined ? {} : { same: structuredClone(rule.same) }) };
+        }
+        break;
+      }
+      case 'column.file': {
+        const column = columnOf(table, row.columnName);
+        const rule = value as { accept: string[]; maxBytes: number; maxCount?: number };
+        if (column !== undefined) column.file = { accept: [...rule.accept], maxBytes: rule.maxBytes, ...(rule.maxCount === undefined ? {} : { maxCount: rule.maxCount }) };
+        break;
+      }
+      case 'table.belongs': {
+        // One rule a table. Where an app's and an owner's are both stored, the app's stands: an update keeps it current.
+        if (table !== undefined && (table.belongs === undefined || row.origin === 'app')) table.belongs = structuredClone((value as unknown as { ways: BelongsWay[] }).ways);
+        break;
+      }
+      case 'table.private': {
+        if (table !== undefined) table.private = true;
         break;
       }
       case 'column.tableRef': {
@@ -1628,6 +1827,7 @@ export function applyOverrides(
   }
 
   settleSecrets(tables.values(), secretSaid, maskedForSecret);
+  effective.relations = withoutGuessedStaffLinks(effective.relations, tables);
   tieStates(tables, effective.relations);
 
   // Table labels last, from the ONE precedence-aware resolver — a user

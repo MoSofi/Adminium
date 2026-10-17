@@ -56,6 +56,7 @@ export {
   OFFLINE_MAP_FALLBACK_ID,
   offlineAssetsRequired,
   resolveOfflineWidgetId,
+  type WidgetMapsEnv,
   type WidgetRuntime,
   type WidgetRuntimeEnv,
 } from './registry/offline.js';

@@ -38,6 +38,7 @@ import { useSuspenseQuery } from '@tanstack/react-query';
 
 import { bootstrapQuery } from '../app/bootstrap.js';
 import { t } from '../i18n/t.js';
+import { useCommonWords } from '../i18n/commonWords.js';
 import { PageActions } from '../shell/PageActionsProvider.js';
 import { PageSurface } from '../shell/PageSurface.js';
 import { RELEASES_URL } from '../kb/docsLinks.js';
@@ -131,6 +132,8 @@ function ReleaseNode({
 }
 
 export function ChangelogPage(): ReactNode {
+  // This screen's words load with it, not with the first paint.
+  useCommonWords();
   const { data: bootstrap } = useSuspenseQuery(bootstrapQuery());
   const [filter, setFilter] = useState<ChangeTag | null>(null);
 

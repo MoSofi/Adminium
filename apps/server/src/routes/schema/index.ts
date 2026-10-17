@@ -14,6 +14,8 @@
  * `schema.read`); override writes require `system:schema:remap`.
  */
 
+import { rowTestOf } from '../../crud/row-limit-context.js';
+import { reachOfRequest } from '../../crud/row-reach-request.js';
 import { isDeepStrictEqual } from 'node:util';
 
 import type { FastifyRequest } from 'fastify';
@@ -35,7 +37,7 @@ import {
 import { ForbiddenError, NotFoundError, ValidationFailedError } from '../../errors.js';
 import { outboxWrittenColumns } from '../../outbox/moves.js';
 import { shareCodesOn } from '../../public-api/share-codes.js';
-import { bookingRuleIssue, capacityRuleIssue, columnRuleIssue, keptColumnIssue, statesRuleIssue } from '../../connections/column-rules-validation.js';
+import { bookingRuleIssue, capacityRuleIssue, occupiesRuleIssue, columnRuleIssue, keptColumnIssue, statesRuleIssue } from '../../connections/column-rules-validation.js';
 import { LEDGER_RULE_OPS } from '../../ledgers/rules.js';
 import { applyOverrides, columnPolicyFor } from '../../connections/effective-schema.js';
 import type { ConnectionManager } from '../../connections/manager.js';
@@ -80,7 +82,32 @@ export function schemaRoutes(deps: SchemaRoutesDeps): FastifyPluginAsyncZod {
       return latest;
     }
 
+    /**
+     * The model as this caller may be told it: without the row-count estimate
+     * of a table they read only some rows of (`crud/row-limit.ts`) — how many
+     * rows a table holds in all is a fact about everybody's. Nearly everyone
+     * gets the model as it is.
+     */
+    async function withoutCountsOutOfReach<M>(request: FastifyRequest, connectionId: string, model: M): Promise<M> {
+      const reach = await reachOfRequest(meta, request, connectionId);
+      if (reach === null) return model;
+      const whole = model as { tables?: { id: string; rowCountEstimate?: unknown }[] };
+      // Somebody something could limit, and no schema to say on which tables: no count of any.
+      const inPart = reach === 'unreadable' ? new Set((whole.tables ?? []).map((table) => table.id)) : new Set(reach.view.model.tables.filter((table) => rowTestOf(reach.rows, table.id, 'read') !== null).map((table) => table.id));
+      if (inPart.size === 0) return model;
+      if (!Array.isArray(whole.tables)) return model;
+      return {
+        ...whole,
+        tables: whole.tables.map((table) => {
+          if (!inPart.has(table.id)) return table;
+          const { rowCountEstimate: _all, ...rest } = table;
+          return rest;
+        }),
+      } as M;
+    }
+
     async function schemaPayload(
+      request: FastifyRequest,
       connectionId: string,
       snapshot: SchemaSnapshot,
       raw: boolean,
@@ -98,7 +125,7 @@ export function schemaRoutes(deps: SchemaRoutesDeps): FastifyPluginAsyncZod {
           checksum: snapshot.checksum,
           createdAt: snapshot.createdAt,
           source: snapshot.source,
-          model: snapshot.schema,
+          model: await withoutCountsOutOfReach(request, connectionId, snapshot.schema),
           appliedOverrides: 0,
           schemaAuthoring,
         };
@@ -110,9 +137,13 @@ export function schemaRoutes(deps: SchemaRoutesDeps): FastifyPluginAsyncZod {
         checksum: snapshot.checksum,
         createdAt: snapshot.createdAt,
         source: snapshot.source,
-        model: applyOverrides(snapshot.schema as DatabaseModel, active, {
-          ...(locale === undefined ? {} : { defaultLocale: locale }),
-        }),
+        model: await withoutCountsOutOfReach(
+          request,
+          connectionId,
+          applyOverrides(snapshot.schema as DatabaseModel, active, {
+            ...(locale === undefined ? {} : { defaultLocale: locale }),
+          }),
+        ),
         appliedOverrides: active.length,
         schemaAuthoring,
       };
@@ -126,7 +157,7 @@ export function schemaRoutes(deps: SchemaRoutesDeps): FastifyPluginAsyncZod {
       },
       async (request) => {
         const snapshot = await mustLatest(request.params.id);
-        return schemaPayload(request.params.id, snapshot, request.query.raw === true, request.query.locale);
+        return schemaPayload(request, request.params.id, snapshot, request.query.raw === true, request.query.locale);
       },
     );
 
@@ -165,7 +196,7 @@ export function schemaRoutes(deps: SchemaRoutesDeps): FastifyPluginAsyncZod {
         if (snapshot === null || snapshot.connectionId !== request.params.id) {
           throw new NotFoundError('Snapshot not found.', { snapshotId: request.params.snapshotId });
         }
-        return schemaPayload(request.params.id, snapshot, request.query.raw === true, request.query.locale);
+        return schemaPayload(request, request.params.id, snapshot, request.query.raw === true, request.query.locale);
       },
     );
 
@@ -278,6 +309,11 @@ export function schemaRoutes(deps: SchemaRoutesDeps): FastifyPluginAsyncZod {
           throw new ValidationFailedError('A table has a capacity or a booking rule, not both.', { table: tableName });
         }
       }
+      for (const tableName of guarded('table.occupies')) {
+        if (capacityTables.has(tableName) || guarded('table.booking').has(tableName)) {
+          throw new ValidationFailedError('A table has one rule that places its rows: capacity, booking or occupies.', { table: tableName });
+        }
+      }
       let storedStates: Awaited<ReturnType<typeof overrides.listForConnection>> | undefined;
       for (const item of body.overrides) {
         try {
@@ -325,7 +361,11 @@ export function schemaRoutes(deps: SchemaRoutesDeps): FastifyPluginAsyncZod {
           item.op === 'column.addOnLink' ||
           item.op === 'column.codeLast4' ||
           item.op === 'column.plainText' ||
-          item.op === 'column.customerKey'
+          item.op === 'column.customerKey' ||
+          item.op === 'column.place' ||
+          item.op === 'column.area' ||
+          item.op === 'column.linkable' ||
+          item.op === 'column.file'
         ) {
           const column = table.columns.find((c) => c.name === item.columnName);
           // `columnName` was proved above; this is for the type checker.
@@ -353,6 +393,10 @@ export function schemaRoutes(deps: SchemaRoutesDeps): FastifyPluginAsyncZod {
         }
         if (item.op === 'table.booking') {
           const issue = bookingRuleIssue(item.value, table, model);
+          if (issue !== null) throw new ValidationFailedError(issue, { table: item.tableName, op: item.op });
+        }
+        if (item.op === 'table.occupies') {
+          const issue = occupiesRuleIssue(item.value, table, model);
           if (issue !== null) throw new ValidationFailedError(issue, { table: item.tableName, op: item.op });
         }
         if (item.op === 'table.states') {
@@ -487,6 +531,30 @@ export function schemaRoutes(deps: SchemaRoutesDeps): FastifyPluginAsyncZod {
         );
         if (kept && keptColumnIssue(item.op, item.value, at, beforeSave, codes) !== null) continue;
         throw new ValidationFailedError(issue, { table: item.tableName, column: item.columnName, op: item.op });
+      }
+      /*
+       * A PRIVATE TABLE STAYS PRIVATE. This save replaces every rule, so
+       * leaving one out is taking it away: a private table's mark, the ways
+       * people belong to its rows and the columns that hold them are as they
+       * were after the save, for everybody — the right to shape the schema is
+       * not a right to open the notes two people wrote for each other. (An
+       * app's own update is the one thing that changes them.)
+       */
+      const whoseRows = (rows: readonly SchemaOverride[]) =>
+        new Map(
+          applyOverrides(model, rows.filter((row) => row.status === 'active')).tables.map((table) => [
+            table.id,
+            { private: table.private === true, belongs: table.belongs ?? null, staff: table.columns.filter((column) => column.staff === true).map((column) => column.name).sort() },
+          ]),
+        );
+      const whoseAfter = whoseRows(proposed);
+      for (const [tableId, was] of whoseRows(before)) {
+        if (!was.private) continue;
+        const now = whoseAfter.get(tableId);
+        if (now === undefined) continue;
+        if (!now.private || !isDeepStrictEqual(now.belongs, was.belongs) || !isDeepStrictEqual(now.staff, was.staff)) {
+          throw new ForbiddenError(`${tableId} is private: its mark, and whose its rows are, are not changed here.`, 'TABLE_FORBIDDEN', { table: tableId, reason: 'private' });
+        }
       }
       const stillSecret = secretsUnder(proposed);
       if ([...secretsUnder(before)].some((key) => !stillSecret.has(key)) && !(await app.rbac.resolve(request)).superAdmin) {

@@ -22,6 +22,7 @@ import type { ConnectionManager, SourceDatabase } from '../../connections/manage
 import type { ResolvedTable, SnapshotView } from '../../crud/identifiers.js';
 import type { Row } from '../../crud/mask.js';
 import type { RecordWriteService } from '../../crud/write-service.js';
+import type { AutomationTraceStep } from '@adminium/meta';
 import type { EmailTransport, SmtpConfig } from '../../email/types.js';
 import type { RenderDeps } from '../../documents/render.js';
 import type { FileStore } from '../../files/store.js';
@@ -46,6 +47,15 @@ export interface ActionSource {
    * holds has no entry: the step that names it fails by name.
    */
   related?: ReadonlyMap<string, { table: ResolvedTable; row: Row | null }> | undefined;
+  /** The run is about a row that was removed: `row` is what it held, and it cannot be read again. */
+  removed?: true | undefined;
+  /**
+   * An updated record as it was before the change (`{{was.<column>}}`): null
+   * when the run did not keep it; absent for a run that is not about a change.
+   */
+  was?: Row | null | undefined;
+  /** The names of the people the record's staff columns, and its related rows', name: by id. */
+  people?: ReadonlyMap<string, string> | undefined;
 }
 
 export interface ActionContext {
@@ -65,6 +75,12 @@ export interface ActionContext {
   source: ActionSource | null;
   /** `{{record.x}}`, `{{now}}`, `{{ruleName}}`, `{{recordLabel}}` (D16). */
   tokens: TokenMap;
+  /**
+   * The rows the run's steps made so far (`{{steps.<name>.<column>}}`), each
+   * with its table and key: what a notice or a mail to a person reads of them
+   * is judged again as that person (`record-link.ts` `tokensAs`).
+   */
+  made?: readonly NonNullable<AutomationTraceStep['made']>[] | undefined;
   text: TraceText;
   /** `ADMINIUM_SECRET` — opens the SMTP password and a webhook's header value. */
   /** The steps installed add-ons give, as they stand now (`add-on-steps.ts`). Absent: none can be found, and such a step fails saying so. */
@@ -88,6 +104,8 @@ export interface ActionContext {
 export interface ActionResult {
   /** The comp's log box, one line. Null when there is nothing to say. */
   log: string | null;
+  /** The row a named "create a row" step made, kept in the trace for the steps after it (`step-rows.ts`). */
+  made?: AutomationTraceStep['made'];
 }
 
 /** A step that failed. The message becomes the trace line AND the run's error. */

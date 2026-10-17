@@ -76,11 +76,16 @@ import {
   readJson,
   type Job,
   overridesRepo,
+  rolesRepo,
   snapshotsRepo,
+  teamsRepo,
+  usersRepo,
   type MetaDb,
+  readAppModules,
 } from '@adminium/meta';
 
 import { createAppFiles, type AppFiles } from './app-files.js';
+import { roleSlugFor } from './manifest-roles.js';
 import type { AppStore } from './store.js';
 import { applyOverrides, type EffectiveModel } from '../connections/effective-schema.js';
 import { runIntrospection } from '../connections/introspect.js';
@@ -90,7 +95,8 @@ import { literalDefault, tableRulesFor } from '../crud/column-rules.js';
 import { countersPastTheTable, isUniqueViolation } from '../crud/decided-columns.js';
 import { labelColumnFor } from '../crud/labels.js';
 import { renderNow } from '../crud/instants.js';
-import { createWriteService, deleteRows, insertRow, type WriteContext, type WriteTarget } from '../crud/write-service.js';
+import { createWriteService, deleteRows, insertRow, updateRows, type RecordWriteService, type WriteContext, type WriteTarget } from '../crud/write-service.js';
+import { ledgersOf } from '../ledgers/rules.js';
 import { fetchByPk, pkLabel } from '../crud/records.js';
 import { writeStores } from '../crud/write-stores.js';
 import { ConflictError, NotFoundError, ValidationFailedError } from '../errors.js';
@@ -122,6 +128,13 @@ export interface SampleDataDeps {
    * are not looked at.
    */
   storedRefs?: ((connectionId: string) => Promise<(tableId: string) => string>) | undefined;
+  /**
+   * The write service every save goes through, ledgers and all: what makes
+   * the moves an app's file asks of an add-on's rows (`moves`), so the
+   * add-on's ledger writes what follows a move itself. Absent: a file that
+   * asks for moves is refused before any of it is written.
+   */
+  writes?: (() => RecordWriteService) | undefined;
 }
 
 /** What an add is told. */
@@ -147,6 +160,14 @@ interface AddPass {
 }
 
 /** The installed app a sample-data call is about. */
+/** The people and teams one add made (or took back): who each key is, and what is new and so the ledger's to list. */
+interface SampleStaff {
+  ids: Map<string, string>;
+  people: { id: string; label: string }[];
+  teams: { id: string; label: string }[];
+}
+const NO_STAFF: SampleStaff = { ids: new Map(), people: [], teams: [] };
+
 export interface SampleApp {
   key: string;
   version: string;
@@ -156,8 +177,14 @@ export interface SampleApp {
 }
 
 const FILE_REF = '@file';
+/** A staff member the sample made (`sampleData.people`): `pk` holds the user's id, `label` the person's key. */
+const PERSON_REF = '@person';
+/** A team the sample made (`sampleData.teams`): `pk` holds the team's id, `label` the name the manifest gives it. */
+const TEAM_REF = '@team';
 /** A row a removal kept, as its ledger entry remembers it: `@kept:<ref>`. */
 const KEPT_PREFIX = '@kept:';
+/** Columns a sample filled in a row that was already there (`@fillEmpty`): the entry holds what it wrote, by column. */
+const FILLED_PREFIX = '@filled:';
 /** The ledger's `table_ref` width. */
 const REF_WIDTH = 64;
 
@@ -358,6 +385,8 @@ export interface ResolveContext {
   tableRef?: ((ref: string) => string | null) | undefined;
   /** The weekday the bundle's `@week` days count from. */
   weekAnchor?: string | undefined;
+  /** Sample person's key → the staff member made for it (`{"@person": "<key>"}`). */
+  people?: ReadonlyMap<string, string> | undefined;
   /**
    * The open times of a table's slot limits the sample's rows take, placed
    * before the rows are resolved, in row order, per table and earliest instant
@@ -491,10 +520,14 @@ function resolveValues(row: Readonly<Record<string, unknown>>, ctx: ResolveConte
     if (ROW_DIRECTIVES.has(column)) continue;
     const found = sampleDirective(value);
     if (found === null) {
-      out[column] = value;
+      // A json value may name a sample person anywhere inside it (a saved filter's rep).
+      out[column] = typeof value === 'object' && value !== null ? withPeople(value, ctx) : value;
       continue;
     }
     switch (found.kind) {
+      case 'person':
+        out[column] = personOf(found.key, ctx);
+        break;
       case 'ref': {
         if (!ctx.labels.has(found.label)) throw new ValidationFailedError(`The sample row "${found.label}" was not written.`);
         out[column] = ctx.labels.get(found.label);
@@ -552,6 +585,23 @@ function resolveValues(row: Readonly<Record<string, unknown>>, ctx: ResolveConte
     }
   }
   return out;
+}
+
+/** The staff member a sample person's key stands for. */
+function personOf(key: string, ctx: ResolveContext): string {
+  const id = ctx.people?.get(key);
+  if (id === undefined) throw new ValidationFailedError(`The sample person "${key}" was not added.`);
+  return id;
+}
+
+/** A json value with every `{"@person": "<key>"}` inside it replaced by that person's id. */
+function withPeople(value: unknown, ctx: ResolveContext): unknown {
+  const found = sampleDirective(value);
+  if (found?.kind === 'person') return personOf(found.key, ctx);
+  if (found !== null) return value;
+  if (Array.isArray(value)) return value.map((item) => withPeople(item, ctx));
+  if (typeof value === 'object' && value !== null) return Object.fromEntries(Object.entries(value as Record<string, unknown>).map(([key, item]) => [key, withPeople(item, ctx)]));
+  return value;
 }
 
 /** The venue day a `@day` names: from today, in working days, or from the bundle's week anchor. */
@@ -924,6 +974,25 @@ export function createSampleDataService(deps: SampleDataDeps) {
     );
   }
 
+  async function leftOutOf(app: SampleApp): Promise<{ tables: ReadonlySet<string>; columns: Readonly<Record<string, readonly string[]>> } | null> {
+    const row = await deps.meta.db.selectFrom('adminium_manifests').select('modules').where('id', '=', app.manifestId).executeTakeFirst();
+    const leftOut = readAppModules(row?.modules)?.leftOut;
+    return leftOut === undefined ? null : { tables: new Set(leftOut.tables), columns: leftOut.columns };
+  }
+
+  function withoutLeftOut(bundle: SampleBundle, leftOut: Awaited<ReturnType<typeof leftOutOf>>): SampleBundle {
+    if (leftOut === null) return bundle;
+    return {
+      ...bundle,
+      tables: bundle.tables
+        .filter((table) => !leftOut.tables.has(table.ref))
+        .map((table) => {
+          const lost = leftOut.columns[table.ref];
+          return lost === undefined ? table : { ...table, rows: table.rows.map((row) => Object.fromEntries(Object.entries(row).filter(([column]) => !lost.includes(column)))) };
+        }),
+    };
+  }
+
   async function loadBundle(app: SampleApp): Promise<SampleBundle> {
     const file = sampleFileOf(app.manifest);
     if (file === undefined) {
@@ -943,11 +1012,13 @@ export function createSampleDataService(deps: SampleDataDeps) {
         issues: bundle.error.issues.map((issue) => ({ path: issue.path.join('.'), message: issue.message })),
       });
     }
-    const issues = sampleBundleIssues(bundle.data, app.manifest);
+    // A part of the app this install left out has no tables here: its sample rows, and the links to them, are left out with it.
+    const data = withoutLeftOut(bundle.data, await leftOutOf(app));
+    const issues = sampleBundleIssues(data, app.manifest);
     if (issues.length > 0) {
       throw new ValidationFailedError(`"${file}" does not fit this app.`, { reason: 'SAMPLE_INVALID', issues });
     }
-    return bundle.data;
+    return data;
   }
 
   async function viewFor(connectionId: string): Promise<SnapshotView> {
@@ -1315,6 +1386,170 @@ export function createSampleDataService(deps: SampleDataDeps) {
     return out;
   }
 
+  /**
+   * THE MOVES A SECTION ASKS FOR. An app's rows for an add-on are things with
+   * no history (an item, a receipt still a draft). What the add-on's ledger
+   * keeps (stock, a level, a movement) it writes itself: each move is a save
+   * of its own, made after the rows are committed, through the write service
+   * every save goes through — so the move is judged like anybody's, its
+   * posting runs, and the figures are the add-on's own.
+   *
+   * What the ledger wrote for those saves is then listed as the app's sample,
+   * so "Remove sample data" takes it with the rows that caused it. A move
+   * that is refused undoes the whole file: its rows, and what earlier moves
+   * of it posted, are taken out again, and the refusal is said.
+   */
+  async function makeMoves(input: {
+    app: SampleApp;
+    section: string;
+    moves: NonNullable<SampleBundle['moves']>;
+    wrote: readonly { ref: string; label: string | null; table: ResolvedTable; key: Row; seq: number }[];
+    connectionId: string;
+    handle: DataHandle;
+    view: SnapshotView;
+    names: Readonly<Record<string, string>>;
+    timeZone: string;
+    refOf: (tableId: string) => string;
+    opts: AddOptions;
+    now: number;
+  }): Promise<Record<string, number>> {
+    const { app, section, wrote, connectionId, handle, view, opts } = input;
+    const full = (deps.writes as () => RecordWriteService)();
+    const db = asDb(handle.db);
+    const context: WriteContext = { origin: 'import', hops: 0, actor: { kind: 'user', id: opts.userId, label: opts.userLabel }, request: null };
+    const firstSeq = wrote.reduce((least, row) => Math.min(least, row.seq), Number.MAX_SAFE_INTEGER);
+    try {
+      for (const move of input.moves) {
+        const rows = wrote.filter((row) => (move.ref !== undefined ? row.label === move.ref : row.ref === `${section}:${move.table ?? ''}`));
+        for (const row of rows) {
+          const column = tableRulesFor({ view, table: row.table })?.states?.column;
+          if (column === undefined) throw new ValidationFailedError(`"${row.ref}" has no states, so its rows make no move.`, { reason: 'SAMPLE_MOVE_REFUSED', table: row.ref });
+          await full.update({
+            target: { connectionId, view, table: row.table, db, dialect: handle.dialect, timezone: input.timeZone },
+            pk: row.key,
+            values: { [column]: move.to },
+            context,
+            announce: async () => undefined,
+          });
+        }
+      }
+      return await listPosted(input);
+    } catch (error) {
+      // Nothing of a file whose move was refused stays: what was posted so far is listed first, so it leaves with the rows.
+      await listPosted(input).catch(() => undefined);
+      await removeRows(app, { keepChanged: false, userId: opts.userId, userLabel: opts.userLabel }, (row) => row.seq >= firstSeq).catch(() => undefined);
+      const cause = error instanceof Error ? error.message : String(error);
+      throw new ValidationFailedError(`The sample rows of "${app.key}" for "${section}" were not added: a move they ask for was refused. ${cause}`, {
+        reason: 'SAMPLE_MOVE_REFUSED',
+        cause,
+        details: (error as { details?: unknown }).details,
+      });
+    }
+  }
+
+  /**
+   * What the add-on's ledgers wrote for the rows a file brought: the
+   * receipts that name one of them, and every row of a ledger table that
+   * names one of those receipts. Each is entered in the app's list as it
+   * stands, parents before the rows that point at them, so a removal runs
+   * them backwards. The file's own rows are hashed again (a move changed
+   * their state, a posting their average cost), and so is every row a total
+   * of which the new rows feed — in whichever list names it.
+   */
+  async function listPosted(input: Parameters<typeof makeMoves>[0]): Promise<Record<string, number>> {
+    const { app, section, wrote, connectionId, handle, view, names, now } = input;
+    const db = asDb(handle.db);
+    const counts: Record<string, number> = {};
+    const addOn = await findSampleOwner(deps.meta, section, 'add-on');
+    const ledgerTable = await ensureLedger(app, connectionId, handle);
+    const entries = await ledgerRows(handle, ledgerTable);
+    const listed = new Set(entries.map((entry) => `${entry.table_ref}\u0000${entry.pk}`));
+    let seq = entries.reduce((max, entry) => Math.max(max, entry.seq), 0);
+    const found: { ref: string; table: ResolvedTable; row: Row }[] = [];
+    for (const ledger of addOn === null || addOn.manifest.kind !== 'add-on' ? [] : ledgersOf(addOn.manifest as never)) {
+      const receipts = safeTable(view, names[`${section}:${ledger.receipts}`] ?? '');
+      if (receipts === null || receipts.primaryKey.length !== 1) continue;
+      const receiptKey = receipts.primaryKey[0] as string;
+      // The receipts that name a row this file wrote: as the row a posting is of, or as one of its lines.
+      const ids: unknown[] = [];
+      const byTable = new Map<string, string[]>();
+      for (const row of wrote) {
+        if (row.table.primaryKey.length !== 1) continue;
+        byTable.set(row.table.id, [...(byTable.get(row.table.id) ?? []), String(row.key[row.table.primaryKey[0] as string])]);
+      }
+      for (const [tableId, keys] of byTable) {
+        for (const [tableColumn, rowColumn] of [['source_table', 'source_row'], ['line_table', 'source_line']] as const) {
+          if (!receipts.columns.has(tableColumn) || !receipts.columns.has(rowColumn)) continue;
+          for (let i = 0; i < keys.length; i += 500) {
+            const rows = (await db
+              .selectFrom(receipts.id as never)
+              .selectAll()
+              .where(tableColumn as never, '=', input.refOf(tableId) as never)
+              .where(rowColumn as never, 'in', keys.slice(i, i + 500) as never)
+              .orderBy(receiptKey as never)
+              .execute()) as Row[];
+            for (const row of rows) {
+              if (ids.some((id) => String(id) === String(row[receiptKey]))) continue;
+              ids.push(row[receiptKey]);
+              found.push({ ref: `${section}:${ledger.receipts}`, table: receipts, row });
+            }
+          }
+        }
+      }
+      if (ids.length === 0) continue;
+      // Every row a plan added under one of those receipts, a table's parents among them first.
+      const added = Object.entries(ledger.writes)
+        .filter(([, scope]) => (scope as { insert?: unknown }).insert !== undefined)
+        .flatMap(([ref]) => {
+          const table = safeTable(view, names[`${section}:${ref}`] ?? '');
+          return table === null || !table.columns.has('receipt_id') ? [] : [{ ref, table }];
+        });
+      const order: typeof added = [];
+      const waiting = [...added];
+      while (waiting.length > 0) {
+        const at = waiting.findIndex((one) => !waiting.some((other) => other !== one && one.table.table?.columns.some((column) => column.references?.tableId === other.table.id) === true));
+        order.push(...waiting.splice(at === -1 ? 0 : at, 1));
+      }
+      for (const { ref, table } of order) {
+        for (let i = 0; i < ids.length; i += 500) {
+          const rows = (await db
+            .selectFrom(table.id as never)
+            .selectAll()
+            .where('receipt_id' as never, 'in', ids.slice(i, i + 500) as never)
+            .orderBy(table.primaryKey[0] as never)
+            .execute()) as Row[];
+          for (const row of rows) found.push({ ref: `${section}:${ref}`, table, row });
+        }
+      }
+    }
+    for (const { ref, table, row } of found) {
+      const key = Object.fromEntries(table.primaryKey.map((column) => [column, row[column]]));
+      const pk = canonicalJson(key);
+      if (listed.has(`${ref}\u0000${pk}`)) continue;
+      listed.add(`${ref}\u0000${pk}`);
+      const { rowHash, colHashes } = hashRow(row, table);
+      seq += 1;
+      await db
+        .insertInto(ledgerTable as never)
+        .values({ seq, table_ref: ref, pk, label: null, row_hash: rowHash, col_hashes: JSON.stringify({ ...colHashes, [LEDGER_DATES_AS_DAYS]: '1' }), created_at: now } as never)
+        .execute();
+      counts[ref] = (counts[ref] ?? 0) + 1;
+    }
+    // As they stand now: the file's own rows, and the keepers of every total the new rows feed.
+    for (const row of wrote) await rehashSampleRow(deps.meta, { connectionId, db, dialect: handle.dialect, table: row.table }, row.key);
+    const settled = new Set<string>();
+    for (const { table, row } of found) {
+      for (const rollup of tableRulesFor({ view, table })?.rollupsInto ?? []) {
+        const parent = safeTable(view, rollup.parent);
+        const via = row[rollup.via];
+        if (parent === null || via === null || via === undefined || settled.has(`${parent.id}\u0000${String(via)}`)) continue;
+        settled.add(`${parent.id}\u0000${String(via)}`);
+        await rehashSampleRow(deps.meta, { connectionId, db, dialect: handle.dialect, table: parent }, { [rollup.parentKey]: via });
+      }
+    }
+    return counts;
+  }
+
   async function addPass(app: SampleApp, pass: AddPass, opts: AddOptions): Promise<{ counts: Record<string, number>; files: number }> {
     const connectionId = await connectionOf(app);
     const bundle = pass.bundle;
@@ -1356,6 +1591,10 @@ export function createSampleDataService(deps: SampleDataDeps) {
       copies.push(id);
       return id;
     };
+    /** The sample's own people and teams: made before its rows, taken away again if anything later fails. */
+    let staff: SampleStaff = NO_STAFF;
+    /** Set once the rows are committed: from then on they name the people and the files, and nothing is taken back. */
+    let committed = false;
     try {
       for (const [label, asset] of Object.entries(bundle.assets)) {
         const { bytes, sha256: actual } = await filesOf(app).readVerifiedFile(app.key, app.version, asset.file);
@@ -1389,6 +1628,8 @@ export function createSampleDataService(deps: SampleDataDeps) {
       const sampleFileIds = new Set(fileIds.values());
 
       const ledger = await ensureLedger(app, connectionId, handle);
+      // The app's own file may name its sample people; rows for an add-on name none.
+      if (pass.section === undefined) staff = await addPeople(app, await ledgerRows(handle, ledger), opts.userId, now);
       const view = await viewFor(connectionId);
       // How a row names one of the owner's own tables: read once, before the transaction.
       const refIndex = await tableRefIndex(deps.meta, connectionId, view.model);
@@ -1424,6 +1665,12 @@ export function createSampleDataService(deps: SampleDataDeps) {
       const total = bundle.tables.reduce((sum, table) => sum + (skipped.has(table.ref) ? 0 : table.rows.length), 0);
       const counts: Record<string, number> = {};
       const explicitKeys = new Set<string>();
+      /** The moves a section asks for once its rows are in, and the rows this add wrote that a move may name. */
+      const moves = pass.section === undefined ? [] : (bundle.moves ?? []);
+      if (moves.length > 0 && deps.writes === undefined) {
+        throw new ValidationFailedError(`The sample rows of "${app.key}" for "${pass.section ?? ''}" ask for moves, which this instance cannot make.`, { reason: 'SAMPLE_MOVES_UNAVAILABLE' });
+      }
+      const wrote: { ref: string; label: string | null; table: ResolvedTable; key: Row; seq: number }[] = [];
       let reused = 0;
       /** Rows taken from another app's sample rather than written. */
       let takenShared = 0;
@@ -1637,7 +1884,7 @@ export function createSampleDataService(deps: SampleDataDeps) {
           const feeds = pass.section === undefined ? [] : (tableRulesFor({ view, table: resolved })?.rollupsInto ?? []);
           const keepsTotals = (tableRulesFor({ view, table: resolved })?.ownRollups?.length ?? 0) > 0 || feeds.length > 0;
           for (const row of table.rows) {
-            const ctx: ResolveContext = { now, timeZone, locale: opts.locale, labels, assets: fileIds, weekAnchor: bundle.weekAnchor, slotTimes, tableRef };
+            const ctx: ResolveContext = { now, timeZone, locale: opts.locale, labels, assets: fileIds, weekAnchor: bundle.weekAnchor, slotTimes, tableRef, people: staff.ids };
             const chosen = chooseSampleRow(row, ctx);
             // Its `@byClock` set left it out: a payment for a visit that has not happened yet.
             if (chosen === null) {
@@ -1724,6 +1971,28 @@ export function createSampleDataService(deps: SampleDataDeps) {
                 const key = Object.fromEntries(resolved.primaryKey.map((column) => [column, existing[column]]));
                 const named = row['@label'];
                 if (typeof named === 'string') labels.set(named, resolved.primaryKey.length === 1 ? existing[resolved.primaryKey[0]!] : key);
+                /*
+                 * `@fillEmpty`: the row that is there takes the sample's values where it holds none — never over
+                 * a value. What was written is entered by column, so the removal empties again what nobody changed.
+                 */
+                if (row['@fillEmpty'] === true) {
+                  const empty = Object.keys(values).filter((column) => !resolved.primaryKey.includes(column) && resolved.columns.has(column) && values[column] !== null && values[column] !== undefined && (existing[column] === null || existing[column] === undefined));
+                  if (empty.length > 0) {
+                    const checked = await writes.check('create', target, context, [values], { capacity: 'unchecked' });
+                    const good = checked.rows[0];
+                    if (good === null || good === undefined) {
+                      throw new ValidationFailedError(`A sample row for "${table.ref}" was refused.`, { reason: 'SAMPLE_ROW_REFUSED', table: table.ref, issues: checked.issues[0] });
+                    }
+                    await updateRows(db, handle.dialect, resolved, Object.fromEntries(empty.map((column) => [column, (good as Row)[column]])) as never, key);
+                    const filled = (await fetchByPk(db, resolved, key)) as Row;
+                    const { colHashes } = hashRow(filled, resolved);
+                    seq += 1;
+                    await db
+                      .insertInto(ledger as never)
+                      .values({ seq, table_ref: `${FILLED_PREFIX}${table.ref}`, pk: canonicalJson(key), label: null, row_hash: '', col_hashes: JSON.stringify({ ...Object.fromEntries(empty.map((column) => [column, colHashes[column]])), [LEDGER_DATES_AS_DAYS]: '1' }), created_at: now } as never)
+                      .execute();
+                  }
+                }
                 done += 1;
                 continue;
               }
@@ -1826,6 +2095,7 @@ export function createSampleDataService(deps: SampleDataDeps) {
               } as never)
               .execute();
             counts[table.ref] = (counts[table.ref] ?? 0) + 1;
+            if (moves.length > 0) wrote.push({ ref: table.ref, label, table: resolved, key, seq });
             done += 1;
             if (done % 25 === 0) opts.progress?.(20 + Math.round((done / total) * 70), `Wrote ${String(done)} of ${String(total)}`);
           }
@@ -1928,7 +2198,21 @@ export function createSampleDataService(deps: SampleDataDeps) {
             } as never)
             .execute();
         }
+        // The people and teams made just now: the removal takes away what is listed here, and nobody else.
+        for (const made of [...staff.people.map((one) => ({ ...one, ref: PERSON_REF })), ...staff.teams.map((one) => ({ ...one, ref: TEAM_REF }))]) {
+          seq += 1;
+          await db
+            .insertInto(ledger as never)
+            .values({ seq, table_ref: made.ref, pk: canonicalJson({ id: made.id }), label: made.label, row_hash: '', col_hashes: '{}', created_at: now } as never)
+            .execute();
+        }
       });
+
+      committed = true;
+      if (moves.length > 0 && pass.section !== undefined) {
+        const posted = await makeMoves({ app, section: pass.section, moves, wrote, connectionId, handle, view, names, timeZone, refOf: (tableId) => storedTableRef(refIndex, tableId), opts, now });
+        for (const [ref, n] of Object.entries(posted)) counts[ref] = (counts[ref] ?? 0) + n;
+      }
 
       // A sample row is written with the number it was given (PO-1001): a series already counting is moved past it,
       // or the owner's next order would be handed a number the sample holds.
@@ -1970,9 +2254,144 @@ export function createSampleDataService(deps: SampleDataDeps) {
       await deps.publish?.(connectionId);
       return { counts, files: fileIds.size };
     } catch (error) {
-      for (const id of [...fileIds.values(), ...copies]) await files.markDeleted(id).catch(() => undefined);
+      // After the commit the rows are in, and they name these people and files: a later step that failed (a counter
+      // moved on, the audit entry, telling the open screens) takes neither away. The error is still said.
+      if (!committed) {
+        for (const id of [...fileIds.values(), ...copies]) await files.markDeleted(id).catch(() => undefined);
+        await dropStaff(staff.people.map((one) => one.id), staff.teams.map((one) => one.id)).catch(() => undefined);
+      }
       throw error;
     }
+  }
+
+  /**
+   * The people and teams an app's sample brings (`sampleData.people`,
+   * `.teams`), made in Adminium's own database before the rows that name
+   * them. A person is a staff member with status `sample`: no password, so
+   * no way in; never mailed; one of the app's own roles. A person the last
+   * removal kept (a row of the operator's still names them) is taken back,
+   * not made twice. An address somebody already has is left to them: the
+   * sample person gets one of Adminium's own.
+   */
+  async function addPeople(app: SampleApp, listed: readonly LedgerRow[], userId: string | null, now: number): Promise<SampleStaff> {
+    const sample = app.manifest.kind === 'app' ? app.manifest.sampleData : undefined;
+    const people = sample?.people ?? [];
+    if (people.length === 0) return NO_STAFF;
+    const users = usersRepo(deps.meta);
+    const roles = rolesRepo(deps.meta);
+    const teams = teamsRepo(deps.meta);
+    const ids = new Map<string, string>();
+    const made: SampleStaff = { ids, people: [], teams: [] };
+    try {
+      const kept = new Map(listed.filter((row) => row.table_ref === PERSON_REF && row.label !== null).map((row) => [row.label as string, (JSON.parse(row.pk) as { id: string }).id]));
+      await dropOrphans(app, new Set(listed.filter((row) => row.table_ref === PERSON_REF).map((row) => (JSON.parse(row.pk) as { id: string }).id)));
+      for (const person of people) {
+        const before = kept.get(person.key);
+        const held = before === undefined ? null : await users.findById(before);
+        if (held !== null && held.status === 'sample') {
+          ids.set(person.key, held.id);
+          continue;
+        }
+        // Never the address the manifest prints: that may be a real person's, who could then not be invited here.
+        const own = `${person.key}.${app.key}@sample.invalid`;
+        const email = (await users.findByEmail(own)) === null ? own : `${person.key}.${app.key}.${newId('usr').slice(-8).toLowerCase()}@sample.invalid`;
+        const user = await users.create({ email, name: person.name, passwordHash: null, status: 'sample' }, now);
+        made.people.push({ id: user.id, label: person.key });
+        ids.set(person.key, user.id);
+        const role = person.role === undefined ? null : await roles.findBySlug(roleSlugFor(app.key, person.role));
+        if (role !== null) await roles.assignToUser(user.id, role.id, userId, now);
+      }
+      const keptTeams = new Map(listed.filter((row) => row.table_ref === TEAM_REF && row.label !== null).map((row) => [row.label as string, (JSON.parse(row.pk) as { id: string }).id]));
+      const all = await teams.list();
+      for (const team of sample?.teams ?? []) {
+        const before = keptTeams.get(team.name);
+        let id = before !== undefined && all.some((one) => one.id === before) ? before : undefined;
+        if (id === undefined) {
+          // A team of the operator's own keeps its name and its people: the sample's stands beside it.
+          const taken = new Set(all.map((one) => one.name));
+          const name = [team.name, `${team.name} (sample)`, `${team.name} (sample, ${app.key})`].find((candidate) => !taken.has(candidate)) ?? `${team.name} (${newId('usr').slice(-6)})`;
+          const created = await teams.create(name, now);
+          all.push(created);
+          made.teams.push({ id: created.id, label: team.name });
+          id = created.id;
+        }
+        for (const [key, lead] of [...(team.lead === undefined ? [] : [[team.lead, true] as const]), ...team.members.map((member) => [member, false] as const)]) {
+          const member = ids.get(key);
+          if (member !== undefined) await teams.setMember(id, member, lead, now);
+        }
+      }
+      return made;
+    } catch (error) {
+      await dropStaff(made.people.map((one) => one.id), made.teams.map((one) => one.id)).catch(() => undefined);
+      throw error;
+    }
+  }
+
+  /**
+   * Sample people of this app that no list names: an add that stopped between
+   * making them and entering them (a crash) left them behind, and nobody can
+   * remove a sample person by hand. Found by the address only this code
+   * gives, and taken away before the next add makes its own.
+   */
+  async function dropOrphans(app: SampleApp, listedIds: ReadonlySet<string>): Promise<void> {
+    const mine = new RegExp(`^[a-z0-9_-]+\\.${app.key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(\\.[a-z0-9]{1,12})?@sample\\.invalid$`);
+    const orphans = (await usersRepo(deps.meta).list({ status: 'sample', limit: 500 })).filter((user) => !listedIds.has(user.id) && mine.test(user.email));
+    await dropStaff(orphans.map((user) => user.id), []);
+  }
+
+  /** Take sample people and teams away again: their roles and team places go with them. */
+  async function dropStaff(people: readonly string[], teams: readonly string[]): Promise<void> {
+    for (const id of teams) await teamsRepo(deps.meta).delete(id);
+    for (const id of people) {
+      const user = await usersRepo(deps.meta).findById(id);
+      // Only ever a sample person: an id that has become somebody real is not this code's to delete.
+      if (user === null || user.status !== 'sample') continue;
+      await deps.meta.db.deleteFrom('adminium_users').where('id', '=', id).execute();
+    }
+  }
+
+  /**
+   * The sample people a removal may not take: those a row that stays still
+   * names — in any staff column of the connection's tables (a deal the
+   * operator made and gave to a sample rep), or in a value of a row the
+   * removal kept.
+   */
+  async function peopleStillNamed(handle: DataHandle, view: SnapshotView, ids: readonly string[], keptValues: ReadonlySet<unknown>, connectionId?: string): Promise<Set<string>> {
+    const named = new Set(ids.filter((id) => keptValues.has(id)));
+    if (ids.length === 0) return named;
+    /** A column that could not be read says nothing: then everybody may still be named there, and nobody is taken away. */
+    const everybody = () => {
+      for (const id of ids) named.add(id);
+    };
+    const look = async (db: Kysely<SourceDatabase>, model: SnapshotView['model']): Promise<void> => {
+      for (const table of model.tables) {
+        for (const column of table.columns) {
+          if (column.staff !== true) continue;
+          try {
+            const rows = await db.selectFrom(table.id as never).select(sql.ref(column.name).as('person')).distinct().where(sql.ref(column.name), 'in', ids as never).execute();
+            for (const row of rows) named.add(String((row as { person: unknown }).person));
+          } catch {
+            everybody();
+          }
+        }
+      }
+    };
+    await look(asDb(handle.db), view.model);
+    // A sample person is a staff member of the whole server: a row of another connection may name them too.
+    const others = await deps.meta.db.selectFrom('adminium_connections').select(['id']).execute();
+    for (const other of others) {
+      if (other.id === connectionId) continue;
+      try {
+        // Never read: Adminium knows of no staff column there, so of nothing that could name anybody.
+        if ((await snapshotsRepo(deps.meta).latest(other.id)) === null) continue;
+        const theirs = await viewFor(other.id);
+        if (!theirs.model.tables.some((table) => table.columns.some((column) => column.staff === true))) continue;
+        await look(asDb((await deps.manager.data(other.id)).db), theirs.model);
+      } catch {
+        everybody();
+      }
+    }
+    return named;
   }
 
   return {
@@ -2203,6 +2622,19 @@ export function createSampleDataService(deps: SampleDataDeps) {
             if (parent !== null && kept !== undefined) await rehashSampleRow(deps.meta, { connectionId, db, dialect: handle.dialect, table: parent }, { [rollup.parentKey]: kept[rollup.parentKey] });
           }
         }
+        // What the sample filled in a row that was the owner's before it (`@fillEmpty`): emptied again, column by column,
+        // where it still reads as the sample wrote it. A value somebody changed since is theirs, and stays.
+        for (const entry of only === undefined ? all.filter((one) => one.table_ref.startsWith(FILLED_PREFIX)) : []) {
+          removedSeqs.push(entry.seq);
+          const table = safeTable(view, names[entry.table_ref.slice(FILLED_PREFIX.length)] ?? entry.table_ref.slice(FILLED_PREFIX.length));
+          const key = entryKey(entry);
+          const current = table === null || key === null ? undefined : await fetchByPk(db, table, key);
+          if (table === null || key === null || current === undefined) continue;
+          const wrote = JSON.parse(entry.col_hashes) as Record<string, string>;
+          const { colHashes } = hashRow(current, table);
+          const back = Object.keys(wrote).filter((column) => column !== LEDGER_DATES_AS_DAYS && table.columns.has(column) && colHashes[column] === wrote[column]);
+          if (back.length > 0) await updateRows(db, handle.dialect, table, Object.fromEntries(back.map((column) => [column, null])) as never, key);
+        }
         // The files' entries go too; a file a kept row still names stays in the library.
         if (only === undefined) for (const row of all.filter((entry) => entry.table_ref === FILE_REF)) removedSeqs.push(row.seq);
         // What another app's sample lists too: out of this ledger, never out of the table.
@@ -2245,6 +2677,21 @@ export function createSampleDataService(deps: SampleDataDeps) {
       for (const row of only === undefined ? all.filter((entry) => entry.table_ref === FILE_REF) : []) {
         const id = (JSON.parse(row.pk) as { id: string }).id;
         if (!keptValues.has(id)) await files.markDeleted(id).catch(() => undefined);
+      }
+      // The sample's people go with it, but for one a row that stays still names; a team goes once nobody is left in it.
+      if (only === undefined) {
+        const idOf = (row: LedgerRow): string => (JSON.parse(row.pk) as { id: string }).id;
+        const people = all.filter((entry) => entry.table_ref === PERSON_REF);
+        const named = await peopleStillNamed(handle, view, people.map(idOf), keptValues, connectionId);
+        const gone = people.filter((entry) => !named.has(idOf(entry)));
+        await dropStaff(gone.map(idOf), []);
+        const forgotten = gone.map((entry) => entry.seq);
+        for (const entry of all.filter((row) => row.table_ref === TEAM_REF)) {
+          if ((await teamsRepo(deps.meta).members(idOf(entry))).length > 0) continue;
+          await teamsRepo(deps.meta).delete(idOf(entry));
+          forgotten.push(entry.seq);
+        }
+        if (forgotten.length > 0) await asDb(handle.db).deleteFrom(ledger.tableName as never).where('seq' as never, 'in', forgotten as never).execute();
       }
       const removed = Object.values(byTable).reduce((sum, n) => sum + n, 0);
       await auditRepo(deps.meta).append({

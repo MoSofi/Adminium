@@ -275,6 +275,7 @@ function writeLimits(r: PublicScopeResource | undefined): Set<string> {
   const out = new Set<string>();
   for (const [column, values] of Object.entries(r?.writableValues ?? {})) out.add(`values|${column}|${JSON.stringify(values)}`);
   for (const [column, when] of Object.entries(r?.writableWhen ?? {})) out.add(`when|${column}|${JSON.stringify(when)}`);
+  for (const [column, when] of Object.entries(r?.requiresWhen ?? {})) out.add(`asked|${column}|${JSON.stringify(when)}`);
   return out;
 }
 

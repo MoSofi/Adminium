@@ -641,6 +641,8 @@ export interface StaffSession {
   appName: string | null;
   /** The app's settings values. */
   settings: Record<string, unknown>;
+  /** The parts of the app, each on or off. A part the server did not name is on: hide a screen only on `false`. */
+  modules: Record<string, boolean>;
   /** The venue's time zone (IANA). `UTC` with `timezoneIsFallback` when the database has none set. */
   timezone: string;
   timezoneIsFallback: boolean;
@@ -652,6 +654,19 @@ export interface StaffSession {
   create(table: string, values: Row): Promise<Row>;
   update(table: string, id: string | number, values: Row): Promise<Row>;
   remove(table: string, id: string | number): Promise<void>;
+  /**
+   * The rules the installed app ships, each with whether it is switched on
+   * now: for a screen that depends on one. Asked of the server each time, so a
+   * switch flipped since the page opened shows. Empty in `demo`.
+   */
+  rules(): Promise<AppRule[]>;
+}
+
+/** One rule the app ships: its key in the manifest, its name in the reader's language, and its switch. */
+export interface AppRule {
+  key: string;
+  name: string;
+  on: boolean;
 }
 
 export interface ConnectOptions {
@@ -741,6 +756,7 @@ export async function connectStaff(options: ConnectOptions = {}): Promise<StaffS
     user: text(user['id']) === null ? null : { id: String(user['id']), name: text(user['name']) ?? '', email: text(user['email']) ?? '' },
     appName: text(doc['appName']),
     settings: record(doc['settings']),
+    modules: Object.fromEntries(Object.entries(record(doc['modules'])).filter((entry): entry is [string, boolean] => typeof entry[1] === 'boolean')),
     timezone: zone ?? 'UTC',
     timezoneIsFallback: zone === null,
     currency: text(doc['currency']),
@@ -771,6 +787,13 @@ export async function connectStaff(options: ConnectOptions = {}): Promise<StaffS
     async remove(table, id) {
       await mutate('DELETE', url(table, id));
     },
+    async rules() {
+      const listed = record(await read(`/api/v1/apps/${encodeURIComponent(APP_KEY)}/rules`))['rules'];
+      return (Array.isArray(listed) ? listed : []).map((one) => {
+        const rule = record(one);
+        return { key: text(rule['key']) ?? '', name: text(rule['name']) ?? '', on: rule['on'] === true };
+      });
+    },
   };
 }
 
@@ -796,6 +819,7 @@ export function demoStaff(tables: Record<string, readonly Row[]>): StaffSession 
     user: null,
     appName: null,
     settings: {},
+    modules: {},
     timezone: 'UTC',
     timezoneIsFallback: true,
     currency: null,
@@ -817,6 +841,8 @@ export function demoStaff(tables: Record<string, readonly Row[]>): StaffSession 
       const rows = rowsOf(table);
       rows.splice(rows.indexOf(find(table, id)), 1);
     },
+    // No Adminium behind it: no rule runs.
+    rules: async () => [],
   };
 }
 

@@ -329,7 +329,8 @@ export async function forgotPasswordHandler(
   const now = Date.now();
   const user = await usersRepo(ctx.meta).findByEmail(body.email);
   // Always 200 — the response never reveals whether the account exists.
-  if (user === null || user.status === 'suspended') return OK;
+  // A sample person never signs in: no link is minted for one.
+  if (user === null || user.status === 'suspended' || user.status === 'sample') return OK;
 
   const token = mintToken(RESET_TOKEN_PREFIX);
   const expiresAt = now + RESET_TOKEN_TTL_MS;
@@ -399,7 +400,7 @@ export async function resetPasswordHandler(
   }
 
   const user = await users.findById(row.userId);
-  if (user === null || user.status === 'suspended') {
+  if (user === null || user.status === 'suspended' || user.status === 'sample') {
     throw invalidCredentials('Invalid or expired reset token.');
   }
 

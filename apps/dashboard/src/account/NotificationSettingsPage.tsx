@@ -12,9 +12,11 @@
  * state lives in `/me/notification-prefs`. When Engine seeding lands, this
  * route can retire in favour of the seeded `/p/notification-settings`.
  */
+import { Suspense } from 'react';
 import type { PageEnvelope } from '@adminium/engine/config';
 
-import { PageSettingsBinding } from '../pages/PageSettingsBinding.js';
+import { PageSettingsBinding, eventLabel } from '../pages/PageSettingsBinding.js';
+import { QuietHoursCard, SummariesCard } from './QuietHoursCard.js';
 import type { PageTemplateAdapters } from '../pages/templates.js';
 import { t } from '../i18n/t.js';
 import { PageActions } from '../shell/PageActionsProvider.js';
@@ -56,6 +58,10 @@ export function NotificationSettingsPage() {
           its own screen and says so. */}
       <PageActions title={t('nav.notificationSettings', 'Notification settings')} />
       <PageSettingsBinding page={envelope} adapters={adapters} />
+      <Suspense fallback={null}>
+        <QuietHoursCard eventLabel={eventLabel} />
+        <SummariesCard />
+      </Suspense>
     </PageSurface>
   );
 }

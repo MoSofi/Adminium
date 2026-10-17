@@ -23,7 +23,7 @@
  */
 import { Readable } from 'node:stream';
 
-import { connectionTenantConfig, filesRepo, importsRepo, overridesRepo, rolesRepo, settingsRepo, usersRepo, type MetaDb } from '@adminium/meta';
+import { connectionTenantConfig, filesRepo, importsRepo, overridesRepo, permissionsRepo, rolesRepo, settingsRepo, usersRepo, type MetaDb } from '@adminium/meta';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { decryptSecret } from '../src/config/secrets.js';
@@ -313,6 +313,10 @@ describe.each(LEGS)('emails of a change — %s', (dialect, available) => {
     const file = await filesRepo(meta).create({ filename: 'stays.csv', mime: 'text/csv', sizeBytes: csv.length, sha256: 'x', kind: 'upload' });
     const imports = importsRepo(meta);
     const user = await usersRepo(meta).create({ email: 'importer@waveform.dev', name: 'Importer', passwordHash: 'x' });
+    // An import that matches its lines to stored rows is run for somebody who reads the table, as the routes would have made it.
+    const reads = (await rolesRepo(meta).findBySlug('import-reader')) ?? (await rolesRepo(meta).create({ slug: 'import-reader', name: 'Import reader' }));
+    await permissionsRepo(meta).grant(reads.id, 'table', `${h!.connectionId}/${w.targetOf('stays').table.id}`, { read: true, create: true, update: true, delete: false, export: false, import: true } as never);
+    await rolesRepo(meta).assignToUser(user.id, reads.id);
     const job = await imports.create({
       connectionId: h!.connectionId,
       tableName: w.targetOf('stays').table.id,

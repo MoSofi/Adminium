@@ -12,6 +12,8 @@ export interface EmailTemplatesSearch {
   archived?: boolean | undefined;
   /** A document id to open straight in the editor. */
   open?: string | undefined;
+  /** Only the documents one installed app brought (its key): an entry of the app's section opens the screen so. */
+  app?: string | undefined;
 }
 
 /** Unknown values fall away rather than fail the route. */
@@ -20,5 +22,6 @@ export function validateEmailTemplatesSearch(search: Record<string, unknown>): E
     ...(search['kind'] === 'campaign' || search['kind'] === 'template' ? { kind: search['kind'] } : {}),
     ...(search['archived'] === true || search['archived'] === 'true' ? { archived: true } : {}),
     ...(typeof search['open'] === 'string' && search['open'] !== '' ? { open: search['open'] } : {}),
+    ...(typeof search['app'] === 'string' && /^[a-z][a-z0-9-]{0,62}$/.test(search['app']) ? { app: search['app'] } : {}),
   };
 }

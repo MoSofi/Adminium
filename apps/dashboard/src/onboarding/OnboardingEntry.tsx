@@ -12,12 +12,13 @@
  */
 
 import { useNavigate } from '@tanstack/react-router';
-import type { ReactNode } from 'react';
+import { Suspense, type ReactNode } from 'react';
 import { Compass } from 'lucide-react';
 import { Banner, Button } from '@adminium/ui';
 
 import type { BootstrapData } from '../app/bootstrap.js';
 import { t } from '../i18n/t.js';
+import { useCommonWords } from '../i18n/commonWords.js';
 import { useOnboarding } from './useOnboarding.js';
 
 export function OnboardingEntry({ bootstrap }: { bootstrap: BootstrapData }): ReactNode {
@@ -30,23 +31,32 @@ export function OnboardingEntry({ bootstrap }: { bootstrap: BootstrapData }): Re
     return null;
   }
 
-  const { doneCount, totalCount } = state.checklist;
+  // The banner's words load when there is a banner to draw, not with the first paint and not with a
+  // settings page that shows none: the page round it is drawn meanwhile.
+  return (
+    <Suspense fallback={null}>
+      <EntryBanner done={state.checklist.doneCount} total={state.checklist.totalCount} onDismiss={() => dismiss(true)} onContinue={() => void navigate({ to: '/welcome' })} />
+    </Suspense>
+  );
+}
 
+function EntryBanner({ done, total, onDismiss, onContinue }: { done: number; total: number; onDismiss: () => void; onContinue: () => void }): ReactNode {
+  useCommonWords();
   return (
     <Banner
       tone="info"
       icon={<Compass />}
-      onDismiss={() => dismiss(true)}
+      onDismiss={onDismiss}
       dismissLabel={t('onboarding.entry.dismiss', 'Dismiss setup checklist')}
       action={
-        <Button size="sm" variant="secondary" onClick={() => void navigate({ to: '/welcome' })}>
+        <Button size="sm" variant="secondary" onClick={onContinue}>
           {t('onboarding.entry.continue', 'Continue setup')}
         </Button>
       }
     >
       {t('onboarding.entry.banner', 'Finish setting up your workspace — {done} of {total} steps done.', {
-        done: doneCount,
-        total: totalCount,
+        done,
+        total,
       })}
     </Banner>
   );

@@ -33,6 +33,7 @@
  * request.
  */
 
+import { rulePartOff } from '../rbac/app-parts.js';
 import type { Dialect } from '@adminium/engine';
 import {
   auditRepo,
@@ -51,8 +52,10 @@ import type { RecordWriteEvent } from '../crud/after-record-write.js';
 import { keptRow, type Row } from '../crud/mask.js';
 import { UNDO_TTL_MS } from '../crud/undo.js';
 import { evaluateAll, type ConditionContext, type RelatedCountSpec } from './conditions.js';
-import { recordOccurrenceKey } from './events.js';
+import { laterChangeKey, recordOccurrenceKey } from './events.js';
 import { AUTOMATION_RUN_KIND } from './kinds.js';
+import { resolveRuleTemplate } from './templates.js';
+import { flattenNodes } from './validate.js';
 import { changeStampColumn } from './watch-columns.js';
 
 /** Past this many automation-caused hops an event is refused. */
@@ -176,6 +179,8 @@ export class AutomationMatcher {
 
   async #offer(rule: Automation, event: RecordWriteEvent, hops: number): Promise<void> {
     if (rule.trigger.kind !== 'record') return;
+    // A private table's row sets off no rule, and no run keeps a copy of it (a rule older than the mark).
+    if ((event.table.table as { private?: true } | undefined)?.private === true) return;
     // A rule never re-enters on its own write.
     if (event.origin === 'automation' && event.ruleId === rule.id) return;
 
@@ -209,25 +214,37 @@ export class AutomationMatcher {
       if (!(await evaluateAll(when as AutomationCondition[], ctx))) return;
     }
 
+    // A rule of a part that is off claims no run.
+    if (await rulePartOff(this.#deps.meta, rule)) return;
+
     const delayed = event.origin === 'dashboard';
     const wakeAt = delayed ? at + (this.#deps.undoTtlMs ?? UNDO_TTL_MS) : at;
     const runs = automationRunsRepo(this.#deps.meta);
 
-    const run = await runs.begin(
-      {
-        automationId: rule.id,
-        dedupeKey: occurrenceKeyFor(
-          rule.id,
-          event,
-          event.action === 'update' ? await this.#dialectOf(event.connectionId) : undefined,
-        ),
-        origin: event.origin,
-        triggerEvent: triggerEventFor(event, hops, image),
-        wakeAt: delayed ? wakeAt : null,
-      },
-      at,
+    const dedupeKey = occurrenceKeyFor(
+      rule.id,
+      event,
+      event.action === 'update' ? await this.#dialectOf(event.connectionId) : undefined,
     );
-    // null = another producer already claimed this occurrence (D6).
+    const claim = {
+      automationId: rule.id,
+      dedupeKey,
+      origin: event.origin,
+      triggerEvent: triggerEventFor(event, hops, image, event.action === 'update' && readsWas(rule) ? await wasColumnsOf(this.#deps.meta, rule) : false),
+      wakeAt: delayed ? wakeAt : null,
+    };
+    let run = await runs.begin(claim, at);
+    // null = another producer already claimed this occurrence (D6)…
+    if (run === null && event.action === 'update' && dedupeKey !== null) {
+      // …unless it was an earlier write of this server that left the row with
+      // the same moment (MySQL keeps whole seconds): this write is a change
+      // of its own, and takes the next number. Only the poller's claim is of
+      // the SAME change — it reads a row, never a write.
+      const holder = await runs.claimedBy(dedupeKey);
+      if (holder !== null && holder !== 'watch') {
+        for (let n = 2; run === null && n <= MAX_CHANGES_A_MOMENT; n++) run = await runs.begin({ ...claim, dedupeKey: laterChangeKey(dedupeKey, n) }, at);
+      }
+    }
     if (run === null) return;
 
     const job = await this.#deps.enqueue({
@@ -269,7 +286,7 @@ export class AutomationMatcher {
   async watchesChange(connectionId: string, tableId: string): Promise<boolean> {
     if (!this.#loaded) await this.refresh();
     return (this.#index.get(indexKey(connectionId, tableId, 'updated')) ?? []).some(
-      (rule) => rule.trigger.kind === 'record' && typeof rule.trigger.changedColumn === 'string' && rule.trigger.changedColumn !== '',
+      (rule) => rule.trigger.kind === 'record' && ((typeof rule.trigger.changedColumn === 'string' && rule.trigger.changedColumn !== '') || readsWas(rule)),
     );
   }
 
@@ -277,6 +294,13 @@ export class AutomationMatcher {
     await this.refresh();
   }
 }
+
+/**
+ * How many changes of one row a rule hears within one moment of it (a whole
+ * second on MySQL). Past it a write claims no run, as every write of that
+ * moment did before: far more than a person or a rule's own steps make.
+ */
+const MAX_CHANGES_A_MOMENT = 50;
 
 function refKey(ref: RecordRef): string {
   const values = Object.keys(ref.pk)
@@ -326,10 +350,54 @@ export function occurrenceKeyFor(
   return null;
 }
 
+/**
+ * Whether a rule may read the changed row as it was (`{{was.<column>}}`): its
+ * steps say so, or it sends an e-mail, whose template may. Such a rule's
+ * update is announced with the row as it was, read first, and its run keeps
+ * the columns of it the rule reads (`wasColumnsOf`).
+ */
+export function readsWas(rule: Pick<Automation, 'graph'>): boolean {
+  const text = JSON.stringify(rule.graph);
+  return /\{\{\s*was\./.test(text) || /"kind":"email"/.test(text);
+}
+
+/** A `{{was.<column>}}` placeholder, with or without its backup. */
+const WAS_PLACEHOLDER = /\{\{\s*was\.([A-Za-z0-9_-]+)/g;
+
+/**
+ * The columns of the record as it was that a rule reads: named in its steps,
+ * or in a template one of its e-mail steps sends, in any language. A run
+ * keeps those and no others (`triggerEventFor`); a template changed while a
+ * run waits reads any other column as it was as nothing.
+ */
+export async function wasColumnsOf(meta: MetaDb, rule: Pick<Automation, 'graph'>): Promise<Set<string>> {
+  const out = new Set<string>();
+  const take = (text: string): void => {
+    for (const match of text.matchAll(WAS_PLACEHOLDER)) out.add(match[1]!);
+  };
+  take(JSON.stringify(rule.graph));
+  const keys = new Set<string>();
+  for (const node of flattenNodes(rule.graph)) {
+    if (node.kind === 'action' && node.action.kind === 'email' && node.action.templateKey !== null && node.action.templateKey !== '') keys.add(node.action.templateKey);
+  }
+  for (const key of keys) {
+    for (const row of await meta.db.selectFrom('adminium_email_templates').selectAll().where('key', '=', key).execute()) take(JSON.stringify(row));
+    // A template the product ships is no row of the store.
+    const shipped = await resolveRuleTemplate(meta, key, 'en_US');
+    if (shipped !== null) take(JSON.stringify(shipped));
+  }
+  return out;
+}
+
 export function triggerEventFor(
   event: RecordWriteEvent,
   hops: number,
   image: Row,
+  /**
+   * The rule reads the changed row as it was: keep for the run (`before`) the
+   * columns it reads, never a secret one, nor a code no desk hands out.
+   */
+  keepBefore: ReadonlySet<string> | false = false,
 ): AutomationTriggerEvent {
   const name =
     event.action === 'create'
@@ -352,6 +420,20 @@ export function triggerEventFor(
     // A deleted row cannot be read again, so its actions get it as it was;
     // never served, and dropped when the run ends (`values`).
     ...(event.action === 'delete' ? { values: image } : {}),
+    // A changed row as it was, for `{{was.<column>}}`: never served either, and dropped when the run ends.
+    ...(keepBefore !== false && event.action === 'update' && event.before !== null && event.before !== undefined ? keptBefore(event, event.before, keepBefore) : {}),
     occurredAt: event.occurredAt ?? Date.now(),
   };
+}
+
+/** Of the row as it was, the columns a rule reads and may: nothing at all when that is none. */
+function keptBefore(event: RecordWriteEvent, before: Row, read: ReadonlySet<string>): { before?: Row } {
+  const out: Row = {};
+  for (const name of read) {
+    const column = event.table.columns.get(name);
+    if (column === undefined || column.secret || !(name in before)) continue;
+    if ((event.table.table as { columns?: readonly { name: string; code?: { hiddenFromStaff?: boolean } }[] } | undefined)?.columns?.find((one) => one.name === name)?.code?.hiddenFromStaff === true) continue;
+    out[name] = before[name];
+  }
+  return Object.keys(out).length === 0 ? {} : { before: out };
 }

@@ -4,7 +4,7 @@
  * password hashing happens in the server.
  */
 
-import type { Selectable } from 'kysely';
+import { sql, type Selectable } from 'kysely';
 
 import type { MetaDb } from '../connect.js';
 import { newId } from '../ids.js';
@@ -132,6 +132,21 @@ export function usersRepo(meta: MetaDb) {
      * pair is a total order). `q` matches name or email; `email` is stored
      * lowercased, so only `name` needs the portable `lower()` wrapper.
      */
+    /**
+     * People by name, for a picker: those of the given statuses whose NAME
+     * holds the text (never their address: a picker open to everybody does
+     * not confirm one), first by name. The cut to `limit` is made by the
+     * query, after the filter and in this order — a list cut first and
+     * filtered afterwards loses the matches it did not happen to fetch.
+     */
+    async named(filter: { statuses: readonly User['status'][]; q?: string | undefined; limit: number }): Promise<User[]> {
+      if (filter.statuses.length === 0) return [];
+      let q = db.selectFrom('adminium_users').selectAll().where('status', 'in', filter.statuses.map((status) => userStatusSchema.parse(status)));
+      const term = filter.q?.trim() ?? '';
+      if (term.length > 0) q = q.where((eb) => eb(eb.fn<string>('lower', ['name']), 'like', `%${escapeLike(term.toLowerCase())}%`));
+      const rows = await q.orderBy(sql`lower(name)`, 'asc').orderBy('id', 'asc').limit(Math.max(1, Math.min(filter.limit, 500))).execute();
+      return rows.map(mapUser);
+    },
     async list(filter: ListUsersFilter = {}): Promise<User[]> {
       let q = db.selectFrom('adminium_users').selectAll();
       if (filter.status !== undefined) {
@@ -238,7 +253,7 @@ export function usersRepo(meta: MetaDb) {
         .select(['status', ({ fn }) => fn.countAll<number>().as('n')])
         .groupBy('status')
         .execute();
-      const counts: Record<UserStatus, number> = { active: 0, invited: 0, suspended: 0 };
+      const counts: Record<UserStatus, number> = { active: 0, invited: 0, suspended: 0, sample: 0 };
       for (const row of rows) {
         const parsed = userStatusSchema.safeParse(row.status);
         if (parsed.success) counts[parsed.data] = Number(row.n);

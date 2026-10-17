@@ -18,16 +18,18 @@
 | `references/guides/building-on-an-add-on--an-add-on-that-keeps-its-own-tables.md` | An add-on that keeps its own tables | 2415 |
 | `references/guides/building-on-an-add-on--take-stock-when-a-row-is-saved.md` | Take stock when a row is saved | 3284 |
 | `references/guides/building-on-an-add-on--discounts-codes-and-gift-cards-on-an-order.md` | Discounts, codes and gift cards on an order | 4441 |
-| `references/guides/building-on-an-add-on--an-add-on-with-tables-of-its-own.md` | An add-on with tables of its own | 3778 |
+| `references/guides/building-on-an-add-on--an-add-on-with-tables-of-its-own.md` | An add-on with tables of its own | 4279 |
 | `references/guides/emails--overview.md` | An app's emails | 915 |
 | `references/guides/emails--the-outbox-table.md` | The outbox table | 1443 |
-| `references/guides/emails--what-queues-a-row.md` | What queues a row | 6600 |
-| `references/guides/emails--messages-about-changes.md` | Messages about changes | 3591 |
+| `references/guides/emails--what-queues-a-row.md` | What queues a row | 6745 |
+| `references/guides/emails--messages-about-changes.md` | Messages about changes | 4152 |
+| `references/guides/emails--messages-about-a-row-that-is-removed.md` | Messages about a row that is removed | 4293 |
 | `references/guides/emails--sending.md` | Sending | 4071 |
 | `references/guides/emails--held-messages.md` | Held messages | 1454 |
 | `references/guides/emails--attachments.md` | Attachments | 1702 |
 | `references/guides/emails--the-templates.md` | The templates | 1273 |
-| `references/guides/emails--variables.md` | Variables | 6889 |
+| `references/guides/emails--variables.md` | Variables | 7217 |
+| `references/guides/emails--variables--the-person-a-staff-column-names.md` | Variables — The person a staff column names | 1053 |
 | `references/guides/emails--emails-that-list-rows.md` | Emails that list rows | 5462 |
 | `references/guides/emails--links.md` | Links | 850 |
 | `references/guides/emails--upgrading.md` | Upgrading | 1762 |

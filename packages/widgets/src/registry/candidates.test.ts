@@ -517,3 +517,63 @@ describe('emitted candidate configs are valid against their own widget schema', 
     expect(offenders).toEqual([]);
   });
 });
+
+describe('emitCandidates — a place column (geo.place-column)', () => {
+  /** A table with one column whose RULE says it is a place: nothing in its type or name does. */
+  function customers(place: boolean): CandidateTableInput {
+    const input = build(
+      'public.customers',
+      [
+        { name: 'id', logicalType: 'integer', semantic: 'pk-id', isPrimaryKey: true },
+        { name: 'name', logicalType: 'varchar', semantic: 'plain' },
+        { name: 'where_at', logicalType: 'json', semantic: 'plain' },
+        { name: 'credit', logicalType: 'decimal', semantic: 'money' },
+      ],
+      { displayColumn: 'name' },
+    );
+    if (!place) return input;
+    return { ...input, table: { ...input.table, columns: input.table.columns.map((column) => (column.name === 'where_at' ? { ...column, place: true as const } : column)) } };
+  }
+
+  it('offers the map bound to that ONE column, where the lat/lng pair would be', () => {
+    const map = emitCandidates(customers(true).table, customers(true).classified, ctx).find((c) => c.rule === 'geo.place-column');
+    expect(map?.widget).toBe('map-bubble');
+    expect(map?.shape).toBe('geo-points');
+    expect(map?.binding).toMatchObject({ shape: 'geo-points', select: ['name', 'where_at', 'credit'] });
+    expect(map?.config).toMatchObject({ nameField: 'name', placeColumn: 'where_at', metrics: ['credit'] });
+    // The config it emits is one the widget takes.
+    expect(validateConfigAgainst(widgetRegistry.get('map-bubble')!, map?.config ?? {}).warnings).toEqual([]);
+  });
+
+  it('names a pin by a column a reader may be shown, never by the place itself, and by a uuid only for want of anything else', () => {
+    const table = (specs: ColumnSpec[], displayColumn: string | null, secret: string[] = []): CandidateTableInput => {
+      const input = build('public.sites', specs, { displayColumn });
+      return {
+        table: { ...input.table, columns: input.table.columns.map((column) => (column.name === 'where_at' ? { ...column, place: true as const } : column)) },
+        classified: { ...input.classified, columns: input.classified.columns.map((column) => (secret.includes(column.column) ? { ...column, secret: true } : column)) },
+      };
+    };
+    const nameOf = (input: CandidateTableInput) => emitCandidates(input.table, input.classified, ctx).find((c) => c.rule === 'geo.place-column')?.config['nameField'];
+    const uuidKeyed: ColumnSpec[] = [
+      { name: 'id', logicalType: 'uuid', semantic: 'pk-id', isPrimaryKey: true },
+      { name: 'where_at', logicalType: 'json', semantic: 'plain' },
+      { name: 'code', logicalType: 'varchar', semantic: 'plain' },
+      { name: 'token', logicalType: 'varchar', semantic: 'plain' },
+    ];
+    // The display column is the place itself: a pin is not called by its own position.
+    expect(nameOf(table(uuidKeyed, 'where_at'))).toBe('code');
+    // A secret display column is not read at all.
+    expect(nameOf(table(uuidKeyed, 'token', ['token']))).toBe('code');
+    // No display column: a column that reads as something, before the opaque key.
+    expect(nameOf(table(uuidKeyed, null))).toBe('code');
+    // The key when it is all there is.
+    expect(nameOf(table(uuidKeyed.slice(0, 2), null))).toBe('id');
+    // A secret column sizes no pin either.
+    const figures = table([...uuidKeyed, { name: 'credit', logicalType: 'decimal', semantic: 'money' }], 'code', ['credit']);
+    expect(emitCandidates(figures.table, figures.classified, ctx).find((c) => c.rule === 'geo.place-column')?.config['metrics']).toBeUndefined();
+  });
+
+  it('offers nothing for the same json column without the rule', () => {
+    expect(emitCandidates(customers(false).table, customers(false).classified, ctx).filter((c) => c.family === 'geo')).toEqual([]);
+  });
+});

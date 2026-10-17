@@ -29,6 +29,7 @@
  * from the locale bundles as before.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { withPlaces } from '../api/places.js';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button, EmptyState, Spinner } from '@adminium/ui';
 import {
@@ -332,7 +333,9 @@ export function PageCrudBinding({
     [replaceSearch, search],
   );
   const gridApi = useMemo(
-    () => (actionRuns === 0 || linkedCrud === null ? linkedCrud : (Object.create(linkedCrud) as typeof linkedCrud)),
+    // With the server's list of towns on it, for a form's place field.
+    () => (linkedCrud === null ? linkedCrud : withPlaces(linkedCrud)),
+    // `actionRuns` is here to hand the page a new object after an action has run.
     [linkedCrud, actionRuns],
   );
   // The list's own bulk actions (an app's manifest declares them), after a project's.
@@ -550,6 +553,7 @@ function childColumnsOf(child: FormChildFactReply, pageId: string): { columns: r
         filledBy: column.filledBy,
         required: column.required,
         ...(column.requiredWhen === undefined ? {} : { requiredWhen: column.requiredWhen }),
+        ...(column.mentions === true ? { mentions: true as const } : {}),
         writable: column.writable,
         ...(column.insertable === undefined ? {} : { insertable: column.insertable }),
         ...(column.updatable === undefined ? {} : { updatable: column.updatable }),

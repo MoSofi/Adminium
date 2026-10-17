@@ -905,7 +905,8 @@
       "checkSubtitle": "Prüfen Sie die Tabellen, die diese Version verwendet.",
       "pickFirst": "Wählen Sie vor dem Update, was mit {table} geschehen soll.",
       "checkFirst": "Prüfen Sie die Tabellen vor dem Update erneut.",
-      "nothingYet": "Nichts ändert sich, bevor Sie auf Aktualisieren klicken."
+      "nothingYet": "Nichts ändert sich, bevor Sie auf Aktualisieren klicken.",
+      "rolesSubtitle": "Prüfen Sie, was die Rollen dieser Version mit Add-on-Tabellen tun dürfen."
     },
     "veto": {
       "title": "Diese Installation kann nicht online suchen",
@@ -2065,6 +2066,8 @@
         "rollupBalance": "und hält {balance} = {of} − {minus} − diese Summe",
         "rollupCap": "Eine Änderung, die den Saldo unter null bringen würde, wird abgelehnt.",
         "rollupCapUnless": "Eine Änderung, die den Saldo unter null bringen würde, wird abgelehnt, außer wenn {column} für die Zeile aktiviert ist.",
+        "rollupLatest": "{of} der neuesten Zeile in {from}, nach {by}",
+        "rollupLatestRow": "und hält den Schlüssel dieser Zeile in {row}",
         "stampToday": "das Datum",
         "stampClaim": "{column} der angemeldeten Person",
         "stampAddDays": "{date} plus {days} Tage",
@@ -2555,6 +2558,11 @@
       "heading": "Dokumentzuordnungen",
       "body": "Legen Sie fest, aus welcher Tabelle eine Rechnung, eine Quittung oder ein Kontoauszug erstellt wird, was die Erstellung auslöst und an wen sie per E-Mail geht.",
       "cta": "Dokumentzuordnungen öffnen"
+    },
+    "mapsCard": {
+      "heading": "Karten",
+      "body": "Ob Karten angezeigt werden, welche Server gefragt werden und was jeder von ihnen erfährt.",
+      "cta": "Karten öffnen"
     }
   },
   "source": {
@@ -3129,7 +3137,9 @@
       "advice": "Bitten Sie Ihre Leitung, es unter {app} → Einstellungen einzuschalten.",
       "signOut": "Abmelden",
       "noAccess": "Dieses Konto kann {app} nicht öffnen.",
-      "noAccessAdvice": "Bitten Sie Ihre Führungskraft um eine Rolle, die {app} öffnet."
+      "noAccessAdvice": "Bitten Sie Ihre Führungskraft um eine Rolle, die {app} öffnet.",
+      "partsOff": "In {app} ist für Sie nichts eingeschaltet.",
+      "partsOffAdvice": "Jede Ihrer Rollen gehört zu einem ausgeschalteten Teil von {app}. Bitten Sie Ihre Leitung, ihn einzuschalten oder Ihnen eine andere Rolle zu geben."
     },
     "notFound": {
       "title": "Seite nicht gefunden",
@@ -3413,12 +3423,122 @@
       "kept": "{addOn} bleibt installiert. Deinstallieren Sie es unter „Add-ons“, wenn nichts anderes es nutzt.",
       "link": "Die Verbindung zu {addOn}"
     },
-    "updateToo": "Ebenfalls aktualisieren"
+    "updateToo": "Ebenfalls aktualisieren",
+    "roleTables": {
+      "summary": "Die Rollen von {app} erhalten Zugriff auf {count, plural, one {# seiner Tabellen} other {# seiner Tabellen}}. Sehen Sie, was sie lesen und ändern.",
+      "unchecked": "{addOn} ist noch nicht auf diesem Server, daher sehen Sie, was {app} verlangt. Das Add-on erlaubt vielleicht weniger.",
+      "keyAndLinks": "Beim Lesen werden auch der Schlüssel jeder Zeile und ihre Verknüpfungen zu anderen Zeilen angezeigt.",
+      "everyColumn": "jede Spalte",
+      "reads": "Liest {columns}",
+      "readsAll": "Liest jede Spalte",
+      "changes": "Ändert {columns}",
+      "changesAll": "Ändert jede Spalte",
+      "adds": "Fügt Zeilen hinzu und füllt {columns}",
+      "addsAll": "Fügt Zeilen hinzu und füllt jede Spalte",
+      "notOffered": "Nicht erteilt: {addOn} teilt diese Tabelle mit keiner App.",
+      "keptBack": "Nicht erteilt: {addOn} behält diese Tabelle für sich.",
+      "unknown": "Nicht erteilt: {addOn} hat keine solche Tabelle oder Spalte.",
+      "allowsLess": "Nicht erteilt: {addOn} erlaubt weniger als das.",
+      "notGiven": "Verlangt, aber nicht erteilt: {what}",
+      "wider": "Neu in dieser Version: {what}",
+      "updateTitle": "Rollen erhalten mehr von Add-on-Tabellen",
+      "updateBody": "Diese Version erlaubt diesen Rollen mehr bei Tabellen, die zu Add-ons gehören. Mit dem Update erlauben Sie es.",
+      "action": {
+        "read": "lesen",
+        "create": "Zeilen hinzufügen",
+        "update": "Zeilen ändern"
+      }
+    }
   },
   "featurePage": {
     "ask": "Jemand, der Apps verwaltet, kann es installieren.",
     "body": "Diese Seite funktioniert nur mit {count, plural, one {einem Add-on} other {Add-ons}}, das der App hier noch fehlt, daher steht sie nicht in der Seitenleiste. Sie kehrt zurück, sobald {count, plural, one {es} other {sie}} installiert und mit der App verbunden {count, plural, one {ist} other {sind}}.",
     "open": "Einstellungen der App öffnen",
     "title": "{page} braucht ein Add-on"
+  },
+  "appParts": {
+    "title": "Teile",
+    "help": "Schalten Sie die Teile aus, die dieses Unternehmen nicht nutzt. Ein ausgeschalteter Teil hat keine Seiten, Regeln oder Rollen; seine Datensätze bleiben.",
+    "onePage": "1 Seite",
+    "pages": "{n} Seiten",
+    "oneRule": "1 Regel aktiv",
+    "rules": "{n} Regeln aktiv",
+    "roles": "Rollen: {roles}",
+    "leftOut": "Noch nicht eingerichtet. Verbinden Sie {addOns} unter „Add-ons“, dann wird der Teil eingerichtet.",
+    "waiting": "Aus, bis {addOns} unter „Add-ons“ verbunden ist.",
+    "always": "Immer an",
+    "needs": "Braucht ein Add-on",
+    "switch": "{part}, ein oder aus",
+    "on": "An",
+    "off": "Aus",
+    "dialogClose": "Schließen",
+    "cancel": "Abbrechen",
+    "onDialog": {
+      "title": "{part} einschalten?",
+      "back": "Seiten, Regeln und Rollen sind sofort wieder da. Kein Update und kein Neustart nötig.",
+      "noCatchUp": "Was geschah, während der Teil aus war, wird nicht nachgeholt: Seine Regeln liefen nicht und laufen für das Versäumte auch jetzt nicht.",
+      "confirm": "Einschalten"
+    },
+    "offDialog": {
+      "title": "{part} ausschalten?",
+      "stops": "Seine Seiten verschwinden aus dem Menü, seine Regeln stoppen und seine Rollen gewähren nichts, bis er wieder eingeschaltet wird.",
+      "stays": "Seine Datensätze bleiben. Eine Rolle eines anderen Teils, die sie liest, liest sie weiterhin.",
+      "open": "Darin gerade offen:",
+      "openRows": "{n} nicht abgeschlossen in {table}",
+      "oneRule": "1 aktive Regel stoppt",
+      "rules": "{n} aktive Regeln stoppen",
+      "oneStranded": "Für 1 Person ist dann nichts mehr eingeschaltet",
+      "stranded": "Für {n} Personen ist dann nichts mehr eingeschaltet",
+      "nothingOpen": "Darin ist gerade nichts offen.",
+      "confirm": "Ausschalten"
+    },
+    "installHelp": "Wählen Sie die Teile von {app}, mit denen Sie beginnen. Jeder lässt sich später in den Einstellungen der App ein- oder ausschalten.",
+    "installTick": "Mit {part} beginnen",
+    "installAlways": "immer an",
+    "installWaiting": "Wartet auf das Add-on {addOns}.",
+    "installCount": "{count, plural, one {# Teil.} other {# Teile.}}",
+    "installCountFixed": "{count, plural, one {# Teil.} other {# Teile.}} {fixed} {always, plural, one {gehört} other {gehören}} immer dazu.",
+    "groupAddOn": "Add-on",
+    "groupTicked": "Unter „Add-ons“ angehakt: Die Teile darunter kommen damit.",
+    "groupWaiting": "Unter „Add-ons“ nicht angehakt: Die Teile darunter warten darauf. Haken Sie es dort an oder verbinden Sie es später, dann werden sie eingerichtet.",
+    "groupConnected": "Verbunden: Die Teile darunter arbeiten damit.",
+    "groupNotConnected": "Nicht verbunden: Die Teile darunter warten darauf. Verbinden Sie es unter „Add-ons“, dann werden sie eingerichtet.",
+    "installStranded": "{roles} {count, plural, one {hat} other {haben}} mit diesen Teilen nichts zu öffnen.",
+    "willMake": "Wird anlegen",
+    "willMakeCounts": "{tables, plural, one {# Tabelle} other {# Tabellen}}, {roles, plural, one {# Rolle} other {# Rollen}}, {rules, plural, one {# Regel} other {# Regeln}}"
+  },
+  "installMaps": {
+    "title": "Karten",
+    "tick": "Karten anzeigen (nutzt OpenFreeMap)",
+    "note": "der Browser jeder Person lädt die Kartenbilder vom Kartenserver. Dieser erfährt, welches Gebiet angesehen wird, und nichts über Ihre Datensätze. Dies ist ein Schalter für alle Apps hier.",
+    "tickHost": "Karten anzeigen (nutzt {host})"
+  },
+  "settingsMaps": {
+    "title": "Karten",
+    "subtitle": "Ob Karten angezeigt werden und welche Server gefragt werden.",
+    "saveFailed": "Das konnte nicht gespeichert werden. Versuchen Sie es erneut.",
+    "loadFailed": "Diese Einstellungen konnten nicht gelesen werden. Laden Sie die Seite neu.",
+    "reload": {
+      "title": "Karten sind an. Laden Sie neu, um sie zu sehen.",
+      "body": "Eine Seite, die geöffnet war, während Karten aus waren, darf den Kartenserver nicht fragen. Laden Sie sie neu, hier und in anderen offenen Tabs.",
+      "cta": "Diese Seite neu laden"
+    },
+    "maps": {
+      "heading": "Karten anzeigen",
+      "sees": "Eine Karte wird aus Bildern des Teils der Welt gezeichnet, der gerade zu sehen ist. Der Browser jedes Teammitglieds lädt sie vom Kartenserver; dieser erfährt die Internetadresse der Person und das Gebiet, das sie angesehen hat. Ein Datensatz, ein Name oder die Lage Ihrer Markierungen wird ihm nie gesendet.",
+      "server": "Kartenserver: {host}. Festgelegt von den Betreibern dieses Servers mit ADMINIUM_MAP_SERVER. Hier lässt er sich nicht ändern.",
+      "serverNone": "Kartenserver: keiner.",
+      "off": "Sind Karten aus, erscheint anstelle einer Karte eine Liste derselben Orte, und kein fremder Server wird gefragt.",
+      "whyDesktop": "Die Desktop-App arbeitet ohne Internet und zeigt keine Karte von außen. Anstelle einer Karte erscheint eine Liste.",
+      "whyEnvOff": "Die Betreiber dieses Servers haben Karten dafür ausgeschaltet (ADMINIUM_MAP_SERVER=off), daher bewirkt dieser Schalter nichts."
+    },
+    "routes": {
+      "heading": "Routen entlang von Straßen",
+      "sees": "Solange dies an ist, fragt dieser Server den Routingserver nach dem Weg zwischen den Stopps einer Route und sendet ihm die Positionen der Stopps in ihrer Reihenfolge. Er erfährt die Adresse dieses Servers, nie die eines Teammitglieds, einen Namen oder einen Datensatz.",
+      "server": "Routingserver: {host}. Festgelegt von den Betreibern dieses Servers mit ADMINIUM_ROUTING_SERVER.",
+      "serverNone": "Routingserver: keiner.",
+      "off": "Ist dies aus, sind Entfernungen gerade Linien, die auf diesem Server berechnet und mit „etwa“ gekennzeichnet werden. Nach außen wird nichts gefragt.",
+      "whyEnvOff": "Die Betreiber dieses Servers haben den Routingserver ausgeschaltet (ADMINIUM_ROUTING_SERVER=off oder alle Aufrufe nach außen mit ADMINIUM_NETWORK_FEATURES=off), daher bewirkt dieser Schalter nichts."
+    }
   }
 }

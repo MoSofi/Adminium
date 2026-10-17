@@ -48,6 +48,7 @@ import { assistantName, bootstrapQuery } from '../app/bootstrap.js';
 import { PageActions } from '../shell/PageActionsProvider.js';
 import { PageSurface } from '../shell/PageSurface.js';
 import { t } from '../i18n/t.js';
+import { useCommonWords } from '../i18n/commonWords.js';
 import { formatStamp } from '../team/teamApi.js';
 import {
   AUDIT_CATEGORIES,
@@ -101,6 +102,8 @@ function actorKindLabel(kind: AuditEntryDto['actorKind']): string {
 }
 
 export function AuditLogPage(): ReactNode {
+  // This screen's words load with it, not with the first paint.
+  useCommonWords();
   const { data: bootstrap } = useQuery(bootstrapQuery());
   const [filters, setFilters] = useState<AuditFilters>(EMPTY_AUDIT_FILTERS);
   // Not a suspense query: the filter bar writes the query key on every

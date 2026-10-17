@@ -18,10 +18,13 @@
  * Plain reads, one after another, on the pool: no transaction, no lock, no
  * write.
  */
+import { fetchVisible, type RowLimitContext } from '../crud/row-limit.js';
+import { rowTestOf } from '../crud/row-limit-context.js';
+import { rowsForRequest } from '../crud/row-reach-request.js';
 import { addOnManifestSchema, lookUpOf, type LookUp, type LookUpKind, type Manifest } from '@adminium/manifest';
 import { appTablesRepo, type MetaDb } from '@adminium/meta';
 import type { FastifyRequest } from 'fastify';
-import { sql, type Kysely } from 'kysely';
+import { sql, type Expression, type Kysely, type SqlBool } from 'kysely';
 
 import type { ConnectionManager, SourceDatabase } from '../connections/manager.js';
 import { canonicalCode, findByCode, plausibleCode, routeTypedCode, spellingOf, type CodeSpelling } from '../crud/code-lookup.js';
@@ -71,6 +74,14 @@ interface Reader {
   /** One of the add-on's own tables, or null when it is not there. */
   tableOf(ref: string): ResolvedTable | null;
   mayRead(table: ResolvedTable): Promise<boolean>;
+  /** Which rows the caller reaches, when a role holds them to some (`crud/row-limit.ts`); null for nearly everyone. */
+  rows: RowLimitContext | null;
+}
+
+/** The caller's row test for a table, as a condition of a plain select of it; nothing when they reach every row. */
+function reachedIn<Q extends { where: (expression: Expression<SqlBool>) => Q }>(reader: Reader, table: ResolvedTable, query: Q): Q {
+  const test = rowTestOf(reader.rows, table.id, 'read');
+  return test === null ? query : query.where(test(reader.db, table.name));
 }
 
 /** Whether a found row is this kind's: each condition on it holds. */
@@ -102,10 +113,8 @@ async function historyOf(reader: Reader, rows: LookUpKind['rows'], key: unknown)
   if (rows === undefined) return null;
   const table = reader.tableOf(rows.table);
   if (table === null || table.primaryKey.length !== 1 || !(await reader.mayRead(table))) return null;
-  const found = await reader.db
-    .selectFrom(table.id as never)
-    .selectAll()
-    .where(sql.ref(rows.via), '=', key as never)
+  // Its history: the rows of it the caller reaches.
+  const found = await reachedIn(reader, table, reader.db.selectFrom(table.id as never).selectAll().where(sql.ref(rows.via), '=', key as never))
     .orderBy(sql.ref(table.primaryKey[0]!), 'desc')
     .limit(HISTORY_ROWS)
     .execute();
@@ -138,6 +147,8 @@ async function byCode(reader: Reader, lookUp: LookUp, typed: string): Promise<Lo
     // A row of another kind kept in the same table (a pack typed as a voucher) is not this kind's.
     if (row === null || !meets(row, at.kind.where)) continue;
     const key = row[at.table.primaryKey[0]!];
+    // A row out of the caller's reach answers as a code nobody has.
+    if (reader.rows !== null && (await fetchVisible(reader.rows, reader.db, at.table, { [at.table.primaryKey[0]!]: key }, 'read')) === undefined) continue;
     return {
       found: true,
       kind: at.kind.id,
@@ -163,7 +174,8 @@ async function byAddress(reader: Reader, lookUp: LookUp, typed: string): Promise
   if (searched === undefined || searched.unreadable === true) return NOT_FOUND;
   const key = table.primaryKey[0]!;
   // One more than is answered, so the page can say there are others.
-  const found = (await reader.db.selectFrom(table.id as never).selectAll().where(sql.ref(address.column), '=', wanted as never).orderBy(sql.ref(key), 'asc').limit(2).execute()) as Row[];
+  // Among the rows the caller reaches, so "there are others" counts none of anybody else's.
+  const found = (await reachedIn(reader, table, reader.db.selectFrom(table.id as never).selectAll().where(sql.ref(address.column), '=', wanted as never)).orderBy(sql.ref(key), 'asc').limit(2).execute()) as Row[];
   const row = found[0];
   if (row === undefined) return NOT_FOUND;
   // Credit has the history of the kind kept in the same table: the first that declares one.
@@ -216,6 +228,7 @@ export async function lookUp(deps: LookUpDeps, request: FastifyRequest, addOnKey
       }
     },
     mayRead: (table) => request.can(`table:${connectionId}:${table.id}:read`),
+    rows: await rowsForRequest(deps.meta, request, connectionId, view.model),
   };
   const typed = value.trim();
   if (typed === '') return NOT_FOUND;

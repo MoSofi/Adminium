@@ -76,7 +76,7 @@ import { announceEffects, effectsOf } from '../../states/effects.js';
 import { tellPostings } from '../../ledgers/announce.js';
 import { publicLedgerRefusal, publicPostings, cardMiss } from './ledger-refusals.js';
 import type { PostedOutcome } from '../../crud/ledger-write.js';
-import { prepareValues } from '../../public-api/values.js';
+import { askedFor, prepareValues } from '../../public-api/values.js';
 import { publishPublicWrite } from '../../public-api/publish.js';
 import { customerHostIn, guestBase } from '../../public-api/guest-base.js';
 import { addressesOf, hashToken, normaliseToken, stillOpen, tokenClaimOf, tokenSessionOpen, type TokenClaim, type TokenGrant } from '../../public-api/token-claim.js';
@@ -120,6 +120,7 @@ import type { RequestStats } from '../../public-api/stats.js';
 import { fetchByPk, parseRecordId, pkLabel } from '../../crud/records.js';
 import { tableRulesFor, unstorableText } from '../../crud/column-rules.js';
 import { quoteNights } from '../../crud/per-night.js';
+import { offeredRoles, withOpenDoors } from '../../rbac/app-parts.js';
 import { appOutboxesRepo, connectionTenantConfig } from '@adminium/meta';
 import { needsStored } from '../../crud/decide.js';
 import { keptRow, type Row } from '../../crud/mask.js';
@@ -476,6 +477,11 @@ function unfilled(resource: CompiledResource, values: Readonly<Record<string, un
   for (const column of resource.requires ?? []) {
     const value = values[column];
     if (value === null || value === undefined || (typeof value === 'string' && value.trim() === '')) return column;
+  }
+  // Asked for by what this write sets another column to (`requiresWhen`): the name typed with an accept.
+  for (const column of Object.keys(resource.requiresWhen ?? {})) {
+    const value = values[column];
+    if (askedFor(resource, column, values) && (value === null || value === undefined || (typeof value === 'string' && value.trim() === ''))) return column;
   }
   return null;
 }
@@ -880,7 +886,8 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         .map(([host]) => host.toLowerCase());
       if (hosts.length > 0 && !hosts.includes(request.hostname.toLowerCase())) return false;
     }
-    const roles = await rolesRepo(meta).rolesForUser(user.id);
+    // A role whose part of the app is off opens no kiosk: it is not offered, so it is not held for this.
+    const roles = await offeredRoles(meta, await rolesRepo(meta).rolesForUser(user.id));
     return roles.some((role) => role.slug === binding.roleSlug && role.appKey === binding.appKey);
   };
   /**
@@ -1409,7 +1416,8 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
       }
     }
 
-    return { key, session };
+    // The key as it stands now: without the entries of a part of its app that is switched off, for every door behind this gate.
+    return { key: await withOpenDoors(meta, key), session };
   };
 
   /** Whether a link's session still belongs to its person: their address still the one it went to. */

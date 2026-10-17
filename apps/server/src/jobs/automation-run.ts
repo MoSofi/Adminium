@@ -89,7 +89,9 @@ export function registerAutomationRunHandler(registry: JobRegistry, deps: Automa
       }
 
       const total = rule.graph.nodes.length;
-      const outcome = await walkRule(
+      // A walk that throws (its connection gone, say) gives the job up with the run unfinished: the row as it was,
+      // or a removed row's values, are let go of all the same, never kept on a run nobody will end.
+      const walked = walkRule(
         {
           ...deps,
           // Live progress on `jobs:<id>` while a long run walks, so a future
@@ -106,6 +108,10 @@ export function registerAutomationRunHandler(registry: JobRegistry, deps: Automa
           ...(run.trace === null ? {} : { trace: run.trace }),
         },
       );
+      const outcome = await walked.catch(async (error: unknown) => {
+        await runs.forgetValues(run.id);
+        throw error;
+      });
       const done = outcome.trace.steps.length;
       ctx.progress(total === 0 ? 100 : Math.min(99, Math.round((done / total) * 100)), {
         step: 'run',

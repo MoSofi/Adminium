@@ -39,6 +39,10 @@ export interface RoleListItem {
   memberCount: number;
   createdAt: number;
   updatedAt: number;
+  /** The app whose manifest made the role; absent for every other role. */
+  appKey?: string;
+  /** Every part of its app the role belongs to is switched off: it gives nothing now, and is offered to nobody new. */
+  partsOff?: true;
 }
 
 /** Row-header grouping (presentation only) — mirrors `permissionCategory`. */
@@ -322,3 +326,158 @@ export function deleteRole(id: string, reassignTo: string | null): Promise<unkno
 export function putRoleGrants(id: string, grants: readonly PermissionGrant[]): Promise<unknown> {
   return api.put<unknown>(`/api/v1/roles/${id}/permissions`, { grants: [...grants] });
 }
+
+// --- which rows a role reaches -------------------------------------------------
+
+/** How far one action of a role reaches on a table (`rowReachSchema` on the server). */
+export interface RowReach {
+  reach: 'own' | 'team' | 'all';
+  unowned?: true;
+  while?: { column: string; in: (string | number | boolean)[] };
+  /** And only the rows this staff column names them in: set by an app, kept through every edit here. */
+  by?: string;
+}
+export type RowAction = 'read' | 'update' | 'delete';
+export const ROW_ACTIONS: readonly RowAction[] = ['read', 'update', 'delete'];
+/** One reach for an action, or several of which any one is enough: an app may write a list (`rows.read: [ … ]`). */
+export type RowLimit = Partial<Record<RowAction, RowReach | RowReach[]>>;
+
+/** How a table says whose a row is. */
+export type RowWay =
+  | { kind: 'person'; column: string; label: string }
+  | {
+      kind: 'listing';
+      table: string;
+      label: string;
+      dated: boolean;
+      /** The listing counts only while this column of it holds one of `in`, or is empty (`isNull`) or not. */
+      when?: { column: string; label: string; in?: string[]; isNull?: boolean };
+    }
+  | { kind: 'parent'; column: string; table: string; label: string };
+
+export interface RoleRowsTable {
+  /** The key a row limit is saved by: `<connectionId>/<tableId>`. */
+  ref: string;
+  connectionId: string;
+  connectionName: string;
+  tableId: string;
+  label: string;
+  private: boolean;
+  ways: RowWay[];
+  granted: Record<RowAction, boolean>;
+  /** Whether one of the role's own grants names this table; a limit is stored on such a grant. */
+  own: boolean;
+  limit: RowLimit | null;
+}
+
+export interface RoleRowsReply {
+  roleId: string;
+  locked: boolean;
+  tables: RoleRowsTable[];
+}
+
+export function roleRowsQuery(roleId: string) {
+  return queryOptions({
+    queryKey: ['roles', 'rows', roleId] as const,
+    queryFn: () => api.get<RoleRowsReply>(`/api/v1/roles/${roleId}/rows`),
+  });
+}
+
+export interface PersonRef {
+  id: string;
+  name: string;
+  sample: boolean;
+}
+
+export function peopleQuery() {
+  return queryOptions({
+    queryKey: ['people'] as const,
+    staleTime: 60_000,
+    queryFn: async () => (await api.get<{ people: PersonRef[] }>('/api/v1/people?limit=200')).people,
+  });
+}
+
+export interface RowsPreview {
+  reached: number;
+  total: number;
+  capped: boolean;
+  liftedBy: string[];
+}
+
+/** "Dana would see 6 of 14": counted on the server as that person, under a limit that need not be saved yet. */
+export function rowsPreviewQuery(input: { roleId: string; table: RoleRowsTable; userId: string; reach: RowReach | RowReach[] | null }) {
+  return queryOptions({
+    queryKey: ['roles', 'rows-preview', input.roleId, input.table.ref, input.userId, input.reach] as const,
+    queryFn: () =>
+      api.post<RowsPreview>('/api/v1/roles/rows/preview', {
+        connectionId: input.table.connectionId,
+        table: input.table.tableId,
+        userId: input.userId,
+        roleId: input.roleId,
+        // No limit is "every row": asked as such, so the count and what lifts it still come back.
+        reach: input.reach ?? { reach: 'all' },
+      }),
+  });
+}
+
+/** One action's reach as the editor holds it: every row, or a limit. A list of one is that one; a longer list is `null` here (see `severalOf`). */
+export function reachOf(limit: RowLimit | null | undefined, action: RowAction): RowReach | null {
+  const written = limit?.[action];
+  if (written === undefined) return null;
+  if (!Array.isArray(written)) return written;
+  return written.length === 1 ? written[0]! : null;
+}
+
+/** An action's reaches when the app wrote more than one: shown in words and kept as written, never edited here. */
+export function severalOf(limit: RowLimit | null | undefined, action: RowAction): RowReach[] | null {
+  const written = limit?.[action];
+  return Array.isArray(written) && written.length > 1 ? written : null;
+}
+
+/** A table's limit with one action's reach replaced; `null` when no action is limited any more. */
+export function withReach(limit: RowLimit | null | undefined, action: RowAction, reach: RowReach | null): RowLimit | null {
+  const next: RowLimit = { ...(limit ?? {}) };
+  if (reach === null) delete next[action];
+  else next[action] = reach;
+  return Object.keys(next).length === 0 ? null : next;
+}
+
+/**
+ * What a save of the row limits sends. A limit lives on a grant that names
+ * its table, so a table the role reaches only through a wider grant ("read
+ * every record") is first given grants of its own for the actions being
+ * limited: within one role, the table's own word stands over the wider one.
+ * A grant is only ever added for an action the role holds there already.
+ */
+export function rowLimitsSave(
+  grants: readonly string[],
+  tables: readonly RoleRowsTable[],
+  draft: Readonly<Record<string, RowLimit | null>>,
+): { grants: string[]; rows: Record<string, RowLimit | null> } {
+  const next = new Set(grants);
+  const rows: Record<string, RowLimit | null> = {};
+  for (const table of tables) {
+    if (!(table.ref in draft)) continue;
+    const limit = draft[table.ref] ?? null;
+    if (JSON.stringify(limit) === JSON.stringify(table.limit)) continue;
+    if (limit === null) {
+      rows[table.ref] = null;
+      continue;
+    }
+    // Only an action the role already holds on the table is limited, and only that one is named for it: a limit kept for an
+    // action the role lost since (unticked in the matrix) is dropped here, never turned back into the grant.
+    const kept: RowLimit = {};
+    for (const action of ROW_ACTIONS) {
+      if (limit[action] === undefined || !table.granted[action]) continue;
+      kept[action] = limit[action];
+      next.add(`table:${table.connectionId}:${table.tableId}:${action}`);
+    }
+    rows[table.ref] = Object.keys(kept).length === 0 ? null : kept;
+  }
+  return { grants: [...next], rows };
+}
+
+export function putRoleRows(id: string, body: { grants: string[]; rows: Record<string, RowLimit | null> }): Promise<unknown> {
+  return api.put<unknown>(`/api/v1/roles/${id}/permissions`, body);
+}
+

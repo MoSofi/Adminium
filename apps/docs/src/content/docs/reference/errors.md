@@ -192,7 +192,7 @@ one of these shapes:
 | params | When |
 |---|---|
 | none | Anything the guest cannot be told more about: a column the entry does not let them write, a value outside what it allows, a unique or foreign-key refusal, a state move, a locked row, a balance, a refusal that would say what another row holds. |
-| `{ column }` | A value the entry `requires` was left empty, or text that must be plain holds a link, a handle or a web address. On a child row, with `child`, `index` and `path`. |
+| `{ column }` | A value the entry `requires` (or, for the choice made, `requiresWhen`) was left empty, or text that must be plain holds a link, a handle or a web address. On a child row, with `child`, `index` and `path`. |
 | `{ column, reason }` | The guest's own value, for the reason below. |
 | `{ child, reason }` | A list the request sends: `not-offered` (the entry declares no such list), `too-many` or `too-few` (outside its least and most, or more than 200 rows in all). `path` is added for a list below a row. |
 | `{ child, index, path }` | A child row writes a column, or a value, its entry does not let a guest write. |
@@ -314,6 +314,7 @@ code:
 | `CAPACITY_BUSY`, `BOOKING_BUSY`, `NUMBER_BUSY`, `WRITE_CONFLICT` | `409` `PUBLIC_SLOT_BUSY` |
 | `CAPACITY_TOO_LATE`, `BOOKING_TOO_LATE` | `409` `PUBLIC_TOO_LATE` |
 | `STATE_TOO_LATE` | `409` `PUBLIC_TOO_LATE`, `{ at }` |
+| `STATE_DATE_PASSED` | `409` `PUBLIC_TOO_LATE`, no params |
 | `WRITE_WINDOW_CLOSED`, or `STATE_MOVE_REFUSED` waiting for a time: before it opens | `409` `PUBLIC_TOO_EARLY`, `{ at, from }` |
 | The same, after it closed | `409` `PUBLIC_TOO_LATE`, `{ at }` |
 | The same, shut by a linked row or a moment with no value | `400` `PUBLIC_WRITE_REFUSED` |
@@ -351,6 +352,7 @@ role-bound key answers with the staff envelope:
 | `STATE_MOVE_REFUSED` | 409 | A move the table's [states](/reference/manifest/#states) do not allow now. | See [below](#states) |
 | `STATE_UNCHANGED` | 409 | The write names the state a strict row already holds. | `column`, `state`, `at`, `by`, the `show` columns |
 | `STATE_TOO_LATE` | 409 | A [late move](/reference/manifest/#late-moves) in mode `refuse`, inside its window. | `column`, `at` |
+| `STATE_DATE_PASSED` | 409 | A move made after [its last day](/reference/manifest/#a-moves-last-day): the date its row holds has passed, where the business is. | `column`, `from`, `to`, `date` (the date column), `until` (the day it held) |
 | `WRITE_WINDOW_CLOSED` | 409 | A change outside the [window](/reference/manifest/#windows-on-a-moment) its entry opens. | `column`, `bound`, `at`, `rowAt`, `reason` |
 | `RECORD_LOCKED` | 409 | A column that can no longer change, or a child row whose parent is not in a state that lets it change. | See [below](#states) |
 | `DELETE_REFUSED` | 409 | A row that is numbered, in a state that is never deleted, or locked. Void it instead. | `state`, `numbered` |

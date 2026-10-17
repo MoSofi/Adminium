@@ -915,7 +915,8 @@ export default {
       "checkSubtitle": "Check the tables this version uses.",
       "pickFirst": "Pick what to do with {table} before you update.",
       "checkFirst": "Check the tables again before you update.",
-      "nothingYet": "Nothing changes until you press Update."
+      "nothingYet": "Nothing changes until you press Update.",
+      "rolesSubtitle": "Check what this version’s roles may do with add-ons’ tables."
     },
     "veto": {
       "title": "This deployment cannot browse online",
@@ -2075,6 +2076,8 @@ export default {
         "rollupBalance": "and keeps {balance} = {of} − {minus} − this total",
         "rollupCap": "A write that would take the balance below zero is refused.",
         "rollupCapUnless": "A write that would take the balance below zero is refused, unless {column} is on for the row.",
+        "rollupLatest": "The {of} of its newest row in {from}, by {by}",
+        "rollupLatestRow": "and keeps that row’s key in {row}",
         "stampToday": "the date",
         "stampClaim": "the signed-in person’s {column}",
         "stampAddDays": "{date} plus {days} days",
@@ -2565,6 +2568,11 @@ export default {
       "heading": "Document mappings",
       "body": "Say which table an invoice, a receipt or a statement is drawn from, what draws it, and who it is emailed to.",
       "cta": "Open document mappings"
+    },
+    "mapsCard": {
+      "heading": "Maps",
+      "body": "Whether maps are shown, which servers are asked, and what each of them learns.",
+      "cta": "Open maps"
     }
   },
   "source": {
@@ -3139,7 +3147,9 @@ export default {
       "advice": "Ask your manager to switch it on in {app} → Settings.",
       "signOut": "Sign out",
       "noAccess": "This account can’t open {app}.",
-      "noAccessAdvice": "Ask your manager for a role that opens {app}."
+      "noAccessAdvice": "Ask your manager for a role that opens {app}.",
+      "partsOff": "Nothing in {app} is switched on for you.",
+      "partsOffAdvice": "Every role you hold belongs to a part of {app} that is switched off. Ask your manager to switch it on, or for another role."
     },
     "notFound": {
       "title": "Page not found",
@@ -3423,12 +3433,122 @@ export default {
       "kept": "{addOn} stays installed. Uninstall it from Add-ons if nothing else uses it.",
       "link": "Its link to {addOn}"
     },
-    "updateToo": "Update it too"
+    "updateToo": "Update it too",
+    "roleTables": {
+      "summary": "{app}’s roles get {count, plural, one {# of its tables} other {# of its tables}}. See what they read and change.",
+      "unchecked": "{addOn} isn’t on this server yet, so this is what {app} asks for. The add-on may allow less.",
+      "keyAndLinks": "A read also shows each row’s key and its links to other rows.",
+      "everyColumn": "every column",
+      "reads": "Reads {columns}",
+      "readsAll": "Reads every column",
+      "changes": "Changes {columns}",
+      "changesAll": "Changes every column",
+      "adds": "Adds rows, filling in {columns}",
+      "addsAll": "Adds rows, filling in any column",
+      "notOffered": "Not given: {addOn} shares this table with no app.",
+      "keptBack": "Not given: {addOn} keeps this table to itself.",
+      "unknown": "Not given: {addOn} has no such table or column.",
+      "allowsLess": "Not given: {addOn} allows less than this.",
+      "notGiven": "Asked for, not given: {what}",
+      "wider": "New in this version: {what}",
+      "updateTitle": "Roles get more of add-ons’ tables",
+      "updateBody": "This version lets these roles do more with tables that belong to add-ons. Updating allows it.",
+      "action": {
+        "read": "read",
+        "create": "add rows",
+        "update": "change rows"
+      }
+    }
   },
   "featurePage": {
     "ask": "Someone who manages apps can install it.",
     "body": "This page works only with {count, plural, one {an add-on} other {add-ons}} this app does not have here yet, so it is not in the sidebar. It comes back once {count, plural, one {it is} other {they are}} installed and connected to the app.",
     "open": "Open the app’s settings",
     "title": "{page} needs an add-on"
+  },
+  "appParts": {
+    "title": "Parts",
+    "help": "Switch off the parts this business does not use. A part that is off has no pages, rules or roles; its records stay.",
+    "onePage": "1 page",
+    "pages": "{n} pages",
+    "oneRule": "1 rule on",
+    "rules": "{n} rules on",
+    "roles": "Roles: {roles}",
+    "leftOut": "Not set up yet. Connect {addOns} under Add-ons and it is put in.",
+    "waiting": "Off until {addOns} is connected, under Add-ons.",
+    "always": "Always on",
+    "needs": "Needs an add-on",
+    "switch": "{part}, on or off",
+    "on": "On",
+    "off": "Off",
+    "dialogClose": "Close",
+    "cancel": "Cancel",
+    "onDialog": {
+      "title": "Switch on {part}?",
+      "back": "Its pages, rules and roles are back at once. No update and no restart is needed.",
+      "noCatchUp": "Nothing that happened while it was off is caught up: its rules did not run, and they will not run now for what was missed.",
+      "confirm": "Switch on"
+    },
+    "offDialog": {
+      "title": "Switch off {part}?",
+      "stops": "Its pages leave the menu, its rules stop and its roles give nothing until it is switched on again.",
+      "stays": "Its records stay. A role of another part that reads them still does.",
+      "open": "Open in it right now:",
+      "openRows": "{n} not finished in {table}",
+      "oneRule": "1 rule that is on will stop",
+      "rules": "{n} rules that are on will stop",
+      "oneStranded": "1 person will have nothing switched on for them",
+      "stranded": "{n} people will have nothing switched on for them",
+      "nothingOpen": "Nothing is open in it right now.",
+      "confirm": "Switch off"
+    },
+    "installHelp": "Choose the parts of {app} to start with. Any of them can be switched on or off later, in the app’s settings.",
+    "installTick": "Start with {part}",
+    "installAlways": "always on",
+    "installWaiting": "Waiting for the {addOns} add-on.",
+    "installCount": "{count, plural, one {# part.} other {# parts.}}",
+    "installCountFixed": "{count, plural, one {# part.} other {# parts.}} {fixed} {always, plural, one {is} other {are}} always part of it.",
+    "groupAddOn": "add-on",
+    "groupTicked": "Ticked under Add-ons: the parts below come with it.",
+    "groupWaiting": "Not ticked under Add-ons: the parts below wait for it. Tick it there, or connect it later and they are put in.",
+    "groupConnected": "Connected: the parts below work with it.",
+    "groupNotConnected": "Not connected: the parts below wait for it. Connect it under Add-ons and they are put in.",
+    "installStranded": "{roles} {count, plural, one {is} other {are}} left with nothing to open with these parts.",
+    "willMake": "Will make",
+    "willMakeCounts": "{tables, plural, one {# table} other {# tables}}, {roles, plural, one {# role} other {# roles}}, {rules, plural, one {# rule} other {# rules}}"
+  },
+  "installMaps": {
+    "title": "Maps",
+    "tick": "Show maps (uses OpenFreeMap)",
+    "note": "each person’s browser fetches the map’s pictures from the map server. It learns which area is looked at, and nothing about your records. This is one switch for every app here.",
+    "tickHost": "Show maps (uses {host})"
+  },
+  "settingsMaps": {
+    "title": "Maps",
+    "subtitle": "Whether maps are shown, and which servers are asked.",
+    "saveFailed": "This could not be saved. Try again.",
+    "loadFailed": "These settings could not be read. Reload the page.",
+    "reload": {
+      "title": "Maps are on. Reload to see them.",
+      "body": "A page that was open while maps were off may not ask the map server. Reload it, here and in other open tabs.",
+      "cta": "Reload this page"
+    },
+    "maps": {
+      "heading": "Show maps",
+      "sees": "A map is drawn from pictures of the part of the world on screen. Each staff member’s browser fetches them from the map server, which learns that person’s internet address and the area they looked at. It is never sent a record, a name or where your pins are.",
+      "server": "Map server: {host}. Set by whoever runs this server, with ADMINIUM_MAP_SERVER. It cannot be changed here.",
+      "serverNone": "Map server: none.",
+      "off": "With maps off, a list of the same places is shown where a map would be, and no outside server is asked.",
+      "whyDesktop": "The desktop app works without the internet and shows no outside map. A list is shown where a map would be.",
+      "whyEnvOff": "Whoever runs this server switched maps off for it (ADMINIUM_MAP_SERVER=off), so this switch does nothing."
+    },
+    "routes": {
+      "heading": "Routes along roads",
+      "sees": "While this is on, this server asks the routing server for the way between a route’s stops, and sends it the stops’ positions in order. It learns this server’s address, never a staff member’s, a name or a record.",
+      "server": "Routing server: {host}. Set by whoever runs this server, with ADMINIUM_ROUTING_SERVER.",
+      "serverNone": "Routing server: none.",
+      "off": "With this off, distances are straight lines worked out on this server and marked “about”. Nothing is asked outside.",
+      "whyEnvOff": "Whoever runs this server switched the routing server off (ADMINIUM_ROUTING_SERVER=off, or all outside calls with ADMINIUM_NETWORK_FEATURES=off), so this switch does nothing."
+    }
   }
 } as const;

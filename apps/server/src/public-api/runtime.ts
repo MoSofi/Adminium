@@ -32,7 +32,7 @@ import {
 import type { DatabaseModel } from '@adminium/engine';
 
 import { addOnInstallsStamp, addOnTablesFor } from '../apps/add-on-tables.js';
-import { applyOverrides } from '../connections/effective-schema.js';
+import { applyOverrides, withoutPrivateTables } from '../connections/effective-schema.js';
 import { SnapshotView } from '../crud/identifiers.js';
 import { createPublicKeyResolver, type PublicKeyResolver, type ResolveFailure } from './resolve.js';
 
@@ -68,7 +68,8 @@ export function createPublicViews(meta: MetaDb): PublicViews {
       // the next request stamp again.
       if (snapshot === null) return null;
       const model = snapshot.schema as DatabaseModel;
-      const view = new SnapshotView(connectionId, applyOverrides(model, active, { addOnTables: await addOnTablesFor(meta, connectionId, model) }));
+      // Without the private tables: a public door, a customer's key and a kiosk's key act for somebody who is not the person a private row belongs to.
+      const view = new SnapshotView(connectionId, withoutPrivateTables(applyOverrides(model, active, { addOnTables: await addOnTablesFor(meta, connectionId, model) })));
       cache.set(connectionId, { stamp, view });
       return view;
     },

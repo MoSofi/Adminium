@@ -210,10 +210,38 @@ export const shapeRulesReply = z.object({
   ),
 });
 
+/** One part of an app, as the check step offers it. */
+export const appPlanModule = z.object({
+  id: z.string(),
+  label: z.record(z.string(), z.string()),
+  default: z.enum(['on', 'off', 'always']),
+  /** How it stands on an app already installed; absent on a first install. */
+  on: z.boolean().optional(),
+  needs: z.array(z.string()),
+  leftOut: z.boolean(),
+  tables: z.array(z.string()),
+  /** The roles that are offered only while this part (or another of theirs) is on. */
+  roles: z.array(z.string()),
+  /** How many of the app's rules are of this part. Absent from an older server. */
+  rules: z.number().int().optional(),
+});
+
+/** The app's roles with the parts each is of, and its rules of no part: what the check counts beside the parts. */
+export const appPlanWhole = z.object({
+  roles: z.array(z.object({ name: z.string(), parts: z.array(z.string()) })),
+  rules: z.number().int(),
+});
+
 export const planAppBody = z.object({
   key: appKey,
   version: z.string().min(1).max(64),
   connectionId: z.string().min(1),
+  /**
+   * The add-ons the install would bring, by key: the plan is of the app as it
+   * would stand with them (a part built on one that is not there is left
+   * out). Absent, the ones the check step shows ticked.
+   */
+  addOns: z.array(z.string().regex(/^[a-z][a-z0-9-]{1,79}$/)).max(16).optional(),
   ...installAnswers,
 });
 
@@ -387,6 +415,8 @@ export const appInstallPlanDto = z.object({
     .optional(),
   /** The app ships sample data, which can be added once it is installed. */
   sampleData: z.boolean().optional(),
+  /** The app shows maps and nobody has yet said whether this install shows them: the check step asks. */
+  maps: z.boolean().optional(),
   /**
    * The add-on settings the app's roles would be given (`addOn:<key>:settings`),
    * for the check step to show before anyone agrees: those settings are
@@ -400,7 +430,30 @@ export const appInstallPlanDto = z.object({
    * names (`roles[].tables`), for the check step to show: written when that
    * add-on is there for the app, taken back when it is not. Absent when none.
    */
-  roleTables: z.array(z.object({ role: z.string(), roleName: z.string(), addOn: z.string(), table: z.string(), actions: z.array(z.string()) })).optional(),
+  roleTables: z
+    .array(
+      z.object({
+        role: z.string(),
+        roleName: z.string(),
+        addOn: z.string(),
+        table: z.string(),
+        /** What the role will hold: cut to the add-on's own words (its shape and its `appGrants`). */
+        actions: z.array(z.string()),
+        /** The columns each action reaches. Absent: every column (only on an add-on that sets no `appGrants`). */
+        readable: z.array(z.string()).optional(),
+        writable: z.array(z.string()).optional(),
+        creatable: z.array(z.string()).optional(),
+        /** What the app asks for and the role will not get, by name. */
+        narrowed: z.object({ actions: z.array(z.string()), readable: z.array(z.string()).optional(), writable: z.array(z.string()).optional(), creatable: z.array(z.string()).optional() }).optional(),
+        /** Why the entry, or part of it, is left out: `not-offered` (the add-on gives the table to no app), `ceiling` (cut to what it gives), `ledger-table`, `unknown-column`, `unknown-table`. */
+        skipped: z.string().optional(),
+        /** The add-on is not on this server: what the app asks, before the add-on's own words cut it. */
+        unchecked: z.literal(true).optional(),
+        /** An update's check: what this version's role holds that the running one's did not (`*`: every column). The update gives it only with `"roleTables": true`. */
+        wider: z.object({ actions: z.array(z.string()), columns: z.array(z.string()) }).optional(),
+      }),
+    )
+    .optional(),
   /**
    * What the app's guests could do through the public API, as it asks, for
    * the check step to show and the installer to allow or not. Absent for an
@@ -460,6 +513,14 @@ export const appInstallPlanDto = z.object({
    * plan. Absent for an app that names none — its check is exactly as before.
    */
   addOns: z.array(appAddOnRow).optional(),
+  /**
+   * The parts of the app, for the ticks of the check step. `switch` is false
+   * for a part that is always on. `needs` are the add-ons its feature needs;
+   * `leftOut` says its tables are not made by this install, with the tables.
+   */
+  modules: z.array(appPlanModule).optional(),
+  /** Beside `modules`: the roles and the rules of no part, for the check's counts. Absent for an app with no parts. */
+  whole: appPlanWhole.optional(),
 });
 
 export const appInstallPlanReply = z.object({ plan: appInstallPlanDto });
@@ -499,6 +560,14 @@ export const installAppBody = z.object({
    * suggested one only when listed; an update only with `update: true`.
    */
   addOns: z.array(appAddOnChoice).max(16).optional(),
+  /**
+   * The parts of the app to start with, by id: `true` on, `false` off. A part
+   * left out starts as its manifest says. A part that is `always` on, or one
+   * the app does not have, is refused.
+   */
+  modules: z.record(z.string().regex(/^[a-z][a-z0-9-]{0,39}$/), z.boolean()).optional(),
+  /** Whether maps are shown on this install, when the check asked (`plan.maps`). Absent: shown. Ignored once somebody has answered. */
+  maps: z.boolean().optional(),
   ...installAnswers,
 });
 
@@ -646,7 +715,23 @@ export const installedAppReply = z.object({
       created: z.array(z.string()),
       seeded: z.number(),
       /** What the roles hold of the tables of the add-ons that are here for the app, entry by entry — and what was left out, by name. */
-      tables: z.array(z.object({ role: z.string(), addOn: z.string(), table: z.string(), actions: z.array(z.string()), skipped: z.enum(['unknown-table', 'unknown-column', 'ledger-table']).optional() })).optional(),
+      tables: z
+        .array(
+          z.object({
+            role: z.string(),
+            addOn: z.string(),
+            table: z.string(),
+            actions: z.array(z.string()),
+            /** The columns each action reaches now. Absent: every column (only on an add-on that sets no `appGrants`). */
+            readable: z.array(z.string()).optional(),
+            writable: z.array(z.string()).optional(),
+            creatable: z.array(z.string()).optional(),
+            /** What the app asked for and the role does not get, by name. */
+            narrowed: z.object({ actions: z.array(z.string()), readable: z.array(z.string()).optional(), writable: z.array(z.string()).optional(), creatable: z.array(z.string()).optional() }).optional(),
+            skipped: z.enum(['unknown-table', 'unknown-column', 'ledger-table', 'not-offered', 'ceiling']).optional(),
+          }),
+        )
+        .optional(),
     })
     .optional(),
   /** The public endpoints the manifest asked for, saved now, and the guests' key if one was made now. */
@@ -681,6 +766,12 @@ export const installedAppReply = z.object({
       }),
     })
     .optional(),
+  /**
+   * The app's starting rows (`seeds`) written now, by table, and the tables
+   * that already held a row and were left as they are. Absent for an app
+   * that declares none.
+   */
+  seeds: z.object({ written: z.record(z.string(), z.number()), kept: z.array(z.string()) }).optional(),
   /** The add-ons installed, updated or connected along with the app. Absent for an app that names none. */
   addOns: addOnsDoneReply.optional(),
 });
@@ -843,6 +934,13 @@ export const updateAppBody = z
     publicAccess: z.boolean().optional(),
     /** As the install's: the add-ons the new version needs, installed, connected or updated first. */
     addOns: z.array(appAddOnChoice).max(16).optional(),
+    /**
+     * The check's say on what the new version's roles hold MORE of an
+     * add-on's tables (`roleTables[].wider`): an action, or a column, the
+     * running version's did not. Only `true` allows it; without it such an
+     * update is refused (422 `ROLE_TABLES_WIDER`) before anything moves.
+     */
+    roleTables: z.boolean().optional(),
   })
   // A POST with no body at all arrives as null.
   .nullish();
@@ -1114,3 +1212,67 @@ export const uninstallAppReply = z.object({
     .optional(),
   dropped: z.array(z.string()).optional(),
 });
+
+
+// ── parts ────────────────────────────────────────────────────────────────────
+
+export const appPartParams = z.object({ key: appKey, part: z.string().regex(/^[a-z][a-z0-9-]{0,39}$/) });
+
+/** One part of an installed app, as its page shows it. */
+export const appPartDto = z.object({
+  id: z.string(),
+  /** In the reader's language. */
+  label: z.string(),
+  default: z.enum(['on', 'off', 'always']),
+  /** The owner's switch (true for a part that is always on). */
+  switch: z.boolean(),
+  /** Whether it is on now: its switch, and every add-on it needs connected. */
+  on: z.boolean(),
+  /** The add-ons it still waits for, by name. */
+  waiting: z.array(z.object({ key: z.string(), name: z.string() })),
+  /** Every add-on it is built on, by name, connected or not: the add-on the card draws it under. Absent from an older server. */
+  needs: z.array(z.object({ key: z.string(), name: z.string() })).optional(),
+  /** Its tables were not made by the install: they are when the add-on it waits for is connected. */
+  leftOut: z.boolean(),
+  pages: z.number().int(),
+  tables: z.number().int(),
+  rules: z.number().int(),
+  /** Its roles, each in the reader's language, with how many people hold it. */
+  roles: z.array(z.object({ slug: z.string(), name: z.string(), members: z.number().int() })),
+});
+
+export const appPartsReply = z.object({ parts: z.array(appPartDto) });
+
+/**
+ * One rule the app ships, as the app's own people read it: the key the
+ * manifest gives it, its name in the reader's language, and whether it is
+ * switched on. Nothing else of a rule is ever part of this answer (`.strict()`
+ * holds it to these three): not what starts it, its steps, who it tells, an
+ * address, or its runs.
+ */
+export const appRuleDto = z
+  .object({
+    key: z.string(),
+    name: z.string(),
+    on: z.boolean(),
+  })
+  .strict();
+
+export const appRulesReply = z.object({ rules: z.array(appRuleDto) }).strict();
+
+/**
+ * What switching a part off would stop, for the question asked first: the
+ * rows of its tables that are part way through their states, the rules that
+ * are switched on, and the people whose every role is of this part.
+ */
+export const appPartOpenReply = z.object({
+  id: z.string(),
+  label: z.string(),
+  open: z.array(z.object({ table: z.string(), label: z.string(), rows: z.number().int() })),
+  rules: z.number().int(),
+  pages: z.number().int(),
+  /** People left with nothing switched on for them. */
+  stranded: z.number().int(),
+});
+
+export const appPartBody = z.object({ on: z.boolean() });

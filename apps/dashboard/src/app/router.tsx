@@ -8,7 +8,7 @@
  */
 import type { QueryClient } from '@tanstack/react-query';
 import { useQuery } from '@tanstack/react-query';
-import { Suspense, lazy, use, useSyncExternalStore, type ComponentType, type ReactElement } from 'react';
+import { Suspense, lazy, use, useMemo, useSyncExternalStore, type ComponentType, type ReactElement } from 'react';
 import {
   Outlet,
   createRootRouteWithContext,
@@ -22,11 +22,13 @@ import { allLocales, getI18nRevision, subscribeI18nRevision } from '@adminium/i1
 import { rememberInDesktopApp } from '../lib/desktop-runtime.js';
 import { ThemeProvider, TooltipProvider, type ThemePrefs } from '@adminium/ui';
 import { ChartDirectionBridge, WidgetRuntimeProvider } from '@adminium/widgets';
+import { PeopleSourceProvider, type PeopleSource } from '@adminium/widgets/people-source';
 
 import { dataIoRoutes } from '../data-io/routes.js';
 import { assistantMessagesReady } from '../assistant/assistantMessages.js';
 import { emailMessagesReady } from '../email/emailMessages.js';
 import { filesMessagesReady } from '../files/filesMessages.js';
+import { isLocalPath } from '../auth/nextTarget.js';
 import { validateEmailTemplatesSearch } from '../email/search.js';
 import { reportBuilderMessagesReady } from '../report-builder/reportBuilderMessages.js';
 import { rolesMessagesReady } from '../team/rolesMessages.js';
@@ -42,7 +44,6 @@ import { HomePage } from '../pages/HomePage.js';
 import { PageRenderer } from '../pages/PageRenderer.js';
 import { preloadPageTemplates } from '../pages/templates.js';
 import { LoginPage } from '../auth/LoginPage.js';
-import { OtpPage } from '../auth/OtpPage.js';
 import { ShortcutsProvider } from '../shell/ShortcutsProvider.js';
 import { useBrandedDocumentTitle } from '../shell/BrandMark.js';
 import { AppShell } from '../shell/AppShell.js';
@@ -61,9 +62,14 @@ import {
   findPageBySlug,
   type BootstrapData,
   type ResolvedPrefs,
+  type SystemAction,
 } from './bootstrap.js';
 import { isHostedPlanSurface } from './capabilities.js';
 import { requestIdForError, stateIdForError } from './query.js';
+
+/** The people who sign in here whose name holds what was typed: who a mention may name. */
+const peopleByName: PeopleSource = async (query) =>
+  (await api.get<{ people: { id: string; name: string }[] }>(`/api/v1/people?limit=8&q=${encodeURIComponent(query)}`)).people;
 
 
 // --- lazy route components --------------------------------------------------
@@ -73,7 +79,7 @@ import { requestIdForError, stateIdForError } from './query.js';
  * component statically imported here is in it by definition — on every route,
  * for every user, including the ones who never open that screen.
  *
- * What is NOT lazy is deliberate: the auth screens, `AppShell`, `HomePage`,
+ * What is NOT lazy is deliberate: the sign-in form, `AppShell`, `HomePage`,
  * `PageRenderer`, `StatePage` and `NotFoundPage` are the first paint. Putting a
  * chunk fetch in front of those trades bytes for a blank frame, which is the
  * wrong trade at exactly the moment the app is being judged on speed.
@@ -99,6 +105,9 @@ const AboutPageLazy = lazyRoute(async () => (await import('../about/AboutPage.js
 // every first paint was paying for two screens almost nobody opens.
 const ForgotPageLazy = lazyRoute(async () => (await import('../auth/ForgotPage.js')).ForgotPage);
 const ResetPageLazy = lazyRoute(async () => (await import('../auth/ResetPage.js')).ResetPage);
+// The second step of signing in, never the first paint: nobody arrives at it but from the
+// sign-in form, which fetches this chunk before it sends them here (auth/LoginPage.tsx).
+const OtpPageLazy = lazyRoute(async () => (await import('../auth/OtpPage.js')).OtpPage);
 const AddOnPageHostLazy = lazyRoute(
   async () => (await import('../add-ons/AddOnPageHost.js')).AddOnPageHost,
 );
@@ -177,6 +186,11 @@ function RootComponent() {
   // destroys the Translations editor's own unsaved buffer on every save.
   useSyncExternalStore(subscribeI18nRevision, getI18nRevision, getI18nRevision);
 
+  // Where maps come from is the session's answer: no server until it is known.
+  // A new object only when the session is read again: this is context.
+  const maps = boot.data?.maps;
+  const runtimeEnv = useMemo(() => (maps === undefined ? widgetRuntimeEnv : { ...widgetRuntimeEnv, maps }), [maps]);
+
   return (
     <ThemeProvider
       resolveDir={resolveLocaleDir}
@@ -204,10 +218,14 @@ function RootComponent() {
                 mounts through a WidgetHost under this Outlet — generated pages,
                 the dashboard builder's canvas, the palette's previews — and each
                 one reads this context to decide whether a `map-*` id may load a
-                map engine. One provider below any of them is a page that can
-                still pull Leaflet in the desktop shell. */}
-            <WidgetRuntimeProvider env={widgetRuntimeEnv}>
-              <Outlet />
+                map engine, and from which map server (the session says). One
+                provider below any of them is a page that can still pull the
+                map engine in the desktop shell. */}
+            <WidgetRuntimeProvider env={runtimeEnv}>
+              {/* Who a text box that takes mentions may name: asked for as the writer types after an @. */}
+              <PeopleSourceProvider value={peopleByName}>
+                <Outlet />
+              </PeopleSourceProvider>
             </WidgetRuntimeProvider>
           </ChartDirectionBridge>
         </ShortcutsProvider>
@@ -262,20 +280,13 @@ const loginRoute = createRoute({
    * SURFACE gate appends — the target may be a hosted app path this SPA
    * cannot render (on a mapped staff domain, EVERY non-reserved path is
    * surface-owned), so honoring it must be a DOCUMENT navigation, which
-   * only LoginPage/OtpPage can perform. Both accept paths only — `//host`
-   * and absolute URLs are dropped, never followed.
+   * only LoginPage/OtpPage can perform. Both accept paths only — `//host`,
+   * `/\host` and absolute URLs are dropped, never followed — and `next` is
+   * followed only into an app's own screens (auth/nextTarget.ts).
    */
   validateSearch: (search: Record<string, unknown>): { returnTo?: string; next?: string } => ({
-    ...(typeof search.returnTo === 'string' &&
-    search.returnTo.startsWith('/') &&
-    !search.returnTo.startsWith('//')
-      ? { returnTo: search.returnTo }
-      : {}),
-    ...(typeof search.next === 'string' &&
-    search.next.startsWith('/') &&
-    !search.next.startsWith('//')
-      ? { next: search.next }
-      : {}),
+    ...(isLocalPath(search.returnTo) ? { returnTo: search.returnTo } : {}),
+    ...(isLocalPath(search.next) ? { next: search.next } : {}),
   }),
   beforeLoad: async ({ context }) => {
     redirectIfAuthed(context.queryClient);
@@ -420,7 +431,7 @@ const otpRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/otp',
   beforeLoad: ({ context }) => redirectIfAuthed(context.queryClient),
-  component: OtpPage,
+  component: OtpPageLazy,
 });
 
 /**
@@ -934,19 +945,26 @@ const changelogRoute = createRoute({
 // guarded: it acts on the caller's own account, so every signed-in user needs
 // it (a viewer changing their own password is the common case).
 
-const TeamPageLazy = lazy(async () => {
-  const mod = await import('../team/TeamPage.js');
-  return { default: mod.TeamPage };
-});
+/** A screen behind `StudioGuard`, its code fetched when it is first opened: `lazyRoute`, guarded. */
+function guardedRoute(requires: SystemAction, load: () => Promise<ComponentType>): () => ReactElement {
+  const Screen = lazyRoute(load);
+  return function GuardedRoute() {
+    return (
+      <StudioGuard requires={requires}>
+        <Screen />
+      </StudioGuard>
+    );
+  };
+}
+
+const TeamRouteComponent = guardedRoute('users.manage', async () => (await import('../team/TeamPage.js')).TeamPage);
+/** Teams: every team route asks for "manage users", reading included. */
+const TeamsRouteComponent = guardedRoute('users.manage', async () => (await import('../team/TeamsPage.js')).TeamsPage);
+const AuditRouteComponent = guardedRoute('audit.read', async () => (await import('../audit/AuditLogPage.js')).AuditLogPage);
 
 const RolesPageLazy = lazy(async () => {
   const mod = await import('../team/RolesPage.js');
   return { default: mod.RolesPage };
-});
-
-const AuditLogPageLazy = lazy(async () => {
-  const mod = await import('../audit/AuditLogPage.js');
-  return { default: mod.AuditLogPage };
 });
 
 const FilesPageLazy = lazy(async () => {
@@ -958,16 +976,6 @@ const SecurityPageLazy = lazy(async () => {
   const mod = await import('../account/SecurityPage.js');
   return { default: mod.SecurityPage };
 });
-
-function TeamRouteComponent() {
-  return (
-    <StudioGuard requires="users.manage">
-      <Suspense fallback={null}>
-        <TeamPageLazy />
-      </Suspense>
-    </StudioGuard>
-  );
-}
 
 /** Same choreography as `EmailMessages` — see the note above it. */
 function RolesMessages({ children }: { children: ReactElement }) {
@@ -982,16 +990,6 @@ function RolesRouteComponent() {
         <RolesMessages>
           <RolesPageLazy />
         </RolesMessages>
-      </Suspense>
-    </StudioGuard>
-  );
-}
-
-function AuditRouteComponent() {
-  return (
-    <StudioGuard requires="audit.read">
-      <Suspense fallback={null}>
-        <AuditLogPageLazy />
       </Suspense>
     </StudioGuard>
   );
@@ -1037,6 +1035,12 @@ const settingsTeamRoute = createRoute({
   getParentRoute: () => appRoute,
   path: '/settings/team',
   component: TeamRouteComponent,
+});
+
+const settingsTeamsRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/settings/teams',
+  component: TeamsRouteComponent,
 });
 
 const settingsRolesRoute = createRoute({
@@ -1103,6 +1107,7 @@ const routeTree = rootRoute.addChildren([
     knowledgeBaseRoute,
     changelogRoute,
     settingsTeamRoute,
+    settingsTeamsRoute,
     settingsRolesRoute,
     auditRoute,
     filesRoute,

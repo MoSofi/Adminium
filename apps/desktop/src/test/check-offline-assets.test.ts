@@ -83,10 +83,83 @@ describe('check-offline-assets — must-fail list', () => {
     expect(result.output).toContain('html-remote-tag');
   });
 
-  it('fails on a Leaflet/OSM tile URL (maps row)', () => {
+  it('fails on an OSM tile URL (maps row)', () => {
     const result = run(fixture({ 'app.js': 'const t="https://tile.openstreetmap.org/{z}/{x}/{y}.png";' }));
     expect(result.status).not.toBe(0);
     expect(result.output).toContain('tile.openstreetmap.org');
+  });
+
+  // The map server's address comes with the session and is written nowhere in
+  // the build: the default one, and the one it replaced, fail by name — in any
+  // spelling of a style, a tile or a subdomain template.
+  it('fails on the default map server written into the build (maps row)', () => {
+    for (const url of [
+      'https://tiles.openfreemap.org/styles/positron',
+      'https://tiles.openfreemap.org/planet/{z}/{x}/{y}.pbf',
+      'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+    ]) {
+      const result = run(fixture({ 'app.js': `const style=${JSON.stringify(url)};` }));
+      expect(result.status, url).not.toBe(0);
+      expect(result.output, url).toContain('blocked-host');
+    }
+  });
+
+  it('passes the link a person taps to open a place in their own maps app, and what MapLibre prints', () => {
+    const result = run(
+      fixture({
+        'map.js': [
+          'const href=`https://maps.apple.com/?ll=${at}`;',
+          'const logo="https://maplibre.org/";',
+          'throw new Error("See https://wiki.openstreetmap.org/wiki/This_map_requires_WebGL");',
+        ].join('\n'),
+      }),
+    );
+    expect(result.output).toContain('ok');
+    expect(result.status).toBe(0);
+  });
+
+  // Those three hosts are allowed for ONE string each — a link a person taps,
+  // an anchor MapLibre never adds, a line of an error message — not for
+  // anything else that might one day be written against the same host.
+  it('fails when one of the map’s three allowed hosts is a picture, a module or a request (maps row)', () => {
+    for (const [line, rule] of [
+      ['img.src="https://maps.apple.com/static/pin.png";', 'allowed-host-other-address'],
+      ['const lib=await import("https://maplibre.org/maplibre-gl.js");', 'allowed-host-other-address'],
+      ['const page=await fetch("https://wiki.openstreetmap.org/wiki/Main_Page");', 'allowed-host-other-address'],
+    ] as const) {
+      const result = run(fixture({ 'map.js': line }));
+      expect(result.status, line).not.toBe(0);
+      expect(result.output, line).toContain(rule);
+    }
+  });
+
+  it('fails when the very strings that are allowed are fetched instead of shown (maps row)', () => {
+    for (const line of [
+      'const page=await fetch("https://maplibre.org/");',
+      'img.src=`https://maps.apple.com/?ll=${at}`;',
+      'const help=await import("https://wiki.openstreetmap.org/wiki/This_map_requires_WebGL");',
+      'new Worker("https://maplibre.org/");',
+      'const tile={src:"https://maps.apple.com/?ll=1,2"};',
+    ]) {
+      const result = run(fixture({ 'map.js': line }));
+      expect(result.status, line).not.toBe(0);
+      expect(result.output, line).toContain('allowed-host-loaded');
+    }
+  });
+
+  it('still passes those strings as the build really writes them', () => {
+    const result = run(
+      fixture({
+        'map.js': [
+          'function href(o,e){return n?`https://maps.apple.com/?ll=${o}${e===""?"":`&q=${encodeURIComponent(e)}`}`:`geo:${o}`}',
+          't.rel="noopener nofollow",t.href="https://maplibre.org/";',
+          'const o={customAttribution:\'<a href="https://maplibre.org/" target="_blank">MapLibre</a>\'};',
+          'throw new Error("Failed to initialize WebGL. Read more on https://wiki.openstreetmap.org/wiki/This_map_requires_WebGL.");',
+        ].join('\n'),
+      }),
+    );
+    expect(result.output).toContain('ok');
+    expect(result.status).toBe(0);
   });
 
   it('fails on a remote @import — how Google Fonts is usually added', () => {

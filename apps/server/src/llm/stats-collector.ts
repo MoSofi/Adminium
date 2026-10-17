@@ -64,8 +64,9 @@ export function createConnectionStatsCollector(
 ): CollectRunStats {
   const maxTables = deps.maxTables ?? DEFAULT_MAX_STATS_TABLES;
 
-  return async ({ connectionId, model, sampling }): Promise<readonly StatsResult[]> => {
-    const tables = (model as DatabaseModel).tables.filter(isProfilable).slice(0, maxTables);
+  return async ({ connectionId, model, sampling, without }): Promise<readonly StatsResult[]> => {
+    // Not a table whose rows the asker reads only in part: its figures are every row's.
+    const tables = (model as DatabaseModel).tables.filter((table) => isProfilable(table) && without?.has(table.id) !== true).slice(0, maxTables);
     if (tables.length === 0) return [];
 
     const adapter = await deps.manager.dataAdapter(connectionId);

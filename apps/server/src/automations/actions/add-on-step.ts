@@ -62,7 +62,7 @@ function installedOf(action: StepAction, ctx: ActionContext): { step: InstalledS
 /** What a personal input may read: the rule's own words, and the record's personal columns with them. */
 function personalTokens(ctx: ActionContext): TokenMap {
   if (ctx.source === null) return ctx.tokens;
-  return tokensFor({ row: ctx.source.row, table: ctx.source.table, related: ctx.source.related, ruleName: ctx.rule.name, recordLabel: ctx.source.record.label, now: ctx.now, includeMasked: true });
+  return tokensFor({ row: ctx.source.row, table: ctx.source.table, related: ctx.source.related, people: ctx.source.people, was: ctx.source.was, ruleName: ctx.rule.name, recordLabel: ctx.source.record.label, now: ctx.now, includeMasked: true });
 }
 
 /** The inputs of a step whose value is kept personal by the add-on's own table. */

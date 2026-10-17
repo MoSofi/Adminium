@@ -21,7 +21,8 @@
  * can explain before it asks. This is the authority; that is the courtesy.
  */
 
-import { placeholdersIn } from '@adminium/manifest';
+import { stepRowProblems } from './step-rows.js';
+import { placeholderNames, placeholdersIn } from '@adminium/manifest';
 import type {
   AutomationAction,
   AutomationCondition,
@@ -33,6 +34,7 @@ import { yesNo } from './yes-no.js';
 import { isRelativeAutomationOp } from '@adminium/meta';
 
 import { ValidationFailedError } from '../errors.js';
+import { assertNotPrivate } from '../crud/row-limit.js';
 import type { ResolvedColumn, ResolvedTable, SnapshotView } from '../crud/identifiers.js';
 import { guardOutboundUrl } from '../connections/dsn.js';
 import { isConditionComplete } from './conditions.js';
@@ -105,10 +107,13 @@ export function isActionComplete(action: AutomationAction): boolean {
     case 'email':
       if (action.templateKey === null || action.templateKey === '') return false;
       if (action.to === null) return false;
-      return action.to.kind === 'field' ? action.to.column !== '' : action.to.addresses.length > 0;
+      return action.to.kind === 'fixed' ? action.to.addresses.length > 0 : action.to.kind === 'listed' ? action.to.table !== '' : action.to.column !== '';
     case 'notification':
       if (action.to === null || action.title.trim() === '') return false;
-      return 'users' in action.to ? action.to.users.length > 0 : action.to.roles.length > 0;
+      return 'users' in action.to ? action.to.users.length > 0 : 'column' in action.to ? action.to.column !== '' : 'listed' in action.to ? action.to.listed !== '' : action.to.roles.length > 0;
+    case 'digest':
+      if (action.templateKey === null || action.templateKey === '' || action.to === null || action.to.roles.length === 0 || action.sections.length === 0) return false;
+      return action.sections.every((section) => section.table !== '' && section.owner !== '' && section.where.every(isConditionComplete));
     case 'record.create':
       return action.table !== null && action.table !== '' && Object.keys(action.values).length > 0;
     case 'record.update':
@@ -152,6 +157,9 @@ export interface ResolveContext {
  * and a scan resolves the table it scans.
  */
 const NO_RECORD_REMEDY = 'Give the schedule a table, or trigger the rule on a record.';
+
+/** What a summary's section may add up. */
+const SUMMED_TYPES: ReadonlySet<string> = new Set(['integer', 'bigint', 'decimal', 'float']);
 
 function tableOrThrow(ctx: ResolveContext, id: string, where: string): ResolvedTable {
   if (ctx.view === null) {
@@ -204,6 +212,35 @@ function relatedColumn(table: ResolvedTable, ref: RelatedRef, ctx: ResolveContex
   return { target: target.table, column };
 }
 
+/**
+ * The staff column a step tells: the record's own (`owner_id`), or one of the
+ * row a link of it names (`deal_id.owner_id`). Read as the author reads the
+ * schema, and it must hold a staff member: any other column names nobody.
+ */
+function staffColumn(path: string, table: ResolvedTable | null, ctx: ResolveContext, where: string): void {
+  if (table === null) throw new ValidationFailedError(`${where}: this rule has no record, so there is no person on it to tell. ${NO_RECORD_REMEDY}`, {});
+  const related = parseRelated(path);
+  const of = related === null ? table : relatedColumn(table, related, ctx, where).target;
+  const name = related === null ? path : related.column;
+  if (related === null && readColumn(table, path, where) === undefined) throw new ValidationFailedError(`${where}: ${table.id} has no column ${path}.`, { column: path });
+  if (of.table.columns.find((column) => column.name === name)?.staff !== true) {
+    throw new ValidationFailedError(`${where}: ${of.id}.${name} does not hold a staff member, so it names nobody to tell.`, { column: path, reason: 'not-staff' });
+  }
+}
+
+/**
+ * A table that lists people against the rule's record: one of the record's
+ * table's `belongs` ways reads `through` it. Named by its id; an empty name is
+ * a step not finished yet, as an empty column is.
+ */
+function listingTable(listed: string, table: ResolvedTable | null, where: string): void {
+  if (listed === '') return;
+  if (table === null) throw new ValidationFailedError(`${where}: this rule has no record, so nobody is listed on it to tell. ${NO_RECORD_REMEDY}`, {});
+  if (!(table.table.belongs ?? []).some((way) => 'through' in way && way.through.table === listed)) {
+    throw new ValidationFailedError(`${where}: ${listed} lists nobody against ${table.id}, so it names nobody to tell.`, { table: listed, reason: 'not-a-listing' });
+  }
+}
+
 /** A typed address, as a mail server would take it: one @, something on both sides, a dot after it, no spaces. */
 const ADDRESS = /^[^\s@,;<>]+@[^\s@,;<>]+\.[^\s@,;<>]+$/;
 
@@ -212,9 +249,29 @@ function checkCondition(
   table: ResolvedTable,
   ctx: ResolveContext,
   where: string,
+  /** An amount may be read from a setting here: a schedule's scan, a condition step. */
+  settingsOk = false,
 ): void {
+  const right = condition.right;
+  if (typeof right === 'object' && right !== null && right.setting !== undefined) {
+    if (!settingsOk || 'count' in condition.left) {
+      throw new ValidationFailedError(`${where}: an amount read from a setting is read by a schedule's conditions and by a condition step, not here.`, { reason: 'setting-not-here' });
+    }
+    const held = tableOrThrow(ctx, right.setting.table, where);
+    // Which rows a rule visits tells what the number is: a number nobody may read is no amount, the Super Admin's rules included.
+    assertNotPrivate(held, 'no rule reads its numbers');
+    const column = readColumn(held, right.setting.column, where);
+    if (column === undefined) throw new ValidationFailedError(`${where}: ${held.id} has no column ${right.setting.column}.`, { column: right.setting.column });
+    if (column.secret || column.masked) {
+      throw new ValidationFailedError(`${where}: ${held.id}.${right.setting.column} is a protected column, so it holds no amount a rule may read.`, { column: right.setting.column, reason: 'setting-protected' });
+    }
+    if (column.logicalType !== 'integer' && column.logicalType !== 'bigint') {
+      throw new ValidationFailedError(`${where}: ${held.id}.${right.setting.column} is not a whole-number column, so it holds no amount of time.`, { column: right.setting.column, reason: 'setting-not-a-number' });
+    }
+  }
   if ('count' in condition.left) {
     const counted = tableOrThrow(ctx, condition.left.count.table, where);
+    assertNotPrivate(counted, 'no rule counts its rows');
     const match = readColumn(counted, condition.left.count.matchColumn, where);
     if (condition.left.count.matchColumn !== '' && match === undefined) {
       throw new ValidationFailedError(
@@ -269,6 +326,10 @@ function checkAction(
           { templateKey: action.templateKey },
         );
       }
+      if (action.to?.kind === 'staff' && action.to.column !== '') staffColumn(action.to.column, table, ctx, where);
+      if (action.to?.kind === 'listed') listingTable(action.to.table, table, where);
+      // A reply goes to a person a staff column names, and to nobody an address column or a typed text could name.
+      if (action.replyTo !== undefined) staffColumn(action.replyTo.staff, table, ctx, where);
       if (action.to?.kind === 'field' && action.to.column !== '') {
         if (table === null) {
           throw new ValidationFailedError(
@@ -287,6 +348,65 @@ function checkAction(
         const wrong = action.to.addresses.map((address) => address.trim()).find((address) => address !== '' && !ADDRESS.test(address));
         if (wrong !== undefined) {
           throw new ValidationFailedError(`${where}: “${wrong}” is not an email address.`, { address: wrong, reason: 'not-an-address' });
+        }
+      }
+      return;
+    }
+    case 'notification': {
+      if (action.to !== null && 'column' in action.to && action.to.column !== '') staffColumn(action.to.column, table, ctx, where);
+      if (action.to !== null && 'listed' in action.to) listingTable(action.to.listed, table, where);
+      // A notice to a lead goes somewhere when there is none: it is never quietly nobody's.
+      if (action.to !== null && 'column' in action.to && action.to.lead === true && (action.to.else?.roles.length ?? 0) === 0) {
+        throw new ValidationFailedError(`${where}: a notice to the lead of the person in ${action.to.column} says which roles are told when there is none.`, { column: action.to.column, reason: 'lead-without-else' });
+      }
+      return;
+    }
+    case 'digest': {
+      if (action.templateKey !== null && action.templateKey !== '' && !ctx.templateKeys.has(action.templateKey)) {
+        throw new ValidationFailedError(`${where}: there is no live email template with the key ${action.templateKey}.`, { templateKey: action.templateKey });
+      }
+      const keys = new Set<string>();
+      for (const section of action.sections) {
+        if (keys.has(section.key)) throw new ValidationFailedError(`${where}: two sections are called "${section.key}".`, { section: section.key });
+        keys.add(section.key);
+        if (section.table === '') continue;
+        // Read as the rule's author reads it: a table or a column they are not shown is not theirs to list for others.
+        const of = tableOrThrow(ctx, section.table, `${where}, section "${section.key}"`);
+        if (section.owner !== '') {
+          if (readColumn(of, section.owner, where) === undefined) throw new ValidationFailedError(`${where}: ${of.id} has no column ${section.owner}.`, { column: section.owner });
+          if (of.table.columns.find((column) => column.name === section.owner)?.staff !== true) {
+            throw new ValidationFailedError(`${where}: ${of.id}.${section.owner} does not hold a staff member, so a section cannot list "the rows that are this person's" by it.`, { column: section.owner, reason: 'not-staff' });
+          }
+        }
+        for (const condition of section.where) {
+          if ('count' in condition.left) throw new ValidationFailedError(`${where}: a section's conditions are read by the database, and cannot count other rows.`, { table: of.id });
+          checkCondition(condition, of, ctx, `${where}, section "${section.key}"`);
+        }
+        if (section.orderBy !== null && readColumn(of, section.orderBy.column, where) === undefined) {
+          throw new ValidationFailedError(`${where}: ${of.id} has no column ${section.orderBy.column}.`, { column: section.orderBy.column });
+        }
+        // A figure is the author's to ask for only over what the author reads; each reader is then judged again, as themselves.
+        const number = (table: ResolvedTable, name: string): void => {
+          const column = readColumn(table, name, where);
+          if (column === undefined) throw new ValidationFailedError(`${where}: ${table.id} has no column ${name}.`, { column: name });
+          if (!SUMMED_TYPES.has(column.logicalType)) throw new ValidationFailedError(`${where}: ${table.id}.${name} is not a number, so it cannot be added up.`, { column: name, reason: 'not-a-number' });
+        };
+        for (const name of section.sum ?? []) number(of, name);
+        if (section.by !== undefined && section.orderBy !== null) {
+          throw new ValidationFailedError(`${where}: the section "${section.key}" lists one line a person, by name: it has no order of its own.`, { section: section.key });
+        }
+        if (section.target !== undefined) {
+          const target = section.target;
+          if (!(section.sum ?? []).includes(target.of)) throw new ValidationFailedError(`${where}: the section "${section.key}" measures ${target.of} against a target, and does not add ${target.of} up.`, { column: target.of });
+          const goals = tableOrThrow(ctx, target.table, `${where}, section "${section.key}"`);
+          if (readColumn(goals, target.owner, where) === undefined || goals.table.columns.find((column) => column.name === target.owner)?.staff !== true) {
+            throw new ValidationFailedError(`${where}: ${goals.id}.${target.owner} does not hold a staff member, so a target cannot be somebody's by it.`, { column: target.owner, reason: 'not-staff' });
+          }
+          number(goals, target.column);
+          if (target.year !== undefined) {
+            const year = readColumn(goals, target.year, where);
+            if (year === undefined || (year.logicalType !== 'integer' && year.logicalType !== 'bigint')) throw new ValidationFailedError(`${where}: ${goals.id}.${target.year} is not a whole number, so it cannot hold a year.`, { column: target.year });
+          }
         }
       }
       return;
@@ -311,7 +431,7 @@ function checkAction(
       }
       const target = tableOrThrow(ctx, action.table, where);
       assertNotSystem(target, where);
-      checkValues(action.values, target, where);
+      checkValues(action.values, target, where, ctx, table);
       return;
     }
     case 'record.update': {
@@ -332,7 +452,7 @@ function checkAction(
         );
       }
       assertNotSystem(table, where);
-      checkValues(action.values, table, where);
+      checkValues(action.values, table, where, ctx, table);
       return;
     }
     case 'webhook': {
@@ -351,8 +471,6 @@ function checkAction(
       }
       return;
     }
-    case 'notification':
-      return;
     case 'add-on.step': {
       // Unfinished is allowed to be saved, and so is a step whose add-on is gone or off: the
       // step keeps its settings, the rule cannot be switched on (`firstIncompleteNode`), and
@@ -410,12 +528,32 @@ function assertNotSystem(table: ResolvedTable, where: string): void {
   }
 }
 
+/**
+ * A column of the app's settings row a value reads: a table the author reads
+ * (`requiredGrants` asks it), not private, and a column shown to them that is
+ * neither secret nor personal. A value written into another row is a way to
+ * read it, the Super Admin's rules included.
+ */
+function settingColumn(setting: { table: string; column: string }, ctx: ResolveContext, where: string): ResolvedColumn & { staff: boolean } {
+  const held = tableOrThrow(ctx, setting.table, where);
+  assertNotPrivate(held, 'no rule reads its values');
+  const column = readColumn(held, setting.column, where);
+  if (column === undefined) throw new ValidationFailedError(`${where}: ${held.id} has no column ${setting.column}.`, { column: setting.column });
+  if (column.secret || column.masked) {
+    throw new ValidationFailedError(`${where}: ${held.id}.${setting.column} is a protected column, so no rule writes it into another row.`, { column: setting.column, reason: 'setting-protected' });
+  }
+  return { ...column, staff: held.table.columns.find((candidate) => candidate.name === setting.column)?.staff === true };
+}
+
 function checkValues(
   values: Record<string, unknown>,
   table: ResolvedTable,
   where: string,
+  ctx?: ResolveContext,
+  /** The run's record: what a day so many days on counts from. */
+  record: ResolvedTable | null = null,
 ): void {
-  for (const column of Object.keys(values)) {
+  for (const [column, value] of Object.entries(values)) {
     const resolved = table.columns.get(column);
     if (resolved === undefined) {
       throw new ValidationFailedError(`${where}: ${table.id} has no column ${column}.`, { column });
@@ -425,6 +563,32 @@ function checkValues(
         `${where}: ${column} is a protected column and cannot be written by a rule.`,
         { column },
       );
+    }
+    if (typeof value !== 'object' || value === null || ctx === undefined) continue;
+    if ('setting' in value) {
+      const setting = (value as { setting: { table: string; column: string } }).setting;
+      const held = settingColumn(setting, ctx, where);
+      // A person is filled from a column that holds one.
+      if (table.table.columns.find((candidate) => candidate.name === column)?.staff === true && !held.staff) {
+        throw new ValidationFailedError(`${where}: ${table.id}.${column} holds a staff member, and ${setting.table}.${setting.column} does not.`, { column, reason: 'not-staff' });
+      }
+    }
+    if ('daysAfter' in value) {
+      const after = (value as { daysAfter: { column?: string; setting?: { table: string; column: string } } }).daysAfter;
+      if (!isDateColumn(resolved)) throw new ValidationFailedError(`${where}: ${column} is not a date column, so it takes no day.`, { column });
+      if (after.column !== undefined) {
+        if (record === null) throw new ValidationFailedError(`${where}: this rule has no record, so there is no date of it to count from. ${NO_RECORD_REMEDY}`, {});
+        const from = readColumn(record, after.column, where);
+        if (from === undefined) throw new ValidationFailedError(`${where}: ${record.id} has no column ${after.column}.`, { column: after.column });
+        if (!isDateColumn(from)) throw new ValidationFailedError(`${where}: ${after.column} is not a date column, so no days are counted from it.`, { column: after.column });
+        if (from.secret || from.masked) throw new ValidationFailedError(`${where}: ${after.column} is a protected column, so no rule counts days from it.`, { column: after.column, reason: 'protected' });
+      }
+      if (after.setting !== undefined) {
+        const held = settingColumn(after.setting, ctx, where);
+        if (held.logicalType !== 'integer' && held.logicalType !== 'bigint') {
+          throw new ValidationFailedError(`${where}: ${after.setting.table}.${after.setting.column} is not a whole-number column, so it holds no number of days.`, { column: after.setting.column, reason: 'setting-not-a-number' });
+        }
+      }
     }
   }
   // A state reached only by a move marked undo is a person's to make, naming the state they saw: a rule never can.
@@ -459,7 +623,7 @@ export function resolveRule(
     for (const condition of trigger.when ?? []) checkCondition(condition, table, ctx, 'The trigger');
   } else if (trigger.forEach !== undefined) {
     table = tableOrThrow(ctx, trigger.forEach.table, 'The schedule');
-    if (trigger.forEach.once && trigger.forEach.where.length === 0) {
+    if (trigger.forEach.once !== false && trigger.forEach.where.length === 0) {
       // "Once per record" over an unfiltered table fires for every row of the
       // table on the first tick and never again — never what anybody means.
       throw new ValidationFailedError(
@@ -472,7 +636,20 @@ export function resolveRule(
       if ('count' in condition.left) {
         throw new ValidationFailedError("A schedule's conditions are read by the database. Count related rows in a step after it.", { table: table.id });
       }
-      checkCondition(condition, table, ctx, 'The schedule');
+      checkCondition(condition, table, ctx, 'The schedule', true);
+    }
+  }
+  // The record as it was (`{{was.<column>}}`): there is one only for a change, and only of the record's own columns.
+  for (const node of flattenNodes(graph)) {
+    if (node.kind !== 'action') continue;
+    for (const name of placeholderNames(node.action)) {
+      if (!name.startsWith('was.')) continue;
+      const where = `Step “${node.title}”`;
+      if (trigger.kind !== 'record' || trigger.event !== 'updated' || table === null) {
+        throw new ValidationFailedError(`${where}: {{${name}}} is the record as it was before a change, and only a rule run when its record is updated has one.`, { placeholder: name, reason: 'was-without-change' });
+      }
+      const column = name.slice('was.'.length);
+      if (readColumn(table, column, where) === undefined) throw new ValidationFailedError(`${where}: ${table.id} has no column ${column}.`, { column });
     }
   }
 
@@ -480,9 +657,20 @@ export function resolveRule(
     const where = `Step “${node.title}”`;
     if (node.kind === 'action') checkAction(node.action, table, ctx, where);
     else if ((node.kind === 'condition' || node.kind === 'branch') && table !== null) {
-      checkCondition(node.condition, table, ctx, where);
+      checkCondition(node.condition, table, ctx, where, true);
     }
   }
+  // A row a step makes, read by a later one (`{{steps.deal.id}}`): made before it is read, and only what its author is shown.
+  const problem = stepRowProblems(graph, (name) => {
+    let made: ResolvedTable;
+    try {
+      made = tableOrThrow(ctx, name, '');
+    } catch {
+      return null;
+    }
+    return { id: made.id, readable: (column) => (!made.columns.has(column) ? 'none' : made.columns.get(column)!.unreadable === true || made.columns.get(column)!.secret || made.columns.get(column)!.masked ? 'hidden' : 'ok') };
+  })[0];
+  if (problem !== undefined) throw new ValidationFailedError(`Step “${problem.title}”: ${problem.message}`, { nodeId: problem.nodeId, reason: 'step-row' });
   // A placeholder that reaches through a link (`{{customer_id.name}}`): the link and the far
   // column must be there, and a protected column is no placeholder there either. A name whose
   // first half is no link is left alone: an unknown placeholder stays as written, as ever.
@@ -585,12 +773,34 @@ export function requiredGrants(
     add(trigger.forEach.table, 'read');
   }
 
+  // A table a condition reads beside the record: one whose rows it counts, one a setting's amount is kept in. Which
+  // way a condition goes tells what that table holds, so its author must read it as surely as one a step reads.
+  const besides = (condition: AutomationCondition): void => {
+    if ('count' in condition.left) add(condition.left.count.table, 'read');
+    const right = condition.right;
+    if (typeof right === 'object' && right !== null && right.setting !== undefined) add(right.setting.table, 'read');
+  };
+  if (trigger.kind === 'record') for (const condition of trigger.when ?? []) besides(condition);
+  else if (trigger.forEach !== undefined) for (const condition of trigger.forEach.where) besides(condition);
+
   for (const node of flattenNodes(graph)) {
+    if (node.kind === 'condition' || node.kind === 'branch') besides(node.condition);
     if (node.kind !== 'action') continue;
     if (node.action.kind === 'record.create' && node.action.table !== null) {
       add(node.action.table, 'create');
     }
+    // A value read from the settings row, or a number of days kept there: its author must read that table.
+    if (node.action.kind === 'record.create' || node.action.kind === 'record.update') {
+      for (const value of Object.values(node.action.values)) {
+        if (typeof value !== 'object') continue;
+        if ('setting' in value) add(value.setting.table, 'read');
+        if ('daysAfter' in value && value.daysAfter.setting !== undefined) add(value.daysAfter.setting.table, 'read');
+      }
+    }
     if (node.action.kind === 'record.update' && subject !== null) add(subject, 'update');
+    // Telling the people a listing names reads that listing's rows.
+    if (node.action.kind === 'notification' && node.action.to !== null && 'listed' in node.action.to) add(node.action.to.listed, 'read');
+    if (node.action.kind === 'email' && node.action.to?.kind === 'listed') add(node.action.to.table, 'read');
     if (node.action.kind === 'add-on.step' && steps !== undefined && node.action.addOn !== '' && node.action.step !== '') {
       const answer = steps(node.action.addOn, node.action.step);
       if (answer.state === 'ok' && answer.step.table !== null) add(answer.step.table, 'create');

@@ -23,6 +23,7 @@ import type { LocaleId } from '@adminium/i18n/registry';
 import type { Accent, Density, ThemePref } from '@adminium/tokens';
 import { Badge, Button, Card, CardBody, Divider, useThemePrefs } from '@adminium/ui';
 
+import { useCommonWords } from '../i18n/commonWords.js';
 import { t } from '../i18n/t.js';
 import {
   AccentControl,
@@ -77,6 +78,8 @@ function PrefRow(props: {
 }
 
 export function PreferencesPage(): ReactNode {
+  // This screen's words load with it, not with the first paint (the `account` group of `common`).
+  useCommonWords();
   const queryClient = useQueryClient();
   const { data } = useSuspenseQuery(mePrefsQuery());
   const { prefs: effective, setPref, clearSessionPref } = useThemePrefs();

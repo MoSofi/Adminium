@@ -37,11 +37,15 @@
  * of every fork".
  */
 
+import { dryRunDigestAction, runDigestAction } from './digest.js';
+import { assertStepRowsMade, stepTokensOf } from './step-rows.js';
+import { rulePartOff } from '../rbac/app-parts.js';
 import type { Kysely } from 'kysely';
 import type { FastifyInstance } from 'fastify';
 import {
   automationDurationMs,
   type Automation,
+  type AutomationCondition,
   type AutomationGraph,
   type AutomationNode,
   type AutomationTrace,
@@ -50,7 +54,7 @@ import {
 } from '@adminium/meta';
 
 import type { ConnectionManager, SourceDatabase } from '../connections/manager.js';
-import type { SnapshotView } from '../crud/identifiers.js';
+import type { ResolvedTable, SnapshotView } from '../crud/identifiers.js';
 import type { Row } from '../crud/mask.js';
 import { fetchByPk } from '../crud/records.js';
 import { loadSnapshotView } from '../data-io/snapshot-view.js';
@@ -73,6 +77,8 @@ import { ActionFailure, type ActionContext, type ActionSource } from './actions/
 import { evaluateCondition, type ConditionContext } from './conditions.js';
 import { countRelatedRows } from './related-count.js';
 import { loadRelated, relatedUses } from './related.js';
+import { staffNamesOf } from './staff-recipient.js';
+import { readsSettings, ruleSettingReader, withSettingAmounts } from './setting-operands.js';
 import type { StepLookup } from './add-on-steps.js';
 import { flattenNodes } from './validate.js';
 import { tokensFor } from './templating.js';
@@ -188,6 +194,12 @@ export async function walkRule(deps: RunnerDeps, input: WalkInput): Promise<RunO
       trace.setResume(null);
       return { kind: 'finished', status: 'skipped', trace: trace.snapshot(), workMs: 0, error: null };
     }
+    // A run claimed while its part was on, reached after it was switched off: passed over, and said.
+    if (await rulePartOff(deps.meta, input.rule)) {
+      trace.add({ nodeId: 'owner', name: input.rule.name, kind: 'trigger', status: 'skip', startedAt: now, log: text.partOff() });
+      trace.setResume(null);
+      return { kind: 'finished', status: 'skipped', trace: trace.snapshot(), workMs: 0, error: null };
+    }
   }
 
   const source = await openSource(deps, input.event);
@@ -228,18 +240,30 @@ export async function walkRule(deps: RunnerDeps, input: WalkInput): Promise<RunO
   if (deps.steps !== undefined && flattenNodes(input.rule.graph).some((node) => node.kind === 'action' && node.action.kind === 'add-on.step')) ctx.steps = await deps.steps();
   // The rows the rule reaches through a link, read once for the whole run.
   if (source !== null) source.related = await loadRelated(source, relatedUses(input.rule.graph).map((use) => use.link));
+  // The names of the people its staff columns name, for `{{owner_id.name}}`.
+  if (source !== null) source.people = await staffNamesOf(deps.meta, source);
   const refreshTokens = (): void => {
-    ctx.tokens = tokensFor({
-      row: source?.row ?? null,
-      table: source?.table ?? null,
-      related: source?.related,
-      ruleName: input.rule.name,
-      recordLabel: source?.record.label ?? '',
-      now,
-    });
+    ctx.tokens = {
+      ...tokensFor({
+        row: source?.row ?? null,
+        table: source?.table ?? null,
+        related: source?.related,
+        people: source?.people,
+        was: source?.was,
+        ruleName: input.rule.name,
+        recordLabel: source?.record.label ?? '',
+        now,
+      }),
+      // The rows the steps so far made, read back from the trace: there after a wait too, when nothing else is.
+      ...stepTokensOf(trace.steps),
+    };
+    ctx.made = trace.steps.flatMap((step) => (step.made === undefined || step.status !== 'ok' ? [] : [step.made]));
   };
   refreshTokens();
 
+  // A condition whose amount a setting holds reads it as the step reaches it.
+  const settled = async (condition: AutomationCondition): Promise<AutomationCondition> =>
+    source === null || !readsSettings([condition]) ? condition : ((await withSettingAmounts([condition], ruleSettingReader(deps.meta, source.db, source.view)))[0] as AutomationCondition);
   const conditionCtx = (): ConditionContext => ({
     row: source?.row ?? null,
     table: source?.table ?? null,
@@ -269,7 +293,7 @@ export async function walkRule(deps: RunnerDeps, input: WalkInput): Promise<RunO
   const branchLogs = new Map<string, string>();
   const decide = async (node: AutomationNode): Promise<number | null> => {
     if (node.kind !== 'branch' || halted) return null;
-    const ok = await evaluateCondition(node.condition, conditionCtx());
+    const ok = await evaluateCondition(await settled(node.condition), conditionCtx());
     const chosen = ok ? 0 : 1;
     branchLogs.set(node.id, node.branches[chosen].label);
     return chosen;
@@ -327,7 +351,7 @@ export async function walkRule(deps: RunnerDeps, input: WalkInput): Promise<RunO
     }
 
     if (node.kind === 'condition') {
-      const ok = await evaluateCondition(node.condition, conditionCtx());
+      const ok = await evaluateCondition(await settled(node.condition), conditionCtx());
       trace.add({
         nodeId: node.id,
         name: node.title,
@@ -372,9 +396,9 @@ export async function walkRule(deps: RunnerDeps, input: WalkInput): Promise<RunO
 
     // An action.
     try {
+      // A step that reads a row no earlier step made stops here, before it does anything.
+      assertStepRowsMade(node.action, ctx.tokens);
       const result = dryRun ? await dryRunAction(node, ctx) : await runAction(node, ctx);
-      // A write moves the record under the run's feet, on purpose (C.3).
-      refreshTokens();
       trace.add({
         nodeId: node.id,
         name: node.title,
@@ -383,7 +407,10 @@ export async function walkRule(deps: RunnerDeps, input: WalkInput): Promise<RunO
         startedAt,
         durationMs: (deps.now ?? Date.now)() - startedAt,
         log: result.log,
+        ...(result.made === undefined ? {} : { made: result.made }),
       });
+      // A write moves the record under the run's feet, on purpose (C.3); and a row just made is there for the next step.
+      refreshTokens();
     } catch (caught) {
       const message = caught instanceof Error ? caught.message : String(caught);
       trace.add({
@@ -433,6 +460,8 @@ async function runAction(node: AutomationNode, ctx: ActionContext) {
       return runEmailAction(node.action, ctx);
     case 'notification':
       return runNotificationAction(node.action, ctx);
+    case 'digest':
+      return runDigestAction(node.action, ctx);
     case 'record.create':
       return runCreateAction(node.action, ctx);
     case 'record.update':
@@ -453,6 +482,8 @@ async function dryRunAction(node: AutomationNode, ctx: ActionContext) {
       return dryRunEmailAction(node.action, ctx);
     case 'notification':
       return dryRunNotificationAction(node.action, ctx);
+    case 'digest':
+      return dryRunDigestAction(node.action, ctx);
     case 'record.create':
       return dryRunCreateAction(node.action, ctx);
     case 'record.update':
@@ -476,9 +507,17 @@ async function openSource(
 ): Promise<ActionSource | null | 'gone'> {
   const record = event.record;
   if (record === null) return null;
-  const view: SnapshotView = await loadSnapshotView(deps.meta, record.connectionId);
+  // As a rule reads: a private table is not in its view. A run set off by a row of one (a rule older than the mark) finds no record.
+  const view: SnapshotView = await loadSnapshotView(deps.meta, record.connectionId, { forOthers: true });
   const { db, dialect } = await deps.manager.data(record.connectionId);
-  const table = view.table(record.table);
+  let table: ResolvedTable;
+  try {
+    table = view.table(record.table);
+  } catch (error) {
+    // Only a private table is passed over; a table that is not there at all fails the run, as it always did.
+    if ((await loadSnapshotView(deps.meta, record.connectionId)).linkTable(record.table)?.table.private === true) return 'gone';
+    throw error;
+  }
   // A `deleted` trigger is about a row that is SUPPOSED to be gone, so the row
   // as it was is the run's record — there is nothing to re-read. Its values,
   // not the trace's masked `snapshot` (a code there reads `[code]`); a run
@@ -492,9 +531,12 @@ async function openSource(
       table,
       record,
       row: (event.values ?? event.snapshot ?? {}) as Row,
+      removed: true,
     };
   }
   const row = await fetchByPk(db, table, record.pk as Row);
   if (row === undefined) return 'gone';
-  return { connectionId: record.connectionId, view, db, dialect, table, record, row };
+  // A change: the row as it was, when the run kept it (`{{was.<column>}}`).
+  const was = event.event === 'record.updated' ? ((event.before ?? null) as Row | null) : undefined;
+  return { connectionId: record.connectionId, view, db, dialect, table, record, row, ...(was === undefined ? {} : { was }) };
 }

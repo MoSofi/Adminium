@@ -326,7 +326,7 @@ test('design opens signed in; a request builds, applies, previews and draws an a
   await expect(needs).toContainText('Added: pictures from images.example.com.');
   await expect(page.getByText(/^Pictures from images\.example\.com: Pictures from images\.example\.com show now\./)).toBeVisible({ timeout: 120_000 });
   // In the next reply's policy, with no restart, and kept in the project's .env for the next start.
-  expect(await policyOf()).toMatch(/img-src 'self'[^;]* https:\/\/images\.example\.com(;|$)/);
+  expect(await policyOf()).toMatch(/img-src 'self'[^;]* https:\/\/images\.example\.com( |;|$)/);
   expect(readFileSync(project.path('.env'), 'utf8')).toMatch(/^ADMINIUM_CSP_IMG_HOSTS=https:\/\/images\.example\.com$/m);
 
   // The turn is over: the file can be changed by hand. A change is marked, saved with the key, applied, and is a version of its own.

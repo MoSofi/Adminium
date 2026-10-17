@@ -234,8 +234,8 @@ function secondaryColumnsOf(names: readonly string[] | undefined, columns: reado
 export function MiniTableWidget({ config, data, onEvent }: WidgetProps<MiniTableConfig>) {
   const columns: readonly GridColumnSpec[] = columnsOf(config, data);
   const secondary = secondaryColumnsOf(config.secondary, columns, data);
-  // A limit's counts list pools, not the bound table's records: nothing to open.
-  const source = config.binding?.kind === 'capacity-counts' ? undefined : bindingTable(config);
+  // A limit's counts list pools, and a team's figures list people, not the bound table's records: nothing to open.
+  const source = config.binding?.kind === 'capacity-counts' || config.binding?.kind === 'team-figures' ? undefined : bindingTable(config);
   return (
     <MiniTable
       columns={columns}

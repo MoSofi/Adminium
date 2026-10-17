@@ -191,7 +191,7 @@ export function downloadApp(key: string, version: string): Promise<{ jobId: stri
 export function updateApp(
   key: string,
   /** The check the operator saw for the new version: its checksum, what they chose, and their say on its public access. */
-  checked?: { planChecksum?: string; choices?: InstallAnswers['choices']; shares?: InstallAnswers['shares']; publicAccess?: boolean },
+  checked?: { planChecksum?: string; choices?: InstallAnswers['choices']; shares?: InstallAnswers['shares']; publicAccess?: boolean; roleTables?: boolean },
 ): Promise<{ app: InstalledAppResult; from: string; to: string; pruned: string[] }> {
   return api.post<{ app: InstalledAppResult; from: string; to: string; pruned: string[] }>(
     `/api/v1/apps/${encodeURIComponent(key)}/update`,
@@ -613,6 +613,12 @@ export interface AppInstallPlan {
   ruleWarnings?: { table: string; column: string; message: string }[];
   /** The app ships sample data, added once it is installed. Absent from an older server. */
   sampleData?: boolean;
+  /** The parts of the app its owner switches on and off. Absent for an app with none. */
+  modules?: PlanModule[];
+  /** Beside `modules`: the roles and the rules of no part, for the Parts card's counts. Absent from an older server. */
+  whole?: PlanWhole;
+  /** The app shows maps and nobody has said yet whether this install shows them: the check asks. */
+  maps?: boolean;
   /**
    * What the app's customer screens may do through the public API, made at
    * install unless declined. Absent when the app asks for none.
@@ -678,6 +684,33 @@ export interface AppInstallPlan {
    * add-on serves. Absent when none, and from an older server.
    */
   addOnGrants?: { role: string; roleName: string; addOn: string; grant: 'settings' }[];
+  /**
+   * What each role would hold of the tables of the add-ons the app names, with
+   * the columns of each action, cut to each add-on's own words. Absent when
+   * none, and from an older server.
+   */
+  roleTables?: PlanRoleTable[];
+}
+
+/** One role's hold on one of an add-on's tables, as the check shows it (mirrors the server's `roleTables`). */
+export interface PlanRoleTable {
+  role: string;
+  roleName: string;
+  addOn: string;
+  table: string;
+  /** What the role will hold. */
+  actions: string[];
+  /** The columns each action reaches; absent, every column. */
+  readable?: string[];
+  writable?: string[];
+  creatable?: string[];
+  /** What the app asks for and the role will not get. */
+  narrowed?: { actions: string[]; readable?: string[]; writable?: string[]; creatable?: string[] };
+  skipped?: string;
+  /** The add-on is not on this server: what the app asks, before the add-on's own words cut it. */
+  unchecked?: true;
+  /** An update's check: what this version's role holds that the running one's did not (`*`: every column). */
+  wider?: { actions: string[]; columns: string[] };
 }
 
 export type TableClass = 'new' | 'own-leftover' | 'shared' | 'taken';
@@ -756,6 +789,8 @@ export function planApp(
     key: string;
     version: string;
     connectionId: string;
+    /** The add-ons the install would bring, by key: the plan is of the app as it would stand with them. */
+    addOns?: string[];
   } & InstallAnswers,
 ): Promise<{ plan: AppInstallPlan }> {
   return api.post<{ plan: AppInstallPlan }>('/api/v1/apps/plan', input);
@@ -803,6 +838,10 @@ export function installApp(
     publicAccess?: boolean;
     /** The add-ons to install, connect or update with the app. */
     addOns?: AddOnChoice[];
+    /** The parts of the app to start with, by id; one left out starts as the app says. */
+    modules?: Record<string, boolean>;
+    /** Whether maps are shown on this install, when the check asked. */
+    maps?: boolean;
   } & InstallAnswers,
 ): Promise<InstalledAppResult> {
   return api.post<InstalledAppResult>('/api/v1/apps/install', input);
@@ -884,4 +923,75 @@ export function ddlPreview(table: PlannedTable): string {
     .map((column) => `  ${column.ref.padEnd(width)}  ${column.type}`)
     .join(',\n');
   return `CREATE TABLE ${table.ref} (\n${body}\n);`;
+}
+
+// ── The parts of an app ─────────────────────────────────────────────────────
+
+/** One part of an app, as the install check offers it. */
+export interface PlanModule {
+  id: string;
+  label: ManifestWords;
+  default: 'on' | 'off' | 'always';
+  /** How it stands on an app already installed. */
+  on?: boolean;
+  /** The add-ons its feature needs, by key. */
+  needs: string[];
+  /** Its tables are not made by this install: they are when the add-on it waits for is connected. */
+  leftOut: boolean;
+  tables: string[];
+  roles: string[];
+  /** How many of the app's rules are of this part. Absent from an older server. */
+  rules?: number;
+}
+
+/** The app's roles with the parts each is of (none: offered whatever is on), and its rules of no part. */
+export interface PlanWhole {
+  roles: { name: string; parts: string[] }[];
+  rules: number;
+}
+
+/** One part of an installed app, as its page shows it. */
+export interface AppPart {
+  id: string;
+  label: string;
+  default: 'on' | 'off' | 'always';
+  /** The owner's switch. */
+  switch: boolean;
+  /** Whether it is on now: its switch, and every add-on it needs connected. */
+  on: boolean;
+  waiting: { key: string; name: string }[];
+  /** Every add-on it is built on, connected or not. Absent from an older server. */
+  needs?: { key: string; name: string }[];
+  leftOut: boolean;
+  pages: number;
+  tables: number;
+  rules: number;
+  roles: { slug: string; name: string; members: number }[];
+}
+
+/** What switching a part off would stop. */
+export interface AppPartOpen {
+  id: string;
+  label: string;
+  open: { table: string; label: string; rows: number }[];
+  rules: number;
+  pages: number;
+  stranded: number;
+}
+
+export const appPartsKey = (key: string) => ['app-parts', key] as const;
+
+export function appPartsQuery(key: string) {
+  return queryOptions({
+    queryKey: appPartsKey(key),
+    queryFn: () => api.get<{ parts: AppPart[] }>(`/api/v1/apps/${encodeURIComponent(key)}/parts`),
+  });
+}
+
+export function fetchAppPartOpen(key: string, part: string): Promise<AppPartOpen> {
+  return api.get<AppPartOpen>(`/api/v1/apps/${encodeURIComponent(key)}/parts/${encodeURIComponent(part)}/open`);
+}
+
+export function setAppPart(key: string, part: string, on: boolean): Promise<{ parts: AppPart[] }> {
+  return api.put<{ parts: AppPart[] }>(`/api/v1/apps/${encodeURIComponent(key)}/parts/${encodeURIComponent(part)}`, { on });
 }

@@ -44,7 +44,7 @@ explains why).
 Their copies declare no dependencies of their own. The package declares the
 third-party libraries they load instead, found by tracing the built code
 (`scripts/release/server-runtime-deps.mjs`). So what `widgets` declares for the
-dashboard (React, Radix, Leaflet and the rest) is never installed. A 0.3.0
+dashboard (React, Radix, MapLibre and the rest) is never installed. A 0.3.0
 install comes to about 170 packages and 150 MB. Up to 0.2.9, npm downloaded 14
 separate Adminium packages and everything they declared: about 245 packages and
 220 MB.
@@ -343,7 +343,7 @@ From 0.3.0, npm does not install it either. The published CLI carries only
 the internal packages the server loads (`widgets` among them, for those two
 subpaths), with no dependency lists of their own, and declares only the
 third-party libraries that code imports. `ui`, `charts`, `tokens`, React, React
-DOM, Radix, lucide-react, Leaflet, dnd-kit and TanStack Table stay out. Up to
+DOM, Radix, lucide-react, MapLibre, dnd-kit and TanStack Table stay out. Up to
 0.2.9, the dependency on `widgets` brought the whole package and everything it
 declared: about 80 MB of a 220 MB install, most of it third-party browser code
 (lucide-react alone is 41 MB).

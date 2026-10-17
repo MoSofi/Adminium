@@ -33,13 +33,16 @@ import {
   type User,
 } from '@adminium/meta';
 import { DEFAULT_NAV_GROUP } from '@adminium/add-on-contracts';
-import { addOnManifestSchema } from '@adminium/manifest';
+import { addOnManifestSchema, isSidePath, navLinkSchema, type NavLink, type NavLinkScreen } from '@adminium/manifest';
 
 import { addOnPagePermission, pagesAreGated } from '../../add-ons/page-gate.js';
 
 import { screensOnlyError } from '../../apps/screens-only.js';
 import { UnauthorizedError } from '../../errors.js';
-import { PERMISSIONS } from '../../rbac/permissions.js';
+import { loadAppParts, partIsOn } from '../../rbac/app-parts.js';
+import { parseGrant, PERMISSIONS } from '../../rbac/permissions.js';
+import type { PermissionSet } from '../../rbac/resolver.js';
+import { MAPS_OFF } from '../../geo/map-policy.js';
 import type { AuthContext } from '../../plugins/auth.js';
 import { csrfSigningKey, issueCsrfToken } from '../../security/csrf.js';
 import { toUserView } from '../auth/handlers.js';
@@ -101,6 +104,28 @@ async function heldSystemActions(request: FastifyRequest): Promise<SystemActionK
     if (await request.can(`system:${area}:${verb}`)) held.push(key);
   }
   return held;
+}
+
+/**
+ * Whether a permission set could bring a file in to some table of one of
+ * `writable`: the connections that are neither paused nor read-only. A Super
+ * Admin can once there is one; anybody else needs a table grant whose action
+ * is `import` (or every action) on one of them, by name or by a wildcard.
+ *
+ * Read off the resolved grants, so a table of a part that is off, which the
+ * resolver leaves nobody a write on, is not counted either. It asks no
+ * database and reads no schema: the route judges the table chosen.
+ */
+export function canImportSomewhere(set: Pick<PermissionSet, 'superAdmin' | 'grants'>, writable: ReadonlySet<string>): boolean {
+  if (writable.size === 0) return false;
+  if (set.superAdmin) return true;
+  for (const grant of set.grants) {
+    const parsed = parseGrant(grant);
+    if (parsed === null || parsed.kind !== 'table') continue;
+    if (parsed.action !== 'import' && parsed.action !== '*') continue;
+    if (parsed.connectionId === '*' || writable.has(parsed.connectionId)) return true;
+  }
+  return false;
 }
 
 /**
@@ -209,6 +234,8 @@ export function buildNavTree(
       sourceTable: row.sourceTable,
       appKey: row.appKey != null && addOnKeys.has(row.appKey) ? null : (row.appKey ?? null),
       addOnKey: row.appKey != null && addOnKeys.has(row.appKey) ? row.appKey : null,
+      // Kept off the sidebar by its app: listed with the section, drawn by nothing in the rail.
+      ...(row.appOffRail === true ? { offRail: true as const } : {}),
     };
     // A switched-off app's pages are off too, whatever their connection.
     if (row.appKey != null && disabledApps.has(row.appKey)) {
@@ -354,6 +381,85 @@ export interface SectionApp {
   /** The manifest's own name. */
   name: string;
   navGroups: readonly { key: string; label: Readonly<Record<string, string>>; order: number }[];
+  /** The entries of its section that are not pages, as its manifest wrote them and the schema read them. */
+  navLinks?: readonly NavLink[] | undefined;
+}
+
+/** The entries of an app's section that are not pages, read off its stored manifest: an entry the schema refuses is left out. */
+export function navLinksOf(document: unknown): NavLink[] {
+  const links = (document as { navLinks?: unknown } | null)?.navLinks;
+  if (!Array.isArray(links)) return [];
+  return links.flatMap((link) => {
+    const parsed = navLinkSchema.safeParse(link);
+    return parsed.success ? [parsed.data] : [];
+  });
+}
+
+/**
+ * The address of a dashboard screen narrowed to one app. The key is the
+ * installed row's, never a word of the manifest's; the screens read it as a
+ * filter over what the reader could already list.
+ */
+const SCREEN_OF: Record<NavLinkScreen, { href: (appKey: string) => string; permission: string }> = {
+  automations: { href: (appKey) => `/automations?app=${encodeURIComponent(appKey)}`, permission: PERMISSIONS.automationsManage },
+  'email-templates': { href: (appKey) => `/email-templates?app=${encodeURIComponent(appKey)}`, permission: PERMISSIONS.settingsManage },
+  settings: { href: (appKey) => `/studio/apps/${encodeURIComponent(appKey)}`, permission: PERMISSIONS.manifestsManage },
+};
+
+/**
+ * Each app's entries that are not pages, for one reader: the entry of a
+ * dashboard screen for somebody who may open that screen, the entry of the
+ * staff side for somebody who may open the side while it is served, and none
+ * of a part that is off. Each as a rail item with the group its manifest names.
+ */
+export async function buildNavLinkItems(input: {
+  apps: readonly SectionApp[];
+  can: (permission: string) => Promise<boolean>;
+  /** The apps whose staff screens this reader may open. */
+  mayOpenStaff: ReadonlySet<string>;
+  /** Where each app's staff side opens, and whether in the dashboard's frame; absent for a side that is not served. */
+  staffBase: (appKey: string) => { url: string; document: boolean } | null;
+  partIsOn: (appKey: string, module: string | undefined) => boolean;
+  locale: string;
+}): Promise<Map<string, { group: string | null; item: BootstrapNavItem }[]>> {
+  const out = new Map<string, { group: string | null; item: BootstrapNavItem }[]>();
+  for (const app of input.apps) {
+    for (const link of app.navLinks ?? []) {
+      if (!input.partIsOn(app.key, link.module)) continue;
+      let target: { href: string; document: boolean } | null = null;
+      if ('screen' in link.to) {
+        const screen = SCREEN_OF[link.to.screen];
+        if (await input.can(screen.permission)) target = { href: screen.href(app.key), document: false };
+      } else if (input.mayOpenStaff.has(app.key)) {
+        const base = input.staffBase(app.key);
+        // The path is read again here: a stored manifest is data, and only a path under the side is joined to it.
+        const path = link.to.path === undefined ? '' : isSidePath(link.to.path) ? link.to.path.slice(1) : null;
+        if (base !== null && path !== null) target = { href: `${base.url}${path}`, document: base.document };
+      }
+      if (target === null) continue;
+      const list = out.get(app.key) ?? [];
+      list.push({
+        group: link.nav.group,
+        item: {
+          pageId: `link:${link.ref}`,
+          slug: '',
+          labelKey: `nav.link.${app.key}.${link.ref}`,
+          fallback: pickLabel(link.label, input.locale) ?? link.label['en-US'] ?? link.ref,
+          icon: link.nav.icon,
+          order: link.nav.order,
+          connectionId: null,
+          connectionName: null,
+          currency: null,
+          sourceTable: null,
+          appKey: app.key,
+          addOnKey: null,
+          link: target,
+        },
+      });
+      out.set(app.key, list);
+    }
+  }
+  return out;
 }
 
 /**
@@ -374,11 +480,14 @@ export function buildAppSections(input: {
   protocol: string;
   /** The apps whose staff screens this reader may open (`app:<key>:staff`); absent, all. */
   mayOpenStaff?: ReadonlySet<string> | undefined;
+  /** Each app's entries that are not pages, as this reader gets them ({@link buildNavLinkItems}). */
+  links?: ReadonlyMap<string, readonly { group: string | null; item: BootstrapNavItem }[]> | undefined;
 }): BootstrapAppSection[] {
   const out: BootstrapAppSection[] = [];
   for (const app of input.apps) {
-    const pages = [...(input.appItems.get(app.key) ?? [])].sort(
-      (a, b) => a.item.order - b.item.order || a.item.slug.localeCompare(b.item.slug),
+    // Pages and the entries that are not pages, in one order: an entry sits among the pages of its group.
+    const pages = [...(input.appItems.get(app.key) ?? []), ...(input.links?.get(app.key) ?? [])].sort(
+      (a, b) => a.item.order - b.item.order || (a.item.slug || a.item.pageId).localeCompare(b.item.slug || b.item.pageId),
     );
     const declared = [...app.navGroups].sort((a, b) => a.order - b.order);
     const known = new Set(declared.map((group) => group.key));
@@ -714,11 +823,13 @@ export async function bootstrapHandler(
   const surfaceSettings = hasSurfaces ? request.server.surfaceSettings : null;
 
   // Someone whose every role opens only an app's screens is sent there instead.
+  let permissions: PermissionSet | null = null;
   if (request.server.hasDecorator('rbac') && request.apiKeyPrincipal == null) {
     const set = await request.server.rbac.resolve(request);
     if (set.screensOnly !== null) {
       throw screensOnlyError((await surfaceSettings?.read()) ?? NO_SURFACE_SETTINGS, set.screensOnly, request);
     }
+    permissions = set;
   }
   // The project folder, when the server runs one. Same request-time read, for
   // the same reason: this route is registered before it exists.
@@ -733,10 +844,11 @@ export async function bootstrapHandler(
     // Display names, the pause flag and the display currency — no DSN material
     // , so no crypto needed. `disabledAt` decides whether this
     // connection's pages reach the sidebar at all (meta wave 0019);
-    // `currency` is what money cells format with.
+    // `currency` is what money cells format with; `readOnly` is for
+    // `canImport`, with the pause.
     ctx.meta.db
       .selectFrom('adminium_connections')
-      .select(['id', 'name', 'disabledAt', 'currency'])
+      .select(['id', 'name', 'disabledAt', 'currency', 'readOnly'])
       .execute(),
     // `llm.enabled` = a provider is configured — the same
     // `llm.provider` row `resolveProviderClient` gates direct runs
@@ -806,6 +918,7 @@ export async function bootstrapHandler(
       version: row.version,
       name: typeof document.name === 'string' ? document.name : row.manifestKey,
       navGroups,
+      navLinks: navLinksOf(document),
     };
   });
   /*
@@ -828,8 +941,15 @@ export async function bootstrapHandler(
   const addOnNav = buildAddOnNav(addOnDocuments, (ref) => openCodePages.has(ref), prefs.locale);
   const addOnKeys = new Set(sectionAddOns.map((row) => row.key));
   const withheld = visibleRows.filter((row) => row.appKey != null && unmet.get(row.appKey)?.has(row.slug) === true);
+  /*
+   * PAGES OF A PART THAT IS OFF. An app's owner switches its parts on and
+   * off; a page of one that is off leaves the sidebar and is listed apart,
+   * so a bookmark lands on "this part is switched off".
+   */
+  const appParts = await loadAppParts(ctx.meta, [...new Set(visibleRows.flatMap((row) => (row.appKey != null && row.appModule != null ? [row.appKey] : [])))]);
+  const partOff = visibleRows.filter((row) => !withheld.includes(row) && row.appKey != null && !partIsOn(appParts.get(row.appKey), row.appModule));
   const { nav, hidden, paused, disabledApp, appItems } = buildNavTree(
-    visibleRows.filter((row) => !withheld.includes(row)),
+    visibleRows.filter((row) => !withheld.includes(row) && !partOff.includes(row)),
     new Map(connectionRows.map((row) => [row.id, { name: row.name, currency: row.currency }])),
     pausedConnectionIds,
     prefs.locale,
@@ -847,6 +967,30 @@ export async function bootstrapHandler(
     if (typeof request.can !== 'function' || (await request.can(`app:${key}:staff`))) mayOpenStaff.add(key);
   }
   const hostedApps = everyHosted.filter((entry) => mayOpenStaff.has(entry.appKey));
+  /*
+   * THE ENTRIES THAT ARE NOT PAGES (`navLinks`). Each opens a place this
+   * server names: a dashboard screen narrowed to the app, for somebody who may
+   * open that screen, or the app's staff side, for somebody who may open it.
+   */
+  const linkParts = await loadAppParts(ctx.meta, sectionApps.filter((app) => (app.navLinks ?? []).some((link) => link.module !== undefined)).map((app) => app.key));
+  const links = await buildNavLinkItems({
+    apps: sectionApps,
+    can: async (permission) => typeof request.can !== 'function' || (await request.can(permission)),
+    mayOpenStaff,
+    staffBase: (appKey) => {
+      if (availabilityOf(placements, appKey, 'staff') !== 'ok') return null;
+      // Inside the dashboard's frame while the side is hosted there; else on its own address, the mapped host first.
+      if (hostedApps.some((entry) => entry.appKey === appKey && entry.instance === undefined)) return { url: `/a/${appKey}/`, document: false };
+      const surface = hasSurfaces ? request.server.surfaces.find((entry) => entry.appKey === appKey && entry.side === 'staff') : undefined;
+      if (surface === undefined) return null;
+      const host = Object.entries(placements.domains).find(([, target]) => target.appKey === appKey && target.side === 'staff' && target.instance === undefined)?.[0];
+      return { url: host === undefined ? `${surface.prefix}/` : `${request.protocol}://${host}/`, document: true };
+    },
+    partIsOn: (appKey, module) => partIsOn(linkParts.get(appKey), module),
+    locale: prefs.locale,
+  });
+  // A harness that mounts this route without the core plugin shows no map.
+  const maps = request.server.hasDecorator('maps') ? await request.server.maps.read() : MAPS_OFF;
 
   return {
     data: {
@@ -857,6 +1001,10 @@ export async function bootstrapHandler(
         (row) => readBool(row.isEnabled) && !visibleRows.some((visible) => visible.id === row.id),
       ),
       hasConnections: connectionRows.length > 0,
+      // A harness mounted without the rbac plugin resolves nobody's grants: "no" is the honest answer there.
+      canImport:
+        permissions !== null &&
+        canImportSomewhere(permissions, new Set(connectionRows.filter((row) => row.disabledAt === null && !readBool(row.readOnly)).map((row) => row.id))),
       prefs,
       nav,
       version: APP_VERSION,
@@ -887,6 +1035,13 @@ export async function bootstrapHandler(
               .flat()
               .map(({ item }) => ({ ...item, ...unmet.get(item.appKey!)!.get(item.slug)! })),
           }),
+      ...(partOff.length === 0
+        ? {}
+        : {
+            partOffPages: [...buildNavTree(partOff, new Map(), new Set(), prefs.locale, new Set(), new Set(partOff.map((row) => row.appKey!))).appItems.values()].flat().map(({ item }) => item),
+          }),
+      // Every role the person holds is of a part that is off: said plainly, in place of an empty dashboard.
+      ...(request.rbacResolution?.partsOff === true ? { partsOff: true as const } : {}),
       appSections: [
         ...buildAppSections({
           apps: sectionApps,
@@ -897,10 +1052,12 @@ export async function bootstrapHandler(
           locale: prefs.locale,
           protocol: request.protocol,
           mayOpenStaff,
+          links,
         }),
         // After the apps: an add-on is what an app is extended with.
         ...buildAddOnSections({ addOns: sectionAddOns, appItems, codePages: addOnNav.pages, locale: prefs.locale }),
       ],
+      maps: { enabled: maps.enabled, server: maps.server, routing: maps.routing },
       ...(project === null ? {} : { project }),
     },
   };

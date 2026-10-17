@@ -45,6 +45,15 @@ const dropGeneratedDefaults = (
 ): Record<string, unknown> =>
   Object.fromEntries(Object.entries(defaults).filter(([, v]) => readGenerator(v) === null));
 
+const blank = (value: unknown): boolean => value === null || value === undefined || (typeof value === 'string' && value.trim() === '');
+
+/** Whether a write sets the column that asks for `column` to one of the values that ask for it (`requiresWhen`). */
+export function askedFor(resource: Pick<CompiledResource, 'requiresWhen'>, column: string, values: Readonly<Record<string, unknown>>): boolean {
+  return Object.entries(resource.requiresWhen?.[column] ?? {}).some(
+    ([other, asking]) => Object.prototype.hasOwnProperty.call(values, other) && asking.some((value) => sameValue(value, values[other])),
+  );
+}
+
 export const prepareValues = (
   resource: CompiledResource,
   values: Record<string, unknown>,
@@ -61,6 +70,22 @@ export const prepareValues = (
     const allowed = resource.writableValues[column];
     if (allowed !== undefined && !allowed.some((value) => sameValue(value, values[column]))) return null;
   }
+  /*
+   * A COLUMN ASKED FOR ONLY WITH SOME VALUES OF ANOTHER IS WRITTEN ONLY THEN
+   * (`requiresWhen`): a name typed to accept a quote goes in with the accept,
+   * and with nothing else — not with a decline, not on its own. Sent at any
+   * other time it refuses the write; sent empty it is left out, so it never
+   * empties what the row holds either. Whether it is FILLED when asked for is
+   * the route's question, with `requires`.
+   */
+  let kept = values;
+  for (const column of Object.keys(resource.requiresWhen ?? {})) {
+    if (!Object.prototype.hasOwnProperty.call(values, column) || askedFor(resource, column, values)) continue;
+    if (!blank(values[column])) return null;
+    if (kept === values) kept = { ...values };
+    delete kept[column];
+  }
+  values = kept;
   /*
    * `$generate` SENTINELS RESOLVE ON CREATE AND ARE DROPPED ON
    * UPDATE.

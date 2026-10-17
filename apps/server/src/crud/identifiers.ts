@@ -9,7 +9,7 @@
 import type { LogicalType } from '@adminium/engine';
 
 import { AppError, ForbiddenError } from '../errors.js';
-import type { EffectiveModel, EffectiveTable } from '../connections/effective-schema.js';
+import type { EffectiveFileRule, EffectiveModel, EffectiveTable } from '../connections/effective-schema.js';
 import { columnPolicyFor } from '../connections/effective-schema.js';
 
 /**
@@ -42,6 +42,10 @@ export interface ResolvedColumn {
    * and refused by name as a masked one is (403 `COLUMN_FORBIDDEN`).
    */
   unreadable?: true;
+  /** The column holds a position on the map (`column.place`) or an area (`column.area`): kept as JSON, read back as an object. */
+  geo?: 'place' | 'area';
+  /** The column holds files a signed-in person uploaded for it (`column.file`): one id, or a list of them read back as an array. */
+  file?: EffectiveFileRule;
 }
 
 export interface ResolvedTable {
@@ -74,7 +78,11 @@ function resolveTable(table: EffectiveTable, readable?: ReadonlySet<string>, lin
       isPrimaryKey: column.isPrimaryKey,
       masked: policy.masked.has(column.name),
       secret: hidden || policy.secret.has(column.name),
-      textish: TEXTISH.has(column.logicalType),
+      // A place or an area is JSON whatever the engine keeps it in (TEXT, on SQLite): never searched as text.
+      // …and a file column holds ids, not words.
+      textish: TEXTISH.has(column.logicalType) && column.place !== true && column.area !== true && column.file === undefined,
+      ...(column.place === true ? { geo: 'place' as const } : column.area === true ? { geo: 'area' as const } : {}),
+      ...(column.file === undefined ? {} : { file: column.file }),
       ...(hidden && !policy.secret.has(column.name) ? { unreadable: true as const } : {}),
     });
   }

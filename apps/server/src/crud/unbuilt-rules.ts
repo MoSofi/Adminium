@@ -108,6 +108,8 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   'config.tabs',
   // A list's own bulk action: one row of a child table for each row ticked, offered to who may make it.
   'config.bulk',
+  // A board's columns as its page names them: the rows of a table its cards link to, or an enum's values, written to the page at install.
+  'config.board',
   // The rules an app or an add-on ships: bound to its install, the owner's once they change one.
   'automations',
   // An add-on's stock words, and a public entry they answer: in, low or out for the rows a page asks about.
@@ -119,6 +121,8 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   'toolbar.links',
   // What an app's role holds of a table of an add-on it names: written while the add-on is there for the app, taken back when it is not.
   'roles.tables',
+  // What an add-on lets an app's role hold of its tables: every grant above is cut to it, and a grant on such a table carries its columns.
+  'table.appGrants',
   // An update a role's limit lets reach a row only while a column of it holds some value: judged on the stored row.
   'roles.writableFrom',
   // An add-on that may use another (`addOns.suggests`): a document the other draws waits for it, and is mailed without it meanwhile.
@@ -142,6 +146,10 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   'addOn.ledgers',
   'table.postings',
   'states.planned',
+  // A move refused once a date of its row has passed: judged under the write's locks, for every writer.
+  'states.notPast',
+  // A column a public write fills only with some values of another: asked for then, refused at any other time.
+  'publicAccess.requiresWhen',
   'rollup.capUnless',
   'column.announce',
   // A link from a table into an add-on's, judged as it is written; text held to a name or a note; a customer's key made from an address.
@@ -150,6 +158,93 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   'column.addOnLink.default',
   'column.plainText',
   'column.customerKey',
+  // A column that holds a staff member: marked on the column, and what a row's people are read from.
+  'column.staff',
+  // Text in which people are mentioned: each one named is somebody who signs in, and is told after the save.
+  'column.mentions',
+  // A position on the map and an area, each in a json column: read, checked and made alike on every write.
+  'column.place',
+  'column.area',
+  // A link that may name only a row meeting some conditions: judged when a write sets or moves it, on every door but an undo.
+  'column.linkable',
+  // Such a link whose named row must hold what the row written holds: judged also when a write moves what the row's side reads.
+  'linkable.same',
+  // A column that holds files a signed-in person uploaded: judged by the upload and by every write that names one.
+  'column.file',
+  // Whose a row is, and a role whose read, update or delete reaches only some rows: the test every read and write of a row carries.
+  'table.belongs',
+  'roles.rows',
+  // Several reaches for one action, any one enough; a listing that counts only while a column of it holds some values:
+  // both inside that same test, on every door that carries it.
+  'rows.several',
+  'listing.while',
+  // A record's button that hands its row to anybody a role could not otherwise name.
+  'states.handOver',
+  // A total that is the newest child row's value, settled by the statement that settles a sum.
+  'rollup.latest',
+  // Sample data's own people and teams: made as staff who cannot sign in, named by the sample's rows, removed with them.
+  'sampleData.people',
+  // An app's starting rows (`seeds`): written by its install as an add-on's are, into empty tables only.
+  'app.seeds',
+  // A row takes a resource for a time: no two overlap, within the resource's hours; held by the lock a booking's write holds.
+  'table.occupies',
+  // A running number a sample's rows may take: only the check of a sample file reads the mark, the write path already numbers them.
+  'sequence.sample',
+  // The parts of an app: a switch per part, read wherever something of a part is served or run.
+  'app.modules',
+  'roles.names',
+  // An app that shows maps: its install asks, once for the install, whether they are shown.
+  'app.maps',
+  // A rule tells the person a staff column of its record names (or of a linked row); nobody there is a line in the run's log.
+  'automations.staffRecipient',
+  // A row visited once for each spell it matches: kept per rule and row, closed when the row stops matching.
+  'automations.perSpell',
+  // A notice told at once, also in the reader's quiet hours.
+  'automations.urgent',
+  // A summary for each person, read as that person when it is sent.
+  'automations.digest',
+  // A section of one: the rows of the people its reader leads now, a column added up over every row, a line a person, a sum against a target.
+  'digest.reach',
+  'digest.sum',
+  'digest.by',
+  'digest.target',
+  // A row a step makes, kept in the run's trace for the steps after it.
+  'automations.stepName',
+  // More than twelve rules in one manifest: each is installed as the first twelve are.
+  'automations.many',
+  // A reply to the person a staff column names: their sign-in address, looked up when the message goes; nobody there is no header.
+  'automations.replyTo',
+  'outbox.replyTo',
+  // A notice to the people who lead a team of the person a staff column names, who can open the record; roles when there is none.
+  'automations.lead',
+  // A notice or an e-mail to the people a table lists against the record, of them only who sign in and can open it when it goes (automations/listed-recipients.ts).
+  'automations.listed',
+  // A person's name read from a staff column in a rule's text and e-mail; the record's address in a rule's e-mail to a person who can open it.
+  'automations.staffName',
+  'automations.recordUrl',
+  // A rule run by a change reads its record as it was: kept with the run for its steps, never served, dropped when it ends.
+  'automations.was',
+  // An amount of time read from the app's settings row when a scan's or a step's conditions are read.
+  'automations.settingAmount',
+  // A value a step writes read from the settings row as the rule reads it (a person only while they sign in); a day so many days on, on the business's calendar.
+  'automations.settingValue',
+  'automations.daysAfter',
+  // A message about a row that was removed, with the row's own values kept for it; a message no longer stops its row being removed.
+  'outbox.onDelete',
+  // Where a table's record opens on the app's staff side: a notice, its email and a search hit open there (apps/record-address.ts).
+  'frontend.records',
+  // A page kept off the sidebar, and an entry of the app's section that is not a page: both read when the menu is built.
+  'nav.offRail',
+  'navLinks',
+  // An app's e-mail naming the person a staff column names: their name as the people list gives it, nothing else of them (outbox/sender.ts).
+  'outbox.staffName',
+  // A dashboard card of a part (hidden while it is off, left out with it), its column headings by language, a link to one staff screen.
+  'card.module',
+  'card.columnLabels',
+  'link.staffPath',
+  // Rows read by the people they belong to and by nothing else: not in the view a rule, a public door, a kiosk's key or an owner's
+  // code reads through, and refused by name as a file out, a file in, a scheduled report and a document.
+  'table.private',
 ];
 
 export interface UnbuiltWord {

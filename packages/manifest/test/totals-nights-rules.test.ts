@@ -19,8 +19,8 @@ const rules = (m: Doc, table: string, column: string) => columnOf(m, table, colu
 
 describe('a total that counts', () => {
   it('adds up a column or counts rows, not both, into a whole number', () => {
-    expect(broken(kitchen, (m) => ((rules(m, 'orders', 'item_count')['rollup'] as Doc)['sum'] = 'qty'))).toContain('a total adds up `sum` or counts rows (`count: true`), not both');
-    expect(broken(kitchen, (m) => delete (rules(m, 'orders', 'subtotal')['rollup'] as Doc)['sum'])).toContain('a total adds up `sum` or counts rows');
+    expect(broken(kitchen, (m) => ((rules(m, 'orders', 'item_count')['rollup'] as Doc)['sum'] = 'qty'))).toContain('a total adds up `sum`, counts rows (`count: true`) or takes the newest row');
+    expect(broken(kitchen, (m) => delete (rules(m, 'orders', 'subtotal')['rollup'] as Doc)['sum'])).toContain('a total adds up `sum`, counts rows');
     expect(broken(kitchen, (m) => ((rules(m, 'orders', 'item_count')['rollup'] as Doc)['times'] = 'qty'))).toContain('a count takes no `times`, `balance` or `cap`');
     expect(broken(kitchen, (m) => (columnOf(m, 'orders', 'item_count')['type'] = 'decimal'))).toContain('a count is kept in a whole-number column (`int` or `bigint`)');
   });

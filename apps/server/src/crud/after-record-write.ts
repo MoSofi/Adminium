@@ -54,7 +54,9 @@ import {
 import type { ResolvedTable } from './identifiers.js';
 import { keptImages, type Row } from './mask.js';
 import { occurredAtOf } from './occurred-at.js';
+import { ruledBlocksOf } from '../files/column-blocks.js';
 import type { FileReconciler } from '../files/reconcile.js';
+import type { ReleasedLink } from '../outbox/release.js';
 import { publishWidgetDataStream } from '../widget-data/stream-publisher.js';
 import type { WidgetDataCache } from '../widget-data/cache.js';
 
@@ -111,6 +113,8 @@ export interface AutomationDispatcher {
 /** What queues an installed app's emails from its writes; decorated by compose. */
 export interface OutboxDispatcher {
   onRecordEvent(event: RecordWriteEvent): Promise<void>;
+  /** The outbox links that let go of a table's rows as they are removed (`outbox/release.ts`). */
+  releasing?(connectionId: string, tableId: string): Promise<readonly ReleasedLink[]>;
 }
 
 /**
@@ -202,7 +206,7 @@ export async function emitRecordEvent(app: FastifyInstance, event: RecordWriteEv
  */
 export function publishChildWrite(
   app: FastifyInstance,
-  input: { connectionId: string; table: ResolvedTable; action: RecordWriteAction; pk: Row; row: Row | null },
+  input: { connectionId: string; table: ResolvedTable; action: RecordWriteAction; pk: Row; row: Row | null; /** The row as it was before an update, when the caller has it. */ before?: Row | null | undefined },
 ): void {
   invalidateWidgetData(app, input.connectionId, input.table.id);
   if (!app.hasDecorator('realtime')) return;
@@ -212,6 +216,7 @@ export function publishChildWrite(
     type: `record.${input.action}`,
     pk: input.pk,
     row: input.row,
+    ...(input.before === undefined || input.action !== 'update' ? {} : { before: input.before }),
   });
 }
 
@@ -265,7 +270,7 @@ export async function afterRecordWrite(
   const reconciled =
     input.files === undefined
       ? null
-      : await input.files.reconcile({ connectionId, table: table.id, entity, before, after });
+      : await input.files.reconcile({ connectionId, table: table.id, entity, before, after, ruled: ruledBlocksOf(table.columns.values()) });
 
   if (app.hasDecorator('realtime')) {
     // An open record page refetches its Attachments panel. Every frame rides
@@ -292,6 +297,8 @@ export async function afterRecordWrite(
       type: `record.${action}`,
       pk: entity.pk,
       row: action === 'delete' ? before : after,
+      // Whose it was: a row handed on is told to the one it left too.
+      ...(action === 'update' ? { before } : {}),
     });
   }
 

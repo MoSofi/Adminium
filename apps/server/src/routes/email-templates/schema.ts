@@ -72,6 +72,12 @@ export const emailDocumentsListQuery = z.object({
   kind: emailDocumentKindSchema.optional(),
   archived: z.coerce.boolean().optional(),
   q: z.string().max(200).optional(),
+  /**
+   * Only the documents one installed app brought (its key). It narrows the
+   * list this reader would get without it, and the counts with it; a key no
+   * app holds answers an empty list.
+   */
+  app: z.string().regex(/^[a-z][a-z0-9-]{0,62}$/, 'an app key').optional(),
 });
 
 export const emailDocumentsListReply = z.object({

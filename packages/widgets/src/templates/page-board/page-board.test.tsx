@@ -8,7 +8,7 @@
  * compose inserts, card click → record-open, and the never-crash
  * invalid-layout branch.
  */
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { PageBoard, quarterColumnsOf } from './PageBoard.js';
@@ -132,6 +132,120 @@ describe('PageBoard — kanban', () => {
       table: 'public.tasks',
       recordId: 'T-2',
     });
+  });
+});
+
+describe('PageBoard — columns that are the rows of a table', () => {
+  const PIPELINE = {
+    title: 'Deals',
+    statusColumn: 'stage_id',
+    titleColumn: 'name',
+    columnsFrom: { table: 'public.stages', key: 'id', label: 'name', order: 'position' },
+    totals: [{ column: 'amount', fn: 'sum' }],
+    binding: binding('deals'),
+  };
+  // The link is a number in one row and a word in another, as engines answer it; one deal has no stage, one names a stage that is gone.
+  const DEALS = [
+    { id: 1, name: 'Harbour Hotels', stage_id: 1, amount: 100 },
+    { id: 2, name: 'Northfield Dental', stage_id: '3', amount: 300 },
+    { id: 3, name: 'No stage yet', stage_id: null, amount: 20 },
+    { id: 4, name: 'Stage removed', stage_id: 99, amount: 5 },
+  ];
+  const STAGES = {
+    status: 'success' as const,
+    columns: [
+      { id: '2', value: 2, label: 'Qualified', count: 0, total: '€0' },
+      { id: '1', value: 1, label: 'Lead', count: 340, total: '€12,400' },
+      { id: '3', value: 3, label: 'Proposal', count: 1, total: '€300' },
+    ],
+  };
+  const columnIds = () => [...document.querySelectorAll('[data-board-column]')].map((el) => el.getAttribute('data-board-column'));
+  const part = (column: string, name: string) => document.querySelector(`[data-board-column="${column}"] [data-part="${name}"]`)?.textContent;
+
+  it('draws a column for each row, in the rows’ order, an empty one too, headed by the server’s count and total', () => {
+    render(<PageBoard config={boardConfig(PIPELINE)} states={{ 'board-1': recordList(DEALS) }} boardColumns={STAGES} />);
+    expect(columnIds()).toEqual(['2', '1', '3']);
+    expect(screen.getByText('Qualified')).toBeDefined();
+    expect(part('2', 'column-count')).toBe('0');
+    expect(part('1', 'column-count')).toBe('340');
+    expect(part('1', 'column-total')).toBe('€12,400');
+    expect(within(screen.getByTestId('column-drop-1')).getByText('Harbour Hotels')).toBeDefined();
+    // A link answered as text lands in the same column as one answered as a number.
+    expect(within(screen.getByTestId('column-drop-3')).getByText('Northfield Dental')).toBeDefined();
+    // A deal with no stage, or with a stage that is no row, is on no column.
+    expect(screen.queryByText('No stage yet')).toBeNull();
+    expect(screen.queryByText('Stage removed')).toBeNull();
+  });
+
+  it('a drop writes the stage row’s own key, a number where the key is one', () => {
+    const onEvent = vi.fn(() => Promise.resolve({}));
+    render(<PageBoard config={boardConfig(PIPELINE)} states={{ 'board-1': recordList(DEALS) }} boardColumns={STAGES} onEvent={onEvent} />);
+    keyboardMove('Harbour Hotels', 1); // Lead → Proposal
+    expect(onEvent).toHaveBeenCalledWith('board-1', {
+      type: 'mutate',
+      intent: 'update',
+      connectionId: CONN,
+      table: 'public.deals',
+      recordId: '1',
+      values: { stage_id: 3 },
+    });
+  });
+
+  it('a refused drop puts the card back and shows the server’s reason', async () => {
+    const onEvent = vi.fn(() => Promise.reject(new Error('You can change this only while State is Open.')));
+    const { container } = render(<PageBoard config={boardConfig(PIPELINE)} states={{ 'board-1': recordList(DEALS) }} boardColumns={STAGES} onEvent={onEvent} />);
+    keyboardMove('Harbour Hotels', 1);
+    await waitFor(() => expect(within(screen.getByTestId('column-drop-1')).getByText('Harbour Hotels')).toBeDefined());
+    expect(container.querySelector('[data-part="board-move-refused"]')!.textContent).toContain('You can change this only while State is Open.');
+    expect(container.querySelector('[data-board-liveregion]')!.textContent).toContain('You can change this only while State is Open.');
+  });
+
+  it('waits for the columns, says when they could not be read, and says what an empty table needs', () => {
+    const { rerender } = render(<PageBoard config={boardConfig(PIPELINE)} states={{ 'board-1': recordList(DEALS) }} boardColumns={{ status: 'loading' }} />);
+    expect(columnIds()).toEqual([]);
+    expect(screen.queryByText('Harbour Hotels')).toBeNull();
+    rerender(<PageBoard config={boardConfig(PIPELINE)} states={{ 'board-1': recordList(DEALS) }} boardColumns={{ status: 'error', error: new Error('Column "name" is not shown to your role.') }} />);
+    // Which table could not be read, in front of the server's reason: the reason alone names a column of no table.
+    expect(screen.getByText('This board’s columns could not be read from public.stages. Column "name" is not shown to your role.')).toBeDefined();
+    rerender(<PageBoard config={boardConfig(PIPELINE)} states={{ 'board-1': recordList(DEALS) }} boardColumns={{ status: 'success', columns: [] }} />);
+    expect(screen.getByText('No columns yet')).toBeDefined();
+    // Not the sentence about a status: this board has none.
+    expect(screen.queryByTestId('board-unplaced-rows')).toBeNull();
+  });
+
+  it('says so when the columns’ table has more rows than the board draws', () => {
+    render(<PageBoard config={boardConfig(PIPELINE)} states={{ 'board-1': recordList(DEALS) }} boardColumns={{ ...STAGES, more: true }} />);
+    expect(screen.getByTestId('board-columns-cut').textContent).toBe('Showing the first 3 columns: the table this board takes its columns from has more rows.');
+    cleanup();
+    render(<PageBoard config={boardConfig(PIPELINE)} states={{ 'board-1': recordList(DEALS) }} boardColumns={STAGES} />);
+    expect(screen.queryByTestId('board-columns-cut')).toBeNull();
+  });
+
+  it('says so when rows arrived and none is in a column', () => {
+    render(<PageBoard config={boardConfig(PIPELINE)} states={{ 'board-1': recordList([DEALS[2]!, DEALS[3]!]) }} boardColumns={STAGES} />);
+    expect(screen.getByTestId('board-unplaced-rows').textContent).toContain('is in one of the board’s columns');
+    expect(columnIds()).toEqual(['2', '1', '3']);
+  });
+
+  it('keeps the rows’ order and the logical arrow keys under RTL', () => {
+    const onEvent = vi.fn(() => Promise.resolve({}));
+    render(<PageBoard config={boardConfig(PIPELINE)} states={{ 'board-1': recordList(DEALS) }} boardColumns={STAGES} onEvent={onEvent} dir="rtl" />);
+    expect(columnIds()).toEqual(['2', '1', '3']);
+    keyboardMove('Harbour Hotels', 1); // reading-forward under RTL is the previous column: Lead → Qualified
+    const event = (onEvent.mock.calls[0] as unknown[])[1] as WidgetEvent & { values: Record<string, unknown> };
+    expect(event.values).toEqual({ stage_id: 2 });
+  });
+
+  it('an enum board the page named takes each value’s count and total from the server too', () => {
+    const config = boardConfig({ ...KANBAN_CONFIG, totals: [{ column: 'pct', fn: 'avg' }] });
+    const counted = { status: 'success' as const, columns: [{ id: 'todo', count: 41, total: '12' }, { id: 'done', count: 7, total: '100' }] };
+    render(<PageBoard config={config} states={{ 'board-1': recordList(ROWS) }} boardColumns={counted} />);
+    expect(columnIds()).toEqual(['todo', 'in_progress', 'done']);
+    expect(part('todo', 'column-count')).toBe('41');
+    expect(part('todo', 'column-total')).toBe('12');
+    // A value the server counted nothing under holds none.
+    expect(part('in_progress', 'column-count')).toBe('0');
+    expect(part('done', 'column-count')).toBe('7');
   });
 });
 
@@ -351,5 +465,305 @@ describe('PageBoard — the answer’s words for a status', () => {
     render(<PageBoard config={config} states={{ 'board-1': served({ todo: 'Offen' }) }} />);
     expect(header('todo')).toContain('Backlog');
     expect(header('todo')).not.toContain('Offen');
+  });
+});
+
+describe('PageBoard — a board over a table: adding a card, and cards on no column', () => {
+  const PIPELINE = {
+    title: 'Deals',
+    statusColumn: 'stage_id',
+    titleColumn: 'name',
+    columnsFrom: { table: 'public.stages', key: 'id', label: 'name', order: 'position' },
+    binding: binding('deals'),
+  };
+  const DEALS = [
+    { id: 1, name: 'Harbour Hotels', stage_id: 1 },
+    { id: 2, name: 'Northfield Dental', stage_id: '3' },
+    { id: 3, name: 'No stage yet', stage_id: null },
+    { id: 4, name: 'Stage removed', stage_id: 99 },
+    { id: 5, name: 'Stage past the hundredth', stage_id: 250 },
+  ];
+  const STAGES = {
+    status: 'success' as const,
+    columns: [
+      { id: '2', value: 2, label: 'Qualified' },
+      { id: '1', value: 1, label: 'Lead' },
+      { id: '3', value: 3, label: 'Proposal' },
+    ],
+  };
+  const withComposer = (boardItem: Record<string, unknown>, compose: Record<string, unknown> = {}) => ({
+    templateVersion: 1,
+    toolbar: [],
+    overlays: [],
+    layout: {
+      version: 1,
+      items: [
+        { i: 'board-1', widget: 'kanban-board', x: 0, y: 0, w: 12, h: 16, config: boardItem },
+        { i: 'compose-1', widget: 'inline-compose-card', x: 0, y: 16, w: 4, h: 4, config: compose },
+      ],
+    },
+  });
+  /** The cards' own query, asking the same tests as `only`: the two are stored together. */
+  const asking = (only: { column: string; in: unknown[] }[]) => ({ ...binding('deals'), filters: only.map((test) => ({ column: test.column, op: 'in', value: test.in })) });
+  const addCard = (title: string): void => {
+    fireEvent.click(screen.getByTestId('compose-slot-compose-1'));
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: title } });
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }));
+  };
+
+  it('"Add card" waits for the columns: no card is added with no column to be in', () => {
+    const onEvent = vi.fn(() => Promise.resolve({}));
+    const states = { 'board-1': recordList(DEALS) };
+    const { rerender } = render(<PageBoard config={withComposer(PIPELINE)} states={states} boardColumns={{ status: 'loading' }} onEvent={onEvent} />);
+    const open = (): HTMLButtonElement => screen.getByTestId('compose-slot-compose-1') as HTMLButtonElement;
+    expect(open().disabled).toBe(true);
+    rerender(<PageBoard config={withComposer(PIPELINE)} states={states} boardColumns={{ status: 'error', error: new Error('no') }} onEvent={onEvent} />);
+    expect(open().disabled).toBe(true);
+    rerender(<PageBoard config={withComposer(PIPELINE)} states={states} boardColumns={{ status: 'success', columns: [] }} onEvent={onEvent} />);
+    expect(open().disabled).toBe(true);
+    rerender(<PageBoard config={withComposer(PIPELINE)} states={states} boardColumns={STAGES} onEvent={onEvent} />);
+    expect(open().disabled).toBe(false);
+    addCard('New deal');
+    expect(onEvent).toHaveBeenCalledTimes(1);
+    expect(onEvent).toHaveBeenCalledWith('compose-1', expect.objectContaining({ intent: 'insert', values: { stage_id: 2, name: 'New deal' } }));
+  });
+
+  it('a composer left open while the columns are read again adds nothing until they are back', () => {
+    const onEvent = vi.fn(() => Promise.resolve({}));
+    const states = { 'board-1': recordList(DEALS) };
+    const { rerender } = render(<PageBoard config={withComposer(PIPELINE)} states={states} boardColumns={STAGES} onEvent={onEvent} />);
+    fireEvent.click(screen.getByTestId('compose-slot-compose-1'));
+    rerender(<PageBoard config={withComposer(PIPELINE)} states={states} boardColumns={{ status: 'error', error: new Error('no') }} onEvent={onEvent} />);
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'New deal' } });
+    fireEvent.keyDown(screen.getByRole('textbox'), { key: 'Enter' });
+    expect((screen.getByRole('button', { name: 'Add' }) as HTMLButtonElement).disabled).toBe(true);
+    expect(onEvent).not.toHaveBeenCalled();
+  });
+
+  it('says how many cards are on no column when some are and some are not', () => {
+    render(<PageBoard config={boardConfig(PIPELINE)} states={{ 'board-1': recordList(DEALS) }} boardColumns={STAGES} />);
+    // No stage, a stage whose row is gone, and a stage beyond the columns that were read.
+    expect(screen.getByTestId('board-unplaced-rows').textContent).toBe('3 rows are in none of the board’s columns, so they are not shown here.');
+    cleanup();
+    render(<PageBoard config={boardConfig(PIPELINE)} states={{ 'board-1': recordList(DEALS.slice(0, 3)) }} boardColumns={STAGES} />);
+    expect(screen.getByTestId('board-unplaced-rows').textContent).toBe('1 row is in none of the board’s columns, so it is not shown here.');
+    cleanup();
+    render(<PageBoard config={boardConfig(PIPELINE)} states={{ 'board-1': recordList(DEALS.slice(0, 2)) }} boardColumns={STAGES} />);
+    expect(screen.queryByTestId('board-unplaced-rows')).toBeNull();
+  });
+
+  it('a board of some of its rows puts a new card among them: each test with one value is the card’s value', () => {
+    const onEvent = vi.fn(() => Promise.resolve({}));
+    const only = [
+      { column: 'state', in: ['open'] },
+      { column: 'kind', in: ['new', 'renewal'] },
+    ];
+    render(
+      <PageBoard
+        config={withComposer({ ...PIPELINE, binding: asking(only), only, allowAdd: true }, { defaults: { owner_id: 7 } })}
+        states={{ 'board-1': recordList(DEALS) }}
+        boardColumns={STAGES}
+        onEvent={onEvent}
+      />,
+    );
+    addCard('New deal');
+    // `kind` lists two values: which one is the column's own default to say, not the board's.
+    expect(onEvent).toHaveBeenLastCalledWith('compose-1', expect.objectContaining({ values: { owner_id: 7, state: 'open', stage_id: 2, name: 'New deal' } }));
+    fireEvent.click(document.querySelector<HTMLButtonElement>('[data-board-column="1"] [data-part="column-add"]')!);
+    expect(onEvent).toHaveBeenLastCalledWith('board-1', expect.objectContaining({ intent: 'insert', values: { state: 'open', stage_id: 1 } }));
+  });
+
+  it('a default left in the composer’s stored config cannot take a card off the board: the column and the board’s test win', () => {
+    const onEvent = vi.fn(() => Promise.resolve({}));
+    const only = [{ column: 'state', in: ['open'] }];
+    render(
+      <PageBoard
+        config={withComposer({ ...PIPELINE, binding: asking(only), only }, { defaults: { state: 'draft', stage_id: 99, name: 'Stale', owner_id: 7 } })}
+        states={{ 'board-1': recordList(DEALS) }}
+        boardColumns={STAGES}
+        onEvent={onEvent}
+      />,
+    );
+    addCard('New deal');
+    expect(onEvent).toHaveBeenLastCalledWith('compose-1', expect.objectContaining({ values: { state: 'open', stage_id: 2, name: 'New deal', owner_id: 7 } }));
+  });
+
+  it('a refused "Add card" is said on the board and aloud, and the typed title is kept', async () => {
+    // A board of the won deals over a table whose rows start as open: the insert is refused.
+    const onEvent = vi.fn(() => Promise.reject(new Error('State must start as Open.')));
+    const only = [{ column: 'state', in: ['won'] }];
+    const { container } = render(
+      <PageBoard config={withComposer({ ...PIPELINE, binding: asking(only), only, allowAdd: true })} states={{ 'board-1': recordList(DEALS) }} boardColumns={STAGES} onEvent={onEvent} />,
+    );
+    addCard('New deal');
+    await act(async () => {
+      await Promise.resolve();
+    });
+    await waitFor(() => expect(container.querySelector('[data-part="board-add-refused"]')).not.toBeNull());
+    expect(container.querySelector('[data-part="board-add-refused"]')!.textContent).toContain('New deal was not added. State must start as Open.');
+    expect(container.querySelector('[data-board-liveregion]')!.textContent).toContain('New deal was not added. State must start as Open.');
+    expect((screen.getByRole('textbox') as HTMLInputElement).value).toBe('New deal');
+    // A column's own "add" is refused the same way, and says so in the same place.
+    await act(async () => {
+      fireEvent.click(document.querySelector<HTMLButtonElement>('[data-board-column="1"] [data-part="column-add"]')!);
+      await Promise.resolve();
+    });
+    await waitFor(() => expect(container.querySelector('[data-part="board-add-refused"]')!.textContent).toContain('The card was not added. State must start as Open.'));
+  });
+
+  it('an add that holds clears the title, and the line of an earlier refusal with it', async () => {
+    const onEvent = vi.fn().mockRejectedValueOnce(new Error('Refused.')).mockResolvedValue({});
+    const { container } = render(<PageBoard config={withComposer(PIPELINE)} states={{ 'board-1': recordList(DEALS) }} boardColumns={STAGES} onEvent={onEvent} />);
+    addCard('New deal');
+    await act(async () => {
+      await Promise.resolve();
+    });
+    await waitFor(() => expect(container.querySelector('[data-part="board-add-refused"]')).not.toBeNull());
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Add' }));
+      await Promise.resolve();
+    });
+    await waitFor(() => expect((screen.getByRole('textbox') as HTMLInputElement).value).toBe(''));
+    expect(container.querySelector('[data-part="board-add-refused"]')).toBeNull();
+  });
+});
+
+describe('PageBoard — a stored `only` that cannot be trusted', () => {
+  const PIPELINE = {
+    title: 'Deals',
+    statusColumn: 'stage_id',
+    titleColumn: 'name',
+    columnsFrom: { table: 'public.stages', key: 'id', label: 'name', order: 'position' },
+  };
+  const STAGES = { status: 'success' as const, columns: [{ id: '1', value: 1, label: 'Lead', count: 2 }] };
+  const DEALS = [{ id: 1, name: 'Harbour Hotels', stage_id: 1 }];
+  const draw = (only: unknown, filters?: unknown) =>
+    render(
+      <PageBoard
+        config={boardConfig({ ...PIPELINE, binding: { ...binding('deals'), ...(filters === undefined ? {} : { filters }) }, only })}
+        states={{ 'board-1': recordList(DEALS) }}
+        boardColumns={STAGES}
+      />,
+    );
+
+  it('does not draw a board whose only is malformed: never one with unfiltered headers', () => {
+    for (const only of [{ state: 'open' }, [{ column: 'state' }], [{ column: 'state', in: [] }], [{ column: 'state', in: [{ eq: 'open' }] }], ['state']]) {
+      draw(only, [{ column: 'state', op: 'in', value: ['open'] }]);
+      expect(screen.getByTestId('page-board-invalid-only').textContent, JSON.stringify(only)).toContain('cannot be read');
+      expect(document.querySelector('[data-board-column]'), JSON.stringify(only)).toBeNull();
+      cleanup();
+    }
+  });
+
+  it('does not draw a board whose headers are asked a test its cards are not', () => {
+    draw([{ column: 'state', in: ['open'] }]);
+    expect(screen.getByTestId('page-board-invalid-only')).toBeDefined();
+    cleanup();
+    draw([{ column: 'state', in: ['open'] }], [{ column: 'state', op: 'in', value: ['open', 'won'] }]);
+    expect(screen.getByTestId('page-board-invalid-only')).toBeDefined();
+    cleanup();
+    // Asked alike: drawn.
+    draw([{ column: 'state', in: ['open'] }], [{ column: 'state', op: 'in', value: ['open'] }]);
+    expect(screen.queryByTestId('page-board-invalid-only')).toBeNull();
+    expect(document.querySelector('[data-board-column="1"]')).not.toBeNull();
+  });
+});
+
+describe('PageBoard — what a named board’s headings, cards and note show', () => {
+  const U1 = 'usr_dana';
+  const U2 = 'usr_gone';
+  const PIPELINE = {
+    title: 'Deals',
+    statusColumn: 'stage_id',
+    titleColumn: 'name',
+    columnsFrom: { table: 'public.stages', key: 'id', label: 'name', badge: { column: 'odds', as: 'percent' } },
+    totals: [
+      { column: 'amount', fn: 'sum' },
+      { column: 'weighted_value', fn: 'sum' },
+    ],
+    card: { link: 'company_id.name', person: 'owner_id', amount: 'amount', daysSince: { column: 'entered_stage_at', warnFrom: 14, alertFrom: 30 }, date: 'expected_close' },
+    note: { text: 'Columns come from Stages', texts: { 'de-DE': 'Die Spalten kommen aus den Phasen' }, href: '/p/crm-stages' },
+    binding: binding('deals'),
+  };
+  const DEALS = [
+    { id: 1, name: 'Fourth-floor desk rows', stage_id: 1, owner_id: U1, company_id: 7, adm_card_link: 'Cobalt Legal', amount: '52800.00', adm_card_days: 3, entered_stage_at: '2026-07-25T09:00:00Z', expected_close: '2026-09-30' },
+    { id: 2, name: 'Showroom refit', stage_id: 1, owner_id: U2, company_id: 8, adm_card_link: null, amount: 38000, adm_card_days: 32, entered_stage_at: '2026-06-26T09:00:00Z', expected_close: null },
+    { id: 3, name: 'Depot stations', stage_id: 1, owner_id: null, company_id: null, amount: null, adm_card_days: 14, entered_stage_at: '2026-07-14T09:00:00Z', expected_close: '2026-08-04' },
+    { id: 4, name: 'No date at all', stage_id: 1, owner_id: U1, company_id: 7, adm_card_link: 'Cobalt Legal', amount: 10, adm_card_days: null, entered_stage_at: null, expected_close: null },
+  ];
+  const listed = { status: 'success' as const, data: { rows: DEALS, columns: [{ name: 'expected_close', logicalType: 'date' }, { name: 'entered_stage_at', logicalType: 'timestamptz' }], total: DEALS.length, people: { [U1]: 'Dana Whitlock' } } };
+  const STAGES = { status: 'success' as const, columns: [{ id: '1', value: 1, label: 'Proposal', count: 4, total: 'Amount £87,000.00 · Weighted value £43,500.00', badge: '50%' }] };
+  const cardOf = (title: string): HTMLElement => screen.getByRole('button', { name: title });
+  const draw = (over: Record<string, unknown> = {}, props: Record<string, unknown> = {}) =>
+    render(<PageBoard config={boardConfig({ ...PIPELINE, ...over })} states={{ 'board-1': listed }} boardColumns={STAGES} locale="en-US" formatAmount={(_column, amount) => `£${amount.toFixed(2)}`} {...props} />);
+
+  it('heads a column with its badge and both totals', () => {
+    draw();
+    const header = document.querySelector('[data-board-column="1"] header') as HTMLElement;
+    expect(within(header).getByText('50%').getAttribute('data-part')).toBe('column-badge');
+    expect(header.querySelector('[data-part="column-total"]')?.textContent).toBe('Amount £87,000.00 · Weighted value £43,500.00');
+    // The whole figure is there to read where the heading has no room for it.
+    expect(header.querySelector('[data-part="column-total"]')?.getAttribute('title')).toBe('Amount £87,000.00 · Weighted value £43,500.00');
+  });
+
+  it('draws on a card the company, the person by name, the amount, the days the server counted and the date', () => {
+    draw();
+    const card = cardOf('Fourth-floor desk rows');
+    expect(within(card).getByText('Cobalt Legal')).toBeDefined();
+    expect(within(card).getByText('£52800.00')).toBeDefined();
+    expect(within(card).getByText('3 days')).toBeDefined();
+    expect(within(card).getByText('Sep 30, 2026')).toBeDefined();
+    // The owner is drawn as a person, by the name the server gave.
+    expect(card.innerHTML).toContain('Dana Whitlock');
+  });
+
+  it('never draws a person’s id: somebody the server gave no name for is drawn as nobody', () => {
+    draw();
+    const card = cardOf('Showroom refit');
+    expect(card.innerHTML).not.toContain(U2);
+    expect(document.body.innerHTML).not.toContain(U2);
+    expect(document.body.innerHTML).not.toContain(U1);
+    // A company out of the reader’s reach is no line at all, and a missing date no chip.
+    expect(within(card).queryByText('Cobalt Legal')).toBeNull();
+    expect(within(card).getByText('£38000.00')).toBeDefined();
+  });
+
+  it('colours the days by the page’s own two limits, and leaves out what has no value', () => {
+    draw();
+    const tone = (title: string, text: string): string => within(cardOf(title)).getByText(text).className;
+    expect(tone('Showroom refit', '32 days')).not.toBe(tone('Fourth-floor desk rows', '3 days'));
+    expect(tone('Depot stations', '14 days')).not.toBe(tone('Fourth-floor desk rows', '3 days'));
+    expect(tone('Depot stations', '14 days')).not.toBe(tone('Showroom refit', '32 days'));
+    const bare = cardOf('No date at all');
+    expect(within(bare).queryByText(/days?$/)).toBeNull();
+    expect(within(cardOf('Depot stations')).queryByText(/£/)).toBeNull();
+    expect(within(cardOf('Depot stations')).getByText('Aug 4, 2026')).toBeDefined();
+  });
+
+  it('a board that declares no card draws its title alone, as before', () => {
+    draw({ card: undefined });
+    const card = cardOf('Fourth-floor desk rows');
+    expect(within(card).queryByText('Cobalt Legal')).toBeNull();
+    expect(within(card).queryByText('3 days')).toBeNull();
+  });
+
+  it('draws the page’s note above the board and opens its address through the host', () => {
+    const onEvent = vi.fn();
+    draw({}, { onEvent });
+    const note = screen.getByTestId('board-note');
+    expect(note.textContent).toBe('Columns come from Stages');
+    fireEvent.click(within(note).getByRole('button'));
+    expect(onEvent).toHaveBeenCalledWith('board-1', { type: 'drill-through', href: '/p/crm-stages' });
+  });
+
+  it('a note with no address is plain words, and one that leaves the workspace is not a link', () => {
+    draw({ note: { text: 'Cards sit longest first' } }, { onEvent: vi.fn() });
+    expect(within(screen.getByTestId('board-note')).queryByRole('button')).toBeNull();
+    cleanup();
+    for (const href of ['https://evil.example', '//evil.example', 'javascript:alert(1)']) {
+      draw({ note: { text: 'Stages', href } }, { onEvent: vi.fn() });
+      expect(within(screen.getByTestId('board-note')).queryByRole('button'), href).toBeNull();
+      cleanup();
+    }
   });
 });

@@ -33,6 +33,33 @@ export interface RealtimeEvent {
 /** A delivery sink — one per WS socket / SSE response per channel. */
 export type RealtimeSink = (event: RealtimeEvent) => void;
 
+/**
+ * Whose a written row is, as the publisher of a table's frame knew it: what
+ * a subscriber's filter needs to decide whether the frame is theirs to get
+ * (`realtime/read-frames.ts`), kept BESIDE the event and never in it — a
+ * frame is serialised whole, and a colleague's id is not for the wire.
+ */
+export interface FrameReach {
+  /** The table is private: everybody is held to their own rows there. */
+  private: boolean;
+  /**
+   * The staff columns people belong to a row by, when every way the table
+   * declares is such a column; null when a way goes through a person's row,
+   * a listing or a parent — then nothing here can say whose the row is.
+   */
+  columns: readonly string[] | null;
+  /** Those columns' values in the row as it was, and as it is; null where there is no such image. */
+  before: Readonly<Record<string, unknown>> | null;
+  after: Readonly<Record<string, unknown>> | null;
+}
+
+const frameReaches = new WeakMap<RealtimeEvent, FrameReach>();
+
+/** What a frame's publisher said of whose its row is; undefined for a frame that came with nothing. */
+export function frameReachOf(event: RealtimeEvent): FrameReach | undefined {
+  return frameReaches.get(event);
+}
+
 /** Permission key guarding non-owner access to `jobs:<jobId>` channels. */
 export const JOBS_READ_PERMISSION = 'system:jobs:read';
 
@@ -111,6 +138,14 @@ export interface ChannelAuthDeps {
    * their roles are then; null: send them as they are.
    */
   frameFor?(user: RealtimeUser, channel: string): Promise<((event: RealtimeEvent) => Promise<RealtimeEvent | null>) | null>;
+  /**
+   * A channel as the hub publishes it. A table's frames go out under its full
+   * id (`main.crm_deals`, `public.crm_deals`); an app's own screen knows the
+   * table by the name its config gives (`crm_deals`), and asks by that. This
+   * answers the id's channel for either spelling, and the channel unchanged
+   * for anything it does not know (the checks that follow refuse it).
+   */
+  canonicalChannel?(channel: string): Promise<string>;
 }
 
 /**
@@ -168,8 +203,10 @@ export class RealtimeHub {
   }
 
   /** Build the event frame and fan it out to current subscribers. */
-  publish(channel: string, type: string, data: unknown, at: number = Date.now()): RealtimeEvent {
+  publish(channel: string, type: string, data: unknown, at: number = Date.now(), reach?: FrameReach): RealtimeEvent {
     const event: RealtimeEvent = { channel, type, data, ts: new Date(at).toISOString() };
+    // Before any sink sees the event: a subscriber's filter reads it.
+    if (reach !== undefined) frameReaches.set(event, reach);
     const sinks = this.channels.get(channel);
     if (sinks !== undefined) {
       for (const sink of [...sinks]) {

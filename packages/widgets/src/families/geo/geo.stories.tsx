@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * TRACK COMM-GEO `geo` family stories (annex): the Leaflet bubble map and the
+ * TRACK COMM-GEO `geo` family stories (annex): the MapLibre bubble map and the
  * region-coded tilegram, the four WidgetFrame states through WidgetHost
  * (acceptance #4), and light/dark × LTR/RTL matrices with REAL geometry
  * (acceptance #9).
@@ -17,11 +17,12 @@
  * same seeded generators `demoData` uses, so VRT captures are
  * byte-deterministic.
  *
- * NOTE ON THE MAP IN CI: Leaflet loads on demand inside MapBubble's mount effect
- * and fetches Carto tiles over the network. In a sandboxed VRT runner it degrades
- * to `data-map-status="unavailable"` and the ranked list carries the frame —
- * which is itself worth capturing, and is why `MapUnavailable` below is a story
- * rather than an accident.
+ * NOTE ON THE MAP HERE: a map needs a map server's address, which comes with a
+ * signed-in session and is written nowhere in this package. These stories mount
+ * no runtime provider, so every one shows the map's "switched off" state — the
+ * list carrying the frame under its notice — and asks nothing outside, which
+ * also keeps the VRT captures byte-deterministic. The live map is proved in a
+ * real browser against a real server, not here.
  */
 import type { ReactNode } from 'react';
 
@@ -155,8 +156,8 @@ export const MapChoroplethGridStates = {
  * properties — while the map canvas stays `dir="ltr"`. That asymmetry is the
  * feature: a mirrored world map is a wrong map.
  *
- * The dark frames are also where the Carto tile swap shows: `subscribeTheme`
- * repoints the basemap at `dark_all` when the theme resolves to dark.
+ * With a map server, the dark frames are where the style swap shows:
+ * `subscribeTheme` repoints the map at the server's dark style.
  */
 export const MapBubbleThemeAndDirectionMatrix = {
   name: 'map-bubble (light/dark × LTR/RTL — chrome mirrors, map does not)',
@@ -234,20 +235,20 @@ export const ChoroplethCompactGrid = {
 };
 
 /**
- * The degraded map: no Leaflet, no tiles, still useful. This is what an offline
- * desktop build, a blocked tile CDN, or a failed chunk fetch looks like — the
+ * The map with no map: still useful. This is what maps switched off, a map
+ * server that cannot be reached, or a failed chunk fetch looks like — the
  * ranked list carries the widget, which is why it is real content and not merely
  * a screen-reader fallback.
  */
 export const MapUnavailable = {
-  name: 'map-bubble (map unavailable — the ranked list carries it)',
+  name: 'map-bubble (no map — the ranked list carries it)',
   render: () => (
     <Frame>
       <div className="h-[22rem] w-[28rem]">
         <MapBubble
           points={mapBubbleDemoData(7).points}
           metrics={['users']}
-          mapUnavailableLabel="The map could not be loaded. The ranked list shows the same data."
+          mapUnavailableLabel="The map could not be reached. Here is the list."
           format={(value) => value.toLocaleString('en-US')}
         />
       </div>

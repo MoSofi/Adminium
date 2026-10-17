@@ -193,6 +193,8 @@ export interface EmailListParams {
   kind?: EmailDocumentKind | undefined;
   archived?: boolean | undefined;
   q?: string | undefined;
+  /** Only the documents one installed app brought. */
+  app?: string | undefined;
 }
 
 export interface EmailCreateBody {
@@ -239,6 +241,7 @@ function listPath(params: EmailListParams): string {
   if (params.kind !== undefined) query.set('kind', params.kind);
   if (params.archived === true) query.set('archived', 'true');
   if (params.q !== undefined && params.q !== '') query.set('q', params.q);
+  if (params.app !== undefined) query.set('app', params.app);
   const qs = query.toString();
   return qs === '' ? BASE : `${BASE}?${qs}`;
 }

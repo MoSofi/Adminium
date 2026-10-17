@@ -91,7 +91,13 @@
       "tooLarge": "必須小於或等於 {max}。",
       "outOfRange": "此數字超出範圍。",
       "duplicate": "已新增。",
-      "form": "部分值遭到拒絕。請檢查標記的欄位。"
+      "form": "部分值遭到拒絕。請檢查標記的欄位。",
+      "mentionUnknown": "此處提到的某人不是在這裡登入的人員。請輸入 @ 並從清單中選擇。",
+      "tooManyMentions": "此處提到的人太多。請減少提及的人數。",
+      "fileNotHere": "此檔案無法儲存在這裡，請從此欄位重新上傳。",
+      "fileType": "此處不接受這種檔案。",
+      "fileTooLarge": "此檔案超出此欄位允許的大小。",
+      "tooManyFiles": "此處最多 {n} 個檔案。"
     },
     "lines": {
       "add": "新增列",
@@ -687,7 +693,12 @@
         "emptyBody": "依泳道欄位與狀態欄位將記錄分組以建立格線。"
       },
       "addCard": "新增卡片",
+      "notMoved": "{title} 未移動。",
+      "notAdded": "{title} 未新增。",
+      "cardNotAdded": "卡片未新增。",
+      "dismissNotice": "關閉",
       "grip": "拖曳以移動卡片",
+      "cardActions": "{title} 的動作",
       "pointsUnit": "點",
       "laneSummary": "Σ{points} 點 · {count}",
       "a11y": {
@@ -695,7 +706,9 @@
         "over": "{title} 位於 {cell} 上方。",
         "moved": "已將 {title} 移動到 {cell}。",
         "returned": "{title} 已返回原位。",
-        "failed": "無法移動 {title}；已返回原位。"
+        "failed": "無法移動 {title}；已返回原位。",
+        "draggable": "可拖曳的卡片",
+        "openHint": "按 Enter 抓取此卡片以移動，按 Shift+Enter 開啟。"
       },
       "boardCard": {
         "description": "單張看板卡片：標籤、標題、進度、負責人與到期日。",
@@ -770,9 +783,58 @@
         "description": "地圖上的圓形標記依所選指標縮放，並附上排名靠前地點的清單。",
         "emptyTitle": "沒有位置",
         "emptyBody": "包含緯度與經度的列會在這裡顯示為地圖標記。",
-        "mapUnavailableLabel": "地圖無法載入。排名清單顯示的是相同資料。",
+        "mapUnavailableLabel": "無法連上地圖。以下是清單。",
         "regionsLabel": "熱門區域",
-        "metricLabel": "指標"
+        "metricLabel": "指標",
+        "mapsOffLabel": "地圖已關閉。以下是清單。",
+        "mapsOffLink": "開啟「設定 → 地圖」",
+        "mapLabel": "地圖",
+        "zoomIn": "放大",
+        "zoomOut": "縮小",
+        "byTown": "依城鎮",
+        "pinMoveHint": "拖曳到確切位置。使用鍵盤：按 Enter 拿起圖釘，用方向鍵移動，按 Enter 保留該位置，按 Esc 放回原處。",
+        "sharedTown": "{count, plural, other {有 # 個地點}}只知道在這個城鎮",
+        "stopsLabel": "停靠點",
+        "placesLabel": "地點",
+        "areasLabel": "區域",
+        "legAbout": "距上一站約 {distance}",
+        "legExact": "距上一站 {distance}",
+        "legUnknown": "距上一站的距離不明",
+        "openInMaps": "在我的地圖 App 中開啟",
+        "openOnMapsSite": "在 OpenStreetMap 上開啟（新分頁）",
+        "legDrive": "車程 {duration}",
+        "totalAbout": "全程：約 {distance}",
+        "totalExact": "全程：{distance}",
+        "tryAgain": "再試一次",
+        "saidTrying": "正在重新載入地圖。",
+        "routeUnavailable": "無法算出各站之間的路線，因此距離不明。",
+        "placingHint": "在地圖上點一下 {name} 所在的位置。用鍵盤：聚焦地圖，用方向鍵移動地圖，再按 Enter 把 {name} 放在十字標記處。",
+        "placeAtMiddle": "放在地圖中央",
+        "placingStop": "停止放置",
+        "saidPlaced": "{name} 已放在 {position}。",
+        "saidPlaceRefused": "{name} 未被放到地圖上。",
+        "cornerLabel": "第 {number} 個角",
+        "areaChangeHint": "拖曳一個角即可移動。選取一個角可移除它，或在它後面加一個角。",
+        "areaDrawHint": "點按地圖加入區域的各個角，然後封閉圖形。",
+        "areaAddCornerHere": "在地圖中央加一個角",
+        "areaClose": "封閉圖形",
+        "areaInsertCorner": "在這個角後面加一個角",
+        "areaRemoveCorner": "移除這個角",
+        "areaRestart": "重新開始",
+        "areaDone": "完成",
+        "areaPickHint": "在地圖或清單中選取一個區域來修改。",
+        "areaNew": "畫一個新區域",
+        "areaChange": "修改",
+        "areaUnnamed": "區域 {number}",
+        "areaPoints": "{count, plural, other {# 個點}}",
+        "areaPiecesHint": "此區域有一個洞或由多個部分組成。修改此輪廓時，它們維持不變。「重新開始」會用一個新圖形取代整個區域。",
+        "listMore": "{count, plural, other {還有 # 個}}",
+        "saidCornerAdded": "已新增一個角。{count, plural, other {共 # 個角}}。",
+        "saidShapeClosed": "圖形已封閉。",
+        "saidPinKept": "圖釘已保留在 {position}。",
+        "saidPinPicked": "已拿起圖釘。用方向鍵移動，然後按 Enter 保留該位置，或按 Esc 放回原處。",
+        "saidPinBack": "圖釘已回到原處。",
+        "saidPinRefused": "新位置未被保留。圖釘已回到原處。"
       },
       "mapChoroplethGrid": {
         "description": "依數值著色的區域方塊——適用於只有區域代碼、沒有座標的資料表。",
@@ -781,6 +843,38 @@
         "legendLowLabel": "低",
         "legendHighLabel": "高",
         "chartLabel": "區域分佈"
+      },
+      "place": {
+        "pinName": "這個地點",
+        "placeholder": "輸入城鎮，或貼上座標或地圖連結",
+        "searching": "正在尋找…",
+        "noTown": "沒有這個名稱的城鎮。換個寫法試試，或貼上座標。",
+        "searchFailed": "目前無法查詢城鎮清單。請再試一次，或貼上座標。",
+        "whereIAm": "我現在的位置",
+        "byTown": "依城鎮：{name}",
+        "exact": "確切位置：{position}",
+        "exactNamed": "確切位置：{name}（{position}）",
+        "pending": "儲存時讀取：{text}",
+        "none": "尚無地點",
+        "clear": "清除",
+        "whereError": "這部裝置沒有提供所在位置。請檢查瀏覽器是否可使用你的位置。",
+        "issue": {
+          "unreadable": "無法把它讀成一個地點。請從清單中選一個城鎮，或貼上座標，例如 30.0444, 31.2357。",
+          "shortLink": "短網址沒有寫明指向哪裡，系統也不會去開啟它。請先開啟它，再貼上完整連結或座標。",
+          "outOfRange": "這些座標不在地圖上。緯度從 -90 到 90，經度從 -180 到 180。",
+          "unknown": "這個城鎮已不在清單中。請重新選擇。"
+        }
+      },
+      "area": {
+        "points": "區域 · {count, plural, other {# 個點}}",
+        "unreadable": "已儲存的值不是一個區域。畫一個來取代它。",
+        "none": "尚無區域",
+        "clear": "清除",
+        "mapsOff": "區域要在地圖上畫，而地圖已關閉。已儲存的區域維持不變。",
+        "issue": {
+          "unreadable": "無法把它讀成一個區域。請重新畫。",
+          "tooLarge": "這個區域的點太多。請用更少的點來畫。"
+        }
       }
     },
     "domain": {
@@ -1522,6 +1616,45 @@
         "title": "小工具無法使用",
         "bodyLead": "沒有小工具註冊為",
         "bodyTail": "它可能屬於較新的版本，或未安裝的擴充功能。"
+      },
+      "wholeOnly": {
+        "title": "僅限整個團隊",
+        "body": "此數字屬於整個團隊。由於你的角色只能讀取用來計算它的部分資料列，因此不向你顯示。"
+      }
+    },
+    "files": {
+      "tooLarge": "此檔案超出此欄位允許的大小。",
+      "wrongType": "此處不接受這種檔案。",
+      "notAllowed": "您不能在此處新增檔案。",
+      "notSent": "無法傳送，請再試一次。",
+      "signature": {
+        "name": "簽名",
+        "pad": "請用手指、觸控筆或滑鼠在此簽名。",
+        "typedPad": "以簽名形式書寫的姓名。",
+        "line": "請在線上方簽名",
+        "clear": "清除",
+        "typeInstead": "改為輸入姓名",
+        "drawInstead": "改為手寫簽名",
+        "typedLabel": "作為簽名的姓名",
+        "keep": "保留此簽名",
+        "again": "重新簽名",
+        "saving": "正在傳送簽名…",
+        "kept": "簽名已保留。",
+        "cleared": "簽名已清除，請重新簽名。",
+        "empty": "請先簽名，再保留簽名。",
+        "keptAlt": "已保留的簽名"
+      },
+      "photos": {
+        "name": "照片",
+        "add": "新增照片",
+        "count": "{count} / {max}",
+        "full": "此欄位無法再新增照片。",
+        "alt": "照片 {n}",
+        "remove": "移除照片 {n}",
+        "sending": "正在傳送…",
+        "added": "照片已新增。",
+        "refused": "照片未被保留：{reason}",
+        "removed": "照片 {n} 已移除。"
       }
     }
   },
@@ -1845,7 +1978,13 @@
     "board": {
       "invalidLayout": "此看板儲存的版面配置無效。請重新產生頁面或重設其版面配置。",
       "noRowsTitle": "還沒有卡片",
-      "noRowsBody": "資料表中一有列，卡片就會顯示在這裡。"
+      "noColumnsTitle": "尚無欄",
+      "noColumnsBody": "此看板的欄來自某個資料表的列，而該資料表還沒有列。新增一列，它就會以一欄顯示在這裡。",
+      "invalidOnly": "此看板設定為只顯示其資料表中的部分列，但該設定無法讀取，因此看板未顯示。請重新產生此頁面。",
+      "columnsError": "無法從 {table} 讀取此看板的欄。",
+      "columnsCut": "{count, plural, other {僅顯示前 # 欄：此看板取欄的資料表還有更多列。}}",
+      "noRowsBody": "資料表中一有列，卡片就會顯示在這裡。",
+      "days": "{count, plural, other {# 天}}"
     },
     "calendar": {
       "eventCount": "{count, plural, other {{n} events}}",
@@ -1953,6 +2092,8 @@
       "unplaced": {
         "calendar": "此資料表中還沒有任何列帶有日期，因此行事曆為空。列一旦有了日期就會顯示在這裡。",
         "board": "此資料表中還沒有任何列帶有狀態，因此看板為空。列一旦有了狀態就會顯示在這裡。",
+        "boardColumns": "此資料表中還沒有任何列位於看板的某一欄中，因此看板為空。列一旦被放入某一欄就會顯示在這裡。",
+        "boardColumnsSome": "{count, plural, other {有 # 列不在看板的任何一欄中，因此未顯示在這裡。}}",
         "scheduler": "此資料表中還沒有任何列同時帶有人員、日期和班別類型，因此排班表為空。列一旦三者齊全就會顯示在這裡。"
       }
     }
@@ -2092,5 +2233,8 @@
       "low": "庫存低",
       "out": "缺貨"
     }
+  },
+  "mentions": {
+    "people": "可提及的人員"
   }
 }

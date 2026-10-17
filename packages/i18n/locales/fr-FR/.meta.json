@@ -1899,6 +1899,14 @@
     "status": "mt",
     "srcHash": "ad871a1e5638"
   },
+  "automations.appFilter.clear": {
+    "status": "mt",
+    "srcHash": "7414450c8edc"
+  },
+  "automations.appFilter.note": {
+    "status": "mt",
+    "srcHash": "db09e432dec0"
+  },
   "automations.assistant.addedBy": {
     "status": "mt",
     "srcHash": "19b77b48a1ea"
@@ -1962,6 +1970,50 @@
   "automations.delete.title": {
     "status": "mt",
     "srcHash": "7fd57c94c8dc"
+  },
+  "automations.digest.addSection": {
+    "status": "mt",
+    "srcHash": "d10b3b78f3b6"
+  },
+  "automations.digest.chooseTable": {
+    "status": "mt",
+    "srcHash": "9cd9ec452dd6"
+  },
+  "automations.digest.conditions": {
+    "status": "mt",
+    "srcHash": "0e7d4ffde652"
+  },
+  "automations.digest.help": {
+    "status": "mt",
+    "srcHash": "d19afe3489c5"
+  },
+  "automations.digest.limit": {
+    "status": "mt",
+    "srcHash": "b3473249a6b6"
+  },
+  "automations.digest.owner": {
+    "status": "mt",
+    "srcHash": "d101fc0f2c90"
+  },
+  "automations.digest.readAt": {
+    "status": "mt",
+    "srcHash": "ffb4dfdfe034"
+  },
+  "automations.digest.removeSection": {
+    "status": "mt",
+    "srcHash": "93f67eaee2cc"
+  },
+  "automations.digest.sectionKey": {
+    "status": "mt",
+    "srcHash": "d5c77a1fe043"
+  },
+  "automations.digest.sendEmpty": {
+    "status": "mt",
+    "srcHash": "9d03d0f6957c"
+  },
+  "automations.digest.sendEmptyBody": {
+    "status": "mt",
+    "srcHash": "71ea415d8a9c"
   },
   "automations.dur.ms": {
     "status": "mt",
@@ -2074,6 +2126,10 @@
   "automations.email.toFixed": {
     "status": "mt",
     "srcHash": "4ca7b9663ad2"
+  },
+  "automations.email.toStaff": {
+    "status": "mt",
+    "srcHash": "563ba97db9cc"
   },
   "automations.event.created": {
     "status": "mt",
@@ -2311,6 +2367,26 @@
     "status": "mt",
     "srcHash": "68b8e24203fa"
   },
+  "automations.listed.choose": {
+    "status": "mt",
+    "srcHash": "9cd9ec452dd6"
+  },
+  "automations.listed.help": {
+    "status": "mt",
+    "srcHash": "776d5b826824"
+  },
+  "automations.listed.option": {
+    "status": "mt",
+    "srcHash": "e8d272acedd6"
+  },
+  "automations.listed.pick": {
+    "status": "mt",
+    "srcHash": "23db98967160"
+  },
+  "automations.listed.summary": {
+    "status": "mt",
+    "srcHash": "29c7cd08a82e"
+  },
   "automations.logs.duration": {
     "status": "mt",
     "srcHash": "1370004da76f"
@@ -2531,6 +2607,10 @@
     "status": "mt",
     "srcHash": "7c24d7dca708"
   },
+  "automations.node.digest.summary": {
+    "status": "src",
+    "srcHash": "9c69230944d2"
+  },
   "automations.node.document.summary": {
     "status": "mt",
     "srcHash": "6c0c11284068"
@@ -2619,6 +2699,26 @@
     "status": "src",
     "srcHash": "68f4145fee7d"
   },
+  "automations.notif.column": {
+    "status": "mt",
+    "srcHash": "563ba97db9cc"
+  },
+  "automations.notif.columnChoose": {
+    "status": "mt",
+    "srcHash": "a8b8d4dbb2e0"
+  },
+  "automations.notif.columnEmpty": {
+    "status": "mt",
+    "srcHash": "8b73bff65b16"
+  },
+  "automations.notif.columnNone": {
+    "status": "mt",
+    "srcHash": "159caf4b52b1"
+  },
+  "automations.notif.columnPick": {
+    "status": "mt",
+    "srcHash": "89b173633140"
+  },
   "automations.notif.roles": {
     "status": "mt",
     "srcHash": "128a496a5d62"
@@ -2630,6 +2730,14 @@
   "automations.notif.to": {
     "status": "mt",
     "srcHash": "b98cc23a0165"
+  },
+  "automations.notif.urgent": {
+    "status": "src",
+    "srcHash": "ecb26f46e394"
+  },
+  "automations.notif.urgentBody": {
+    "status": "mt",
+    "srcHash": "41e1dd5e700e"
   },
   "automations.notif.users": {
     "status": "mt",
@@ -2694,6 +2802,14 @@
   "automations.pick.createDesc": {
     "status": "mt",
     "srcHash": "2d88d902977c"
+  },
+  "automations.pick.digest": {
+    "status": "mt",
+    "srcHash": "ec985e045352"
+  },
+  "automations.pick.digestDesc": {
+    "status": "mt",
+    "srcHash": "53dd8463ab63"
   },
   "automations.pick.document": {
     "status": "mt",
@@ -2806,6 +2922,26 @@
   "automations.rec.column": {
     "status": "mt",
     "srcHash": "65ba00e95e60"
+  },
+  "automations.rec.dayCount": {
+    "status": "mt",
+    "srcHash": "e7c9e031e81b"
+  },
+  "automations.rec.daysAfter": {
+    "status": "mt",
+    "srcHash": "503cba78fd40"
+  },
+  "automations.rec.fromSetting": {
+    "status": "mt",
+    "srcHash": "118b0af33437"
+  },
+  "automations.rec.name": {
+    "status": "mt",
+    "srcHash": "cb27f8edcf9e"
+  },
+  "automations.rec.nameHint": {
+    "status": "mt",
+    "srcHash": "776db387db7c"
   },
   "automations.rec.now": {
     "status": "mt",
@@ -3118,6 +3254,14 @@
   "automations.trig.onceBody": {
     "status": "mt",
     "srcHash": "53c2ff0b0e67"
+  },
+  "automations.trig.perSpell": {
+    "status": "mt",
+    "srcHash": "92bd32faad4c"
+  },
+  "automations.trig.perSpellBody": {
+    "status": "mt",
+    "srcHash": "aad969bf173a"
   },
   "automations.trig.record": {
     "status": "mt",
@@ -6031,6 +6175,10 @@
     "status": "mt",
     "srcHash": "b1cada541899"
   },
+  "common.nav.emptyPartsOff": {
+    "status": "mt",
+    "srcHash": "928c972080be"
+  },
   "common.nav.emptyWithheld": {
     "status": "mt",
     "srcHash": "1231b3ae81b1"
@@ -6107,6 +6255,10 @@
     "status": "mt",
     "srcHash": "218887269ad5"
   },
+  "common.nav.teams": {
+    "status": "mt",
+    "srcHash": "cbfd44d9c70c"
+  },
   "common.nav.workflowLogs": {
     "status": "mt",
     "srcHash": "2c5d54c37f51"
@@ -6163,6 +6315,10 @@
     "srcHash": "6df17c3ac00b",
     "status": "mt"
   },
+  "common.notifications.event.mention": {
+    "status": "mt",
+    "srcHash": "2198c2c3b139"
+  },
   "common.notifications.event.reportFailed": {
     "srcHash": "18092b4d8de1",
     "status": "mt"
@@ -6170,6 +6326,10 @@
   "common.notifications.event.reportReady": {
     "srcHash": "c22b1ff616c4",
     "status": "mt"
+  },
+  "common.notifications.event.ruleNotice": {
+    "status": "mt",
+    "srcHash": "08581d27e4c9"
   },
   "common.onboarding.completeBody": {
     "srcHash": "f952083bc23b",
@@ -6546,6 +6706,98 @@
   "common.projectAction.selected": {
     "status": "mt",
     "srcHash": "aaa5751cb0d3"
+  },
+  "common.quietHours.always": {
+    "status": "mt",
+    "srcHash": "a85754680d39"
+  },
+  "common.quietHours.alwaysNote": {
+    "status": "mt",
+    "srcHash": "8ad28375d0a3"
+  },
+  "common.quietHours.copy": {
+    "status": "mt",
+    "srcHash": "6e4f89c26676"
+  },
+  "common.quietHours.days": {
+    "status": "mt",
+    "srcHash": "14a039aaaad7"
+  },
+  "common.quietHours.digestDay": {
+    "status": "mt",
+    "srcHash": "dda4609e66c5"
+  },
+  "common.quietHours.digestTime": {
+    "status": "mt",
+    "srcHash": "0855009c4672"
+  },
+  "common.quietHours.digestWhenRun": {
+    "status": "mt",
+    "srcHash": "0a452c96bcc4"
+  },
+  "common.quietHours.endsOn": {
+    "status": "mt",
+    "srcHash": "40f400495cd1"
+  },
+  "common.quietHours.example": {
+    "status": "mt",
+    "srcHash": "075479d6b613"
+  },
+  "common.quietHours.from": {
+    "status": "mt",
+    "srcHash": "6fe9e0a48629"
+  },
+  "common.quietHours.fromShort": {
+    "status": "mt",
+    "srcHash": "3f66052a107e"
+  },
+  "common.quietHours.leadOff": {
+    "status": "mt",
+    "srcHash": "7ffc9190dfa9"
+  },
+  "common.quietHours.leadOn": {
+    "status": "mt",
+    "srcHash": "f596171807ba"
+  },
+  "common.quietHours.off": {
+    "status": "mt",
+    "srcHash": "e3de5ab0ca4c"
+  },
+  "common.quietHours.on": {
+    "status": "mt",
+    "srcHash": "e0049a66519c"
+  },
+  "common.quietHours.summariesLead": {
+    "status": "mt",
+    "srcHash": "7c55a09033c5"
+  },
+  "common.quietHours.summariesOff": {
+    "status": "mt",
+    "srcHash": "454f564456c1"
+  },
+  "common.quietHours.summariesTitle": {
+    "status": "mt",
+    "srcHash": "e065a82138fa"
+  },
+  "common.quietHours.title": {
+    "status": "mt",
+    "srcHash": "7ac0ea3da8d7"
+  },
+  "common.quietHours.to": {
+    "status": "mt",
+    "srcHash": "b74dafe49b73"
+  },
+  "common.quietHours.toShort": {
+    "status": "mt",
+    "srcHash": "4374aaee247f"
+  },
+  "common.quietHours.zone": {
+    "status": "mt",
+    "srcHash": "23dbfba3d79f"
+  },
+  "common.quietHours.zoneDefault": {
+    "status": "mt",
+    "srcHash": "837de91f61a2"
   },
   "common.reportBuilder.copySuffix": {
     "status": "mt",
@@ -7643,6 +7895,26 @@
     "srcHash": "f4d9cea960b7",
     "status": "mt"
   },
+  "common.states.partOff.body": {
+    "status": "mt",
+    "srcHash": "4b51ba8211c4"
+  },
+  "common.states.partOff.secondary": {
+    "status": "mt",
+    "srcHash": "e84712fbf4ee"
+  },
+  "common.states.partOff.title": {
+    "status": "mt",
+    "srcHash": "fec3a48f22a8"
+  },
+  "common.states.partsOff.body": {
+    "status": "mt",
+    "srcHash": "5aa9d5044b3d"
+  },
+  "common.states.partsOff.title": {
+    "status": "mt",
+    "srcHash": "23c8cc842395"
+  },
   "common.states.rateLimited.body": {
     "srcHash": "94eeeca81fc5",
     "status": "mt"
@@ -7719,6 +7991,10 @@
     "srcHash": "86ed280cb63d",
     "status": "mt"
   },
+  "common.team.action.handOn": {
+    "status": "mt",
+    "srcHash": "c03bffc2d747"
+  },
   "common.team.action.reactivate": {
     "status": "mt",
     "srcHash": "cd28a172590d"
@@ -7763,6 +8039,10 @@
     "status": "mt",
     "srcHash": "bae7d5be7082"
   },
+  "common.team.column.teams": {
+    "status": "mt",
+    "srcHash": "cbfd44d9c70c"
+  },
   "common.team.counts": {
     "status": "mt",
     "srcHash": "e953e6097cce"
@@ -7798,6 +8078,46 @@
   "common.team.filterStatusAny": {
     "status": "mt",
     "srcHash": "55201ac9166b"
+  },
+  "common.team.handOver.confirm": {
+    "status": "mt",
+    "srcHash": "5637f1fd6dab"
+  },
+  "common.team.handOver.failed": {
+    "status": "mt",
+    "srcHash": "c05b2a70768e"
+  },
+  "common.team.handOver.keep": {
+    "status": "mt",
+    "srcHash": "6f25df8834c3"
+  },
+  "common.team.handOver.later": {
+    "status": "mt",
+    "srcHash": "840d2db2a22b"
+  },
+  "common.team.handOver.laterTitle": {
+    "status": "mt",
+    "srcHash": "615eb99257c6"
+  },
+  "common.team.handOver.none": {
+    "status": "mt",
+    "srcHash": "941101e071a2"
+  },
+  "common.team.handOver.remove": {
+    "status": "mt",
+    "srcHash": "7a5847054592"
+  },
+  "common.team.handOver.suspend": {
+    "status": "mt",
+    "srcHash": "d1195221c217"
+  },
+  "common.team.handOver.title": {
+    "status": "mt",
+    "srcHash": "fd34acc8b8cf"
+  },
+  "common.team.handOver.unknown": {
+    "status": "mt",
+    "srcHash": "32235cde1209"
   },
   "common.team.invite.copied": {
     "status": "mt",
@@ -7927,6 +8247,30 @@
     "status": "mt",
     "srcHash": "cd2eee2ffd7e"
   },
+  "common.team.remove.rows.choose": {
+    "status": "mt",
+    "srcHash": "e16fd51f4df3"
+  },
+  "common.team.remove.rows.kept": {
+    "status": "mt",
+    "srcHash": "2305abc4c8f2"
+  },
+  "common.team.remove.rows.line": {
+    "status": "mt",
+    "srcHash": "ce602a816c81"
+  },
+  "common.team.remove.rows.needed": {
+    "status": "mt",
+    "srcHash": "842bc9e52291"
+  },
+  "common.team.remove.rows.to": {
+    "status": "mt",
+    "srcHash": "1403ba216c64"
+  },
+  "common.team.remove.rows.unreadable": {
+    "status": "mt",
+    "srcHash": "fe0af8ddf01d"
+  },
   "common.team.remove.title": {
     "status": "mt",
     "srcHash": "c70512ee2dd2"
@@ -7951,6 +8295,10 @@
     "status": "mt",
     "srcHash": "b8f6703e8800"
   },
+  "common.team.sampleNote": {
+    "status": "mt",
+    "srcHash": "ff123f883447"
+  },
   "common.team.search": {
     "status": "mt",
     "srcHash": "5d12419516ef"
@@ -7963,6 +8311,10 @@
     "status": "mt",
     "srcHash": "53469df1c48f"
   },
+  "common.team.status.sample": {
+    "status": "mt",
+    "srcHash": "cefec8f828a6"
+  },
   "common.team.status.suspended": {
     "status": "mt",
     "srcHash": "794696a72066"
@@ -7970,6 +8322,174 @@
   "common.team.subtitle": {
     "status": "mt",
     "srcHash": "d96589005b64"
+  },
+  "common.team.suspend.body": {
+    "status": "mt",
+    "srcHash": "694c159d15a6"
+  },
+  "common.team.suspend.confirmHand": {
+    "status": "mt",
+    "srcHash": "1ce677a027ad"
+  },
+  "common.team.suspend.failed": {
+    "status": "mt",
+    "srcHash": "2b564143ee31"
+  },
+  "common.team.suspend.title": {
+    "status": "mt",
+    "srcHash": "cb1f1b5de491"
+  },
+  "common.team.teamLeads": {
+    "status": "mt",
+    "srcHash": "1fd2909f847e"
+  },
+  "common.team.teams.add": {
+    "status": "mt",
+    "srcHash": "61cc55aa0453"
+  },
+  "common.team.teams.addLabel": {
+    "status": "mt",
+    "srcHash": "cdfcbc0a1dd9"
+  },
+  "common.team.teams.addMember": {
+    "status": "mt",
+    "srcHash": "8629ea1b62ec"
+  },
+  "common.team.teams.caption": {
+    "status": "mt",
+    "srcHash": "ca1799f6046e"
+  },
+  "common.team.teams.colLead": {
+    "status": "mt",
+    "srcHash": "c6f71d85aeaa"
+  },
+  "common.team.teams.colMembers": {
+    "status": "mt",
+    "srcHash": "1cb449c11266"
+  },
+  "common.team.teams.colTeam": {
+    "status": "mt",
+    "srcHash": "218887269ad5"
+  },
+  "common.team.teams.delete": {
+    "status": "mt",
+    "srcHash": "a9661e7d084d"
+  },
+  "common.team.teams.deleteBody": {
+    "status": "mt",
+    "srcHash": "99631518ccb6"
+  },
+  "common.team.teams.deleteTitle": {
+    "status": "mt",
+    "srcHash": "99967ef05961"
+  },
+  "common.team.teams.empty": {
+    "status": "mt",
+    "srcHash": "9210826956ae"
+  },
+  "common.team.teams.emptyBody": {
+    "status": "mt",
+    "srcHash": "02b0eacede52"
+  },
+  "common.team.teams.failed": {
+    "status": "mt",
+    "srcHash": "95ccfbbf50fa"
+  },
+  "common.team.teams.inAll": {
+    "status": "mt",
+    "srcHash": "5f0f5f41e1a2"
+  },
+  "common.team.teams.leads": {
+    "status": "mt",
+    "srcHash": "fc18f8cc807f"
+  },
+  "common.team.teams.loadFailed": {
+    "status": "mt",
+    "srcHash": "09e5a791cd16"
+  },
+  "common.team.teams.memberCount": {
+    "status": "mt",
+    "srcHash": "82b265c87785"
+  },
+  "common.team.teams.nameLabel": {
+    "status": "mt",
+    "srcHash": "709a23220f2c"
+  },
+  "common.team.teams.namePlaceholder": {
+    "status": "mt",
+    "srcHash": "d8efef2dc2a7"
+  },
+  "common.team.teams.needName": {
+    "status": "mt",
+    "srcHash": "f81cc915d60c"
+  },
+  "common.team.teams.newTeam": {
+    "status": "mt",
+    "srcHash": "7ff544391e3c"
+  },
+  "common.team.teams.noLead": {
+    "status": "mt",
+    "srcHash": "43b0e31f6b61"
+  },
+  "common.team.teams.noMembers": {
+    "status": "mt",
+    "srcHash": "0050b74d3fa7"
+  },
+  "common.team.teams.notice": {
+    "status": "mt",
+    "srcHash": "defceb67761b"
+  },
+  "common.team.teams.onlyLead": {
+    "status": "mt",
+    "srcHash": "7407813ea33e"
+  },
+  "common.team.teams.over": {
+    "status": "mt",
+    "srcHash": "f5dcea9a13aa"
+  },
+  "common.team.teams.pageSubtitle": {
+    "status": "mt",
+    "srcHash": "d3489afe2fbf"
+  },
+  "common.team.teams.people": {
+    "status": "mt",
+    "srcHash": "b37554f695b1"
+  },
+  "common.team.teams.peopleHint": {
+    "status": "mt",
+    "srcHash": "0183c7999075"
+  },
+  "common.team.teams.removeLabel": {
+    "status": "mt",
+    "srcHash": "240765cbfe2f"
+  },
+  "common.team.teams.rolesLink": {
+    "status": "mt",
+    "srcHash": "2b89b2511372"
+  },
+  "common.team.teams.sample": {
+    "status": "mt",
+    "srcHash": "14069b7485b7"
+  },
+  "common.team.teams.save": {
+    "status": "mt",
+    "srcHash": "ee3ae9b9bbbd"
+  },
+  "common.team.teams.sheetEyebrow": {
+    "status": "mt",
+    "srcHash": "218887269ad5"
+  },
+  "common.team.teams.summary": {
+    "status": "mt",
+    "srcHash": "b4aa63b29f94"
+  },
+  "common.team.teams.title": {
+    "status": "mt",
+    "srcHash": "cbfd44d9c70c"
+  },
+  "common.team.teams.untitled": {
+    "status": "mt",
+    "srcHash": "ea31d215254e"
   },
   "common.team.title": {
     "status": "mt",
@@ -9175,6 +9695,38 @@
     "status": "mt",
     "srcHash": "419b6f7a5dce"
   },
+  "dataio.import.issueBadBoolean": {
+    "status": "mt",
+    "srcHash": "a06669610814"
+  },
+  "dataio.import.issueBadDate": {
+    "status": "mt",
+    "srcHash": "f12b821e4c76"
+  },
+  "dataio.import.issueBadJson": {
+    "status": "mt",
+    "srcHash": "12adfdbc7b77"
+  },
+  "dataio.import.issueBadNumber": {
+    "status": "mt",
+    "srcHash": "7402e2f48178"
+  },
+  "dataio.import.issueExample": {
+    "status": "mt",
+    "srcHash": "bb292a6071a7"
+  },
+  "dataio.import.issueExampleLine": {
+    "status": "mt",
+    "srcHash": "f739d9fc7115"
+  },
+  "dataio.import.issueOther": {
+    "status": "mt",
+    "srcHash": "1b17805904fc"
+  },
+  "dataio.import.issueRequired": {
+    "status": "mt",
+    "srcHash": "045ba0556ef5"
+  },
   "dataio.import.kpiCreated": {
     "status": "mt",
     "srcHash": "accf40c89baa"
@@ -9195,13 +9747,105 @@
     "status": "mt",
     "srcHash": "40e97450f6ec"
   },
+  "dataio.import.matchHint": {
+    "status": "mt",
+    "srcHash": "a0d527e805cf"
+  },
+  "dataio.import.matchLabel": {
+    "status": "mt",
+    "srcHash": "26c00f280642"
+  },
+  "dataio.import.matchNone": {
+    "status": "mt",
+    "srcHash": "ebc044beabe1"
+  },
+  "dataio.import.matchUnmapped": {
+    "status": "mt",
+    "srcHash": "7a092c442893"
+  },
+  "dataio.import.noImportRight": {
+    "status": "mt",
+    "srcHash": "09b5b58a15c7"
+  },
+  "dataio.import.noReadToMatch": {
+    "status": "mt",
+    "srcHash": "87f367c6dc78"
+  },
+  "dataio.import.noUpdateRight": {
+    "status": "mt",
+    "srcHash": "d7910ac6790c"
+  },
   "dataio.import.notATable": {
     "status": "mt",
     "srcHash": "f78a1d0ad6c2"
   },
+  "dataio.import.nothingToBring": {
+    "status": "mt",
+    "srcHash": "85fc302a01ff"
+  },
+  "dataio.import.pasteFirstRow": {
+    "status": "mt",
+    "srcHash": "c6a76afc55db"
+  },
+  "dataio.import.pasteLabel": {
+    "status": "mt",
+    "srcHash": "0cfe489c807c"
+  },
+  "dataio.import.pasteUse": {
+    "status": "mt",
+    "srcHash": "6990d8bb8a5f"
+  },
+  "dataio.import.previewCapped": {
+    "status": "mt",
+    "srcHash": "dcad12064d9c"
+  },
+  "dataio.import.previewEarlier": {
+    "status": "mt",
+    "srcHash": "10f4f536dcb5"
+  },
+  "dataio.import.previewFailed": {
+    "status": "mt",
+    "srcHash": "dc9fbc26e3e0"
+  },
+  "dataio.import.previewHere": {
+    "status": "mt",
+    "srcHash": "5ce1f7f8a80d"
+  },
+  "dataio.import.previewHooksNotRun": {
+    "status": "mt",
+    "srcHash": "0c4e8049e111"
+  },
+  "dataio.import.previewLine": {
+    "status": "mt",
+    "srcHash": "a859116ed67e"
+  },
+  "dataio.import.previewNew": {
+    "status": "mt",
+    "srcHash": "6403f2b7eb2a"
+  },
+  "dataio.import.previewRefused": {
+    "status": "mt",
+    "srcHash": "735ec50d7d93"
+  },
+  "dataio.import.previewShowMore": {
+    "status": "mt",
+    "srcHash": "25911d48e023"
+  },
   "dataio.import.progressLabel": {
     "status": "mt",
     "srcHash": "50565ad0d156"
+  },
+  "dataio.import.restHere": {
+    "status": "mt",
+    "srcHash": "b5708f3fefd3"
+  },
+  "dataio.import.restRefused": {
+    "status": "mt",
+    "srcHash": "cf5a35a3a262"
+  },
+  "dataio.import.reviewAlreadyHere": {
+    "status": "mt",
+    "srcHash": "5ea53686a37e"
   },
   "dataio.import.run": {
     "status": "mt",
@@ -9211,9 +9855,21 @@
     "status": "mt",
     "srcHash": "ec025fbd1926"
   },
+  "dataio.import.runNew": {
+    "status": "mt",
+    "srcHash": "dbdc9f33ba73"
+  },
+  "dataio.import.runNewAndUpdate": {
+    "status": "mt",
+    "srcHash": "66a287477385"
+  },
   "dataio.import.runSkipping": {
     "status": "mt",
     "srcHash": "48373b3e39d2"
+  },
+  "dataio.import.runUpdateOnly": {
+    "status": "mt",
+    "srcHash": "1d93ccf0fa07"
   },
   "dataio.import.running": {
     "status": "mt",
@@ -9239,6 +9895,22 @@
     "status": "mt",
     "srcHash": "6752f198b564"
   },
+  "dataio.import.summaryNew": {
+    "status": "mt",
+    "srcHash": "262accc196d7"
+  },
+  "dataio.import.summaryNewAndUpdate": {
+    "status": "mt",
+    "srcHash": "f27a2574d51d"
+  },
+  "dataio.import.summaryUpdateOnly": {
+    "status": "mt",
+    "srcHash": "44686e591bd8"
+  },
+  "dataio.import.targetFailed": {
+    "status": "mt",
+    "srcHash": "9454a9a0ef93"
+  },
   "dataio.import.targetLabel": {
     "status": "mt",
     "srcHash": "db2d76fa95f4"
@@ -9251,6 +9923,10 @@
     "status": "mt",
     "srcHash": "6752f198b564"
   },
+  "dataio.import.tooLarge": {
+    "status": "mt",
+    "srcHash": "8d2ea70637ac"
+  },
   "dataio.import.validateFailed": {
     "status": "mt",
     "srcHash": "f5f95885484d"
@@ -9262,6 +9938,18 @@
   "dataio.import.validationSummary": {
     "status": "mt",
     "srcHash": "1d32ac6df79b"
+  },
+  "dataio.import.whenHereLabel": {
+    "status": "mt",
+    "srcHash": "d7ca1f4886c1"
+  },
+  "dataio.import.whenHereSkip": {
+    "status": "mt",
+    "srcHash": "682d185f387e"
+  },
+  "dataio.import.whenHereUpdate": {
+    "status": "mt",
+    "srcHash": "b8f35d6c7c8a"
   },
   "designer.apps.continue": {
     "status": "mt",
@@ -13203,6 +13891,14 @@
     "status": "mt",
     "srcHash": "180dd66fda2f"
   },
+  "email.appFilter.clear": {
+    "status": "mt",
+    "srcHash": "d0d4f01a8ea8"
+  },
+  "email.appFilter.note": {
+    "status": "mt",
+    "srcHash": "9ab1426d61c3"
+  },
   "email.archivedChip.field": {
     "status": "mt",
     "srcHash": "163d8174ff4b"
@@ -16971,6 +17667,14 @@
     "status": "mt",
     "srcHash": "b66a7e46605b"
   },
+  "project.kit.mapPlaces": {
+    "status": "mt",
+    "srcHash": "0cd3597453ab"
+  },
+  "project.kit.partFailed": {
+    "status": "mt",
+    "srcHash": "8b999f366750"
+  },
   "project.page.failed.title": {
     "status": "mt",
     "srcHash": "0e5023b89300"
@@ -18307,6 +19011,14 @@
     "status": "mt",
     "srcHash": "d44477454f93"
   },
+  "roles.partsOff": {
+    "status": "mt",
+    "srcHash": "324136b3fd63"
+  },
+  "roles.people.unnamed": {
+    "status": "mt",
+    "srcHash": "0ffd21b5b828"
+  },
   "roles.permission.apiKeysManage": {
     "status": "mt",
     "srcHash": "85a7ad27ceab"
@@ -18394,6 +19106,210 @@
   "roles.rename.title": {
     "status": "mt",
     "srcHash": "c59828c39f12"
+  },
+  "roles.rows.action": {
+    "status": "mt",
+    "srcHash": "52d0b35277ee"
+  },
+  "roles.rows.actionLabel.delete": {
+    "status": "mt",
+    "srcHash": "f6fdbe48dc54"
+  },
+  "roles.rows.actionLabel.read": {
+    "status": "mt",
+    "srcHash": "852b438f91ad"
+  },
+  "roles.rows.actionLabel.update": {
+    "status": "mt",
+    "srcHash": "64fbd995d3b6"
+  },
+  "roles.rows.belongs": {
+    "status": "mt",
+    "srcHash": "370259919394"
+  },
+  "roles.rows.capped": {
+    "status": "mt",
+    "srcHash": "893a59052fac"
+  },
+  "roles.rows.count": {
+    "status": "mt",
+    "srcHash": "9a88daea3835"
+  },
+  "roles.rows.empty.body": {
+    "status": "mt",
+    "srcHash": "c29fcdde6654"
+  },
+  "roles.rows.empty.title": {
+    "status": "mt",
+    "srcHash": "d160a8e69c19"
+  },
+  "roles.rows.failed": {
+    "status": "mt",
+    "srcHash": "bdb11dfa83a2"
+  },
+  "roles.rows.follows": {
+    "status": "mt",
+    "srcHash": "ff7ae5e9a7e9"
+  },
+  "roles.rows.intro": {
+    "status": "mt",
+    "srcHash": "5df8885c0fed"
+  },
+  "roles.rows.lifted": {
+    "status": "mt",
+    "srcHash": "1f37be9c34d9"
+  },
+  "roles.rows.loadFailed": {
+    "status": "mt",
+    "srcHash": "c48551e0ceb9"
+  },
+  "roles.rows.locked": {
+    "status": "mt",
+    "srcHash": "fa53bbea294a"
+  },
+  "roles.rows.private": {
+    "status": "mt",
+    "srcHash": "58298ce4303a"
+  },
+  "roles.rows.reach.all": {
+    "status": "mt",
+    "srcHash": "ad197f9c6e9b"
+  },
+  "roles.rows.reach.allWhile": {
+    "status": "mt",
+    "srcHash": "e5e9b016c656"
+  },
+  "roles.rows.reach.own": {
+    "status": "mt",
+    "srcHash": "52221061a1a1"
+  },
+  "roles.rows.reach.team": {
+    "status": "mt",
+    "srcHash": "b90daef019b0"
+  },
+  "roles.rows.reachLabel": {
+    "status": "mt",
+    "srcHash": "e97f34742864"
+  },
+  "roles.rows.samplePerson": {
+    "status": "mt",
+    "srcHash": "14069b7485b7"
+  },
+  "roles.rows.saveFirst": {
+    "status": "mt",
+    "srcHash": "20e4acc71ac6"
+  },
+  "roles.rows.sentence.all": {
+    "status": "mt",
+    "srcHash": "2cfe87390744"
+  },
+  "roles.rows.sentence.allWhile": {
+    "status": "mt",
+    "srcHash": "ad197f9c6e9b"
+  },
+  "roles.rows.sentence.allWho": {
+    "status": "mt",
+    "srcHash": "6875f3d8060e"
+  },
+  "roles.rows.sentence.by": {
+    "status": "mt",
+    "srcHash": "f941ade6155c"
+  },
+  "roles.rows.sentence.only": {
+    "status": "mt",
+    "srcHash": "36320e909649"
+  },
+  "roles.rows.sentence.onlyTeam": {
+    "status": "mt",
+    "srcHash": "9cd8352527b9"
+  },
+  "roles.rows.sentence.onlyTeamWays": {
+    "status": "mt",
+    "srcHash": "db1f43d1f952"
+  },
+  "roles.rows.sentence.own": {
+    "status": "mt",
+    "srcHash": "5a50e778128a"
+  },
+  "roles.rows.sentence.team": {
+    "status": "mt",
+    "srcHash": "29c424e9943c"
+  },
+  "roles.rows.sentence.unowned": {
+    "status": "mt",
+    "srcHash": "356329f7d492"
+  },
+  "roles.rows.sentence.while": {
+    "status": "mt",
+    "srcHash": "75b7801cd982"
+  },
+  "roles.rows.several": {
+    "status": "mt",
+    "srcHash": "cfd8165e4c63"
+  },
+  "roles.rows.title": {
+    "status": "mt",
+    "srcHash": "1e64ea1b7cb3"
+  },
+  "roles.rows.tryAs": {
+    "status": "mt",
+    "srcHash": "fe13dbcdf3e2"
+  },
+  "roles.rows.tryAsNone": {
+    "status": "mt",
+    "srcHash": "148ba2d23619"
+  },
+  "roles.rows.unowned": {
+    "status": "mt",
+    "srcHash": "356329f7d492"
+  },
+  "roles.rows.way.listing": {
+    "status": "mt",
+    "srcHash": "5955c9c090a4"
+  },
+  "roles.rows.way.listingDated": {
+    "status": "mt",
+    "srcHash": "b6cd27fb8f28"
+  },
+  "roles.rows.way.parent": {
+    "status": "mt",
+    "srcHash": "5bceca4233c0"
+  },
+  "roles.rows.way.person": {
+    "status": "mt",
+    "srcHash": "779ed156d49e"
+  },
+  "roles.rows.way.whileEmpty": {
+    "status": "mt",
+    "srcHash": "9975a777aedb"
+  },
+  "roles.rows.way.whileIn": {
+    "status": "mt",
+    "srcHash": "6afa5c50a767"
+  },
+  "roles.rows.way.whileSet": {
+    "status": "mt",
+    "srcHash": "59bda9a9b9b7"
+  },
+  "roles.rows.wayIs.listing": {
+    "status": "mt",
+    "srcHash": "f24c2f4d2db6"
+  },
+  "roles.rows.wayIs.listingDated": {
+    "status": "mt",
+    "srcHash": "175a5a308dc7"
+  },
+  "roles.rows.wayIs.parent": {
+    "status": "mt",
+    "srcHash": "5c5bf228795a"
+  },
+  "roles.rows.wayIs.person": {
+    "status": "mt",
+    "srcHash": "d2d7aa52b8cc"
+  },
+  "roles.rows.widened": {
+    "status": "mt",
+    "srcHash": "8b7f67dc9c29"
   },
   "roles.saveFailed.title": {
     "status": "mt",
@@ -19875,6 +20791,90 @@
     "status": "mt",
     "srcHash": "4460689411e8"
   },
+  "studio.appAddOns.roleTables.action.create": {
+    "status": "mt",
+    "srcHash": "11858f93ca90"
+  },
+  "studio.appAddOns.roleTables.action.read": {
+    "status": "mt",
+    "srcHash": "a7afddb68260"
+  },
+  "studio.appAddOns.roleTables.action.update": {
+    "status": "mt",
+    "srcHash": "99fbcef87274"
+  },
+  "studio.appAddOns.roleTables.adds": {
+    "status": "mt",
+    "srcHash": "231f63bfda2f"
+  },
+  "studio.appAddOns.roleTables.addsAll": {
+    "status": "mt",
+    "srcHash": "3764842c63a7"
+  },
+  "studio.appAddOns.roleTables.allowsLess": {
+    "status": "mt",
+    "srcHash": "580ccfffc1dd"
+  },
+  "studio.appAddOns.roleTables.changes": {
+    "status": "mt",
+    "srcHash": "1a12e14f0328"
+  },
+  "studio.appAddOns.roleTables.changesAll": {
+    "status": "mt",
+    "srcHash": "16774c6f0b5d"
+  },
+  "studio.appAddOns.roleTables.everyColumn": {
+    "status": "mt",
+    "srcHash": "588d53151c6b"
+  },
+  "studio.appAddOns.roleTables.keptBack": {
+    "status": "mt",
+    "srcHash": "6ac646548519"
+  },
+  "studio.appAddOns.roleTables.keyAndLinks": {
+    "status": "mt",
+    "srcHash": "3557d42b5b8c"
+  },
+  "studio.appAddOns.roleTables.notGiven": {
+    "status": "mt",
+    "srcHash": "608846689839"
+  },
+  "studio.appAddOns.roleTables.notOffered": {
+    "status": "mt",
+    "srcHash": "d8b2aacc9313"
+  },
+  "studio.appAddOns.roleTables.reads": {
+    "status": "mt",
+    "srcHash": "ecb8b4dc22e1"
+  },
+  "studio.appAddOns.roleTables.readsAll": {
+    "status": "mt",
+    "srcHash": "7cfe2a0d775b"
+  },
+  "studio.appAddOns.roleTables.summary": {
+    "status": "mt",
+    "srcHash": "b687420ef0b9"
+  },
+  "studio.appAddOns.roleTables.unchecked": {
+    "status": "mt",
+    "srcHash": "fb6480b8b3f6"
+  },
+  "studio.appAddOns.roleTables.unknown": {
+    "status": "mt",
+    "srcHash": "64425010e7c9"
+  },
+  "studio.appAddOns.roleTables.updateBody": {
+    "status": "mt",
+    "srcHash": "79466fe6cbe8"
+  },
+  "studio.appAddOns.roleTables.updateTitle": {
+    "status": "mt",
+    "srcHash": "7a0d38759b62"
+  },
+  "studio.appAddOns.roleTables.wider": {
+    "status": "mt",
+    "srcHash": "252ed5e15a3f"
+  },
   "studio.appAddOns.running.attach": {
     "status": "mt",
     "srcHash": "591a60c894b1"
@@ -19962,6 +20962,186 @@
   "studio.appAddOns.updateToo": {
     "status": "mt",
     "srcHash": "36478a3e3f31"
+  },
+  "studio.appParts.always": {
+    "status": "mt",
+    "srcHash": "531e4565609f"
+  },
+  "studio.appParts.cancel": {
+    "status": "mt",
+    "srcHash": "77dfd2135f4d"
+  },
+  "studio.appParts.dialogClose": {
+    "status": "mt",
+    "srcHash": "bbfa773e5a63"
+  },
+  "studio.appParts.groupAddOn": {
+    "status": "mt",
+    "srcHash": "5a1122363800"
+  },
+  "studio.appParts.groupConnected": {
+    "status": "mt",
+    "srcHash": "8446931d06ad"
+  },
+  "studio.appParts.groupNotConnected": {
+    "status": "mt",
+    "srcHash": "e9f5308d4d09"
+  },
+  "studio.appParts.groupTicked": {
+    "status": "mt",
+    "srcHash": "d9d4928359b9"
+  },
+  "studio.appParts.groupWaiting": {
+    "status": "mt",
+    "srcHash": "4fff71f85ba2"
+  },
+  "studio.appParts.help": {
+    "status": "mt",
+    "srcHash": "e9c638aa22d6"
+  },
+  "studio.appParts.installAlways": {
+    "status": "mt",
+    "srcHash": "5030b90a1fab"
+  },
+  "studio.appParts.installCount": {
+    "status": "mt",
+    "srcHash": "172124393d53"
+  },
+  "studio.appParts.installCountFixed": {
+    "status": "mt",
+    "srcHash": "757c31ad7243"
+  },
+  "studio.appParts.installHelp": {
+    "status": "mt",
+    "srcHash": "04a792057cad"
+  },
+  "studio.appParts.installStranded": {
+    "status": "mt",
+    "srcHash": "3d4b3664ce15"
+  },
+  "studio.appParts.installTick": {
+    "status": "mt",
+    "srcHash": "42d7f8a2baa8"
+  },
+  "studio.appParts.installWaiting": {
+    "status": "mt",
+    "srcHash": "164831650b0d"
+  },
+  "studio.appParts.leftOut": {
+    "status": "mt",
+    "srcHash": "6644cbb5caad"
+  },
+  "studio.appParts.needs": {
+    "status": "mt",
+    "srcHash": "c3468496be52"
+  },
+  "studio.appParts.off": {
+    "status": "mt",
+    "srcHash": "e3de5ab0ca4c"
+  },
+  "studio.appParts.offDialog.confirm": {
+    "status": "mt",
+    "srcHash": "d61b7f2364ca"
+  },
+  "studio.appParts.offDialog.nothingOpen": {
+    "status": "mt",
+    "srcHash": "816c4162ae90"
+  },
+  "studio.appParts.offDialog.oneRule": {
+    "status": "mt",
+    "srcHash": "5376e39670d3"
+  },
+  "studio.appParts.offDialog.oneStranded": {
+    "status": "mt",
+    "srcHash": "ffd8c72da2e7"
+  },
+  "studio.appParts.offDialog.open": {
+    "status": "mt",
+    "srcHash": "094024b3aea6"
+  },
+  "studio.appParts.offDialog.openRows": {
+    "status": "mt",
+    "srcHash": "71347689f8c1"
+  },
+  "studio.appParts.offDialog.rules": {
+    "status": "mt",
+    "srcHash": "d89b727c5c0a"
+  },
+  "studio.appParts.offDialog.stays": {
+    "status": "mt",
+    "srcHash": "466462f92815"
+  },
+  "studio.appParts.offDialog.stops": {
+    "status": "mt",
+    "srcHash": "c3b8466a6379"
+  },
+  "studio.appParts.offDialog.stranded": {
+    "status": "mt",
+    "srcHash": "6b6d2e497dae"
+  },
+  "studio.appParts.offDialog.title": {
+    "status": "mt",
+    "srcHash": "67a414652890"
+  },
+  "studio.appParts.on": {
+    "status": "mt",
+    "srcHash": "e0049a66519c"
+  },
+  "studio.appParts.onDialog.back": {
+    "status": "mt",
+    "srcHash": "1bce73e473bb"
+  },
+  "studio.appParts.onDialog.confirm": {
+    "status": "mt",
+    "srcHash": "bcdb919b512b"
+  },
+  "studio.appParts.onDialog.noCatchUp": {
+    "status": "mt",
+    "srcHash": "a93430b9271c"
+  },
+  "studio.appParts.onDialog.title": {
+    "status": "mt",
+    "srcHash": "24d8efcbd181"
+  },
+  "studio.appParts.onePage": {
+    "status": "src",
+    "srcHash": "efe4799012f6"
+  },
+  "studio.appParts.oneRule": {
+    "status": "mt",
+    "srcHash": "cc0bee788ab4"
+  },
+  "studio.appParts.pages": {
+    "status": "src",
+    "srcHash": "8722943fa2c9"
+  },
+  "studio.appParts.roles": {
+    "status": "mt",
+    "srcHash": "ca79c8a38164"
+  },
+  "studio.appParts.rules": {
+    "status": "mt",
+    "srcHash": "add3ad58b749"
+  },
+  "studio.appParts.switch": {
+    "status": "mt",
+    "srcHash": "24b1a65ec859"
+  },
+  "studio.appParts.title": {
+    "status": "mt",
+    "srcHash": "e374280917e6"
+  },
+  "studio.appParts.waiting": {
+    "status": "mt",
+    "srcHash": "0492b03efc65"
+  },
+  "studio.appParts.willMake": {
+    "status": "mt",
+    "srcHash": "ab879d19e123"
+  },
+  "studio.appParts.willMakeCounts": {
+    "status": "mt",
+    "srcHash": "afe335496008"
   },
   "studio.appPublicAccess.allow": {
     "status": "mt",
@@ -22839,6 +24019,10 @@
     "status": "mt",
     "srcHash": "671f9e83074f"
   },
+  "studio.hostedApps.update.rolesSubtitle": {
+    "status": "mt",
+    "srcHash": "eb36d8558cc2"
+  },
   "studio.hostedApps.update.subtitle": {
     "status": "mt",
     "srcHash": "491f0512d320"
@@ -23198,6 +24382,22 @@
   "studio.hub.title": {
     "srcHash": "7b7fd33a5f83",
     "status": "mt"
+  },
+  "studio.installMaps.note": {
+    "status": "mt",
+    "srcHash": "4b3ff16e35bf"
+  },
+  "studio.installMaps.tick": {
+    "status": "mt",
+    "srcHash": "edfc41c0c9f5"
+  },
+  "studio.installMaps.tickHost": {
+    "status": "mt",
+    "srcHash": "d3c06406394b"
+  },
+  "studio.installMaps.title": {
+    "status": "mt",
+    "srcHash": "80071cd75107"
   },
   "studio.intent.analytics.description": {
     "srcHash": "628e62ccd9f0",
@@ -26299,6 +27499,14 @@
     "status": "mt",
     "srcHash": "1c854c642761"
   },
+  "studio.remap.rules.decided.rollupLatest": {
+    "status": "mt",
+    "srcHash": "4485cb82bc60"
+  },
+  "studio.remap.rules.decided.rollupLatestRow": {
+    "status": "mt",
+    "srcHash": "7a850c25eaa1"
+  },
   "studio.remap.rules.decided.rollupTimes": {
     "status": "mt",
     "srcHash": "841a3e7a51f2"
@@ -27875,6 +29083,18 @@
     "status": "mt",
     "srcHash": "57c9502a7d7d"
   },
+  "studio.settingsHub.mapsCard.body": {
+    "status": "mt",
+    "srcHash": "dec0ec4d2618"
+  },
+  "studio.settingsHub.mapsCard.cta": {
+    "status": "mt",
+    "srcHash": "1e54690b2199"
+  },
+  "studio.settingsHub.mapsCard.heading": {
+    "status": "mt",
+    "srcHash": "80071cd75107"
+  },
   "studio.settingsHub.pagesCard.body": {
     "status": "mt",
     "srcHash": "c86309ff9216"
@@ -28042,6 +29262,86 @@
   "studio.settingsHub.translationsCard.heading": {
     "status": "mt",
     "srcHash": "8a85cce88b15"
+  },
+  "studio.settingsMaps.loadFailed": {
+    "status": "mt",
+    "srcHash": "3a25898d1096"
+  },
+  "studio.settingsMaps.maps.heading": {
+    "status": "mt",
+    "srcHash": "126155993dee"
+  },
+  "studio.settingsMaps.maps.off": {
+    "status": "mt",
+    "srcHash": "a221be5af59f"
+  },
+  "studio.settingsMaps.maps.sees": {
+    "status": "mt",
+    "srcHash": "0104a09997cb"
+  },
+  "studio.settingsMaps.maps.server": {
+    "status": "mt",
+    "srcHash": "351e3b523797"
+  },
+  "studio.settingsMaps.maps.serverNone": {
+    "status": "mt",
+    "srcHash": "2169b1fe802f"
+  },
+  "studio.settingsMaps.maps.whyDesktop": {
+    "status": "mt",
+    "srcHash": "f7b2fa8b0141"
+  },
+  "studio.settingsMaps.maps.whyEnvOff": {
+    "status": "mt",
+    "srcHash": "dea1829db8ad"
+  },
+  "studio.settingsMaps.reload.body": {
+    "status": "mt",
+    "srcHash": "8c9f9d6eb555"
+  },
+  "studio.settingsMaps.reload.cta": {
+    "status": "mt",
+    "srcHash": "1cc58907b745"
+  },
+  "studio.settingsMaps.reload.title": {
+    "status": "mt",
+    "srcHash": "a97f24bcdd8d"
+  },
+  "studio.settingsMaps.routes.heading": {
+    "status": "mt",
+    "srcHash": "ac53cf94092e"
+  },
+  "studio.settingsMaps.routes.off": {
+    "status": "mt",
+    "srcHash": "65aa88ac91ed"
+  },
+  "studio.settingsMaps.routes.sees": {
+    "status": "mt",
+    "srcHash": "e4a2029b2cf7"
+  },
+  "studio.settingsMaps.routes.server": {
+    "status": "mt",
+    "srcHash": "2ce9f1eba91b"
+  },
+  "studio.settingsMaps.routes.serverNone": {
+    "status": "mt",
+    "srcHash": "f19ee0682045"
+  },
+  "studio.settingsMaps.routes.whyEnvOff": {
+    "status": "mt",
+    "srcHash": "94ecf44500f9"
+  },
+  "studio.settingsMaps.saveFailed": {
+    "status": "mt",
+    "srcHash": "3f1776c8613e"
+  },
+  "studio.settingsMaps.subtitle": {
+    "status": "mt",
+    "srcHash": "386a531563c8"
+  },
+  "studio.settingsMaps.title": {
+    "status": "mt",
+    "srcHash": "80071cd75107"
   },
   "studio.source.dsn.helper": {
     "srcHash": "4de3a937fe87",
@@ -28638,6 +29938,14 @@
   "studio.surfacePages.staff.noAccessAdvice": {
     "status": "mt",
     "srcHash": "9799c7f509c1"
+  },
+  "studio.surfacePages.staff.partsOff": {
+    "status": "mt",
+    "srcHash": "5c921cd58410"
+  },
+  "studio.surfacePages.staff.partsOffAdvice": {
+    "status": "mt",
+    "srcHash": "4e4d0feaa381"
   },
   "studio.surfacePages.staff.sideOff": {
     "status": "mt",
@@ -29263,6 +30571,18 @@
     "status": "mt",
     "srcHash": "2e09edea513a"
   },
+  "ui.formDialog.issue.fileNotHere": {
+    "status": "mt",
+    "srcHash": "46f4e616bbb8"
+  },
+  "ui.formDialog.issue.fileTooLarge": {
+    "status": "mt",
+    "srcHash": "97b007826b5a"
+  },
+  "ui.formDialog.issue.fileType": {
+    "status": "mt",
+    "srcHash": "9ec300d46d19"
+  },
   "ui.formDialog.issue.form": {
     "status": "mt",
     "srcHash": "4a4dacb3d935"
@@ -29278,6 +30598,10 @@
   "ui.formDialog.issue.invalidCharacter": {
     "status": "mt",
     "srcHash": "24dc5cc8d01e"
+  },
+  "ui.formDialog.issue.mentionUnknown": {
+    "status": "mt",
+    "srcHash": "cbbe0281bb9b"
   },
   "ui.formDialog.issue.notAllowed": {
     "status": "mt",
@@ -29318,6 +30642,14 @@
   "ui.formDialog.issue.tooLong": {
     "status": "mt",
     "srcHash": "d0103a9d10de"
+  },
+  "ui.formDialog.issue.tooManyFiles": {
+    "status": "mt",
+    "srcHash": "9a3939b2ad95"
+  },
+  "ui.formDialog.issue.tooManyMentions": {
+    "status": "mt",
+    "srcHash": "d4922396fef3"
   },
   "ui.formDialog.issue.tooShort": {
     "status": "mt",
@@ -29566,6 +30898,10 @@
   "ui.lists.name.us-states": {
     "status": "mt",
     "srcHash": "2e2de0d7be24"
+  },
+  "ui.mentions.people": {
+    "status": "mt",
+    "srcHash": "ef77680931ce"
   },
   "ui.pages.bulk.cancel": {
     "status": "mt",
@@ -29819,9 +31155,33 @@
     "srcHash": "9ac0b366494f",
     "status": "mt"
   },
+  "ui.templates.board.columnsCut": {
+    "status": "mt",
+    "srcHash": "a01282e576b1"
+  },
+  "ui.templates.board.columnsError": {
+    "status": "mt",
+    "srcHash": "d55e93676db5"
+  },
+  "ui.templates.board.days": {
+    "status": "mt",
+    "srcHash": "e7c9e031e81b"
+  },
   "ui.templates.board.invalidLayout": {
     "status": "mt",
     "srcHash": "00212c6295c1"
+  },
+  "ui.templates.board.invalidOnly": {
+    "status": "mt",
+    "srcHash": "d1b81f700d2f"
+  },
+  "ui.templates.board.noColumnsBody": {
+    "status": "mt",
+    "srcHash": "32c513e11a5f"
+  },
+  "ui.templates.board.noColumnsTitle": {
+    "status": "mt",
+    "srcHash": "af852f381290"
   },
   "ui.templates.board.noRowsBody": {
     "status": "mt",
@@ -30855,6 +32215,14 @@
     "status": "mt",
     "srcHash": "9c52839a101d"
   },
+  "ui.templates.planning.unplaced.boardColumns": {
+    "status": "mt",
+    "srcHash": "c06e9359b431"
+  },
+  "ui.templates.planning.unplaced.boardColumnsSome": {
+    "status": "mt",
+    "srcHash": "6fb9c8ba37a6"
+  },
   "ui.templates.planning.unplaced.calendar": {
     "status": "mt",
     "srcHash": "8c7ba34d5f5a"
@@ -31103,6 +32471,10 @@
     "srcHash": "dc83cd803134",
     "status": "mt"
   },
+  "ui.widgets.boards.a11y.draggable": {
+    "status": "mt",
+    "srcHash": "d7dd9d2f7886"
+  },
   "ui.widgets.boards.a11y.failed": {
     "srcHash": "428bc9abd772",
     "status": "mt"
@@ -31114,6 +32486,10 @@
   "ui.widgets.boards.a11y.moved": {
     "srcHash": "9621f7bbc08d",
     "status": "mt"
+  },
+  "ui.widgets.boards.a11y.openHint": {
+    "status": "mt",
+    "srcHash": "9d3f82c9c609"
   },
   "ui.widgets.boards.a11y.over": {
     "srcHash": "fdb7e66c3556",
@@ -31138,6 +32514,18 @@
   "ui.widgets.boards.boardCard.emptyTitle": {
     "srcHash": "bb8b28390233",
     "status": "mt"
+  },
+  "ui.widgets.boards.cardActions": {
+    "status": "mt",
+    "srcHash": "be793ddab31a"
+  },
+  "ui.widgets.boards.cardNotAdded": {
+    "status": "mt",
+    "srcHash": "fc188704328d"
+  },
+  "ui.widgets.boards.dismissNotice": {
+    "status": "mt",
+    "srcHash": "70afe9eff3f2"
   },
   "ui.widgets.boards.grip": {
     "srcHash": "bb981cb4f9f8",
@@ -31190,6 +32578,14 @@
   "ui.widgets.boards.laneSummary": {
     "status": "src",
     "srcHash": "bf27a547e5ff"
+  },
+  "ui.widgets.boards.notAdded": {
+    "status": "mt",
+    "srcHash": "478752e2d016"
+  },
+  "ui.widgets.boards.notMoved": {
+    "status": "mt",
+    "srcHash": "671050a01b6d"
   },
   "ui.widgets.boards.pointsUnit": {
     "status": "src",
@@ -33559,6 +34955,122 @@
     "srcHash": "1b9aebd6c04d",
     "status": "mt"
   },
+  "ui.widgets.files.notAllowed": {
+    "status": "mt",
+    "srcHash": "cfc3fa44bd40"
+  },
+  "ui.widgets.files.notSent": {
+    "status": "mt",
+    "srcHash": "26a9821b2340"
+  },
+  "ui.widgets.files.photos.add": {
+    "status": "mt",
+    "srcHash": "67b2f988c992"
+  },
+  "ui.widgets.files.photos.added": {
+    "status": "mt",
+    "srcHash": "5730eb7a3df5"
+  },
+  "ui.widgets.files.photos.alt": {
+    "status": "src",
+    "srcHash": "ca0765758283"
+  },
+  "ui.widgets.files.photos.count": {
+    "status": "mt",
+    "srcHash": "7b370ac644c6"
+  },
+  "ui.widgets.files.photos.full": {
+    "status": "mt",
+    "srcHash": "359596b4f401"
+  },
+  "ui.widgets.files.photos.name": {
+    "status": "src",
+    "srcHash": "c8b2e864eccb"
+  },
+  "ui.widgets.files.photos.refused": {
+    "status": "mt",
+    "srcHash": "d04d5e3f2281"
+  },
+  "ui.widgets.files.photos.remove": {
+    "status": "mt",
+    "srcHash": "fa11e9b51d85"
+  },
+  "ui.widgets.files.photos.removed": {
+    "status": "mt",
+    "srcHash": "6537e5bee08c"
+  },
+  "ui.widgets.files.photos.sending": {
+    "status": "mt",
+    "srcHash": "cf765512cc6d"
+  },
+  "ui.widgets.files.signature.again": {
+    "status": "mt",
+    "srcHash": "97b6038b6fc8"
+  },
+  "ui.widgets.files.signature.clear": {
+    "status": "mt",
+    "srcHash": "719ea396ad92"
+  },
+  "ui.widgets.files.signature.cleared": {
+    "status": "mt",
+    "srcHash": "77697508ad74"
+  },
+  "ui.widgets.files.signature.drawInstead": {
+    "status": "mt",
+    "srcHash": "73c99bb5ea7e"
+  },
+  "ui.widgets.files.signature.empty": {
+    "status": "mt",
+    "srcHash": "6b83ce2d477a"
+  },
+  "ui.widgets.files.signature.keep": {
+    "status": "mt",
+    "srcHash": "770e4ca0398f"
+  },
+  "ui.widgets.files.signature.kept": {
+    "status": "mt",
+    "srcHash": "b15577e76c61"
+  },
+  "ui.widgets.files.signature.keptAlt": {
+    "status": "mt",
+    "srcHash": "ca16241178d8"
+  },
+  "ui.widgets.files.signature.line": {
+    "status": "mt",
+    "srcHash": "57cf36eb2e3a"
+  },
+  "ui.widgets.files.signature.name": {
+    "status": "src",
+    "srcHash": "2f32be1dc741"
+  },
+  "ui.widgets.files.signature.pad": {
+    "status": "mt",
+    "srcHash": "8fbc6edcccba"
+  },
+  "ui.widgets.files.signature.saving": {
+    "status": "mt",
+    "srcHash": "61f2cb3dfd79"
+  },
+  "ui.widgets.files.signature.typeInstead": {
+    "status": "mt",
+    "srcHash": "dbeebd7590b8"
+  },
+  "ui.widgets.files.signature.typedLabel": {
+    "status": "mt",
+    "srcHash": "67725b5c92a8"
+  },
+  "ui.widgets.files.signature.typedPad": {
+    "status": "mt",
+    "srcHash": "0716c4019767"
+  },
+  "ui.widgets.files.tooLarge": {
+    "status": "mt",
+    "srcHash": "97b007826b5a"
+  },
+  "ui.widgets.files.wrongType": {
+    "status": "mt",
+    "srcHash": "9ec300d46d19"
+  },
   "ui.widgets.forms.chipInput.description": {
     "srcHash": "4dcbe0ef830a",
     "status": "mt"
@@ -34099,6 +35611,102 @@
     "srcHash": "91d9ae73e8bf",
     "status": "mt"
   },
+  "ui.widgets.geo.area.clear": {
+    "status": "mt",
+    "srcHash": "719ea396ad92"
+  },
+  "ui.widgets.geo.area.issue.tooLarge": {
+    "status": "mt",
+    "srcHash": "a4432324036c"
+  },
+  "ui.widgets.geo.area.issue.unreadable": {
+    "status": "mt",
+    "srcHash": "f7347fe9ab21"
+  },
+  "ui.widgets.geo.area.mapsOff": {
+    "status": "mt",
+    "srcHash": "6dcd23c8ab0d"
+  },
+  "ui.widgets.geo.area.none": {
+    "status": "mt",
+    "srcHash": "7388ba8c4e7f"
+  },
+  "ui.widgets.geo.area.points": {
+    "status": "mt",
+    "srcHash": "d860ba2b5452"
+  },
+  "ui.widgets.geo.area.unreadable": {
+    "status": "mt",
+    "srcHash": "ca3e0f4a94c6"
+  },
+  "ui.widgets.geo.mapBubble.areaAddCornerHere": {
+    "status": "mt",
+    "srcHash": "b54988a8c406"
+  },
+  "ui.widgets.geo.mapBubble.areaChange": {
+    "status": "mt",
+    "srcHash": "64fbd995d3b6"
+  },
+  "ui.widgets.geo.mapBubble.areaChangeHint": {
+    "status": "mt",
+    "srcHash": "3409e811aa34"
+  },
+  "ui.widgets.geo.mapBubble.areaClose": {
+    "status": "mt",
+    "srcHash": "187f43fc21b2"
+  },
+  "ui.widgets.geo.mapBubble.areaDone": {
+    "status": "mt",
+    "srcHash": "e9b450d14bc2"
+  },
+  "ui.widgets.geo.mapBubble.areaDrawHint": {
+    "status": "mt",
+    "srcHash": "b73ddefd4c89"
+  },
+  "ui.widgets.geo.mapBubble.areaInsertCorner": {
+    "status": "mt",
+    "srcHash": "0a25df8cc7ca"
+  },
+  "ui.widgets.geo.mapBubble.areaNew": {
+    "status": "mt",
+    "srcHash": "152080a11b0b"
+  },
+  "ui.widgets.geo.mapBubble.areaPickHint": {
+    "status": "mt",
+    "srcHash": "e9cb49e0fa59"
+  },
+  "ui.widgets.geo.mapBubble.areaPiecesHint": {
+    "status": "mt",
+    "srcHash": "4bd16ddf167a"
+  },
+  "ui.widgets.geo.mapBubble.areaPoints": {
+    "status": "src",
+    "srcHash": "3b4644c886f9"
+  },
+  "ui.widgets.geo.mapBubble.areaRemoveCorner": {
+    "status": "mt",
+    "srcHash": "3decf91ff2cb"
+  },
+  "ui.widgets.geo.mapBubble.areaRestart": {
+    "status": "mt",
+    "srcHash": "b6fffc5ab71c"
+  },
+  "ui.widgets.geo.mapBubble.areaUnnamed": {
+    "status": "mt",
+    "srcHash": "46f9c23cfe87"
+  },
+  "ui.widgets.geo.mapBubble.areasLabel": {
+    "status": "mt",
+    "srcHash": "14ce09a8dd4e"
+  },
+  "ui.widgets.geo.mapBubble.byTown": {
+    "status": "mt",
+    "srcHash": "a6fd5908380b"
+  },
+  "ui.widgets.geo.mapBubble.cornerLabel": {
+    "status": "mt",
+    "srcHash": "41e99da9a7c9"
+  },
   "ui.widgets.geo.mapBubble.description": {
     "srcHash": "55d85242b25f",
     "status": "mt"
@@ -34111,17 +35719,145 @@
     "srcHash": "26abd933c2d7",
     "status": "mt"
   },
+  "ui.widgets.geo.mapBubble.legAbout": {
+    "status": "mt",
+    "srcHash": "b2a5d8931efc"
+  },
+  "ui.widgets.geo.mapBubble.legDrive": {
+    "status": "mt",
+    "srcHash": "387748ed5ba9"
+  },
+  "ui.widgets.geo.mapBubble.legExact": {
+    "status": "mt",
+    "srcHash": "7afa354a7561"
+  },
+  "ui.widgets.geo.mapBubble.legUnknown": {
+    "status": "mt",
+    "srcHash": "4e49ae3e38dc"
+  },
+  "ui.widgets.geo.mapBubble.listMore": {
+    "status": "mt",
+    "srcHash": "46bab6ec2318"
+  },
+  "ui.widgets.geo.mapBubble.mapLabel": {
+    "status": "mt",
+    "srcHash": "ab478f3efc84"
+  },
   "ui.widgets.geo.mapBubble.mapUnavailableLabel": {
-    "srcHash": "42d7e581a5eb",
-    "status": "mt"
+    "status": "mt",
+    "srcHash": "bfd879406a83"
+  },
+  "ui.widgets.geo.mapBubble.mapsOffLabel": {
+    "status": "mt",
+    "srcHash": "c76b5c6734ca"
+  },
+  "ui.widgets.geo.mapBubble.mapsOffLink": {
+    "status": "mt",
+    "srcHash": "7d5fdfe4faa4"
   },
   "ui.widgets.geo.mapBubble.metricLabel": {
     "srcHash": "b2bb7604c825",
     "status": "mt"
   },
+  "ui.widgets.geo.mapBubble.openInMaps": {
+    "status": "mt",
+    "srcHash": "4048a2d3dfe5"
+  },
+  "ui.widgets.geo.mapBubble.openOnMapsSite": {
+    "status": "mt",
+    "srcHash": "21cc2d88bc93"
+  },
+  "ui.widgets.geo.mapBubble.pinMoveHint": {
+    "status": "mt",
+    "srcHash": "7a72dbdab010"
+  },
+  "ui.widgets.geo.mapBubble.placeAtMiddle": {
+    "status": "mt",
+    "srcHash": "4da1eae0ff35"
+  },
+  "ui.widgets.geo.mapBubble.placesLabel": {
+    "status": "mt",
+    "srcHash": "0cd3597453ab"
+  },
+  "ui.widgets.geo.mapBubble.placingHint": {
+    "status": "mt",
+    "srcHash": "f083deb206bb"
+  },
+  "ui.widgets.geo.mapBubble.placingStop": {
+    "status": "mt",
+    "srcHash": "b3657b1663b5"
+  },
   "ui.widgets.geo.mapBubble.regionsLabel": {
     "srcHash": "d2c3f4c254a4",
     "status": "mt"
+  },
+  "ui.widgets.geo.mapBubble.routeUnavailable": {
+    "status": "mt",
+    "srcHash": "9e6af5417653"
+  },
+  "ui.widgets.geo.mapBubble.saidCornerAdded": {
+    "status": "mt",
+    "srcHash": "31735451fdd3"
+  },
+  "ui.widgets.geo.mapBubble.saidPinBack": {
+    "status": "mt",
+    "srcHash": "80e1f3c4ee77"
+  },
+  "ui.widgets.geo.mapBubble.saidPinKept": {
+    "status": "mt",
+    "srcHash": "e540fb6f39bb"
+  },
+  "ui.widgets.geo.mapBubble.saidPinPicked": {
+    "status": "mt",
+    "srcHash": "97e2c94fcd13"
+  },
+  "ui.widgets.geo.mapBubble.saidPinRefused": {
+    "status": "mt",
+    "srcHash": "a76dc0700b0a"
+  },
+  "ui.widgets.geo.mapBubble.saidPlaceRefused": {
+    "status": "mt",
+    "srcHash": "e97d5a3ebf32"
+  },
+  "ui.widgets.geo.mapBubble.saidPlaced": {
+    "status": "mt",
+    "srcHash": "b851c3af4eea"
+  },
+  "ui.widgets.geo.mapBubble.saidShapeClosed": {
+    "status": "mt",
+    "srcHash": "950f5bc02b12"
+  },
+  "ui.widgets.geo.mapBubble.saidTrying": {
+    "status": "mt",
+    "srcHash": "2d09c2edb9b5"
+  },
+  "ui.widgets.geo.mapBubble.sharedTown": {
+    "status": "mt",
+    "srcHash": "8852ca9976a2"
+  },
+  "ui.widgets.geo.mapBubble.stopsLabel": {
+    "status": "mt",
+    "srcHash": "0e648419ea80"
+  },
+  "ui.widgets.geo.mapBubble.totalAbout": {
+    "status": "mt",
+    "srcHash": "eca0047b3c89"
+  },
+  "ui.widgets.geo.mapBubble.totalExact": {
+    "status": "mt",
+    "srcHash": "302a81717da2"
+  },
+  "ui.widgets.geo.mapBubble.tryAgain": {
+    "status": "mt",
+    "srcHash": "042c862e4467"
+  },
+  "ui.widgets.geo.mapBubble.zoomIn": {
+    "status": "mt",
+    "srcHash": "4fc05f2763ba"
+  },
+  "ui.widgets.geo.mapBubble.zoomOut": {
+    "status": "mt",
+    "srcHash": "a4ae4b24a1f5"
   },
   "ui.widgets.geo.mapChoroplethGrid.chartLabel": {
     "srcHash": "47685dd25b24",
@@ -34146,6 +35882,74 @@
   "ui.widgets.geo.mapChoroplethGrid.legendLowLabel": {
     "srcHash": "a124947cbd2d",
     "status": "mt"
+  },
+  "ui.widgets.geo.place.byTown": {
+    "status": "mt",
+    "srcHash": "96876493ba0b"
+  },
+  "ui.widgets.geo.place.clear": {
+    "status": "mt",
+    "srcHash": "719ea396ad92"
+  },
+  "ui.widgets.geo.place.exact": {
+    "status": "mt",
+    "srcHash": "f74e896c7413"
+  },
+  "ui.widgets.geo.place.exactNamed": {
+    "status": "mt",
+    "srcHash": "d786623c2d3b"
+  },
+  "ui.widgets.geo.place.issue.outOfRange": {
+    "status": "mt",
+    "srcHash": "569b6f2a5157"
+  },
+  "ui.widgets.geo.place.issue.shortLink": {
+    "status": "mt",
+    "srcHash": "2002f5ed7f6f"
+  },
+  "ui.widgets.geo.place.issue.unknown": {
+    "status": "mt",
+    "srcHash": "25c5344f6319"
+  },
+  "ui.widgets.geo.place.issue.unreadable": {
+    "status": "mt",
+    "srcHash": "7dc3f27f005d"
+  },
+  "ui.widgets.geo.place.noTown": {
+    "status": "mt",
+    "srcHash": "e9cc109832c9"
+  },
+  "ui.widgets.geo.place.none": {
+    "status": "mt",
+    "srcHash": "b5366c7509e0"
+  },
+  "ui.widgets.geo.place.pending": {
+    "status": "mt",
+    "srcHash": "63694f1be397"
+  },
+  "ui.widgets.geo.place.pinName": {
+    "status": "mt",
+    "srcHash": "5e367cff1328"
+  },
+  "ui.widgets.geo.place.placeholder": {
+    "status": "mt",
+    "srcHash": "f4de979aef71"
+  },
+  "ui.widgets.geo.place.searchFailed": {
+    "status": "mt",
+    "srcHash": "71d49c8ba646"
+  },
+  "ui.widgets.geo.place.searching": {
+    "status": "mt",
+    "srcHash": "5e65f10e67be"
+  },
+  "ui.widgets.geo.place.whereError": {
+    "status": "mt",
+    "srcHash": "e42df8ad9375"
+  },
+  "ui.widgets.geo.place.whereIAm": {
+    "status": "mt",
+    "srcHash": "fa157c9ab413"
   },
   "ui.widgets.kpi.autoInsights.description": {
     "srcHash": "542b50ffe6fc",
@@ -34618,6 +36422,14 @@
   "ui.widgets.system.statusPill.description": {
     "srcHash": "f43a01539b28",
     "status": "mt"
+  },
+  "ui.widgets.system.wholeOnly.body": {
+    "status": "mt",
+    "srcHash": "40631bc64a7a"
+  },
+  "ui.widgets.system.wholeOnly.title": {
+    "status": "mt",
+    "srcHash": "e5afb97e8bc1"
   },
   "ui.widgets.system.widgetMissing.bodyLead": {
     "srcHash": "f999ff0f4286",

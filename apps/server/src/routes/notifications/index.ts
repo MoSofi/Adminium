@@ -25,19 +25,25 @@ import {
   type MetaDb,
   type Notification,
   type NotificationChannels,
+  notificationSchedulesRepo,
 } from '@adminium/meta';
 
+import { noticePlaces, type RecordPlace } from '../../apps/record-address.js';
 import { isEmailConfigured } from '../../email/send.js';
-import { UnauthorizedError } from '../../errors.js';
+import { UnauthorizedError, ValidationFailedError } from '../../errors.js';
 import {
   NOTIFICATION_READ_EVENT,
+  businessZone,
   notificationsChannel,
   type NotificationPublisher,
 } from '../../notifications/notify.js';
+import { usableZone } from '../../notifications/quiet.js';
 import {
   notificationIdParams,
   notificationPrefsPutBody,
   notificationPrefsReply,
+  notificationSchedulePutBody,
+  notificationScheduleReply,
   notificationReadReply,
   notificationsListQuery,
   notificationsListReply,
@@ -87,7 +93,7 @@ function requireUserId(request: FastifyRequest): string {
   return id;
 }
 
-function toView(row: Notification): NotificationView {
+function toView(row: Notification, place: RecordPlace | null = null): NotificationView {
   return {
     id: row.id,
     kind: row.kind,
@@ -95,7 +101,9 @@ function toView(row: Notification): NotificationView {
     title: row.title,
     body: row.body,
     entity: row.entity,
-    actionUrl: row.actionUrl,
+    // The app's own screen for the record, for a reader whose roles open it; else the link as written.
+    actionUrl: place === null ? row.actionUrl : place.url,
+    ...(place === null ? {} : { opens: { appKey: place.appKey, path: place.path } }),
     readAt: row.readAt,
     createdAt: row.createdAt,
   };
@@ -170,7 +178,10 @@ export function notificationsRoutes(deps: NotificationsRoutesDeps): FastifyPlugi
         const last = page[page.length - 1];
         return {
           data: {
-            items: page.map(toView),
+            // Asked for this reader, now: a role given or taken since the notice was written counts.
+            items: await noticePlaces(meta, userId, page.map((row) => row.entity))
+              .catch(() => page.map(() => null))
+              .then((places) => page.map((row, index) => toView(row, places[index] ?? null))),
             unreadCount: await notifications.unreadCount(userId),
             nextCursor:
               rows.length > limit && last !== undefined ? `${last.createdAt}:${last.id}` : null,
@@ -222,6 +233,56 @@ export function notificationsRoutes(deps: NotificationsRoutesDeps): FastifyPlugi
           await prefs.upsert(userId, event.key, event.channels);
         }
         return { data: await prefsView(userId) };
+      },
+    );
+
+    /*
+     * WHEN A PERSON IS TOLD: their own time zone, the hours of each weekday
+     * they are not to be disturbed in, and when their summaries are sent;
+     * and two switches kept beside them, quiet hours on or off (the hours
+     * kept) and summaries on or "not me" (the day and time kept). Theirs
+     * alone to read and to set; nothing here is on until they set it.
+     */
+    const scheduleView = async (userId: string) => {
+      const held = await notificationSchedulesRepo(meta).find(userId);
+      return {
+        timezone: held?.timezone ?? null,
+        quiet: held?.quiet ?? null,
+        digestDay: held?.digestDay ?? null,
+        digestTime: held?.digestTime ?? null,
+        quietOn: held?.quietOff !== true,
+        summariesOn: held?.summariesOff !== true,
+        fallbackTimezone: await businessZone(meta),
+      };
+    };
+
+    app.get(
+      '/me/notification-schedule',
+      { schema: { response: { 200: notificationScheduleReply } } },
+      async (request) => ({ data: await scheduleView(requireUserId(request)) }),
+    );
+
+    app.put(
+      '/me/notification-schedule',
+      { schema: { body: notificationSchedulePutBody, response: { 200: notificationScheduleReply } } },
+      async (request) => {
+        const userId = requireUserId(request);
+        const { timezone, quiet, digestDay, digestTime, quietOn, summariesOn } = request.body;
+        if (timezone !== null && usableZone(timezone) === null) {
+          throw new ValidationFailedError(`"${timezone}" is not a time zone this server knows.`, { fields: { timezone: { code: 'invalid' } } });
+        }
+        const schedules = notificationSchedulesRepo(meta);
+        // A switch the write leaves out stays as it was.
+        const held = quietOn === undefined || summariesOn === undefined ? await schedules.find(userId) : null;
+        await schedules.set(userId, {
+          timezone,
+          quiet,
+          digestDay,
+          digestTime,
+          quietOff: quietOn === undefined ? held?.quietOff === true : !quietOn,
+          summariesOff: summariesOn === undefined ? held?.summariesOff === true : !summariesOn,
+        });
+        return { data: await scheduleView(userId) };
       },
     );
   };

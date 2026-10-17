@@ -79,7 +79,7 @@ import { withDeciders } from '../add-ons/decide.js';
 import { postingScope } from './ledger-points.js';
 import { createLedgerWriter, type PostedOutcome, type TreeRowIn, type UsesFor } from './ledger-write.js';
 import type { CustomerKeyOf } from '../public-api/customer-key.js';
-import { inertLinkWritten, softLinkIssues } from './soft-links.js';
+import { couldBeKey, inertLinkWritten, softLinkIssues } from './soft-links.js';
 import type { LedgerRuntime } from '../ledgers/registry.js';
 import type { FastifyRequest } from 'fastify';
 import { sql, type DeleteQueryBuilder, type DeleteResult, type Kysely, type UpdateQueryBuilder, type UpdateResult } from 'kysely';
@@ -96,7 +96,7 @@ import { getPrincipal } from '../rbac/principal.js';
 import { negotiateLocale } from '../plugins/surfaces.js';
 import { capacityLockNames, touchesCapacity } from './capacity/judge.js';
 import { batchNeedsGuard, judgeRows, withLimitLocks } from './capacity/door.js';
-import { bookingCounts, bookingDay, bookingNeed, bookingRefusal, checkBooking, touchesBooking, withBookingLock } from './booking-guard.js';
+import { bookingColumn, bookingCounts, bookingDay, bookingNeed, bookingRefusal, checkBooking, touchesBooking, withBookingLock } from './booking-guard.js';
 import { decideRow, needsStored, stampFires, stampYields, type DecideContext } from './decide.js';
 import { renewedColumns, withRenewRetry } from './code-renew.js';
 import { canonicalCode, isLookupIssue, lookupIssue, reservedIssue, type LookupMiss } from './code-lookup.js';
@@ -116,6 +116,7 @@ import {
   type ColumnCode,
   type DateBound,
   type DateBoundSide,
+  type LinkableSame,
   type RequiredGuard,
   type FieldIssues,
   type RollupInto,
@@ -139,6 +140,7 @@ import { storedReductions } from './adjust/stored.js';
 import { adjustOrigin, createAdjuster, usesRefusal, type AdjustedOrder, type AdjustFor, type AdjustPeek, type AdjustTried, type AdjustTry } from './adjust/step.js';
 import { venueClock } from './venue-time.js';
 import { isOutboxWrite } from '../outbox/context.js';
+import { releaseLinks, restoreLinks, type ReleasedLink } from '../outbox/release.js';
 import { normaliseAddress } from '../public-api/claim-code.js';
 import {
   claimSequences,
@@ -153,6 +155,8 @@ import {
 } from './decided-columns.js';
 import type { ResolvedColumn, ResolvedTable } from './identifiers.js';
 import type { Row } from './mask.js';
+import { defaultPlaces, type Places } from '../geo/places.js';
+import { areaValueOf, placeValueOf } from '../geo/values.js';
 import { fetchByPk } from './records.js';
 import { venueLocalValue } from './venue-time.js';
 import { priceValues, repricedBy } from './per-night.js';
@@ -165,6 +169,7 @@ import { LockMoved, beginOn, withNamedLocks, type NamedLock } from './capacity/l
 import type { JudgedRow, LockNameRow, PoolState } from './capacity/types.js';
 import { bindWriteValue, booleanOf, normalizeWriteValue, sameValue, zonedWriteValue } from './write-values.js';
 import type { WriteAction, WriteActor, WriteContext, WriteOrigin, WriteTarget } from './write-context.js';
+import { NO_NEW_FILES, type FileColumnJudge } from '../files/column-judge.js';
 
 // The write's own vocabulary lives in a leaf, because `column-rules.ts` reads
 // it and this module reads the rules — see `write-context.ts`. Re-exported so
@@ -569,7 +574,8 @@ export async function updateRows(
           for (const [column, value] of Object.entries(expected ?? {})) {
             const resolved = table.columns.get(column);
             // A moment read back as a Date: on MySQL, spelled as the column holds it.
-            const bound = resolved?.logicalType === 'timestamptz' ? bindWriteValue(resolved, value, dialect) : value;
+            // …and a yes or no as the engine binds one (SQLite takes no boolean: a `seen` tick box answered 500 there).
+            const bound = resolved?.logicalType === 'timestamptz' ? bindWriteValue(resolved, value, dialect) : bindValue(dialect, value);
             out = out.where((eb) => (bound === null || bound === undefined ? eb(eb.ref(column as never), 'is', null) : eb(eb.ref(column as never), '=', bound as never)));
           }
           return stillRequired === undefined ? out : stillRequired(out);
@@ -618,18 +624,34 @@ export async function deleteRows(
    * sample data's own rows going).
    */
   judged?: { dialect: Dialect; prepared: Row } | undefined,
+  /**
+   * The outbox links that let go of this table's rows (`outbox/release.ts`):
+   * emptied in the same transaction, just before the row goes, and put back
+   * when the statement then removes nothing. Only for a row named by its one key.
+   */
+  released?: readonly ReleasedLink[] | undefined,
 ): Promise<number> {
+  const key = table.primaryKey.length === 1 ? table.primaryKey[0] : undefined;
+  const named = key === undefined || Object.keys(match).length !== 1 ? undefined : match[key];
+  const links = released === undefined || named === undefined || named === null ? [] : released;
+  const lets = links.length > 0;
   const run = async (tx: Db) => {
+    const freed = lets ? await releaseLinks(tx, links, named) : [];
     let query = tx.deleteFrom(table.id) as unknown as AnyDelete;
     for (const [column, value] of Object.entries(match)) {
       query = query.where((eb) => eb(tx.dynamic.ref(column), '=', value));
     }
     if (refine !== undefined) query = refine(query);
     const result = await query.executeTakeFirst();
-    return Number(result.numDeletedRows);
+    const count = Number(result.numDeletedRows);
+    // The row did not go (out of the caller's reach, or gone already): its messages are as they were.
+    if (count === 0 && freed.length > 0) await restoreLinks(tx, freed);
+    return count;
   };
-  if (judged === undefined) return run(db);
-  return guardedDelete(db, judged.dialect, table, match, guardOf(judged.prepared), run);
+  // The links and the row go together, or neither does.
+  const whole = (tx: Db) => (lets && !inTransaction(tx) ? tx.transaction().execute((inner) => run(inner as unknown as Db)) : run(tx));
+  if (judged === undefined) return whole(db);
+  return guardedDelete(db, judged.dialect, table, match, guardOf(judged.prepared), whole);
 }
 
 /**
@@ -698,6 +720,10 @@ async function rollupStatement(
     ...(rollup.where === undefined ? [] : [sql`${sql.ref(rollup.where.column)} = ${bindValue(dialect, rollup.where.eq)}`]),
   ];
   const where = sql.join(conditions, sql` and `);
+  if (rollup.latest !== undefined) {
+    await latestStatement(db, dialect, rollup, rollup.latest, parentKey, where, read);
+    return;
+  }
   /*
    * SQLite adds decimals as floats: a line of 1.500 × 0.33 is a hair under
    * 0.495 there and rounds to 0.49, where Postgres and MySQL, adding exact
@@ -737,6 +763,74 @@ async function rollupStatement(
 }
 
 /**
+ * Set a parent's column to the newest child row's value — `rollup.latest`:
+ * `of` from the row whose `by` is greatest among the rows the rule keeps, and
+ * with `row` that row's key beside it; both empty while no row qualifies. A
+ * row whose `by` is empty is no candidate (a quote not sent yet), and of two
+ * rows with the same `by` the greater key wins, so the answer is one row on
+ * every engine. Read in the UPDATE itself, as a total is, so it sees what a
+ * sum would; MySQL's catch-up reads plainly first (see `rollupStatement`).
+ */
+async function latestStatement(
+  db: Db,
+  dialect: Dialect,
+  rollup: RollupInto,
+  latest: NonNullable<RollupInto['latest']>,
+  parentKey: unknown,
+  where: ReturnType<typeof sql>,
+  read: 'locking' | 'plain',
+): Promise<void> {
+  const order = latest.key === '' ? sql`${sql.ref(latest.by)} desc` : sql`${sql.ref(latest.by)} desc, ${sql.ref(latest.key)} desc`;
+  const newest = (column: string) => sql`(select ${sql.ref(column)} from ${sql.table(rollup.child)} where ${where} and ${sql.ref(latest.by)} is not null order by ${order} limit 1)`;
+  const takes = [{ into: rollup.column, from: latest.of }, ...(latest.row === undefined || latest.key === '' ? [] : [{ into: latest.row, from: latest.key }])];
+  const set: Record<string, unknown> = {};
+  for (const take of takes) {
+    set[take.into] = read === 'plain' && dialect === 'mysql' ? ((await sql<{ value: unknown }>`select ${newest(take.from)} as value`.execute(db)).rows[0]?.value ?? null) : newest(take.from);
+  }
+  await db
+    .updateTable(rollup.parent)
+    .set(set as never)
+    .where((eb) => eb(db.dynamic.ref(rollup.parentKey), '=', parentKey))
+    .execute();
+}
+
+/** Where a value falls among others of its kind: a moment or a day as its time, a number as itself. */
+function latestRank(value: unknown): number | string {
+  if (value instanceof Date) return value.getTime();
+  if (typeof value === 'number') return value;
+  if (typeof value === 'bigint') return Number(value);
+  const text = String(value);
+  if (/^-?\d+(\.\d+)?$/.test(text)) return Number(text);
+  // SQLite keeps a moment as text, with a space or a T, with or without a zone: read as UTC unless it names one.
+  // Postgres writes a zone as `+00`; a zone of hours alone is given its minutes.
+  const day = /^\d{4}-\d\d-\d\d$/.test(text);
+  const iso = day ? `${text}T00:00:00` : text.replace(' ', 'T').replace(/([+-]\d\d)$/, '$1:00');
+  const moment = Date.parse(!day && /[zZ]$|[+-]\d\d:?\d\d$/.test(iso) ? iso : `${iso}Z`);
+  return Number.isNaN(moment) ? text : moment;
+}
+
+/** The newest of `rows` by `by`, an empty `by` left out, the greater key breaking a tie; undefined when none is left. */
+export function latestOf(rows: readonly Row[], latest: { by: string; key: string }): Row | undefined {
+  let best: Row | undefined;
+  const beats = (a: unknown, b: unknown): number => {
+    const x = latestRank(a);
+    const y = latestRank(b);
+    return typeof x === 'number' && typeof y === 'number' ? x - y : String(x) < String(y) ? -1 : String(x) > String(y) ? 1 : 0;
+  };
+  for (const row of rows) {
+    const at = row[latest.by];
+    if (at === null || at === undefined) continue;
+    if (best === undefined) {
+      best = row;
+      continue;
+    }
+    const order = beats(at, best[latest.by]);
+    if (order > 0 || (order === 0 && latest.key !== '' && beats(row[latest.key], best[latest.key]) > 0)) best = row;
+  }
+  return best;
+}
+
+/**
  * Child rows as a change would leave them, by their key: what a quote of a
  * change that child rows follow adds up in place of the rows it never wrote.
  */
@@ -754,7 +848,8 @@ async function rollupOverlaid(db: Db, rollup: RollupInto, parentKey: unknown, pl
   const columns = [
     ...new Set([
       ...overlay.key,
-      ...(rollup.count === true ? [] : [rollup.sum]),
+      ...(rollup.count === true || rollup.latest !== undefined ? [] : [rollup.sum]),
+      ...(rollup.latest === undefined ? [] : [rollup.latest.of, rollup.latest.by, ...(rollup.latest.key === '' ? [] : [rollup.latest.key])]),
       ...(rollup.times === undefined ? [] : [rollup.times]),
       ...(rollup.unlessSet === undefined ? [] : [rollup.unlessSet]),
       ...(rollup.where === undefined ? [] : [rollup.where.column]),
@@ -767,6 +862,15 @@ async function rollupOverlaid(db: Db, rollup: RollupInto, parentKey: unknown, pl
     .map((row) => standing.get(idOf(row)) ?? row)
     .filter((row) => rollup.unlessSet === undefined || row[rollup.unlessSet] === null || row[rollup.unlessSet] === undefined)
     .filter((row) => rollup.where === undefined || sameValue(row[rollup.where.column], rollup.where.eq));
+  if (rollup.latest !== undefined) {
+    const newest = latestOf(rows, rollup.latest);
+    await db
+      .updateTable(rollup.parent)
+      .set({ [rollup.column]: newest?.[rollup.latest.of] ?? null, ...(rollup.latest.row === undefined || rollup.latest.key === '' ? {} : { [rollup.latest.row]: newest?.[rollup.latest.key] ?? null }) } as never)
+      .where((eb) => eb(db.dynamic.ref(rollup.parentKey), '=', parentKey))
+      .execute();
+    return;
+  }
   await db
     .updateTable(rollup.parent)
     .set({ [rollup.column]: rollupValue(rows, { sum: rollup.sum, times: rollup.times, count: rollup.count }, places) } as never)
@@ -1259,7 +1363,7 @@ function chainColumns(rollups: readonly RollupInto[]): Map<string, Set<string>> 
   const visit = (rollup: RollupInto, hop: number): void => {
     const columns = out.get(rollup.parent) ?? new Set<string>();
     const before = columns.size;
-    for (const column of [rollup.column, ...rollup.derived, ...rollup.balances.map((b) => b.column)]) columns.add(column);
+    for (const column of [rollup.column, ...(rollup.latest?.row === undefined ? [] : [rollup.latest.row]), ...rollup.derived, ...rollup.balances.map((b) => b.column)]) columns.add(column);
     out.set(rollup.parent, columns);
     if (hop + 1 >= CLIMB_HOPS || (columns.size === before && before > 0)) return;
     for (const climb of rollup.climbs) visit(climb, hop + 1);
@@ -1608,7 +1712,8 @@ export interface RecordWriteService {
     target: WriteTarget,
     context: WriteContext,
     rows: readonly Row[],
-    opts?: Pick<BeforeEachOptions, 'capacity'>,
+    /** `stored`: for a change, the row each one changes, by index (a link sent back as it stands is no change). */
+    opts?: Pick<BeforeEachOptions, 'capacity' | 'quote'> & { stored?: readonly (Row | null)[] },
   ): Promise<{ rows: (CheckedRow | null)[]; issues: (FieldIssues | null)[] }>;
   create(input: CreateRecordInput): Promise<Row>;
   /** A create with its child rows, every row or none; or a quote of one (`write-tree.ts`). */
@@ -1726,6 +1831,15 @@ export interface WriteServiceOptions {
   /** Read on every write, so a reload swaps the hooks for the next one. */
   hooks?: (() => RecordHooks) | undefined;
   /**
+   * The outbox links that let go of a table's rows as they are removed (an
+   * app that writes to people about a removal: `outbox/release.ts`). Asked
+   * before each delete; a service without it removes a row as the database
+   * allows, and a message that names the row still stops it.
+   */
+  releases?: ((connectionId: string, tableId: string) => Promise<readonly ReleasedLink[]>) | undefined;
+  /** The place list a town in a place column is read from; the one this server ships unless a test says otherwise. */
+  places?: Places | undefined;
+  /**
    * The add-ons a table's postings hand rows to: whether each rule is live
    * now, and the code that plans its rows. A server with no add-on runtime
    * has none, and a table with a live posting then refuses its writes rather
@@ -1773,6 +1887,12 @@ export interface WriteServiceOptions {
    * never filled, whichever door the write came through.
    */
   rights?: ((connectionId: string, tableId: string) => Promise<TablePrivileges | null>) | undefined;
+  /**
+   * Which files a write may name in a column that holds files
+   * (`files/column-judge.ts`). Without it a write may keep or clear what such
+   * a column holds and name no new file: nothing here can vouch for one.
+   */
+  files?: FileColumnJudge | undefined;
 }
 
 /** How many times a create whose generated code collided is tried again. */
@@ -1841,11 +1961,17 @@ function decideContext(target: WriteTarget, context: WriteContext, now: Date, zo
     claimed: context.claimed ?? null,
     relations: target.view?.model?.relations,
     rights: target.rights,
+    stamps: context.stamps,
   };
 }
 
-/** Text a rule keeps trimmed, or trimmed and in lower case (an address). The same object when nothing changes. */
-function normalizeText(rules: TableRules | null, values: Row): Row {
+/**
+ * Text a rule keeps trimmed, or trimmed and in lower case (an address), or
+ * as a code (upper case, no spaces or dashes). The same object when nothing
+ * changes. An import reads a file's cells through it too, so a line is
+ * matched on the value its row would hold.
+ */
+export function normalizeText(rules: TableRules | null, values: Row): Row {
   let out: Row | null = null;
   for (const { column, how } of rules?.normalizes ?? []) {
     const value = values[column];
@@ -2088,6 +2214,92 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
     return issues;
   }
 
+  /**
+   * Links that may name only some rows (`column.linkable`): a new row's link,
+   * or one this change moves, names a row of the linked table that meets the
+   * rule's conditions — a price-list line still offered. It is the data's own
+   * rule, not a permission: judged for every writer and on every door but an
+   * undo (which puts back a row as it was), an import and sample data
+   * included, and read on the linked row as it stands, through the write's
+   * own handle. A link left as the row holds it (sent back unchanged, or not
+   * sent) is not judged again: a line naming a price retired since keeps it
+   * while its other columns change. An empty link names nothing, and a key
+   * that names no row at all is the foreign key's to refuse, so a refusal here
+   * tells nothing a row that is not there would not. Refused as the field's
+   * `not-allowed`, naming nothing of the linked row.
+   */
+  async function linkableIssues(rules: TableRules | null, action: WriteAction, target: WriteTarget, context: WriteContext, values: Row, stored: Row | null): Promise<FieldIssues | null> {
+    if ((rules?.linkable?.length ?? 0) === 0 || action === 'delete' || context.origin === 'undo') return null;
+    let issues: FieldIssues | null = null;
+    /** Whether this write sets a column to something other than what the row holds. */
+    const moves = (column: string): boolean => Object.prototype.hasOwnProperty.call(values, column) && (stored === null || !sameValue(values[column], stored[column]));
+    for (const rule of rules!.linkable!) {
+      // Judged when the link moves; with `same`, also when what the row's side reads moves (a visit moved to another deal).
+      if (!moves(rule.column) && !rule.same.some((pair) => moves(pair.own))) continue;
+      const value = Object.prototype.hasOwnProperty.call(values, rule.column) ? values[rule.column] : stored?.[rule.column];
+      if (value === null || value === undefined || value === '') continue;
+      if (rule.unresolved === true) {
+        (issues ??= {})[rule.column] = { code: 'not-allowed' };
+        continue;
+      }
+      // A value that could never be a key is not asked of the database (Postgres answers it with an error): the column's own check refuses it.
+      if (!couldBeKey(rule.keyType, value)) continue;
+      const read = [...new Set([...rule.where.map((condition) => condition.column), ...rule.same.map((pair) => pair.column)])];
+      const found = (await target.db
+        .selectFrom(rule.table)
+        .select(read.map((column) => sql.ref(column).as(column)) as never)
+        .where((eb) => eb(target.db.dynamic.ref(rule.key), '=', value))
+        .limit(1)
+        .executeTakeFirst()) as Row | undefined;
+      if (found === undefined) continue;
+      let meets = rule.where.every((condition) => holds(condition, found));
+      // Each pair: the named row's column holds what the written row holds, as the write leaves it. An empty side matches nothing.
+      for (const pair of rule.same) {
+        if (!meets) break;
+        const ours = await sameSideOf(target, pair, { ...(stored ?? {}), ...values });
+        const theirs = found[pair.column];
+        meets = ours !== null && theirs !== null && theirs !== undefined && theirs !== '' && sameValue(ours, theirs);
+      }
+      if (!meets) (issues ??= {})[rule.column] = { code: 'not-allowed' };
+    }
+    return issues;
+  }
+
+  /**
+   * The written row's side of a `same` pair: its own column, or the column of
+   * the row a link of it names, read as it stands through the write's own
+   * handle. Null when it is empty, when the link is empty or names no row.
+   */
+  async function sameSideOf(target: WriteTarget, pair: LinkableSame, row: Row): Promise<unknown> {
+    const own = row[pair.own];
+    if (own === null || own === undefined || own === '') return null;
+    if (pair.far === undefined) return own;
+    if (!couldBeKey(pair.far.keyType, own)) return null;
+    const far = (await target.db
+      .selectFrom(pair.far.table)
+      .select(sql.ref(pair.far.column).as('value') as never)
+      .where((eb) => eb(target.db.dynamic.ref(pair.far!.key), '=', own))
+      .limit(1)
+      .executeTakeFirst()) as { value?: unknown } | undefined;
+    const value = far?.value;
+    return value === null || value === undefined || value === '' ? null : value;
+  }
+
+  /**
+   * Columns that hold files (`column.file`): a write names only a file its
+   * writer uploaded and no record holds yet, of a kind the column takes and
+   * no larger than it allows (`files/column-judge.ts`). Every writer and
+   * every door but an undo; a door with no person behind it names no new
+   * file at all. A file the row already held in that column is not judged
+   * again.
+   */
+  async function fileIssues(action: WriteAction, target: WriteTarget, context: WriteContext, values: Row, stored: Row | null): Promise<FieldIssues | null> {
+    if (action === 'delete' || context.origin === 'undo') return null;
+    if (![...target.table.columns.values()].some((column) => column.file !== undefined && Object.prototype.hasOwnProperty.call(values, column.name))) return null;
+    const write = { connectionId: target.connectionId, table: target.table, origin: context.origin, actor: context.actor ?? null, values, stored };
+    return (opts.files ?? NO_NEW_FILES).judge(write);
+  }
+
   /** CHECK, then the dates a rule keeps within dates; the caller's own refusal when there is one. */
   /**
    * A link into an add-on's table has no foreign key behind it, so it is
@@ -2114,6 +2326,24 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
     return softLinkIssues(target.db, rules, values);
   }
 
+  /**
+   * The place and area columns this write gives, each as its column keeps it
+   * (`geo/values.ts`), and the ones refused. Null when the write gives none:
+   * every other table pays one look at its columns.
+   */
+  async function geoValues(target: WriteTarget, values: Row): Promise<{ values: Row; issues: FieldIssues | null } | null> {
+    let out: Row | null = null;
+    let issues: FieldIssues | null = null;
+    for (const [name, column] of target.table.columns) {
+      if (column.geo === undefined || !Object.prototype.hasOwnProperty.call(values, name)) continue;
+      const judged = column.geo === 'place' ? await placeValueOf(values[name], opts.places ?? defaultPlaces()) : areaValueOf(values[name]);
+      out ??= { ...values };
+      if (judged.ok) out[name] = judged.value;
+      else (issues ??= {})[name] = { code: judged.code };
+    }
+    return out === null ? null : { values: out, issues };
+  }
+
   async function checkAllOrThrow(
     rules: TableRules | null,
     action: WriteAction,
@@ -2124,9 +2354,15 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
     mapError: ((error: unknown) => never) | undefined,
   ): Promise<CheckedRow> {
     const judged = judgedBy(rules, target, context);
+    // A place and an area are made alike before anything judges or stores them, whoever wrote them.
+    const geo = action === 'delete' ? null : await geoValues(target, values);
+    if (geo !== null) values = geo.values;
     const issues = mergeIssues(
-      mergeIssues(checkRow(judged, action, values, { dialect: target.dialect, stored, columns: target.table.columns }), await boundIssues(rules, action, target, context, values, stored)),
-      mergeIssues(await linkIssues(rules, action, target, context, values, mapError, stored), action === 'delete' ? null : reservedIssue(rules, values)),
+      mergeIssues(mergeIssues(geo?.issues ?? null, checkRow(judged, action, values, { dialect: target.dialect, stored, columns: target.table.columns })), await boundIssues(rules, action, target, context, values, stored)),
+      mergeIssues(
+        mergeIssues(await linkIssues(rules, action, target, context, values, mapError, stored), action === 'delete' ? null : reservedIssue(rules, values)),
+        mergeIssues(await linkableIssues(rules, action, target, context, values, stored), await fileIssues(action, target, context, values, stored)),
+      ),
     );
     // What the check read of the stored row goes with the values, for the statement to hold it to.
     if (issues === null) return brand(attachRequiredGuards(values, requiredGuards(judged, action, values, stored)));
@@ -2227,7 +2463,8 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
     const kept =
       rules?.booking !== undefined ||
       (effective?.stateParents?.length ?? 0) > 0 ||
-      (effective?.states?.effects?.length ?? 0) > 0 ||
+      // A chain: the state this sets is one the moved row's own effects start from. (A table with effects is still moved to any other state.)
+      (effective?.states?.effects ?? []).some((their) => !isChangeEffect(their) && their.on.to === state) ||
       // Its move may wait only for its own row: the rows it would read are taken after this write's own.
       Object.values(effective?.states?.moves ?? {}).some((list) =>
         list.some((move) => typeof move === 'object' && move.to === state && waitVias(move.requires).length > 0),
@@ -2537,7 +2774,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         return rolls ? await atomically(target, write) : await write(target.db);
       }
       const day = bookingDay(booking, { ...current, ...values }, zone ?? 'UTC');
-      if (day === null) await guarded(() => Promise.reject(bookingRefusal('BOOKING_OUT_OF_RANGE', booking.start)), mapError);
+      if (day === null) await guarded(() => Promise.reject(bookingRefusal('BOOKING_OUT_OF_RANGE', bookingColumn(booking))), mapError);
       setDay(day);
       try {
         return await withBookingLock({ ...target, timezone: zone }, day!, write);
@@ -2831,8 +3068,11 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
    * or no-show together — needs no lock and goes through as a batch.
    */
   function movesBooking(rule: NonNullable<TableRules['booking']>, row: Row): boolean {
-    if ([rule.start, rule.minutes, rule.resource, rule.kind].some((column) => Object.prototype.hasOwnProperty.call(row, column))) return true;
-    return Object.prototype.hasOwnProperty.call(row, rule.countWhere.column) && bookingCounts(rule, row);
+    // Any column that places the row, or the one that decides whether it counts (then only when it does).
+    if (!touchesBooking(rule, row)) return false;
+    const counted = 'plain' in rule ? rule.plain.countWhere?.column : rule.countWhere.column;
+    const others = Object.keys(row).filter((column) => column !== counted);
+    return touchesBooking(rule, Object.fromEntries(others.map((column) => [column, row[column]]))) || bookingCounts(rule, row);
   }
 
   /**
@@ -2845,7 +3085,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
     const written = new Set(Object.keys(row));
     for (const formula of touchedFormulas(rules?.formulas ?? [], written)) written.add(formula.column);
     return rollups.some((rollup) =>
-      [rollup.sum, rollup.times, rollup.via, rollup.unlessSet, rollup.where?.column].some((column) => column !== undefined && written.has(column)),
+      [rollup.sum, rollup.times, rollup.via, rollup.unlessSet, rollup.where?.column, rollup.latest?.of, rollup.latest?.by].some((column) => column !== undefined && written.has(column)),
     );
   }
 
@@ -3202,7 +3442,8 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         const to = String(set[states.column]);
         // What could not be judged inside another row's write: a move that sets off effects, or waits for another row.
         const waits = Object.values(states.moves).some((list) => list.some((move) => typeof move === 'object' && move.to === to && waitVias(move.requires).length > 0));
-        if ((states.effects?.length ?? 0) > 0 || waits) {
+        // As for an effect's row: only an effect this very move would set off (one that starts from the state it moves to).
+        if ((states.effects ?? []).some((their) => !isChangeEffect(their) && their.on.to === to) || waits) {
           throw new StateMoveRefused(`An add-on's plan cannot move a ${target.table.name} row: its move sets off effects or waits for another row.`, { column: states.column, to });
         }
         declared = { ...context, declared: { from: String(before[states.column] ?? states.initial), to } };
@@ -3483,6 +3724,8 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       const memo: CopyMemo = new Map();
       const out: (CheckedRow | null)[] = [];
       const issues: (FieldIssues | null)[] = [];
+      /** The venue's zone for a file's stamps, read once for the batch. */
+      let stampZone: { zone: string | undefined } | undefined;
       for (const [index, row] of rows.entries()) {
         if (unposted[index] != null) {
           issues.push(unposted[index] as FieldIssues);
@@ -3502,7 +3745,22 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
           out.push(null);
           continue;
         }
-        const values = await formulate(rules, action, target, prepared, null, context.origin);
+        // A line of a file somebody brings in is their create: the stamps it leaves out are written (`decide.ts`).
+        let stamped: Row = prepared;
+        if (action === 'create' && context.stamps === 'left-out') {
+          try {
+            stamped = await decideRow(rules, 'create', prepared, null, decideContext(target, context, stampNow(clock), (stampZone ??= { zone: await zoneFor(rules, target) }).zone));
+          } catch (error) {
+            const column = String(((error as { details?: { column?: unknown } }).details?.column ?? '') || 'row');
+            issues.push({ [column]: { code: 'not-allowed' } });
+            out.push(null);
+            continue;
+          }
+        }
+        const formulated = await formulate(rules, action, target, stamped, null, context.origin);
+        // A place and an area as their columns keep them: a line of a file is read as a save is.
+        const geo = action === 'delete' ? null : await geoValues(target, formulated);
+        const values = geo?.values ?? formulated;
         // Judged again as it will be written: a row made in a state its table starts in reaches that state's point without being sent it.
         const [late] = action === 'delete' ? [null] : await refuseBatch({ target, rules, action, context, rows: [{ values }], history: checkOpts?.capacity === 'unchecked' });
         if (late != null) {
@@ -3511,10 +3769,21 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
           continue;
         }
         const issue = mergeIssues(
-          mergeIssues(checkRow(judgedBy(rules, target, context), action, values, { dialect: target.dialect, columns: target.table.columns }), await boundIssues(rules, action, target, context, values, null)),
-          mergeIssues(await linkIssues(rules, action, target, context, values), action === 'delete' ? null : reservedIssue(rules, values)),
+          mergeIssues(mergeIssues(geo?.issues ?? null, checkRow(judgedBy(rules, target, context), action, values, { dialect: target.dialect, columns: target.table.columns })), await boundIssues(rules, action, target, context, values, null)),
+          mergeIssues(
+            mergeIssues(await linkIssues(rules, action, target, context, values), action === 'delete' ? null : reservedIssue(rules, values)),
+            // A change judged here (an import's preview of a hooked table) is judged against the row it matched.
+            mergeIssues(await linkableIssues(rules, action, target, context, values, checkOpts?.stored?.[index] ?? null), await fileIssues(action, target, context, values, checkOpts?.stored?.[index] ?? null)),
+          ),
         );
         issues.push(issue);
+        if (issue === null && checkOpts?.quote === true) {
+          // Rows judged and never written (an import's preview): no number is claimed for them.
+          const carried = await carry(rules, action, target, context, brand(await unclaimedNumbers(rules, target, values)), null, clock);
+          quoteOnly(carried);
+          out.push(carried);
+          continue;
+        }
         out.push(issue === null ? await carry(rules, action, target, context, await numbered(rules, action, target, context, brand(values)), null, clock) : null);
       }
       return { rows: out, issues };
@@ -3618,7 +3887,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       let day: string | null = null;
       if (booking !== undefined && need !== null) {
         day = bookingDay(booking, checked, zone ?? 'UTC');
-        if (day === null) await guarded(() => Promise.reject(bookingRefusal('BOOKING_OUT_OF_RANGE', booking.start)), input.mapError);
+        if (day === null) await guarded(() => Promise.reject(bookingRefusal('BOOKING_OUT_OF_RANGE', bookingColumn(booking))), input.mapError);
       }
       // A number without gaps is taken under the series' lock, held until the row commits.
       const series = numberLockName(target.table, checked);
@@ -3745,20 +4014,27 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
           );
         }
       }
-      if (rulesOf(rootRow.target)?.booking !== undefined) await at(rootRow.node, () => Promise.reject(new GuardedBatchError(rootRow.target.table.name)));
+      /*
+       * A ROOT THAT TAKES A RESOURCE FOR A TIME (a booking, a cover). With
+       * rows below it, or as a quote, it is refused as it always was: such a
+       * row is written alone. A save of the one row, from a door that asks
+       * for it (`placeRoot`: the desk's create with a retry key), is made as
+       * a single create makes it (`create`): its day's lock is named with the
+       * write's other locks, and the row is judged under it, inside the
+       * transaction. So a create sent with a retry key, which comes this way
+       * to be found again, is placed like any other; and a second key for a
+       * time that is taken is refused by the rule, as an unkeyed create is.
+       */
+      const rootBooking = rulesOf(rootRow.target)?.booking;
+      if (rootBooking !== undefined && (input.placeRoot !== true || dry || everyRow.length > 1)) await at(rootRow.node, () => Promise.reject(new GuardedBatchError(rootRow.target.table.name)));
 
-      // 2. The root, prepared as a single create prepares its row; its before hooks run for a save only.
-      const root = await at(rootRow.node, () =>
-        prepareOne({ target: rootRow.target, values: rootRow.node.values, context, clock, mode, hooks: !dry, grants: true }),
-      );
-      // Every column the tree's totals write in other rows, granted, before anything is written.
-      for (const target of rights.values()) {
-        const rules = rulesOf(target);
-        await at(rootRow.node, () => refuseUngrantedChain(target, [...(rules?.rollupsInto ?? []), ...(rules?.ownRollups ?? [])]));
-      }
-      const currency = currencyFor(rootRow.target);
-
-      // A retry of a create already made answers the rows it stored, with nothing written.
+      /*
+       * A retry of a create already made answers the rows it stored, with
+       * nothing written — and nothing prepared: its before hooks do not run
+       * again, and what it carries is not judged again against a world the
+       * first send changed (the files a sign-off's first send named are that
+       * sign-off's now, and a second judging would refuse them).
+       */
       const replayed = async (db: Db): Promise<TreeOutcome | null> => {
         if (dry || input.replay === undefined) return null;
         const found = await input.replay(db);
@@ -3766,6 +4042,23 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       };
       const before = await replayed(rootRow.target.db);
       if (before !== null) return before;
+
+      // 2. The root, prepared as a single create prepares its row; its before hooks run for a save only.
+      const root = await at(rootRow.node, () =>
+        prepareOne({ target: rootRow.target, values: rootRow.node.values, context, clock, mode, hooks: !dry, grants: true }),
+      );
+      // What the rule must check of the root (nothing for a row that holds no time), and the day it is locked by.
+      const rootNeed = rootBooking === undefined ? null : bookingNeed(rootBooking, root.checked, null);
+      const rootDay = rootBooking === undefined || rootNeed === null ? null : bookingDay(rootBooking, root.checked, root.zone ?? 'UTC');
+      if (rootBooking !== undefined && rootNeed !== null && rootDay === null) {
+        await at(rootRow.node, () => Promise.reject(bookingRefusal('BOOKING_OUT_OF_RANGE', bookingColumn(rootBooking))));
+      }
+      // Every column the tree's totals write in other rows, granted, before anything is written.
+      for (const target of rights.values()) {
+        const rules = rulesOf(target);
+        await at(rootRow.node, () => refuseUngrantedChain(target, [...(rules?.rollupsInto ?? []), ...(rules?.ownRollups ?? [])]));
+      }
+      const currency = currencyFor(rootRow.target);
 
       // What each row says of the rows outside the tree it will be tied to: its values as sent, a copied link read through its source.
       const peeked = new Map<TreeRow, Row>();
@@ -3838,6 +4131,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         );
         return [
           ...limits,
+          ...(rootDay === null ? [] : [{ name: `${rootRow.target.connectionId}|${rootRow.target.table.id}|booking|${rootDay}`, busy: 'BOOKING_BUSY' as const }]),
           ...series,
           ...(input.locks ?? []),
           ...(treePosting === null
@@ -3878,8 +4172,13 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
           const within: WriteTarget = { ...row.target, db: trx, timezone: prepared.zone ?? row.target.timezone };
           const parent = row.parent === null ? null : written.get(row.parent)!;
           await input.checks?.(trx, row.node, prepared.checked, parent);
+          // A root that takes a resource for a time, judged under its day's lock: "anyone" comes back as the person the rule picked.
+          const placed =
+            row === rootRow && rootBooking !== undefined && rootNeed !== null
+              ? brand({ ...prepared.checked, ...(await checkBooking(rootBooking, { ...within, origin: context.origin }, { row: prepared.checked, before: null, need: rootNeed, now: new Date() })) })
+              : prepared.checked;
           // The root was prepared before the write began: a copy that follows its parent is read again from the parent, held.
-          const current = !dry && row === rootRow ? brand(await followNow({ db: trx, dialect: within.dialect, rules: prepared.rules, values: prepared.checked, currency })) : prepared.checked;
+          const current = !dry && row === rootRow ? brand(await followNow({ db: trx, dialect: within.dialect, rules: prepared.rules, values: placed, currency })) : placed;
           const counted = dry ? current : brand(await claimSequences(prepared.rules, 'create', within, current, opts.sequences));
           let out: { row: Row; values: CheckedRow };
           try {
@@ -4566,6 +4865,8 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       if (pricing !== null && inTransaction(target.db)) await ledgerStep(() => Promise.reject(pricedAlone()), { target, context }, input.mapError);
       const clock = writeClock(context);
       let adjusted: AdjustedOrder[] = [];
+      // The messages that name the row let go of it as it goes (an app that writes to people about a removal).
+      const released = opts.releases === undefined ? undefined : await opts.releases(target.connectionId, target.table.id);
       const count = rolls || posts !== null || pricing !== null || leaving !== null
         ? await conflicted(() => withDeciders([...new Set([...(pricing?.addOns ?? []), ...(leaving === null ? [] : [leaving.adjuster.addOn])])].sort(), () => atomically(target, async (db) => {
             // The parent the row fed, held first; then the row, read — and held — before it goes.
@@ -4577,14 +4878,14 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
             const gone = (await fetchHeld(db, target, pk, false)) ?? null;
             if (posts !== null && gone !== null) await ledgerStep(() => ledgerWriter.guard(db, { target, rules, action: 'delete', stood: gone }), { target, context }, input.mapError);
             const held = await holdParents(rules, within, [{ record: null, before: gone }], currency);
-            const removed = await statement(() => deleteRows(db, target.table, pk, input.refine, judged), input.mapError);
+            const removed = await statement(() => deleteRows(db, target.table, pk, input.refine, judged, released), input.mapError);
             // The price, asked once the row is gone and before any total is worked out.
             if (removed > 0 && orders.length > 0) adjusted = await ledgerStep(() => adjustHeld(db, orders, { mode: 'save', context, clock }), { target, context }, input.mapError);
             if (removed > 0 && leaving !== null && gone !== null) await adjuster.forget(db, leaving, gone[leaving.adjust.key]);
             if (removed > 0) await guarded(() => settleRows(rules, within, [{ record: null, before: gone }], currency, held), input.mapError);
             return removed;
           })), input.mapError)
-        : await conflicted(() => statement(() => deleteRows(target.db, target.table, pk, input.refine, judged), input.mapError), input.mapError);
+        : await conflicted(() => statement(() => deleteRows(target.db, target.table, pk, input.refine, judged, released), input.mapError), input.mapError);
       if (count === 0 && input.skipIfNone === true) return 0;
       await input.announce(count, before, adjusted);
       if (count > 0 && before !== null && (await hooks.wants('after', 'delete', target, context))) {
@@ -4629,7 +4930,10 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
        */
       const prepare = async (values: Row, record: Row | null): Promise<{ values: CheckedRow; issues: FieldIssues | null }> => {
         if (!withRules) return { values: brand(values), issues: null };
-        const worked = await formulate(rules, action, target, values, record, context.origin);
+        const formulated = await formulate(rules, action, target, values, record, context.origin);
+        // A place and an area as their columns keep them, on this way of writing a row too.
+        const geo = action === 'delete' ? null : await geoValues(target, formulated);
+        const worked = geo?.values ?? formulated;
         // Judged again as it will be written: a point reached only by a default, a stamp or a formula is a point all the same.
         if (action !== 'delete') {
           const [late] = await refuseBatch({ target, rules: rulesOf(target), action, context, rows: [{ values: worked, record }], history: beforeOpts?.capacity === 'unchecked' });
@@ -4637,8 +4941,11 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         }
         const judged = judgedBy(rules, target, context);
         const issues = mergeIssues(
-          mergeIssues(checkRow(judged, action, worked, { dialect: target.dialect, stored: record, columns: target.table.columns }), await boundIssues(rules, action, target, context, worked, record)),
-          mergeIssues(await linkIssues(rules, action, target, context, worked, undefined, record), action === 'delete' ? null : reservedIssue(rules, worked)),
+          mergeIssues(mergeIssues(geo?.issues ?? null, checkRow(judged, action, worked, { dialect: target.dialect, stored: record, columns: target.table.columns })), await boundIssues(rules, action, target, context, worked, record)),
+          mergeIssues(
+            mergeIssues(await linkIssues(rules, action, target, context, worked, undefined, record), action === 'delete' ? null : reservedIssue(rules, worked)),
+            mergeIssues(await linkableIssues(rules, action, target, context, worked, record ?? null), await fileIssues(action, target, context, worked, record ?? null)),
+          ),
         );
         // A refused row is not written, so it is given no number.
         if (issues !== null) return { values: brand(worked), issues };

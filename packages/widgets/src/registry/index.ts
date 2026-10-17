@@ -79,7 +79,7 @@ export const widgetRegistry: ReadonlyMap<string, WidgetDefinition> = buildRegist
   // boards-track-components chunk — the definitions import metadata only)
   ...boardsTrackDefinitions,
   // geo (TRACK COMM-GEO — M7 Wave 4; annex, the last family to open. The
-  // definitions are metadata only and MapBubble imports Leaflet dynamically
+  // definitions are metadata only and MapBubble imports MapLibre dynamically
   // inside its mount effect, so neither this map nor the shared bundle pulls
   // Leaflet until a bubble map is actually placed — acceptance #3.)
   ...geoTrackDefinitions,

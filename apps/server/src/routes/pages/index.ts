@@ -55,6 +55,7 @@ import {
   newId,
   overridesRepo,
   pagesRepo,
+  pageAppPart,
   permissionsRepo,
   snapshotsRepo,
   userPrefsRepo,
@@ -70,6 +71,7 @@ import {
   NotFoundError,
   ValidationFailedError,
 } from '../../errors.js';
+import { assertPagePartOn, cardsOfPartsOff, cardsOfPartsOn, withCardsOfPartsOn } from '../../rbac/app-parts.js';
 import { applyCompositionOverrides, applyOverrides } from '../../connections/effective-schema.js';
 import { writeRefused } from '../../connections/privileges.js';
 import { canReadPii } from '../../crud/mask.js';
@@ -585,6 +587,8 @@ export function pagesRoutes(deps: PagesRoutesDeps): FastifyPluginAsyncZod {
         if (page === null || !page.isEnabled) {
           throw new NotFoundError(`page ${request.params.pageId} does not exist`);
         }
+        // A page of a part of its app that is switched off: refused by address too, whoever asks.
+        await assertPagePartOn(deps.meta, page.config);
 
         // View gate: the same `page:<id>:view` grant the bootstrap
         // nav filter applies (super-admins bypass inside `request.can`). The
@@ -695,7 +699,8 @@ export function pagesRoutes(deps: PagesRoutesDeps): FastifyPluginAsyncZod {
           source === null || columnFacts === null
             ? yesNo
             : withReaderLabels(yesNo, columnFacts, labelWordsOf(await overridesRepo(deps.meta).listForConnection(source.connectionId, { status: 'active' }), source.table));
-        const config = hiddenColumns.length === 0 ? typed : withoutColumns(typed, hiddenColumns);
+        // A card of a part of the app that is off is not drawn (`layout.items[].module`), as a page of it is not.
+        const config = await withCardsOfPartsOn(deps.meta, hiddenColumns.length === 0 ? typed : withoutColumns(typed, hiddenColumns));
 
         // Layout resolution: a per-user override wins over the shared
         // default baked into the envelope's `config.layout`. Only applies when
@@ -720,8 +725,10 @@ export function pagesRoutes(deps: PagesRoutesDeps): FastifyPluginAsyncZod {
               // client can offer "Reset layout". Pre-stamp rows read as fresh.
               const authoredAt = (override.config as Record<string, unknown>)['pageRevision'];
               const layoutStale = typeof authoredAt === 'number' && authoredAt < page.revision;
+              // The caller's own layout loses a card of a part that is off too.
+              const items = await cardsOfPartsOn(deps.meta, pageAppPart(envelope)?.app, parsed.data.items);
               return {
-                data: { ...envelope, config: { ...templateConfig, layout: parsed.data } },
+                data: { ...envelope, config: { ...templateConfig, layout: { ...parsed.data, items: [...items] } } },
                 canEditLayout,
                 ...tableCapabilities,
                 ...facts,
@@ -761,7 +768,13 @@ export function pagesRoutes(deps: PagesRoutesDeps): FastifyPluginAsyncZod {
           );
         }
 
-        const updated = await pages.setLayout(pageId, request.body, app.rbac.now());
+        // The cards of a part that is off were not drawn, so a layout saved without them keeps them where they were.
+        const stored = pageLayoutSchema.safeParse(((page.config as { config?: { layout?: unknown } } | null)?.config ?? {}).layout);
+        const hidden = stored.success ? await cardsOfPartsOff(deps.meta, pageAppPart(page.config)?.app, stored.data.items) : [];
+        const sent = new Set(request.body.items.map((item) => item.i));
+        const kept = hidden.filter((item) => !sent.has(item.i));
+        const layout = kept.length === 0 ? request.body : { ...request.body, items: [...request.body.items, ...kept] };
+        const updated = await pages.setLayout(pageId, layout, app.rbac.now());
         if (updated === null) {
           throw new NotFoundError(`page ${pageId} does not exist`);
         }

@@ -39,6 +39,18 @@ export const FIELD_ISSUE_CODES = [
   'plain-text',
   'not-found',
   'reserved',
+  'mention-unknown',
+  'too-many-mentions',
+  'place-unreadable',
+  'place-short-link',
+  'place-out-of-range',
+  'place-unknown',
+  'area-unreadable',
+  'area-too-large',
+  'file-not-here',
+  'file-type',
+  'file-too-large',
+  'too-many-files',
 ] as const;
 
 export type FieldIssueCode = (typeof FIELD_ISSUE_CODES)[number];
@@ -102,6 +114,34 @@ export function fieldIssueMessage(t: Translate, issue: FieldIssue): string {
       return t('ui:formDialog.issue.plainText', 'Use letters, spaces and ordinary punctuation only: no web or email address.');
     case 'not-found':
       return t('ui:formDialog.issue.notFound', 'This is no longer there. Choose another.');
+    // Somebody named after an @ who does not sign in here (removed since, or typed by hand).
+    case 'mention-unknown':
+      return t('ui:formDialog.issue.mentionUnknown', 'Somebody mentioned here is not a person who signs in. Type @ and choose them from the list.');
+    case 'too-many-mentions':
+      return t('ui:formDialog.issue.tooManyMentions', 'Too many people are mentioned here. Mention fewer.');
+    // A place or an area the server could not take. These words load with the map's own (`ui:widgets`).
+    case 'place-unreadable':
+      return t('ui:widgets.geo.place.issue.unreadable', 'This could not be read as a place. Choose a town from the list, or paste coordinates such as 30.0444, 31.2357.');
+    case 'place-short-link':
+      return t('ui:widgets.geo.place.issue.shortLink', 'A short link does not say where it leads, and it is not followed. Open it, then paste the full link or the coordinates.');
+    case 'place-out-of-range':
+      return t('ui:widgets.geo.place.issue.outOfRange', 'These coordinates are not on the map. Latitude runs from -90 to 90, longitude from -180 to 180.');
+    case 'place-unknown':
+      return t('ui:widgets.geo.place.issue.unknown', 'This town is not in the list any more. Choose it again.');
+    case 'area-unreadable':
+      return t('ui:widgets.geo.area.issue.unreadable', 'This could not be read as an area. Draw it again.');
+    case 'area-too-large':
+      return t('ui:widgets.geo.area.issue.tooLarge', 'This area has too many points. Draw it with fewer.');
+    // A file column (an app's `column.file`): a file this record may not be given — not one the writer
+    // uploaded here, or one another record keeps — one of a kind it does not take, too large, too many.
+    case 'file-not-here':
+      return t('ui:formDialog.issue.fileNotHere', 'This file cannot be kept here. Upload it again from this field.');
+    case 'file-type':
+      return t('ui:formDialog.issue.fileType', 'This kind of file is not taken here.');
+    case 'file-too-large':
+      return t('ui:formDialog.issue.fileTooLarge', 'This file is too large for this field.');
+    case 'too-many-files':
+      return t('ui:formDialog.issue.tooManyFiles', 'Keep at most {n} files here.', { n: n ?? 0 });
     // A discount code spelled like a voucher's or a gift card's: a typed value starting so would be taken for one of those.
     case 'reserved':
       return t('ui:formDialog.issue.reserved', 'A discount code cannot start like a voucher or a gift card code.');

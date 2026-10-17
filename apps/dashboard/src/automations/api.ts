@@ -79,6 +79,8 @@ export interface SourceColumn {
   pii: boolean;
   emailLike: boolean;
   dateLike: boolean;
+  /** Holds a staff member: a step may tell "the person in this column". Absent from a server before it said. */
+  staff?: boolean;
 }
 
 export interface SourceTable {
@@ -96,6 +98,11 @@ export interface SourceTable {
    * before rules could reach a related row.
    */
   links?: SourceLink[];
+  /**
+   * The tables that list people against this table's rows: what a step may
+   * tell as "the people listed". Absent from a server before it said.
+   */
+  listings?: { table: string; label: string }[];
   /**
    * Tables whose rows point at this one — collection picker.
    *

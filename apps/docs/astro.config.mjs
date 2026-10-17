@@ -141,6 +141,10 @@ export default defineConfig({
               ],
             },
             {
+              label: 'Data',
+              items: [{ label: 'Bring in a file', link: '/guides/data/bring-in-a-file/' }],
+            },
+            {
               label: 'Edit your schema',
               items: [
                 {
@@ -195,7 +199,12 @@ export default defineConfig({
                 { label: 'A manifest, task by task', link: '/guides/apps/manifest-by-task/' },
                 { label: 'Sample data', link: '/guides/apps/sample-data/' },
                 { label: 'App roles and staff access', link: '/guides/apps/roles-and-staff-access/' },
+                { label: 'Whose a row is', link: '/guides/apps/whose-a-row-is/' },
+                { label: 'Parts of an app', link: '/guides/apps/parts/' },
+                { label: 'Telling the person on the row', link: '/guides/apps/telling-people/' },
+                { label: 'Maps, places and routes', link: '/guides/apps/maps/' },
                 { label: 'Building an app’s screens', link: '/guides/apps/building-a-side/' },
+                { label: 'Adminium’s own parts on an app’s screen', link: '/guides/apps/kit-parts/' },
                 { label: 'A phone app for an app', link: '/guides/apps/phone-app/' },
                 { label: 'An app’s public access', link: '/guides/apps/public-access/' },
                 { label: 'An order with its lines', link: '/guides/apps/orders-with-lines/' },

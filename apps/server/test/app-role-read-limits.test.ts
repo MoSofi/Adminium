@@ -35,6 +35,7 @@ import { registerAdapters } from '../src/connections/register-adapters.js';
 import { createApplyService } from '../src/llm/apply-service.js';
 import { createRunService } from '../src/llm/run-service.js';
 import { matrixRowsFromGrants } from '../src/rbac/permissions.js';
+import { RealtimeHub } from '../src/realtime/hub.js';
 import { readLimitedFrames } from '../src/realtime/read-frames.js';
 import { packageTarball } from './app-bundle-helpers.js';
 import { adminPasswordHash, ADMIN_PASSWORD, sessionCookie } from './auth-helpers.js';
@@ -274,6 +275,14 @@ const card = (c: Ctx, cookie: string, select: string[]) =>
   post(c, cookie, '/api/v1/widget-data/query', { descriptor: { connectionId: c.s.connectionId, source: { name: c.s.table.stays.split('.').at(-1)!, ...(c.s.table.stays.includes('.') ? { schema: c.s.table.stays.split('.')[0] } : {}) }, shape: 'record-list', select } });
 
 /** Every staff read path, as housekeeping (and, where it tells something, as a reader of the whole table). */
+/**
+ * A table's frame as a publisher sends it: through the hub, with what the publisher knew of whose the row is. (The
+ * stays are nobody's in particular: no way to belong, not private.) A frame built by hand names a row and says
+ * nothing of whose it is, and such a frame is told to nobody as a row.
+ */
+const published = (channel: string, row: Record<string, unknown>) =>
+  new RealtimeHub().publish(channel, 'record.update', { type: 'record.update', pk: { id: row['id'] }, row }, 0, { private: false, columns: [], before: null, after: null });
+
 const PATHS: [string, (c: Ctx) => Promise<void>][] = [
   [
     'a list shows the key, the links and the columns the role reads — nothing else',
@@ -406,7 +415,7 @@ const PATHS: [string, (c: Ctx) => Promise<void>][] = [
     async (c) => {
       const frames = readLimitedFrames(c.s.meta);
       const channel = `widget-data:${c.s.connectionId}:${c.s.table.stays}`;
-      const event = { channel, type: 'record.update', ts: '', data: { type: 'record.update', pk: { id: 1 }, row: { id: 1, room_id: 1, arrive: '2026-11-05', guest_name: 'Nia Obi', note: 'VIP', total: 480, late_until: '14:00' } } };
+      const event = published(channel, { id: 1, room_id: 1, arrive: '2026-11-05', guest_name: 'Nia Obi', note: 'VIP', total: 480, late_until: '14:00' });
       const hk = await frames({ id: c.hk.id }, channel);
       expect(hk).not.toBeNull();
       const shown = (await hk!(event))!.data as { row: Record<string, unknown> };
@@ -513,7 +522,7 @@ const PATHS: [string, (c: Ctx) => Promise<void>][] = [
       const row = (await permissionsRepo(c.s.meta).listForRole(role.id)).find((one) => one.resourceRef.endsWith(c.s.table.stays))!;
       const channel = `widget-data:${c.s.connectionId}:${c.s.table.stays}`;
       const frame = (await readLimitedFrames(c.s.meta)({ id: c.hk.id }, channel))!;
-      const event = { channel, type: 'record.update', ts: '', data: { type: 'record.update', pk: { id: 1 }, row: { id: 1, arrive: '2026-11-05', late_until: '14:00' } } };
+      const event = published(channel, { id: 1, arrive: '2026-11-05', late_until: '14:00' });
       expect((await card(c, c.hk.cookie, ['id', 'arrive'])).statusCode).toBe(200);
       expect(((await frame(event))!.data as { row: Record<string, unknown> }).row).toHaveProperty('arrive');
       await permissionsRepo(c.s.meta).grant(role.id, 'table', row.resourceRef, { ...(row.actions as object), readLimit: { readable: ['depart', 'late_until'] } } as never);

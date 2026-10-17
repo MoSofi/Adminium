@@ -105,7 +105,8 @@ describe('platform rail rows follow the session\'s system keys', () => {
   it('shows the built-in Admin only the surfaces its keys open', async () => {
     await renderRail({ roles: ['admin'], systemActions: ADMIN_KEYS });
     const links = railLinks();
-    expect(links).toContain('Team');
+    expect(links).toContain('People');
+    expect(links).toContain('Teams');
     expect(links).toContain('Audit log');
     for (const refused of ['Roles & permissions', 'Automations', 'Workflow logs']) {
       expect(links, refused).not.toContain(refused);
@@ -118,13 +119,14 @@ describe('platform rail rows follow the session\'s system keys', () => {
     expect(links).toContain('Roles & permissions');
     expect(links).toContain('Automations');
     expect(links).toContain('Workflow logs');
-    expect(links).not.toContain('Team');
+    expect(links).not.toContain('People');
+    expect(links).not.toContain('Teams');
   });
 
   it('shows a Super Admin every row', async () => {
     await renderRail({ roles: ['super-admin'] });
     const links = railLinks();
-    for (const row of ['Team', 'Roles & permissions', 'Audit log', 'Automations', 'Workflow logs']) {
+    for (const row of ['People', 'Teams', 'Roles & permissions', 'Audit log', 'Automations', 'Workflow logs']) {
       expect(links, row).toContain(row);
     }
   });
@@ -170,5 +172,30 @@ describe('platform rail rows follow the session\'s system keys', () => {
     await renderRail({ roles: ['admin'], systemActions: ADMIN_KEYS }, '/settings/roles');
     expect(await screen.findByText('You don’t have access')).toBeTruthy();
     expect(screen.queryByRole('heading', { name: 'Roles & permissions' })).toBeNull();
+  });
+});
+
+describe('the rail offers "Import data" to whoever can bring a file in', () => {
+  it('leaves it out for a session the server says can import nothing', async () => {
+    await renderRail({ roles: ['support-lead'], systemActions: [], canImport: false });
+    const links = railLinks();
+    expect(links).not.toContain('Import data');
+    // The row beside it is no part of the rule.
+    expect(links).toContain('Data exports');
+  });
+
+  it('shows it to a session that can', async () => {
+    await renderRail({ roles: ['support-lead'], systemActions: [], canImport: true });
+    expect(railLinks()).toContain('Import data');
+  });
+
+  it('shows it as before when the reply says nothing: an older server', async () => {
+    await renderRail({ roles: ['support-lead'], systemActions: [], canImport: undefined });
+    expect(railLinks()).toContain('Import data');
+  });
+
+  it('still opens the page by its address', async () => {
+    await renderRail({ roles: ['support-lead'], systemActions: [], canImport: false }, '/imports');
+    expect(await screen.findByRole('heading', { name: 'Import data' })).toBeTruthy();
   });
 });

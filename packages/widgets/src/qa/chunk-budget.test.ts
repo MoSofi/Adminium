@@ -2,16 +2,16 @@
 /**
  * CI chunk-budget gate — #3 / (5): the default `page-dashboard` bundle must pull
  * only the kpi/charts/tables/feeds family chunks, and the heavy per-family
- * dependencies (Leaflet for `map-bubble`, dnd-kit for the boards family) must
- * stay out of the eager graph — acceptance #3's "Leaflet code is absent unless
- * `map-bubble` is placed".
+ * dependencies (MapLibre for `map-bubble`, dnd-kit for the boards family) must
+ * stay out of the eager graph — acceptance #3's "map engine code is absent
+ * unless `map-bubble` is placed".
  *
  * A real bundler split is verified in CI's build step; what is checkable at the
  * source level (and enforced here) is:
  *   - the charts package depends on d3-scale + d3-shape only (also acc #8);
- *   - the widgets package declares Leaflet and no rival map stack;
+ *   - the widgets package declares MapLibre and no rival map stack;
  *   - no family source names a heavy dep it does not own (dnd-kit stays confined
- *     to `boards`; Leaflet stays confined to `geo/MapBubble.tsx`, and even there
+ *     to `boards`; MapLibre stays confined to `geo/MapBubble.tsx`, and even there
  *     is reached only by a dynamic `import()`);
  *   - no module transitively reachable by STATIC imports from any family's
  *     definitions module — i.e. the registry's eager graph — names either;
@@ -41,12 +41,14 @@ const widgetsRoot = join(here, '..'); // packages/widgets/src
 const pkgRoot = join(widgetsRoot, '..'); // packages/widgets
 
 /**
- * Leaflet powers `map-bubble` (annex, shipped in M7 Wave 4) — a legitimate
- * dependency now, but the ONLY one of these: the alternatives were evaluated and
- * not adopted, so any of them appearing means a second map stack crept in.
+ * MapLibre powers `map-bubble` and the kit's `MapView` — the ONE map stack.
+ * Leaflet, which it replaced, and the others must stay out: any of them
+ * appearing means a second map stack crept in. The right-to-left text plugin
+ * is on the list too: MapLibre joins and orders Arabic itself, and a plugin
+ * would be one more thing to fetch.
  */
-const SHIPPED_MAP_DEP = 'leaflet';
-const UNSHIPPED_MAP_DEPS = ['react-leaflet', 'maplibre-gl', 'mapbox-gl'];
+const SHIPPED_MAP_DEP = 'maplibre-gl';
+const UNSHIPPED_MAP_DEPS = ['leaflet', 'react-leaflet', 'mapbox-gl', 'react-map-gl', '@mapbox/mapbox-gl-rtl-text'];
 const MAP_DEPS = [SHIPPED_MAP_DEP, ...UNSHIPPED_MAP_DEPS];
 /**
  * dnd-kit powers the `boards` family (Wave 2, shipped) — it is now a legitimate
@@ -68,19 +70,25 @@ const HEAVY_DEPS = [...MAP_DEPS, ...BOARD_DEPS];
 const WAVE1_FAMILY_DIRS = ['kpi', 'charts', 'tables', 'feeds'];
 /** The only family allowed to import dnd-kit. */
 const BOARD_FAMILY_DIR = 'boards';
-/** The only family allowed to name Leaflet at all (annex). */
+/** The only family allowed to name MapLibre at all (annex). */
 const GEO_FAMILY_DIR = 'geo';
 
 const familiesRoot = join(widgetsRoot, 'families');
 
 /**
- * And within that family, the only MODULE allowed to name Leaflet:
+ * And within that family, the only MODULE allowed to name MapLibre:
  * `map-bubble`'s component. Its familymate `map-choropleth-grid` renders an SVG
- * tilegram and must not drag a map engine along, so acceptance #3's "Leaflet
+ * tilegram and must not drag a map engine along, so acceptance #3's "map engine
  * code is absent unless map-bubble is placed" holds at FILE granularity, not
  * merely family granularity.
  */
-const LEAFLET_OWNER = join(familiesRoot, GEO_FAMILY_DIR, 'MapBubble.tsx');
+const MAP_OWNER = join(familiesRoot, GEO_FAMILY_DIR, 'MapBubble.tsx');
+/**
+ * The one other file that may NAME the library: its type, for the owner and the
+ * engine to share. It is held to naming it only as `typeof import(...)`, which
+ * the compiler erases, so nothing of the library can be reached through it.
+ */
+const MAP_TYPE_ONLY = join(familiesRoot, GEO_FAMILY_DIR, 'maplibre-module.ts');
 
 /** Every family directory on disk — a new family is gated the day it lands. */
 const ALL_FAMILY_DIRS: string[] = readdirSync(familiesRoot, { withFileTypes: true })
@@ -151,10 +159,10 @@ function dynamicSpecifiers(text: string): string[] {
  *
  * Used by the confinement checks in place of a raw `text.includes("'leaflet")`:
  * a substring scan cannot tell an import from PROSE, so the moment a file
- * explains *why* it must not import Leaflet — which every module around this
+ * explains *why* it must not import MapLibre — which every module around this
  * boundary does — the scan fires on the explanation. (It did: this test's first
  * run flagged `geo-track.definitions.ts` for a comment reading "never reaches
- * 'leaflet'".) Matching specifiers keeps the gate honest about imports and lets
+ * 'maplibre-gl'".) Matching specifiers keeps the gate honest about imports and lets
  * the code document itself.
  */
 function importsDep(text: string, dep: string): boolean {
@@ -187,7 +195,7 @@ function resolveRelative(fromFile: string, spec: string): string | undefined {
 /**
  * Transitive closure of a module's STATIC, value-carrying imports, following
  * only specifiers that resolve to a file in this package (an external
- * specifier — 'react', '@adminium/ui', 'leaflet' — is a leaf: we assert on
+ * specifier — 'react', '@adminium/ui', 'maplibre-gl' — is a leaf: we assert on
  * whether a reachable module NAMES it, not on walking into node_modules).
  *
  * Returns `[absoluteFile, humanReadableImportPath]` pairs INCLUDING the entry
@@ -219,16 +227,17 @@ describe('chunk budget — dependency graph (acceptance #3, #8)', () => {
     expect(thirdParty.sort()).toEqual(['d3-scale', 'd3-shape']);
   });
 
-  it('@adminium/widgets declares leaflet and no other map stack (geo shipped in Wave 4)', () => {
+  it('@adminium/widgets declares maplibre-gl and no other map stack', () => {
     const pkg = readJson(join(pkgRoot, 'package.json'));
     const deps = { ...((pkg.dependencies ?? {}) as object), ...((pkg.peerDependencies ?? {}) as object) };
-    // `map-bubble` ships, so Leaflet is now a real dependency (this used to
-    // assert the opposite). What must stay false is a SECOND map stack: the
-    // React wrapper (react-leaflet) is deliberately not used — the widget drives
-    // the imperative API inside one effect, which is what lets it be loaded by a
-    // dynamic import — and maplibre/mapbox were not adopted at all.
+    // What must stay false is a SECOND map stack. A React wrapper is
+    // deliberately not used — the map drives the imperative API inside one
+    // effect, which is what lets it be loaded by a dynamic import — and
+    // Leaflet, which MapLibre replaced, must not come back beside it. Dev
+    // dependencies count: `@types/leaflet` left behind is a stack half removed.
+    const all = { ...deps, ...((pkg.devDependencies ?? {}) as object) };
     expect(SHIPPED_MAP_DEP in deps).toBe(true);
-    expect(UNSHIPPED_MAP_DEPS.filter((name) => name in deps)).toEqual([]);
+    expect([...UNSHIPPED_MAP_DEPS, '@types/leaflet'].filter((name) => name in all)).toEqual([]);
   });
 
   it('declares @dnd-kit/core but never @dnd-kit/sortable (boards drives its own drag layer)', () => {
@@ -239,7 +248,7 @@ describe('chunk budget — dependency graph (acceptance #3, #8)', () => {
   });
 
   it('no family source names a heavy dep it does not own', () => {
-    // Every family: `boards` legitimately owns dnd-kit and `geo` owns Leaflet,
+    // Every family: `boards` legitimately owns dnd-kit and `geo` owns MapLibre,
     // so each is exempted from its OWN dep only — the confinement tests below
     // are what keep each one inside its family.
     const offenders: string[] = [];
@@ -277,18 +286,30 @@ describe('chunk budget — dependency graph (acceptance #3, #8)', () => {
     expect(offenders).toEqual([]);
   });
 
-  it('leaflet is confined to families/geo/MapBubble.tsx (acceptance #3)', () => {
-    // The file-granular half of "Leaflet code is absent unless map-bubble is
-    // placed". `map-bubble`'s component is the sole module in the whole package
-    // permitted to name Leaflet — including its stylesheet, which is why the
-    // match is on the `leaflet` PREFIX (`leaflet/dist/leaflet.css` counts).
+  it('maplibre-gl is confined to families/geo/MapBubble.tsx (acceptance #3)', () => {
+    // The file-granular half of "map engine code is absent unless map-bubble
+    // is placed". `map-bubble`'s component is the sole module in the whole
+    // package permitted to name MapLibre — including its stylesheet and its
+    // worker, which is why the match is on the PREFIX
+    // (`maplibre-gl/dist/maplibre-gl.css` counts). The code that drives the
+    // map (`map-engine.ts`) is handed the library by the owner and names it
+    // nowhere; its type comes from `maplibre-module.ts`, which holds nothing
+    // but that type.
     // Anything else importing it — the family's config/lib/barrel, the
     // choropleth twin, another family — puts the map engine on a page that never
     // asked for one.
     const offenders: string[] = [];
     for (const family of ALL_FAMILY_DIRS) {
       for (const file of sourceFiles(join(familiesRoot, family))) {
-        if (file === LEAFLET_OWNER) continue;
+        if (file === MAP_OWNER) continue;
+        if (file === MAP_TYPE_ONLY) {
+          // Every mention is the erased type form, and the file has no other import.
+          const code = readFileSync(file, 'utf8').replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, '');
+          const mentions = code.split(SHIPPED_MAP_DEP).length - 1;
+          const erased = code.split(`typeof import('${SHIPPED_MAP_DEP}')`).length - 1;
+          if (mentions !== erased || /^\s*import\s/m.test(code)) offenders.push(`${relative(widgetsRoot, file)} names ${SHIPPED_MAP_DEP} as more than a type`);
+          continue;
+        }
         if (importsDep(readFileSync(file, 'utf8'), SHIPPED_MAP_DEP)) {
           offenders.push(`${relative(widgetsRoot, file)} → ${SHIPPED_MAP_DEP}`);
         }
@@ -297,18 +318,22 @@ describe('chunk budget — dependency graph (acceptance #3, #8)', () => {
     expect(offenders).toEqual([]);
   });
 
-  it('map-bubble reaches leaflet ONLY through a dynamic import (never a static one)', () => {
+  it('map-bubble reaches maplibre-gl ONLY through a dynamic import (never a static one)', () => {
     // Guards the guard above: the owner file is exempt from the confinement
     // check, so this is what stops that exemption from being used for a static
-    // `import * as L from 'leaflet'`. A static import would put Leaflet in the
-    // geo family's own chunk — shipped to any page placing `map-choropleth-grid`
-    // — and would evaluate Leaflet's `window`-touching module scope during SSR.
-    const text = readFileSync(LEAFLET_OWNER, 'utf8');
+    // `import maplibregl from 'maplibre-gl'`. A static import would put
+    // MapLibre in the geo family's own chunk — shipped to any page placing
+    // `map-choropleth-grid`, and fetched while maps are switched off.
+    const text = readFileSync(MAP_OWNER, 'utf8');
     const statics = staticSpecifiers(text).filter((spec) => spec.startsWith(SHIPPED_MAP_DEP));
     expect(statics).toEqual([]);
     // …and it really is loaded, dynamically, so this pair can't both pass on a
     // file that simply dropped the map.
-    expect(/await import\(\s*'leaflet'\s*\)/.test(text)).toBe(true);
+    expect(/import\(\s*'maplibre-gl'\s*\)/.test(text)).toBe(true);
+    // The code that drives it is behind the same boundary: a static import of
+    // the engine module would put it in the family chunk for no map at all.
+    expect(staticSpecifiers(text).filter((spec) => spec.includes('map-engine'))).toEqual([]);
+    expect(/import\(\s*'\.\/map-engine\.js'\s*\)/.test(text)).toBe(true);
   });
 });
 
@@ -372,10 +397,10 @@ describe('chunk budget — per-family lazy split (acceptance #3)', () => {
     // THE acceptance-#3 assertion, now that geo ships. The checks above are
     // per-file; this one walks the TRANSITIVE static-import closure from every
     // family's definitions module — exactly the graph `registry/index.ts` pulls
-    // eagerly — and fails if any module in it names Leaflet or dnd-kit.
+    // eagerly — and fails if any module in it names MapLibre or dnd-kit.
     //
     // It closes the gap the per-file checks leave: `geo/MapBubble.tsx` is
-    // legitimately allowed to name Leaflet, so the only thing keeping Leaflet
+    // legitimately allowed to name MapLibre, so the only thing keeping MapLibre
     // out of the eager bundle is that NO STATIC PATH runs from
     // `geo-track.definitions.ts` to that file. The moment someone imports
     // `MapBubble.js` from `geo-config.ts` (say, to reuse a type or a demo
@@ -384,7 +409,7 @@ describe('chunk budget — per-family lazy split (acceptance #3)', () => {
     // catches that.
     //
     // Dynamic `import()` is excluded by `staticSpecifiers`, which is the point:
-    // the lazy component barrel and MapBubble's own `await import('leaflet')`
+    // the lazy component barrel and MapBubble's own `import('maplibre-gl')`
     // are the sanctioned boundaries, and crossing them costs a chunk fetch,
     // never a byte of the eager graph.
     const offenders: string[] = [];
@@ -431,13 +456,13 @@ describe('chunk budget — default page-dashboard only pulls Wave-1 families (ac
 
 /*
  * DONE SINCE (the Wave-2/3 follow-up this file used to carry):
- *   - `map-bubble` (geo) shipped in M7 Wave 4, so Leaflet is asserted at three
+ *   - `map-bubble` (geo) shipped in M7 Wave 4, so MapLibre is asserted at three
  *     levels above: confined to `MapBubble.tsx`, reached from it only by a
  *     dynamic import, and unreachable from the transitive metadata graph;
  *   - dnd-kit is confined to `families/boards` by the same means.
  *
  * STILL NEEDS THE CI VITE BUILD'S CHUNK MANIFEST (not checkable from source):
- *   - that the emitted Leaflet chunk is absent from the `page-dashboard` ENTRY
+ *   - that the emitted MapLibre chunk is absent from the `page-dashboard` ENTRY
  *     bundle, and that a `communication` page fetches its family chunk on demand.
  *     The source-level checks here prove no static edge exists to make either
  *     eager, which is the precondition; the manifest proves the bundler agreed.

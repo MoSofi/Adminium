@@ -60,11 +60,34 @@ export interface Condition {
 
 export type EmailRecipient =
   | { kind: 'field'; column: string }
-  | { kind: 'fixed'; addresses: string[] };
+  | { kind: 'fixed'; addresses: string[] }
+  /** The person a staff column of the record names (`owner_id`, or `<link>.<staff column>`). */
+  | { kind: 'staff'; column: string }
+  /** The people a table that lists people against the record names for it, by that table's id: those of them who can open it. */
+  | { kind: 'listed'; table: string };
 
-export type NotificationAudience = { roles: string[] } | { users: string[] };
+export type NotificationAudience = { roles: string[] } | { users: string[] } | { column: string } | { listed: string };
 
-export type WriteValue = string | { now: true };
+/** One section of a summary: the rows of a table whose `owner` is the person written to. */
+export interface DigestSection {
+  key: string;
+  table: string;
+  owner: string;
+  where: Condition[];
+  orderBy: { column: string; dir: 'asc' | 'desc' } | null;
+  limit: number;
+}
+
+/**
+ * A value a step writes: text, "now", what a column of the app's settings row
+ * holds, or a day so many days after a date of the record (or after now). The
+ * last two are written by an app's own rules; the step's editor shows them.
+ */
+export type WriteValue =
+  | string
+  | { now: true }
+  | { setting: { table: string; column: string } }
+  | { daysAfter: { column?: string; now?: true; days: number; setting?: { table: string; column: string }; at?: string } };
 
 export type Action =
   | {
@@ -77,14 +100,26 @@ export type Action =
        * a step could say.
        */
       vars?: Record<string, string> | undefined;
+      /** Where a reply goes: the person a staff column names. Set by an app's own rules; the step's editor keeps it as it is. */
+      replyTo?: { staff: string } | undefined;
     }
   | {
       kind: 'notification';
       to: NotificationAudience | null;
       title: string;
       body: string | null;
+      /** Told at once, also in the person's quiet hours. */
+      urgent?: boolean | undefined;
     }
-  | { kind: 'record.create'; table: string | null; values: Record<string, WriteValue> }
+  | {
+      kind: 'record.create';
+      table: string | null;
+      values: Record<string, WriteValue>;
+      /** What later steps call the row this one makes: `{{steps.<name>.<column>}}`. */
+      name?: string | undefined;
+    }
+  /** A summary for each person who holds one of the roles: one email each, of the rows that are theirs. */
+  | { kind: 'digest'; templateKey: string | null; to: { roles: string[] } | null; sections: DigestSection[]; sendEmpty: boolean }
   | { kind: 'record.update'; values: Record<string, WriteValue> }
   /**
    * Draws a document. Written by a document mapping's own trigger, never by
@@ -175,7 +210,8 @@ export type Trigger =
       kind: 'schedule';
       connectionId: string | null;
       schedule: Schedule;
-      forEach?: { table: string; where: Condition[]; once: boolean } | undefined;
+      /** `once`: true, one time ever; `'per-spell'`, one time for each spell the row matches. */
+      forEach?: { table: string; where: Condition[]; once: boolean | 'per-spell' } | undefined;
     };
 
 // --- the comp's own helpers (Automation Rules 386-403) ----------------------

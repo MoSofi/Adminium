@@ -12,9 +12,9 @@ import { StateHero } from './StateHero.js';
 import { SYSTEM_STATES } from './stateMap.js';
 
 describe('SYSTEM_STATES map', () => {
-  it('covers all 15 state ids', () => {
+  it('covers all 16 state ids', () => {
     expect(Object.keys(SYSTEM_STATES).sort()).toEqual([...SYSTEM_STATE_IDS].sort());
-    expect(SYSTEM_STATE_IDS).toHaveLength(15);
+    expect(SYSTEM_STATE_IDS).toHaveLength(16);
   });
 
   it('keeps the comp copy for the 11 designed states', () => {
@@ -36,7 +36,7 @@ describe('SYSTEM_STATES map', () => {
       ...(spec.banner === undefined ? [] : [spec.banner]),
       ...(spec.diagnostics === undefined ? [] : [spec.diagnostics.status, spec.diagnostics.hint]),
     ]);
-    expect(msgs).toHaveLength(56);
+    expect(msgs).toHaveLength(59);
     for (const m of msgs) {
       expect(m.key).toMatch(/^states\.[a-zA-Z]+\.(title|body|primary|secondary|banner|diag\.(status|hint))$/);
       expect(m.en.length).toBeGreaterThan(0);

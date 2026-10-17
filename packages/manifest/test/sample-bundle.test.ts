@@ -189,6 +189,75 @@ describe('numbers without gaps', () => {
   });
 });
 
+describe('a running number the sample may take', () => {
+  const id = { ref: 'id', type: 'int', role: 'pk' };
+  const jobs = (sequence: Record<string, unknown>, format: Record<string, unknown> = { from: 'code_seq', prefix: 'J-', pad: 2 }, more: Record<string, unknown> = {}) => ({
+    ref: 'jobs',
+    columns: [
+      id,
+      { ref: 'site_id', type: 'fk', references: 'sites', nullable: true },
+      { ref: 'code_seq', type: 'int', nullable: true, rules: { sequence } },
+      { ref: 'code', type: 'text', maxLength: 12, nullable: true, rules: { format } },
+    ],
+    ...more,
+  });
+  const doc = (table: Record<string, unknown>, floor = '0.3.28') => {
+    const base = valid() as { requiredSchema: { tables: unknown[] }; compatibility: Record<string, unknown> };
+    return { ...base, compatibility: { ...base.compatibility, minAdminiumVersion: floor }, requiredSchema: { ...base.requiredSchema, tables: [...base.requiredSchema.tables, { ref: 'sites', columns: [id] }, table] } };
+  };
+  const app = (table: Record<string, unknown>) => {
+    const result = validateManifest(doc(table));
+    if (!result.ok) throw new Error(JSON.stringify(result.issues));
+    return result.manifest as Manifest;
+  };
+  const said = (table: Record<string, unknown>, floor?: string) => {
+    const result = validateManifest(doc(table, floor));
+    return result.ok ? '' : result.issues.map((issue) => `${issue.path}: ${issue.message}`).join('\n');
+  };
+  const issues = (rows: Record<string, unknown>[], table = jobs({ gapless: true, sample: true })) =>
+    sampleBundleIssues(sampleBundleSchema.parse({ format: 'adminium.sample/1', app: 'studio', tables: [{ ref: 'jobs', rows }] }), app(table)).map((issue) => `${issue.path}: ${issue.message}`);
+
+  it('takes each row\'s number with the text written from it, or no number at all', () => {
+    expect(issues([{ code_seq: 1, code: 'J-01' }, { code_seq: 2, code: 'J-02' }, { code_seq: null }])).toEqual([]);
+  });
+
+  it('still asks a row to say which: a number, or null', () => {
+    expect(issues([{ code: 'J-01' }])).toEqual(['tables.0.rows.0.code_seq: "code_seq" is a running number, and this row leaves it out. Write the row\'s number (1, 2, 3 …), or "code_seq": null to give it none.']);
+    expect(issues([{ code_seq: 0, code: 'J-00' }, { code_seq: '3', code: 'J-03' }, { code_seq: 1.5, code: 'J-02' }])).toHaveLength(3);
+  });
+
+  it('refuses one number twice, and the same number under two parents is two numbers', () => {
+    expect(issues([{ code_seq: 1, code: 'J-01' }, { code_seq: 1, code: 'J-01' }])).toEqual(['tables.0.rows.1.code_seq: "code_seq" 1 is row 0\'s number already.']);
+    const perSite = jobs({ gapless: true, sample: true, scope: 'site_id' });
+    expect(issues([{ site_id: 1, code_seq: 1, code: 'J-01' }, { site_id: 2, code_seq: 1, code: 'J-01' }], perSite)).toEqual([]);
+    expect(issues([{ site_id: 1, code_seq: 1, code: 'J-01' }, { site_id: 1, code_seq: 1, code: 'J-01' }], perSite)).toHaveLength(1);
+  });
+
+  it('wants the text people read, written the table\'s way', () => {
+    expect(issues([{ code_seq: 4 }])).toEqual(['tables.0.rows.0.code: "code" is the number as people read it ("J-04"): a sample row that gives "code_seq" writes it too.']);
+    expect(issues([{ code_seq: 4, code: 'S-04' }])).toEqual(['tables.0.rows.0.code: "code" is written from "code_seq": for 4 it reads "J-04", not "S-04".']);
+  });
+
+  it('leaves a number alone that was not opened to the sample', () => {
+    expect(issues([{ code_seq: 1, code: 'J-01' }], jobs({ gapless: true }))).toHaveLength(1);
+    expect(issues([{ code_seq: null, code: 'S-01' }], jobs({ gapless: true }))).toEqual([]);
+  });
+
+  it('is refused on a plain running number, and asks for the release that reads it', () => {
+    expect(said(jobs({ sample: true }))).toContain('only a number without gaps is kept from sample rows');
+    expect(said(jobs({ gapless: true, sample: true }))).toBe('');
+    expect(said(jobs({ gapless: true, sample: true }), '0.3.26')).toContain('0.3.28');
+  });
+
+  it('is never an add-on document\'s number: a sample taken out would leave a hole in a tax series', () => {
+    const base = valid() as { compatibility: Record<string, unknown>; requiredSchema: { tables: { ref: string; columns: { ref: string; rules?: { sequence?: Record<string, unknown> } }[] }[] } };
+    const number = base.requiredSchema.tables.find((table) => table.ref === 'invoices')!.columns.find((column) => column.ref === 'number_seq')!;
+    number.rules!.sequence = { ...number.rules!.sequence, sample: true };
+    const result = validateManifest({ ...base, compatibility: { ...base.compatibility, minAdminiumVersion: '0.3.28' } });
+    expect(result.ok ? '' : result.issues.map((issue) => issue.message).join('\n')).toContain('"invoices" is built on an add-on\'s document: its numbers are never a sample row\'s');
+  });
+});
+
 describe('days, working days and the clock', () => {
   const bundleWith = (row: Record<string, unknown>) =>
     sampleBundleSchema.parse({

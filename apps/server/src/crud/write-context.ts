@@ -71,6 +71,14 @@ export interface WriteContext {
    */
   claimed?: Row | null | undefined;
   /**
+   * A file a person brings in (`data-io/import-judge.ts`): each line is their
+   * create or their change, so a stamp is written into a column the line
+   * leaves out or empty, and what the line carries is kept. Absent, a write
+   * that brings history (an app's sample data, its seed rows, an undo) stamps
+   * nothing.
+   */
+  stamps?: 'left-out' | undefined;
+  /**
    * When the thing the write records really happened, as the writer's device
    * says: a door scan made offline and sent later. Absent, the write happened
    * now. Only a staff or API-key write may carry one, and only a little in the

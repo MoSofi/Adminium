@@ -216,3 +216,69 @@ export const NoRowsYet = {
     />
   ),
 };
+
+/**
+ * A pipeline whose columns are the rows of a stages table (an app's
+ * `config.board.columnsFrom`): seven stages, so the board scrolls sideways
+ * inside itself; an empty stage is a column too; each header carries the
+ * count and the total the server worked out, which is more than the cards
+ * listed. Dropping "Loft desks" is refused, and the board says why.
+ */
+export const ColumnsFromTable = {
+  render: () => (
+    <PageBoard
+      config={{
+        templateVersion: 1,
+        toolbar: [],
+        overlays: [],
+        layout: {
+          version: 1,
+          items: [
+            {
+              i: 'board-1',
+              widget: 'kanban-board',
+              x: 0,
+              y: 0,
+              w: 12,
+              h: 16,
+              config: {
+                title: 'Deals',
+                statusColumn: 'stage_id',
+                titleColumn: 'name',
+                columnsFrom: { table: 'public.stages', key: 'id', label: 'name', order: 'position' },
+                totals: [{ column: 'amount', fn: 'sum' }],
+                binding: binding('deals'),
+              },
+            },
+          ],
+        },
+      }}
+      states={{
+        'board-1': rows([
+          { id: 1, name: 'Atrium fit-out', stage_id: 1, client: 'Nordwind', budget: '€52,800', owner: 'Dana Whitlock' },
+          { id: 2, name: 'Loft desks', stage_id: 1, client: 'Harbour Hotels', budget: '€8,400', owner: 'Omar Haddad' },
+          { id: 3, name: 'Clinic reception', stage_id: 2, client: 'Northfield Dental', budget: '€19,250', owner: 'Dana Whitlock' },
+          { id: 4, name: 'Showroom lighting', stage_id: 4, client: 'Lumen', budget: '€31,000', owner: 'Lena Brandt' },
+          { id: 5, name: 'Head office refit', stage_id: 6, client: 'Kestrel', budget: '€140,000', owner: 'Sam Okoye' },
+        ]),
+      }}
+      boardColumns={{
+        status: 'success',
+        columns: [
+          { id: '1', value: 1, label: 'New lead', count: 212, total: '€1,204,300' },
+          { id: '2', value: 2, label: 'Qualified', count: 48, total: '€612,950' },
+          { id: '3', value: 3, label: 'Site visit', count: 0, total: '€0' },
+          { id: '4', value: 4, label: 'Proposal sent', count: 17, total: '€388,000' },
+          { id: '5', value: 5, label: 'Negotiation', count: 0, total: '€0' },
+          { id: '6', value: 6, label: 'Contract out', count: 3, total: '€221,500' },
+          { id: '7', value: 7, label: 'Won', count: 0, total: '€0' },
+        ],
+      }}
+      onEvent={(_instanceId, event) =>
+        event.type === 'mutate' && event.recordId === '2'
+          ? Promise.reject(new Error('You can change this deal only while its state is Open.'))
+          : Promise.resolve({})
+      }
+    />
+  ),
+};

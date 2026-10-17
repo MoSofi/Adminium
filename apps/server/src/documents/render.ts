@@ -150,6 +150,13 @@ export interface RenderDeps {
     readFilters?: ReadonlyMap<string, ReadFilter> | undefined;
     /** Columns kept for a row's holder, emptied for whoever the document is drawn for (see `RenderRequest.withhold`). */
     withhold?: DocumentWithhold | undefined;
+    /**
+     * The staff member the document is drawn for, when one asked for it: the
+     * row and the tables beside it are theirs to read only as far as their
+     * roles reach rows (`documents/row-reach.ts`). Absent: a rule's render, an
+     * outbox's, a public door's — read with their own rules.
+     */
+    reader?: string | undefined;
   }) => Promise<SourceRead | null>;
   /** The add-on's own non-secret settings. */
   settingsFor: (addOnKey: string) => Promise<Record<string, unknown>>;
@@ -291,6 +298,12 @@ export interface RenderRequest {
    * a document reusable: the same row on another paper is another document.
    */
   paper?: string | undefined;
+  /**
+   * The print of a row by whoever made it a moment ago, on the token that
+   * save handed them (a cashier prints the card they just sold): drawn
+   * whatever rows their role reaches. Set by the print-once door alone.
+   */
+  byMaker?: true | undefined;
   /** Set by `renderEphemeral` alone: draw it and keep nothing. `renderDocument` never honours it from a caller. */
   ephemeral?: boolean | undefined;
 }
@@ -583,6 +596,8 @@ async function renderCore(
       at,
       readFilters: request.readFilters,
       withhold: request.withhold,
+      // A person asked: the rows are read as far as that person reaches them.
+      ...(request.actorKind === 'user' && typeof request.requestedBy === 'string' && request.byMaker !== true ? { reader: request.requestedBy } : {}),
     });
   } catch (cause) {
     if (!(cause instanceof DocumentReadError) && !(cause instanceof Error && cause.name === 'StatementTooLargeError')) throw cause;

@@ -141,6 +141,7 @@ own language in place, and then the workspace's.
   the app has no held messages).
 - **A disabled app.** Nothing is queued while it is off. See
   [Disable and enable](/guides/apps/settings/#disable-and-enable).
+- **A removal**, unless a producer listens for it ([below](#messages-about-a-row-that-is-removed)).
 
 ## Messages about changes
 
@@ -188,8 +189,26 @@ change. An **undo** of a change of dates is a change too: the guest is told the 
 and `{{was.*}}` holds the dates the undo replaced. An undo never sets off a message of a value
 reached ("changed to cancelled") or of a row created. An **import** is history and sends nothing.
 
-`repeat` and `was` are for a producer that listens for changes (`onChange`), and `repeat` does not
-combine with `repeatBy` or `batchMinutes`.
+`repeat` is for a producer that listens for changes (`onChange`), and does not combine with
+`repeatBy` or `batchMinutes`. `was` is for one that listens for changes, or for a removal
+([below](#messages-about-a-row-that-is-removed)).
+
+A visit moved to another time is the same case. The customer gets one mail with both times:
+
+```json
+{
+  "kind": "visit-moved",
+  "link": "visit_id",
+  "onChange": { "table": "visits", "columns": ["starts_at"], "changed": true },
+  "repeat": true,
+  "was": ["starts_at"]
+}
+```
+
+```text
+Your visit was on {{was.starts_at.date}} at {{was.starts_at.time}}.
+It is now on {{visit.starts_at.date}} at {{visit.starts_at.time}}.
+```
 
 ### One message per value
 
@@ -209,6 +228,75 @@ With `dropWhen`, a move taken back at once, such as an order marked ready by mis
 message before anyone is told, and a message dropped so does not stop the next one. Waiting
 messages are picked up by the pass that runs once a minute, so one goes up to about a minute after
 its wait ends. `holdSeconds` does not combine with `hold`, `due`, `batchMinutes` or `before`.
+
+## Messages about a row that is removed
+
+A sales app cancels a site visit by removing it, and the customer is told. A producer that listens
+for **a removal** does this:
+
+```json
+{
+  "kind": "visit-cancelled",
+  "link": "visit_id",
+  "onDelete": { "table": "visits" },
+  "was": ["starts_at", "place"]
+}
+```
+
+```text
+Hello {{recipient.first_name}}, the visit on {{was.starts_at.date}} at {{was.starts_at.time}}
+at {{was.place}} about {{deal.name}} is cancelled.
+```
+
+The message is written once the row is gone, whoever removed it: a person in the dashboard or on
+the app's own screen, a bulk removal (one message for each row, up to the 1,000 rows one bulk
+removal takes), or a public entry that may delete. Because there is no row left:
+
+- **The link to the row is empty**, and `{{visit.*}}` has nothing to read. The template reads the
+  row from **`was`**: up to eight columns, kept on the message as they were. The same rule bounds
+  it as for a change: never a column that is secret, personal, a code or withheld, and one marked
+  so later prints empty. Keep only what the mail says.
+- **The other links still work.** They are filled from the removed row, so `{{contact.name}}` and
+  `{{deal.name}}` read the contact and the deal the visit named, as they are when the mail goes.
+- **Who it goes to** is the outbox's recipient (the contact the visit named), with their address
+  as it is on file then. A producer may send to an address the removed row itself held
+  (`"recipient": { "column": "email" }`): that address is read as the row goes and written to
+  the message's own address column. The name the row held with it is not kept, so greet such a
+  reader without `{{recipient.first_name}}`.
+- **It goes at once.** A removal message takes no `hold`, `due`, `holdSeconds`, `batchMinutes`,
+  `dropWhen`, `supersede`, `repeatBy`, `onSent` or `replyTo`: each would read the row again. A
+  reply goes to the house's own address (`settings.replyTo`).
+
+### A row with messages can now be removed
+
+An outbox row links the row it is about, and the database refuses to remove a row that anything
+links: a visit with one confirmation in the log could never be cancelled. Naming the table in an
+`onDelete` producer changes that for the link the producer names. As a row of the table goes:
+
+- every message that named it **loses the link** and stays in the log, with its kind, its address,
+  when it went and what it kept in `was`;
+- a message about it that **had not gone yet** (queued, or held for approval) is **skipped** with
+  the reason `no-longer-needed`, so nobody is told a visit moved after it was called off.
+
+Both are done with the removal, or not at all: a removal the table's states refuse, or one another
+table's rows hold, changes nothing. This applies to every removal made through Adminium, also
+while the app is switched off. A row removed by SQL of your own is still refused while a message
+names it. A table with no `onDelete` producer keeps the old rule: its messages hold its rows.
+
+### What a removal does not do
+
+- **No message** for a sample row; for a row taken back by the Undo of its creation (nobody is
+  told about a row made by mistake, though its confirmation, if it already went, stands); for a
+  child row removed as part of its parent's own save; or while the producer's part or switch is off.
+- **An Undo of the removal** puts the row back and does not take the message back: the customer
+  has been told. The row comes back with no message linked to it. Where that matters, ask before
+  removing (the app's own screen can confirm), or keep a `cancelled` state instead of removing.
+- **Who reads what was kept.** Whoever may read the outbox table reads its `was` column, as they
+  read the rest of the log, and nobody else does. Somebody who could not read the removed table
+  and cannot read the outbox learns nothing of the row. The address stays on the message as on
+  every message. When a person deletes their own details ([`forget`](/guides/apps/public-access/)),
+  a message to them that has not gone is skipped as for any message; what `was` kept is never
+  personal data, so it stays.
 
 ## Sending
 
@@ -381,7 +469,7 @@ or the person whose import makes a message, may link it only to rows they can re
 | *key*`.`*column* | The same row on its own, when no link has that name: `clinician.name`, `visit_type.name`. |
 | `recipient.name`, `recipient.first_name` | The person's name, and its first word. For a first visit by someone not yet on file, the name typed on the booking. |
 | `practice.`*column* | A column of the app's settings row: `practice.phone`, `practice.address`. |
-| `was.`*column* | For a message about a change, the column as it was before it ([above](#messages-about-changes)). |
+| `was.`*column* | For a message about a change, the column as it was before it ([above](#messages-about-changes)); for a message about a removed row, the column as the row held it ([above](#messages-about-a-row-that-is-removed)). |
 | `row.`*column* | Inside a block that lists rows, a column of each row ([below](#emails-that-list-rows)). |
 | `appName` | The name the app's emails are signed with, from its settings row, else the workspace's name. |
 | `manage_url`, `booking_url` | Links to the app's customer pages ([below](#links)). |
@@ -405,6 +493,7 @@ A column's value is shown by its type:
 | *x*`.label` | Card | A choice column: the label the app gave the value, in the email's language ("Karte" in German), else the value itself. |
 | *x*`.time` | 3:00 PM | A text column of at most 8 characters that holds a time of day (`15:00`, `09:30:00`): the time on the reader's clock, "15:00" in Britain. |
 | *x*`.grouped` | K7QX-M2PD | A code column: the code in groups of four, the way a person reads it out. |
+| *x*`.name` | Dana Reyes | A staff column (`rules.staff`): the person it names, by the name the people list gives them. |
 | *x*`.qr` | (an image) | A code column, drawn as a QR code: only as the whole value of an image. See [QR codes](#qr-codes). |
 
 Every form is written in the email's language: `morgen` rather than `tomorrow` in German, and
@@ -422,6 +511,7 @@ A form belongs to its column's type:
 | A choice (`enum`) | `.label` |
 | A text column of at most 8 characters | `.time` |
 | A code (a text column with a `code` rule) | `.grouped`, and `.qr` in an image |
+| A staff column (`rules.staff`) | `.name` |
 
 So a date column (`due_on`) has no clock, and reads as `{{invoice.due_on}}`, `.day_month` or
 `.days_since`, never `.date`, `.time` or `.relative_day`; and a longer text column (a note, a name)
@@ -432,6 +522,22 @@ templates for this: a template that asks a column for a form it does not have
 (`{{invoice.due_on.date}}`) is refused with `EMAIL_TEMPLATE_INVALID`, naming the template, its
 language and the variable, before anything is written. A name the manifest does not declare is
 left to the send.
+
+### The person a staff column names
+
+A site visit names its rep in a staff column, and the customer's mail can say who is coming:
+
+```text
+{{recipient.first_name}}, {{visit.rep_id.name}} will see you on {{visit.starts_at.date}}.
+```
+
+`{{visit.rep_id.name}}` is the rep's name as the people list shows it, and nothing else of them:
+the mail never carries their address or their id through it. It reads the same way as it was
+before a change (`{{was.rep_id.name}}`, with `rep_id` among the producer's `was`), and on each row
+of a list (`{{row.rep_id.name}}`). Somebody suspended, only invited or removed, and an id that is
+nobody's, read empty: put the name in a block of its own with `onlyWith`, and the mail goes
+without that line. A template that names a person this way needs Adminium 0.3.28; an older release
+fails the message, naming the variable.
 
 ## Emails that list rows
 

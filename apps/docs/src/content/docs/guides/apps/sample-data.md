@@ -142,6 +142,66 @@ Adminium reads which tables those are from the add-on's own manifest: a table is
 total adds its rows up, it holds no total itself, and every action of the ledger that writes it
 writes only such tables. Such a row never fills the link to a posting's receipt.
 
+### Things with no history, and asking the add-on for their stock
+
+An app that keeps its goods in an add-on wants its own goods in its sample: a furniture firm's
+desks, not the add-on's own sample. Two more words let the file bring them without typing any
+history.
+
+**A row a person could make by hand.** A table the add-on's ledger also writes (Inventory's
+`items`, a purchase order) may be brought when a role of the add-on is granted `create` on it:
+what somebody makes on a page, a sample may make too. The row leaves out every column the ledger
+keeps (an item's average cost, a status the ledger moves) unless it cannot be made without it (an
+order line's quantity), and names no receipt, so it arrives as
+a thing with no history: an item with no stock, a document still a draft. A table only the ledger
+writes (a movement, a level, a reservation) stays refused.
+
+**`moves`.** A list of changes of state, made after the file's rows are in:
+
+```json
+{ "format": "adminium.sample/1", "app": "crm", "addOn": "inventory",
+  "tables": [
+    { "ref": "items", "rows": [{ "@label": "item:desk", "name": "Bench desk, 1400", "sku": "BD-1400" }] },
+    { "ref": "receipts", "rows": [{ "@label": "opening", "kind": "opening", "place_id": { "@ref": "place:depot" } }] },
+    { "ref": "receipt_lines", "rows": [
+      { "receipt_id": { "@ref": "opening" }, "item_id": { "@ref": "item:desk" }, "qty_typed": 24, "unit_cost": "310.00" } ] }
+  ],
+  "moves": [
+    { "ref": "opening", "to": "posting" },
+    { "table": "receipt_lines", "to": "posted" },
+    { "ref": "opening", "to": "posted" }
+  ] }
+```
+
+Each move names one row by its label (`ref`) or every row the file wrote of one table (`table`),
+and the state it goes to. A move is of a row of the add-on's that this file itself brings, never
+of the app's own rows, and a file takes at most 50.
+
+- **Each move is a real save**, made in the order written, by the person who adds the sample: the
+  table's own rules judge it (the move must be one the table allows from where the row stands,
+  with what it requires), and whatever the add-on's ledger hands to that move runs. In the
+  example the add-on itself writes the stock point, the level and the movement, and its totals
+  are its own.
+- **What the ledger wrote is listed as the app's sample.** "Remove sample data" takes it out with
+  the rows that caused it, and a total it fed elsewhere is worked out again.
+- **A move that is refused undoes the file.** Its rows, and what earlier moves posted, are taken
+  out again, and the add says which move was refused and why. The app's own sample file stays in.
+- `moves` are for an app's rows for an add-on only. A manifest's own sample file, an app's or an
+  add-on's, writes its rows as they should stand.
+
+## Sample people
+
+An app whose rows belong to people (a deal has an owner, a visit has a crew) brings its sample
+people with it. Adding the sample data makes them as staff members marked **Sample person** on
+the Team page. A sample person cannot sign in, is never sent mail, and cannot be renamed,
+suspended, deleted or given another role by hand. They hold the app's own roles and sit in the
+sample's teams, so a manager's page shows a team and a rep's page shows that rep's rows.
+
+Removing the sample data removes them and their teams. A sample person one of your own records
+still names stays until that record names somebody else; adding the sample data again takes
+that person back instead of making a second one. If you already have a team called "Sales", the
+sample's team is made as "Sales (sample)" and yours is left alone.
+
 ## While it is loaded
 
 The app's own pages in the dashboard show **Sample data is loaded** at the top, with **Remove it**.

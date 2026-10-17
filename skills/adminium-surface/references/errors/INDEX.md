@@ -11,15 +11,15 @@
 | `references/errors/public-api-codes--full-sold-out-no-room.md` | Public API codes — Full, sold out, no room | 1963 |
 | `references/errors/public-api-codes--too-early-and-too-late.md` | Public API codes — Too early and too late | 1481 |
 | `references/errors/public-api-codes--price-changed.md` | Public API codes — Price changed | 926 |
-| `references/errors/public-api-codes--a-refused-write.md` | Public API codes — A refused write | 3230 |
+| `references/errors/public-api-codes--a-refused-write.md` | Public API codes — A refused write | 3272 |
 | `references/errors/public-api-codes--a-refused-query.md` | Public API codes — A refused query | 1715 |
 | `references/errors/public-api-codes--limits-reached.md` | Public API codes — Limits reached | 1121 |
 | `references/errors/public-api-codes--switched-off.md` | Public API codes — Switched off | 445 |
 | `references/errors/public-api-codes--no-email-can-go.md` | Public API codes — No email can go | 488 |
 | `references/errors/public-api-codes--a-typed-code.md` | Public API codes — A typed code | 512 |
 | `references/errors/public-api-codes--out-of-stock-and-a-refused-card.md` | Public API codes — Out of stock, and a refused card | 1500 |
-| `references/errors/how-a-desk-refusal-reaches-a-guest.md` | How a desk refusal reaches a guest | 2094 |
-| `references/errors/staff-and-api-key-write-codes.md` | Staff and API-key write codes | 4543 |
+| `references/errors/how-a-desk-refusal-reaches-a-guest.md` | How a desk refusal reaches a guest | 2155 |
+| `references/errors/staff-and-api-key-write-codes.md` | Staff and API-key write codes | 4809 |
 | `references/errors/staff-and-api-key-write-codes--a-refused-price.md` | Staff and API-key write codes — A refused price | 1581 |
 | `references/errors/staff-and-api-key-write-codes--validation-failed.md` | Staff and API-key write codes — VALIDATION_FAILED | 2335 |
 | `references/errors/staff-and-api-key-write-codes--unique-violation.md` | Staff and API-key write codes — UNIQUE_VIOLATION | 589 |

@@ -24,6 +24,7 @@ role-bound key answers with the staff envelope:
 | `STATE_MOVE_REFUSED` | 409 | A move the table's [states](https://docs.adminium.dev/reference/manifest/#states) do not allow now. | See [below](https://docs.adminium.dev/reference/errors/#states) |
 | `STATE_UNCHANGED` | 409 | The write names the state a strict row already holds. | `column`, `state`, `at`, `by`, the `show` columns |
 | `STATE_TOO_LATE` | 409 | A [late move](https://docs.adminium.dev/reference/manifest/#late-moves) in mode `refuse`, inside its window. | `column`, `at` |
+| `STATE_DATE_PASSED` | 409 | A move made after [its last day](https://docs.adminium.dev/reference/manifest/#a-moves-last-day): the date its row holds has passed, where the business is. | `column`, `from`, `to`, `date` (the date column), `until` (the day it held) |
 | `WRITE_WINDOW_CLOSED` | 409 | A change outside the [window](https://docs.adminium.dev/reference/manifest/#windows-on-a-moment) its entry opens. | `column`, `bound`, `at`, `rowAt`, `reason` |
 | `RECORD_LOCKED` | 409 | A column that can no longer change, or a child row whose parent is not in a state that lets it change. | See [below](https://docs.adminium.dev/reference/errors/#states) |
 | `DELETE_REFUSED` | 409 | A row that is numbered, in a state that is never deleted, or locked. Void it instead. | `state`, `numbered` |

@@ -7,6 +7,7 @@
  *
  *  - `onCreate`: a row made in a table (a visit booked, by anyone);
  *  - `onChange`: a column changed to one of some values (a visit marked no-show);
+ *  - `onDelete`: a row was removed (a visit called off), by anyone;
  *  - `before`: a lead time before a timestamp — a reminder at the hour each
  *    person chose — found by a scan once a minute, not by a write.
  *
@@ -50,6 +51,19 @@
  * waiting for its window to close is dropped and overtaken too, but never
  * re-dated: its window is its day.
  *
+ * ── A ROW REMOVED ──────────────────────────────────────────────────────────
+ * The message is written once the row is gone, so it names no row: its link
+ * is empty, and all it says of the row is what it kept of it (`was`, bounded
+ * as on a change: the columns the producer lists, never a secret or a
+ * personal one). The other links it reads through are filled from the removed
+ * row (the contact a visit named), and its address is the one on file when it
+ * is written: an address column of the removed row is kept in the message's
+ * own address and nowhere else. Each removal is one message, never deduped
+ * (there is no row left to be told twice about); a row taken back by an undo
+ * of its creation, and a child row removed inside its parent's own save,
+ * announce nothing, as their creation announced nothing. The other messages
+ * that named the row let go of it as it went (`release.ts`).
+ *
  * ── WHAT NEVER PRODUCES ────────────────────────────────────────────────────
  * History: an import and sample data announce no record event, so they
  * never reach a producer. An undo is announced as the change it makes: a
@@ -69,8 +83,9 @@
  * check and the insert run under one lock per app, so two instances — or a
  * producer and the repair — cannot both add the row.
  */
+import { appPartIsOn } from '../rbac/app-parts.js';
 import type { Dialect } from '@adminium/engine';
-import { resendAddressOf, sameDecimal, type Outbox, type OutboxProducer, type SettingSource } from '@adminium/manifest';
+import { removalTableOf, resendAddressOf, sameDecimal, type Outbox, type OutboxProducer, type SettingSource } from '@adminium/manifest';
 import { appOutboxesRepo, appTablesRepo, connectionTenantConfig, manifestsRepo, type AppOutboxRow, type MetaDb } from '@adminium/meta';
 import { sql, type Kysely } from 'kysely';
 
@@ -89,6 +104,7 @@ import { venueClock } from '../crud/venue-time.js';
 import { outboxContext } from './context.js';
 import { notDropped } from './dropped.js';
 import { producedLanguage } from './language.js';
+import { releasedLinksOf, type ReleasedLink } from './release.js';
 import { repeatKeyOf } from './repeat-key.js';
 import { addressFor, referenced, rowOf } from './recipient.js';
 import { cameDue, dropReason, dueFor, groupRanks, producerOf, settingReader, skipSentence, sourceOf, type SettingReader, type SkipReason } from './timing.js';
@@ -296,6 +312,12 @@ export interface OutboxProducers {
   all(): Promise<LiveOutbox[]>;
   /** Whether an `onChange` producer compares this table's rows before and after. */
   watches(connectionId: string, tableId: string): Promise<boolean>;
+  /**
+   * The outbox links that let go of this table's rows as they are removed:
+   * of every stored outbox on the connection, its app switched on or not (the
+   * key holds the row either way).
+   */
+  releasing(connectionId: string, tableId: string): Promise<readonly ReleasedLink[]>;
   /** Forget the cached list: an app was installed, updated or removed. */
   reset(): void;
   /**
@@ -439,6 +461,8 @@ export function createOutboxProducers(deps: OutboxDeps): OutboxProducers {
       onAddress?: ((address: string | null) => void) | undefined;
       /** The row written inside the caller's transaction. */
       written?: ((row: Row) => void) | undefined;
+      /** The row was removed: the message names no row, and is one of its own for each removal. */
+      removed?: boolean | undefined;
     },
   ): Promise<boolean> {
     const view = await deps.viewFor(box.connectionId);
@@ -468,8 +492,10 @@ export function createOutboxProducers(deps: OutboxDeps): OutboxProducers {
     const written = await withNamedLocks({ db: opts.db ?? handle.db, dialect: handle.dialect }, lockName, async (db): Promise<Row | null> => {
       if (await isSample(db, box, source, sourceKey)) return null;
       if (about.row !== row && (await isSample(db, box, about.table, Object.fromEntries(about.table.primaryKey.map((c) => [c, about.row[c]]))))) return null;
+      // An email of a part of the app that is switched off is not queued.
+      if (producer.module !== undefined && !(await appPartIsOn(deps.meta, box.appKey, producer.module))) return null;
       if (producer.gate !== undefined && !(await switchedOn(db, box, producer.gate))) return null;
-      const read = settingReader(deps.meta, db);
+      const read = settingReader(deps.meta, db, view);
       // The log is the dedupe.
       let seen = db
         .selectFrom(outbox.id as never)
@@ -491,11 +517,12 @@ export function createOutboxProducers(deps: OutboxDeps): OutboxProducers {
       const repeat = repeatKeyOf(box.definition, producer, about.row);
       if (repeat !== undefined) seen = repeat.key === null ? seen.where(repeat.column as never, 'is', null) : seen.where(repeat.column as never, '=', repeat.key as never);
       // One per change heard of (`repeat`): each change is its own message, never one already there.
-      if (producer.repeat !== true && opts.dry !== true && (await seen.executeTakeFirst()) !== undefined) return null;
+      // …nor one for a row that is gone: its link is empty, so the log has nothing to find it by.
+      if (producer.repeat !== true && opts.removed !== true && opts.dry !== true && (await seen.executeTakeFirst()) !== undefined) return null;
 
-      // The links the template reads through, and the recipient's.
+      // The links the template reads through, and the recipient's. A removed row is named by no link.
       const recipient = box.definition.recipient;
-      const values: Row = { [cols.kind]: producer.kind, [producer.link]: about.row[aboutKey] };
+      const values: Row = opts.removed === true ? { [cols.kind]: producer.kind } : { [cols.kind]: producer.kind, [producer.link]: about.row[aboutKey] };
       if (repeat !== undefined) values[repeat.column] = repeat.key;
       await fillLinks(db, view, box.definition, outbox, about, values, producer.link);
       // The person the caller names, never one the row happens to point at.
@@ -512,11 +539,12 @@ export function createOutboxProducers(deps: OutboxDeps): OutboxProducers {
       }
 
       // Who it goes to, as they are now: a setting's address, the person, else what a first visit carries.
+      // A removed row is read from the copy in hand, as if the message still named it: an address or a fallback it holds is found there.
       const addressed = await addressFor(
         { db, view, outboxId: outbox.id, read },
         box.definition,
         producer,
-        values,
+        opts.removed === true ? { ...values, [producer.link]: about.row[aboutKey] } : values,
         { tableId: about.table.id, row: about.row },
       );
       if (addressed.person !== null && producer.optIn === true && recipient.optIn !== undefined && !sameValue(true, addressed.person[recipient.optIn])) return null;
@@ -560,8 +588,31 @@ export function createOutboxProducers(deps: OutboxDeps): OutboxProducers {
     return written[cols.status] === 'queued' || written[cols.status] === 'held';
   }
 
+  /** A row was removed: one message for each producer that announces removals of its table. */
+  async function onRemoved(event: RecordWriteEvent): Promise<void> {
+    const gone = event.before;
+    // Nobody read the row before it went, or it went as an undo or a forgetting: nothing is said of it.
+    if (gone === null || event.cause !== undefined) return;
+    try {
+      for (const box of await live()) {
+        if (box.connectionId !== event.connectionId || box.definition.table === event.table.id) continue;
+        let queued = false;
+        const now = Date.now();
+        for (const producer of box.definition.producers ?? []) {
+          if (!('onDelete' in producer) || producer.onDelete.table !== event.table.id || !holds(producer.onDelete.where, gone)) continue;
+          queued = (await queue(box, producer, event.table, gone, { now, before: gone, removed: true })) || queued;
+        }
+        if (queued) deps.onQueued?.(box.appKey);
+      }
+    } catch (error) {
+      // The row is gone; an email its removal should have queued is logged, never the removal's failure.
+      deps.logger?.warn({ err: error, table: event.table.id }, 'app outbox producer failed');
+    }
+  }
+
   async function onRecordEvent(event: RecordWriteEvent): Promise<void> {
-    if (event.after === null || event.action === 'delete') return;
+    if (event.action === 'delete') return onRemoved(event);
+    if (event.after === null) return;
     // A person's details deleted at their asking is no change anyone is told of: no producer hears it, and no message keeps what it was.
     if (event.cause === 'forget') return;
     try {
@@ -727,7 +778,7 @@ export function createOutboxProducers(deps: OutboxDeps): OutboxProducers {
     const changed: Row[] = [];
     await withNamedLock({ db: handle.db, dialect: handle.dialect }, `outbox|${box.connectionId}|${box.appKey}`, 'CAPACITY_BUSY', async (db) => {
       const kinds = [...new Set(judged.map((producer) => producer.kind))];
-      const read = settingReader(deps.meta, db);
+      const read = settingReader(deps.meta, db, view);
       // Every waiting message, a page at a time.
       let last: unknown;
       for (;;) {
@@ -799,6 +850,22 @@ export function createOutboxProducers(deps: OutboxDeps): OutboxProducers {
     );
   }
 
+  async function releasing(connectionId: string, tableId: string): Promise<readonly ReleasedLink[]> {
+    const boxes = (await stored()).filter((box) => box.connectionId === connectionId && (box.definition.producers ?? []).some((producer) => removalTableOf(producer) === tableId));
+    if (boxes.length === 0) return [];
+    const view = await deps.viewFor(connectionId);
+    if (view === null) return [];
+    const keyOf = (outbox: string): string | undefined => {
+      try {
+        const key = view.table(outbox).primaryKey;
+        return key.length === 1 ? key[0] : undefined;
+      } catch {
+        return undefined;
+      }
+    };
+    return boxes.flatMap((box) => releasedLinksOf(box.definition, tableId, keyOf));
+  }
+
   /** The outbox of the app, and the message it would write about the row: its link to the row's table, and the recipient the kind declares when resent. */
   async function kindProducer(input: KindInput): Promise<{ box: LiveOutbox; producer: OutboxProducer } | null> {
     const box = (await live()).find((candidate) => candidate.connectionId === input.connectionId && candidate.appKey === input.appKey);
@@ -826,7 +893,8 @@ export function createOutboxProducers(deps: OutboxDeps): OutboxProducers {
     }
     // Sent by the kind's own rules: its gate judged as any of its messages' (a switch off sends nothing), and a message a person approves never sent from a link.
     const declared = producerOf(box.definition, input.kind);
-    if (declared?.hold === true) return null;
+    // …nor one that is written when a row is removed: this row is there.
+    if (declared?.hold === true || (declared !== undefined && 'onDelete' in declared)) return null;
     const producer = {
       kind: input.kind,
       link,
@@ -890,6 +958,7 @@ export function createOutboxProducers(deps: OutboxDeps): OutboxProducers {
     live,
     all: stored,
     watches,
+    releasing,
     reset: () => {
       cached = null;
     },

@@ -18,6 +18,9 @@ export {
   RESERVED_KEYS,
   COLUMN_TYPES,
   COLUMN_SEMANTICS,
+  FILE_COLUMN_KINDS,
+  FILE_COLUMN_MAX_BYTES,
+  FILE_COLUMN_MAX_COUNT,
   COLUMN_ROLES,
   FRONTEND_KINDS,
   PHONE_KIND,
@@ -54,6 +57,7 @@ export {
   MAX_SEED_ROWS,
   installsLikeAnApp,
   ledgersOf,
+  addOnRoleTableHold,
   adjusterOf,
   lookUpOf,
   wordsOf,
@@ -69,6 +73,9 @@ export {
   shapeDefinitionIssues,
   capacitySchema,
   navGroupSchema,
+  navLinkSchema,
+  railPlaceSchema,
+  type NavLink,
   publicAccessSchema,
   publicKeysSchema,
   sampleDataSchema,
@@ -88,7 +95,9 @@ export {
   type RequiredTableShape,
   type ShapeDefinition,
 } from './schema.js';
+export { EVERY_COLUMN, appGrantsIssues, appGrantsSchema, declaresAppGrants, holdWider, roleTableHold, type AppGrants, type RoleAddOnAction, type RoleTableHold, type RoleTableNarrowed, type RoleTableResult, type RoleTableSkip } from './app-grants.js';
 export { ROLE_ADD_ON_ACTIONS, roleAddOnTableSchema, roleAddOnTablesSchema, roleLimitSchema, roleLimitsSchema, type RoleAddOnTable, type RoleLimit } from './roles.js';
+export { BELONGS_VIA_MAX_STEPS, ROW_LIMIT_ACTIONS, ROW_REACHES, ROW_REACHES_MAX, STAFF_SET_RULES, belongsSchema, belongsWaySchema, listingWhileSchema, reachList, rowReachSchema, rowReachesSchema, rowsLimitSchema, type BelongsWay, type ListingWhile, type RowReach, type RowReaches, type RowsLimit } from './roles.js';
 export { lookUpIssues, lookUpKindSchema, lookUpSchema, type LookUp, type LookUpKind, type LookUpTable } from './look-up.js';
 export {
   PAGE_FILTER_CONTROLS,
@@ -104,6 +113,7 @@ export {
   type PageFilters,
   type PageTabs,
 } from './page-config.js';
+export { PAGE_BOARD_ONLY_MAX, PAGE_BOARD_ONLY_TYPES, PAGE_BOARD_ONLY_VALUES_MAX, PAGE_BOARD_TOTALS_MAX, PAGE_BOARD_TOTAL_FNS, pageBoardIssues, pageBoardOnlyValues, pageBoardSchema, type PageBoard } from './page-board.js';
 export { STATE_ACTIONS_MAX, stateActionIssues, stateActionKind, stateActionSchema, stateActionsSchema, type StateAction, type StateActionsContext } from './state-actions.js';
 
 export {
@@ -118,6 +128,19 @@ export {
 } from './validate.js';
 
 export { BOOKING_WEEKDAYS, bookingSchema, type BookingRule } from './booking.js';
+export { occupiesSchema, type OccupiesRule } from './occupies.js';
+export {
+  MODULE_DEFAULTS,
+  modulesSchema,
+  moduleIssues,
+  modulesLeftOut,
+  optionalShapeAddOns,
+  tablesLeftOut,
+  columnsLeftOut,
+  withoutModules,
+  type ManifestModule,
+  type ModuleDefault,
+} from './modules.js';
 
 export {
   capacityListSchema,
@@ -159,6 +182,8 @@ export {
   OUTBOX_WRITTEN,
   REPEAT_KEY_LENGTH,
   WAS_MIN_LENGTH,
+  NOT_ON_REMOVAL,
+  removalTableOf,
   WITH_ATTACHMENT,
   ONLY_WITH,
   ONLY_WITHOUT,
@@ -219,6 +244,7 @@ export {
 export {
   moveTarget,
   undoMoveIssues,
+  notPastIssues,
   stateChildSchema,
   stateConditionSchema,
   stateMoveSchema,
@@ -333,12 +359,16 @@ export {
   byStaySchema,
   isoDurationMs,
   ledgerCatalogueTables,
+  ledgerBringableTables,
+  ledgerKeptColumns,
+  SAMPLE_MOVES_MAX,
   sampleBundleIssues,
   seedLabelsOf,
   seedRowIdentity,
   sampleSectionIssues,
   sampleBundleSchema,
   sampleDirective,
+  samplePeopleIn,
   sampleRowSchema,
   sampleValueSchema,
   type ByClock,
@@ -460,4 +490,16 @@ export {
   type ManifestCondition,
   type ManifestNode,
   type ManifestTrigger,
+  type ManifestWriteValue,
 } from './automations.js';
+
+export {
+  NAV_LINK_SCREENS,
+  isRecordAddress,
+  isSidePath,
+  railIssues,
+  recordAddressOf,
+  staffRecordAddresses,
+  type NavLinkScreen,
+  type RailIssue,
+} from './rail.js';

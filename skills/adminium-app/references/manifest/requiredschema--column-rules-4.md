@@ -3,113 +3,100 @@
 # Manifest spec: requiredSchema — Column rules
 
 ```json
-{ "ref": "ticket_count", "type": "int", "default": 0,
-  "rules": { "rollup": { "from": "tickets", "via": "order_id", "count": true,
-                         "unlessSet": "refunded_at" } } }
+{ "ref": "subtotal", "type": "money", "default": 0,
+  "rules": { "rollup": { "from": "ticket_items", "via": "ticket_id", "sum": "unit_price",
+                         "times": "qty", "unlessSet": "voided_at" } } }
 ```
 
-A rollup names `sum` or `"count": true`, never both. A count is kept in an `int` or `bigint`
-column, and takes no `times`, `balance` or `cap`; `where` and `unlessSet` leave rows out as they do
-for a sum.
+#### Links to some rows
 
-A total may also add up another table's totals: an option's price into its line, the line into
-its order, the order into the customer's lifetime total. Such totals **climb**, at most three
-tables high, and never in a circle (a table adding up its own rows, or two tables adding up each
-other). A write that moves a total at the bottom settles every total above it in the same
-transaction: each level adds up what the level below has just written, then works out its
-formulas and balances. Every door that moves a total does this: a create, a change, a delete, a
-create with child rows, a bulk edit, an import, an undo, a parent form and sample data. Two
-writers take the rows in one order (the highest parent first), so they never wait on each other
-crosswise; a line moved to another order while a write was reading it is refused `409`
-`WRITE_CONFLICT` with `details.retry: true`, and the same write a moment later goes through.
-
-Sums are exact on every engine, SQLite included: a total is added up from each row's decimal text,
-never through a floating-point number.
-
-A capped balance whose `of` is a [formula](https://docs.adminium.dev/reference/manifest/#formulas) (a total of subtotal and tax) is judged
-against the cap one row at a time; a bulk edit or an import settles it afterwards, without the
-cap. So `validateManifest` [warns](https://docs.adminium.dev/reference/manifest/#validation) when the formula reads a column that stays
-writable while the capped rows can exist: lock those columns with the table's
-[states](https://docs.adminium.dev/reference/manifest/#states) (and the lines they add up with `lock: true`) in every state a capped row can be
-written in or reached from.
-
-#### Formulas
-
-A `formula` works a number out from the other columns of the same row: a line's amount, a
-document's tax and total.
+`linkable` says that a foreign key names only a row meeting some conditions: a quote line names a
+price-list line that is still offered, so a rep cannot price a quote from a retired line the list
+no longer gives.
 
 ```json
-{ "ref": "amount", "type": "decimal", "scale": "currency", "nullable": true,
-  "rules": { "formula": { "max": [0, { "sub": [{ "mul": ["qty", "rate"] }, { "coalesce": ["discount", 0] }] }] } } }
+{ "ref": "price_id", "type": "fk", "references": "price_list", "nullable": true,
+  "rules": { "linkable": { "where": [{ "column": "active", "eq": true }] } } },
+{ "ref": "list_rate", "type": "decimal", "scale": "currency", "nullable": true,
+  "rules": { "copy": { "via": "price_id", "from": "list_rate", "mode": "always" } } }
 ```
 
-An expression is a number, a column of the same row by its ref (`"qty"`), or one of these objects:
+`where` is 1–8 conditions on the row the link names, in the shape a move's
+[`linked`](https://docs.adminium.dev/reference/manifest/#conditions-a-move-waits-for) takes: `{ "column", <one test> }`, the test `eq` or `in`
+(values that fit the column), `isNull`, or `gt`, `gte`, `lt` or `lte` on a number column. Every
+condition must hold. The rule's column is a foreign key, and each condition names a column of the
+table it points at that is not a `secret`.
 
-| Expression | Value |
-|---|---|
-| `{ "add": [a, b, …] }` | The sum of 2–8 expressions. |
-| `{ "sub": [a, b] }` | `a − b`. |
-| `{ "mul": [a, b, …] }` | The product of 2–8 expressions. |
-| `{ "div": [a, b] }` | `a ÷ b`. Empty when `b` is zero. |
-| `{ "min": [a, b, …] }`, `{ "max": [a, b, …] }` | The smallest or largest of 2–8 expressions. |
-| `{ "round": a }` or `{ "round": [a, places] }` | `a` rounded half away from zero, to the column's scale or to `places` (0–4). |
-| `{ "coalesce": [a, b] }` | `a`, or `b` when `a` is empty. |
-| `{ "if": [condition, a, b] }` | `a` when the condition holds, else `b`. |
-| `{ "hoursBetween": [start, stop] }` | The hours from the `start` column to the `stop` column, both `timestamptz` columns of the row. See [Hours between two moments](https://docs.adminium.dev/reference/manifest/#hours-between-two-moments). |
-| `{ "daysBetween": [from, to] }` | The whole calendar days from the `from` date to the `to` date, two `date` columns of the row: a stay's nights. |
-| `{ "join": [part, part, …] }` | Text: 2–8 parts, each a column of the row or a piece of text, joined in order. The whole formula, of a `text` column; see [Joined text](https://docs.adminium.dev/reference/manifest/#joined-text). |
+- **When it is judged.** On a new row that names a row, and on a change that moves the link to
+  another row. A change that leaves the link as the row holds it, or sends it back as it stands (as
+  the record form sends every field), is no move: a line naming a price retired since keeps it while
+  its quantity changes. An empty link names nothing, and is taken.
+- **Who it holds.** Everybody, an admin and the owner too: it is the data's own rule, not a
+  permission. It holds on every door a row is written through: a form, a bulk edit, a record's
+  action, an automation, the public API, an import (a new line, and a matched line that moves the
+  link) and sample data. An undo puts a row back as it was. A row a rule or an
+  [effect](https://docs.adminium.dev/reference/manifest/#effects) moves keeps the link it holds.
+- **The refusal.** `422` `VALIDATION_FAILED`, the field's code `not-allowed` (the code a value
+  outside `options` gets), naming nothing of the row the link named. Through the public API it is
+  `PUBLIC_WRITE_REFUSED` with no column. A key that names no row at all is the foreign key's to
+  refuse, as it always was; and somebody who does not [reach](https://docs.adminium.dev/reference/manifest/#whose-a-row-is) the named row is
+  refused as for a row that is not there, before this rule is asked, so the rule never tells them
+  whether a row out of their reach meets it.
+- **Read as it stands.** The named row is read when the write is judged. A line retired at the same
+  moment as a quote names it may still be named, as if the quote had come first.
+- **A rule that can no longer be read.** When the link's relation is gone, or a column a condition
+  reads is no longer on the table, no row can be shown to meet the rule: every new link is refused,
+  and rows that already hold one keep it. Put the column back, or change the rule in Studio.
 
-A condition is one of:
+##### A row that must match the row written
 
-| Condition | Holds when |
-|---|---|
-| `{ "eq": [column, value] }`, `{ "neq": [column, value] }` | The column equals, or does not equal, a string, number or boolean. The column may be of any type (an enum, a bool). `neq` does not hold for an empty column. |
-| `{ "gt": [a, b] }`, `{ "gte": … }`, `{ "lt": … }`, `{ "lte": … }` | `a` is greater, greater or equal, less, or less or equal than `b`. A comparison with an empty side does not hold. |
-| `{ "isNull": column }` | The column is empty. |
-| `{ "and": [c, c, …] }`, `{ "or": [c, c, …] }` | All, or any, of 2–8 conditions. |
+`same` compares the named row with the row being written instead of with a fixed value: a site
+visit names only a contact who works for the company of the visit's deal.
 
 ```json
-{ "if": [{ "eq": ["discount_kind", "percent"] },
-         { "mul": ["qty", "rate", { "sub": [1, { "div": [{ "coalesce": ["discount", 0] }, 100] }] }] },
-         { "sub": [{ "mul": ["qty", "rate"] }, { "coalesce": ["discount", 0] }] }] }
+{ "ref": "contact_id", "type": "fk", "references": "contacts", "nullable": true,
+  "rules": { "linkable": { "same": [{ "column": "company_id", "as": "deal_id.company_id" }] } } }
 ```
 
-How a formula is worked out:
+`same` is 1–4 pairs. `column` is a column of the row the link names (here a contact's
+`company_id`); `as` is a column of the row being written, or one link further, `<link
+column>.<column>`: the column of the row a foreign key of it names (here the visit's deal's
+`company_id`). Each pair must hold: both sides hold the same value. An empty side holds nothing,
+so a deal with no company yet matches no contact; an empty link is still taken. `where` and
+`same` may be given together, and a rule gives at least one of them. Needs Adminium 0.3.28
+(`linkable.same`).
 
-- **Exactly.** Every value is read from its decimal text as an exact fraction, and nothing goes
-  through a floating-point number. `1 ÷ 3 × 3` is exactly 1, and a total is the same on Postgres,
-  MySQL and SQLite to the last minor unit.
-- **Rounded once**, half away from zero, to the column's [scale](https://docs.adminium.dev/reference/manifest/#decimal-places). A formula
-  column with no `scale` rounds to 0 places when it is an `int` or `bigint`, and to 4 when it is a
-  decimal. `round` inside a formula rounds that part early, where the arithmetic calls for it (a
-  tax rounded before it is added).
-- **Empty in, empty out.** An empty column makes the result empty unless `coalesce` says what to
-  read instead: a draft line with no rate yet has no amount, rather than an amount of 0 that looks
-  like a price.
-- **On every write.** A create works out every formula; an update works out the ones whose inputs
-  it changed, reading the stored row with the new values over it. A formula that reads another
-  formula column is worked out after it. A formula that reads a [rollup](https://docs.adminium.dev/reference/manifest/#totals-and-balances)
-  total is worked out again whenever the total moves.
+- **When it is judged.** As `where` is, and also when a change moves the column `as` reads on the
+  row (a visit moved to another deal), the contact staying: the visit would no longer be the
+  deal's company's. The far row is read as it stands when the write is judged: a deal moved to
+  another company, or a contact who changes company, keeps the visits that name them.
+- **What the refusal says.** The same `422` `not-allowed` on the link's field, naming nothing of
+  either row. The far row of `as` is read through the write's own handle; a writer who names a
+  deal out of their reach is refused for that deal before this rule is asked, whichever contact
+  the visit names.
+- The validator refuses a column the linked table does not have, a secret on either side, a hop
+  through a column that is not a foreign key, the link compared with itself, and two columns that
+  can never hold one value (a number and a text). Studio checks that each column and link is
+  there.
 
-A formula fills a `decimal`, `money`, `int` or `bigint` column, never a `float` (a
-[`join`](https://docs.adminium.dev/reference/manifest/#joined-text) fills a `text` column). It reads only columns of its own table, and every
-column it counts with holds a number; `eq`, `neq` and `isNull` may name any column,
-`hoursBetween` names two different `timestamptz` columns and `daysBetween` two different `date`
-columns. It
-may not read itself, formulas may not read each other in a circle, and an expression nests at most
-8 deep. A value a writer sends to a formula column is dropped. Anything that reads another row is a
-`copy` or a `rollup`, which already keep in step when that other row changes.
+An operator may set the same rule on a column in Studio; Studio refuses one whose column is not a
+foreign key, or whose conditions name a column the linked table does not have. The screens are
+still the app's to filter: a picker that offers only active lines is kinder than a refusal.
 
-#### Hours between two moments
+#### Files in a column
 
-`hoursBetween` works a time entry's hours out from its start and its stop:
+`file` makes a column hold files a signed-in person uploads for it: a crew's sign-off keeps the
+customer's signature and the job's photos.
 
 ```json
-{ "ref": "hours", "type": "decimal", "scale": 2, "nullable": true,
-  "rules": { "formula": { "hoursBetween": ["started_at", "stopped_at"] } } }
+{ "ref": "signature", "type": "text", "maxLength": 64, "nullable": true,
+  "rules": { "file": { "accept": ["png"], "maxBytes": 524288 } } },
+{ "ref": "photos", "type": "json", "nullable": true,
+  "rules": { "file": { "accept": ["jpeg", "png", "webp"], "maxBytes": 8388608, "maxCount": 6 } } }
 ```
 
-09:15 → 11:45 is `2.50`; 22:30 → 01:15 the next day is `2.75`. The hours are exact and rounded
-once to the column's scale, like any formula, and they can be counted with further:
-`{ "mul": [{ "hoursBetween": ["started_at", "stopped_at"] }, "rate"] }` is the pay at a rate. An
-update that moves only the stop works the hours out again from the start as stored.
+A `text` column holds one file's id (`file_…`, 31 characters, so a `maxLength` is at least 31); a
+`json` column holds a list of ids, of at most `maxCount`, read back as a list on every database.
+`accept` takes `png`, `jpeg`, `webp`, `gif`, `pdf`, `office`, `zip`, `csv`, `text`, `markdown`,
+`json`, `mp4`, `webm`, `mp3`, `wav` and `ogg`: never `svg`, a document that can carry script, and
+never `heic`, a picture whose camera notes cannot be taken out of it.

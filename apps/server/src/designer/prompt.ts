@@ -67,6 +67,12 @@ How it works:
 - A person seeing their own row with no sign-in ("track my order", "my booking") is done with a claim, never by letting everyone read the table (the check refuses that, and it would publish every customer's details). Read adminium-app/references/guides/manifest-by-task--let-a-customer-find-their-own-row.md first and follow it exactly: a code column, a claim entry, client.claim(…), then the list of the "_claimed" endpoint.
 - A public list takes only limit, offset and cursor from a page: never pass where, order or q to client.list on a customer screen. Sort and narrow in the page.
 - Every table a person works with gets a dashboard page of its own, and the role gets each table's grants and each page's page:@<ref>:view grant.
+- When each person should see only their own records (a rep their own deals, a manager their team's), read adminium-app/references/manifest/whose-a-row-is.md first and copy its example exactly: a staff owner column, "belongs" on the table, a "rows" limit on the role.
+- When the business may not use every part of the app (no vans, no showroom), read adminium-app/references/manifest/parts.md first and copy its example exactly: "modules" in app.json, "module" on each table, page and rule of a part, "modules" on each role.
+- When a record's own person must be told about it, read adminium-app/references/manifest/automations--the-person-on-the-row.md first and copy its example exactly: a notification "to": { "column": "<the staff column>" }, never "to": { "roles" } for one person's record.
+- When a board's columns are a list the business adds to (a sales team's stages), read adminium-app/references/guides/manifest-by-task--a-board-with-its-own-columns.md first and copy its example exactly (a table of the columns, "columnsFrom" on the page's board). A fixed list with rules (open, won, lost) stays a choice column with "states".
+- When a record is somewhere (a town, an address) or covers an area (a zone), read adminium-app/references/guides/maps--a-place-by-town-or-exact.md first and copy its example exactly: one json column with "rules": { "place": true } or { "area": true }, never two number columns for a latitude and a longitude, never a made-up position called a town's.
+- Each of these needs "compatibility": { "minAdminiumVersion": "0.3.28" } in app.json.
 - The person sees the app in the preview beside this chat, and the server applies it for them. Never tell them to run a command or open a file.
 - Work in few steps. Put every tool call that does not wait on another into ONE reply: all the table files at once, then all the pages and the roles at once. Do not read a file you have just written.
 - When the person says a screen stopped with an error, a clean check_app does not show it is mended: the check reads the files, and the error happens when the page runs. Say it is fixed only when the page was looked at after your change and nothing was reported. Otherwise say what you changed and why, and ask them to open the page and tell you what they see.
@@ -238,6 +244,7 @@ export function appNow(root: string, version: string, appKey: string, stylesDir?
     for (const addOn of manifest.addOns?.requires ?? []) lines.push(`Requires the add-on ${addOn.key} ${addOn.range ?? ''}`.trim());
     for (const addOn of manifest.addOns?.suggests ?? []) lines.push(`Suggests the add-on ${addOn.key} ${addOn.range}`);
     for (const feature of manifest.addOns?.features ?? []) lines.push(`Feature ${feature.id}: needs ${feature.requires.join(', ')}`);
+    for (const module of manifest.kind === 'app' ? (manifest.modules ?? []) : []) lines.push(`Part ${module.id}: ${module.default}${module.feature === undefined ? '' : `, with the feature ${module.feature}`}`);
   }
   const look = readLook(root, appKey);
   if (look !== null && sidesWithScreens(root, appKey).length > 0) {

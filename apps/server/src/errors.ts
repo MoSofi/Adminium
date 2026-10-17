@@ -151,6 +151,8 @@ export class ConflictError extends AppError {
     message = 'The resource changed since you loaded it.',
     code:
       | 'CONFLICT'
+      // A file a record keeps in an app's own file column, asked to be taken off, renamed or thrown away by itself.
+      | 'FILE_HELD'
       // A plain column the writer saw (`seen`) holds another value now.
       | 'ROW_CHANGED'
       | 'UNIQUE_VIOLATION'
@@ -198,6 +200,8 @@ export class ConflictError extends AppError {
       | 'STATE_UNCHANGED'
       // A move a late rule turns away inside its window before a moment.
       | 'STATE_TOO_LATE'
+      // A move made after the last day its row gives it (`details.date` the column, `details.until` the day).
+      | 'STATE_DATE_PASSED'
       // A public change outside the window its entry opens (`details.bound`, `details.at`).
       | 'WRITE_WINDOW_CLOSED'
       // A price by the night whose rate rule cannot be read (`details.table`, `key`, `column`).
@@ -241,6 +245,19 @@ export class ConnectionDisabledError extends AppError {
         : `The connection “${connectionName}” is paused. Resume it in Studio → Data connections to load data again.`,
       { connectionId },
     );
+  }
+}
+
+/**
+ * 409 — something of a part of an app that its owner switched off (or whose
+ * add-on is not connected): a page, a document, a public entry. Nothing was
+ * deleted; the answer changes when the part is switched on.
+ */
+export class PartOffError extends AppError {
+  override readonly name = 'PartOffError';
+
+  constructor(appKey: string, module: string) {
+    super(409, 'PART_OFF', `This part of "${appKey}" is switched off. Switch it on in Studio → Apps.`, { appKey, module });
   }
 }
 

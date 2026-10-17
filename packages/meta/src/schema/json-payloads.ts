@@ -88,7 +88,11 @@ export const dirSchema = z.enum(['ltr', 'rtl']);
 
 // --- users / prefs ----------------------------------------------
 
-export const userStatusSchema = z.enum(['active', 'invited', 'suspended']);
+/**
+ * `sample`: a person an app's sample data made. Never signs in, is
+ * never mailed, and goes when the sample is removed; nobody sets it by hand.
+ */
+export const userStatusSchema = z.enum(['active', 'invited', 'suspended', 'sample']);
 export type UserStatus = z.infer<typeof userStatusSchema>;
 
 /** Array of argon2id hashes. */
@@ -128,6 +132,37 @@ export const readLimitSchema = z.object({
 });
 export type ReadLimit = z.infer<typeof readLimitSchema>;
 
+/**
+ * How far one action on a table reaches, when it does not reach every row:
+ * the person's own rows, those of the teams they lead, or every row — and,
+ * on top, the rows nobody owns, only while a column holds some value, and
+ * only those a staff column of the row names them in (`by`).
+ * Whose a row is, is the table's to say (`table.belongs`).
+ */
+export const rowReachSchema = z
+  .object({
+    reach: z.enum(['own', 'team', 'all']),
+    unowned: z.literal(true).optional(),
+    while: z.object({ column: z.string().min(1), in: z.array(z.union([z.string(), z.number(), z.boolean()])).min(1).max(32) }).strict().optional(),
+    /** And only the rows this staff column names them in (or, with `team`, somebody they lead): the notes they wrote, on deals they reach. */
+    by: z.string().min(1).max(64).optional(),
+  })
+  .strict();
+export type RowReach = z.infer<typeof rowReachSchema>;
+
+/** One action's reach, or several of which any one is enough (an app's account manager: every won deal, or an open one he is on). */
+export const rowReachesSchema = z.union([rowReachSchema, z.array(rowReachSchema).min(1).max(4)]);
+export type RowReaches = z.infer<typeof rowReachesSchema>;
+
+/** An action's reaches as a list, however it is stored: one, or several. */
+export function rowReachList(reaches: RowReaches | null | undefined): RowReach[] {
+  return reaches === undefined || reaches === null ? [] : Array.isArray(reaches) ? reaches : [reaches];
+}
+
+/** Which rows a grant's read, update and delete reach, each on its own; an action left out reaches every row. */
+export const rowLimitSchema = z.object({ read: rowReachesSchema.optional(), update: rowReachesSchema.optional(), delete: rowReachesSchema.optional() }).strict();
+export type RowLimit = z.infer<typeof rowLimitSchema>;
+
 export const tableActionsSchema = z.object({
   read: z.boolean(),
   create: z.boolean(),
@@ -146,6 +181,8 @@ export const tableActionsSchema = z.object({
   createLimit: updateLimitSchema.optional(),
   /** Narrows `read` on this row; absent, the grant reads every column. */
   readLimit: readLimitSchema.optional(),
+  /** Narrows which ROWS `read`, `update` and `delete` reach; absent, every row. */
+  rowLimit: rowLimitSchema.optional(),
 });
 export type TableActions = z.infer<typeof tableActionsSchema>;
 
@@ -408,6 +445,8 @@ const storedStateAction = () =>
         confirm: actionWords().optional(),
         set: actionSet.optional(),
         ask: z.array(z.string().min(1)).min(1).max(4).optional(),
+        /* Hands the row over: a staff column it asks for may name any person. */
+        handOver: z.literal(true).optional(),
       })
       .strict(),
     z
@@ -419,6 +458,7 @@ const storedStateAction = () =>
         tone: actionTone.optional(),
         confirm: actionWords().optional(),
         ask: z.array(z.string().min(1)).min(1).max(4).optional(),
+        handOver: z.literal(true).optional(),
       })
       .strict(),
     z
@@ -893,6 +933,40 @@ export const storedAdjust = z
   .strict();
 export type StoredAdjust = z.infer<typeof storedAdjust>;
 
+/**
+ * One way a person belongs to a row, as it is stored: the manifest's shape
+ * (`@adminium/manifest` `belongsWaySchema`) with every table a real table's
+ * id. `through.table` is the only table a way names; a `via` and a `person`
+ * are found through the link column they name.
+ */
+const storedBelongsWay = z.union([
+  z.object({ column: ruleColumn, person: ruleColumn.optional(), set: z.enum(['self', 'team', 'anyone']).optional() }).strict(),
+  z
+    .object({
+      through: z
+        .object({
+          table: z.string().min(1),
+          link: ruleColumn,
+          on: ruleColumn.optional(),
+          user: ruleColumn,
+          person: ruleColumn.optional(),
+          from: ruleColumn.optional(),
+          to: ruleColumn.optional(),
+          // Counts only while a column of the listing holds one of some values, or is empty (or not).
+          while: z
+            .union([
+              z.object({ column: ruleColumn, in: z.array(z.union([z.string(), z.number(), z.boolean()])).min(1).max(32) }).strict(),
+              z.object({ column: ruleColumn, isNull: z.boolean() }).strict(),
+            ])
+            .optional(),
+        })
+        .strict(),
+    })
+    .strict(),
+  z.object({ via: ruleColumn }).strict(),
+]);
+export type StoredBelongsWay = z.infer<typeof storedBelongsWay>;
+
 export const overridePatchSchema = z.discriminatedUnion('op', [
   // Labels are min(1): the engine's `TableModel.label` forbids '' and an empty
   // rename is meaningless (the remap UI drops the op instead of staging '').
@@ -1056,6 +1130,8 @@ export const overridePatchSchema = z.discriminatedUnion('op', [
        * `startSetting` reads the first number from a setting.
        */
       gapless: z.literal(true).optional(),
+      /** The app's sample rows may take numbers in the series; read by the manifest's check of a sample file, not by a write. */
+      sample: z.literal(true).optional(),
       startSetting: ruleSetting.optional(),
       scope: ruleColumn.optional(),
     }),
@@ -1208,6 +1284,11 @@ export const overridePatchSchema = z.discriminatedUnion('op', [
       /** What to add up; or `count: true` to count the child rows instead (one of the two). */
       sum: z.string().min(1).max(128).optional(),
       count: z.literal(true).optional(),
+      /** Or the newest child row's value: `of` of the row whose `by` is greatest; `row`, a column of this table, holds that row's key. */
+      latest: z
+        .object({ of: z.string().min(1).max(128), by: z.string().min(1).max(128), row: z.string().min(1).max(128).optional() })
+        .strict()
+        .optional(),
       /** Multiplied into `sum` per child row, e.g. a quantity. */
       times: z.string().min(1).max(128).optional(),
       /** A child row whose column holds a value is left out, e.g. a voided line. */
@@ -1229,7 +1310,7 @@ export const overridePatchSchema = z.discriminatedUnion('op', [
       cap: z.literal(true).optional(),
       /** With `cap`: not judged for a row whose yes/no column is true. */
       capUnless: z.object({ column: z.string().min(1).max(128) }).strict().optional(),
-    }).refine((v) => (v.sum === undefined) !== (v.count === undefined), { message: 'a total adds up `sum` or counts rows (`count: true`), not both' }),
+    }).refine((v) => [v.sum, v.count, v.latest].filter((kind) => kind !== undefined).length === 1, { message: 'a total adds up `sum`, counts rows (`count: true`) or takes the newest row\'s value (`latest`): one of the three' }),
   }),
   /*
    * A price worked out night by night from `from` to the day before `to`:
@@ -1272,6 +1353,28 @@ export const overridePatchSchema = z.discriminatedUnion('op', [
    * the installer maps an app's short names to the real ones before it writes
    * the rule, so the guard never reads a table by a name that does not exist.
    */
+  /*
+   * A row takes a resource for a time (`table.occupies`): no two counted rows
+   * of one resource overlap, and with `hours` the row lies within the
+   * resource's own week. The hours table is its id in the snapshot.
+   */
+  z.object({
+    op: z.literal('table.occupies'),
+    value: z
+      .object({
+        resource: bookingName,
+        start: bookingName.optional(),
+        minutes: bookingName.optional(),
+        end: bookingName.optional(),
+        day: bookingName.optional(),
+        /** With `day`: the last day of a span of whole days; empty in a row = no end. */
+        until: bookingName.optional(),
+        countWhere: z.object({ column: bookingName, values: z.array(z.string().min(1)).min(1) }).strict().optional(),
+        shared: z.literal(true).optional(),
+        hours: z.object({ table: bookingTable, resource: bookingName, weekday: bookingName, opens: bookingName.optional(), closes: bookingName.optional() }).strict().optional(),
+      })
+      .strict(),
+  }),
   z.object({
     op: z.literal('table.booking'),
     value: z.object({
@@ -1332,6 +1435,8 @@ export const overridePatchSchema = z.discriminatedUnion('op', [
                     children: z.record(ruleTable, z.number().int().min(1).max(1000)).optional(),
                     where: z.array(stateCondition).min(1).max(8).optional(),
                     ...moveConditions,
+                    /** A date column of the row the move is not made after: refused once today, where the business is, is later. */
+                    notPast: ruleColumn.optional(),
                   })
                   .optional(),
                 roles: z.array(z.string().min(1).max(64)).min(1).max(8).optional(),
@@ -1411,6 +1516,56 @@ export const overridePatchSchema = z.discriminatedUnion('op', [
   }),
   /* A keyed hash of the address in `of`, written by Adminium. */
   z.object({ op: z.literal('column.customerKey'), value: z.object({ of: ruleColumn }).strict() }),
+  /* A text column that holds a staff member's id: the only kind a table's `belongs` reads a person from. */
+  z.object({ op: z.literal('column.staff'), value: z.object({ staff: z.literal(true) }).strict() }),
+  /* A text column in which people are mentioned; `about` is the link to the record a mention there is about (a comment's deal). */
+  z.object({ op: z.literal('column.mentions'), value: z.object({ mentions: z.union([z.literal(true), z.object({ about: ruleColumn }).strict()]) }).strict() }),
+  /* A json column that holds a position on the map (`{ lat, lng, by }`), and one that holds an area (a GeoJSON polygon). */
+  z.object({ op: z.literal('column.place'), value: z.object({ place: z.literal(true) }).strict() }),
+  z.object({ op: z.literal('column.area'), value: z.object({ area: z.literal(true) }).strict() }),
+  /*
+   * A foreign key that may name only a row meeting these conditions, read on
+   * the row it names (a price-list line still offered). Each condition says
+   * one test, as a move's `linked` does.
+   */
+  z.object({
+    op: z.literal('column.linkable'),
+    value: z
+      .object({
+        where: z
+          .array(stateCondition.strict().refine((c) => [c.eq, c.in, c.isNull, c.gt, c.gte, c.lt, c.lte].filter((part) => part !== undefined).length === 1, { message: 'a condition says one of eq, in, isNull, gt, gte, lt or lte' }))
+          .min(1)
+          .max(8)
+          .optional(),
+        /** A column of the named row that holds what this row holds in `as`: a column of its own, or `<link>.<column>` of the row a link of it names. */
+        same: z
+          .array(z.object({ column: z.string().min(1).max(128), as: z.string().regex(/^[^.]{1,128}(\.[^.]{1,128})?$/) }).strict())
+          .min(1)
+          .max(4)
+          .optional(),
+      })
+      .strict()
+      .refine((value) => value.where !== undefined || value.same !== undefined, { message: 'a link says which rows it may name: where, same, or both' }),
+  }),
+  /*
+   * A column that holds files a signed-in person uploaded for it: the kinds
+   * it takes (the server's names for what a file's bytes are), the size of
+   * each, and, for a json column, how many it holds.
+   */
+  z.object({
+    op: z.literal('column.file'),
+    value: z
+      .object({
+        accept: z.array(z.string().regex(/^[a-z]{2,10}$/)).min(1).max(20),
+        maxBytes: z.number().int().min(1024).max(26_214_400),
+        maxCount: z.number().int().min(1).max(20).optional(),
+      })
+      .strict(),
+  }),
+  /* How a person belongs to a row of the table, each way with its table names as the real tables' ids. */
+  z.object({ op: z.literal('table.belongs'), value: z.object({ ways: z.array(storedBelongsWay).min(1).max(6) }).strict() }),
+  /* Rows read by the people they belong to, and by nobody and nothing else. */
+  z.object({ op: z.literal('table.private'), value: z.object({ private: z.literal(true) }).strict() }),
   z.object({
     op: z.literal('relation.add'),
     value: z.object({
@@ -1477,8 +1632,19 @@ export const notificationChannelsSchema = z.object({
   inApp: z.boolean(),
   email: z.boolean(),
   push: z.boolean(),
+  /** "Always tell me": this kind of notice reaches the person at once, also in their quiet hours. */
+  always: z.boolean().optional(),
 });
 export type NotificationChannels = z.infer<typeof notificationChannelsSchema>;
+
+const quietTime = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'a time such as 19:00');
+/**
+ * A person's quiet hours: for each weekday (0 = Sunday) a window that starts
+ * that day at `from` and ends at `to` — the same day, or the next when `to`
+ * is not after `from` (19:00 to 08:00). A weekday left out has none.
+ */
+export const notificationQuietSchema = z.partialRecord(z.enum(['0', '1', '2', '3', '4', '5', '6']), z.object({ from: quietTime, to: quietTime }).strict());
+export type NotificationQuiet = z.infer<typeof notificationQuietSchema>;
 
 // --- llm runs -----------------------------------------
 
@@ -1600,10 +1766,15 @@ export function isRelativeAutomationOp(op: AutomationConditionOp): boolean {
   return (RELATIVE_OPS as readonly string[]).includes(op);
 }
 
-/** `{ amount: 2, unit: 'hours' }` — the operand of a relative-time op. 3650 days caps it at a decade. */
+/**
+ * `{ amount: 2, unit: 'hours' }` — the operand of a relative-time op. 3650 days caps it at a decade.
+ * `setting`: the amount is read from a whole-number column of a settings row (its table's first
+ * row) when the conditions are read; `amount` is used while that holds no amount from 1 to 3650.
+ */
 export const automationRelativeOperandSchema = z.object({
   amount: z.number().int().min(1).max(3650),
   unit: automationDurationUnitSchema,
+  setting: z.object({ table: z.string().max(200), column: z.string().max(128) }).optional(),
 });
 export type AutomationRelativeOperand = z.infer<typeof automationRelativeOperandSchema>;
 
@@ -1611,6 +1782,13 @@ const automationOperandSchema = z.union([
   z.string().max(2000),
   z.number(),
   automationRelativeOperandSchema,
+]);
+
+/** A count's own condition reads no setting: its amount is written. (One level shallower too, so its type is declared whole.) */
+const automationCountOperandSchema = z.union([
+  z.string().max(2000),
+  z.number(),
+  z.object({ amount: z.number().int().min(1).max(3650), unit: automationDurationUnitSchema }),
 ]);
 
 /** A column of the record being processed. Empty = the person has not chosen one yet. */
@@ -1628,7 +1806,7 @@ const automationFieldLeftSchema = z.object({ field: z.string().max(128) });
 const automationCountLeafSchema = z.object({
   left: automationFieldLeftSchema,
   op: automationConditionOpSchema,
-  right: automationOperandSchema.optional(),
+  right: automationCountOperandSchema.optional(),
 });
 
 const automationCountLeftSchema = z.object({
@@ -1735,8 +1913,12 @@ export const automationTriggerSchema = z.discriminatedUnion('kind', [
       .object({
         table: z.string().max(200),
         where: z.array(automationConditionSchema).max(8),
-        /** A record that matched before is not run again (the dedupe key drops the tick stamp). */
-        once: z.boolean(),
+        /**
+         * `true`: a record that matched before is not run again (the dedupe key
+         * drops the tick stamp). `'per-spell'`: it is run once for each spell it
+         * matches — stopping and matching again later starts a new one.
+         */
+        once: z.union([z.boolean(), z.literal('per-spell')]),
       })
       .optional(),
   }),
@@ -1753,9 +1935,37 @@ export type AutomationTrigger = z.infer<typeof automationTriggerSchema>;
  * (the `$generate` lesson); the runner resolves this marker through the same
  * coercion the generated defaults use.
  */
+const automationSettingRefSchema = z.object({ table: z.string().max(200), column: z.string().max(128) }).strict();
+
 export const automationWriteValueSchema = z.union([
   z.string().max(4000),
   z.object({ now: z.literal(true) }),
+  /**
+   * What a column of the app's settings row (its row with the lowest key)
+   * holds when the step runs, read as the rule reads the connection. A staff
+   * column filled so is left empty unless it names somebody who signs in.
+   */
+  z.object({ setting: automationSettingRefSchema }).strict(),
+  /**
+   * A day so many days after a date column of the record (`column`) or after
+   * the run (`now`), on the business's calendar: `days`, or the whole number
+   * a setting holds when it holds one from 1 to 3650. `at`: the wall time on
+   * that day, for a column that holds a moment (else the time it counts from).
+   */
+  z
+    .object({
+      daysAfter: z
+        .object({
+          column: z.string().max(128).optional(),
+          now: z.literal(true).optional(),
+          days: z.number().int().min(0).max(3650),
+          setting: automationSettingRefSchema.optional(),
+          at: z.string().regex(HHMM).optional(),
+        })
+        .strict()
+        .refine((after) => (after.column === undefined) !== (after.now === undefined), { message: 'days after a column of the record or after now, one of the two' }),
+    })
+    .strict(),
 ]);
 export type AutomationWriteValue = z.infer<typeof automationWriteValueSchema>;
 
@@ -1764,7 +1974,54 @@ const automationValuesSchema = z.record(z.string().max(128), automationWriteValu
 const automationEmailRecipientSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('field'), column: z.string().max(128) }),
   z.object({ kind: z.literal('fixed'), addresses: z.array(z.string().max(320)).max(20) }),
+  /** The person a staff column of the record names (`owner_id`, or `<link>.<staff column>`): Adminium looks their address up. */
+  z.object({ kind: z.literal('staff'), column: z.string().max(260) }),
+  /**
+   * The people a table that lists people against the record names for it
+   * (a `belongs` way of the record's table `through` that table, by its id):
+   * one mail each, to those of them who can open the record when it goes.
+   */
+  z.object({ kind: z.literal('listed'), table: z.string().max(200) }),
 ]);
+
+/** One section of a summary: the rows of a table whose `owner` is the person written to, or one of the people they lead. */
+export const automationDigestSectionSchema = z.object({
+  key: z.string().regex(/^[a-z][a-z0-9-]{0,39}$/),
+  table: z.string().max(200),
+  /** A staff column of that table. */
+  owner: z.string().max(128),
+  where: z.array(automationConditionSchema).max(8).default([]),
+  orderBy: z.object({ column: z.string().max(128), dir: z.enum(['asc', 'desc']).default('asc') }).nullable().default(null),
+  limit: z.number().int().min(1).max(50).default(20),
+  /**
+   * Whose rows: the person's own (the default), or `team`: theirs and those
+   * of the people they lead when the summary is sent. There is no "all": a
+   * summary never reads further than the person and the people they lead,
+   * and never further than their own roles reach either.
+   */
+  reach: z.enum(['own', 'team']).optional(),
+  /** Columns added up over EVERY row of the section, not over the rows it lists: `{{sum.<section>.<column>}}`. */
+  sum: z.array(z.string().max(128)).max(4).optional(),
+  /** One line a person instead of one a row: their name, how many rows, each sum. */
+  by: z.literal('owner').optional(),
+  /**
+   * What one of the sums is measured against: the `column` of the rows of
+   * `table` whose `owner` staff column names the same people, read as the
+   * recipient reads that table. `year`: a whole-number column that holds the
+   * calendar year, of which only this year's rows count.
+   */
+  target: z
+    .object({
+      table: z.string().max(200),
+      owner: z.string().max(128),
+      column: z.string().max(128),
+      year: z.string().max(128).optional(),
+      /** Which of the section's sums is divided by it. */
+      of: z.string().max(128),
+    })
+    .optional(),
+});
+export type AutomationDigestSection = z.infer<typeof automationDigestSectionSchema>;
 
 export const automationActionSchema = z.discriminatedUnion('kind', [
   z.object({
@@ -1773,6 +2030,13 @@ export const automationActionSchema = z.discriminatedUnion('kind', [
      * falling back. */
     templateKey: z.string().max(120).nullable().default(null),
     to: automationEmailRecipientSchema.nullable().default(null),
+    /**
+     * Where a reply goes: the person a staff column of the record names
+     * (`owner_id`, or `<link>.<staff column>`), by the address they sign in
+     * with, looked up when the mail goes. Nobody there, or somebody who
+     * cannot sign in: no Reply-To. Never an address somebody typed.
+     */
+    replyTo: z.object({ staff: z.string().max(260) }).strict().optional(),
     /**
      * What fills a placeholder of the template that the record does not:
      * the placeholder's name → a text, which may carry `{{record.x}}` tokens
@@ -1790,16 +2054,41 @@ export const automationActionSchema = z.discriminatedUnion('kind', [
       .union([
         z.object({ roles: z.array(z.string()).max(20) }),
         z.object({ users: z.array(z.string()).max(50) }),
+        /**
+         * The person a staff column of the record names (`owner_id`, or `<link>.<staff column>`).
+         * `lead`: instead, whoever leads a team that person is in (never the person), of those
+         * who can open the record. `else`: the roles told when that names nobody; a lead has one.
+         */
+        z.object({ column: z.string().max(260), lead: z.literal(true).optional(), else: z.object({ roles: z.array(z.string()).min(1).max(20) }).optional() }),
+        /**
+         * The people a table that lists people against the record names for it (a `belongs` way
+         * of the record's table `through` that table, by its id), of those only who can open the
+         * record when the step runs.
+         */
+        z.object({ listed: z.string().max(200) }),
       ])
       .nullable()
       .default(null),
     title: z.string().max(200).default(''),
     body: z.string().max(2000).nullable().default(null),
+    /** Told at once, also in the person's quiet hours. */
+    urgent: z.boolean().optional(),
   }),
   z.object({
     kind: z.literal('record.create'),
     table: z.string().max(200).nullable().default(null),
     values: automationValuesSchema.default({}),
+    /** What later steps call the row this one makes: `{{steps.<name>.<column>}}`. */
+    name: z.string().regex(/^[a-z][a-z0-9_]{0,39}$/).optional(),
+  }),
+  z.object({
+    /** A summary for each person who holds one of the roles: one email each, of the rows that are theirs. */
+    kind: z.literal('digest'),
+    templateKey: z.string().max(120).nullable().default(null),
+    to: z.object({ roles: z.array(z.string()).max(20) }).nullable().default(null),
+    sections: z.array(automationDigestSectionSchema).max(6).default([]),
+    /** Sent also to a person none of whose sections lists a row. */
+    sendEmpty: z.boolean().default(false),
   }),
   z.object({
     /** Writes back to THIS record; a related row is a residual. */
@@ -2046,6 +2335,12 @@ export const automationTriggerEventSchema = z.object({
    * the run ends; the trace reads `snapshot`.
    */
   values: z.record(z.string(), z.unknown()).nullish(),
+  /**
+   * An UPDATED row as it was before the change, for a rule that reads it
+   * (`{{was.<column>}}`). Never served and cleared once the run ends, as
+   * `values` is.
+   */
+  before: z.record(z.string(), z.unknown()).nullish(),
   occurredAt: z.number().int(),
   /**
    * The conversation with the assistant in which the write that started this
@@ -2067,6 +2362,21 @@ export const automationTraceStepSchema = z.object({
   durationMs: z.number().int().nullable(),
   /** The comp's log box — "250 OK · delivered to …", "evaluated → true". */
   log: z.string().max(2000).nullable(),
+  /**
+   * The row a named "create a row" step made: its name, its table, its key
+   * and its values as text, so a later step reads `{{steps.<name>.<column>}}`
+   * — also after a wait, when the run comes back as a new job with nothing
+   * else to remember by. `standIn` marks a test run's row, which was never made.
+   */
+  made: z
+    .object({
+      name: z.string().max(40),
+      table: z.string().max(200),
+      pk: z.record(z.string().max(128), z.unknown()),
+      values: z.record(z.string().max(128), z.string().max(4000)),
+      standIn: z.boolean().optional(),
+    })
+    .optional(),
 });
 export type AutomationTraceStep = z.infer<typeof automationTraceStepSchema>;
 
@@ -2155,7 +2465,8 @@ export const importMappingSchema = z.object({
   columns: z.array(z.object({ from: z.string(), to: z.string().nullable() })),
 });
 export const importOptionsSchema = z.object({
-  mode: z.enum(['insert', 'upsert']).optional(),
+  /** `skip` matches as `upsert` does and leaves a line that is already here as it is. */
+  mode: z.enum(['insert', 'upsert', 'skip']).optional(),
   matchColumn: z.string().nullish(),
   skipInvalid: z.boolean().optional(),
 });
@@ -2164,6 +2475,8 @@ export const importStatsSchema = z.object({
   inserted: z.number().int().optional(),
   updated: z.number().int().optional(),
   skipped: z.number().int().optional(),
+  /** The lines of a `skip` import left alone because their row was already here: part of `skipped`. */
+  alreadyHere: z.number().int().optional(),
 });
 export const importStatusSchema = z.enum(['validating', 'ready', 'running', 'succeeded', 'failed', 'cancelled']);
 

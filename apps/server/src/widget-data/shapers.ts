@@ -25,6 +25,7 @@ import type { ResolvedColumn } from '../crud/identifiers.js';
 import { applyLookupMask } from '../crud/lookups.js';
 import { maskRows, type Row } from '../crud/mask.js';
 import { wallTimeToInstant } from '../crud/venue-time.js';
+import { readGeoValue } from '../geo/values.js';
 import { widgetDataChannel } from '../realtime/hub.js';
 import { choiceWordsOf } from './choice-words.js';
 import {
@@ -58,6 +59,8 @@ export interface ShapedTimeseries {
   shape: 'timeseries';
   points: TsPoint[];
   compare?: TsPoint[];
+  /** The aliases of the figures that are money (`moneyFiguresOf`): a chart's table writes them in the currency. */
+  money?: string[];
 }
 
 export interface ShapedMultiTimeseries {
@@ -76,6 +79,8 @@ export interface ShapedCategorical {
   total: number;
   /** The aggregates' aliases, in the descriptor's order, when there is more than one. */
   aggregates?: string[];
+  /** The aliases of the figures that are money (`moneyFiguresOf`): a chart's table writes them in the currency. */
+  money?: string[];
 }
 
 export interface ShapedMatrix {
@@ -108,6 +113,14 @@ export interface GeoPoint {
   code?: string;
   lat?: number;
   lng?: number;
+  /**
+   * Only for a point read from a place column: how its position is known.
+   * `town` is the middle of a town from the place list (`placeId`), so the pin
+   * means "somewhere in this town"; `exact` is a point a person gave.
+   */
+  by?: 'town' | 'exact';
+  /** The town's id in the place list, where the place names one. */
+  placeId?: number;
   /** Metric name → value; the map's metric switcher tabs through these. */
   values: Record<string, number>;
 }
@@ -195,6 +208,8 @@ export interface ShapedRecordList {
   total: number;
   /** The column each row is opened by (the table's one-column key); absent when the table has none. Every row carries it, in `columns` or not. */
   key?: string;
+  /** The name each person in the rows' staff columns goes by (`descriptor.people`); an id the reader is told no name for is not in it. */
+  people?: Record<string, string>;
 }
 
 export interface ShapedRecord {
@@ -404,6 +419,8 @@ export interface GeoColumnRoles {
   code: ResolvedColumn | null;
   lat: ResolvedColumn | null;
   lng: ResolvedColumn | null;
+  /** One place column in the pair's stead. */
+  place?: ResolvedColumn;
   metrics: ResolvedColumn[];
 }
 
@@ -419,12 +436,17 @@ export interface GeoColumnRoles {
  * an integer FIPS/ISO number). Consequences worth knowing: coordinates stored
  * as integers read as a region code (select a real-typed view column instead),
  * and `[name, someInt, someFloat]`-style projections are read code-first.
+ *
+ * A third form names ONE place column (`column.place`) where the pair would
+ * be: `[name, place, ...metrics]`. The column's rule says so, not its type,
+ * and each point then carries how its position is known (`by`).
  */
 export function geoColumnRoles(columns: readonly ResolvedColumn[]): GeoColumnRoles | null {
   const [name, ...rest] = columns;
   if (name === undefined) return null;
   const first = rest[0];
   const second = rest[1];
+  if (first?.geo === 'place') return { name, code: null, lat: null, lng: null, place: first, metrics: rest.slice(1) };
   const coordinate =
     first !== undefined &&
     second !== undefined &&
@@ -505,6 +527,8 @@ export interface ShapeInput {
   connectionId?: string | undefined;
   /** What a foreign-key group is called, read by the route (`descriptor.groupLabel`). */
   groupLabels?: ReadonlyMap<string, string> | undefined;
+  /** What the second key's groups are called (a matrix's columns keyed by a staff column). */
+  colLabels?: ReadonlyMap<string, string> | undefined;
 }
 
 function columnMetaOf(compiled: CompiledWidgetQuery): ColumnMeta[] {
@@ -577,7 +601,7 @@ export function shapeRows(input: ShapeInput): ShapedPayload {
   const priorZoned = input.priorRows === undefined ? undefined : venueBuckets(compiled, input.priorRows);
   const priorRows = priorZoned === undefined || scan === null ? priorZoned : foldPercentileScan(scan, priorZoned);
   const groupNames = labelsOf(compiled, 0, input.groupLabels);
-  const colNames = labelsOf(compiled, 1, undefined);
+  const colNames = labelsOf(compiled, 1, input.colLabels);
 
   switch (compiled.shape) {
     case 'single-metric':
@@ -738,8 +762,11 @@ export function shapeRows(input: ShapeInput): ShapedPayload {
       const roles = geoColumnRoles(compiled.selectedColumns);
       if (roles === null) throw new Error('shaper: geo-points needs a name column (compiler bug)');
       const points = maskedRowsOf(compiled, rows, canReadPii).flatMap((row): GeoPoint[] => {
-        const lat = roles.lat === null ? undefined : finiteNumber(row[roles.lat.name]);
-        const lng = roles.lng === null ? undefined : finiteNumber(row[roles.lng.name]);
+        // A place column holds the pair, and how it is known. A row with no place (or a masked one) is dropped below.
+        const place = roles.place === undefined ? undefined : (readGeoValue(row[roles.place.name]) as { lat?: unknown; lng?: unknown; by?: unknown; placeId?: unknown } | null);
+        const lat = place !== undefined ? finiteNumber(place?.lat) : roles.lat === null ? undefined : finiteNumber(row[roles.lat.name]);
+        const lng = place !== undefined ? finiteNumber(place?.lng) : roles.lng === null ? undefined : finiteNumber(row[roles.lng.name]);
+        const by = place?.by === 'town' || place?.by === 'exact' ? place.by : undefined;
         const rawCode = roles.code === null ? null : row[roles.code.name];
         const code = rawCode === null || rawCode === undefined ? undefined : String(rawCode);
         // A row with neither coordinates nor a region code cannot be placed by
@@ -757,6 +784,8 @@ export function shapeRows(input: ShapeInput): ShapedPayload {
             ...(code === undefined ? {} : { code }),
             ...(lat === undefined ? {} : { lat }),
             ...(lng === undefined ? {} : { lng }),
+            ...(by === undefined || lat === undefined || lng === undefined ? {} : { by }),
+            ...(by === undefined || typeof place?.placeId !== 'number' ? {} : { placeId: place.placeId }),
             values,
           },
         ];
@@ -946,4 +975,18 @@ export function shapeRows(input: ShapeInput): ShapedPayload {
     default:
       throw new Error(`shaper: unsupported shape ${String(compiled.shape)} (compiler bug)`);
   }
+}
+
+/** The aggregates that keep a column's unit: a sum or a median of money is money, a count of it is not. */
+const MONEY_KEEPING = new Set(['sum', 'avg', 'min', 'max', 'percentile']);
+
+/**
+ * Which of a query's figures are amounts of money, by alias: a sum (an
+ * average, the least, the most, a percentile) of a column the table holds money in — one
+ * its app declares as money (`semantic`, `type` or `scale: "currency"`), or
+ * one Adminium took for money by its name. A chart's "Show data" table
+ * writes these in the currency, as a money card does.
+ */
+export function moneyFiguresOf(aggregations: readonly { fn: string; column?: string | undefined; alias: string }[] | undefined, table: { table: { columns: readonly { name: string; semantics?: { primary?: string | null } | null }[] } }): string[] {
+  return (aggregations ?? []).filter((one) => MONEY_KEEPING.has(one.fn) && one.column !== undefined && table.table.columns.find((column) => column.name === one.column)?.semantics?.primary === 'money').map((one) => one.alias);
 }

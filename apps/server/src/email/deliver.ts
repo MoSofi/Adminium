@@ -31,7 +31,7 @@
 import { dirForLocale, isLocaleId } from '@adminium/i18n';
 
 import { renderEmail } from './render.js';
-import type { PreparedEmail } from './send.js';
+import { replyToOf, type PreparedEmail } from './send.js';
 import type { EmailTransport, OutboundAttachment } from './types.js';
 
 export interface DeliverPreparedInput {
@@ -41,6 +41,8 @@ export interface DeliverPreparedInput {
   /** The variation's own locale, which decides the rendered direction. */
   locale: string;
   to: string;
+  /** Where a reply goes; anything but one plain address is left out. */
+  replyTo?: string | undefined;
   /** `{{token}}` substitutions; escaped per context by the renderer. */
   vars: Record<string, string>;
   /** Inline images and attachments as bytes, resolved by the caller. */
@@ -69,6 +71,8 @@ export async function deliverPrepared(
     html: rendered.html,
     text: rendered.text,
     ...(input.prepared.from === undefined ? {} : { from: input.prepared.from }),
+    // A Reply-To that is one plain address: never a list, a name or anything a header could be split on.
+    ...(replyToOf(input.replyTo) === null ? {} : { replyTo: replyToOf(input.replyTo)! }),
     ...(parts.length === 0 ? {} : { attachments: [...parts] }),
   });
   return {

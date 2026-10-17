@@ -14,28 +14,28 @@ import { cleanup, render, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 /*
-  THE LEAFLET SPY — what turns "the other id mounted" into the offline contract's actual claim,
-  "Leaflet is NEVER loaded in desktop runtime".
+  THE MAP ENGINE SPY — what turns "the other id mounted" into the offline contract's actual claim,
+  "the map engine is NEVER loaded in desktop runtime".
 
-  Two jobs. First, safety, and the geo suite learned this the hard way: Leaflet
-  builds FINE under happy-dom, so an unmocked `map-bubble` render constructs a
-  live map against a tile CDN after the test body returns. Rejecting the import
-  is also the production failure the widget is built to survive, so it is the
-  honest fixture.
+  Two jobs. First, safety: an unmocked `map-bubble` render with a map server
+  named would import the real engine after the test body returns. Rejecting
+  the import is also a production failure the widget is built to survive, so
+  it is the honest fixture.
 
   Second — the assertion itself. The factory records every attempt to load the
-  module, which is the event the contract forbids. `map-bubble` reaches Leaflet through a
-  dynamic `import('leaflet')` in its mount effect and is the ONLY module in the
+  module, which is the event the contract forbids. `map-bubble` reaches MapLibre through a
+  dynamic `import('maplibre-gl')` in its mount effect and is the ONLY module in the
   package that names it (qa/chunk-budget.test.ts pins that at file granularity),
   so this spy IS the observable for "did a map engine get pulled in". Asserting
-  it stays untouched in a desktop runtime — while proving it fires in a browser
-  one, so the observable is known to work — is the closest a unit suite can get
-  to the offline smoke test.
+  it stays untouched in a desktop runtime and with maps switched off — while
+  proving it fires in a browser whose session names a map server, so the
+  observable is known to work — is the closest a unit suite can get to the
+  offline smoke test.
 */
-const { leafletLoads } = vi.hoisted(() => ({ leafletLoads: vi.fn() }));
-vi.mock('leaflet', () => {
-  leafletLoads();
-  throw new Error('leaflet chunk unavailable');
+const { engineLoads } = vi.hoisted(() => ({ engineLoads: vi.fn() }));
+vi.mock('maplibre-gl', () => {
+  engineLoads();
+  throw new Error('maplibre chunk unavailable');
 });
 
 import {
@@ -46,14 +46,20 @@ import {
   type WidgetRuntimeEnv,
 } from './offline.js';
 import { widgetRegistry } from './index.js';
+import { mapServerOf } from './map-server.js';
 import { WidgetHost } from '../frame/WidgetHost.js';
 import { WidgetRuntimeProvider } from '../frame/WidgetRuntimeContext.js';
 
 const BROWSER: WidgetRuntimeEnv = { runtime: 'browser', offlineAssets: false };
-const DESKTOP: WidgetRuntimeEnv = { runtime: 'desktop', offlineAssets: false };
-const OFFLINE_BROWSER: WidgetRuntimeEnv = { runtime: 'browser', offlineAssets: true };
+/** A browser whose session names a map server: maps are on. */
+const MAPS = { server: 'https://maps.example.test', routing: false };
+const BROWSER_MAPS_ON: WidgetRuntimeEnv = { ...BROWSER, maps: MAPS };
+// The desktop server never names a map server; these name one anyway, so the
+// runtime rule is what is tested and not the server's manners.
+const DESKTOP: WidgetRuntimeEnv = { runtime: 'desktop', offlineAssets: false, maps: MAPS };
+const OFFLINE_BROWSER: WidgetRuntimeEnv = { runtime: 'browser', offlineAssets: true, maps: MAPS };
 
-beforeEach(() => leafletLoads.mockClear());
+beforeEach(() => engineLoads.mockClear());
 afterEach(cleanup);
 
 describe('resolveOfflineWidgetId — "runtime === desktop or offlineAssets === true"', () => {
@@ -96,6 +102,26 @@ describe('resolveOfflineWidgetId — "runtime === desktop or offlineAssets === t
   });
 });
 
+describe('mapServerOf — the one read of where a map may come from', () => {
+  it('is the session\'s server in a browser', () => {
+    expect(mapServerOf(BROWSER_MAPS_ON)).toBe('https://maps.example.test');
+  });
+
+  it('is null with no provider: the bundle itself names no server', () => {
+    expect(mapServerOf(DEFAULT_WIDGET_RUNTIME_ENV)).toBeNull();
+  });
+
+  it('is null while maps are switched off', () => {
+    expect(mapServerOf({ ...BROWSER, maps: { server: null, routing: false } })).toBeNull();
+    expect(mapServerOf({ ...BROWSER, maps: { server: '  ', routing: false } })).toBeNull();
+  });
+
+  it('is null on the desktop app and under the offline policy, whatever the session says', () => {
+    expect(mapServerOf(DESKTOP)).toBeNull();
+    expect(mapServerOf(OFFLINE_BROWSER)).toBeNull();
+  });
+});
+
 describe('the fallback target is real', () => {
   it('is registered in the live registry', () => {
     // Guards the guard: WidgetHost resolves the id and then reads the map. If
@@ -133,30 +159,30 @@ async function mountedWidget(): Promise<string | null> {
 describe('WidgetHost — the wiring, against the real registry', () => {
   const data = { status: 'success' as const, data: widgetRegistry.get('map-bubble')?.demoData(7) };
 
-  it('mounts the real bubble map in a browser runtime — and reaches for Leaflet', async () => {
+  it('mounts the real bubble map in a browser runtime with maps on — and reaches for the engine', async () => {
     render(
-      <WidgetRuntimeProvider env={BROWSER}>
+      <WidgetRuntimeProvider env={BROWSER_MAPS_ON}>
         <WidgetHost widgetId="map-bubble" instanceId="i1" config={{}} data={data} />
       </WidgetRuntimeProvider>,
     );
     expect(await mountedWidget()).toBe('map-bubble');
     // Proves the observable the two tests below rely on actually fires: online,
-    // a placed bubble map DOES pull the map engine. Without this, "Leaflet was
+    // a placed bubble map DOES pull the map engine. Without this, "the engine was
     // never loaded" would also pass on a spy that could never be called.
-    await waitFor(() => expect(leafletLoads).toHaveBeenCalled());
+    await waitFor(() => expect(engineLoads).toHaveBeenCalled());
   });
 
-  it('mounts the tilegram in a desktop runtime, and NEVER loads Leaflet', async () => {
+  it('mounts the tilegram in a desktop runtime, and NEVER loads the engine', async () => {
     render(
       <WidgetRuntimeProvider env={DESKTOP}>
         <WidgetHost widgetId="map-bubble" instanceId="i2" config={{}} data={data} />
       </WidgetRuntimeProvider>,
     );
     expect(await mountedWidget()).toBe('map-choropleth-grid');
-    // The maps row, verbatim: "Leaflet is never loaded in desktop runtime".
+    // The maps row: "the map engine is never loaded in desktop runtime".
     // The mount effect that would import it belongs to a component that was
     // never constructed, so there is nothing to fail and nothing to catch.
-    expect(leafletLoads).not.toHaveBeenCalled();
+    expect(engineLoads).not.toHaveBeenCalled();
   });
 
   it('mounts the tilegram when offlineAssets is forced on a browser runtime', async () => {
@@ -166,14 +192,29 @@ describe('WidgetHost — the wiring, against the real registry', () => {
       </WidgetRuntimeProvider>,
     );
     expect(await mountedWidget()).toBe('map-choropleth-grid');
-    expect(leafletLoads).not.toHaveBeenCalled();
+    expect(engineLoads).not.toHaveBeenCalled();
   });
 
-  it('renders the real map with no provider at all (the default is online)', async () => {
-    // Self-host and Cloud mount no provider today. If the default ever flipped,
-    // every map in the product would quietly become a tilegram.
+  it('mounts the map widget with no provider at all (the default is online), and loads no engine', async () => {
+    // No provider is a browser with no map server named. The map widget still
+    // mounts (it is not swapped for the tilegram: that is the offline rule) and
+    // shows its list and "maps are switched off" — asking for nothing.
     render(<WidgetHost widgetId="map-bubble" instanceId="i4" config={{}} data={data} />);
     expect(await mountedWidget()).toBe('map-bubble');
+    await waitFor(() => expect(document.querySelector('[data-part="map-off"]')).not.toBeNull());
+    expect(document.querySelector('[data-widget="map-bubble"]')?.getAttribute('data-map-status')).toBe('off');
+    expect(engineLoads).not.toHaveBeenCalled();
+  });
+
+  it('maps switched off in a browser: the map widget, its list, and no engine', async () => {
+    render(
+      <WidgetRuntimeProvider env={{ ...BROWSER, maps: { server: null, routing: false } }}>
+        <WidgetHost widgetId="map-bubble" instanceId="i6" config={{}} data={data} />
+      </WidgetRuntimeProvider>,
+    );
+    expect(await mountedWidget()).toBe('map-bubble');
+    await waitFor(() => expect(document.querySelectorAll('[data-part="geo-ranking-row"]').length).toBeGreaterThan(0));
+    expect(engineLoads).not.toHaveBeenCalled();
   });
 
   it('leaves a non-map widget alone in a desktop runtime', async () => {

@@ -15,7 +15,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import type { RealtimeClient, RealtimeClientOptions, RealtimeEvent } from '../app/ws.js';
-import { createStreamTransport } from './streamTransport.js';
+import { BARE_CHANGE_WAIT_MS, createStreamTransport } from './streamTransport.js';
 
 function makeFakeClient() {
   return {
@@ -235,5 +235,68 @@ describe('STREAM_SSE_EVENT_TYPES over the real SSE fallback', () => {
       'record.undo',
     ]);
     transport.stop();
+  });
+});
+
+describe('a frame that says only "this table changed"', () => {
+  const bare = (channel: string, type = 'record.update'): RealtimeEvent => ({ channel, type, data: { type, pk: null, row: null, changed: true }, ts: '2026-10-11T00:00:00Z' });
+
+  it('is gathered: a burst of them is handed on once, when the wait ends', () => {
+    vi.useFakeTimers();
+    try {
+      const { transport, options } = harness();
+      const got: RealtimeEvent[] = [];
+      transport.subscribe('widget-data:c:public.quotes', (e) => got.push(e));
+      // Two colleagues typing: forty writes of the table inside one wait.
+      for (let i = 0; i < 40; i += 1) {
+        options[0]!.onEvent(bare('widget-data:c:public.quotes'));
+        vi.advanceTimersByTime(10);
+      }
+      expect(got).toHaveLength(0);
+      vi.advanceTimersByTime(BARE_CHANGE_WAIT_MS);
+      expect(got).toHaveLength(1);
+      // The next write starts the next wait: one more, not none.
+      options[0]!.onEvent(bare('widget-data:c:public.quotes'));
+      vi.advanceTimersByTime(BARE_CHANGE_WAIT_MS);
+      expect(got).toHaveLength(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('is gathered per channel and kind, and never holds back a frame that names a row', () => {
+    vi.useFakeTimers();
+    try {
+      const { transport, options } = harness();
+      const got: string[] = [];
+      for (const channel of ['widget-data:c:public.quotes', 'widget-data:c:public.deals']) transport.subscribe(channel, (e) => got.push(`${e.channel.split('.').pop()!}:${e.type}`));
+      options[0]!.onEvent(bare('widget-data:c:public.quotes'));
+      options[0]!.onEvent(bare('widget-data:c:public.deals'));
+      options[0]!.onEvent(bare('widget-data:c:public.quotes', 'record.attachments'));
+      // A row of their own, told in full: handed on now.
+      options[0]!.onEvent(event('widget-data:c:public.quotes'));
+      // A frame with no row that is not marked (an undo, as everybody gets it) is as it always was.
+      options[0]!.onEvent({ channel: 'widget-data:c:public.quotes', type: 'record.undo', data: { type: 'record.undo', pk: null, row: null }, ts: '2026-10-11T00:00:00Z' });
+      expect(got).toEqual(['quotes:record.create', 'quotes:record.undo']);
+      vi.advanceTimersByTime(BARE_CHANGE_WAIT_MS);
+      expect(got.slice(2).sort()).toEqual(['deals:record.update', 'quotes:record.attachments', 'quotes:record.update']);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('is dropped with the connection: nothing is handed on after the last listener left', () => {
+    vi.useFakeTimers();
+    try {
+      const { transport, options } = harness();
+      const got: RealtimeEvent[] = [];
+      const stop = transport.subscribe('widget-data:c:public.quotes', (e) => got.push(e));
+      options[0]!.onEvent(bare('widget-data:c:public.quotes'));
+      stop();
+      vi.advanceTimersByTime(BARE_CHANGE_WAIT_MS * 2);
+      expect(got).toHaveLength(0);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

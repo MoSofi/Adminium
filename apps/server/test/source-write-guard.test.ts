@@ -29,8 +29,12 @@ const ALLOWED: Record<string, string> = {
     "a waitlist claim's release (`reserved.releaseTo`): the kept places it took move to their released state inside the claim's own write, under the pool's lock the judge holds — their state column only, with no audit row or live frame of their own",
   'schema-ddl/rename-repair.ts':
     "a renamed table's stored name, rewritten in the columns that keep one (a receipt's source and line): Adminium's own mend of its own text, on rows no rule of the table may refuse or decide",
+  'crud/rows-naming.ts':
+    "a leaver's rows handed to somebody else, as the person is suspended or removed: only the columns that decide whose a row is, a database's rows in one transaction, with one audit entry a table and the count (`rbac/hand-over.ts`) — no hook, rule or live frame a row, for a person who is no longer here",
+  'outbox/release.ts':
+    "a removed row's mail (`outbox.onDelete: release`): inside the delete's own write, the outbox rows that link to it lose the link, as a foreign key's ON DELETE SET NULL would, and its messages that had not gone are skipped as removed — put back as they were when the delete removes nothing; the delete's audit and live frame carry it",
   'apps/sample-data.ts':
-    "an app's sample-data ledger: Adminium's own list of the rows it added; the sample rows themselves go through the write service",
+    "an app's sample-data ledger: Adminium's own list of the rows it added; the sample rows themselves go through the write service (and what a sample fills in a row already there, `@fillEmpty`, is written and emptied again as that list says)",
 };
 
 /** Kysely's write builders, unless their table is one of Adminium's own. */

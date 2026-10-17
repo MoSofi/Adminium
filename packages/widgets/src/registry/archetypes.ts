@@ -39,9 +39,11 @@ import {
   firstWithSemantic,
   isFileShaped,
   messagesChildOf,
+  namedBoardColumn,
   personFk,
   projectFk,
   withSemantic,
+  type BoardColumns,
   type CandidateContext,
   type CandidateTable,
   type CandidateTableInput,
@@ -121,8 +123,17 @@ export interface ArchetypeRule {
  * still no board. Any second copy of that test would drift silently, because
  * nothing downstream diffs why a page failed to compose — it just does not
  * appear. `@adminium/engine`'s `templateFit` calls this one.
+ *
+ * A board whose columns somebody NAMED (`board`, an app's `config.board`) is
+ * not guessed at: the named column is the status when the table can carry
+ * that board (`namedBoardColumn`), and nothing else is — a workflow enum
+ * beside it does not stand in for a column the app got wrong.
  */
-export function boardStatus(view: CandidateView): { column: ViewColumn; boardish: string[] } | null {
+export function boardStatus(view: CandidateView, board?: BoardColumns | undefined): { column: ViewColumn; boardish: string[] } | null {
+  if (board !== undefined) {
+    const named = namedBoardColumn(view, board);
+    return named === null ? null : { column: named, boardish: [...named.enumValues] };
+  }
   if (view.shape === 'log' || view.role === 'log') return null;
   const status = firstWithSemantic(view, 'status-workflow');
   if (status === null || status.enumValues.length === 0 || status.enumValues.length > 6) {
@@ -150,10 +161,13 @@ export function shiftTypeColumn(view: CandidateView): ViewColumn | null {
 /** The trigger: "Status enum classified as workflow; optional lane dimension". */
 const pageBoard: ArchetypeRule = {
   template: 'page-board',
-  match(view) {
-    const hit = boardStatus(view);
+  match(view, ctx) {
+    const hit = boardStatus(view, ctx.board);
     if (hit === null) return null;
     const { column: status, boardish } = hit;
+    if (ctx.board !== undefined) {
+      return { score: score(0.95), reasons: [`"${status.name}" named as the board's columns`] };
+    }
     const lane =
       enumColumns(view).find((c) => c.name !== status.name && c.semantic === 'category-enum') ??
       personFk(view) ??

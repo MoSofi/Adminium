@@ -32,6 +32,7 @@
  * cannot change how any other route reads a body.
  */
 
+import type { FileRecord } from '../../files/read-limited.js';
 import type { Readable } from 'node:stream';
 
 import type { FastifyRequest } from 'fastify';
@@ -114,6 +115,12 @@ export interface FilesRoutesDeps {
    * not theirs either. Absent: a file is read with its table, whole.
    */
   hiddenFile?: ((request: FastifyRequest, file: StoredFile) => Promise<boolean>) | undefined;
+  /**
+   * Whether the caller reaches the record a file hangs on (`files/read-
+   * limited.ts`), for somebody a role holds to some rows of its table.
+   * Absent: nobody here is held to rows (a harness with no source database).
+   */
+  reachesRecord?: ((request: FastifyRequest, record: FileRecord, action: 'read' | 'update') => Promise<boolean>) | undefined;
   storage: FileStore;
   /** Storage-credential closures, for the destination names on `GET /files/usage`. */
   storageCrypto: DsnCrypto;
@@ -131,7 +138,23 @@ export interface FilesRoutesDeps {
     accept?: readonly string[] | undefined;
     maxBytes?: number | undefined;
     destinationId?: string | undefined;
+    /** The app's own `column.file` rule: a picture uploaded for it is kept without its camera notes. */
+    ruled?: true | undefined;
   } | null>;
+  /**
+   * A table as the database knows it (`main.sign_offs`), for the name an
+   * app's screen gives (`sign_offs`, from its side's config): the grant
+   * asked and the record a file is kept for name the one table either way.
+   * Null for a table it does not know, which is then asked as given.
+   */
+  tableIdOf?: ((connectionId: string, table: string) => Promise<string | null>) | undefined;
+  /**
+   * Whether a record holds this file in a column an app's own rule makes a
+   * file column: such a file is changed only through its record (a new
+   * value, or the record removed), never taken off, renamed, thrown away or
+   * hung on another record here. Absent: no such column exists.
+   */
+  heldByRecord?: ((file: StoredFile) => Promise<boolean>) | undefined;
   /**
    * The table's `config.attachments` block, for a SIDECAR upload (one that
    * names no column). Absent ⇒ sidecar uploads take only the workspace
@@ -235,17 +258,45 @@ export function filesRoutes(deps: FilesRoutesDeps): FastifyPluginAsyncZod {
    */
   async function canRead(request: FastifyRequest, file: StoredFile): Promise<boolean> {
     const permission = entityPermission(file, 'read');
-    if (permission !== null) return (await request.can(permission)) && !((await deps.hiddenFile?.(request, file)) ?? false);
+    if (permission !== null) return (await request.can(permission)) && !((await deps.hiddenFile?.(request, file)) ?? false) && (await reaches(request, file, 'read'));
     if (file.uploadedBy !== null && file.uploadedBy === request.user?.id) return true;
     return request.can(FILES_MANAGE_PERMISSION);
   }
 
-  /** May this caller change or remove it? `update` on the entity, else the uploader. */
+  /**
+   * Whether the caller reaches the record this file hangs on. A file of a
+   * table whose rows the caller reads only in part is read and changed with
+   * its record — by its uploader and by a holder of `files.manage` too.
+   */
+  async function reaches(request: FastifyRequest, file: StoredFile, action: 'read' | 'update'): Promise<boolean> {
+    if (deps.reachesRecord === undefined || file.entityConnectionId === null || file.entityTable === null) return true;
+    return deps.reachesRecord(request, { connectionId: file.entityConnectionId, table: file.entityTable, recordId: file.entityId, uploadedBy: file.uploadedBy }, action);
+  }
+
+  /** May this caller change or remove it? `update` on the entity, else the uploader — and, of a record, one their update reaches. */
   async function canWrite(request: FastifyRequest, file: StoredFile): Promise<boolean> {
+    if (!(await reaches(request, file, 'update'))) return false;
     const permission = entityPermission(file, 'update');
     if (permission !== null && (await request.can(permission))) return true;
     if (file.uploadedBy !== null && file.uploadedBy === request.user?.id) return true;
     return request.can(FILES_MANAGE_PERMISSION);
+  }
+
+  /**
+   * What an audit entry about a file says of the record it hangs on: its
+   * connection and its table, so the log leaves the entry out for a reader
+   * who reaches only some rows of that table (`routes/audit`), as it does a
+   * record's own entries. Nothing for a file that hangs on no record.
+   */
+  const ofRecord = (file: StoredFile): { connectionId?: string } => (file.entityConnectionId === null || file.entityTable === null ? {} : { connectionId: file.entityConnectionId });
+  const tableOf = (file: StoredFile): { table?: string } => (file.entityConnectionId === null || file.entityTable === null ? {} : { table: file.entityTable });
+
+  /** A file a record keeps in an app's own file column is changed through its record alone. */
+  async function refuseHeld(file: StoredFile): Promise<void> {
+    if (deps.heldByRecord === undefined || file.entityId === null) return;
+    if (await deps.heldByRecord(file)) {
+      throw new ConflictError('This file is kept by its record. Change the record to change the file.', 'FILE_HELD', { fileId: file.id });
+    }
   }
 
   /** Load a served-kind file, or 404. Trashed rows 404 on content, not on read. */
@@ -330,7 +381,12 @@ export function filesRoutes(deps: FilesRoutesDeps): FastifyPluginAsyncZod {
       },
       async (request, reply) => {
         const userId = requireUserId(request);
-        const { filename, connectionId, table, recordId, column } = request.query;
+        const { filename, connectionId, recordId, column } = request.query;
+        // The table by the id the database gives it, however the screen named it.
+        const table =
+          request.query.table === undefined || connectionId === undefined || deps.tableIdOf === undefined
+            ? request.query.table
+            : ((await deps.tableIdOf(connectionId, request.query.table)) ?? request.query.table);
 
         /*
          * A file always belongs to a CONNECTION; whether it also belongs to a
@@ -387,6 +443,10 @@ export function filesRoutes(deps: FilesRoutesDeps): FastifyPluginAsyncZod {
               { permission: updatePermission },
             );
           }
+          // A record somebody held to some rows of the table does not reach is, for them, a record that is not there.
+          if (recordId !== undefined && deps.reachesRecord !== undefined && !(await deps.reachesRecord(request, { connectionId, table, recordId, uploadedBy: userId }, 'update'))) {
+            throw new NotFoundError('Record not found.');
+          }
         }
 
         // A COLUMN upload reads that column's `file` block; a SIDECAR upload
@@ -435,6 +495,7 @@ export function filesRoutes(deps: FilesRoutesDeps): FastifyPluginAsyncZod {
             maxBytes,
             allowedTypes: await allowedTypesFor(limits?.accept),
             uploadedBy: userId,
+            clean: block?.ruled === true,
             ...(destinationId === undefined
               ? {}
               : { destinationId: destinationId === LOCAL_DESTINATION_ID ? null : destinationId }),
@@ -533,11 +594,10 @@ export function filesRoutes(deps: FilesRoutesDeps): FastifyPluginAsyncZod {
         // A caller with `files.manage` sees everything; anyone else additionally
         // passes the per-file read rule, so a table grant they lack cannot leak
         // a row through a record filter.
-        const visible = manage
-          ? page.rows
-          : (await Promise.all(page.rows.map(async (row) => ((await canRead(request, row)) ? row : null)))).filter(
-              (row): row is StoredFile => row !== null,
-            );
+        // …and a file of a record out of the caller's reach is listed for nobody, that grant or not.
+        const visible = (await Promise.all(page.rows.map(async (row) => ((manage ? await reaches(request, row, 'read') : await canRead(request, row)) ? row : null)))).filter(
+          (row): row is StoredFile => row !== null,
+        );
 
         return { data: visible.map(toView), nextCursor: page.nextCursor };
       },
@@ -713,6 +773,11 @@ export function filesRoutes(deps: FilesRoutesDeps): FastifyPluginAsyncZod {
         // The file must already be one the caller could act on — otherwise
         // attaching would be a way to adopt somebody else's upload.
         if (!(await canWrite(request, file))) throw new NotFoundError(`File ${request.params.id} not found.`);
+        await refuseHeld(file);
+        // …and the record it is hung on, one their update reaches: for them any other is not there.
+        if (deps.reachesRecord !== undefined && !(await deps.reachesRecord(request, { connectionId, table, recordId, uploadedBy: request.user?.id ?? null }, 'update'))) {
+          throw new NotFoundError('Record not found.');
+        }
 
         const attached = await files.attach(file.id, {
           connectionId,
@@ -742,6 +807,7 @@ export function filesRoutes(deps: FilesRoutesDeps): FastifyPluginAsyncZod {
         requireUserId(request);
         const file = await load(request.params.id);
         if (!(await canWrite(request, file))) throw new NotFoundError(`File ${request.params.id} not found.`);
+        await refuseHeld(file);
         const detached = await files.detach(file.id);
         if (detached === null) throw new NotFoundError(`File ${request.params.id} not found.`);
         // The PRE-image: detach clears the entity columns, so `detached`
@@ -767,6 +833,7 @@ export function filesRoutes(deps: FilesRoutesDeps): FastifyPluginAsyncZod {
         requireUserId(request);
         const file = await load(request.params.id);
         if (!(await canWrite(request, file))) throw new NotFoundError(`File ${request.params.id} not found.`);
+        await refuseHeld(file);
         // The DISPLAY name only. The storage key is untouched — renaming an
         // object in a bucket would break every `key`-shaped reference already
         // written into a customer's column.
@@ -775,7 +842,8 @@ export function filesRoutes(deps: FilesRoutesDeps): FastifyPluginAsyncZod {
         await app.rbac.audit(request, {
           category: 'data',
           action: 'file.rename',
-          changes: { before: { filename: file.filename }, after: { filename: request.body.filename } },
+          ...ofRecord(file),
+          changes: { before: { filename: file.filename, ...tableOf(file) }, after: { filename: request.body.filename } },
         });
         return { data: toView(renamed) };
       },
@@ -791,6 +859,7 @@ export function filesRoutes(deps: FilesRoutesDeps): FastifyPluginAsyncZod {
         requireUserId(request);
         const file = await load(request.params.id);
         if (!(await canWrite(request, file))) throw new NotFoundError(`File ${request.params.id} not found.`);
+        await refuseHeld(file);
         // TRASH, never delete (D12). A file referenced from a customer's own
         // column cannot be proven unreferenced, so hard-delete is only ever the
         // retention purge.
@@ -800,7 +869,8 @@ export function filesRoutes(deps: FilesRoutesDeps): FastifyPluginAsyncZod {
         await app.rbac.audit(request, {
           category: 'data',
           action: 'file.delete',
-          changes: { before: { fileId: file.id, filename: file.filename } },
+          ...ofRecord(file),
+          changes: { before: { fileId: file.id, filename: file.filename, ...tableOf(file) } },
         });
         return { data: toView(trashed ?? file) };
       },
@@ -824,7 +894,8 @@ export function filesRoutes(deps: FilesRoutesDeps): FastifyPluginAsyncZod {
         await app.rbac.audit(request, {
           category: 'data',
           action: 'file.restore',
-          changes: { after: { fileId: file.id, filename: file.filename } },
+          ...ofRecord(file),
+          changes: { after: { fileId: file.id, filename: file.filename, ...tableOf(file) } },
         });
         return { data: toView(restored) };
       },

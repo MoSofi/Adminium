@@ -113,5 +113,74 @@ export default {
   "apps": {
     "every": "Otevírat obrazovky pro personál všech aplikací",
     "one": "Otevírat obrazovky pro personál aplikace {app}"
+  },
+  "rows": {
+    "locked": "Super Admin dosáhne na každý řádek.",
+    "saveFirst": "Nejprve uložte nebo zahoďte změny oprávnění.",
+    "action": "Řádky",
+    "actionLabel": {
+      "read": "Číst",
+      "update": "Měnit",
+      "delete": "Mazat"
+    },
+    "way": {
+      "person": "osobě ve sloupci {column}",
+      "listingDated": "komukoli, kdo je k němu ten den zapsán v tabulce {table}",
+      "listing": "komukoli, kdo je k němu zapsán v tabulce {table}",
+      "parent": "každému, kdo dosáhne na jeho záznam v tabulce {table}",
+      "whileIn": "dokud je {column} {values}",
+      "whileEmpty": "dokud je {column} prázdné",
+      "whileSet": "dokud je {column} vyplněné"
+    },
+    "follows": "Řídí se podle: {table}",
+    "belongs": "Řádek patří {ways}.",
+    "sentence": {
+      "all": "Každý řádek tabulky {table}.",
+      "allWhile": "Každý řádek tabulky {table}",
+      "team": "Jen řádky, které patří této osobě nebo někomu z týmu, který vede",
+      "own": "Jen řádky, které patří této osobě",
+      "unowned": "a řádky, které zatím nikomu nepatří",
+      "while": "jen dokud je {column} {values}",
+      "by": "a jen ty, ve kterých je uvádí {column}",
+      "allWho": "Každý řádek tabulky {table}, ať je {column} kdokoli.",
+      "only": "Jen řádky tabulky {table}, kde {ways}",
+      "onlyTeam": "Jen řádky tabulky {table}, kde {ways}, nebo někdo z týmu, který vede",
+      "onlyTeamWays": "Jen řádky tabulky {table}, kde {ways}, nebo totéž pro někoho z týmu, který vede"
+    },
+    "title": "Na které řádky dosáhne role „{role}“",
+    "intro": "Role dosáhne na každý řádek tabulky, kterou smí otevřít, pokud ji tady neomezíte. Omezení pro člověka platí jen tehdy, když je omezená každá role, která mu tabulku dává.",
+    "loadFailed": "Tabulky se nepodařilo načíst.",
+    "empty": {
+      "title": "Není co omezit",
+      "body": "Žádná tabulka, kterou tato role smí otevřít, neříká, komu její řádky patří."
+    },
+    "tryAs": "Vyzkoušet jako",
+    "tryAsNone": "Nikdo",
+    "samplePerson": "{name} (ukázka)",
+    "failed": "Omezení řádků se nepodařilo uložit",
+    "private": "Čtou ji lidé, kterým daný řádek patří, a nikdo jiný. Není tu co volit.",
+    "reachLabel": "{action}: které řádky",
+    "reach": {
+      "all": "Všechny řádky",
+      "own": "Vlastní",
+      "team": "Řádky týmu",
+      "allWhile": "Každý řádek, jen dokud…"
+    },
+    "unowned": "a řádky, které zatím nikomu nepatří",
+    "widened": "Tato role otevírá tabulku přes širší oprávnění. Uložením omezení dostane tabulku také jmenovitě.",
+    "count": "{name} by viděl(a) {reached} z {total} řádků tabulky {table}.",
+    "capped": "Tato osoba vede víc lidí, než kolik se do jednoho dosahu vejde, takže se nepočítá celý její tým.",
+    "lifted": "{name} má také {roles}, což dává každý řádek. Toto omezení pro ni neplatí.",
+    "several": "Stačí kterákoli z nich. Nastavila je aplikace a zůstávají tak, jak je zapsala.",
+    "wayIs": {
+      "person": "{column} je tato osoba",
+      "listing": "je tato osoba zapsána v tabulce {table}",
+      "listingDated": "je tato osoba ten den zapsána v tabulce {table}",
+      "parent": "tato osoba dosáhne na jeho záznam v tabulce {table}"
+    }
+  },
+  "partsOff": "Její část aplikace je vypnutá: dokud se nezapne, role nic neuděluje.",
+  "people": {
+    "unnamed": "Nepojmenovaná osoba"
   }
 } as const;

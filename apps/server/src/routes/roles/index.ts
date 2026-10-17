@@ -13,16 +13,22 @@
  * Built-ins cannot be renamed or deleted (409). Every mutation writes an
  * `rbac`-category audit entry (dotted verb + resource — anatomy).
  */
+import { sameLanguage } from '../../i18n/bcp47.js';
+import { loadAppParts, roleIsOffered } from '../../rbac/app-parts.js';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
-import { permissionsRepo, rolesRepo, usersRepo, type Role, type TableActions, type ReadLimit, type UpdateLimit } from '@adminium/meta';
+import { permissionsRepo, rolesRepo, rowReachList, usersRepo, type Role, type TableActions, type ReadLimit, type RowLimit, type UpdateLimit, roleNameFor, userPrefsRepo } from '@adminium/meta';
 
 import { ConflictError, ForbiddenError, NotFoundError, ValidationFailedError } from '../../errors.js';
 import {
   PERMISSIONS,
+  grantMatches,
   grantsFromMatrixRows,
   matrixRowsFromGrants,
 } from '../../rbac/permissions.js';
+import type { EffectiveModel } from '../../connections/effective-schema.js';
+import { loadSnapshotView } from '../../data-io/snapshot-view.js';
 import { SUPER_ADMIN_SLUG } from '../../rbac/resolver.js';
+import { rowLimitIssue } from '../../rbac/row-limit-check.js';
 import {
   roleCreateBody,
   roleDeleteQuery,
@@ -40,16 +46,27 @@ import {
   type RoleDto,
 } from './schema.js';
 
-function toDto(role: Role): RoleDto {
+function toDto(role: Role, locale?: string): RoleDto {
   return {
     id: role.id,
     slug: role.slug,
-    name: role.name,
+    // An app's role under its name in the reader's language, until the owner renames it.
+    name: locale === undefined ? role.name : roleNameFor(role, (names) => sameLanguage(names, locale)),
     description: role.description,
     isBuiltin: role.isBuiltin,
     createdAt: role.createdAt,
     updatedAt: role.updatedAt,
   };
+}
+
+/** The row limits a role's matrix rows carry, by table. */
+function rowLimitsOf(rows: readonly { resourceKind: string; resourceRef: string; actions: unknown }[]): Record<string, RowLimit> {
+  const out: Record<string, RowLimit> = {};
+  for (const row of rows) {
+    const limit = row.resourceKind === 'table' ? (row.actions as TableActions).rowLimit : undefined;
+    if (limit !== undefined) out[row.resourceRef] = limit;
+  }
+  return out;
 }
 
 /** `Custom Support Role` → `custom-support-role` (slug column is str(40)). */
@@ -90,7 +107,8 @@ export const rolesRoutes: FastifyPluginAsyncZod = async (app) => {
       preHandler: app.rbac.require(PERMISSIONS.rolesManage),
       schema: { response: { 200: roleListReply } },
     },
-    async () => {
+    async (request) => {
+      const locale = request.user === null || request.user === undefined ? undefined : (await userPrefsRepo(meta).resolve(request.user.id)).locale;
       const [all, counts] = await Promise.all([
         roles.list(),
         meta.db
@@ -100,8 +118,15 @@ export const rolesRoutes: FastifyPluginAsyncZod = async (app) => {
           .execute(),
       ]);
       const countByRole = new Map(counts.map((row) => [row.roleId, Number(row.memberCount)]));
+      // A role of an app's parts is offered while one of them is on: one that is not says so, and is given to nobody new.
+      const parts = await loadAppParts(meta, [...new Set(all.flatMap((role) => (role.appKey === null || role.modules === null ? [] : [role.appKey])))]);
       return {
-        roles: all.map((role) => ({ ...toDto(role), memberCount: countByRole.get(role.id) ?? 0 })),
+        roles: all.map((role) => ({
+          ...toDto(role, locale),
+          memberCount: countByRole.get(role.id) ?? 0,
+          ...(role.appKey === null ? {} : { appKey: role.appKey }),
+          ...(roleIsOffered(role, parts) ? {} : { partsOff: true as const }),
+        })),
       };
     },
   );
@@ -227,7 +252,8 @@ export const rolesRoutes: FastifyPluginAsyncZod = async (app) => {
     },
     async (request) => {
       const role = await mustFindRole(request.params.id);
-      return { roleId: role.id, grants: grantsFromMatrixRows(await permissions.listForRole(role.id)) };
+      const held = await permissions.listForRole(role.id);
+      return { roleId: role.id, grants: grantsFromMatrixRows(held), rows: rowLimitsOf(held) };
     },
   );
 
@@ -249,6 +275,11 @@ export const rolesRoutes: FastifyPluginAsyncZod = async (app) => {
           slug: role.slug,
         });
       }
+      const models = new Map<string, EffectiveModel | null>();
+      const modelOf = async (connectionId: string): Promise<EffectiveModel | null> => {
+        if (!models.has(connectionId)) models.set(connectionId, await loadSnapshotView(meta, connectionId).then((view) => view.model, () => null));
+        return models.get(connectionId) ?? null;
+      };
       const { rows, invalid } = matrixRowsFromGrants(request.body.grants);
       if (invalid.length > 0) {
         throw new ValidationFailedError('One or more grants are outside the permission grammar.', {
@@ -268,7 +299,11 @@ export const rolesRoutes: FastifyPluginAsyncZod = async (app) => {
       const reads = new Map<string, ReadLimit>();
       // …and a limit on a create (a kitchen tablet never picks an order's channel or its link code).
       const creates = new Map<string, UpdateLimit>();
+      // …and which rows a read, an update or a delete reaches (a rep reads their own deals): dropped, the role would reach every row.
+      const rowLimits = new Map<string, RowLimit>();
       for (const row of held) {
+        const rows = row.resourceKind === 'table' ? (row.actions as TableActions).rowLimit : undefined;
+        if (rows !== undefined) rowLimits.set(row.resourceRef, rows);
         const limit = row.resourceKind === 'table' ? (row.actions as TableActions).updateLimit : undefined;
         if (limit !== undefined) limits.set(row.resourceRef, limit);
         const read = row.resourceKind === 'table' ? (row.actions as TableActions).readLimit : undefined;
@@ -276,33 +311,89 @@ export const rolesRoutes: FastifyPluginAsyncZod = async (app) => {
         const create = row.resourceKind === 'table' ? (row.actions as TableActions).createLimit : undefined;
         if (create !== undefined) creates.set(row.resourceRef, create);
       }
+      // What the editor changed of "which rows": set, or taken off; a table it did not send keeps its own.
+      const granted = new Set(rows.filter((row) => row.resourceKind === 'table').map((row) => row.resourceRef));
+      for (const [ref, limit] of Object.entries(request.body.rows ?? {})) {
+        if (limit === null || Object.keys(limit).length === 0) {
+          rowLimits.delete(ref);
+          continue;
+        }
+        if (!granted.has(ref)) {
+          throw new ValidationFailedError('A row limit narrows a grant: the role holds nothing on that table.', { fields: { rows: { code: 'not-granted', table: ref } } });
+        }
+        // The table itself: there, saying whose its rows are, not private, and told apart by a column everybody who reads it sees.
+        const [connectionId, ...rest] = ref.split('/');
+        const tableId = rest.join('/');
+        const model = connectionId === undefined || connectionId === '' ? null : await modelOf(connectionId);
+        const wrong = model === null ? ({ code: 'no-such-table', message: 'That table is not there.', action: '' } as const) : rowLimitIssue(model, tableId, limit);
+        if (wrong !== null) throw new ValidationFailedError(wrong.message, { fields: { rows: { code: wrong.code, table: ref, ...(wrong.action === '' ? {} : { action: wrong.action }), ...('column' in wrong && wrong.column !== undefined ? { column: wrong.column } : {}) } } });
+        const own = rows.find((row) => row.resourceKind === 'table' && row.resourceRef === ref)?.actions as TableActions | undefined;
+        for (const [action, written] of Object.entries(limit)) {
+          // A limit is stored on the table's own row and read from it: an action that row does not give is given, if at all, by a
+          // wider grant, which no limit here narrows. The screen would say "their own rows" and the role would reach every row.
+          if (written !== undefined && own?.[action as 'read' | 'update' | 'delete'] !== true) {
+            throw new ValidationFailedError(`A row limit narrows an action the role is given on that table itself: it is not given "${action}" there.`, { fields: { rows: { code: 'action-not-granted', table: ref, action } } });
+          }
+          // "Every row" is the plain grant; it is written as a limit only to say "only while". Each of several reaches alike:
+          // one of them that reached every row would make the others say nothing.
+          if (rowReachList(written).some((reach) => reach.reach === 'all' && reach.while === undefined)) {
+            throw new ValidationFailedError('"Every row" is the grant itself: take the limit off, or say only while.', { fields: { rows: { code: 'all-without-while', table: ref, action } } });
+          }
+        }
+        rowLimits.set(ref, limit);
+      }
+      // A limited table whose own row this save takes away, while a wider grant still gives the action there: the limit would
+      // go with the row and the role reach every row, with nothing said. Refused, unless the limit is taken off by name.
+      for (const [ref, limit] of rowLimits) {
+        if (granted.has(ref) || request.body.rows?.[ref] === null) continue;
+        const [connectionId, ...rest] = ref.split('/');
+        const lifted = Object.keys(limit).filter((action) => request.body.grants.some((grant) => grantMatches(grant, `table:${connectionId ?? ''}:${rest.join('/')}:${action}`)));
+        if (lifted.length > 0) {
+          throw new ValidationFailedError('That table is held to some of its rows, and a wider grant would still give it: keep its own row, or take the row limit off first.', { fields: { rows: { code: 'limit-would-lift', table: ref, actions: lifted } } });
+        }
+      }
+      const beforeRows = rowLimitsOf(held);
       await meta.db.deleteFrom('adminium_role_permissions').where('roleId', '=', role.id).execute();
       for (const row of rows) {
         const limit = row.resourceKind === 'table' ? limits.get(row.resourceRef) : undefined;
         const read = row.resourceKind === 'table' ? reads.get(row.resourceRef) : undefined;
         const create = row.resourceKind === 'table' ? creates.get(row.resourceRef) : undefined;
+        const rowLimit = row.resourceKind === 'table' ? rowLimits.get(row.resourceRef) : undefined;
         const actions =
-          limit === undefined && read === undefined && create === undefined
+          limit === undefined && read === undefined && create === undefined && rowLimit === undefined
             ? row.actions
             : {
                 ...(row.actions as TableActions),
                 ...(limit === undefined ? {} : { updateLimit: limit }),
                 ...(read === undefined ? {} : { readLimit: read }),
                 ...(create === undefined ? {} : { createLimit: create }),
+                ...(rowLimit === undefined ? {} : { rowLimit }),
               };
         await permissions.grant(role.id, row.resourceKind, row.resourceRef, actions);
       }
-      const after = grantsFromMatrixRows(await permissions.listForRole(role.id));
+      const saved = await permissions.listForRole(role.id);
+      const after = grantsFromMatrixRows(saved);
+      const afterRows = rowLimitsOf(saved);
+      const rowsChanged = JSON.stringify(beforeRows) !== JSON.stringify(afterRows);
       await app.rbac.audit(request, {
         category: 'rbac',
         action: 'role.permission.change',
-        changes: { before: { grants: before }, after: { grants: after } },
+        changes: { before: { grants: before, ...(rowsChanged ? { rows: beforeRows } : {}) }, after: { grants: after, ...(rowsChanged ? { rows: afterRows } : {}) } },
       });
-      return { roleId: role.id, grants: after };
+      return { roleId: role.id, grants: after, rows: afterRows };
     },
   );
 
   // --- user-role assignment ----------------------------------------------------
+
+  /**
+   * A person an app's sample data made holds the roles the sample gave them
+   * and no other: given one by hand (Super Admin among them) they would
+   * count as a holder who can never sign in. Removing the sample removes them.
+   */
+  const assertNotSample = (user: { status: string }): void => {
+    if (user.status === 'sample') throw new ConflictError('This is a sample person. Removing the app\'s sample data removes them.', 'CONFLICT', { reason: 'SAMPLE_PERSON' });
+  };
 
   app.post(
     '/users/:id/roles',
@@ -313,6 +404,7 @@ export const rolesRoutes: FastifyPluginAsyncZod = async (app) => {
     async (request) => {
       const user = await users.findById(request.params.id);
       if (user === null) throw new NotFoundError('User not found.', { userId: request.params.id });
+      assertNotSample(user);
       const role = await mustFindRole(request.body.roleId);
       // granted_by is the acting *user* id when the actor is a session user.
       const actingUserId =
@@ -353,6 +445,7 @@ export const rolesRoutes: FastifyPluginAsyncZod = async (app) => {
     async (request) => {
       const user = await users.findById(request.params.id);
       if (user === null) throw new NotFoundError('User not found.', { userId: request.params.id });
+      assertNotSample(user);
       const role = await mustFindRole(request.params.roleId);
       if (role.slug === SUPER_ADMIN_SLUG) {
         // Demoting a Super Admin is as much a super-admin-only power as

@@ -44,9 +44,11 @@
  *    cancel online, and ring to move it. Staff are never refused.
  *
  * An update whose stored row is gone decides nothing here: it matches
- * nothing. Nor does a write that brings in HISTORY — an import, sample data,
- * an undo: those rows say what happened then, and a stamp of today's time or
- * today's person over them would be false.
+ * nothing. Nor does a write that brings in HISTORY — sample data, an app's
+ * seed rows, an undo: those rows say what happened then, and a stamp of
+ * today's time or today's person over them would be false. A file a person
+ * brings in is the one exception, and a narrow one: its stamps fill what a
+ * line leaves out and nothing else is decided (`stampLeftOut`).
  */
 import type { Kysely } from 'kysely';
 import type { Dialect, Relation } from '@adminium/engine';
@@ -87,6 +89,8 @@ export interface DecideContext {
   relations?: readonly Relation[] | undefined;
   /** What the connection's role may write: a renewed code it may not is refused by name. */
   rights?: TablePrivileges | null | undefined;
+  /** A file a person brings in: a stamp fills what a line leaves out (`WriteContext.stamps`). */
+  stamps?: 'left-out' | undefined;
 }
 
 /** Writes that put back what already happened: nothing is decided over them. */
@@ -100,13 +104,19 @@ function yes(table: ResolvedTable, column: string): true | 1 {
 
 const has = (values: Row, column: string) => Object.prototype.hasOwnProperty.call(values, column);
 
+/** The booking rule that asks about a late cancellation; a plain rule (a resource and a time) has none. */
+const lateRule = (rules: TableRules | null): TableBookingRule | undefined => {
+  const rule = rules?.booking;
+  return rule !== undefined && !('plain' in rule) && rule.cancel !== undefined ? rule : undefined;
+};
+
 /**
  * Whether a rule on this table needs the stored row before it can decide —
  * or work a formula out: a change of `qty` alone still needs the `rate`.
  */
 export function needsStored(rules: TableRules | null): boolean {
   return (
-    rules?.booking?.cancel !== undefined ||
+    lateRule(rules) !== undefined ||
     [...(rules?.stamps ?? []), ...(rules?.seals ?? [])].some((stamp) => stamp.on !== 'create') ||
     (rules?.formulas?.length ?? 0) > 0 ||
     // A price by the night reads the stay's other dates and its rate's link.
@@ -115,6 +125,8 @@ export function needsStored(rules: TableRules | null): boolean {
     rules?.states !== undefined ||
     (rules?.stateParents?.length ?? 0) > 0 ||
     (rules?.bounds ?? []).some((bound) => bound.notBefore !== undefined) ||
+    // A link that may name only some rows is judged when it moves: a value sent back as the row holds it is no move.
+    (rules?.linkable?.length ?? 0) > 0 ||
     // A column required while another holds a value is judged on the row as the write leaves it.
     (rules?.checks ?? []).some((check) => check.requiredWhen !== undefined) ||
     // A code renewed when the row changes hands: a change is judged against what is stored.
@@ -136,10 +148,12 @@ export async function decideRow(
   before: Row | null,
   context: DecideContext,
 ): Promise<Row> {
-  if (rules === null || action === 'delete' || HISTORY.has(context.origin)) return values;
+  if (rules === null || action === 'delete') return values;
+  if (HISTORY.has(context.origin)) return context.origin === 'import' && context.stamps === 'left-out' ? stampLeftOut(rules, action, values, before, context) : values;
   if (action === 'update' && before === null) return values;
   let out = values;
-  if (action === 'update' && rules.booking?.cancel !== undefined) out = await decideLate(rules.booking, out, before!, context);
+  const late = lateRule(rules);
+  if (action === 'update' && late !== undefined) out = await decideLate(late, out, before!, context);
   if (action === 'update' && (rules.states?.late?.length ?? 0) > 0) out = await decideStatesLate(rules, out, before!, context);
   // A move marked undo keeps the stamps of the state it returns to, and empties those marked clearOnBack of the one it leaves.
   const undo = action === 'update' ? undoMoveOf(rules.states, before, out) : null;
@@ -154,6 +168,24 @@ export async function decideRow(
   if (cleared.length > 0) moved = { ...moved, ...Object.fromEntries(cleared.map((column) => [column, null])) };
   // A code renewed by this change — judged last, so a column a stamp just set (the holder copied in on accept) sets it off too — in the same statement, so the old one stops at the commit.
   return renewCodes(rules.codes, action, moved, before, context);
+}
+
+/**
+ * A LINE OF A FILE SOMEBODY BRINGS IN. A new row is made now, by them; a
+ * stored row the file changes is changed now, by them. So each stamp that a
+ * person's save would fire is written, as that person (a `user-id` is theirs,
+ * a `byOrigin` word the staff side's), into a column the line leaves out or
+ * empty. A value the line carries is kept, where a person's save would lose
+ * it to the stamp: the day an old enquiry really came is the file's to say,
+ * and whether its bringer may say it is the create limit's to judge
+ * (`rbac/update-limits.ts`). Nothing else is decided: no late flag, no code
+ * made anew, no undo move.
+ */
+async function stampLeftOut(rules: TableRules, action: WriteAction, values: Row, before: Row | null, context: DecideContext): Promise<Row> {
+  if (action === 'update' && before === null) return values;
+  const stamps = (rules.stamps ?? []).filter((stamp) => empty(values[stamp.column]));
+  if (stamps.length === 0) return values;
+  return stampRow(stamps, action, values, before, context, await momentStamps(stamps, action, values, before, context));
 }
 
 // ─── moments, read before the write ───────────────────────────────────────

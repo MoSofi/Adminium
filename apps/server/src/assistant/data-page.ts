@@ -16,6 +16,7 @@
  * this module turns the scope into a filter the tool cannot widen
  * ({@link scopeFilter}), built from what the page itself sent the list route.
  */
+import { pagePartOff } from '../rbac/app-parts.js';
 import { pagesRepo } from '@adminium/meta';
 
 import { MAX_IN_VALUES, parseWhereParam, type RecordFilter } from '../crud/filters.js';
@@ -52,6 +53,8 @@ export async function dataPageOf(deps: AssistantToolDeps): Promise<DataPage | nu
   if (host.pageId === undefined || host.pageId === '') return null;
   const page = await pagesRepo(deps.meta).findById(host.pageId);
   if (page === null || !page.isEnabled) return null;
+  // A page of a part of its app that is switched off is no page to work on: its route refuses it too.
+  if (await pagePartOff(deps.meta, page.config)) return null;
   // The page's own view gate, as its route asks it.
   if (!(await deps.can(`page:${page.id}:view`)) && !(await deps.can('system:pages:manage'))) return null;
   const source = (page.config as { source?: { connectionId?: unknown; table?: unknown } } | null)?.source;

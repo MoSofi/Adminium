@@ -276,6 +276,12 @@ export const scopeCountsSchema = z
     max: columnSchema,
   })
   .strict();
+/** `requiresWhen`: a column → the one other column, and its values, a write must carry it with. */
+export const requiresWhenSchema = (column: z.ZodType<string>) =>
+  z
+    .record(column, z.record(column, z.array(scalarSchema).min(1).max(32)).refine((when) => Object.keys(when).length === 1, { message: 'one other column' }))
+    .refine((asked) => Object.keys(asked).length >= 1 && Object.keys(asked).length <= 8, { message: '1 to 8 columns' });
+
 const scopeChildShape = {
   /** Physical `schema.table` of the child rows. */
   table: z.string().min(1).max(256),
@@ -382,6 +388,8 @@ const resourceSchema = z
     writableValues: z.record(columnSchema, z.array(scalarSchema).min(1).max(32)).optional(),
     /** Columns a write here must fill: a write without one is refused, never stored half. */
     requires: z.array(columnSchema).min(1).max(8).optional(),
+    /** Columns a write fills only when it sets another column to one of some values, and writes at no other time. */
+    requiresWhen: requiresWhenSchema(columnSchema).optional(),
     /**
      * File columns a signed-in person may download: the file the row's column
      * names, read through this resource's whole scope (`GET /public/files`).
@@ -672,6 +680,8 @@ export interface CompiledResource {
   writableValues: Readonly<Record<string, readonly (string | number | boolean)[]>>;
   /** Columns every write here must fill (absent in a resource built by hand: none). */
   requires?: readonly string[];
+  /** Columns a write fills only when it sets the other column to one of the values, and writes at no other time (absent: none). */
+  requiresWhen?: Readonly<Record<string, Readonly<Record<string, readonly (string | number | boolean)[]>>>>;
   /** File columns a signed-in person may download (absent: none). */
   files?: readonly string[];
   /** The state a row must be in for an update to touch it. */
@@ -1012,6 +1022,16 @@ export function compileScope(
     for (const c of r.requires ?? []) {
       if (!r.writable.includes(c)) {
         issues.push({ code: 'SCOPE_REQUIRES_NOT_WRITABLE', message: `"${c}" must be filled by a write here, but is not writable`, ref: r.ref, column: c });
+      }
+    }
+    // Asked for only with some values of another column: both written here, and the other one held to listed values.
+    for (const [c, when] of Object.entries(r.requiresWhen ?? {})) {
+      for (const [other, values] of Object.entries(when)) {
+        const pinned = r.writableValues?.[other];
+        const fits = r.writable.includes(c) && r.writable.includes(other) && other !== c && !(r.requires ?? []).includes(c) && pinned !== undefined && values.every((value) => pinned.some((allowed) => allowed === value));
+        if (!fits) {
+          issues.push({ code: 'SCOPE_REQUIRES_NOT_WRITABLE', message: `"${c}" is asked for with some values of "${other}": both must be writable, "${other}" must list its values, and "${c}" is not required by every write too`, ref: r.ref, column: c });
+        }
       }
     }
     for (const c of Object.keys(r.writableValues ?? {})) {
@@ -1495,6 +1515,7 @@ export function compileScope(
       },
       writableValues: { ...(r.writableValues ?? {}) },
       requires: [...(r.requires ?? [])],
+      ...(r.requiresWhen === undefined ? {} : { requiresWhen: structuredClone(r.requiresWhen) }),
       files: [...(r.files ?? [])],
       writableWhen: { ...(r.writableWhen ?? {}) },
       level: r.level ?? 'lookup',

@@ -14,6 +14,7 @@
  *   route `created`   `<rule>:<pk>`                    ← same as the poller's
  *   watch `created`   `<rule>:<pk>`
  *   route `updated`   `<rule>:<pk>:<updated_at>`       ← when the table has one
+ *   route `updated`   `<rule>:<pk>:<updated_at>~<n>`   ← the n-th change of that moment
  *   watch `updated`   `<rule>:<pk>:<updated_at>`
  *   route `updated`   null                             ← when it has not
  *   route `deleted`   null
@@ -78,17 +79,37 @@ export function recordOccurrenceKey(input: {
   return capKey(`${base}:${stampOf(input.changeStamp, input.dialect)}`);
 }
 
+/**
+ * The n-th (from 2) change of a row that carries the moment of an earlier
+ * change: MySQL keeps whole seconds, so three moves of a deal within one
+ * second carry one `updated_at`. Each is still its own occurrence — the route
+ * matcher saw three writes — so the second and later take a number after the
+ * moment. The poller only ever sees the row once and claims the plain key,
+ * which the first change already holds.
+ */
+export function laterChangeKey(key: string, n: number): string {
+  return capKey(`${key}~${String(n)}`);
+}
+
 export function scheduleOccurrenceKey(input: {
   ruleId: string;
   table: ResolvedTable | null;
   pk: Row | null;
   /** Omitted when the rule says "once per record". */
   tick?: number | undefined;
+  /** "Once per spell": the number of the spell the row is in, from 1. One run a spell. */
+  spell?: number | undefined;
 }): string {
   const subject =
     input.table === null || input.pk === null ? 'tick' : pkKey(input.table, input.pk);
   const base = `${input.ruleId}:${subject}`;
+  if (input.spell !== undefined) return capKey(`${base}:s${String(input.spell)}`);
   return capKey(input.tick === undefined ? base : `${base}:${input.tick}`);
+}
+
+/** A row's key in a rule's list of spells: its primary key, as a run's own key spells it. */
+export function spellRowKey(table: ResolvedTable, pk: Row): string {
+  return capKey(pkKey(table, pk));
 }
 
 const BARE_DAY = /^(\d{4})-(\d{2})-(\d{2})$/;

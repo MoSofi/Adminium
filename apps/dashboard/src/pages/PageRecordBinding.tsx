@@ -48,6 +48,7 @@ import { api, ApiError } from '../app/api.js';
 import { bootstrapQuery, findPageBySlug, flattenNav, slugForTable } from '../app/bootstrap.js';
 import { hrefForPage } from '../app/links.js';
 import { createCrudApi } from '../api/crud.js';
+import { withPlaces } from '../api/places.js';
 import { pageQuery } from '../api/pages.js';
 import { diffRows, type AuditListReply } from '../audit/auditApi.js';
 import {
@@ -114,6 +115,11 @@ export function PageRecordBinding({
   // A choice column reads as the list beside it does: the server's words for
   // its values, in this person's language, where the page sets none.
   const shownColumns = useMemo(() => withFactChoices(columns, columnFacts), [columns, columnFacts]);
+  // A place and an area are edited here as in the list's own form: by their field, never as raw JSON.
+  const fieldFacts = useMemo(() => {
+    const held = Object.entries(columnFacts ?? {}).filter(([, fact]) => fact.place === true || fact.area === true);
+    return held.length === 0 ? undefined : Object.fromEntries(held);
+  }, [columnFacts]);
   // The record fetch carries the page's lookup + aggregate params — explicit
   // AND the derived FK-display ones — so lookup, reverse-link and FK-chip
   // columns render on the record page exactly as in the list.
@@ -566,7 +572,7 @@ export function PageRecordBinding({
     const base = boundCrud ?? crud;
     if (base === null) return base;
     // The row as it loads (its state decides the rest), and a refused delete in words.
-    const api = Object.create(base) as typeof base;
+    const api = withPlaces(base);
     api.get = async (...args: Parameters<typeof base.get>) => {
       const result = await base.get(...args);
       setRow(result.data);
@@ -706,6 +712,7 @@ export function PageRecordBinding({
         // The link relations the table can write through: chips on the record,
         // and the same field in its edit dialog.
         {...(formRelations === undefined ? {} : { relations: formRelations })}
+        {...(fieldFacts === undefined ? {} : { fieldFacts })}
         // The connection's own currency for money cells.
         {...(currency === undefined ? {} : { currency })}
         tabs={tabs}

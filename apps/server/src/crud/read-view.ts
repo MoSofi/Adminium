@@ -77,7 +77,15 @@ export function readableImage(view: SnapshotView, tableId: string, row: Row | nu
  * a column they may not read is never the column rows are matched by (which
  * rows exist would be the answer), and is brought in only when their update
  * names it (`writable`), as a form's field is. Refused 403 as a masked
- * column is. Nothing to check for a caller who reads the table whole.
+ * column is.
+ *
+ * And a column they see MASKED (personal data, without the grant that shows
+ * it: `canReadPii` false) is no match column either, for the reason a filter
+ * or a sort by one is refused (`readableColumn`): which lines are already
+ * there would tell which values the column holds. Bringing values IN to a
+ * masked column is not refused: that tells nothing.
+ *
+ * Nothing else to check for a caller who reads the table whole.
  */
 export function assertImportReadable(
   view: SnapshotView,
@@ -85,7 +93,12 @@ export function assertImportReadable(
   mapping: readonly { to: string | null }[],
   match: string | null,
   writable: readonly string[] | null,
+  canReadPii: boolean,
 ): void {
+  if (match !== null && !canReadPii) {
+    const whole = view.linkTable(tableId);
+    if (whole?.columns.get(match)?.masked === true) view.readableColumn(whole, match, false);
+  }
   if (!view.readLimited) return;
   const table = view.linkTable(tableId);
   if (table === null) return;

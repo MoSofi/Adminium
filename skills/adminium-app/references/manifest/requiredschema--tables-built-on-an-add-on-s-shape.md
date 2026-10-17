@@ -15,7 +15,8 @@ keeps on them and its states. The Invoices & Receipts add-on defines `invoice@1`
 ```
 
 `builtOn` is `<add-on key>/<shape name>@<version>`. The app must require that add-on in
-[`addOns.requires`](https://docs.adminium.dev/reference/manifest/#add-ons). `builtOn` is not the table's [`shape`](https://docs.adminium.dev/reference/manifest/#tables) field: that lets two
+[`addOns.requires`](https://docs.adminium.dev/reference/manifest/#add-ons), or put the table in a [part](https://docs.adminium.dev/reference/manifest/#parts) whose feature needs the add-on:
+the part is then left out of an install without it. `builtOn` is not the table's [`shape`](https://docs.adminium.dev/reference/manifest/#tables) field: that lets two
 apps share one table, while two apps built on one add-on's shape each get tables of their own.
 
 The table **spells out** every column of its part, with the part's type, nullability, enum values,
@@ -33,7 +34,15 @@ What the app may add to a part, and nothing else:
 - a `copy` in front of a column the part fills with a `default` (a client's own tax rate before the
   add-on's default rate): the part's default still answers when the copy comes back empty;
 - in the states: more `lock.except` columns (its own columns that stay writable), `roles` on a
-  move, more tables in `children`, more columns in a child's `clearOnCreate`, and on a child the
+  move, a condition added to a move the part has (`requires.where` on a column the app itself
+  added: a quote is sent only while its own `may_send` is 1; the part's own conditions stay as
+  written, a condition of the app's never reads a column of the part's, and the app adds no
+  move), a last day on a move the part gives none (`requires.notPast`, read from any `date` column of
+  the table, the part's included: a last day only ever refuses), an effect that runs through a link
+  the app itself added (`effects` with `via`, or
+  `on.change`, naming the app's own link: sending a quote withdraws the one its `replaces_id`
+  names, in the same write; the part's own effects stay as written and in their order), more
+  tables in `children`, more columns in a child's `clearOnCreate`, and on a child the
   part ties to the state a `release` and `lockLinked` entries naming only columns the app added
   to that child (a line's own `time_entry_id`), never the part's. A `release` the part has is
   kept as it is, and a `lockLinked` entry it has keeps at least its columns.

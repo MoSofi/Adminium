@@ -76,6 +76,8 @@ export function orderFigures(input: { order: Row; orderRules: TableRules | null;
   /** Whether a row handed in is one this total is over: of its child table, read through the link the total adds up by. */
   const of = (rollup: RollupInto, one: FiguredRow): boolean => one.table === rollup.child && (one.via === undefined || one.via === rollup.via);
   for (const rollup of orderRules?.ownRollups ?? []) {
+    // The newest row's value is not a figure of a price: a quote of a change leaves it as it is stored.
+    if (rollup.latest !== undefined) continue;
     if (!input.rows.some((one) => of(rollup, one))) continue;
     const under = rows.filter((row, index) => of(rollup, input.rows[index]!) && counted(rollup, row));
     const places = placesFor(rollup.scale, order, orderRules?.currencyColumn, currency);

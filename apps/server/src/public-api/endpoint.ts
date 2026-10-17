@@ -51,6 +51,7 @@ import {
   scopeAgreeSchema,
   scopeAgreeTargetSchema,
   scopeCountsSchema,
+  requiresWhenSchema,
   writableWhenSchema,
 } from './scope.js';
 
@@ -328,6 +329,8 @@ export const publicEndpointDefinitionSchema = z
     writable_values: z.record(columnSchema, z.array(scalarSchema).min(1).max(32)).optional(),
     /** Columns a write here must fill: accepting a proposal carries the typed name. */
     requires: z.array(columnSchema).min(1).max(8).optional(),
+    /** Columns a write fills only when it sets another column to one of some values, and writes at no other time. */
+    requires_when: requiresWhenSchema(columnSchema).optional(),
     /** File columns a signed-in person may download, through the row that names the file. */
     files: z.array(columnSchema).min(1).max(8).optional(),
     /**
@@ -583,6 +586,7 @@ function ordered(def: PublicEndpointDefinition): Record<string, unknown> {
   if (def.confirm !== undefined) out['confirm'] = { ...def.confirm };
   if (def.writable_values !== undefined) out['writable_values'] = { ...def.writable_values };
   if (def.requires !== undefined) out['requires'] = [...def.requires];
+  if (def.requires_when !== undefined) out['requires_when'] = structuredClone(def.requires_when);
   if (def.files !== undefined) out['files'] = [...def.files];
   if (def.writable_when !== undefined) out['writable_when'] = { ...def.writable_when };
   if (def.level !== undefined) out['level'] = def.level;
@@ -949,6 +953,7 @@ export function definitionToResource(
   const writes = actions.some((action) => SENDS_VALUES.has(action));
   if (writes && def.writable_values !== undefined) resource.writableValues = { ...def.writable_values };
   if (writes && def.requires !== undefined) resource.requires = [...def.requires];
+  if (writes && def.requires_when !== undefined) resource.requiresWhen = structuredClone(def.requires_when);
   if (def.files !== undefined) resource.files = [...def.files];
   if (def.writable_when !== undefined) resource.writableWhen = { ...def.writable_when };
   if (def.level !== undefined) resource.level = def.level;

@@ -32,3 +32,35 @@ A bulk action's `confirm.title`, `confirm.body` and `done` may name `{count}`, t
 and nothing else. Its `where` and `confirm.columns` never name a secret column or a code kept from
 staff. A dashboard page's toolbar takes `layout.toolbar.links` in place of `link`: one or two
 links of the same shape, at most one of them with `"tone": "primary"`.
+
+**A link to the app's own staff side.** A toolbar link, or a card's `href`, may name `"@staff"`:
+the app's staff screens, wherever the app placed them (inside the dashboard, or on their own
+address in a new tab), as the sidebar's "Open the staff screens" opens them. `"@staff/<path>"`
+opens one screen of them: `"@staff/approvals"` is `/a/<app key>/approvals` inside the dashboard,
+or `approvals` under the side's own address. The path is a path under the side, as a
+[`navLinks`](https://docs.adminium.dev/reference/manifest/#navlinks) entry's is: plain segments of letters, digits, `.`, `_`, `~` and `-`,
+with no query, no `#` and no `..`; the manifest is refused otherwise, and when the app has no
+`staff` frontend. A link is drawn only when the side can be opened. `@staff/<path>` needs
+Adminium 0.3.28 (an older release draws no such link).
+
+```json
+"layout": { "version": 1, "toolbar": { "links": [
+  { "label": "Approvals", "labels": { "de-DE": "Freigaben" }, "href": "@staff/approvals", "icon": "clipboard-check", "tone": "primary" }
+] }, "items": [] }
+```
+
+**A dashboard card of a part, and its column headings.** A card of an app's `page-dashboard`
+(an entry of `layout.items`) may say which [part](https://docs.adminium.dev/reference/manifest/#parts) of the app it belongs to with
+`"module": "<id>"`: while that part is off the card is not drawn, for everybody, and the page
+stays whole. A table card's columns (`config.columns`, as a `data-grid` heads them and a
+`detail-key-value` names its rows) may give their heading in other languages with `labels`, keyed by tag as a page's `titles`
+are: each reader sees the heading in their language, else `label`. Both need Adminium 0.3.28.
+
+```json
+{ "i": "unclaimed", "widget": "kpi-stat-card", "x": 3, "y": 3, "w": 3, "h": 3, "module": "inbox",
+  "config": { "title": "Unclaimed enquiries", "binding": { "kind": "table-query", "source": { "name": "enquiries", "type": "table" }, "shape": "metric+delta", "aggregations": [{ "fn": "count", "alias": "n" }] } } }
+```
+
+```json
+"columns": [{ "name": "name", "label": "Rep", "labels": { "de-DE": "Verkäufer", "ar-EG": "المندوب" } }]
+```

@@ -27,6 +27,8 @@
  * {@link LlmRoutesDeps}.
  */
 
+import { rowTestOf } from '../../crud/row-limit-context.js';
+import { reachOfRequest } from '../../crud/row-reach-request.js';
 import { parseDatabaseModel, type DatabaseModel } from '@adminium/engine';
 import {
   ProviderError,
@@ -266,6 +268,41 @@ export function llmRoutes(deps: LlmRoutesDeps): FastifyPluginAsyncZod {
     return parseDatabaseModel(snapshot.schema);
   }
 
+  /**
+   * The tables of a connection whose rows this caller reads only in part
+   * (`crud/row-limit.ts`): none, for nearly everyone. No statistics are
+   * collected of them for a run this caller starts.
+   */
+  async function tablesReadInPart(request: FastifyRequest, connectionId: string): Promise<ReadonlySet<string>> {
+    const out = new Set<string>();
+    const reach = await reachOfRequest(meta, request, connectionId);
+    if (reach === null) return out;
+    // Somebody something could limit, and no schema to say on which tables: no figures of any.
+    if (reach === 'unreadable') return new Set((((await snapshots.latest(connectionId))?.schema as DatabaseModel | undefined)?.tables ?? []).map((table) => table.id));
+    for (const table of reach.view.model.tables) if (rowTestOf(reach.rows, table.id, 'read') !== null) out.add(table.id);
+    return out;
+  }
+
+  /**
+   * A run by its id, for whoever started it — and for anybody else only when
+   * no table of its connection limits which rows they read: a run's prompt
+   * holds the figures of every table its maker read whole. (A private table
+   * limits everybody and is in nobody's figures, so it does not count.)
+   */
+  async function runOf(request: FastifyRequest): Promise<LlmRun> {
+    const id = (request.params as { id: string }).id;
+    const run = await runService.getRun(id);
+    const gone = (): never => {
+      throw new NotFoundError('LLM run not found.', { runId: id });
+    };
+    if (run === null) return gone();
+    if (run.createdBy !== null && run.createdBy === actorIdOf(request)) return run;
+    const reach = await reachOfRequest(meta, request, run.connectionId);
+    if (reach === null) return run;
+    if (reach === 'unreadable' || reach.view.model.tables.some((table) => table.private !== true && rowTestOf(reach.rows, table.id, 'read') !== null)) return gone();
+    return run;
+  }
+
   return async (app) => {
     const guard = app.rbac.require(LLM_RUN_PERMISSION);
 
@@ -435,6 +472,7 @@ export function llmRoutes(deps: LlmRoutesDeps): FastifyPluginAsyncZod {
             ...(body.sections === undefined ? {} : { sections: body.sections as RequestedSection[] }),
             sampling: (body.sampling ?? null) as Sampling,
             createdBy: actorIdOf(request),
+            withoutStatsOf: await tablesReadInPart(request, body.connectionId),
           });
         } catch (error) {
           if (error instanceof SnapshotRequiredError) {
@@ -493,8 +531,7 @@ export function llmRoutes(deps: LlmRoutesDeps): FastifyPluginAsyncZod {
       '/llm/runs/:id/execute',
       { preHandler: guard, schema: { params: runIdParams, response: { 202: jobAcceptedReply } } },
       async (request, reply) => {
-        const run = await runService.getRun(request.params.id);
-        if (run === null) throw new NotFoundError('LLM run not found.', { runId: request.params.id });
+        const run = await runOf(request);
         if (run.mode !== 'provider') {
           throw new ConflictError('BYO runs are completed by pasting a response, not executed.', 'CONFLICT');
         }
@@ -524,8 +561,7 @@ export function llmRoutes(deps: LlmRoutesDeps): FastifyPluginAsyncZod {
       '/llm/runs/:id/response',
       { preHandler: guard, schema: { params: runIdParams, body: runResponseBody, response: { 200: runResponseReply } } },
       async (request) => {
-        const run = await runService.getRun(request.params.id);
-        if (run === null) throw new NotFoundError('LLM run not found.', { runId: request.params.id });
+        const run = await runOf(request);
         const model = await loadModelForRun(run);
         // NO stats collection here (zero-network guarantee): pasting a BYO
         // response must be fully in-process against the stored snapshot —
@@ -598,8 +634,7 @@ export function llmRoutes(deps: LlmRoutesDeps): FastifyPluginAsyncZod {
       '/llm/runs/:id',
       { preHandler: guard, schema: { params: runIdParams, response: { 200: llmRunDetailDto } } },
       async (request) => {
-        const run = await runService.getRun(request.params.id);
-        if (run === null) throw new NotFoundError('LLM run not found.', { runId: request.params.id });
+        const run = await runOf(request);
         return toRunDetailDto(run);
       },
     );
@@ -608,8 +643,7 @@ export function llmRoutes(deps: LlmRoutesDeps): FastifyPluginAsyncZod {
       '/llm/runs/:id/prompt',
       { preHandler: guard, schema: { params: runIdParams, response: { 200: runPromptReply } } },
       async (request) => {
-        const run = await runService.getRun(request.params.id);
-        if (run === null) throw new NotFoundError('LLM run not found.', { runId: request.params.id });
+        const run = await runOf(request);
         if (run.promptText === null || run.promptText.length === 0) {
           throw new NotFoundError('This run has no stored prompt.', { runId: run.id });
         }
@@ -621,8 +655,7 @@ export function llmRoutes(deps: LlmRoutesDeps): FastifyPluginAsyncZod {
       '/llm/runs/:id/diff',
       { preHandler: guard, schema: { params: runIdParams, response: { 200: runDiffReply } } },
       async (request) => {
-        const run = await runService.getRun(request.params.id);
-        if (run === null) throw new NotFoundError('LLM run not found.', { runId: request.params.id });
+        const run = await runOf(request);
         if (run.responseJson === null || run.responseJson === undefined) {
           throw new ConflictError('The run has no validated response to diff yet.', 'CONFLICT');
         }
@@ -642,6 +675,8 @@ export function llmRoutes(deps: LlmRoutesDeps): FastifyPluginAsyncZod {
       '/llm/runs/:id/apply',
       { preHandler: guard, schema: { params: runIdParams, body: runApplyBody, response: { 200: runApplyReply } } },
       async (request) => {
+        // Another person's run is applied, like it is read, only by somebody no table of its connection limits.
+        await runOf(request);
         try {
           const actor = actorIdOf(request);
           const result = await applyService.applyRun(request.params.id, request.body.accepted, {

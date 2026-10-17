@@ -126,7 +126,7 @@ export default {
       "account": "账户"
     },
     "back": "返回",
-    "team": "团队",
+    "team": "人员",
     "roles": "角色与权限",
     "audit": "审计日志",
     "security": "密码与会话",
@@ -137,7 +137,9 @@ export default {
       "openStaff": "打开员工界面",
       "openStaffInstance": "打开员工界面 · {instance}"
     },
-    "drawerTitle": "导航"
+    "drawerTitle": "导航",
+    "emptyPartsOff": "目前没有为你开启的内容。请联系管理员。",
+    "teams": "团队"
   },
   "apps": {
     "frame": {
@@ -305,6 +307,15 @@ export default {
       "title": "此应用在单独的地址打开",
       "body": "它在自己的地址打开，而不是在仪表板内。",
       "primary": "打开"
+    },
+    "partOff": {
+      "title": "应用的这一部分已关闭",
+      "body": "管理员关闭了应用的这一部分。没有删除任何内容——请在“工作室 → 应用”的“组成部分”中重新开启。",
+      "secondary": "返回"
+    },
+    "partsOff": {
+      "title": "目前没有为你开启的内容",
+      "body": "你拥有的每个角色都属于某个应用中当前已关闭的部分。没有删除任何内容。请让管理员开启该部分，或为你分配其他角色。"
     }
   },
   "notFound": {
@@ -1538,7 +1549,9 @@ export default {
     "event": {
       "reportReady": "定时报告已就绪",
       "reportFailed": "定时报告失败",
-      "backupCompleted": "备份完成"
+      "backupCompleted": "备份完成",
+      "ruleNotice": "规则发出的通知",
+      "mention": "有人提到了我"
     }
   },
   "theme": {
@@ -1681,14 +1694,16 @@ export default {
       "remove": "删除",
       "resend": "新链接",
       "roles": "角色",
-      "suspend": "暂停"
+      "suspend": "暂停",
+      "handOn": "移交其行"
     },
     "column": {
       "actions": "操作",
       "lastSeen": "最后活动",
       "person": "人员",
       "roles": "角色",
-      "status": "状态"
+      "status": "状态",
+      "teams": "团队"
     },
     "counts": "活跃 {active} · 已邀请 {invited} · 已暂停 {suspended}",
     "empty": {
@@ -1748,7 +1763,15 @@ export default {
       "confirm": "永久删除",
       "prompt": "输入“{email}”以确认",
       "title": "永久删除账户",
-      "failed": "未删除该账户"
+      "failed": "未删除该账户",
+      "rows": {
+        "needed": "请先选择由谁接手这些行。",
+        "line": "{table}：{count}",
+        "to": "移交给",
+        "choose": "选择人员…",
+        "kept": "私有表中的行保持原样：其他人都不能读取。",
+        "unreadable": "无法检查 {names}。那里的行可能仍提到此人。"
+      }
     },
     "roles": {
       "unavailable": "你的账户无法查看角色，因此这里无法分配任何角色。"
@@ -1760,16 +1783,76 @@ export default {
     },
     "rolesLocked": "更改角色需要“管理角色”权限。",
     "search": "搜索姓名或邮箱",
+    "sampleNote": "{count} 位示例人员来自某个应用的示例数据。他们无法登录，移除示例数据时会一并移除。",
     "status": {
       "active": "活跃",
       "invited": "已邀请",
+      "sample": "示例人员",
       "suspended": "已暂停"
     },
-    "subtitle": "谁在这份 Adminium 上拥有账户，以及他们各自可以做什么。",
-    "title": "团队",
+    "subtitle": "所有可以登录的人，以及他们的角色和团队。",
+    "title": "人员",
     "twoFactorOn": "已开启双重验证",
     "twoFactorShort": "2FA",
-    "actionFailed": "未能完成此更改"
+    "actionFailed": "未能完成此更改",
+    "teams": {
+      "title": "团队",
+      "failed": "团队未更改",
+      "over": "{name} 带领的人数超过 {max}。只能访问前 {max} 人的行。",
+      "empty": "还没有团队",
+      "deleteTitle": "删除“{name}”？",
+      "deleteBody": "其负责人将不再能访问成员的行。任何人的账号和行都不会受到影响。",
+      "delete": "删除团队",
+      "memberCount": "{count, plural, other {# 人}}",
+      "noMembers": "这个团队里还没有人。",
+      "leads": "负责人",
+      "removeLabel": "将 {name} 从 {team} 移除",
+      "addMember": "选择人员…",
+      "sample": "{name}（示例）",
+      "add": "添加",
+      "pageSubtitle": "一组组人员，每组都有负责人。",
+      "notice": "当角色设为“其团队的”时，团队决定一个人能打开谁的记录。",
+      "rolesLink": "角色与访问",
+      "newTeam": "新建团队",
+      "summary": "{teams, plural, other {# 个团队}} · {people, plural, other {# 人}}属于至少一个团队",
+      "loadFailed": "无法读取团队。",
+      "caption": "团队、各自的负责人及成员",
+      "colTeam": "团队",
+      "colLead": "负责人",
+      "colMembers": "成员",
+      "noLead": "无负责人",
+      "onlyLead": "仅负责人",
+      "inAll": "{names} · 共 {count, plural, other {# 人}}",
+      "emptyBody": "在有团队之前，设为“其团队的”的角色与“自己的”能打开的行相同。",
+      "untitled": "未命名团队",
+      "sheetEyebrow": "团队",
+      "nameLabel": "名称",
+      "namePlaceholder": "例如：北区",
+      "people": "人员",
+      "peopleHint": "勾选负责人。负责人的“其团队的”涵盖这里的每个人。",
+      "addLabel": "添加人员",
+      "save": "保存团队",
+      "needName": "请先为团队命名。"
+    },
+    "teamLeads": "{team}（负责人）",
+    "handOver": {
+      "title": "将其 {count, plural, other {# 行}}移交给…",
+      "remove": "这些归 {name} 所有。永久删除后它们将无人负责：请选择由谁接手。",
+      "suspend": "这些归 {name} 所有。暂停后它们仍归 {name}，直到有人接手。",
+      "later": "{name} 已被暂停，这些仍归其所有。请选择由谁接手。",
+      "keep": "暂不移交",
+      "laterTitle": "移交 {name} 的行",
+      "unknown": "无法读取哪些行指向 {name}。",
+      "none": "没有行指向 {name}。",
+      "failed": "行未移交",
+      "confirm": "移交"
+    },
+    "suspend": {
+      "title": "暂停 {name}？",
+      "body": "{name} 将无法再登录，并会在所有地方退出登录。其账号、角色和历史都会保留，你可以重新启用。",
+      "failed": "账号未暂停",
+      "confirmHand": "移交并暂停"
+    }
   },
   "invoices": {
     "copySuffix": "{name}（副本）",
@@ -1792,5 +1875,30 @@ export default {
       "unread": "1 条未读回答",
       "proposal": "有一项更改等待你确认"
     }
+  },
+  "quietHours": {
+    "title": "免打扰时段",
+    "leadOn": "在这些时段内，通知仍会显示在铃铛中，但不发出声音。只有其邮件会等待，在时段结束时发送。规则标为紧急的内容会立即发送。",
+    "leadOff": "已关闭。通知及其邮件会即时送达。",
+    "on": "开",
+    "off": "关",
+    "zone": "你的时区",
+    "zoneDefault": "企业的时区（{zone}）",
+    "days": "日期和时间",
+    "fromShort": "从",
+    "toShort": "至",
+    "from": "免打扰开始，{day}",
+    "to": "免打扰结束，{day}",
+    "endsOn": "{day}结束",
+    "copy": "每天使用{day}的时间",
+    "example": "{day} {from} 到达的邮件会在{endDay} {to} 发送，除非其类型已在下方勾选。",
+    "always": "仍立即通知我以下内容…",
+    "alwaysNote": "摘要有自己的日期和时间，见下方。",
+    "summariesTitle": "摘要",
+    "summariesLead": "规则发给你的、包含你自己的行的邮件，例如每周摘要。每份都是邮件：在你的免打扰时段，它会像其他邮件一样等待。",
+    "summariesOff": "已关闭。没有规则会给你发送摘要。你的日期和时间会保留，等你重新开启时使用。",
+    "digestDay": "日期",
+    "digestWhenRun": "各摘要生成的当天",
+    "digestTime": "时间"
   }
 } as const;

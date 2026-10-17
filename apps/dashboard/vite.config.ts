@@ -8,9 +8,79 @@
  * `staticRoot: 'apps/dashboard/dist'` (SPA fallback included) — see
  * apps/server/src/plugins/static.ts.
  */
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
-import { defineConfig } from 'vite';
+import { defineConfig, type Plugin } from 'vite';
+
+const here = dirname(fileURLToPath(import.meta.url));
+
+/**
+ * The kit for an app's own screens (src/kit-host/): a further entry of this
+ * same build, so the React that draws its parts is the very file the
+ * dashboard loads, not a second copy, and a part that is heavy on both sides
+ * (the map engine) can only ever be one file.
+ *
+ * Its own files go under `assets/kit/` with a hash in each name; what they
+ * share with the dashboard stays where the dashboard has it. `kit.json` says
+ * which file is the door, since nobody can guess a hash: the server reads it
+ * and tells a staff side through its config.
+ *
+ * `styles` there lists every sheet of the kit: the one all parts stand on
+ * (src/kit-host/kit.css, told by the names it alone defines) first, then one
+ * per part that has its own. The kit loads them itself as parts are mounted;
+ * the list is for a page that wants them fetched early.
+ */
+const KIT_SOURCE = '/src/kit-host/';
+const inKit = (id: string): boolean => id.replaceAll('\\', '/').includes(KIT_SOURCE);
+/** A name only the kit's base sheet defines (src/kit-host/kit.css). */
+const KIT_BASE_MARK = '--adm-kit-surface:';
+
+function kitManifest(): Plugin {
+  return {
+    name: 'adminium-kit-manifest',
+    apply: 'build',
+    generateBundle(_options, bundle) {
+      const files = Object.values(bundle);
+      const entry = files.find((file) => file.type === 'chunk' && file.isEntry && file.name === 'kit');
+      if (entry === undefined) this.error('The kit entry (src/kit-host/index.ts) is not in the build.');
+      const sheets = files.filter((file) => file.type === 'asset' && file.fileName.startsWith('assets/kit/') && file.fileName.endsWith('.css'));
+      const isBase = (file: (typeof sheets)[number]): boolean => file.type === 'asset' && String(file.source).includes(KIT_BASE_MARK);
+      if (sheets.filter(isBase).length !== 1) this.error(`The kit must have exactly one base sheet (the one defining ${KIT_BASE_MARK}); found ${String(sheets.filter(isBase).length)} among ${String(sheets.length)}.`);
+      const styles = [...sheets.filter(isBase), ...sheets.filter((file) => !isBase(file)).sort((a, b) => a.fileName.localeCompare(b.fileName))].map((file) => file.fileName.slice('assets/kit/'.length));
+      this.emitFile({
+        type: 'asset',
+        fileName: 'assets/kit/kit.json',
+        source: `${JSON.stringify({ contract: 1, entry: entry.fileName.slice('assets/kit/'.length), styles })}\n`,
+      });
+    },
+  };
+}
+
+/**
+ * A library's own sheet, held under the kit's wrapper: a stylesheet imported
+ * with `?kit-scoped` (the map library's, by src/kit-host/parts/map.tsx) has
+ * every rule of it put inside `.adm-kit { … }`, so `.maplibregl-map` becomes
+ * `.adm-kit .maplibregl-map` and the sheet, like every sheet of the kit,
+ * styles nothing of the app's own page. `@keyframes` cannot stand inside a
+ * rule, so they are lifted out; they are names, and paint nothing alone.
+ */
+const KIT_SCOPED = /\.css\?kit-scoped$/;
+const KEYFRAMES = /@keyframes\s+[\w-]+\s*\{(?:[^{}]*\{[^{}]*\})*[^{}]*\}/g;
+
+function kitScopedSheet(): Plugin {
+  return {
+    name: 'adminium-kit-scoped-sheet',
+    enforce: 'pre',
+    transform(code, id) {
+      if (!KIT_SCOPED.test(id)) return null;
+      const frames = code.match(KEYFRAMES) ?? [];
+      return { code: `${frames.join('\n')}\n.adm-kit {\n${code.replace(KEYFRAMES, '')}\n}\n`, map: null };
+    },
+  };
+}
 
 /**
  * Backend the dev server proxies to. Defaults to :4600, so nothing changes
@@ -21,7 +91,7 @@ import { defineConfig } from 'vite';
 const API_HOST = process.env.ADMINIUM_DEV_API ?? '127.0.0.1:4600';
 
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
+  plugins: [react(), kitScopedSheet(), tailwindcss(), kitManifest()],
   server: {
     port: Number(process.env.ADMINIUM_DEV_PORT ?? 5173),
     proxy: {
@@ -34,5 +104,18 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     sourcemap: true,
+    rollupOptions: {
+      input: { index: join(here, 'index.html'), kit: join(here, 'src/kit-host/index.ts') },
+      // The kit's entry is imported by other people's code: what it exports must stay exported.
+      preserveEntrySignatures: 'exports-only',
+      output: {
+        entryFileNames: (chunk) => (chunk.name === 'kit' ? 'assets/kit/kit-[hash].js' : 'assets/[name]-[hash].js'),
+        // A chunk holding any of the kit's own modules is the kit's: nothing of the dashboard reaches them.
+        chunkFileNames: (chunk) => (chunk.moduleIds.some(inKit) ? 'assets/kit/[name]-[hash].js' : 'assets/[name]-[hash].js'),
+        // The kit's sheet is told by its wrapper class, which no sheet of the dashboard names.
+        assetFileNames: (asset) =>
+          asset.names.some((name) => name.endsWith('.css')) && String(asset.source).includes('.adm-kit') ? 'assets/kit/[name]-[hash][extname]' : 'assets/[name]-[hash][extname]',
+      },
+    },
   },
 });

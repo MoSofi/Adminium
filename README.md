@@ -67,6 +67,12 @@ sets up a pinned install under systemd.
 Full guides — self-hosting, meta store, LLM assist — at
 [docs.adminium.dev](https://docs.adminium.dev).
 
+Adminium calls nobody by default, with one exception it says out loud: a page
+that draws a map makes the viewer's browser fetch the map's pictures from a map
+server ([OpenFreeMap](https://openfreemap.org/) unless you name your own).
+`ADMINIUM_MAP_SERVER=off`, or Settings → Maps, turns that off:
+[Maps, places and routes](https://docs.adminium.dev/guides/apps/maps/).
+
 ## Where Adminium runs
 
 Adminium is one long-running Node.js server. It runs on any host that keeps that

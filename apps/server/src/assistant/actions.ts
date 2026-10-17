@@ -26,6 +26,8 @@
  * created".
  */
 
+import { assertNamedFiles, fileIdsOf } from '../email/file-reach.js';
+import { rowLimitContextForUser, rowTestOf } from '../crud/row-limit-context.js';
 import { findStep } from '../automations/add-on-steps.js';
 import type { RuleSteps } from '../automations/validate.js';
 import type { AddOnInstalls } from '../apps/table-ref.js';
@@ -272,6 +274,24 @@ function unknownContext(context: never): never {
  * where that happens. Undoing it is the page's own delete; there is no second
  * mechanism.
  */
+/**
+ * A document that arrived from a model names only files its person may send
+ * (`email/file-reach.ts`): what the editor's own save asks. A file hung on a
+ * record is theirs to name only when nothing holds them to some rows of its
+ * table — no row is read here to ask about one.
+ */
+async function assertDraftFiles(input: AssistantActionInput, document: Pick<EmailDocument, 'attachments' | 'blocks'>, held: ReadonlySet<string> = new Set()): Promise<void> {
+  await assertNamedFiles(input.meta, document, held, async (file) => {
+    try {
+      const view = await loadSnapshotView(input.meta, file.entityConnectionId!);
+      const reach = await rowLimitContextForUser(input.meta, input.actor.id, file.entityConnectionId!, view.model);
+      return rowTestOf(reach, view.linkTable(file.entityTable!)?.id ?? file.entityTable!, 'read') === null;
+    } catch {
+      return false;
+    }
+  });
+}
+
 async function createDraft(input: AssistantActionInput, at: number): Promise<AssistantActionResult> {
   const artefact = input.artefact;
   const open = input.open ?? false;
@@ -282,6 +302,7 @@ async function createDraft(input: AssistantActionInput, at: number): Promise<Ass
     const kind = artefact.kind === 'campaign' ? 'campaign' : 'template';
     const locale = text(artefact.locale, 'en_US');
     const document: EmailDocument = normalizeDocument(record(artefact.document) as never);
+    await assertDraftFiles(input, document);
     const row = await templates.create(
       {
         kind,
@@ -347,6 +368,13 @@ async function createDraft(input: AssistantActionInput, at: number): Promise<Ass
     for (const { permission, table } of requiredGrants(trigger, graph, connectionId, whole, steps)) {
       if (await input.can(permission)) continue;
       throw new ForbiddenError(`You do not have access to ${table}, so this rule cannot use it.`, 'TABLE_FORBIDDEN', { permission, table });
+    }
+    // …and, as the rules page asks of whoever saves one: every row of what it reads and of what it changes.
+    const reach = whole === null || connectionId === null ? null : await rowLimitContextForUser(input.meta, input.actor.id, connectionId, whole.model);
+    for (const { permission, table } of reach === null ? [] : requiredGrants(trigger, graph, connectionId, whole, steps)) {
+      const action = permission.endsWith(':read') ? 'read' : permission.endsWith(':update') ? 'update' : null;
+      if (action === null || rowTestOf(reach, whole?.linkTable(table)?.id ?? table, action) === null) continue;
+      throw new ForbiddenError(`Your role reaches only some rows of ${table}, so this rule cannot use it.`, 'TABLE_FORBIDDEN', { permission, table, reason: 'row-limit' });
     }
     const name = text(input.name, text(artefact.name, 'Untitled rule'));
     const rule = await automationsRepo(input.meta).create(
@@ -460,6 +488,8 @@ async function addLanguage(input: AssistantActionInput, at: number): Promise<Ass
     }
     const name = text(input.name, text(artefact.name, source.name));
     const document = normalizeDocument(record(artefact.document) as never);
+    // What the document it is a variation of already names is not named anew.
+    await assertDraftFiles(input, document, new Set(fileIdsOf(source)));
     const row = await templates.create(
       {
         kind: source.kind,
@@ -555,6 +585,7 @@ async function testSend(input: AssistantActionInput, at: number): Promise<Assist
 
   const artefact = input.artefact;
   const document = normalizeDocument(record(artefact.document) as never);
+  await assertDraftFiles(input, document);
   const locale = text(artefact.locale, 'en_US');
   const settings = settingsRepo(input.meta);
   const appName = await settings.get('branding.appName');

@@ -15,6 +15,7 @@ import type { AddOnManifest, InstallPlan, Manifest } from '@adminium/manifest';
 import type { InstalledManifest } from '@adminium/meta';
 
 import type { ExistingTable } from './install-ddl.js';
+import type { RoleTableResult } from '@adminium/manifest';
 
 /** Who an install or update is done by. */
 export interface InstallActor {
@@ -71,7 +72,7 @@ export interface CoreUninstallList {
 /** What settling an app after one of its add-ons moved did to the app's public key. */
 export interface HostSettled {
   /** What the app's roles hold of the add-on's tables after it: each entry, with what was left out and why; null when nothing was settled. */
-  roleTables: { role: string; addOn: string; table: string; actions: string[]; skipped?: string }[] | null;
+  roleTables: RoleTableResult[] | null;
   publicAccess: { granted: string[]; withdrawn: string[]; skipped: { ref: string; reason: string }[] };
 }
 
@@ -92,6 +93,14 @@ export interface InstallCore<List extends CoreUninstallList = CoreUninstallList>
     host?: InstallHost | undefined;
     addOn?: { manifest: AddOnManifest; names: Readonly<Record<string, string>> } | null | undefined;
   }): Promise<HostSettled>;
+  /**
+   * After an add-on was connected to an app: a part of the app that was left
+   * out of its install because its tables are built on this add-on is put in
+   * (the app is applied again from its own package, at its own version).
+   * Answers the parts put in; none when nothing waited, the app is being
+   * installed or updated right now, or its package is no longer held.
+   */
+  putInParts(input: { appKey: string; actor: InstallActor; host?: InstallHost | undefined }): Promise<string[]>;
   /** After an add-on's update: its link key narrowed (or gone), and the endpoints its version dropped removed. */
   settleAddOnPublic(input: { manifest: Manifest; connectionId: string; names: Readonly<Record<string, string>>; actor: InstallActor }): Promise<{ removed: string[]; kept: string[] }>;
   /** What an add-on would open publicly, for the check; undefined when it asks for nothing. */

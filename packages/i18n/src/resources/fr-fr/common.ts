@@ -126,7 +126,7 @@ export default {
       "account": "Compte"
     },
     "back": "Retour",
-    "team": "Équipe",
+    "team": "Personnes",
     "roles": "Rôles et permissions",
     "audit": "Journal d’audit",
     "security": "Mot de passe et sessions",
@@ -137,7 +137,9 @@ export default {
       "openStaff": "Ouvrir les écrans du personnel",
       "openStaffInstance": "Ouvrir les écrans du personnel · {instance}"
     },
-    "drawerTitle": "Navigation"
+    "drawerTitle": "Navigation",
+    "emptyPartsOff": "Rien n’est activé pour vous pour le moment. Adressez-vous à un administrateur.",
+    "teams": "Équipes"
   },
   "apps": {
     "frame": {
@@ -305,6 +307,15 @@ export default {
       "title": "Cette app s’ouvre à part",
       "body": "Elle s’ouvre à sa propre adresse, pas dans le tableau de bord.",
       "primary": "L’ouvrir"
+    },
+    "partOff": {
+      "title": "Cette partie de l’application est désactivée",
+      "body": "Un administrateur a désactivé cette partie de l’application. Rien n’a été supprimé — réactivez-la dans Studio → Applications, sous Parties.",
+      "secondary": "Retour"
+    },
+    "partsOff": {
+      "title": "Rien n’est activé pour vous",
+      "body": "Chacun de vos rôles appartient à une partie d’application actuellement désactivée. Rien n’a été supprimé. Demandez à un administrateur d’activer cette partie ou de vous attribuer un autre rôle."
     }
   },
   "notFound": {
@@ -1538,7 +1549,9 @@ export default {
     "event": {
       "reportReady": "Rapport planifié prêt",
       "reportFailed": "Échec du rapport planifié",
-      "backupCompleted": "Sauvegarde terminée"
+      "backupCompleted": "Sauvegarde terminée",
+      "ruleNotice": "Une notification d’une règle",
+      "mention": "Quelqu’un m’a mentionné"
     }
   },
   "theme": {
@@ -1681,14 +1694,16 @@ export default {
       "remove": "Supprimer",
       "resend": "Nouveau lien",
       "roles": "Rôles",
-      "suspend": "Suspendre"
+      "suspend": "Suspendre",
+      "handOn": "Confier ses lignes"
     },
     "column": {
       "actions": "Actions",
       "lastSeen": "Dernière activité",
       "person": "Personne",
       "roles": "Rôles",
-      "status": "Statut"
+      "status": "Statut",
+      "teams": "Équipes"
     },
     "counts": "{active} actifs · {invited} invités · {suspended} suspendus",
     "empty": {
@@ -1748,7 +1763,15 @@ export default {
       "confirm": "Supprimer définitivement",
       "prompt": "Saisissez « {email} » pour confirmer",
       "title": "Supprimer définitivement le compte",
-      "failed": "Le compte n’a pas été supprimé"
+      "failed": "Le compte n’a pas été supprimé",
+      "rows": {
+        "needed": "Choisissez d’abord qui reprend les lignes.",
+        "line": "{table} : {count}",
+        "to": "Les confier à",
+        "choose": "Choisir une personne…",
+        "kept": "Les lignes des tables privées restent telles quelles : personne d’autre ne peut les lire.",
+        "unreadable": "Impossible de vérifier {names}. Des lignes peuvent encore y mentionner cette personne."
+      }
     },
     "roles": {
       "unavailable": "Les rôles ne sont pas visibles pour votre compte : aucun ne peut donc être attribué ici."
@@ -1760,16 +1783,76 @@ export default {
     },
     "rolesLocked": "Modifier les rôles requiert la permission « Gérer les rôles ».",
     "search": "Rechercher un nom ou un e-mail",
+    "sampleNote": "{count} personnes d’exemple proviennent des données d’exemple d’une application. Elles ne peuvent pas se connecter et disparaissent avec les données d’exemple.",
     "status": {
       "active": "Actif",
       "invited": "Invité",
+      "sample": "Personne d’exemple",
       "suspended": "Suspendu"
     },
-    "subtitle": "Qui possède un compte sur cet Adminium, et ce que chacun peut faire.",
-    "title": "Équipe",
+    "subtitle": "Toutes les personnes qui peuvent se connecter, avec leurs rôles et leurs équipes.",
+    "title": "Personnes",
     "twoFactorOn": "L’authentification à deux facteurs est activée",
     "twoFactorShort": "2FA",
-    "actionFailed": "Cette modification n’a pas été effectuée"
+    "actionFailed": "Cette modification n’a pas été effectuée",
+    "teams": {
+      "title": "Équipes",
+      "failed": "L’équipe n’a pas été modifiée",
+      "over": "{name} dirige plus de {max} personnes. Seules les {max} premières sont atteintes.",
+      "empty": "Aucune équipe pour l’instant",
+      "deleteTitle": "Supprimer « {name} » ?",
+      "deleteBody": "Son responsable n’atteint plus les lignes des membres. Aucun compte ni aucune ligne n’est touché.",
+      "delete": "Supprimer l’équipe",
+      "memberCount": "{count, plural, one {# personne} other {# personnes}}",
+      "noMembers": "Personne n’est encore dans cette équipe.",
+      "leads": "Dirige",
+      "removeLabel": "Retirer {name} de {team}",
+      "addMember": "Choisir quelqu’un…",
+      "sample": "{name} (exemple)",
+      "add": "Ajouter",
+      "pageSubtitle": "Des groupes de personnes, chacun avec quelqu’un qui le dirige.",
+      "notice": "Une équipe décide des fiches qu’une personne peut ouvrir quand son rôle dit « celles de son équipe ».",
+      "rolesLink": "Rôles et accès",
+      "newTeam": "Nouvelle équipe",
+      "summary": "{teams, plural, one {# équipe} other {# équipes}} · {people, plural, one {# personne} other {# personnes}} dans au moins une",
+      "loadFailed": "Impossible de lire les équipes.",
+      "caption": "Les équipes, qui dirige chacune et qui en fait partie",
+      "colTeam": "Équipe",
+      "colLead": "Responsable",
+      "colMembers": "Membres",
+      "noLead": "Personne ne la dirige",
+      "onlyLead": "Seulement le responsable",
+      "inAll": "{names} · {count, plural, one {# personne} other {# personnes}} en tout",
+      "emptyBody": "Tant qu’il n’y en a pas, un rôle réglé sur « celles de son équipe » ouvre les mêmes lignes que « les siennes ».",
+      "untitled": "Équipe sans nom",
+      "sheetEyebrow": "Équipe",
+      "nameLabel": "Nom",
+      "namePlaceholder": "p. ex. Nord",
+      "people": "Personnes",
+      "peopleHint": "Cochez qui dirige. Pour un responsable, « celles de son équipe » couvre tout le monde ici.",
+      "addLabel": "Ajouter une personne",
+      "save": "Enregistrer l’équipe",
+      "needName": "Donnez d’abord un nom à l’équipe."
+    },
+    "teamLeads": "{team} (dirige)",
+    "handOver": {
+      "title": "Confier {count, plural, one {sa # ligne} other {ses # lignes}} à…",
+      "remove": "Elles appartiennent à {name}. Une fois cette personne supprimée, elles ne seraient à personne : choisissez qui les reprend.",
+      "suspend": "Elles appartiennent à {name}. Suspendue, cette personne les garde jusqu’à ce que quelqu’un les reprenne.",
+      "later": "{name} est suspendu·e et elles lui appartiennent encore. Choisissez qui les reprend.",
+      "keep": "Personne pour l’instant",
+      "laterTitle": "Confier les lignes de {name}",
+      "unknown": "Impossible de lire quelles lignes désignent {name}.",
+      "none": "Aucune ligne ne désigne {name}.",
+      "failed": "Les lignes n’ont pas été confiées",
+      "confirm": "Les confier"
+    },
+    "suspend": {
+      "title": "Suspendre {name} ?",
+      "body": "{name} ne peut plus se connecter et est déconnecté·e partout. Son compte, ses rôles et son historique restent, et vous pourrez le réactiver.",
+      "failed": "Le compte n’a pas été suspendu",
+      "confirmHand": "Confier et suspendre"
+    }
   },
   "invoices": {
     "copySuffix": "{name} (copie)",
@@ -1792,5 +1875,30 @@ export default {
       "unread": "1 réponse non lue",
       "proposal": "Une modification vous attend"
     }
+  },
+  "quietHours": {
+    "title": "Heures calmes",
+    "leadOn": "Pendant ces heures, une notification apparaît toujours dans la cloche, sans son. Seul son e-mail attend, et part à leur fin. Ce qu’une règle marque comme urgent est envoyé aussitôt.",
+    "leadOff": "Désactivé. Les notifications et leurs e-mails arrivent dès qu’ils se produisent.",
+    "on": "Activé",
+    "off": "Désactivé",
+    "zone": "Votre fuseau horaire",
+    "zoneDefault": "Celui de l’entreprise ({zone})",
+    "days": "Jours et heures",
+    "fromShort": "De",
+    "toShort": "à",
+    "from": "Calme à partir de, {day}",
+    "to": "Calme jusqu’à, {day}",
+    "endsOn": "finit {day}",
+    "copy": "Utiliser les heures du {day} tous les jours",
+    "example": "Un e-mail qui arrive le {day} à {from} part le {endDay} à {to}, sauf si son type est coché ci-dessous.",
+    "always": "Me prévenir quand même aussitôt pour…",
+    "alwaysNote": "Les récapitulatifs gardent leur propre jour et leur propre heure, ci-dessous.",
+    "summariesTitle": "Récapitulatifs",
+    "summariesLead": "Les e-mails qu’une règle vous envoie avec vos propres lignes, comme un récapitulatif hebdomadaire. Chacun est un e-mail : pendant vos heures calmes, il attend comme les autres.",
+    "summariesOff": "Désactivé. Aucune règle ne vous envoie de récapitulatif. Votre jour et votre heure sont gardés pour quand vous les réactiverez.",
+    "digestDay": "Jour",
+    "digestWhenRun": "Le jour où chacun est préparé",
+    "digestTime": "Heure"
   }
 } as const;

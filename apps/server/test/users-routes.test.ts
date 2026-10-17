@@ -168,7 +168,7 @@ describe('GET /users', () => {
     expect(page1.users).toHaveLength(2);
     expect(page1.nextCursor).not.toBeNull();
     // Counts are directory-wide, not page-scoped.
-    expect(page1.counts).toEqual({ active: 4, invited: 1, suspended: 0 });
+    expect(page1.counts).toEqual({ active: 4, invited: 1, suspended: 0, sample: 0 });
 
     const second = await ctx.app.inject({
       method: 'GET',
@@ -651,3 +651,50 @@ describe('permission enforcement + audit', () => {
     expect(JSON.stringify(entries)).not.toContain(created.invite.token);
   });
 });
+
+describe('a sample person', () => {
+  const sample = () => usersRepo(ctx.meta).create({ email: 'dana.crm@sample.invalid', name: 'Dana Whitlock', passwordHash: null, status: 'sample' });
+
+  it('is listed with its mark and counted on its own', async () => {
+    ctx = await buildUsersTestApp();
+    const dana = await sample();
+    const all = await ctx.app.inject({ method: 'GET', url: '/api/v1/users', headers: asUser(ctx.users.superAdmin) });
+    const body = all.json() as { users: { id: string; status: string }[]; counts: Record<string, number> };
+    expect(body.users.find((user) => user.id === dana.id)?.status).toBe('sample');
+    expect(body.counts).toEqual({ active: 4, invited: 0, suspended: 0, sample: 1 });
+    const only = await ctx.app.inject({ method: 'GET', url: '/api/v1/users?status=sample', headers: asUser(ctx.users.superAdmin) });
+    expect((only.json() as { users: { id: string }[] }).users.map((user) => user.id)).toEqual([dana.id]);
+  });
+
+  it('is not renamed, suspended, re-roled, deleted or invited by hand: the sample is what removes them', async () => {
+    ctx = await buildUsersTestApp();
+    const dana = await sample();
+    const headers = asUser(ctx.users.superAdmin);
+    const tries = [
+      await ctx.app.inject({ method: 'PATCH', url: `/api/v1/users/${dana.id}`, headers, payload: { name: 'Someone else' } }),
+      await ctx.app.inject({ method: 'PATCH', url: `/api/v1/users/${dana.id}`, headers, payload: { status: 'active' } }),
+      await ctx.app.inject({ method: 'PUT', url: `/api/v1/users/${dana.id}/roles`, headers, payload: { roleIds: [ctx.roles.admin.id] } }),
+      await ctx.app.inject({ method: 'DELETE', url: `/api/v1/users/${dana.id}?permanent=true`, headers }),
+      await ctx.app.inject({ method: 'POST', url: `/api/v1/users/${dana.id}/invite/resend`, headers }),
+    ];
+    for (const reply of tries) {
+      expect(reply.statusCode, reply.body).toBe(409);
+      expect(reply.body).toContain('SAMPLE_PERSON');
+    }
+    const after = (await usersRepo(ctx.meta).findById(dana.id))!;
+    expect([after.name, after.status, after.passwordHash]).toEqual(['Dana Whitlock', 'sample', null]);
+    expect(await rolesRepo(ctx.meta).rolesForUser(dana.id)).toEqual([]);
+  });
+
+  it('gets no way in: no password link is minted for one', async () => {
+    ctx = await buildUsersTestApp();
+    const dana = await sample();
+    const asked = await ctx.app.inject({ method: 'POST', url: '/api/v1/auth/password/forgot', payload: { email: dana.email } });
+    expect(asked.statusCode).toBe(200);
+    const minted = await ctx.meta.db.selectFrom('adminium_password_resets').select('id').where('userId', '=', dana.id).execute();
+    expect(minted).toEqual([]);
+    const login = await ctx.app.inject({ method: 'POST', url: '/api/v1/auth/login', payload: { email: dana.email, password: 'anything-at-all-1' } });
+    expect(login.statusCode).toBe(401);
+  });
+});
+

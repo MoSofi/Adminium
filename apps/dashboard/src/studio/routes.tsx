@@ -319,6 +319,21 @@ function SettingsRouteComponent() {
   );
 }
 
+/**
+ * Settings → Maps: its routes check `settings.manage`. The page comes with the
+ * settings hub's chunk (`maps` picks it there): a lazy ref of its own would be
+ * one more thing in everybody's first load, for a page a few people open.
+ */
+function MapsSettingsRouteComponent() {
+  return (
+    <StudioGuard requires="settings.manage">
+      <StudioBody>
+        <StudioSettingsPageLazy maps />
+      </StudioBody>
+    </StudioGuard>
+  );
+}
+
 function ProjectSettingsRouteComponent() {
   const navigate = useNavigate();
   return (
@@ -473,6 +488,12 @@ export function studioRoutes(parent: AnyRoute): AnyRoute[] {
     component: AiSettingsRouteComponent,
   });
 
+  const mapsSettingsRoute = createRoute({
+    getParentRoute: () => parent,
+    path: '/settings/maps',
+    component: MapsSettingsRouteComponent,
+  });
+
   const projectSettingsRoute = createRoute({
     getParentRoute: () => parent,
     path: '/studio/settings/project',
@@ -574,6 +595,7 @@ export function studioRoutes(parent: AnyRoute): AnyRoute[] {
     settingsRoute,
     aiSettingsRoute,
     projectSettingsRoute,
+    mapsSettingsRoute,
     publicApiRoute,
     hostedAppsRoute,
     appSettingsRoute,

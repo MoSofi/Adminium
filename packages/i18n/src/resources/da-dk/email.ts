@@ -908,5 +908,9 @@ export default {
     "otherwise": "Ellers vis",
     "otherwiseHint": "Disse ord erstatter hele blokken. Lad feltet stå tomt for ikke at sende noget i stedet.",
     "leftOut": "Når den ikke har nogen, udelades denne blok fra e-mailen."
+  },
+  "appFilter": {
+    "note": "Kun e-mails fra {app} vises.",
+    "clear": "Vis alle e-mails"
   }
 } as const;

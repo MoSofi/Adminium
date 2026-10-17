@@ -116,7 +116,7 @@
       "account": "Účet"
     },
     "back": "Zpět",
-    "team": "Tým",
+    "team": "Lidé",
     "roles": "Role a oprávnění",
     "audit": "Auditní log",
     "security": "Heslo a relace",
@@ -127,7 +127,9 @@
       "openStaff": "Otevřít obrazovky pro personál",
       "openStaffInstance": "Otevřít obrazovky pro personál · {instance}"
     },
-    "drawerTitle": "Navigace"
+    "drawerTitle": "Navigace",
+    "emptyPartsOff": "Právě pro vás není nic zapnuto. Obraťte se na správce.",
+    "teams": "Týmy"
   },
   "apps": {
     "frame": {
@@ -295,6 +297,15 @@
       "title": "Tato aplikace se otevírá samostatně",
       "body": "Otevírá se na vlastní adrese, ne v dashboardu.",
       "primary": "Otevřít"
+    },
+    "partOff": {
+      "title": "Tato část aplikace je vypnutá",
+      "body": "Správce tuto část aplikace vypnul. Nic nebylo smazáno — zapněte ji ve Studiu → Aplikace, v oddílu Části.",
+      "secondary": "Zpět"
+    },
+    "partsOff": {
+      "title": "Nic pro vás není zapnuto",
+      "body": "Každá vaše role patří k části aplikace, která je právě vypnutá. Nic nebylo smazáno. Požádejte správce, aby tuto část zapnul nebo vám přidělil jinou roli."
     }
   },
   "notFound": {
@@ -1528,7 +1539,9 @@
     "event": {
       "reportReady": "Naplánovaná sestava připravena",
       "reportFailed": "Naplánovaná sestava selhala",
-      "backupCompleted": "Záloha dokončena"
+      "backupCompleted": "Záloha dokončena",
+      "ruleNotice": "Upozornění z pravidla",
+      "mention": "Někdo mě zmínil"
     }
   },
   "theme": {
@@ -1671,14 +1684,16 @@
       "remove": "Smazat",
       "resend": "Nový odkaz",
       "roles": "Role",
-      "suspend": "Pozastavit"
+      "suspend": "Pozastavit",
+      "handOn": "Předat řádky"
     },
     "column": {
       "actions": "Akce",
       "lastSeen": "Naposledy aktivní",
       "person": "Osoba",
       "roles": "Role",
-      "status": "Stav"
+      "status": "Stav",
+      "teams": "Týmy"
     },
     "counts": "{active} aktivních · {invited} pozvaných · {suspended} pozastavených",
     "empty": {
@@ -1738,7 +1753,15 @@
       "confirm": "Trvale smazat",
       "prompt": "Pro potvrzení napište „{email}“",
       "title": "Trvale smazat účet",
-      "failed": "Účet nebyl smazán"
+      "failed": "Účet nebyl smazán",
+      "rows": {
+        "needed": "Nejdřív vyberte, kdo řádky převezme.",
+        "line": "{table}: {count}",
+        "to": "Předat komu",
+        "choose": "Vyberte osobu…",
+        "kept": "Řádky soukromých tabulek zůstávají, jak jsou: nikdo jiný je číst nesmí.",
+        "unreadable": "Nepodařilo se zkontrolovat {names}. Řádky tam mohou tuto osobu stále uvádět."
+      }
     },
     "roles": {
       "unavailable": "Role nejsou pro váš účet viditelné, takže zde žádnou nelze přiřadit."
@@ -1750,16 +1773,76 @@
     },
     "rolesLocked": "Změna rolí vyžaduje oprávnění „Spravovat role“.",
     "search": "Hledat podle jména nebo e-mailu",
+    "sampleNote": "{count} ukázkových osob přišlo s ukázkovými daty aplikace. Nemohou se přihlásit a odstraněním ukázkových dat zmizí.",
     "status": {
       "active": "Aktivní",
       "invited": "Pozvaný(á)",
+      "sample": "Ukázková osoba",
       "suspended": "Pozastavený(á)"
     },
-    "subtitle": "Kdo má účet v tomto Adminiu a co každý z nich smí.",
-    "title": "Tým",
+    "subtitle": "Všichni, kdo se mohou přihlásit, s jejich rolemi a týmy.",
+    "title": "Lidé",
     "twoFactorOn": "Dvoufázové ověření je zapnuté",
     "twoFactorShort": "2FA",
-    "actionFailed": "Tato změna nebyla provedena"
+    "actionFailed": "Tato změna nebyla provedena",
+    "teams": {
+      "title": "Týmy",
+      "failed": "Tým se nepodařilo změnit",
+      "over": "{name} vede víc než {max} lidí. Dosáhne jen na prvních {max}.",
+      "empty": "Zatím žádné týmy",
+      "deleteTitle": "Smazat „{name}“?",
+      "deleteBody": "Vedoucí přestane dosahovat na řádky členů. Žádného účtu ani řádku se to nedotkne.",
+      "delete": "Smazat tým",
+      "memberCount": "{count, plural, one {# osoba} few {# osoby} other {# osob}}",
+      "noMembers": "V tomto týmu zatím nikdo není.",
+      "leads": "Vede",
+      "removeLabel": "Odebrat {name} z týmu {team}",
+      "addMember": "Vyberte někoho…",
+      "sample": "{name} (ukázka)",
+      "add": "Přidat",
+      "pageSubtitle": "Skupiny lidí, každá s někým, kdo ji vede.",
+      "notice": "Tým určuje, čí záznamy může osoba otevřít, když její role říká „řádky svého týmu“.",
+      "rolesLink": "Role a přístup",
+      "newTeam": "Nový tým",
+      "summary": "{teams, plural, one {# tým} few {# týmy} other {# týmů}} · {people, plural, one {# osoba} few {# osoby} other {# osob}} v jednom či více",
+      "loadFailed": "Týmy se nepodařilo načíst.",
+      "caption": "Týmy, kdo každý vede a kdo v něm je",
+      "colTeam": "Tým",
+      "colLead": "Vedoucí",
+      "colMembers": "Členové",
+      "noLead": "Nikdo ho nevede",
+      "onlyLead": "Jen vedoucí",
+      "inAll": "{names} · celkem {count, plural, one {# osoba} few {# osoby} other {# osob}}",
+      "emptyBody": "Dokud žádný není, role nastavená na „řádky svého týmu“ otevře tytéž řádky jako „vlastní“.",
+      "untitled": "Tým bez názvu",
+      "sheetEyebrow": "Tým",
+      "nameLabel": "Název",
+      "namePlaceholder": "např. Sever",
+      "people": "Lidé",
+      "peopleHint": "Zaškrtněte, kdo vede. „Řádky svého týmu“ u vedoucího zahrnují všechny zde.",
+      "addLabel": "Přidat osobu",
+      "save": "Uložit tým",
+      "needName": "Nejdřív týmu dejte název."
+    },
+    "teamLeads": "{team} (vede)",
+    "handOver": {
+      "title": "Předat {count, plural, one {jeho # řádek} few {jeho # řádky} other {jeho # řádků}} komu…",
+      "remove": "Patří osobě {name}. Po trvalém odebrání by nepatřily nikomu: vyberte, kdo je převezme.",
+      "suspend": "Patří osobě {name}. Po pozastavení zůstanou jí, dokud je někdo nepřevezme.",
+      "later": "{name} je pozastaven(a) a stále mu/jí patří. Vyberte, kdo je převezme.",
+      "keep": "Zatím nikdo",
+      "laterTitle": "Předat řádky osoby {name}",
+      "unknown": "Nepodařilo se zjistit, které řádky uvádějí osobu {name}.",
+      "none": "Žádný řádek neuvádí osobu {name}.",
+      "failed": "Řádky se nepodařilo předat",
+      "confirm": "Předat"
+    },
+    "suspend": {
+      "title": "Pozastavit osobu {name}?",
+      "body": "{name} se už nebude moci přihlásit a bude všude odhlášen(a). Účet, role a historie zůstanou a můžete je znovu aktivovat.",
+      "failed": "Účet se nepodařilo pozastavit",
+      "confirmHand": "Předat a pozastavit"
+    }
   },
   "invoices": {
     "copySuffix": "{name} (kopie)",
@@ -1782,5 +1865,30 @@
       "unread": "1 nepřečtená odpověď",
       "proposal": "Čeká na vás změna"
     }
+  },
+  "quietHours": {
+    "title": "Doba klidu",
+    "leadOn": "V těchto hodinách se upozornění stále zobrazí ve zvonku, bez zvuku. Čeká jen jeho e-mail a odejde, až skončí. Co pravidlo označí jako naléhavé, se odešle ihned.",
+    "leadOff": "Vypnuto. Upozornění a jejich e-maily přicházejí hned, jak vzniknou.",
+    "on": "Zapnuto",
+    "off": "Vypnuto",
+    "zone": "Vaše časové pásmo",
+    "zoneDefault": "Firemní ({zone})",
+    "days": "Dny a časy",
+    "fromShort": "Od",
+    "toShort": "do",
+    "from": "Klid od, {day}",
+    "to": "Klid do, {day}",
+    "endsOn": "končí {day}",
+    "copy": "Použít časy ze dne {day} pro každý den",
+    "example": "E-mail, který přijde v den {day} v {from}, odejde v den {endDay} v {to}, pokud jeho druh není zaškrtnutý níže.",
+    "always": "Přesto mě ihned upozornit na…",
+    "alwaysNote": "Souhrny mají vlastní den a čas, níže.",
+    "summariesTitle": "Souhrny",
+    "summariesLead": "E-maily, které vám pravidlo posílá s vašimi vlastními řádky, třeba týdenní souhrn. Každý je e-mail: v době klidu počká jako každý jiný.",
+    "summariesOff": "Vypnuto. Žádné pravidlo vám nepošle souhrn. Váš den a čas zůstanou uložené, až je znovu zapnete.",
+    "digestDay": "Den",
+    "digestWhenRun": "V den, kdy se vytvoří",
+    "digestTime": "Čas"
   }
 }

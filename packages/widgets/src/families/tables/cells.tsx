@@ -1,4 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
+import { mentionText } from '../forms/mentions.js';
+import { pointCount } from '../geo/map-shapes.js';
+import { areaValueOf, coordinateText, placeValueOf } from '../geo/place-value.js';
 import { useMaybeT } from '../../lib/i18n.js';
 import { Avatar, Badge, MonoText, StatusPill, type Tone } from '@adminium/ui';
 import { Check, Eye, EyeOff, Paperclip, X } from 'lucide-react';
@@ -575,6 +578,31 @@ function CellContent({
     return <MonoText data-part="cell-percent" className="truncate">{Number.isFinite(amount) ? `${String(amount)}%` : String(value)}</MonoText>;
   }
 
+  // A place and an area read as what they are, not as the JSON that stores them.
+  if (column.logicalType === 'json' || typeof value === 'object') {
+    const place = placeValueOf(value);
+    if (place !== null) {
+      return (
+        <span data-part="cell-place" className="flex min-w-0 items-center gap-1.5">
+          <span className="truncate">{place.name ?? coordinateText(place)}</span>
+          {place.by === 'town' && (
+            <span data-part="cell-place-by-town" className="shrink-0 rounded-sm border border-dashed border-border px-1 text-caption text-fg-subtle">
+              {t('ui:widgets.geo.mapBubble.byTown', 'by town')}
+            </span>
+          )}
+        </span>
+      );
+    }
+    const area = areaValueOf(value);
+    if (area !== null) {
+      return (
+        <span data-part="cell-area" className="truncate">
+          {t('ui:widgets.geo.area.points', 'Area · {count, plural, one {# point} other {# points}}', { count: pointCount(area) })}
+        </span>
+      );
+    }
+  }
+
   if (column.logicalType === 'json') {
     return <MonoText className="truncate text-caption text-fg-muted">{JSON.stringify(value)}</MonoText>;
   }
@@ -583,7 +611,8 @@ function CellContent({
     return <MonoText className="truncate">{String(value)}</MonoText>;
   }
 
-  return <span className="truncate">{String(value)}</span>;
+  // A text people are mentioned in reads as it was typed: `@Name`, not the stored form.
+  return <span className="truncate">{mentionText(String(value))}</span>;
 }
 
 function isPlainNumber(column: GridColumnSpec): boolean {

@@ -19,7 +19,10 @@
  * PARSER: a streaming state machine — `write(chunk)` may be called with
  * arbitrary splits (even mid-quote); rows are emitted as soon as complete.
  * Handles quoted fields, doubled quotes, multiline cells, CRLF/LF/CR line
- * ends, and a leading BOM.
+ * ends, and a leading BOM. Fields are parted by a comma unless the caller
+ * names another mark: rows pasted from a spreadsheet come with tabs, and a
+ * file saved where the comma is the decimal mark comes with semicolons
+ * (`sniffDelimiter` tells which).
  */
 
 export const EXPORT_BOM = '﻿';
@@ -52,7 +55,41 @@ export interface CsvParser {
   end(): string[][];
 }
 
-export function createCsvParser(): CsvParser {
+/** What parts one field from the next. */
+export type CsvDelimiter = ',' | '\t' | ';';
+const DELIMITERS: readonly CsvDelimiter[] = [',', '\t', ';'];
+
+/**
+ * Which mark parts the fields of a text: the one its first line that is not
+ * blank holds most of, counted outside quotes. A tie, or none at all, is a
+ * comma.
+ */
+export function sniffDelimiter(text: string): CsvDelimiter {
+  let counts: Record<CsvDelimiter, number> = { ',': 0, '\t': 0, ';': 0 };
+  let inQuotes = false;
+  let blank = true;
+  for (const ch of text.startsWith(EXPORT_BOM) ? text.slice(EXPORT_BOM.length) : text) {
+    if (ch === '"') {
+      inQuotes = !inQuotes;
+      blank = false;
+      continue;
+    }
+    if (inQuotes) continue;
+    if (ch === '\n' || ch === '\r') {
+      if (!blank) break;
+      // A line of nothing but spaces and tabs says nothing: the next one is read.
+      counts = { ',': 0, '\t': 0, ';': 0 };
+      continue;
+    }
+    if (ch === ',' || ch === '\t' || ch === ';') counts[ch] += 1;
+    if (ch !== ' ' && ch !== '\t') blank = false;
+  }
+  const most = Math.max(...DELIMITERS.map((mark) => counts[mark]));
+  const leading = DELIMITERS.filter((mark) => counts[mark] === most);
+  return most === 0 || leading.length !== 1 ? ',' : leading[0]!;
+}
+
+export function createCsvParser(delimiter: CsvDelimiter = ','): CsvParser {
   let field = '';
   let row: string[] = [];
   let inQuotes = false;
@@ -110,7 +147,7 @@ export function createCsvParser(): CsvParser {
         inQuotes = true;
         continue;
       }
-      if (ch === ',') {
+      if (ch === delimiter) {
         endField();
         continue;
       }
@@ -142,7 +179,7 @@ export function createCsvParser(): CsvParser {
 }
 
 /** Whole-string convenience over the streaming parser. */
-export function parseCsv(text: string): string[][] {
-  const parser = createCsvParser();
+export function parseCsv(text: string, delimiter: CsvDelimiter = ','): string[][] {
+  const parser = createCsvParser(delimiter);
   return [...parser.write(text), ...parser.end()];
 }

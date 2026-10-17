@@ -67,7 +67,10 @@ email to every user who ever signed up.
 
 **A row Adminium wrote and the watcher then saw is one run, not two.** Both
 sides compute the same identity for the same occurrence, and only the first
-one through creates the run.
+one through creates the run. Each change Adminium writes is its own run all
+the same, also when several changes of one row carry the same `updated_at`
+(MySQL keeps it to the whole second): three stage moves within a second are
+three runs, each with the row as it was before its own move.
 
 ## Waiting
 
@@ -169,7 +172,10 @@ variable that carries its own backup is marked **Has its own backup text** and
 needs nothing from the rule.
 
 For a date column you can also pick **Now** instead of typing a value;
-Adminium writes the timestamp your database expects.
+Adminium writes the timestamp your database expects. A rule an app ships may
+also fill a value from the app's settings (**From settings: …**) or with a day
+so many days after a date of the record (**28 days after signed_at**): the step
+shows such a value as it is, and it is worked out when the step runs.
 
 A column the product masks (an email address, a phone number) can be *read* by
 a rule and *sent to*, but never *written* by one.

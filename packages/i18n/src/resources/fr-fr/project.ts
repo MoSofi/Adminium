@@ -24,5 +24,9 @@ export default {
   },
   "table": {
     "empty": "Aucun enregistrement"
+  },
+  "kit": {
+    "partFailed": "Cette partie de la page n’a pas pu être chargée. Rechargez la page pour réessayer.",
+    "mapPlaces": "Lieux"
   }
 } as const;

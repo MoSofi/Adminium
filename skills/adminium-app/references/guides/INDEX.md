@@ -6,9 +6,11 @@
 |---|---|---|
 | `references/guides/manifest-by-task--overview.md` | A manifest, task by task | 1610 |
 | `references/guides/manifest-by-task--add-a-table.md` | Add a table | 2907 |
-| `references/guides/manifest-by-task--link-two-tables.md` | Link two tables | 2004 |
+| `references/guides/manifest-by-task--link-two-tables.md` | Link two tables | 3273 |
 | `references/guides/manifest-by-task--a-choice-column.md` | A choice column | 1243 |
-| `references/guides/manifest-by-task--add-a-dashboard-page.md` | Add a dashboard page | 3042 |
+| `references/guides/manifest-by-task--a-signature-or-photos-on-a-row.md` | A signature or photos on a row | 1269 |
+| `references/guides/manifest-by-task--add-a-dashboard-page.md` | Add a dashboard page | 3201 |
+| `references/guides/manifest-by-task--a-board-with-its-own-columns.md` | A board with its own columns | 5351 |
 | `references/guides/manifest-by-task--buttons-on-a-record-page.md` | Buttons on a record page | 1587 |
 | `references/guides/manifest-by-task--add-a-role.md` | Add a role | 2153 |
 | `references/guides/manifest-by-task--let-customers-read-or-add.md` | Let customers read or add | 2783 |
@@ -19,12 +21,13 @@
 | `references/guides/manifest-by-task--build-on-an-add-on.md` | Build on an add-on | 1236 |
 | `references/guides/manifest-by-task--stock-from-the-inventory-add-on.md` | Stock from the Inventory add-on | 2189 |
 | `references/guides/manifest-by-task--discounts-codes-and-gift-cards-from-the-offers-add-on.md` | Discounts, codes and gift cards from the Offers add-on | 2174 |
-| `references/guides/manifest-by-task--values-adminium-fills-in.md` | Values Adminium fills in | 2450 |
+| `references/guides/manifest-by-task--values-adminium-fills-in.md` | Values Adminium fills in | 2712 |
 | `references/guides/manifest-by-task--things-a-manifest-cannot-do.md` | Things a manifest cannot do | 941 |
 | `references/guides/sample-data--overview.md` | Sample data | 414 |
 | `references/guides/sample-data--adding-it.md` | Adding it | 3778 |
 | `references/guides/sample-data--sample-times-that-follow-the-calendar.md` | Sample times that follow the calendar | 2543 |
-| `references/guides/sample-data--rows-for-an-add-on-the-app-names.md` | Rows for an add-on the app names | 2223 |
+| `references/guides/sample-data--rows-for-an-add-on-the-app-names.md` | Rows for an add-on the app names | 4975 |
+| `references/guides/sample-data--sample-people.md` | Sample people | 953 |
 | `references/guides/sample-data--while-it-is-loaded.md` | While it is loaded | 664 |
 | `references/guides/sample-data--removing-it.md` | Removing it | 1954 |
 | `references/guides/sample-data--on-uninstall.md` | On uninstall | 453 |
@@ -34,7 +37,7 @@
 | `references/guides/roles-and-staff-access--personal-data.md` | Personal data | 1375 |
 | `references/guides/roles-and-staff-access--edits-limited-to-some-columns.md` | Edits limited to some columns | 2384 |
 | `references/guides/roles-and-staff-access--reads-limited-to-some-columns.md` | Reads limited to some columns | 1696 |
-| `references/guides/roles-and-staff-access--people-who-only-use-the-app.md` | People who only use the app | 1642 |
+| `references/guides/roles-and-staff-access--people-who-only-use-the-app.md` | People who only use the app | 2301 |
 | `references/guides/roles-and-staff-access--someone-without-access.md` | Someone without access | 902 |
 | `references/guides/roles-and-staff-access--signing-in-on-the-app-s-own-address.md` | Signing in on the app's own address | 1762 |
 | `references/guides/settings--overview.md` | An app's settings page | 769 |
@@ -58,7 +61,7 @@
 | `references/guides/orders-with-lines--tickets-for-a-show.md` | Tickets for a show | 1044 |
 | `references/guides/orders-with-lines--a-stay-and-its-extras.md` | A stay and its extras | 898 |
 | `references/guides/orders-with-lines--at-the-desk.md` | At the desk | 810 |
-| `references/guides/booking-rules--overview.md` | Booking rules and limits | 765 |
+| `references/guides/booking-rules--overview.md` | Booking rules and limits | 1232 |
 | `references/guides/booking-rules--what-a-rule-reads.md` | What a rule reads | 1259 |
 | `references/guides/booking-rules--when-a-time-can-be-booked.md` | When a time can be booked | 2730 |
 | `references/guides/booking-rules--the-venue-s-clock.md` | The venue's clock | 398 |
@@ -84,8 +87,5 @@
 | `references/guides/timed-moves--what-a-timed-move-never-does.md` | What a timed move never does | 1374 |
 | `references/guides/timed-moves--three-cases.md` | Three cases | 2280 |
 | `references/guides/timed-moves--sample-data.md` | Sample data | 877 |
-| `references/guides/timed-moves--moves-that-wait-for-a-time.md` | Moves that wait for a time | 1130 |
-| `references/guides/timed-moves--late-moves.md` | Late moves | 1872 |
-| `references/guides/timed-moves--reminders-at-a-wall-time.md` | Reminders at a wall time | 1173 |
 
 More: `references/guides/INDEX-2.md`

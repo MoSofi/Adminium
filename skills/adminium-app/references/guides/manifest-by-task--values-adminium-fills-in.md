@@ -24,6 +24,8 @@ next number in a series and `done_at` is written when the status becomes `done`.
 | `lookup` | A foreign key filled from a code a person types into another column. |
 | `perNight` | A price worked out night by night. |
 | `notAfter`, `notBefore` | A date kept on one side of today, or of another date. |
+| `linkable` | A foreign key that names only a row meeting some conditions (a price still offered), or holding what the row written holds (a contact of the deal's company). |
+| `file` | Files a person uploads for the column: their kinds, their size, how many. |
 | `venueLocal` | A time given with no zone is read in the venue's time zone. |
 | `personal`, `secret` | Whether the column is personal data, or a secret no reply carries. |
 | `retryKey` | The column a staff create keeps its retry key in. |

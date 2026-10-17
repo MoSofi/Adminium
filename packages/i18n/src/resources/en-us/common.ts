@@ -126,7 +126,7 @@ export default {
       "account": "Account"
     },
     "back": "Back",
-    "team": "Team",
+    "team": "People",
     "roles": "Roles & permissions",
     "audit": "Audit log",
     "security": "Password & sessions",
@@ -137,7 +137,9 @@ export default {
       "openStaff": "Open the staff screens",
       "openStaffInstance": "Open the staff screens · {instance}"
     },
-    "drawerTitle": "Navigation"
+    "drawerTitle": "Navigation",
+    "emptyPartsOff": "Nothing is switched on for you right now. Ask an administrator.",
+    "teams": "Teams"
   },
   "apps": {
     "frame": {
@@ -161,25 +163,6 @@ export default {
     "changelog": "What’s new",
     "signOut": "Sign out",
     "toggleSidebar": "Toggle sidebar"
-  },
-  "palette": {
-    "dialog": "Command palette",
-    "placeholder": "Type a command or search…",
-    "navigate": "Navigate",
-    "actions": "Actions",
-    "askAi": "Ask AI",
-    "shortcuts": "Keyboard shortcuts",
-    "signOut": "Sign out",
-    "themeDark": "Dark mode",
-    "themeLight": "Light mode",
-    "footerNavigate": "navigate",
-    "footerOpen": "select",
-    "footerClose": "close",
-    "recent": "Recent",
-    "searching": "Searching records…",
-    "records": "Records",
-    "empty": "No results for \"{query}\"",
-    "apps": "Apps"
   },
   "shortcuts": {
     "title": "Keyboard shortcuts",
@@ -305,6 +288,15 @@ export default {
       "title": "This app opens on its own",
       "body": "It opens at its own address, not inside the dashboard.",
       "primary": "Open it"
+    },
+    "partOff": {
+      "title": "This part of the app is switched off",
+      "body": "An admin switched this part of the app off. Nothing was deleted — switch it on in Studio → Apps, under Parts.",
+      "secondary": "Go back"
+    },
+    "partsOff": {
+      "title": "Nothing is switched on for you",
+      "body": "Every role you hold belongs to a part of an app that is switched off right now. Nothing was deleted. Ask an administrator to switch that part on, or to give you another role."
     }
   },
   "notFound": {
@@ -393,42 +385,6 @@ export default {
       "label": "Language",
       "directionNote": "Text direction: right to left (set automatically by the language)",
       "communityDraft": "This translation is a community draft — it has not been reviewed by a native speaker yet."
-    }
-  },
-  "account": {
-    "title": "Account",
-    "subtitle": "The identity of your current session. Manage display preferences and notification settings on their dedicated pages.",
-    "preferencesLink": "Preferences",
-    "notificationsLink": "Notification settings",
-    "name": "Name",
-    "email": "Email",
-    "roles": "Roles",
-    "twoFactor": "Two-factor",
-    "on": "Enabled",
-    "off": "Off",
-    "nameRequired": "Enter your name.",
-    "emailHelper": "Used to sign in. Changing it needs your password.",
-    "confirmPassword": "Current password",
-    "confirmPasswordHelper": "Confirm it is you before your sign-in address changes.",
-    "save": "Save changes",
-    "saveFailed": "Could not save your profile",
-    "saved": "Profile updated",
-    "savedBody": "Your new details are in use across this workspace. If you changed your email, sign in with the new address from now on.",
-    "accessTitle": "Access",
-    "accessSubtitle": "What this account may do, and how it proves who it is.",
-    "rolesHelper": "Roles are granted by an administrator and cannot be changed from your own account.",
-    "manageTwoFactor": "Manage",
-    "setUpTwoFactor": "Set up",
-    "securityLink": "Password & sessions",
-    "preferences": {
-      "title": "Preferences",
-      "subtitle": "How Adminium looks and reads for you — on this and every device you sign in from.",
-      "workspaceDefault": "Workspace default",
-      "personal": "Personal",
-      "usingDefault": "Using workspace default ({value})",
-      "reset": "Reset to workspace default",
-      "resetFailed": "Could not reset this preference. Try again.",
-      "appliesInstantly": "Changes apply instantly and are saved to your profile."
     }
   },
   "settings": {
@@ -523,54 +479,6 @@ export default {
       }
     }
   },
-  "onboarding": {
-    "title": "Getting started",
-    "subtitle": "A few steps to get your workspace ready.",
-    "loading": "Loading your setup checklist…",
-    "welcome": "Welcome to Adminium, {name} 👋",
-    "progressBody": "You’ve completed {done} of {total} setup steps. Finish the rest to unlock the full workspace.",
-    "completeBody": "You’re all set — your workspace is fully configured.",
-    "ringLabel": "{done} of {total} steps complete",
-    "done": "Done",
-    "skip": "Skip for now",
-    "goToWorkspace": "Go to workspace",
-    "help": {
-      "title": "Need a hand?",
-      "body": "We’re here to help you get set up fast."
-    },
-    "steps": {
-      "connectDatabase": {
-        "title": "Connect a database",
-        "desc": "Point Adminium at your Postgres, MySQL or SQLite — a read-only role is welcome.",
-        "time": "5 min",
-        "action": "Connect"
-      },
-      "chooseTables": {
-        "title": "Choose your tables",
-        "desc": "Pick which tables become pages — PII is masked by default.",
-        "time": "2 min",
-        "action": "Choose"
-      },
-      "inviteTeammates": {
-        "title": "Invite teammates",
-        "desc": "Bring your team in to explore and collaborate.",
-        "time": "2 min",
-        "action": "Invite"
-      },
-      "workspaceDefaults": {
-        "title": "Set workspace defaults",
-        "desc": "Theme, accent, density and language everyone starts with.",
-        "time": "1 min",
-        "action": "Set defaults"
-      }
-    },
-    "entry": {
-      "wayBack": "Getting started · {done}/{total}",
-      "dismiss": "Dismiss setup checklist",
-      "continue": "Continue setup",
-      "banner": "Finish setting up your workspace — {done} of {total} steps done."
-    }
-  },
   "views": {
     "baseView": "All records",
     "menuLabel": "Saved views",
@@ -653,26 +561,6 @@ export default {
       "alreadyCompleted": "This instance has already been set up. Sign in with the existing admin account.",
       "rejected": "The server rejected those details. Check the email and password and try again.",
       "failed": "Setup failed. Check your connection and try again."
-    }
-  },
-  "changelog": {
-    "title": "Changelog",
-    "subtitle": "Product updates & releases.",
-    "allReleases": "All releases",
-    "tag": {
-      "new": "New",
-      "improved": "Improved",
-      "fixed": "Fixed",
-      "security": "Security"
-    },
-    "filter": {
-      "all": "All",
-      "label": "Filter changes by type"
-    },
-    "empty": {
-      "title": "Nothing under this filter",
-      "body": "No release has carried a change of this kind yet.",
-      "clear": "Show all changes"
     }
   },
   "desktop": {
@@ -869,42 +757,6 @@ export default {
       "details": "Sharing details"
     }
   },
-  "capabilities": {
-    "heading": "App permissions",
-    "description": "Apps you install can ask to use this computer’s hardware. You approve each one, and can revoke access anytime.",
-    "grantedTo": "Allowed for {app}",
-    "status": {
-      "available": "Available",
-      "stub": "Not available yet",
-      "unavailable": "Unavailable"
-    },
-    "allow": {
-      "action": "Allow…"
-    },
-    "revoke": {
-      "action": "Revoke",
-      "saved": "Access revoked",
-      "failed": "Could not revoke access. Try again."
-    },
-    "grant": {
-      "saved": "Access allowed",
-      "failed": "Could not allow access. Try again."
-    },
-    "catalog": {
-      "printerEscpos": {
-        "name": "Receipt printer (ESC/POS)",
-        "scope": "Print to receipt printers and open a connected cash drawer"
-      }
-    },
-    "consent": {
-      "title": "Allow {app}?",
-      "subtitle": "{app} is asking to use this computer’s hardware.",
-      "willAllow": "This will allow {app} to:",
-      "revokeNote": "You can revoke this at any time in Settings → Desktop. Only allow apps you trust.",
-      "deny": "Not now",
-      "approve": "Allow"
-    }
-  },
   "board": {
     "addCard": "Add card",
     "compose": {
@@ -954,144 +806,6 @@ export default {
     "messageSent": "Message sent",
     "sendFailed": "The message could not be sent."
   },
-  "templates": {
-    "crud": {
-      "title": "Records",
-      "description": "Rows in a searchable table."
-    },
-    "dashboard": {
-      "title": "Dashboard",
-      "description": "Charts and figures you arrange."
-    },
-    "board": {
-      "title": "Board",
-      "description": "Cards in columns by status."
-    },
-    "calendar": {
-      "title": "Calendar",
-      "description": "Records on a month grid, by date."
-    },
-    "scheduler": {
-      "title": "Scheduler",
-      "description": "A timeline per person."
-    },
-    "logViewer": {
-      "title": "Logs",
-      "description": "Filterable event lines."
-    },
-    "files": {
-      "title": "Files",
-      "description": "Files and folders to browse."
-    },
-    "chat": {
-      "title": "Chat",
-      "description": "Threaded conversations."
-    },
-    "builder": {
-      "title": "Builder",
-      "description": "A drag-and-drop document canvas."
-    },
-    "wizard": {
-      "title": "Wizard",
-      "description": "Guided steps to finish a task."
-    },
-    "settings": {
-      "title": "Settings",
-      "description": "Preference rows with toggles."
-    },
-    "directory": {
-      "title": "Directory",
-      "searchPlaceholder": "Search people…",
-      "allFilter": "All",
-      "clearFilters": "Clear filters",
-      "detailTitle": "Person",
-      "emptyTitle": "No people yet",
-      "emptyBody": "People appear here as rows land in the table.",
-      "noMatchesTitle": "No matching people",
-      "noMatchesBody": "Try a different search or remove a filter.",
-      "errorTitle": "This directory failed to load",
-      "loading": "Loading people",
-      "memberCount": "{count} people",
-      "description": "People cards and an org chart."
-    },
-    "masterDetail": {
-      "title": "List & detail",
-      "allFilter": "All",
-      "clearFilters": "Clear filters",
-      "emptyTitle": "Nothing here yet",
-      "emptyBody": "Records appear here as rows land in the table.",
-      "noMatchesTitle": "No matching records",
-      "noMatchesBody": "Try removing a filter.",
-      "errorTitle": "This list failed to load",
-      "loading": "Loading records",
-      "selectPrompt": "Select a record",
-      "description": "A list, with the record beside it."
-    },
-    "queueInbox": {
-      "title": "Queue",
-      "approve": "Approve",
-      "reject": "Reject",
-      "allSegment": "All",
-      "approvedToast": "{count} approved.",
-      "rejectedToast": "{count} rejected.",
-      "undoneToast": "Decision undone.",
-      "failedToast": "Decision failed.",
-      "bulkFailed": "{failed} of {total} selected rows could not be updated.",
-      "undoFailedToast": "Could not undo this decision.",
-      "rejectTitle": "Reject requests",
-      "rejectCount": "Selected · {count}",
-      "rejectNote": "The requester will be notified with your note.",
-      "rejectPlaceholder": "Add a note for the requester…",
-      "rejectConfirm": "Reject",
-      "emptyTitle": "Nothing in the queue",
-      "emptyBody": "New requests appear here as they arrive.",
-      "caughtUpTitle": "You’re all caught up",
-      "caughtUpBody": "No requests in this tab right now.",
-      "errorTitle": "This queue failed to load",
-      "loading": "Loading queue",
-      "selectPrompt": "Select a request",
-      "daysUnit": "{count} days",
-      "description": "A work queue with approve and reject."
-    }
-  },
-  "reports": {
-    "title": "Scheduled reports",
-    "subtitle": "Recurring data snapshots of a page, delivered as in-app notifications.",
-    "new": "New report",
-    "loadFailed": "Could not load scheduled reports.",
-    "saveFailed": "Could not save this report.",
-    "nextRun": "Next run",
-    "emptyTitle": "No scheduled reports yet",
-    "emptyBody": "Create one to get a recurring data snapshot of any table page.",
-    "createTitle": "New scheduled report",
-    "editTitle": "Edit scheduled report",
-    "nameLabel": "Name",
-    "namePlaceholder": "e.g. Weekly revenue",
-    "pageLabel": "Page",
-    "pagePlaceholder": "Choose a page…",
-    "frequencyLabel": "Frequency",
-    "frequency": {
-      "daily": "Daily",
-      "weekly": "Weekly",
-      "monthly": "Monthly"
-    },
-    "dayOfWeekLabel": "Day",
-    "dayOfMonthLabel": "Day of month",
-    "timeLabel": "Time",
-    "timezoneLabel": "Timezone",
-    "formatLabel": "Delivery",
-    "formatHint": "Data snapshot (PDF/PNG rendering arrives in a later release) — each run produces a CSV snapshot and an in-app notification.",
-    "recipientsLabel": "Recipients",
-    "recipientsHint": "Stored with the report. Email delivery arrives in a later release — runs notify you in-app for now.",
-    "deliveryBadge": "CSV snapshot",
-    "delete": "Delete",
-    "create": "Create",
-    "cadence": {
-      "daily": "Daily at {time} ({zone})",
-      "weekly": "Weekly · {day} at {time} ({zone})",
-      "monthly": "Monthly · day {day} at {time} ({zone})"
-    }
-  },
   "notifications": {
     "channel": {
       "inApp": "In-app",
@@ -1101,142 +815,14 @@ export default {
     "event": {
       "reportReady": "Scheduled report ready",
       "reportFailed": "Scheduled report failed",
-      "backupCompleted": "Backup completed"
+      "backupCompleted": "Backup completed",
+      "ruleNotice": "A notice from a rule",
+      "mention": "Somebody mentioned me"
     }
   },
   "theme": {
     "toLight": "Light mode",
     "toDark": "Dark mode"
-  },
-  "audit": {
-    "action": {
-      "view": "View"
-    },
-    "actor": {
-      "apiKey": "API key",
-      "automation": "Automation",
-      "system": "System",
-      "user": "User"
-    },
-    "category": {
-      "auth": "Sign-in & accounts",
-      "automation": "Automations",
-      "connection": "Connections",
-      "data": "Records",
-      "export": "Imports & exports",
-      "llm": "AI assist",
-      "rbac": "Roles & permissions",
-      "schema": "Schema",
-      "settings": "Settings",
-      "system": "System"
-    },
-    "column": {
-      "action": "Action",
-      "actor": "Actor",
-      "category": "Category",
-      "details": "Details",
-      "when": "When"
-    },
-    "drawer": {
-      "actorId": "Actor id",
-      "actorKind": "Actor type",
-      "after": "After",
-      "before": "Before",
-      "category": "Category",
-      "changes": "Changes",
-      "connection": "Connection",
-      "field": "Field",
-      "ip": "IP address",
-      "noChanges": "This action recorded no before/after images.",
-      "none": "None",
-      "requestId": "Request id",
-      "resource": "Resource",
-      "subtitle": "{actor} · {when}",
-      "truncated": "Truncated at 16 KB",
-      "userAgent": "User agent",
-      "subtitleVia": "{actor}, through {name} · {when}"
-    },
-    "empty": {
-      "body": "Changes to data, schema, settings and permissions land here as they happen.",
-      "filtered": {
-        "body": "Widen the date range or clear the category filter.",
-        "title": "Nothing matches these filters"
-      },
-      "title": "Nothing has been logged yet"
-    },
-    "filterActor": "Actor id",
-    "filterCategoryAny": "Any category",
-    "filterCategory": "Filter by category",
-    "filterFrom": "From",
-    "filterTo": "To",
-    "listFailed": {
-      "title": "Could not load the audit log"
-    },
-    "loadMore": "Load older entries",
-    "subtitle": "Every change made in this workspace, who made it, and what it changed.",
-    "title": "Audit log",
-    "via": "through {name}"
-  },
-  "security": {
-    "password": {
-      "changedBody": "Use the new password the next time you sign in. Other devices stay signed in — end those sessions if you want them out.",
-      "changed": "Password changed",
-      "confirm": "Confirm new password",
-      "current": "Current password",
-      "failed": "Could not change your password",
-      "helper": "At least 8 characters.",
-      "mismatch": "The two passwords do not match.",
-      "new": "New password",
-      "submit": "Change password",
-      "title": "Password"
-    },
-    "sessions": {
-      "expires": "Expires {at}",
-      "failedBody": "This list is the only place that shows where your account is signed in, so treat an empty one as unknown rather than as none.",
-      "failed": "Could not read your sessions",
-      "ip": "IP {ip}",
-      "loading": "Looking for other signed-in devices…",
-      "noIp": "No IP recorded",
-      "revokeBody": "The session ends immediately and whoever is using it has to sign in again.",
-      "revokeFailed": "Could not sign that device out",
-      "revokeTitle": "Sign this device out",
-      "revoke": "Sign out",
-      "seenUnknown": "Last seen: unknown",
-      "seen": "Last seen {since}",
-      "thisDevice": "This device",
-      "title": "Signed in",
-      "unknownDevice": "Unrecognised device"
-    },
-    "subtitle": "Your password, your second factor, and everywhere you are signed in.",
-    "title": "Security",
-    "twoFactor": {
-      "activateFailed": "That code was not accepted",
-      "activate": "Turn on two-factor",
-      "body": "An authenticator app generates a 6-digit code that Adminium asks for after your password.",
-      "code": "Code from your app",
-      "copyKey": "Copy setup key",
-      "copyLink": "Copy setup link",
-      "disableBody": "Your account goes back to password-only, and your recovery codes stop working.",
-      "disableConfirm": "Turn it off",
-      "disableFailed": "Could not turn off two-factor",
-      "disablePassword": "Your password",
-      "disableTitle": "Turn off two-factor authentication",
-      "disable": "Turn off two-factor",
-      "enrollFailed": "Could not start setup",
-      "enroll": "Set up two-factor",
-      "hide": "Hide setup key",
-      "off": "Off",
-      "on": "On",
-      "recovery": {
-        "body": "Each code signs you in once if you lose your authenticator. They are shown only now.",
-        "copy": "Copy codes",
-        "title": "Save your recovery codes"
-      },
-      "reveal": "Show setup key",
-      "secretHelper": "Paste the setup link into your authenticator, or type the key in by hand.",
-      "secret": "Setup key",
-      "title": "Two-factor authentication"
-    }
   },
   "invoices": {
     "copySuffix": "{name} (copy)",

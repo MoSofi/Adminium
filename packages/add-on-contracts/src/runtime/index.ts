@@ -294,6 +294,7 @@ export const REACT_DOM_EXPORTS = [
  * a host.
  */
 export const PROJECT_UI_EXPORTS = [
+  'Board',
   'Button',
   'Card',
   'DataTable',
@@ -301,13 +302,17 @@ export const PROJECT_UI_EXPORTS = [
   'GeneratedPage',
   'Grid',
   'Icon',
+  'ImportWizard',
   'Input',
   'Link',
+  'MapView',
+  'mentionText',
   'Page',
   'Select',
   'Stack',
   'Stat',
   'Switch',
+  'TextArea',
   'toast',
   'useCurrentUser',
   'useMutation',

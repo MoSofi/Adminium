@@ -111,6 +111,43 @@ describe('useWidgetStream', () => {
     expect(result.current.items.map((r) => r.id)).toEqual([4]);
   });
 
+  it('lets go of a row whose key comes with no row: it was this reader\'s and is a colleague\'s now', () => {
+    const fake = makeFakeTransport();
+    const channel = 'widget-data:conn_1:public.deals';
+    const { result } = renderHook(() =>
+      useWidgetStream<Row>({ channel, snapshot: [{ id: 2, label: 'theirs now' }, { id: 1, label: 'still mine' }], getKey, transport: fake.transport }),
+    );
+    // The key as the server sends it: an object of the key's one column, here as text though the widget's key is a number.
+    fake.emit(channel, { type: 'record.update', pk: { id: '2' }, row: null, gone: true }, 'record.update');
+    expect(result.current.items).toEqual([{ id: 1, label: 'still mine' }]);
+    // A key that names nothing held, a frame with no key at all, and a key of two columns change nothing.
+    fake.emit(channel, { type: 'record.update', pk: { id: 9 }, row: null, gone: true }, 'record.update');
+    fake.emit(channel, { type: 'record.update', pk: null, row: null, changed: true }, 'record.update');
+    fake.emit(channel, { type: 'record.update', pk: { a: 1, b: 1 }, row: null, gone: true }, 'record.update');
+    expect(result.current.items).toEqual([{ id: 1, label: 'still mine' }]);
+  });
+
+  it('keeps a row when a frame names it with no row and no mark: a file attached to a record is not the record leaving', () => {
+    const fake = makeFakeTransport();
+    const channel = 'widget-data:conn_1:public.deals';
+    const { result } = renderHook(() => useWidgetStream<Row>({ channel, snapshot: [{ id: 2, label: 'has a new file' }, { id: 1, label: 'another' }], getKey, transport: fake.transport }));
+    fake.emit(channel, { type: 'record.attachments', pk: { id: 2 }, row: null }, 'record.attachments');
+    fake.emit(channel, { type: 'record.update', pk: { id: 2 }, row: null }, 'record.update');
+    expect(result.current.items).toEqual([{ id: 2, label: 'has a new file' }, { id: 1, label: 'another' }]);
+  });
+
+  it('holds a let-go while paused and applies it on resume, in order with what else came', () => {
+    const fake = makeFakeTransport();
+    const channel = 'widget-data:conn_1:public.deals';
+    const { result } = renderHook(() => useWidgetStream<Row>({ channel, snapshot: [{ id: 1, label: 'mine' }], getKey, transport: fake.transport }));
+    act(() => result.current.setPaused(true));
+    fake.emit(channel, { type: 'record.create', pk: { id: 3 }, row: { id: 3, label: 'new' } });
+    fake.emit(channel, { type: 'record.update', pk: { id: 1 }, row: null, gone: true }, 'record.update');
+    expect(result.current.items).toEqual([{ id: 1, label: 'mine' }]);
+    act(() => result.current.setPaused(false));
+    expect(result.current.items).toEqual([{ id: 3, label: 'new' }]);
+  });
+
   it('pauses: incoming events are held and counted, then flushed on resume', () => {
     const fake = makeFakeTransport();
     const { result } = renderHook(() =>

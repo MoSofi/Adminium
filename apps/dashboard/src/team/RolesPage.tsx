@@ -32,7 +32,7 @@
  * fallback here to the catalogue text.
  */
 import { useMutation, useQueries, useQuery, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
-import { Plus, ShieldCheck, Trash2 } from 'lucide-react';
+import { Plus, Rows3, ShieldCheck, Trash2 } from 'lucide-react';
 import { useMemo, useState, type ReactNode } from 'react';
 import {
   Alert,
@@ -40,6 +40,7 @@ import {
   Card,
   CardBody,
   CardHeader,
+  Checkbox,
   EmptyState,
   FormField,
   Input,
@@ -48,6 +49,7 @@ import {
   ModalFooter,
   ModalHeader,
   PermissionMatrix,
+  SegmentedControl,
   Select,
   Textarea,
   type PermissionGrant,
@@ -60,6 +62,21 @@ import { t } from '../i18n/t.js';
 import {
   DATA_ACCESS_GRANTS,
   ROLES_QUERY_KEY,
+  ROW_ACTIONS,
+  peopleQuery,
+  putRoleRows,
+  reachOf,
+  severalOf,
+  roleRowsQuery,
+  rowLimitsSave,
+  rowsPreviewQuery,
+  withReach,
+  type PersonRef,
+  type RoleRowsTable,
+  type RowAction,
+  type RowLimit,
+  type RowReach,
+  type RowWay,
   appStaffRows,
   SUPER_ADMIN_SLUG,
   catalogPermissions,
@@ -254,6 +271,7 @@ export function RolesPage(): ReactNode {
   const [createOpen, setCreateOpen] = useState(false);
   const [renaming, setRenaming] = useState<RoleListItem | null>(null);
   const [deleting, setDeleting] = useState<RoleListItem | null>(null);
+  const [limiting, setLimiting] = useState<RoleListItem | null>(null);
 
   const loading = grantQueries.some((query) => query.isPending);
   const grantsFailed = grantQueries.some((query) => query.isError);
@@ -448,6 +466,11 @@ export function RolesPage(): ReactNode {
                         {role.description === null ? null : (
                           <span className="truncate text-caption text-fg-subtle">{role.description}</span>
                         )}
+                        {role.partsOff === true ? (
+                          <span className="truncate text-caption text-fg-subtle" data-part="parts-off">
+                            {t('roles:partsOff', 'Its part of the app is switched off: it gives nothing until that part is on.')}
+                          </span>
+                        ) : null}
                       </div>
                     </td>
                     <td className="px-4 py-2.5 text-fg-muted">
@@ -457,6 +480,24 @@ export function RolesPage(): ReactNode {
                     </td>
                     <td className="px-4 py-2.5">
                       <div className="flex flex-wrap justify-end gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          // A save of the rows writes the role's grants as the server holds them: with boxes ticked and not yet
+                          // saved it would be working from one set and the matrix from another, and one would undo the other.
+                          disabled={role.slug === SUPER_ADMIN_SLUG || changed.length > 0}
+                          title={
+                            role.slug === SUPER_ADMIN_SLUG
+                              ? t('roles:rows.locked', 'Super Admin reaches every row.')
+                              : changed.length > 0
+                                ? t('roles:rows.saveFirst', 'Save or discard the permission changes first.')
+                                : undefined
+                          }
+                          onClick={() => setLimiting(role)}
+                          data-testid={`roles-rows-${role.slug}`}
+                        >
+                          {t('roles:rows.action', 'Rows')}
+                        </Button>
                         <Button variant="ghost" size="sm" onClick={() => setRenaming(role)}>
                           {t('roles:action.rename', 'Rename')}
                         </Button>
@@ -505,6 +546,20 @@ export function RolesPage(): ReactNode {
             rename.reset();
           }}
           onSubmit={(name) => rename.mutate({ id: renaming.id, name })}
+        />
+      )}
+
+      {limiting === null ? null : (
+        <RoleRowsDialog
+          key={limiting.id}
+          role={limiting}
+          onClose={() => setLimiting(null)}
+          onSaved={async () => {
+            setLimiting(null);
+            // The matrix's own draft was read before the limits changed the role's grants.
+            setDraft(null);
+            await queryClient.invalidateQueries({ queryKey: ROLES_QUERY_KEY });
+          }}
         />
       )}
 
@@ -751,3 +806,327 @@ function DeleteRoleDialog(props: {
     </Modal>
   );
 }
+
+// --- which rows a role reaches -------------------------------------------------
+
+function rowActionLabel(action: RowAction): string {
+  switch (action) {
+    case 'read':
+      return t('roles:rows.actionLabel.read', 'Read');
+    case 'update':
+      return t('roles:rows.actionLabel.update', 'Change');
+    case 'delete':
+      return t('roles:rows.actionLabel.delete', 'Delete');
+  }
+}
+
+function wayText(way: RowWay): string {
+  switch (way.kind) {
+    case 'person':
+      return t('roles:rows.way.person', 'the person in {column}', { column: way.label });
+    case 'listing': {
+      const listed = way.dated
+        ? t('roles:rows.way.listingDated', 'anyone listed for it in {table} on the day', { table: way.label })
+        : t('roles:rows.way.listing', 'anyone listed for it in {table}', { table: way.label });
+      const when = way.when;
+      if (when === undefined) return listed;
+      // Counts only while a column of the listing holds a value: said in the same sentence, after who is listed.
+      const holds =
+        when.in !== undefined
+          ? t('roles:rows.way.whileIn', 'while {column} is {values}', { column: when.label, values: anyOf(when.in) })
+          : when.isNull === true
+            ? t('roles:rows.way.whileEmpty', 'while {column} is empty', { column: when.label })
+            : t('roles:rows.way.whileSet', 'while {column} is filled in', { column: when.label });
+      return `${listed}, ${holds}`;
+    }
+    case 'parent':
+      return t('roles:rows.way.parent', 'whoever reaches its {table}', { table: way.label });
+  }
+}
+
+/** "A or B": joined as the reader's language joins a choice. */
+function anyOf(parts: readonly string[]): string {
+  const locale = typeof document === 'undefined' ? 'en' : document.documentElement.lang || 'en';
+  try {
+    return new Intl.ListFormat(locale, { type: 'disjunction' }).format(parts);
+  } catch {
+    return parts.join(', ');
+  }
+}
+
+/**
+ * How the table says whose a row is, every way of it. A table reached through
+ * its parent says so in the same words, never as "Follows: Deal": it keeps a
+ * limit of its own, which the controls under it set (the owner's ruling).
+ */
+function belongsText(table: RoleRowsTable): string {
+  return t('roles:rows.belongs', 'A row belongs to {ways}.', { ways: anyOf(table.ways.map(wayText)) });
+}
+
+/** One way a row is this person's, as the sentence says it: "Owner is this person". */
+function wayIs(way: RowWay): string {
+  switch (way.kind) {
+    case 'person':
+      return t('roles:rows.wayIs.person', '{column} is this person', { column: way.label });
+    case 'listing':
+      return way.dated
+        ? t('roles:rows.wayIs.listingDated', 'this person is listed in {table} on the day', { table: way.label })
+        : t('roles:rows.wayIs.listing', 'this person is listed in {table}', { table: way.label });
+    case 'parent':
+      return t('roles:rows.wayIs.parent', 'this person reaches its {table}', { table: way.label });
+  }
+}
+
+/**
+ * A reach in words, never as a code, and in the design's sentences: the
+ * table and the column that decide it are named ("Only rows of Deals where
+ * Owner is this person."). A table whose rows are somebody's in more than one
+ * way names every way, so the sentence is never narrower than the rule.
+ */
+export function reachSentence(table: Pick<RoleRowsTable, 'label' | 'ways'>, reach: RowReach | null): string {
+  const only = table.ways.length === 1 ? table.ways[0] : undefined;
+  if (reach === null) {
+    return only?.kind === 'person'
+      ? t('roles:rows.sentence.allWho', 'Every row of {table}, whoever {column} is.', { table: table.label, column: only.label })
+      : t('roles:rows.sentence.all', 'Every row of {table}.', { table: table.label });
+  }
+  const ways = anyOf(table.ways.map(wayIs));
+  const parts = [
+    reach.reach === 'all'
+      ? t('roles:rows.sentence.allWhile', 'Every row of {table}', { table: table.label })
+      : reach.reach === 'own'
+        ? t('roles:rows.sentence.only', 'Only rows of {table} where {ways}', { table: table.label, ways })
+        : only !== undefined
+          ? t('roles:rows.sentence.onlyTeam', 'Only rows of {table} where {ways}, or someone in a team they lead', { table: table.label, ways })
+          : t('roles:rows.sentence.onlyTeamWays', 'Only rows of {table} where {ways}, or the same for someone in a team they lead', { table: table.label, ways }),
+    ...(reach.unowned === true ? [t('roles:rows.sentence.unowned', 'and rows nobody owns yet')] : []),
+    ...(reach.while === undefined
+      ? []
+      : [t('roles:rows.sentence.while', 'only while {column} is {values}', { column: reach.while.column, values: anyOf(reach.while.in.map(String)) })]),
+    ...(reach.by === undefined ? [] : [t('roles:rows.sentence.by', 'and only the ones {column} names them in', { column: reach.by })]),
+  ];
+  return `${parts.join(', ')}.`;
+}
+
+/**
+ * Which rows one role reaches, table by table: every row, the person's own,
+ * or their own and their team's — for reading, changing and deleting, each
+ * on its own. Only tables that say whose their rows are can be limited, and
+ * only for an action the role holds. Tried as a chosen person, each table
+ * says how many rows that person would see, before anything is saved.
+ */
+function RoleRowsDialog(props: { role: RoleListItem; onClose: () => void; onSaved: () => Promise<void> }): ReactNode {
+  const { role } = props;
+  const rows = useQuery(roleRowsQuery(role.id));
+  const grants = useQuery(roleGrantsQuery(role.id));
+  const people = useQuery(peopleQuery());
+  const [draft, setDraft] = useState<Record<string, RowLimit | null>>({});
+  const [personId, setPersonId] = useState('');
+  const person = people.data?.find((one) => one.id === personId) ?? null;
+  const tables = rows.data?.tables ?? [];
+  const limitOf = (table: RoleRowsTable): RowLimit | null => (table.ref in draft ? (draft[table.ref] ?? null) : table.limit);
+  const body = grants.data === undefined ? null : rowLimitsSave(grants.data, tables, draft);
+  const dirty = body !== null && Object.keys(body.rows).length > 0;
+
+  const queryClient = useQueryClient();
+  const save = useMutation({
+    mutationFn: async () => {
+      if (body === null) return;
+      // The grants as they are NOW, not as they were when the dialog opened: a save sends the whole list, and one read
+      // minutes ago would take back whatever another admin has ticked since.
+      const fresh = await queryClient.fetchQuery({ ...roleGrantsQuery(role.id), staleTime: 0 });
+      await putRoleRows(role.id, rowLimitsSave(fresh, tables, draft));
+    },
+    onSuccess: props.onSaved,
+  });
+
+  const set = (table: RoleRowsTable, action: RowAction, reach: RowReach | null): void => {
+    setDraft((held) => ({ ...held, [table.ref]: withReach(limitOf(table), action, reach) }));
+  };
+
+  return (
+    <Modal open size="lg" onOpenChange={(next) => { if (!next) props.onClose(); }}>
+      <ModalHeader
+        icon={<Rows3 />}
+        title={t('roles:rows.title', 'Which rows “{role}” reaches', { role: role.name })}
+        closeLabel={t('common.close', 'Close')}
+      />
+      <ModalBody className="flex flex-col gap-4">
+        <p className="text-body-sm text-fg-muted">
+          {t(
+            'roles:rows.intro',
+            'A role reaches every row of a table it may open, unless it is limited here. A limit holds for a person only when every role that gives them the table is limited.',
+          )}
+        </p>
+        {rows.isError ? (
+          <Alert role="alert" tone="danger" title={t('roles:rows.loadFailed', 'The tables could not be read.')} body={rows.error.message} />
+        ) : rows.isPending ? null : tables.length === 0 ? (
+          <EmptyState
+            compact
+            preset="no-data"
+            icon={<Rows3 />}
+            title={t('roles:rows.empty.title', 'Nothing to limit')}
+            body={t('roles:rows.empty.body', 'No table this role may open says whose its rows are.')}
+          />
+        ) : (
+          <>
+            <FormField label={t('roles:rows.tryAs', 'Try it as')}>
+              <Select value={personId} onChange={(event) => setPersonId(event.target.value)} data-testid="roles-rows-person">
+                <option value="">{t('roles:rows.tryAsNone', 'Nobody')}</option>
+                {(people.data ?? []).map((one) => (
+                  <option key={one.id} value={one.id}>
+                    {one.sample ? t('roles:rows.samplePerson', '{name} (sample)', { name: one.name }) : one.name}
+                  </option>
+                ))}
+              </Select>
+            </FormField>
+            <ul className="flex flex-col gap-3" data-testid="roles-rows-tables">
+              {tables.map((table) => (
+                <RoleRowsTableCard
+                  key={table.ref}
+                  roleId={role.id}
+                  table={table}
+                  limit={limitOf(table)}
+                  person={person}
+                  severalConnections={new Set(tables.map((one) => one.connectionId)).size > 1}
+                  disabled={save.isPending}
+                  onChange={(action, reach) => set(table, action, reach)}
+                />
+              ))}
+            </ul>
+          </>
+        )}
+        {save.error === null ? null : (
+          <Alert role="alert" tone="danger" title={t('roles:rows.failed', 'Could not save the row limits')} body={save.error.message} />
+        )}
+      </ModalBody>
+      <ModalFooter>
+        <Button variant="secondary" onClick={props.onClose} disabled={save.isPending}>
+          {t('common.cancel', 'Cancel')}
+        </Button>
+        <Button disabled={!dirty} loading={save.isPending} onClick={() => save.mutate()} data-testid="roles-rows-save">
+          {t('common.save', 'Save')}
+        </Button>
+      </ModalFooter>
+    </Modal>
+  );
+}
+
+function RoleRowsTableCard(props: {
+  roleId: string;
+  table: RoleRowsTable;
+  limit: RowLimit | null;
+  person: PersonRef | null;
+  severalConnections: boolean;
+  disabled: boolean;
+  onChange: (action: RowAction, reach: RowReach | null) => void;
+}): ReactNode {
+  const { table, limit, person } = props;
+  const read = severalOf(limit, 'read') ?? reachOf(limit, 'read');
+  const preview = useQuery({
+    ...rowsPreviewQuery({ roleId: props.roleId, table, userId: person?.id ?? '', reach: read }),
+    enabled: person !== null && !table.private && table.granted.read,
+  });
+  return (
+    <li className="rounded-lg border border-border p-3" data-testid={`roles-rows-table-${table.tableId}`}>
+      <div className="flex flex-wrap items-baseline gap-x-2">
+        <h3 className="text-body font-semibold text-fg">{table.label}</h3>
+        {props.severalConnections ? <span className="text-caption text-fg-subtle">{table.connectionName}</span> : null}
+      </div>
+      {table.private ? (
+        <p className="mt-1 text-body-sm text-fg-muted">
+          {t('roles:rows.private', 'Read by the people each row belongs to, and by nobody else. There is nothing to choose.')}
+        </p>
+      ) : (
+        <>
+          <p className="mt-1 text-body-sm text-fg-muted">{belongsText(table)}</p>
+          <div className="mt-3 flex flex-col gap-3">
+            {ROW_ACTIONS.filter((action) => table.granted[action]).map((action) => {
+              const reach = reachOf(limit, action);
+              const label = rowActionLabel(action);
+              const several = severalOf(limit, action);
+              // Several reaches the app wrote, any one enough: said in words and kept as written; there is nothing to pick.
+              if (several !== null) {
+                return (
+                  <div key={action} className="flex flex-col gap-1" data-testid={`roles-rows-${table.tableId}-${action}-several`}>
+                    <span className="text-body-sm font-semibold text-fg">{label}</span>
+                    <p className="text-caption text-fg-muted">{t('roles:rows.several', 'Any one of these is enough. The app set them, and they are kept as it wrote them.')}</p>
+                    <ul className="flex list-disc flex-col gap-0.5 ps-5 text-caption text-fg-subtle" data-testid={`roles-rows-${table.tableId}-${action}-sentence`}>
+                      {several.map((one, n) => (
+                        <li key={n}>{reachSentence(table, one)}</li>
+                      ))}
+                    </ul>
+                  </div>
+                );
+              }
+              return (
+                <div key={action} className="flex flex-col gap-1">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <span className="w-16 text-body-sm font-semibold text-fg">{label}</span>
+                    <SegmentedControl
+                      aria-label={t('roles:rows.reachLabel', '{action}: which rows', { action: label })}
+                      value={reach === null || reach.reach === 'all' ? 'all' : reach.reach}
+                      disabled={props.disabled}
+                      options={[
+                        // "Only the ones a column names them in" is the app's own narrowing, and every row has no such thing: not offered over it.
+                        { value: 'all', label: t('roles:rows.reach.all', 'All rows'), disabled: reach?.by !== undefined },
+                        { value: 'team', label: t('roles:rows.reach.team', 'Their team’s') },
+                        { value: 'own', label: t('roles:rows.reach.own', 'Their own') },
+                      ]}
+                      onValueChange={(value) => {
+                        // "Only while…" is a condition the app wrote: choosing every row keeps it (every row, only while), never drops it unsaid.
+                        if (value === 'all') props.onChange(action, reach?.while === undefined ? null : { reach: 'all', while: reach.while });
+                        else if (value === 'own' || value === 'team') props.onChange(action, { ...(reach ?? {}), reach: value });
+                      }}
+                      data-testid={`roles-rows-${table.tableId}-${action}`}
+                    />
+                    {reach === null ? null : (
+                      <label className="flex items-center gap-2 text-body-sm text-fg">
+                        <Checkbox
+                          checked={reach.unowned === true}
+                          disabled={props.disabled}
+                          onCheckedChange={(checked) => {
+                            const { unowned: _unowned, ...rest } = reach;
+                            props.onChange(action, checked === true ? { ...rest, unowned: true } : rest);
+                          }}
+                        />
+                        {t('roles:rows.unowned', 'and rows nobody owns yet')}
+                      </label>
+                    )}
+                  </div>
+                  <p className="text-caption text-fg-subtle" data-testid={`roles-rows-${table.tableId}-${action}-sentence`}>
+                    {reachSentence(table, reach)}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+          {!table.own && limit !== null ? (
+            <p className="mt-2 text-caption text-fg-subtle">
+              {t('roles:rows.widened', 'This role opens the table through a wider permission. Saving a limit also gives it this table by name.')}
+            </p>
+          ) : null}
+          {person === null || preview.data === undefined ? null : (
+            <div className="mt-3 flex flex-col gap-1 text-body-sm" data-testid={`roles-rows-${table.tableId}-count`}>
+              <p className="text-fg">
+                {t('roles:rows.count', '{name} would see {reached} of {total} rows of {table}.', { name: person.name, reached: preview.data.reached, total: preview.data.total, table: table.label })}
+              </p>
+              {preview.data.capped ? (
+                <p className="text-fg-muted">{t('roles:rows.capped', 'This person leads more people than one reach holds, so not all of their team is counted.')}</p>
+              ) : null}
+              {preview.data.liftedBy.length === 0 || read === null ? null : (
+                <p className="text-warn" role="status">
+                  {t('roles:rows.lifted', '{name} also holds {roles}, which gives every row. This limit does not hold for them.', {
+                    name: person.name,
+                    roles: preview.data.liftedBy.join(', '),
+                  })}
+                </p>
+              )}
+            </div>
+          )}
+        </>
+      )}
+    </li>
+  );
+}
+

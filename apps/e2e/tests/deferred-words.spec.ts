@@ -71,11 +71,57 @@ test.describe('the words of the screens behind lazy routes', () => {
     await signIn(page);
     for (const [path, heading] of [
       ['/help', 'Knowledge Base'],
-      ['/settings/team', 'Team'],
+      ['/settings/team', 'People'],
+      ['/settings/teams', 'Teams'],
+      // And the account screen's, which joined them to make room for People and Teams in the rail.
+      ['/account', 'Account'],
       ['/about', 'About Adminium'],
+      // The groups that joined them: the audit log and the setup checklist.
+      ['/audit', 'Audit log'],
+      ['/welcome', 'Getting started'],
     ] as const) {
       await page.goto(path);
       await expect(page.getByRole('heading', { name: heading, exact: true }).first()).toBeVisible();
     }
+    // And the command palette, whose own code is fetched when it is first opened: its words come with it.
+    await page.goto('/');
+    await expect(page.getByRole('navigation', { name: 'Primary' })).toBeVisible();
+    await page.keyboard.press('ControlOrMeta+k');
+    const palette = page.getByRole('dialog', { name: 'Command palette' });
+    await expect(palette).toBeVisible();
+    await expect(palette.getByPlaceholder('Type a command or search…')).toBeVisible();
+  });
+
+  test('the first paint needs none of them: sign-in, a page that is not there and the shell have their words while the chunk never arrives', async ({ page, browser }) => {
+    // Somebody not signed in, on a cold load, with the deferred words held back for good.
+    const context = await browser.newContext({ storageState: { cookies: [], origins: [] } });
+    const cold = await context.newPage();
+    const held: string[] = [];
+    await cold.route(CHUNK, (route) => {
+      held.push(route.request().url());
+      // Never answered.
+    });
+    await cold.goto('/login');
+    await expect(cold.getByRole('heading', { name: 'Welcome back' })).toBeVisible();
+    await expect(cold.getByText('Turn any database into a dashboard.')).toBeVisible();
+    await expect(cold.getByLabel('Email')).toBeVisible();
+    await expect(cold.getByRole('button', { name: 'Sign in' })).toBeVisible();
+    await expect(cold.getByText('Keep me signed in')).toBeVisible();
+    await context.close();
+
+    // Signed in: the rail, the top bar and a page that does not exist, all in words, with the chunk still held back.
+    await page.route(CHUNK, (route) => {
+      held.push(route.request().url());
+    });
+    await page.goto('/p/no-such-page-anywhere');
+    const rail = page.getByRole('navigation', { name: 'Primary' });
+    await expect(rail).toBeVisible();
+    await expect(rail.getByRole('link', { name: 'Dashboard' })).toBeVisible();
+    await expect(rail.getByRole('link', { name: 'Audit log' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Notifications' })).toBeVisible();
+    await expect(page.getByText('This page went missing')).toBeVisible();
+    await expect(page.getByText('Error 404')).toBeVisible();
+    // No text on screen is a bare key of a group that was deferred.
+    expect((await page.locator('body').innerText()).match(/\b(onboarding|audit|capabilities|palette)\.[a-z][A-Za-z.]+/g)).toBeNull();
   });
 });

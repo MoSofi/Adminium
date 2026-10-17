@@ -87,6 +87,8 @@ export function iconForNode(kind: NodeKind, action: Action | null): string {
       return 'mail';
     case 'notification':
       return 'bell';
+    case 'digest':
+      return 'newspaper';
     case 'record.create':
       return 'square-plus';
     case 'record.update':
@@ -131,6 +133,15 @@ export const ACTION_STEPS: readonly StepDefinition[] = [
     sub: 'Choose who to tell',
     desc: 'Tell people in this workspace',
     action: { kind: 'notification', to: null, title: '', body: null },
+  },
+  {
+    key: 'digest',
+    kind: 'action',
+    icon: 'newspaper',
+    label: 'Send each person a summary',
+    sub: 'Template · pick one',
+    desc: 'One email each, of the rows that are theirs',
+    action: { kind: 'digest', templateKey: null, to: null, sections: [], sendEmpty: false },
   },
   {
     key: 'create',

@@ -50,6 +50,8 @@ export interface ReconcileInput {
   entity: RecordRef;
   before: Row | null;
   after: Row | null;
+  /** The table's file columns an app's own rule makes (`ruledBlocksOf`): heard beside the pages' blocks, and before them. */
+  ruled?: ReadonlyMap<string, ColumnFile> | undefined;
 }
 
 export interface ReconcileResult {
@@ -93,6 +95,8 @@ export interface FileReconciler {
     connectionId: string;
     table: string;
     values: Row;
+    /** Columns an app's own rule makes file columns: the write service judges those, so this leaves them be. */
+    ruled?: ReadonlySet<string> | undefined;
   }): Promise<FileWriteProblem | null>;
   /** Every live file this record owns — column-bound and sidecar. Delete's worklist. */
   filesForRecord(input: { connectionId: string; table: string; entity: RecordRef }): Promise<StoredFile[]>;
@@ -107,6 +111,8 @@ export interface FileReconciler {
     table: string;
     entity: RecordRef;
     row: Row;
+    /** As on {@link ReconcileInput.ruled}. */
+    ruled?: ReadonlyMap<string, ColumnFile> | undefined;
   }): Promise<string[]>;
   /** Restore a delete's trashed files — the 60 s undo (D12). */
   restoreAll(fileIds: readonly string[]): Promise<void>;
@@ -167,6 +173,25 @@ export function createFileReconciler(deps: FileReconcilerDeps): FileReconciler {
     return out;
   }
 
+  /** The table's file columns: an app's own rule first, then what its pages configure. */
+  async function columnsOf(connectionId: string, table: string, ruled: ReadonlyMap<string, ColumnFile> | undefined): Promise<ReadonlyMap<string, ColumnFile>> {
+    const { byColumn } = await deps.blocks.forTable(connectionId, table);
+    if (ruled === undefined || ruled.size === 0) return byColumn;
+    const out = new Map(ruled);
+    for (const [name, block] of byColumn) if (!out.has(name)) out.set(name, block);
+    return out;
+  }
+
+  /**
+   * Whether a file hangs on this very record. Of an app's own file column, a
+   * file another record holds, or the workspace's library, is not this
+   * record's to take or to throw away (a writer naming one is refused before
+   * the write, `files/column-judge.ts`).
+   */
+  function ofRecord(file: StoredFile, input: { connectionId: string; table: string; entity: RecordRef }): boolean {
+    return file.entityConnectionId === input.connectionId && file.entityTable === auditEntityKeyPart(input.table) && file.entityId === auditEntityKeyPart(input.entity.label);
+  }
+
   async function filesForRecord(input: {
     connectionId: string;
     table: string;
@@ -201,21 +226,24 @@ export function createFileReconciler(deps: FileReconcilerDeps): FileReconciler {
       }
 
       for (const [column, block] of byColumn) {
-        if (block.multiple !== true) continue;
+        // An app's own file column is judged by the write service, with the rest of the row's rules.
+        if (block.multiple !== true || block.ruled === true || input.ruled?.has(column) === true) continue;
         // A column absent from this write is untouched, and `null` clears it —
         // neither is a list this check has anything to say about.
         if (!(column in input.values)) continue;
         const value = input.values[column];
         if (value === null || value === undefined || value === '') continue;
 
-        if (typeof value !== 'string' || !value.trim().startsWith('[')) {
-          return { column, reason: 'not-a-list' };
-        }
-        let parsed: unknown;
-        try {
-          parsed = JSON.parse(value.trim());
-        } catch {
-          return { column, reason: 'not-a-list' };
+        let parsed: unknown = value;
+        if (!Array.isArray(value)) {
+          if (typeof value !== 'string' || !value.trim().startsWith('[')) {
+            return { column, reason: 'not-a-list' };
+          }
+          try {
+            parsed = JSON.parse(value.trim());
+          } catch {
+            return { column, reason: 'not-a-list' };
+          }
         }
         if (!Array.isArray(parsed)) return { column, reason: 'not-a-list' };
 
@@ -234,10 +262,12 @@ export function createFileReconciler(deps: FileReconcilerDeps): FileReconciler {
         for (const file of await filesForRecord(input)) ids.add(file.id);
         // Column-bound files — found by reading the values that are about to
         // disappear. A value that is not ours is skipped, as always.
-        const { byColumn } = await deps.blocks.forTable(input.connectionId, input.table);
-        for (const column of byColumn.keys()) {
+        const byColumn = await columnsOf(input.connectionId, input.table, input.ruled);
+        for (const [column, block] of byColumn) {
           for (const file of await filesFor(input.row[column])) {
-            if (file.deletedAt === null && !ownedElsewhere(file, input.entity)) ids.add(file.id);
+            // Of an app's own file column, only what was this record's goes with it;
+            // of any column, never a file another row owns and still shows.
+            if (file.deletedAt === null && !ownedElsewhere(file, input.entity) && (block.ruled !== true || file.attachedAt === null || ofRecord(file, input))) ids.add(file.id);
           }
         }
         const at = now();
@@ -257,10 +287,10 @@ export function createFileReconciler(deps: FileReconcilerDeps): FileReconciler {
     async reconcile(input) {
       const result: ReconcileResult = { attached: [], trashed: [] };
       try {
-        const { byColumn } = await deps.blocks.forTable(input.connectionId, input.table);
+        const byColumn = await columnsOf(input.connectionId, input.table, input.ruled);
         if (byColumn.size === 0) return result;
 
-        for (const column of byColumn.keys()) {
+        for (const [column, block] of byColumn) {
           const beforeValue = input.before?.[column];
           const afterValue = input.after?.[column];
           // Identical values need no lookup at all — the common case on every
@@ -283,17 +313,26 @@ export function createFileReconciler(deps: FileReconcilerDeps): FileReconciler {
           const nextIds = new Set(next.map((file) => file.id));
           for (const file of next) {
             if (file.attachedAt === null || file.entityId !== input.entity.label) {
+              // An app's own file column hangs on a record only a file nobody holds yet: one another record (or the
+              // library) holds stays theirs. The write was refused before it came to this (`files/column-judge.ts`);
+              // this is the second lock. A page's file column still lets the last row that names a file take it over.
+              if (block.ruled === true && file.attachedAt !== null && !ofRecord(file, input)) {
+                deps.logger?.warn({ fileId: file.id, table: input.table, connectionId: input.connectionId }, 'a record names a file another record holds; it is left with that record');
+                continue;
+              }
               await files.attach(file.id, input.entity, now());
               result.attached.push(file.id);
             }
           }
           // Removed or replaced: a file the column USED to name and no longer
           // does. Trash, never delete (D12) — the undo window and the
-          // retention sweep own the bytes.
+          // retention sweep own the bytes. Of an app's own file column, only
+          // a file that was this record's.
           for (const file of previous) {
             if (nextIds.has(file.id)) continue;
             // Another row's file, which this row only named as well: that row still shows it.
             if (ownedElsewhere(file, input.entity)) continue;
+            if (block.ruled === true && file.attachedAt !== null && !ofRecord(file, input)) continue;
             await files.markDeleted(file.id, now());
             result.trashed.push(file.id);
           }

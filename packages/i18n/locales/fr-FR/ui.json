@@ -91,7 +91,13 @@
       "tooLarge": "Doit être inférieur ou égal à {max}.",
       "outOfRange": "Ce nombre est hors limites.",
       "duplicate": "Déjà ajouté.",
-      "form": "Certaines valeurs ont été refusées. Vérifiez les champs signalés."
+      "form": "Certaines valeurs ont été refusées. Vérifiez les champs signalés.",
+      "mentionUnknown": "Une personne mentionnée ici ne se connecte pas ici. Tapez @ et choisissez-la dans la liste.",
+      "tooManyMentions": "Trop de personnes sont mentionnées ici. Mentionnez-en moins.",
+      "fileNotHere": "Ce fichier ne peut pas être gardé ici. Envoyez-le de nouveau depuis ce champ.",
+      "fileType": "Ce type de fichier n’est pas accepté ici.",
+      "fileTooLarge": "Ce fichier est trop volumineux pour ce champ.",
+      "tooManyFiles": "{n} fichiers au plus ici."
     },
     "lines": {
       "add": "Ajouter une ligne",
@@ -687,7 +693,12 @@
         "emptyBody": "Regroupez les enregistrements par un champ de couloir et un champ de statut pour construire la grille."
       },
       "addCard": "Ajouter une carte",
+      "notMoved": "La carte {title} n’a pas été déplacée.",
+      "notAdded": "La carte {title} n’a pas été ajoutée.",
+      "cardNotAdded": "La carte n’a pas été ajoutée.",
+      "dismissNotice": "Fermer",
       "grip": "Glisser pour déplacer la carte",
+      "cardActions": "Actions pour {title}",
       "pointsUnit": "pts",
       "laneSummary": "Σ{points} pts · {count}",
       "a11y": {
@@ -695,7 +706,9 @@
         "over": "{title} est au-dessus de {cell}.",
         "moved": "{title} déplacée vers {cell}.",
         "returned": "{title} est revenue à sa position d'origine.",
-        "failed": "Impossible de déplacer {title} ; elle est revenue à sa position d'origine."
+        "failed": "Impossible de déplacer {title} ; elle est revenue à sa position d'origine.",
+        "draggable": "carte déplaçable",
+        "openHint": "Entrée saisit cette carte pour la déplacer. Maj+Entrée l’ouvre."
       },
       "boardCard": {
         "description": "Une carte de tableau : étiquette, titre, progression, responsable et échéance.",
@@ -770,9 +783,58 @@
         "description": "Une carte dont les marqueurs circulaires sont dimensionnés selon la métrique choisie, accompagnée d’un classement des principaux lieux.",
         "emptyTitle": "Aucun lieu",
         "emptyBody": "Les lignes comportant une latitude et une longitude apparaissent ici sous forme de marqueurs.",
-        "mapUnavailableLabel": "La carte n’a pas pu être chargée. Le classement présente les mêmes données.",
+        "mapUnavailableLabel": "La carte n’a pas pu être jointe. Voici la liste.",
         "regionsLabel": "Principales régions",
-        "metricLabel": "Métrique"
+        "metricLabel": "Métrique",
+        "mapsOffLabel": "Les cartes sont désactivées. Voici la liste.",
+        "mapsOffLink": "Ouvrir Paramètres → Cartes",
+        "mapLabel": "Carte",
+        "zoomIn": "Zoom avant",
+        "zoomOut": "Zoom arrière",
+        "byTown": "par ville",
+        "pinMoveHint": "Faites glisser jusqu’à l’endroit exact. Au clavier : Entrée saisit le repère, les touches fléchées le déplacent, Entrée garde l’endroit et Échap le remet en place.",
+        "sharedTown": "{count, plural, one {# lieu n’est connu} other {# lieux ne sont connus}} que par cette ville",
+        "stopsLabel": "Arrêts",
+        "placesLabel": "Lieux",
+        "areasLabel": "Zones",
+        "legAbout": "environ {distance} depuis l’arrêt précédent",
+        "legExact": "{distance} depuis l’arrêt précédent",
+        "legUnknown": "distance depuis l’arrêt précédent inconnue",
+        "openInMaps": "Ouvrir dans mon appli de cartes",
+        "openOnMapsSite": "Ouvrir sur OpenStreetMap (nouvel onglet)",
+        "legDrive": "{duration} de route",
+        "totalAbout": "Trajet entier : environ {distance}",
+        "totalExact": "Trajet entier : {distance}",
+        "tryAgain": "Réessayer",
+        "saidTrying": "Nouvel essai de chargement de la carte.",
+        "routeUnavailable": "Le trajet entre les arrêts n’a pas pu être calculé : les distances sont inconnues.",
+        "placingHint": "Cliquez sur la carte là où se trouve {name}. Au clavier : placez le focus sur la carte, déplacez-la avec les flèches, puis appuyez sur Entrée pour mettre {name} sous la croix.",
+        "placeAtMiddle": "Placer au centre de la carte",
+        "placingStop": "Arrêter le placement",
+        "saidPlaced": "{name} placé à {position}.",
+        "saidPlaceRefused": "{name} n’a pas été placé.",
+        "cornerLabel": "Sommet {number}",
+        "areaChangeHint": "Faites glisser un sommet pour le déplacer. Choisissez un sommet pour le retirer ou en ajouter un après lui.",
+        "areaDrawHint": "Cliquez sur la carte pour ajouter les sommets de la zone, puis fermez la forme.",
+        "areaAddCornerHere": "Ajouter un sommet au centre de la carte",
+        "areaClose": "Fermer la forme",
+        "areaInsertCorner": "Ajouter un sommet après celui-ci",
+        "areaRemoveCorner": "Retirer ce sommet",
+        "areaRestart": "Recommencer",
+        "areaDone": "Terminé",
+        "areaPickHint": "Choisissez une zone sur la carte ou dans la liste pour la modifier.",
+        "areaNew": "Dessiner une nouvelle zone",
+        "areaChange": "Modifier",
+        "areaUnnamed": "Zone {number}",
+        "areaPoints": "{count, plural, one {# point} other {# points}}",
+        "areaPiecesHint": "Cette zone a un trou ou plusieurs parties. Ils restent tels quels pendant que vous modifiez ce contour. « Recommencer » remplace toute la zone par une seule nouvelle forme.",
+        "listMore": "et {count, plural, one {# autre} other {# autres}}",
+        "saidCornerAdded": "Sommet ajouté. {count, plural, one {# sommet} other {# sommets}}.",
+        "saidShapeClosed": "Forme fermée.",
+        "saidPinKept": "Repère gardé à {position}.",
+        "saidPinPicked": "Repère saisi. Déplacez-le avec les touches fléchées, puis appuyez sur Entrée pour garder l’endroit ou sur Échap pour le remettre en place.",
+        "saidPinBack": "Le repère est revenu à sa place.",
+        "saidPinRefused": "Le nouvel endroit n’a pas été gardé. Le repère est revenu à sa place."
       },
       "mapChoroplethGrid": {
         "description": "Des tuiles de régions teintées selon la valeur — pour les tables comportant des codes de région mais pas de coordonnées.",
@@ -781,6 +843,38 @@
         "legendLowLabel": "Faible",
         "legendHighLabel": "Élevé",
         "chartLabel": "Répartition régionale"
+      },
+      "place": {
+        "pinName": "Ce lieu",
+        "placeholder": "Saisissez une ville, ou collez des coordonnées ou un lien de carte",
+        "searching": "Recherche…",
+        "noTown": "Aucune ville de ce nom. Essayez une autre orthographe, ou collez des coordonnées.",
+        "searchFailed": "La liste des villes n’a pas pu être interrogée pour l’instant. Réessayez, ou collez des coordonnées.",
+        "whereIAm": "Là où je suis",
+        "byTown": "Par ville : {name}",
+        "exact": "Endroit exact : {position}",
+        "exactNamed": "Endroit exact : {name} ({position})",
+        "pending": "Lu à l’enregistrement : {text}",
+        "none": "Pas encore de lieu",
+        "clear": "Effacer",
+        "whereError": "Cet appareil n’a pas indiqué où il se trouve. Vérifiez que le navigateur peut utiliser votre position.",
+        "issue": {
+          "unreadable": "Ceci n’a pas pu être lu comme un lieu. Choisissez une ville dans la liste, ou collez des coordonnées telles que 30.0444, 31.2357.",
+          "shortLink": "Un lien court ne dit pas où il mène, et il n’est pas suivi. Ouvrez-le, puis collez le lien complet ou les coordonnées.",
+          "outOfRange": "Ces coordonnées ne sont pas sur la carte. La latitude va de -90 à 90, la longitude de -180 à 180.",
+          "unknown": "Cette ville n’est plus dans la liste. Choisissez-la de nouveau."
+        }
+      },
+      "area": {
+        "points": "Zone · {count, plural, one {# point} other {# points}}",
+        "unreadable": "La valeur enregistrée n’est pas une zone. Dessinez-en une pour la remplacer.",
+        "none": "Pas encore de zone",
+        "clear": "Effacer",
+        "mapsOff": "Une zone se dessine sur la carte, et les cartes sont désactivées. La zone enregistrée est conservée telle quelle.",
+        "issue": {
+          "unreadable": "Ceci n’a pas pu être lu comme une zone. Dessinez-la de nouveau.",
+          "tooLarge": "Cette zone a trop de points. Dessinez-la avec moins de points."
+        }
       }
     },
     "domain": {
@@ -1522,6 +1616,45 @@
         "title": "Widget indisponible",
         "bodyLead": "Aucun widget n’est enregistré sous",
         "bodyTail": "Il appartient peut-être à une version plus récente ou à une extension désinstallée."
+      },
+      "wholeOnly": {
+        "title": "Réservé à toute l’équipe",
+        "body": "Ce chiffre est celui de toute l’équipe. Il ne vous est pas affiché, car votre rôle ne lit qu’une partie des lignes à partir desquelles il est calculé."
+      }
+    },
+    "files": {
+      "tooLarge": "Ce fichier est trop volumineux pour ce champ.",
+      "wrongType": "Ce type de fichier n’est pas accepté ici.",
+      "notAllowed": "Vous ne pouvez pas ajouter de fichiers ici.",
+      "notSent": "L’envoi a échoué. Réessayez.",
+      "signature": {
+        "name": "Signature",
+        "pad": "Signez ici avec le doigt, un stylet ou la souris.",
+        "typedPad": "Le nom, écrit comme signature.",
+        "line": "Signez au-dessus de la ligne",
+        "clear": "Effacer",
+        "typeInstead": "Saisir le nom à la place",
+        "drawInstead": "Signer à la main à la place",
+        "typedLabel": "Nom, comme signature",
+        "keep": "Garder cette signature",
+        "again": "Signer de nouveau",
+        "saving": "Envoi de la signature…",
+        "kept": "Signature gardée.",
+        "cleared": "Signature effacée. Signez de nouveau.",
+        "empty": "Signez d’abord, puis gardez la signature.",
+        "keptAlt": "La signature gardée"
+      },
+      "photos": {
+        "name": "Photos",
+        "add": "Ajouter une photo",
+        "count": "{count} sur {max}",
+        "full": "Ce champ ne prend pas plus de photos.",
+        "alt": "Photo {n}",
+        "remove": "Retirer la photo {n}",
+        "sending": "Envoi…",
+        "added": "Photo ajoutée.",
+        "refused": "La photo n’a pas été gardée : {reason}",
+        "removed": "Photo {n} retirée."
       }
     }
   },
@@ -1845,7 +1978,13 @@
     "board": {
       "invalidLayout": "La disposition enregistrée de ce tableau est invalide. Régénérez la page ou réinitialisez sa disposition.",
       "noRowsTitle": "Aucune carte pour l’instant",
-      "noRowsBody": "Les cartes apparaissent ici dès que la table contient des lignes."
+      "noColumnsTitle": "Pas encore de colonnes",
+      "noColumnsBody": "Ce tableau prend ses colonnes dans les lignes d’une table, et cette table n’a pas encore de lignes. Ajoutez-en une et elle apparaît ici comme colonne.",
+      "invalidOnly": "Ce tableau ne doit afficher qu’une partie des lignes de sa table, et ce réglage est illisible ; le tableau n’est donc pas affiché. Régénérez la page.",
+      "columnsError": "Les colonnes de ce tableau n’ont pas pu être lues depuis {table}.",
+      "columnsCut": "{count, plural, one {Seule la première colonne est affichée : la table dont ce tableau tire ses colonnes compte davantage de lignes.} other {Seules les # premières colonnes sont affichées : la table dont ce tableau tire ses colonnes compte davantage de lignes.}}",
+      "noRowsBody": "Les cartes apparaissent ici dès que la table contient des lignes.",
+      "days": "{count, plural, one {# jour} other {# jours}}"
     },
     "calendar": {
       "eventCount": "{count, plural, one {{n} événement} other {{n} événements}}",
@@ -1953,6 +2092,8 @@
       "unplaced": {
         "calendar": "Aucune ligne de cette table n’a encore de date, le calendrier est donc vide. Une ligne apparaît ici dès qu’elle en a une.",
         "board": "Aucune ligne de cette table n’a encore de statut, le tableau est donc vide. Une ligne apparaît ici dès qu’elle en a un.",
+        "boardColumns": "Aucune ligne de cette table n’est encore dans l’une des colonnes du tableau, le tableau est donc vide. Une ligne apparaît ici dès qu’elle est placée dans l’une d’elles.",
+        "boardColumnsSome": "{count, plural, one {# ligne n’est dans aucune des colonnes du tableau ; elle n’est donc pas affichée ici.} other {# lignes ne sont dans aucune des colonnes du tableau ; elles ne sont donc pas affichées ici.}}",
         "scheduler": "Aucune ligne de cette table n’a encore de personne, de date et de type de poste, le planning est donc vide. Une ligne apparaît ici dès qu’elle a les trois."
       }
     }
@@ -2092,5 +2233,8 @@
       "low": "Faible",
       "out": "Épuisé"
     }
+  },
+  "mentions": {
+    "people": "Personnes à mentionner"
   }
 }

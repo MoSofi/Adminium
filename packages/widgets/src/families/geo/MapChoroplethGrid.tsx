@@ -33,7 +33,7 @@ export type { MapChoroplethGridConfig };
  * → `map-choropleth-grid`") when a table has region codes but NO coordinates —
  * i.e. precisely when `map-bubble` cannot be built. Families are how the
  * builder palette and the chunk split are organised, so the geo entry point has
- * to live in the geo family. Notably, this id costs the page no Leaflet: it
+ * to live in the geo family. Notably, this id costs the page no map engine: it
  * never touches `MapBubble.tsx`, the only module that imports it.
  *
  * `points` here is the region-coded `geo-points` variant ({code, name, values}) —

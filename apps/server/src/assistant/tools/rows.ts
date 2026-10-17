@@ -33,6 +33,8 @@ import { AppError } from '../../errors.js';
 import { measureSchema, type Measure } from '@adminium/engine/config';
 
 import { runList } from '../../crud/list.js';
+import { limitProjections, rowTestOf } from '../../crud/row-limit-context.js';
+import { rowsForAsker } from './row-reach.js';
 import { resolveMeasures } from '../../crud/measures.js';
 import type { SnapshotView } from '../../crud/identifiers.js';
 import { UNMASK_PERMISSION, type Row } from '../../crud/mask.js';
@@ -228,6 +230,10 @@ export const readRowsTool: AssistantTool = {
         specs.measures.length === 0
           ? []
           : await resolveMeasures({ view, table, specs: specs.measures, canReadPii: false, canReadTable: await deps.canReadTable(connectionId) });
+      // The rows the person reaches: of the table listed, and of each table a figure is taken over.
+      const rows = await rowsForAsker(deps, connectionId, view.model);
+      limitProjections(rows, [], measures);
+      const rowTest = rowTestOf(rows, table.id, 'read') ?? undefined;
       // WHICH rows are on the person's screen is decided as the person: their filter and their
       // search, with their own right to personal columns. What is read of those rows is not.
       const scopeAs =
@@ -238,6 +244,7 @@ export const readRowsTool: AssistantTool = {
         db,
         view,
         table,
+        rowTest,
         ...(measures.length === 0 ? {} : { measures }),
         params: {
           limit,
@@ -316,6 +323,8 @@ export const sampleRecordTool: AssistantTool = {
         db,
         view,
         table,
+        // A sample is a row the person could open.
+        rowTest: rowTestOf(await rowsForAsker(deps, connectionId, view.model), table.id, 'read') ?? undefined,
         params: {
           limit: 1,
           count: 'none',

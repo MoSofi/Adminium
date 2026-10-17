@@ -39,6 +39,7 @@ import { assertNotReservedAlias } from './reserved-aliases.js';
 import type { SourceDatabase } from '../connections/manager.js';
 import type { ResolvedColumn, ResolvedTable, SnapshotView } from './identifiers.js';
 import { piiAllows, type PiiAccess, type Row } from './mask.js';
+import type { RowTest } from './row-limit.js';
 
 /** Most lookups one request may carry — a page has no business exceeding it. */
 export const MAX_LOOKUPS = 12;
@@ -55,6 +56,13 @@ export interface LookupHop {
   refTable: ResolvedTable;
   /** Referenced column (usually its PK). */
   refColumn: string;
+  /**
+   * The rows of the referenced table the READER reaches (`crud/row-limit.ts`),
+   * when a role of theirs limits them there: a value looked up from a row out
+   * of their reach reads as no value, as a link that points nowhere does.
+   * Set by the caller that resolved the lookup for a person.
+   */
+  rowTest?: RowTest | null | undefined;
 }
 
 export interface ResolvedLookup {
@@ -245,6 +253,7 @@ function lookupExpression(
     .selectFrom(`${hop.refTable.id} as ${alias}`)
     .select(dynamic.ref(`${alias}.${selectColumn}`))
     .limit(1);
+  if (hop.rowTest != null) subquery = subquery.where(hop.rowTest(db, alias));
   subquery =
     hopIndex === 0
       ? subquery.whereRef(

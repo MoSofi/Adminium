@@ -1,0 +1,225 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+/*
+ * The kit's styles on an app's own screen.
+ *
+ * Everything hangs from `.adm-kit`, the wrapper a mount draws: no rule here
+ * names a bare element, so nothing reaches the app's own page, and there is
+ * no reset. The rules are not in a cascade layer, so they also hold on a page
+ * whose own utilities are in one.
+ *
+ * Colours are the app's own tokens when it has them (`--surface`, `--fg`, …,
+ * the names Adminium's own themes use) and Adminium's values when it does
+ * not, light or dark by the page's `color-scheme`. Sides are logical
+ * (`inline-start`), so right-to-left needs no second set.
+ *
+ * This sheet is what every part stands on: the `--adm-kit-*` names, a reset
+ * of the few elements a part draws (held inside the wrapper, and weak enough
+ * that any class beats it), and the mention box, which is written by hand.
+ *
+ * A part drawn by the dashboard's own components (the board) wears Tailwind's
+ * utility classes. Its sheet (parts/<part>.css) makes exactly the utilities
+ * its files use, each under `.adm-kit`, with the colours turned to the names
+ * below (kit-theme.css). No preflight is ever sent: the reset here is its
+ * stand-in, and it stops at the wrapper.
+ */
+.adm-kit {
+  --adm-kit-bg: var(--bg, light-dark(#f6f6f8, #0a0a0d));
+  --adm-kit-surface: var(--surface, light-dark(#ffffff, #141419));
+  --adm-kit-field: var(--surface-2, light-dark(#fafafa, #1a1a20));
+  --adm-kit-hover: var(--surface-3, light-dark(#f1f1f4, #24242c));
+  --adm-kit-border: var(--border, light-dark(#ececef, rgba(255, 255, 255, 0.07)));
+  --adm-kit-border-strong: var(--border-strong, light-dark(#e2e2e8, rgba(255, 255, 255, 0.13)));
+  --adm-kit-fg: var(--fg, light-dark(#191920, #f4f4f6));
+  --adm-kit-fg-muted: var(--fg-muted, light-dark(#4a4a54, #b7b7c3));
+  --adm-kit-fg-subtle: var(--fg-subtle, light-dark(#5a5a65, #a1a1ad));
+  --adm-kit-accent: var(--accent, light-dark(#4f46e5, #99a5ff));
+  --adm-kit-accent-fg: var(--accent-fg, light-dark(#ffffff, #0f0f14));
+  --adm-kit-accent-soft: var(--accent-soft, color-mix(in srgb, var(--adm-kit-accent) 14%, transparent));
+  --adm-kit-accent-soft-solid: var(--accent-soft-solid, color-mix(in srgb, var(--adm-kit-accent) 12%, var(--adm-kit-surface)));
+  --adm-kit-accent-hover: var(--accent-hover, color-mix(in srgb, var(--adm-kit-accent) 85%, light-dark(#000000, #ffffff)));
+  --adm-kit-accent-border: var(--accent-border, color-mix(in srgb, var(--adm-kit-accent) 12%, transparent));
+  --adm-kit-pos: var(--pos, light-dark(#0b7d59, #3ecf8e));
+  --adm-kit-pos-soft: var(--pos-soft, color-mix(in srgb, var(--adm-kit-pos) 14%, transparent));
+  --adm-kit-pos-soft-solid: var(--pos-soft-solid, color-mix(in srgb, var(--adm-kit-pos) 12%, var(--adm-kit-surface)));
+  --adm-kit-warn: var(--warn, light-dark(#a95800, #e0a458));
+  --adm-kit-warn-soft: var(--warn-soft, color-mix(in srgb, var(--adm-kit-warn) 14%, transparent));
+  --adm-kit-warn-soft-solid: var(--warn-soft-solid, color-mix(in srgb, var(--adm-kit-warn) 12%, var(--adm-kit-surface)));
+  --adm-kit-danger: var(--danger, light-dark(#cf273c, #ff6b6b));
+  --adm-kit-danger-soft: var(--danger-soft, color-mix(in srgb, var(--adm-kit-danger) 14%, transparent));
+  --adm-kit-danger-soft-solid: var(--danger-soft-solid, color-mix(in srgb, var(--adm-kit-danger) 12%, var(--adm-kit-surface)));
+  --adm-kit-info: var(--info, light-dark(#1c59e0, #6ea8ff));
+  --adm-kit-info-soft: var(--info-soft, color-mix(in srgb, var(--adm-kit-info) 14%, transparent));
+  --adm-kit-info-soft-solid: var(--info-soft-solid, color-mix(in srgb, var(--adm-kit-info) 12%, var(--adm-kit-surface)));
+  --adm-kit-shadow-sm: var(--shadow, 0 1px 2px rgba(20, 20, 35, 0.06), 0 1px 3px rgba(20, 20, 35, 0.08));
+  --adm-kit-shadow: var(--shadow-md, 0 4px 14px rgba(20, 20, 35, 0.14));
+  --adm-kit-shadow-lg: var(--shadow-lg, 0 12px 34px rgba(20, 20, 35, 0.2));
+  --adm-kit-shadow-glow: var(--accent-glow, 0 2px 8px color-mix(in srgb, var(--adm-kit-accent) 36%, transparent));
+  box-sizing: border-box;
+  color: var(--adm-kit-fg);
+  line-height: 1.5;
+  text-align: start;
+}
+.adm-kit[data-kit-theme='light'] {
+  color-scheme: light;
+}
+.adm-kit[data-kit-theme='dark'] {
+  color-scheme: dark;
+}
+.adm-kit *,
+.adm-kit *::before,
+.adm-kit *::after {
+  box-sizing: border-box;
+}
+
+/*
+ * The reset, in place of a preflight. Each selector weighs one class
+ * (`:where` adds nothing), so a rule of the app's that names a bare element
+ * (`button { … }`) does not reach into a part, and any class of the kit's
+ * own, a utility included, wins over it.
+ */
+.adm-kit :where(p, h1, h2, h3, h4, h5, h6, ul, ol, dl, dd, figure, blockquote, pre) {
+  margin: 0;
+  padding: 0;
+}
+.adm-kit :where(h1, h2, h3, h4, h5, h6) {
+  font-size: inherit;
+  font-weight: inherit;
+}
+.adm-kit :where(ul, ol) {
+  list-style: none;
+}
+.adm-kit :where(button, input, select, textarea) {
+  margin: 0;
+  padding: 0;
+  border: 0 solid;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: none;
+}
+.adm-kit :where(button) {
+  appearance: button;
+  text-align: center;
+}
+.adm-kit :where(input, textarea)::placeholder {
+  color: var(--adm-kit-fg-subtle);
+  opacity: 1;
+}
+.adm-kit :where(svg, img, canvas, video) {
+  display: block;
+  vertical-align: middle;
+}
+.adm-kit :where([hidden]) {
+  display: none;
+}
+
+/* Something that presses: the dashboard's own `.nb-press`, which is written by hand there too. */
+.adm-kit .nb-press {
+  cursor: pointer;
+  transition:
+    transform 0.12s ease,
+    filter 0.12s ease;
+}
+.adm-kit .nb-press:hover {
+  filter: brightness(1.05);
+}
+.adm-kit .nb-press:active {
+  transform: scale(0.97);
+}
+
+.adm-kit .adm-kit-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+}
+.adm-kit .adm-kit-label {
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--adm-kit-fg-muted);
+}
+
+/* The mention box: the text area, and the list of people under it. */
+.adm-kit[data-kit-part='mentions'] .adm-kit-field > div {
+  position: relative;
+  width: 100%;
+}
+.adm-kit[data-kit-part='mentions'] textarea {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  height: auto;
+  min-height: 76px;
+  margin: 0;
+  padding: 8px 12px;
+  border: 1px solid var(--adm-kit-border-strong);
+  border-radius: 10px;
+  background: var(--adm-kit-field);
+  color: var(--adm-kit-fg);
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.625;
+  resize: vertical;
+  outline: none;
+  transition:
+    border-color 150ms,
+    box-shadow 150ms;
+}
+.adm-kit[data-kit-part='mentions'] textarea::placeholder {
+  color: var(--adm-kit-fg-subtle);
+  opacity: 1;
+}
+.adm-kit[data-kit-part='mentions'] textarea:focus-visible {
+  border-color: var(--adm-kit-accent);
+  box-shadow: 0 0 0 3px var(--adm-kit-accent-soft);
+}
+.adm-kit[data-kit-part='mentions'] textarea[aria-invalid='true'] {
+  border-color: var(--adm-kit-danger);
+}
+.adm-kit[data-kit-part='mentions'] textarea[aria-invalid='true']:focus-visible {
+  box-shadow: 0 0 0 3px var(--adm-kit-danger-soft);
+}
+.adm-kit[data-kit-part='mentions'] textarea:disabled {
+  opacity: 0.4;
+  pointer-events: none;
+}
+.adm-kit[data-kit-part='mentions'] [role='listbox'] {
+  position: absolute;
+  inset-inline: 0;
+  top: 100%;
+  z-index: 20;
+  max-height: 220px;
+  margin: 4px 0 0;
+  padding: 4px;
+  overflow: auto;
+  list-style: none;
+  border: 1px solid var(--adm-kit-border);
+  border-radius: 10px;
+  background: var(--adm-kit-surface);
+  box-shadow: var(--adm-kit-shadow);
+}
+.adm-kit[data-kit-part='mentions'] [role='option'] {
+  margin: 0;
+  padding: 6px 10px;
+  border-radius: 7px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--adm-kit-fg-muted);
+  cursor: pointer;
+}
+.adm-kit[data-kit-part='mentions'] [role='option'][aria-selected='true'] {
+  background: var(--adm-kit-hover);
+  color: var(--adm-kit-fg);
+}
+@media (prefers-reduced-motion: reduce) {
+  .adm-kit .nb-press,
+  .adm-kit[data-kit-part='mentions'] textarea {
+    transition: none;
+  }
+  .adm-kit .nb-press:active {
+    transform: none;
+  }
+}

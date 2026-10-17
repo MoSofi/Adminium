@@ -1,6 +1,6 @@
 {
   "name": "@adminium/i18n",
-  "version": "0.3.27",
+  "version": "0.3.28",
   "license": "AGPL-3.0-only",
   "repository": {
     "type": "git",
@@ -17,6 +17,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./format": {
+      "types": "./dist/format/index.d.ts",
+      "default": "./dist/format/index.js"
     },
     "./react": {
       "types": "./dist/react.d.ts",

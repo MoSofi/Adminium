@@ -18,6 +18,7 @@ import {
 import { getFormatters } from '@adminium/i18n';
 import { entityFromTable, plainTableName } from '../../lib/names.js';
 import { useMaybeT } from '../../lib/i18n.js';
+import { useBoundPlaces } from './controls/use-bound-places.js';
 import { ArrowUpRight, Eye, Plus } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 
@@ -356,6 +357,8 @@ export function PageCrud({
   );
   const queue = useToastQueue();
   const t = useMaybeT();
+  // One search function for as long as the table is the same: a field's search is not started again by a draw.
+  const places = useBoundPlaces(api);
 
   // --- query state -----------------------------------------------------------
   const [search, setSearch] = useState(initialSearch);
@@ -1418,6 +1421,7 @@ export function PageCrud({
         {...(listOptions === undefined ? {} : { listOptions })}
         lookup={api.lookup?.bind(api)}
         availability={api.availability?.bind(api)}
+        places={places}
         {...(files === undefined ? {} : { uploadFile: files.upload, files: resolvedFiles })}
         {...(files?.maxBytes === undefined ? {} : { maxFileBytes: files.maxBytes })}
         {...(currency === undefined ? {} : { currency })}
@@ -1509,6 +1513,7 @@ export function PageCrud({
         {...(listOptions === undefined ? {} : { listOptions })}
         lookup={api.lookup?.bind(api)}
         availability={api.availability?.bind(api)}
+        places={places}
         {...(files === undefined ? {} : { uploadFile: files.upload, files: resolvedFiles })}
         {...(files?.maxBytes === undefined ? {} : { maxFileBytes: files.maxBytes })}
         {...(currency === undefined ? {} : { currency })}

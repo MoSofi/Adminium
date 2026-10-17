@@ -91,7 +91,13 @@
       "tooLarge": "Skal være {max} eller derunder.",
       "outOfRange": "Dette tal er uden for intervallet.",
       "duplicate": "Allerede tilføjet.",
-      "form": "Nogle værdier blev afvist. Tjek de markerede felter."
+      "form": "Nogle værdier blev afvist. Tjek de markerede felter.",
+      "mentionUnknown": "En person, der nævnes her, logger ikke ind her. Skriv @, og vælg personen på listen.",
+      "tooManyMentions": "Der nævnes for mange personer her. Nævn færre.",
+      "fileNotHere": "Filen kan ikke gemmes her. Upload den igen fra dette felt.",
+      "fileType": "Denne filtype modtages ikke her.",
+      "fileTooLarge": "Filen er for stor til dette felt.",
+      "tooManyFiles": "Højst {n} filer her."
     },
     "lines": {
       "add": "Tilføj linje",
@@ -687,7 +693,12 @@
         "emptyBody": "Gruppér poster efter et bane-felt og et status-felt for at opbygge gitteret."
       },
       "addCard": "Tilføj kort",
+      "notMoved": "{title} blev ikke flyttet.",
+      "notAdded": "{title} blev ikke tilføjet.",
+      "cardNotAdded": "Kortet blev ikke tilføjet.",
+      "dismissNotice": "Luk",
       "grip": "Træk for at flytte kortet",
+      "cardActions": "Handlinger for {title}",
       "pointsUnit": "pt.",
       "laneSummary": "Σ{points} pt. · {count}",
       "a11y": {
@@ -695,7 +706,9 @@
         "over": "{title} er over {cell}.",
         "moved": "{title} flyttet til {cell}.",
         "returned": "{title} vendte tilbage til sin oprindelige placering.",
-        "failed": "{title} kunne ikke flyttes; den blev sat tilbage."
+        "failed": "{title} kunne ikke flyttes; den blev sat tilbage.",
+        "draggable": "kort, der kan trækkes",
+        "openHint": "Enter tager kortet op, så det kan flyttes. Shift+Enter åbner det."
       },
       "boardCard": {
         "description": "Ét tavlekort: mærkat, titel, fremdrift, ejer og forfaldsdato.",
@@ -770,9 +783,58 @@
         "description": "Et kort med cirkelmarkører, hvis størrelse følger den valgte måling, sammen med en rangliste over de største steder.",
         "emptyTitle": "Ingen lokationer",
         "emptyBody": "Rækker med bredde- og længdegrad vises her som kortmarkører.",
-        "mapUnavailableLabel": "Kortet kunne ikke indlæses. Ranglisten viser de samme data.",
+        "mapUnavailableLabel": "Kortet kunne ikke nås. Her er listen.",
         "regionsLabel": "Førende regioner",
-        "metricLabel": "Måling"
+        "metricLabel": "Måling",
+        "mapsOffLabel": "Kort er slået fra. Her er listen.",
+        "mapsOffLink": "Åbn Indstillinger → Kort",
+        "mapLabel": "Kort",
+        "zoomIn": "Zoom ind",
+        "zoomOut": "Zoom ud",
+        "byTown": "efter by",
+        "pinMoveHint": "Træk til det præcise sted. Med tastaturet: Enter tager nålen op, piletasterne flytter den, Enter beholder stedet, og Esc sætter den tilbage.",
+        "sharedTown": "{count, plural, one {# sted kendes} other {# steder kendes}} kun ved denne by",
+        "stopsLabel": "Stop",
+        "placesLabel": "Steder",
+        "areasLabel": "Områder",
+        "legAbout": "cirka {distance} fra forrige stop",
+        "legExact": "{distance} fra forrige stop",
+        "legUnknown": "afstand fra forrige stop ukendt",
+        "openInMaps": "Åbn i min kort-app",
+        "openOnMapsSite": "Åbn på OpenStreetMap (ny fane)",
+        "legDrive": "{duration} i bil",
+        "totalAbout": "Hele vejen: ca. {distance}",
+        "totalExact": "Hele vejen: {distance}",
+        "tryAgain": "Prøv igen",
+        "saidTrying": "Prøver at hente kortet igen.",
+        "routeUnavailable": "Vejen mellem stoppene kunne ikke beregnes, så afstandene er ukendte.",
+        "placingHint": "Klik på kortet, hvor {name} ligger. Med tastaturet: gå til kortet, flyt det med piletasterne, og tryk Enter for at sætte {name} under krydset.",
+        "placeAtMiddle": "Placér midt på kortet",
+        "placingStop": "Stop placering",
+        "saidPlaced": "{name} er placeret på {position}.",
+        "saidPlaceRefused": "{name} blev ikke placeret.",
+        "cornerLabel": "Hjørne {number}",
+        "areaChangeHint": "Træk et hjørne for at flytte det. Vælg et hjørne for at fjerne det eller tilføje et efter det.",
+        "areaDrawHint": "Klik på kortet for at tilføje områdets hjørner, og luk derefter figuren.",
+        "areaAddCornerHere": "Tilføj et hjørne midt på kortet",
+        "areaClose": "Luk figuren",
+        "areaInsertCorner": "Tilføj et hjørne efter dette",
+        "areaRemoveCorner": "Fjern dette hjørne",
+        "areaRestart": "Start forfra",
+        "areaDone": "Færdig",
+        "areaPickHint": "Vælg et område på kortet eller i listen for at ændre det.",
+        "areaNew": "Tegn et nyt område",
+        "areaChange": "Ændr",
+        "areaUnnamed": "Område {number}",
+        "areaPoints": "{count, plural, one {# punkt} other {# punkter}}",
+        "areaPiecesHint": "Dette område har et hul eller flere dele. De bliver, som de er, mens du ændrer dette omrids. “Start forfra” erstatter hele området med én ny figur.",
+        "listMore": "og {count, plural, one {# mere} other {# flere}}",
+        "saidCornerAdded": "Hjørne tilføjet. {count, plural, one {# hjørne} other {# hjørner}}.",
+        "saidShapeClosed": "Figuren er lukket.",
+        "saidPinKept": "Nålen er beholdt ved {position}.",
+        "saidPinPicked": "Nålen er taget op. Flyt den med piletasterne, og tryk så på Enter for at beholde stedet eller Esc for at sætte den tilbage.",
+        "saidPinBack": "Nålen er tilbage, hvor den var.",
+        "saidPinRefused": "Det nye sted blev ikke gemt. Nålen er tilbage, hvor den var."
       },
       "mapChoroplethGrid": {
         "description": "Regionsfelter tonet efter værdi – til tabeller med regionskoder, men uden koordinater.",
@@ -781,6 +843,38 @@
         "legendLowLabel": "Lav",
         "legendHighLabel": "Høj",
         "chartLabel": "Regional fordeling"
+      },
+      "place": {
+        "pinName": "Dette sted",
+        "placeholder": "Skriv en by, eller indsæt koordinater eller et kortlink",
+        "searching": "Søger…",
+        "noTown": "Ingen by med det navn. Prøv en anden stavemåde, eller indsæt koordinater.",
+        "searchFailed": "Listen over byer kunne ikke spørges lige nu. Prøv igen, eller indsæt koordinater.",
+        "whereIAm": "Hvor jeg er",
+        "byTown": "Efter by: {name}",
+        "exact": "Præcist sted: {position}",
+        "exactNamed": "Præcist sted: {name} ({position})",
+        "pending": "Læses, når du gemmer: {text}",
+        "none": "Intet sted endnu",
+        "clear": "Ryd",
+        "whereError": "Enheden oplyste ikke, hvor den er. Tjek, at browseren må bruge din placering.",
+        "issue": {
+          "unreadable": "Dette kunne ikke læses som et sted. Vælg en by på listen, eller indsæt koordinater som 30.0444, 31.2357.",
+          "shortLink": "Et kort link siger ikke, hvor det fører hen, og det følges ikke. Åbn det, og indsæt derefter det fulde link eller koordinaterne.",
+          "outOfRange": "Disse koordinater er ikke på kortet. Breddegraden går fra -90 til 90, længdegraden fra -180 til 180.",
+          "unknown": "Denne by er ikke længere på listen. Vælg den igen."
+        }
+      },
+      "area": {
+        "points": "Område · {count, plural, one {# punkt} other {# punkter}}",
+        "unreadable": "Den gemte værdi er ikke et område. Tegn et for at erstatte den.",
+        "none": "Intet område endnu",
+        "clear": "Ryd",
+        "mapsOff": "Et område tegnes på kortet, og kort er slået fra. Det gemte område bevares, som det er.",
+        "issue": {
+          "unreadable": "Dette kunne ikke læses som et område. Tegn det igen.",
+          "tooLarge": "Dette område har for mange punkter. Tegn det med færre."
+        }
       }
     },
     "domain": {
@@ -1522,6 +1616,45 @@
         "title": "Widget ikke tilgængelig",
         "bodyLead": "Ingen widget er registreret som",
         "bodyTail": "Den hører måske til en nyere version eller en afinstalleret udvidelse."
+      },
+      "wholeOnly": {
+        "title": "Kun for hele teamet",
+        "body": "Dette tal gælder hele teamet. Det vises ikke for dig, fordi din rolle kun læser nogle af de rækker, det er beregnet ud fra."
+      }
+    },
+    "files": {
+      "tooLarge": "Filen er for stor til dette felt.",
+      "wrongType": "Denne filtype modtages ikke her.",
+      "notAllowed": "Du må ikke tilføje filer her.",
+      "notSent": "Den kunne ikke sendes. Prøv igen.",
+      "signature": {
+        "name": "Underskrift",
+        "pad": "Skriv under her med en finger, en pen eller musen.",
+        "typedPad": "Navnet, skrevet som underskrift.",
+        "line": "Skriv under over linjen",
+        "clear": "Ryd",
+        "typeInstead": "Skriv navnet i stedet",
+        "drawInstead": "Skriv under i hånden i stedet",
+        "typedLabel": "Navn som underskrift",
+        "keep": "Behold denne underskrift",
+        "again": "Skriv under igen",
+        "saving": "Sender underskriften …",
+        "kept": "Underskriften er gemt.",
+        "cleared": "Underskriften er ryddet. Skriv under igen.",
+        "empty": "Skriv først under, og behold så underskriften.",
+        "keptAlt": "Den gemte underskrift"
+      },
+      "photos": {
+        "name": "Billeder",
+        "add": "Tilføj et billede",
+        "count": "{count} af {max}",
+        "full": "Feltet kan ikke rumme flere billeder.",
+        "alt": "Billede {n}",
+        "remove": "Fjern billede {n}",
+        "sending": "Sender …",
+        "added": "Billedet er tilføjet.",
+        "refused": "Billedet blev ikke gemt: {reason}",
+        "removed": "Billede {n} er fjernet."
       }
     }
   },
@@ -1845,7 +1978,13 @@
     "board": {
       "invalidLayout": "Denne tavles gemte layout er ugyldigt. Generér siden igen, eller nulstil dens layout.",
       "noRowsTitle": "Ingen kort endnu",
-      "noRowsBody": "Kort vises her, så snart tabellen har rækker."
+      "noColumnsTitle": "Ingen kolonner endnu",
+      "noColumnsBody": "Denne tavle tager sine kolonner fra rækkerne i en tabel, og den tabel har ingen rækker endnu. Tilføj en, så vises den her som en kolonne.",
+      "invalidOnly": "Denne tavle skal kun vise nogle af rækkerne i sin tabel, og den indstilling kan ikke læses, så tavlen vises ikke. Generér siden igen.",
+      "columnsError": "Tavlens kolonner kunne ikke læses fra {table}.",
+      "columnsCut": "{count, plural, one {Kun den første kolonne vises: tabellen, som tavlen henter sine kolonner fra, har flere rækker.} other {De første # kolonner vises: tabellen, som tavlen henter sine kolonner fra, har flere rækker.}}",
+      "noRowsBody": "Kort vises her, så snart tabellen har rækker.",
+      "days": "{count, plural, one {# dag} other {# dage}}"
     },
     "calendar": {
       "eventCount": "{count, plural, one {{n} begivenhed} other {{n} begivenheder}}",
@@ -1953,6 +2092,8 @@
       "unplaced": {
         "calendar": "Ingen af tabellens rækker har en dato endnu, så kalenderen er tom. En række vises her, så snart den har en.",
         "board": "Ingen af tabellens rækker har en status endnu, så tavlen er tom. En række vises her, så snart den har en.",
+        "boardColumns": "Ingen af tabellens rækker står i en af tavlens kolonner endnu, så tavlen er tom. En række vises her, så snart den er sat i en.",
+        "boardColumnsSome": "{count, plural, one {# række står ikke i nogen af tavlens kolonner og vises derfor ikke her.} other {# rækker står ikke i nogen af tavlens kolonner og vises derfor ikke her.}}",
         "scheduler": "Ingen af tabellens rækker har en person, en dato og en vagttype endnu, så planen er tom. En række vises her, så snart den har alle tre."
       }
     }
@@ -2092,5 +2233,8 @@
       "low": "Lav",
       "out": "Udsolgt"
     }
+  },
+  "mentions": {
+    "people": "Personer, du kan nævne"
   }
 }

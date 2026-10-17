@@ -25,10 +25,10 @@ import type { AddOnStep } from '@adminium/add-on-contracts';
 import type { RuleSteps } from '../automations/validate.js';
 import { createHash } from 'node:crypto';
 
-import type { ManifestAutomation, ManifestCondition, ManifestNode, Manifest } from '@adminium/manifest';
+import type { ManifestAutomation, ManifestCondition, ManifestNode, ManifestWriteValue, Manifest } from '@adminium/manifest';
 import { auditRepo, automationsRepo, emailTemplatesRepo, rolesRepo, settingsRepo, type Automation, type AutomationGraph, type AutomationTrigger, type MetaDb } from '@adminium/meta';
 
-import { nextTickFor } from '../automations/schedule.js';
+import { forgetSpellsIfChosenAnew, nextTickFor } from '../automations/schedule.js';
 import { firstIncompleteNode, resolveRule } from '../automations/validate.js';
 import type { SnapshotView } from '../crud/identifiers.js';
 import { roleSlugFor } from './manifest-roles.js';
@@ -71,9 +71,19 @@ interface Binding {
 const one = (words: Words, language: string): string => (typeof words === 'string' ? words : (words[language] ?? words['en-US'] ?? Object.values(words)[0] ?? ''));
 
 function boundCondition(condition: ManifestCondition, b: Binding): unknown {
+  // An amount read from a setting: from the settings table as it is named here.
+  const right = condition.right;
+  if (typeof right === 'object' && right !== null && right.setting !== undefined) return { ...condition, right: { ...right, setting: { ...right.setting, table: b.realId(right.setting.table) } } };
   if (!('count' in condition.left)) return condition;
   const count = condition.left.count;
   return { ...condition, left: { count: { ...count, table: b.realId(count.table) } } };
+}
+
+function boundValue(value: ManifestWriteValue, b: Binding): unknown {
+  if (typeof value !== 'object') return value;
+  if ('setting' in value) return { setting: { ...value.setting, table: b.realId(value.setting.table) } };
+  if ('daysAfter' in value && value.daysAfter.setting !== undefined) return { daysAfter: { ...value.daysAfter, setting: { ...value.daysAfter.setting, table: b.realId(value.daysAfter.setting.table) } } };
+  return value;
 }
 
 function boundNode(node: unknown, b: Binding): unknown {
@@ -87,10 +97,58 @@ function boundNode(node: unknown, b: Binding): unknown {
   if (anyNode.kind !== 'action') return base;
   const action = anyNode['action'] as { kind: string } & Record<string, unknown>;
   if (action.kind === 'notification') {
-    const to = action['to'] as { roles: string[] };
-    return { ...base, action: { ...action, to: { roles: to.roles.map((key) => b.roleId(key)) }, title: one(action['title'] as Words, b.language), ...(action['body'] === undefined ? {} : { body: one(action['body'] as Words, b.language) }) } };
+    // To the people of a role, by the role's id here; or to the person a staff column names (or their lead), as written, with its roles for nobody by id.
+    // To the people a listing names: the listing's table as it is named here.
+    const to = action['to'] as { roles: string[] } | { listed: string } | { column: string; lead?: true; else?: { roles: string[] } };
+    const bound = 'roles' in to ? { roles: to.roles.map((key) => b.roleId(key)) } : 'listed' in to ? { listed: b.realId(to.listed) } : to.else === undefined ? to : { ...to, else: { roles: to.else.roles.map((key) => b.roleId(key)) } };
+    return { ...base, action: { ...action, to: bound, title: one(action['title'] as Words, b.language), ...(action['body'] === undefined ? {} : { body: one(action['body'] as Words, b.language) }) } };
   }
-  if (action.kind === 'record.create') return { ...base, action: { ...action, table: b.realId(action['table'] as string) } };
+  if (action.kind === 'digest') {
+    const to = action['to'] as { roles: string[] };
+    const sections = action['sections'] as {
+      key: string;
+      table: string;
+      owner: string;
+      where?: ManifestCondition[];
+      orderBy?: { column: string; dir?: 'asc' | 'desc' };
+      limit?: number;
+      reach?: 'own' | 'team';
+      sum?: string[];
+      by?: 'owner';
+      target?: { table: string; owner: string; column: string; year?: string; of: string };
+    }[];
+    return {
+      ...base,
+      action: {
+        kind: 'digest',
+        templateKey: action['templateKey'],
+        to: { roles: to.roles.map((key) => b.roleId(key)) },
+        sections: sections.map((section) => ({
+          key: section.key,
+          table: b.realId(section.table),
+          owner: section.owner,
+          where: (section.where ?? []).map((condition) => boundCondition(condition, b)),
+          orderBy: section.orderBy === undefined ? null : { column: section.orderBy.column, dir: section.orderBy.dir ?? 'asc' },
+          limit: section.limit ?? 20,
+          ...(section.reach === undefined ? {} : { reach: section.reach }),
+          ...(section.sum === undefined ? {} : { sum: section.sum }),
+          ...(section.by === undefined ? {} : { by: section.by }),
+          ...(section.target === undefined ? {} : { target: { ...section.target, table: b.realId(section.target.table) } }),
+        })),
+        sendEmpty: action['sendEmpty'] === true,
+      },
+    };
+  }
+  // A value read from the settings row, or days kept there: from the settings table as it is named here.
+  if (action.kind === 'record.create' || action.kind === 'record.update') {
+    const values = Object.fromEntries(Object.entries(action['values'] as Record<string, ManifestWriteValue>).map(([ref, value]) => [ref, boundValue(value, b)]));
+    return { ...base, action: { ...action, values, ...(action.kind === 'record.create' ? { table: b.realId(action['table'] as string) } : {}) } };
+  }
+  // A mail to the people a listing names: the listing's table as it is named here.
+  if (action.kind === 'email' && (action['to'] as { kind?: string } | undefined)?.kind === 'listed') {
+    const to = action['to'] as { kind: 'listed'; table: string };
+    return { ...base, action: { ...action, to: { kind: 'listed', table: b.realId(to.table) } } };
+  }
   return base;
 }
 
@@ -201,10 +259,12 @@ export async function installAutomations(input: InstallAutomationsInput): Promis
     if (unfinished !== null) throw refusal(`its step "${unfinished.title}" is not finished.`);
 
     const existing = mine.find((candidate) => candidate.templateKey === rule.key);
+    // The part it belongs to is the app's to say, also of a rule its owner has since changed.
+    if (existing !== undefined && existing.module !== (rule.module ?? null)) await repo.setModule(existing.id, rule.module ?? null);
     if (existing === undefined) {
       const schedule = bound.trigger.kind === 'schedule' ? bound.trigger.schedule : null;
       const made = await repo.create(
-        { connectionId, ...bound, enabled: rule.enabled, nextRunAt: rule.enabled && schedule !== null ? nextTickFor(schedule, at) : null, createdBy: null, managedBy: manifest.key, templateKey: rule.key, contentHash: null },
+        { connectionId, ...bound, enabled: rule.enabled, nextRunAt: rule.enabled && schedule !== null ? nextTickFor(schedule, at) : null, createdBy: null, managedBy: manifest.key, templateKey: rule.key, contentHash: null, module: rule.module ?? null },
         at,
       );
       // Hashed as the store keeps it, so reading it back is never an edit.
@@ -226,6 +286,7 @@ export async function installAutomations(input: InstallAutomationsInput): Promis
       { name: bound.name, description: bound.description, trigger, graph: bound.graph, ...(existing.enabled && schedule !== null ? { nextRunAt: nextTickFor(schedule, at) } : schedule === null ? { nextRunAt: null } : {}) },
       at,
     );
+    await forgetSpellsIfChosenAnew(meta, existing.id, existing.trigger, trigger);
     await repo.setHash(existing.id, automationHashOf((await repo.findById(existing.id)) ?? existing));
     result.written.push(rule.key);
   }

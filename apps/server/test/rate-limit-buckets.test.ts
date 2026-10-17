@@ -87,6 +87,7 @@ describe('the url-matched buckets', () => {
       { method: 'POST', url: '/api/v1/imports/upload' },
       { method: 'GET', url: '/api/v1/exports/:id/download' },
       { method: 'GET', url: '/api/v1/imports/:id/error-report' },
+      { method: 'GET', url: '/api/v1/imports/:id/preview' },
       // Neighbours that must NOT be swept up: replaying an LLM run costs no
       // provider call, listing imports is an ordinary read, and `run` fires on
       // an import the `data-io` bucket already paid for.
@@ -113,6 +114,11 @@ describe('the url-matched buckets', () => {
     ] as const) {
       expect(await budget(method, url), `${method} ${url}`).toBe(RATE_BUCKETS['file-bytes'].max);
     }
+
+    // A page of an import's preview judges up to 2,000 lines each time: a budget of its own, thirty a
+    // minute for each person, which neither the general one nor the search box's is spent by.
+    expect(await budget('GET', '/api/v1/imports/1/preview')).toBe(RATE_BUCKETS['import-preview'].max);
+    expect(RATE_BUCKETS['import-preview']).toEqual({ max: 30, timeWindowMs: 60_000, keyBy: 'principal' });
 
     expect(await budget('POST', '/api/v1/llm/runs/1/apply')).toBe(RATE_BUCKETS.api.max);
     expect(await budget('GET', '/api/v1/imports')).toBe(RATE_BUCKETS.api.max);

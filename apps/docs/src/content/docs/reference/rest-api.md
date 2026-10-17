@@ -101,7 +101,7 @@ Forty-eight namespaces. Counts are operations, not paths.
 | `/api/v1/add-ons/*` | 33 | Installed add-ons — list what a host should mount, preview what installing would do, install from a verified package, enable or disable per host, and uninstall |
 | `/api/v1/api-docs` | 1 | The public API catalogue behind /api-docs — what live keys can call; 404 while the page is off |
 | `/api/v1/api-keys/*` | 3 | Issue, list and revoke API keys |
-| `/api/v1/apps/*` | 26 | Micro-SaaS apps installed into this instance — upload a built bundle or download one from the opt-in online catalog, browse what is staged or offered, plan its tables against a connection, install (with the public access it asks for, unless declined), update (giving what a new version adds to its public access only when allowed, and taking back what it drops), rename an older install’s tables to the app’s prefix, change one app’s settings, switch it off and on, set its domains and instances, add and remove its sample data, discard a staged version, and uninstall |
+| `/api/v1/apps/*` | 30 | Micro-SaaS apps installed into this instance — upload a built bundle or download one from the opt-in online catalog, browse what is staged or offered, plan its tables against a connection, install (with the public access it asks for, unless declined), update (giving what a new version adds to its public access only when allowed, and taking back what it drops), rename an older install’s tables to the app’s prefix, change one app’s settings, switch it off and on, set its domains and instances, add and remove its sample data, discard a staged version, and uninstall |
 | `/api/v1/assistant/*` | 13 | The page assistant — open a session on a page, ask it something, read what the turn came back with, and act on the draft it proposed. Every route needs the assistant permission; saving what it drafts additionally needs the same permission the page’s own save needs. The assistant reads; nothing it does writes a record on its own. |
 | `/api/v1/audit/*` | 2 | The audit log — list and read single entries |
 | `/api/v1/auth/*` | 12 | Login, logout, session listing, 2FA enrolment, password change and reset |
@@ -119,18 +119,20 @@ Forty-eight namespaces. Counts are operations, not paths.
 | `/api/v1/events` | 1 | Server-sent events — the fallback when a WebSocket cannot be established |
 | `/api/v1/exports/*` | 7 | Queued exports of a whole result set, and their downloads |
 | `/api/v1/files/*` | 11 | Uploaded files and record attachments — upload, list, download (with Range and ETag), attach to a record, rename, move to trash and restore |
+| `/api/v1/geo/*` | 4 | Places and routes, for anybody signed in. Towns found by name from a list that ships with the server (no other site is asked, with maps on or off), one town by its id, the towns of up to 200 addresses at once, and the legs between 2 to 50 stops: straight-line estimates unless routes along roads are switched on in Settings → Maps |
 | `/api/v1/healthz` | 1 | Liveness |
 | `/api/v1/i18n/*` | 13 | Runtime translations — locales, keys, bundles, import/export, format errors |
-| `/api/v1/imports/*` | 6 | CSV/spreadsheet imports — upload, dry run, run, error report |
+| `/api/v1/imports/*` | 7 | CSV/spreadsheet imports — upload, dry run, run, error report |
 | `/api/v1/invoices/*` | 10 | Invoice templates and invoices — the documents, their language variations, the starters, duplicates, and building an invoice from a template |
 | `/api/v1/jobs/*` | 4 | Background jobs — enqueue, poll, cancel |
 | `/api/v1/ledgers/*` | 4 | The rules that hand rows to an add-on's ledger (stock, gift cards) — which tables post into it, whether each rule runs, how many rows hold something under it and how many saves wait to be worked out; the tables and columns a new rule may be drawn from; making the ledger's items from a table's rows; and recording the saves let through while the add-on could not be asked. Reading needs a session and the connection; the two runs need the grant that changes what a table's columns mean. A rule itself is stored under /connections/:id/tables/:table/postings. |
 | `/api/v1/llm/*` | 16 | LLM assist — provider config, runs, prompts, diffs, apply, undo |
-| `/api/v1/me/*` | 11 | The signed-in user — profile, preferences, notifications, saved layouts |
+| `/api/v1/me/*` | 15 | The signed-in user — profile, preferences, notifications, saved layouts |
 | `/api/v1/meta/*` | 2 | Where the meta store lives, and relocating it |
 | `/api/v1/onboarding/*` | 2 | The first-run checklist |
 | `/api/v1/option-lists/*` | 5 | Named sets of answers a column accepts, written once and pointed at by as many columns as need them. Reading one needs only a session — a create dialog has to render the choices to anyone who may add a row — while writing needs the same grant that points a column at a list. The built-in lists live in code and are served with their labels in the caller's locale; editing one makes an ordinary copy rather than changing it. Deleting a list a column still names is refused with 409 and the columns using it. |
 | `/api/v1/pages/*` | 15 | Pages and dashboards — layout, config, nav order, shared views, and what a template needs from a table (with a new table drafted to fit when none does) |
+| `/api/v1/people` | 1 | Names and ids of staff, for picking somebody (an owner, a hand-over) |
 | `/api/v1/permissions` | 1 | The permission catalog every role is built from |
 | `/api/v1/project/*` | 9 | A project folder on the server that runs one — which pages and schema customizations differ from the deployed files, settling a page changed on both sides, the changed copies `adminium pull --from` writes into the project, running the project’s actions, the built files of its own pages and widgets, and what Studio shows about the project |
 | `/api/v1/public/*` | 32 | The scoped public API for customer- and staff-facing pages (off by default) |
@@ -140,16 +142,17 @@ Forty-eight namespaces. Counts are operations, not paths.
 | `/api/v1/public-scopes/*` | 4 | Define what a public key may read — resources, columns, filters and time zone |
 | `/api/v1/readyz` | 1 | Readiness — per-dependency verdicts, 503 when a dependency is down |
 | `/api/v1/report-documents/*` | 9 | Report templates and reports — the block documents behind the report builder, the starters, duplicates, and building a report from a template |
-| `/api/v1/roles/*` | 6 | RBAC roles and their permission sets |
+| `/api/v1/roles/*` | 8 | RBAC roles, their permission sets, and which rows each reaches |
 | `/api/v1/scheduled-reports/*` | 4 | Recurring exports delivered on a schedule |
 | `/api/v1/schema-import` | 1 | Parse a schema file (SQL, Prisma, Drizzle, the JSON IR, …) into the IR |
 | `/api/v1/search` | 1 | Cross-resource search for the command palette |
-| `/api/v1/settings/*` | 10 | Instance settings — defaults, branding, email, security, telemetry, workspace |
+| `/api/v1/settings/*` | 12 | Instance settings — defaults, branding, email, security, telemetry, workspace |
 | `/api/v1/setup/*` | 4 | First-boot super-admin creation, whether setup is still open, and — in that same window — checking a database for an Adminium store already in it and adopting that store |
 | `/api/v1/storage/*` | 8 | Where uploaded and generated files are stored — configure destinations (this server’s disk, an S3-compatible bucket, a WebDAV server), test one, choose the default, and move existing files between them |
 | `/api/v1/surfaces/*` | 6 | Hosted app surfaces — placement in the dashboard, and attaching your own domains |
 | `/api/v1/system` | 1 | Version and instance information |
-| `/api/v1/users/*` | 9 | People in the workspace — invite, suspend, delete, assign roles |
+| `/api/v1/teams/*` | 6 | Teams and who leads them: a lead reaches the rows of the people in the team |
+| `/api/v1/users/*` | 11 | People in the workspace — invite, suspend, delete, assign roles |
 | `/api/v1/widget-data/*` | 3 | The queries widgets run, singly and in batches |
 | `/api/v1/words` | 1 | What staff are told of the rows a screen shows, in an add-on's stock words — in, low or out for up to sixty rows of a table named as it is stored, and for a caller who reads the add-on's stock tables the figure behind the word: the exact count, the batch and its expiry, the line that runs out first, and whether stock or the day's portions bind |
 
@@ -254,6 +257,10 @@ PATCH /api/v1/apps/{key}/settings
 GET /api/v1/apps/{key}/overview
 POST /api/v1/apps/{key}/disable
 POST /api/v1/apps/{key}/enable
+GET /api/v1/apps/{key}/parts
+GET /api/v1/apps/{key}/parts/{part}/open
+GET /api/v1/apps/{key}/rules
+PUT /api/v1/apps/{key}/parts/{part}
 PUT /api/v1/apps/{key}/domains
 PUT /api/v1/apps/{key}/instances
 POST /api/v1/apps/{key}/rename-tables/plan
@@ -499,6 +506,15 @@ POST /api/v1/files/{id}/detach
 POST /api/v1/files/{id}/restore
 ```
 
+### `/geo`
+
+```http
+GET /api/v1/geo/places
+GET /api/v1/geo/places/{id}
+POST /api/v1/geo/places/match
+POST /api/v1/geo/route
+```
+
 ### `/healthz`
 
 ```http
@@ -530,6 +546,7 @@ POST /api/v1/imports/upload
 GET /api/v1/imports
 POST /api/v1/imports
 POST /api/v1/imports/{id}/run
+GET /api/v1/imports/{id}/preview
 GET /api/v1/imports/{id}
 GET /api/v1/imports/{id}/error-report
 ```
@@ -600,6 +617,10 @@ POST /api/v1/me/notifications/{id}/read
 POST /api/v1/me/notifications/read-all
 GET /api/v1/me/notification-prefs
 PUT /api/v1/me/notification-prefs
+GET /api/v1/me/notification-schedule
+PUT /api/v1/me/notification-schedule
+GET /api/v1/me/summaries
+POST /api/v1/me/summaries/{ruleId}/send
 PUT /api/v1/me/views/{pageId}/layout
 DELETE /api/v1/me/views/{pageId}/layout
 ```
@@ -646,6 +667,12 @@ GET /api/v1/pages/{pageId}/views
 POST /api/v1/pages/{pageId}/views
 PATCH /api/v1/pages/{pageId}/views/{viewId}
 DELETE /api/v1/pages/{pageId}/views/{viewId}
+```
+
+### `/people`
+
+```http
+GET /api/v1/people
 ```
 
 ### `/permissions`
@@ -771,6 +798,8 @@ PATCH /api/v1/roles/{id}
 DELETE /api/v1/roles/{id}
 GET /api/v1/roles/{id}/permissions
 PUT /api/v1/roles/{id}/permissions
+POST /api/v1/roles/rows/preview
+GET /api/v1/roles/{id}/rows
 ```
 
 ### `/scheduled-reports`
@@ -805,6 +834,8 @@ GET /api/v1/settings/security
 PUT /api/v1/settings/security
 GET /api/v1/settings/telemetry
 PUT /api/v1/settings/telemetry
+GET /api/v1/settings/maps
+PUT /api/v1/settings/maps
 GET /api/v1/settings/email
 PUT /api/v1/settings/email
 ```
@@ -848,12 +879,25 @@ PUT /api/v1/surfaces/domains
 GET /api/v1/system/info
 ```
 
+### `/teams`
+
+```http
+GET /api/v1/teams
+POST /api/v1/teams
+PATCH /api/v1/teams/{id}
+DELETE /api/v1/teams/{id}
+PUT /api/v1/teams/{id}/members/{userId}
+DELETE /api/v1/teams/{id}/members/{userId}
+```
+
 ### `/users`
 
 ```http
 POST /api/v1/users/{id}/roles
 PUT /api/v1/users/{id}/roles
 DELETE /api/v1/users/{id}/roles/{roleId}
+GET /api/v1/users/{id}/rows
+POST /api/v1/users/{id}/rows/hand-over
 GET /api/v1/users
 POST /api/v1/users
 GET /api/v1/users/{id}
@@ -1007,6 +1051,12 @@ in, or, on a table no guest creates rows of (a desk's payments), a column the ap
 [`retryKey`](/reference/manifest/#column-rules). The key is stored there as a keyed hash, never as sent, and per person: another user's same
 key makes another record, and a guest's key never finds a desk's. A key of the wrong form, a
 table that keeps none, or a key sent with `repeat` is refused `422` with `fields.clientKey`.
+
+A table whose rows take a resource for a time (a [booking](/reference/manifest/#booking), a
+cover) takes a keyed create of one row like any other: the row is placed under the rule's lock,
+and a retry answers it. The key is no way round the rule: a second key for a time that is taken
+is refused `409` `BOOKING_TAKEN`, as a create with no key is. With `children` such a create is
+refused `409` (`details.reason: "CAPACITY_ONE_AT_A_TIME"`): those rows are written one at a time.
 
 ### The state a form loaded, and undo
 

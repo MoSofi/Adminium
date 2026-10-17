@@ -41,7 +41,7 @@ import type { DatabaseModel } from '@adminium/engine';
 import type { DsnCrypto } from '@adminium/meta';
 
 import type { Env } from '../../config/env.js';
-import { applyOverrides } from '../../connections/effective-schema.js';
+import { applyOverrides, withoutPrivateTables } from '../../connections/effective-schema.js';
 import { SnapshotView } from '../../crud/identifiers.js';
 import { ConflictError, NotFoundError, ValidationFailedError } from '../../errors.js';
 import { PERMISSIONS } from '../../rbac/permissions.js';
@@ -301,7 +301,8 @@ export function publicAdminRoutes(deps: PublicAdminRoutesDeps): FastifyPluginAsy
     const snapshot = await snapshots.latest(connectionId);
     if (snapshot === null) return undefined;
     const active = await overrides.listForConnection(connectionId, { status: 'active' });
-    const view = new SnapshotView(connectionId, applyOverrides(snapshot.schema as DatabaseModel, active));
+    // As a public door reads: a private table is not there, so a scope that names one is refused where it is saved.
+    const view = new SnapshotView(connectionId, withoutPrivateTables(applyOverrides(snapshot.schema as DatabaseModel, active)));
     return (table: string) => {
       try {
         return new Set(view.table(table).columns.keys());

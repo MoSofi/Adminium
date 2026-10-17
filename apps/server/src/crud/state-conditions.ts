@@ -406,17 +406,18 @@ export function strictSources(
 
 /** Whether an error is one of the refusals a state judge makes (a guest's scope may then hide it as "no such row"). */
 export function isStateRefusal(error: unknown): boolean {
-  return error instanceof AppError && ['STATE_UNCHANGED', 'STATE_TOO_LATE', 'WRITE_WINDOW_CLOSED', 'STATE_MOVE_REFUSED', 'RECORD_LOCKED'].includes(error.code);
+  return error instanceof AppError && ['STATE_UNCHANGED', 'STATE_TOO_LATE', 'STATE_DATE_PASSED', 'WRITE_WINDOW_CLOSED', 'STATE_MOVE_REFUSED', 'RECORD_LOCKED'].includes(error.code);
 }
 
 /**
  * Whether a table's states or stamps read the venue's clock: a move waiting
- * for a time, a new row waiting for one, a late or a timed move, a stamp
+ * for a time or held to a last day, a new row waiting for a time, a late or a timed move, a stamp
  * worked out from minutes, a deadline or a moment. Such a write needs the
  * venue's zone, never UTC by default.
  */
 export function statesReadClock(states: TableStatesRule | undefined, stamps: readonly Pick<ColumnStampRule, 'set'>[] | undefined): boolean {
-  const moves = Object.values(states?.moves ?? {}).some((list) => list.some((move) => typeof move === 'object' && move.requires?.time !== undefined));
+  // A move's last day (`notPast`) is today where the venue is, as a move's window is its clock.
+  const moves = Object.values(states?.moves ?? {}).some((list) => list.some((move) => typeof move === 'object' && (move.requires?.time !== undefined || move.requires?.notPast !== undefined)));
   const stamped = (stamps ?? []).some((stamp) => typeof stamp.set === 'object' && ('addMinutes' in stamp.set || 'deadline' in stamp.set || 'moment' in stamp.set));
   return moves || stamped || states?.create?.requires.time !== undefined || (states?.late?.length ?? 0) > 0 || (states?.timed?.length ?? 0) > 0;
 }

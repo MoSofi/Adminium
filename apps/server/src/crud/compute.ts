@@ -69,8 +69,16 @@ import type { ResolvedTable, SnapshotView } from './identifiers.js';
  *     payload rather than guessed. A `cases` node costs four levels of JSON
  *     nesting on the `when.left` path (`{`, `"cases":[`, the case `{`,
  *     `"when":{`), so a MAX_FIELD_DEPTH chain costs 4x2+1 = 9, and the
- *     `{"fields":[{"expr":` envelope adds 3. The measure path costs 7.
+ *     `{"fields":[{"expr":` envelope adds 3. The measure path costs 7, a
+ *     measure's `where` 6 (`{"measures":[{"where":[{"in":[`).
  *     Nothing the grammar accepts nests deeper.
+ *
+ * A measure's `where` buys no subquery — it narrows the one its measure
+ * already has — so it does not count toward the twelve. What it costs is
+ * bound parameters and bytes, and both are capped where it is declared (three
+ * tests a measure, twenty values a test: 60 parameters a measure, 720 a
+ * request at the very most) and again by the byte cap above, which a request
+ * that wide does not fit.
  *
  * The depth scan exists because the byte cap does NOT bound CPU. Zod's
  * recursive union re-descends on failure, so a rejecting chain is quadratic

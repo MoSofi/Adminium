@@ -13,6 +13,7 @@ import {
   parseCsv,
   serializeCsvField,
   serializeCsvRow,
+  sniffDelimiter,
 } from '../src/data-io/csv.js';
 
 describe('serializeCsvField', () => {
@@ -102,5 +103,31 @@ describe('round trip', () => {
     ];
     const text = EXPORT_BOM + matrix.map((row) => serializeCsvRow(row)).join('');
     expect(parseCsv(text)).toEqual(matrix);
+  });
+});
+
+describe('other marks between fields', () => {
+  it('parses tabs and semicolons as it parses commas, quotes and all', () => {
+    const comma = parseCsv('a,b\n"x, y",2\n');
+    expect(parseCsv('a\tb\n"x, y"\t2\n', '\t')).toEqual(comma);
+    expect(parseCsv('a;b\n"x, y";2\n', ';')).toEqual(comma);
+    // A comma is a letter like any other once another mark parts the fields.
+    expect(parseCsv('1,5\t2\n', '\t')).toEqual([['1,5', '2']]);
+  });
+
+  it('tells the mark from the first line that is not blank, outside quotes', () => {
+    expect(sniffDelimiter('a,b,c\n1;2;3\n')).toBe(',');
+    expect(sniffDelimiter('a\tb\tc\n')).toBe('\t');
+    expect(sniffDelimiter('\n \n' + EXPORT_BOM.slice(0, 0) + 'a;b;c\n1,2\n')).toBe(';');
+    expect(sniffDelimiter(EXPORT_BOM + 'a;b\n')).toBe(';');
+    // Marks inside a quoted field are not counted.
+    expect(sniffDelimiter('"a;b;c",d\n')).toBe(',');
+    expect(sniffDelimiter('name\tamount\n"Smith, J; and co"\t1,5\n')).toBe('\t');
+  });
+
+  it('falls back to a comma on a tie and when there is no mark at all', () => {
+    expect(sniffDelimiter('a;b\tc\n')).toBe(',');
+    expect(sniffDelimiter('one column\n')).toBe(',');
+    expect(sniffDelimiter('')).toBe(',');
   });
 });

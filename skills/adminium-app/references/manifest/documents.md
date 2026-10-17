@@ -27,6 +27,7 @@ invoice, receipt or statement, drawn by an add-on that renders documents. Up to 
 | `mapping` | yes | From each of the add-on's slots (letters, digits and `_`, starting with a letter) to where its value comes from. See below. |
 | `statement` | no | Makes the document a statement. See below. |
 | `feature` | no | One of the app's [`addOns.features`](https://docs.adminium.dev/reference/manifest/#add-ons). |
+| `module` | no | The [part](https://docs.adminium.dev/reference/manifest/#parts) of the app the document belongs to: it is not drawn while that part is off. Needs Adminium 0.3.28. |
 | `requestValues` | no | 1–8 slots the app's own screen may fill when it asks for the document (a label sheet's `count`). Each must be a slot the entry does not map; when the add-on is attached, its outline must have the slot, with no default, holding a number or a text. See below. |
 | `where` | no | `{ "column", "in": [...] }`: only rows whose column holds one of 1–16 values have this document (a `receipt` for `payments.kind` `taken`, not for money given back). Asked for another row, the render answers `409` `DOCUMENT_NOT_FOR_ROW`; an email that would carry it goes without it. |
 

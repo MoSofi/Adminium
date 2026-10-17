@@ -8,7 +8,8 @@
  * days. The staff refusal says which end and the moment; a guest is told
  * `PUBLIC_TOO_EARLY {at, from}` (the time the window is counted from — the
  * doors, the visit — and when it opens, as the published client reads a kiosk
- * check-in's) or `PUBLIC_TOO_LATE {at}` (when it closed) and nothing about
+ * check-in's) or `PUBLIC_TOO_LATE {at}` (when it closed; with no `at` for a
+ * move past its row's last day) and nothing about
  * any other row. A window shut by the linked row
  * (the show takes no refunds) or by a moment with no value is an unnamed
  * refusal: it would otherwise say what another row holds.
@@ -20,6 +21,8 @@ export function timedRefusal(error: unknown): { code: 'PUBLIC_TOO_EARLY' | 'PUBL
   if (!(error instanceof AppError)) return null;
   const details = (error.details ?? {}) as { requires?: unknown; bound?: unknown; at?: unknown; rowAt?: unknown; reason?: unknown };
   const at = typeof details.at === 'string' ? { at: details.at } : undefined;
+  // A move past its row's last day: told as too late, and no day — the entry may not show the column it is read from.
+  if (error.code === 'STATE_DATE_PASSED') return { code: 'PUBLIC_TOO_LATE' };
   if (error.code === 'STATE_TOO_LATE') return { code: 'PUBLIC_TOO_LATE', ...(at === undefined ? {} : { params: at }) };
   const timed = error.code === 'WRITE_WINDOW_CLOSED' || (error.code === 'STATE_MOVE_REFUSED' && details.requires === 'time');
   if (!timed || at === undefined || details.reason !== undefined) return null;

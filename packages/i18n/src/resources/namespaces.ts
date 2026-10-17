@@ -217,8 +217,26 @@ export const UI_DEFERRED_GROUPS = ['widgets', 'templates', 'pages'] as const;
  * The same contract: nothing on the first paint and nothing on the server
  * reads a key in these groups (the entry-budget check refuses a build whose
  * entry names one).
+ *
+ * `security`, `reports` and `changelog` joined on 2026-10-13: the words of
+ * `/account/security` and the password card, of Scheduled Reports and of the
+ * changelog page, each read by one lazy screen (the card by two) and by
+ * nothing else. `reports.manage` on the server is a permission's name, not
+ * a key of the group.
+ *
+ * `onboarding` and `audit` joined after them: the words of the setup
+ * checklist (`/welcome`, and its banner on the Studio's settings) and of the
+ * audit log, each read by a lazy screen and by nothing else. `audit.read` in
+ * the router, the sidebar and the server is a permission's name, not a key
+ * of the group. With them, `capabilities` (the desktop app's card of what an
+ * add-on may use, on its settings page) and `palette` (the command palette,
+ * whose code is itself fetched when it is first opened). And `account`: the
+ * words of `/account` and `/account/preferences`, two lazy screens, moved out
+ * to make room for the People and Teams entries of the rail (plan 67, T30). Then
+ * `templates`, the words of three page templates (a directory, a queue inbox,
+ * a master and detail list), each drawn by a binding fetched with its page.
  */
-export const COMMON_DEFERRED_GROUPS = ['builder', 'kb', 'about', 'team'] as const;
+export const COMMON_DEFERRED_GROUPS = ['builder', 'kb', 'about', 'team', 'quietHours', 'security', 'reports', 'changelog', 'onboarding', 'audit', 'capabilities', 'palette', 'account', 'templates'] as const;
 
 /** The namespaces en-US delivers in two parts, and the groups of each that come later. */
 export const DEFERRED_GROUPS = { ui: UI_DEFERRED_GROUPS, common: COMMON_DEFERRED_GROUPS } as const;

@@ -898,5 +898,9 @@
     "otherwise": "否則顯示",
     "otherwiseHint": "這些文字會取代整個區塊。留空則不傳送任何內容。",
     "leftOut": "沒有值時，此區塊不會出現在郵件中。"
+  },
+  "appFilter": {
+    "note": "僅顯示 {app} 的郵件。",
+    "clear": "顯示全部郵件"
   }
 }

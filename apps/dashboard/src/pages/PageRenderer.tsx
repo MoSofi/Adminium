@@ -73,6 +73,10 @@ export function PageRenderer() {
   if (item === null && isDisabledAppPage(bootstrap, slug)) {
     return <StatePage stateId="app-disabled" fullPage={false} />;
   }
+  // A page of a part of its app that is switched off: its URL says so.
+  if (item === null && (bootstrap.partOffPages ?? []).some((page) => page.slug === slug)) {
+    return <StatePage stateId="part-off" fullPage={false} />;
+  }
   // A page whose feature waits on an add-on: out of the sidebar, and its URL says what it needs.
   const waiting = item === null ? bootstrap.featurePages?.find((page) => page.slug === slug) : undefined;
   if (waiting !== undefined) {
@@ -480,8 +484,10 @@ function usePageAdapters(page: PageEnvelope, slug: string): PageTemplateAdapters
           });
         })
         .catch(() => {
-          // Failed mutations surface through the template's own form/error
-          // handling; the host-level fallback stays silent here.
+          // Nothing is said HERE: the refusal travels on the promise handed
+          // back below, and whoever asked says it — a form beside its field, a
+          // board where the card went back or was not added. A caller that
+          // drops that promise drops the reason with it.
         });
       return promise;
     },

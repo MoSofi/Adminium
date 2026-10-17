@@ -124,6 +124,41 @@ export const settingsTelemetryReply = z.object({
 });
 export type SettingsTelemetryReply = z.infer<typeof settingsTelemetryReply>;
 
+// --- maps -------------------------------------------------------------------
+// The two switches, and the two servers' addresses as the environment set
+// them. The addresses are shown and never written here: the map server's
+// origin goes into every staff browser's content security policy, and an
+// address a settings admin could type would be a door for all of them.
+
+/** `PUT /settings/maps`: either switch, or both. */
+export const settingsMapsPutBody = z
+  .object({
+    enabled: z.boolean().optional(),
+    routing: z.boolean().optional(),
+  })
+  .strict();
+export type SettingsMapsPutBody = z.infer<typeof settingsMapsPutBody>;
+
+export const settingsMapsReply = z.object({
+  data: z.object({
+    /** The "show maps" switch. On until somebody says no. */
+    enabled: z.boolean(),
+    /** The "routes along roads" switch. Off until somebody says yes. */
+    routing: z.boolean(),
+    /** `ADMINIUM_MAP_SERVER`; null when it is `off`. */
+    mapServer: z.string().nullable(),
+    /** The operator switched maps off for this install: the switch above does nothing. */
+    mapServerOff: z.boolean(),
+    /** `ADMINIUM_ROUTING_SERVER`; null when it is `off` or outside calls are off. */
+    routingServer: z.string().nullable(),
+    /** The operator switched the routing server off (or every outside call, `ADMINIUM_NETWORK_FEATURES=off`). */
+    routingServerOff: z.boolean(),
+    /** `desktop` shows no outside map whatever the switches say. */
+    runtime: z.enum(['self-host', 'desktop']),
+  }),
+});
+export type SettingsMapsReply = z.infer<typeof settingsMapsReply>;
+
 // --- email / SMTP (sectioned puts) --------------------------------------
 // The first settings section whose stored value is a SECRET, so it is also the
 // first that cannot be a symmetric read/write pair. Everything else here reads

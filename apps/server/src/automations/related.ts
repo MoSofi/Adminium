@@ -128,7 +128,17 @@ export function relatedUses(graph: AutomationGraph): RelatedUse[] {
   for (const node of nodesOf(graph)) {
     if (node.kind !== 'action') continue;
     const action = node.action;
-    if (action.kind === 'email' && action.to?.kind === 'field') {
+    if (action.kind === 'email' && (action.to?.kind === 'field' || action.to?.kind === 'staff')) {
+      const ref = parseRelated(action.to.column);
+      if (ref !== null) out.push({ ...ref, nodeId: node.id, title: node.title, as: 'recipient', step: action.kind });
+    }
+    // The person a reply goes to, when that is somebody of a linked row.
+    if (action.kind === 'email' && action.replyTo !== undefined) {
+      const ref = parseRelated(action.replyTo.staff);
+      if (ref !== null) out.push({ ...ref, nodeId: node.id, title: node.title, as: 'recipient', step: action.kind });
+    }
+    // The person a notice tells, when that is somebody of a linked row (the quote's deal's owner).
+    if (action.kind === 'notification' && action.to !== null && 'column' in action.to) {
       const ref = parseRelated(action.to.column);
       if (ref !== null) out.push({ ...ref, nodeId: node.id, title: node.title, as: 'recipient', step: action.kind });
     }
@@ -138,7 +148,9 @@ export function relatedUses(graph: AutomationGraph): RelatedUse[] {
       const names = new Set<string>();
       tokenNames(part, names);
       for (const name of names) {
-        const ref = parseRelated(name.startsWith('record.') ? name.slice('record.'.length) : name);
+        const bare = name.startsWith('record.') ? name.slice('record.'.length) : name;
+        // The name of the person a staff column of a linked row names (`deal_id.owner_id.name`) reads that row.
+        const ref = parseRelated(bare.split('.').length === 3 && bare.endsWith('.name') ? bare.slice(0, -'.name'.length) : bare);
         if (ref !== null) out.push({ ...ref, nodeId: node.id, title: node.title, as: 'token', step: action.kind, ...(input === undefined ? {} : { input }) });
       }
     }

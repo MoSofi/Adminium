@@ -21,28 +21,92 @@
  * which is the honest fallback, because the run IS what happened.
  */
 
-import { pagesRepo, rolesRepo, usersRepo, type AutomationAction } from '@adminium/meta';
+import { pagesRepo, rolesRepo, teamsRepo, usersRepo, type AutomationAction } from '@adminium/meta';
 
 import { notify } from '../../notifications/notify.js';
-import { substitute } from '../templating.js';
+import { opensRecord, readerOfRecord, tokensAs } from '../record-link.js';
+import { substitute, type TokenMap } from '../templating.js';
+import { AUTOMATION_NOTICE_KIND } from './notice-kind.js';
+import { listedAt } from '../listed-recipients.js';
+import { staffAt } from '../staff-recipient.js';
 import { ActionFailure, type ActionContext, type ActionResult } from './types.js';
 
 type NotificationAction = Extract<AutomationAction, { kind: 'notification' }>;
 
-/** The kind an automation notice publishes under; mutable per user. */
-export const AUTOMATION_NOTICE_KIND = 'automation.notice';
+export { AUTOMATION_NOTICE_KIND };
 
-async function recipientsFor(action: NotificationAction, ctx: ActionContext): Promise<string[]> {
-  const to = action.to;
-  if (to === null) throw new ActionFailure('This step has nobody to notify.');
-  if ('users' in to) return [...new Set(to.users)];
+/**
+ * The people who lead a team the person is in, other than the person: each
+ * once, and only those who sign in and can open the record the notice is
+ * about. A team the person leads themselves leads them not, so somebody who
+ * leads their own team (alone or with others) and is led by nobody else has none.
+ */
+async function leadsOf(ctx: ActionContext, userId: string): Promise<string[]> {
+  const teams = teamsRepo(ctx.meta);
+  const users = usersRepo(ctx.meta);
+  const out: string[] = [];
+  for (const membership of await teams.teamsOf(userId)) {
+    if (membership.lead) continue;
+    for (const member of await teams.members(membership.teamId)) {
+      if (!member.lead || member.userId === userId || out.includes(member.userId)) continue;
+      if ((await users.findById(member.userId))?.status !== 'active') continue;
+      if (await opensRecord(ctx, member.userId)) out.push(member.userId);
+    }
+  }
+  return out;
+}
 
+async function holdersOf(ctx: ActionContext, roleIds: readonly string[]): Promise<string[]> {
   const roles = rolesRepo(ctx.meta);
   const ids = new Set<string>();
-  for (const roleId of to.roles) {
+  for (const roleId of roleIds) {
     for (const userId of await roles.usersInRole(roleId)) ids.add(userId);
   }
   return [...ids];
+}
+
+/**
+ * Of the people a step names by role or by hand, those who can open the
+ * record the notice is about: its title and body carry the record's values,
+ * and somebody whose roles do not reach the row (a manager of another team)
+ * is not told of it. Nobody left is said in the run's log, not a failure. A
+ * rule about no record tells everybody it names.
+ */
+async function readersOf(ctx: ActionContext, ids: readonly string[]): Promise<string[] | { note: string }> {
+  if (ctx.source === null || ids.length === 0) return [...ids];
+  const out: string[] = [];
+  for (const id of ids) if (await opensRecord(ctx, id)) out.push(id);
+  return out.length === 0 ? { note: ctx.text.notifOk(0) } : out;
+}
+
+/** Who a notice goes to; `note` says why nobody, where that is not a failure (an empty staff column). */
+async function recipientsFor(action: NotificationAction, ctx: ActionContext): Promise<string[] | { note: string }> {
+  const to = action.to;
+  if (to === null) throw new ActionFailure('This step has nobody to notify.');
+  if ('users' in to) return readersOf(ctx, [...new Set(to.users)]);
+  // The people a listing names for the record, of them only who sign in and can open it now: nobody left is said, not a failure.
+  if ('listed' in to) {
+    const found = await listedAt(ctx, to.listed);
+    return found.told.length > 0 ? found.told : { note: ctx.text.listedNobody(to.listed, found.listed) };
+  }
+  // The person on the row, or whoever leads them: a record that names nobody tells the step's other roles, else nobody, and the run says so.
+  if ('column' in to) {
+    const found = await staffAt(ctx.meta, ctx, to.column);
+    const fallback = to.else?.roles ?? [];
+    if (!('user' in found)) return fallback.length > 0 ? readersOf(ctx, await holdersOf(ctx, fallback)) : { note: ctx.text.staffNobody(to.column, found.nobody) };
+    // The person on the row is told of it only when they can open it: an approver named on a deal their roles do not reach is not.
+    if (to.lead !== true) {
+      if (await opensRecord(ctx, found.user.id)) return [found.user.id];
+      return fallback.length > 0 ? readersOf(ctx, await holdersOf(ctx, fallback)) : { note: ctx.text.staffNobody(to.column, 'closed') };
+    }
+    // Never the person themselves: a lead of nobody, or led by nobody who can open the record, is the roles' to hear.
+    const leads = await leadsOf(ctx, found.user.id);
+    if (leads.length > 0) return leads;
+    if (fallback.length === 0) throw new ActionFailure(`Nobody leads the person in ${to.column}, and this step names no roles to tell instead.`);
+    const others = (await holdersOf(ctx, fallback)).filter((id) => id !== found.user.id);
+    return others.length === 0 ? others : readersOf(ctx, others);
+  }
+  return readersOf(ctx, await holdersOf(ctx, to.roles));
 }
 
 /**
@@ -68,11 +132,24 @@ async function actionUrlFor(ctx: ActionContext): Promise<string> {
   return `/p/${page.slug}/r/${encodeURIComponent(recordId)}`;
 }
 
-function renderText(action: NotificationAction, ctx: ActionContext): { title: string; body: string | null } {
-  const title = substitute(action.title, ctx.tokens).trim();
-  if (title === '') throw new ActionFailure('This step has no title.');
-  const body = action.body === null ? null : substitute(action.body, ctx.tokens);
-  return { title, body };
+function renderText(action: NotificationAction, tokens: TokenMap, fallback?: string): { title: string; body: string | null } {
+  const title = substitute(action.title, tokens).trim();
+  if (title === '' && fallback === undefined) throw new ActionFailure('This step has no title.');
+  const body = action.body === null ? null : substitute(action.body, tokens);
+  return { title: title === '' ? fallback! : title, body };
+}
+
+/**
+ * The notice as this person reads the record: a column their role is not
+ * shown is empty in theirs. A rule about no record says the same to all; on
+ * one about a record, somebody who cannot open it is told nothing (null).
+ */
+async function textFor(action: NotificationAction, ctx: ActionContext, userId: string): Promise<{ title: string; body: string | null } | null> {
+  if (ctx.source === null) return renderText(action, ctx.tokens);
+  const reader = await readerOfRecord(ctx, userId);
+  if (reader === null) return null;
+  // A title that is all columns this reader is not shown is the rule's name, never an empty notice.
+  return renderText(action, await tokensAs(ctx, reader), ctx.rule.name);
 }
 
 export async function runNotificationAction(
@@ -80,8 +157,9 @@ export async function runNotificationAction(
   ctx: ActionContext,
 ): Promise<ActionResult> {
   const recipients = await recipientsFor(action, ctx);
+  if (!Array.isArray(recipients)) return { log: recipients.note };
   if (recipients.length === 0) throw new ActionFailure('Nobody holds the roles this step notifies.');
-  const { title, body } = renderText(action, ctx);
+  renderText(action, ctx.tokens);
   const actionUrl = await actionUrlFor(ctx);
 
   const users = usersRepo(ctx.meta);
@@ -90,6 +168,9 @@ export async function runNotificationAction(
     // A user deleted between the rule's save and this run is skipped, not a
     // failure: the rule is still doing what it was asked.
     if ((await users.findById(userId)) === null) continue;
+    const text = await textFor(action, ctx, userId);
+    if (text === null) continue;
+    const { title, body } = text;
     await notify(
       ctx.meta,
       {
@@ -103,7 +184,7 @@ export async function runNotificationAction(
         ...(ctx.source === null ? {} : { entity: ctx.source.record }),
         actionUrl,
       },
-      ctx.hub === undefined ? {} : { hub: ctx.hub },
+      { ...(ctx.hub === undefined ? {} : { hub: ctx.hub }), at: ctx.now, ...(action.urgent === true ? { urgent: true } : {}) },
     );
     sent += 1;
   }
@@ -115,6 +196,6 @@ export async function dryRunNotificationAction(
   ctx: ActionContext,
 ): Promise<ActionResult> {
   const recipients = await recipientsFor(action, ctx);
-  renderText(action, ctx);
-  return { log: ctx.text.notifOk(recipients.length) };
+  renderText(action, ctx.tokens);
+  return { log: Array.isArray(recipients) ? ctx.text.notifOk(recipients.length) : recipients.note };
 }

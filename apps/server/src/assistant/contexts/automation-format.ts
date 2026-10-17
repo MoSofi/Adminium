@@ -51,11 +51,19 @@ function type(schema: Json, printer: Printer, inCondition = false): string {
   const options = alternatives(schema);
   if (options.length > 1) {
     const kinds = options.flatMap(kindsOf);
-    // A union told apart by `kind`: each variant with its kind first.
+    // A union told apart by `kind`: each variant with its kind first; one whose kind is a word a draft never writes is left out.
     if (kinds.length > 0 && options.every((option) => kindsOf(option).length > 0)) {
-      return options.map((option) => `{ kind: ${kindsOf(option).map((kind) => JSON.stringify(kind)).join('|')}${fields(option, printer, ['kind'], inCondition)} }`).join(' | ');
+      return options
+        .filter((option) => !kindsOf(option).every((kind) => kind in NOT_FOR_A_DRAFT))
+        .map((option) => `{ kind: ${kindsOf(option).map((kind) => JSON.stringify(kind)).join('|')}${fields(option, printer, ['kind'], inCondition)} }`)
+        .join(' | ');
     }
-    return [...new Set(options.map((option) => type(option, printer, inCondition)))].join(' | ');
+    // A shape every field of which a draft never writes is no shape a draft can take.
+    const hidden = (option: Json): boolean =>
+      (kindsOf(option).length > 0 && kindsOf(option).every((kind) => kind in NOT_FOR_A_DRAFT)) ||
+      (isJson(option['properties']) && Object.keys(option['properties']).length > 0 && Object.keys(option['properties']).every((name) => name in NOT_FOR_A_DRAFT));
+    const shown = options.filter((option) => !hidden(option));
+    return [...new Set(shown.map((option) => type(option, printer, inCondition)))].join(' | ');
   }
   if (schema['const'] !== undefined) return JSON.stringify(schema['const']);
   if (Array.isArray(schema['enum'])) return schema['enum'].map((one) => JSON.stringify(one)).join('|');
@@ -104,6 +112,13 @@ export const NOT_FOR_A_DRAFT: Readonly<Record<string, string>> = {
   headerValueEncrypted: 'a webhook\'s sealed header is the server\'s to write',
   headerValueSet: 'read-only: whether the server holds a header value',
   addOnName: 'the add-on\'s name is written by the server from what is installed',
+  // The rule format's budget is spent; these words of 0.3.28 are an app's or a person's to write, not a draft's.
+  lead: 'a notice to the lead of the person on the row is written in an app\'s manifest',
+  else: 'the roles told when nobody is on the row are written in an app\'s manifest',
+  setting: 'an amount, or a value, read from a setting is written in an app\'s manifest',
+  daysAfter: 'a day so many days after a date of the record is written in an app\'s manifest',
+  // A notice's `{ listed }`, and an e-mail's `{ kind: "listed" }` with it: the people a listing names, an app's word.
+  listed: 'the people a table lists against the record are told by a rule an app\'s manifest writes',
 };
 
 /** `, a: T, b?: T` — a field that may be left out, or that has a default, carries the `?`. */
@@ -122,7 +137,8 @@ function fields(schema: Json, printer: Printer, skip: readonly string[] = [], in
  */
 export const ACTION_NOTES: Readonly<Record<string, string>> = {
   email: 'sends a LIVE template (its key from rule_parts; no subject or body of its own). `to` names a column that HOLDS ADDRESSES (rule_parts lists them, a linked row\'s too: `customer_id.email`), or fixed addresses. `vars` fills a placeholder the record does not: its name → a text.',
-  notification: 'an in-app notice to roles or people of the workspace.',
+  notification: 'an in-app notice to roles or people of the workspace, or (`to: { "column" }`) to the person a STAFF column of the record names, or of a row it links to (`deal_id.owner_id`). `urgent: true` only when the person asked that it reach people in their quiet hours.',
+  digest: 'a summary for each holder of `to.roles`: sections list their OWN `table` rows by the `owner` staff column (`reach: "team"`: their team\'s too). `templateKey`: a LIVE template. Clock rules only.',
   'record.create': 'adds a row to `table`; `values` is column → text, or { "now": true } for the moment it runs.',
   'record.update': 'writes columns of the record the run is about.',
   webhook: 'calls a URL the person gives. Never invent one; leave `headerValue` out.',
@@ -181,7 +197,8 @@ export function schemaFieldNames(): string[] {
     if (Array.isArray(value)) return value.forEach(walk);
     if (!isJson(value)) return;
     if (isJson(value['properties'])) for (const name of Object.keys(value['properties'])) out.add(name);
-    for (const child of Object.values(value)) walk(child);
+    // A field hidden from a draft hides what it holds with it.
+    for (const [key, child] of Object.entries(value)) walk(key === 'properties' && isJson(child) ? Object.fromEntries(Object.entries(child).filter(([name]) => !(name in NOT_FOR_A_DRAFT))) : child);
   };
   const { trigger, graph } = schemas();
   walk(trigger);

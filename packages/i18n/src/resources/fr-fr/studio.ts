@@ -915,7 +915,8 @@ export default {
       "checkSubtitle": "Vérifiez les tables utilisées par cette version.",
       "pickFirst": "Choisissez quoi faire de {table} avant de mettre à jour.",
       "checkFirst": "Vérifiez à nouveau les tables avant de mettre à jour.",
-      "nothingYet": "Rien ne change tant que vous n’avez pas cliqué sur Mettre à jour."
+      "nothingYet": "Rien ne change tant que vous n’avez pas cliqué sur Mettre à jour.",
+      "rolesSubtitle": "Vérifiez ce que les rôles de cette version peuvent faire des tables des modules."
     },
     "veto": {
       "title": "Ce déploiement ne peut pas consulter le catalogue en ligne",
@@ -2075,6 +2076,8 @@ export default {
         "rollupBalance": "et tient {balance} = {of} − {minus} − ce total",
         "rollupCap": "Une écriture qui ferait passer le solde sous zéro est refusée.",
         "rollupCapUnless": "Une écriture qui ferait passer le solde sous zéro est refusée, sauf si {column} est activé pour la ligne.",
+        "rollupLatest": "{of} de la ligne la plus récente de {from}, selon {by}",
+        "rollupLatestRow": "et conserve la clé de cette ligne dans {row}",
         "stampToday": "la date",
         "stampClaim": "{column} de la personne connectée",
         "stampAddDays": "{date} plus {days} jours",
@@ -2565,6 +2568,11 @@ export default {
       "heading": "Mappages de documents",
       "body": "Indiquez de quelle table une facture, un reçu ou un relevé est généré, ce qui le déclenche et à qui il est envoyé par e-mail.",
       "cta": "Ouvrir les mappages de documents"
+    },
+    "mapsCard": {
+      "heading": "Cartes",
+      "body": "Si les cartes sont affichées, quels serveurs sont interrogés et ce que chacun apprend.",
+      "cta": "Ouvrir les cartes"
     }
   },
   "source": {
@@ -3139,7 +3147,9 @@ export default {
       "advice": "Demandez à votre responsable de l’activer dans {app} → Paramètres.",
       "signOut": "Se déconnecter",
       "noAccess": "Ce compte ne peut pas ouvrir {app}.",
-      "noAccessAdvice": "Demandez à votre responsable un rôle qui ouvre {app}."
+      "noAccessAdvice": "Demandez à votre responsable un rôle qui ouvre {app}.",
+      "partsOff": "Rien n’est activé pour vous dans {app}.",
+      "partsOffAdvice": "Chacun de vos rôles appartient à une partie désactivée de {app}. Demandez à votre responsable de l’activer ou de vous attribuer un autre rôle."
     },
     "notFound": {
       "title": "Page introuvable",
@@ -3423,12 +3433,122 @@ export default {
       "kept": "{addOn} reste installé. Désinstallez-le depuis Modules si rien d’autre ne l’utilise.",
       "link": "Sa connexion à {addOn}"
     },
-    "updateToo": "Le mettre à jour aussi"
+    "updateToo": "Le mettre à jour aussi",
+    "roleTables": {
+      "summary": "Les rôles de {app} accèdent à {count, plural, one {# de ses tables} other {# de ses tables}}. Voyez ce qu’ils lisent et modifient.",
+      "unchecked": "{addOn} n’est pas encore sur ce serveur : voici donc ce que demande {app}. Le module peut en permettre moins.",
+      "keyAndLinks": "Une lecture montre aussi la clé de chaque ligne et ses liens vers d’autres lignes.",
+      "everyColumn": "toutes les colonnes",
+      "reads": "Lit {columns}",
+      "readsAll": "Lit toutes les colonnes",
+      "changes": "Modifie {columns}",
+      "changesAll": "Modifie toutes les colonnes",
+      "adds": "Ajoute des lignes en remplissant {columns}",
+      "addsAll": "Ajoute des lignes en remplissant n’importe quelle colonne",
+      "notOffered": "Non accordé : {addOn} ne partage cette table avec aucune app.",
+      "keptBack": "Non accordé : {addOn} garde cette table pour lui.",
+      "unknown": "Non accordé : {addOn} n’a pas cette table ou cette colonne.",
+      "allowsLess": "Non accordé : {addOn} en permet moins.",
+      "notGiven": "Demandé, non accordé : {what}",
+      "wider": "Nouveau dans cette version : {what}",
+      "updateTitle": "Des rôles obtiennent plus des tables des modules",
+      "updateBody": "Cette version permet à ces rôles d’en faire plus avec des tables qui appartiennent à des modules. Mettre à jour l’autorise.",
+      "action": {
+        "read": "lire",
+        "create": "ajouter des lignes",
+        "update": "modifier des lignes"
+      }
+    }
   },
   "featurePage": {
     "ask": "Une personne qui gère les apps peut l’installer.",
     "body": "Cette page ne fonctionne qu’avec {count, plural, one {un module} other {des modules}} que cette app n’a pas encore ici ; elle n’est donc pas dans la barre latérale. Elle revient dès que {count, plural, one {il est installé et connecté} other {ils sont installés et connectés}} à l’app.",
     "open": "Ouvrir les réglages de l’app",
     "title": "{page} a besoin d’un module"
+  },
+  "appParts": {
+    "title": "Parties",
+    "help": "Désactivez les parties que cette entreprise n’utilise pas. Une partie désactivée n’a ni pages, ni règles, ni rôles ; ses enregistrements restent.",
+    "onePage": "1 page",
+    "pages": "{n} pages",
+    "oneRule": "1 règle active",
+    "rules": "{n} règles actives",
+    "roles": "Rôles : {roles}",
+    "leftOut": "Pas encore installée. Connectez {addOns} sous Modules et elle sera mise en place.",
+    "waiting": "Désactivée tant que {addOns} n’est pas connecté, sous Modules.",
+    "always": "Toujours activée",
+    "needs": "Nécessite un module",
+    "switch": "{part}, activée ou non",
+    "on": "Oui",
+    "off": "Non",
+    "dialogClose": "Fermer",
+    "cancel": "Annuler",
+    "onDialog": {
+      "title": "Activer {part} ?",
+      "back": "Ses pages, règles et rôles reviennent aussitôt. Aucune mise à jour ni redémarrage n’est nécessaire.",
+      "noCatchUp": "Rien de ce qui s’est passé pendant la désactivation n’est rattrapé : ses règles n’ont pas tourné et ne tourneront pas maintenant pour ce qui a été manqué.",
+      "confirm": "Activer"
+    },
+    "offDialog": {
+      "title": "Désactiver {part} ?",
+      "stops": "Ses pages quittent le menu, ses règles s’arrêtent et ses rôles ne donnent rien jusqu’à sa réactivation.",
+      "stays": "Ses enregistrements restent. Un rôle d’une autre partie qui les lit continue de les lire.",
+      "open": "En cours dans cette partie :",
+      "openRows": "{n} non terminés dans {table}",
+      "oneRule": "1 règle active s’arrêtera",
+      "rules": "{n} règles actives s’arrêteront",
+      "oneStranded": "1 personne n’aura plus rien d’activé",
+      "stranded": "{n} personnes n’auront plus rien d’activé",
+      "nothingOpen": "Rien n’est en cours dans cette partie.",
+      "confirm": "Désactiver"
+    },
+    "installHelp": "Choisissez les parties de {app} avec lesquelles commencer. Chacune peut être activée ou désactivée plus tard, dans les réglages de l’application.",
+    "installTick": "Commencer avec {part}",
+    "installAlways": "toujours activée",
+    "installWaiting": "En attente du module {addOns}.",
+    "installCount": "{count, plural, one {# partie.} other {# parties.}}",
+    "installCountFixed": "{count, plural, one {# partie.} other {# parties.}} {fixed} {always, plural, one {en fait} other {en font}} toujours partie.",
+    "groupAddOn": "module",
+    "groupTicked": "Coché sous Modules : les parties ci-dessous viennent avec lui.",
+    "groupWaiting": "Non coché sous Modules : les parties ci-dessous l’attendent. Cochez-le là, ou connectez-le plus tard et elles seront mises en place.",
+    "groupConnected": "Connecté : les parties ci-dessous fonctionnent avec lui.",
+    "groupNotConnected": "Non connecté : les parties ci-dessous l’attendent. Connectez-le sous Modules et elles seront mises en place.",
+    "installStranded": "{roles} {count, plural, one {n’a} other {n’ont}} rien à ouvrir avec ces parties.",
+    "willMake": "Créera",
+    "willMakeCounts": "{tables, plural, one {# table} other {# tables}}, {roles, plural, one {# rôle} other {# rôles}}, {rules, plural, one {# règle} other {# règles}}"
+  },
+  "installMaps": {
+    "title": "Cartes",
+    "tick": "Afficher les cartes (utilise OpenFreeMap)",
+    "note": "le navigateur de chaque personne récupère les images de la carte auprès du serveur de cartes. Celui-ci apprend quelle zone est regardée, et rien de vos enregistrements. C’est un seul réglage pour toutes les applications ici.",
+    "tickHost": "Afficher les cartes (utilise {host})"
+  },
+  "settingsMaps": {
+    "title": "Cartes",
+    "subtitle": "Si les cartes sont affichées, et quels serveurs sont interrogés.",
+    "saveFailed": "L’enregistrement a échoué. Réessayez.",
+    "loadFailed": "Ces paramètres n’ont pas pu être lus. Rechargez la page.",
+    "reload": {
+      "title": "Les cartes sont activées. Rechargez pour les voir.",
+      "body": "Une page ouverte pendant que les cartes étaient désactivées ne peut pas interroger le serveur de cartes. Rechargez-la, ici et dans les autres onglets ouverts.",
+      "cta": "Recharger cette page"
+    },
+    "maps": {
+      "heading": "Afficher les cartes",
+      "sees": "Une carte est dessinée à partir d’images de la partie du monde affichée. Le navigateur de chaque membre de l’équipe les récupère auprès du serveur de cartes, qui apprend l’adresse internet de cette personne et la zone qu’elle a regardée. Aucun enregistrement, aucun nom ni la position de vos repères ne lui sont jamais envoyés.",
+      "server": "Serveur de cartes : {host}. Défini par la personne qui exploite ce serveur, avec ADMINIUM_MAP_SERVER. Il ne peut pas être modifié ici.",
+      "serverNone": "Serveur de cartes : aucun.",
+      "off": "Quand les cartes sont désactivées, une liste des mêmes lieux s’affiche à la place de la carte, et aucun serveur extérieur n’est interrogé.",
+      "whyDesktop": "L’application de bureau fonctionne sans internet et n’affiche aucune carte extérieure. Une liste s’affiche à la place de la carte.",
+      "whyEnvOff": "La personne qui exploite ce serveur y a désactivé les cartes (ADMINIUM_MAP_SERVER=off) ; ce réglage n’a donc aucun effet."
+    },
+    "routes": {
+      "heading": "Itinéraires par la route",
+      "sees": "Tant que ce réglage est activé, ce serveur demande au serveur d’itinéraires le chemin entre les arrêts d’un itinéraire et lui envoie les positions des arrêts dans l’ordre. Celui-ci apprend l’adresse de ce serveur, jamais celle d’un membre de l’équipe, ni un nom, ni un enregistrement.",
+      "server": "Serveur d’itinéraires : {host}. Défini par la personne qui exploite ce serveur, avec ADMINIUM_ROUTING_SERVER.",
+      "serverNone": "Serveur d’itinéraires : aucun.",
+      "off": "Quand ce réglage est désactivé, les distances sont des lignes droites calculées sur ce serveur et marquées « environ ». Rien n’est demandé à l’extérieur.",
+      "whyEnvOff": "La personne qui exploite ce serveur a désactivé le serveur d’itinéraires (ADMINIUM_ROUTING_SERVER=off, ou tous les appels extérieurs avec ADMINIUM_NETWORK_FEATURES=off) ; ce réglage n’a donc aucun effet."
+    }
   }
 } as const;

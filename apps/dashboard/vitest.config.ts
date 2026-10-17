@@ -17,6 +17,7 @@ export default defineConfig({
       { find: '@adminium/i18n/registry', replacement: i18nSrc('locales.ts') },
       { find: '@adminium/i18n/resources', replacement: i18nSrc('resources/index.ts') },
       { find: '@adminium/i18n/react', replacement: i18nSrc('react.tsx') },
+      { find: '@adminium/i18n/format', replacement: i18nSrc('format/index.ts') },
       { find: '@adminium/i18n', replacement: i18nSrc('index.ts') },
     ],
   },

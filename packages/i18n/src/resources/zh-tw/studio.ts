@@ -915,7 +915,8 @@ export default {
       "checkSubtitle": "檢查此版本使用的資料表。",
       "pickFirst": "更新前請選擇如何處理 {table}。",
       "checkFirst": "更新前請重新檢查資料表。",
-      "nothingYet": "按下「更新」之前不會有任何變更。"
+      "nothingYet": "按下「更新」之前不會有任何變更。",
+      "rolesSubtitle": "檢查此版本的角色可以對附加元件的資料表做什麼。"
     },
     "veto": {
       "title": "此部署無法線上瀏覽",
@@ -2075,6 +2076,8 @@ export default {
         "rollupBalance": "並保持 {balance} = {of} − {minus} − 此合計",
         "rollupCap": "會使餘額低於零的寫入將被拒絕。",
         "rollupCapUnless": "會使餘額低於零的寫入將被拒絕，除非該列的 {column} 已開啟。",
+        "rollupLatest": "{from} 中依 {by} 最新一列的 {of}",
+        "rollupLatestRow": "並將該列的鍵存入 {row}",
         "stampToday": "當天日期",
         "stampClaim": "已登入者的 {column}",
         "stampAddDays": "{date} 加 {days} 天",
@@ -2565,6 +2568,11 @@ export default {
       "heading": "文件對應",
       "body": "指定發票、收據或對帳單從哪個資料表產生、由什麼觸發，以及以郵件寄給誰。",
       "cta": "開啟文件對應"
+    },
+    "mapsCard": {
+      "heading": "地圖",
+      "body": "是否顯示地圖、會詢問哪些伺服器，以及每台伺服器會得知什麼。",
+      "cta": "開啟地圖設定"
     }
   },
   "source": {
@@ -3139,7 +3147,9 @@ export default {
       "advice": "請你的經理在 {app} → 設定 中開啟。",
       "signOut": "登出",
       "noAccess": "此帳號無法開啟 {app}。",
-      "noAccessAdvice": "請你的主管為你指派可以開啟 {app} 的角色。"
+      "noAccessAdvice": "請你的主管為你指派可以開啟 {app} 的角色。",
+      "partsOff": "{app} 中目前沒有為你開啟的內容。",
+      "partsOffAdvice": "你擁有的每個角色都屬於 {app} 中已關閉的部分。請讓你的主管開啟該部分，或為你指派其他角色。"
     },
     "notFound": {
       "title": "找不到頁面",
@@ -3423,12 +3433,122 @@ export default {
       "kept": "{addOn} 將保持安裝。如果沒有其他項目使用它，可在「附加元件」中解除安裝。",
       "link": "它與 {addOn} 的連接"
     },
-    "updateToo": "一併更新"
+    "updateToo": "一併更新",
+    "roleTables": {
+      "summary": "{count, plural, other {{app} 的角色可存取它的 # 張資料表。查看它們讀取與變更的內容。}}",
+      "unchecked": "{addOn} 尚未安裝在此伺服器上，因此這裡顯示的是 {app} 要求的內容。附加元件可能允許的更少。",
+      "keyAndLinks": "讀取時也會顯示每列的鍵及其指向其他列的連結。",
+      "everyColumn": "所有欄位",
+      "reads": "讀取 {columns}",
+      "readsAll": "讀取所有欄位",
+      "changes": "變更 {columns}",
+      "changesAll": "變更所有欄位",
+      "adds": "新增資料列，填寫 {columns}",
+      "addsAll": "新增資料列，可填寫任何欄位",
+      "notOffered": "未授予：{addOn} 不與任何應用程式共用此資料表。",
+      "keptBack": "未授予：{addOn} 將此資料表留給自己使用。",
+      "unknown": "未授予：{addOn} 沒有這樣的資料表或欄位。",
+      "allowsLess": "未授予：{addOn} 允許的更少。",
+      "notGiven": "已要求但未授予：{what}",
+      "wider": "此版本新增：{what}",
+      "updateTitle": "角色可取得更多附加元件資料表的權限",
+      "updateBody": "此版本讓這些角色可以對屬於附加元件的資料表做更多操作。更新即表示允許。",
+      "action": {
+        "read": "讀取",
+        "create": "新增資料列",
+        "update": "變更資料列"
+      }
+    }
   },
   "featurePage": {
     "ask": "管理應用程式的人員可以安裝它。",
     "body": "{count, plural, other {此頁面只能搭配此應用程式在這裡尚未擁有的附加元件使用，因此不在側邊欄中。附加元件安裝並連接到應用程式後，它就會回來。}}",
     "open": "開啟應用程式的設定",
     "title": "{page} 需要附加元件"
+  },
+  "appParts": {
+    "title": "組成部分",
+    "help": "關閉這家企業用不到的部分。已關閉的部分沒有頁面、規則和角色；其記錄會保留。",
+    "onePage": "1 個頁面",
+    "pages": "{n} 個頁面",
+    "oneRule": "1 條規則已開啟",
+    "rules": "{n} 條規則已開啟",
+    "roles": "角色：{roles}",
+    "leftOut": "尚未設定。在「附加元件」中連接 {addOns} 後即會加入。",
+    "waiting": "在「附加元件」中連接 {addOns} 之前保持關閉。",
+    "always": "一律開啟",
+    "needs": "需要附加元件",
+    "switch": "{part}，開啟或關閉",
+    "on": "開",
+    "off": "關",
+    "dialogClose": "關閉",
+    "cancel": "取消",
+    "onDialog": {
+      "title": "開啟「{part}」？",
+      "back": "其頁面、規則和角色會立即恢復，無需更新或重新啟動。",
+      "noCatchUp": "關閉期間發生的事情不會補做：其規則當時沒有執行，現在也不會為錯過的內容執行。",
+      "confirm": "開啟"
+    },
+    "offDialog": {
+      "title": "關閉「{part}」？",
+      "stops": "其頁面會從選單中移除，規則停止，角色在重新開啟前不授予任何權限。",
+      "stays": "其記錄會保留。其他部分中讀取這些記錄的角色仍可讀取。",
+      "open": "其中目前未完成的：",
+      "openRows": "{table} 中有 {n} 筆未完成",
+      "oneRule": "1 條已開啟的規則將停止",
+      "rules": "{n} 條已開啟的規則將停止",
+      "oneStranded": "將有 1 人沒有任何已開啟的內容",
+      "stranded": "將有 {n} 人沒有任何已開啟的內容",
+      "nothingOpen": "其中目前沒有未完成的內容。",
+      "confirm": "關閉"
+    },
+    "installHelp": "選擇開始使用 {app} 的哪些部分。之後可在應用程式設定中隨時開啟或關閉任何一個。",
+    "installTick": "開始時啟用「{part}」",
+    "installAlways": "一律開啟",
+    "installWaiting": "正在等待附加元件 {addOns}。",
+    "installCount": "{count, plural, other {共 # 個部分。}}",
+    "installCountFixed": "{count, plural, other {共 # 個部分。}}{fixed}{always, plural, other {一律包含在內。}}",
+    "groupAddOn": "附加元件",
+    "groupTicked": "已在「附加元件」中勾選：下面的部分隨之加入。",
+    "groupWaiting": "未在「附加元件」中勾選：下面的部分在等待它。請在那裡勾選，或稍後連接後再加入。",
+    "groupConnected": "已連接：下面的部分與它搭配使用。",
+    "groupNotConnected": "未連接：下面的部分在等待它。在「附加元件」中連接後即會加入。",
+    "installStranded": "{roles}{count, plural, other {在這些部分下沒有可開啟的內容。}}",
+    "willMake": "將建立",
+    "willMakeCounts": "{tables, plural, other {# 個資料表}}、{roles, plural, other {# 個角色}}、{rules, plural, other {# 條規則}}"
+  },
+  "installMaps": {
+    "title": "地圖",
+    "tick": "顯示地圖（使用 OpenFreeMap）",
+    "note": "每個人的瀏覽器會從地圖伺服器取得地圖圖片。伺服器只知道正在查看哪個區域，不會得知你的任何記錄。這是此處所有應用程式共用的一個開關。",
+    "tickHost": "顯示地圖（使用 {host}）"
+  },
+  "settingsMaps": {
+    "title": "地圖",
+    "subtitle": "是否顯示地圖，以及會詢問哪些伺服器。",
+    "saveFailed": "無法儲存。請再試一次。",
+    "loadFailed": "無法讀取這些設定。請重新載入頁面。",
+    "reload": {
+      "title": "地圖已開啟。重新載入後即可看到。",
+      "body": "地圖關閉時已開啟的頁面不能存取地圖伺服器。請在這裡以及其他開啟的分頁中重新載入。",
+      "cta": "重新載入本頁"
+    },
+    "maps": {
+      "heading": "顯示地圖",
+      "sees": "地圖由畫面上那部分世界的圖片繪成。每位員工的瀏覽器從地圖伺服器取得這些圖片，伺服器會得知此人的網路位址和所查看的區域。紀錄、姓名或你的圖釘位置絕不會傳送給它。",
+      "server": "地圖伺服器：{host}。由執行本伺服器的人透過 ADMINIUM_MAP_SERVER 設定，不能在這裡變更。",
+      "serverNone": "地圖伺服器：無。",
+      "off": "地圖關閉時，原本顯示地圖的位置會顯示同樣地點的清單，不會詢問任何外部伺服器。",
+      "whyDesktop": "桌面應用程式不需連網即可使用，不顯示外部地圖。原本顯示地圖的位置會顯示清單。",
+      "whyEnvOff": "執行本伺服器的人已為它關閉地圖（ADMINIUM_MAP_SERVER=off），所以這個開關沒有作用。"
+    },
+    "routes": {
+      "heading": "沿道路的路線",
+      "sees": "開啟時，本伺服器會向路線伺服器詢問一條路線各停靠點之間的走法，並依序把停靠點位置傳給它。它會得知本伺服器的位址，但絕不會得知員工的位址、姓名或紀錄。",
+      "server": "路線伺服器：{host}。由執行本伺服器的人透過 ADMINIUM_ROUTING_SERVER 設定。",
+      "serverNone": "路線伺服器：無。",
+      "off": "關閉時，距離是在本伺服器上算出的直線距離，並標為「約」。不會向外部詢問任何內容。",
+      "whyEnvOff": "執行本伺服器的人已關閉路線伺服器（ADMINIUM_ROUTING_SERVER=off，或用 ADMINIUM_NETWORK_FEATURES=off 關閉所有對外請求），所以這個開關沒有作用。"
+    }
   }
 } as const;

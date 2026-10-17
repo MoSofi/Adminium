@@ -17,10 +17,16 @@ export type { InlineComposeCardConfig };
  * card with a text input and Add/Cancel, with Enter to commit and Escape to
  * cancel (Project Board). The new record gets the column's sane defaults.
  *
- * It emits a `mutate` INSERT *intent* and clears itself — the widget never
- * writes. The host runs the insert through the CRUD API (undo + audit) and the
- * board re-renders from the next payload, so there is no optimistic row here to
- * fall out of sync with the server's generated id/timestamps.
+ * It emits a `mutate` INSERT *intent* — the widget never writes. The host runs
+ * the insert through the CRUD API (undo + audit) and the board re-renders from
+ * the next payload, so there is no optimistic row here to fall out of sync
+ * with the server's generated id/timestamps.
+ *
+ * It clears itself when the insert HOLDS. A host that hands back the save's
+ * promise has the typed title kept — and not editable — until that answers: a
+ * refused insert leaves it in the box, to be corrected or sent again, where
+ * clearing at once lost it with nothing said. A host that hands back nothing
+ * is taken at its word and the box clears at once, as before.
  *
  * `keepOpen` (the default) leaves the composer open after Add so a planning
  * session can type card after card — the behaviour the comp demonstrates.
@@ -35,7 +41,10 @@ export interface InlineComposeCardProps {
   defaultOpen?: boolean | undefined;
   /** Keep the composer open after a successful add, for rapid entry. */
   keepOpen?: boolean | undefined;
-  onAdd?: ((title: string) => void) | undefined;
+  /** Nothing can be added just now (a board whose columns are not there yet): the composer is shown and takes nothing. */
+  disabled?: boolean | undefined;
+  /** Add a card; return the save's promise and the title is kept until it holds (and after it is refused). */
+  onAdd?: ((title: string) => void | Promise<unknown>) | undefined;
   onCancel?: (() => void) | undefined;
   testId?: string | undefined;
 }
@@ -47,6 +56,7 @@ export function InlineComposeCard({
   openLabel,
   defaultOpen = false,
   keepOpen = true,
+  disabled = false,
   onAdd,
   onCancel,
   testId,
@@ -58,6 +68,8 @@ export function InlineComposeCard({
   const resolvedOpenLabel = openLabel ?? t('ui:widgets.boards.inlineComposeCard.openLabel', 'Add card');
   const [open, setOpen] = useState(defaultOpen);
   const [draft, setDraft] = useState('');
+  // The insert has been sent and has not answered: the title is kept as it was sent.
+  const [saving, setSaving] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const close = (): void => {
@@ -70,11 +82,29 @@ export function InlineComposeCard({
     const title = draft.trim();
     // A whitespace-only draft is not a card: committing it would insert a
     // titleless row the board renders as "#1".
-    if (title === '') return;
-    onAdd?.(title);
-    setDraft('');
-    if (keepOpen) inputRef.current?.focus();
-    else setOpen(false);
+    if (title === '' || disabled || saving) return;
+    const added = (): void => {
+      setDraft('');
+      if (keepOpen) inputRef.current?.focus();
+      else setOpen(false);
+    };
+    const result = onAdd?.(title);
+    if (result === undefined || typeof (result as Promise<unknown>).then !== 'function') {
+      added();
+      return;
+    }
+    setSaving(true);
+    (result as Promise<unknown>).then(
+      () => {
+        setSaving(false);
+        added();
+      },
+      () => {
+        // Refused: whoever ran the insert says why. The title stays, ready to be sent again.
+        setSaving(false);
+        inputRef.current?.focus();
+      },
+    );
   };
 
   if (!open) {
@@ -84,8 +114,9 @@ export function InlineComposeCard({
         data-widget="inline-compose-card"
         data-testid={testId}
         data-part="compose-open"
+        disabled={disabled}
         onClick={() => setOpen(true)}
-        className="flex w-full items-center gap-1.5 rounded-lg border border-dashed border-border px-3 py-2 text-body-sm text-fg-muted hover:border-accent hover:bg-accent-soft hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+        className="flex w-full items-center gap-1.5 rounded-lg border border-dashed border-border px-3 py-2 text-body-sm text-fg-muted hover:border-accent hover:bg-accent-soft hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:border-border disabled:hover:bg-transparent disabled:hover:text-fg-muted"
       >
         <Plus aria-hidden="true" className="size-4" />
         {resolvedOpenLabel}
@@ -105,6 +136,8 @@ export function InlineComposeCard({
         type="text"
         autoFocus
         value={draft}
+        readOnly={saving}
+        aria-busy={saving || undefined}
         aria-label={resolvedPlaceholder}
         placeholder={resolvedPlaceholder}
         onChange={(event) => setDraft(event.target.value)}
@@ -125,7 +158,7 @@ export function InlineComposeCard({
         className="w-full rounded-md border border-border bg-surface px-2 py-1.5 text-body-sm text-fg placeholder:text-fg-subtle focus-visible:outline-2 focus-visible:-outline-offset-1 focus-visible:outline-accent"
       />
       <div className="flex items-center gap-1.5">
-        <Button size="sm" variant="primary" data-part="compose-add" disabled={draft.trim() === ''} onClick={commit}>
+        <Button size="sm" variant="primary" data-part="compose-add" disabled={disabled || saving || draft.trim() === ''} onClick={commit}>
           {resolvedAddLabel}
         </Button>
         <Button size="sm" variant="ghost" data-part="compose-cancel" onClick={close}>
@@ -147,8 +180,9 @@ export function InlineComposeCardWidget({ config, onEvent }: WidgetProps<InlineC
       {...(config.cancelLabel === undefined ? {} : { cancelLabel: config.cancelLabel })}
       {...(config.testId === undefined ? {} : { testId: config.testId })}
       onAdd={(title) => {
-        if (source === null) return; // unbound: nothing to insert into
-        onEvent({
+        if (source === null) return undefined; // unbound: nothing to insert into
+        // The host's result, so a refused insert keeps the typed title.
+        return onEvent({
           type: 'mutate',
           intent: 'insert',
           connectionId: source.connectionId,

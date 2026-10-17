@@ -94,6 +94,11 @@ const DESCRIPTIONS = {
     'test sends of the on-screen document, and export/import of a bundle',
   events: 'Server-sent events — the fallback when a WebSocket cannot be established',
   exports: 'Queued exports of a whole result set, and their downloads',
+  geo:
+    'Places and routes, for anybody signed in. Towns found by name from a list that ships ' +
+    'with the server (no other site is asked, with maps on or off), one town by its id, the ' +
+    'towns of up to 200 addresses at once, and the legs between 2 to 50 stops: straight-line ' +
+    'estimates unless routes along roads are switched on in Settings → Maps',
   healthz: 'Liveness',
   i18n: 'Runtime translations — locales, keys, bundles, import/export, format errors',
   imports: 'CSV/spreadsheet imports — upload, dry run, run, error report',
@@ -137,7 +142,7 @@ const DESCRIPTIONS = {
   'report-documents':
     'Report templates and reports — the block documents behind the report builder, the starters, ' +
     'duplicates, and building a report from a template',
-  roles: 'RBAC roles and their permission sets',
+  roles: 'RBAC roles, their permission sets, and which rows each reaches',
   'scheduled-reports': 'Recurring exports delivered on a schedule',
   'schema-import': 'Parse a schema file (SQL, Prisma, Drizzle, the JSON IR, …) into the IR',
   search: 'Cross-resource search for the command palette',
@@ -148,6 +153,8 @@ const DESCRIPTIONS = {
     'window — checking a database for an Adminium store already in it and adopting that store',
   system: 'Version and instance information',
   users: 'People in the workspace — invite, suspend, delete, assign roles',
+  teams: 'Teams and who leads them: a lead reaches the rows of the people in the team',
+  people: 'Names and ids of staff, for picking somebody (an owner, a hand-over)',
   'widget-data': 'The queries widgets run, singly and in batches',
   words:
     'What staff are told of the rows a screen shows, in an add-on\'s stock words — in, low or out for ' +

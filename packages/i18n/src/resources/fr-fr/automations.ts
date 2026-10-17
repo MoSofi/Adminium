@@ -131,7 +131,9 @@ export default {
     "waitDesc": "Patienter avant l'étape suivante",
     "stop": "Arrêter le flux",
     "stopDesc": "Interrompre cette exécution ici",
-    "document": "Générer un document"
+    "document": "Générer un document",
+    "digest": "Envoyer un récapitulatif à chacun",
+    "digestDesc": "Un e-mail par personne, avec ses propres lignes"
   },
   "node": {
     "email": {
@@ -179,6 +181,9 @@ export default {
     },
     "document": {
       "summary": "Génère un document"
+    },
+    "digest": {
+      "summary": "{template} · {count, plural, one {# section} other {# sections}}"
     }
   },
   "event": {
@@ -254,7 +259,9 @@ export default {
     "timeSaved": "Temps gagné par exécution",
     "timeSavedBody": "Minutes qu'une personne aurait passées — affiché comme « gagne » sur la règle",
     "addCondition": "Ajouter une condition",
-    "connection": "Connexion"
+    "connection": "Connexion",
+    "perSpell": "De nouveau quand cela correspond à nouveau",
+    "perSpellBody": "Un enregistrement qui cesse de correspondre puis correspond à nouveau est relancé : une fois par période"
   },
   "sched": {
     "interval": "Intervalle",
@@ -289,14 +296,22 @@ export default {
     "noColumn": "Aucune colonne ne correspond.",
     "addressColumns": "Colonnes d’adresse",
     "thisTable": "Cette table · {table}",
-    "fromLink": "Via {link} · {table}.{column}"
+    "fromLink": "Via {link} · {table}.{column}",
+    "toStaff": "La personne de cet enregistrement"
   },
   "notif": {
     "to": "Envoyer à",
     "roles": "Toutes les personnes ayant un rôle",
     "users": "Des personnes précises",
     "title": "Titre",
-    "body": "Message"
+    "body": "Message",
+    "column": "La personne de cet enregistrement",
+    "columnPick": "Quelle personne",
+    "columnChoose": "Choisir une colonne…",
+    "columnNone": "Cette table n’a aucune colonne contenant un membre du personnel.",
+    "columnEmpty": "Un enregistrement sans personne dans cette colonne ne prévient personne, et l’exécution le dit.",
+    "urgent": "Urgent",
+    "urgentBody": "Signalé aussitôt, même pendant les heures calmes d’une personne"
   },
   "rec": {
     "table": "Table",
@@ -305,8 +320,13 @@ export default {
     "column": "Colonne",
     "value": "Valeur",
     "now": "Maintenant",
+    "fromSetting": "Depuis les réglages : {column}",
+    "dayCount": "{count, plural, one {# jour} other {# jours}}",
+    "daysAfter": "{days} après {from}",
     "remove": "Supprimer cette valeur",
-    "tokenHint": "Utilisez {token} pour reprendre la valeur de l'enregistrement"
+    "tokenHint": "Utilisez {token} pour reprendre la valeur de l'enregistrement",
+    "name": "Nom de la nouvelle ligne, pour les étapes suivantes (facultatif)",
+    "nameHint": "Une étape suivante la lit avec {token}"
   },
   "hook": {
     "url": "URL",
@@ -468,5 +488,29 @@ export default {
     "changed": "{name} a modifié cette règle.",
     "undo": "Annuler la modification de {name}",
     "addedBy": "Ajouté par {name}"
+  },
+  "digest": {
+    "help": "Un e-mail par personne, ne listant que les lignes qui sont les siennes et qu’elle peut lire. Il est envoyé à l’heure choisie par chacun pour les récapitulatifs, sinon à l’exécution de la règle.",
+    "sectionKey": "Nom de la section (le bloc de lignes du modèle le cite)",
+    "chooseTable": "Choisir une table…",
+    "owner": "Lignes où cette personne est",
+    "conditions": "{count, plural, one {Et # autre condition, conservée telle quelle.} other {Et # autres conditions, conservées telles quelles.}}",
+    "limit": "Au plus ce nombre de lignes",
+    "removeSection": "Supprimer cette section",
+    "addSection": "Ajouter une section",
+    "sendEmpty": "Envoyer même s’il n’y a rien à lister",
+    "sendEmptyBody": "Désactivé : une personne sans aucune ligne dans aucune section ne reçoit pas d’e-mail",
+    "readAt": "Chiffres relevés le {when}."
+  },
+  "appFilter": {
+    "note": "Seules les règles de {app} sont affichées.",
+    "clear": "Afficher toutes les règles"
+  },
+  "listed": {
+    "summary": "les personnes inscrites dans {table}",
+    "option": "Les personnes inscrites sur cet enregistrement",
+    "pick": "Inscrites dans",
+    "choose": "Choisir une table…",
+    "help": "Parmi les personnes inscrites, seules celles qui peuvent se connecter et ouvrir cet enregistrement sont prévenues. Un enregistrement où personne n’est inscrit ne prévient personne, et l’exécution le dit."
   }
 } as const;

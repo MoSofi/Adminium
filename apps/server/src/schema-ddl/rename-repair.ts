@@ -184,7 +184,24 @@ export function renamedInRule(op: string, value: unknown, from: string, to: stri
     case 'column.rollup': {
       // The yes/no that lifts the cap is this table's; what is added up is the child's.
       const lift = rule['capUnless'] as Record<string, unknown> | undefined;
+      // So is the column that holds the key of the row a "latest" took.
+      const latest = rule['latest'] as Record<string, unknown> | undefined;
+      if (latest !== undefined && same(latest['row'])) return { ...rule, latest: { ...latest, row: to } };
       return lift !== undefined && same(lift['column']) ? { ...rule, capUnless: { ...lift, column: to } } : value;
+    }
+    case 'table.belongs': {
+      // What a way reads of the table's own row: the column a person or a parent is read from, and the one a listing matches.
+      // A listing's own columns, and a person's on the row a link points at, are those tables' to rename.
+      const next = {
+        ...rule,
+        ways: ((rule['ways'] ?? []) as Record<string, unknown>[]).map((way) => {
+          if (same(way['column'])) return { ...way, column: to };
+          if (same(way['via'])) return { ...way, via: to };
+          const through = way['through'] as Record<string, unknown> | undefined;
+          return through !== undefined && same(through['on']) ? { ...way, through: { ...through, on: to } } : way;
+        }),
+      };
+      return JSON.stringify(next) === JSON.stringify(rule) ? value : next;
     }
     case 'table.adjust': {
       // What a price rule reads of the order's own table. A column of a child table is that table's to rename.
@@ -263,6 +280,42 @@ export function renamedInRule(op: string, value: unknown, from: string, to: stri
     default:
       return value;
   }
+}
+
+/**
+ * A table's `belongs` with one column of a LISTING table renamed: the listing
+ * a way goes through (`through.table`) names its own columns — the link back,
+ * the person, the dates it holds from and to — and a rename of one of them
+ * must follow in every table that reads the listing. Left alone the way reads
+ * a column that is gone, and the row limit, which fails closed on a way it
+ * cannot read, hides every row that way reached.
+ *
+ * Not followed here: `person`, the staff column of the row a link points at.
+ * Which table that is takes the model to say; the test still fails closed.
+ */
+export function renamedInListing(value: unknown, table: string, from: string, to: string): unknown {
+  const rule = value as { ways?: Record<string, unknown>[] } | null;
+  if (rule === null || typeof rule !== 'object' || !Array.isArray(rule.ways)) return value;
+  let changed = false;
+  const ways = rule.ways.map((way) => {
+    const through = way['through'] as Record<string, unknown> | undefined;
+    if (through === undefined || through['table'] !== table) return way;
+    const next = { ...through };
+    for (const key of ['link', 'user', 'from', 'to'] as const) {
+      if (next[key] === from) {
+        next[key] = to;
+        changed = true;
+      }
+    }
+    // …and the column the listing counts only while it holds some values.
+    const when = next['while'] as Record<string, unknown> | undefined;
+    if (when !== undefined && when['column'] === from) {
+      next['while'] = { ...when, column: to };
+      changed = true;
+    }
+    return { ...way, through: next };
+  });
+  return changed ? { ...rule, ways } : value;
 }
 
 export async function repairAfterRename(input: RenameRepairInput): Promise<RenameRepairResult> {
@@ -393,6 +446,8 @@ async function repairIn(input: RenameRepairInput): Promise<RenameRepairResult> {
       let value: unknown = row.value;
       for (const rename of columnRenames) {
         if (rename.table === row.tableName) value = renamedInRule(row.op, value, rename.from, rename.to);
+        // Whose a row is may be read from ANOTHER table's columns: the listing a way goes through.
+        if (row.op === 'table.belongs') value = renamedInListing(value, rename.table, rename.from, rename.to);
       }
       if (value === row.value) continue;
       await meta.db

@@ -169,17 +169,20 @@ export function automationRunsRepo(meta: MetaDb) {
     return row ? decode(row) : null;
   }
 
-  /** A deleted row's values leave a run as it ends: only its actions needed them, and the trace keeps `snapshot`. */
+  /** A deleted row's values, and a changed row as it was, leave a run as it ends: only its actions needed them, and the trace keeps `snapshot`. */
   async function forgetValues(id: string): Promise<void> {
     const row = await db.selectFrom('adminium_automation_runs').select('triggerEvent').where('id', '=', id).executeTakeFirst();
     if (row === undefined) return;
-    const { values, ...kept } = automationTriggerEventSchema.parse(readJson(row.triggerEvent));
-    if (values === undefined || values === null) return;
+    const { values, before, ...kept } = automationTriggerEventSchema.parse(readJson(row.triggerEvent));
+    if ((values === undefined || values === null) && (before === undefined || before === null)) return;
     await db.updateTable('adminium_automation_runs').set({ triggerEvent: packJson(kept) }).where('id', '=', id).execute();
   }
 
   return {
     findById,
+
+    /** Let go of a deleted row's values and a changed row as it was, without ending the run: its job gave up. */
+    forgetValues,
 
     /**
      * Claim an occurrence. Returns the new `pending` run, or null when the
@@ -278,6 +281,21 @@ export function automationRunsRepo(meta: MetaDb) {
         .executeTakeFirst();
       await forgetValues(id);
       return affected(res.numUpdatedRows) === 1;
+    },
+
+    /**
+     * Who claimed an occurrence key: the origin of the run holding it, or null
+     * when no run holds it (any more). The route matcher asks after `begin`
+     * answered null for a change, to tell the poller's claim of the SAME
+     * change from an earlier change that carried the same moment.
+     */
+    async claimedBy(dedupeKey: string): Promise<AutomationOrigin | null> {
+      const row = await db
+        .selectFrom('adminium_automation_runs')
+        .select('origin')
+        .where('dedupeKey', '=', dedupeKey)
+        .executeTakeFirst();
+      return row === undefined ? null : automationOriginSchema.parse(row.origin);
     },
 
     /**

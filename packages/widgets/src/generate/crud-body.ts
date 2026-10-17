@@ -68,6 +68,14 @@ export function enumTones(values: readonly string[]): Record<string, CrudEnumTon
   return tones;
 }
 
+/** Where a place column sits in a list: after the display column (0), before a status (1). */
+const PLACE_PRIORITY = 0.5;
+
+/** A column whose rule says it holds a place or an area on the map. */
+function isGeoColumn(column: CandidateColumn): boolean {
+  return column.place === true || column.area === true;
+}
+
 interface RankedColumn {
   column: CandidateColumn;
   semantics: ClassifiedColumnInput;
@@ -85,6 +93,14 @@ function rankColumn(
   displayColumn: string | null,
 ): number | null {
   if (semantics.secret ?? false) return null;
+  // A column's rule, not its type, says it is a place or an area: both are
+  // stored as JSON (as TEXT on SQLite) and would otherwise be left out — or, on
+  // SQLite, listed as the text they are kept in. A place's cell is short (a
+  // name or coordinates), so it is listed, straight after the display column:
+  // the cap never drops it. An area is never a default column
+  // (`listColumns` keeps its spec hidden, for the form and the record).
+  if (column.area === true) return null;
+  if (column.place === true) return PLACE_PRIORITY;
   const tag = semantics.semantic;
   if (tag === 'pk-id') return null; // hidden by default in grids (rule 2)
   if (column.logicalType === 'binary' || column.logicalType === 'json') return null;
@@ -257,22 +273,32 @@ export function buildColumnDef(
    */
   fkDisplay?: string | null,
 ): GridColumnSpecInput {
+  /*
+   * A PLACE AND AN AREA ARE ONE SPEC ON EVERY ENGINE. The value is an object
+   * (`{ lat, lng, by }`, a GeoJSON polygon) wherever it is kept: JSON on
+   * Postgres and MySQL, TEXT on SQLite, which has no such type. Left to the
+   * column's own type, a SQLite page would call it `text` and tag it by its
+   * name (`region` → a region code, `address` → free text), and a cell, a
+   * filter and a form would each treat an object as a string. So the spec says
+   * what the rule says: JSON, never sorted by (its order is its bytes').
+   */
+  const geo = isGeoColumn(column);
   const def: GridColumnSpecInput = {
     name: column.name,
     label: column.label ?? humanize(column.name),
     // The candidate mirror keeps `logicalType` an open string; the engine enum
     // it mirrors is identical to GRID_LOGICAL_TYPES (schema-model.ts), so
     // the narrow assertion cannot widen the emitted vocabulary.
-    logicalType: column.logicalType as GridColumnSpecInput['logicalType'],
-    semantic: semantics.semantic,
-    sortable: true,
+    logicalType: geo ? 'json' : (column.logicalType as GridColumnSpecInput['logicalType']),
+    semantic: geo ? 'json-config' : semantics.semantic,
+    sortable: !geo,
   };
-  if (semantics.format !== null && semantics.format !== undefined) def.format = semantics.format;
-  if (semantics.semantic === 'money') def.align = 'end';
+  if (!geo && semantics.format !== null && semantics.format !== undefined) def.format = semantics.format;
+  if (def.semantic === 'money') def.align = 'end';
   if (
-    semantics.semantic === 'pk-id' ||
-    semantics.semantic === 'external-id' ||
-    semantics.semantic === 'email'
+    def.semantic === 'pk-id' ||
+    def.semantic === 'external-id' ||
+    def.semantic === 'email'
   ) {
     def.mono = true;
   }
@@ -287,7 +313,7 @@ export function buildColumnDef(
   const values = enumValuesFor(column);
   if (values !== null) {
     def.enumValues = [...values];
-    if (semantics.semantic === 'status-workflow') def.enumTones = enumTones(values);
+    if (def.semantic === 'status-workflow') def.enumTones = enumTones(values);
   }
   if (semantics.maskedByDefault ?? false) def.pii = true;
   /**
@@ -308,15 +334,15 @@ export function buildColumnDef(
    * `ref: 'url'` is D31's default and the only shape seeded — the other two are
    * a per-column choice an operator makes in the ColumnManager.
    */
-  const textual = column.logicalType === 'text' || column.logicalType === 'varchar';
+  const textual = !geo && (column.logicalType === 'text' || column.logicalType === 'varchar');
   // A `text[]` is a list of strings: chips in the form, never one file.
   if (column.isArray === true && textual) def.list = true;
   if (
-    (semantics.semantic === 'file-ref' || semantics.semantic === 'image-url') &&
+    (def.semantic === 'file-ref' || def.semantic === 'image-url') &&
     textual &&
     column.isArray !== true
   ) {
-    def.file = { ref: 'url', ...(semantics.semantic === 'image-url' ? { inline: true } : {}) };
+    def.file = { ref: 'url', ...(def.semantic === 'image-url' ? { inline: true } : {}) };
   }
   // Form-generation facts (RecordForm reads these off the same spec).
   if (column.isPrimaryKey ?? false) def.primaryKey = true;
@@ -325,8 +351,8 @@ export function buildColumnDef(
   if (column.isUnique ?? false) def.unique = true;
   if (
     (column.isGenerated ?? false) ||
-    semantics.semantic === 'created-at' ||
-    semantics.semantic === 'updated-at'
+    def.semantic === 'created-at' ||
+    def.semantic === 'updated-at'
   ) {
     def.readOnly = true;
   }
@@ -388,7 +414,9 @@ function listColumns(
     // the same way.
     const def = buildColumnDef(column, semantics, fkDisplayFor(table, column, ctx.displayColumns));
     const required = def.nullable === false && def.hasDefault !== true && def.readOnly !== true;
-    if (!(column.isPrimaryKey ?? false) && !required) continue;
+    // A place the cap dropped, and every area: the form and the record are
+    // built from these specs, and neither is a field without one.
+    if (!(column.isPrimaryKey ?? false) && !required && !isGeoColumn(column)) continue;
     defs.push({ ...def, hidden: true });
   }
 

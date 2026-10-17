@@ -32,13 +32,15 @@ import { pagesRepo, viewsRepo, type MetaDb, type Page } from '@adminium/meta';
 
 import type { ConnectionManager, SourceDatabase } from '../../connections/manager.js';
 import { countWithin } from '../../crud/count-within.js';
+import { assertNotPrivate, type RowLimitContext } from '../../crud/row-limit.js';
+import { assertNoPrivateProjection, limitProjections, rowLimitContextOf, rowTestOf } from '../../crud/row-limit-context.js';
 import { LIST_LIMIT_MAX, runList } from '../../crud/list.js';
 import { canReadPii, piiCheckFor } from '../../crud/mask.js';
 import type { ResolvedTable, SnapshotView } from '../../crud/identifiers.js';
 import { loadSnapshotView } from '../../data-io/snapshot-view.js';
 import { readViewFor } from '../../crud/read-view.js';
 import { filtersToWhere, resolveExportDefinition } from '../../export/definition.js';
-import { cellText, createRowWriter, maskedKeysOf } from '../../export/writer.js';
+import { cellText, createRowWriter, csvValue, maskedKeysOf } from '../../export/writer.js';
 import { auditExempt } from '../../audit/coverage.js';
 import { ForbiddenError, NotFoundError } from '../../errors.js';
 import {
@@ -97,7 +99,12 @@ export async function registerBuilderRoutes(
     }
   }
 
+  /** What it takes to ask which rows this person reaches; null for nearly everyone (`crud/row-limit.ts`). */
+  const rowsOf = async (request: FastifyRequest, connectionId: string, view: SnapshotView): Promise<RowLimitContext | null> =>
+    rowLimitContextOf(meta, await app.rbac.resolve(request), connectionId, view.model);
+
   async function exportGrant(request: FastifyRequest, connectionId: string, table: ResolvedTable): Promise<void> {
+    assertNotPrivate(table, 'it is not exported');
     const permission = `table:${connectionId}:${table.id}:export`;
     if (!(await request.can(permission))) {
       throw new ForbiddenError('You do not have export access to this table.', 'TABLE_FORBIDDEN', { permission });
@@ -111,6 +118,8 @@ export async function registerBuilderRoutes(
     where: string | undefined,
     unmasked: boolean,
     dialect: Parameters<typeof runList>[0]['dialect'],
+    /** The rows the asker reaches: what an export of theirs would hold is what is counted. */
+    rows: RowLimitContext | null = null,
   ): Promise<number | null> {
     const page = await runList({
       db,
@@ -119,6 +128,7 @@ export async function registerBuilderRoutes(
       params: { ...(where === undefined ? {} : { where }), limit: 1, offset: 0, count: 'exact' },
       canReadPii: unmasked,
       dialect,
+      rowTest: rowTestOf(rows, table.id, 'read') ?? undefined,
     });
     return page.page?.total ?? null;
   }
@@ -145,15 +155,23 @@ export async function registerBuilderRoutes(
       }
 
       const tables = [];
-      let handle: { db: Kysely<SourceDatabase> } | null = null;
+      let handle: Awaited<ReturnType<typeof manager.data>> | null = null;
+      let sourceRows: { held: RowLimitContext | null } | null = null;
       for (const modelTable of view.model.tables) {
         // An excluded table is not in the view either (an installed app's
         // sample ledger is one), and resolving it would refuse the whole list.
         if (modelTable.system || modelTable.excluded === true) continue;
         const table = view.table(modelTable.id);
+        // A private table is not exported, so it is not offered.
+        if (modelTable.private === true) continue;
         const canExport = await request.can(`table:${connectionId}:${table.id}:export`);
         let rowCountEstimate = modelTable.rowCountEstimate ?? null;
-        if (rowCountEstimate === null && canExport) {
+        // A table this person reads in part: how many rows it holds in all is not theirs to be told; what they would export is counted.
+        const limited = rowTestOf((sourceRows ??= { held: await rowsOf(request, connectionId, view) }).held, table.id, 'read') !== null;
+        if (limited) {
+          handle ??= await manager.data(connection);
+          rowCountEstimate = canExport ? await exactCount(handle.db, view, table, undefined, false, handle.dialect, sourceRows.held) : null;
+        } else if (rowCountEstimate === null && canExport) {
           handle ??= await manager.data(connection);
           rowCountEstimate = await countWithin(handle.db, table.id, COUNT_BUDGET_MS);
         }
@@ -207,6 +225,7 @@ export async function registerBuilderRoutes(
       const unmasked = await canReadPii(request, connectionId, table.id);
       const { db, dialect } = await manager.data(connectionId);
       const views = viewsRepo(meta);
+      const rows = await rowsOf(request, connectionId, view);
       const out = [];
       for (const page of await pagesRepo(meta).listForConnection(connectionId)) {
         if (boundTableOf(page) !== table.id) continue;
@@ -221,7 +240,7 @@ export async function registerBuilderRoutes(
             filterCount: filters.length,
             filters,
             hasSearch: typeof query.search === 'string' && query.search.length > 0,
-            rowCount: await exactCount(db, view, table, filtersToWhere(filters), unmasked, dialect),
+            rowCount: await exactCount(db, view, table, filtersToWhere(filters), unmasked, dialect, rows),
           });
         }
       }
@@ -271,6 +290,11 @@ export async function registerBuilderRoutes(
 
       const { db, dialect } = await manager.data(connectionId);
       const where = filtersToWhere(resolved.filters);
+      // The sample and its count are of the rows the file would hold: this person's.
+      const reach = await rowsOf(request, connectionId, view);
+      const rowTest = rowTestOf(reach, table.id, 'read');
+      assertNoPrivateProjection(definition.lookups, definition.measures);
+      limitProjections(reach, definition.lookups, definition.measures);
       const page = await runList({
         db,
         view,
@@ -282,10 +306,11 @@ export async function registerBuilderRoutes(
             : { select: definition.select.join(',') }),
           limit: Math.min(sampleRows, LIST_LIMIT_MAX),
           offset: 0,
-          count: where === undefined ? 'none' : 'exact',
+          count: where === undefined && rowTest === null ? 'none' : 'exact',
         },
         canReadPii: unmasked,
         dialect,
+        rowTest: rowTest ?? undefined,
         lookups: definition.lookups,
         measures: definition.measures,
         derivedFields: definition.fields,
@@ -296,13 +321,14 @@ export async function registerBuilderRoutes(
         key: column.key,
         header: column.header,
         numeric: column.numeric,
+        place: column.place,
       }));
       const writer = createRowWriter(format === 'json' ? 'json' : 'csv', columns, {
         headerRow: source.options?.headerRow,
       });
       const rows = page.data.map((record) => {
         const masked = maskedKeysOf(record);
-        return columns.map((column) => cellText(record[column.key], masked.has(column.key)));
+        return columns.map((column) => cellText(csvValue(record[column.key], column), masked.has(column.key)));
       });
       const raw: string[] = [];
       const headerLine = writer.headerLine();
@@ -317,7 +343,8 @@ export async function registerBuilderRoutes(
       // none — the comp's number wherever it can be known, never invented.
       let rowCount: number | null;
       let rowCountKind: 'exact' | 'estimate' | 'unknown';
-      if (where !== undefined) {
+      if (where !== undefined || rowTest !== null) {
+        // …and never the snapshot's estimate for a table read in part: that is every row's.
         rowCount = page.page?.total ?? null;
         rowCountKind = rowCount === null ? 'unknown' : 'exact';
       } else {

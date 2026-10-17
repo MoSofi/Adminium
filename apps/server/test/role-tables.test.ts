@@ -108,10 +108,10 @@ describe.each(LEGS)('an app\'s roles on an add-on\'s tables — %s', (dialect, a
     // Said by name: what was given, what was narrowed, what was left out.
     const said = (res.json() as { publicAccessByApp: { shop: { roleTables: Doc[] } } }).publicAccessByApp.shop.roleTables.filter((entry) => entry['role'] === 'floor');
     expect(said).toEqual([
-      { role: 'floor', addOn: KIT, table: 'accounts', actions: ['read', 'update'] },
-      { role: 'floor', addOn: KIT, table: 'entries', actions: ['read'], skipped: 'ledger-table' },
-      { role: 'floor', addOn: KIT, table: 'postings', actions: [], skipped: 'ledger-table' },
-      { role: 'floor', addOn: KIT, table: 'settings', actions: ['read', 'create'] },
+      { role: 'floor', addOn: KIT, table: 'accounts', actions: ['read', 'update'], readable: ['id', 'name', 'balance', 'reorder_at'], writable: ['name', 'reorder_at'] },
+      { role: 'floor', addOn: KIT, table: 'entries', actions: ['read'], narrowed: { actions: ['create', 'update'] }, skipped: 'ledger-table' },
+      { role: 'floor', addOn: KIT, table: 'postings', actions: [], narrowed: { actions: ['read'] }, skipped: 'ledger-table' },
+      { role: 'floor', addOn: KIT, table: 'settings', actions: ['read', 'create'], creatable: ['note', 'show_left_below'] },
     ]);
     expect((await pairs()).filter((pair) => pair.startsWith('shop-floor|'))).toEqual([
       `shop-floor|table:@${KIT}/accounts:read`,
@@ -159,7 +159,11 @@ describe.each(LEGS)('an app\'s roles on an add-on\'s tables — %s', (dialect, a
 
     // 1.0.1: the floor keeps the accounts, read only and unlimited; nothing else of the kit.
     await h.stageApp(shop({ version: '1.0.1', roles: [{ key: 'floor', name: 'Floor', permissions: ['table:@products:read'], tables: [{ addOn: KIT, table: 'accounts', actions: ['read'] }] }, { key: 'night', name: 'Night', cloneFrom: 'floor' }, { key: 'till', name: 'Till', permissions: ['table:@products:read'] }] }));
-    const updated = await h.inject({ method: 'POST', url: '/apps/shop/update', payload: { to: '1.0.1' } });
+    // Every column of the accounts is more than four of them: refused until the operator allows it.
+    const refused = await h.inject({ method: 'POST', url: '/apps/shop/update', payload: { to: '1.0.1' } });
+    expect(refused.statusCode, refused.body).toBe(422);
+    expect((refused.json() as { error: { details: { reason: string } } }).error.details.reason).toBe('ROLE_TABLES_WIDER');
+    const updated = await h.inject({ method: 'POST', url: '/apps/shop/update', payload: { to: '1.0.1', roleTables: true } });
     expect(updated.statusCode, updated.body).toBe(200);
     expect(await held('floor')).toEqual({ ledger_kit_accounts: { read: true } });
     expect((await pairs()).filter((pair) => pair.startsWith('shop-floor|'))).toEqual([`shop-floor|table:@${KIT}/accounts:read`]);
@@ -198,6 +202,28 @@ describe.each(LEGS)('an app\'s roles on an add-on\'s tables — %s', (dialect, a
     expect(await held('night')).toEqual(WRITTEN);
   });
 
+  it.skipIf(!available)('what the owner took away stays away when the add-on is switched off and on again', async () => {
+    await start();
+    expect((await addKit()).statusCode).toBe(200);
+    const role = (await rolesRepo(h.meta).findBySlug('shop-floor'))!;
+    const row = (await permissionsRepo(h.meta).listForRole(role.id)).find((one) => one.resourceRef.endsWith('ledger_kit_accounts'))!;
+    // The owner takes the update away; the settings row whole.
+    await permissionsRepo(h.meta).grant(role.id, 'table', row.resourceRef, { ...(row.actions as Doc), update: false } as never);
+    const settingsRow = (await permissionsRepo(h.meta).listForRole(role.id)).find((one) => one.resourceRef.endsWith('ledger_kit_settings'))!;
+    await permissionsRepo(h.meta).revoke(role.id, 'table', settingsRow.resourceRef);
+    for (const enabled of [false, true]) {
+      const res = await h.inject({ method: 'PATCH', url: `/add-ons/${KIT}`, payload: { attachedTo: 'shop', enabled } });
+      expect(res.statusCode, res.body).toBe(200);
+    }
+    // Given again: what the owner had left; not given again: what the owner took.
+    expect((await held('floor'))['ledger_kit_accounts']).toMatchObject({ read: true });
+    expect((await held('floor'))['ledger_kit_accounts']).not.toHaveProperty('update');
+    expect(await held('floor')).not.toHaveProperty('ledger_kit_settings');
+    expect((await held('floor'))['ledger_kit_entries']).toEqual(WRITTEN.ledger_kit_entries);
+    // The other role, untouched by the owner, has it all back.
+    expect(await held('night')).toEqual(WRITTEN);
+  });
+
   it.skipIf(!available)('a column, or a table, the add-on does not have skips the entry — never a grant without its limit', async () => {
     await start(
       shop({
@@ -220,8 +246,8 @@ describe.each(LEGS)('an app\'s roles on an add-on\'s tables — %s', (dialect, a
     expect(res.statusCode, res.body).toBe(200);
     expect(await held('floor')).toEqual({ ledger_kit_requests: { read: true } });
     expect((res.json() as { publicAccessByApp: { shop: { roleTables: Doc[] } } }).publicAccessByApp.shop.roleTables).toEqual([
-      { role: 'floor', addOn: KIT, table: 'accounts', actions: [], skipped: 'unknown-column' },
-      { role: 'floor', addOn: KIT, table: 'shelves', actions: [], skipped: 'unknown-table' },
+      { role: 'floor', addOn: KIT, table: 'accounts', actions: [], narrowed: { actions: ['read'] }, skipped: 'unknown-column' },
+      { role: 'floor', addOn: KIT, table: 'shelves', actions: [], narrowed: { actions: ['read'] }, skipped: 'unknown-table' },
       { role: 'floor', addOn: KIT, table: 'requests', actions: ['read'] },
     ]);
   });

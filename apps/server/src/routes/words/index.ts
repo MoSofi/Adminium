@@ -16,6 +16,9 @@
  *  - Where the rows are also limited a day (a dish's portions), the smaller
  *    of the two is the answer, and which one it was is said.
  */
+import { rowTestOf } from '../../crud/row-limit-context.js';
+import { rowsForRequest } from '../../crud/row-reach-request.js';
+import { reachedKeys } from '../../crud/row-writes.js';
 import { ledgersOf, wordsOf, type Manifest } from '@adminium/manifest';
 import { connectionTenantConfig, type MetaDb } from '@adminium/meta';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
@@ -139,6 +142,13 @@ export function wordsRoutes(deps: WordsRoutesDeps): FastifyPluginAsyncZod {
         if (ids.length === 0) return { data: [] };
 
         const { db, dialect } = await manager.data(connectionId);
+        // Asked about the rows the caller reaches: one out of their reach is, like one that is not there, left out.
+        const reach = await rowsForRequest(meta, request, connectionId, view.model);
+        if (key !== undefined && rowTestOf(reach, table.id, 'read') !== null) {
+          const reached = await reachedKeys(reach, db, table.id, key, ids);
+          ids.splice(0, ids.length, ...ids.filter((id) => reached.has(String(id))));
+          if (ids.length === 0) return { data: [] };
+        }
         const timezone = (await connectionTenantConfig(meta, connectionId))?.timezone ?? 'UTC';
         const now = new Date();
         let lines: WordsLine[];

@@ -19,7 +19,7 @@ import { columnOfInput } from './addOnSteps.js';
 import { holdsAddresses, knowsColumn } from './placeholders.js';
 import { t } from '../../i18n/t.js';
 import type { SourceTable } from '../api.js';
-import type { Action, Condition, FlowNode, Trigger } from './graph.js';
+import type { Action, Condition, FlowNode, Trigger, WriteValue } from './graph.js';
 import { OP_LABELS } from './vocabulary.js';
 
 function tableLabel(id: string, table: SourceTable | null): string {
@@ -80,6 +80,12 @@ function conditionSentence(condition: Condition, table: SourceTable | null): str
   return `${column} ${op} ${right}`.trim();
 }
 
+/** A table that lists people against the record, by its label: "the people listed in {table}". */
+function listingLabel(listed: string, table: SourceTable | null): string {
+  const label = table?.listings?.find((one) => one.table === listed)?.label ?? listed;
+  return t('automations:listed.summary', 'the people listed in {table}', { table: label });
+}
+
 function actionSentence(action: Action, table: SourceTable | null): string {
   switch (action.kind) {
     case 'email': {
@@ -88,10 +94,11 @@ function actionSentence(action: Action, table: SourceTable | null): string {
       }
       const recipient = action.to;
       const to =
-        recipient.kind === 'field'
-          ? (table?.columns.find((column) => column.name === recipient.column)?.label ??
-            recipient.column)
-          : recipient.addresses.join(', ');
+        recipient.kind === 'fixed'
+          ? recipient.addresses.join(', ')
+          : recipient.kind === 'listed'
+            ? listingLabel(recipient.table, table)
+            : (table?.columns.find((column) => column.name === recipient.column)?.label ?? recipient.column);
       return t('automations:node.email.summary', 'Template · {template} → {to}', {
         template: action.templateKey,
         to,
@@ -99,8 +106,17 @@ function actionSentence(action: Action, table: SourceTable | null): string {
     }
     case 'notification': {
       if (action.to === null) return t('automations:node.notification.sub', 'Choose who to tell');
+      if ('column' in action.to) {
+        const named = action.to.column;
+        return t('automations:node.notification.summary', 'To · {who}', { who: table?.columns.find((column) => column.name === named)?.label ?? named });
+      }
+      if ('listed' in action.to) return t('automations:node.notification.summary', 'To · {who}', { who: listingLabel(action.to.listed, table) });
       const who = 'roles' in action.to ? action.to.roles.length : action.to.users.length;
       return t('automations:node.notification.summary', 'To · {who}', { who: String(who) });
+    }
+    case 'digest': {
+      if (action.templateKey === null) return t('automations:node.email.sub', 'Template · pick one');
+      return t('automations:node.digest.summary', '{template} · {count, plural, one {# section} other {# sections}}', { template: action.templateKey, count: action.sections.length });
     }
     case 'record.create': {
       if (action.table === null) return t('automations:node.create.sub', 'Table · pick one');
@@ -114,11 +130,7 @@ function actionSentence(action: Action, table: SourceTable | null): string {
       if (entries.length === 0) return t('automations:node.update.sub', 'Set a value');
       return t('automations:node.update.summary', '{pairs}', {
         pairs: entries
-          .map(([column, value]) =>
-            typeof value === 'string'
-              ? `${column} = ${value}`
-              : `${column} = ${t('automations:rec.now', 'Now')}`,
-          )
+          .map(([column, value]) => `${column} = ${writeValueText(value)}`)
           .join(', '),
       });
     }
@@ -172,4 +184,19 @@ export function subLineFor(node: FlowNode, table: SourceTable | null): string {
     case 'stop':
       return t('automations:node.stop.sub', 'Ends the run');
   }
+}
+
+/** A value a step writes, as the step's editor and its summary say it: the text, "Now", a setting, or days on. */
+export function writeValueText(value: WriteValue): string {
+  if (typeof value === 'string') return value;
+  if ('setting' in value) return t('automations:rec.fromSetting', 'From settings: {column}', { column: value.setting.column });
+  if ('daysAfter' in value) {
+    const after = value.daysAfter;
+    const count = t('automations:rec.dayCount', '{count, plural, one {# day} other {# days}}', { count: after.days });
+    return t('automations:rec.daysAfter', '{days} after {from}', {
+      days: after.setting === undefined ? count : `${t('automations:rec.fromSetting', 'From settings: {column}', { column: after.setting.column })} (${count})`,
+      from: after.column ?? t('automations:rec.now', 'Now'),
+    });
+  }
+  return t('automations:rec.now', 'Now');
 }

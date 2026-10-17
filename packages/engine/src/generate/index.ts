@@ -67,6 +67,8 @@ export {
   type TableDraftOptions,
 } from './fit-draft.js';
 export { calendarColumnsProblem, calendarTitleThrough, type CalendarColumns } from './calendar-columns.js';
+export { boardColumnsOf, boardColumnsProblem } from './board-columns.js';
+export type { BoardColumns, BoardOnly, BoardTotalFn } from '@adminium/widgets/generate';
 export {
   TITLE_THROUGH_TEMPLATES,
   applyTitleThrough,

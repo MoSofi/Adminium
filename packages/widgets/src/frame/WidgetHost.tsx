@@ -79,9 +79,9 @@ function errorMessageOf(error: unknown): string | undefined {
 /**
  * The words a config carries in several languages, each picked for the page's
  * locale: the title (`titles`), the subtitle (`subtitles`), a KPI's caption
- * (`metricLabels`) and the empty state's title and body (`emptyState.titles`
- * / `.bodies`, over `titleKey` / `bodyKey`). Absent maps leave the config as
- * it was.
+ * (`metricLabels`), the empty state's title and body (`emptyState.titles`
+ * / `.bodies`, over `titleKey` / `bodyKey`) and a table card's column
+ * headings (`columns[].labels`). Absent maps leave the config as it was.
  */
 export function localizedConfig(raw: Record<string, unknown>, locale: string | undefined): Record<string, unknown> {
   const text = (value: unknown) => (typeof value === 'string' ? value : undefined);
@@ -99,6 +99,11 @@ export function localizedConfig(raw: Record<string, unknown>, locale: string | u
     const titleKey = pickLocalized(empty.titleKey, empty.titles, locale);
     const bodyKey = pickLocalized(empty.bodyKey, empty.bodies, locale);
     out = { ...out, emptyState: { ...empty, ...(titleKey === undefined ? {} : { titleKey }), ...(bodyKey === undefined ? {} : { bodyKey }) } };
+  }
+  // A table card's column headings (`columns[].labels`), each picked as the title is.
+  const columns = raw['columns'];
+  if (Array.isArray(columns) && columns.some((column) => (column as { labels?: unknown } | null)?.labels !== undefined)) {
+    out = { ...out, columns: columns.map((column: { label?: string; labels?: Localized } | null) => (column?.labels === undefined ? column : { ...column, label: pickLocalized(text(column.label), column.labels, locale) })) };
   }
   return out;
 }
@@ -132,7 +137,7 @@ export function WidgetHost({
 }: WidgetHostProps) {
   const map = registry ?? widgetRegistry;
   // The offline asset policy, applied BEFORE the map is read — resolving the id
-  // is what keeps the map chunk (and Leaflet behind it) from ever being imported
+  // is what keeps the map chunk (and MapLibre behind it) from ever being imported
   // in the desktop shell. Identity online, so self-host/Cloud are untouched. A
   // custom `registry` that lacks the fallback target renders widget-missing
   // rather than the map: in an offline runtime that is the conservative answer,
@@ -167,11 +172,20 @@ export function WidgetHost({
     logConfigWarnings(instanceId, parsed);
   }, [instanceId, parsed]);
 
+  /*
+   * A figure that is the whole team's, asked by somebody whose role reads
+   * only some of the rows it is worked out from: the server refuses it
+   * (`TEAM_FIGURE_WHOLE_ONLY`). That is no failure and there is nothing to
+   * try again: the card says so in plain words, with no figure at all.
+   */
+  const wholeOnly = data.status === 'error' && (data.error as { code?: unknown } | null | undefined)?.code === 'TEAM_FIGURE_WHOLE_ONLY';
   const state: WidgetFrameState = missing
     ? 'loaded'
     : data.status === 'loading'
       ? 'skeleton'
-      : data.status === 'error'
+      : wholeOnly
+        ? 'empty'
+        : data.status === 'error'
         ? 'error'
         : isEmptyData(data.data, definition.dataContract)
           ? 'empty'
@@ -225,6 +239,14 @@ export function WidgetHost({
         place: t('ui:frame.data.place', 'Place'),
       },
       number: (value) => (metricFormat === undefined ? numbers.format(value) : formatMetricValue(value, metricFormat, formatOptions)),
+      // A figure the answer says is money: whole, in the card's currency (a code no browser knows: the number).
+      money: (value) => {
+        try {
+          return new Intl.NumberFormat(formatOptions.locale ?? tag, { style: 'currency', currency: formatOptions.currency || 'USD', maximumFractionDigits: Number.isInteger(value) ? 0 : 2 }).format(value);
+        } catch {
+          return numbers.format(value);
+        }
+      },
       percent: (fraction) => shares.format(fraction),
       period: (iso) => {
         const at = new Date(iso);
@@ -316,9 +338,14 @@ export function WidgetHost({
       // @adminium/i18n; passed through raw here so overrides stay visible
       // even before the i18n hookup (wires the translator).
       empty={
-        emptyOverride === undefined
-          ? undefined
-          : { title: emptyOverride.titleKey, body: emptyOverride.bodyKey }
+        wholeOnly
+          ? {
+              title: t('ui:widgets.system.wholeOnly.title', 'For the whole team only'),
+              body: t('ui:widgets.system.wholeOnly.body', 'This figure is the whole team’s. It is not shown to you, because your role reads only some of the rows it is worked out from.'),
+            }
+          : emptyOverride === undefined
+            ? undefined
+            : { title: emptyOverride.titleKey, body: emptyOverride.bodyKey }
       }
       errorMessage={data.status === 'error' ? errorMessageOf(data.error) : undefined}
       onRetry={data.refetch}

@@ -114,6 +114,7 @@ describe('a manifest that uses a word this server does not run yet', () => {
 
   it('an app\'s own pages, roles, prefix, its link into an add-on and the last four of a code are no such word', () => {
     expect(unbuiltInManifest(APP)).toEqual([]);
+    // Every word there is today is run: a private table since its refusals are all in place.
     expect(Object.keys(UNBUILT_MANIFEST_WORDS)).toEqual([]);
     // A word the list holds is found where it is written, with the release that runs it.
     expect(unbuiltInManifest(APP, LATER)).toEqual([{ word: 'column.codeLast4', path: 'requiredSchema.tables.0.columns.1.rules.codeLast4', release: '0.3.21' }]);

@@ -1,0 +1,53 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+/*
+ * The scale the kit's utilities are made with: Tailwind's own and Adminium's
+ * (spacing, type, corners), with every colour and shadow turned to the kit's
+ * own `--adm-kit-*` names, which kit.css fills from the app's tokens or from
+ * Adminium's values.
+ *
+ * All of it is `reference`: this file puts nothing in a sheet, no `:root`
+ * block and no custom property on the app's page. A part's sheet imports it
+ * (parts/board.css) and the utilities it makes carry the values themselves.
+ *
+ * A colour or shadow a part uses that is not turned here would read the
+ * app's token with nothing to fall back on. `scripts/check-kit-build.mjs`
+ * fails the build on one: add its line here and its value to kit.css.
+ */
+@import 'tailwindcss/theme.css' theme(reference);
+@import '@adminium/tokens/tailwind.css' theme(reference);
+
+@theme inline reference {
+  --color-bg: var(--adm-kit-bg);
+  --color-surface: var(--adm-kit-surface);
+  --color-surface-2: var(--adm-kit-field);
+  --color-surface-3: var(--adm-kit-hover);
+  --color-border: var(--adm-kit-border);
+  --color-border-strong: var(--adm-kit-border-strong);
+  --color-fg: var(--adm-kit-fg);
+  --color-fg-muted: var(--adm-kit-fg-muted);
+  --color-fg-subtle: var(--adm-kit-fg-subtle);
+  --color-accent: var(--adm-kit-accent);
+  --color-accent-fg: var(--adm-kit-accent-fg);
+  --color-accent-soft: var(--adm-kit-accent-soft);
+  --color-accent-soft-solid: var(--adm-kit-accent-soft-solid);
+  --color-accent-hover: var(--adm-kit-accent-hover);
+  --color-accent-border: var(--adm-kit-accent-border);
+  --color-pos: var(--adm-kit-pos);
+  --color-pos-soft: var(--adm-kit-pos-soft);
+  --color-pos-soft-solid: var(--adm-kit-pos-soft-solid);
+  --color-warn: var(--adm-kit-warn);
+  --color-warn-soft: var(--adm-kit-warn-soft);
+  --color-warn-soft-solid: var(--adm-kit-warn-soft-solid);
+  --color-danger: var(--adm-kit-danger);
+  --color-danger-soft: var(--adm-kit-danger-soft);
+  --color-danger-soft-solid: var(--adm-kit-danger-soft-solid);
+  --color-info: var(--adm-kit-info);
+  --color-info-soft: var(--adm-kit-info-soft);
+  --color-info-soft-solid: var(--adm-kit-info-soft-solid);
+
+  --shadow-sm: var(--adm-kit-shadow-sm);
+  --shadow-card: var(--adm-kit-shadow-sm);
+  --shadow-menu: var(--adm-kit-shadow);
+  --shadow-modal: var(--adm-kit-shadow-lg);
+  --shadow-glow: var(--adm-kit-shadow-glow);
+}

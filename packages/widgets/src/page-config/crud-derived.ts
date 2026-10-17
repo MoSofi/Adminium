@@ -39,8 +39,9 @@ import { WORKING_SCALE } from './decimal.js';
  *
  * WHAT IS NOT HERE, deliberately: no expression string and no formula field
  * (there is no evaluator in the lockfile and both written precedents in this
- * tree refuse one), no filter inside a fold, no multi-hop measure, no
- * date/text `min`/`max`. Each is in the plan's refusal catalogue with the
+ * tree refuse one), no filter inside a fold beyond `where`'s equality tests
+ * (a column is one of a few literals), no multi-hop measure, no date/text
+ * `min`/`max`. Each is in the plan's refusal catalogue with the
  * reason and the price.
  *
  * SCHEMA VS PARSER. {@link crudDerivedConfigSchema} validates SHAPE — keys,
@@ -126,6 +127,12 @@ export const MAX_DERIVED_FIELDS = 8;
 export const MAX_MEASURE_TERMS = 3;
 /** `qty × rate × discount_pct` is three factors; four is headroom. */
 export const MAX_TERM_FACTORS = 4;
+/** Tests one measure's `where` may AND together: a state, a kind and an owner is three. */
+export const MAX_MEASURE_WHERE = 3;
+/** Values one test may list. */
+export const MAX_MEASURE_WHERE_VALUES = 20;
+/** The longest text value a test compares with. */
+export const MAX_MEASURE_WHERE_TEXT = 200;
 /** Branches in one conditional field. */
 export const MAX_FIELD_CASES = 4;
 /** Expression depth: `mul(measure, div(col, lit))` — the tax ask — is 3. */
@@ -167,6 +174,86 @@ export const measureBodySchema = z.strictObject({
 });
 export type MeasureBody = z.infer<typeof measureBodySchema>;
 
+/**
+ * One test a folded row must pass: its `column` holds one of `in`.
+ *
+ * Equality against a short list of literals and nothing else — no ranges, no
+ * patterns, no `or`, no `not`: "the open deals of this stage" is the ask, and
+ * each further operator is a way to probe a column a value at a time. The
+ * values are bound parameters; a column is a snapshot identifier.
+ */
+export const measureWhereSchema = z.strictObject({
+  /** A column of the REFERENCING table. */
+  column: identifierSchema,
+  in: z
+    .array(z.union([z.string().max(MAX_MEASURE_WHERE_TEXT), z.number().finite(), z.boolean()]))
+    .min(1)
+    .max(MAX_MEASURE_WHERE_VALUES),
+});
+export type MeasureWhere = z.infer<typeof measureWhereSchema>;
+
+/** What a `where` test reads of the column it compares with. */
+export interface MeasureTestColumn {
+  /** The engine's logical type (`integer`, `text`, `enum`, …). */
+  logicalType: string;
+  /** A Postgres array: never compared. */
+  isArray?: boolean | undefined;
+  /** The column's native type as the database names it (`smallint`, `integer`), where it is known. */
+  dbType?: string | undefined;
+}
+
+const MEASURE_TEST_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const INT2_MAX = 32_767;
+const INT4_MAX = 2_147_483_647;
+
+/**
+ * Why a `where` test's values cannot be compared with `column`, or null when
+ * they can: the words that finish "… takes ___".
+ *
+ * ONE table, read in two places so they cannot disagree: the server, when it
+ * binds a measure's `where` (a mismatch is a 422 there, never a database
+ * error), and whoever stores such a test ahead of time (a board's `only`, at
+ * install) — a test stored that the server would refuse makes every later read
+ * fail.
+ *
+ * Equality is asked only of a type that answers it the same on every engine,
+ * and only with a value that type can hold: a whole number for an integer, a
+ * number for a decimal, yes or no for a boolean, text for text, an enum or a
+ * uuid. A column that holds a list is not compared at all. On Postgres a whole
+ * number is also held to the column's own width (`dialect`): past it the
+ * database raises instead of matching no row.
+ */
+export function measureTestProblem(
+  column: MeasureTestColumn,
+  values: readonly (string | number | boolean)[],
+  dialect?: string | undefined,
+): string | null {
+  if (column.isArray === true) return 'no test: a column that holds a list is not compared';
+  const every = (fits: (value: string | number | boolean) => boolean): boolean => values.every(fits);
+  switch (column.logicalType) {
+    case 'integer':
+    case 'bigint': {
+      if (!every((value) => typeof value === 'number' && Number.isSafeInteger(value))) return 'whole numbers';
+      if (dialect !== 'postgres' || column.logicalType === 'bigint') return null;
+      const max = /^(?:smallint|int2|smallserial)$/i.test(column.dbType ?? '') ? INT2_MAX : INT4_MAX;
+      return every((value) => (value as number) <= max && (value as number) >= -max - 1) ? null : `whole numbers from ${String(-max - 1)} to ${String(max)}`;
+    }
+    case 'decimal':
+    case 'float':
+      return every((value) => typeof value === 'number') ? null : 'numbers';
+    case 'boolean':
+      return every((value) => typeof value === 'boolean') ? null : 'true or false';
+    case 'uuid':
+      return every((value) => typeof value === 'string' && MEASURE_TEST_UUID.test(value)) ? null : 'uuids';
+    case 'text':
+    case 'varchar':
+    case 'enum':
+      return every((value) => typeof value === 'string') ? null : 'text';
+    default:
+      return 'no test: only a whole number, a number, a yes/no, text, an enum or a uuid column is compared';
+  }
+}
+
 export const measureSchema = z.strictObject({
   id: aliasSchema,
   /** The REFERENCING table, qualified ("public.invoice_items"). */
@@ -176,6 +263,15 @@ export const measureSchema = z.strictObject({
   fn: measureFnSchema,
   of: measureBodySchema.optional(),
   emptyAs: measureEmptySchema.optional(),
+  /**
+   * Which rows of the referencing table are folded: those passing EVERY test
+   * (`state` is `open` AND `kind` is one of two). Absent ⇒ every row linked.
+   * It narrows the fold inside its one subquery — no further query is bought,
+   * so it does not count toward {@link MAX_MEASURES}; its own width is capped
+   * here. A column the reader may not read refuses the whole measure
+   * server-side (`null` + `_masked`), never an unfiltered number.
+   */
+  where: z.array(measureWhereSchema).min(1).max(MAX_MEASURE_WHERE).optional(),
 });
 export type Measure = z.infer<typeof measureSchema>;
 
@@ -301,6 +397,7 @@ export const DERIVED_REFUSAL_CODES = [
   'DERIVED_MEASURE_BODY_FORBIDDEN',
   'DERIVED_MEASURE_FACTOR_FORBIDDEN',
   'DERIVED_MEASURE_SHAPE_FORBIDDEN',
+  'DERIVED_MEASURE_WHERE_REPEATED',
   'DERIVED_UNKNOWN_MEASURE',
   'DERIVED_UNKNOWN_FIELD',
   'DERIVED_SELF_REFERENCE',
@@ -458,6 +555,16 @@ export function parseCrudDerived(
 
 function checkMeasureBody(measure: Measure): DerivedRefusal | null {
   const { id, fn, of } = measure;
+  const tested = (measure.where ?? []).map((test) => test.column);
+  if (new Set(tested).size !== tested.length) {
+    return {
+      code: 'DERIVED_MEASURE_WHERE_REPEATED',
+      id,
+      // Two tests of one column are an AND of two lists — the rows in both —
+      // which nobody means; one list says it.
+      message: `Measure \`${id}\`: \`where\` tests a column once — list its values in one \`in\`.`,
+    };
+  }
   if (fn === 'count') {
     if (of !== undefined) {
       return {

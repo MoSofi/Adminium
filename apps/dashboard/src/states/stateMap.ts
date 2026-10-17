@@ -231,6 +231,18 @@ export const SYSTEM_STATES: Record<SystemStateId, SystemStateSpec> = {
     },
     secondary: { key: 'states.appDisabled.secondary', en: 'Go back' },
   },
+  /* A part of an app switched off in the app's settings: the app-disabled reasoning, for one part of it. */
+  'part-off': {
+    id: 'part-off',
+    icon: PauseCircle,
+    tone: 'accent',
+    title: { key: 'states.partOff.title', en: 'This part of the app is switched off' },
+    body: {
+      key: 'states.partOff.body',
+      en: 'An admin switched this part of the app off. Nothing was deleted — switch it on in Studio → Apps, under Parts.',
+    },
+    secondary: { key: 'states.partOff.secondary', en: 'Go back' },
+  },
   'screens-off': {
     id: 'screens-off',
     icon: PauseCircle,

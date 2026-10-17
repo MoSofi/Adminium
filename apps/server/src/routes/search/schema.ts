@@ -54,8 +54,15 @@ export const searchRecordHit = z.object({
    * excluded; omitted when the row has nothing else to show.
    */
   context: z.string().optional(),
-  /** Slug of the page that renders this table — the palette's nav target. */
+  /** Slug of the page that renders this table — the palette's nav target. Empty when the searcher may not view that page and the hit `opens` in its app. */
   pageSlug: z.string(),
+  /**
+   * Set when the record's app gives it a screen of its own and the searcher's
+   * roles open that app's staff side: the app, the address under the side
+   * (`/deals/12`) and the address on this server. The hit opens there, not at
+   * `pageSlug`.
+   */
+  opens: z.object({ appKey: z.string(), path: z.string(), url: z.string() }).optional(),
 });
 export type SearchRecordHit = z.infer<typeof searchRecordHit>;
 

@@ -52,7 +52,8 @@ const SNAPSHOT = {
       name: 'visit_notes',
       columns: [
         { name: 'id', logicalType: 'integer', isPrimaryKey: true, nullable: false },
-        { name: 'visit_id', logicalType: 'integer', nullable: false },
+        // As introspection writes a foreign key: on the column too.
+        { name: 'visit_id', logicalType: 'integer', nullable: false, references: { tableId: 'main.visits', column: 'id' } },
         { name: 'body', logicalType: 'text' },
       ],
       primaryKey: ['id'],
@@ -153,6 +154,88 @@ describe('materialiseManifestPages', () => {
     ]);
     // The unfit one still exists, empty; the unknown one is not built at all.
     expect(result.created).toEqual(['clinic-board']);
+  });
+
+  it('a board takes its columns from the table its page names, and says so when that table cannot give them', async () => {
+    // Notes link to visits, and neither table has a workflow enum: a board over notes is one only because the page says what its columns are.
+    const board = { column: 'visit_id', columnsFrom: { table: 'visits', label: 'reason', order: 'starts_at' }, title: 'body' };
+    const good = await write(manifest([{ ref: 'clinic-notes', template: 'page-board', bindings: { rows: 'visit_notes' }, config: { board } }]));
+    expect(good.warnings).toEqual([]);
+    const stored = (await pagesRepo(meta).findBySlug(connectionId, 'clinic-notes'))?.config as { config: { layout: { items: { widget: string; config: Record<string, unknown> }[] } } };
+    expect(stored.config.layout.items.find((item) => item.widget === 'kanban-board')?.config).toMatchObject({
+      statusColumn: 'visit_id',
+      columnsFrom: { table: 'main.visits', key: 'id', label: 'reason', order: 'starts_at' },
+      titleColumn: 'body',
+    });
+    // A column that is no link to that table: said once, with the reason, and the page is made empty.
+    const bad = await write(manifest([{ ref: 'clinic-wrong', template: 'page-board', bindings: { rows: 'visit_notes' }, config: { board: { ...board, column: 'body' } } }]));
+    expect(bad.warnings.map((w) => [w.page, w.reason])).toEqual([['clinic-wrong', 'PAGE_BOARD_INVALID']]);
+    expect(bad.warnings[0]?.message).toBe('visit_notes.body is not a link to visits, so the page was created empty');
+  });
+
+  it('a board that cannot be built as named is never built as another: no board of every row under the same name', async () => {
+    // Tasks carry a workflow enum, so Adminium would draw a board over them unasked: every task, by status.
+    const TASKS = {
+      schema: 'main',
+      name: 'tasks',
+      columns: [
+        { name: 'id', logicalType: 'integer', isPrimaryKey: true, nullable: false },
+        { name: 'title', logicalType: 'varchar', maxLength: 120 },
+        { name: 'status', logicalType: 'enum', enumRef: 'main.tasks.status', nullable: false },
+        { name: 'visit_id', logicalType: 'integer', references: { tableId: 'main.visits', column: 'id' } },
+        { name: 'urgent', logicalType: 'boolean' },
+      ],
+      primaryKey: ['id'],
+    };
+    await snapshotsRepo(meta).create({
+      connectionId,
+      source: 'introspection',
+      schema: { ...SNAPSHOT, tables: [...SNAPSHOT.tables, TASKS], enums: [{ id: 'main.tasks.status', name: 'status', values: ['todo', 'in_progress', 'review', 'done'], source: 'check' }] },
+      checksum: 'sha-2',
+    });
+    const itemsOf = async (slug: string) =>
+      ((await pagesRepo(meta).findBySlug(connectionId, slug))?.config as { source: { table: string | null }; config: { layout: { items: { widget: string; config: Record<string, unknown> }[] } } });
+    const page = (ref: string, board?: Record<string, unknown>) => manifest([{ ref, template: 'page-board', bindings: { rows: 'tasks' }, ...(board === undefined ? {} : { config: { board } }) }]);
+
+    // Unasked, the guessed board is there: this is what a failed named board used to fall back to.
+    expect((await write(page('clinic-guessed'))).warnings).toEqual([]);
+    expect((await itemsOf('clinic-guessed')).config.layout.items.map((item) => item.widget)).toContain('kanban-board');
+
+    // Named, and askable: the board of the urgent tasks.
+    expect((await write(page('clinic-urgent', { column: 'status', only: { urgent: true } }))).warnings).toEqual([]);
+    const urgent = (await itemsOf('clinic-urgent')).config.layout.items.find((item) => item.widget === 'kanban-board');
+    expect((urgent?.config['binding'] as { filters?: unknown }).filters).toEqual([{ column: 'urgent', op: 'in', value: [true] }]);
+
+    // Named with a value the real column cannot be compared with (text on a link keyed by a whole number): the
+    // server would refuse every read of it. Said, with the column and what it takes — and the page is EMPTY.
+    const refused = await write(page('clinic-theirs', { column: 'status', only: { visit_id: '7' } }));
+    expect(refused.warnings.map((w) => [w.page, w.reason])).toEqual([['clinic-theirs', 'PAGE_BOARD_INVALID']]);
+    expect(refused.warnings[0]?.message).toBe('tasks.visit_id takes whole numbers, so "7" cannot choose the board\'s cards, so the page was created empty');
+    expect(refused.created).toEqual(['clinic-theirs']);
+    const stored = await itemsOf('clinic-theirs');
+    expect(stored.config.layout.items).toEqual([]);
+    expect(stored.source.table).toBeNull();
+
+    // The same for every way a named board fails, not only its `only`.
+    const noColumn = await write(page('clinic-phase', { column: 'phase' }));
+    expect(noColumn.warnings.map((w) => w.reason)).toEqual(['PAGE_BOARD_INVALID']);
+    expect((await itemsOf('clinic-phase')).config.layout.items).toEqual([]);
+  });
+
+  it('takes a board’s columns only from a table the install knows as the app’s own, never one that merely has the name', async () => {
+    const board = { column: 'visit_id', columnsFrom: { table: 'visits', label: 'reason', order: 'starts_at' }, title: 'body' };
+    const pages = manifest([{ ref: 'clinic-notes', template: 'page-board', bindings: { rows: 'visit_notes' }, config: { board } }]);
+    // The install's names hold the cards' table and not `visits`: the `visits` of this connection is somebody else's table.
+    const stray = await materialiseManifestPages({ meta, manifest: pages, manifestRowId: 'mfst_1', connectionId, createdBy: null, names: { visit_notes: 'visit_notes' } });
+    expect(stray.warnings.map((w) => [w.page, w.reason])).toEqual([['clinic-notes', 'PAGE_BOARD_INVALID']]);
+    expect(stray.warnings[0]?.message).toBe('visits is not a table the board can take its columns from, so the page was created empty');
+    const empty = (await pagesRepo(meta).findBySlug(connectionId, 'clinic-notes'))?.config as { config?: { layout?: { items: { widget: string }[] } } } | undefined;
+    expect(JSON.stringify(empty ?? {})).not.toContain('main.visits');
+    // Named in the install's names, it is the app's, and the board is built from it.
+    await pagesRepo(meta).delete((await pagesRepo(meta).findBySlug(connectionId, 'clinic-notes'))!.id);
+    const own = await materialiseManifestPages({ meta, manifest: pages, manifestRowId: 'mfst_1', connectionId, createdBy: null, names: { visit_notes: 'visit_notes', visits: 'visits' } });
+    expect(own.warnings).toEqual([]);
+    expect(JSON.stringify((await pagesRepo(meta).findBySlug(connectionId, 'clinic-notes'))?.config)).toContain('"table":"main.visits"');
   });
 
   it('never overwrites a page somebody else owns at the same address', async () => {

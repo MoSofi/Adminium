@@ -34,6 +34,9 @@ import { makeEnv } from './helpers.js';
 /** Who the staff config says is signed in: the test's admin, and their write token. */
 const SIGNED_IN = {
   user: { id: expect.any(String) as unknown as string, name: ADMIN_NAME, email: ADMIN_EMAIL },
+  // The language they chose in Adminium, and its direction.
+  locale: 'en-US',
+  dir: 'ltr',
   csrfToken: expect.any(String) as unknown as string,
 };
 
@@ -41,7 +44,12 @@ const SIGNED_IN = {
 const NOW = { now: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/) as unknown as string };
 
 /** The server's own zone, which every staff config names, and its clock. */
-const SERVER_CLOCK = { serverTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone, ...NOW };
+const SERVER_CLOCK = {
+  serverTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+  // Whether maps are on and where from, as the dashboard's bootstrap says it. This build has no kit, so none is named.
+  maps: { enabled: true, server: expect.stringMatching(/^https:\/\//) as unknown as string, routing: false },
+  ...NOW,
+};
 
 /** The venue's clock and money for a connection made with no zone of its own: the host's, and no currency. */
 const HOST_VENUE = { timezone: SERVER_CLOCK.serverTimezone, timezoneSource: 'host', currency: null, ...SERVER_CLOCK };

@@ -121,6 +121,7 @@ The session `useStaff()` gives:
 | `create(table, values)` | Adds a row and returns it |
 | `update(table, id, values)` | Changes a row and returns it |
 | `remove(table, id)` | Deletes a row |
+| `rules()` | The rules the app ships, each with whether it is switched on: see [below](#whether-a-rule-is-switched-on) |
 | `can(table, action)` | Whether the signed-in person may `read`, `create`, `update` or `delete` there. Use it to leave out a button whose write would be refused |
 | `user` | `{ id, name, email }` of the person signed in |
 | `settings` | The app's settings values |
@@ -140,9 +141,38 @@ grants it; see [Add a role](/guides/apps/manifest-by-task/#add-a-role).
 `adminium app build` bundles the code and does not type-check it. To type-check a side, add
 `typescript` to the project and a `tsconfig.json` that includes `apps/`.
 
+A staff screen can also draw one of Adminium's own larger parts, such as the text box in which
+people are mentioned, without bundling it: see
+[Adminium's own parts on an app's screen](/guides/apps/kit-parts/).
+
 The person must hold a role that may open the app's staff screens (`app:@:staff` in the app's
 `roles.json`), and their grants on the app's tables decide what the reads and writes above may do.
 See [App roles and staff access](/guides/apps/roles-and-staff-access/).
+
+### Whether a rule is switched on
+
+An app may ship rules that start switched off, and a screen that depends on one should say so.
+Switching a rule belongs to whoever manages rules in Adminium, which no role of an app does, but
+anybody who may open the app's staff screens can read the switches:
+
+```ts
+const rules = await staff.rules();
+// [{ key: 'nudge-stale', name: 'A deal sits too long: tell its manager', on: false }, …]
+```
+
+`staff.rules()` asks `GET /api/v1/apps/<key>/rules`, which a screen built without this module can
+ask itself.
+
+Each entry is one rule the installed app ships: its `key` from the manifest, its `name` in the
+reader's language, and whether it is `on` now. Nothing else of a rule is answered: not what
+starts it, its steps, who it tells, or its runs. A rule somebody made by hand is not listed (also
+one on the app's own tables), nor is another app's or an add-on's, a rule of a
+[part](/guides/apps/parts/) that is switched off, or a rule of a later version that is not
+installed. Somebody without `app:@:staff` on the app gets `403`.
+
+The answer is the state when it is asked. Ask when the screen opens: a switch flipped since shows
+at the next ask, without a reload. Name who to ask in the screen's own words; the answer names
+nobody.
 
 ### Its place in the dashboard
 
@@ -159,6 +189,15 @@ See [App roles and staff access](/guides/apps/roles-and-staff-access/).
 page, `"done"` is the page at `/done`. It is added to wherever the side is opened, so it never
 starts with `/`. `icon` is a [Lucide](https://lucide.dev) icon name. Each entry needs a page at
 its address: see [Pages and their addresses](#pages-and-their-addresses).
+
+The app's section of the sidebar is the manifest's to shape too. A generated page that the staff
+side replaces can be [kept off the sidebar](/reference/manifest/#a-page-kept-off-the-sidebar)
+(`"offRail": true` in its `nav`): it still opens by its address and is still found by search, for
+whoever may view it. An entry that is not a page ([`navLinks`](/reference/manifest/#navlinks))
+opens a screen of the staff side, or the dashboard's Automations or Emails showing only what the
+app brought, or the app's own settings. And a table's records can open on the staff side wherever
+Adminium links to one, a notice, its email, a search hit: see
+[Where a record opens](/reference/manifest/#where-a-record-opens).
 
 ## A customer side
 

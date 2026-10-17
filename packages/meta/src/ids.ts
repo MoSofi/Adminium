@@ -138,6 +138,8 @@ export const ID_PREFIXES = {
    */
   ast: 'adminium_assistant_sessions',
   atn: 'adminium_assistant_turns',
+  // wave 0057 — a team of people. Its members are a junction with no id of their own.
+  team: 'adminium_teams',
 } as const;
 
 export type IdPrefix = keyof typeof ID_PREFIXES;

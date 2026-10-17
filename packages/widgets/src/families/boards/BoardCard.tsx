@@ -42,6 +42,11 @@ export interface BoardCardProps {
    * that does nothing.
    */
   showGrip?: boolean | undefined;
+  /**
+   * Leaves the far end of the card's first line free: the board draws the
+   * card's "more" button over that corner, and the grip stands before it.
+   */
+  actionsSpace?: boolean | undefined;
 }
 
 export function BoardCard({
@@ -51,6 +56,7 @@ export function BoardCard({
   gripLabel,
   pointsUnit,
   showGrip = true,
+  actionsSpace = false,
 }: BoardCardProps) {
   const t = useMaybeT();
   const grip = gripLabel ?? t('ui:widgets.boards.grip', 'Drag to move card');
@@ -58,7 +64,7 @@ export function BoardCard({
   const hasPct = typeof card.pct === 'number';
   return (
     <div className="flex flex-col gap-2 rounded-lg border border-border bg-surface p-3 shadow-sm">
-      <div className="flex items-start gap-2">
+      <div className={actionsSpace ? 'flex min-h-5 items-start gap-2 pe-7' : 'flex items-start gap-2'}>
         {card.tag !== undefined && (
           <Tag tone={boardToneOf(card.tagTone, columnTone)}>{card.tag}</Tag>
         )}
@@ -97,6 +103,17 @@ export function BoardCard({
         </div>
       )}
 
+      {card.lines !== undefined && card.lines.length > 0 && (
+        <div data-part="board-card-lines" className="flex flex-col gap-0.5 text-caption text-fg-muted">
+          {card.lines.map((line, index) => (
+            <div key={index} className="flex items-baseline justify-between gap-2">
+              {line.label === undefined ? null : <span className="shrink-0 text-fg-subtle">{line.label}</span>}
+              <span className="min-w-0 truncate">{line.value}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
       {hasPct && (
         <div className="flex flex-col gap-1">
           <div className="flex items-center justify-end text-caption text-fg-muted">
@@ -115,7 +132,7 @@ export function BoardCard({
             <MonoText className="rounded-sm bg-surface-3 px-1.5 py-0.5 text-[10px] text-fg-muted">{card.due}</MonoText>
           )}
         </div>
-        <MonoText className="text-[10px] text-fg-subtle">{card.id}</MonoText>
+        <MonoText className="text-[10px] text-fg-subtle">{card.foot ?? card.id}</MonoText>
       </div>
     </div>
   );

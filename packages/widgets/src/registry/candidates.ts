@@ -28,6 +28,7 @@
  */
 import type { DataShape } from '../page-config/data-shapes.js';
 import type { QueryDescriptor } from '../page-config/query-descriptor.js';
+import { BOARD_CARD_DAYS_ALIAS, BOARD_CARD_LINK_ALIAS, type BoardBadge, type BoardCardFacts, type BoardNote } from './board-facts.js';
 import type { WidgetFamily } from './types.js';
 
 /* ------------------------------------------------------------------ inputs */
@@ -49,6 +50,10 @@ export interface CandidateColumn {
   isUnique?: boolean | undefined;
   /** Computed/stored generated column — never a form field. */
   isGenerated?: boolean | undefined;
+  /** The column's rule says it holds a position on the map (`{ lat, lng, by }`). */
+  place?: true | undefined;
+  /** The column's rule says it holds an area on the map (a GeoJSON polygon). */
+  area?: true | undefined;
   /**
    * `ColumnDefault.kind` ('literal' | 'expression' | 'autoincrement' | 'now' |
    * 'uuid'); null/absent ⇔ no DB default. The crud composer needs the kind, not
@@ -152,6 +157,72 @@ export interface CandidateContext {
    * Omitted ⇒ single-table rules only.
    */
   model?: readonly CandidateTableInput[] | undefined;
+  /**
+   * What the columns of a board over THIS table are, when somebody names them
+   * (an app's `config.board`). The board is then drawn by these — the rows of
+   * a table a link points at, or the values of an enum — and the workflow-enum
+   * guess is not made. Absent ⇒ the guess, as before.
+   */
+  board?: BoardColumns | undefined;
+}
+
+export { BOARD_CARD_DAYS_ALIAS, BOARD_CARD_LINK_ALIAS, type BoardBadge, type BoardCardFacts, type BoardNote };
+
+/** How a board header's figure is worked out of a column's cards. */
+export type BoardTotalFn = 'sum' | 'avg';
+
+/** A board's columns, as an app names them. */
+export interface BoardColumns {
+  /** The column of the table a card is placed by: a link to `columnsFrom.table`, or an enum. */
+  column: string;
+  /** The table whose rows are the board's columns, every row of it. */
+  columnsFrom?:
+    | {
+        /** That table's id, as the data routes name it (`public.stages`). */
+        table: string;
+        /** The column a board column is headed by. */
+        label: string;
+        /** The column the board's columns are ordered by; absent ⇒ by their key. */
+        order?: string | undefined;
+        /** One more column of those rows, shown small beside the heading (a stage's odds). */
+        badge?: BoardBadge | undefined;
+      }
+    | undefined;
+  /** What a card shows under its title, each from a column of the cards' table. */
+  card?: BoardCardFacts | undefined;
+  /** One sentence drawn above the board. */
+  note?: BoardNote | undefined;
+  /** The column a card is titled with; absent ⇒ the table's display column. */
+  title?: string | undefined;
+  /** Figures a column's header shows beside its count (two at most). */
+  totals?: readonly { column: string; fn: BoardTotalFn }[] | undefined;
+  /**
+   * Which cards are on the board: those whose every column named holds one of
+   * its values (three columns at most). The cards listed and each header's
+   * count and totals are of these cards alike. Absent ⇒ every row.
+   */
+  only?: readonly BoardOnly[] | undefined;
+}
+
+/** One test a card passes to be on its board: `column` holds one of `in`. */
+export interface BoardOnly {
+  column: string;
+  in: readonly (string | number | boolean)[];
+}
+
+/**
+ * The column a named board places its cards by, or null when the table cannot
+ * carry that board: the column is missing, is no link to the columns' table,
+ * or — with no table named — holds no enum values.
+ *
+ * ONE test, asked by the candidate rule, by the archetype's gate and by the
+ * fit report, for the reason {@link boardStatus} is one.
+ */
+export function namedBoardColumn(view: CandidateView, board: BoardColumns): ViewColumn | null {
+  const column = view.columns.find((c) => c.name === board.column);
+  if (column === undefined) return null;
+  if (board.columnsFrom === undefined) return column.enumValues.length > 0 ? column : null;
+  return column.references !== null && column.references.tableId === board.columnsFrom.table ? column : null;
 }
 
 /* ----------------------------------------------------------------- outputs */
@@ -219,6 +290,8 @@ export interface ViewColumn {
   secret: boolean;
   pii: string | null;
   pair: { role: string; partner: string } | null;
+  /** The column's rule says it holds a position on the map: one column where a lat/lng pair would be. */
+  place?: true | undefined;
 }
 
 export interface CandidateRule {
@@ -377,6 +450,7 @@ export function buildCandidateView(
       secret: info?.secret ?? false,
       pii: info?.pii ?? null,
       pair: info?.pair ?? null,
+      ...(column.place === true ? { place: true as const } : {}),
     };
   });
 
@@ -1299,6 +1373,8 @@ const boardsKanban: CandidateRule = {
   id: 'boards.workflow-enum',
   family: 'boards',
   match(view, ctx) {
+    // Somebody named the board's columns: the guess is not made beside it.
+    if (ctx.board !== undefined) return [];
     const status = firstWithSemantic(view, 'status-workflow');
     if (status === null || status.enumValues.length === 0 || status.enumValues.length > 6) return [];
     const boardish = status.enumValues.filter((v) => BOARD_STATE_RE.test(v.trim())).length;
@@ -1343,6 +1419,132 @@ const boardsKanban: CandidateRule = {
   },
 };
 
+/** The most columns an enum board asks the server to count: past this a board is not a board. */
+const NAMED_BOARD_ENUM_MAX = 50;
+
+/**
+ * A board whose columns somebody named (`ctx.board`): the rows of a table its
+ * cards link to, or the values of an enum of its own.
+ *
+ * Always the plain `kanban-board`: a named board says what its columns are and
+ * nothing about lanes, so no lane is guessed for it.
+ *
+ * What each column's header counts is the server's to say, never the number
+ * of cards fetched (the list stops at its limit). A board over a table reads
+ * its columns — with a count and each total — from that table, where the host
+ * asks (`columnsFrom`); a board over an enum carries a second query here, one
+ * group per value (`columnsBinding`).
+ */
+const boardsNamed: CandidateRule = {
+  id: 'boards.named-columns',
+  family: 'boards',
+  match(view, ctx) {
+    const board = ctx.board;
+    if (board === undefined) return [];
+    const status = namedBoardColumn(view, board);
+    if (status === null) return [];
+    const from = board.columnsFrom;
+    const title = board.title ?? view.displayColumn;
+    const totals = (board.totals ?? []).filter((total) => view.columns.some((c) => c.name === total.column));
+    /*
+     * What a card shows. Each piece is kept only where the table can answer
+     * it (the install says which could not, `boardColumnsProblem`): a link
+     * column, a staff column, a number, a date. The rows are asked for them
+     * here, so the card draws what the SERVER read as this reader: a name
+     * looked up through a link is empty out of their reach, a person is
+     * named by the people list's rule, and the days are the server's count.
+     */
+    const has = (name: string | undefined): name is string => name !== undefined && view.columns.some((c) => c.name === name);
+    const asked = board.card ?? {};
+    const linkColumn = asked.link?.split('.')[0];
+    const card: BoardCardFacts = {
+      ...(asked.link !== undefined && has(linkColumn) ? { link: asked.link } : {}),
+      ...(has(asked.person) ? { person: asked.person } : {}),
+      ...(has(asked.amount) ? { amount: asked.amount } : {}),
+      ...(asked.daysSince !== undefined && has(asked.daysSince.column) ? { daysSince: { ...asked.daysSince } } : {}),
+      ...(has(asked.date) ? { date: asked.date } : {}),
+    };
+    const shown = [card.link === undefined ? undefined : linkColumn, card.person, card.amount, card.daysSince?.column, card.date].filter((name): name is string => name !== undefined);
+    const read = [...new Set([status.name, ...(title === null ? [] : [title]), ...totals.map((total) => total.column), ...shown])];
+    const select = listSelect(view);
+    // The cards on the board. A test of a column the table lacks is no board at all: left out, it would draw every row.
+    const only = board.only ?? [];
+    if (only.some((test) => test.in.length === 0 || !view.columns.some((c) => c.name === test.column))) return [];
+    // One condition a test, on the cards listed and on an enum board's counts alike; the host says the same of a table board's (`config.only`).
+    const filters = only.length === 0 ? {} : { filters: only.map((test) => ({ column: test.column, op: 'in' as const, value: [...test.in] })) };
+    return [
+      {
+        widget: 'kanban-board',
+        score: score(0.95, byRowCount(view)),
+        shape: 'record-list',
+        family: 'boards',
+        rule: 'boards.named-columns',
+        reason:
+          from === undefined
+            ? `enum "${status.name}" named as the board's columns`
+            : `link "${status.name}" — one column for each row of ${from.table}`,
+        binding: descriptor(view, ctx, 'record-list', {
+          select: [...read.filter((name) => !select.includes(name)), ...select],
+          ...filters,
+          ...(card.link === undefined ? {} : { lookups: [`${BOARD_CARD_LINK_ALIAS}:${card.link}`] }),
+          ...(card.person === undefined ? {} : { people: [card.person] }),
+          // The longest-waiting first: the cards drawn stop at the list's limit, and those are the ones to see.
+          ...(card.daysSince === undefined ? {} : { daysSince: [`${BOARD_CARD_DAYS_ALIAS}:${card.daysSince.column}`], orderBy: [{ column: card.daysSince.column, dir: 'asc' as const }] }),
+          limit: 200,
+        }),
+        config: {
+          title: tableTitle(view.table),
+          statusColumn: status.name,
+          ...(only.length === 0 ? {} : { only: only.map((test) => ({ column: test.column, in: [...test.in] })) }),
+          ...(from === undefined
+            ? {
+                columns: [...status.enumValues],
+                ...(status.enumValues.length > NAMED_BOARD_ENUM_MAX
+                  ? {}
+                  : {
+                      columnsBinding: descriptor(view, ctx, 'categorical', {
+                        aggregations: [
+                          { fn: 'count', alias: 'cards' },
+                          ...totals.map((total, index) => ({ fn: total.fn, column: total.column, alias: `total${String(index)}` })),
+                        ],
+                        groupBy: [status.name],
+                        /*
+                         * The enum's own values and no other group. The groups come back biggest first and
+                         * stop at `limit`, one for each value: rows with NO value (or one the enum has since
+                         * lost) made one group more, and the smallest real one was cut — its column then
+                         * read 0 over the cards drawn in it. `in` leaves a row with no value out as well.
+                         */
+                        filters: [...(filters.filters ?? []), { column: status.name, op: 'in' as const, value: [...status.enumValues] }],
+                        limit: Math.max(status.enumValues.length, 1),
+                      }),
+                    }),
+              }
+            : {
+                columnsFrom: {
+                  table: from.table,
+                  // The column of that table the link holds: what a card's value is matched with.
+                  key: (status.references as { column: string }).column,
+                  label: from.label,
+                  ...(from.order === undefined ? {} : { order: from.order }),
+                  ...(from.badge === undefined ? {} : { badge: { column: from.badge.column, ...(from.badge.as === undefined ? {} : { as: from.badge.as }) } }),
+                },
+              }),
+          ...(Object.keys(card).length === 0 ? {} : { card }),
+          ...(board.note === undefined ? {} : { note: { text: board.note.text, ...(board.note.texts === undefined ? {} : { texts: { ...board.note.texts } }), ...(board.note.href === undefined ? {} : { href: board.note.href }) } }),
+          ...(title === null ? {} : { titleColumn: title }),
+          ...(totals.length === 0 ? {} : { totals: totals.map((total) => ({ column: total.column, fn: total.fn })) }),
+        },
+      },
+    ];
+  },
+};
+
+/** A column a map may name its pins by or size them with: one a reader may be shown, and none of `taken` (the position itself). */
+const nameable =
+  (taken: ReadonlySet<string>) =>
+  (c: ViewColumn): boolean =>
+    !c.secret && !taken.has(c.name);
+
 /** Annex — "paired `lat`/`lng` … numeric columns → `map-bubble`". */
 const geoMapBubble: CandidateRule = {
   id: 'geo.lat-lng-pair',
@@ -1351,6 +1553,20 @@ const geoMapBubble: CandidateRule = {
     const lat = view.columns.find((c) => c.semantic === 'geo-point' && c.pair?.role === 'lat');
     const lng = view.columns.find((c) => c.semantic === 'geo-point' && c.pair?.role === 'lng');
     if (lat === undefined || lng === undefined) return [];
+    // `geo-points` reads its columns BY POSITION: `[name, lat, lng, ...metrics]`
+    // (the server's `geoColumnRoles`). This bound the list's columns instead —
+    // display column, status, money… — so the pair was never the second and
+    // third, every row was read as a region with a code, and the map drew
+    // nothing: the coordinates were not even asked for.
+    const usable = nameable(new Set([lat.name, lng.name]));
+    const display = view.columns.find((c) => c.name === view.displayColumn && usable(c));
+    const name = (display ?? view.columns.find((c) => c.isPrimaryKey && usable(c)) ?? view.columns.find(usable))?.name;
+    if (name === undefined) return [];
+    // What sizes the pins: the table's own figures, a few of them.
+    const metrics = withSemantic(view, 'money', 'score', 'percent', 'duration')
+      .filter((c) => usable(c) && c.name !== name)
+      .slice(0, 3)
+      .map((c) => c.name);
     return [
       {
         widget: 'map-bubble',
@@ -1360,10 +1576,52 @@ const geoMapBubble: CandidateRule = {
         rule: 'geo.lat-lng-pair',
         reason: `lat/lng pair "${lat.name}"/"${lng.name}" — bubble map`,
         binding: descriptor(view, ctx, 'geo-points', {
-          select: listSelect(view),
+          select: [name, lat.name, lng.name, ...metrics],
           limit: 1000,
         }),
-        config: { title: tableTitle(view.table), latColumn: lat.name, lngColumn: lng.name },
+        config: { title: tableTitle(view.table), nameField: name, latColumn: lat.name, lngColumn: lng.name, ...(metrics.length === 0 ? {} : { metrics }) },
+      },
+    ];
+  },
+};
+
+/**
+ * The pair's sibling: ONE column whose rule says it is a place (`column.place`,
+ * `{ lat, lng, by }`). The rule says so, never the column's type or name. The
+ * binding names that one column where the pair would be —
+ * `[name, place, ...metrics]` — and each point then carries how its position
+ * is known (`by`), which the map draws: a pin known by its town is hollow.
+ */
+const geoPlaceColumn: CandidateRule = {
+  id: 'geo.place-column',
+  family: 'geo',
+  match(view, ctx) {
+    const place = view.columns.find((c) => c.place === true && !c.secret);
+    if (place === undefined) return [];
+    // What a pin is called: a column a reader may be shown, and never the place itself (the pair rule's test). The
+    // table's display column first; failing that its key, or the first column that is — an opaque uuid only when
+    // there is nothing else to call a pin by.
+    const usable = nameable(new Set([place.name]));
+    const display = view.columns.find((c) => c.name === view.displayColumn && usable(c));
+    const others = [...view.columns.filter((c) => c.isPrimaryKey && usable(c)), ...view.columns.filter((c) => !c.isPrimaryKey && usable(c))];
+    const name = (display ?? others.find((c) => c.logicalType !== 'uuid') ?? others[0])?.name;
+    if (name === undefined) return [];
+    // What sizes the pins: the table's own figures, a few of them.
+    const metrics = withSemantic(view, 'money', 'score', 'percent', 'duration')
+      .filter((c) => usable(c) && c.name !== name)
+      .slice(0, 3)
+      .map((c) => c.name);
+    return [
+      {
+        widget: 'map-bubble',
+        // Above the pair: a rule somebody wrote beats two column names that look like coordinates.
+        score: score(0.92, byRowCount(view)),
+        shape: 'geo-points',
+        family: 'geo',
+        rule: 'geo.place-column',
+        reason: `place column "${place.name}" — map`,
+        binding: descriptor(view, ctx, 'geo-points', { select: [name, place.name, ...metrics], limit: 1000 }),
+        config: { title: tableTitle(view.table), nameField: name, placeColumn: place.name, ...(metrics.length === 0 ? {} : { metrics }) },
       },
     ];
   },
@@ -1664,8 +1922,10 @@ export const candidateRules: readonly CandidateRule[] = [
   calendarCapacityBoard,
   // Boards
   boardsKanban,
+  boardsNamed,
   // Geo
   geoMapBubble,
+  geoPlaceColumn,
   // Media
   mediaAttachmentList,
   mediaImageBoard,

@@ -75,6 +75,8 @@ export interface AppTableRecord {
    * as checked at install; null for a table of the app's own.
    */
   builtOn: string | null;
+  /** The part of its app the table belongs to. */
+  module: string | null;
   /** The columns that shape owns. */
   shapeColumns: string[];
   createdAt: number;
@@ -96,6 +98,8 @@ export interface RecordAppTableInput {
   shape?: string | null;
   builtOn?: string | null;
   shapeColumns?: readonly string[] | null;
+  /** The part of its app the table belongs to; `null` clears one a later version no longer names. */
+  module?: string | null;
 }
 
 /** A stored list of column names, parsed; anything else reads as none. */
@@ -151,6 +155,7 @@ function toRecord(row: Selectable<AdminiumAppTablesTable>): AppTableRecord {
     rules: parseRules(row.rules),
     builtOn: row.builtOn,
     shapeColumns: parseNames(row.shapeColumns),
+    module: row.module ?? null,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
     releasedAt: row.releasedAt,
@@ -240,6 +245,7 @@ export function appTablesRepo(meta: MetaDb) {
             shape: input.shape === undefined ? held.shape : input.shape,
             ...(input.builtOn === undefined ? {} : { builtOn: input.builtOn }),
             ...(input.shapeColumns === undefined ? {} : { shapeColumns: input.shapeColumns === null ? null : JSON.stringify(input.shapeColumns) }),
+            ...(input.module === undefined ? {} : { module: input.module }),
             releasedAt: null,
             updatedAt: at,
           })
@@ -263,6 +269,7 @@ export function appTablesRepo(meta: MetaDb) {
         rules: null,
         builtOn: input.builtOn ?? null,
         shapeColumns: input.shapeColumns === undefined || input.shapeColumns === null ? null : JSON.stringify(input.shapeColumns),
+        ...(input.module === undefined || input.module === null ? {} : { module: input.module }),
         createdAt: at,
         updatedAt: at,
         releasedAt: null,

@@ -23,6 +23,7 @@ import { useState, type ReactNode } from 'react';
 import { Badge, Button, Card, CardBody, CardHeader, IconTile, type Tone } from '@adminium/ui';
 
 import { t } from '../../i18n/t.js';
+import { useCommonWords } from '../../i18n/commonWords.js';
 import { useAppToasts } from '../../pages/toasts.js';
 import {
   CAPABILITY_GRANTS_QUERY_KEY,
@@ -64,6 +65,8 @@ function iconFor(capabilityId: string): ReactNode {
 }
 
 export function CapabilitiesCard(): ReactNode {
+  // This card's words load with its page, not with the first paint.
+  useCommonWords();
   const queryClient = useQueryClient();
   const toasts = useAppToasts();
   const [consentFor, setConsentFor] = useState<string | null>(null);

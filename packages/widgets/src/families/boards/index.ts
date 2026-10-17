@@ -46,6 +46,7 @@ export {
 } from './InlineComposeCard.js';
 export {
   bindingSourceOf,
+  boardKeyOf,
   boardRowsOf,
   boardToneOf,
   cardsInCell,
@@ -63,7 +64,9 @@ export {
 } from './board-lib.js';
 export {
   defaultBoardAnnouncements,
+  refusalReasonOf,
   type BoardAnnouncements,
+  type BoardMoveRefusal,
   type MoveResult,
 } from './board-dnd.js';
 export {

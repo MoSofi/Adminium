@@ -90,6 +90,25 @@ describe('WidgetHost', () => {
     expect(refetch).toHaveBeenCalledTimes(1);
   });
 
+  it('a figure refused as the whole team’s → plain words, no figure, no error and nothing to retry', () => {
+    const refetch = vi.fn();
+    render(
+      <WidgetHost
+        widgetId="test-stat-card"
+        instanceId="inst-whole"
+        config={{ emptyState: { titleKey: 'No targets set' } }}
+        data={{ status: 'error', error: Object.assign(new Error('This figure is the whole team’s.'), { code: 'TEAM_FIGURE_WHOLE_ONLY' }), refetch }}
+        registry={registry}
+      />,
+    );
+    expect(hostState()).toBe('empty');
+    expect(screen.getByText('For the whole team only')).toBeDefined();
+    expect(screen.getByText(/It is not shown to you, because your role reads only some of the rows/)).toBeDefined();
+    // Not the card's own "nothing yet" words, which would read as "there are no targets".
+    expect(screen.queryByText('No targets set')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Retry' })).toBeNull();
+  });
+
   it('success with empty payload (per dataContract) → empty state', () => {
     render(
       <WidgetHost

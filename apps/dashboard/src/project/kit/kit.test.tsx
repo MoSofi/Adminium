@@ -264,6 +264,29 @@ describe('the data hooks', () => {
       where: { column: 'id', op: 'eq', value: 3 },
       order: [{ column: 'name', dir: 'asc' }],
     });
+    // Figures from the rows that link to each row: a count, and a sum of one of their columns.
+    const measured = listParams({
+      orderBy: 'position',
+      measures: [
+        { as: 'deals', table: 'deals', via: 'stage_id', fn: 'count' },
+        { as: 'worth', table: 'deals', via: 'stage_id', fn: 'sum', of: 'amount' },
+      ],
+    });
+    expect(JSON.parse(measured.compute!)).toEqual({
+      measures: [
+        { id: 'deals', table: 'deals', fkColumn: 'stage_id', fn: 'count' },
+        { id: 'worth', table: 'deals', fkColumn: 'stage_id', fn: 'sum', of: { terms: [{ sign: 'plus', factors: ['amount'] }] } },
+      ],
+    });
+    expect(listParams({ measures: [] }).compute).toBeUndefined();
+    // Which of the linking rows are counted: a value, or a list of them, a column.
+    const open = listParams({ measures: [{ as: 'open', table: 'deals', via: 'stage_id', fn: 'count', where: { state: 'open', kind: ['new', 'renewal'] } }] });
+    expect(JSON.parse(open.compute!)).toEqual({
+      measures: [{ id: 'open', table: 'deals', fkColumn: 'stage_id', fn: 'count', where: [{ column: 'state', in: ['open'] }, { column: 'kind', in: ['new', 'renewal'] }] }],
+    });
+    expect(JSON.parse(listParams({ measures: [{ as: 'all', table: 'deals', via: 'stage_id', fn: 'count', where: {} }] }).compute!)).toEqual({
+      measures: [{ id: 'all', table: 'deals', fkColumn: 'stage_id', fn: 'count' }],
+    });
     expect(recordKey(7)).toBe('7');
     expect(recordKey({ a: 1, b: 'x' })).toBe('{"a":1,"b":"x"}');
   });

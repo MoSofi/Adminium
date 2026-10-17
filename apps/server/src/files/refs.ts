@@ -150,6 +150,9 @@ export interface RefTarget {
  *     customer's own column, and this function's job is to say what it names,
  *     not to judge it. It names nothing of ours.
  *
+ * A list a database hands back already parsed (a json column on Postgres or
+ * MySQL, which a `column.file` list is kept in) is read as the same list.
+ *
  * Never throws. The caller is a post-commit hook or a read path, and neither
  * has anywhere useful to put an exception.
  */
@@ -157,6 +160,9 @@ export function parseRefList(
   value: unknown,
   destinations: readonly RefDestination[] = [],
 ): ParsedRef[] {
+  if (Array.isArray(value)) {
+    return value.flatMap((entry) => (typeof entry === 'string' ? [parseRef(entry, destinations)].filter((ref): ref is ParsedRef => ref !== null) : []));
+  }
   if (typeof value !== 'string') return [];
   const trimmed = value.trim();
   if (trimmed.length === 0) return [];

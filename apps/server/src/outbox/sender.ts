@@ -172,6 +172,8 @@ import { usableLanguage } from './language.js';
 import { isSampleRow, verdictsFor, type LiveOutbox, type OutboxLogger } from './producers.js';
 import { addressFor, plausibleAddress, referenced, rowOf, type Addressed } from './recipient.js';
 import { columnRecipientOf } from './column-recipient.js';
+import { staffReplyTo } from './staff-reply-to.js';
+import { peopleNames } from '../widget-data/people-names.js';
 import type { SignInLinkMinter } from './sign-in-link.js';
 import { producerOf, settingReader, skipSentence, sourceOf } from './timing.js';
 
@@ -553,6 +555,24 @@ type BlankOf = (table: ResolvedTable, record: Row) => Promise<ReadonlySet<string
 interface WrittenValues {
   vars: Record<string, string>;
   withheld: Set<string>;
+  /** `<name>.name` of each staff column put, by the id it holds: named by {@link namePeople}. */
+  people?: Map<string, string>;
+}
+
+/**
+ * THE PERSON A STAFF COLUMN NAMES, by name (`{{visit.rep_id.name}}`): the
+ * display name the people list gives them, and nothing else of them — never
+ * an address, a role or a status. Only somebody the people list names is
+ * named (here already, or the sample's): a person suspended, only invited or
+ * removed, and an id that is nobody's, read empty. The ids are only those of
+ * columns the message already prints.
+ */
+async function namePeople(meta: MetaDb, out: WrittenValues): Promise<void> {
+  const people = out.people;
+  if (people === undefined || people.size === 0) return;
+  const names = await peopleNames(meta, [...people.values()]);
+  for (const [name, id] of people) out.vars[name] = names.get(id) ?? '';
+  people.clear();
 }
 
 /**
@@ -662,6 +682,11 @@ function putValues(
     const effective = table.table.columns.find((c) => c.name === column.name);
     const labelled = ctx.labels === undefined ? undefined : (choice: string) => ctx.labels!(table.id, column.name, choice);
     for (const [form, text] of Object.entries(extraForms(column, effective, value, forms, currency, labelled))) vars[`${name}.${form}`] = text;
+    // A staff column: the person it names, by name (`namePeople` fills it); nobody, empty.
+    if ((effective as { staff?: boolean } | undefined)?.staff === true) {
+      vars[`${name}.name`] = '';
+      if (value !== null && value !== undefined && String(value).trim() !== '') (out.people ??= new Map()).set(`${name}.name`, String(value).trim());
+    }
     if (value === null || value === undefined) {
       vars[name] = '';
       const empty =
@@ -716,7 +741,8 @@ export function withoutUnmetBlocks<T extends { blocks: readonly unknown[] }>(tem
 }
 
 /**
- * What a message keeps of its row as it was before the change that queued it
+ * What a message keeps of its row as it was before the change that queued it,
+ * or of a row that was removed, as it was when it went
  * (`producer.was`, in the outbox's `was` column): the row's table, the values
  * and the columns named — or null when its producer keeps none, or what is
  * kept cannot be read (the message then reads `{{was.*}}` as unfilled and
@@ -896,6 +922,7 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
       const scratch: WrittenValues = { vars: {}, withheld: new Set<string>() };
       putValues(scratch, ctx, () => false, 'was', kept.table, record, true);
       for (const column of blank) scratch.vars[`was.${column}`] ??= '';
+      await namePeople(deps.meta, scratch);
       for (const [name, text] of Object.entries(scratch.vars)) {
         if (kept.columns.some((column) => name === `was.${column}` || name.startsWith(`was.${column}.`))) vars[name] = text;
       }
@@ -908,10 +935,13 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     vars['recipient.first_name'] = '';
     // Sent to an address the producing row holds: greeted by the name the row holds with it.
     const rowName = addressed?.byColumn?.name ?? null;
+    // Sent to an address a removed row held: the name it held with it is not kept, and the person the message links may be somebody else.
+    const sender = producerOf(box.definition, row[box.definition.columns.kind]);
+    const toRemovedRow = sender !== undefined && 'onDelete' in sender && columnRecipientOf(sender) !== null;
     if (rowName !== null) {
       vars['recipient.name'] = rowName;
       vars['recipient.first_name'] = rowName.split(/\s+/)[0] ?? rowName;
-    } else if (addressed?.bySetting !== true && addressed?.byColumn === undefined) {
+    } else if (!toRemovedRow && addressed?.bySetting !== true && addressed?.byColumn === undefined) {
       const recipient = box.definition.recipient;
       const person = await rowOf(db, view, recipient.table, row[recipient.via]);
       let name: unknown = person !== null && recipient.name !== undefined ? person[recipient.name] : undefined;
@@ -946,6 +976,7 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     // The desk: a studio notice's button opens `{{staff_url}}proposals/42`.
     vars['staff_url'] = (await staffBase(box.appKey)) ?? '';
     Object.assign(vars, await addOnVariables((await appFacts(box.row.manifestId)).requires));
+    await namePeople(deps.meta, out);
     // A name a row of the recipient's own fills too (`client.share_token` beside a project's) is not held back.
     for (const name of withheld) if (Object.hasOwn(vars, name)) withheld.delete(name);
     return { vars, withheld };
@@ -970,7 +1001,8 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     if (column === undefined || producer === undefined) return undefined;
     const manifest = (await appFacts(box.row.manifestId)).manifest;
     const declared = (manifest?.outbox?.producers ?? []).find((candidate) => candidate.kind === producer.kind);
-    const source = declared === undefined ? undefined : 'onCreate' in declared ? declared.onCreate : 'onChange' in declared ? declared.onChange : declared.before;
+    // A removed row opens nothing: no key reads it.
+    const source = declared === undefined || 'onDelete' in declared ? undefined : 'onCreate' in declared ? declared.onCreate : 'onChange' in declared ? declared.onChange : declared.before;
     if (source === undefined || ('via' in source && source.via !== undefined)) return undefined;
     const opener = (manifest?.publicAccess ?? []).find((entry) => {
       const claim = entry.claim;
@@ -1107,9 +1139,11 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     const cols = box.definition.columns;
     const named = row[cols.to];
     const blank = named === null || named === undefined || (typeof named === 'string' && named.trim() === '');
-    const again = producer !== undefined && (producer.hold === true || producer.recipient !== undefined);
+    // An address a removed row held is read once, as the row goes: the message keeps it, and there is no row to read it from again.
+    const ofRemovedRow = producer !== undefined && 'onDelete' in producer && columnRecipientOf(producer) !== null;
+    const again = producer !== undefined && !ofRemovedRow && (producer.hold === true || producer.recipient !== undefined);
     if (!again && !blank) return { addressed: null, to: named, lookedUp: false };
-    const addressed = await addressFor({ db: ctx.db, view: ctx.view, outboxId: ctx.outbox.id, read: settingReader(deps.meta, ctx.db) }, box.definition, producer, row);
+    const addressed = await addressFor({ db: ctx.db, view: ctx.view, outboxId: ctx.outbox.id, read: settingReader(deps.meta, ctx.db, ctx.view) }, box.definition, producer, row);
     return { addressed, to: addressed.address, lookedUp: true };
   }
 
@@ -1302,6 +1336,7 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
       for (const [name, join] of Object.entries(joins)) {
         one.vars[`row.${name}`] = (joined.get(name)?.get(String(key === undefined ? '' : record[key])) ?? []).join(join.separator ?? ', ');
       }
+      await namePeople(deps.meta, one);
       for (const name of one.withheld) if (Object.hasOwn(one.vars, name)) one.withheld.delete(name);
       out.push(one);
     }
@@ -1416,8 +1451,9 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     const long = [...drawn].filter((name) => !name.startsWith('row.') && !fitsQr(vars[name]));
     if (long.length > 0) return { status: 'failed', error: qrTooLongSentence(long) };
     const written = typeof row[cols.to] === 'string' ? (row[cols.to] as string).trim() : null;
-    // A reply to any of the app's messages goes to the house's own address, when its settings name one that is an address.
-    const replyTo = await houseReplyTo(box, ctx.db);
+    // A reply goes to the person the row's staff column names, when the producer says so and somebody who signs in is there;
+    // else to the house's own address, when its settings name one that is an address.
+    const replyTo = (await staffReplyTo({ meta: deps.meta, db: ctx.db, view: ctx.view, outboxId: ctx.outbox.id }, producer, row)) ?? (await houseReplyTo(box, ctx.db));
     return {
       to,
       reader: await messageReader(box, ctx, holder, addressed, to),
@@ -1534,7 +1570,7 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     }
     const rows = (await query.orderBy(key as never).limit(OUTBOX_BATCH).execute()) as Row[];
     // Judged again, all together, just before they go.
-    const verdicts = await verdictsFor({ db, view, outbox, definition: box.definition, zone, read: settingReader(deps.meta, db), now }, rows, 'send');
+    const verdicts = await verdictsFor({ db, view, outbox, definition: box.definition, zone, read: settingReader(deps.meta, db, view), now }, rows, 'send');
     const settled: Row[] = [];
     for (const row of rows) {
       const pk = { [key]: row[key] };

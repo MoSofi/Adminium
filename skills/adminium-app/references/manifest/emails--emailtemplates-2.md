@@ -2,6 +2,12 @@
 
 # Manifest spec: Emails — emailTemplates
 
+`{{row.…}}` is read only inside an `email.rows` block, and every language of a template lists the
+same rows (`from` and `joins` are the same in each). A message that lists rows is never sent
+without its list: when its table or link can no longer be read (after a rename), the message is
+`failed` ("Not sent: the email lists rows from a table or link that is not there"). An empty list
+still sends.
+
 A QR code is the whole value of an image: an `email.image` block's `qr`, written
 `{{<link>.<column>.qr}}` (80–200 pixels across, `size`), or a row's `image`. It is drawn when the
 message is delivered, only of a code column, and only for a code of at most 64 bytes. A code the

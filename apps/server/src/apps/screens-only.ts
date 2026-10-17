@@ -7,8 +7,11 @@
  * screens are, and every other API call is refused except what those screens
  * need: signing in and out, their own account, the records their roles grant,
  * the live-update stream, the translations, the schema of their app's own
- * database, and what an add-on their app uses says of the rows a screen shows
- * (its stock words). Forty-odd routes check only that someone is signed in, so this
+ * database, what an add-on their app uses says of the rows a screen shows
+ * (its stock words), which of their app's own rules are switched on, and
+ * bringing a file in to a table their role may import (a "paste a list"
+ * screen of their app), and the files a record of theirs keeps (a crew's
+ * signature and photos). Forty-odd routes check only that someone is signed in, so this
  * list — not those routes — is the boundary.
  */
 import type { FastifyRequest } from 'fastify';
@@ -72,6 +75,27 @@ export async function appAddOns(meta: MetaDb, appKeys: readonly string[], connec
   return out;
 }
 
+/** The routes of one import, from the upload to the report of what was skipped, and its job's progress. */
+const IMPORT_ROUTES: ReadonlySet<string> = new Set([
+  'POST /imports/upload',
+  'POST /imports',
+  'GET /imports/:id',
+  'GET /imports/:id/preview',
+  'POST /imports/:id/run',
+  'GET /imports/:id/error-report',
+  'GET /jobs/:id',
+]);
+
+/**
+ * A file uploaded for a record of a table their role creates or changes (a
+ * crew's signature and photos), read back with its record, and thrown away
+ * while no record holds it yet. Each route asks the table's own rights and
+ * whose the file is (`routes/files`): a file no role of theirs reaches is not
+ * there for them. The list of files, their library, renaming and moving them
+ * stay the dashboard's.
+ */
+const FILE_ROUTES: ReadonlySet<string> = new Set(['POST /files', 'GET /files/:id', 'GET /files/:id/content', 'DELETE /files/:id']);
+
 /**
  * Whether a screens-only person may make this API call, judged by the ROUTE
  * it matched (`/api/v1/connections/:id/schema`) and its decoded parameters —
@@ -101,6 +125,9 @@ export function allowedForScreensOnly(
   const key = (params as { key?: unknown } | null)?.key;
   if (method === 'POST' && rest === '/apps/:key/documents/render' && typeof key === 'string' && appKeys.includes(key)) return true;
   if (method === 'GET' && (rest === '/documents/:id/content' || rest === '/documents/:id/print')) return true;
+  // Which of their app's own rules are switched on, for a screen that depends on one. The route asks the app's own staff grant, and says a
+  // rule's key, name and switch: nothing of what it does.
+  if (method === 'GET' && rest === '/apps/:key/rules' && typeof key === 'string' && appKeys.includes(key)) return true;
   // What an add-on of their app says of the rows their screen shows. The route still asks that they read the table asked about.
   const addOn = (params as { addOn?: unknown } | null)?.addOn;
   if (method === 'GET' && route === STAFF_WORDS_ROUTE && typeof addOn === 'string' && addOns.has(addOn)) return true;
@@ -110,6 +137,12 @@ export function allowedForScreensOnly(
   if (method === 'POST' && route === ADD_ON_DOCUMENT_ROUTE && typeof key === 'string' && addOns.has(key)) return true;
   // …and the page it prints, by the one-time ticket the render answered.
   if (method === 'GET' && rest === '/documents/print-once/:ticket') return true;
+  // A file brought in to a table of their app, from a screen of their app (the kit's import part). Each of these
+  // routes asks the table's own import right (and its read and update rights where the import matches or changes
+  // rows), which a screens-only person holds only where their app's role grants it; an import and its job are
+  // shown to whoever made them. The list of imports, and every other route of the jobs, stay the dashboard's.
+  if (IMPORT_ROUTES.has(`${method} ${rest}`)) return true;
+  if (FILE_ROUTES.has(`${method} ${rest}`)) return true;
   // The public API has its own gate, and a kiosk's staff-bound key rides it.
   if (rest.startsWith('/public/')) return true;
   if (rest === '/me' || rest.startsWith('/me/')) return true;

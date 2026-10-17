@@ -908,5 +908,9 @@ export default {
     "otherwise": "Otherwise show",
     "otherwiseHint": "These words take the place of the whole block. Leave it empty to send nothing in its place.",
     "leftOut": "When it has none, this block is left out of the email."
+  },
+  "appFilter": {
+    "note": "Only the emails of {app} are shown.",
+    "clear": "Show all emails"
   }
 } as const;

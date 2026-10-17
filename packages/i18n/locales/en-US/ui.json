@@ -91,7 +91,13 @@
       "tooLarge": "Must be {max} or less.",
       "outOfRange": "This number is out of range.",
       "duplicate": "Already added.",
-      "form": "Some values were refused. Check the marked fields."
+      "form": "Some values were refused. Check the marked fields.",
+      "mentionUnknown": "Somebody mentioned here is not a person who signs in. Type @ and choose them from the list.",
+      "tooManyMentions": "Too many people are mentioned here. Mention fewer.",
+      "fileNotHere": "This file cannot be kept here. Upload it again from this field.",
+      "fileType": "This kind of file is not taken here.",
+      "fileTooLarge": "This file is too large for this field.",
+      "tooManyFiles": "Keep at most {n} files here."
     },
     "lines": {
       "add": "Add line",
@@ -687,7 +693,12 @@
         "emptyBody": "Group records by a lane field and a status field to build the grid."
       },
       "addCard": "Add card",
+      "notMoved": "{title} was not moved.",
+      "notAdded": "{title} was not added.",
+      "cardNotAdded": "The card was not added.",
+      "dismissNotice": "Dismiss",
       "grip": "Drag to move card",
+      "cardActions": "Actions for {title}",
       "pointsUnit": "pts",
       "laneSummary": "Σ{points} pts · {count}",
       "a11y": {
@@ -695,7 +706,9 @@
         "over": "{title} is over {cell}.",
         "moved": "Moved {title} to {cell}.",
         "returned": "{title} returned to its original position.",
-        "failed": "Could not move {title}; it was returned to its original position."
+        "failed": "Could not move {title}; it was returned to its original position.",
+        "draggable": "draggable card",
+        "openHint": "Enter picks this card up to move it. Shift+Enter opens it."
       },
       "boardCard": {
         "description": "A single board card: tag, title, progress, owner, and due date.",
@@ -770,9 +783,58 @@
         "description": "A map whose circle markers are sized by the metric you choose, alongside a ranked list of the top places.",
         "emptyTitle": "No locations",
         "emptyBody": "Rows with latitude and longitude values appear here as map markers.",
-        "mapUnavailableLabel": "The map could not be loaded. The ranked list below shows the same data.",
+        "mapUnavailableLabel": "The map could not be reached. Here is the list.",
         "regionsLabel": "Top regions",
-        "metricLabel": "Metric"
+        "metricLabel": "Metric",
+        "mapsOffLabel": "Maps are switched off. Here is the list.",
+        "mapsOffLink": "Open Settings → Maps",
+        "mapLabel": "Map",
+        "zoomIn": "Zoom in",
+        "zoomOut": "Zoom out",
+        "byTown": "by town",
+        "pinMoveHint": "Drag to the exact spot. With the keyboard: Enter picks the pin up, the arrow keys move it, Enter keeps the spot and Escape puts it back.",
+        "sharedTown": "{count, plural, one {# place is} other {# places are}} known only by this town",
+        "stopsLabel": "Stops",
+        "placesLabel": "Places",
+        "areasLabel": "Areas",
+        "legAbout": "about {distance} from the stop before",
+        "legExact": "{distance} from the stop before",
+        "legUnknown": "distance from the stop before unknown",
+        "openInMaps": "Open in my maps app",
+        "openOnMapsSite": "Open on OpenStreetMap (new tab)",
+        "legDrive": "{duration} drive",
+        "totalAbout": "The whole way: about {distance}",
+        "totalExact": "The whole way: {distance}",
+        "tryAgain": "Try again",
+        "saidTrying": "Trying the map again.",
+        "routeUnavailable": "The way between the stops could not be worked out, so the distances are unknown.",
+        "placingHint": "Click the map where {name} is. With the keyboard: focus the map, move it with the arrow keys, and press Enter to put {name} under the cross.",
+        "placeAtMiddle": "Place it at the middle of the map",
+        "placingStop": "Stop placing",
+        "saidPlaced": "{name} placed at {position}.",
+        "saidPlaceRefused": "{name} was not placed.",
+        "cornerLabel": "Corner {number}",
+        "areaChangeHint": "Drag a corner to move it. Pick a corner to remove it or to add one after it.",
+        "areaDrawHint": "Click the map to add the corners of the area, then close the shape.",
+        "areaAddCornerHere": "Add a corner at the middle of the map",
+        "areaClose": "Close the shape",
+        "areaInsertCorner": "Add a corner after this one",
+        "areaRemoveCorner": "Remove this corner",
+        "areaRestart": "Start again",
+        "areaDone": "Done",
+        "areaPickHint": "Pick an area on the map or in the list to change it.",
+        "areaNew": "Draw a new area",
+        "areaChange": "Change",
+        "areaUnnamed": "Area {number}",
+        "areaPoints": "{count, plural, one {# point} other {# points}}",
+        "areaPiecesHint": "This area has a hole or more than one piece. Those stay as they are while you change this outline. “Start again” replaces the whole area with one new shape.",
+        "listMore": "and {count, plural, one {# more} other {# more}}",
+        "saidCornerAdded": "Corner added. {count, plural, one {# corner} other {# corners}}.",
+        "saidShapeClosed": "Shape closed.",
+        "saidPinKept": "Pin kept at {position}.",
+        "saidPinPicked": "Pin picked up. Move it with the arrow keys, then press Enter to keep the spot or Escape to put it back.",
+        "saidPinBack": "The pin is back where it was.",
+        "saidPinRefused": "The new spot was not kept. The pin is back where it was."
       },
       "mapChoroplethGrid": {
         "description": "Region tiles tinted by value — for tables that carry region codes but no coordinates.",
@@ -781,6 +843,38 @@
         "legendLowLabel": "Low",
         "legendHighLabel": "High",
         "chartLabel": "Regional breakdown"
+      },
+      "place": {
+        "pinName": "This place",
+        "placeholder": "Type a town, or paste coordinates or a map link",
+        "searching": "Looking…",
+        "noTown": "No town by that name. Try another spelling, or paste coordinates.",
+        "searchFailed": "The town list could not be asked just now. Try again, or paste coordinates.",
+        "whereIAm": "Where I am",
+        "byTown": "By town: {name}",
+        "exact": "Exact spot: {position}",
+        "exactNamed": "Exact spot: {name} ({position})",
+        "pending": "Read when you save: {text}",
+        "none": "No place yet",
+        "clear": "Clear",
+        "whereError": "This device did not say where it is. Check that the browser may use your location.",
+        "issue": {
+          "unreadable": "This could not be read as a place. Choose a town from the list, or paste coordinates such as 30.0444, 31.2357.",
+          "shortLink": "A short link does not say where it leads, and it is not followed. Open it, then paste the full link or the coordinates.",
+          "outOfRange": "These coordinates are not on the map. Latitude runs from -90 to 90, longitude from -180 to 180.",
+          "unknown": "This town is not in the list any more. Choose it again."
+        }
+      },
+      "area": {
+        "points": "Area · {count, plural, one {# point} other {# points}}",
+        "unreadable": "The stored value is not an area. Draw one to replace it.",
+        "none": "No area yet",
+        "clear": "Clear",
+        "mapsOff": "An area is drawn on the map, and maps are switched off. The area that is stored is kept as it is.",
+        "issue": {
+          "unreadable": "This could not be read as an area. Draw it again.",
+          "tooLarge": "This area has too many points. Draw it with fewer."
+        }
       }
     },
     "domain": {
@@ -1522,6 +1616,45 @@
         "title": "Widget unavailable",
         "bodyLead": "No widget is registered as",
         "bodyTail": "It may belong to a newer version or an uninstalled extension."
+      },
+      "wholeOnly": {
+        "title": "For the whole team only",
+        "body": "This figure is the whole team’s. It is not shown to you, because your role reads only some of the rows it is worked out from."
+      }
+    },
+    "files": {
+      "tooLarge": "This file is too large for this field.",
+      "wrongType": "This kind of file is not taken here.",
+      "notAllowed": "You may not add files here.",
+      "notSent": "It could not be sent. Try again.",
+      "signature": {
+        "name": "Signature",
+        "pad": "Sign here with a finger, a pen or the mouse.",
+        "typedPad": "The name, written as the signature.",
+        "line": "Sign above the line",
+        "clear": "Clear",
+        "typeInstead": "Type the name instead",
+        "drawInstead": "Sign by hand instead",
+        "typedLabel": "Name, as the signature",
+        "keep": "Keep this signature",
+        "again": "Sign again",
+        "saving": "Sending the signature…",
+        "kept": "Signature kept.",
+        "cleared": "Signature cleared. Sign again.",
+        "empty": "Sign first, then keep the signature.",
+        "keptAlt": "The signature as kept"
+      },
+      "photos": {
+        "name": "Photos",
+        "add": "Add a photo",
+        "count": "{count} of {max}",
+        "full": "That is as many photos as this takes.",
+        "alt": "Photo {n}",
+        "remove": "Take photo {n} out",
+        "sending": "Sending…",
+        "added": "Photo added.",
+        "refused": "The photo was not kept: {reason}",
+        "removed": "Photo {n} taken out."
       }
     }
   },
@@ -1845,7 +1978,13 @@
     "board": {
       "invalidLayout": "This board’s stored layout is invalid. Regenerate the page or reset its layout.",
       "noRowsTitle": "No cards yet",
-      "noRowsBody": "Cards appear here as soon as the table has rows."
+      "noColumnsTitle": "No columns yet",
+      "noColumnsBody": "This board takes its columns from the rows of a table, and that table has no rows yet. Add one and it appears here as a column.",
+      "invalidOnly": "This board is set to show only some of its table’s rows, and that setting cannot be read, so the board is not drawn. Regenerate the page.",
+      "columnsError": "This board’s columns could not be read from {table}.",
+      "columnsCut": "{count, plural, one {Showing the first column only: the table this board takes its columns from has more rows.} other {Showing the first # columns: the table this board takes its columns from has more rows.}}",
+      "noRowsBody": "Cards appear here as soon as the table has rows.",
+      "days": "{count, plural, one {# day} other {# days}}"
     },
     "calendar": {
       "eventCount": "{count, plural, one {{n} event} other {{n} events}}",
@@ -1953,6 +2092,8 @@
       "unplaced": {
         "calendar": "None of this table’s rows has a date yet, so the calendar is empty. A row appears here as soon as it has one.",
         "board": "None of this table’s rows has a status yet, so the board is empty. A row appears here as soon as it has one.",
+        "boardColumns": "None of this table’s rows is in one of the board’s columns yet, so the board is empty. A row appears here as soon as it is put in one.",
+        "boardColumnsSome": "{count, plural, one {# row is in none of the board’s columns, so it is not shown here.} other {# rows are in none of the board’s columns, so they are not shown here.}}",
         "scheduler": "None of this table’s rows has a person, a date and a shift type yet, so the schedule is empty. A row appears here as soon as it has all three."
       }
     }
@@ -2092,5 +2233,8 @@
       "low": "Low",
       "out": "Out"
     }
+  },
+  "mentions": {
+    "people": "People to mention"
   }
 }

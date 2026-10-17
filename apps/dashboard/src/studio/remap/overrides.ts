@@ -226,6 +226,12 @@ export const COLUMN_OPS: ReadonlySet<string> = new Set([
   'column.codeLast4',
   'column.plainText',
   'column.customerKey',
+  'column.staff',
+  'column.mentions',
+  'column.place',
+  'column.area',
+  'column.linkable',
+  'column.file',
 ]);
 
 /** One staged op + its persistence status (`disabled` rows survive a PUT). */

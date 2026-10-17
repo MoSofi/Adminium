@@ -116,7 +116,7 @@
       "account": "Account"
     },
     "back": "Back",
-    "team": "Team",
+    "team": "People",
     "roles": "Roles & permissions",
     "audit": "Audit log",
     "security": "Password & sessions",
@@ -127,7 +127,9 @@
       "openStaff": "Open the staff screens",
       "openStaffInstance": "Open the staff screens · {instance}"
     },
-    "drawerTitle": "Navigation"
+    "drawerTitle": "Navigation",
+    "emptyPartsOff": "Nothing is switched on for you right now. Ask an administrator.",
+    "teams": "Teams"
   },
   "apps": {
     "frame": {
@@ -295,6 +297,15 @@
       "title": "This app opens on its own",
       "body": "It opens at its own address, not inside the dashboard.",
       "primary": "Open it"
+    },
+    "partOff": {
+      "title": "This part of the app is switched off",
+      "body": "An admin switched this part of the app off. Nothing was deleted — switch it on in Studio → Apps, under Parts.",
+      "secondary": "Go back"
+    },
+    "partsOff": {
+      "title": "Nothing is switched on for you",
+      "body": "Every role you hold belongs to a part of an app that is switched off right now. Nothing was deleted. Ask an administrator to switch that part on, or to give you another role."
     }
   },
   "notFound": {
@@ -1528,7 +1539,9 @@
     "event": {
       "reportReady": "Scheduled report ready",
       "reportFailed": "Scheduled report failed",
-      "backupCompleted": "Backup completed"
+      "backupCompleted": "Backup completed",
+      "ruleNotice": "A notice from a rule",
+      "mention": "Somebody mentioned me"
     }
   },
   "theme": {
@@ -1671,14 +1684,16 @@
       "remove": "Delete",
       "resend": "New link",
       "roles": "Roles",
-      "suspend": "Suspend"
+      "suspend": "Suspend",
+      "handOn": "Hand on rows"
     },
     "column": {
       "actions": "Actions",
       "lastSeen": "Last seen",
       "person": "Person",
       "roles": "Roles",
-      "status": "Status"
+      "status": "Status",
+      "teams": "Teams"
     },
     "counts": "{active} active · {invited} invited · {suspended} suspended",
     "empty": {
@@ -1738,7 +1753,15 @@
       "confirm": "Delete permanently",
       "prompt": "Type “{email}” to confirm",
       "title": "Delete account permanently",
-      "failed": "The account was not deleted"
+      "failed": "The account was not deleted",
+      "rows": {
+        "needed": "Choose who takes the rows first.",
+        "line": "{table}: {count}",
+        "to": "Hand them to",
+        "choose": "Choose a person…",
+        "kept": "Rows of private tables stay as they are: nobody else may read them.",
+        "unreadable": "Could not check {names}. Rows there may still name this person."
+      }
     },
     "roles": {
       "unavailable": "Roles are not visible to your account, so none can be assigned here."
@@ -1750,16 +1773,76 @@
     },
     "rolesLocked": "Changing roles needs the “Manage roles” permission.",
     "search": "Search name or email",
+    "sampleNote": "{count} sample people came with an app’s sample data. They cannot sign in, and removing the sample data removes them.",
     "status": {
       "active": "Active",
       "invited": "Invited",
+      "sample": "Sample person",
       "suspended": "Suspended"
     },
-    "subtitle": "Who has an account on this Adminium, and what each of them can do.",
-    "title": "Team",
+    "subtitle": "Everyone who can sign in, with their roles and teams.",
+    "title": "People",
     "twoFactorOn": "Two-factor authentication is on",
     "twoFactorShort": "2FA",
-    "actionFailed": "That change was not made"
+    "actionFailed": "That change was not made",
+    "teams": {
+      "title": "Teams",
+      "failed": "The team was not changed",
+      "over": "{name} leads more than {max} people. Only the first {max} are reached.",
+      "empty": "No teams yet",
+      "deleteTitle": "Delete “{name}”?",
+      "deleteBody": "Its lead stops reaching the members’ rows. Nobody’s account and nobody’s rows are touched.",
+      "delete": "Delete team",
+      "memberCount": "{count, plural, one {# person} other {# people}}",
+      "noMembers": "Nobody is in this team yet.",
+      "leads": "Leads",
+      "removeLabel": "Remove {name} from {team}",
+      "addMember": "Pick someone…",
+      "sample": "{name} (sample)",
+      "add": "Add",
+      "pageSubtitle": "Groups of people, each with someone who leads it.",
+      "notice": "A team decides whose records a person can open when their role says “their team’s”.",
+      "rolesLink": "Roles & access",
+      "newTeam": "New team",
+      "summary": "{teams, plural, one {# team} other {# teams}} · {people, plural, one {# person} other {# people}} in one or more",
+      "loadFailed": "The teams could not be read.",
+      "caption": "Teams, who leads each and who is in it",
+      "colTeam": "Team",
+      "colLead": "Lead",
+      "colMembers": "Members",
+      "noLead": "Nobody leads it",
+      "onlyLead": "Only the lead",
+      "inAll": "{names} · {count, plural, one {# person} other {# people}} in all",
+      "emptyBody": "Until there is one, a role set to “their team’s” opens the same rows as “their own”.",
+      "untitled": "Untitled team",
+      "sheetEyebrow": "Team",
+      "nameLabel": "Name",
+      "namePlaceholder": "e.g. North",
+      "people": "People",
+      "peopleHint": "Tick who leads. A lead’s “their team’s” covers everyone here.",
+      "addLabel": "Add a person",
+      "save": "Save team",
+      "needName": "Give the team a name first."
+    },
+    "teamLeads": "{team} (leads)",
+    "handOver": {
+      "title": "Hand their {count, plural, one {# row} other {# rows}} to…",
+      "remove": "{name} owns these. Removed for good, they would be nobody’s: choose who takes them.",
+      "suspend": "{name} owns these. Suspended, they stay {name}’s until somebody takes them.",
+      "later": "{name} is suspended and still owns these. Choose who takes them.",
+      "keep": "Nobody for now",
+      "laterTitle": "Hand {name}’s rows on",
+      "unknown": "Which rows name {name} could not be read.",
+      "none": "No row names {name}.",
+      "failed": "The rows were not handed over",
+      "confirm": "Hand them over"
+    },
+    "suspend": {
+      "title": "Suspend {name}?",
+      "body": "{name} can no longer sign in, and is signed out everywhere. Their account, roles and history stay, and you can reactivate them.",
+      "failed": "The account was not suspended",
+      "confirmHand": "Hand over and suspend"
+    }
   },
   "invoices": {
     "copySuffix": "{name} (copy)",
@@ -1782,5 +1865,30 @@
       "unread": "1 unread answer",
       "proposal": "A change is waiting for you"
     }
+  },
+  "quietHours": {
+    "title": "Quiet hours",
+    "leadOn": "In these hours a notice still shows in the bell, without a sound. Only its e-mail waits, and goes when they end. Something a rule marks urgent is sent at once.",
+    "leadOff": "Off. Notices and their e-mails arrive as they happen.",
+    "on": "On",
+    "off": "Off",
+    "zone": "Your time zone",
+    "zoneDefault": "The business’s ({zone})",
+    "days": "Days and times",
+    "fromShort": "From",
+    "toShort": "to",
+    "from": "Quiet from, {day}",
+    "to": "Quiet until, {day}",
+    "endsOn": "ends {day}",
+    "copy": "Use {day}’s times every day",
+    "example": "An e-mail that comes at {from} on {day} is sent at {to} on {endDay}, unless its kind is ticked below.",
+    "always": "Still tell me at once about…",
+    "alwaysNote": "Summaries keep their own day and time, below.",
+    "summariesTitle": "Summaries",
+    "summariesLead": "E-mails a rule sends you with your own rows, such as a weekly digest. Each is an e-mail: in your quiet hours it waits like any other.",
+    "summariesOff": "Off. No rule sends you a summary. Your day and time are kept for when you switch them on.",
+    "digestDay": "Day",
+    "digestWhenRun": "The day each one is made",
+    "digestTime": "Time"
   }
 }

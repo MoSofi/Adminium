@@ -10,23 +10,26 @@ import {
   useSensors,
 } from '@dnd-kit/core';
 import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core';
-import { useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import type { KeyboardEvent as ReactKeyboardEvent, ReactNode } from 'react';
 
 import { BoardCard } from './BoardCard.js';
 import { useMaybeT } from '../../lib/i18n.js';
 
 import {
+  BoardAddRefusalNotice,
   BoardLiveRegion,
+  BoardRefusalNotice,
   DraggableCard,
   DroppableCell,
   announcementsFromTemplates,
   silentDndAnnouncements,
   useBoardAnnouncements,
+  useAnnounceAddRefusal,
   useBoardMoves,
   useLiveRegion,
 } from './board-dnd.js';
-import type { BoardAnnouncements, MoveResult } from './board-dnd.js';
+import type { BoardAddRefusal, BoardAnnouncements, MoveResult } from './board-dnd.js';
 import { boardRowsOf, resolveColumns, resolveLanes, sumPoints, toBoardCard } from './board-lib.js';
 import type { BoardCardData, ColumnDef, LaneDef } from './board-lib.js';
 import type { KanbanSwimlaneGridConfig } from './boards-config.js';
@@ -98,6 +101,9 @@ export interface KanbanSwimlaneGridProps {
       ) => MoveResult)
     | undefined;
   onCardOpen?: ((cardId: string) => void) | undefined;
+  /** An add made for this board and refused (a composer beside it): shown where a refused move is, and said aloud. */
+  addRefusal?: BoardAddRefusal | null | undefined;
+  onDismissAddRefusal?: (() => void) | undefined;
   testId?: string | undefined;
 }
 
@@ -110,11 +116,14 @@ export function KanbanSwimlaneGrid({
   labels,
   onCardMove,
   onCardOpen,
+  addRefusal,
+  onDismissAddRefusal,
   testId,
 }: KanbanSwimlaneGridProps) {
   const t = useMaybeT();
   const [activeId, setActiveId] = useState<string | null>(null);
   const { message, announce } = useLiveRegion();
+  useAnnounceAddRefusal(addRefusal, announce);
   const announcements: BoardAnnouncements = useBoardAnnouncements(labels?.announcements);
   const summary =
     labels?.laneSummary ??
@@ -129,7 +138,10 @@ export function KanbanSwimlaneGrid({
     return `${lane} · ${column}`;
   };
 
+  // The grid's own element, and its scroller: a keyboard move is followed inside it.
+  const root = useRef<HTMLDivElement>(null);
   const moves = useBoardMoves({
+    root,
     cards,
     naturalCellKey: (card) => encodeCell(card.lane ?? '', card.column),
     cellLabel,
@@ -219,8 +231,10 @@ export function KanbanSwimlaneGrid({
   );
 
   return (
-    <div dir={dir} data-widget="kanban-swimlane-grid" data-testid={testId} className="flex h-full flex-col overflow-auto">
+    <div ref={root} dir={dir} data-widget="kanban-swimlane-grid" data-board-scroller="" data-testid={testId} className="flex h-full flex-col overflow-auto">
       <BoardLiveRegion message={message} />
+      <BoardRefusalNotice refusal={moves.refusal} onDismiss={moves.dismissRefusal} />
+      <BoardAddRefusalNotice refusal={addRefusal} onDismiss={() => onDismissAddRefusal?.()} />
       <DndContext
         sensors={sensors}
         collisionDetection={closestCorners}
@@ -296,13 +310,17 @@ function sourceOf(config: KanbanSwimlaneGridConfig): { connectionId?: string | u
 }
 
 export function KanbanSwimlaneGridWidget({ config, data, onEvent }: WidgetProps<KanbanSwimlaneGridConfig>) {
-  const rows = boardRowsOf(data);
-  const cards = rows.map((row, index) =>
-    toBoardCard(row, index, {
-      columnField: config.columnField,
-      laneField: config.laneField,
-      titleField: config.titleField,
-    }),
+  // One array for one answer: the board lets go of a saved move when NEW cards arrive, and tells by the array.
+  const cards = useMemo(
+    () =>
+      boardRowsOf(data).map((row, index) =>
+        toBoardCard(row, index, {
+          columnField: config.columnField,
+          laneField: config.laneField,
+          titleField: config.titleField,
+        }),
+      ),
+    [data, config.columnField, config.laneField, config.titleField],
   );
   const columns = resolveColumns(cards, config.columnDefs);
   const lanes = resolveLanes(cards, config.laneDefs);

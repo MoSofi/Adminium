@@ -296,6 +296,17 @@ export const usersRoutes: FastifyPluginAsyncZod = async (app) => {
   }
 
   /** Locking yourself out is never the intent behind a click. */
+  /**
+   * A person an app's sample data made is the sample's: not renamed, given a
+   * password, suspended, deleted or re-roled by hand. Removing the sample
+   * data removes them.
+   */
+  function assertNotSample(user: User): void {
+    if (user.status === 'sample') {
+      throw new ConflictError('This is a sample person. Removing the app\'s sample data removes them.', 'CONFLICT', { reason: 'SAMPLE_PERSON' });
+    }
+  }
+
   function assertNotSelf(request: FastifyRequest, user: User, action: string): void {
     if (actingUserId(request) === user.id) {
       throw new ConflictError(`You cannot ${action} your own account.`, 'CONFLICT', {
@@ -405,6 +416,7 @@ export const usersRoutes: FastifyPluginAsyncZod = async (app) => {
     async (request) => {
       const user = await mustFindUser(request.params.id);
       await assertMayActOnAccount(request, user);
+      assertNotSample(user);
       const { name, email } = request.body;
       /** `null` when the body omits status or restates the current one. */
       const status =
@@ -477,8 +489,27 @@ export const usersRoutes: FastifyPluginAsyncZod = async (app) => {
       const user = await mustFindUser(request.params.id);
       const permanent = request.query.permanent === true;
       await assertMayActOnAccount(request, user);
+      assertNotSample(user);
       assertNotSelf(request, user, permanent ? 'delete' : 'suspend');
       await assertNotLastSuperAdmin(user);
+      // Their rows go to whoever the caller names, now that every guard on the account has passed and before it changes:
+      // a hand-over the server then refused the removal for would be rows moved for nothing, and it cannot be undone.
+      const decorated = app as unknown as {
+        rowsNamingUser?: (userId: string) => Promise<{ total: number; named: unknown[]; private: boolean }>;
+        handUserRows?: (from: User, toId: string, audit: (entry: { action: string; changes: { before: Record<string, unknown>; after: Record<string, unknown> } }) => Promise<void>) => Promise<{ failed: unknown[] }>;
+      };
+      if (request.query.handTo !== undefined) {
+        if (decorated.handUserRows === undefined) throw new ConflictError('This server cannot hand rows over.', 'CONFLICT', { reason: 'HAND_OVER_UNAVAILABLE' });
+        await decorated.handUserRows(user, request.query.handTo, (entry) => app.rbac.audit(request, { category: 'rbac', ...entry }));
+      }
+      // Gone for good, the rows that are still theirs would be nobody's that a colleague limited to "their own" could
+      // reach. A private table's rows stay where they are, and are said only to be there.
+      if (permanent) {
+        const held = decorated.rowsNamingUser === undefined ? null : await decorated.rowsNamingUser(user.id);
+        if (held !== null && held.total > 0) {
+          throw new ConflictError('Rows are still this person\'s. Hand them to somebody else as you remove them.', 'CONFLICT', { reason: 'HAS_ROWS', rows: held.total, named: held.named, private: held.private });
+        }
+      }
 
       const now = app.rbac.now();
       const before = {
@@ -523,6 +554,7 @@ export const usersRoutes: FastifyPluginAsyncZod = async (app) => {
     async (request) => {
       const user = await mustFindUser(request.params.id);
       await assertMayActOnAccount(request, user);
+      assertNotSample(user);
       const after = await resolveRoles(request.body.roleIds);
       const before = await roles.rolesForUser(user.id);
       await assertMayMintSuperAdmin(request, before, after);
@@ -555,6 +587,7 @@ export const usersRoutes: FastifyPluginAsyncZod = async (app) => {
     async (request) => {
       const user = await mustFindUser(request.params.id);
       await assertMayActOnAccount(request, user);
+      assertNotSample(user);
       if (user.status !== 'invited') {
         throw new ConflictError('This account has already been activated.', 'CONFLICT', {
           userId: user.id,

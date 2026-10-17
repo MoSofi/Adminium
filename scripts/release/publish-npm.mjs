@@ -104,7 +104,7 @@ const FLAGSHIP = '@adminium/server';
  * Dashboard-only libraries. None of them may reach the flagship's dependency
  * lists: the server never loads them, and the dashboard ships pre-built.
  */
-const BROWSER_ONLY = [/^react$/, /^react-dom$/, /^lucide-react$/, /^leaflet$/, /^@radix-ui\//, /^@dnd-kit\//, /^@tanstack\//, /^d3-/];
+const BROWSER_ONLY = [/^react$/, /^react-dom$/, /^lucide-react$/, /^maplibre-gl$/, /^@maplibre\//, /^@radix-ui\//, /^@dnd-kit\//, /^@tanstack\//, /^d3-/];
 
 /** Workspace dirs holding `@adminium/*` packages (apps/server is the CLI flagship). */
 const WORKSPACE_GLOBS = ['packages', 'apps'];

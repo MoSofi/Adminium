@@ -29,15 +29,22 @@
  * the trace, and the trace line is built from the trimmed address the same
  * way the comp draws it. A masked column stays out of the token map for
  * every other purpose (`templating.ts`).
+ *
+ * A mail TO A PERSON (`to.kind: staff`) is not about them: it goes only to
+ * somebody who can open the record, and reads it as they do — a column their
+ * role is not shown is empty, a personal column is there only when they are
+ * shown that table's personal columns (`record-link.ts` `tokensAs`).
  */
 
 import {
   connectionTenantConfig,
   emailTemplatesRepo,
   settingsRepo,
+  usersRepo,
   type AutomationAction,
   type EmailTemplate,
   type MetaDb,
+  type User,
 } from '@adminium/meta';
 
 import { createSmtpTransport, emailSecretKey, resolveSmtpConfig } from '../../email/config.js';
@@ -51,6 +58,12 @@ import { valueForms } from '../../outbox/sender.js';
 import { parseRelated } from '../related.js';
 import { resolveRuleTemplate, templateRequiredPlaceholders } from '../templates.js';
 import { substitute, tokensFor, type TokenMap } from '../templating.js';
+import { enqueueEmail } from '../../email/send.js';
+import { heldUntil } from '../../notifications/notify.js';
+import { readerOfRecord, recordUrlFor, tokensAs, type RecordReader } from '../record-link.js';
+import { listedAt } from '../listed-recipients.js';
+import { staffAt, staffReplyTo } from '../staff-recipient.js';
+import { AUTOMATION_NOTICE_KIND } from './notice-kind.js';
 import { ActionFailure, type ActionContext, type ActionResult } from './types.js';
 
 type EmailAction = Extract<AutomationAction, { kind: 'email' }>;
@@ -62,6 +75,8 @@ export function recipientsFor(action: EmailAction, ctx: ActionContext): string[]
   if (to.kind === 'fixed') {
     return to.addresses.map((address) => address.trim()).filter((address) => address.length > 0);
   }
+  // The person on the row is looked up, and written to through the queue (`runStaffEmail`): never an address read off a column.
+  if (to.kind === 'staff' || to.kind === 'listed') return [];
   if (ctx.source === null) return [];
   // The address of a related row: the order's customer's, `customer_id.email`.
   const related = parseRelated(to.column);
@@ -110,7 +125,7 @@ async function existsInAnyLocale(meta: MetaDb, key: string, locale: string): Pro
 // Where a template's placeholders are read: beside what a template key means, which this step also asks.
 export { templatePlaceholders } from '../templates.js';
 
-/** What every rule's email can read whatever its record is. */
+/** What every rule's email can read whatever its record is. A mail to a person (`to.kind: staff` or `listed`) also reads `recordUrl`. */
 export const RULE_EMAIL_VARS = ['now', 'ruleName', 'recordLabel', 'appName'] as const;
 
 /**
@@ -135,20 +150,24 @@ async function formattedValues(ctx: ActionContext, locale: string): Promise<Toke
   const own = source.table.columns.has('currency') ? source.row['currency'] : null;
   const currency = typeof own === 'string' && /^[A-Za-z]{3}$/.test(own.trim()) ? own.trim().toUpperCase() : null;
   const out: TokenMap = {};
+  const formatted = (name: string, column: { logicalType: string; secret: boolean }, value: unknown): string | undefined => {
+    if (value === null || value === undefined || value === '') return undefined;
+    if (column.logicalType === 'timestamp' || column.logicalType === 'timestamptz') return forms.instant(name, value)[name];
+    if (column.logicalType === 'date') return forms.day(name, value)[name];
+    if (source.table.table.columns.find((c) => c.name === name)?.semantics?.primary === 'money') return forms.money(value, currency);
+    return undefined;
+  };
   for (const [name, column] of source.table.columns) {
-    const value = source.row[name];
-    if (value === null || value === undefined || value === '') continue;
-    let text: string | undefined;
-    if (column.logicalType === 'timestamp' || column.logicalType === 'timestamptz') {
-      text = forms.instant(name, value)[name];
-    } else if (column.logicalType === 'date') {
-      text = forms.day(name, value)[name];
-    } else if (source.table.table.columns.find((c) => c.name === name)?.semantics?.primary === 'money') {
-      text = forms.money(value, currency);
+    // A secret is written in no mail, as a date or an amount no more than as it is stored.
+    if (column.secret) continue;
+    const text = formatted(name, column, source.row[name]);
+    if (text !== undefined) {
+      out[`record.${name}`] = text;
+      out[name] = text;
     }
-    if (text === undefined) continue;
-    out[`record.${name}`] = text;
-    out[name] = text;
+    // The record as it was before a change, read the same way.
+    const was = source.was === undefined || source.was === null ? undefined : formatted(name, column, source.was[name]);
+    if (was !== undefined) out[`was.${name}`] = was;
   }
   return out;
 }
@@ -163,8 +182,18 @@ async function formattedValues(ctx: ActionContext, locale: string): Promise<Toke
  * and sent about many tables, and `{{first_name}}` on a table whose column
  * is `name` is filled by the step saying so, not by renaming a column.
  */
-async function varsFor(action: EmailAction, ctx: ActionContext, locale: string): Promise<Record<string, string>> {
+async function varsFor(action: EmailAction, ctx: ActionContext, locale: string, reader?: RecordReader): Promise<Record<string, string>> {
   const appName = await settingsRepo(ctx.meta).get('branding.appName');
+  // A mail to a person: the record as they read it, a personal column only of a table whose personal columns they are shown.
+  if (reader !== undefined) {
+    const theirs = await tokensAs(ctx, reader, true);
+    // A date or an amount as a person reads it, of what they are shown and nothing else.
+    const formatted = Object.entries(await formattedValues(ctx, locale)).filter(([name]) => (theirs[name] ?? '') !== '');
+    const read: Record<string, string> = { ...theirs, ...Object.fromEntries(formatted), appName };
+    const mapped: Record<string, string> = {};
+    for (const [name, text] of Object.entries(action.vars)) mapped[name] = substitute(text, read);
+    return { ...read, ...mapped };
+  }
   const unmasked =
     ctx.source === null
       ? {}
@@ -176,6 +205,8 @@ async function varsFor(action: EmailAction, ctx: ActionContext, locale: string):
           now: ctx.now,
           includeMasked: true,
           related: ctx.source.related,
+          people: ctx.source.people,
+          was: ctx.source.was,
         });
   const read: Record<string, string> = { ...ctx.tokens, ...unmasked, ...(await formattedValues(ctx, locale)), appName };
   const mapped: Record<string, string> = {};
@@ -194,10 +225,80 @@ function listed(names: readonly string[]): string {
   return names.length > 5 ? `${shown} +${String(names.length - 5)}` : shown;
 }
 
+/**
+ * To the person on the row. Their address is looked up, the mail is written
+ * in their language, and it goes through the queue like a notice's email —
+ * so it can be held to the end of their quiet hours. Nobody in the column
+ * is a line in the log, not a failure.
+ */
+async function runStaffEmail(action: EmailAction & { to: { kind: 'staff'; column: string } }, ctx: ActionContext, dryRun: boolean): Promise<ActionResult> {
+  if (action.templateKey === null || action.templateKey === '') throw new ActionFailure('This step has no template.');
+  const found = await staffAt(ctx.meta, ctx, action.to.column);
+  if (!('user' in found)) return { log: ctx.text.staffNobody(action.to.column, found.nobody) };
+  const user = found.user;
+  // The mail is about the record: somebody named on it who cannot open it is not written to (an approver whose roles reach other deals).
+  const reader = await readerOfRecord(ctx, user.id);
+  if (reader === null) return { log: ctx.text.staffNobody(action.to.column, 'closed') };
+  return { log: await mailPerson(action, ctx, user, reader, dryRun) };
+}
+
+/**
+ * To each of the people a listing names for the record, who signs in and can
+ * open it now (`listed-recipients.ts`): one mail each, in their own language,
+ * read as they read the record, with its address. Nobody left is a line in the log.
+ */
+async function runListedEmail(action: EmailAction & { to: { kind: 'listed'; table: string } }, ctx: ActionContext, dryRun: boolean): Promise<ActionResult> {
+  if (action.templateKey === null || action.templateKey === '') throw new ActionFailure('This step has no template.');
+  const found = await listedAt(ctx, action.to.table);
+  if (found.told.length === 0) return { log: ctx.text.listedNobody(action.to.table, found.listed) };
+  const users = usersRepo(ctx.meta);
+  const said: string[] = [];
+  for (const id of found.told) {
+    const user = await users.findById(id);
+    const reader = user === null ? null : await readerOfRecord(ctx, user.id);
+    if (user !== null && reader !== null) said.push(await mailPerson(action, ctx, user, reader, dryRun));
+  }
+  if (said.length === 0) return { log: ctx.text.listedNobody(action.to.table, found.listed) };
+  return { log: said.join(' · ') };
+}
+
+/** One person's mail of a step: written in their language and as they read the record, queued (or, in a test run, drawn); the log's line for it. */
+async function mailPerson(action: EmailAction, ctx: ActionContext, user: User, reader: RecordReader, dryRun: boolean): Promise<string> {
+  const templateKey = action.templateKey as string;
+  const locale = await recipientLocale(ctx.meta, user.id);
+  const template = await resolveRuleTemplate(ctx.meta, templateKey, locale);
+  if (template === null) {
+    const exists = await existsInAnyLocale(ctx.meta, templateKey, locale);
+    throw new ActionFailure(exists ? `Template ${templateKey} is archived or switched off.` : `Template ${templateKey} no longer exists.`);
+  }
+  // The record's address, for a person who can open it: what a notice's e-mail button carries. Last, so neither a
+  // column nor a step's own vars named `recordUrl` can put another address in its place.
+  const vars = { ...(await varsFor(action, ctx, template.locale, reader)), recordUrl: await recordUrlFor(ctx, user) };
+  const unfilled = unfilledIn(template, vars);
+  if (dryRun) {
+    const prepared = await prepareEmail(ctx.meta, template);
+    const rendered = renderEmail({ ...prepared.render, locale: template.locale, vars, dir: 'ltr' });
+    if (unfilled.length > 0) throw new ActionFailure(ctx.text.emailUnfilledStop(listed(unfilled)));
+    return ctx.text.emailWould(rendered.subject, user.name);
+  }
+  const held = await heldUntil(ctx.meta, user.id, AUTOMATION_NOTICE_KIND, ctx.now);
+  const replyTo = await staffReplyTo(ctx.meta, ctx, action.replyTo?.staff);
+  const job = await enqueueEmail(
+    { meta: ctx.meta, secret: ctx.secret, ...(held === null ? {} : { runAt: held }) },
+    { to: user.email, templateKey, locale, vars, template, ...(replyTo === null ? {} : { replyTo }) } as never,
+  );
+  if (job === null) throw new ActionFailure(ctx.text.emailNoSmtp());
+  const said = [held === null ? ctx.text.emailQueued(user.name) : ctx.text.heldUntil(user.name, new Date(held).toISOString())];
+  if (unfilled.length > 0) said.push(ctx.text.emailUnfilled(listed(unfilled)));
+  return said.join(' · ');
+}
+
 export async function runEmailAction(
   action: EmailAction,
   ctx: ActionContext,
 ): Promise<ActionResult> {
+  if (action.to?.kind === 'staff') return runStaffEmail(action as EmailAction & { to: { kind: 'staff'; column: string } }, ctx, false);
+  if (action.to?.kind === 'listed') return runListedEmail(action as EmailAction & { to: { kind: 'listed'; table: string } }, ctx, false);
   const { template, recipients } = await resolve(action, ctx);
 
   const config = await resolveSmtpConfig(ctx.meta, emailSecretKey(ctx.secret));
@@ -211,11 +312,13 @@ export async function runEmailAction(
     { inline: inlineRefs(probe), attachments: prepared.attachments },
   );
   const transport = (ctx.createTransport ?? createSmtpTransport)(config);
+  // A reply goes to the person on the row, by the address they sign in with now; nobody there, and the mail has no Reply-To.
+  const replyTo = await staffReplyTo(ctx.meta, ctx, action.replyTo?.staff);
 
   const replies: string[] = [];
   for (const to of recipients) {
     try {
-      const result = await deliverPrepared({ transport, prepared, locale: template.locale, to, vars, parts });
+      const result = await deliverPrepared({ transport, prepared, locale: template.locale, to, vars, parts, ...(replyTo === null ? {} : { replyTo }) });
       replies.push(ctx.text.emailOk(result.response ?? '250 OK', to));
     } catch (error) {
       throw new ActionFailure(
@@ -234,6 +337,8 @@ export async function dryRunEmailAction(
   action: EmailAction,
   ctx: ActionContext,
 ): Promise<ActionResult> {
+  if (action.to?.kind === 'staff') return runStaffEmail(action as EmailAction & { to: { kind: 'staff'; column: string } }, ctx, true);
+  if (action.to?.kind === 'listed') return runListedEmail(action as EmailAction & { to: { kind: 'listed'; table: string } }, ctx, true);
   const { template, recipients } = await resolve(action, ctx);
   // Everything the real send does except the last line: the document is
   // resolved and RENDERED, so a broken template fails the test too.

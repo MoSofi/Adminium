@@ -126,7 +126,7 @@ export default {
       "account": "Konto"
     },
     "back": "Zurück",
-    "team": "Team",
+    "team": "Personen",
     "roles": "Rollen & Berechtigungen",
     "audit": "Audit-Log",
     "security": "Passwort & Sitzungen",
@@ -137,7 +137,9 @@ export default {
       "openStaff": "Mitarbeiterbildschirme öffnen",
       "openStaffInstance": "Mitarbeiterbildschirme öffnen · {instance}"
     },
-    "drawerTitle": "Navigation"
+    "drawerTitle": "Navigation",
+    "emptyPartsOff": "Für Sie ist gerade nichts eingeschaltet. Fragen Sie einen Administrator.",
+    "teams": "Teams"
   },
   "apps": {
     "frame": {
@@ -305,6 +307,15 @@ export default {
       "title": "Diese App öffnet sich eigenständig",
       "body": "Sie öffnet unter ihrer eigenen Adresse, nicht im Dashboard.",
       "primary": "Öffnen"
+    },
+    "partOff": {
+      "title": "Dieser Teil der App ist ausgeschaltet",
+      "body": "Ein Admin hat diesen Teil der App ausgeschaltet. Es wurde nichts gelöscht — schalten Sie ihn in Studio → Apps unter „Teile“ wieder ein.",
+      "secondary": "Zurück"
+    },
+    "partsOff": {
+      "title": "Für Sie ist nichts eingeschaltet",
+      "body": "Jede Ihrer Rollen gehört zu einem Teil einer App, der gerade ausgeschaltet ist. Es wurde nichts gelöscht. Bitten Sie einen Administrator, diesen Teil einzuschalten oder Ihnen eine andere Rolle zu geben."
     }
   },
   "notFound": {
@@ -1538,7 +1549,9 @@ export default {
     "event": {
       "reportReady": "Geplanter Bericht fertig",
       "reportFailed": "Geplanter Bericht fehlgeschlagen",
-      "backupCompleted": "Sicherung abgeschlossen"
+      "backupCompleted": "Sicherung abgeschlossen",
+      "ruleNotice": "Eine Meldung einer Regel",
+      "mention": "Jemand hat mich erwähnt"
     }
   },
   "theme": {
@@ -1681,14 +1694,16 @@ export default {
       "remove": "Löschen",
       "resend": "Neuer Link",
       "roles": "Rollen",
-      "suspend": "Sperren"
+      "suspend": "Sperren",
+      "handOn": "Zeilen übergeben"
     },
     "column": {
       "actions": "Aktionen",
       "lastSeen": "Zuletzt aktiv",
       "person": "Person",
       "roles": "Rollen",
-      "status": "Status"
+      "status": "Status",
+      "teams": "Teams"
     },
     "counts": "{active} aktiv · {invited} eingeladen · {suspended} gesperrt",
     "empty": {
@@ -1748,7 +1763,15 @@ export default {
       "confirm": "Endgültig löschen",
       "prompt": "Geben Sie „{email}“ zur Bestätigung ein",
       "title": "Konto endgültig löschen",
-      "failed": "Das Konto wurde nicht gelöscht"
+      "failed": "Das Konto wurde nicht gelöscht",
+      "rows": {
+        "needed": "Wähle zuerst, wer die Zeilen übernimmt.",
+        "line": "{table}: {count}",
+        "to": "Übergeben an",
+        "choose": "Person wählen …",
+        "kept": "Zeilen privater Tabellen bleiben, wie sie sind: Niemand sonst darf sie lesen.",
+        "unreadable": "{names} konnte nicht geprüft werden. Dort können Zeilen diese Person noch nennen."
+      }
     },
     "roles": {
       "unavailable": "Rollen sind für Ihr Konto nicht sichtbar, daher können hier keine zugewiesen werden."
@@ -1760,16 +1783,76 @@ export default {
     },
     "rolesLocked": "Zum Ändern von Rollen wird die Berechtigung „Rollen verwalten“ benötigt.",
     "search": "Name oder E-Mail suchen",
+    "sampleNote": "{count} Beispielpersonen stammen aus den Beispieldaten einer App. Sie können sich nicht anmelden und verschwinden, wenn die Beispieldaten entfernt werden.",
     "status": {
       "active": "Aktiv",
       "invited": "Eingeladen",
+      "sample": "Beispielperson",
       "suspended": "Gesperrt"
     },
-    "subtitle": "Wer ein Konto in diesem Adminium hat und was die einzelnen Personen dürfen.",
-    "title": "Team",
+    "subtitle": "Alle, die sich anmelden können, mit ihren Rollen und Teams.",
+    "title": "Personen",
     "twoFactorOn": "Zwei-Faktor-Authentifizierung ist aktiviert",
     "twoFactorShort": "2FA",
-    "actionFailed": "Diese Änderung wurde nicht vorgenommen"
+    "actionFailed": "Diese Änderung wurde nicht vorgenommen",
+    "teams": {
+      "title": "Teams",
+      "failed": "Das Team wurde nicht geändert",
+      "over": "{name} leitet mehr als {max} Personen. Nur die ersten {max} werden erreicht.",
+      "empty": "Noch keine Teams",
+      "deleteTitle": "„{name}“ löschen?",
+      "deleteBody": "Die Leitung erreicht die Zeilen der Mitglieder nicht mehr. Kein Konto und keine Zeile wird angetastet.",
+      "delete": "Team löschen",
+      "memberCount": "{count, plural, one {# Person} other {# Personen}}",
+      "noMembers": "In diesem Team ist noch niemand.",
+      "leads": "Leitet",
+      "removeLabel": "{name} aus {team} entfernen",
+      "addMember": "Person wählen …",
+      "sample": "{name} (Beispiel)",
+      "add": "Hinzufügen",
+      "pageSubtitle": "Gruppen von Personen, jede mit jemandem, der sie leitet.",
+      "notice": "Ein Team entscheidet, wessen Datensätze eine Person öffnen kann, wenn ihre Rolle „die ihres Teams“ sagt.",
+      "rolesLink": "Rollen & Zugriff",
+      "newTeam": "Neues Team",
+      "summary": "{teams, plural, one {# Team} other {# Teams}} · {people, plural, one {# Person} other {# Personen}} in mindestens einem",
+      "loadFailed": "Die Teams ließen sich nicht lesen.",
+      "caption": "Teams, wer sie leitet und wer dazugehört",
+      "colTeam": "Team",
+      "colLead": "Leitung",
+      "colMembers": "Mitglieder",
+      "noLead": "Niemand leitet es",
+      "onlyLead": "Nur die Leitung",
+      "inAll": "{names} · {count, plural, one {# Person} other {# Personen}} insgesamt",
+      "emptyBody": "Solange es keines gibt, öffnet eine Rolle mit „die ihres Teams“ dieselben Zeilen wie mit „die eigenen“.",
+      "untitled": "Team ohne Namen",
+      "sheetEyebrow": "Team",
+      "nameLabel": "Name",
+      "namePlaceholder": "z. B. Nord",
+      "people": "Personen",
+      "peopleHint": "Haken Sie an, wer leitet. „Die ihres Teams“ umfasst bei einer Leitung alle hier.",
+      "addLabel": "Person hinzufügen",
+      "save": "Team speichern",
+      "needName": "Geben Sie dem Team zuerst einen Namen."
+    },
+    "teamLeads": "{team} (leitet)",
+    "handOver": {
+      "title": "{count, plural, one {Ihre # Zeile} other {Ihre # Zeilen}} übergeben an …",
+      "remove": "Sie gehören {name}. Endgültig entfernt, gehörten sie niemandem mehr: Wählen Sie, wer sie übernimmt.",
+      "suspend": "Sie gehören {name}. Nach dem Sperren bleiben sie bei {name}, bis jemand sie übernimmt.",
+      "later": "{name} ist gesperrt, und sie gehören weiterhin {name}. Wählen Sie, wer sie übernimmt.",
+      "keep": "Vorerst niemand",
+      "laterTitle": "Zeilen von {name} übergeben",
+      "unknown": "Welche Zeilen {name} nennen, ließ sich nicht lesen.",
+      "none": "Keine Zeile nennt {name}.",
+      "failed": "Die Zeilen wurden nicht übergeben",
+      "confirm": "Übergeben"
+    },
+    "suspend": {
+      "title": "{name} sperren?",
+      "body": "{name} kann sich nicht mehr anmelden und wird überall abgemeldet. Konto, Rollen und Verlauf bleiben erhalten, und Sie können die Sperre aufheben.",
+      "failed": "Das Konto wurde nicht gesperrt",
+      "confirmHand": "Übergeben und sperren"
+    }
   },
   "invoices": {
     "copySuffix": "{name} (Kopie)",
@@ -1792,5 +1875,30 @@ export default {
       "unread": "1 ungelesene Antwort",
       "proposal": "Eine Änderung wartet auf dich"
     }
+  },
+  "quietHours": {
+    "title": "Ruhezeiten",
+    "leadOn": "In diesen Zeiten erscheint eine Meldung weiterhin in der Glocke, ohne Ton. Nur ihre E-Mail wartet und geht, wenn sie enden. Was eine Regel als dringend markiert, wird sofort gesendet.",
+    "leadOff": "Aus. Meldungen und ihre E-Mails kommen an, sobald sie entstehen.",
+    "on": "An",
+    "off": "Aus",
+    "zone": "Ihre Zeitzone",
+    "zoneDefault": "Die des Unternehmens ({zone})",
+    "days": "Tage und Zeiten",
+    "fromShort": "Von",
+    "toShort": "bis",
+    "from": "Ruhe ab, {day}",
+    "to": "Ruhe bis, {day}",
+    "endsOn": "endet {day}",
+    "copy": "Zeiten von {day} für jeden Tag verwenden",
+    "example": "Eine E-Mail, die am {day} um {from} kommt, wird am {endDay} um {to} gesendet, es sei denn, ihre Art ist unten angehakt.",
+    "always": "Trotzdem sofort melden bei …",
+    "alwaysNote": "Übersichten behalten ihren eigenen Tag und ihre eigene Zeit, siehe unten.",
+    "summariesTitle": "Übersichten",
+    "summariesLead": "E-Mails, die eine Regel Ihnen mit Ihren eigenen Zeilen sendet, etwa eine Wochenübersicht. Jede ist eine E-Mail: In Ihren Ruhezeiten wartet sie wie jede andere.",
+    "summariesOff": "Aus. Keine Regel sendet Ihnen eine Übersicht. Ihr Tag und Ihre Zeit bleiben gespeichert, bis Sie sie wieder einschalten.",
+    "digestDay": "Tag",
+    "digestWhenRun": "Am Tag, an dem sie erstellt werden",
+    "digestTime": "Uhrzeit"
   }
 } as const;

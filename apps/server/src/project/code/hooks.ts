@@ -163,6 +163,8 @@ export function createHookRunner(deps: HookRunnerDeps): RecordHooks {
         !(timing === 'after' && context.origin === 'import' && hook.definition.onImport !== true),
     );
     if (candidates.length === 0) return { key: '', hooks: [] };
+    // A private table's rows are handed to no code: a hook is the owner's, not one of the two people a row belongs to.
+    if ((target.table.table as { private?: true } | undefined)?.private === true) return { key: '', hooks: [] };
     const key = await deps.keyOf(target.connectionId);
     if (key === null) return { key: '', hooks: [] };
     return {

@@ -113,5 +113,74 @@ export default {
   "apps": {
     "every": "Åbn alle apps’ personaleskærme",
     "one": "Åbn personaleskærmene i {app}"
+  },
+  "rows": {
+    "locked": "Super Admin når alle rækker.",
+    "saveFirst": "Gem eller kassér først ændringerne i tilladelserne.",
+    "action": "Rækker",
+    "actionLabel": {
+      "read": "Læse",
+      "update": "Ændre",
+      "delete": "Slette"
+    },
+    "way": {
+      "person": "personen i {column}",
+      "listingDated": "enhver, der er opført for den i {table} den pågældende dag",
+      "listing": "enhver, der er opført for den i {table}",
+      "parent": "den, der kan nå dens {table}",
+      "whileIn": "så længe {column} er {values}",
+      "whileEmpty": "så længe {column} er tom",
+      "whileSet": "så længe {column} er udfyldt"
+    },
+    "follows": "Følger: {table}",
+    "belongs": "En række tilhører {ways}.",
+    "sentence": {
+      "all": "Alle rækker i {table}.",
+      "allWhile": "Alle rækker i {table}",
+      "team": "Kun rækker, der tilhører denne person eller en i et team, personen leder",
+      "own": "Kun rækker, der tilhører denne person",
+      "unowned": "og rækker, som ingen ejer endnu",
+      "while": "kun så længe {column} er {values}",
+      "by": "og kun dem, hvor {column} nævner dem",
+      "allWho": "Alle rækker i {table}, uanset hvem {column} er.",
+      "only": "Kun rækker i {table}, hvor {ways}",
+      "onlyTeam": "Kun rækker i {table}, hvor {ways}, eller en i et team, personen leder",
+      "onlyTeamWays": "Kun rækker i {table}, hvor {ways}, eller det samme for en i et team, personen leder"
+    },
+    "title": "Hvilke rækker “{role}” når",
+    "intro": "En rolle når alle rækker i en tabel, den må åbne, medmindre den begrænses her. En begrænsning gælder kun for en person, når alle roller, der giver personen tabellen, er begrænset.",
+    "loadFailed": "Tabellerne kunne ikke læses.",
+    "empty": {
+      "title": "Intet at begrænse",
+      "body": "Ingen tabel, som denne rolle må åbne, siger, hvem dens rækker tilhører."
+    },
+    "tryAs": "Prøv som",
+    "tryAsNone": "Ingen",
+    "samplePerson": "{name} (eksempel)",
+    "failed": "Rækkebegrænsningerne kunne ikke gemmes",
+    "private": "Læses af de personer, den enkelte række tilhører, og af ingen andre. Der er intet at vælge.",
+    "reachLabel": "{action}: hvilke rækker",
+    "reach": {
+      "all": "Alle rækker",
+      "own": "Egne",
+      "team": "Teamets",
+      "allWhile": "Alle rækker, kun så længe…"
+    },
+    "unowned": "og rækker, som ingen ejer endnu",
+    "widened": "Denne rolle åbner tabellen gennem en bredere tilladelse. Når en begrænsning gemmes, får rollen også tabellen ved navn.",
+    "count": "{name} ville se {reached} af {total} rækker i {table}.",
+    "capped": "Denne person leder flere, end én rækkevidde kan rumme, så hele teamet tælles ikke med.",
+    "lifted": "{name} har også {roles}, som giver alle rækker. Denne begrænsning gælder ikke for personen.",
+    "several": "Én af dem er nok. Appen har sat dem, og de bevares, som den skrev dem.",
+    "wayIs": {
+      "person": "{column} er denne person",
+      "listing": "denne person er opført i {table}",
+      "listingDated": "denne person er opført i {table} den pågældende dag",
+      "parent": "denne person kan nå dens {table}"
+    }
+  },
+  "partsOff": "Dens del af appen er slået fra: den giver intet, før delen er slået til.",
+  "people": {
+    "unnamed": "Unavngiven person"
   }
 } as const;

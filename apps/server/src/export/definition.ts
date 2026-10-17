@@ -52,6 +52,8 @@ export interface ExportDefinitionColumn {
   masked: boolean;
   /** Whether a plain decimal value may be written as a JSON number. */
   numeric: boolean;
+  /** A place column: a CSV cell writes it as `lat,lng`, which an import reads back. */
+  place?: true;
 }
 
 export interface ResolvedExportDefinition {
@@ -105,6 +107,7 @@ export async function resolveExportDefinition(
         kind: 'base',
         masked: column.masked && !canReadPii,
         numeric: isNumeric(column),
+        ...(column.geo === 'place' ? { place: true as const } : {}),
       })),
       select: undefined,
       requiredColumns: [],
@@ -236,6 +239,7 @@ export async function resolveExportDefinition(
       kind: 'base',
       masked: base !== undefined && base.masked && !canReadPii,
       numeric: base !== undefined && isNumeric(base),
+      ...(base?.geo === 'place' ? { place: true as const } : {}),
     };
   });
 

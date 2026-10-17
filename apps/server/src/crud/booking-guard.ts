@@ -36,7 +36,8 @@
  */
 import { sql, type Kysely } from 'kysely';
 
-import type { TableBookingRule, BookingHoursTable } from '../connections/effective-schema.js';
+import type { TableBookingRule, TableOccupiesRule, BookingHoursTable } from '../connections/effective-schema.js';
+import type { PlainBooking } from './column-rules.js';
 import type { SourceDatabase } from '../connections/manager.js';
 import { ConflictError, ValidationFailedError } from '../errors.js';
 import { minutesOf, numberOf, slotInstant, withNamedLock, type GuardTarget } from './capacity-guard.js';
@@ -45,6 +46,7 @@ import { venueClock, wallTimeToInstant } from './venue-time.js';
 
 type Db = Kysely<SourceDatabase>;
 
+const DAY = /^\d{4}-\d{2}-\d{2}$/;
 const WEEKDAYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'] as const;
 const DAY_MS = 86_400_000;
 
@@ -55,10 +57,27 @@ const off = (value: unknown) => value === false || value === 0 || value === '0' 
 const keyOf = (value: unknown) => (empty(value) ? '' : String(value));
 
 /** Whether a row, as it will be, takes time. An absent status is the default's, unknown here: counting it never double-books. */
-export function bookingCounts(rule: TableBookingRule, row: Row): boolean {
-  if (!has(row, rule.countWhere.column)) return true;
-  return rule.countWhere.values.includes(String(row[rule.countWhere.column]));
+export function bookingCounts(rule: TableBookingRule | PlainRule, row: Row): boolean {
+  const counted = isPlain(rule) ? rule.plain.countWhere : rule.countWhere;
+  if (counted === undefined || !has(row, counted.column)) return true;
+  return counted.values.includes(String(row[counted.column]));
 }
+
+/**
+ * THE PLAIN RULE (`table.occupies`): a row takes a resource for a time, with
+ * none of what booking people asks — no kind, nobody eligible, no grid, no
+ * window. It is carried where a booking rule would be and run by the same
+ * lock and the same steps; only the checks differ (`checkPlain`).
+ */
+export type PlainRule = PlainBooking;
+export const isPlain = (rule: TableBookingRule | PlainRule): rule is PlainRule => 'plain' in rule;
+
+/** The columns that place a row: where it sits and whose time it takes. */
+const placing = (rule: TableBookingRule | PlainRule): string[] =>
+  isPlain(rule) ? [rule.plain.start, rule.plain.minutes, rule.plain.end, rule.plain.day, rule.plain.until, rule.plain.resource].filter((column): column is string => column !== undefined) : [rule.start, rule.minutes, rule.resource, rule.kind];
+
+/** The column a refusal about the row's time is told against. */
+export const bookingColumn = (rule: TableBookingRule | PlainRule): string => (isPlain(rule) ? (rule.plain.start ?? rule.plain.day ?? rule.plain.resource) : rule.start);
 
 /** What a write asks of the guard: the placement checks, the overlap, or nothing. */
 export interface BookingNeed {
@@ -67,9 +86,11 @@ export interface BookingNeed {
 }
 
 /** Whether a column's new value differs from the stored one (a start compared as an instant). */
-function moved(rule: TableBookingRule, column: string, values: Row, before: Row): boolean {
+function moved(rule: TableBookingRule | PlainRule, column: string, values: Row, before: Row): boolean {
   if (!has(values, column)) return false;
-  if (column === rule.start) return slotInstant(values[column])?.getTime() !== slotInstant(before[column])?.getTime();
+  const instants = isPlain(rule) ? [rule.plain.start, rule.plain.end] : [rule.start];
+  if (instants.includes(column)) return slotInstant(values[column])?.getTime() !== slotInstant(before[column])?.getTime();
+  if (isPlain(rule) && (column === rule.plain.day || column === rule.plain.until)) return dateOf(values[column]) !== dateOf(before[column]);
   return keyOf(values[column]) !== keyOf(before[column]);
 }
 
@@ -78,23 +99,28 @@ function moved(rule: TableBookingRule, column: string, values: Row, before: Row)
  * count holds no time, and a counted row that stays where it is and stays
  * counted (a status step) is not re-judged.
  */
-export function bookingNeed(rule: TableBookingRule, values: Row, before: Row | null): BookingNeed | null {
+export function bookingNeed(rule: TableBookingRule | PlainRule, values: Row, before: Row | null): BookingNeed | null {
   const row = before === null ? values : { ...before, ...values };
   if (!bookingCounts(rule, row)) return null;
+  // A plain row with no resource, or no time yet, takes nothing: a visit waiting for its day.
+  if (isPlain(rule) && (empty(row[rule.plain.resource]) || empty(row[rule.plain.start ?? rule.plain.day ?? '']))) return null;
   if (before === null) return { placement: true };
-  const placement = [rule.start, rule.minutes, rule.resource, rule.kind].some((column) => moved(rule, column, values, before));
+  const placement = placing(rule).some((column) => moved(rule, column, values, before));
   if (placement) return { placement: true };
   // Counted again (a cancelled visit re-booked): only the overlap is asked.
   return bookingCounts(rule, before) ? null : { placement: false };
 }
 
 /** Whether a write could need the guard at all, before the stored row is read. */
-export function touchesBooking(rule: TableBookingRule, values: Row): boolean {
-  return [rule.start, rule.minutes, rule.resource, rule.kind, rule.countWhere.column].some((column) => has(values, column));
+export function touchesBooking(rule: TableBookingRule | PlainRule, values: Row): boolean {
+  const counted = isPlain(rule) ? rule.plain.countWhere?.column : rule.countWhere.column;
+  return [...placing(rule), ...(counted === undefined ? [] : [counted])].some((column) => has(values, column));
 }
 
 /** The venue day a row will hold, or null when its start is not a time. */
-export function bookingDay(rule: TableBookingRule, row: Row, zone: string): string | null {
+export function bookingDay(rule: TableBookingRule | PlainRule, row: Row, zone: string): string | null {
+  // A plain rule's rows may run past midnight, so its lock is the resource's, not a day's: every writer of that resource takes turns.
+  if (isPlain(rule)) return empty(row[rule.plain.resource]) ? null : `of|${keyOf(row[rule.plain.resource])}`;
   const instant = slotInstant(row[rule.start]);
   return instant === null ? null : venueClock(instant, zone).day;
 }
@@ -129,9 +155,13 @@ const FIELD_CODES: Record<Refusal, string> = {
   BOOKING_TAKEN: 'taken',
 };
 
-/** The error a refusal is thrown as: a 409 for what another row or day holds, a 422 for a time never offered. */
-export function bookingRefusal(reason: Refusal, column: string): Error {
-  if (reason === 'BOOKING_TAKEN') return new ConflictError('That time has just gone.', 'BOOKING_TAKEN', { column });
+/**
+ * The error a refusal is thrown as: a 409 for what another row or day holds, a 422 for a time never offered.
+ * `days`: the row is a span of whole days, and the sentence says so. Nothing of the row in the way is told —
+ * not its key, not its days: the caller may not be able to read it.
+ */
+export function bookingRefusal(reason: Refusal, column: string, days = false): Error {
+  if (reason === 'BOOKING_TAKEN') return new ConflictError(days ? 'Those days overlap another entry.' : 'That time has just gone.', 'BOOKING_TAKEN', { column });
   if (reason === 'BOOKING_CLOSED') return new ConflictError('That day is closed.', 'BOOKING_CLOSED', { column });
   const message =
     reason === 'BOOKING_NOT_OFFERED'
@@ -456,10 +486,14 @@ function judgeDay(rule: TableBookingRule, ctx: BookingDayContext, input: Booking
  * write's transaction.
  */
 export async function checkBooking(
-  rule: TableBookingRule,
+  rule: TableBookingRule | PlainRule,
   target: GuardTarget,
   input: Omit<BookingCheck, 'isPublic'>,
 ): Promise<Row> {
+  if (isPlain(rule)) {
+    await checkPlain(rule.plain, target, input);
+    return {};
+  }
   const check: Judged = {
     ...input,
     isPublic: target.origin === 'public',
@@ -498,6 +532,105 @@ function pickValue(key: string): string | number {
   return /^-?\d+$/.test(key) && Number.isSafeInteger(Number(key)) ? Number(key) : key;
 }
 
+
+/* ---------------------------------------------------------- the plain rule */
+
+/** The longest a plain row may last, in days; its neighbours are read that far either side, and a day more for the clocks. */
+const PLAIN_LONGEST_DAYS = 30;
+const PLAIN_REACH_DAYS = PLAIN_LONGEST_DAYS + 1;
+
+/**
+ * The plain rule's two questions, under the day's lock and inside the
+ * write's transaction: the resource works that weekday (and, for a timed
+ * row, at that time), and no other counted row of it overlaps — unless the
+ * rule says rows share the time. Neighbours are read a little wide and
+ * compared here, as a booking's are: text times do not sort on every engine.
+ */
+async function checkPlain(rule: TableOccupiesRule, target: GuardTarget, input: Omit<BookingCheck, 'isPublic'>): Promise<void> {
+  const { db } = target;
+  const zone = target.timezone ?? 'UTC';
+  const row = input.row;
+  const resource = row[rule.resource];
+  if (empty(resource)) return;
+  const column = rule.start ?? rule.day ?? rule.resource;
+  let day: string;
+  let span: { start: number; end: number } | null = null;
+  // A span of whole days: its last day, or null while it has no end.
+  let last: string | null = null;
+  if (rule.day !== undefined) {
+    day = dateOf(row[rule.day]);
+    if (!DAY.test(day)) throw bookingRefusal('BOOKING_OUT_OF_RANGE', column);
+    if (rule.until !== undefined && !empty(row[rule.until])) {
+      last = dateOf(row[rule.until]);
+      // It ends on the day it starts, or later.
+      if (!DAY.test(last) || last < day) throw bookingRefusal('BOOKING_OUT_OF_RANGE', rule.until);
+    }
+  } else {
+    const start = slotInstant(row[rule.start as string]);
+    if (start === null) throw bookingRefusal('BOOKING_OUT_OF_RANGE', column);
+    const end = rule.end !== undefined ? (slotInstant(row[rule.end])?.getTime() ?? Number.NaN) : start.getTime() + Number(row[rule.minutes as string]) * 60_000;
+    // It ends after it starts, and within the reach its neighbours are read over: a longer row could overlap one that is never read.
+    if (!Number.isFinite(end) || end <= start.getTime() || end - start.getTime() > PLAIN_LONGEST_DAYS * DAY_MS) throw bookingRefusal('BOOKING_OUT_OF_RANGE', rule.end ?? (rule.minutes as string));
+    span = { start: start.getTime(), end };
+    day = venueClock(start, zone).day;
+  }
+
+  // The resource's own week: a weekday it has no row for is a day it does not work. Asked of every row that
+  // starts to count, a re-booked one too: a visit left waiting on a Sunday is not booked there.
+  const hours = rule.hours;
+  if (hours !== undefined) {
+    const rows = (await db
+      .selectFrom(hours.table)
+      .selectAll()
+      .where((eb) => eb(db.dynamic.ref(hours.resource), '=', resource as never))
+      .where((eb) => eb(db.dynamic.ref(hours.weekday), '=', weekdayOf(day)))
+      .execute()) as Row[];
+    if (rows.length === 0) {
+      // A resource with no week written down at all keeps none, and is held to none: a crew made a minute ago can be booked.
+      const any = await db.selectFrom(hours.table).select(db.dynamic.ref(hours.weekday)).where((eb) => eb(db.dynamic.ref(hours.resource), '=', resource as never)).limit(1).execute();
+      if (any.length > 0) throw bookingRefusal('BOOKING_CLOSED', column);
+    } else if (span !== null && hours.opens !== undefined && hours.closes !== undefined) {
+      const clock = venueClock(new Date(span.start), zone);
+      const minutes = (span.end - span.start) / 60_000;
+      const fits = rows.some((one) => {
+        const opens = minutesOf(one[hours.opens as string]);
+        const closes = minutesOf(one[hours.closes as string]);
+        return opens !== null && closes !== null && clock.minute >= opens && clock.minute + minutes <= closes;
+      });
+      if (!fits) throw bookingRefusal('BOOKING_OUT_OF_HOURS', column);
+    }
+  }
+  if (rule.shared === true) return;
+
+  // No other counted row of the resource in that time.
+  const ownPk = input.before === null ? null : pkOf(target.table.primaryKey, input.before);
+  const where = rule.day !== undefined ? rule.day : (rule.start as string);
+  let query = db.selectFrom(target.table.id).selectAll().where((eb) => eb(db.dynamic.ref(rule.resource), '=', resource as never));
+  const until = rule.until;
+  if (until !== undefined) {
+    // Every row of the resource that starts on or before this one's last day and has not ended before its first.
+    if (last !== null) query = query.where((eb) => eb(db.dynamic.ref(where), '<=', last));
+    query = query.where((eb) => eb.or([eb(db.dynamic.ref(until), 'is', null), eb(db.dynamic.ref(until), '>=', day)]));
+  } else if (rule.day !== undefined) query = query.where((eb) => eb(db.dynamic.ref(where), '=', day));
+  else query = query.where((eb) => eb(db.dynamic.ref(where), '>=', addDays(day, -PLAIN_REACH_DAYS))).where((eb) => eb(db.dynamic.ref(where), '<', addDays(day, PLAIN_REACH_DAYS + 1)));
+  const counted = rule.countWhere;
+  if (counted !== undefined) query = query.where((eb) => eb(db.dynamic.ref(counted.column), 'in', counted.values));
+  for (const other of (await query.execute()) as Row[]) {
+    if (pkOf(target.table.primaryKey, other) === ownPk) continue;
+    if (until !== undefined) {
+      // Compared again here, as the days the driver hands back: both ends are counted, and no end is open for good.
+      const from = dateOf(other[rule.day as string]);
+      const to = empty(other[until]) ? null : dateOf(other[until]);
+      if ((last === null || from <= last) && (to === null || to >= day)) throw bookingRefusal('BOOKING_TAKEN', column, true);
+      continue;
+    }
+    if (span === null) throw bookingRefusal('BOOKING_TAKEN', column);
+    const theirs = slotInstant(other[rule.start as string]);
+    if (theirs === null) continue;
+    const ends = rule.end !== undefined ? (slotInstant(other[rule.end])?.getTime() ?? theirs.getTime()) : theirs.getTime() + Math.max(0, Number(other[rule.minutes as string] ?? 0)) * 60_000;
+    if (theirs.getTime() < span.end && ends > span.start) throw bookingRefusal('BOOKING_TAKEN', column);
+  }
+}
 
 /* ------------------------------------------------------------ availability */
 

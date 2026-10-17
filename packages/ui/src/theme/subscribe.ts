@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Non-React theme subscription — for Leaflet tile swaps, chart
+ * Non-React theme subscription — for map style swaps, chart
  * re-tints, Electron `nativeTheme` mirroring. ThemeProvider emits AFTER
  * the DOM attributes are committed (behavior 5).
  */

@@ -23,6 +23,7 @@ import { getPageTemplateManifest } from '@adminium/widgets/generate';
 import { applyClassification } from '../classify/index.js';
 import { isTableBoundTemplate } from '../config-schema/table-bound.js';
 import { parseDatabaseModel, type DatabaseModel } from '../schema-model.js';
+import { boardColumnsOf } from './board-columns.js';
 import { templateFit, type TemplateFit } from './fit.js';
 
 export interface ManifestPageInput {
@@ -30,6 +31,8 @@ export interface ManifestPageInput {
   template: string;
   /** Page-local name → `requiredSchema` table ref. */
   bindings?: Readonly<Record<string, string>> | undefined;
+  /** The page's own settings; `board` (a board's named columns) is the part read here. */
+  config?: Readonly<Record<string, unknown>> | undefined;
 }
 
 export interface ManifestColumnInput {
@@ -44,7 +47,14 @@ export interface ManifestColumnInput {
   /** `text` only: installed as `varchar(maxLength)`. */
   maxLength?: number | undefined;
   /** A `code` rule makes a text column exactly as wide as its codes. */
-  rules?: { code?: { prefix?: string | undefined; length: number } | undefined } | undefined;
+  rules?:
+    | {
+        code?: { prefix?: string | undefined; length: number } | undefined;
+        /** A json column that holds a position on the map, or an area. */
+        place?: true | undefined;
+        area?: true | undefined;
+      }
+    | undefined;
 }
 
 export interface ManifestPagesInput {
@@ -167,6 +177,9 @@ export function modelFromRequiredSchema(manifest: ManifestPagesInput): DatabaseM
           return base;
         }
         base['logicalType'] = LOGICAL[column.type] ?? 'text';
+        // As the install's rules say it: the generator reads these two off the column.
+        if (column.rules?.place === true) base['place'] = true;
+        if (column.rules?.area === true) base['area'] = true;
         const code = column.rules?.code;
         if (column.type === 'text' && column.maxLength !== undefined) {
           base['logicalType'] = 'varchar';
@@ -263,7 +276,9 @@ export function checkManifestPages(manifest: ManifestPagesInput): ManifestPageIs
     }
 
     model ??= modelFromRequiredSchema(manifest);
-    const fit = templateFit(model, `${SCHEMA}.${table}`, page.template);
+    // A board that names its columns is judged as that board: a table of deals with no workflow enum carries one.
+    const board = page.template === 'page-board' ? boardColumnsOf(page.config?.['board'], (name) => (declared.has(name) ? `${SCHEMA}.${name}` : undefined)) : null;
+    const fit = templateFit(model, `${SCHEMA}.${table}`, page.template, board === null ? {} : { board });
     if (!fit.satisfied) {
       const slots = fit.unfilled.map((s) => s.slot).join(', ');
       issues.push({

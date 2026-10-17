@@ -905,7 +905,8 @@
       "checkSubtitle": "Zkontrolujte tabulky, které tato verze používá.",
       "pickFirst": "Před aktualizací vyberte, co udělat s {table}.",
       "checkFirst": "Před aktualizací tabulky zkontrolujte znovu.",
-      "nothingYet": "Dokud nestisknete Aktualizovat, nic se nezmění."
+      "nothingYet": "Dokud nestisknete Aktualizovat, nic se nezmění.",
+      "rolesSubtitle": "Zkontrolujte, co smějí role této verze dělat s tabulkami doplňků."
     },
     "veto": {
       "title": "Toto nasazení nemůže procházet online",
@@ -2065,6 +2066,8 @@
         "rollupBalance": "a udržuje {balance} = {of} − {minus} − tento součet",
         "rollupCap": "Zápis, který by snížil zůstatek pod nulu, je odmítnut.",
         "rollupCapUnless": "Zápis, který by snížil zůstatek pod nulu, je odmítnut, pokud není u řádku zapnuto {column}.",
+        "rollupLatest": "{of} z nejnovějšího řádku v {from}, podle {by}",
+        "rollupLatestRow": "a klíč toho řádku drží v {row}",
         "stampToday": "datum",
         "stampClaim": "{column} přihlášené osoby",
         "stampAddDays": "{date} plus {days} dní",
@@ -2555,6 +2558,11 @@
       "heading": "Mapování dokumentů",
       "body": "Určete, ze které tabulky se vytváří faktura, stvrzenka nebo výpis, co je spouští a komu se posílají e-mailem.",
       "cta": "Otevřít mapování dokumentů"
+    },
+    "mapsCard": {
+      "heading": "Mapy",
+      "body": "Zda se zobrazují mapy, kterých serverů se systém ptá a co se každý z nich dozví.",
+      "cta": "Otevřít mapy"
     }
   },
   "source": {
@@ -3129,7 +3137,9 @@
       "advice": "Požádejte vedoucího, aby ji zapnul v {app} → Nastavení.",
       "signOut": "Odhlásit se",
       "noAccess": "Tento účet nemůže otevřít {app}.",
-      "noAccessAdvice": "Požádejte svého vedoucího o roli, která otevírá {app}."
+      "noAccessAdvice": "Požádejte svého vedoucího o roli, která otevírá {app}.",
+      "partsOff": "V aplikaci {app} pro vás není nic zapnuto.",
+      "partsOffAdvice": "Každá vaše role patří k vypnuté části aplikace {app}. Požádejte nadřízeného, aby ji zapnul nebo vám přidělil jinou roli."
     },
     "notFound": {
       "title": "Stránka nenalezena",
@@ -3413,12 +3423,122 @@
       "kept": "{addOn} zůstane nainstalován. Pokud ho nic jiného nepoužívá, odinstalujte ho v sekci Doplňky.",
       "link": "Jeho propojení s {addOn}"
     },
-    "updateToo": "Aktualizovat také"
+    "updateToo": "Aktualizovat také",
+    "roleTables": {
+      "summary": "Role aplikace {app} získají přístup k {count, plural, one {# jeho tabulce} few {# jeho tabulkám} many {# jeho tabulkám} other {# jeho tabulkám}}. Podívejte se, co čtou a mění.",
+      "unchecked": "{addOn} na tomto serveru zatím není, proto vidíte, co žádá {app}. Doplněk může povolit méně.",
+      "keyAndLinks": "Čtení zobrazí také klíč každého řádku a jeho odkazy na jiné řádky.",
+      "everyColumn": "každý sloupec",
+      "reads": "Čte {columns}",
+      "readsAll": "Čte každý sloupec",
+      "changes": "Mění {columns}",
+      "changesAll": "Mění každý sloupec",
+      "adds": "Přidává řádky a vyplňuje {columns}",
+      "addsAll": "Přidává řádky a vyplňuje libovolný sloupec",
+      "notOffered": "Neuděleno: {addOn} tuto tabulku nesdílí s žádnou aplikací.",
+      "keptBack": "Neuděleno: {addOn} si tuto tabulku nechává pro sebe.",
+      "unknown": "Neuděleno: {addOn} takovou tabulku ani sloupec nemá.",
+      "allowsLess": "Neuděleno: {addOn} povoluje méně.",
+      "notGiven": "Požadováno, neuděleno: {what}",
+      "wider": "Nové v této verzi: {what}",
+      "updateTitle": "Role získají víc z tabulek doplňků",
+      "updateBody": "Tato verze umožní těmto rolím víc s tabulkami, které patří doplňkům. Aktualizací to povolíte.",
+      "action": {
+        "read": "číst",
+        "create": "přidávat řádky",
+        "update": "měnit řádky"
+      }
+    }
   },
   "featurePage": {
     "ask": "Může ho nainstalovat někdo, kdo spravuje aplikace.",
     "body": "Tato stránka funguje jen s {count, plural, one {doplňkem} few {doplňky} many {doplňky} other {doplňky}}, který tu aplikace zatím nemá, proto není v postranním panelu. Vrátí se, jakmile bude {count, plural, one {nainstalován a připojen} few {nainstalovány a připojeny} many {nainstalovány a připojeny} other {nainstalovány a připojeny}} k aplikaci.",
     "open": "Otevřít nastavení aplikace",
     "title": "{page} potřebuje doplněk"
+  },
+  "appParts": {
+    "title": "Části",
+    "help": "Vypněte části, které tato firma nepoužívá. Vypnutá část nemá stránky, pravidla ani role; její záznamy zůstávají.",
+    "onePage": "1 stránka",
+    "pages": "Stránek: {n}",
+    "oneRule": "1 zapnuté pravidlo",
+    "rules": "Zapnutých pravidel: {n}",
+    "roles": "Role: {roles}",
+    "leftOut": "Zatím není nastavena. Připojte {addOns} v oddílu Doplňky a část se doplní.",
+    "waiting": "Vypnuto, dokud nebude v oddílu Doplňky připojeno: {addOns}.",
+    "always": "Vždy zapnuto",
+    "needs": "Vyžaduje doplněk",
+    "switch": "{part}, zapnuto nebo vypnuto",
+    "on": "Zap.",
+    "off": "Vyp.",
+    "dialogClose": "Zavřít",
+    "cancel": "Zrušit",
+    "onDialog": {
+      "title": "Zapnout část {part}?",
+      "back": "Její stránky, pravidla a role jsou ihned zpět. Není potřeba aktualizace ani restart.",
+      "noCatchUp": "Co se stalo, když byla vypnutá, se nedohání: její pravidla neběžela a pro zmeškané se nespustí ani teď.",
+      "confirm": "Zapnout"
+    },
+    "offDialog": {
+      "title": "Vypnout část {part}?",
+      "stops": "Její stránky zmizí z nabídky, pravidla se zastaví a role nic neudělují, dokud ji znovu nezapnete.",
+      "stays": "Její záznamy zůstávají. Role jiné části, která je čte, je čte dál.",
+      "open": "Právě v ní otevřeno:",
+      "openRows": "Nedokončeno v {table}: {n}",
+      "oneRule": "1 zapnuté pravidlo se zastaví",
+      "rules": "Zastaví se zapnutá pravidla: {n}",
+      "oneStranded": "1 osoba nebude mít nic zapnuto",
+      "stranded": "Osob, které nebudou mít nic zapnuto: {n}",
+      "nothingOpen": "Právě v ní není nic otevřeno.",
+      "confirm": "Vypnout"
+    },
+    "installHelp": "Vyberte části aplikace {app}, se kterými začnete. Každou lze později zapnout nebo vypnout v nastavení aplikace.",
+    "installTick": "Začít s částí {part}",
+    "installAlways": "vždy zapnuto",
+    "installWaiting": "Čeká na doplněk {addOns}.",
+    "installCount": "{count, plural, one {# část.} few {# části.} other {# částí.}}",
+    "installCountFixed": "{count, plural, one {# část.} few {# části.} other {# částí.}} {fixed} {always, plural, one {je} few {jsou} other {jsou}} vždy součástí aplikace.",
+    "groupAddOn": "doplněk",
+    "groupTicked": "Zaškrtnuto v oddílu Doplňky: části níže přijdou s ním.",
+    "groupWaiting": "V oddílu Doplňky nezaškrtnuto: části níže na něj čekají. Zaškrtněte jej tam, nebo jej připojte později a doplní se.",
+    "groupConnected": "Připojeno: části níže s ním pracují.",
+    "groupNotConnected": "Nepřipojeno: části níže na něj čekají. Připojte jej v oddílu Doplňky a doplní se.",
+    "installStranded": "{roles} {count, plural, one {nemá} few {nemají} other {nemají}} s těmito částmi co otevřít.",
+    "willMake": "Vytvoří",
+    "willMakeCounts": "{tables, plural, one {# tabulka} few {# tabulky} other {# tabulek}}, {roles, plural, one {# role} few {# role} other {# rolí}}, {rules, plural, one {# pravidlo} few {# pravidla} other {# pravidel}}"
+  },
+  "installMaps": {
+    "title": "Mapy",
+    "tick": "Zobrazovat mapy (používá OpenFreeMap)",
+    "note": "prohlížeč každého člověka stahuje obrázky mapy z mapového serveru. Ten se dozví, na jakou oblast se díváte, a nic o vašich záznamech. Je to jeden přepínač pro všechny zdejší aplikace.",
+    "tickHost": "Zobrazovat mapy (používá {host})"
+  },
+  "settingsMaps": {
+    "title": "Mapy",
+    "subtitle": "Zda se zobrazují mapy a kterých serverů se systém ptá.",
+    "saveFailed": "Nepodařilo se uložit. Zkuste to znovu.",
+    "loadFailed": "Toto nastavení se nepodařilo načíst. Načtěte stránku znovu.",
+    "reload": {
+      "title": "Mapy jsou zapnuté. Načtěte stránku znovu, abyste je viděli.",
+      "body": "Stránka, která byla otevřená, když byly mapy vypnuté, se mapového serveru ptát nesmí. Načtěte ji znovu, tady i na dalších otevřených kartách.",
+      "cta": "Načíst stránku znovu"
+    },
+    "maps": {
+      "heading": "Zobrazovat mapy",
+      "sees": "Mapa se kreslí z obrázků té části světa, která je právě na obrazovce. Prohlížeč každého člena týmu je stahuje z mapového serveru, který se dozví internetovou adresu této osoby a oblast, na kterou se dívala. Nikdy se mu neposílá záznam, jméno ani poloha vašich značek.",
+      "server": "Mapový server: {host}. Nastavuje ho provozovatel tohoto serveru pomocí ADMINIUM_MAP_SERVER. Tady ho změnit nelze.",
+      "serverNone": "Mapový server: žádný.",
+      "off": "Když jsou mapy vypnuté, místo mapy se zobrazí seznam stejných míst a žádného vnějšího serveru se systém neptá.",
+      "whyDesktop": "Desktopová aplikace funguje bez internetu a žádnou vnější mapu nezobrazuje. Místo mapy se zobrazí seznam.",
+      "whyEnvOff": "Provozovatel tohoto serveru na něm mapy vypnul (ADMINIUM_MAP_SERVER=off), takže tento přepínač nic nedělá."
+    },
+    "routes": {
+      "heading": "Trasy po silnicích",
+      "sees": "Dokud je to zapnuté, ptá se tento server směrovacího serveru na cestu mezi zastávkami trasy a posílá mu polohy zastávek v pořadí. Směrovací server se dozví adresu tohoto serveru, nikdy adresu člena týmu, jméno ani záznam.",
+      "server": "Směrovací server: {host}. Nastavuje ho provozovatel tohoto serveru pomocí ADMINIUM_ROUTING_SERVER.",
+      "serverNone": "Směrovací server: žádný.",
+      "off": "Když je to vypnuté, vzdálenosti jsou přímé čáry spočítané na tomto serveru a označené „asi“. Nikoho venku se systém neptá.",
+      "whyEnvOff": "Provozovatel tohoto serveru směrovací server vypnul (ADMINIUM_ROUTING_SERVER=off, nebo všechna volání ven pomocí ADMINIUM_NETWORK_FEATURES=off), takže tento přepínač nic nedělá."
+    }
   }
 }

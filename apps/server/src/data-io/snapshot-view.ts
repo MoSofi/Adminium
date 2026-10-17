@@ -10,7 +10,7 @@ import { optionListsRepo, overridesRepo, snapshotsRepo, type MetaDb } from '@adm
 import type { DatabaseModel } from '@adminium/engine';
 
 import { addOnTablesFor } from '../apps/add-on-tables.js';
-import { applyOverrides } from '../connections/effective-schema.js';
+import { applyOverrides, withoutPrivateTables } from '../connections/effective-schema.js';
 import { SnapshotView } from '../crud/identifiers.js';
 import { NotFoundError } from '../errors.js';
 
@@ -19,15 +19,20 @@ import { NotFoundError } from '../errors.js';
  * create checked against this view refuses a value its list does not hold —
  * as a person's create does. Custom lists only: a rule naming a built-in list
  * or one that is gone accepts anything, as it does on the data routes.
+ *
+ * `forOthers`: the view of whatever reads rows for somebody other than the
+ * person signed in — a rule, an owner's code. Private tables are not in it
+ * (`withoutPrivateTables`), so nothing of that kind can name one.
  */
-export async function loadSnapshotView(meta: MetaDb, connectionId: string, opts: { lists?: boolean } = {}): Promise<SnapshotView> {
+export async function loadSnapshotView(meta: MetaDb, connectionId: string, opts: { lists?: boolean; forOthers?: boolean } = {}): Promise<SnapshotView> {
   const snapshot = await snapshotsRepo(meta).latest(connectionId);
   if (snapshot === null) {
     throw new NotFoundError('No schema snapshot — introspect the connection first.', { connectionId });
   }
   const active = await overridesRepo(meta).listForConnection(connectionId, { status: 'active' });
   const model = snapshot.schema as DatabaseModel;
-  const effective = applyOverrides(model, active, { addOnTables: await addOnTablesFor(meta, connectionId, model) });
+  const whole = applyOverrides(model, active, { addOnTables: await addOnTablesFor(meta, connectionId, model) });
+  const effective = opts.forOthers === true ? withoutPrivateTables(whole) : whole;
   if (opts.lists !== true) return new SnapshotView(connectionId, effective);
   const values = new Map<string, readonly string[]>();
   for (const row of active) {

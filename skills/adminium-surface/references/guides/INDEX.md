@@ -8,7 +8,7 @@
 | `references/guides/building-a-side--the-folder.md` | The folder | 1269 |
 | `references/guides/building-a-side--the-look.md` | The look | 2448 |
 | `references/guides/building-a-side--the-two-sides-are-not-alike.md` | The two sides are not alike | 792 |
-| `references/guides/building-a-side--a-staff-side.md` | A staff side | 3450 |
+| `references/guides/building-a-side--a-staff-side.md` | A staff side | 5939 |
 | `references/guides/building-a-side--a-customer-side.md` | A customer side | 3718 |
 | `references/guides/building-a-side--pages-and-their-addresses.md` | Pages and their addresses | 3134 |
 | `references/guides/building-a-side--the-venue-s-clock-and-money.md` | The venue's clock and money | 769 |
@@ -64,7 +64,7 @@
 | `references/guides/roles-and-staff-access--personal-data.md` | Personal data | 1375 |
 | `references/guides/roles-and-staff-access--edits-limited-to-some-columns.md` | Edits limited to some columns | 2384 |
 | `references/guides/roles-and-staff-access--reads-limited-to-some-columns.md` | Reads limited to some columns | 1696 |
-| `references/guides/roles-and-staff-access--people-who-only-use-the-app.md` | People who only use the app | 1642 |
+| `references/guides/roles-and-staff-access--people-who-only-use-the-app.md` | People who only use the app | 2301 |
 | `references/guides/roles-and-staff-access--someone-without-access.md` | Someone without access | 902 |
 | `references/guides/roles-and-staff-access--signing-in-on-the-app-s-own-address.md` | Signing in on the app's own address | 1762 |
 | `references/guides/orders-with-lines--overview.md` | An order with its lines | 1439 |
@@ -80,7 +80,7 @@
 | `references/guides/orders-with-lines--tickets-for-a-show.md` | Tickets for a show | 1044 |
 | `references/guides/orders-with-lines--a-stay-and-its-extras.md` | A stay and its extras | 898 |
 | `references/guides/orders-with-lines--at-the-desk.md` | At the desk | 810 |
-| `references/guides/booking-rules--overview.md` | Booking rules and limits | 765 |
+| `references/guides/booking-rules--overview.md` | Booking rules and limits | 1232 |
 | `references/guides/booking-rules--what-a-rule-reads.md` | What a rule reads | 1259 |
 | `references/guides/booking-rules--when-a-time-can-be-booked.md` | When a time can be booked | 2730 |
 | `references/guides/booking-rules--the-venue-s-clock.md` | The venue's clock | 398 |

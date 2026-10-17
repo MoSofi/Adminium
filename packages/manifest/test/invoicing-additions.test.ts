@@ -438,6 +438,80 @@ describe('an app table conforms to its shape', () => {
     expect(conformance(m).join('\n')).toContain('adds a copy rule the shape does not keep');
   });
 
+  it('lets an app hold a shape\'s move to a condition on a column it added, and nothing looser', () => {
+    type Moves = Record<string, unknown[]>;
+    const withMaySend = () => {
+      const m = valid();
+      (tableOf(m, 'invoices')['columns'] as Doc[]).push({ ref: 'may_send', type: 'int', default: 0 });
+      return m;
+    };
+    const movesOf = (m: Doc) => (tableOf(m, 'invoices')['states'] as Doc)['moves'] as Moves;
+    const shapeWhere = { column: 'total', gt: 0 };
+    const own = { column: 'may_send', eq: 1 };
+
+    // Added to a move that already asks something, after the shape's own condition or before it.
+    let m = withMaySend();
+    movesOf(m)['draft'] = [{ to: 'sent', requires: { children: { invoice_lines: 1 }, where: [shapeWhere, own] } }, 'void'];
+    expect(conformance(m)).toEqual([]);
+    m = withMaySend();
+    movesOf(m)['draft'] = [{ to: 'sent', requires: { children: { invoice_lines: 1 }, where: [own, shapeWhere] } }, 'void'];
+    expect(conformance(m)).toEqual([]);
+    // Added to a move the shape writes as a bare name.
+    m = withMaySend();
+    movesOf(m)['draft'] = [{ to: 'sent', requires: { children: { invoice_lines: 1 }, where: [shapeWhere] } }, { to: 'void', requires: { where: [own] } }];
+    expect(conformance(m)).toEqual([]);
+    // And beside a move kept for a role.
+    m = withMaySend();
+    movesOf(m)['sent'] = [{ to: 'void', requires: { where: [{ column: 'paid', eq: 0 }, own] }, roles: ['manager'] }];
+    expect(conformance(m)).toEqual([]);
+
+    // Never on a column of the shape's: what the shape's columns allow is the shape's to say.
+    m = withMaySend();
+    movesOf(m)['draft'] = [{ to: 'sent', requires: { children: { invoice_lines: 1 }, where: [shapeWhere, { column: 'paid', eq: 0 }] } }, 'void'];
+    expect(conformance(m).join('\n')).toContain('a condition an app adds to the shape\'s move draft → sent reads a column the app added, never paid');
+    // Never less than the shape asks: its own condition taken away, or changed.
+    m = withMaySend();
+    movesOf(m)['draft'] = [{ to: 'sent', requires: { children: { invoice_lines: 1 }, where: [own] } }, 'void'];
+    expect(conformance(m).join('\n')).toContain('the moves between states are the shape\'s');
+    m = withMaySend();
+    movesOf(m)['draft'] = [{ to: 'sent', requires: { children: { invoice_lines: 1 }, where: [{ column: 'total', gt: -1 }, own] } }, 'void'];
+    expect(conformance(m).join('\n')).toContain('reads a column the app added, never total');
+    // Never the rest of what a move needs, and never a move of its own.
+    m = withMaySend();
+    movesOf(m)['draft'] = [{ to: 'sent', requires: { where: [shapeWhere, own] } }, 'void'];
+    expect(conformance(m).join('\n')).toContain('the moves between states are the shape\'s');
+    m = withMaySend();
+    movesOf(m)['draft'] = [{ to: 'sent', requires: { children: { invoice_lines: 1 }, where: [shapeWhere] } }, 'void', { to: 'draft', requires: { where: [own] } }];
+    expect(conformance(m).join('\n')).toContain('the moves between states are the shape\'s');
+  });
+
+  it('lets an app add an effect through a link it added, and through no link of the shape\'s', () => {
+    // A corrected invoice names the one it replaces: sending it voids that one, in the same write.
+    const withReplaces = () => {
+      const m = valid();
+      (tableOf(m, 'invoices')['columns'] as Doc[]).push({ ref: 'replaces_id', type: 'fk', references: 'invoices', nullable: true });
+      return m;
+    };
+    const statesOf = (m: Doc) => tableOf(m, 'invoices')['states'] as Doc;
+    const shapeHas = (statesOf(valid())['effects'] as unknown[] | undefined) ?? [];
+    const own = { on: { to: 'sent' }, via: 'replaces_id', set: { status: 'void' } };
+
+    let m = withReplaces();
+    statesOf(m)['effects'] = [...shapeHas, own];
+    expect(conformance(m)).toEqual([]);
+    // Through a column of the shape's own: the shape decides what its columns set off.
+    m = withReplaces();
+    statesOf(m)['effects'] = [...shapeHas, { on: { to: 'sent' }, via: 'total', set: { status: 'void' } }];
+    expect(conformance(m).join('\n')).toContain('an effect an app adds to a shape\'s table runs through a link the app added, never total');
+    // A changed link is held to the same: the link it watches is the app's.
+    m = withReplaces();
+    statesOf(m)['effects'] = [...shapeHas, { on: { change: 'total' }, new: { set: { status: 'void' } } }];
+    expect(conformance(m).join('\n')).toContain('never total');
+    m = withReplaces();
+    statesOf(m)['effects'] = [...shapeHas, { on: { change: 'replaces_id' }, new: { set: { status: 'void' } } }];
+    expect(conformance(m)).toEqual([]);
+  });
+
   it('refuses states narrowed below the shape, and a shape that is not there', () => {
     let m = valid();
     ((tableOf(m, 'invoices')['states'] as Doc)['lock'] as Doc)['except'] = ['due_on'];

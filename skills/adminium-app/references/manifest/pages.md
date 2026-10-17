@@ -23,10 +23,11 @@ and appears in the app's own sidebar section.
 | `template` | yes | The page template; see below. |
 | `title` | yes | An i18n message. `fallback` is the English title. |
 | `titles` | no | The title in other languages, keyed by BCP 47 tag, each 1–120 characters. The sidebar shows the operator's language until the operator renames the page. |
-| `nav` | yes | `{ "group", "icon", "order" }`. `group` is 1–80 characters, `icon` a [Lucide](https://lucide.dev/icons/) icon name (1–60 characters), `order` an integer. |
+| `nav` | yes | `{ "group", "icon", "order", "offRail"? }`. `group` is 1–80 characters, `icon` a [Lucide](https://lucide.dev/icons/) icon name (1–60 characters), `order` an integer. `"offRail": true` keeps the page off the sidebar; see [A page kept off the sidebar](https://docs.adminium.dev/reference/manifest/#a-page-kept-off-the-sidebar). |
 | `bindings` | no | Which of the app's tables the page reads: an object from a page-local name to a `requiredSchema` table ref. |
-| `config` | no | Page configuration: a `form` for a record page, a `layout` for `page-dashboard`, a `calendar` for `page-calendar`. |
+| `config` | no | Page configuration: a `form` for a record page, a `layout` for `page-dashboard`, a `calendar` for `page-calendar`, a `board` for `page-board`. |
 | `feature` | no | The id of one of the app's [`addOns.features`](https://docs.adminium.dev/reference/manifest/#add-ons). Until every add-on the feature requires is installed, attached to the app and switched on there, the page leaves the sidebar and is listed apart, with the add-ons it needs. |
+| `module` | no | The [part](https://docs.adminium.dev/reference/manifest/#parts) of the app the page belongs to. While that part is off the page leaves the sidebar and its address answers `409` `PART_OFF`. Needs Adminium 0.3.28. |
 
 **Templates.** A table-bound template reads one table: `page-crud`, `page-board`,
 `page-calendar`, `page-scheduler`, `page-directory`, `page-master-detail`, `page-queue-inbox`,
@@ -65,27 +66,23 @@ The manifest is refused when a name is not a column of the right table and type.
 the first date Adminium finds. On a page with a `form`, **Add event** and a click on an empty day
 open that form, with the day filled in.
 
-**Links that open a list filtered.** A link in a layout (a metric card's `href`, the toolbar's
-`link`) may open a records page on some of its rows: `/p/<page ref>?f.<column>=<op>:<value>`, with
-one `f.` piece per column, up to 8. "Overdue" leads to
-`/p/studio-invoices?f.status=eq:sent&f.due_on=before:today`, and the page shows a chip for each
-piece.
+`config.board` says what the columns of a `page-board` are. It needs
+`"minAdminiumVersion": "0.3.28"`.
 
-| Piece | Rows it keeps |
-|---|---|
-| `eq:<v>`, `neq:<v>`, `in:<a,b>` | The value, not the value, or one of up to 50 values. |
-| `gt:`, `gte:`, `lt:`, `lte:` | A number, or a day. |
-| `before:<day>`, `after:<day>` | A date or time before or after that day. |
-| `before:now`, `after:now` | A time before or after this moment. |
-| `month:this`, `month:last` | A date or time in this or last month. |
-| `set`, `unset` | Has a value, or has none. |
-
-A day is `YYYY-MM-DD`, `today`, or a whole number of days from it: `today-30`, `today+7` (at most
-3660 either way). Days are the venue's: on a time column a day is the whole day where the venue
-is. `now` is for time columns only. The pieces are worked out on the server when the page opens,
-so `today` is always the day it is read. A piece the column cannot take (an unknown column, a
-personal column the reader may not see, `gt` on a yes/no, a value that is not a number) is left
-out, and its chip says so; the page never fails.
-
-**Updates.** A page nobody has edited is rebuilt when the app is updated. A page the operator
-edited is left as they left it. Uninstalling an app does not delete its pages.
+```json
+"config": { "board": {
+  "column": "stage_id",
+  "columnsFrom": { "table": "stages", "label": "name", "order": "position", "badge": { "column": "odds", "as": "percent" } },
+  "title": "name",
+  "totals": [{ "column": "amount", "fn": "sum" }, { "column": "weighted_value", "fn": "sum" }],
+  "only": { "state": "open" },
+  "card": {
+    "link": "company_id.name",
+    "person": "owner_id",
+    "amount": "amount",
+    "daysSince": { "column": "entered_stage_at", "warnFrom": 14, "alertFrom": 30 },
+    "date": "expected_close"
+  },
+  "note": { "text": "Columns come from Stages", "texts": { "de-DE": "Die Spalten kommen aus den Phasen" }, "href": "/p/crm-stages" }
+} }
+```

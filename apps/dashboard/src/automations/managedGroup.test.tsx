@@ -12,7 +12,7 @@ import { userEvent } from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
 import type { RuleView } from './api.js';
-import { FlowHeader, ShippedRuleGroups, splitShipped, withZone } from './rules/parts.js';
+import { FlowHeader, ShippedRuleGroups, rulesOfApp, splitShipped, withZone } from './rules/parts.js';
 
 const rule = (over: Partial<RuleView>): RuleView =>
   ({
@@ -108,6 +108,23 @@ describe('the main list', () => {
     const { own, shipped } = splitShipped([RULES[0]!, mine, RULES[2]!, old]);
     expect(own.map((one) => one.id)).toEqual(['mine', 'old']);
     expect(shipped.map((one) => one.id)).toEqual(['a', 'c']);
+  });
+});
+
+describe('the screen narrowed to one app', () => {
+  it('lists the rules that app brought and no other: not another app\'s, not an add-on\'s of that key, not the owner\'s own', () => {
+    const managed = (key: string, kind: 'app' | 'add-on') => ({ key, name: key, kind, templateKey: 't', edited: false });
+    const all = [
+      rule({ id: 'crm-1', managed: managed('crm', 'app') }),
+      rule({ id: 'pos-1', managed: managed('pos', 'app') }),
+      rule({ id: 'addon', managed: managed('crm', 'add-on') }),
+      rule({ id: 'mine', managed: null }),
+      rule({ id: 'crm-2', managed: managed('crm', 'app') }),
+    ];
+    expect(rulesOfApp(all, 'crm').map((one) => one.id)).toEqual(['crm-1', 'crm-2']);
+    // No app named: every rule, as before. An app with no rule here: none, never everything.
+    expect(rulesOfApp(all, undefined).map((one) => one.id)).toEqual(['crm-1', 'pos-1', 'addon', 'mine', 'crm-2']);
+    expect(rulesOfApp(all, 'nobody')).toEqual([]);
   });
 });
 
