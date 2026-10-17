@@ -31,7 +31,7 @@ file. Every file is 8 KB or less.
 | `references/cli/exit-codes.md` | Exit codes | 1102 |
 | `references/cli/project-files.md` | Project files | 1899 |
 | `references/cli/new.md` | `new` | 3070 |
-| `references/cli/dev.md` | `dev` | 2619 |
+| `references/cli/dev.md` | `dev` | 3010 |
 | `references/cli/design.md` | `design` | 1569 |
 | `references/cli/app-approve-build.md` | `app approve-build` | 1277 |
 | `references/cli/owner.md` | `owner` | 645 |
