@@ -53,6 +53,8 @@ const ECHO: RunTool = {
 
 const WORD = 'adminium';
 const CAN_BUILD_TOKENS = 256;
+/** How a server words a refusal of `tools` for a model that has none. */
+const NO_TOOLS = /does not support tools/i;
 
 /**
  * Whether a model can be built with: a whole round trip, not a ping.
@@ -75,6 +77,11 @@ export async function canBuild(runner: ProviderRunner, model: string, opts: { si
   } catch (error) {
     // The caller's own stop is not a verdict on the model.
     if (error instanceof ProviderError && error.code === 'aborted') throw error;
+    // A server that refuses `tools` for this model (Ollama: HTTP 400 "… does not support tools") has answered:
+    // the model cannot build. It is a verdict on the model, not a failed test.
+    if (error instanceof ProviderError && error.status === 400 && NO_TOOLS.test(error.message)) {
+      return { canBuild: false, reason: 'no-tool-call', message: 'The server says this model does not support tools.' };
+    }
     return { canBuild: false, reason: 'error', code: error instanceof ProviderError ? error.code : 'error', message: error instanceof Error ? error.message : String(error) };
   }
   const call = first.blocks.find((block) => block.type === 'tool_call');

@@ -7,14 +7,16 @@
  *     button. A model that cannot build is marked, with its hint tied to it.
  *     A connection that could not be reached says so and tries again.
  *     Picking a model nothing is known about asks the server once.
- *  2. With no model the button opens the dialog. A key is tested (models
- *     listed, then the chosen one asked to call a tool), saved to the
- *     project, said, and the picker opens with it selected.
- *  3. A refused key is said on the key field; changing the key clears it.
- *     A model that cannot build can still be saved. A listed model that
- *     could not be asked keeps the list, so another one can be chosen. A
- *     provider already added tests against its saved key, which never comes
- *     back.
+ *  2. With no model the button opens the dialog. A pasted key is tested by
+ *     itself (models listed, then the chosen one asked to call a tool), the
+ *     model is picked from a searchable list, saved to the project, said,
+ *     and the picker opens with it selected.
+ *  3. A refused key is said on the key field; changing the key clears it, and
+ *     "Load models" tries again. A model that cannot build can still be
+ *     saved. Ollama is tested as soon as it is chosen, and starts on a model
+ *     that runs on this machine; a cloud model refused for want of a plan
+ *     says so and keeps the list, so another one can be chosen. A provider
+ *     already added tests against its saved key, which never comes back.
  */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor, within } from '@testing-library/react';
@@ -209,26 +211,33 @@ describe('Add a model', () => {
     await userEvent.click(within(dialog).getByRole('button', { name: /Anthropic/ }));
 
     const test = within(dialog).getByRole('button', { name: 'Test' }) as HTMLButtonElement;
+    const load = within(dialog).getByRole('button', { name: 'Load models' }) as HTMLButtonElement;
     const save = within(dialog).getByRole('button', { name: 'Save' }) as HTMLButtonElement;
-    const modelField = within(dialog).getByRole('combobox', { name: 'Model' }) as HTMLSelectElement;
+    const modelField = within(dialog).getByRole('combobox', { name: 'Model' }) as HTMLInputElement;
     expect(test.disabled).toBe(true);
+    expect(load.disabled).toBe(true);
     expect(save.disabled).toBe(true);
     expect(modelField.disabled).toBe(true);
-    expect(modelField.textContent).toBe('Test the key to list models');
+    expect(modelField.placeholder).toBe('Paste a key to list models');
     expect(dialog.textContent).toContain('It is not sent to the browser and not committed to git.');
 
-    await userEvent.type(within(dialog).getByLabelText('API key'), 'sk-ant-test-key-0001');
-    await userEvent.click(test);
-    await within(dialog).findByText('This model can build apps.');
+    // A pasted key loads the models by itself: no button to find.
+    await userEvent.click(within(dialog).getByLabelText('API key'));
+    await userEvent.paste('sk-ant-test-key-0001');
+    await within(dialog).findByText('This model can build apps.', undefined, { timeout: 3000 });
     expect(within(dialog).getByText(/Connected\. Claude Sonnet 5\.5 answered in \d+\.\d s\./)).toBeTruthy();
     expect(posted('/api/v1/designer/connections/test').map((call) => call.body)).toEqual([
       { provider: 'anthropic', apiKey: 'sk-ant-test-key-0001' },
       { provider: 'anthropic', apiKey: 'sk-ant-test-key-0001', model: 'claude-sonnet-5-5' },
     ]);
     expect(modelField.disabled).toBe(false);
+    expect(modelField.value).toBe('Claude Sonnet 5.5');
 
-    // Another model is asked in turn.
-    await userEvent.selectOptions(modelField, 'claude-opus-5-5');
+    // Another model is found by typing, and asked in turn.
+    await userEvent.click(modelField);
+    await userEvent.type(modelField, 'opus');
+    expect(screen.getAllByRole('option').map((option) => option.textContent)).toEqual(['Claude Opus 5.5']);
+    await userEvent.click(screen.getByRole('option', { name: 'Claude Opus 5.5' }));
     await within(dialog).findByText(/Connected\. Claude Opus 5\.5/);
     expect(posted('/api/v1/designer/connections/test').at(-1)?.body).toEqual({ provider: 'anthropic', apiKey: 'sk-ant-test-key-0001', model: 'claude-opus-5-5' });
 
@@ -250,10 +259,13 @@ describe('Add a model', () => {
     await userEvent.click(within(dialog).getByRole('button', { name: /Anthropic/ }));
     const key = within(dialog).getByLabelText('API key');
     await userEvent.type(key, 'sk-ant-wrong');
-    await userEvent.click(within(dialog).getByRole('button', { name: 'Test' }));
-    await within(dialog).findByText('The key was refused.');
+    await within(dialog).findByText('The key was refused.', undefined, { timeout: 3000 });
     expect(key.getAttribute('aria-invalid')).toBe('true');
     expect((within(dialog).getByRole('button', { name: 'Save' }) as HTMLButtonElement).disabled).toBe(true);
+    // A failed test is not tried again by itself; "Load models" tries again.
+    const tried = posted('/api/v1/designer/connections/test').length;
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Load models' }));
+    await waitFor(() => expect(posted('/api/v1/designer/connections/test')).toHaveLength(tried + 1));
     await userEvent.type(key, 'x');
     expect(within(dialog).queryByText('The key was refused.')).toBeNull();
   });
@@ -272,33 +284,68 @@ describe('Add a model', () => {
     await userEvent.click(within(dialog).getByRole('button', { name: /Ollama/ }));
     expect((within(dialog).getByLabelText('Address') as HTMLInputElement).value).toBe('http://localhost:11434');
     expect(within(dialog).queryByLabelText('API key')).toBeNull();
-    await userEvent.click(within(dialog).getByRole('button', { name: 'Test' }));
-    await within(dialog).findByText('This model cannot build apps: it does not support tools. You can still save it for other uses.');
+    // Ollama needs no key: its models load as soon as it is chosen.
+    await within(dialog).findByText('This model cannot build apps: it does not support tools. You can still save it for other uses.', undefined, { timeout: 3000 });
     expect((within(dialog).getByRole('button', { name: 'Save' }) as HTMLButtonElement).disabled).toBe(false);
     expect(posted('/api/v1/designer/connections/test')[0]?.body).toEqual({ provider: 'ollama', baseUrl: 'http://localhost:11434' });
   });
 
-  it('keeps the list when the first model cannot be asked, so another one can be chosen', async () => {
+  it('starts Ollama on a model that runs here; a cloud model refused for want of a plan says so and keeps the list', async () => {
     models = NONE;
-    const listed = [{ id: 'big:cloud', label: 'big:cloud' }, { id: 'qwen-coder:32b', label: 'qwen-coder:32b' }];
+    const listed = [{ id: 'big:cloud', label: 'big:cloud', remote: true }, { id: 'qwen-coder:32b', label: 'qwen-coder:32b' }];
     tests = (body) => {
-      if (body['model'] === 'big:cloud') return { ok: false, models: [], canBuild: null, error: { code: 'server', message: 'ollama: HTTP 402' } };
-      return { ok: true, models: listed, canBuild: body['model'] === undefined ? null : { canBuild: true, reportsUsage: true }, error: null };
+      if (body['model'] === 'big:cloud') return { ok: false, models: [], canBuild: null, error: { code: 'billing', message: 'ollama: HTTP 402' } };
+      if (body['model'] === 'odd:7b') return { ok: false, models: [], canBuild: null, error: { code: 'not_found', message: 'ollama: HTTP 404' } };
+      return { ok: true, models: [...listed, { id: 'odd:7b', label: 'odd:7b' }], canBuild: body['model'] === undefined ? null : { canBuild: true, reportsUsage: true }, error: null };
     };
     mount();
     await userEvent.click(await screen.findByRole('button', { name: 'Add a model' }));
     const dialog = await screen.findByRole('dialog');
     await userEvent.click(within(dialog).getByRole('button', { name: /Ollama/ }));
-    await userEvent.click(within(dialog).getByRole('button', { name: 'Test' }));
-    await within(dialog).findByText('The test failed: ollama: HTTP 402');
-    const select = within(dialog).getByLabelText('Model') as HTMLSelectElement;
-    expect(select.disabled).toBe(false);
-    expect(select.value).toBe('big:cloud');
+    await within(dialog).findByText('This model can build apps.', undefined, { timeout: 3000 });
+    const field = within(dialog).getByRole('combobox', { name: 'Model' }) as HTMLInputElement;
+    expect(field.value).toBe('qwen-coder:32b');
+    expect(posted('/api/v1/designer/connections/test').map((call) => call.body?.['model'])).toEqual([undefined, 'qwen-coder:32b']);
+
+    await userEvent.click(field);
+    expect(screen.getByRole('option', { name: /big:cloud/ }).textContent).toContain('Runs on ollama.com; can need a paid plan');
+    await userEvent.click(screen.getByRole('option', { name: /big:cloud/ }));
+    const refused = 'big:cloud runs on ollama.com, and your Ollama account has no plan or credit for it. Choose a model that runs on this machine, or add credit on ollama.com and test again.';
+    await within(dialog).findByText(refused);
+    expect(within(dialog).queryByText('Could not reach this connection')).toBeNull();
+    expect(field.disabled).toBe(false);
     expect((within(dialog).getByRole('button', { name: 'Save' }) as HTMLButtonElement).disabled).toBe(true);
-    await userEvent.selectOptions(select, 'qwen-coder:32b');
+
+    // A model the server does not find is that model's failure, not an address that cannot be reached.
+    await userEvent.click(field);
+    await userEvent.click(screen.getByRole('option', { name: 'odd:7b' }));
+    await within(dialog).findByText('The test failed: ollama: HTTP 404');
+    expect(within(dialog).queryByText('Could not reach this connection')).toBeNull();
+
+    await userEvent.click(field);
+    await userEvent.click(screen.getByRole('option', { name: 'qwen-coder:32b' }));
     await within(dialog).findByText('This model can build apps.');
-    expect(within(dialog).queryByText('The test failed: ollama: HTTP 402')).toBeNull();
+    expect(within(dialog).queryByText(refused)).toBeNull();
     expect((within(dialog).getByRole('button', { name: 'Save' }) as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it('says a refusal about money from a paid provider as one', async () => {
+    models = NONE;
+    tests = (body) =>
+      body['model'] === undefined
+        ? { ok: true, models: [{ id: 'gpt-x', label: 'GPT X' }], canBuild: null, error: null }
+        : { ok: false, models: [], canBuild: null, error: { code: 'billing', message: 'openai: HTTP 429 — You exceeded your current quota' } };
+    mount();
+    await userEvent.click(await screen.findByRole('button', { name: 'Add a model' }));
+    const dialog = await screen.findByRole('dialog');
+    await userEvent.click(within(dialog).getByRole('button', { name: /^OpenAI GPT/ }));
+    await userEvent.click(within(dialog).getByLabelText('API key'));
+    await userEvent.paste('sk-test');
+    await within(dialog).findByText(
+      'The connection works, but OpenAI refused this model: the account has no credit, or the model needs a paid plan. Choose another model, or add credit with OpenAI and test again.',
+      undefined,
+      { timeout: 3000 },
+    );
   });
 
   it('tests a provider already added against its saved key, which is never shown', async () => {
@@ -312,8 +359,7 @@ describe('Add a model', () => {
     const key = within(dialog).getByLabelText('API key') as HTMLInputElement;
     expect(key.value).toBe('');
     expect(dialog.textContent).toContain('A key is saved. Type a new one to replace it.');
-    await userEvent.click(within(dialog).getByRole('button', { name: 'Test' }));
-    await within(dialog).findByText('This model can build apps.');
+    await within(dialog).findByText('This model can build apps.', undefined, { timeout: 3000 });
     expect(posted('/api/v1/designer/connections/test')[0]?.body).toEqual({ provider: 'anthropic' });
   });
 });

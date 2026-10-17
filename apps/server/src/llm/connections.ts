@@ -159,6 +159,17 @@ export function parseSelected(value: string | undefined): { provider: EnvProvide
   return isEnvProvider(provider) && model.length > 0 ? { provider, model } : null;
 }
 
+/**
+ * A refusal about money: no credit left, or a model that needs a paid plan (an Ollama `:cloud` model on a free
+ * account). Providers say it with different statuses (402, 403, 429, even 400), so it is read from the words.
+ */
+const BILLING = /\b(402|payment|billing|balance|credits?|subscription|upgrade|insufficient|quota)\b/i;
+
+/** A failed test's error, with a refusal about money named `billing`: said as a key or an address, it misleads. */
+function testError(code: string, message: string): { code: string; message: string } {
+  return { code: code !== 'network' && code !== 'timeout' && BILLING.test(message) ? 'billing' : code, message };
+}
+
 /** Whether the environment names this provider at all. */
 function envHas(values: AiEnvValues, provider: EnvProvider): boolean {
   if (provider === 'anthropic') return values.ADMINIUM_AI_ANTHROPIC_API_KEY !== undefined;
@@ -354,11 +365,11 @@ export function createAiConnections(deps: AiConnectionsDeps): AiConnections {
         if (draft.model === undefined || draft.model === '') return { ok: true, models, canBuild: null, error: null };
         const verdict = await canBuild(makeRunner(config), draft.model, opts.signal === undefined ? {} : { signal: opts.signal });
         // The model could not be asked (a refused key shows here: the list above falls back to a built-in one): the test failed.
-        if (!verdict.canBuild && verdict.reason === 'error') return { ok: false, models: [], canBuild: null, error: { code: verdict.code, message: verdict.message } };
+        if (!verdict.canBuild && verdict.reason === 'error') return { ok: false, models: [], canBuild: null, error: testError(verdict.code, verdict.message) };
         verdicts.set(`env:${draft.provider}\u0000${draft.model}`, verdict);
         return { ok: true, models, canBuild: verdict, error: null };
       } catch (error) {
-        if (error instanceof ProviderError) return { ok: false, models: [], canBuild: null, error: { code: error.code, message: error.message } };
+        if (error instanceof ProviderError) return { ok: false, models: [], canBuild: null, error: testError(error.code, error.message) };
         if (error instanceof ValidationFailedError) return { ok: false, models: [], canBuild: null, error: { code: 'config', message: error.message } };
         throw error;
       }

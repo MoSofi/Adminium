@@ -808,6 +808,11 @@ describe('whether a model can be built with', () => {
     expect(await canBuild(scripted(called('hello')), 'm')).toMatchObject({ canBuild: false, reason: 'no-tool-call' });
   });
 
+  it('fails a model the server refuses tools for, as a verdict and not as an error', async () => {
+    const none = new ProviderError({ provider: 'ollama', code: 'http', status: 400, message: 'ollama: HTTP 400 — {"error":"registry.ollama.ai/library/llava:latest does not support tools"}' });
+    expect(await canBuild(scripted(none), 'm')).toMatchObject({ canBuild: false, reason: 'no-tool-call' });
+  });
+
   it('fails a server that refuses the message carrying the tool’s answer', async () => {
     const refused = new ProviderError({ provider: 'openai-compatible', code: 'http', status: 400, message: 'role "tool" is not supported' });
     const verdict = await canBuild(scripted(called('adminium'), refused), 'm');

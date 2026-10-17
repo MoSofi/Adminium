@@ -352,6 +352,23 @@ describe('the model connections', () => {
     expect(await all.test({ provider: 'anthropic', apiKey: 'bad' })).toEqual({ ok: false, models: [], canBuild: null, error: { code: 'auth', message: 'anthropic: HTTP 401' } });
   });
 
+  it('names a refusal about money `billing`, whatever status it came with, and leaves a dead address alone', async () => {
+    let failure = new ProviderError({ provider: 'ollama', code: 'auth', status: 403, message: 'ollama: HTTP 403 — this model requires a subscription, upgrade for access' });
+    const all = connections(envOf({}), {
+      createRunner: (config) => ({
+        id: config.provider,
+        run: async () => {
+          throw failure;
+        },
+      }),
+    });
+    expect((await all.test({ provider: 'ollama', model: 'big:cloud' })).error).toEqual({ code: 'billing', message: failure.message });
+    failure = new ProviderError({ provider: 'openai', code: 'rate_limit', status: 429, message: 'openai: HTTP 429 — You exceeded your current quota' });
+    expect((await all.test({ provider: 'openai', apiKey: 'sk-1', model: 'gpt-x' })).error?.code).toBe('billing');
+    failure = new ProviderError({ provider: 'ollama', code: 'not_found', status: 404, message: 'ollama: HTTP 404 — model "big" not found' });
+    expect((await all.test({ provider: 'ollama', model: 'big' })).error?.code).toBe('not_found');
+  });
+
   it('saves a model to the project’s .env and uses it at once', async () => {
     put('ADMINIUM_SECRET=abc\n');
     const all = connections(createAiEnv({ root, fromEnvironment: {} }));

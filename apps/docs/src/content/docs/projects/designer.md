@@ -22,8 +22,12 @@ form on your own machine. See [`design`](/reference/cli/#design) for the options
 
 The Designer needs a model that can call tools. Add one from the model button under the message
 box: an Anthropic or OpenAI key, the address of an OpenAI-compatible server, or the address of
-Ollama. **Test** asks the model to call one tool and answer; a model that cannot do that is refused
-before anything is made.
+Ollama. The models load by themselves once the key is pasted (Ollama's at once, as it needs no key),
+or from **Load models** beside the Model field, which you can search by name. The test asks the model
+to call one tool and answer; a model that cannot do that is refused before anything is made.
+
+Ollama starts on a model that runs on your machine. A `:cloud` model runs on ollama.com and can
+need a paid Ollama plan; one your account has no plan or credit for says so, and you can pick another.
 
 The key is written to the project's `.env` under the [`ADMINIUM_AI_*`](/self-hosting/env-vars/#the-adminium_ai_-block)
 names and is never sent back to the browser.
