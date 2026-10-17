@@ -84,7 +84,12 @@ export default {
     "attachedAt": "Joint le",
     "trashedAt": "Déplacé dans la corbeille",
     "id": "Identifiant du fichier",
-    "checksum": "Somme de contrôle"
+    "checksum": "Somme de contrôle",
+    "previewTitle": "Aperçu de {name}",
+    "previewNone": "Aucun aperçu n’est disponible pour ce type de fichier.",
+    "previewTrashed": "Un fichier dans la corbeille ne peut pas être prévisualisé.",
+    "previewFailed": "Ce fichier ne peut pas être affiché ici. Téléchargez-le pour l’ouvrir.",
+    "previewTruncated": "Affichage des {size} premiers."
   },
   "view": {
     "label": "Affichage des fichiers",

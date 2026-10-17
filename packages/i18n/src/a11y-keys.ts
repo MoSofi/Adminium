@@ -11,7 +11,7 @@
  *   pnpm --filter @adminium/i18n gen:a11y-keys
  */
 
-/** `namespace:key` — 2935 entries. */
+/** `namespace:key` — 2940 entries. */
 export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'addOns:failed.title',
   'addOns:noBundle.title',
@@ -906,6 +906,7 @@ export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'designer:model.add',
   'designer:model.addedToast',
   'designer:model.address',
+  'designer:model.addressFirst',
   'designer:model.button',
   'designer:model.buttonCannot',
   'designer:model.choose',
@@ -917,9 +918,13 @@ export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'designer:model.fromSettings',
   'designer:model.hideKey',
   'designer:model.key',
+  'designer:model.keyFirst',
   'designer:model.list',
+  'designer:model.loadFirst',
+  'designer:model.loadingModels',
   'designer:model.model',
   'designer:model.none',
+  'designer:model.searchModels',
   'designer:model.showKey',
   'designer:needs.title',
   'designer:phone.addTitle',
@@ -1270,6 +1275,7 @@ export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'files:drawer.attachedTo',
   'files:drawer.destination',
   'files:drawer.id',
+  'files:drawer.previewTitle',
   'files:drawer.subtitle',
   'files:drawer.trashedAt',
   'files:drawer.uploadedBy',
@@ -2010,7 +2016,6 @@ export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'studio:pages.attachments.maxCount',
   'studio:pages.attachments.type.office',
   'studio:pages.attachments.type.text',
-  'studio:pages.columns.addOpen',
   'studio:pages.columns.addSearch',
   'studio:pages.columns.avatarToggle',
   'studio:pages.columns.dragHandle',

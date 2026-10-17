@@ -84,7 +84,12 @@ export default {
     "attachedAt": "附加时间",
     "trashedAt": "移入回收站时间",
     "id": "文件 ID",
-    "checksum": "校验和"
+    "checksum": "校验和",
+    "previewTitle": "{name} 的预览",
+    "previewNone": "此类文件无法预览。",
+    "previewTrashed": "回收站中的文件无法预览。",
+    "previewFailed": "无法在此显示该文件。请下载后打开。",
+    "previewTruncated": "仅显示前 {size}。"
   },
   "view": {
     "label": "文件的显示方式",

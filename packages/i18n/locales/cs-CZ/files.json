@@ -74,7 +74,12 @@
     "attachedAt": "Přiloženo",
     "trashedAt": "Přesunuto do koše",
     "id": "ID souboru",
-    "checksum": "Kontrolní součet"
+    "checksum": "Kontrolní součet",
+    "previewTitle": "Náhled souboru {name}",
+    "previewNone": "Pro tento typ souboru není k dispozici náhled.",
+    "previewTrashed": "Soubor v koši nelze zobrazit v náhledu.",
+    "previewFailed": "Tento soubor zde nelze zobrazit. Stáhněte si ho a otevřete.",
+    "previewTruncated": "Zobrazuje se prvních {size}."
   },
   "view": {
     "label": "Jak se soubory zobrazují",

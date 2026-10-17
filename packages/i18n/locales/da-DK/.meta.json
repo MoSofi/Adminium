@@ -9579,6 +9579,10 @@
     "status": "mt",
     "srcHash": "8eb027883b2a"
   },
+  "designer.attach.docTooLarge": {
+    "status": "mt",
+    "srcHash": "c03688be6f47"
+  },
   "designer.attach.fontTooLarge": {
     "status": "mt",
     "srcHash": "deb9e92ed09d"
@@ -10627,6 +10631,10 @@
     "status": "mt",
     "srcHash": "d70f93df5e8f"
   },
+  "designer.model.addressFirst": {
+    "status": "mt",
+    "srcHash": "caa28cc2dd18"
+  },
   "designer.model.back": {
     "status": "mt",
     "srcHash": "b52b36b7269f"
@@ -10670,6 +10678,18 @@
   "designer.model.close": {
     "status": "mt",
     "srcHash": "bbfa773e5a63"
+  },
+  "designer.model.cloudModel": {
+    "status": "mt",
+    "srcHash": "f42c84efd06c"
+  },
+  "designer.model.cloudNeedsPlan": {
+    "status": "mt",
+    "srcHash": "1f2c3a6d6024"
+  },
+  "designer.model.cloudSignIn": {
+    "status": "mt",
+    "srcHash": "1c77cb740ce6"
   },
   "designer.model.connected": {
     "status": "mt",
@@ -10731,6 +10751,10 @@
     "status": "mt",
     "srcHash": "cf678cab87dc"
   },
+  "designer.model.keyFirst": {
+    "status": "mt",
+    "srcHash": "1c9e58b68a53"
+  },
   "designer.model.keyRefused": {
     "status": "mt",
     "srcHash": "9d653ddbc8d5"
@@ -10743,9 +10767,29 @@
     "status": "mt",
     "srcHash": "f3798f81c7b6"
   },
+  "designer.model.loadFirst": {
+    "status": "mt",
+    "srcHash": "ee0f2d92417a"
+  },
+  "designer.model.loadModels": {
+    "status": "mt",
+    "srcHash": "6a2f430f0dfd"
+  },
+  "designer.model.loadingModels": {
+    "status": "mt",
+    "srcHash": "d23f24f3751f"
+  },
   "designer.model.model": {
     "status": "src",
     "srcHash": "68c2cc7f0cea"
+  },
+  "designer.model.needsCredit": {
+    "status": "mt",
+    "srcHash": "7d0c5fd61a5a"
+  },
+  "designer.model.noMatch": {
+    "status": "mt",
+    "srcHash": "1a4872c52576"
   },
   "designer.model.none": {
     "status": "mt",
@@ -10754,6 +10798,10 @@
   "designer.model.optional": {
     "status": "mt",
     "srcHash": "0c6c4102d4df"
+  },
+  "designer.model.reloadModels": {
+    "status": "mt",
+    "srcHash": "1ce20f89593d"
   },
   "designer.model.retry": {
     "status": "mt",
@@ -10767,6 +10815,10 @@
     "status": "mt",
     "srcHash": "56a2285c5b11"
   },
+  "designer.model.searchModels": {
+    "status": "mt",
+    "srcHash": "5f018fe05ba7"
+  },
   "designer.model.showKey": {
     "status": "mt",
     "srcHash": "f7975bfb6ad1"
@@ -10775,17 +10827,9 @@
     "status": "src",
     "srcHash": "640ab2bae07b"
   },
-  "designer.model.testAddressFirst": {
-    "status": "mt",
-    "srcHash": "68f936ecacc4"
-  },
   "designer.model.testFailed": {
     "status": "mt",
     "srcHash": "2ba0408462ab"
-  },
-  "designer.model.testKeyFirst": {
-    "status": "mt",
-    "srcHash": "f510a0703646"
   },
   "designer.model.testing": {
     "status": "mt",
@@ -16182,6 +16226,26 @@
   "files.drawer.none": {
     "status": "mt",
     "srcHash": "6eef6648406c"
+  },
+  "files.drawer.previewFailed": {
+    "status": "mt",
+    "srcHash": "6c9fca1b37d1"
+  },
+  "files.drawer.previewNone": {
+    "status": "mt",
+    "srcHash": "0f00d892e91d"
+  },
+  "files.drawer.previewTitle": {
+    "status": "mt",
+    "srcHash": "b5b8b81dc3a3"
+  },
+  "files.drawer.previewTrashed": {
+    "status": "mt",
+    "srcHash": "3b082312082c"
+  },
+  "files.drawer.previewTruncated": {
+    "status": "mt",
+    "srcHash": "a20c67337e1c"
   },
   "files.drawer.subtitle": {
     "status": "src",
