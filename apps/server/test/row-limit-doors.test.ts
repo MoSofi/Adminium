@@ -531,6 +531,16 @@ for (const [dialect, available] of ENGINES) {
         expect((await put('dana', omars)).statusCode).toBe(200);
       });
 
+      it('is listed on its record for whoever reads the record, not only for its uploader', async () => {
+        // Omar's own deal, its file uploaded by the owner: his record's Files tab lists it.
+        const listed = await get('omar', `files?${new URLSearchParams({ connectionId: w.connectionId, table: deals(), recordId: '3' }).toString()}`);
+        expect(listed.statusCode, listed.body).toBe(200);
+        expect(json<{ data: { id: string }[] }>(listed).data.map((file) => file.id)).toContain(omars);
+        // …and a deal of Dana's lists nothing of hers to him.
+        const theirs = await get('omar', `files?${new URLSearchParams({ connectionId: w.connectionId, table: deals(), recordId: '1' }).toString()}`);
+        expect(json<{ data: { id: string }[] }>(theirs).data.map((file) => file.id)).not.toContain(hers);
+      });
+
       it('is not attached to an email by somebody it is not theirs to send', async () => {
         // Omar writes the workspace's emails, and keeps no Files library.
         await w.system('mailer', ['settings.manage']);

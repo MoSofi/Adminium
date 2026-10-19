@@ -978,6 +978,19 @@ for (const engine of ENGINES) {
       expect(await filesRepo(meta).findById(late.id)).toMatchObject({ attachedAt: null, entityId: null });
     });
 
+    it('tells apart two records whose keys differ only in case', async () => {
+      const files = filesRepo(meta);
+      const lower = await files.create({ filename: 'lower.pdf', mime: 'application/pdf', sizeBytes: 1, sha256: 'a'.repeat(64), kind: 'upload' });
+      const upper = await files.create({ filename: 'upper.pdf', mime: 'application/pdf', sizeBytes: 1, sha256: 'a'.repeat(64), kind: 'upload' });
+      await files.attach(lower.id, rowOf('SKU-a'));
+      await files.attach(upper.id, rowOf('SKU-A'));
+      expect((await files.listByEntity({ connectionId: conn, table: TABLE, recordId: 'SKU-a' })).map((file) => file.id)).toEqual([lower.id]);
+      expect((await files.search({ entityConnectionId: conn, entityTable: TABLE, entityId: 'SKU-a' })).rows.map((file) => file.id)).toEqual([lower.id]);
+      // Deleting one record bins its file, never the other's.
+      expect(await reconciler.trashForRecord({ connectionId: conn, table: TABLE, entity: rowOf('SKU-a'), row: {} })).toEqual([lower.id]);
+      expect((await files.findById(upper.id))?.deletedAt).toBeNull();
+    });
+
     it('takes every file a deleted record kept to the bin, past the two hundredth too', async () => {
       const files = filesRepo(meta);
       const kept: string[] = [];

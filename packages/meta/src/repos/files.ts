@@ -336,7 +336,8 @@ export function filesRepo(meta: MetaDb) {
         .where('deletedAt', 'is', null)
         .orderBy('createdAt', 'asc');
       if (limit !== null) query = query.limit(limit);
-      return (await query.execute()).map(decode);
+      // Compared exactly, as `search` does: another record whose key differs only in case is not this one.
+      return (await query.execute()).map(decode).filter((file) => file.entityTable === keys.entityTable && file.entityId === keys.entityId);
     },
 
     /**
@@ -524,7 +525,13 @@ export function filesRepo(meta: MetaDb) {
       // One more than asked, so "is there another page" needs no count.
       const rows = await q.orderBy('id', 'desc').limit(limit + 1).execute();
       const page = rows.slice(0, limit).map(decode);
-      return { rows: page, nextCursor: rows.length > limit ? (page.at(-1)?.id ?? null) : null };
+      // A record's keys compared exactly: a MySQL meta store's collation folds case (`SKU-a` is `SKU-A`).
+      const exact = page.filter(
+        (file) =>
+          (input.entityTable === undefined || file.entityTable === auditEntityKeyPart(input.entityTable)) &&
+          (input.entityId === undefined || file.entityId === auditEntityKeyPart(input.entityId)),
+      );
+      return { rows: exact, nextCursor: rows.length > limit ? (page.at(-1)?.id ?? null) : null };
     },
 
     /**

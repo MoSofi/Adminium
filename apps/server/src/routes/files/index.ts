@@ -569,6 +569,7 @@ export function filesRoutes(deps: FilesRoutesDeps): FastifyPluginAsyncZod {
         const userId = requireUserId(request);
         const manage = await request.can(FILES_MANAGE_PERMISSION);
         const query = request.query;
+        const ofRecord = query.connectionId !== undefined && query.table !== undefined && query.recordId !== undefined;
 
         const page = await files.search({
           state: query.state,
@@ -585,8 +586,10 @@ export function filesRoutes(deps: FilesRoutesDeps): FastifyPluginAsyncZod {
           ...(query.mime === undefined ? {} : { mime: query.mime }),
           // Mine-only without the grant, the `exports.manage` precedent. An
           // explicit `uploadedBy` is honoured only for someone who may see
-          // other people's files at all.
-          uploadedBy: manage ? query.uploadedBy : userId,
+          // other people's files at all. A record's own list (its Files tab)
+          // is what the record holds, whoever uploaded it: each still passes
+          // the per-file read rule below.
+          uploadedBy: manage ? query.uploadedBy : ofRecord ? undefined : userId,
           limit: query.limit,
           ...(query.cursor === undefined ? {} : { cursor: query.cursor }),
         });
