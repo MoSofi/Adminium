@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * A row's files through the writes nobody made by hand: a rule's step and a
- * timed move. Neither can judge a file it names — no person sent it — so it
- * takes nothing new,
+ * A row's files through the writes nobody made by hand: a rule's step, a
+ * timed move, a row another row's move moved. None can judge a file it names
+ * — no person sent it — so it takes nothing new,
  * but what it clears or replaces is let go as a person's change lets it go:
  * to the bin when it was this row's. Read from the file rows themselves, on
  * every engine this run can reach.
@@ -15,6 +15,7 @@ import { runUpdateAction } from '../src/automations/actions/record-write.js';
 import type { ActionContext } from '../src/automations/actions/types.js';
 import { TRACE_EN } from '../src/automations/trace.js';
 import { runIntrospection } from '../src/connections/introspect.js';
+import { announceEffects } from '../src/states/effects.js';
 import { runTimedMoves } from '../src/states/timed-moves.js';
 import { applyOverrides } from '../src/connections/effective-schema.js';
 import { SnapshotView } from '../src/crud/identifiers.js';
@@ -136,5 +137,39 @@ for (const [dialect, available] of ENGINES) {
       });
     });
 
+    describe("a row another row's move moved", () => {
+      /*
+       * Told as the write service tells it once the statement has run: the row
+       * as it was and as it is. (A move's effect writes the moved row's state;
+       * its file column changes with it by that row's own rules, a stamp.)
+       */
+      const moved = async (id: number, values: Record<string, unknown>): Promise<void> => {
+        const before = await rowOf(id);
+        const sets = Object.entries(values).map(([column, value]) => `${column} = ${value === null ? 'NULL' : `'${String(value)}'`}`);
+        await w.run(`UPDATE dishes SET ${sets.join(', ')} WHERE id = ${String(id)}`);
+        await announceEffects(w.app, {
+          connectionId: w.connectionId,
+          view: await view(),
+          effects: [{ table: dishes, pk: { id }, before, after: await rowOf(id) }],
+          origin: 'automation',
+          actor: { id: null, label: 'Timed move', kind: 'system' },
+        });
+      };
+
+      it('with its photo cleared lets it go to the bin', async () => {
+        const own = await photo();
+        const id = await dish(own);
+        await moved(id, { status: 'off', photo: null });
+        expect((await fileOf(own))?.deletedAt).not.toBeNull();
+      });
+
+      it('with another photo lets the old one go and takes nothing new', async () => {
+        const [own, other] = [await photo(), await photo()];
+        const id = await dish(own);
+        await moved(id, { photo: other });
+        expect((await fileOf(own))?.deletedAt).not.toBeNull();
+        expect(await fileOf(other)).toMatchObject({ attachedAt: null, deletedAt: null });
+      });
+    });
   });
 }
