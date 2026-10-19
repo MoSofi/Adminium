@@ -9,6 +9,8 @@ on:
   # costing every push the slowest engine in the matrix.
   schedule:
     - cron: '0 3 * * *'
+  # Lets a heavy local run fall back to GitHub on a pushed snapshot branch.
+  workflow_dispatch:
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
