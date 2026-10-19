@@ -7,7 +7,47 @@
  */
 import { parseDatabaseModel } from '@adminium/engine';
 import { filesRepo, overridesRepo, snapshotsRepo } from '@adminium/meta';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+
+/**
+ * Somebody else's delete, landed between the route's read of a row and its
+ * own DELETE: the row the route just read (by `fetchByPk` or `fetchVisible`)
+ * is deleted under it, once, when armed for its table.
+ */
+const race = vi.hoisted(() => ({
+  table: null as string | null,
+  async vanish<T>(row: T | undefined, db: import('kysely').Kysely<Record<string, Record<string, unknown>>>, table: { id: string; name: string }, pk: Record<string, unknown>): Promise<T | undefined> {
+    if (row !== undefined && this.table === table.name) {
+      this.table = null;
+      let gone = db.deleteFrom(table.id);
+      for (const [column, value] of Object.entries(pk)) gone = gone.where((eb) => eb(db.dynamic.ref(column), '=', value));
+      await gone.execute();
+    }
+    return row;
+  },
+}));
+
+vi.mock('../src/crud/records.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../src/crud/records.js')>();
+  return {
+    ...actual,
+    async fetchByPk(...args: Parameters<typeof actual.fetchByPk>) {
+      const [db, table, pk] = args;
+      return race.vanish(await actual.fetchByPk(...args), db as never, table, pk);
+    },
+  };
+});
+
+vi.mock('../src/crud/row-limit.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../src/crud/row-limit.js')>();
+  return {
+    ...actual,
+    async fetchVisible(...args: Parameters<typeof actual.fetchVisible>) {
+      const [, db, table, pk] = args;
+      return race.vanish(await actual.fetchVisible(...args), db as never, table, pk);
+    },
+  };
+});
 
 import { FILES_RETENTION_SCHEDULE_NAME } from '../src/compose.js';
 import { runIntrospection } from '../src/connections/introspect.js';
@@ -49,6 +89,7 @@ for (const [dialect, available] of ENGINES) {
     const photoOf = async (id: number) => (await w.rows(`SELECT photo FROM dishes WHERE id = ${String(id)}`))[0]?.['photo'] ?? null;
 
     beforeAll(async () => {
+      race.table = null;
       w = await world(dialect);
       await w.run(`CREATE TABLE dishes (id INTEGER PRIMARY KEY, name VARCHAR(120) NOT NULL, photo VARCHAR(64), gallery ${dialect === 'sqlite' ? 'TEXT' : 'JSON'})`);
       await runIntrospection({ manager: w.manager, meta: w.meta, connectionId: w.connectionId });
@@ -121,6 +162,19 @@ for (const [dialect, available] of ENGINES) {
       expect(await fileOf(listed)).toMatchObject({ entityTable: dishes, entityId: String(id), deletedAt: null });
       // An upload no row names is still the sweep's.
       expect((await fileOf(loose))?.deletedAt).not.toBeNull();
+    });
+
+    it('a delete that finds the row already gone bins nothing and offers no undo', async () => {
+      // Two people delete one dish: the other's lands first, and goes through
+      // its own delete — this one's DELETE matches nothing.
+      const own = await photo();
+      const row = await dish(own);
+      race.table = 'dishes';
+      const res = await call('DELETE', `${rows()}/${String(row.id)}`);
+      expect(race.table).toBeNull();
+      expect(json<{ undoToken?: string | null }>(res).undoToken ?? null).toBeNull();
+      // The photo was not this delete's to bin.
+      expect((await fileOf(own))?.deletedAt).toBeNull();
     });
   });
 }

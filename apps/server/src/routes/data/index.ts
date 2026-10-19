@@ -3949,6 +3949,8 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
           context,
           mapError: (error) => mapDbError(error, ctx.table),
           ...withinReach(ctx, 'delete'),
+          // A DELETE that matched nothing (somebody else's landed first) announces nothing: no file to the bin, no Undo.
+          skipIfNone: true,
           announce: async (_count, _before, adjusted) => {
             asked = adjusted;
             const entity = recordRef(ctx, pk);
