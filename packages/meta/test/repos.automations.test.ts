@@ -187,6 +187,17 @@ for (const dialect of TEST_DIALECTS) {
       expect(second).toBeNull();
     });
 
+    it('a released key may be claimed again, and the run that held it keeps everything else', async () => {
+      const rule = await makeRule({ enabled: true });
+      const key = `${rule.id}:{"id":8}`;
+      const first = await runs.begin({ automationId: rule.id, dedupeKey: key, origin: 'dashboard', triggerEvent: EVENT }, T0);
+      expect(await runs.releaseClaims([])).toBe(0);
+      expect(await runs.releaseClaims([key, `${rule.id}:{"id":9}`])).toBe(1);
+      expect(await runs.claimedBy(key)).toBeNull();
+      expect(await runs.findById(first!.id)).toMatchObject({ status: 'pending', dedupeKey: null });
+      expect(await runs.begin({ automationId: rule.id, dedupeKey: key, origin: 'dashboard', triggerEvent: EVENT }, T0 + 1)).not.toBeNull();
+    });
+
     it('walks a run pending → running → waiting → succeeded and keeps the trace', async () => {
       const rule = await makeRule({ enabled: true });
       const run = await runs.begin(
