@@ -1888,6 +1888,25 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         if (entry.fileIds.length > 0 && deps.files !== undefined) {
           await deps.files.restoreAll(entry.fileIds);
         }
+        /*
+         * A change taken back puts its files back too: a file of the record's
+         * it names again comes out of the bin the change put it in, and one it
+         * names no more goes there, as a replaced one does. A new row taken
+         * back takes its files with it, as a deleted one does.
+         */
+        if (deps.files !== undefined && entry.action !== 'delete') {
+          for (const row of changed) {
+            const entity: RecordRef = { connectionId: entry.connectionId, table: table.id, pk: row.pk, label: pkLabel(table, row.pk) };
+            if (entry.action === 'create') {
+              if (row.record !== null) await trashRecordFiles(undone, entity, row.record);
+              continue;
+            }
+            if (row.before === null) continue;
+            const after = await fetchByPk(db, table, row.pk);
+            if (after === undefined) continue;
+            await deps.files.reconcile({ connectionId: entry.connectionId, table: table.id, entity, before: row.before, after, ruled: ruledBlocksOf(table.columns.values()), restoring: true });
+          }
+        }
         await app.rbac.audit(request, {
           category: 'data',
           action: 'record.undo',

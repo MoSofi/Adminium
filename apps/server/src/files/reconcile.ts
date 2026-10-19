@@ -52,6 +52,8 @@ export interface ReconcileInput {
   after: Row | null;
   /** The table's file columns an app's own rule makes (`ruledBlocksOf`): heard beside the pages' blocks, and before them. */
   ruled?: ReadonlyMap<string, ColumnFile> | undefined;
+  /** An undo putting values back: a file of this record's it names again comes out of the bin with it. */
+  restoring?: boolean | undefined;
 }
 
 export interface ReconcileResult {
@@ -312,8 +314,15 @@ export function createFileReconciler(deps: FileReconcilerDeps): FileReconciler {
            */
           const nextIds = new Set(next.map((file) => file.id));
           for (const file of next) {
-            // Already this record's: nothing to do, and `attached_at` keeps its stamp.
-            if (file.attachedAt !== null && ofRecord(file, input.entity)) continue;
+            // Already this record's: nothing to do, and `attached_at` keeps its stamp. An undo that names it
+            // again takes it back out of the bin its change put it in.
+            if (file.attachedAt !== null && ofRecord(file, input.entity)) {
+              if (input.restoring === true && file.deletedAt !== null) {
+                await files.restore(file.id);
+                result.attached.push(file.id);
+              }
+              continue;
+            }
             // Another record's, or the library's, stays theirs. Of an app's own file column the write was
             // refused before it came to this (`files/column-judge.ts`), so this is the second lock; a page's
             // column takes what a foreign app or a pasted link wrote, so this is the only one.
