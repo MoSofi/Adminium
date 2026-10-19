@@ -214,6 +214,29 @@ for (const [dialect, available] of ENGINES) {
         await w.run('DELETE FROM deal_members WHERE id = 20');
       });
 
+      it('refuses a person whose reach of deals does not take THIS deal once listed: every won deal reads no open one', async () => {
+        const WON = { reach: 'all', while: { column: 'state', in: ['won'] } } as const;
+        await w.role('ops', { deals: { actions: ['read'], rows: { read: WON } } });
+        await w.give('kim', 'ops');
+        try {
+          // Deal 5 is open: reading every won deal, Kim would be named on a deal she cannot open.
+          const refused = await add('lena', 21, 5, 'kim');
+          expect(refused.statusCode, refused.body).toBe(422);
+          expect(field(refused, 'user_id')).toBe('cannot-open');
+          // Deal 9 is won: she reads it, listed or not.
+          const won = await add('lena', 21, 9, 'kim');
+          expect(won.statusCode, won.body).toBe(201);
+          await w.run('DELETE FROM deal_members WHERE id = 21');
+          // With "every won deal, and the ones she is on", being listed makes the open deal hers.
+          await w.role('ops', { deals: { actions: ['read'], rows: { read: [WON, OWN] } } });
+          const theirs = await add('lena', 22, 5, 'kim');
+          expect(theirs.statusCode, theirs.body).toBe(201);
+          await w.run('DELETE FROM deal_members WHERE id = 22');
+        } finally {
+          await w.take('kim', 'ops');
+        }
+      });
+
       it('holds a cover to the same: whoever covers reads deals', async () => {
         const refused = await call('owner', 'POST', w.id('covers'), { values: { id: 9, owner_id: w.people.sam, cover_id: w.people.kim, starts_on: '2027-01-04', ends_on: '2027-01-08' } });
         expect(refused.statusCode, refused.body).toBe(422);
