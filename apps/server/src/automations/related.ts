@@ -142,6 +142,14 @@ export function relatedUses(graph: AutomationGraph): RelatedUse[] {
       const ref = parseRelated(action.to.column);
       if (ref !== null) out.push({ ...ref, nodeId: node.id, title: node.title, as: 'recipient', step: action.kind });
     }
+    // The person a staff column is given when its setting names nobody, when that is somebody of a linked row.
+    if (action.kind === 'record.create' || action.kind === 'record.update') {
+      for (const value of Object.values(action.values ?? {})) {
+        const fallback = typeof value === 'object' && value !== null && 'setting' in value ? (value as { else?: { staff: string } }).else : undefined;
+        const ref = fallback === undefined ? null : parseRelated(fallback.staff);
+        if (ref !== null) out.push({ ...ref, nodeId: node.id, title: node.title, as: 'recipient', step: action.kind });
+      }
+    }
     // A step an add-on gives is read input by input: what an input may read depends on what it is.
     const parts: [string | undefined, unknown][] = action.kind === 'add-on.step' ? Object.entries(action.inputs) : [[undefined, action]];
     for (const [input, part] of parts) {

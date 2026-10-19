@@ -1945,7 +1945,13 @@ export const automationWriteValueSchema = z.union([
    * holds when the step runs, read as the rule reads the connection. A staff
    * column filled so is left empty unless it names somebody who signs in.
    */
-  z.object({ setting: automationSettingRefSchema }).strict(),
+  z
+    .object({
+      setting: automationSettingRefSchema,
+      /** Who a staff column is given when the setting names nobody who signs in: a staff column of the record, or one link further. */
+      else: z.object({ staff: z.string().max(260) }).strict().optional(),
+    })
+    .strict(),
   /**
    * A day so many days after a date column of the record (`column`) or after
    * the run (`now`), on the business's calendar: `days`, or the whole number

@@ -63,6 +63,7 @@ import {
 } from '../../crud/write-service.js';
 import { writeStores } from '../../crud/write-stores.js';
 import { normalizeWriteValue } from '../../crud/write-values.js';
+import { staffAt } from '../staff-recipient.js';
 import { substitute } from '../templating.js';
 import { pairsOf } from '../trace.js';
 import { isOwnTable } from '../validate.js';
@@ -215,6 +216,12 @@ export async function resolveValues(
         if (user === null || user.status !== 'active') {
           notes.push(ctx.text.settingNobody(column, `${value.setting.column}`));
           given = null;
+          // Somebody of the record instead (`else`), while they sign in too.
+          if (value.else !== undefined) {
+            const found = await staffAt(ctx.meta, ctx, value.else.staff);
+            if ('user' in found) given = found.user.id;
+            else notes.push(ctx.text.settingNobody(column, value.else.staff));
+          }
         }
       }
       out[column] = given === null ? null : normalizeWriteValue(resolved, given);

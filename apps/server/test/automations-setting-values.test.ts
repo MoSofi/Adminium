@@ -11,7 +11,8 @@
  *    clocks; a date is a date. The setting's number is read when the step
  *    runs; while it holds none from 1 to 3650 (empty, 0), the step's own `days`.
  *  - A staff column filled from the settings row names somebody who signs in,
- *    or is left empty and the run's log says so. A date that is empty leaves
+ *    or is left empty and the run's log says so; with `else`, the person a
+ *    staff column of the record names instead (Adminium 0.3.29). A date that is empty leaves
  *    the value empty, said too.
  *  - A setting is read as a rule reads the connection: a value is no way to
  *    read a table. Its author must read that table; a secret or personal
@@ -27,7 +28,7 @@ import { matrixRowsFromGrants } from '../src/rbac/permissions.js';
 import { TEST_SECRET } from './helpers.js';
 import { LEGS, said, wholeServer, type WholeServer } from './whole-server.helpers.js';
 
-vi.mock('../src/version.js', () => ({ APP_VERSION: '0.3.28' }));
+vi.mock('../src/version.js', () => ({ APP_VERSION: '0.3.29' }));
 
 const id = { ref: 'id', type: 'int', role: 'pk' };
 const en = (text: string) => ({ 'en-US': text });
@@ -46,7 +47,7 @@ function firm(): Record<string, unknown> {
     license: 'AGPL-3.0-only',
     description: { key: 'mft.firm.desc', fallback: 'A firm.' },
     categories: ['operations'],
-    compatibility: { minAdminiumVersion: '0.3.28', engines: ['postgres', 'mysql', 'sqlite'] },
+    compatibility: { minAdminiumVersion: '0.3.29', engines: ['postgres', 'mysql', 'sqlite'] },
     navGroups: [{ key: 'work', label: en('Work'), order: 1 }],
     requiredSchema: {
       prefixed: true,
@@ -72,6 +73,7 @@ function firm(): Record<string, unknown> {
             { ref: 'signed_on', type: 'date', nullable: true },
             { ref: 'signed_at', type: 'timestamptz', nullable: true },
             { ref: 'born_on', type: 'date', nullable: true, rules: { personal: true } },
+            { ref: 'seller_id', type: 'text', maxLength: 36, nullable: true, rules: { staff: true } },
           ],
         },
         {
@@ -106,7 +108,7 @@ function firm(): Record<string, unknown> {
             table: 'follow_ups',
             values: {
               job_id: '{{record.id}}',
-              owner_id: { setting: setting('aftercare_owner_id') },
+              owner_id: { setting: setting('aftercare_owner_id'), else: { staff: 'seller_id' } },
               due_at: { daysAfter: { column: 'signed_at', days: 28, setting: setting('aftercare_days'), at: '09:00' } },
               call_at: { daysAfter: { column: 'signed_at', days: 28, setting: setting('aftercare_days') } },
               due_on: { daysAfter: { column: 'signed_on', days: 28, setting: setting('aftercare_days') } },
@@ -146,7 +148,7 @@ for (const [dialect, reachable] of LEGS) {
       s.send(who, 'POST', '/api/v1/automations', { name: `probe ${who}`, connectionId: s.connectionId, trigger: recordTrigger(), graph: { version: 1, nodes: [{ id: 't', kind: 'trigger', title: 'T' }, { id: 'c', kind: 'action', title: 'Make', action: { kind: 'record.create', table: s.t('follow_ups'), values: { job_id: '{{record.id}}', ...values } } }] }, enabled: false });
 
     beforeAll(async () => {
-      s = await wholeServer(dialect, firm(), { people: { fay: [], oli: ['office'] } });
+      s = await wholeServer(dialect, firm(), { people: { fay: [], gus: [], oli: ['office'] } });
       // The business is in New York: the clocks go back on 1 November 2026.
       await s.meta.db.updateTable('adminium_connections').set({ timezone: 'America/New_York' } as never).where('id', '=', s.connectionId).execute();
       await s.rows(`INSERT INTO firm_settings (id, aftercare_days, aftercare_owner_id, greeting, pin, phone) VALUES (1, NULL, '${s.ids['fay']!}', 'Ring them', '4321', '+1 212 555 0100')`);
@@ -199,6 +201,33 @@ for (const [dialect, reachable] of LEGS) {
       await s.rows(`UPDATE firm_settings SET aftercare_owner_id = 'nobody-at-all' WHERE id = 1`);
       expect((await signOff('2026-10-20T13:30:00Z', '2026-10-20'))['owner_id']).toBeNull();
       await s.rows(`UPDATE firm_settings SET aftercare_owner_id = '${s.ids['fay']!}' WHERE id = 1`);
+    });
+
+    it('gives the row to the person a staff column of the record names when the setting names nobody who signs in (else), and to nobody when neither does', async () => {
+      await s.meta.db.updateTable('adminium_users').set({ status: 'suspended' } as never).where('id', '=', s.ids['fay']!).execute();
+      try {
+        job += 1;
+        expect(said(await s.make('owner', 'jobs', { id: job, name: 'Sold by Gus', seller_id: s.ids['gus'], signed_at: '2026-10-20T13:30:00Z' }))).toBe('ok');
+        expect(said(await s.change('owner', 'jobs', job, { state: 'signed-off' }))).toBe('ok');
+        await s.jobs();
+        const [made] = await s.rows(`SELECT owner_id FROM firm_follow_ups WHERE job_id = ${String(job)}`);
+        expect(made?.['owner_id']).toBe(s.ids['gus']);
+        // Gus suspended too, after the job was made: nobody, and the log says so of both.
+        job += 1;
+        expect(said(await s.make('owner', 'jobs', { id: job, name: 'Sold by Gus, away', seller_id: s.ids['gus'], signed_at: '2026-10-20T13:30:00Z' }))).toBe('ok');
+        await s.meta.db.updateTable('adminium_users').set({ status: 'suspended' } as never).where('id', '=', s.ids['gus']!).execute();
+        expect(said(await s.change('owner', 'jobs', job, { state: 'signed-off' }))).toBe('ok');
+        await s.jobs();
+        const [none] = await s.rows(`SELECT owner_id FROM firm_follow_ups WHERE job_id = ${String(job)}`);
+        expect(none?.['owner_id']).toBeNull();
+        expect(await logOf()).toContain("owner_id was left empty: the settings row's seller_id names nobody who can sign in.");
+      } finally {
+        await s.meta.db.updateTable('adminium_users').set({ status: 'active' } as never).where('id', 'in', [s.ids['fay']!, s.ids['gus']!]).execute();
+      }
+      // "else" names a person, from a staff column, into a staff column.
+      expect(said(await saveCreate('owner', { owner_id: { setting: { table: s.t('settings'), column: 'aftercare_owner_id' }, else: { staff: 'name' } } }))).toMatch(/^422/);
+      expect(said(await saveCreate('owner', { text: { setting: { table: s.t('settings'), column: 'greeting' }, else: { staff: 'seller_id' } } }))).toMatch(/^422/);
+      expect(said(await saveCreate('owner', { owner_id: { setting: { table: s.t('settings'), column: 'aftercare_owner_id' }, else: { staff: 'seller_id' } } }))).toBe('ok');
     });
 
     it('asks its author to read the settings, and refuses a secret or personal column, a private table, and a day into a column that holds none', async () => {

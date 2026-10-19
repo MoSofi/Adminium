@@ -81,7 +81,7 @@ function boundCondition(condition: ManifestCondition, b: Binding): unknown {
 
 function boundValue(value: ManifestWriteValue, b: Binding): unknown {
   if (typeof value !== 'object') return value;
-  if ('setting' in value) return { setting: { ...value.setting, table: b.realId(value.setting.table) } };
+  if ('setting' in value) return { ...value, setting: { ...value.setting, table: b.realId(value.setting.table) } };
   if ('daysAfter' in value && value.daysAfter.setting !== undefined) return { daysAfter: { ...value.daysAfter, setting: { ...value.daysAfter.setting, table: b.realId(value.daysAfter.setting.table) } } };
   return value;
 }

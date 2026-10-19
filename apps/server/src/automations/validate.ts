@@ -572,6 +572,13 @@ function checkValues(
       if (table.table.columns.find((candidate) => candidate.name === column)?.staff === true && !held.staff) {
         throw new ValidationFailedError(`${where}: ${table.id}.${column} holds a staff member, and ${setting.table}.${setting.column} does not.`, { column, reason: 'not-staff' });
       }
+      const fallback = (value as { else?: { staff: string } }).else;
+      if (fallback !== undefined) {
+        if (table.table.columns.find((candidate) => candidate.name === column)?.staff !== true) {
+          throw new ValidationFailedError(`${where}: ${table.id}.${column} holds no staff member, so "else" names nobody it could be.`, { column, reason: 'not-staff' });
+        }
+        staffColumn(fallback.staff, record, ctx, where);
+      }
     }
     if ('daysAfter' in value) {
       const after = (value as { daysAfter: { column?: string; setting?: { table: string; column: string } } }).daysAfter;

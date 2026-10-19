@@ -229,6 +229,8 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   // A value a step writes read from the settings row as the rule reads it (a person only while they sign in); a day so many days on, on the business's calendar.
   'automations.settingValue',
   'automations.daysAfter',
+  // A person for that staff column when the setting names nobody who signs in: the record's own staff column, or one a link further (record-write.ts).
+  'automations.settingElse',
   // A message about a row that was removed, with the row's own values kept for it; a message no longer stops its row being removed.
   'outbox.onDelete',
   // Where a table's record opens on the app's staff side: a notice, its email and a search hit open there (apps/record-address.ts).

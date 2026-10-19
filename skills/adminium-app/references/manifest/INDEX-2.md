@@ -10,7 +10,7 @@
 | `references/manifest/automations--a-person-s-name-and-the-record-s-address.md` | Automations — A person's name, and the record's address | 1290 |
 | `references/manifest/automations--the-person-on-the-row.md` | Automations — The person on the row | 1887 |
 | `references/manifest/automations--an-amount-of-time-the-business-sets.md` | Automations — An amount of time the business sets | 1643 |
-| `references/manifest/automations--a-value-from-the-settings-row-and-a-day-so-many-days-on.md` | Automations — A value from the settings row, and a day so many days on | 2852 |
+| `references/manifest/automations--a-value-from-the-settings-row-and-a-day-so-many-days-on.md` | Automations — A value from the settings row, and a day so many days on | 3179 |
 | `references/manifest/automations--once-per-spell.md` | Automations — Once per spell | 691 |
 | `references/manifest/automations--quiet-hours-and-urgent.md` | Automations — Quiet hours and urgent | 1412 |
 | `references/manifest/automations--a-summary-for-each-person.md` | Automations — A summary for each person | 6901 |

@@ -131,6 +131,25 @@ describe('a value read from the settings row, and a day so many days on', () => 
     expect(said({ text: { setting: { table: 'settings', column: 'greeting' } } })).toBe('');
   });
 
+  it('gives a staff column, when the setting names nobody, the person a staff column of the record names (else, 0.3.29)', () => {
+    const withElse = (path: string): Values => ({ owner_id: { setting: { table: 'settings', column: 'aftercare_owner_id' }, else: { staff: path } } });
+    const doc = firm(withElse('owner_id'));
+    (doc['compatibility'] as Record<string, unknown>)['minAdminiumVersion'] = '0.3.29';
+    expect(issuesOf(doc)).toEqual([]);
+    expect(installFloorWords(doc).map((found) => `${found.word} ${found.path}`)).toContain('automations.settingElse automations.0.graph.nodes.1.action.values.owner_id');
+    expect(WORD_FLOORS['automations.settingElse']).toBe('0.3.29');
+    // At 0.3.28 the release that reads it is named.
+    expect(said(withElse('owner_id'))).toMatch(/automations\.settingElse/);
+    const at29 = (values: Values): string => {
+      const one = firm(values);
+      (one['compatibility'] as Record<string, unknown>)['minAdminiumVersion'] = '0.3.29';
+      return issuesOf(one).join('\n');
+    };
+    expect(at29(withElse('name'))).toContain('"jobs.name"');
+    expect(at29(withElse('nope'))).toContain('"jobs" has no column "nope"');
+    expect(at29({ text: { setting: { table: 'settings', column: 'greeting' }, else: { staff: 'owner_id' } } })).toContain('"follow_ups.text" holds no staff member');
+  });
+
   it('counts days from a date of the record, into a date, by a whole-number setting', () => {
     expect(said({ text: { daysAfter: { now: true, days: 1 } } })).toContain('"follow_ups.text" is text: a day so many days on is written into a date column');
     expect(said({ due_on: { daysAfter: { column: 'name', days: 1 } } })).toContain('"jobs.name" is text: days are counted from a date');
