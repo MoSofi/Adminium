@@ -146,7 +146,10 @@ export class AutomationMatcher {
 
   async onRecordEvent(event: RecordWriteEvent): Promise<void> {
     const hops = event.hops ?? 0;
-    if (event.action === 'delete') await this.#releaseCreated(event);
+    if (event.action === 'delete') {
+      await this.#releaseCreated(event);
+      await this.#dropWaiting(event);
+    }
     const rules = await this.rulesFor(event);
     if (rules.length === 0) return;
 
@@ -196,6 +199,30 @@ export class AutomationMatcher {
     } catch (error) {
       // The delete already happened; a claim left held costs one later row its rules, never the write.
       this.#deps.log?.warn({ err: error, table: event.table.id }, 'automation matcher could not release a deleted row\'s claims');
+    }
+  }
+
+  /**
+   * A row removed while a run for it still waits out its undo window: the run
+   * is skipped, as an undo skips it. It would read the row when it starts, and
+   * the row is gone; on SQLite the next row made is given the same key, so the
+   * run would act on THAT row instead (a deal won and removed at once made a
+   * job for the deal made after it). A rule that runs on the removal itself is
+   * claimed after this, and runs.
+   */
+  async #dropWaiting(event: RecordWriteEvent): Promise<void> {
+    try {
+      const runs = automationRunsRepo(this.#deps.meta);
+      const pending = await runs.listPending('dashboard');
+      if (pending.length === 0) return;
+      const gone = refKey(event.entity);
+      for (const run of pending) {
+        const record = run.triggerEvent.record;
+        if (record === null || run.triggerEvent.event === 'record.deleted' || refKey(record) !== gone) continue;
+        await runs.skipPending(run.id, { trace: { version: 1, steps: [], resume: null }, error: 'record-removed' });
+      }
+    } catch (error) {
+      this.#deps.log?.warn({ err: error, table: event.table.id }, 'automation matcher could not drop the runs of a removed row');
     }
   }
 
