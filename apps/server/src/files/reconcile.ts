@@ -199,12 +199,15 @@ export function createFileReconciler(deps: FileReconcilerDeps): FileReconciler {
     table: string;
     entity: RecordRef;
   }): Promise<StoredFile[]> {
-    // Sidecar attachments are found by the denormalized keys…
-    const sidecar = await files.listByEntity({
-      connectionId: input.connectionId,
-      table: input.table,
-      recordId: input.entity.label,
-    });
+    // Sidecar attachments are found by the denormalized keys — every one: a file past the panel's page would stay on a deleted record.
+    const sidecar = await files.listByEntity(
+      {
+        connectionId: input.connectionId,
+        table: input.table,
+        recordId: input.entity.label,
+      },
+      null,
+    );
     return sidecar;
   }
 

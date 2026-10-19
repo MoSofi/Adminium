@@ -303,20 +303,19 @@ export function filesRepo(meta: MetaDb) {
       return findById(id);
     },
 
-    /** Every live file attached to one record — the Attachments panel's query. */
-    async listByEntity(entity: FileEntityKeys, limit = 200): Promise<StoredFile[]> {
+    /** Every live file attached to one record — the Attachments panel's query. `null`: all of them (a delete's worklist). */
+    async listByEntity(entity: FileEntityKeys, limit: number | null = 200): Promise<StoredFile[]> {
       const keys = entityColumns(entity);
-      const rows = await db
+      let query = db
         .selectFrom('adminium_files')
         .selectAll()
         .where('entityConnectionId', '=', keys.entityConnectionId)
         .where('entityTable', '=', keys.entityTable)
         .where('entityId', '=', keys.entityId)
         .where('deletedAt', 'is', null)
-        .orderBy('createdAt', 'asc')
-        .limit(limit)
-        .execute();
-      return rows.map(decode);
+        .orderBy('createdAt', 'asc');
+      if (limit !== null) query = query.limit(limit);
+      return (await query.execute()).map(decode);
     },
 
     /**

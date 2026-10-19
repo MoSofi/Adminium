@@ -977,5 +977,17 @@ for (const engine of ENGINES) {
       expect((await save('A', null, JSON.stringify([late.id]))).attached).toEqual([]);
       expect(await filesRepo(meta).findById(late.id)).toMatchObject({ attachedAt: null, entityId: null });
     });
+
+    it('takes every file a deleted record kept to the bin, past the two hundredth too', async () => {
+      const files = filesRepo(meta);
+      const kept: string[] = [];
+      for (let i = 0; i < 201; i += 1) {
+        const file = await files.create({ filename: `note-${String(i)}.pdf`, mime: 'application/pdf', sizeBytes: 1, sha256: 'a'.repeat(64), kind: 'upload' });
+        await files.attach(file.id, rowOf('many'));
+        kept.push(file.id);
+      }
+      const trashed = await reconciler.trashForRecord({ connectionId: conn, table: TABLE, entity: rowOf('many'), row: {} });
+      expect(new Set(trashed)).toEqual(new Set(kept));
+    });
   });
 }
