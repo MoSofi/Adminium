@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * A row's files through the writes nobody made by hand: a rule's step. It
- * cannot judge a file it names — no person sent it — so it takes nothing new,
+ * A row's files through the writes nobody made by hand: a rule's step and a
+ * timed move. Neither can judge a file it names — no person sent it — so it
+ * takes nothing new,
  * but what it clears or replaces is let go as a person's change lets it go:
  * to the bin when it was this row's. Read from the file rows themselves, on
  * every engine this run can reach.
@@ -14,6 +15,7 @@ import { runUpdateAction } from '../src/automations/actions/record-write.js';
 import type { ActionContext } from '../src/automations/actions/types.js';
 import { TRACE_EN } from '../src/automations/trace.js';
 import { runIntrospection } from '../src/connections/introspect.js';
+import { runTimedMoves } from '../src/states/timed-moves.js';
 import { applyOverrides } from '../src/connections/effective-schema.js';
 import { SnapshotView } from '../src/crud/identifiers.js';
 import { png } from './picture-images.js';
@@ -56,11 +58,20 @@ for (const [dialect, available] of ENGINES) {
 
     beforeAll(async () => {
       w = await world(dialect);
-      await w.run('CREATE TABLE dishes (id INTEGER PRIMARY KEY, name VARCHAR(120) NOT NULL, photo VARCHAR(64))');
+      const moment = dialect === 'postgres' ? 'TIMESTAMPTZ' : 'DATETIME';
+      await w.run(`CREATE TABLE dishes (id INTEGER PRIMARY KEY, name VARCHAR(120) NOT NULL, photo VARCHAR(64), status VARCHAR(20) NOT NULL DEFAULT 'on', off_at ${moment})`);
       await runIntrospection({ manager: w.manager, meta: w.meta, connectionId: w.connectionId });
       const snapshot = parseDatabaseModel((await snapshotsRepo(w.meta).latest(w.connectionId))!.schema);
       dishes = snapshot.tables.find((one) => one.name === 'dishes')!.id;
       await overridesRepo(w.meta).create({ connectionId: w.connectionId, op: 'column.file', tableName: dishes, columnName: 'photo', value: { accept: ['png'], maxBytes: 64 * 1024 }, origin: 'app' } as never);
+      // A dish taken off the menu at its moment loses its photo.
+      await overridesRepo(w.meta).create({
+        connectionId: w.connectionId,
+        op: 'table.states',
+        tableName: dishes,
+        value: { column: 'status', initial: 'on', moves: { on: ['off'], off: ['on'] }, timed: [{ from: 'on', to: 'off', at: { column: 'off_at' }, set: { photo: null } }] },
+        origin: 'app',
+      } as never);
     }, 180_000);
     afterAll(async () => w?.close());
 
@@ -110,6 +121,18 @@ for (const [dialect, available] of ENGINES) {
         await w.run(`INSERT INTO dishes (id, name, photo) VALUES (${String(id)}, 'Pasted', '${theirs}')`);
         await step(id, { photo: '' });
         expect(await fileOf(theirs)).toMatchObject({ entityId: String(holder), deletedAt: null });
+      });
+    });
+
+    describe('a timed move', () => {
+      it('whose values clear the photo lets it go to the bin', async () => {
+        const own = await photo();
+        const id = await dish(own);
+        await w.run(`UPDATE dishes SET off_at = '2026-01-05 12:00:00' WHERE id = ${String(id)}`);
+        const tick = await runTimedMoves({ meta: w.meta, manager: w.manager, app: w.app }, w.connectionId, {}, new Date('2026-01-06T12:00:00Z'));
+        expect(tick.moved).toBeGreaterThanOrEqual(1);
+        expect(await rowOf(id)).toMatchObject({ status: 'off', photo: null });
+        expect((await fileOf(own))?.deletedAt).not.toBeNull();
       });
     });
 

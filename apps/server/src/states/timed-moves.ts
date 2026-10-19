@@ -56,7 +56,7 @@ import { z } from 'zod';
 
 import type { TableStatesRule } from '../connections/effective-schema.js';
 import type { ConnectionManager, SourceDatabase } from '../connections/manager.js';
-import { afterRecordWrite } from '../crud/after-record-write.js';
+import { afterRecordWrite, lettingGoFiles } from '../crud/after-record-write.js';
 import type { ResolvedTable, SnapshotView } from '../crud/identifiers.js';
 import type { Row } from '../crud/mask.js';
 import { dayPlus, momentOf, momentSettings, readDay, readInstant, type MomentSettings } from '../crud/moments.js';
@@ -493,6 +493,8 @@ async function moveOne(deps: TimedMovesDeps, writes: RecordWriteService, one: Du
         before: moved.before,
         after: moved.after,
         origin: 'automation',
+        // A file the move's values clear or replace is let go; one they name is taken by nobody.
+        ...lettingGoFiles(deps.app),
       });
       await announceEffects(deps.app, { connectionId: target.connectionId, view: target.view, effects: moved.effects, origin: 'automation', actor: ACTOR });
       // What the move handed to a ledger (a hold let go as the order lapsed).
