@@ -242,6 +242,27 @@ export function filesRepo(meta: MetaDb) {
       return rows.map(decode);
     },
 
+    /**
+     * Trashed UPLOADS before `cutoff`, one id-keyset page after `afterId` — the
+     * purge's worklist. The kind is asked in the query, so trashed exports at
+     * the head never stand in front of the uploads; the keyset moves past a
+     * file whose bytes could not be removed instead of listing it again.
+     */
+    async listTrashedUploadsBefore(cutoff: number, opts: { afterId?: string | undefined; limit?: number } = {}): Promise<StoredFile[]> {
+      let query = db
+        .selectFrom('adminium_files')
+        .selectAll()
+        .where('kind', '=', 'upload')
+        .where('deletedAt', 'is not', null)
+        .where('deletedAt', '<', cutoff);
+      if (opts.afterId !== undefined) query = query.where('id', '>', opts.afterId);
+      const rows = await query
+        .orderBy('id', 'asc')
+        .limit(opts.limit ?? 100)
+        .execute();
+      return rows.map(decode);
+    },
+
     /** Hard-delete a row (call only after the bytes are gone). */
     async purge(id: string): Promise<boolean> {
       const res = await db.deleteFrom('adminium_files').where('id', '=', id).executeTakeFirst();

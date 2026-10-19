@@ -69,6 +69,7 @@ import type { MetaStoreHandle } from '../src/meta/store.js';
 import { makeEnv, TEST_SECRET } from './helpers.js';
 import { META_ENGINES, type MetaHandle } from './meta-dialects.js';
 
+const DAY_MS = 86_400_000;
 const HOUR_MS = 3_600_000;
 
 for (const engine of META_ENGINES) {
@@ -113,6 +114,29 @@ for (const engine of META_ENGINES) {
       await writeFile(join(dataDir, FILES_DIR, row.storageKey), '%PDF-1.7\n');
       return row;
     }
+
+    it('moves past trashed uploads whose bytes will not go, and ends', async () => {
+      const files = filesRepo(meta);
+      const old = Date.now() - 40 * DAY_MS;
+      for (let i = 0; i < 150; i += 1) {
+        const file = await stored('upload', old);
+        await files.markDeleted(file.id, old);
+        driver.failing.add(file.storageKey);
+      }
+      await composed.jobs.scheduler.trigger(FILES_RETENTION_SCHEDULE_NAME);
+      // Each asked once: a pass that listed them again would ask a thousand times.
+      expect(driver.removes).toBe(150);
+    }, 60_000);
+
+    it('purges trashed uploads behind more trashed exports than a page holds', async () => {
+      const files = filesRepo(meta);
+      const old = Date.now() - 40 * DAY_MS;
+      for (let i = 0; i < 120; i += 1) await files.markDeleted((await stored('export', old)).id, old - DAY_MS);
+      const upload = await stored('upload', old);
+      await files.markDeleted(upload.id, old);
+      await composed.jobs.scheduler.trigger(FILES_RETENTION_SCHEDULE_NAME);
+      expect(await files.findById(upload.id)).toBeNull();
+    }, 60_000);
 
     it('leaves out of the bin an upload a save named after the sweep listed it', async () => {
       const files = filesRepo(meta);

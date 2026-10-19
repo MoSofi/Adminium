@@ -2993,6 +2993,11 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     const repo = filesRepo(meta);
     const at = Date.now();
 
+    /*
+     * Both halves walk an id keyset and end on a short page: a file one pass
+     * leaves (attached since it was listed, bytes that would not go) is
+     * passed, never listed again, so a pass always ends.
+     */
     const unattachedHours = await settings.get('files.unattachedHours');
     let trashed = 0;
     // A row that names an upload the write's own reconcile could not attach (it failed after the commit): it is that row's.
@@ -3023,13 +3028,13 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     const trashDays = await settings.get('retention.filesTrashDays');
     let purged = 0;
     let failed = 0;
+    let lastDue: string | undefined;
     for (;;) {
-      const due = (await repo.listDeletedBefore(at - trashDays * DAY_MS, 100)).filter(
-        // `upload` (and 34's `document`) only: an export's bytes are the
-        // exports sweep's business and its retention is a different setting.
-        (file) => file.kind === 'upload',
-      );
+      // `upload` only, asked in the query: an export's bytes are the exports
+      // sweep's business and its retention is a different setting.
+      const due = await repo.listTrashedUploadsBefore(at - trashDays * DAY_MS, { afterId: lastDue, limit: 100 });
       if (due.length === 0) break;
+      lastDue = due[due.length - 1]!.id;
       for (const file of due) {
         try {
           // BYTES FIRST, then the row: a row that survives a failed byte
