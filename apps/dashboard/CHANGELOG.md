@@ -1,5 +1,20 @@
 # @adminium/dashboard
 
+## 0.3.29
+
+### Patch Changes
+
+- de58e95: "Add a model" loads the models by itself once a key is pasted (Ollama's at once), and has a "Load models" button beside the Model field, which is now a searchable list. Ollama starts on a model that runs on this machine; a `:cloud` model the account has no plan or credit for says so instead of reading as a failed connection, and a model the server refuses tools for reads as one that cannot build.
+- 1994755: The Designer takes a Markdown file (`.md`, up to 200 KB) with a message. A `DESIGN.md` that describes a design system (colours, fonts, spacing, corners, do and don't) becomes the design of the app's own screens: the theme is set from it, the brief is written from it, and it stays with the session. Any other document is read as part of what you ask for.
+- 2660b70: The Files page shows what a file looks like: a picture, a PDF, a video or the start of a text file in its tile and in the drawer, where the browser can show it safely (a text file is shown as its words, never run). In the page editor, a column's settings that need room (a file column's block, the switches for how a value is shown) now take the row's whole width, and a new file column's block starts with its picture shown.
+- @adminium/add-on-contracts@0.3.29
+  - @adminium/charts@0.3.29
+  - @adminium/engine@0.3.29
+  - @adminium/i18n@0.3.29
+  - @adminium/tokens@0.3.29
+  - @adminium/ui@0.3.29
+  - @adminium/widgets@0.3.29
+
 ## 0.3.28
 
 ### Patch Changes
