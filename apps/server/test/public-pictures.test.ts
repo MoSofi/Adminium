@@ -158,10 +158,12 @@ describe.each(LEGS)('a picture anyone may see — %s', (dialect, available) => {
   });
 
   it.skipIf(!available)('answers one 404 for a dish off the menu, a photo since replaced, and a file no picture names', async () => {
+    const offMenu = await upload(png({ fill: 5 }).bytes, 'off.png');
     const first = await upload(png({ fill: 10 }).bytes, 'a.png');
     const second = await upload(png({ fill: 20 }).bytes, 'b.png');
-    const hidden = await dish('Off the menu', first.ref, false);
-    expect((await picture(hidden, first.id)).statusCode).toBe(404);
+    const hidden = await dish('Off the menu', offMenu.ref, false);
+    expect((await picture(hidden, offMenu.id)).statusCode).toBe(404);
+    // Each dish its own photo: naming the hidden dish's file would not move it here.
     const row = await dish('Soup', first.ref);
     expect((await picture(row, first.id)).statusCode).toBe(200);
     await rephoto(row, second.ref);
