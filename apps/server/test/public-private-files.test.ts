@@ -10,23 +10,30 @@
  * every response is sandboxed and unsniffed, and kept by no browser: it is
  * a person's own upload, read with their session. Another
  * client's, an unshared one's, a column not offered, a URL in the column, a
- * file thrown away or of another connection: the one 404.
+ * file thrown away or of another connection, a file another row holds: the
+ * one 404.
  */
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { rolesRepo, usersRepo } from '@adminium/meta';
+import { filesRepo, rolesRepo, usersRepo } from '@adminium/meta';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { adminPasswordHash, ADMIN_PASSWORD, sessionCookie } from './auth-helpers.js';
-import { installInvoicing, invoicingManifest, LEGS, type InvoicingHarness } from './invoicing-install.helpers.js';
+import { installInvoicing, invoicingManifest, LEGS, writerFor, type InvoicingHarness } from './invoicing-install.helpers.js';
 import { servePublic, type Served } from './public-lane.helpers.js';
 
 const id = { ref: 'id', type: 'int', role: 'pk' };
 const PNG = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), Buffer.from('a tiny picture of a logo')]);
 const PDF = Buffer.from('%PDF-1.4\n1 0 obj << >> endobj\ntrailer << >>\n%%EOF\n');
 const SVG = Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>');
+
+/** Each version holds its own file, as a write through Adminium leaves it. */
+async function holds(h: InvoicingHarness, row: number, fileId: string): Promise<void> {
+  const table = (await writerFor(h)).targetOf('deliverable_versions').table;
+  await filesRepo(h.meta).attach(fileId, { connectionId: h.connectionId, table: table.id, pk: { id: row }, label: String(row) });
+}
 
 function manifest(): Record<string, unknown> {
   return {
@@ -104,6 +111,8 @@ describe.each(LEGS)('a private file, through the row that names it — %s', (dia
     await version(3, files['other.png']!); // 6: Ben's
     await version(1, 'https://cdn.example.com/elsewhere.png'); // 7: a URL, not a file of ours
     await version(1, files['gone.png']!); // 8: thrown away below
+    await version(1, files['proof.pdf']!); // 9: hers and shared, naming a file version 2 holds
+    for (const [row, name] of [[1, 'logo.png'], [2, 'proof.pdf'], [3, 'mark.svg'], [4, 'notes.txt'], [5, 'other.png'], [8, 'gone.png']] as const) await holds(h, row, files[name]!);
     await h.meta.db.updateTable('adminium_files').set({ deletedAt: Date.now() }).where('id', '=', files['gone.png']!).execute();
     const claim = async (email: string, name: string) =>
       ((await served.post('/claim', { match: { email, name } })).json() as { data: { session: string } }).data.session;
@@ -151,6 +160,7 @@ describe.each(LEGS)('a private file, through the row that names it — %s', (dia
       [1, ada, 'note'], // a column holding a file id, never offered for download
       [7, ada, 'file'], // a URL: not a file of ours
       [8, ada, 'file'], // thrown away
+      [9, ada, 'file'], // another row's file: naming it is not holding it
     ];
     for (const [row, session, column] of cases) {
       const res = await download(row, session, column);
@@ -200,6 +210,7 @@ describe.each(LEGS)('a private file its row keeps for another holder — %s', (d
     // 1: Ada's own pass; 2: a pass of her deliverable she handed to Ben.
     await h.rows(`insert into ${t('deliverable_versions')} (deliverable_id, file, note, holder_id) values (1, '${file}', 'n', null)`);
     await h.rows(`insert into ${t('deliverable_versions')} (deliverable_id, file, note, holder_id) values (1, '${file}', 'n', 2)`);
+    await holds(h, 1, file);
     const claim = async (email: string, name: string) =>
       ((await served.post('/claim', { match: { email, name } })).json() as { data: { session: string } }).data.session;
     ada = await claim('ada@example.com', 'Ada');

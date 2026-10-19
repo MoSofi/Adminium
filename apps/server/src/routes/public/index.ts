@@ -27,6 +27,7 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 
 import type { DocumentRow, MetaDb, RecordRef } from '@adminium/meta';
 import {
+  auditEntityKeyPart,
   CUSTOMER_KEY_PURPOSE,
   keyStaffBinding,
   filesRepo,
@@ -4910,7 +4911,8 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
      * The file a column of a row names, read through the resource's whole
      * scope (`private-file.ts`). Everything that is not the caller's — no such
      * ref, a column not offered, a row outside the scope, a column naming no
-     * Adminium file, a file gone or of another connection — is the one 404.
+     * Adminium file, a file gone, of another connection or held by another
+     * row — is the one 404.
      */
     app.options('/public/files/:ref/:rowId/:column', { schema: { hide: true } }, preflight);
     app.get(
@@ -4961,7 +4963,17 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         const fileId = fileIdOf(value);
         if (fileId === null) return none();
         const file = await filesRepo(meta).findById(fileId);
-        if (file === null || file.deletedAt !== null || file.entityConnectionId !== ok.key.connectionId) return none();
+        if (
+          file === null ||
+          file.deletedAt !== null ||
+          file.entityConnectionId !== ok.key.connectionId ||
+          // The row the file is attached to, and no other, compared as stored: a column made to name another row's file, or a library file, serves nothing.
+          file.attachedAt === null ||
+          file.entityTable !== auditEntityKeyPart(found.table.id) ||
+          file.entityId !== auditEntityKeyPart(pkLabel(found.table, pk))
+        ) {
+          return none();
+        }
         let opened;
         try {
           opened = await storage.open(file);
