@@ -53,6 +53,19 @@ function crm(): Record<string, unknown> {
           ],
         },
       },
+      {
+        key: 'deal-renamed',
+        name: en('A deal is renamed: a mark'),
+        enabled: true,
+        trigger: { kind: 'record', event: 'updated', table: 'deals', changedColumn: 'name' },
+        graph: {
+          version: 1,
+          nodes: [
+            { id: 't', kind: 'trigger', title: 'When' },
+            { id: 'mark', kind: 'action', title: 'mark', action: { kind: 'record.create', table: 'marks', values: { deal: '{{record.id}}', name: 'renamed {{record.name}}' } } },
+          ],
+        },
+      },
     ],
     frontends: [{ side: 'staff', kind: 'spa', entry: 'index.html', routes: { desk: '/' } }],
   };
@@ -68,6 +81,29 @@ for (const [dialect, reachable] of LEGS) {
     }, 180_000);
     afterAll(async () => {
       await s?.close();
+    });
+
+    it('a deal renamed and removed inside the undo window: the waiting run is dropped, and never acts on the next deal given its key', async () => {
+      const made = await s.make('owner', 'deals', { name: 'Cedar' });
+      const key = (made.json() as { data: { id: number } }).data.id;
+      await s.jobs();
+      expect(said(await s.change('owner', 'deals', key, { name: 'Cedar Hall' }))).toBe('ok');
+      // Removed before the rename's run is due; the next deal is made with the same key on SQLite.
+      expect(said(await s.send('owner', 'DELETE', `/api/v1/data/${s.connectionId}/${s.t('deals')}/${String(key)}`))).toBe('ok');
+      const next = await s.make('owner', 'deals', { name: 'Dunmore' });
+      if (dialect === 'sqlite') expect((next.json() as { data: { id: number } }).data.id).toBe(key);
+      await s.jobs();
+      expect((await marks()).filter((name) => name.startsWith('renamed'))).toEqual([]);
+      const skipped = await s.meta.db.selectFrom('adminium_automation_runs').select(['status', 'error']).where('error', '=', 'record-removed').execute();
+      expect(skipped).toHaveLength(1);
+      // The next deal's own rename still runs.
+      expect(said(await s.change('owner', 'deals', (next.json() as { data: { id: number } }).data.id, { name: 'Dunmore Yard' }))).toBe('ok');
+      await s.jobs();
+      expect((await marks()).filter((name) => name.startsWith('renamed'))).toEqual(['renamed Dunmore Yard']);
+      // Taken away again, so the next test starts from the deals it expects.
+      for (const id of [(next.json() as { data: { id: number } }).data.id]) expect(said(await s.send('owner', 'DELETE', `/api/v1/data/${s.connectionId}/${s.t('deals')}/${String(id)}`))).toBe('ok');
+      await s.rows('DELETE FROM crm_marks');
+      await s.meta.db.deleteFrom('adminium_automation_runs').execute();
     });
 
     it('the newest deal deleted, the next one made: each deal gets its mark', async () => {
