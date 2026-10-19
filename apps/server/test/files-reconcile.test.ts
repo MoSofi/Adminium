@@ -16,21 +16,25 @@
  * different part of the system, and a stub would agree with whatever shape
  * this code expected.
  */
+import { randomBytes } from 'node:crypto';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
 import BetterSqlite3 from 'better-sqlite3';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import {
   connectionsRepo,
+  createMysqlMetaDb,
+  createPostgresMetaDb,
   createSqliteMetaDb,
   destinationsRepo,
   filesRepo,
   firstRun,
   newId,
   pagesRepo,
+  postgresInt8AsNumber,
   settingsRepo,
   type MetaDb,
   type RecordRef,
@@ -774,3 +778,197 @@ describe('the sidecar block reader', () => {
     expect(await createColumnBlockReader(meta).attachmentsFor(conn, TABLE)).toBeNull();
   });
 });
+
+/**
+ * A page's file column that names a file somebody else holds: another row, or
+ * the Files library. Naming is not taking: the file stays where it is, and the
+ * row that only names it never moves it nor throws it away. Before, the last
+ * row to name a file took it over, so a library file left the library and went
+ * to the bin with that row, and row A's picture went with row B.
+ *
+ * On every engine: the stored record key is cut to the audit key's length, and
+ * a long key must still read as this record's.
+ */
+interface ReconcileMeta {
+  meta: MetaDb;
+  destroy: () => Promise<void>;
+}
+
+function freshDbName(): string {
+  return `adminium_reconcile_${randomBytes(4).toString('hex')}`;
+}
+
+function withDatabase(base: string, database: string): string {
+  const url = new URL(base);
+  url.pathname = `/${database}`;
+  return url.toString();
+}
+
+const ENGINES: { name: string; url: string | undefined; make: (base: string) => Promise<ReconcileMeta> }[] = [
+  {
+    name: 'sqlite',
+    url: 'memory',
+    async make() {
+      return { meta: createSqliteMetaDb({ database: new BetterSqlite3(':memory:') }), destroy: async () => {} };
+    },
+  },
+  {
+    name: 'postgres',
+    url: process.env.TEST_POSTGRES_URL,
+    async make(base) {
+      const { default: pg } = await import('pg');
+      const database = freshDbName();
+      const admin = new pg.Client({ connectionString: base });
+      await admin.connect();
+      await admin.query(`CREATE DATABASE "${database}"`);
+      await admin.end();
+      const meta = createPostgresMetaDb({
+        pool: new pg.Pool({ connectionString: withDatabase(base, database), max: 4, types: postgresInt8AsNumber(pg as unknown as Record<string, unknown>) }),
+      });
+      return {
+        meta,
+        destroy: async () => {
+          await meta.db.destroy();
+          const drop = new pg.Client({ connectionString: base });
+          await drop.connect();
+          await drop.query(`DROP DATABASE IF EXISTS "${database}"`);
+          await drop.end();
+        },
+      };
+    },
+  },
+  {
+    name: 'mysql',
+    url: process.env.TEST_MYSQL_URL || undefined,
+    async make(base) {
+      const mysqlP = await import('mysql2/promise');
+      const database = freshDbName();
+      const admin = await mysqlP.createConnection({ uri: base });
+      await admin.query(`CREATE DATABASE \`${database}\``);
+      await admin.end();
+      const { createPool } = await import('mysql2');
+      const meta = createMysqlMetaDb({ pool: createPool({ uri: withDatabase(base, database), connectionLimit: 4 }) });
+      return {
+        meta,
+        destroy: async () => {
+          await meta.db.destroy();
+          const drop = await mysqlP.createConnection({ uri: base });
+          await drop.query(`DROP DATABASE IF EXISTS \`${database}\``);
+          await drop.end();
+        },
+      };
+    },
+  },
+];
+
+for (const engine of ENGINES) {
+  describe.skipIf(engine.url === undefined)(`a page's file column naming a file somebody else holds (${engine.name})`, () => {
+    let handle: ReconcileMeta;
+    let meta: MetaDb;
+    let dataDir: string;
+    let storage: FileStore;
+    let reconciler: FileReconciler;
+    let conn = '';
+    let clock = 1_000_000;
+
+    const rowOf = (label: string): RecordRef => ({ connectionId: conn, table: TABLE, pk: { invoice_id: label }, label });
+
+    async function upload(filename: string, claimed = false): Promise<{ id: string; ref: string }> {
+      const { Readable } = await import('node:stream');
+      const { file } = await storage.putUpload({
+        kind: 'upload',
+        filename,
+        source: Readable.from([PDF]),
+        maxBytes: 1_000_000,
+        allowedTypes: ['pdf'],
+        entityConnectionId: conn,
+        claimed,
+      });
+      return { id: file.id, ref: file.id };
+    }
+
+    /** Save a row's column from one value to another, as a CRUD write's post-commit hook does. */
+    const save = (label: string, before: unknown, after: unknown) =>
+      reconciler.reconcile({ connectionId: conn, table: TABLE, entity: rowOf(label), before: { pdf_url: before }, after: { pdf_url: after } });
+
+    beforeAll(async () => {
+      handle = await engine.make(engine.url ?? '');
+      meta = handle.meta;
+      await firstRun(meta);
+    });
+
+    afterAll(async () => {
+      await handle?.destroy();
+    });
+
+    beforeEach(async () => {
+      // A connection and a page of its own for every test, so tests sharing one database never meet.
+      conn = (await connectionsRepo(meta, TEST_STORAGE_CRYPTO).create({ name: `source ${randomBytes(4).toString('hex')}`, engine: 'postgres', introspectDsn: 'postgres://ro@localhost/app' })).id;
+      await pagesRepo(meta).create({
+        connectionId: conn,
+        slug: 'invoices',
+        type: 'page-crud',
+        title: 'Invoices',
+        navOrder: 1,
+        config: {
+          v: 1,
+          kind: 'page',
+          template: 'page-crud',
+          source: { connectionId: conn, table: TABLE },
+          config: { columns: [{ name: 'invoice_id', label: 'Invoice' }, { name: 'pdf_url', label: 'PDF', file: { ref: 'id', multiple: true } }] },
+        },
+      });
+      dataDir = await mkdtemp(join(tmpdir(), 'adminium-reconcile-'));
+      const destinations = createDestinationResolver({ repo: destinationsRepo(meta, TEST_STORAGE_CRYPTO), localRoot: resolve(dataDir, FILES_DIR) });
+      storage = createFileStore({ spool: createSpool({ dataDir }), destinations, files: filesRepo(meta) });
+      reconciler = createFileReconciler({ meta, blocks: createColumnBlockReader(meta), destinations, now: () => (clock += 1000) });
+    });
+
+    afterEach(async () => {
+      await rm(dataDir, { recursive: true, force: true });
+    });
+
+    it('leaves a library file in the library, and never trashes it', async () => {
+      const library = await upload('price-list.pdf', true);
+      const stamped = (await filesRepo(meta).findById(library.id))?.attachedAt;
+
+      expect((await save('1', null, JSON.stringify([library.id]))).attached).toEqual([]);
+      expect(await filesRepo(meta).findById(library.id)).toMatchObject({ entityId: null, attachedAt: stamped, deletedAt: null });
+
+      // Letting go of it, or the row being deleted, does not empty the library.
+      expect((await save('1', JSON.stringify([library.id]), null)).trashed).toEqual([]);
+      expect(await reconciler.trashForRecord({ connectionId: conn, table: TABLE, entity: rowOf('1'), row: { pdf_url: JSON.stringify([library.id]) } })).toEqual([]);
+      expect(await filesRepo(meta).findById(library.id)).toMatchObject({ entityId: null, deletedAt: null });
+    });
+
+    it("leaves row A's file on row A when row B names it, and B letting go or going leaves it", async () => {
+      const picture = await upload('a.pdf');
+      expect((await save('A', null, JSON.stringify([picture.id]))).attached).toEqual([picture.id]);
+
+      expect((await save('B', null, JSON.stringify([picture.id]))).attached).toEqual([]);
+      expect(await filesRepo(meta).findById(picture.id)).toMatchObject({ entityId: 'A', deletedAt: null });
+
+      expect((await save('B', JSON.stringify([picture.id]), null)).trashed).toEqual([]);
+      expect(await reconciler.trashForRecord({ connectionId: conn, table: TABLE, entity: rowOf('B'), row: { pdf_url: JSON.stringify([picture.id]) } })).toEqual([]);
+      expect(await filesRepo(meta).findById(picture.id)).toMatchObject({ entityId: 'A', deletedAt: null });
+
+      // Row A still decides: letting go of its own file trashes it.
+      expect((await save('A', JSON.stringify([picture.id]), null)).trashed).toEqual([picture.id]);
+    });
+
+    it('reads a long record key as this record’s, so a save does not take its file again', async () => {
+      const label = `k${'x'.repeat(240)}`;
+      const first = await upload('first.pdf');
+      const second = await upload('second.pdf');
+      expect((await save(label, null, JSON.stringify([first.id]))).attached).toEqual([first.id]);
+      const stamped = (await filesRepo(meta).findById(first.id))?.attachedAt;
+
+      // Adding a second file changes the value; the first is already this row's.
+      expect((await save(label, JSON.stringify([first.id]), JSON.stringify([first.id, second.id]))).attached).toEqual([second.id]);
+      expect((await filesRepo(meta).findById(first.id))?.attachedAt).toBe(stamped);
+
+      // And letting go of it still trashes it: the cut key is this row's.
+      expect((await save(label, JSON.stringify([first.id, second.id]), JSON.stringify([second.id]))).trashed).toEqual([first.id]);
+    });
+  });
+}

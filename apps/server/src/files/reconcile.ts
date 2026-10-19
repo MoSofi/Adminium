@@ -127,21 +127,31 @@ export interface FileReconcilerDeps {
 }
 
 /**
- * Whether a file is attached to a row other than this one.
+ * Whether a file hangs on this very record, compared as stored: the keys are
+ * cut to the audit key's length.
+ */
+function ofRecord(file: StoredFile, entity: RecordRef): boolean {
+  return (
+    file.entityConnectionId === entity.connectionId &&
+    file.entityTable === auditEntityKeyPart(entity.table) &&
+    file.entityId === auditEntityKeyPart(entity.label)
+  );
+}
+
+/**
+ * Whether this record may take a file it names, or throw it away when it lets
+ * go: only an upload nobody holds yet, or a file already this record's.
  *
  * Two rows can name one file: sample data written before each row got its own
- * copy did, and a foreign app may. The file belongs to the row it is attached
- * to, which still names it, so when THIS row stops naming it or is deleted the
- * file must stay. An unattached file, or one attached here, is this row's to trash.
+ * copy did, a foreign app may, and a person can paste another row's link or a
+ * Files-library link. Naming a file is not taking it. Taken over, row A's
+ * picture would leave A's own pages, and a library file would leave the
+ * library, then go to the bin when the row that took it let go. So the file
+ * stays with whoever holds it, and the record that only names it never moves
+ * or trashes it.
  */
-function ownedElsewhere(file: StoredFile, entity: RecordRef): boolean {
-  if (file.attachedAt === null || file.entityId === null) return false;
-  // Compared as stored: the keys are cut to the audit key's length.
-  return (
-    file.entityConnectionId !== entity.connectionId ||
-    file.entityTable !== auditEntityKeyPart(entity.table) ||
-    file.entityId !== auditEntityKeyPart(entity.label)
-  );
+function isThisRecords(file: StoredFile, entity: RecordRef): boolean {
+  return file.attachedAt === null || ofRecord(file, entity);
 }
 
 export function createFileReconciler(deps: FileReconcilerDeps): FileReconciler {
@@ -180,16 +190,6 @@ export function createFileReconciler(deps: FileReconcilerDeps): FileReconciler {
     const out = new Map(ruled);
     for (const [name, block] of byColumn) if (!out.has(name)) out.set(name, block);
     return out;
-  }
-
-  /**
-   * Whether a file hangs on this very record. Of an app's own file column, a
-   * file another record holds, or the workspace's library, is not this
-   * record's to take or to throw away (a writer naming one is refused before
-   * the write, `files/column-judge.ts`).
-   */
-  function ofRecord(file: StoredFile, input: { connectionId: string; table: string; entity: RecordRef }): boolean {
-    return file.entityConnectionId === input.connectionId && file.entityTable === auditEntityKeyPart(input.table) && file.entityId === auditEntityKeyPart(input.entity.label);
   }
 
   async function filesForRecord(input: {
@@ -263,11 +263,11 @@ export function createFileReconciler(deps: FileReconcilerDeps): FileReconciler {
         // Column-bound files — found by reading the values that are about to
         // disappear. A value that is not ours is skipped, as always.
         const byColumn = await columnsOf(input.connectionId, input.table, input.ruled);
-        for (const [column, block] of byColumn) {
+        for (const column of byColumn.keys()) {
           for (const file of await filesFor(input.row[column])) {
-            // Of an app's own file column, only what was this record's goes with it;
-            // of any column, never a file another row owns and still shows.
-            if (file.deletedAt === null && !ownedElsewhere(file, input.entity) && (block.ruled !== true || file.attachedAt === null || ofRecord(file, input))) ids.add(file.id);
+            // Only what was this record's goes with it: never a file another row
+            // holds and still shows, nor one of the Files library.
+            if (file.deletedAt === null && isThisRecords(file, input.entity)) ids.add(file.id);
           }
         }
         const at = now();
@@ -290,7 +290,7 @@ export function createFileReconciler(deps: FileReconcilerDeps): FileReconciler {
         const byColumn = await columnsOf(input.connectionId, input.table, input.ruled);
         if (byColumn.size === 0) return result;
 
-        for (const [column, block] of byColumn) {
+        for (const column of byColumn.keys()) {
           const beforeValue = input.before?.[column];
           const afterValue = input.after?.[column];
           // Identical values need no lookup at all — the common case on every
@@ -312,27 +312,24 @@ export function createFileReconciler(deps: FileReconcilerDeps): FileReconciler {
            */
           const nextIds = new Set(next.map((file) => file.id));
           for (const file of next) {
-            if (file.attachedAt === null || file.entityId !== input.entity.label) {
-              // An app's own file column hangs on a record only a file nobody holds yet: one another record (or the
-              // library) holds stays theirs. The write was refused before it came to this (`files/column-judge.ts`);
-              // this is the second lock. A page's file column still lets the last row that names a file take it over.
-              if (block.ruled === true && file.attachedAt !== null && !ofRecord(file, input)) {
-                deps.logger?.warn({ fileId: file.id, table: input.table, connectionId: input.connectionId }, 'a record names a file another record holds; it is left with that record');
-                continue;
-              }
-              await files.attach(file.id, input.entity, now());
-              result.attached.push(file.id);
+            // Already this record's: nothing to do, and `attached_at` keeps its stamp.
+            if (file.attachedAt !== null && ofRecord(file, input.entity)) continue;
+            // Another record's, or the library's, stays theirs. Of an app's own file column the write was
+            // refused before it came to this (`files/column-judge.ts`), so this is the second lock; a page's
+            // column takes what a foreign app or a pasted link wrote, so this is the only one.
+            if (file.attachedAt !== null) {
+              deps.logger?.warn({ fileId: file.id, table: input.table, connectionId: input.connectionId }, 'a record names a file another record or the library holds; it is left there');
+              continue;
             }
+            await files.attach(file.id, input.entity, now());
+            result.attached.push(file.id);
           }
           // Removed or replaced: a file the column USED to name and no longer
           // does. Trash, never delete (D12) — the undo window and the
-          // retention sweep own the bytes. Of an app's own file column, only
-          // a file that was this record's.
+          // retention sweep own the bytes. Only a file that was this record's.
           for (const file of previous) {
             if (nextIds.has(file.id)) continue;
-            // Another row's file, which this row only named as well: that row still shows it.
-            if (ownedElsewhere(file, input.entity)) continue;
-            if (block.ruled === true && file.attachedAt !== null && !ofRecord(file, input)) continue;
+            if (!isThisRecords(file, input.entity)) continue;
             await files.markDeleted(file.id, now());
             result.trashed.push(file.id);
           }
