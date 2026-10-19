@@ -39,7 +39,7 @@ import { AdapterRegistry, type AdapterProvider } from '@adminium/engine/adapter'
 import { createFirstSuperAdmin, createSqliteMetaDb, firstRun, overridesRepo, pagesRepo, permissionsRepo, rolesRepo, snapshotsRepo, teamsRepo, usersRepo, type MetaDb, type RowLimit } from '@adminium/meta';
 
 import type { AdminiumServer } from '../src/app.js';
-import { composeServer } from '../src/compose.js';
+import { composeServer, type ComposedServer } from '../src/compose.js';
 import { dsnCryptoFromSecret } from '../src/connections/crypto.js';
 import { applyOverrides, type BelongsWay, type EffectiveModel } from '../src/connections/effective-schema.js';
 import { runIntrospection } from '../src/connections/introspect.js';
@@ -125,6 +125,8 @@ export interface Signed {
 export interface World {
   dialect: Dialect;
   app: AdminiumServer;
+  /** The server's schedules, stopped: a test fires one itself (`scheduler.trigger`). */
+  scheduler: ComposedServer['jobs']['scheduler'];
   meta: MetaDb;
   manager: ConnectionManager;
   connectionId: string;
@@ -344,6 +346,7 @@ export async function world(dialect: Dialect, opts: { staticRoot?: string } = {}
   return {
     dialect,
     app,
+    scheduler: composed.jobs.scheduler,
     meta,
     manager,
     connectionId: connection.id,

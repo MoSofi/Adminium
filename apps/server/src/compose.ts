@@ -158,6 +158,7 @@ import { createProjectClientHost } from './project/client-host.js';
 import { applyProjectPages } from './project/project-pages.js';
 import { NO_RECORD_HOOKS, createWriteService } from './crud/write-service.js';
 import { createDestinationResolver } from './files/destinations.js';
+import { createNamedUploads } from './files/named-uploads.js';
 import { createFileReconciler } from './files/reconcile.js';
 import { FILES_DIR } from './files/drivers/local.js';
 import { storageCryptoFromSecret } from './files/crypto.js';
@@ -2994,13 +2995,28 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
 
     const unattachedHours = await settings.get('files.unattachedHours');
     let trashed = 0;
+    // A row that names an upload the write's own reconcile could not attach (it failed after the commit): it is that row's.
+    const named = createNamedUploads({ meta, manager, blocks: columnBlocks, destinations: destinationResolver, logger: app.log });
+    let claimed = 0;
+    let kept = 0;
+    let lastStale: string | undefined;
     for (;;) {
-      const stale = await repo.listUnattachedBefore(at - unattachedHours * HOUR_MS, 100);
+      const stale = await repo.listUnattachedBefore(at - unattachedHours * HOUR_MS, 100, lastStale);
       if (stale.length === 0) break;
       for (const file of stale) {
+        const by = await named.namedBy(file);
+        if (by === 'unsure') {
+          kept += 1;
+          continue;
+        }
+        if (by !== null) {
+          if ((await repo.attach(file.id, by, at)) !== null) claimed += 1;
+          continue;
+        }
         // Binned only while still unclaimed, in the statement that bins it: a save that named it since keeps it.
         if (await repo.markDeletedIfUnattached(file.id, at)) trashed += 1;
       }
+      lastStale = stale[stale.length - 1]!.id;
       if (stale.length < 100) break;
     }
 
@@ -3031,8 +3047,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       if (due.length < 100) break;
     }
 
-    if (trashed > 0 || purged > 0 || failed > 0) {
-      app.log.info({ trashed, purged, failed }, 'files retention sweep');
+    if (trashed > 0 || claimed > 0 || kept > 0 || purged > 0 || failed > 0) {
+      app.log.info({ trashed, claimed, kept, purged, failed }, 'files retention sweep');
     }
   });
 

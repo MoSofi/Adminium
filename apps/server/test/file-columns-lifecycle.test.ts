@@ -9,6 +9,7 @@ import { parseDatabaseModel } from '@adminium/engine';
 import { filesRepo, overridesRepo, snapshotsRepo } from '@adminium/meta';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
+import { FILES_RETENTION_SCHEDULE_NAME } from '../src/compose.js';
 import { runIntrospection } from '../src/connections/introspect.js';
 import { png } from './picture-images.js';
 import { ENGINES, world, type World } from './row-limit-world.js';
@@ -49,11 +50,12 @@ for (const [dialect, available] of ENGINES) {
 
     beforeAll(async () => {
       w = await world(dialect);
-      await w.run('CREATE TABLE dishes (id INTEGER PRIMARY KEY, name VARCHAR(120) NOT NULL, photo VARCHAR(64))');
+      await w.run(`CREATE TABLE dishes (id INTEGER PRIMARY KEY, name VARCHAR(120) NOT NULL, photo VARCHAR(64), gallery ${dialect === 'sqlite' ? 'TEXT' : 'JSON'})`);
       await runIntrospection({ manager: w.manager, meta: w.meta, connectionId: w.connectionId });
       const snapshot = parseDatabaseModel((await snapshotsRepo(w.meta).latest(w.connectionId))!.schema);
       dishes = snapshot.tables.find((one) => one.name === 'dishes')!.id;
       await overridesRepo(w.meta).create({ connectionId: w.connectionId, op: 'column.file', tableName: dishes, columnName: 'photo', value: { accept: ['png'], maxBytes: 64 * 1024 }, origin: 'app' } as never);
+      await overridesRepo(w.meta).create({ connectionId: w.connectionId, op: 'column.file', tableName: dishes, columnName: 'gallery', value: { accept: ['png'], maxBytes: 64 * 1024, maxCount: 4 }, origin: 'app' } as never);
     }, 180_000);
     afterAll(async () => w?.close());
 
@@ -104,6 +106,21 @@ for (const [dialect, available] of ENGINES) {
       expect(res.statusCode, res.body).toBe(200);
       expect(await fileOf(fresh)).toMatchObject({ entityTable: dishes, entityId: String(row.id), deletedAt: null });
       expect((await fileOf(old))?.deletedAt).not.toBeNull();
+    });
+
+    it('a row whose save could not attach its photo keeps it through the sweep', async () => {
+      const [lost, listed, loose] = [await photo(), await photo(), await photo()];
+      nextId += 1;
+      const id = nextId;
+      // Saved, and the reconcile after the commit never ran (the meta store was away a moment): nothing holds the uploads.
+      await w.run(`INSERT INTO dishes (id, name, photo, gallery) VALUES (${String(id)}, 'Saved', '${lost}', '${JSON.stringify([listed])}')`);
+      // A day and more later, the sweep.
+      for (const file of [lost, listed, loose]) await w.meta.db.updateTable('adminium_files').set({ createdAt: Date.now() - 30 * 3_600_000 }).where('id', '=', file).execute();
+      await w.scheduler.trigger(FILES_RETENTION_SCHEDULE_NAME);
+      expect(await fileOf(lost)).toMatchObject({ entityTable: dishes, entityId: String(id), deletedAt: null });
+      expect(await fileOf(listed)).toMatchObject({ entityTable: dishes, entityId: String(id), deletedAt: null });
+      // An upload no row names is still the sweep's.
+      expect((await fileOf(loose))?.deletedAt).not.toBeNull();
     });
   });
 }

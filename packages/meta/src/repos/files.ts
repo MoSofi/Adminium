@@ -325,17 +325,17 @@ export function filesRepo(meta: MetaDb) {
      * system artifact with its own lifecycle: an export is attached to nothing
      * by design and its retention is the exports sweep's business.
      */
-    async listUnattachedBefore(cutoff: number, limit = 100): Promise<StoredFile[]> {
-      const rows = await db
+    async listUnattachedBefore(cutoff: number, limit = 100, afterId?: string): Promise<StoredFile[]> {
+      let query = db
         .selectFrom('adminium_files')
         .selectAll()
         .where('kind', '=', 'upload')
         .where('attachedAt', 'is', null)
         .where('deletedAt', 'is', null)
-        .where('createdAt', '<', cutoff)
-        .orderBy('createdAt', 'asc')
-        .limit(limit)
-        .execute();
+        .where('createdAt', '<', cutoff);
+      // An id keyset, so a file the sweep chose to leave is passed, never listed again.
+      if (afterId !== undefined) query = query.where('id', '>', afterId);
+      const rows = await query.orderBy('id', 'asc').limit(limit).execute();
       return rows.map(decode);
     },
 
