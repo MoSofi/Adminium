@@ -1,5 +1,14 @@
 # @adminium/llm
 
+## 0.3.29
+
+### Patch Changes
+
+- de58e95: "Add a model" loads the models by itself once a key is pasted (Ollama's at once), and has a "Load models" button beside the Model field, which is now a searchable list. Ollama starts on a model that runs on this machine; a `:cloud` model the account has no plan or credit for says so instead of reading as a failed connection, and a model the server refuses tools for reads as one that cannot build.
+- 05a246f: The Designer no longer says a model through OpenRouter cannot read pictures when it can. When a server's model list says which models take pictures (OpenRouter does), the Designer goes by that list. Otherwise it asks the model, and an answer that names both colours now counts in either order: Claude Sonnet 5.5 answered "Blue Yellow" every time. A server that refuses the picture is believed for five minutes, then asked again, so a passing error no longer marks a model as unable to read pictures until the server restarts.
+- @adminium/engine@0.3.29
+  - @adminium/widgets@0.3.29
+
 ## 0.3.28
 
 ### Patch Changes

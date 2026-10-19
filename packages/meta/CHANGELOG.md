@@ -1,5 +1,12 @@
 # @adminium/meta
 
+## 0.3.29
+
+### Patch Changes
+
+- 9c2bf86: A rule that runs when a row is made now also runs for a row that gets the key of a row deleted before it. On SQLite, deleting the newest row hands its number to the next row, and that row's rules never ran: in the Sales CRM a deal made just after the newest deal was deleted got no mark and no first history line. Deleting a row through Adminium now lets go of what its rules remembered of it; the earlier runs and their history stay.
+- 06f1817: A value a rule writes from the settings row can name who to write when the setting names nobody: `"else": { "staff": "<column>" }` beside `setting`, a staff column of the rule's record or one link further. An aftercare call is then given to the rep who sold the job when the business has named nobody for aftercare, instead of being left with no owner.
+
 ## 0.3.28
 
 ### Patch Changes
