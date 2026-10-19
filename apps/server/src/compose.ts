@@ -921,6 +921,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     destinations: destinationResolver,
     logger: app.log,
   });
+  app.decorate('fileReconciler', fileReconciler);
 
   /*
    * The project's own code: hooks around every record write, and actions.

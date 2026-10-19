@@ -54,6 +54,12 @@ export interface ReconcileInput {
   ruled?: ReadonlyMap<string, ColumnFile> | undefined;
   /** An undo putting values back: a file of this record's it names again comes out of the bin with it. */
   restoring?: boolean | undefined;
+  /**
+   * A write nobody made by hand (a rule's step, a timed move, a row another
+   * row's move moved): it cannot judge a file it names, so it takes none, and
+   * lets go of what the row stops naming as any change does.
+   */
+  lettingGoOnly?: boolean | undefined;
 }
 
 export interface ReconcileResult {
@@ -316,7 +322,7 @@ export function createFileReconciler(deps: FileReconcilerDeps): FileReconciler {
            * that merely moved.
            */
           const nextIds = new Set(next.map((file) => file.id));
-          for (const file of next) {
+          for (const file of input.lettingGoOnly === true ? [] : next) {
             // Already this record's: nothing to do, and `attached_at` keeps its stamp. An undo that names it
             // again takes it back out of the bin its change put it in.
             if (file.attachedAt !== null && ofRecord(file, input.entity)) {

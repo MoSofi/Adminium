@@ -45,7 +45,7 @@ import type { Kysely } from 'kysely';
 import { connectionTenantConfig, usersRepo, type AutomationAction, type AutomationWriteValue, type RecordRef } from '@adminium/meta';
 
 import type { SourceDatabase } from '../../connections/manager.js';
-import { afterRecordWrite } from '../../crud/after-record-write.js';
+import { afterRecordWrite, lettingGoFiles } from '../../crud/after-record-write.js';
 import { slotInstant } from '../../crud/capacity-guard.js';
 import type { ResolvedColumn, ResolvedTable } from '../../crud/identifiers.js';
 import { venueClock, wallTimeToInstant } from '../../crud/venue-time.js';
@@ -437,6 +437,8 @@ async function announce(
     hops: ctx.hops + 1,
     occurredAt: ctx.now,
     ...(ctx.via === undefined ? {} : { via: ctx.via }),
+    // A file the step clears or replaces is let go; one it names is taken by nobody.
+    ...lettingGoFiles(ctx.app),
   });
 }
 
