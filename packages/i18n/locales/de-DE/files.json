@@ -74,7 +74,12 @@
     "attachedAt": "Angehängt",
     "trashedAt": "In den Papierkorb verschoben",
     "id": "Datei-ID",
-    "checksum": "Prüfsumme"
+    "checksum": "Prüfsumme",
+    "previewTitle": "Vorschau von {name}",
+    "previewNone": "Für diese Art von Datei gibt es keine Vorschau.",
+    "previewTrashed": "Eine Datei im Papierkorb kann nicht angezeigt werden.",
+    "previewFailed": "Diese Datei kann hier nicht angezeigt werden. Laden Sie sie herunter, um sie zu öffnen.",
+    "previewTruncated": "Die ersten {size} werden angezeigt."
   },
   "view": {
     "label": "Wie Dateien angezeigt werden",

@@ -40,6 +40,7 @@ export default {
   ],
   'adminium-surface': [
     { area: 'guides', page: 'guides/apps/building-a-side.md' },
+    { area: 'guides', page: 'guides/apps/from-a-template.md' },
     { area: 'guides', page: 'guides/apps/public-access.md' },
     { area: 'guides', page: 'guides/apps/identity-and-own-links.md' },
     { area: 'guides', page: 'guides/apps/public-pictures.md' },
@@ -50,6 +51,10 @@ export default {
     { area: 'public-api', generator: 'public-routes' },
     { area: 'errors', page: 'reference/errors.md', flat: true },
     { area: 'projects', page: 'projects/apps.md' },
+    { area: 'cli', page: 'reference/cli.md', flat: true },
+  ],
+  'adminium-design': [
+    { area: 'guides', page: 'guides/apps/from-a-template.md' },
     { area: 'cli', page: 'reference/cli.md', flat: true },
   ],
   'adminium-mobile': [

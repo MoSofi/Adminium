@@ -86,12 +86,23 @@ export const PUBLIC_API_ADMIN_PASSWORD = 'adminium-e2e-password';
  *   booking     the booking app's release check: an install, a day of public
  *               bookings, claims, codes and the data API, well past what the
  *               shared budget leaves.
+ *   settings    the workspace settings screen: light itself, but it runs after
+ *               the template specs, where the shared minute is spent (a 429 on
+ *               its first request, sqlite).
+ *   kit         the kit parts on an app's own screen: about 260 calls in its
+ *               one minute (seeded deals, places and companies, a staff page
+ *               per test), so on the shared admin it met a 429 wherever the
+ *               specs before it had spent that minute (the board's first
+ *               read, sqlite).
  */
 export const OWN_PRINCIPALS = {
   generated: { email: 'e2e-generated@adminium.local', name: 'E2E Generated App Admin' },
   enrich: { email: 'e2e-enrich@adminium.local', name: 'E2E Enrich Admin' },
   booking: { email: 'e2e-booking@adminium.local', name: 'E2E Booking App Admin' },
   invoicing: { email: 'e2e-invoicing@adminium.local', name: 'E2E Invoicing App Admin' },
+  voice: { email: 'e2e-voice@adminium.local', name: 'E2E Voice Admin' },
+  kit: { email: 'e2e-kit-parts@adminium.local', name: 'E2E Kit Parts Admin' },
+  settings: { email: 'e2e-settings@adminium.local', name: 'E2E Settings Admin' },
 } as const;
 export type OwnPrincipal = keyof typeof OWN_PRINCIPALS;
 export const OWN_PRINCIPAL_PASSWORD = 'adminium-e2e-password';

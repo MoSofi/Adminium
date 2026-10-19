@@ -1,6 +1,6 @@
 ---
 name: adminium-design
-description: Design the screens of an Adminium app so they look made for the business — the public customer side and the staff side. Covers the first screen, hierarchy, type, spacing, colour, pictures, icons, the logo, real words and the access basics, and carries a set of ready styles (`styles/`). Use whenever a screen people see is written or restyled. Not for dashboard pages, which are Adminium's own.
+description: Design the screens of an Adminium app so they look made for the business — the public customer side and the staff side. Covers the first screen, hierarchy, type, spacing, colour, pictures, icons, the logo, real words and the access basics, and carries a set of ready styles (`styles/`). Use whenever a screen people see is written or restyled, and when someone brings a design to keep (an HTML template or a static site, "make this site work"). Not for dashboard pages, which are Adminium's own.
 license: AGPL-3.0-only
 ---
 
@@ -11,6 +11,13 @@ and what to do next. Wiring that works is half the job.
 
 This skill is for the **staff** and **customer** sides of an app. Dashboard pages are drawn by
 Adminium: do not restyle them.
+
+## A design the person brings
+
+An HTML template, a static site or a theme the person brings is the design: keep it and its CSS
+exactly. Pick no style and write no new look. This page's advice on looks, the "AI design" list
+included, is not for it; "Every screen, every time" is. Keep the author's credit. The steps:
+`references/guides/from-a-template--*.md`.
 
 ## Start from a style and a brief
 
@@ -25,10 +32,10 @@ Adminium: do not restyle them.
 ## The first screen
 
 - A header: the logo and name at the start, three to five links, one button for the main action.
-- A hero that says what the business is in one line a customer would say, a second line with the
-  concrete promise (what, where, when), the main button, and a real picture or a strong colour
-  band. Never "Welcome" alone, never "What can we do for you?".
-- Then what is on offer (with prices when there are prices), then why to trust it (a few lines
+- A hero that says what the business is in a customer's words, a second line with the concrete
+  promise (what, where, when), the main button, and a real picture or a strong colour band. Never
+  "Welcome" alone.
+- Then what is on offer (with prices), then why to trust it (a few lines
   about the place, opening hours, a quote), then the form or the way to get in touch, then a
   footer with the address, hours and contact.
 - One main action per screen, in the accent colour. Everything else is quieter.
@@ -41,58 +48,55 @@ Adminium: do not restyle them.
   notes. Use the theme's steps (`--text-sm` … `--text-4xl`); do not invent sizes in between.
 - Text lines of 45 to 75 characters. Body text 16 px or more. Headings tight (line height 1.1 to
   1.2), text open (1.5 to 1.7).
-- Make the important thing big, dark and first. Make the unimportant small and muted, do not
-  delete it.
+- The important thing big, dark and first; the unimportant small and muted, not deleted.
 
 ## Space
 
-- Space says what belongs together: little space inside a group, more between groups, most
-  between sections. Use the theme's steps (`--space-1` … `--space-8`).
+- Little space inside a group, more between groups, most between sections. Use the theme's steps
+  (`--space-1` … `--space-8`).
 - Sections on a public page are far apart (64 px or more on a wide screen). Cramped pages look
   cheap; this is the most common fault.
-- Align to one grid. Edges that almost line up look like mistakes.
+- Align to one grid: edges that almost line up look like mistakes.
 
 ## Colour
 
 - All colours come from the theme: background, surface, text, muted, line, accent, second accent,
   band. Never write a colour value in a screen.
-- The accent is for the main action and a few marks. If everything is accent, nothing is.
+- The accent is for the main action and a few marks.
 - One dark or coloured band on a page (a quote, the booking section) gives it rhythm.
-- Text must be easy to read on its background (contrast 4.5:1 or more; the theme's pairs are).
+- Text easy to read on its background (contrast 4.5:1 or more; the theme's pairs are).
 
 ## Pictures
 
-- A page about food, rooms, people or things needs pictures of them. Ask for them with the
-  picture tool, or use what the person attached. Never put another site's picture address in a
-  page on your own: it shows as an empty frame.
+- A page about food, rooms, people or things needs pictures of them: the picture tool's, or what
+  the person attached. Never another site's picture address: it shows as an empty frame.
 - Give every picture a fixed shape (`aspect-ratio`) and `object-fit: cover`, so a grid stays even.
 - Every picture has `alt` text that says what it shows; a purely decorative one has `alt=""`.
-- With no picture: a colour tile with the item's first letter or an icon, in the theme's colours.
-  It must look chosen, not missing.
+- With no picture: a colour tile with the item's first letter or an icon. It must look chosen.
 
 ## Icons and the logo
 
 - Icons come from the icon set (`lucide-react`), one size and one stroke on a screen. Without the
   set, draw a small inline SVG. **Never an emoji as an icon.**
 - Every public side has a logo: `assets/logo.svg`, a simple mark (a letter in a shape, or one
-  drawn symbol of the trade) beside the name in the heading font. It sits in the header and is the
-  page's icon.
+  drawn symbol of the trade) beside the name in the heading font, in the header; also the page's
+  icon.
 
 ## Words
 
-- Write what this business would write: its dishes, its services, its street, its hours. No
-  "Lorem ipsum", no "Item 1", no "Your tagline here".
+- Write what this business would write: its dishes, its street, its hours. No "Lorem ipsum", no
+  "Item 1".
 - Buttons say what happens: "Book a table", "Send the order". Not "Submit".
 - After sending, say what happens next ("We will confirm by email within the hour").
 - An empty list says so, and what to do.
 
 ## Every screen, every time
 
-- Works on a phone first: one column, buttons at least 44 px high, nothing wider than the screen.
-- Every input has a label that stays visible. Errors are said in words beside the field.
+- Phone first: one column, buttons at least 44 px high, nothing wider than the screen.
+- Every input has a label that stays visible. Errors in words beside the field.
 - Focus is visible on everything that can be clicked. Everything works with the keyboard.
-- Respect `prefers-reduced-motion`: movement is small, short and never needed to understand.
-- Light and dark both look right: use the theme's values and they do.
+- Respect `prefers-reduced-motion`: movement small, short, never needed to understand.
+- Light and dark both right: the theme's values make them so.
 
 ## What generic "AI design" looks like, so you avoid it
 
@@ -104,9 +108,9 @@ Adminium: do not restyle them.
 
 ## For staff screens
 
-Staff use the screen all day: put the work first, not the brand. A plain header with the name,
-the list or board they work from, clear status marks, large touch targets on a tablet. Use the
-style's colours and fonts, and skip the hero, the pictures and the bands.
+Staff use the screen all day: the work first, not the brand. A plain header with the name, the
+list or board they work from, clear status marks, large touch targets on a tablet. The style's
+colours and fonts; no hero, pictures or bands.
 
 ## The styles
 

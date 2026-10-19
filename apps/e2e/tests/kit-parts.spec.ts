@@ -47,8 +47,16 @@ import { join } from 'node:path';
 import { expect, test, type Browser, type BrowserContext, type Page } from '@playwright/test';
 
 import { bundleOf } from './appBundle.js';
-import { ADMIN_NAME, BASE_URL } from './constants.js';
-import { seededConnectionId, signIn } from './helpers.js';
+import { ADMIN_NAME, BASE_URL, ownStorageStatePath } from './constants.js';
+import { seededConnectionId, signIn, useOwnPrincipal } from './helpers.js';
+
+/*
+ * Its own `api` budget (constants.ts OWN_PRINCIPALS): this file alone makes
+ * about 260 calls in its minute, and on the shared admin the board's first
+ * read met a 429 wherever the specs before it had spent that minute.
+ */
+const PRINCIPAL = 'kit';
+useOwnPrincipal(PRINCIPAL);
 
 /**
  * The seeded connection's id, asked for once: this file reads it before almost
@@ -422,8 +430,14 @@ const IMPORT = `export async function importer(config, kit, asked) {
 
 test.describe.configure({ mode: 'serial' });
 
+/** A page on this file's own session, for the hooks: stated, so their calls are counted against this file's budget too. */
+async function hookPage(browser: Browser): Promise<Page> {
+  const context = await browser.newContext({ baseURL: BASE_URL, storageState: ownStorageStatePath(PRINCIPAL) });
+  return context.newPage();
+}
+
 test.beforeAll(async ({ browser }) => {
-  const page = await browser.newPage();
+  const page = await hookPage(browser);
   await signIn(page);
   const connectionId = await connectionOf(page);
   await page.request.delete(`/api/v1/apps/${KEY}`, { data: { dropTables: true, confirmKey: KEY } }).catch(() => undefined);
@@ -446,14 +460,14 @@ test.beforeAll(async ({ browser }) => {
   expect(plan.installable).toBe(true);
   const installed = await page.request.post('/api/v1/apps/install', { data: { ...install, planChecksum: plan.checksum } });
   expect(installed.ok(), await installed.text()).toBe(true);
-  await page.close();
+  await page.context().close();
 });
 
 test.afterAll(async ({ browser }) => {
-  const page = await browser.newPage();
+  const page = await hookPage(browser);
   await signIn(page);
   await page.request.delete(`/api/v1/apps/${KEY}`, { data: { dropTables: true, confirmKey: KEY } }).catch(() => undefined);
-  await page.close();
+  await page.context().close();
 });
 
 /** Everything the page was refused or could not run, for "nothing was blocked". */

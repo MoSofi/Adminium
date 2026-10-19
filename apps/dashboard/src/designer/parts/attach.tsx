@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Files with a message: a picture or a CSV, attached by the clip, a paste or
+ * Files with a message: a picture, a CSV, a font or a Markdown document,
+ * attached by the clip, a paste or
  * a drop. They wait in the page and go up when the message is sent, so Home
  * (where there is no session yet) and the build page work the same way. The
  * server decides what a file is, from its bytes; what is checked here is only
@@ -8,7 +9,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type ClipboardEvent, type DragEvent, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { FileSpreadsheet, Paperclip, Type, X } from 'lucide-react';
+import { FileSpreadsheet, FileText, Paperclip, Type, X } from 'lucide-react';
 
 import { t } from '../../i18n/t.js';
 import { designerApi, type DesignerAttachment } from '../api.js';
@@ -17,21 +18,37 @@ export const MAX_FILES = 8;
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const MAX_CSV_BYTES = 10 * 1024 * 1024;
 const MAX_FONT_BYTES = 400 * 1024;
+const MAX_DOC_BYTES = 200 * 1024;
 const IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'];
-const ACCEPT = [...IMAGE_TYPES, '.csv', 'text/csv', '.woff2', 'font/woff2'].join(',');
+const ACCEPT = [...IMAGE_TYPES, '.csv', 'text/csv', '.woff2', 'font/woff2', '.md', '.markdown', 'text/markdown'].join(',');
 
 export interface PendingFile {
   key: string;
   file: File;
-  kind: 'image' | 'csv' | 'font';
+  kind: 'image' | 'csv' | 'font' | 'doc';
   /** A picture's own address in this page, for its small view. */
   preview: string | null;
   /** Once it went up: where, and the id it was given. A send that failed after that does not send the file again. */
   sent?: { sessionId: string; id: string };
 }
 
-const kindOf = (file: File): 'image' | 'csv' | 'font' | null =>
-  IMAGE_TYPES.includes(file.type) ? 'image' : file.type === 'text/csv' || /\.csv$/i.test(file.name) ? 'csv' : file.type === 'font/woff2' || /\.woff2$/i.test(file.name) ? 'font' : null;
+// A Markdown document is known by its name alone, here and on the server: a browser gives one no type, or a type of its own.
+const kindOf = (file: File): 'image' | 'csv' | 'font' | 'doc' | null =>
+  IMAGE_TYPES.includes(file.type)
+    ? 'image'
+    : file.type === 'text/csv' || /\.csv$/i.test(file.name)
+      ? 'csv'
+      : file.type === 'font/woff2' || /\.woff2$/i.test(file.name)
+        ? 'font'
+        : /\.(md|markdown)$/i.test(file.name)
+          ? 'doc'
+          : null;
+
+/** The mark of a file that is no picture. */
+function FileMark({ kind }: { kind: 'csv' | 'font' | 'doc' }): ReactNode {
+  const Mark = kind === 'font' ? Type : kind === 'doc' ? FileText : FileSpreadsheet;
+  return <Mark aria-hidden="true" className="size-4 shrink-0 text-fg-muted" />;
+}
 
 export interface AttachState {
   files: PendingFile[];
@@ -182,7 +199,7 @@ export function useAttach(): AttachState {
     for (const file of list) {
       const kind = kindOf(file);
       if (kind === null) {
-        why = t('designer:attach.wrongKind', 'Only a picture (PNG, JPEG, WebP or GIF), a CSV file or a font (.woff2) can be attached.');
+        why = t('designer:attach.wrongKind', 'Only a picture (PNG, JPEG, WebP or GIF), a CSV file, a font (.woff2) or a Markdown file (.md) can be attached.');
       } else if (next.length >= MAX_FILES) {
         why = t('designer:attach.tooMany', 'Up to {count} files go with one message.', { count: MAX_FILES });
       } else if (kind === 'image' && file.size > MAX_IMAGE_BYTES) {
@@ -191,6 +208,8 @@ export function useAttach(): AttachState {
         why = t('designer:attach.csvTooLarge', 'That file is over 10 MB. For a file that size, use Import on the table’s own page.');
       } else if (kind === 'font' && file.size > MAX_FONT_BYTES) {
         why = t('designer:attach.fontTooLarge', 'That font file is over 400 KB. Attach one weight of the font as a .woff2 file.');
+      } else if (kind === 'doc' && file.size > MAX_DOC_BYTES) {
+        why = t('designer:attach.docTooLarge', 'That document is over 200 KB. Attach a shorter one, or paste the part that matters into the message.');
       } else {
         seq.current += 1;
         next.push({ key: `f${String(seq.current)}`, file, kind, preview: kind === 'image' ? URL.createObjectURL(file) : null });
@@ -295,8 +314,8 @@ export function AttachButton({ state, disabled = false }: { state: AttachState; 
         type="button"
         disabled={disabled}
         onClick={() => input.current?.click()}
-        aria-label={t('designer:attach.button', 'Attach a picture, a CSV file or a font')}
-        title={t('designer:attach.button', 'Attach a picture, a CSV file or a font')}
+        aria-label={t('designer:attach.button', 'Attach a picture, a CSV file, a font or a Markdown file')}
+        title={t('designer:attach.button', 'Attach a picture, a CSV file, a font or a Markdown file')}
         className="flex size-[34px] shrink-0 items-center justify-center rounded-[10px] text-fg-muted hover:bg-surface-2 hover:text-fg disabled:cursor-not-allowed disabled:opacity-50"
       >
         <Paperclip aria-hidden="true" className="size-4" />
@@ -316,10 +335,8 @@ export function AttachTray({ state, modelName, readsImages }: { state: AttachSta
             <li key={entry.key} className="flex max-w-[220px] items-center gap-1.5 rounded-[10px] border border-border bg-surface-2 py-1 pe-1 ps-1.5 text-[12px] font-semibold text-fg">
               {entry.preview !== null ? (
                 <img src={entry.preview} alt="" className="size-7 shrink-0 rounded-md object-cover" />
-              ) : entry.kind === 'font' ? (
-                <Type aria-hidden="true" className="size-4 shrink-0 text-fg-muted" />
               ) : (
-                <FileSpreadsheet aria-hidden="true" className="size-4 shrink-0 text-fg-muted" />
+                <FileMark kind={entry.kind === 'image' ? 'doc' : entry.kind} />
               )}
               <span dir="auto" className="min-w-0 truncate">
                 {entry.file.name === '' ? t('designer:attach.pasted', 'Pasted picture') : entry.file.name}
@@ -352,7 +369,7 @@ export function AttachTray({ state, modelName, readsImages }: { state: AttachSta
   );
 }
 
-/** A sent message's files: a picture small (opening whole in a new tab), a CSV as a chip with its rows. */
+/** A sent message's files: a picture small (opening whole in a new tab), a CSV as a chip with its rows, a font or a document as a chip with its name. */
 export function SentFiles({ sessionId, files }: { sessionId: string; files: readonly Pick<DesignerAttachment, 'id' | 'label' | 'kind' | 'rows'>[] }): ReactNode {
   if (files.length === 0) return null;
   return (
@@ -367,7 +384,7 @@ export function SentFiles({ sessionId, files }: { sessionId: string; files: read
               </a>
             ) : (
               <span className="flex items-center gap-1.5 rounded-[10px] border border-border bg-surface-2 px-2 py-1.5 text-[12px] font-semibold text-fg">
-                {file.kind === 'font' ? <Type aria-hidden="true" className="size-4 shrink-0 text-fg-muted" /> : <FileSpreadsheet aria-hidden="true" className="size-4 shrink-0 text-fg-muted" />}
+                <FileMark kind={file.kind} />
                 <span dir="auto" className="max-w-[180px] truncate">
                   {file.label}
                 </span>

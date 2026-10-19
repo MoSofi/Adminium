@@ -5071,6 +5071,64 @@ for (const [dialect, available] of legs) {
       expect((await filesRepo(h.meta).findById(receipt))?.deletedAt).not.toBeNull();
     }, 90_000);
 
+    it('gives each row that shares a sample picture a copy of its own, attached to it', async () => {
+      const h = (open = await harness(dialect));
+      const image = 'a receipt';
+      const bundle = {
+        format: 'adminium.sample/1',
+        app: 'pos',
+        assets: { 'img:receipt': { file: 'seeds/images/receipt.webp', sha256: createHash('sha256').update(image).digest('hex') } },
+        tables: [
+          {
+            ref: 'tenders',
+            rows: [
+              { id: '5a3b1e00-0000-4000-8000-000000000001', amount: '4.50', receipt: { '@asset': 'img:receipt' } },
+              { id: '5a3b1e00-0000-4000-8000-000000000002', amount: '3', receipt: { '@asset': 'img:receipt' } },
+            ],
+          },
+        ],
+      };
+      await stageManifest(
+        h,
+        {
+          ...MANIFEST,
+          requiredSchema: {
+            prefixed: true,
+            tables: [
+              TABLES[0],
+              {
+                ref: 'tenders',
+                columns: [
+                  { ref: 'id', type: 'uuid', role: 'pk' },
+                  { ref: 'amount', type: 'money' },
+                  { ref: 'receipt', type: 'text', maxLength: 40, nullable: true },
+                ],
+              },
+            ],
+          },
+          sampleData: { file: 'seeds/pos.sample.json' },
+        },
+        { 'seeds/pos.sample.json': JSON.stringify(bundle), 'seeds/images/receipt.webp': image },
+      );
+      expect((await post(h, '/apps/install')).statusCode).toBe(200);
+      const service = createSampleDataService(sampleDeps(h.meta, h.manager, createAppStore({ dataDir: h.dataDir })));
+      const app = (await findSampleApp(h.meta, 'pos'))!;
+      await service.add(app, { locale: 'en-US', userId: null, userLabel: 'test' });
+
+      // One file attached to the second row as well left the first row's picture refused to every visitor.
+      const rows = await h.rows('SELECT id, receipt FROM pos_tenders ORDER BY id');
+      const receipts = rows.map((row) => String(row.receipt));
+      expect(new Set(receipts).size).toBe(2);
+      for (const row of rows) {
+        const file = await h.meta.db.selectFrom('adminium_files').select(['entityId']).where('id', '=', String(row.receipt)).executeTakeFirstOrThrow();
+        expect(String(file.entityId).toLowerCase()).toBe(String(row.id).toLowerCase());
+      }
+
+      // The copy is the sample's too: removed with it.
+      expect(await service.remove(app, { keepChanged: true, userId: null, userLabel: 'test' })).toMatchObject({ removed: 2 });
+      for (const id of receipts) expect((await filesRepo(h.meta).findById(id))?.deletedAt).not.toBeNull();
+    }, 90_000);
+
     /*
      * Two tables that point at each other. Every FK used to be created inline,
      * which SQLite accepts and Postgres and MySQL refuse ("relation pos_tickets

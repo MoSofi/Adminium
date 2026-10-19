@@ -1,6 +1,6 @@
 ---
 name: adminium-surface
-description: Build the screens of an Adminium app — the staff side used by people signed in to Adminium, and the public customer side that uses the public API with a served browser key. Use when someone wants a custom front end, a staff screen, a booking, ordering or request form, a customer portal or any public page for an Adminium app. Open `adminium` and `adminium-app` first; the screens sit on the app's manifest.
+description: Build the screens of an Adminium app — the staff side used by people signed in to Adminium, and the public customer side that uses the public API with a served browser key. Use when someone wants a custom front end, a staff screen, a booking, ordering or request form, a customer portal or any public page for an Adminium app, or an HTML template or static site to make work. Open `adminium` and `adminium-app` first; the screens sit on the app's manifest.
 license: AGPL-3.0-only
 ---
 
@@ -14,6 +14,9 @@ side yet, add the folder, and add `{ "side": "<side>", "kind": "spa" }` to `fron
 
 Read `references/guides/building-a-side--*.md` before writing a screen. The verbs are in
 `commands.md`.
+
+**From an HTML template or a static site?** Follow `references/guides/from-a-template--*.md`:
+its look stays, its content becomes tables.
 
 ## The two sides are different programs
 
@@ -42,9 +45,8 @@ const items = loaded.value.tables['items'] ?? 'items';   // the endpoint's name 
 await client.list(items, { limit: 50 });                  // { data }, in key order
 ```
 
-`createPublicClient` returns `null` when it has no address or key: check for it. The venue's
-`timezone` and `currency` are in `await client.config()`, and the server's time in
-`await client.now()`.
+`createPublicClient` returns `null` when it has no address or key: check for it. The server's time
+is `await client.now()`.
 
 ## The order of work for a customer screen
 
@@ -60,12 +62,11 @@ Rules of the public side:
   another (the starter's `items` and `requests`).
 - A public list comes in key order. `order`, `where` and `q` from the screen are refused
   (`PUBLIC_QUERY_REFUSED`): sort in the screen, and hide rows with `filters` in `access.json`.
-- A create returns only the columns the entry's `select` lists. Do not expect the whole row.
+- A create returns only the columns of the entry's `select`, not the whole row.
 - `PATCH` needs a guest who has signed in to reach their own row. Read
-  `references/guides/identity-and-own-links--*.md` before building any "my booking" screen.
-- No payments, no arbitrary queries, no code of yours on the server. A rule the public entry
-  cannot hold a stranger to (a date not in the past) lives in the screen only. If the request
-  needs more, say so.
+  `references/guides/identity-and-own-links--*.md` before any "my booking" screen.
+- No payments, no arbitrary queries, no code of yours on the server. A rule the entry cannot hold
+  a stranger to (a date not in the past) lives in the screen only. Say so when more is needed.
 - A create by a stranger should be limited: read
   `references/guides/public-access--limits-on-a-stranger-s-create.md` and
   `references/guides/public-access--the-human-check.md`.
@@ -75,13 +76,14 @@ Rules of the public side:
 - **The venue's clock, never the browser's.** Staff: the session's `timezone`; when its
   `timezoneIsFallback` is true, show a line saying times are in UTC. Customer: `client.config()`. Never call
   `Intl.DateTimeFormat().resolvedOptions().timeZone`. Format with `toTenantDay`,
-  `toTenantMinutes` and `formatTenantMoney` from `@adminiumjs/public-client`.
+  `toTenantMinutes` and `formatTenantMoney` from `@adminiumjs/public-client`; `currency` is beside
+  `timezone`.
 - **Three states.** Every load has loading, error and ready. On a staff screen show the error's
   `message`: it is the server's own sentence. On a customer screen do not: a `PublicApiError`'s
   message is for developers, so say your own sentence for its `code`.
 - **Only this origin.** A served screen may not load a script, stylesheet or font from another
   host, run an inline script, or call another host's API. Install the package and import it.
-- **`can()` before a button.** Leave out a button whose write the person's role would refuse.
+- **`can()` before a button.** Leave out a button the person's role would refuse.
 - **English, marked.** Wrap text people read in `en('…')` from `@adminiumjs/adminium/side`.
 - **One address per page.** Never a state, never an `href` that starts with `/`:
   `import { Link, usePath, pathParams, go } from '@adminiumjs/adminium/side'`,
@@ -97,10 +99,9 @@ Rules of the public side:
 ## Before you say it works
 
 Under **run** each side is rebuilt on every save and an open screen reloads by itself; a
-customer screen works there with nothing to set. That is where a screen is looked at.
+customer screen works there with nothing to set.
 
 **build**, then **try**. Try serves each side and every file it names, reads a table as staff, and
-probes the public API (a read of each granted table, an empty create to each table that takes
-one). Neither runs a screen in a browser or type-checks it: have the person open each screen once
-under **run**, and say that `?demo` on a staff screen's address (signed in) shows it on the sample
-rows without saving anything.
+probes each public grant. Neither opens a screen in a browser or type-checks it: have the person
+open each screen once under **run**, and say that `?demo` on a staff screen's address (signed in)
+shows it on the sample rows without saving anything.

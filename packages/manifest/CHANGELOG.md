@@ -1,5 +1,13 @@
 # @adminium/manifest
 
+## 0.3.29
+
+### Patch Changes
+
+- 99b6a05: `adminium dev` listens on this computer only (127.0.0.1) unless `HOST`, the project's `.env`, its config or `--host` says otherwise, so an app's customer side loads with nothing to set; on any other address without `ADMINIUM_TRUST_PROXY` it says at start that a customer side will not load, where every public call used to answer 404 "Route not found". A quote of an order before the guest has chosen fills a required choice (a country) with one of its own values and shows it empty, as it fills a required name: it was refused, naming nothing. A public write refused without a reason the guest may hear is written to the server's log with its column and why (a column the table cannot store empty, a code typed with no add-on to read it), never a value. `app check` names the public create that leaves out a column its table cannot store empty. An app applied over itself says which columns it now lets be empty that their table keeps NOT NULL: an apply never changes that. The bounds a guest-typed number needs are written `rules.validation`, as the message now says.
+- 06f1817: A value a rule writes from the settings row can name who to write when the setting names nobody: `"else": { "staff": "<column>" }` beside `setting`, a staff column of the rule's record or one link further. An aftercare call is then given to the rep who sold the job when the business has named nobody for aftercare, instead of being left with no owner.
+- @adminium/add-on-contracts@0.3.29
+
 ## 0.3.28
 
 ### Patch Changes

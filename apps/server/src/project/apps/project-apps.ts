@@ -352,6 +352,18 @@ export function createProjectApps(opts: ProjectAppsOptions): ProjectApps {
     // Public access the server did not take: never in silence, or a screen goes on being refused what its manifest grants.
     for (const skipped of reply.publicAccess?.skipped ?? []) opts.warn(`App "${app.key}": the public access of "${skipped.ref}" was left as it was (${skipped.reason}).`);
     sayAddOns(app.key, reply.addOns);
+    /*
+     * A column the folder now lets be empty, on a table that exists, stays
+     * NOT NULL: an apply adds columns and widens them, and never changes
+     * whether one may be empty. Said, or "applied" reads as done while every
+     * write that leaves it empty goes on being refused.
+     */
+    for (const kept of reply.stillRequired ?? []) {
+      opts.warn(
+        `App "${app.key}": "${kept.table}.${kept.column}" may be empty in apps/${app.key}, and its table keeps it NOT NULL: an apply never changes whether a column of a table that exists may be empty. ` +
+          "Change it in Studio, in the table's Design view.",
+      );
+    }
 
     // What the manifest no longer declares: gone where nothing is lost, asked about where data is.
     const say = (line: string): void => {

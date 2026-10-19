@@ -11,7 +11,10 @@
  */
 import { expect, test } from '@playwright/test';
 
-import { clearProvider, configureFakeProvider, signIn } from './helpers.js';
+import { clearProvider, configureFakeProvider, signIn, useOwnPrincipal } from './helpers.js';
+
+// Its own `api` budget: it runs near the end of a full run, where the shared admin's 300 a minute is spent.
+useOwnPrincipal('voice');
 
 test.use({
   launchOptions: { args: ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream'] },

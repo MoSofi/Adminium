@@ -1,6 +1,6 @@
 ---
 name: adminium
-description: Build an app on Adminium, the open-source admin panel generator — from an empty folder to an installable app with tables, dashboard pages, roles and, when wanted, screens for staff and for customers. Use when someone asks to create, scaffold or change an Adminium app or project, mentions Adminium, `adminium app`, an app manifest, or wants an admin panel with a custom front end on their own database. Start here, then open the skill this one names.
+description: Build an app on Adminium, the open-source admin panel generator — from an empty folder to an installable app with tables, dashboard pages, roles and, when wanted, screens for staff and for customers. Use when someone asks to create, scaffold or change an Adminium app or project, mentions Adminium, `adminium app`, an app manifest, or wants an admin panel with a custom front end on their own database, or a downloaded HTML template or static site made into a working site ("make this site work"; rung 3, its look kept, `adminium-surface` says how). Start here, then open the skill this one names.
 license: AGPL-3.0-only
 ---
 

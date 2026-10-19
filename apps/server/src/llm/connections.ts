@@ -159,6 +159,17 @@ export function parseSelected(value: string | undefined): { provider: EnvProvide
   return isEnvProvider(provider) && model.length > 0 ? { provider, model } : null;
 }
 
+/**
+ * A refusal about money: no credit left, or a model that needs a paid plan (an Ollama `:cloud` model on a free
+ * account). Providers say it with different statuses (402, 403, 429, even 400), so it is read from the words.
+ */
+const BILLING = /\b(402|payment|billing|balance|credits?|subscription|upgrade|insufficient|quota)\b/i;
+
+/** A failed test's error, with a refusal about money named `billing`: said as a key or an address, it misleads. */
+function testError(code: string, message: string): { code: string; message: string } {
+  return { code: code !== 'network' && code !== 'timeout' && BILLING.test(message) ? 'billing' : code, message };
+}
+
 /** Whether the environment names this provider at all. */
 function envHas(values: AiEnvValues, provider: EnvProvider): boolean {
   if (provider === 'anthropic') return values.ADMINIUM_AI_ANTHROPIC_API_KEY !== undefined;
@@ -180,8 +191,8 @@ export function createAiConnections(deps: AiConnectionsDeps): AiConnections {
   const makeRunner = deps.createRunner ?? createProviderRunner;
   const verdicts = new Map<string, CanBuild>();
   const pictures = new Map<string, boolean>();
-  /** When a model could not be asked whether it reads pictures. */
-  const unasked = new Map<string, number>();
+  /** When a model could not be asked whether it reads pictures, or its server refused the picture, and what that said. */
+  const unasked = new Map<string, { at: number; verdict: boolean | null }>();
 
   function envConnection(values: AiEnvValues, provider: EnvProvider): AiConnection {
     const urlName = URL_NAME[provider];
@@ -354,11 +365,11 @@ export function createAiConnections(deps: AiConnectionsDeps): AiConnections {
         if (draft.model === undefined || draft.model === '') return { ok: true, models, canBuild: null, error: null };
         const verdict = await canBuild(makeRunner(config), draft.model, opts.signal === undefined ? {} : { signal: opts.signal });
         // The model could not be asked (a refused key shows here: the list above falls back to a built-in one): the test failed.
-        if (!verdict.canBuild && verdict.reason === 'error') return { ok: false, models: [], canBuild: null, error: { code: verdict.code, message: verdict.message } };
+        if (!verdict.canBuild && verdict.reason === 'error') return { ok: false, models: [], canBuild: null, error: testError(verdict.code, verdict.message) };
         verdicts.set(`env:${draft.provider}\u0000${draft.model}`, verdict);
         return { ok: true, models, canBuild: verdict, error: null };
       } catch (error) {
-        if (error instanceof ProviderError) return { ok: false, models: [], canBuild: null, error: { code: error.code, message: error.message } };
+        if (error instanceof ProviderError) return { ok: false, models: [], canBuild: null, error: testError(error.code, error.message) };
         if (error instanceof ValidationFailedError) return { ok: false, models: [], canBuild: null, error: { code: 'config', message: error.message } };
         throw error;
       }
@@ -407,17 +418,31 @@ export function createAiConnections(deps: AiConnectionsDeps): AiConnections {
       const known = pictures.get(key);
       if (known !== undefined) return known;
       // A model that could not be asked is not asked again at every step of a turn: once in five minutes.
-      const failedAt = unasked.get(key);
-      if (failedAt !== undefined && Date.now() - failedAt < 5 * 60_000) return null;
+      const failed = unasked.get(key);
+      if (failed !== undefined && Date.now() - failed.at < 5 * 60_000) return failed.verdict;
       const { config, connection } = await configFor(id, model);
-      // Every Claude model the catalogue lists reads pictures; the others are asked.
-      const verdict = connection.provider === 'anthropic' ? true : await readsImagesProbe(makeRunner(config), model);
-      if (verdict === null) unasked.set(key, Date.now());
-      else {
-        pictures.set(key, verdict);
-        unasked.delete(key);
+      // Every Claude model the catalogue lists reads pictures.
+      if (connection.provider === 'anthropic') {
+        pictures.set(key, true);
+        return true;
       }
-      return verdict;
+      // A server whose list says (OpenRouter) is believed: asking costs a request, and a model can misname a colour.
+      const listed = (await client(id).then((resolved) => resolved.client.listModels()).catch(() => null))?.find((m) => m.id === model)?.images;
+      if (listed !== undefined) {
+        pictures.set(key, listed);
+        unasked.delete(key);
+        return listed;
+      }
+      const probe = await readsImagesProbe(makeRunner(config), model);
+      // A refusal is a no for now, but not kept: a passing fault on the server looks the same.
+      if (probe === null || probe.from === 'refusal') {
+        const verdict = probe === null ? null : probe.reads;
+        unasked.set(key, { at: Date.now(), verdict });
+        return verdict;
+      }
+      pictures.set(key, probe.reads);
+      unasked.delete(key);
+      return probe.reads;
     },
     get envWritable() {
       return aiEnv.writable;

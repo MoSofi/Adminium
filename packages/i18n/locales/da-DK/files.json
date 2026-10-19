@@ -74,7 +74,12 @@
     "attachedAt": "Vedhæftet",
     "trashedAt": "Flyttet til papirkurven",
     "id": "Fil-id",
-    "checksum": "Checksum"
+    "checksum": "Checksum",
+    "previewTitle": "Forhåndsvisning af {name}",
+    "previewNone": "Der er ingen forhåndsvisning af denne filtype.",
+    "previewTrashed": "En fil i papirkurven kan ikke forhåndsvises.",
+    "previewFailed": "Filen kan ikke vises her. Download den for at åbne den.",
+    "previewTruncated": "Viser de første {size}."
   },
   "view": {
     "label": "Hvordan filer vises",

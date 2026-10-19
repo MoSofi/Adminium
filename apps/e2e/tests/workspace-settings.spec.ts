@@ -18,7 +18,11 @@
  */
 import { expect, test } from '@playwright/test';
 
-import { signIn } from './helpers.js';
+import { signIn, useOwnPrincipal } from './helpers.js';
+
+// Its own `api` budget: it runs near the end of a full run, after the template specs, where the shared admin's 300 a
+// minute is spent (sqlite met a 429 on its first request, 2026-10-19).
+useOwnPrincipal('settings');
 
 const SETTINGS = '/studio/settings';
 const HOST = 'smtp.e2e.local';

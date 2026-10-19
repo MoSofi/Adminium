@@ -15,6 +15,17 @@
 | `references/guides/building-a-side--looking-at-a-side-without-adminium.md` | Looking at a side without Adminium | 1224 |
 | `references/guides/building-a-side--what-a-served-screen-may-not-load.md` | What a served screen may not load | 783 |
 | `references/guides/building-a-side--text-in-other-languages.md` | Text in other languages | 481 |
+| `references/guides/from-a-template--overview.md` | A website template as a working app | 1487 |
+| `references/guides/from-a-template--before-anything-the-licence-and-the-inventory.md` | Before anything: the licence and the inventory | 1663 |
+| `references/guides/from-a-template--the-feature-report-before-the-build.md` | The feature report, before the build | 4035 |
+| `references/guides/from-a-template--the-side-s-folder.md` | The side's folder | 1612 |
+| `references/guides/from-a-template--pages-become-addresses.md` | Pages become addresses | 3285 |
+| `references/guides/from-a-template--the-stylesheets.md` | The stylesheets | 1622 |
+| `references/guides/from-a-template--scripts-become-react.md` | Scripts become React | 1871 |
+| `references/guides/from-a-template--repeated-content-becomes-tables.md` | Repeated content becomes tables | 2012 |
+| `references/guides/from-a-template--forms-become-limited-public-creates.md` | Forms become limited public creates | 1228 |
+| `references/guides/from-a-template--a-cart-becomes-an-order.md` | A cart becomes an order | 2317 |
+| `references/guides/from-a-template--before-you-say-it-works.md` | Before you say it works | 913 |
 | `references/guides/public-access--overview.md` | An app's public access | 539 |
 | `references/guides/public-access--what-the-install-shows-first.md` | What the install shows first | 1593 |
 | `references/guides/public-access--what-the-install-makes.md` | What the install makes | 1820 |
@@ -73,17 +84,5 @@
 | `references/guides/orders-with-lines--placing-the-order.md` | Placing the order | 3283 |
 | `references/guides/orders-with-lines--the-price-first.md` | The price first | 2818 |
 | `references/guides/orders-with-lines--the-price-check.md` | The price check | 1152 |
-| `references/guides/orders-with-lines--retries.md` | Retries | 1973 |
-| `references/guides/orders-with-lines--what-a-guest-is-told.md` | What a guest is told | 2002 |
-| `references/guides/orders-with-lines--what-a-price-was-reduced-by.md` | What a price was reduced by | 1259 |
-| `references/guides/orders-with-lines--limits-on-a-stranger-s-order.md` | Limits on a stranger's order | 2002 |
-| `references/guides/orders-with-lines--tickets-for-a-show.md` | Tickets for a show | 1044 |
-| `references/guides/orders-with-lines--a-stay-and-its-extras.md` | A stay and its extras | 898 |
-| `references/guides/orders-with-lines--at-the-desk.md` | At the desk | 810 |
-| `references/guides/booking-rules--overview.md` | Booking rules and limits | 1232 |
-| `references/guides/booking-rules--what-a-rule-reads.md` | What a rule reads | 1259 |
-| `references/guides/booking-rules--when-a-time-can-be-booked.md` | When a time can be booked | 2730 |
-| `references/guides/booking-rules--the-venue-s-clock.md` | The venue's clock | 398 |
-| `references/guides/booking-rules--late-cancellations.md` | Late cancellations | 963 |
 
 More: `references/guides/INDEX-2.md`

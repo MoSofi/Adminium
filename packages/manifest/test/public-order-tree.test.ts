@@ -161,7 +161,7 @@ describe('a dry run, a price check, a retry key', () => {
 describe('a number a guest types that a price reads', () => {
   it('declares its bounds', () => {
     expect(broken(kitchen, (m) => delete (columnOf(m, 'order_items', 'qty')['rules'] as Doc)['validation'])).toContain(
-      '"order_items.qty" is written by a guest and feeds a price Adminium works out, so it declares validation.min (at least 0) and validation.max',
+      '"order_items.qty" is written by a guest and feeds a price Adminium works out, so it declares rules.validation.min (at least 0) and rules.validation.max — on the column itself, in the table\'s own definition (e.g. "rules": { "validation": { "min": 1, "max": 50 } }), not in the access entry',
     );
     // A stay's guests feed each extra's price through a copy that follows it.
     expect(broken(guestHouse, (m) => ((columnOf(m, 'stays', 'guests')['rules'] as Doc)['validation'] = { min: -1, max: 6 }))).toContain('"stays.guests" is written by a guest');

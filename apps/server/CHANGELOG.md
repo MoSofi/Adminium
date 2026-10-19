@@ -1,5 +1,35 @@
 # @adminium/server
 
+## 0.3.29
+
+### Patch Changes
+
+- 99b6a05: `adminium dev` listens on this computer only (127.0.0.1) unless `HOST`, the project's `.env`, its config or `--host` says otherwise, so an app's customer side loads with nothing to set; on any other address without `ADMINIUM_TRUST_PROXY` it says at start that a customer side will not load, where every public call used to answer 404 "Route not found". A quote of an order before the guest has chosen fills a required choice (a country) with one of its own values and shows it empty, as it fills a required name: it was refused, naming nothing. A public write refused without a reason the guest may hear is written to the server's log with its column and why (a column the table cannot store empty, a code typed with no add-on to read it), never a value. `app check` names the public create that leaves out a column its table cannot store empty. An app applied over itself says which columns it now lets be empty that their table keeps NOT NULL: an apply never changes that. The bounds a guest-typed number needs are written `rules.validation`, as the message now says.
+- 7927882: A picture uploaded on a record's form now shows on the app's own pages. A form upload field the page's grid does not list (a generated app's picture column) was not treated as a file column, so the save never attached the file to its row and the public picture route refused it. Sample data that names one picture on several rows now gives each row a copy of its own; before, only the last of those rows showed its picture.
+- 9c2bf86: A rule that runs when a row is made now also runs for a row that gets the key of a row deleted before it. On SQLite, deleting the newest row hands its number to the next row, and that row's rules never ran: in the Sales CRM a deal made just after the newest deal was deleted got no mark and no first history line. Deleting a row through Adminium now lets go of what its rules remembered of it; the earlier runs and their history stay.
+- de58e95: "Add a model" loads the models by itself once a key is pasted (Ollama's at once), and has a "Load models" button beside the Model field, which is now a searchable list. Ollama starts on a model that runs on this machine; a `:cloud` model the account has no plan or credit for says so instead of reading as a failed connection, and a model the server refuses tools for reads as one that cannot build.
+- 1994755: The Designer takes a Markdown file (`.md`, up to 200 KB) with a message. A `DESIGN.md` that describes a design system (colours, fonts, spacing, corners, do and don't) becomes the design of the app's own screens: the theme is set from it, the brief is written from it, and it stays with the session. Any other document is read as part of what you ask for.
+- 05a246f: The Designer no longer says a model through OpenRouter cannot read pictures when it can. When a server's model list says which models take pictures (OpenRouter does), the Designer goes by that list. Otherwise it asks the model, and an answer that names both colours now counts in either order: Claude Sonnet 5.5 answered "Blue Yellow" every time. A server that refuses the picture is believed for five minutes, then asked again, so a passing error no longer marks a model as unable to read pictures until the server restarts.
+- c2dc6be: A record whose file column names a file that belongs to another record, or to the Files library, no longer takes that file over. Before, pasting another row's picture link or a library file's link moved the file onto the new row: the first row lost the picture on its own pages, the library lost the file, and clearing or deleting the new row sent the file to the bin. The file now stays where it was. A record with a very long key also no longer re-attaches its own file on every save.
+- 7927882: Replacing, clearing or deleting a record's file no longer moves it to the trash when the file belongs to another record that still shows it, as can happen when two rows name the same picture.
+- 06f1817: A value a rule writes from the settings row can name who to write when the setting names nobody: `"else": { "staff": "<column>" }` beside `setting`, a staff column of the rule's record or one link further. An aftercare call is then given to the rep who sold the job when the business has named nobody for aftercare, instead of being left with no owner.
+- fcd3f18: A rule waiting out its minute after a change no longer acts on a different row. When a row was changed and then removed inside that minute, the rule's run used to start anyway, and on SQLite it found the next row made, which is given the same number: a deal marked won and removed at once made a job for the deal made after it. Removing the row now drops its waiting runs, as an undo does; a rule that runs on the removal itself still runs.
+- Updated dependencies [99b6a05]
+- Updated dependencies [9c2bf86]
+- Updated dependencies [de58e95]
+- Updated dependencies [05a246f]
+- Updated dependencies [06f1817]
+  - @adminium/manifest@0.3.29
+  - @adminium/meta@0.3.29
+  - @adminium/llm@0.3.29
+  - @adminium/adapter-mysql@0.3.29
+  - @adminium/adapter-postgres@0.3.29
+  - @adminium/adapter-sqlite@0.3.29
+  - @adminium/add-on-contracts@0.3.29
+  - @adminium/engine@0.3.29
+  - @adminium/i18n@0.3.29
+  - @adminium/schema-import@0.3.29
+
 ## 0.3.28
 
 ### Patch Changes

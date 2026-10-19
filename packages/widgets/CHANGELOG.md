@@ -1,5 +1,14 @@
 # @adminium/widgets
 
+## 0.3.29
+
+### Patch Changes
+
+- @adminium/charts@0.3.29
+  - @adminium/i18n@0.3.29
+  - @adminium/tokens@0.3.29
+  - @adminium/ui@0.3.29
+
 ## 0.3.28
 
 ### Patch Changes

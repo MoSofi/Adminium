@@ -119,6 +119,29 @@ describe('a table this app made on an earlier install', () => {
     expect(payments?.adopted).toBeUndefined();
   });
 
+  it('names a column the app lets be empty that the table keeps NOT NULL, and edits nothing for it', () => {
+    const plan = planInstall(
+      POS,
+      view([
+        {
+          ref: 'pos_payments',
+          columns: [
+            col('id', { isPrimaryKey: true, logicalType: 'integer', isIdentity: true, nullable: false }),
+            col('amount', { logicalType: 'decimal', nullable: false }),
+            col('tip', { logicalType: 'decimal', nullable: false }),
+            col('status', { logicalType: 'varchar', maxLength: 32, enumValues: ['paid', 'refunded'] }),
+          ],
+        },
+      ]),
+      ctx({ records }),
+    );
+    const payments = plan.tables?.find((t) => t.ref === 'payments');
+    // `amount` is required by the app as well, and `tip` is not: no edit makes a column nullable.
+    expect(payments?.stillRequired).toEqual(['tip']);
+    expect(payments?.edits).toEqual([]);
+    expect(plan.installable).toBe(true);
+  });
+
   it('gives a column the unique rule it is declared with where the table says it lacks it, and only there', () => {
     const coded = {
       ...POS,

@@ -642,7 +642,7 @@ describe('the build page', () => {
 
     // What is plainly neither kind is said at once, and nothing is sent for it.
     fireEvent.drop(screen.getByRole('textbox', { name: 'Message to Adminium Designer' }), { dataTransfer: { files: [new File(['%PDF'], 'notes.pdf', { type: 'application/pdf' })], types: ['Files'] } });
-    expect(screen.getByRole('alert').textContent).toBe('Only a picture (PNG, JPEG, WebP or GIF), a CSV file or a font (.woff2) can be attached.');
+    expect(screen.getByRole('alert').textContent).toBe('Only a picture (PNG, JPEG, WebP or GIF), a CSV file, a font (.woff2) or a Markdown file (.md) can be attached.');
 
     // A font of the person's own goes with the message too, known by its name where the browser gives no type; one too large for a font is said at once.
     await userEvent.upload(input, new File(['wOF2'], 'Brand Sans.woff2', { type: '' }));
@@ -651,10 +651,17 @@ describe('the build page', () => {
     await userEvent.upload(input, new File([new Uint8Array(400 * 1024 + 1)], 'Heavy.woff2', { type: 'font/woff2' }));
     expect(screen.getByRole('alert').textContent).toBe('That font file is over 400 KB. Attach one weight of the font as a .woff2 file.');
 
+    // A design written out in Markdown goes with it, known by its name; one too long to read whole is said at once.
+    await userEvent.upload(input, new File(['# Harbour\n- accent #ff385c\n'], 'DESIGN.md', { type: '' }));
+    expect(within(screen.getByRole('list', { name: 'Attached files' })).getAllByRole('listitem').map((item) => item.textContent)).toEqual(['shot.png', 'orders.csv', 'Brand Sans.woff2', 'DESIGN.md']);
+    expect(screen.queryByRole('alert')).toBeNull();
+    await userEvent.upload(input, new File([new Uint8Array(200 * 1024 + 1)], 'Everything.md', { type: 'text/markdown' }));
+    expect(screen.getByRole('alert').textContent).toBe('That document is over 200 KB. Attach a shorter one, or paste the part that matters into the message.');
+
     await userEvent.type(screen.getByRole('textbox', { name: 'Message to Adminium Designer' }), 'Like this, with these orders.{Enter}');
-    await waitFor(() => expect(posted('/turns')).toEqual([{ text: 'Like this, with these orders.', attachments: ['att_00000000000000000001', 'att_00000000000000000002', 'att_00000000000000000003'] }]));
+    await waitFor(() => expect(posted('/turns')).toEqual([{ text: 'Like this, with these orders.', attachments: ['att_00000000000000000001', 'att_00000000000000000002', 'att_00000000000000000003', 'att_00000000000000000004'] }]));
     const order = calls.filter((call) => call.method === 'POST' && call.url.includes(`/sessions/${ID}/`)).map((call) => call.url.replace(/\?.*/, '').split('/').pop());
-    expect(order).toEqual(['attachments', 'attachments', 'attachments', 'turns']);
+    expect(order).toEqual(['attachments', 'attachments', 'attachments', 'attachments', 'turns']);
     // Sent: the box and its files are cleared.
     await waitFor(() => expect(screen.queryByRole('list', { name: 'Attached files' })).toBeNull());
   });

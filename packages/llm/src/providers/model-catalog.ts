@@ -143,7 +143,13 @@ export async function listAnthropicModels(opts: CatalogFetchOptions): Promise<Mo
 }
 
 interface OpenAiModelsResponse {
-  data?: { id?: string }[];
+  data?: { id?: string; architecture?: { input_modalities?: unknown } }[];
+}
+
+/** Whether a listed model reads pictures, when its server says (OpenRouter's `architecture.input_modalities`). */
+function listedImages(model: { architecture?: { input_modalities?: unknown } }): { images?: boolean } {
+  const modalities = model.architecture?.input_modalities;
+  return Array.isArray(modalities) ? { images: modalities.includes('image') } : {};
 }
 
 /**
@@ -198,8 +204,8 @@ export async function listOpenAiCompatibleModels(opts: CatalogFetchOptions): Pro
       ...(opts.timeoutMs !== undefined ? { timeoutMs: opts.timeoutMs } : {}),
     });
     return (json.data ?? [])
-      .filter((m): m is { id: string } => typeof m.id === 'string')
-      .map((m) => ({ id: m.id, label: m.id }));
+      .filter((m): m is { id: string; architecture?: { input_modalities?: unknown } } => typeof m.id === 'string')
+      .map((m) => ({ id: m.id, label: m.id, ...listedImages(m) }));
   } catch (err) {
     if (err instanceof ProviderError && err.code === 'not_found') return [];
     throw err;

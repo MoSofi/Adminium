@@ -30,6 +30,7 @@ import { AppToastProvider } from '../pages/toasts.js';
 import { jsonResponse, makeBootstrap } from '../test/fixtures.js';
 import type { FileDto } from './api.js';
 import { FilesPage } from './FilesPage.js';
+import { previewKindOf } from './FilePreview.js';
 import { buildFilesPath, tablePresets, ALL_FILES_FILTERS } from './filesQueries.js';
 
 function makeFile(overrides: Partial<FileDto> = {}): FileDto {
@@ -496,6 +497,43 @@ describe('FilesPage — the File Manager comp', () => {
     expect(await screen.findByTestId('files-table')).toBeTruthy();
     // A view is how the same rows look, never which rows are asked for.
     expect(listUrls(calls).length).toBe(before);
+  });
+
+  it('draws a picture on an image tile and the type icon on the rest, in the same box', async () => {
+    stubFetch({ connections: CONNECTIONS });
+    renderPage();
+    const tiles = await screen.findAllByTestId('files-grid-tile');
+    const thumbs = tiles.map((tile) => within(tile).getByTestId('files-thumbnail'));
+    // Every tile has the box, so every tile is the same height.
+    expect(thumbs).toHaveLength(LIVE_FILES.length);
+    const logo = tiles.find((tile) => tile.textContent.includes('logo.png'));
+    // Inline, or the route answers `attachment` and the <img> draws nothing.
+    // (The fixture shares one contentPath across files; the suffix is the point.)
+    expect(logo?.querySelector('img')?.getAttribute('src')).toBe(`${LIVE_FILES[1]?.contentPath ?? ''}?inline=1`);
+    const contract = tiles.find((tile) => tile.textContent.includes('contract.pdf'));
+    expect(contract?.querySelector('img')).toBeNull();
+  });
+
+  it('previews the file in its drawer, and says so when it cannot', async () => {
+    stubFetch({ connections: CONNECTIONS });
+    const user = userEvent.setup();
+    renderPage();
+
+    const tiles = await screen.findAllByTestId('files-grid-tile');
+    const contract = tiles.find((tile) => tile.textContent.includes('contract.pdf'));
+    if (contract === undefined) throw new Error('no contract tile');
+    await user.click(contract);
+    const frame = await screen.findByTestId('files-preview');
+    expect(frame.tagName).toBe('IFRAME');
+    expect(frame.getAttribute('src')).toBe('/api/v1/files/file_1/content?inline=1');
+  });
+
+  it('has no preview for a kind the browser cannot show, nor for a trashed file', () => {
+    expect(previewKindOf(makeFile({ mime: 'application/zip', filename: 'a.zip' }))).toBeNull();
+    // SVG is never served inline (D9), so it is never asked for inline.
+    expect(previewKindOf(makeFile({ mime: 'image/svg+xml', filename: 'a.svg' }))).toBeNull();
+    expect(previewKindOf(makeFile({ deletedAt: 1 }))).toBeNull();
+    expect(previewKindOf(makeFile({ mime: 'text/csv', filename: 'a.csv' }))).toBe('text');
   });
 
   it('hides the rail group and the Upload button when connections are refused', async () => {

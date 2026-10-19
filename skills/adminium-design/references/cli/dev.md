@@ -1,0 +1,60 @@
+<!-- produced from apps/docs/src/content/docs/reference/cli.md § `dev`; do not edit -->
+
+# CLI reference: `dev`
+
+```
+adminium dev [--port <n>] [--host <addr>]
+```
+
+Runs the project: it builds, then runs [`start`](https://docs.adminium.dev/reference/cli/#start) for it. When
+`adminium.config.ts`, a file it imports, or `.env` changes, it builds again and
+restarts the server. A failed build or a crash does not end it; it waits for
+the next change. Stop it with Ctrl-C.
+
+A change to a file in `hooks/` or `actions/`, or to a file one of them
+imports, rebuilds only those and swaps them into the running server without a
+restart. If they no longer build, the server keeps the ones it has.
+
+A change to a page or widget written in React (`pages/*.tsx`, `widgets/*.tsx`,
+or a file they import) rebuilds the browser code, and open dashboards load the
+new files and draw them again. A page's state starts over.
+
+A change to a file anywhere under `apps/` checks and rebuilds the
+[apps in the project](https://docs.adminium.dev/projects/apps/#run-it-from-the-folder). The running
+server installs a new app, applies a changed manifest in place (the app keeps
+serving, and its rows stay), and an open screen of the app reloads. An app that
+does not build is named with its file and field, and keeps what it had. What
+holds data and was taken out of a manifest is never dropped on the way: Studio
+asks.
+
+Under `dev` the server listens on this computer only: `HOST` defaults to
+`127.0.0.1` (a `HOST` in the environment or `.env`, or `--host`, still wins).
+The public API answers the server's own pages (`ADMINIUM_PUBLIC_API_ORIGINS`
+defaults to `self`), and it is switched on when an app's public access is
+given, so a customer side works with nothing to set. On any other address,
+such as `--host 0.0.0.0` to try it from a phone, the public API also needs
+`ADMINIUM_TRUST_PROXY=1`, and `dev` says so when it starts: without it a
+customer side answers 404 "Route not found" to everything.
+
+The [project files](https://docs.adminium.dev/reference/cli/#project-files) are the master copy while it runs:
+
+- a saved page or schema file is applied at once, and open dashboards reload;
+- an edit made in Studio, or by a command such as `apply-llm-response`, is
+  written to its file, and a page created or deleted in Studio creates or
+  deletes its file;
+- deleting a file deletes its page;
+- when a file and the database both changed, the file wins, and `dev` says so;
+- a file with a mistake is not applied. `dev` names the file and the field, and
+  the page keeps its last good version.
+
+The first run of a new project generates pages from its databases and writes
+their files. A database that already has page files is only read, and its
+pages come from the files.
+
+| Flag | Default | |
+|---|---|---|
+| `-p`, `--port <n>` | `PORT` or 4600 | Port to listen on |
+| `--host <addr>` | `HOST` or 127.0.0.1 | Address to bind (this computer only) |
+| `--log-level <level>` | `ADMINIUM_LOG_LEVEL` or info | Server log level |
+
+---

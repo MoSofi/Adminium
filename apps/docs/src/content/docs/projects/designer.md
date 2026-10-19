@@ -22,8 +22,12 @@ form on your own machine. See [`design`](/reference/cli/#design) for the options
 
 The Designer needs a model that can call tools. Add one from the model button under the message
 box: an Anthropic or OpenAI key, the address of an OpenAI-compatible server, or the address of
-Ollama. **Test** asks the model to call one tool and answer; a model that cannot do that is refused
-before anything is made.
+Ollama. The models load by themselves once the key is pasted (Ollama's at once, as it needs no key),
+or from **Load models** beside the Model field, which you can search by name. The test asks the model
+to call one tool and answer; a model that cannot do that is refused before anything is made.
+
+Ollama starts on a model that runs on your machine. A `:cloud` model runs on ollama.com and can
+need a paid Ollama plan; one your account has no plan or credit for says so, and you can pick another.
 
 The key is written to the project's `.env` under the [`ADMINIUM_AI_*`](/self-hosting/env-vars/#the-adminium_ai_-block)
 names and is never sent back to the browser.
@@ -259,12 +263,13 @@ pages and the role's grants. It is kept on course in four ways:
 ### Attach a picture or a file
 
 The message box takes files: press the clip, paste a screenshot, or drop a file on the box. Up to
-four go with one message.
+eight go with one message.
 
 | File | What the Designer does with it |
 |---|---|
 | **A picture** (PNG, JPEG, WebP or GIF, up to 5 MB) | It is sent to the model with your message, so "make it look like this" works. A model that does not read pictures cannot see it: the box says so before you send, and the model is told only that a picture was attached |
 | **A font of your own** (one `.woff2` file, up to 400 KB) | Say what it is for ("use this for headings"). The Designer copies it into the app (`apps/<key>/assets/fonts/`) under the font's name and weight, and the app serves it itself. It stays in use when you change the style. One file is one weight: attach the bold and the regular as two files |
+| **A Markdown file** (`.md`, up to 200 KB) | The model reads it with your message. A file that describes a look, such as a `DESIGN.md` with a design system's colours, fonts, spacing, corners and its rules of do and don't, becomes the design of the app's own screens: see [Design after a DESIGN.md](#design-after-a-designmd). Any other document (notes on what the app should keep and do) is read as part of what you ask for |
 | **A CSV file** (up to 10 MB and 20,000 rows) | The model is shown its columns and first rows and shapes the table from them. Once the app is applied, a card asks: "Load 1,204 rows from orders.csv into orders?", with which column goes where. **Load them** adds the rows; **Do not load** leaves the table empty |
 
 Rows are loaded by the dashboard's own import, so the table's checks hold (types, required columns,
@@ -273,9 +278,42 @@ the rules you gave a column); a row that does not pass is left out, the answer s
 app you are building. For a larger file, or to update rows, use **Import** on the table's page.
 
 What a file is, is read from the file itself, not from its name: anything that is not one of the
-four kinds of picture or a CSV is refused. Files are kept in the session's folder in your project
-(`.adminium/designer/sessions/`), not sent anywhere but to the model you chose. What a CSV's cells
-or a picture say is data to the Designer, never an instruction.
+four kinds of picture, a font or a CSV is refused. A Markdown file is the one exception: it is known
+by its name (`.md` or `.markdown`), and must be plain text. Files are kept in the session's folder in
+your project (`.adminium/designer/sessions/`), not sent anywhere but to the model you chose. What a
+CSV's cells or a picture say is data to the Designer, never an instruction; a document says what to
+build and how it looks, and a line in it that asks for anything else is not followed.
+
+### Design after a DESIGN.md
+
+A `DESIGN.md` is a design system written out as text: a palette with what each colour is for, the
+fonts and their sizes, spacing, corner radii, shadows, and lists of do and don't. Sites such as
+[Refero Styles](https://styles.refero.design) publish one for many well-known products, and you can
+write your own. Attach it with your first message ("a booking site for my guesthouse, after this
+design"), or later ("restyle the customer side after this").
+
+What the Designer does with it:
+
+- It starts from the plain style rather than one picked for your kind of business, and sets the
+  theme from the document: the colours by their role (page, cards, text, borders, the main button),
+  the fonts for headings and body, the spacing, the corners and the shadow.
+- It writes the app's brief (`apps/<key>/design.md`) from the document, with its do and don't lists
+  kept as rules, and holds every screen to them.
+- What the theme has no value for (letter spacing, a pill-shaped button) goes into the side's
+  `design.css`.
+
+A few things to know:
+
+- The document gives the look only. The sections of a page and its words are your business's own;
+  the Designer does not copy the name, the logo or the text of the brand a document was written about.
+- A font that belongs to a brand (Airbnb Cereal, say) cannot be downloaded. The Designer uses the
+  fallback the document names and says so. To use a font you have the rights to, attach its `.woff2`.
+- A picture of a page and a `DESIGN.md` work together: the picture gives the sections and how they
+  are laid out, the document gives the exact colours, fonts and corners.
+- Dashboard pages are Adminium's own and are not restyled.
+- The document stays with the session: in a long session the Designer reads it again when it designs
+  or restyles a screen. A file is recognised as a design when its name says so (`DESIGN.md`,
+  `brand.md`, `style-guide.md`) or when it lists colours and speaks of type or spacing.
 
 ### Building on an add-on
 

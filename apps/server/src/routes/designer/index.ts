@@ -353,7 +353,8 @@ export function designerRoutes(deps: DesignerRoutesDeps): FastifyPluginAsyncZod 
      * A file for a message: a picture or a CSV, as raw bytes. Who is asking is
      * settled on the request's first line (`onRequest`), before a byte of the
      * body is read; the permission and the CSRF check follow as on every
-     * Designer route. What the file is, is read from its bytes.
+     * Designer route. What the file is, is read from its bytes; a document in
+     * Markdown alone is known by its name, and is held to plain text.
      */
     app.post(
       '/designer/sessions/:id/attachments',
@@ -399,11 +400,11 @@ export function designerRoutes(deps: DesignerRoutesDeps): FastifyPluginAsyncZod 
         const bytes = entry === null ? null : deps.attachments.read(session.id, entry.id);
         if (entry === null || bytes === null) throw new NotFoundError('There is no such file in this session.');
         return reply
-          .header('content-type', entry.kind === 'image' ? entry.mediaType : entry.kind === 'font' ? 'font/woff2' : 'text/csv; charset=utf-8')
+          .header('content-type', entry.kind === 'image' ? entry.mediaType : entry.kind === 'font' ? 'font/woff2' : entry.kind === 'doc' ? 'text/plain; charset=utf-8' : 'text/csv; charset=utf-8')
           .header('x-content-type-options', 'nosniff')
           .header('content-security-policy', "default-src 'none'; sandbox")
           .header('cache-control', 'private, max-age=3600')
-          .header('content-disposition', entry.kind === 'image' ? 'inline' : `attachment; filename="attachment.${entry.kind === 'font' ? 'woff2' : 'csv'}"`)
+          .header('content-disposition', entry.kind === 'image' ? 'inline' : `attachment; filename="attachment.${entry.kind === 'font' ? 'woff2' : entry.kind === 'doc' ? 'md' : 'csv'}"`)
           .send(bytes);
       },
     );

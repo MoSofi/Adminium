@@ -176,7 +176,7 @@ export const designerSightReply = z.object({ kept: z.boolean() });
 export const designerAttachment = z.object({
   id: z.string(),
   label: z.string(),
-  kind: z.enum(['image', 'csv', 'font']),
+  kind: z.enum(['image', 'csv', 'font', 'doc']),
   mediaType: z.string(),
   bytes: z.number().int(),
   rows: z.number().int().optional(),
@@ -354,7 +354,8 @@ export const designerConnectionDraft = z.object({
 });
 export const designerConnectionTestReply = z.object({
   ok: z.boolean(),
-  models: z.array(z.object({ id: z.string(), label: z.string() })),
+  /** `remote`: a local provider runs this model elsewhere (an Ollama `:cloud` model), which can need a paid plan. */
+  models: z.array(z.object({ id: z.string(), label: z.string(), remote: z.boolean().optional() })),
   canBuild: z
     .union([
       z.object({ canBuild: z.literal(true), reportsUsage: z.boolean() }),

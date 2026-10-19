@@ -132,9 +132,16 @@ export interface ConnectionDraft {
   model?: string;
 }
 
+export interface ListedModel {
+  id: string;
+  label: string;
+  remote?: boolean;
+}
+
 export interface ConnectionTest {
   ok: boolean;
-  models: { id: string; label: string }[];
+  /** `remote`: a local provider runs this model elsewhere (an Ollama `:cloud` model), which can need a paid plan. */
+  models: ListedModel[];
   canBuild: { canBuild: true; reportsUsage: boolean } | { canBuild: false; reason: 'no-tool-call' | 'refused-result'; message: string } | null;
   error: { code: string; message: string } | null;
 }
@@ -148,7 +155,7 @@ export type SpendMark = 'turn-tokens' | 'session-tokens';
 export interface DesignerAttachment {
   id: string;
   label: string;
-  kind: 'image' | 'csv' | 'font';
+  kind: 'image' | 'csv' | 'font' | 'doc';
   mediaType: string;
   bytes: number;
   rows?: number;

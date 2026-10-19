@@ -14,16 +14,22 @@
  * no access to) keeps the list, so another one can be chosen; it is not
  * savable. Changing the key or the address clears the test; changing the model
  * asks the new one.
+ *
+ * The test runs by itself once the form is complete (a key pasted, an address
+ * typed; Ollama at once, as it needs neither), and from "Load models" beside
+ * the Model field. The first model chosen is one that runs here when the list
+ * has one: an Ollama `:cloud` model can need a paid plan, and a refusal about
+ * money is said as one, not as a dead address or a refused key.
  */
 import { getDesktopApi } from '../../lib/desktop-runtime.js';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { Check, CircleAlert, CircleCheck, Cpu, FileText, Loader2, TriangleAlert } from 'lucide-react';
-import { Button, FormField, Input, Modal, ModalBody, ModalFooter, ModalHeader, SecretInput, Select } from '@adminium/ui';
+import { Check, CircleAlert, CircleCheck, Cpu, FileText, Loader2, RefreshCw, TriangleAlert } from 'lucide-react';
+import { Button, Combobox, FormField, Input, Modal, ModalBody, ModalFooter, ModalHeader, SecretInput } from '@adminium/ui';
 
 import { ApiError } from '../../app/api.js';
 import { t } from '../../i18n/t.js';
 import type { ConfigurableProvider } from '../../studio/ai/providerCatalog.js';
-import { designerApi, type ConnectionDraft, type ConnectionTest, type DesignerModels, type ModelConnection } from '../api.js';
+import { designerApi, type ConnectionDraft, type ConnectionTest, type DesignerModels, type ListedModel, type ModelConnection } from '../api.js';
 import { PROVIDERS, providerFields, providerLabel, providerLine } from './providers.js';
 
 /** `unanswered`: the connection listed its models, but this one could not be asked. */
@@ -32,7 +38,7 @@ type Verdict = NonNullable<ConnectionTest['canBuild']> | { unanswered: string };
 type TestState =
   | { kind: 'idle' }
   | { kind: 'testing' }
-  | { kind: 'passed'; models: { id: string; label: string }[]; ms: number | null; verdict: Verdict | 'checking' | null }
+  | { kind: 'passed'; models: ListedModel[]; ms: number | null; verdict: Verdict | 'checking' | null }
   | { kind: 'failed'; on: 'key' | 'address' | 'form'; message: string };
 
 export interface SavedModel {
@@ -40,15 +46,41 @@ export interface SavedModel {
   model: string;
 }
 
-function failure(provider: ConfigurableProvider, error: { code: string; message: string } | null): Extract<TestState, { kind: 'failed' }> {
+/**
+ * What a failed test says, and on which field. `asked` is the listed model that was asked: the list came back, so
+ * the address works and only that model failed.
+ */
+function failure(provider: ConfigurableProvider, error: { code: string; message: string } | null, asked?: ListedModel): Extract<TestState, { kind: 'failed' }> {
   const fields = providerFields(provider);
   const code = error?.code ?? 'error';
+  const cloud = provider === 'ollama' && asked?.remote === true;
+  if (code === 'billing') {
+    return {
+      kind: 'failed',
+      on: 'form',
+      message: cloud
+        ? t('designer:model.cloudNeedsPlan', '{model} runs on ollama.com, and your Ollama account has no plan or credit for it. Choose a model that runs on this machine, or add credit on ollama.com and test again.', { model: asked.label })
+        : t('designer:model.needsCredit', 'The connection works, but {provider} refused this model: the account has no credit, or the model needs a paid plan. Choose another model, or add credit with {provider} and test again.', { provider: providerLabel(provider) }),
+    };
+  }
+  if (code === 'auth' && cloud) {
+    return { kind: 'failed', on: 'form', message: t('designer:model.cloudSignIn', '{model} runs on ollama.com, and this machine is not signed in to it. Run “ollama signin”, or choose a model that runs on this machine.', { model: asked.label }) };
+  }
   if (code === 'auth' && fields.key !== 'none') return { kind: 'failed', on: 'key', message: t('designer:model.keyRefused', 'The key was refused.') };
-  if ((code === 'network' || code === 'timeout' || code === 'not_found') && fields.address !== 'none') {
+  if (asked === undefined && (code === 'network' || code === 'timeout' || code === 'not_found') && fields.address !== 'none') {
     return { kind: 'failed', on: 'address', message: t('designer:model.unreachable', 'Could not reach this connection') };
   }
   return { kind: 'failed', on: 'form', message: t('designer:model.testFailed', 'The test failed: {message}', { message: error?.message ?? code }) };
 }
+
+/** The model chosen first: the one already chosen if listed, else the first that runs here (a cloud one can need a paid plan). */
+function firstChoice(listed: ListedModel[], current: string): string {
+  if (listed.some((entry) => entry.id === current)) return current;
+  return (listed.find((entry) => entry.remote !== true) ?? listed[0])?.id ?? current;
+}
+
+/** How long the form waits after the last keystroke before it tests by itself: a paste tests at once, typing waits. */
+const AUTO_TEST_MS = 600;
 
 function seconds(ms: number): string {
   return (Math.max(ms, 100) / 1000).toFixed(1);
@@ -102,7 +134,7 @@ export function AddModelDialog({
   });
 
   /** Ask one model whether it can build; the answer lands only if nothing changed since. */
-  const check = async (id: ConfigurableProvider, listed: { id: string; label: string }[], chosen: string, ticket: number): Promise<void> => {
+  const check = async (id: ConfigurableProvider, listed: ListedModel[], chosen: string, ticket: number): Promise<void> => {
     const started = performance.now();
     const reply = await designerApi.testConnection(draft(id, chosen)).catch((error: unknown) => ({
       ok: false,
@@ -112,7 +144,7 @@ export function AddModelDialog({
     }));
     if (run.current !== ticket) return;
     if (!reply.ok) {
-      const failed = failure(id, reply.error);
+      const failed = failure(id, reply.error, listed.find((entry) => entry.id === chosen));
       // The list came back, so the connection works: only this model failed. A refused key is the
       // exception (a list can be a built-in one).
       if (listed.length === 0 || failed.on !== 'form') setTest(failed);
@@ -139,7 +171,7 @@ export function AddModelDialog({
       setTest(failure(provider, listed.error));
       return;
     }
-    const chosen = listed.models.some((entry) => entry.id === model) ? model : (listed.models[0]?.id ?? model);
+    const chosen = firstChoice(listed.models, model);
     setModel(chosen);
     if (chosen === '') {
       // Nothing listed (a compatible service may not list): the model is typed, then asked.
@@ -185,6 +217,16 @@ export function AddModelDialog({
   const unanswered = passed !== null && typeof passed.verdict === 'object' && passed.verdict !== null && 'unanswered' in passed.verdict ? passed.verdict.unanswered : null;
   const canSave = passed !== null && model.trim() !== '' && passed.verdict !== 'checking' && unanswered === null && !saving;
   const resultId = 'designer-add-model-result';
+  const idle = test.kind === 'idle';
+
+  // A complete form tests by itself: a pasted key, a typed address, or Ollama's own address as soon as it is chosen.
+  // A failed test waits for a change (or "Load models"), so a wrong key is not tried again and again.
+  useEffect(() => {
+    if (!open || provider === null || missing || !idle || saving) return;
+    const timer = setTimeout(() => void runTest(), AUTO_TEST_MS);
+    return () => clearTimeout(timer);
+    // runTest reads only the fields listed here.
+  }, [open, provider, key, address, missing, idle, saving]);
 
   return (
     <Modal open={open} onOpenChange={onOpenChange} className="max-w-[560px] max-sm:inset-0 max-sm:m-0 max-sm:h-dvh max-sm:max-h-none max-sm:w-full max-sm:max-w-none max-sm:rounded-none">
@@ -258,23 +300,41 @@ export function AddModelDialog({
                 />
               </FormField>
             )}
-            <FormField label={t('designer:model.model', 'Model')}>
+            <FormField
+              label={t('designer:model.model', 'Model')}
+              tag={
+                <Button variant="ghost" size="sm" disabled={busy || missing} onClick={() => void runTest()} className="h-6 gap-1 px-1.5 text-[11.5px]">
+                  {test.kind === 'testing' ? <Loader2 aria-hidden="true" className="size-3 animate-spin" /> : <RefreshCw aria-hidden="true" className="size-3" />}
+                  {passed === null ? t('designer:model.loadModels', 'Load models') : t('designer:model.reloadModels', 'Reload models')}
+                </Button>
+              }
+            >
               {passed !== null && passed.models.length === 0 ? (
                 <Input value={model} spellCheck={false} autoComplete="off" className="font-mono" onChange={(event) => setModel(event.target.value)} />
               ) : (
-                <Select value={passed === null ? '' : model} disabled={passed === null} mono={provider === 'ollama'} onChange={(event) => changeModel(event.target.value)}>
-                  {passed === null ? (
-                    <option value="">
-                      {fields?.key === 'required' ? t('designer:model.testKeyFirst', 'Test the key to list models') : t('designer:model.testAddressFirst', 'Test the address to list models')}
-                    </option>
-                  ) : (
-                    passed.models.map((entry) => (
-                      <option key={entry.id} value={entry.id}>
-                        {entry.label}
-                      </option>
-                    ))
-                  )}
-                </Select>
+                <Combobox
+                  options={(passed?.models ?? []).map((entry) => ({
+                    value: entry.id,
+                    label: entry.label,
+                    description: provider === 'ollama' && entry.remote === true ? t('designer:model.cloudModel', 'Runs on ollama.com; can need a paid plan') : undefined,
+                  }))}
+                  value={passed === null ? null : model}
+                  disabled={passed === null}
+                  mono={provider === 'ollama'}
+                  placeholder={
+                    passed !== null
+                      ? t('designer:model.searchModels', 'Search models')
+                      : test.kind === 'testing'
+                        ? t('designer:model.loadingModels', 'Loading models…')
+                        : missing && fields?.key === 'required'
+                          ? t('designer:model.keyFirst', 'Paste a key to list models')
+                          : missing
+                            ? t('designer:model.addressFirst', 'Type an address to list models')
+                            : t('designer:model.loadFirst', 'Load the models to choose one')
+                  }
+                  emptyText={t('designer:model.noMatch', 'No model matches')}
+                  onValueChange={(next) => changeModel(next ?? '')}
+                />
               )}
             </FormField>
 

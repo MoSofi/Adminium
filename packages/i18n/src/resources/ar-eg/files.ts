@@ -84,7 +84,12 @@ export default {
     "attachedAt": "تاريخ الإرفاق",
     "trashedAt": "تاريخ النقل إلى المهملات",
     "id": "معرّف الملف",
-    "checksum": "المجموع الاختباري"
+    "checksum": "المجموع الاختباري",
+    "previewTitle": "معاينة {name}",
+    "previewNone": "لا توجد معاينة لهذا النوع من الملفات.",
+    "previewTrashed": "لا يمكن معاينة ملف موجود في سلة المهملات.",
+    "previewFailed": "تعذّر عرض هذا الملف هنا. نزّله لفتحه.",
+    "previewTruncated": "يتم عرض أول {size}."
   },
   "view": {
     "label": "طريقة عرض الملفات",

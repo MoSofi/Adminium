@@ -74,7 +74,12 @@
     "attachedAt": "Attached",
     "trashedAt": "Moved to trash",
     "id": "File id",
-    "checksum": "Checksum"
+    "checksum": "Checksum",
+    "previewTitle": "Preview of {name}",
+    "previewNone": "There is no preview for this kind of file.",
+    "previewTrashed": "A file in the trash cannot be previewed.",
+    "previewFailed": "This file could not be shown here. Download it to open it.",
+    "previewTruncated": "Showing the first {size}."
   },
   "view": {
     "label": "How files are shown",

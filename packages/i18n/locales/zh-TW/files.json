@@ -74,7 +74,12 @@
     "attachedAt": "附加時間",
     "trashedAt": "移至垃圾桶時間",
     "id": "檔案 ID",
-    "checksum": "總和檢查碼"
+    "checksum": "總和檢查碼",
+    "previewTitle": "{name} 的預覽",
+    "previewNone": "此類檔案無法預覽。",
+    "previewTrashed": "垃圾桶中的檔案無法預覽。",
+    "previewFailed": "無法在此顯示這個檔案。請下載後開啟。",
+    "previewTruncated": "僅顯示前 {size}。"
   },
   "view": {
     "label": "檔案的顯示方式",
