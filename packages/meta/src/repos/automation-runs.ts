@@ -284,6 +284,21 @@ export function automationRunsRepo(meta: MetaDb) {
     },
 
     /**
+     * Let go of occurrence keys: a deleted row's `created` claims, so a later
+     * row given the same key is an occurrence of its own. The runs keep
+     * everything but the key (NULL, which the unique index exempts).
+     */
+    async releaseClaims(dedupeKeys: readonly string[]): Promise<number> {
+      if (dedupeKeys.length === 0) return 0;
+      const res = await db
+        .updateTable('adminium_automation_runs')
+        .set({ dedupeKey: null })
+        .where('dedupeKey', 'in', [...dedupeKeys])
+        .executeTakeFirst();
+      return affected(res.numUpdatedRows);
+    },
+
+    /**
      * Who claimed an occurrence key: the origin of the run holding it, or null
      * when no run holds it (any more). The route matcher asks after `begin`
      * answered null for a change, to tell the poller's claim of the SAME

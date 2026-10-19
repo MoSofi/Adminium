@@ -146,6 +146,7 @@ export class AutomationMatcher {
 
   async onRecordEvent(event: RecordWriteEvent): Promise<void> {
     const hops = event.hops ?? 0;
+    if (event.action === 'delete') await this.#releaseCreated(event);
     const rules = await this.rulesFor(event);
     if (rules.length === 0) return;
 
@@ -174,6 +175,27 @@ export class AutomationMatcher {
         // already happened; refusing the 201 would tell the caller a lie.
         this.#deps.log?.warn({ err: error, ruleId: rule.id }, 'automation matcher failed');
       }
+    }
+  }
+
+  /**
+   * A deleted row's key may be given to the next row: SQLite hands a deleted
+   * top rowid to the next insert, and MySQL before 8.0 restarts its counter.
+   * A `created` claim is `<rule>:<pk>` for good, so that next row would read
+   * as an occurrence already handled and its rules would never run. The
+   * delete lets go of the table's `created` claims for this key; the runs
+   * themselves stay, with their history.
+   */
+  async #releaseCreated(event: RecordWriteEvent): Promise<void> {
+    if (!this.#loaded) await this.refresh();
+    const created = this.#index.get(indexKey(event.connectionId, event.table.id, 'created')) ?? [];
+    if (created.length === 0) return;
+    const pk = event.entity.pk as Row;
+    try {
+      await automationRunsRepo(this.#deps.meta).releaseClaims(created.map((rule) => recordOccurrenceKey({ ruleId: rule.id, table: event.table, pk })));
+    } catch (error) {
+      // The delete already happened; a claim left held costs one later row its rules, never the write.
+      this.#deps.log?.warn({ err: error, table: event.table.id }, 'automation matcher could not release a deleted row\'s claims');
     }
   }
 
