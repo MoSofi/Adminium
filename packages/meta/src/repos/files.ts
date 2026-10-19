@@ -213,6 +213,22 @@ export function filesRepo(meta: MetaDb) {
       return affected(res.numUpdatedRows) === 1;
     },
 
+    /**
+     * The sweep's bin: only while nothing has claimed the upload, judged in
+     * the same statement that bins it. A save that attached it after the
+     * sweep listed it wins, and the file stays.
+     */
+    async markDeletedIfUnattached(id: string, at: number = Date.now()): Promise<boolean> {
+      const res = await db
+        .updateTable('adminium_files')
+        .set({ deletedAt: at })
+        .where('id', '=', id)
+        .where('deletedAt', 'is', null)
+        .where('attachedAt', 'is', null)
+        .executeTakeFirst();
+      return affected(res.numUpdatedRows) === 1;
+    },
+
     /** Rows already soft-deleted before `cutoff` — the storage GC's worklist. */
     async listDeletedBefore(cutoff: number, limit = 100): Promise<StoredFile[]> {
       const rows = await db
@@ -243,11 +259,15 @@ export function filesRepo(meta: MetaDb) {
      * Idempotent on `attached_at`: re-attaching an already-attached file to the
      * same record keeps the original timestamp, so "when did this become the
      * invoice's PDF" survives a re-save of the record.
+     *
+     * A file in the bin is not attached (`null`), judged in the statement
+     * itself: stamped, it would read as a record's while it waits to be
+     * purged.
      */
     async attach(id: string, entity: RecordRef, at: number = Date.now()): Promise<StoredFile | null> {
       const ref = recordRefSchema.parse(entity);
       const current = await findById(id);
-      if (current === null) return null;
+      if (current === null || current.deletedAt !== null) return null;
       const sameRecord =
         current.entityConnectionId === ref.connectionId &&
         current.entityTable === auditEntityKeyPart(ref.table) &&
@@ -260,8 +280,11 @@ export function filesRepo(meta: MetaDb) {
           ...entityColumns({ connectionId: ref.connectionId, table: ref.table, recordId: ref.label }),
         })
         .where('id', '=', id)
+        .where('deletedAt', 'is', null)
         .execute();
-      return findById(id);
+      // Binned in between: the statement matched nothing, and the file stays the bin's.
+      const after = await findById(id);
+      return after === null || after.deletedAt !== null ? null : after;
     },
 
     /**

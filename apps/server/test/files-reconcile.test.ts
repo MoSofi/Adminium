@@ -970,5 +970,12 @@ for (const engine of ENGINES) {
       // And letting go of it still trashes it: the cut key is this row's.
       expect((await save(label, JSON.stringify([first.id, second.id]), JSON.stringify([second.id]))).trashed).toEqual([first.id]);
     });
+
+    it('does not take an upload the sweep already binned', async () => {
+      const late = await upload('late.pdf');
+      await filesRepo(meta).markDeleted(late.id);
+      expect((await save('A', null, JSON.stringify([late.id]))).attached).toEqual([]);
+      expect(await filesRepo(meta).findById(late.id)).toMatchObject({ attachedAt: null, entityId: null });
+    });
   });
 }

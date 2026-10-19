@@ -330,7 +330,11 @@ export function createFileReconciler(deps: FileReconcilerDeps): FileReconciler {
               deps.logger?.warn({ fileId: file.id, table: input.table, connectionId: input.connectionId }, 'a record names a file another record or the library holds; it is left there');
               continue;
             }
-            await files.attach(file.id, input.entity, now());
+            // An upload the sweep binned already stays in the bin: stamped, it would read as this record's while it waits to be purged.
+            if ((await files.attach(file.id, input.entity, now())) === null) {
+              deps.logger?.warn({ fileId: file.id, table: input.table, connectionId: input.connectionId }, 'a record names an upload already in the trash; it is left there');
+              continue;
+            }
             result.attached.push(file.id);
           }
           // Removed or replaced: a file the column USED to name and no longer

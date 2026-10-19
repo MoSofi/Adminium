@@ -2998,7 +2998,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       const stale = await repo.listUnattachedBefore(at - unattachedHours * HOUR_MS, 100);
       if (stale.length === 0) break;
       for (const file of stale) {
-        if (await repo.markDeleted(file.id, at)) trashed += 1;
+        // Binned only while still unclaimed, in the statement that bins it: a save that named it since keeps it.
+        if (await repo.markDeletedIfUnattached(file.id, at)) trashed += 1;
       }
       if (stale.length < 100) break;
     }
