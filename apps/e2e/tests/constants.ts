@@ -92,6 +92,7 @@ export const OWN_PRINCIPALS = {
   enrich: { email: 'e2e-enrich@adminium.local', name: 'E2E Enrich Admin' },
   booking: { email: 'e2e-booking@adminium.local', name: 'E2E Booking App Admin' },
   invoicing: { email: 'e2e-invoicing@adminium.local', name: 'E2E Invoicing App Admin' },
+  voice: { email: 'e2e-voice@adminium.local', name: 'E2E Voice Admin' },
 } as const;
 export type OwnPrincipal = keyof typeof OWN_PRINCIPALS;
 export const OWN_PRINCIPAL_PASSWORD = 'adminium-e2e-password';
