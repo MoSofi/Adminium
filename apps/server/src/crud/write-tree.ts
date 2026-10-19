@@ -44,6 +44,7 @@ import type { JudgedRow, PoolState } from './capacity/types.js';
 import type { AdjustedOrder } from './adjust/step.js';
 import type { PostedOutcome } from './ledger-write.js';
 import type { Row } from './mask.js';
+import type { EffectWritten } from './states.js';
 import type { WriteContext, WriteTarget } from './write-context.js';
 
 type Db = Kysely<SourceDatabase>;
@@ -158,6 +159,8 @@ export interface TreeOutcome {
   postings?: PostedOutcome[] | undefined;
   /** Each order the tree's rows belong to, as an add-on's price rule priced it. */
   adjusted?: AdjustedOrder[] | undefined;
+  /** The rows outside the tree its new rows moved (a parent's `moveOnCreate`), for the caller to announce. */
+  effects?: EffectWritten[] | undefined;
 }
 
 export type CreateTree = (input: CreateTreeInput) => Promise<TreeOutcome>;

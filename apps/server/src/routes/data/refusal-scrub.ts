@@ -151,6 +151,20 @@ export function scrubRefusal(error: unknown, view: SnapshotView, written: Resolv
   return new AppError(error.statusCode, error.code, message, out);
 }
 
+/**
+ * A refusal about another row than the one written — the row an effect moves,
+ * the parent a new child moves (`moveOnCreate`) — as it is told to a caller
+ * whose role does not read that row's table at all: fixed words of its code,
+ * and where it happened, never the row's state or what its move waits for.
+ * The same error when it is about the table written.
+ */
+export function scrubUnreadRefusal(error: unknown): unknown {
+  if (!(error instanceof AppError) || refusalTableOf(error) === undefined) return error;
+  const details = error.details;
+  const kept = typeof details === 'object' && details !== null && !Array.isArray(details) ? pick(details as Record<string, unknown>, ['column', 'effect', 'retry']) : {};
+  return new AppError(error.statusCode, error.code, toldWithout(error.code), kept);
+}
+
 function pick(details: Record<string, unknown>, keys: readonly string[]): Record<string, unknown> {
   return Object.fromEntries(keys.filter((key) => key in details).map((key) => [key, details[key]]));
 }

@@ -66,6 +66,7 @@ least one of:
 | `createIn` | 1–16 states: a child row may be **added** only while this row is in one of them (a payment taken on a stay still booked or in house). Not with `lock` or `parentIn`. |
 | `changeIn` | 1–16 states: a child row may be **changed or deleted** only while this row is in one of them (a payment voided on a cancelled stay too). Not with `lock` or `parentIn`. |
 | `clearOnCreate` | 1–8 nullable columns of **this** row, emptied when a child row is created (a recorded payment clears the client's "I've sent it"). |
+| `moveOnCreate` | A state of **this** row: a child row created moves it there, by one of this table's listed moves (a sign-off made on site signs its job off). A row already there is left as it is. Needs Adminium 0.3.30. See [A new child moves its parent](https://docs.adminium.dev/reference/manifest/#a-new-child-moves-its-parent). |
 | `lockLinked` | `{ "<link>": ["<column>", …] }`: for 1–8 of the child's foreign keys to other tables, 1–16 columns of the row the link points at that do not change while a child row points at it (the hours of time an invoice line bills). The key is never one. |
 
 and, with `lock`:

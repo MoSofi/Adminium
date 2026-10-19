@@ -114,7 +114,8 @@ import { recipientLocale } from '../../i18n/server-i18n.js';
 import { TreeCheckRefused } from '../../public-api/tree-checks.js';
 import { staffTreeRules } from './tree.js';
 import { declaredColumns, expectColumnOf, priceCheck, staffRetryKey } from './staff-quote.js';
-import { scrubRefusal } from './refusal-scrub.js';
+import { scrubRefusal, scrubUnreadRefusal } from './refusal-scrub.js';
+import { refusalTableOf } from '../../crud/refusal-table.js';
 import { clientKeySecret } from '../public/tree.js';
 
 /**
@@ -484,6 +485,21 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         Object.defineProperty(error, 'details', { value: (scrubbed as AppError).details, configurable: true });
         Object.defineProperty(error, 'message', { value: (scrubbed as AppError).message, configurable: true, writable: true });
       }
+    });
+    /*
+     * A refusal about another row than the one written (an effect's row, the
+     * parent a new child moves) told to somebody who may not read that row's
+     * table: it names nothing of the row — its state, what its move waits for.
+     */
+    app.addHook('onError', async (request, _reply, error) => {
+      if (!(error instanceof AppError)) return;
+      const about = refusalTableOf(error);
+      const connectionId = (request.params as { connectionId?: unknown } | undefined)?.connectionId;
+      if (about === undefined || typeof connectionId !== 'string') return;
+      if (await request.can(`table:${connectionId}:${about}:read`)) return;
+      const scrubbed = scrubUnreadRefusal(error) as AppError;
+      Object.defineProperty(error, 'details', { value: scrubbed.details, configurable: true });
+      Object.defineProperty(error, 'message', { value: scrubbed.message, configurable: true, writable: true });
     });
     /*
      * A REQUEST OF SOMEBODY WHO REACHES ONLY SOME ROWS (`crud/row-limit.ts`).
@@ -1113,6 +1129,8 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         })();
         undo.added.push(keyOf(written));
         (undo.addedRows ??= []).push(written);
+        // The parent outside this record a new child moved (`moveOnCreate`).
+        options.effects?.push(...effectsOf(prepared.values));
         settled.push({ action: 'create', record: written, before: null });
         options.events?.push({ table: child.child, action: 'create', pk: keyOf(written), row: written });
       }
@@ -2264,10 +2282,12 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
                 context,
                 recheck: (final) => assertFileColumns(ctx, final),
                 mapError: (error) => mapDbError(error, ctx.table),
-                announce: async (row, _values, posted) => {
+                announce: async (row, written, posted) => {
                   told = postingAnswers(posted);
                   await afterMutation(request, ctx, 'create', recordRef(ctx, Object.fromEntries(ctx.table.primaryKey.map((c) => [c, row[c]]))), null, row);
                   await tellPostings(app, { connectionId: ctx.connectionId, view: ctx.view, postings: posted, origin: 'dashboard', request });
+                  // The parent a new row moved (`moveOnCreate`).
+                  await announceEffects(app, { connectionId: ctx.connectionId, view: ctx.view, effects: effectsOf(written), origin: 'bulk', request });
                 },
               });
               const key = ctx.table.primaryKey.length === 1 ? inserted[ctx.table.primaryKey[0]!] : Object.fromEntries(ctx.table.primaryKey.map((c) => [c, inserted[c]]));
@@ -3245,13 +3265,16 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
             }
             return written;
           });
+          // The parents the new rows moved (`moveOnCreate`): such a save offers no Undo.
+          const moved = prepared.flatMap((row) => effectsOf(row.values));
           // One token over every row: the create-undo path already deletes
           // each `after` it holds, in order.
-          undoToken = await issueUndo(request, ctx, 'create', [], rows);
+          if (moved.length === 0) undoToken = await issueUndo(request, ctx, 'create', [], rows);
           for (const row of rows) {
             const pk = Object.fromEntries(ctx.table.primaryKey.map((c) => [c, row[c]]));
             await afterMutation(request, ctx, 'create', recordRef(ctx, pk), null, row);
           }
+          await announceEffects(app, { connectionId: ctx.connectionId, view: ctx.view, effects: moved, origin: 'dashboard', request });
           await writes.afterEach(
             'create',
             ctx.target,
@@ -3278,9 +3301,11 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
           const created = tree.outcome.root;
           if (tree.outcome.replayed) return reply.status(200).send({ data: staffRow(ctx.dialect, created, ctx.readTable, ctx.unmasked), undoToken: null, replayed: true as const });
           const told = postingAnswers(tree.outcome.postings);
-          // A save that posted is not undone by a token: the rule's own way back is.
-          if (told === undefined && !pricedBy(tree.outcome.adjusted)) undoToken = await issueUndo(request, ctx, 'create', [], [created], [], [], [], []);
+          // A save that posted is not undone by a token: the rule's own way back is. Nor one that moved its parent.
+          if (told === undefined && !pricedBy(tree.outcome.adjusted) && tree.outcome.effects === undefined) undoToken = await issueUndo(request, ctx, 'create', [], [created], [], [], [], []);
           await tellPostings(app, { connectionId: ctx.connectionId, view: ctx.view, postings: tree.outcome.postings, origin: 'dashboard', request });
+          // The parent the new row moved (`moveOnCreate`): announced as a change of its own, after the row's.
+          await announceEffects(app, { connectionId: ctx.connectionId, view: ctx.view, effects: tree.outcome.effects, origin: 'dashboard', request });
           const once = onceFor(ctx.connectionId, request.user?.id ?? null, tree.outcome.rows.map((made) => ({ table: made.node.target.table, row: made.record })));
           return reply.status(201).send({ data: staffRow(ctx.dialect, created, ctx.readTable, ctx.unmasked), undoToken, ...(told === undefined ? {} : { postings: told }), ...(once === undefined ? {} : { once }), ...(await pricedAs(request, ctx, tree.outcome.adjusted, tree.outcome.rows)), ...(await paidAs(request, ctx, treeRows(tree.outcome), tree.outcome.postings)) });
         }
@@ -3294,15 +3319,18 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
             context,
             recheck: (final) => assertFileColumns(ctx, final),
             mapError: (error) => mapDbError(error, ctx.table),
-            announce: async (row, _values, posted, adjusted) => {
+            announce: async (row, written, posted, adjusted) => {
               const pk = Object.fromEntries(ctx.table.primaryKey.map((c) => [c, row[c]]));
               told = postingAnswers(posted);
               asked = adjusted;
               outcomes = posted;
-              // A save that moved an order's price has no Undo: its way back is another save, priced in its turn.
-              if (told === undefined && !pricedBy(adjusted)) undoToken = await issueUndo(request, ctx, 'create', [], [row]);
+              // The parent the new row moved (`moveOnCreate`): announced as a change of its own, after the row's.
+              const moved = effectsOf(written);
+              // A save that moved an order's price has no Undo: its way back is another save, priced in its turn. Nor one that moved its parent.
+              if (told === undefined && !pricedBy(adjusted) && moved.length === 0) undoToken = await issueUndo(request, ctx, 'create', [], [row]);
               await afterMutation(request, ctx, 'create', recordRef(ctx, pk), null, row);
               await tellPostings(app, { connectionId: ctx.connectionId, view: ctx.view, postings: posted, origin: 'dashboard', request });
+              await announceEffects(app, { connectionId: ctx.connectionId, view: ctx.view, effects: moved, origin: 'dashboard', request });
             },
           });
           const once = onceFor(ctx.connectionId, request.user?.id ?? null, [{ table: ctx.table, row: inserted }]);
@@ -3331,8 +3359,9 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
             if (tree.outcome.replayed) return reply.status(200).send({ data: staffRow(ctx.dialect, created, ctx.readTable, ctx.unmasked), undoToken: null, replayed: true as const });
             const pk = Object.fromEntries(ctx.table.primaryKey.map((c) => [c, created[c]]));
             const told = postingAnswers(tree.outcome.postings);
-            if (told === undefined && !pricedBy(tree.outcome.adjusted)) undoToken = await issueUndo(request, ctx, 'create', [], [created], [], [], tree.links, tree.children);
+            if (told === undefined && !pricedBy(tree.outcome.adjusted) && tree.outcome.effects === undefined) undoToken = await issueUndo(request, ctx, 'create', [], [created], [], [], tree.links, tree.children);
             await tellPostings(app, { connectionId: ctx.connectionId, view: ctx.view, postings: tree.outcome.postings, origin: 'dashboard', request });
+            await announceEffects(app, { connectionId: ctx.connectionId, view: ctx.view, effects: tree.outcome.effects, origin: 'dashboard', request });
             for (const event of tree.events) publishChildWrite(app, { connectionId: ctx.connectionId, ...event });
             await tellChildMentions(request, ctx, tree.events);
             await auditLinks(request, ctx, recordRef(ctx, pk), tree.links);
@@ -3401,6 +3430,8 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         const written: { relationId: string; before: string[]; after: string[] }[] = [];
         const childWrites: UndoChildren[] = [];
         const childEvents: ChildEvent[] = [];
+        /** The parents the new rows moved (`moveOnCreate`): the record's own, and its children's. */
+        const childEffects: EffectWritten[] = [];
         const numbered = children.map((requested) => ({ target: childTargetOf(ctx, requested.child, ctx.db), row: {} }));
         const agrees = await recordAgrees(ctx);
         let inserted = await writes.transaction(ctx.target, [prepared.values], async (trx) => {
@@ -3426,6 +3457,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
               await applyChildren(ctx, tdb, requested, row[requested.child.parentKeyColumn], context, {
                 existing: [],
                 events: childEvents,
+                effects: childEffects,
               }),
             );
           }
@@ -3444,8 +3476,11 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         }, numbered);
 
         const pk = Object.fromEntries(ctx.table.primaryKey.map((c) => [c, inserted[c]]));
-        undoToken = await issueUndo(request, ctx, 'create', [], [inserted], [], [], written, childWrites);
+        const moved = [...effectsOf(prepared.values), ...childEffects];
+        // A save that moved a parent offers no Undo: taking the row back would leave the parent moved.
+        if (moved.length === 0) undoToken = await issueUndo(request, ctx, 'create', [], [inserted], [], [], written, childWrites);
         await afterMutation(request, ctx, 'create', recordRef(ctx, pk), null, inserted);
+        await announceEffects(app, { connectionId: ctx.connectionId, view: ctx.view, effects: moved, origin: 'dashboard', request });
         for (const event of childEvents) publishChildWrite(app, { connectionId: ctx.connectionId, ...event });
         await tellChildMentions(request, ctx, childEvents);
         await auditLinks(request, ctx, recordRef(ctx, pk), written);

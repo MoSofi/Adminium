@@ -148,6 +148,8 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   'states.planned',
   // A move refused once a date of its row has passed: judged under the write's locks, for every writer.
   'states.notPast',
+  // A new child row moves its parent by the parent's own listed move (states.ts `moveParentsOnCreate`).
+  'states.moveOnCreate',
   // A column a public write fills only with some values of another: asked for then, refused at any other time.
   'publicAccess.requiresWhen',
   'rollup.capUnless',

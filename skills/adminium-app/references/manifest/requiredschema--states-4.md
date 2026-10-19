@@ -2,6 +2,49 @@
 
 # Manifest spec: requiredSchema — States
 
+When a `sign_offs` row is created, its job moves to `signed-off` by the job's own listed move,
+once the new row is in: that move's conditions are judged on the job as held, with the new row
+already counted (`children: { "sign_offs": 1 }` passes on the first sign-off), and its stamps,
+totals and limits are written as for any move of the job. It is announced as a change of the job
+by the same person: the job's screens refresh, its audit names the sign-off's maker, and a rule
+that runs on the job's move to `signed-off` runs.
+
+- A job **already** `signed-off` is left as it is, and the row is made: a correction, a new
+  sign-off that names the one it corrects, moves nothing.
+- A job in a state with **no listed move** to `signed-off` (still `open` above), or whose move's
+  conditions do not hold (a snag still blocking), refuses the whole write: `409`
+  `STATE_MOVE_REFUSED`, and no row is made. List `"open": ["installed", "signed-off"]` and a
+  sign-off made on an open job signs it off too.
+- **Whoever may create the child moves the parent.** The move is the app's own declared move, as an
+  [effect](https://docs.adminium.dev/reference/manifest/#effects)'s is: the roles a move is kept for do not stop it, and the person needs no
+  right to read or change the parent. A refusal about the parent is told as that person reads the
+  parent's table. Give `moveOnCreate` only to a child whose rows belong with the parent they move.
+- Only a create moves the parent. A change of the child, its move to another parent, or its delete
+  moves nothing. Importing rows and loading sample data are history: they move nothing either. A
+  save that moved its parent offers no Undo.
+
+The move is made as an effect's is, so the same tables are refused: the state must be one a listed
+move goes to, from a state the child is added in (`createIn` or `parentIn`, when given); not only
+by an undo, nor only by an add-on's ledger (`planned`); not one that waits for another row or is
+judged late by another row's time; not one that sets off this table's own [effects](https://docs.adminium.dev/reference/manifest/#effects) (an
+effect moves one row, never a chain). The parent may not be a line of another table's states, book
+people by the day, keep a [limit](https://docs.adminium.dev/reference/manifest/#capacity) of its own, be private, be the app's outbox, or be
+watched by a project hook (refused when the row is made). An add-on's shape keeps its children's
+`moveOnCreate` as it wrote it.
+
+#### Undo of a move
+
+A move marked `"undo": true` takes back the listed move the other way: the kitchen marked an
+order ready by mistake, and moves it back to preparing.
+
+```json
+"moves": {
+  "preparing": ["ready"],
+  "ready": [{ "to": "preparing", "undo": true,
+              "requires": { "time": { "before": { "column": "ready_at", "plus": { "minutes": 1 } } } } }]
+}
+```
+
 An undo move is made only by a write that names the state it saw the row in (`from` on a staff
 change): a stale screen's tap never takes back another screen's move, and is refused `409`
 `STATE_MOVE_REFUSED` naming both states. What it waits for is judged on the row as it stands. The

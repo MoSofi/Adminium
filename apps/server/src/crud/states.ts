@@ -458,7 +458,8 @@ async function heldParent(db: Db, dialect: Dialect, parent: StateParent, key: un
  * The parents a child row is tied to — before and after a move to another
  * parent — each held and judged: a locked parent takes no change to its
  * lines, and a parent outside `parentIn` takes no payment. Returns the parents
- * a new row empties columns of (`clearOnCreate`).
+ * a new row empties columns of (`clearOnCreate`) or moves (`moveOnCreate`),
+ * each with its state as held.
  */
 async function judgeParents(
   db: Db,
@@ -468,8 +469,8 @@ async function judgeParents(
   guard: StateGuard,
   /** An update's changed columns: what a release is judged on. */
   changed?: readonly string[],
-): Promise<{ parent: StateParent; key: unknown }[]> {
-  const out: { parent: StateParent; key: unknown }[] = [];
+): Promise<{ parent: StateParent; key: unknown; state: string | null }[]> {
+  const out: { parent: StateParent; key: unknown; state: string | null }[] = [];
   for (const parent of table.table?.stateParents ?? []) {
     const keys = new Map<string, unknown>();
     for (const side of [sides.now, sides.was]) {
@@ -481,7 +482,7 @@ async function judgeParents(
       const found = await heldParent(db, dialect, parent, key);
       // A parent that is not there is the foreign key's to refuse.
       if (found === null) continue;
-      out.push({ parent, key });
+      out.push({ parent, key, state: found.state });
       // A parent the same history brought in takes its own past children.
       if (guard.history && guard.created?.has(rowKey(parent.table, key)) === true) continue;
       if (parent.lock === true && found.locked && !released(parent, found.state, sides, changed)) {
@@ -720,6 +721,8 @@ export async function guardedInsert<T>(
   // A quote reads what it judges without a lock (read as SQLite reads it): it waits on no save, and no save on it.
   const hold: Dialect = guard.quote === true ? 'sqlite' : dialect;
   return within(db, async (tx) => {
+    // What this attempt moves: an attempt made again starts with none.
+    guard.effected = [];
     refuseUnresolvedLink(table, row);
     const states = table.table?.states;
     if (states !== undefined && !guard.history) {
@@ -760,9 +763,46 @@ export async function guardedInsert<T>(
         if (guard.quote === true && guard.quoteOwns?.(parent.table, key) !== true) continue;
         await clear(tx, parent.table, parent.key, key, parent.clearOnCreate!);
       }
+      // Then the parents a new row moves, the row in: counted by what their move asks for.
+      await moveParentsOnCreate(tx, table, parents, guard);
     }
     return out;
   });
+}
+
+/**
+ * The parents a new row moves (`children.<table>.moveOnCreate`): each by its
+ * table's own listed move to the state, made as an effect's move is — through
+ * the write service's own statement, judged as the app's declared move (its
+ * conditions, the new row already counted among its children; its lock, its
+ * limits and totals, its own states) — once the new row is in, on the parent
+ * held since before it was written. A parent already in the state is left as
+ * it is: a correction made later moves nothing. A parent in a state with no
+ * listed move there, or whose move's conditions do not hold, refuses the
+ * whole write. History sets nothing off; a quote judges the move and writes
+ * nothing.
+ *
+ * Whoever may create the row moves the parent: the roles a move is kept for
+ * do not stop it, as they do not stop an effect.
+ */
+async function moveParentsOnCreate(db: Db, table: ResolvedTable, parents: readonly { parent: StateParent; key: unknown; state: string | null }[], guard: StateGuard): Promise<void> {
+  for (const { parent, key, state } of parents) {
+    const to = parent.moveOnCreate;
+    if (to === undefined || state === to) continue;
+    if (guard.effect === undefined) {
+      throw new RecordLocked(`A new ${table.name} row moves its ${parent.name} too, and this write cannot make that move.`, { column: parent.via });
+    }
+    // The parent's own rules may refuse its move: a refusal about that row, told as its table is read.
+    const written = await guard.effect(db, { via: parent.via, table: parent.table, key: parent.key }, key, parent.column, to, guard).catch((error: unknown) => {
+      throw refusedOn(error, parent.table);
+    });
+    if (written !== null) (guard.effected ??= []).push(written);
+  }
+}
+
+/** Whether a new row of this table moves a parent (`moveOnCreate`). */
+export function movesParentsOnCreate(table: ResolvedTable): boolean {
+  return (table.table?.stateParents ?? []).some((parent) => parent.moveOnCreate !== undefined);
 }
 
 /**
