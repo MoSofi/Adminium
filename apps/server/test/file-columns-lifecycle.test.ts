@@ -82,5 +82,28 @@ for (const [dialect, available] of ENGINES) {
       expect(await photoOf(row.id)).toBeNull();
       expect((await fileOf(own))?.deletedAt).not.toBeNull();
     });
+
+    it('a bulk delete takes each row’s photo to the bin, and its undo brings them back', async () => {
+      const [first, second] = [await photo(), await photo()];
+      const [a, b] = [await dish(first), await dish(second)];
+      const res = await call('POST', `${rows()}/bulk`, { action: 'delete', ids: [a.id, b.id] });
+      expect(res.statusCode, res.body).toBe(200);
+      expect((await fileOf(first))?.deletedAt).not.toBeNull();
+      expect((await fileOf(second))?.deletedAt).not.toBeNull();
+      await undo(json<{ undoToken: string | null }>(res).undoToken);
+      expect(await photoOf(a.id)).toBe(first);
+      expect(await fileOf(first)).toMatchObject({ entityId: String(a.id), deletedAt: null });
+      expect(await fileOf(second)).toMatchObject({ entityId: String(b.id), deletedAt: null });
+    });
+
+    it('a bulk change of photo holds the new one and lets go of the old', async () => {
+      const old = await photo();
+      const row = await dish(old);
+      const fresh = await photo();
+      const res = await call('POST', `${rows()}/bulk`, { action: 'update', ids: [row.id], values: { photo: fresh } });
+      expect(res.statusCode, res.body).toBe(200);
+      expect(await fileOf(fresh)).toMatchObject({ entityTable: dishes, entityId: String(row.id), deletedAt: null });
+      expect((await fileOf(old))?.deletedAt).not.toBeNull();
+    });
   });
 }

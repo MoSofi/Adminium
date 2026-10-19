@@ -2490,6 +2490,19 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         });
 
         const okCount = results.filter((r) => r.ok).length;
+        /*
+         * Each row's files, as a row's own write moves them: a deleted row's go
+         * to the bin (and come back with its undo), a changed row holds what it
+         * names now and lets go of what it named.
+         */
+        const trashedFileIds: string[] = [];
+        if (deps.files !== undefined) {
+          for (const event of events) {
+            const entity = recordRef(ctx, event.pk);
+            if (action === 'delete') trashedFileIds.push(...(await trashRecordFiles(ctx, entity, event.before)));
+            else await deps.files.reconcile({ connectionId: ctx.connectionId, table: ctx.table.id, entity, before: event.before, after: event.after, ruled: ruledBlocksOf(ctx.table.columns.values()) });
+          }
+        }
         const undoToken =
           okCount === 0
             ? null
@@ -2500,7 +2513,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
                 beforeImages,
                 afterImages,
                 action === 'update' && values !== null ? changedColumns(values, readied) : [],
-                [],
+                trashedFileIds,
                 [],
                 [],
                 effected,
