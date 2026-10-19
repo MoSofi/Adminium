@@ -323,9 +323,12 @@ export function emailTemplatesRoutes(deps: EmailTemplatesRoutesDeps): FastifyPlu
    */
   async function assertFiles(request: FastifyRequest, stored: EmailTemplate, input: Parameters<typeof normalizeDocument>[0]): Promise<void> {
     const reaches = deps.reachesRecord;
-    await assertNamedFiles(meta, normalizeDocument(input), new Set(fileIdsOf(stored)), async (file) =>
-      reaches === undefined ? true : reaches(request, { connectionId: file.entityConnectionId!, table: file.entityTable!, recordId: file.entityId, uploadedBy: file.uploadedBy }, 'read'),
-    );
+    await assertNamedFiles(meta, normalizeDocument(input), new Set(fileIdsOf(stored)), {
+      userId: request.user?.id ?? null,
+      can: (permission) => request.can(permission),
+      reachesRow: async (file) =>
+        reaches === undefined ? true : reaches(request, { connectionId: file.entityConnectionId!, table: file.entityTable!, recordId: file.entityId, uploadedBy: file.uploadedBy }, 'read'),
+    });
   }
 
   /** A scheduled run cannot outlive its campaign's archive or deletion. */

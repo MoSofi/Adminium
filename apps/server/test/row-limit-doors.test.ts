@@ -530,6 +530,33 @@ for (const [dialect, available] of ENGINES) {
         // What the stored document already names is saved again by anybody.
         expect((await put('dana', omars)).statusCode).toBe(200);
       });
+
+      it('is not attached to an email by somebody it is not theirs to send', async () => {
+        // Omar writes the workspace's emails, and keeps no Files library.
+        await w.system('mailer', ['settings.manage']);
+        await w.give('omar', 'mailer');
+        const made = await post('omar', 'email-templates', { kind: 'template', name: 'A word' });
+        expect(made.statusCode, made.body).toBe(201);
+        const detail = json<{ id: string; name: string; category: string; document: Record<string, unknown> }>(made);
+        const put = (who: Who, fileId: string) =>
+          call(who, 'PUT', `email-templates/${detail.id}`, { name: detail.name, category: detail.category, enabled: false, document: { ...detail.document, attachments: [{ id: 'a1', kind: 'file', fileId }] } });
+        const library = await upload('owner', { filename: 'price-list.pdf' });
+        expect(library.statusCode, library.body).toBe(201);
+        const quote = await upload('sam', { filename: 'quote.pdf', table: w.id('quotes') });
+        expect(quote.statusCode, quote.body).toBe(201);
+        const ticket = await upload('owner', { filename: 'ticket.pdf', table: w.id('tickets'), recordId: '3' });
+        expect(ticket.statusCode, ticket.body).toBe(201);
+        const idOf = (res: Reply) => json<{ data: { id: string } }>(res).data.id;
+        // The Files library's, a colleague's upload for a new quote, and a file of a table he does not read: none his to send.
+        for (const [what, fileId] of [['library', idOf(library)], ['quote upload', idOf(quote)], ['ticket file', idOf(ticket)]] as const) {
+          expect((await put('omar', fileId)).statusCode, what).toBe(422);
+        }
+        // His own upload, made for a deal not saved yet, is.
+        expect((await put('omar', inFlight)).statusCode).toBe(200);
+        // And whoever keeps the Files library sends its files.
+        expect((await put('dana', idOf(library))).statusCode).toBe(200);
+        await w.take('omar', 'mailer');
+      });
     });
 
     describe('the audit log (A1)', () => {
@@ -552,7 +579,7 @@ for (const [dialect, available] of ENGINES) {
         }
         expect((await get('lena', `audit/${whole[0]!.id}`)).statusCode).toBe(200);
         // A file hung on a deal names the table in what changed, not in an entity: left out the same way.
-        const named = (await auditRepo(w.meta).list({ limit: 500 })).filter((entry) => entry.action === 'file.upload').map((entry) => entry.id);
+        const named = (await auditRepo(w.meta).list({ limit: 500 })).filter((entry) => entry.action === 'file.upload' && JSON.stringify(entry.changes).includes(deals())).map((entry) => entry.id);
         expect(named.length).toBeGreaterThan(0);
         expect((await entries('dana')).filter((entry) => named.includes(entry.id))).toEqual([]);
       });

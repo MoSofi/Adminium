@@ -281,14 +281,18 @@ function unknownContext(context: never): never {
  * table — no row is read here to ask about one.
  */
 async function assertDraftFiles(input: AssistantActionInput, document: Pick<EmailDocument, 'attachments' | 'blocks'>, held: ReadonlySet<string> = new Set()): Promise<void> {
-  await assertNamedFiles(input.meta, document, held, async (file) => {
-    try {
-      const view = await loadSnapshotView(input.meta, file.entityConnectionId!);
-      const reach = await rowLimitContextForUser(input.meta, input.actor.id, file.entityConnectionId!, view.model);
-      return rowTestOf(reach, view.linkTable(file.entityTable!)?.id ?? file.entityTable!, 'read') === null;
-    } catch {
-      return false;
-    }
+  await assertNamedFiles(input.meta, document, held, {
+    userId: input.actor.id,
+    can: input.can,
+    reachesRow: async (file) => {
+      try {
+        const view = await loadSnapshotView(input.meta, file.entityConnectionId!);
+        const reach = await rowLimitContextForUser(input.meta, input.actor.id, file.entityConnectionId!, view.model);
+        return rowTestOf(reach, view.linkTable(file.entityTable!)?.id ?? file.entityTable!, 'read') === null;
+      } catch {
+        return false;
+      }
+    },
   });
 }
 
