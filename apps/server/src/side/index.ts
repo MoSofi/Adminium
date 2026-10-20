@@ -1565,6 +1565,8 @@ export function pickForFrame(target: Window | undefined = framed(), dev: boolean
       return tag === 'html' || tag === 'body' ? null : el;
     };
     let over: Element | null = null;
+    /** A picture spot under the pointer is pointed at whole: the spot, never a part of its wireframe. */
+    const spotOf = (el: Element | null): Element | null => (el === null || typeof el.closest !== 'function' ? null : el.closest('[data-picture-spot]'));
     const draw = (): void => {
       if (over === null) {
         outline.style.display = 'none';
@@ -1578,10 +1580,12 @@ export function pickForFrame(target: Window | undefined = framed(), dev: boolean
       outline.style.height = `${String(box.height)}px`;
       // Under the element's top edge when there is no room above it.
       name.style.top = box.top < 24 ? '0' : '-22px';
-      name.textContent = over.tagName.toLowerCase();
+      const spot = over.getAttribute('data-picture-spot');
+      name.textContent = spot === null ? over.tagName.toLowerCase() : (pictureSpots()[spot]?.label ?? spot);
     };
     const moved = (event: Event): void => {
-      over = meant(event);
+      const el = meant(event);
+      over = spotOf(el) ?? el;
       draw();
     };
     /** The press and the release belong to pointing too: no button of the screen sees them. */
@@ -1592,11 +1596,27 @@ export function pickForFrame(target: Window | undefined = framed(), dev: boolean
     const clicked = (event: Event): void => {
       event.preventDefault();
       event.stopImmediatePropagation();
-      const el = meant(event);
-      if (el === null) return;
+      const found = meant(event);
+      if (found === null) return;
+      // A spot is said as the spot it is, with where it is drawn: the framing page asks the person what they meant by it.
+      const spot = spotOf(found);
+      const el = spot ?? found;
       end?.();
       try {
-        parent.postMessage({ type: 'adminium:side-picked', app: APP_KEY, side: SIDE, path: pagePath(target.location.pathname), page: doc.documentElement.clientWidth, element: pickedOf(el) }, '*');
+        const id = spot?.getAttribute('data-picture-spot') ?? null;
+        const box = el.getBoundingClientRect();
+        parent.postMessage(
+          {
+            type: 'adminium:side-picked',
+            app: APP_KEY,
+            side: SIDE,
+            path: pagePath(target.location.pathname),
+            page: doc.documentElement.clientWidth,
+            element: pickedOf(el),
+            ...(id === null ? {} : { spot: id, box: { x: Math.round(box.left), y: Math.round(box.top), width: Math.round(box.width), height: Math.round(box.height) } }),
+          },
+          '*',
+        );
       } catch {
         // Pointing never breaks the page.
       }

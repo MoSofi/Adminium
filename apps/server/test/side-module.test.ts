@@ -1005,6 +1005,32 @@ describe('pointing at a part of the page', () => {
     expect(p.added.map((made) => [made.tag, made.removed])).toEqual([['div', true], ['div', false], ['style', true]]);
   });
 
+  it('takes a click inside a picture spot as the spot, and says which spot and where it is drawn', async () => {
+    const customer = await bundled('repairs', 'customer');
+    const p = page();
+    customer.pickForFrame(p.target, true);
+    p.tell({ type: 'adminium:host:pick', on: true });
+    const spot = el('div', { className: 'hero-media', attrs: { 'data-picture-spot': 'hero' }, getBoundingClientRect: () => ({ left: 32.4, top: 120.6, width: 1376, height: 480 }) });
+    // The cross inside the wireframe is what the pointer is over: the spot is what was meant.
+    const cross = el('svg', { closest: (selector: string) => (selector === '[data-picture-spot]' ? spot : null) });
+    p.heard.get('mousemove')?.(p.event({ type: 'mousemove', target: cross }));
+    // The outline's tag names the spot, not the tag under the pointer.
+    expect(p.added[1]?.textContent).toBe('hero');
+    p.heard.get('click')?.(p.event({ type: 'click', target: cross }));
+    expect(p.posted).toEqual([
+      {
+        type: 'adminium:side-picked',
+        app: 'repairs',
+        side: 'customer',
+        path: '/menu',
+        page: 1280,
+        element: { part: 'div hero-media', text: '', label: '', within: [], nth: 1, of: 1, width: 1376, height: 480 },
+        spot: 'hero',
+        box: { x: 32, y: 121, width: 1376, height: 480 },
+      },
+    ]);
+  });
+
   it('draws the part the framing page asks for, says it back under the asking’s number, and says so when it cannot', async () => {
     const customer = await bundled('repairs', 'customer');
     const p = page();
