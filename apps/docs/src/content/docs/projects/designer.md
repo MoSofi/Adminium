@@ -285,7 +285,8 @@ pages and the role's grants. It is kept on course in four ways:
 
 ### Attach a picture or a file
 
-The message box takes files: press the clip, paste a screenshot, or drop a file on the box. Up to
+The message box takes files: open **Attach** (**Files from your computer…**, **A folder…**, **A site
+template in this project**, **From Figma…**), paste a screenshot, or drop a file on the box. Up to
 eight go with one message.
 
 | File | What the Designer does with it |
