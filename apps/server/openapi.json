@@ -14739,6 +14739,26 @@
                     "type": "string",
                     "minLength": 1,
                     "maxLength": 200
+                  },
+                  "page": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 64
+                      },
+                      "revision": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "revision"
+                    ],
+                    "additionalProperties": false
                   }
                 },
                 "required": [
@@ -16813,6 +16833,26 @@
                         }
                       ]
                     }
+                  },
+                  "page": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 64
+                      },
+                      "revision": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "revision"
+                    ],
+                    "additionalProperties": false
                   }
                 },
                 "required": [
@@ -18376,6 +18416,26 @@
                     "type": "string",
                     "minLength": 1,
                     "maxLength": 200
+                  },
+                  "page": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 64
+                      },
+                      "revision": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "revision"
+                    ],
+                    "additionalProperties": false
                   }
                 },
                 "required": [
@@ -92470,6 +92530,11 @@
                   "type": "object",
                   "properties": {
                     "data": {},
+                    "revision": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
                     "canEditLayout": {
                       "type": "boolean"
                     },
@@ -101262,6 +101327,9 @@
                         },
                         "contentPath": {
                           "type": "string"
+                        },
+                        "recordLabel": {
+                          "type": "string"
                         }
                       },
                       "required": [
@@ -101332,7 +101400,8 @@
               "enum": [
                 "live",
                 "trash",
-                "unattached"
+                "unattached",
+                "library"
               ]
             },
             "in": "query",
@@ -101395,6 +101464,36 @@
             },
             "in": "query",
             "name": "mime",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 200,
+              "pattern": "^[a-z0-9]+(?:,[a-z0-9]+)*$"
+            },
+            "in": "query",
+            "name": "accept",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 400
+            },
+            "in": "query",
+            "name": "usedInTable",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            },
+            "in": "query",
+            "name": "usedInColumn",
             "required": false
           },
           {
@@ -101551,6 +101650,9 @@
                           },
                           "contentPath": {
                             "type": "string"
+                          },
+                          "recordLabel": {
+                            "type": "string"
                           }
                         },
                         "required": [
@@ -101595,6 +101697,210 @@
         }
       }
     },
+    "/api/v1/files/{id}/copy": {
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "connectionId": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "table": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 400
+                  },
+                  "column": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  }
+                },
+                "required": [
+                  "connectionId",
+                  "table",
+                  "column"
+                ]
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "filename": {
+                          "type": "string"
+                        },
+                        "mime": {
+                          "type": "string"
+                        },
+                        "sizeBytes": {
+                          "type": "number"
+                        },
+                        "sha256": {
+                          "type": "string"
+                        },
+                        "kind": {
+                          "type": "string",
+                          "enum": [
+                            "upload",
+                            "export",
+                            "import",
+                            "branding",
+                            "schema",
+                            "archive",
+                            "document",
+                            "package"
+                          ]
+                        },
+                        "destinationId": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "uploadedBy": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "createdAt": {
+                          "type": "number"
+                        },
+                        "attachedAt": {
+                          "anyOf": [
+                            {
+                              "type": "number"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "deletedAt": {
+                          "anyOf": [
+                            {
+                              "type": "number"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "connectionId": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "entity": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "connectionId": {
+                                  "type": "string"
+                                },
+                                "table": {
+                                  "type": "string"
+                                },
+                                "recordId": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "connectionId",
+                                "table",
+                                "recordId"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "contentPath": {
+                          "type": "string"
+                        },
+                        "recordLabel": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "filename",
+                        "mime",
+                        "sizeBytes",
+                        "sha256",
+                        "kind",
+                        "destinationId",
+                        "uploadedBy",
+                        "createdAt",
+                        "attachedAt",
+                        "deletedAt",
+                        "connectionId",
+                        "entity",
+                        "contentPath"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "ref": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "ref"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/files/usage": {
       "get": {
         "responses": {
@@ -101605,6 +101911,11 @@
                 "schema": {
                   "type": "object",
                   "properties": {
+                    "unattachedHours": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
                     "data": {
                       "type": "array",
                       "items": {
@@ -101792,6 +102103,9 @@
                         },
                         "contentPath": {
                           "type": "string"
+                        },
+                        "recordLabel": {
+                          "type": "string"
                         }
                       },
                       "required": [
@@ -101976,6 +102290,9 @@
                         },
                         "contentPath": {
                           "type": "string"
+                        },
+                        "recordLabel": {
+                          "type": "string"
                         }
                       },
                       "required": [
@@ -102139,6 +102456,9 @@
                           ]
                         },
                         "contentPath": {
+                          "type": "string"
+                        },
+                        "recordLabel": {
                           "type": "string"
                         }
                       },
@@ -102325,6 +102645,9 @@
                                 ]
                               },
                               "contentPath": {
+                                "type": "string"
+                              },
+                              "recordLabel": {
                                 "type": "string"
                               }
                             },
@@ -102557,6 +102880,9 @@
                         },
                         "contentPath": {
                           "type": "string"
+                        },
+                        "recordLabel": {
+                          "type": "string"
                         }
                       },
                       "required": [
@@ -102723,6 +103049,9 @@
                         },
                         "contentPath": {
                           "type": "string"
+                        },
+                        "recordLabel": {
+                          "type": "string"
                         }
                       },
                       "required": [
@@ -102888,6 +103217,9 @@
                           ]
                         },
                         "contentPath": {
+                          "type": "string"
+                        },
+                        "recordLabel": {
                           "type": "string"
                         }
                       },
