@@ -22,6 +22,7 @@ import { sideBuildDir } from '../src/project/apps/side-build.js';
 import { createSkills } from '../src/designer/skills.js';
 import type { DesignerSession } from '../src/designer/session-store.js';
 import { judgeSite, type SiteEntry } from '../src/designer/site/judge.js';
+import { picturesState, prepareFills, writeFills } from '../src/designer/pictures-apply.js';
 import { readSpots } from '../src/designer/spots.js';
 import { readTemplatePlan, type TemplatePlanAnswer } from '../src/designer/site/template-plan.js';
 import { SMALL_WINDOW_SENTENCE } from '../src/designer/site/plan-step.js';
@@ -363,6 +364,24 @@ describe('after the plan', () => {
     expect(section).toContain('===== From a template =====');
     expect(section).toContain('apps/repairs/template-plan.json');
     expect(section).not.toContain('===== The style');
+  });
+
+  it('a template’s picture is swapped from the picture dialog like any spot, and the template brought in again leaves the person’s picture', async () => {
+    const state = () => picturesState(root, 'repairs', { sessionId: session.id, version: APP_VERSION, attachments, fileUrl: (path) => path, attachmentUrl: (id) => id });
+    const hero = state().spots.find((spot) => spot.id === 'a-sofa-by-the-window');
+    expect(hero?.licence?.code).toBe('template');
+    const mine = attachments.add(session.id, { filename: 'my-sofa.png', bytes: png(1200, 800, 'mine') });
+    const dialog = { search: async () => ({ state: 'off' as const }), sources: () => [], pin: async () => ({ state: 'gone' as const }), picked: async () => null, chosen: async () => undefined };
+    const { ready } = await prepareFills([{ spot: 'a-sofa-by-the-window', version: hero?.version ?? '', from: { attachment: mine.id }, alt: 'My sofa' }], { root, key: 'repairs', sessionId: session.id, dialog, attachments });
+    const written = await writeFills(ready, { root, key: 'repairs', version: APP_VERSION, by: { id: null, label: 'x' } });
+    expect(written.results[0]?.state).toBe('applied');
+    const swapped = state().spots.find((spot) => spot.id === 'a-sofa-by-the-window');
+    expect(swapped?.licence?.code).not.toBe('template');
+    expect(swapped?.alt).toBe('My sofa');
+    const file = readSpots(root, 'repairs').find((spot) => spot.id === 'a-sofa-by-the-window')?.file;
+    await useSite({ attachment: site });
+    expect(readSpots(root, 'repairs').find((spot) => spot.id === 'a-sofa-by-the-window')?.file).toBe(file);
+    expect(readSpots(root, 'repairs')).toHaveLength(1);
   });
 
   it('a sample row takes the template’s own picture by its path, each row its own file', async () => {
