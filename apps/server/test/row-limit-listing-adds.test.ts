@@ -215,7 +215,7 @@ for (const [dialect, available] of ENGINES) {
       });
 
       it('refuses a person whose reach of deals does not take THIS deal once listed: every won deal reads no open one', async () => {
-        const WON = { reach: 'all', while: { column: 'state', in: ['won'] } } as const;
+        const WON = { reach: 'all' as const, while: { column: 'state', in: ['won'] } };
         await w.role('ops', { deals: { actions: ['read'], rows: { read: WON } } });
         await w.give('kim', 'ops');
         try {
