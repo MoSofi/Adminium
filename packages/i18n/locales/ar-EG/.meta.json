@@ -31855,9 +31855,173 @@
     "status": "mt",
     "srcHash": "9ee309dcedc9"
   },
+  "ui.templates.crud.pageChanged": {
+    "status": "mt",
+    "srcHash": "f2bb8df7eb2b"
+  },
   "ui.templates.crud.peekAction": {
     "status": "mt",
     "srcHash": "b4068697aef2"
+  },
+  "ui.templates.crud.picker.addCount": {
+    "status": "mt",
+    "srcHash": "bab1de053499"
+  },
+  "ui.templates.crud.picker.cancel": {
+    "status": "mt",
+    "srcHash": "77dfd2135f4d"
+  },
+  "ui.templates.crud.picker.capLine": {
+    "status": "mt",
+    "srcHash": "a4f0e8a5091f"
+  },
+  "ui.templates.crud.picker.close": {
+    "status": "mt",
+    "srcHash": "bbfa773e5a63"
+  },
+  "ui.templates.crud.picker.copy": {
+    "status": "mt",
+    "srcHash": "b02ce2887f46"
+  },
+  "ui.templates.crud.picker.emptyFiles": {
+    "status": "mt",
+    "srcHash": "44adf4d3c85a"
+  },
+  "ui.templates.crud.picker.emptyUsed": {
+    "status": "mt",
+    "srcHash": "8aaa0b74e514"
+  },
+  "ui.templates.crud.picker.failed": {
+    "status": "mt",
+    "srcHash": "44f9166c54f2"
+  },
+  "ui.templates.crud.picker.filesPage": {
+    "status": "mt",
+    "srcHash": "f00c4263821c"
+  },
+  "ui.templates.crud.picker.for": {
+    "status": "mt",
+    "srcHash": "3d452e6ade1a"
+  },
+  "ui.templates.crud.picker.gone": {
+    "status": "mt",
+    "srcHash": "7a6be3ce2a3e"
+  },
+  "ui.templates.crud.picker.grid": {
+    "status": "mt",
+    "srcHash": "935edbe91f7d"
+  },
+  "ui.templates.crud.picker.loading": {
+    "status": "mt",
+    "srcHash": "fd651c746768"
+  },
+  "ui.templates.crud.picker.more": {
+    "status": "mt",
+    "srcHash": "b2fd443a6ca3"
+  },
+  "ui.templates.crud.picker.noMatch": {
+    "status": "mt",
+    "srcHash": "ca7ce4105838"
+  },
+  "ui.templates.crud.picker.retry": {
+    "status": "mt",
+    "srcHash": "042c862e4467"
+  },
+  "ui.templates.crud.picker.search": {
+    "status": "mt",
+    "srcHash": "795ad322e080"
+  },
+  "ui.templates.crud.picker.tabs": {
+    "status": "mt",
+    "srcHash": "ca0a087fedd9"
+  },
+  "ui.templates.crud.picker.tileFile": {
+    "status": "mt",
+    "srcHash": "f29bf9987fdf"
+  },
+  "ui.templates.crud.picker.tileRecord": {
+    "status": "mt",
+    "srcHash": "324050008617"
+  },
+  "ui.templates.crud.picker.title": {
+    "status": "mt",
+    "srcHash": "d2a4ac8c2c7e"
+  },
+  "ui.templates.crud.picker.upTo": {
+    "status": "mt",
+    "srcHash": "57fd75f78d05"
+  },
+  "ui.templates.crud.picker.usedIn": {
+    "status": "mt",
+    "srcHash": "f8033cddd871"
+  },
+  "ui.templates.crud.picture.add": {
+    "status": "mt",
+    "srcHash": "61cc55aa0453"
+  },
+  "ui.templates.crud.picture.allKinds": {
+    "status": "mt",
+    "srcHash": "ec1ddf9c6dfb"
+  },
+  "ui.templates.crud.picture.choose": {
+    "status": "mt",
+    "srcHash": "3397df474c8a"
+  },
+  "ui.templates.crud.picture.empty": {
+    "status": "mt",
+    "srcHash": "b6c439648b7e"
+  },
+  "ui.templates.crud.picture.gone": {
+    "status": "mt",
+    "srcHash": "7822bce211ca"
+  },
+  "ui.templates.crud.picture.hint": {
+    "status": "mt",
+    "srcHash": "b768021355cb"
+  },
+  "ui.templates.crud.picture.kinds": {
+    "status": "src",
+    "srcHash": "1ae07e1e15af"
+  },
+  "ui.templates.crud.picture.link": {
+    "status": "mt",
+    "srcHash": "58b9ed7fa745"
+  },
+  "ui.templates.crud.picture.listHint": {
+    "status": "mt",
+    "srcHash": "c030831d8151"
+  },
+  "ui.templates.crud.picture.listKinds": {
+    "status": "mt",
+    "srcHash": "e41dadebf9c7"
+  },
+  "ui.templates.crud.picture.noType": {
+    "status": "mt",
+    "srcHash": "2cbca12102f6"
+  },
+  "ui.templates.crud.picture.refused": {
+    "status": "mt",
+    "srcHash": "735b77aaaaff"
+  },
+  "ui.templates.crud.picture.remove": {
+    "status": "mt",
+    "srcHash": "e963907dac5c"
+  },
+  "ui.templates.crud.picture.removeFrom": {
+    "status": "mt",
+    "srcHash": "fbc194196bc0"
+  },
+  "ui.templates.crud.picture.removeNamed": {
+    "status": "mt",
+    "srcHash": "5510b5955f33"
+  },
+  "ui.templates.crud.picture.saved": {
+    "status": "mt",
+    "srcHash": "0228decb604d"
+  },
+  "ui.templates.crud.picture.tooLarge": {
+    "status": "mt",
+    "srcHash": "4604a222fd6d"
   },
   "ui.templates.crud.queryFailed": {
     "srcHash": "0400de57fcfb",

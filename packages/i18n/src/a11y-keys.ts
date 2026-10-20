@@ -11,7 +11,7 @@
  *   pnpm --filter @adminium/i18n gen:a11y-keys
  */
 
-/** `namespace:key` — 3036 entries. */
+/** `namespace:key` — 3051 entries. */
 export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'addOns:failed.title',
   'addOns:noBundle.title',
@@ -2632,6 +2632,21 @@ export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'ui:templates.crud.newRow',
   'ui:templates.crud.noMatchesTitle',
   'ui:templates.crud.peekAction',
+  'ui:templates.crud.picker.close',
+  'ui:templates.crud.picker.filesPage',
+  'ui:templates.crud.picker.for',
+  'ui:templates.crud.picker.grid',
+  'ui:templates.crud.picker.retry',
+  'ui:templates.crud.picker.search',
+  'ui:templates.crud.picker.tabs',
+  'ui:templates.crud.picker.title',
+  'ui:templates.crud.picker.usedIn',
+  'ui:templates.crud.picture.add',
+  'ui:templates.crud.picture.empty',
+  'ui:templates.crud.picture.gone',
+  'ui:templates.crud.picture.link',
+  'ui:templates.crud.picture.removeFrom',
+  'ui:templates.crud.picture.removeNamed',
   'ui:templates.crud.removeFilter',
   'ui:templates.crud.saveSubmit',
   'ui:templates.crud.searchPlaceholder',

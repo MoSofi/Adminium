@@ -8,7 +8,7 @@ import {
   Spinner,
 } from '@adminium/ui';
 import { useMaybeT } from '../../lib/i18n.js';
-import { ArrowRight, Check, Pencil, Plus } from 'lucide-react';
+import { ArrowRight, Check, CircleAlert, Pencil, Plus } from 'lucide-react';
 import { useCallback, useState, type ReactNode } from 'react';
 
 import { RecordForm, type RecordFormProps } from './RecordForm.js';
@@ -48,6 +48,8 @@ export interface RecordFormDialogProps
   document?: CrudFormConfig | null | undefined;
   /** Host overrides, which beat the generated words. */
   labels?: { title?: string | undefined; submit?: string | undefined; close?: string | undefined } | undefined;
+  /** A refusal of the whole form, said at the top of its body (the page's settings changed under it). */
+  alert?: string | undefined;
   /** A save in flight: the CTA shows a spinner in place of its icon (F10). */
   saving?: boolean | undefined;
   /** The header tile's icon; the page's own nav icon by default. */
@@ -81,6 +83,7 @@ export function RecordFormDialog({
   tableName,
   document: formDocument,
   labels,
+  alert,
   saving = false,
   icon,
   formId = 'record-form-dialog',
@@ -179,6 +182,12 @@ export function RecordFormDialog({
         closeLabel={labels?.close ?? t('ui:action.close', 'Close')}
       />
       <FormDialogBody>
+        {alert === undefined ? null : (
+          <p role="alert" data-part="record-form-alert" className="mb-4 flex items-start gap-2 rounded-md bg-danger-soft px-3 py-2.5 text-body-sm font-bold text-danger">
+            <CircleAlert aria-hidden="true" className="mt-0.5 size-3.5 shrink-0" />
+            <span>{alert}</span>
+          </p>
+        )}
         <RecordForm
           {...formProps}
           formId={formId}

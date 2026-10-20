@@ -325,3 +325,13 @@ export interface CrudApi {
    */
   export?(request: CrudExportRequest): Promise<CrudExportTicket>;
 }
+
+/**
+ * A save made from a page's form after the page's settings changed (a column
+ * that held a picture may hold text now): refused by the server so a picture
+ * the form uploaded is not left to nobody. The host throws it; the form keeps
+ * what the person did, says so at its top, and the next save goes through.
+ */
+export class PageSettingsChangedError extends Error {
+  override readonly name = 'PageSettingsChangedError';
+}

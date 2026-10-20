@@ -12,6 +12,7 @@ import { QuickLayout, type PillKind, type QuickPill } from './layouts/QuickLayou
 import { SplitLayout } from './layouts/SplitLayout.js';
 import { WizardLayout } from './layouts/WizardLayout.js';
 import type { FileFieldUpload } from './FileField.js';
+import type { PictureChooser } from '../../pictures/PictureField.js';
 import type {
   CrudFormColumnField,
   CrudFormConfig,
@@ -278,6 +279,8 @@ export interface RecordFormProps {
    * configured — this package has no transport of its own.
    */
   uploadFile?: FileFieldUpload | undefined;
+  /** Choosing a picture the workspace already has, for a picture column; absent ⇒ upload only. */
+  chooseFile?: PictureChooser | undefined;
   /** What the current values already name, keyed by the stored value. */
   files?: ReadonlyMap<string, ResolvedFile | null> | undefined;
   /** Workspace upload cap, so the field can refuse before the request starts. */
@@ -358,6 +361,7 @@ export function RecordForm({
   footer,
   onWizard,
   uploadFile,
+  chooseFile,
   files,
   maxFileBytes,
   currency,
@@ -854,6 +858,7 @@ export function RecordForm({
       ...(currency === undefined ? {} : { currency }),
       ...(lookup === undefined ? {} : { lookup }),
       ...(uploadFile === undefined ? {} : { upload: uploadFile }),
+      ...(chooseFile === undefined ? {} : { choose: chooseFile }),
       ...(files === undefined ? {} : { files }),
       ...(maxFileBytes === undefined ? {} : { maxFileBytes }),
       ...(locale === undefined ? {} : { locale }),

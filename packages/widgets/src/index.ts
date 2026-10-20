@@ -202,6 +202,8 @@ export type { ApiKeyRecord } from './families/domain/domain-ops-types.js';
 
 // Page templates — page-crud: template component + CrudApi contract.
 export * from './templates/page-crud/index.js';
+// A picture column's field, and the picker it chooses from.
+export * from './pictures/index.js';
 // page-record: the record detail page + host seams.
 export * from './templates/page-record/index.js';
 

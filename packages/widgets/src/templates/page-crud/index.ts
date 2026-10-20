@@ -7,6 +7,7 @@
 export {
   CRUD_FILTER_OPS,
   isDeletePreview,
+  PageSettingsChangedError,
   type CrudApi,
   type CrudBulkResult,
   type CrudDeletePreview,

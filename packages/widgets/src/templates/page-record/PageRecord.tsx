@@ -27,6 +27,9 @@ import type { ControlOption } from '../page-crud/controls/index.js';
 import type { ColumnFacts } from '../page-crud/field-mapping.js';
 import type { FormRelationFact } from '../../page-config/index.js';
 import { isDeletePreview } from '../page-crud/crud-api.js';
+import type { PageCrudFiles } from '../page-crud/PageCrud.js';
+import type { ResolvedFile } from '../../families/tables/cells.js';
+import { parseRefList } from '../../page-config/file-refs.js';
 import type {
   CrudApi,
   CrudGetResult,
@@ -226,6 +229,12 @@ export interface PageRecordProps {
   activity?: RecordActivityFeed | null | undefined;
   /** Absent/null ⇒ the Attachments panel does not render. */
   attachments?: PageRecordAttachments | null | undefined;
+  /**
+   * The file transport for the edit dialog's file columns (upload, resolve,
+   * and choosing a picture the workspace has). Absent ⇒ a file column edits
+   * as the plain text it holds, as it always did here.
+   */
+  files?: PageCrudFiles | undefined;
   /**
    * May this caller attach a file? Beside `canUpdate`/`canDelete` and NOT the
    * same as either: a sidecar attach is authorised by `update` on the entity's
@@ -956,6 +965,7 @@ export function PageRecord({
   canUnmask = false,
   relations,
   attachments,
+  files,
   canAttach = false,
   maxFileBytes,
   panels,
@@ -983,6 +993,8 @@ export function PageRecord({
   const [reloadTick, setReloadTick] = useState(0);
 
   const [editOpen, setEditOpen] = useState(false);
+  /** What the record's file columns name, resolved when the edit dialog opens: a picture field shows its picture. */
+  const [editFiles, setEditFiles] = useState<ReadonlyMap<string, ResolvedFile | null>>(() => new Map());
   const [editErrors, setEditErrors] = useState<Record<string, string>>({});
   /**
    * What each link relation points at, with names: the chips this record shows,
@@ -1062,6 +1074,23 @@ export function PageRecord({
   );
 
   const record = result?.data ?? null;
+
+  // The file columns' values, resolved when the edit dialog opens (one call for the record).
+  useEffect(() => {
+    if (!editOpen || files === undefined || record === null) return undefined;
+    const refs = columns.filter((column) => column.file !== undefined).flatMap((column) => parseRefList(record[column.name]));
+    if (refs.length === 0) return undefined;
+    let alive = true;
+    files
+      .resolve(refs)
+      .then((resolved) => {
+        if (alive) setEditFiles(resolved);
+      })
+      .catch(() => undefined);
+    return () => {
+      alive = false;
+    };
+  }, [editOpen, files, record, columns]);
   const counts = result?.inboundCounts ?? [];
 
   const heroValue = useMemo(() => {
@@ -1439,6 +1468,9 @@ export function PageRecord({
           {...(relations === undefined ? {} : { relations, initialLinks: links })}
           initialValues={record}
           errors={editErrors}
+          {...(files === undefined ? {} : { uploadFile: files.upload, files: editFiles })}
+          {...(files?.choose === undefined ? {} : { chooseFile: files.choose })}
+          {...(files?.maxBytes === undefined ? {} : { maxFileBytes: files.maxBytes })}
           lookup={api.lookup?.bind(api)}
           availability={api.availability?.bind(api)}
           places={places}
