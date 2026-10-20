@@ -141,6 +141,13 @@ describe('fetching', () => {
     expect(await reason(safeFetch('https://a.example/', { maxBytes: 100, resolve, connect: async () => Promise.reject(new Error('socket hang up')) }))).toBe('network');
   });
 
+  it('keeps an error status’s headers, so a caller can read how long to wait', async () => {
+    const failed = await safeFetch('https://a.example/', { maxBytes: 100, resolve: one('8.8.8.8'), connect: async () => reply(429, { 'Retry-After': '120', 'x-figma-rate-limit-type': 'low' }) }).catch((error: unknown) => error);
+    expect(failed).toBeInstanceOf(SafeFetchError);
+    expect((failed as SafeFetchError).status).toBe(429);
+    expect((failed as SafeFetchError).headers).toEqual({ 'retry-after': '120', 'x-figma-rate-limit-type': 'low' });
+  });
+
   it('gives up after its time', async () => {
     const never = (): Promise<RawResponse> => new Promise(() => undefined);
     const hanging = async (_target: PinnedTarget, opts: { signal: AbortSignal }): Promise<RawResponse> =>

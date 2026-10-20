@@ -19,6 +19,7 @@ import { cleanPalette, type PaletteColour } from '../project/apps/theme.js';
 
 import { parseCsv } from '../data-io/csv.js';
 import { DESIGNER_DIR } from './session-store.js';
+import { fenceFor } from './untrusted.js';
 
 export const ATTACHMENT_MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 export const ATTACHMENT_MAX_CSV_BYTES = 10 * 1024 * 1024;
@@ -321,8 +322,7 @@ export function docLines(text: string, from: number, count: number): { text: str
   return { text: picked.join('\n'), to: start - 1 + picked.length, of: lines.length };
 }
 
-/** A fence no line of the text can close: one backtick longer than its longest run of them. */
-export const fenceFor = (text: string): string => '`'.repeat(Math.max(3, ...(text.match(/`+/g) ?? []).map((run) => run.length + 1)));
+export { fenceFor } from './untrusted.js';
 
 /** What a model does with a document that describes a look. Said with the document, and again when a side is added. */
 export const DESIGN_DOC_RULE =
