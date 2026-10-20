@@ -1,5 +1,34 @@
 # @adminium/server
 
+## 0.3.30
+
+### Patch Changes
+
+- 19e4de3: Deleting records in bulk now sends each record's files to the trash, and its Undo brings them back, as deleting one record does. Before, the files of bulk-deleted records stayed attached to rows that no longer existed and were never cleaned up. A bulk edit of a file column now also keeps the new file with its record and sends the replaced one to the trash.
+- 0df12af: A server stopped soon after it started no longer hangs while closing a Postgres settings database. The check of installed add-ons and apps that runs at start, and the loading of add-on code, now finish before the server finishes closing. Before, either could still be reading the settings database when it was closed, and the close waited for it forever.
+- cab147e: Deleting a record that somebody else deleted a moment earlier no longer sends its files to the trash a second time or offers an Undo for a delete that did nothing.
+- 329890c: An email or campaign now attaches only files its author may read. A file no record holds (a Files library file, or an upload for a form not yet saved) can be attached by the person who uploaded it or by someone who manages files. A file a record holds needs read access to that record's table and row. Before, anyone who could edit emails could attach any library file or any colleague's pending upload.
+- a09eb96: A person listed on a row (somebody on a deal, somebody covering) must now be able to open that very row once listed, not just read its table. Someone who reads only won deals could be listed on an open deal and then show as helping on a deal they cannot open; that is now refused (`cannot-open`), unless their roles reach the rows they are listed on.
+- 7a2f376: A child row can move the row it belongs to when it is made: `"moveOnCreate": "<state>"` on the child under the parent's `states.children` (Adminium 0.3.30). A sign-off a crew member makes on site now signs the job off by the job's own listed move, with the new sign-off counted, so the office's counts and the rules that run on a signed-off job follow. A job already signed off is left as it is, so a correction is still made; a job with no listed move there, or whose move's conditions fail, refuses the sign-off.
+- f848770: A signed-in visitor's file download (`GET /public/files/:ref/:rowId/:column`) now serves a file only when that very row holds it. Before, a row whose column named another row's file, or a Files-library file, of the same connection served it to anyone who could read the row.
+- b6ef4ed: Deleting a record now sends all of its attached files to the trash. Before, a record with more than 200 attachments kept the rest attached to a row that no longer existed.
+- 2f56a3a: A record's Files tab now lists every file the record holds that the reader may open, not only the reader's own uploads, so it no longer says "No files yet" on a record whose picture is on screen. On a MySQL settings database, two records whose keys differ only in letter case no longer share one list of files, and deleting one no longer sends the other's files to the trash.
+- fbcb2d9: The daily files sweep now checks whether a record already names an unclaimed upload before sending it to the trash, and gives the upload to that record. Before, a save whose file bookkeeping failed for a moment after the record was written (the settings database briefly unavailable) left the upload unclaimed, and the sweep trashed it a day later while the record still showed it.
+- 90cf2a3: The daily files sweep no longer sends an upload to the trash when a save names it while the sweep is running, and a save no longer claims an upload that is already in the trash, which left a record pointing at a file due to be deleted.
+- 43780e5: The daily trash purge now always finishes. Before, a run of 100 trashed files that could not be removed from storage (for example a bucket whose credentials were revoked) made it retry the same files forever, and 100 old trashed exports could stop it before it reached the uploads behind them.
+- 7ab218a: Undoing a change now puts its files back. Before, undoing a replaced picture left the row naming the old picture while it stayed in the trash (shown broken, then gone for good when the trash was emptied), and the new picture stayed with a row that no longer named it. Undoing a new record now also sends its files to the trash, as deleting it does.
+- Updated dependencies [7a2f376]
+  - @adminium/manifest@0.3.30
+  - @adminium/meta@0.3.30
+  - @adminium/adapter-mysql@0.3.30
+  - @adminium/adapter-postgres@0.3.30
+  - @adminium/adapter-sqlite@0.3.30
+  - @adminium/add-on-contracts@0.3.30
+  - @adminium/engine@0.3.30
+  - @adminium/i18n@0.3.30
+  - @adminium/llm@0.3.30
+  - @adminium/schema-import@0.3.30
+
 ## 0.3.29
 
 ### Patch Changes
