@@ -8,16 +8,21 @@
  * could not be loaded, one quiet card with "Try again"; when this install has
  * the online list switched off, the same card with neither.
  *
- * The cover is a tinted placeholder with the app's icon, in the accent: the
- * list gives each app a tint, but a raw colour is not a token.
+ * The cover is the app's first screenshot, which this server fetches from
+ * adminium.dev and serves itself (the page's picture policy is this server
+ * only). Without one, or while it cannot be had, a tinted placeholder with the
+ * app's icon, in the accent: the list gives each app a tint, but a raw colour
+ * is not a token. Beside the name, at the end of its line, a link to the app's
+ * demo on adminium.dev (else its page there), for a look at the whole app
+ * before copying it.
  */
 import { useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowRight, ChevronRight, CloudOff, IdCard, LayoutGrid, RotateCw, UserRound } from 'lucide-react';
+import { ArrowRight, ChevronRight, CloudOff, ExternalLink, IdCard, LayoutGrid, RotateCw, UserRound } from 'lucide-react';
 import { Skeleton } from '@adminium/ui';
 
 import { t } from '../../i18n/t.js';
-import { catalogQuery, type CatalogApp } from '../api.js';
+import { catalogPictureUrl, catalogQuery, type CatalogApp } from '../api.js';
 
 /** Fewer apps than this and the filter chips are not shown. */
 export const FILTERS_FROM = 9;
@@ -46,12 +51,25 @@ function AppIcon({ app }: { app: CatalogApp }): ReactNode {
 }
 
 export function AppCard({ app, onStart }: { app: CatalogApp; onStart: (app: CatalogApp) => void }): ReactNode {
+  const [pictureFailed, setPictureFailed] = useState(false);
+  const picture = app.picture !== null && !pictureFailed;
   return (
     <article aria-label={app.name} className="group relative flex flex-col overflow-hidden rounded-[14px] border border-border bg-surface transition-[transform,box-shadow] hover:-translate-y-0.5 hover:shadow-md focus-within:-translate-y-0.5 focus-within:shadow-md motion-reduce:transform-none">
-      <div className={`${COVER} relative flex aspect-[16/10] items-center justify-center border-b border-border`}>
-        <span aria-hidden="true" className="flex size-[58px] items-center justify-center rounded-2xl bg-accent text-accent-fg shadow-md">
-          <AppIcon app={app} />
-        </span>
+      <div className={`${picture ? 'bg-surface-2' : COVER} relative flex aspect-[16/10] items-center justify-center overflow-hidden border-b border-border`}>
+        {picture ? (
+          <img
+            src={catalogPictureUrl(app.key)}
+            alt={app.picture?.alt ?? ''}
+            loading="lazy"
+            decoding="async"
+            onError={() => setPictureFailed(true)}
+            className="absolute inset-0 size-full object-cover object-top"
+          />
+        ) : (
+          <span aria-hidden="true" className="flex size-[58px] items-center justify-center rounded-2xl bg-accent text-accent-fg shadow-md">
+            <AppIcon app={app} />
+          </span>
+        )}
         <button
           type="button"
           onClick={() => onStart(app)}
@@ -63,7 +81,25 @@ export function AppCard({ app, onStart }: { app: CatalogApp; onStart: (app: Cata
         </button>
       </div>
       <div className="flex flex-1 flex-col gap-1.5 px-[18px] pb-[18px] pt-4 max-sm:px-[15px] max-sm:pb-[15px] max-sm:pt-[13px]">
-        <h3 className="m-0 text-[15px] font-extrabold tracking-tight">{app.name}</h3>
+        <div className="flex items-baseline justify-between gap-3">
+          <h3 className="m-0 min-w-0 text-[15px] font-extrabold tracking-tight">{app.name}</h3>
+          {app.site === null ? null : (
+            <a
+              href={app.site.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label={
+                app.site.kind === 'demo'
+                  ? t('designer:start.demoApp', 'Try the demo: {name}', { name: app.name })
+                  : t('designer:start.pageApp', 'See it on adminium.dev: {name}', { name: app.name })
+              }
+              className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap text-[12.5px] font-bold text-accent hover:underline"
+            >
+              {app.site.kind === 'demo' ? t('designer:start.demo', 'Try the demo') : t('designer:start.page', 'See it on adminium.dev')}
+              <ExternalLink aria-hidden="true" className="size-3" />
+            </a>
+          )}
+        </div>
         <p className="m-0 text-pretty text-[13px] leading-normal text-fg-muted">{app.tagline}</p>
         <div className="mt-auto flex flex-wrap items-center gap-1.5 pt-2.5">
           <span className="me-auto text-xs font-semibold text-fg-subtle">{app.category ?? ''}</span>

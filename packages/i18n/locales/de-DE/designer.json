@@ -109,7 +109,11 @@
     "startThis": "Hiermit beginnen",
     "startApp": "Hiermit beginnen: {name}",
     "staffSide": "Mitarbeiterseite",
-    "customerSide": "Kundenseite"
+    "customerSide": "Kundenseite",
+    "demo": "Demo ansehen",
+    "demoApp": "Demo ansehen: {name}",
+    "page": "Auf adminium.dev ansehen",
+    "pageApp": "Auf adminium.dev ansehen: {name}"
   },
   "apps": {
     "title": "Ihre Apps",

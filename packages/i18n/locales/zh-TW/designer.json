@@ -109,7 +109,11 @@
     "startThis": "從這個開始",
     "startApp": "從這個開始：{name}",
     "staffSide": "員工端",
-    "customerSide": "客戶端"
+    "customerSide": "客戶端",
+    "demo": "試用示範",
+    "demoApp": "試用示範：{name}",
+    "page": "在 adminium.dev 上查看",
+    "pageApp": "在 adminium.dev 上查看：{name}"
   },
   "apps": {
     "title": "你的應用程式",

@@ -92,6 +92,12 @@ export const appCatalogEntrySchema = z
     ...displayFields,
     /** Where the app's source is (`https://github.com/<owner>/<repo>`), when the list says. "Make it yours" copies from its release tag. */
     repo: z.string().max(300).optional(),
+    /** The app's first screenshot on adminium.dev, for the card's cover. Fetched only through {@link AppCatalogClient.fetchPicture}. */
+    shot: z.object({ src: z.string().max(500), label: localized }).strict().optional(),
+    /** The app's live demo on adminium.dev, where it has one. */
+    demo: z.string().max(300).optional(),
+    /** The app's page on adminium.dev. */
+    page: z.string().max(300).optional(),
     /** The add-ons the release needs and suggests, by key — the card's "Needs Invoices". */
     addOns: z.object({ requires: z.array(z.string()), suggests: z.array(z.string()) }).strict().optional(),
     newerRelease: z
@@ -154,6 +160,7 @@ export function appCatalogFromShelf(shelf: ParsedShelf<AppItemWire>): AppCatalog
       continue;
     }
     const release = item.release;
+    const firstShot = item.art.shots?.[0];
     if (release !== null) {
       apps.push({
         ...listed,
@@ -170,6 +177,9 @@ export function appCatalogFromShelf(shelf: ParsedShelf<AppItemWire>): AppCatalog
         },
         ...(item.newerRelease === undefined ? {} : { newerRelease: item.newerRelease }),
         ...(typeof item.links.repo === 'string' && item.links.repo !== '' ? { repo: item.links.repo } : {}),
+        ...(firstShot === undefined ? {} : { shot: { src: firstShot.src, label: firstShot.label ?? {} } }),
+        ...(typeof item.links.demo === 'string' && item.links.demo !== '' ? { demo: item.links.demo } : {}),
+        ...(item.links.page !== '' ? { page: item.links.page } : {}),
       });
       continue;
     }
@@ -194,6 +204,46 @@ export function appCatalogFromShelf(shelf: ParsedShelf<AppItemWire>): AppCatalog
  * reads it from here.
  */
 export { meetsMinimum } from '../add-ons/catalog.js';
+
+/** The largest picture the app list's covers may be. A screenshot is ~100 KB. */
+export const MAX_PICTURE_BYTES = 2 * 1024 * 1024;
+
+const PICTURE_TYPES: Readonly<Record<string, string>> = { webp: 'image/webp', png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg' };
+
+/**
+ * A feed-supplied picture address, checked before any request: the list's own
+ * origin (the feed may not point this server anywhere else), a plain path
+ * under `/shots/` or `/covers/`, and a picture's extension, which also decides
+ * the type the picture is served as. Null when the address is refused.
+ */
+export function pictureAddress(src: string, endpoint: string = APP_CATALOG_ENDPOINT): { url: string; type: string } | null {
+  let url: URL;
+  try {
+    url = new URL(src);
+  } catch {
+    return null;
+  }
+  const match = /^\/(?:shots|covers)\/[a-z0-9][a-z0-9_/-]*\.(webp|png|jpe?g)$/i.exec(url.pathname);
+  if (match === null || url.origin !== new URL(endpoint).origin || url.search !== '' || url.hash !== '' || url.username !== '' || url.pathname.includes('//')) return null;
+  const type = PICTURE_TYPES[match[1]!.toLowerCase()];
+  return type === undefined ? null : { url: url.href, type };
+}
+
+/**
+ * A feed-supplied link to show a person (an app's demo or page): `https:` on
+ * adminium.dev or a subdomain of it, else null. The desktop app hands such a
+ * link to the system browser; this keeps the list from making it anything else.
+ */
+export function siteLink(href: string | undefined): string | null {
+  if (href === undefined) return null;
+  try {
+    const url = new URL(href);
+    const host = url.hostname;
+    return url.protocol === 'https:' && url.username === '' && url.password === '' && (host === 'adminium.dev' || host.endsWith('.adminium.dev')) ? url.href : null;
+  } catch {
+    return null;
+  }
+}
 
 /** The address one app release is downloaded from: `/apps/<key>/<key>-<version>.tgz`. */
 export function appDownloadUrlFor(key: string, version: string, base = `https://${DOWNLOAD_HOST}`): string {
@@ -220,6 +270,8 @@ export interface AppCatalogClient {
   fetchCatalog(signal?: AbortSignal): Promise<AppCatalog>;
   /** Download one row's file. The STORE verifies it against the row's integrity. */
   fetchTarball(entry: Pick<AppCatalogEntry, 'key' | 'version'>, signal?: AbortSignal): Promise<Uint8Array>;
+  /** One picture of the list (a row's `shot.src`), from the list's own host only: see {@link pictureAddress}. */
+  fetchPicture(src: string, signal?: AbortSignal): Promise<{ bytes: Uint8Array; type: string }>;
 }
 
 export function createAppCatalogClient(deps: AppCatalogClientDeps): AppCatalogClient {
@@ -289,6 +341,14 @@ export function createAppCatalogClient(deps: AppCatalogClientDeps): AppCatalogCl
         'TARBALL_NOT_FOUND',
       );
       return bytes;
+    },
+
+    async fetchPicture(src, signal) {
+      await assertEnabled();
+      const address = pictureAddress(src, endpoint);
+      if (address === null) throw new AddOnCatalogError('CATALOG_MALFORMED', `refusing to fetch a picture from ${JSON.stringify(src)}`);
+      const { bytes } = await boundedRequest(doFetch(), address.url, address.type, MAX_PICTURE_BYTES, 'CATALOG_UNREACHABLE', signal);
+      return { bytes, type: address.type };
     },
   };
 }

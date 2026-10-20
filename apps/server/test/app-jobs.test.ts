@@ -100,6 +100,7 @@ function stubCatalog(overrides: Partial<AppCatalogClient> = {}): AppCatalogClien
     networkFeaturesAllowed: () => true,
     fetchCatalog: async () => CATALOG,
     fetchTarball: async () => TARBALL,
+    fetchPicture: async () => ({ bytes: new Uint8Array(), type: 'image/webp' }),
     ...overrides,
   };
 }

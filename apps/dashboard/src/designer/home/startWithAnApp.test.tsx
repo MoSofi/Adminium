@@ -16,7 +16,7 @@ import type { CatalogApp } from '../api.js';
 import { FILTERS_FROM, StartWithAnApp } from './StartWithAnApp.js';
 
 function app(n: number, category: string): CatalogApp {
-  return { key: `app-${String(n)}`, version: '0.2.0', name: `App ${String(n)}`, tagline: `What app ${String(n)} does.`, category, sides: ['staff', 'customer'], copyable: true, iconTint: null, iconPaths: [], monogram: null };
+  return { key: `app-${String(n)}`, version: '0.2.0', name: `App ${String(n)}`, tagline: `What app ${String(n)} does.`, category, sides: ['staff', 'customer'], copyable: true, iconTint: null, iconPaths: [], monogram: null, picture: null, site: null };
 }
 
 function mount(reply: () => Promise<Response>, onStart = vi.fn()) {
@@ -62,6 +62,33 @@ describe('Start with an app', () => {
     // Six apps: every chip would hold one card, so there are none.
     expect(screen.queryByRole('group', { name: 'Filter apps' })).toBeNull();
     expect(screen.queryByRole('link', { name: /Browse all/ })).toBeNull();
+  });
+
+  it('covers a card with its screenshot, falls back to the icon when it cannot be had, and links to the demo', async () => {
+    mount(() =>
+      Promise.resolve(
+        jsonResponse(200, {
+          state: 'ok',
+          apps: [
+            { ...app(1, 'Hotels'), key: 'hotel', picture: { alt: 'Searching dates' }, site: { url: 'https://adminium.dev/demo/hotel-reservations/', kind: 'demo' } },
+            { ...app(2, 'Sales'), site: { url: 'https://adminium.dev/marketplace/crm/', kind: 'page' } },
+          ],
+        }),
+      ),
+    );
+    const card = await screen.findByRole('article', { name: 'App 1' });
+    const picture = screen.getByRole('img', { name: 'Searching dates' });
+    expect(picture.getAttribute('src')).toBe('/api/v1/designer/apps/hotel/picture');
+    const demo = screen.getByRole('link', { name: 'Try the demo: App 1' });
+    expect(demo.getAttribute('href')).toBe('https://adminium.dev/demo/hotel-reservations/');
+    expect(demo.getAttribute('target')).toBe('_blank');
+    expect(demo.getAttribute('rel')).toBe('noopener noreferrer');
+    expect(screen.getByRole('link', { name: 'See it on adminium.dev: App 2' }).getAttribute('href')).toBe('https://adminium.dev/marketplace/crm/');
+
+    // A picture that does not load leaves the placeholder, never a broken image.
+    picture.dispatchEvent(new Event('error'));
+    await waitFor(() => expect(screen.queryByRole('img', { name: 'Searching dates' })).toBeNull());
+    expect(card.querySelector('img')).toBeNull();
   });
 
   it('filters by category from nine apps', async () => {

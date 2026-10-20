@@ -119,7 +119,11 @@ export default {
     "startThis": "Začít s touto",
     "startApp": "Začít s touto: {name}",
     "staffSide": "Strana personálu",
-    "customerSide": "Strana zákazníků"
+    "customerSide": "Strana zákazníků",
+    "demo": "Vyzkoušet demo",
+    "demoApp": "Vyzkoušet demo: {name}",
+    "page": "Zobrazit na adminium.dev",
+    "pageApp": "Zobrazit na adminium.dev: {name}"
   },
   "apps": {
     "title": "Vaše aplikace",

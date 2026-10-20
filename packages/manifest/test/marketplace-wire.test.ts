@@ -110,7 +110,7 @@ describe('parseShelf', () => {
     );
     expect(parsed?.skipped).toEqual([]);
     expect(parsed?.items[0]?.release?.addOns.requires[0]).toMatchObject({ key: 'add-on-invoices', range: '>=1.0.2' });
-    expect(parsed?.items[0]?.art).toEqual({ tint: '#123456', iconPaths: ['M0 0h1'] });
+    expect(parsed?.items[0]?.art).toEqual({ tint: '#123456', iconPaths: ['M0 0h1'], shots: [] });
   });
 
   it('is null for a document in any other format, the frozen feeds included', () => {

@@ -99,7 +99,14 @@ export interface CatalogApp {
   iconTint: string | null;
   iconPaths: string[];
   monogram: string | null;
+  /** The app's first screenshot, at {@link catalogPictureUrl}; null when the list has none. */
+  picture: { alt: string } | null;
+  /** The app's live demo on adminium.dev, else its page there. */
+  site: { url: string; kind: 'demo' | 'page' } | null;
 }
+
+/** Where a list app's screenshot is served: by this server, which fetched it from adminium.dev. */
+export const catalogPictureUrl = (key: string): string => `${BASE}/apps/${encodeURIComponent(key)}/picture`;
 
 /** How hard a model is asked to work on a reply, the least first. Mirrors `RUN_EFFORTS` of the server. */
 export const DESIGNER_EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max'] as const;

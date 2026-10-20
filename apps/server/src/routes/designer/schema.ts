@@ -274,7 +274,12 @@ export const designerCatalogApp = z.object({
   monogram: z.string().nullable(),
   /** Whether the list says where its source is: only then can it be copied. */
   copyable: z.boolean(),
+  /** The app's first screenshot, served at `/designer/apps/:key/picture`; null when the list has none. */
+  picture: z.object({ alt: z.string() }).nullable(),
+  /** The app's live demo on adminium.dev, else its page there; null when the list gives neither. */
+  site: z.object({ url: z.string(), kind: z.enum(['demo', 'page']) }).nullable(),
 });
+export const designerAppPictureParams = z.object({ key: z.string().max(80) });
 /** "Start with an app": the key a copy would take, checked as it is typed, with the build it would be given. */
 export const designerStartCheckQuery = z.object({ newKey: z.string().max(80) });
 export const designerStartCheckReply = z.object({
