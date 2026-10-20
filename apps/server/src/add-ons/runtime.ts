@@ -59,7 +59,18 @@ export type LoadRefusal =
   | 'IMPORT_FAILED'
   | 'CONTRACT_UNKNOWN'
   // Code that decides inside a save, in a package whose bytes nobody vouches for.
-  | 'UNTRUSTED_DECIDER';
+  | 'UNTRUSTED_DECIDER'
+  // Code that moves money, in a package whose bytes nobody vouches for.
+  | 'UNTRUSTED_PROVIDER';
+
+/**
+ * Contracts imported as ordinary modules, but ONLY from a package Adminium can
+ * vouch for — the same sources the deciding contracts use (a bundled pin, a
+ * catalogue download, a dev key outside production). A payment provider
+ * handles a shop's money and its keys, so a sideloaded look-alike must never
+ * load, whatever its manifest says (plan 70 §3.3).
+ */
+export const VOUCHED_CONTRACTS: ReadonlySet<string> = new Set(['payment-provider']);
 
 export interface LoadProblem {
   addOnKey: string;
@@ -258,6 +269,21 @@ export async function buildAddOnRuntime(opts: BuildRuntimeOptions): Promise<AddO
       }
 
       try {
+        if (VOUCHED_CONTRACTS.has(provided.contract)) {
+          const { integrity } = await opts.store.verifyTree(manifest.key, version);
+          if (opts.trust === undefined || !deciderTrusted({ key: manifest.key, version, integrity }, opts.trust)) {
+            problems.push({
+              addOnKey: manifest.key,
+              reason: 'UNTRUSTED_PROVIDER',
+              contract: key(provided.contract, provided.version),
+              message:
+                `"${manifest.key}" ${version} provides ${key(provided.contract, provided.version)}, and this package is neither one ` +
+                'this build bundles nor one downloaded from the catalogue, so its code was not loaded.',
+            });
+            opts.log?.('add-on payment provider is not trusted', { key: manifest.key, version });
+            continue;
+          }
+        }
         const module = await importServerHalf(
           opts.store,
           manifest.key,
