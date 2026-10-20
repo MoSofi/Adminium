@@ -272,7 +272,8 @@ export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
   // The picture dialog: opened from the chip, the spots card or a spot of the preview, and given focus back to what opened it.
   const [pictures, setPictures] = useState<{ open: boolean; spot: string | null; from: HTMLElement | null }>({ open: false, spot: null, from: null });
   const openPictures = (spot: string | null = null): void => setPictures({ open: true, spot, from: document.activeElement instanceof HTMLElement ? document.activeElement : null });
-  const picturesView = useQuery({ queryKey: designerKeys.pictures(sessionId), queryFn: () => designerApi.pictures(sessionId), enabled: session.data !== undefined && turns.length > 0 });
+  // Read as soon as the session is: a session on an app that has spots may have no turn yet. One with no app yet has none to read.
+  const picturesView = useQuery({ queryKey: designerKeys.pictures(sessionId), queryFn: () => designerApi.pictures(sessionId), enabled: session.data !== undefined, retry: false });
   const undoPictures = useMutation({
     mutationFn: ({ from, to }: { from: number; to: number }) => designerApi.undoPictures(sessionId, from, to),
     onSuccess: (_reply, { to }) => {
