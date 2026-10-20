@@ -271,13 +271,17 @@ export function buildAssistantPrompt(input: AssistantPromptInput): string {
  * request that silently loses its oldest messages gives a confident answer built
  * on half the conversation — worse than asking the person to start a new one.
  * Ollama's window is the one its client asks for (`OLLAMA_NUM_CTX`); the limit
- * leaves the rest of it for the reply.
+ * leaves the rest of it for the reply. About 24,000 since 2026-10-20 (owner's ruling):
+ * once the Designer counted its tool definitions (about 5,900 tokens), 20,000
+ * left no room to talk for a request that asks for screens and names an add-on,
+ * and such a turn was refused; 9,268 of the 32,768 stay for the reply, and it stays
+ * below the openai-compatible limit (the smallest window is still Ollama's).
  */
 export const ASSISTANT_INPUT_TOKEN_LIMIT = {
   anthropic: 160_000,
   openai: 100_000,
   'openai-compatible': 24_000,
-  ollama: 20_000,
+  ollama: 23_500,
   'adminium-managed': 160_000,
 } as const satisfies Record<ProviderId, number>;
 

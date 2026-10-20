@@ -165,8 +165,7 @@ test('a frame imported from Figma goes with a message, and the model reads a par
   expect(project.output()).toContain('"nodes":1,"images":1');
 
   // Sent: the model is told the frame as data from the Figma file, and offered read_figma.
-  // Words that ask for no screens of the app's own: with them, Ollama's window holds the system prompt and every tool with room to talk.
-  await page.getByRole('textbox', { name: 'Describe your app' }).fill('Use this frame for the look of the app.');
+  await page.getByRole('textbox', { name: 'Describe your app' }).fill('Build my home page from this frame.');
   await page.keyboard.press('Enter');
   await expect(page).toHaveURL(/\/design\/ds_[0-9a-z]{24}$/);
   await expect(page.getByText('I read the frame from Figma. Its Order button is a row.')).toBeVisible({ timeout: 120_000 });

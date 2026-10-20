@@ -347,7 +347,7 @@ export interface SentTool {
 /**
  * What the tool definitions cost, as they are sent with every request: a provider wraps each one
  * (`{ type, function: { name, description, parameters } }`), and the wrapping is counted too. On Ollama
- * the 27 tools of 2026-10 were 5,753 of the 20,000 tokens a request may carry.
+ * the 27 tools of 2026-10 were 5,753 tokens, sent with every request.
  */
 export function toolTokens(tools: readonly SentTool[]): number {
   if (tools.length === 0) return 0;

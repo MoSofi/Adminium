@@ -263,7 +263,7 @@ describe('an app copied from a published one', () => {
     expect(estimateTokens(system)).toBeLessThan(ASSISTANT_INPUT_TOKEN_LIMIT.ollama / 2);
 
     // What goes with every request is the system prompt AND every tool's definition: on Ollama they leave room to talk.
-    // (9,967 + 5,753 = 15,720 of 16,000 when this was measured, 2026-10-19.)
+    // (9,967 + 5,753 = 15,720 when this was measured, 2026-10-19.)
     const tools = createDesignerTools({ root, version: APP_VERSION, designer: () => ({ store: { messages: () => [] } }) as never, skills: createSkills(), listAddOns: async () => [], mode: 'live' }, 'repairs');
     const sent = estimateTokens(system) + toolTokens(tools);
     expect(sent).toBeLessThanOrEqual(ASSISTANT_INPUT_TOKEN_LIMIT.ollama - 2000 - CONVERSATION_FLOOR);
@@ -286,7 +286,7 @@ describe('the room a request has', () => {
     const tools = createDesignerTools({ root, version: APP_VERSION, designer: () => ({ store: { messages: () => [] } }) as never, skills: createSkills(), listAddOns: async () => [], mode: 'live' }, 'repairs');
     expect(toolTokens(tools)).toBeGreaterThan(3000);
     // Four turns of long words: more than fits beside the system prompt and the tools, less than beside the system prompt alone.
-    const long = (n: number): string => `Turn ${String(n)}: ${'the menu has a page for each dish with its price and a photo. '.repeat(25)}`;
+    const long = (n: number): string => `Turn ${String(n)}: ${'the menu has a page for each dish with its price and a photo. '.repeat(45)}`;
     const messages: RunMessage[] = Array.from({ length: 4 }, (_, n) => [say('user', long(n)), say('assistant', long(n))]).flat();
     const { system, messages: fitted } = await prompt(session(), messages, { tools });
     const used = estimateTokens(system) + toolTokens(tools) + estimateTokens(JSON.stringify(fitted));
@@ -294,6 +294,16 @@ describe('the room a request has', () => {
     // Without the tools it would have kept more: the trim is the tools' doing.
     const { messages: roomier } = await prompt(session(), messages);
     expect(JSON.stringify(roomier).length).toBeGreaterThan(JSON.stringify(fitted).length);
+  });
+
+  it('leaves room to talk on Ollama for a request that asks for screens and names an add-on, with every tool', async () => {
+    const prompt = createPrompt({ root, version: APP_VERSION, skills: createSkills(), providerOf: async () => 'ollama' });
+    const tools = createDesignerTools({ root, version: APP_VERSION, designer: () => ({ store: { messages: () => [] } }) as never, skills: createSkills(), listAddOns: async () => [], mode: 'live' }, 'repairs');
+    const asked = 'A shop with stock and invoices, and a customer page with the menu.';
+    const { system } = await prompt(session({ target: 'web' }), [say('user', asked)], { tools });
+    expect(system).toContain('===== adminium-add-ons/SKILL.md =====');
+    expect(system).toContain('===== adminium-surface/SKILL.md =====');
+    expect(ASSISTANT_INPUT_TOKEN_LIMIT.ollama - 2000 - estimateTokens(system) - toolTokens(tools)).toBeGreaterThanOrEqual(CONVERSATION_FLOOR);
   });
 
   it('counts a tool as a provider wraps it', () => {
