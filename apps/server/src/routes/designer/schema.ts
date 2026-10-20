@@ -32,7 +32,7 @@ export const designerSession = z.object({
 });
 
 /** A card as the page draws it. Its fields depend on its type. */
-export const designerCard = z.object({ id: z.string(), type: z.enum(['question', 'package', 'needs', 'pictures', 'add-on', 'rows', 'removal', 'spots', 'template-plan', 'access-change']) }).passthrough();
+export const designerCard = z.object({ id: z.string(), type: z.enum(['question', 'package', 'needs', 'pictures', 'add-on', 'rows', 'removal', 'spots', 'keep-spot', 'template-plan', 'access-change']) }).passthrough();
 
 /** An event as the page reads it. Its fields depend on its kind. */
 export const designerEvent = z.object({ seq: z.number().int(), turn: z.number().int(), at: z.number(), kind: z.string() }).passthrough();

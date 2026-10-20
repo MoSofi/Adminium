@@ -39,7 +39,7 @@ import { createJail, JailError, MAX_WRITE_BYTES } from './jail.js';
 import { APPLY_IDS_KEPT, emptyPictureRows, picturesState, prepareFills, targetOf, writeFills, type Fill, type FillResult } from './pictures-apply.js';
 import type { PictureDialog } from './picture-dialog.js';
 import { UNSPLASH_HOST } from './pictures.js';
-import { readSpots, SPOTS_FILE, spotsFileProblem } from './spots.js';
+import { readSpots, SPOTS_FILE, spotScreens, spotsFileProblem, type SpotScreen } from './spots.js';
 import { HAND_EDITS_MAX, noCardRefusal } from './write-guard.js';
 import { cleanSight, createSights, sightText } from './sight.js';
 import { createDesignerRunner, type Actor, type BusyKind, type DesignerLimits, type DesignerRunner, type PipelineResult, type TurnHandle } from './runner.js';
@@ -444,6 +444,15 @@ export function createDesigner(host: DesignerHost): Designer {
     events.emit(turn, { kind: 'check', ok: errors.length === 0, findings });
     if (errors.length > 0) return { ok: false, version: null };
 
+    // In a turn: a picture the person placed is never taken off its screen without their word.
+    if (opts.askRemovals !== false) {
+      const kept = await keptSpots(session, handle);
+      if (kept !== null) {
+        events.emit(turn, { kind: 'apply', ok: false, state: 'not-applied', stage: 'pictures', message: kept });
+        return { ok: false, version: null };
+      }
+    }
+
     // Told to stop (Stop, a cap, a shutdown): nothing more is built or applied.
     if (handle.signal.aborted) return { ok: false, version: null };
 
@@ -679,6 +688,8 @@ export function createDesigner(host: DesignerHost): Designer {
     // changed from the page still waits for are asked for, on one card.
     opening: async (session, handle) => {
       const key = session.appKey;
+      // Where the person's pictures are as the turn begins: a turn that takes one off is asked about it.
+      spotsAtStart.set(session.id, { turn: handle.turn, screens: spotScreens(host.root, key), answers: new Map() });
       if (hasOwnBuild(host.root, key)) return;
       const look = lookOf(key);
       if (look === null) return;
@@ -764,6 +775,36 @@ export function createDesigner(host: DesignerHost): Designer {
     } finally {
       hold.release();
     }
+  }
+
+  /** Which screens drew each spot as the session's turn began, and what the person said of a filled one a turn took off: by session. */
+  const spotsAtStart = new Map<string, { turn: number; screens: Map<string, SpotScreen[]>; answers: Map<string, boolean> }>();
+
+  /**
+   * A picture the person placed stays where they placed it: a filled spot that a turn took off every screen it was on,
+   * or moved to another, is not applied silently. The person is asked, once a turn for each; "Keep it there" stops the
+   * apply with what to put back. Null when nothing stands in the way.
+   */
+  async function keptSpots(session: DesignerSession, handle: TurnHandle): Promise<string | null> {
+    const start = spotsAtStart.get(session.id);
+    if (start === undefined || start.turn !== handle.turn) return null;
+    const now = spotScreens(host.root, session.appKey);
+    const lines: string[] = [];
+    for (const spot of readSpots(host.root, session.appKey)) {
+      const before = start.screens.get(spot.id) ?? [];
+      if (spot.file === null || before.length === 0) continue;
+      const after = now.get(spot.id) ?? [];
+      if (after.some((one) => before.some((was) => was.file === one.file))) continue;
+      const was = before[0] as SpotScreen;
+      let keep = start.answers.get(spot.id);
+      if (keep === undefined) {
+        const answer = await handle.ask({ type: 'keep-spot', spot: spot.id, label: spot.label, screen: was.screen });
+        keep = answer.type === 'keep-spot' && answer.accept;
+        start.answers.set(spot.id, keep);
+      }
+      if (keep) lines.push(`The person wants their picture "${spot.label}" kept on ${was.screen}: put <Picture spot="${spot.id}" /> back in ${was.file} where it was, then apply_app again.`);
+    }
+    return lines.length === 0 ? null : lines.join('\n');
   }
 
   /** Apply that is running or done, by session and the page's own id for it. */

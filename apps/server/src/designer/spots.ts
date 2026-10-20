@@ -29,7 +29,7 @@
  * exactly one of Unsplash's own.
  */
 import { createHash, randomBytes } from 'node:crypto';
-import { existsSync, lstatSync, mkdirSync, readFileSync, realpathSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, realpathSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join, sep } from 'node:path';
 
 import { appDir } from '../project/apps/read-app.js';
@@ -316,4 +316,45 @@ export function serverOwned(appKey: string, normal: string): string | null {
   if (inside === 'template-plan.json') return `${normal} is the plan the person approved, written by the server. Never write, edit or delete it.`;
   if (/(^|\/)src\/site\//.test(inside)) return `${normal} is the person's site template, as use_site wrote it: change it with use_site, never with a file tool.`;
   return null;
+}
+
+/** A screen that draws a spot: the file, as the app names it (`customer/src/App.tsx`), and what a person calls it. */
+export interface SpotScreen {
+  file: string;
+  screen: string;
+}
+
+const DRAWN = /<Picture\b[^>]*?\bspot\s*=\s*(?:"([a-z][a-z0-9-]{0,39})"|'([a-z][a-z0-9-]{0,39})'|\{\s*["']([a-z][a-z0-9-]{0,39})["']\s*\})/g;
+
+/** What a person calls a screen, from its file: the side's first screen is Home, any other its own name in words. */
+export function screenName(file: string): string {
+  const base = file.split('/').pop()?.replace(/\.[a-z]+$/i, '') ?? file;
+  if (/^(app|main|index|home)$/i.test(base)) return 'Home';
+  return base.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/[-_]+/g, ' ').replace(/\b(page|screen)\b/gi, '').trim() || base;
+}
+
+/** Which screens of the app's web sides draw each spot, by the spot's id. */
+export function spotScreens(root: string, key: string): Map<string, SpotScreen[]> {
+  const out = new Map<string, SpotScreen[]>();
+  for (const side of ['staff', 'customer'] as const) {
+    const src = join(appDir(root, key), side, 'src');
+    const walk = (dir: string, rel: string): void => {
+      if (!existsSync(dir)) return;
+      for (const entry of readdirSync(dir, { withFileTypes: true })) {
+        if (entry.name.startsWith('.') || entry.name === 'node_modules' || entry.isSymbolicLink()) continue;
+        if (entry.isDirectory()) walk(join(dir, entry.name), `${rel}${entry.name}/`);
+        else if (/\.(?:tsx|jsx)$/.test(entry.name) && statSync(join(dir, entry.name)).size <= 512 * 1024) {
+          const file = `${side}/src/${rel}${entry.name}`;
+          for (const match of readFileSync(join(dir, entry.name), 'utf8').matchAll(DRAWN)) {
+            const id = match[1] ?? match[2] ?? match[3] ?? '';
+            const list = out.get(id) ?? [];
+            if (!list.some((one) => one.file === file)) list.push({ file, screen: screenName(`${rel}${entry.name}`) });
+            out.set(id, list);
+          }
+        }
+      }
+    };
+    walk(src, '');
+  }
+  return out;
 }

@@ -525,3 +525,62 @@ describe('the picture spots, as a turn that applied ends', { timeout: 180_000 },
     expect((await turnEvents(app, 4)).find((event) => event.kind === 'pictures-note')).toMatchObject({ note: 'still-empty', count: 5 });
   });
 });
+
+describe('a picture the person placed', { timeout: 180_000 }, () => {
+  const HERO = `${APP}/customer/src/Hero.tsx`;
+  const drawn = "import { Picture } from '@adminiumjs/adminium/side';\n\nexport function Hero() {\n  return <Picture spot=\"hero\" className=\"hero-media\" />;\n}\n";
+  const gone = 'export function Hero() {\n  return <h1>Crispy Bites</h1>;\n}\n';
+
+  /** An app whose hero the person filled, on a screen that draws it. */
+  async function placed(): Promise<WithApp> {
+    const app = await withApp();
+    writeFileSync(join(app.root, HERO), drawn);
+    const opened = await app.state();
+    const [pick] = await app.pick('hero');
+    expect((await app.apply([{ spot: 'hero', version: versionOf(opened, 'hero'), from: pick }])).body).toMatchObject({ applied: true });
+    return app;
+  }
+  const eventsOf = async (app: WithApp) => (await app.call('GET', `/api/v1/designer/sessions/${app.id}/events-since?after=0`)).body['events'] as { kind: string; turn: number; outcome?: string; card?: { id: string; type: string; label?: string; screen?: string }; message?: string; stage?: string }[];
+  const turnOf = async (app: WithApp, text: string, steps: ScriptStep[]): Promise<number> => {
+    script = steps;
+    const started = await app.call('POST', `/api/v1/designer/sessions/${app.id}/turns`, { text });
+    expect(started.status, JSON.stringify(started.body)).toBe(202);
+    return started.body['turn'] as number;
+  };
+
+  it('is not taken off its screen by a turn without the person’s word: “Keep it there” stops the apply and says what to put back', async () => {
+    const app = await placed();
+    const turn = await turnOf(app, 'Make the hero a heading.', [() => ({ calls: [{ name: 'write_file', arguments: { path: HERO, content: gone } }] })]);
+    let card: { id: string; type: string; label?: string; screen?: string } | undefined;
+    await vi.waitFor(async () => {
+      card = (await eventsOf(app)).find((event) => event.kind === 'card' && event.turn === turn && event.card?.type === 'keep-spot')?.card;
+      expect(card).toBeDefined();
+    }, { timeout: 60_000, interval: 100 });
+    expect(card).toMatchObject({ type: 'keep-spot', spot: 'hero', label: 'Hero', screen: 'Hero' });
+    expect((await app.call('POST', `/api/v1/designer/sessions/${app.id}/answers`, { cardId: card?.id, value: { accept: true } })).status).toBe(200);
+    await vi.waitFor(async () => expect((await eventsOf(app)).find((event) => event.kind === 'turn-finished' && event.turn === turn)).toMatchObject({ outcome: 'not-applied' }), { timeout: 60_000, interval: 100 });
+    const refused = (await eventsOf(app)).filter((event) => event.kind === 'apply' && event.turn === turn).at(-1);
+    expect(refused).toMatchObject({ stage: 'pictures', message: expect.stringContaining('put <Picture spot="hero" /> back in customer/src/Hero.tsx') });
+    // The spot keeps its picture: nothing of the person's was undone.
+    expect((JSON.parse(app.disk('assets/pictures/spots.json')) as Record<string, { file: string | null }>)['hero']?.file).not.toBeNull();
+  });
+
+  it('lets it go when the person says so, and the turn applies', async () => {
+    const app = await placed();
+    const turn = await turnOf(app, 'Make the hero a heading.', [() => ({ calls: [{ name: 'write_file', arguments: { path: HERO, content: gone } }] })]);
+    let card: { id: string } | undefined;
+    await vi.waitFor(async () => {
+      card = (await eventsOf(app)).find((event) => event.kind === 'card' && event.turn === turn && event.card?.type === 'keep-spot')?.card;
+      expect(card).toBeDefined();
+    }, { timeout: 60_000, interval: 100 });
+    await app.call('POST', `/api/v1/designer/sessions/${app.id}/answers`, { cardId: card?.id, value: { accept: false } });
+    await vi.waitFor(async () => expect((await eventsOf(app)).find((event) => event.kind === 'turn-finished' && event.turn === turn)).toMatchObject({ outcome: 'done' }), { timeout: 60_000, interval: 100 });
+  });
+
+  it('asks nothing of a turn that leaves it where it is, or moves an empty spot', async () => {
+    const app = await placed();
+    const turn = await turnOf(app, 'Make the hero rounder.', [() => ({ calls: [{ name: 'write_file', arguments: { path: HERO, content: drawn.replace('hero-media', 'hero-media round') } }] })]);
+    await vi.waitFor(async () => expect((await eventsOf(app)).find((event) => event.kind === 'turn-finished' && event.turn === turn)).toMatchObject({ outcome: 'done' }), { timeout: 60_000, interval: 100 });
+    expect((await eventsOf(app)).some((event) => event.kind === 'card' && event.card?.type === 'keep-spot')).toBe(false);
+  });
+});

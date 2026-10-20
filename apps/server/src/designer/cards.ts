@@ -102,6 +102,14 @@ export type DesignerCard =
     }
   | {
       id: string;
+      /** A turn took a picture the person placed off the screen it was on: keep it there, or let it go. Every word is the server's. */
+      type: 'keep-spot';
+      spot: string;
+      label: string;
+      screen: string;
+    }
+  | {
+      id: string;
       type: 'removal';
       appKey: string;
       changes: { kind: 'table' | 'column' | 'narrow'; table: string; tableName: string; column?: string; rows: number; detail?: string }[];
@@ -120,6 +128,8 @@ export type CardAnswer =
   | { type: 'pictures'; accept: string[] }
   | { type: 'add-on'; accept: boolean }
   | { type: 'rows'; accept: boolean }
+  /** Yes: keep the picture on its screen. */
+  | { type: 'keep-spot'; accept: boolean }
   | { type: 'removal'; accept: boolean };
 
 /** A card's answer, checked against the card it is for; null when it does not fit. */
