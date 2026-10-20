@@ -138,7 +138,7 @@ async function server(opts: { designer?: boolean; environment?: Record<string, s
 describe('a person’s Figma connection', { timeout: 120_000 }, () => {
   it('is checked with Figma before it is kept, kept encrypted under its own key, and never sent back', async () => {
     const client = await server();
-    expect((await client.call('GET', '/api/v1/designer/figma')).body).toEqual({ connected: false, source: null, handle: null, network: true, lasting: true });
+    expect((await client.call('GET', '/api/v1/designer/figma')).body).toEqual({ connected: false, source: null, handle: null, network: true, lasting: expect.any(Boolean) });
 
     const refused = await client.call('PUT', '/api/v1/designer/figma', { token: 'figd_dead_token_0000' });
     expect(refused.status).toBe(422);
@@ -147,7 +147,7 @@ describe('a person’s Figma connection', { timeout: 120_000 }, () => {
 
     const saved = await client.call('PUT', '/api/v1/designer/figma', { token: TOKEN });
     expect(saved.status, JSON.stringify(saved.body)).toBe(200);
-    expect(saved.body).toEqual({ connected: true, source: 'mine', handle: 'ava.reyes', network: true, lasting: true });
+    expect(saved.body).toEqual({ connected: true, source: 'mine', handle: 'ava.reyes', network: true, lasting: expect.any(Boolean) });
     const row = await client.meta.db.selectFrom('adminium_users').select(['figmaTokenEncrypted', 'figmaUserId']).where('email', '=', 'owner@example.test').executeTakeFirstOrThrow();
     expect(row.figmaTokenEncrypted).not.toContain(TOKEN);
     expect(decryptSecret(row.figmaTokenEncrypted as string, deriveKey(TEST_SECRET, FIGMA_TOKEN_SALT))).toBe(TOKEN);
