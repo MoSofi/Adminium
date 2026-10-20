@@ -272,9 +272,22 @@ describe('only the site’s own files and inline pictures are kept', () => {
     expect(out.files).toEqual(['img/a.png', 'img/My Pic.jpg']);
   });
 
-  it('takes out a reference to a part of the page, a folder, or nothing', () => {
-    const out = clean('a{filter:url(#blur)}b{background:url(img/)}c{background:url()}d{background:url("")}', 'css/style.css', holdsEverything);
-    expect(strip(out.css)).toBe('a{filter:none}b{background:none}c{background:none}d{background:none}');
+  it('takes out a reference to a folder, or to nothing', () => {
+    const out = clean('b{background:url(img/)}c{background:url()}d{background:url("")}', 'css/style.css', holdsEverything);
+    expect(strip(out.css)).toBe('b{background:none}c{background:none}d{background:none}');
+  });
+
+  it('keeps a part of the page by its id (an SVG filter, clip path or mask): it loads nothing', () => {
+    const out = clean('a{filter:url(#blur)}b{clip-path:url("#round-1")}c{mask:url(#m)}', 'css/style.css', holdsEverything);
+    expect(strip(out.css)).toBe('a{filter:url("#blur")}b{clip-path:url("#round-1")}c{mask:url("#m")}');
+    expect(out.removed).toEqual([]);
+    expect(out.files).toEqual([]);
+  });
+
+  it('still takes out an id that is not one, and an imported stylesheet named by an id', () => {
+    const out = clean('a{filter:url("#bad id")}b{filter:url("#x\\"y")}@import url(#a);', 'css/style.css', holdsEverything);
+    expect(strip(out.css)).not.toContain('#bad');
+    expect(strip(out.css)).not.toContain('@import url("#a")');
   });
 });
 

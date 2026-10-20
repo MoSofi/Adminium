@@ -43,6 +43,7 @@ const HEADER =
   '/* Copied from the template by Adminium Designer, with four changes: comments taken out (a licence comment that opens with an exclamation mark is kept), addresses on other sites taken out, file extensions in lower case, and a url() to a file the template lacks set to none. */\n';
 
 /** The only inline addresses kept: pictures that cannot run anything. */
+const FRAGMENT = /^#[A-Za-z_][A-Za-z0-9_.:-]{0,100}$/;
 const DATA_PICTURE = /^data:image\/(png|jpeg|gif|webp)(;[^,]*)?,/i;
 const REMOTE = /^(https?|ftp|wss?):/i;
 const SCHEME = /^[a-z][a-z0-9+.-]*:/i;
@@ -158,6 +159,8 @@ type Use = 'url' | 'import' | 'font';
 function judgeAddress(address: string, use: Use, ledger: Ledger): string | null {
   const shown = address.replace(EDGE_SPACE, '');
   const plain = shown.replace(TAB_OR_NEWLINE, '');
+  // A part of the page itself (an SVG filter, clip path or mask by its id): it loads nothing, so it stays.
+  if (use === 'url' && FRAGMENT.test(plain)) return plain;
   if (/^data:/i.test(plain)) return DATA_PICTURE.test(plain) ? plain : ledger.drop(shown, 'not-allowed');
   const slashed = plain.replace(/\\/g, '/');
   if (slashed.startsWith('//') || REMOTE.test(slashed)) {
