@@ -35,7 +35,11 @@ export type FigmaRefusal =
   /** Figma's rate limit: `low` is a View or Collab seat's monthly reads; `high` asks to wait a little. */
   | { kind: 'limit'; type: 'low' | 'high'; retryAfterSeconds: number | null }
   /** Figma did not answer, or answered with an error of its own. */
-  | { kind: 'unreachable' };
+  | { kind: 'unreachable' }
+  /** The person has no Figma token here. */
+  | { kind: 'not-connected' }
+  /** The Designer's own reads stop for this Figma account until then (Figma said its seat's reads are used up). */
+  | { kind: 'paused'; until: number; dated: boolean };
 
 export class FigmaError extends Error {
   override readonly name = 'FigmaError';
@@ -68,6 +72,12 @@ export function figmaWords(refusal: FigmaRefusal, now = Date.now()): string {
         : `Figma's limit for your seat is used up for now. You can read again on ${new Date(now + refusal.retryAfterSeconds * 1000).toISOString().slice(0, 10)}.`;
     case 'unreachable':
       return 'Figma did not answer. Try again in a moment.';
+    case 'not-connected':
+      return 'Connect Figma first: in the Designer, Attach, then From Figma….';
+    case 'paused':
+      return refusal.dated
+        ? `Figma reads are paused for you until ${new Date(refusal.until).toISOString().slice(0, 10)}. The Designer works from the design document you imported.`
+        : 'Figma reads are paused for you: Figma did not say until when. The Designer works from the design document you imported. Try an import again later.';
   }
 }
 

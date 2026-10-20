@@ -8,6 +8,7 @@
 import { PNG } from 'pngjs';
 
 import type { FigmaNodeAnswer } from '../src/designer/figma/client.js';
+import { findNode } from '../src/designer/figma/distil.js';
 import type { PinnedTarget, RawResponse, SafeFetchOptions } from '../src/net/safe-fetch.js';
 
 export interface FakeFile {
@@ -105,8 +106,17 @@ async function answer(fake: FakeFigma, url: URL, headers: Record<string, string>
   if (file === undefined || (allowed !== undefined && !allowed.has(token))) return json(403, { status: 403, err: 'Forbidden' });
   if (kind === 'meta') return json(200, { file: { name: file.name, version: file.version, last_touched_at: '2026-10-20T10:00:00Z', editorType: 'figma' } });
   const ids = (url.searchParams.get('ids') ?? '').split(',').filter((id) => id !== '');
-  if (kind === 'nodes') return json(200, { name: file.name, version: file.version, lastModified: '2026-10-20T10:00:00Z', role: 'viewer', editorType: 'figma', nodes: Object.fromEntries(ids.map((id) => [id, file.nodes[id] ?? null])) });
-  return json(200, { err: null, images: Object.fromEntries(ids.map((id) => [id, failing === 'null-image' || file.nodes[id] === undefined ? null : `https://figma-storage.example/render/${encodeURIComponent(id)}.png?sig=abc`])) });
+  // A node inside a frame is answered as Figma does: its own subtree, with the frame's maps.
+  const nodeOf = (id: string): FigmaNodeAnswer | null => {
+    for (const answer of Object.values(file.nodes)) {
+      const found = findNode(answer.document, id);
+      if (found !== null) return { ...answer, document: found };
+    }
+    return null;
+  };
+  if (kind === 'nodes') return json(200, { name: file.name, version: file.version, lastModified: '2026-10-20T10:00:00Z', role: 'viewer', editorType: 'figma', nodes: Object.fromEntries(ids.map((id) => [id, nodeOf(id)])) });
+  const inFile = (id: string): boolean => Object.values(file.nodes).some((answer) => findNode(answer.document, id) !== null);
+  return json(200, { err: null, images: Object.fromEntries(ids.map((id) => [id, failing === 'null-image' || !inFile(id) ? null : `https://figma-storage.example/render/${encodeURIComponent(id)}.png?sig=abc`])) });
 }
 
 /** A small frame: a page with an auto-layout header, a text, a picture and a button instance. */
