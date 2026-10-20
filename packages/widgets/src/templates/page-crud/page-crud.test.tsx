@@ -5,6 +5,7 @@ import { userEvent } from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
 import { PageCrud, SEARCH_DEBOUNCE_MS } from './PageCrud.js';
+import { PageSettingsChangedError } from './crud-api.js';
 import { RecordForm } from './RecordForm.js';
 import type {
   CrudApi,
@@ -116,6 +117,32 @@ describe('PageCrud template', () => {
       expect(sorted?.[0].order).toEqual([{ column: 'mrr', dir: 'asc' }]);
       expect(sorted?.[0].cursor).toBe('');
     });
+  });
+
+  it('a save refused because the page changed under the form keeps the form open, its values in it, and says so at its top', async () => {
+    const user = userEvent.setup();
+    const api = makeApi(rows);
+    let refused = false;
+    api.create = vi.fn(async (values: CrudRow) => {
+      if (!refused) {
+        refused = true;
+        throw new PageSettingsChangedError('changed');
+      }
+      return { data: { id: 99, ...values }, undoToken: 'undo_create' };
+    });
+    renderPage(api);
+    await screen.findByText('Initech');
+    await user.click(screen.getByRole('button', { name: /New row/ }));
+    const dialog = await screen.findByRole('dialog');
+    await user.type(within(dialog).getByRole('textbox', { name: /Customer/ }), 'Acme Holdings');
+    await user.type(within(dialog).getByRole('textbox', { name: /Email/ }), 'ops@acme.dev');
+    await user.click(within(dialog).getByRole('radio', { name: /active/ }));
+    await user.type(within(dialog).getByRole('spinbutton', { name: /MRR/ }), '1200');
+    await user.click(within(dialog).getByRole('button', { name: 'Create customer' }));
+    expect(await within(dialog).findByRole('alert')).toHaveProperty('textContent', "This page's settings changed. Your picture is kept; save again.");
+    expect((within(dialog).getByRole('textbox', { name: /Customer/ }) as HTMLInputElement).value).toBe('Acme Holdings');
+    await user.click(within(dialog).getByRole('button', { name: 'Create customer' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
   });
 
   it('create flow: the designed dialog, the generated form, the undo toast', async () => {

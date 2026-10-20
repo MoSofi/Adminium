@@ -1264,7 +1264,7 @@ export default {
       "column": {
         "adoptHint": "This table already has that column, so nothing is created — it is used as it is.",
         "bound": "Files are stored in this table’s {column} column.",
-        "boundHint": "Turning attachments off later unbinds this page. The column and the files in it are left alone.",
+        "boundHint": "Turning this off later unbinds this page. The column and the files in it are left alone.",
         "confirm": "Run it",
         "create": "Create the column",
         "createHint": "Adminium adds one text column to this table. You will see the exact statement before anything runs.",
@@ -1282,7 +1282,7 @@ export default {
       "destinationHint": "Leave this on the default unless this table’s files belong somewhere else.",
       "destinationIsDefault": "{name} (the default)",
       "destinationLocal": "This server’s disk",
-      "enable": "Allow attachments on this table’s records",
+      "enable": "Let each record keep a list of files",
       "enableHint": "Files are linked on Adminium’s side, so this table needs no new column — it works on a read-only connection, and on a table you would rather not alter.",
       "enableHintColumn": "Files are stored in one column on this table, so they appear in the New and Edit dialogs as well as on each record.",
       "enableHintSidecar": "Files are linked on Adminium’s side instead. They appear on each record’s page, not in the New dialog.",
@@ -1299,7 +1299,8 @@ export default {
       "type": {
         "office": "Office documents",
         "text": "Plain text"
-      }
+      },
+      "pictureHint": "For the item’s own picture, set a column to Picture under Columns."
     },
     "columns": {
       "addFromLinked": "From linked tables",
@@ -1312,8 +1313,8 @@ export default {
       "addSearch": "Search columns…",
       "addTitle": "Add a column",
       "addVia": "via {column}",
-      "avatar": "Avatar",
-      "avatarToggle": "Show a monogram beside {name}",
+      "avatar": "Initials",
+      "avatarToggle": "Show initials beside {name}",
       "countBadge": "Count",
       "dragHandle": "Reorder {name}",
       "empty": "No columns yet — add them below.",
@@ -1364,7 +1365,8 @@ export default {
           "webm": "WebM",
           "webp": "WebP",
           "zip": "ZIP"
-        }
+        },
+        "acceptPictures": "Pictures only. Untick the kinds this column should refuse."
       },
       "fold": {
         "avg": "Average",
@@ -1394,7 +1396,25 @@ export default {
       "remove": "Remove {name}",
       "schemaUnavailable": "Database columns could not be listed, so columns cannot be added back here.",
       "shown": "Shown",
-      "toggle": "Show {name} in the table"
+      "toggle": "Show {name} in the table",
+      "avatarPicture": {
+        "name": "Picture beside the name",
+        "it": "Picture beside it",
+        "toggle": "Show the row's picture beside {column}, or its initials",
+        "none": "No column holds a picture yet, so initials show.",
+        "from": "Picture from"
+      },
+      "holds": {
+        "label": "Holds",
+        "name": "What {name} holds",
+        "text": "Text",
+        "picture": "Picture",
+        "file": "File",
+        "app": "The {app} app sets this column: it holds {kind, select, picture {pictures} other {files}} up to {size}. It cannot be changed here.",
+        "appUnnamed": "An app sets this column: it holds {kind, select, picture {pictures} other {files}} up to {size}. It cannot be changed here.",
+        "toText": "Values already stored stay in the column. The form shows them as text.",
+        "hint": "This column looks like it holds links to pictures. Set it to Picture to upload or choose pictures here. Links already in it stay."
+      }
     },
     "create": {
       "failed": "The page could not be created",
@@ -1446,7 +1466,7 @@ export default {
     },
     "editor": {
       "appearance": "Appearance",
-      "attachments": "Attachments",
+      "attachments": "Files on each record",
       "columns": "Columns",
       "contentInvalid": "This page’s configuration is not readable",
       "contentInvalidBody": "It was written by a newer version, or it is malformed. Regenerate the page or delete it.",
@@ -2707,7 +2727,7 @@ export default {
       "export": "Export artifacts",
       "import": "Uploaded CSVs and their error reports",
       "schema": "Imported schema files",
-      "upload": "Files attached to records"
+      "upload": "Files kept with records"
     },
     "list": {
       "subtitle": "New files go to the default destination. Existing files stay where they are until you move them.",

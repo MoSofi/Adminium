@@ -110,6 +110,13 @@ export interface WriteContext {
    * the customer, and the row named. Never set from anything the writer sent.
    */
   adjust?: { proved?: { table: string; column: string; link: unknown } | undefined; locale?: string | undefined } | undefined;
+  /**
+   * The files this very write made for its rows: an app's sample pictures,
+   * added from its bundle in the same pass. An import may name them in a
+   * column that holds files, and no other file. Never set from anything a
+   * writer sent.
+   */
+  minted?: ReadonlySet<string> | undefined;
 }
 
 /** The table a write goes to, and the connection it goes through. */

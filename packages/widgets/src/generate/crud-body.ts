@@ -26,6 +26,7 @@
  */
 
 import { fkDisplayAliasOf, type GridColumnSpecInput } from '../page-config/grid-column-spec.js';
+import { PICTURE_KINDS } from '../page-config/picture-kinds.js';
 import {
   humanize,
   type CandidateColumn,
@@ -333,6 +334,11 @@ export function buildColumnDef(
    *
    * `ref: 'url'` is D31's default and the only shape seeded — the other two are
    * a per-column choice an operator makes in the ColumnManager.
+   *
+   * An `image-url` column is generated as a PICTURE column: its block takes
+   * PNG, JPEG, WebP and GIF, so the form gives it the picture field. A page
+   * stored before keeps its block as it was, and reads as File until somebody
+   * chooses Picture.
    */
   const textual = !geo && (column.logicalType === 'text' || column.logicalType === 'varchar');
   // A `text[]` is a list of strings: chips in the form, never one file.
@@ -342,7 +348,7 @@ export function buildColumnDef(
     textual &&
     column.isArray !== true
   ) {
-    def.file = { ref: 'url', ...(def.semantic === 'image-url' ? { inline: true } : {}) };
+    def.file = { ref: 'url', ...(def.semantic === 'image-url' ? { inline: true, accept: [...PICTURE_KINDS] } : {}) };
   }
   // Form-generation facts (RecordForm reads these off the same spec).
   if (column.isPrimaryKey ?? false) def.primaryKey = true;

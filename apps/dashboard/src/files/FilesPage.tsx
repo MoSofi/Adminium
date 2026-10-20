@@ -74,7 +74,7 @@
  * byte figure is ever followed by " of ".
  */
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useCallback, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useId, useMemo, useState, type ReactNode } from 'react';
 import {
   Alert,
   Badge,
@@ -98,6 +98,7 @@ import {
   FileStack,
   HardDrive,
   LayoutGrid,
+  LibraryBig,
   List,
   RotateCcw,
   Table2,
@@ -190,7 +191,9 @@ export function FilesPage(): ReactNode {
   const localeTag = tagForLocale((bootstrap?.prefs.locale ?? 'en_US') as LocaleId);
   const rows = useMemo(() => files.data?.pages.flatMap((page) => page.data) ?? [], [files.data]);
   const tables = useMemo(() => tablePresets(rows), [rows]);
-  const destinations = useMemo(() => usage.data ?? [], [usage.data]);
+  const destinations = useMemo(() => usage.data?.entries ?? [], [usage.data]);
+  const unattachedHours = usage.data?.unattachedHours ?? 24;
+  const unusedHelp = t('files:preset.unattachedHelp', 'Uploads no record took. They go to the trash after {hours} hours.', { hours: unattachedHours });
   const destinationNames = useMemo(
     () => new Map(destinations.map((entry) => [entry.destinationId, entry.name])),
     [destinations],
@@ -293,7 +296,7 @@ export function FilesPage(): ReactNode {
         title={t('files:title', 'Files')}
         subtitle={t(
           'files:subtitle',
-          'Everything uploaded through this workspace, and where its bytes are stored.',
+          'Every file in this workspace: the ones on records, and the library. And where each one is kept.',
         )}
       />
 
@@ -374,12 +377,18 @@ export function FilesPage(): ReactNode {
             tables={tables}
             destinations={destinations}
             showCounts={exactCounts}
+            unusedHelp={unusedHelp}
             onSelect={select}
           />
           <UsageStrip entries={destinations} />
         </div>
 
         <div className="flex min-w-0 flex-1 flex-col gap-4">
+            {filters.state === 'unattached' ? (
+              <p className="m-0 text-body-sm text-fg-muted" data-testid="files-unused-help">
+                {unusedHelp}
+              </p>
+            ) : null}
             {filters.state === 'trash' ? (
               <div className="px-4 pt-4">
                 <Alert
@@ -422,7 +431,9 @@ export function FilesPage(): ReactNode {
                 title={
                   searching || narrowed
                     ? t('files:empty.filtered.title', 'Nothing here')
-                    : t('files:empty.title', 'No files yet')
+                    : filters.state === 'library'
+                      ? t('files:empty.library', 'Nothing uploaded here yet.')
+                      : t('files:empty.title', 'No files yet')
                 }
                 body={
                   searching || narrowed
@@ -430,11 +441,22 @@ export function FilesPage(): ReactNode {
                         'files:empty.filtered.body',
                         'Clear the search, or pick another shortcut from the rail.',
                       )
-                    : t(
-                        'files:empty.body',
-                        'Files land here when someone attaches one to a record or fills a file field.',
-                      )
+                    : filters.state === 'library'
+                      ? undefined
+                      : t(
+                          'files:empty.body',
+                          'Files land here when someone adds one to a record or fills a file field.',
+                        )
                 }
+                {...(filters.state === 'library' && !(searching || narrowed) && (connections.data ?? []).length > 0
+                  ? {
+                      actions: (
+                        <Button size="sm" iconLeft={<Upload aria-hidden className="size-4" />} onClick={() => setUploading(true)}>
+                          {t('files:upload.open', 'Upload')}
+                        </Button>
+                      ),
+                    }
+                  : {})}
                 data-testid="files-empty"
               />
             ) : (
@@ -583,6 +605,8 @@ interface PresetRailProps {
   destinations: readonly StorageUsageEntry[];
   /** Are the derived per-table counts exact right now? See `exactCounts`. */
   showCounts: boolean;
+  /** What "Not used yet" means, with the hours this workspace keeps such an upload. */
+  unusedHelp: string;
   onSelect: (next: Omit<FilesFilters, 'q'>) => void;
 }
 
@@ -594,7 +618,7 @@ interface PresetRailProps {
  * never says the word: a hierarchy over Adminium's own store is refused, and
  * calling a saved query a folder is how a hierarchy gets asked for next.
  */
-function PresetRail({ filters, connections, tables, destinations, showCounts, onSelect }: PresetRailProps): ReactNode {
+function PresetRail({ filters, connections, tables, destinations, showCounts, unusedHelp, onSelect }: PresetRailProps): ReactNode {
   const base = { connectionId: null, table: null, destinationId: null, since: null } as const;
   return (
     <nav
@@ -612,6 +636,15 @@ function PresetRail({ filters, connections, tables, destinations, showCounts, on
           onSelect={onSelect}
         />
         <PresetItem
+          id="library"
+          icon={<LibraryBig aria-hidden className="size-4" />}
+          label={t('files:preset.library', 'Uploaded here')}
+          // Uploads made on this page that no record took: what a record's picture can be chosen from.
+          target={{ ...base, state: 'library' }}
+          filters={filters}
+          onSelect={onSelect}
+        />
+        <PresetItem
           id="recent"
           icon={<Clock aria-hidden className="size-4" />}
           label={t('files:preset.recent', 'Recent')}
@@ -624,7 +657,8 @@ function PresetRail({ filters, connections, tables, destinations, showCounts, on
         <PresetItem
           id="unattached"
           icon={<Unlink aria-hidden className="size-4" />}
-          label={t('files:preset.unattached', 'Not attached')}
+          label={t('files:preset.unattached', 'Not used yet')}
+          help={unusedHelp}
           target={{ ...base, state: 'unattached' }}
           filters={filters}
           onSelect={onSelect}
@@ -731,17 +765,27 @@ interface PresetItemProps {
   label: string;
   /** Rows SEEN so far, not a total — see `tablePresets`. Omitted where unknown. */
   count?: number | undefined;
+  /** What the shortcut shows, said to whoever hovers or focuses it. */
+  help?: string | undefined;
   target: Omit<FilesFilters, 'q'>;
   filters: FilesFilters;
   onSelect: (next: Omit<FilesFilters, 'q'>) => void;
 }
 
-function PresetItem({ id, icon, label, count, target, filters, onSelect }: PresetItemProps): ReactNode {
+function PresetItem({ id, icon, label, count, help, target, filters, onSelect }: PresetItemProps): ReactNode {
   const active = sameFilters(filters, { ...target, q: filters.q });
+  const helpId = useId();
   return (
     <li>
+      {help === undefined ? null : (
+        <span id={helpId} className="sr-only">
+          {help}
+        </span>
+      )}
       <button
         type="button"
+        title={help}
+        {...(help === undefined ? {} : { 'aria-describedby': helpId })}
         aria-current={active ? 'true' : undefined}
         data-testid={`files-preset-${id}`}
         onClick={() => onSelect(target)}
@@ -786,7 +830,7 @@ function FilesTable(props: FilesTableProps): ReactNode {
               {t('files:column.size', 'Size')}
             </th>
             <th scope="col" className="px-4 py-2 text-start font-bold">
-              {t('files:column.attachedTo', 'Attached to')}
+              {t('files:column.attachedTo', 'On record')}
             </th>
             <th scope="col" className="px-4 py-2 text-start font-bold">
               {t('files:column.destination', 'Destination')}
@@ -823,13 +867,14 @@ function FilesTable(props: FilesTableProps): ReactNode {
               <td className="whitespace-nowrap px-4 py-2.5 text-fg-muted">{formatBytes(file.sizeBytes)}</td>
               <td className="min-w-36 px-4 py-2.5">
                 {file.entity === null ? (
-                  // A library file belongs to a CONNECTION and to no row
-                  // . Saying only "Not attached" would leave the
-                  // reader with no idea which source it was uploaded for.
-                  <div className="flex min-w-0 flex-col">
-                    <span className="text-fg-subtle">
-                      {t('files:row.noRecord', 'Not attached to a record')}
-                    </span>
+                  // A file no record holds: an upload made here (claimed, the page's own), or one no record took yet.
+                  // Both belong to a CONNECTION, which is said under them.
+                  <div className="flex min-w-0 flex-col items-start gap-0.5">
+                    {file.attachedAt !== null ? (
+                      <Badge tone="neutral" data-testid="files-row-uploaded-here">{t('files:row.uploadedHere', 'Uploaded here')}</Badge>
+                    ) : (
+                      <span className="text-fg-subtle">{t('files:row.unattached', 'Not used yet')}</span>
+                    )}
                     {file.connectionId === null ? null : (
                       <MonoText className="truncate text-caption text-fg-subtle">
                         {props.connectionNames.get(file.connectionId) ?? file.connectionId}
@@ -951,10 +996,12 @@ function FileDrawer(props: {
               value: destinationLabel(file.destinationId, props.destinationNames),
             },
             {
-              label: t('files:drawer.attachedTo', 'Attached to'),
+              label: t('files:drawer.attachedTo', 'On record'),
               value:
                 file.entity === null
-                  ? t('files:row.unattached', 'Not attached')
+                  ? file.attachedAt !== null
+                    ? t('files:row.uploadedHere', 'Uploaded here')
+                    : t('files:row.unattached', 'Not used yet')
                   : `${file.entity.table} · ${file.entity.recordId}`,
               mono: file.entity !== null,
             },
@@ -968,7 +1015,7 @@ function FileDrawer(props: {
               value: formatStamp(file.createdAt, props.localeTag) ?? none,
             },
             {
-              label: t('files:drawer.attachedAt', 'Attached'),
+              label: t('files:drawer.attachedAt', 'In use since'),
               value: formatStamp(file.attachedAt, props.localeTag) ?? none,
             },
             ...(file.deletedAt === null

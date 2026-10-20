@@ -457,16 +457,18 @@ export function filesRepo(meta: MetaDb) {
      * The Files page and the record panel's one query (37 Appendix C).
      *
      * `state` is the closed vocabulary the UI's preset rail offers rather than
-     * three independent booleans: `live`, `trash` and `unattached` are mutually
+     * independent booleans: `live`, `trash` and `unattached` are mutually
      * exclusive views of the same rows, and expressing them as flags would let
      * a caller ask for "trashed AND unattached", which is a question with two
-     * defensible answers and therefore no answer.
+     * defensible answers and therefore no answer. `library` is a part of
+     * `live`: the uploads the workspace claimed (the Files page's own), which
+     * no record holds.
      *
      * Keyset paging on `id`, which is a ULID and therefore already creation
      * ordered — the same convention every other list in this store uses.
      */
     async search(input: {
-      state?: 'live' | 'trash' | 'unattached';
+      state?: 'live' | 'trash' | 'unattached' | 'library';
       kinds?: readonly FileKind[];
       q?: string;
       kind?: FileKind;
@@ -475,6 +477,8 @@ export function filesRepo(meta: MetaDb) {
       entityId?: string;
       destinationId?: string | null;
       mime?: string;
+      /** Any of these types (`image/png`, …): a column's or a picker's kinds. Empty matches nothing. */
+      mimes?: readonly string[];
       uploadedBy?: string | undefined;
       /** Created at or after this epoch-ms instant — the Recent preset. */
       since?: number;
@@ -490,6 +494,9 @@ export function filesRepo(meta: MetaDb) {
           break;
         case 'unattached':
           q = q.where('deletedAt', 'is', null).where('attachedAt', 'is', null);
+          break;
+        case 'library':
+          q = q.where('deletedAt', 'is', null).where('attachedAt', 'is not', null).where('entityTable', 'is', null);
           break;
         default:
           q = q.where('deletedAt', 'is', null);
@@ -518,6 +525,10 @@ export function filesRepo(meta: MetaDb) {
             : q.where('destinationId', '=', input.destinationId);
       }
       if (input.mime !== undefined) q = q.where('mime', '=', input.mime);
+      if (input.mimes !== undefined) {
+        if (input.mimes.length === 0) return { rows: [], nextCursor: null };
+        q = q.where('mime', 'in', [...input.mimes]);
+      }
       if (input.uploadedBy !== undefined) q = q.where('uploadedBy', '=', input.uploadedBy);
       if (input.since !== undefined) q = q.where('createdAt', '>=', input.since);
       if (input.cursor !== undefined && input.cursor !== '') q = q.where('id', '<', input.cursor);

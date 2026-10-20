@@ -16,7 +16,7 @@ export default {
     "trashFailed": "Could not move this file to the trash"
   },
   "title": "Files",
-  "subtitle": "Everything uploaded through this workspace, and where its bytes are stored.",
+  "subtitle": "Every file in this workspace: the ones on records, and the library. And where each one is kept.",
   "search": "Search by file name",
   "trash": {
     "notice": {
@@ -33,7 +33,8 @@ export default {
       "body": "Clear the search, or pick another shortcut from the rail."
     },
     "title": "No files yet",
-    "body": "Files land here when someone attaches one to a record or fills a file field."
+    "body": "Files land here when someone adds one to a record or fills a file field.",
+    "library": "Nothing uploaded here yet."
   },
   "loadMore": "Load more files",
   "usage": {
@@ -51,22 +52,25 @@ export default {
   },
   "preset": {
     "all": "All files",
-    "unattached": "Not attached",
+    "unattached": "Not used yet",
     "trash": "Trash",
-    "recent": "Recent"
+    "recent": "Recent",
+    "unattachedHelp": "Uploads no record took. They go to the trash after {hours} hours.",
+    "library": "Uploaded here"
   },
   "column": {
     "name": "File",
     "size": "Size",
-    "attachedTo": "Attached to",
+    "attachedTo": "On record",
     "destination": "Destination",
     "added": "Added",
     "actions": "Actions"
   },
   "row": {
-    "unattached": "Not attached",
+    "unattached": "Not used yet",
     "localDestination": "This server's disk",
-    "noRecord": "Not attached to a record"
+    "noRecord": "Not on a record",
+    "uploadedHere": "Uploaded here"
   },
   "action": {
     "restore": "Restore",
@@ -78,10 +82,10 @@ export default {
     "none": "None",
     "subtitle": "{size} · {type}",
     "destination": "Destination",
-    "attachedTo": "Attached to",
+    "attachedTo": "On record",
     "uploadedBy": "Uploaded by",
     "added": "Added",
-    "attachedAt": "Attached",
+    "attachedAt": "In use since",
     "trashedAt": "Moved to trash",
     "id": "File id",
     "checksum": "Checksum",
@@ -107,7 +111,7 @@ export default {
     "cancelOne": "Cancel {name}",
     "removeOne": "Remove {name}",
     "complete": "Upload complete",
-    "completeBody": "These files are now in this workspace and can be attached to a record later.",
+    "completeBody": "These files are in the library now. Add one to a record with Choose existing… in its field. The record gets its own copy.",
     "send": "{count, plural, one {Upload # file} other {Upload # files}}",
     "done": "Done",
     "failed": "Failed",

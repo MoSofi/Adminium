@@ -16,6 +16,7 @@ import type { GridColumnSpec } from '../../../families/tables/column-spec.js';
 import type { ResolvedFile } from '../../../families/tables/cells.js';
 import type { CrudApi } from '../crud-api.js';
 import type { FileFieldUpload } from '../FileField.js';
+import type { PictureChooser } from '../../../pictures/PictureField.js';
 
 /** One answer a choice control offers. */
 export interface ControlOption {
@@ -62,6 +63,8 @@ export interface ControlProps extends SlotInjected {
   upload?: FileFieldUpload | undefined;
   files?: ReadonlyMap<string, ResolvedFile | null> | undefined;
   maxFileBytes?: number | undefined;
+  /** Choosing a picture the workspace already has; absent ⇒ a picture field offers no "Choose existing…". */
+  choose?: PictureChooser | undefined;
   /** The reader's locale — a calendar's month names and week start. */
   locale?: string | undefined;
   /**

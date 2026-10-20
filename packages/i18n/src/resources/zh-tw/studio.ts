@@ -1264,7 +1264,7 @@ export default {
       "column": {
         "adoptHint": "此資料表已有該欄位，因此不會建立——將直接使用它。",
         "bound": "檔案存放在此資料表的 {column} 欄位中。",
-        "boundHint": "日後關閉附件只會解除此頁面的繫結。該欄位及其中的檔案維持不變。",
+        "boundHint": "之後關閉此項會解除此頁面的綁定。該欄及其中的檔案保持不變。",
         "confirm": "執行",
         "create": "建立欄位",
         "createHint": "Adminium 會為此資料表新增一個文字欄位。執行前你會看到確切的敘述句。",
@@ -1282,7 +1282,7 @@ export default {
       "destinationHint": "除非此資料表的檔案該放在別處，否則保持預設即可。",
       "destinationIsDefault": "{name}（預設）",
       "destinationLocal": "本伺服器的磁碟",
-      "enable": "允許在此資料表的記錄上附加檔案",
+      "enable": "讓每筆記錄保存一組檔案",
       "enableHint": "檔案在 Adminium 這一側建立關聯，因此此資料表不需要新增欄位——唯讀連線可用，你不想更動的資料表也可用。",
       "enableHintColumn": "檔案存放在此資料表的一個欄位中，因此會同時出現在「新增」和「編輯」對話方塊以及每筆記錄上。",
       "enableHintSidecar": "檔案改為在 Adminium 這一側關聯。它們出現在每筆記錄的頁面上，而不是「新增」對話方塊中。",
@@ -1299,7 +1299,8 @@ export default {
       "type": {
         "office": "Office 文件",
         "text": "純文字"
-      }
+      },
+      "pictureHint": "如需項目自己的圖片，請在「欄位」中將某一欄設為「圖片」。"
     },
     "columns": {
       "addFromLinked": "來自連結資料表",
@@ -1312,8 +1313,8 @@ export default {
       "addSearch": "搜尋欄位…",
       "addTitle": "新增欄位",
       "addVia": "透過 {column}",
-      "avatar": "頭像",
-      "avatarToggle": "在 {name} 旁顯示字母圖示",
+      "avatar": "首字母",
+      "avatarToggle": "在 {name} 旁顯示首字母",
       "countBadge": "計數",
       "dragHandle": "調整 {name} 的順序",
       "empty": "尚無欄位——請在下方新增。",
@@ -1364,7 +1365,8 @@ export default {
           "webm": "WebM",
           "webp": "WebP",
           "zip": "ZIP"
-        }
+        },
+        "acceptPictures": "僅限圖片。取消勾選此欄應拒絕的類型。"
       },
       "fold": {
         "avg": "平均值",
@@ -1394,7 +1396,25 @@ export default {
       "remove": "移除 {name}",
       "schemaUnavailable": "無法列出資料庫的欄位，因此這裡無法重新加入欄位。",
       "shown": "顯示",
-      "toggle": "在表格中顯示 {name}"
+      "toggle": "在表格中顯示 {name}",
+      "avatarPicture": {
+        "name": "名稱旁的圖片",
+        "it": "旁邊的圖片",
+        "toggle": "在 {column} 旁顯示該列的圖片，或其首字母",
+        "none": "還沒有欄位存放圖片，因此顯示首字母。",
+        "from": "圖片來自"
+      },
+      "holds": {
+        "label": "存放",
+        "name": "{name} 存放的內容",
+        "text": "文字",
+        "picture": "圖片",
+        "file": "檔案",
+        "app": "此欄由 {app} 應用程式設定：存放不超過 {size} 的{kind, select, picture {圖片} other {檔案}}。無法在此變更。",
+        "appUnnamed": "此欄由一個應用程式設定：存放不超過 {size} 的{kind, select, picture {圖片} other {檔案}}。無法在此變更。",
+        "toText": "已儲存的值會保留在欄中，表單會以文字顯示它們。",
+        "hint": "此欄似乎存放圖片連結。將其設為「圖片」即可在此上傳或選擇圖片。已有的連結會保留。"
+      }
     },
     "create": {
       "failed": "無法建立頁面",
@@ -1446,7 +1466,7 @@ export default {
     },
     "editor": {
       "appearance": "外觀",
-      "attachments": "附件",
+      "attachments": "每筆記錄的檔案",
       "columns": "欄位",
       "contentInvalid": "無法讀取此頁面的設定",
       "contentInvalidBody": "設定由較新的版本寫入，或已損毀。請重新產生或刪除此頁面。",
@@ -2707,7 +2727,7 @@ export default {
       "export": "資料匯出產生的檔案",
       "import": "上傳的 CSV 檔案及其錯誤報告",
       "schema": "匯入的結構描述檔案",
-      "upload": "附加到記錄的檔案"
+      "upload": "隨記錄保存的檔案"
     },
     "list": {
       "subtitle": "新檔案會存入預設目的地。既有檔案在你搬移之前都留在原處。",

@@ -25,7 +25,7 @@
  * server code is written, only after the person said yes in that turn. A bad
  * input is an answer the model can read and fix, never a crash of the turn.
  */
-import { ADD_ON_INSTALL_FLOOR, compareSemver, isAddOnManifest, namedAddOns, validateManifest, type AddOnManifest } from '@adminium/manifest';
+import { ADD_ON_INSTALL_FLOOR, compareSemver, isAddOnManifest, namedAddOns, PICTURE_FILE_KINDS, validateManifest, type AddOnManifest } from '@adminium/manifest';
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join, relative, sep } from 'node:path';
@@ -267,7 +267,7 @@ export function designSteps(appKey: string, side: AppSide, opts: { tailwind: boo
 1. ${first}${fromBoth} The brief says: who the page is for, the feeling in three words, the style and what you change in it, the sections of the first page in order, what the pictures show, the logo's idea.
 2. ${
     side === 'customer'
-      ? `${opts.ownPictures === true ? 'Pictures: the person brings their own, so do not call find_pictures. Where a picture goes, draw an empty frame of the picture\'s shape in the theme\'s surface colour. For what is on offer (dishes, rooms, products, homes), give that table a picture column ({ "ref": "picture", "type": "text", "semantic": "image", "nullable": true }) so they can add each one in the dashboard, and show the empty frame for a row that has none.' : 'Pictures: call find_pictures ONCE for every picture the brief names. For the page (the first screen, a strip of the place): "for": "page". For what is on offer, when people look at it before they choose (dishes, rooms, products): give that table a picture column ({ "ref": "picture", "type": "text", "semantic": "image", "nullable": true }) and ask "for": "rows" with the table and the column. Without find_pictures a page has only tiles.'}\n3. Write ${app}/manifest/access.json with what customers may read and add (a table with a picture column: list the column under "pictures", with "id" in "select"). `
+      ? `${opts.ownPictures === true ? 'Pictures: the person brings their own, so do not call find_pictures. Where a picture goes, draw an empty frame of the picture\'s shape in the theme\'s surface colour. For what is on offer (dishes, rooms, products, homes), give that table a picture column ({ "ref": "picture", "type": "text", "semantic": "image", "nullable": true, "rules": { "file": { "accept": ["png", "jpeg", "webp", "gif"], "maxBytes": 5242880 } } }) so they can add each one in the dashboard, and show the empty frame for a row that has none.' : 'Pictures: call find_pictures ONCE for every picture the brief names. For the page (the first screen, a strip of the place): "for": "page". For what is on offer, when people look at it before they choose (dishes, rooms, products): give that table a picture column ({ "ref": "picture", "type": "text", "semantic": "image", "nullable": true, "rules": { "file": { "accept": ["png", "jpeg", "webp", "gif"], "maxBytes": 5242880 } } }) and ask "for": "rows" with the table and the column. Without find_pictures a page has only tiles.'}\n3. Write ${app}/manifest/access.json with what customers may read and add (a table with a picture column: list the column under "pictures", with "id" in "select"). `
       : ''
   }Read ${app}/${side}/src/App.tsx and write it again for this app's tables, keeping the way it loads, lists, sends and reports errors, and DESIGN it to the brief: ${side === 'customer' ? (opts.picture ? 'the sections of the person\'s picture, each one, in its order and laid out as the picture lays it out; nothing it does not show.' : 'a header with the logo and links, a first screen that says what the business is, what is on offer, why to trust it, the form, a footer.') : 'the work first: a plain header, the list or board staff work from, clear status marks.'}
 ${side === 'customer' ? '4' : '3'}. Write ${app}/${side}/src/design.css for every class of your own.${side === 'customer' ? ` Write the logo at exactly ${app}/assets/logo.svg (a simple mark with a viewBox and its colour written as a value, e.g. the accent's #rrggbb: a picture shown with <img> cannot read var(--…); no text, no script, no outside address) and show it in the header: in ${side}/src/App.tsx, import logo from '../../assets/logo.svg', then <img className="logo" src={logo} alt="" />.` : ''}
@@ -1920,7 +1920,7 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string, sessionId?:
               problems.push(
                 table === undefined
                   ? `"${id}": there is no table "${asked.slice(0, 60)}" in this app${tables.length === 0 ? ' yet: write its file and check_app first' : ` (its tables: ${tables.map((candidate) => candidate.ref).join(', ')})`}. Call find_pictures again with "table" as one of those.`
-                  : `"${id}": for rows, give "table" and "column", and the column must be a picture column: { "ref": "picture", "type": "text", "semantic": "image", "nullable": true } in the table's file. Add it, check_app, then call find_pictures again.`,
+                  : `"${id}": for rows, give "table" and "column", and the column must be a picture column: { "ref": "picture", "type": "text", "semantic": "image", "nullable": true, "rules": { "file": { "accept": ["png", "jpeg", "webp", "gif"], "maxBytes": 5242880 } } } in the table's file. Add it, check_app, then call find_pictures again.`,
               );
               continue;
             }
@@ -2045,7 +2045,7 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string, sessionId?:
           }
           if (need.addColumn !== undefined) {
             if (addPictureColumn(need.addColumn) === null) {
-              problems.push(`"${need.id}": the table "${need.rows.table}" has no picture column and its file does not read, so its rows got no pictures. Add { "ref": "picture", "type": "text", "semantic": "image", "nullable": true } to its columns, then call find_pictures again.`);
+              problems.push(`"${need.id}": the table "${need.rows.table}" has no picture column and its file does not read, so its rows got no pictures. Add { "ref": "picture", "type": "text", "semantic": "image", "nullable": true, "rules": { "file": { "accept": ["png", "jpeg", "webp", "gif"], "maxBytes": 5242880 } } } to its columns, then call find_pictures again.`);
               continue;
             }
             addedColumns.push({ table: need.rows.table, column: need.rows.column });
@@ -2079,7 +2079,7 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string, sessionId?:
         writeFileSync(creditsFile, `${JSON.stringify([...before.filter((credit) => !credits.some((fresh) => fresh.file === credit.file)), ...credits], null, 2)}\n`);
         if (seeded) deps.pictures.reseed?.(appKey);
         for (const made of addedColumns) {
-          lines.push(`The table "${made.table}" had no picture column, so "${made.column}" was added to its file (text, "semantic": "image"): show it on the page with pictureUrl, and call check_app and apply_app so the table gets it.`);
+          lines.push(`The table "${made.table}" had no picture column, so "${made.column}" was added to its file (text, "semantic": "image", a file rule that takes pictures): show it on the page with pictureUrl, and call check_app and apply_app so the table gets it.`);
         }
         return text(
           `${shownFrom === null ? `${String(added)} pictures were copied into the app.` : `${String(added)} pictures were added. Pictures from ${shownFrom} are allowed now and show in the page.`}\n${lines.join('\n')}${problems.length === 0 ? '' : `\n${problems.join('\n')}`}\nGive every picture a fixed shape (the "media" part with "wide", "square" or "tall", or aspect-ratio with object-fit: cover). Their credits are in apps/${appKey}/assets/pictures/CREDITS.json: show them at the foot of the page under "Picture credits" (import credits from '../../assets/pictures/CREDITS.json'; each has creator, licence, page).`,
@@ -2202,7 +2202,7 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string, sessionId?:
             // The table has no picture column: one is added here, rather than sending the model round for it.
             const added = table.columns.some((candidate) => candidate.ref === 'picture') ? null : addPictureColumn(join(dir, 'manifest', 'tables', `${table.ref}.json`));
             if (added === null && !addedColumns.includes(table.ref)) {
-              problems.push(`"${entry.label}": the table "${table.ref}" has no picture column. Add { "ref": "picture", "type": "text", "semantic": "image", "nullable": true } to its columns, check_app, then call use_pictures again.`);
+              problems.push(`"${entry.label}": the table "${table.ref}" has no picture column. Add { "ref": "picture", "type": "text", "semantic": "image", "nullable": true, "rules": { "file": { "accept": ["png", "jpeg", "webp", "gif"], "maxBytes": 5242880 } } } to its columns, check_app, then call use_pictures again.`);
               continue;
             }
             if (added !== null) addedColumns.push(table.ref);
@@ -2224,7 +2224,7 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string, sessionId?:
           deps.pictures?.reseed?.(appKey);
         }
         if (added === 0) return none(`No picture was put in the app.\n${problems.join('\n')}`);
-        for (const table of addedColumns) lines.push(`The table "${table}" had no picture column, so "picture" was added to its file (text, "semantic": "image").`);
+        for (const table of addedColumns) lines.push(`The table "${table}" had no picture column, so "picture" was added to its file (text, "semantic": "image", a file rule that takes pictures).`);
         return text(
           `${String(added)} of the person's pictures ${added === 1 ? 'is' : 'are'} in the app now.\n${lines.join('\n')}${seeded ? '\nA row\'s picture is shown on the page with pictureUrl, as adminium-app/references/manifest/public-access--pictures.md says: the table\'s entry in access.json lists the column under "pictures", with "id" in its "select". Then check_app and apply_app: the sample rows take their pictures when the app is applied.' : '\nThen build_sides and apply_app.'}${problems.length === 0 ? '' : `\nNot added:\n${problems.join('\n')}`}\nSay to the person only what this result says was added.`,
           `Added ${String(added)} of your pictures`,
@@ -2374,6 +2374,9 @@ export function keepSamplePictures(before: string, after: string): { text: strin
   };
 }
 
+/** The most a picture the Designer's picture column takes may weigh: 5 MiB, the cap on a picture attached in the chat. */
+const PICTURE_MAX_BYTES = 5 * 1024 * 1024;
+
 /**
  * Give a table's file a picture column, when it has none of that name: the
  * column's ref, or null when the file does not read as a table or the name
@@ -2385,7 +2388,8 @@ function addPictureColumn(file: string): string | null {
     if (!Array.isArray(table.columns)) return null;
     const ref = 'picture';
     if (table.columns.some((column) => (column as { ref?: unknown } | null)?.ref === ref)) return null;
-    table.columns.push({ ref, type: 'text', semantic: 'image', nullable: true });
+    // A picture column carries both marks: an image, and a file the app keeps that takes pictures only.
+    table.columns.push({ ref, type: 'text', semantic: 'image', nullable: true, rules: { file: { accept: [...PICTURE_FILE_KINDS], maxBytes: PICTURE_MAX_BYTES } } });
     writeFileSync(file, `${JSON.stringify(table, null, 2)}\n`);
     return ref;
   } catch {

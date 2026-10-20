@@ -1264,7 +1264,7 @@ export default {
       "column": {
         "adoptHint": "Cette table possède déjà cette colonne ; rien n’est créé — elle est utilisée telle quelle.",
         "bound": "Les fichiers sont stockés dans la colonne {column} de cette table.",
-        "boundHint": "Désactiver les pièces jointes plus tard ne délie que cette page. La colonne et ses fichiers restent intacts.",
+        "boundHint": "Désactiver ceci plus tard dissocie cette page. La colonne et ses fichiers restent tels quels.",
         "confirm": "Exécuter",
         "create": "Créer la colonne",
         "createHint": "Adminium ajoute une colonne texte à cette table. Vous verrez l’instruction exacte avant toute exécution.",
@@ -1282,7 +1282,7 @@ export default {
       "destinationHint": "Laissez la destination par défaut, sauf si les fichiers de cette table ont leur place ailleurs.",
       "destinationIsDefault": "{name} (par défaut)",
       "destinationLocal": "Le disque de ce serveur",
-      "enable": "Autoriser les pièces jointes sur les enregistrements de cette table",
+      "enable": "Chaque fiche peut garder une liste de fichiers",
       "enableHint": "Les fichiers sont liés du côté d’Adminium : cette table n’a donc besoin d’aucune nouvelle colonne — cela fonctionne sur une connexion en lecture seule, comme sur une table que vous préférez ne pas modifier.",
       "enableHintColumn": "Les fichiers sont stockés dans une colonne de cette table : ils apparaissent donc dans les boîtes de dialogue Nouveau et Modifier ainsi que sur chaque enregistrement.",
       "enableHintSidecar": "Les fichiers sont liés du côté d’Adminium à la place. Ils apparaissent sur la page de chaque enregistrement, pas dans la boîte de dialogue Nouveau.",
@@ -1299,7 +1299,8 @@ export default {
       "type": {
         "office": "Documents Office",
         "text": "Texte brut"
-      }
+      },
+      "pictureHint": "Pour l’image propre de l’élément, réglez une colonne sur Image dans Colonnes."
     },
     "columns": {
       "addFromLinked": "Depuis les tables liées",
@@ -1312,8 +1313,8 @@ export default {
       "addSearch": "Rechercher des colonnes…",
       "addTitle": "Ajouter une colonne",
       "addVia": "via {column}",
-      "avatar": "Avatar",
-      "avatarToggle": "Afficher un monogramme à côté de {name}",
+      "avatar": "Initiales",
+      "avatarToggle": "Afficher les initiales à côté de {name}",
       "countBadge": "Nombre",
       "dragHandle": "Réordonner {name}",
       "empty": "Pas encore de colonnes — ajoutez-en ci-dessous.",
@@ -1364,7 +1365,8 @@ export default {
           "webm": "WebM",
           "webp": "WebP",
           "zip": "ZIP"
-        }
+        },
+        "acceptPictures": "Images uniquement. Décochez les types que cette colonne doit refuser."
       },
       "fold": {
         "avg": "Moyenne",
@@ -1394,7 +1396,25 @@ export default {
       "remove": "Retirer {name}",
       "schemaUnavailable": "Les colonnes de la base n’ont pas pu être listées ; impossible d’ajouter des colonnes ici.",
       "shown": "Affichée",
-      "toggle": "Afficher {name} dans le tableau"
+      "toggle": "Afficher {name} dans le tableau",
+      "avatarPicture": {
+        "name": "Image à côté du nom",
+        "it": "Image à côté",
+        "toggle": "Afficher l’image de la ligne à côté de {column}, ou ses initiales",
+        "none": "Aucune colonne ne contient encore d’image, les initiales s’affichent donc.",
+        "from": "Image depuis"
+      },
+      "holds": {
+        "label": "Contient",
+        "name": "Ce que contient {name}",
+        "text": "Texte",
+        "picture": "Image",
+        "file": "Fichier",
+        "app": "L’application {app} définit cette colonne : elle contient des {kind, select, picture {images} other {fichiers}} jusqu’à {size}. Elle ne peut pas être modifiée ici.",
+        "appUnnamed": "Une application définit cette colonne : elle contient des {kind, select, picture {images} other {fichiers}} jusqu’à {size}. Elle ne peut pas être modifiée ici.",
+        "toText": "Les valeurs déjà enregistrées restent dans la colonne. Le formulaire les affiche en texte.",
+        "hint": "Cette colonne semble contenir des liens vers des images. Réglez-la sur Image pour importer ou choisir des images ici. Les liens qu’elle contient déjà restent."
+      }
     },
     "create": {
       "failed": "Impossible de créer la page",
@@ -1446,7 +1466,7 @@ export default {
     },
     "editor": {
       "appearance": "Apparence",
-      "attachments": "Pièces jointes",
+      "attachments": "Fichiers sur chaque fiche",
       "columns": "Colonnes",
       "contentInvalid": "La configuration de cette page est illisible",
       "contentInvalidBody": "Elle provient d’une version plus récente, ou elle est corrompue. Régénérez la page ou supprimez-la.",
@@ -2707,7 +2727,7 @@ export default {
       "export": "Fichiers issus des exports de données",
       "import": "CSV téléversés et leurs rapports d’erreurs",
       "schema": "Fichiers de schéma importés",
-      "upload": "Fichiers joints à des enregistrements"
+      "upload": "Fichiers conservés avec les fiches"
     },
     "list": {
       "subtitle": "Les nouveaux fichiers vont vers la destination par défaut. Les fichiers existants restent où ils sont tant que vous ne les déplacez pas.",

@@ -25,6 +25,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { RecordDetail } from './RecordDetail.js';
 import { parseRefList } from '../../page-config/file-refs.js';
 import type { FileFieldUpload } from './FileField.js';
+import type { PictureChooser } from '../../pictures/PictureField.js';
 import { MAX_CHILD_ROWS, type ChildFacts, type ChildRow } from './RecordForm.js';
 import { RecordFormDialog } from './RecordFormDialog.js';
 import {
@@ -41,7 +42,8 @@ import type { ControlOption } from './controls/index.js';
 import { optionsForColumn, withFactChoices } from './field-mapping.js';
 import type { ColumnFacts, ListOptionsResolver } from './field-mapping.js';
 import { fieldMessagesOf } from './field-issues.js';
-import { isDeletePreview } from './crud-api.js';
+import { isDeletePreview, PageSettingsChangedError } from './crud-api.js';
+import { isPictureBlock } from '../../page-config/picture-kinds.js';
 import type {
   CrudApi,
   CrudExportFormat,
@@ -270,6 +272,12 @@ export interface PageCrudFiles {
    */
   resolve(refs: readonly string[]): Promise<ReadonlyMap<string, ResolvedFile | null>>;
   upload: FileFieldUpload;
+  /**
+   * Choosing a picture the workspace already has, for a picture column: the
+   * lists to choose from and the copy each choice makes. Absent ⇒ a picture
+   * column offers upload only.
+   */
+  choose?: PictureChooser | undefined;
   /** The workspace cap, so the form can refuse before a request starts. */
   maxBytes?: number | undefined;
   /** Above this an image column shows a chip rather than a preview (D24). */
@@ -559,6 +567,8 @@ export function PageCrud({
   // --- create ----------------------------------------------------------------
   const [createOpen, setCreateOpen] = useState(false);
   const [createErrors, setCreateErrors] = useState<Record<string, string>>({});
+  /** A refusal of the whole form, said at its top: the page's settings changed while it was open. */
+  const [formAlert, setFormAlert] = useState<string | null>(null);
 
   // --- edit ------------------------------------------------------------------
   const [editRecord, setEditRecord] = useState<CrudRow | null>(null);
@@ -635,6 +645,8 @@ export function PageCrud({
     // array identity changes on every render and would re-ask per keystroke.
   }, [files, fileRefsKey, fileRefs]);
 
+  // The page's picture columns: an avatar beside one of this table's own values shows the row's picture.
+  const pictureColumns = useMemo(() => columns.filter((column) => isPictureBlock(column.file)).map((column) => column.name), [columns]);
   const cellContext: CellContext = useMemo(
     () => ({
       onEvent,
@@ -643,9 +655,10 @@ export function PageCrud({
       locale,
       currency,
       files: resolvedFiles,
+      pictureColumns,
       ...(files?.thumbnailMaxBytes === undefined ? {} : { thumbnailMaxBytes: files.thumbnailMaxBytes }),
     }),
-    [onEvent, canUnmask, source.connectionId, locale, currency, resolvedFiles, files?.thumbnailMaxBytes],
+    [onEvent, canUnmask, source.connectionId, locale, currency, resolvedFiles, files?.thumbnailMaxBytes, pictureColumns],
   );
 
   const pushUndoToast = useCallback(
@@ -836,6 +849,7 @@ export function PageCrud({
     repeat?: { column: string; values: string[] },
   ) => {
     setCreateErrors({});
+    setFormAlert(null);
     api
       // One argument when the form has no relation fields: an adapter written
       // before they existed takes exactly one, and handing it `undefined`
@@ -879,6 +893,10 @@ export function PageCrud({
         refetch();
       })
       .catch((reason: unknown) => {
+        if (reason instanceof PageSettingsChangedError) {
+          setFormAlert(t('ui:templates.crud.pageChanged', "This page's settings changed. Your picture is kept; save again."));
+          return;
+        }
         const fieldErrors = fieldErrorsOf(reason);
         if (fieldErrors !== null) {
           setCreateErrors(fieldErrors);
@@ -899,6 +917,7 @@ export function PageCrud({
     if (editRecord === null) return;
     const recordId = rowIdOf(columns, editRecord);
     setEditErrors({});
+    setFormAlert(null);
     api
       .update(
         recordId,
@@ -914,6 +933,10 @@ export function PageCrud({
         refetch();
       })
       .catch((reason: unknown) => {
+        if (reason instanceof PageSettingsChangedError) {
+          setFormAlert(t('ui:templates.crud.pageChanged', "This page's settings changed. Your picture is kept; save again."));
+          return;
+        }
         const fieldErrors = fieldErrorsOf(reason);
         if (fieldErrors !== null) {
           setEditErrors(fieldErrors);
@@ -1406,8 +1429,12 @@ export function PageCrud({
         open={createOpen}
         onOpenChange={(open) => {
           setCreateOpen(open);
-          if (!open) setCreateErrors({});
+          if (!open) {
+            setCreateErrors({});
+            setFormAlert(null);
+          }
         }}
+        {...(createOpen && formAlert !== null ? { alert: formAlert } : {})}
         mode="create"
         entity={entity}
         tableName={tableName}
@@ -1423,6 +1450,7 @@ export function PageCrud({
         availability={api.availability?.bind(api)}
         places={places}
         {...(files === undefined ? {} : { uploadFile: files.upload, files: resolvedFiles })}
+        {...(files?.choose === undefined ? {} : { chooseFile: files.choose })}
         {...(files?.maxBytes === undefined ? {} : { maxFileBytes: files.maxBytes })}
         {...(currency === undefined ? {} : { currency })}
         {...(locale === undefined ? {} : { locale })}
@@ -1493,8 +1521,10 @@ export function PageCrud({
           if (!open) {
             setEditRecord(null);
             setEditErrors({});
+            setFormAlert(null);
           }
         }}
+        {...(editRecord !== null && formAlert !== null ? { alert: formAlert } : {})}
         mode="edit"
         entity={entity}
         tableName={tableName}
@@ -1515,6 +1545,7 @@ export function PageCrud({
         availability={api.availability?.bind(api)}
         places={places}
         {...(files === undefined ? {} : { uploadFile: files.upload, files: resolvedFiles })}
+        {...(files?.choose === undefined ? {} : { chooseFile: files.choose })}
         {...(files?.maxBytes === undefined ? {} : { maxFileBytes: files.maxBytes })}
         {...(currency === undefined ? {} : { currency })}
         {...(locale === undefined ? {} : { locale })}

@@ -16,7 +16,7 @@ export default {
     "trashFailed": "Tento soubor se nepodařilo přesunout do koše"
   },
   "title": "Soubory",
-  "subtitle": "Vše, co se nahrálo přes tento pracovní prostor — a kde jsou uložené jeho bajty.",
+  "subtitle": "Všechny soubory v tomto pracovním prostoru: ty u záznamů i v knihovně. A kde je každý uložen.",
   "search": "Hledat podle názvu souboru",
   "trash": {
     "notice": {
@@ -33,7 +33,8 @@ export default {
       "body": "Zrušte hledání, nebo v postranním panelu zvolte jinou zkratku."
     },
     "title": "Zatím žádné soubory",
-    "body": "Soubory se sem dostanou, když je někdo přiloží k záznamu nebo vyplní pole se souborem."
+    "body": "Soubory se sem dostanou, když je někdo přidá k záznamu nebo vyplní pole souboru.",
+    "library": "Zatím zde nic nebylo nahráno."
   },
   "loadMore": "Načíst další soubory",
   "usage": {
@@ -51,22 +52,25 @@ export default {
   },
   "preset": {
     "all": "Všechny soubory",
-    "unattached": "Nepřiložené",
+    "unattached": "Zatím nepoužité",
     "trash": "Koš",
-    "recent": "Nedávné"
+    "recent": "Nedávné",
+    "unattachedHelp": "Nahrané soubory, které si žádný záznam nevzal. Po {hours} hodinách se přesunou do koše.",
+    "library": "Nahrané zde"
   },
   "column": {
     "name": "Soubor",
     "size": "Velikost",
-    "attachedTo": "Přiloženo k",
+    "attachedTo": "U záznamu",
     "destination": "Cíl úložiště",
     "added": "Přidáno",
     "actions": "Akce"
   },
   "row": {
-    "unattached": "Nepřiloženo",
+    "unattached": "Zatím nepoužité",
     "localDestination": "Disk tohoto serveru",
-    "noRecord": "Nepřipojeno k žádnému záznamu"
+    "noRecord": "Není u záznamu",
+    "uploadedHere": "Nahráno zde"
   },
   "action": {
     "restore": "Obnovit",
@@ -78,10 +82,10 @@ export default {
     "none": "Žádné",
     "subtitle": "{size} · {type}",
     "destination": "Cíl úložiště",
-    "attachedTo": "Přiloženo k",
+    "attachedTo": "U záznamu",
     "uploadedBy": "Nahrál(a)",
     "added": "Přidáno",
-    "attachedAt": "Přiloženo",
+    "attachedAt": "Používá se od",
     "trashedAt": "Přesunuto do koše",
     "id": "ID souboru",
     "checksum": "Kontrolní součet",
@@ -107,7 +111,7 @@ export default {
     "cancelOne": "Zrušit {name}",
     "removeOne": "Odebrat {name}",
     "complete": "Nahrávání dokončeno",
-    "completeBody": "Tyto soubory jsou nyní v tomto pracovním prostoru a lze je později připojit k záznamu.",
+    "completeBody": "Tyto soubory jsou teď v knihovně. Přidejte je k záznamu pomocí Vybrat existující… v jeho poli. Záznam dostane vlastní kopii.",
     "send": "{count, plural, one {Nahrát # soubor} few {Nahrát # soubory} other {Nahrát # souborů}}",
     "done": "Hotovo",
     "failed": "Selhalo",

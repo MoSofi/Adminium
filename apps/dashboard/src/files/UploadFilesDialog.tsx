@@ -283,7 +283,7 @@ export function UploadFilesDialog({
             title={t('files:upload.complete', 'Upload complete')}
             body={t(
               'files:upload.completeBody',
-              'These files are now in this workspace and can be attached to a record later.',
+              'These files are in the library now. Add one to a record with Choose existing… in its field. The record gets its own copy.',
             )}
           />
         ) : null}

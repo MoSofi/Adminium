@@ -461,7 +461,7 @@ describe('composeCrudBody — the `file` block seeding', () => {
     // honour the TAG — is what keeps the change opt-in.
     expect(byName.get('pdf_url')?.file).toEqual({ ref: 'url' });
     // An image column additionally opts into the thumbnail.
-    expect(byName.get('logo_url')?.file).toEqual({ ref: 'url', inline: true });
+    expect(byName.get('logo_url')?.file).toEqual({ ref: 'url', inline: true, accept: ['png', 'jpeg', 'webp', 'gif'] });
     // Nothing else gains one.
     expect(byName.get('customer')?.file).toBeUndefined();
   });

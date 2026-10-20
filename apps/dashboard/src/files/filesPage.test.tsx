@@ -478,9 +478,9 @@ describe('FilesPage — the File Manager comp', () => {
     stubFetch({ connections: CONNECTIONS });
     await renderListView();
 
-    // "Not attached" alone would leave the reader with no idea which source
-    // the file was uploaded for.
-    expect(screen.getAllByText('Not attached to a record').length).toBeGreaterThan(0);
+    // A file no record holds says whether it was uploaded here or is waiting for a record, and which
+    // source it belongs to: either alone would leave the reader with no idea.
+    expect(screen.getAllByText(/^(Uploaded here|Not used yet)$/).length).toBeGreaterThan(0);
     expect(screen.getAllByText('Production').length).toBeGreaterThan(0);
   });
 
@@ -547,5 +547,17 @@ describe('FilesPage — the File Manager comp', () => {
     // dialog could only refuse.
     expect(screen.queryByTestId('files-upload-open')).toBeNull();
     expect(screen.getByTestId('files-preset-all')).toBeTruthy();
+  });
+
+  it('the shortcuts say what a file no record holds is: uploaded here, or not used yet and for how long', async () => {
+    const { calls } = stubFetch({ connections: CONNECTIONS });
+    const user = await renderListView();
+    const unused = screen.getByTestId('files-preset-unattached');
+    expect(unused.textContent).toContain('Not used yet');
+    expect(document.getElementById(unused.getAttribute('aria-describedby')!)?.textContent).toMatch(/^Uploads no record took\. They go to the trash after \d+ hours\.$/);
+    await user.click(unused);
+    expect((await screen.findByTestId('files-unused-help')).textContent).toMatch(/after \d+ hours/);
+    await user.click(screen.getByTestId('files-preset-library'));
+    await waitFor(() => expect(listUrls(calls).some((url) => url.includes('state=library'))).toBe(true));
   });
 });

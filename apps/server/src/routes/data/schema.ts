@@ -301,6 +301,13 @@ export const recordCreateBody = z.object({
    * keep a guest's retry key in.
    */
   clientKey: z.string().min(1).max(200).optional(),
+  /**
+   * The page whose form this save was made from, as it was when the form
+   * opened: refused (409 `PAGE_CHANGED`) when its settings moved since. A
+   * column that held a picture then may hold text now, and a picture saved
+   * into it would be nobody's.
+   */
+  page: z.object({ id: z.string().min(1).max(64), revision: z.number().int().nonnegative() }).strict().optional(),
 });
 export const recordUpdateBody = z.object({
   values: rowValuesSchema,
@@ -315,6 +322,13 @@ export const recordUpdateBody = z.object({
   from: z.string().min(1).max(64).optional(),
   expect: recordExpectBody,
   seen: recordSeenBody,
+  /**
+   * The page whose form this save was made from, as it was when the form
+   * opened: refused (409 `PAGE_CHANGED`) when its settings moved since. A
+   * column that held a picture then may hold text now, and a picture saved
+   * into it would be nobody's.
+   */
+  page: z.object({ id: z.string().min(1).max(64), revision: z.number().int().nonnegative() }).strict().optional(),
 });
 
 /** A change tried and not kept (`POST …/:recordId/dry-run`): the record's values and its child rows, as a change sends them. */

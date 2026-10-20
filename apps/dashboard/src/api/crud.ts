@@ -27,7 +27,10 @@ import type {
   CrudRow,
 } from '@adminium/widgets';
 
+import { PageSettingsChangedError } from '@adminium/widgets';
+
 import { ApiError, api } from '../app/api.js';
+import { namesMintedFile } from '../files/api.js';
 
 export type {
   CrudApi,
@@ -242,8 +245,37 @@ export function forgetStateColumns(): void {
   stateColumnsByConnection.clear();
 }
 
-export function createCrudApi(connectionId: string, table: string): BoundCrudApi {
+/** The page a form is drawn from, as it was read: a save naming a file this tab minted carries it. */
+export interface CrudPageStamp {
+  id: string;
+  revision: number;
+}
+
+export interface CrudApiOptions {
+  page?: CrudPageStamp | undefined;
+  /** Told when the server refused a save because the page's settings moved on: the host reads the page again. */
+  onPageChanged?: (() => void) | undefined;
+}
+
+export function createCrudApi(connectionId: string, table: string, opts: CrudApiOptions = {}): BoundCrudApi {
   const conn = encodeURIComponent(connectionId);
+  /**
+   * A save that names a file this tab just uploaded or copied for a column
+   * says which page settings the form was drawn from (`page`): when they moved
+   * on since (a picture column made text), the server refuses it and the
+   * person saves again, instead of the file being left to the sweep.
+   */
+  const stamped = (values: CrudRow): { page?: CrudPageStamp } =>
+    opts.page !== undefined && Object.values(values).some((value) => namesMintedFile(value)) ? { page: opts.page } : {};
+  const pageChanged = async <T>(run: () => Promise<T>): Promise<T> => {
+    try {
+      return await run();
+    } catch (error) {
+      if (error instanceof FieldRefusedError || !(error instanceof Error) || (error as { code?: unknown }).code !== 'PAGE_CHANGED') throw error;
+      opts.onPageChanged?.();
+      throw new PageSettingsChangedError(error.message);
+    }
+  };
   const baseFor = (tableName: string): string => `/api/v1/data/${conn}/${encodeURIComponent(tableName)}`;
   const base = baseFor(table);
 
@@ -274,25 +306,31 @@ export function createCrudApi(connectionId: string, table: string): BoundCrudApi
       // `links` and `children` are omitted entirely when the form has no such
       // field: an empty object would ask the server to replace nothing, and
       // every write would carry a key that means something.
-      return withFieldIssues(() =>
-        api.post<CrudMutationResult>(base, {
-          values,
-          ...(links === undefined ? {} : { links }),
-          ...(children === undefined ? {} : { children }),
-          ...(repeat === undefined ? {} : { repeat }),
-        }),
+      return pageChanged(() =>
+        withFieldIssues(() =>
+          api.post<CrudMutationResult>(base, {
+            values,
+            ...(links === undefined ? {} : { links }),
+            ...(children === undefined ? {} : { children }),
+            ...(repeat === undefined ? {} : { repeat }),
+            ...stamped(values),
+          }),
+        ),
       );
     },
 
     async update(recordId, patch, links, children, seen): Promise<CrudMutationResult> {
       const from = await seenStateOf(connectionId, table, patch, seen);
-      return withFieldIssues(() =>
-        api.patch<CrudMutationResult>(`${base}/${encodeURIComponent(recordId)}`, {
-          values: patch,
-          ...(links === undefined ? {} : { links }),
-          ...(children === undefined ? {} : { children }),
-          ...(from === undefined ? {} : { from }),
-        }),
+      return pageChanged(() =>
+        withFieldIssues(() =>
+          api.patch<CrudMutationResult>(`${base}/${encodeURIComponent(recordId)}`, {
+            values: patch,
+            ...(links === undefined ? {} : { links }),
+            ...(children === undefined ? {} : { children }),
+            ...(from === undefined ? {} : { from }),
+            ...stamped(patch),
+          }),
+        ),
       );
     },
 

@@ -14,7 +14,9 @@
  *
  *  - a file the WRITER uploaded — a signed-in person, through a person's own
  *    door (a save, a bulk edit, a record's button); a rule, an import, a
- *    public write, project code and sample data name none;
+ *    public write and project code name none, and an app's sample data names
+ *    only the pictures it added from its own bundle in the same pass, each
+ *    row its own;
  *  - that no record holds yet, or that was uploaded for this very record
  *    and is in none of its other file columns;
  *  - of this database, alive, of a kind the column takes, no larger than it
@@ -28,6 +30,17 @@
  * and which record holds it are said alike (`file-not-here`): a refusal is
  * no way to learn of somebody else's file. An undo puts back what was, and
  * is not judged.
+ *
+ * A PAGE's file column (a `file` block, in a column the app knows as plain
+ * text) is judged too, through a person's door: the value it newly names, in
+ * whichever shape the block stores (an id, a key, a link), may be only an
+ * upload the writer made that no record holds yet, or one made for this very
+ * record. A file chosen from another record or the Files page is copied for
+ * the writer first (`POST /files/:id/copy`), so it is such an upload. What
+ * else such a column takes is its own business: a link to another site, or
+ * text that names no file of ours, is left as it is. Every other door keeps
+ * what it had: the record that names a file somebody else holds never takes
+ * it (`files/reconcile.ts`).
  */
 import { createHash } from 'node:crypto';
 
@@ -40,6 +53,7 @@ import { pkLabel } from '../crud/records.js';
 import type { WriteActor, WriteOrigin } from '../crud/write-context.js';
 import { cleanPicture, isPictureMime, PictureRefused, readCapped } from '../public-api/picture.js';
 import { fileIdsIn, namedIn } from './column-values.js';
+import { parseRefList, type RefDestination } from './refs.js';
 import { mimesForKeys, SNIFF_TYPE_KEYS, type SniffTypeKey } from './sniff.js';
 import type { FileStore } from './store.js';
 
@@ -58,6 +72,13 @@ export interface FileColumnJudgeDeps {
    * service built without the store is one no person writes through.
    */
   bytesOf?: FileBytes | undefined;
+  /**
+   * A table's file columns that its pages make (`file` blocks), by name.
+   * Without it a page's file column is not judged here.
+   */
+  pageColumns?: ((connectionId: string, table: string) => Promise<ReadonlySet<string>>) | undefined;
+  /** The destinations whose public links name a file of ours, for reading a page column's value. */
+  publicBases?: (() => Promise<readonly RefDestination[]>) | undefined;
 }
 
 export interface FileColumnWrite {
@@ -68,6 +89,8 @@ export interface FileColumnWrite {
   values: Row;
   /** The row as it is (an update), or null (a create). */
   stored: Row | null;
+  /** The files the write itself made for its rows (`WriteContext.minted`): an import names these and no other. */
+  minted?: ReadonlySet<string> | undefined;
 }
 
 export interface FileColumnJudge {
@@ -111,7 +134,7 @@ export function createFileColumnJudge(deps: FileColumnJudgeDeps): FileColumnJudg
     async judge(write) {
       if (write.origin === 'undo') return null;
       const columns = fileColumnsOf(write.table).filter((column) => Object.prototype.hasOwnProperty.call(write.values, column.name));
-      if (columns.length === 0) return null;
+      if (columns.length === 0 && (deps.pageColumns === undefined || !PERSON_ORIGINS.has(write.origin))) return null;
       let issues: FieldIssues | null = null;
       const refuse = (column: string, issue: FieldIssues[string]): void => {
         (issues ??= {})[column] ??= issue;
@@ -150,6 +173,27 @@ export function createFileColumnJudge(deps: FileColumnJudgeDeps): FileColumnJudg
         const kept = heldBy.get(column.name) ?? new Set<string>();
         const fresh = named.filter((id) => !kept.has(id));
         if (fresh.length === 0) continue;
+        // An app's sample: the files it made in this pass, of a kind and a size the column takes, and nothing else.
+        // (A row after the first that names one is given a copy of its own as it is written.)
+        if (write.origin === 'import' && write.minted !== undefined && files !== null) {
+          const accept = new Set(mimesForKeys(rule.accept.filter((key): key is SniffTypeKey => (SNIFF_TYPE_KEYS as readonly string[]).includes(key))));
+          for (const id of fresh) {
+            const file = write.minted.has(id) ? await files.findById(id) : null;
+            if (file === null || file.kind !== 'upload' || file.deletedAt !== null || file.entityConnectionId !== write.connectionId) {
+              refuse(column.name, { code: 'file-not-here' });
+              break;
+            }
+            if (!accept.has(file.mime)) {
+              refuse(column.name, { code: 'file-type' });
+              break;
+            }
+            if (file.sizeBytes > rule.maxBytes) {
+              refuse(column.name, { code: 'file-too-large', n: rule.maxBytes });
+              break;
+            }
+          }
+          continue;
+        }
         if (person === null || files === null) {
           refuse(column.name, { code: 'file-not-here' });
           continue;
@@ -180,6 +224,50 @@ export function createFileColumnJudge(deps: FileColumnJudgeDeps): FileColumnJudg
           if (isPictureMime(file.mime) && !(await cleanAsKept(file, deps.bytesOf, rule.maxBytes))) {
             refuse(column.name, { code: 'file-not-here' });
             break;
+          }
+        }
+      }
+
+      // A page's file columns, through a person's door only.
+      if (person !== null && files !== null && deps.pageColumns !== undefined && PERSON_ORIGINS.has(write.origin)) {
+        const ruled = new Set(fileColumnsOf(write.table).map((column) => column.name));
+        const pageColumns = [...(await deps.pageColumns(write.connectionId, write.table.id))].filter(
+          (name) => !ruled.has(name) && write.table.columns.has(name) && Object.prototype.hasOwnProperty.call(write.values, name),
+        );
+        if (pageColumns.length > 0) {
+          const bases = (await deps.publicBases?.()) ?? [];
+          // The file a ref names, by its id or its key; null for one that names nothing of ours.
+          const fileOf = async (ref: ReturnType<typeof parseRefList>[number]): Promise<StoredFile | null> =>
+            ref.kind === 'id' ? files.findById(ref.id) : ref.kind === 'key' ? files.findByStorageKey(ref.key) : null;
+          const idsIn = async (value: unknown): Promise<Set<string>> => {
+            const out = new Set<string>();
+            for (const ref of parseRefList(value, bases)) {
+              const file = await fileOf(ref);
+              if (file !== null) out.add(file.id);
+            }
+            return out;
+          };
+          // What every page column of the row holds now: a file one of them holds is not another's to take.
+          const pageHeld = new Map<string, Set<string>>();
+          for (const name of pageColumns) pageHeld.set(name, write.stored === null ? new Set() : await idsIn(write.stored[name]));
+          for (const name of pageColumns) {
+            const kept = pageHeld.get(name)!;
+            const others = new Set([...pageHeld.entries()].filter(([other]) => other !== name).flatMap(([, ids]) => [...ids]));
+            for (const ref of parseRefList(write.values[name], bases)) {
+              const file = await fileOf(ref);
+              // Not a file of ours (a link elsewhere, a key nothing is kept under), or one the row already held here.
+              if (file === null || kept.has(file.id)) continue;
+              const free =
+                file.kind === 'upload' &&
+                file.deletedAt === null &&
+                file.uploadedBy === person &&
+                file.entityConnectionId === write.connectionId &&
+                (file.attachedAt === null || (ofThisRecord(file) && !others.has(file.id)));
+              if (!free) {
+                refuse(name, { code: 'file-not-here' });
+                break;
+              }
+            }
           }
         }
       }

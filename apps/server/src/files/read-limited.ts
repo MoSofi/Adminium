@@ -8,11 +8,13 @@
  * record carries beside its columns (the attachments panel) stays theirs.
  */
 import type { FastifyRequest } from 'fastify';
-import type { MetaDb, StoredFile } from '@adminium/meta';
+import { isId, type MetaDb, type StoredFile } from '@adminium/meta';
 
 import type { ConnectionManager } from '../connections/manager.js';
-import { readViewOf } from '../crud/read-view.js';
-import { fetchByPk, parseRecordId } from '../crud/records.js';
+import { labelColumnFor } from '../crud/labels.js';
+import { canReadPii } from '../crud/mask.js';
+import { readTableOf, readViewOf } from '../crud/read-view.js';
+import { fetchByPk, parseRecordId, pkLabel } from '../crud/records.js';
 import { fetchVisible, type RowAction } from '../crud/row-limit.js';
 import { rowTestOf } from '../crud/row-limit-context.js';
 import { reachOfRequest } from '../crud/row-reach-request.js';
@@ -144,4 +146,89 @@ export async function tableIdOf(meta: MetaDb, connectionId: string, table: strin
   } catch {
     return null;
   }
+}
+
+/**
+ * Whether a record holds this file in a column that keeps it private: a
+ * `secret` one (shown to nobody, so its file is copied by nobody), or a
+ * personal one (`masked`: the person's data, read with their record, and not
+ * copied into another table, where nothing would mask it). Null for a file in
+ * plain columns only. Unsure (no schema, no row to read) counts as secret:
+ * the copy is refused, nothing is lost.
+ */
+export function privateFileCheck(meta: MetaDb, manager: ConnectionManager): (file: StoredFile) => Promise<'secret' | 'personal' | null> {
+  return async (file) => {
+    if (file.entityConnectionId === null || file.entityTable === null || file.entityId === null) return null;
+    try {
+      const table = (await loadSnapshotView(meta, file.entityConnectionId)).linkTable(file.entityTable);
+      if (table === null) return 'secret';
+      const kept = [...table.columns.values()].filter((column) => column.masked === true || column.secret === true);
+      if (kept.length === 0) return null;
+      const { db } = await manager.data(file.entityConnectionId);
+      const row = await fetchByPk(db, table, parseRecordId(table, file.entityId));
+      if (row === undefined) return null;
+      const holding = kept.filter((column) => holds(row[column.name], file.id));
+      if (holding.some((column) => column.secret === true)) return 'secret';
+      return holding.length > 0 ? 'personal' : null;
+    } catch {
+      return 'secret';
+    }
+  };
+}
+
+/**
+ * Whether the caller's role reads this column of the table: it is in their
+ * view of the table, and not a secret one. Read in the schema as it is now.
+ */
+export function columnReadCheck(meta: MetaDb): (request: FastifyRequest, input: { connectionId: string; table: string; column: string }) => Promise<boolean> {
+  return async (request, input) => {
+    let view;
+    try {
+      view = readViewOf(await loadSnapshotView(meta, input.connectionId), await request.server.rbac.resolve(request));
+    } catch {
+      return false;
+    }
+    const column = view.linkTable(input.table)?.columns.get(input.column);
+    return column !== undefined && column.unreadable !== true && column.secret !== true;
+  };
+}
+
+/**
+ * What the records of one table are called, by record id, as the caller's
+ * grid names them: the table's label column in their view (never a masked,
+ * secret or hidden column), else the record's key. A record that is not
+ * there any more is left out.
+ */
+export function recordLabelsOf(meta: MetaDb, manager: ConnectionManager): (request: FastifyRequest, input: { connectionId: string; table: string; recordIds: readonly string[]; labelColumn?: string | undefined }) => Promise<Map<string, string>> {
+  return async (request, input) => {
+    const out = new Map<string, string>();
+    if (input.recordIds.length === 0) return out;
+    const whole = await loadSnapshotView(meta, input.connectionId);
+    const view = readViewOf(whole, await request.server.rbac.resolve(request));
+    const resolved = whole.linkTable(input.table);
+    if (resolved === null) return out;
+    const table = readTableOf(view, resolved);
+    // The column the page names its records by, when this reader sees it in clear; else the table's own label column.
+    const asked = input.labelColumn === undefined ? undefined : table.columns.get(input.labelColumn);
+    const askedReadable =
+      asked !== undefined && asked.unreadable !== true && asked.secret !== true && (asked.masked !== true || (await canReadPii(request, input.connectionId, table.id)));
+    const name = askedReadable ? asked.name : labelColumnFor(view, table);
+    const labelColumn = name === null || table.columns.get(name)?.unreadable === true ? null : name;
+    const { db } = await manager.data(input.connectionId);
+    for (const recordId of new Set(input.recordIds)) {
+      let pk;
+      try {
+        pk = parseRecordId(table, recordId);
+      } catch {
+        continue;
+      }
+      const row = await fetchByPk(db, table, pk);
+      if (row === undefined) continue;
+      const value = labelColumn === null ? null : row[labelColumn];
+      // A file's id is no name for a record: the key says more.
+      const named = value !== null && value !== undefined && String(value).trim() !== '' && !isId(String(value), 'file');
+      out.set(recordId, named ? String(value) : pkLabel(table, pk));
+    }
+    return out;
+  };
 }

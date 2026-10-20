@@ -22,7 +22,7 @@ import {
   SegmentedChoiceControl,
   SelectControl,
 } from './choice.js';
-import { AttachmentsControl, AvatarControl, ImageControl } from './file.js';
+import { AttachmentsControl, AvatarControl, ImageControl, PictureControl } from './file.js';
 import {
   CurrencyControl,
   DateControl,
@@ -91,6 +91,7 @@ export const CONTROL_COMPONENTS: Readonly<Record<FormControl, ControlEntry>> = {
   image: { component: ImageControl },
   avatar: { component: AvatarControl },
   attachments: { component: AttachmentsControl },
+  picture: { component: PictureControl },
   json: { component: JsonControl },
   calendar: { component: CalendarControl, ownsLabel: true },
   readonly: { component: ReadonlyControl },

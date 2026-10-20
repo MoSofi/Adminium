@@ -769,7 +769,7 @@ describe('the Designer’s tools', () => {
     expect(bundle.assets['picture-items-1']).toMatchObject({ file: 'seeds/pictures/items-1.jpg', sha256: expect.stringMatching(/^[a-f0-9]{64}$/) });
     expect(bundle.tables[0]?.rows.map((row) => row['picture'])).toEqual([{ '@asset': 'picture-items-1' }, { '@asset': 'picture-items-2' }, { '@asset': 'picture-items-3' }, undefined, undefined, undefined]);
     expect(reseeded).toEqual(['repairs']);
-    expect((JSON.parse(readFileSync(table, 'utf8')) as { columns: unknown[] }).columns.at(-1)).toEqual({ ref: 'picture', type: 'text', semantic: 'image', nullable: true });
+    expect((JSON.parse(readFileSync(table, 'utf8')) as { columns: unknown[] }).columns.at(-1)).toEqual({ ref: 'picture', type: 'text', semantic: 'image', nullable: true, rules: { file: { accept: ['png', 'jpeg', 'webp', 'gif'], maxBytes: 5 * 1024 * 1024 } } });
     expect(done.content).toContain('The table "items" had no picture column, so "picture" was added to its file');
     expect((await run('check_app')).content).toContain('No errors.');
     // Asked again, with whatever column name: the table's own picture column is used, and no second one is added.

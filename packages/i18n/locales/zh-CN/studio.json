@@ -1254,7 +1254,7 @@
       "column": {
         "adoptHint": "该表已有此列，因此不会新建——将直接使用它。",
         "bound": "文件存放在此表的 {column} 列中。",
-        "boundHint": "以后关闭附件只会解除此页面的绑定。该列及其中的文件保持不变。",
+        "boundHint": "之后关闭此项会解除此页面的绑定。该列及其中的文件保持不变。",
         "confirm": "执行",
         "create": "创建该列",
         "createHint": "Adminium 会向此表添加一个文本列。执行前你会看到确切的语句。",
@@ -1272,7 +1272,7 @@
       "destinationHint": "除非此表的文件应当另存他处，否则保持默认即可。",
       "destinationIsDefault": "{name}（默认）",
       "destinationLocal": "此服务器的磁盘",
-      "enable": "允许为此表的记录添加附件",
+      "enable": "让每条记录保存一组文件",
       "enableHint": "文件在 Adminium 一侧关联，因此此表无需新增列——只读连接上可用，你不愿改动的表上也可用。",
       "enableHintColumn": "文件存放在此表的一个列中，因此会同时出现在“新建”和“编辑”对话框以及每条记录上。",
       "enableHintSidecar": "文件改为在 Adminium 一侧关联。它们出现在每条记录的页面上，而不是“新建”对话框中。",
@@ -1289,7 +1289,8 @@
       "type": {
         "office": "Office 文档",
         "text": "纯文本"
-      }
+      },
+      "pictureHint": "如需项目自己的图片，请在“列”中将某一列设为“图片”。"
     },
     "columns": {
       "addFromLinked": "来自关联表",
@@ -1302,8 +1303,8 @@
       "addSearch": "搜索列…",
       "addTitle": "添加列",
       "addVia": "通过 {column}",
-      "avatar": "头像",
-      "avatarToggle": "在 {name} 旁显示字母图标",
+      "avatar": "首字母",
+      "avatarToggle": "在 {name} 旁显示首字母",
       "countBadge": "计数",
       "dragHandle": "调整 {name} 的顺序",
       "empty": "还没有列——在下方添加。",
@@ -1354,7 +1355,8 @@
           "webm": "WebM",
           "webp": "WebP",
           "zip": "ZIP"
-        }
+        },
+        "acceptPictures": "仅限图片。取消勾选此列应拒绝的类型。"
       },
       "fold": {
         "avg": "平均值",
@@ -1384,7 +1386,25 @@
       "remove": "移除 {name}",
       "schemaUnavailable": "无法列出数据库的列，因此这里无法重新添加列。",
       "shown": "显示",
-      "toggle": "在表格中显示 {name}"
+      "toggle": "在表格中显示 {name}",
+      "avatarPicture": {
+        "name": "名称旁的图片",
+        "it": "旁边的图片",
+        "toggle": "在 {column} 旁显示该行的图片，或其首字母",
+        "none": "还没有列存放图片，因此显示首字母。",
+        "from": "图片来自"
+      },
+      "holds": {
+        "label": "存放",
+        "name": "{name} 存放的内容",
+        "text": "文本",
+        "picture": "图片",
+        "file": "文件",
+        "app": "此列由 {app} 应用设定：存放不超过 {size} 的{kind, select, picture {图片} other {文件}}。无法在此更改。",
+        "appUnnamed": "此列由一个应用设定：存放不超过 {size} 的{kind, select, picture {图片} other {文件}}。无法在此更改。",
+        "toText": "已存的值会保留在列中，表单会以文本显示它们。",
+        "hint": "此列似乎存放图片链接。将其设为“图片”即可在此上传或选择图片。已有的链接会保留。"
+      }
     },
     "create": {
       "failed": "无法创建页面",
@@ -1436,7 +1456,7 @@
     },
     "editor": {
       "appearance": "外观",
-      "attachments": "附件",
+      "attachments": "每条记录的文件",
       "columns": "列",
       "contentInvalid": "无法读取此页面的配置",
       "contentInvalidBody": "配置由更新的版本写入，或已损坏。请重新生成或删除该页面。",
@@ -2697,7 +2717,7 @@
       "export": "数据导出生成的文件",
       "import": "上传的 CSV 文件及其错误报告",
       "schema": "导入的架构文件",
-      "upload": "附加到记录的文件"
+      "upload": "随记录保存的文件"
     },
     "list": {
       "subtitle": "新文件会存入默认存储目标。已有文件会留在原处，直到你迁移它们。",
