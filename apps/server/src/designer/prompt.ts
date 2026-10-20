@@ -13,6 +13,7 @@
  * person's first message always stays, and a tool call never loses its
  * answer (a provider refuses a transcript like that).
  */
+import { planBrief, readTemplatePlan } from './site/template-plan.js';
 import { designDocsLine, IMAGE_TOKENS, type Attachments } from './attachments.js';
 import { foldSpent } from './fold.js';
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
@@ -326,6 +327,9 @@ export const DESIGN_CHECKLIST = 'adminium-design/checklist.md';
 export function designSection(root: string, appKey: string, skills: Skills, stylesDir: string | null): string {
   const checklist = (skills.read(DESIGN_CHECKLIST) ?? '').replace(/^# .*\n+/, '').trim();
   const parts: string[] = checklist === '' ? [] : [`===== The design checklist (the full page: read_reference "adminium-design/SKILL.md") =====\n${checklist}`];
+  // An app built from a site template: what the person approved, so a later session neither asks again nor undoes it.
+  const plan = readTemplatePlan(root, appKey);
+  if (plan !== null) parts.push(`===== From a template =====\n${planBrief(appKey, plan)}`);
   const file = join(root, APPS_DIR, appKey, 'design.md');
   const brief = existsSync(file) ? readFileSync(file, 'utf8').trim() : '';
   if (brief.length >= 80) {
@@ -333,7 +337,8 @@ export function designSection(root: string, appKey: string, skills: Skills, styl
     return parts.join('\n\n');
   }
   const look = readLook(root, appKey);
-  if (look === null) return parts.join('\n\n');
+  // A template's own stylesheets are its look: no style's layout advice is sent over them.
+  if (look === null || plan !== null) return parts.join('\n\n');
   const resolved = resolveLook(root, look, { builtInDir: stylesDir });
   const guidance = resolved.skill === null ? '' : skillGuidance(resolved.skill).slice(0, STYLE_GUIDANCE_MAX);
   if (guidance !== '') {

@@ -23,30 +23,68 @@ import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 
-import { applyLook, lookInUse, sidesWithScreens } from '../../project/apps/look.js';
+import { applyLook, lookInUse, readLook, sidesWithScreens } from '../../project/apps/look.js';
 import { hasOwnBuild } from '../../project/apps/own-build.js';
 import { appDir, appPath, type AppSide } from '../../project/apps/read-app.js';
 import { DEFAULT_LOOK } from '../../project/apps/scaffold-app.js';
 import { recoverSiteSwap, SITE_DIR, swapSite } from '../../project/apps/site-swap.js';
-import type { Attachments, SiteIndex } from '../attachments.js';
+import { templateWants, type NeedsAsker } from '../ask-needs.js';
+import type { Attachment, Attachments, SiteIndex } from '../attachments.js';
+import { listedPackages } from '../needs.js';
 import { PICTURES_DIR, readCredits, readSpots, SPOT_ID, SPOTS_MAX, writeCredits, writeSpots, type SpotEntry } from '../spots.js';
 import type { DesignerTool, ToolOutcome } from '../tool-types.js';
 import { dataWindow, plainWords, quoted } from '../untrusted.js';
 import { cleanCss } from './css.js';
 import { componentNameOf, convertPage, ConvertRefusal, screenPathOf, type ConvertedPage, type PageImage } from './convert.js';
 import type { SiteFileKind } from './judge.js';
+import { askPlan, buildFromPlan, PLAN_GUIDE, siteFacts, SMALL_WINDOW_SENTENCE, tooSmall, type PlanStepDeps, type SitePages } from './plan-step.js';
+import { planFor, type TemplatePlanFile } from './template-plan.js';
+import { fontPackage } from '../../project/apps/theme.js';
 
 /** What `use_site` kept of what it wrote: each file's hash, by its path in the side's `src/`. */
 const WRITTEN_FILE = '.written.json';
+/** Which spot each of the template's pictures became, by page, path and place on the page: a second call keeps the same spot, and what the person put in it. */
+const SPOTS_FILE = '.spots.json';
 /** The pages a call converts at most: a template has a few dozen. */
 const PAGES_MAX = 60;
 const PICTURE_EXT = /\.(png|jpe?g|gif|webp)$/i;
 /** Where a template's pictures go when they become spots. */
 const TEMPLATE_PICTURES = 'template';
 
-export interface UseSiteDeps {
+export interface UseSiteDeps extends PlanStepDeps {
   root: string;
   attachments: Attachments;
+  /** Adds what the plan's "Added to the project" ticked, with no card of its own. */
+  needs?: NeedsAsker;
+}
+
+/**
+ * The families a template loads from Google Fonts (`fonts.googleapis.com/css?family=` or `css2?family=`), each with the
+ * weights it names: the app carries them as packages instead.
+ */
+export function googleFonts(texts: readonly string[]): { family: string; weights: number[] }[] {
+  const out = new Map<string, Set<number>>();
+  for (const text of texts) {
+    for (const match of text.matchAll(/fonts\.googleapis\.com\/css2?\?([^"'()\s<>]+)/g)) {
+      const query = (match[1] ?? '').replace(/&amp;/g, '&');
+      for (const part of query.split('&')) {
+        if (!part.startsWith('family=')) continue;
+        // css: "Lora:400,700|Inter"; css2: "Lora:ital,wght@0,400;1,700" (one family a parameter).
+        for (const one of decodeURIComponent(part.slice(7).replace(/\+/g, ' ')).split('|')) {
+          const [name = '', spec = ''] = one.split(':');
+          const family = name.trim().replace(/\s+/g, ' ');
+          if (!/^[A-Za-z][A-Za-z0-9 ]{0,39}$/.test(family)) continue;
+          const weights = out.get(family) ?? new Set<number>();
+          for (const value of spec.replace(/^.*@/, '').split(/[;,]/)) {
+            const weight = Number(value.split(',').pop()?.replace(/[^0-9]/g, ''));
+            if (Number.isInteger(weight) && weight >= 100 && weight <= 900 && weight % 100 === 0) weights.add(weight);
+          }
+          out.set(family, weights);
+        }
+      }
+    }
+  }
+  return [...out].slice(0, 6).map(([family, weights]) => ({ family, weights: [...weights].sort((a, b) => a - b) }));
 }
 
 const lowerExt = (path: string): string => path.replace(/\.([^./]+)$/, (_all, ext: string) => `.${ext.toLowerCase()}`);
@@ -106,6 +144,7 @@ function spotIdOf(label: string, taken: Set<string>): string {
 /** The files of the template as `use_site` reads them: a site's, or an attached page or stylesheet as a site of one file. */
 interface TemplateFiles {
   name: string;
+  entry: Attachment;
   /** Each file's site path (its extension in lower case), kind and bytes. */
   files: Map<string, { kind: SiteFileKind; read: () => Buffer | null }>;
 }
@@ -118,13 +157,13 @@ function templateFiles(deps: UseSiteDeps, sessionId: string, attachment: string)
     const index: SiteIndex | null = deps.attachments.siteFiles(sessionId, entry.id);
     if (index === null) return `${quoted(entry.label, 120)} could not be read.`;
     for (const file of index.files) files.set(lowerExt(file.path), { kind: file.kind, read: () => deps.attachments.siteFile(sessionId, entry.id, file.path)?.bytes ?? null });
-    return { name: entry.label, files };
+    return { name: entry.label, entry, files };
   }
   if (entry.kind === 'html' || entry.kind === 'css') {
     const name = lowerExt(plainWords(entry.label, 100).replace(/[\\/:]/g, '-')) || (entry.kind === 'html' ? 'index.html' : 'site.css');
     const path = entry.kind === 'html' ? (/\.html?$/.test(name) ? name : `${name}.html`) : /\.css$/.test(name) ? name : `${name}.css`;
     files.set(path, { kind: entry.kind, read: () => deps.attachments.read(sessionId, entry.id) });
-    return { name: entry.label.replace(/\.(html?|css)$/i, ''), files };
+    return { name: entry.label.replace(/\.(html?|css)$/i, ''), entry, files };
   }
   return `${quoted(entry.label, 120)} is not a site template, a page or a stylesheet: use_site takes those.`;
 }
@@ -138,6 +177,40 @@ const textOf = (bytes: Buffer | null): string | null => {
   }
 };
 
+interface PageRoute {
+  /** The screen file, under the side's src/. */
+  file: string;
+  /** The address it is drawn at. */
+  screen: string;
+  component: string;
+}
+
+/**
+ * Each page's screen file, address and component name, unique among the template's pages: `about.html` and
+ * `about.htm`, or `a b.html` and `a-b.html`, would otherwise write one file and share one address.
+ */
+export function pageRoutes(pages: readonly string[]): Map<string, PageRoute> {
+  const routes = new Map<string, PageRoute>();
+  const taken = { file: new Set<string>(), screen: new Set<string>(), component: new Set<string>() };
+  const unique = (base: string, used: Set<string>, joined: (n: number) => string): string => {
+    let name = base;
+    for (let n = 2; used.has(name.toLowerCase()); n += 1) name = joined(n);
+    used.add(name.toLowerCase());
+    return name;
+  };
+  for (const page of pages) {
+    const slug = page.replace(/\.html?$/i, '').replace(/[^A-Za-z0-9]+/g, '-').replace(/^-+|-+$/g, '').toLowerCase() || 'page';
+    const screen = screenPathOf(page);
+    const component = componentNameOf(page);
+    routes.set(page, {
+      file: `pages/${unique(slug, taken.file, (n) => `${slug}-${String(n)}`)}.tsx`,
+      screen: unique(screen, taken.screen, (n) => `${screen === '/' ? '/index' : screen}-${String(n)}`),
+      component: unique(component, taken.component, (n) => `${component.replace(/Page$/, '')}${String(n)}Page`),
+    });
+  }
+  return routes;
+}
+
 export function useSiteTool(deps: UseSiteDeps, appKey: string, sessionId: string): DesignerTool | null {
   // Only in a session that holds a template: elsewhere the definition would take room from every request for nothing.
   if (!deps.attachments.list(sessionId).some((entry) => entry.kind === 'site' || entry.kind === 'html' || entry.kind === 'css')) return null;
@@ -145,12 +218,13 @@ export function useSiteTool(deps: UseSiteDeps, appKey: string, sessionId: string
   return {
     name: 'use_site',
     description:
-      'Bring the person\'s site template (a site attachment, or an attached page or stylesheet) into one side of the app: its stylesheets, pictures and fonts copied into <side>/src/site/, each page made a screen file <side>/src/pages/<page>.tsx with its markup as it was, its content pictures made filled picture spots. Then write the layout, the addresses in App.tsx and its behaviour in React. "side": customer (the default) or staff. "also": more of its files to copy (stylesheets, pictures, SVG, fonts). A file the person changed is kept unless "replace" is true; then the person is asked.',
+      'Build from the person\'s site template (a site attachment, or an attached page or stylesheet). First call it with the attachment alone: it says what the template holds and how to make the plan. Then call it with "plan": the person approves it on a card, and only then is the template brought into the side: its stylesheets, pictures and fonts copied into <side>/src/site/, each page made a screen <side>/src/pages/<page>.tsx with its markup as it was, its content pictures made filled picture spots. Then build by the plan. "side": customer (the default) or staff. "also": more of its files to copy. A file the person changed is kept unless "replace" is true; then the person is asked.',
     inputSchema: {
       type: 'object',
       properties: {
         attachment: { type: 'string' },
         side: { type: 'string', enum: ['customer', 'staff'] },
+        plan: { type: 'object', description: 'The plan, as the first call says' },
         also: { type: 'array', items: { type: 'string', maxLength: 200 }, maxItems: 20 },
         replace: { type: 'boolean' },
       },
@@ -164,11 +238,54 @@ export function useSiteTool(deps: UseSiteDeps, appKey: string, sessionId: string
       const side: AppSide = input['side'] === 'staff' ? 'staff' : 'customer';
       const root = deps.root;
       if (hasOwnBuild(root, appKey)) return refused('This app builds its own screens with a build of its own: a site template is not brought into it here.');
-      if (!sidesWithScreens(root, appKey).includes(side)) return refused(`The app has no ${side} side with screens yet. Call add_side for the ${side} side first, then use_site again.`);
+      // Below the floor the model would build from pages it never read whole: refused before anything is found or asked.
+      if (await tooSmall(deps, ctx.session)) return refused(`Tell the person, in these words: "${SMALL_WINDOW_SENTENCE}" Build nothing from the template with this model.`);
       const template = templateFiles(deps, ctx.session.id, typeof input['attachment'] === 'string' ? input['attachment'] : '');
       if (typeof template === 'string') return refused(template);
       const { files } = template;
       const has = (path: string): boolean => files.has(lowerExt(path));
+      const site: SitePages = {
+        attachment: template.entry.id,
+        name: template.name,
+        sha256: template.entry.sha256,
+        files: files.size,
+        pages: [...files.entries()]
+          .filter(([, file]) => file.kind === 'html')
+          .sort(([a], [b]) => (a === 'index.html' ? -1 : b === 'index.html' ? 1 : a.localeCompare(b)))
+          .slice(0, PAGES_MAX)
+          .flatMap(([path, file]) => {
+            const html = textOf(file.read());
+            return html === null ? [] : [{ path, html }];
+          }),
+      };
+
+      // The plan first: approved for this very template, or asked now. A different template asks again.
+      let plan: TemplatePlanFile | null = planFor(root, appKey, site.sha256);
+      if (plan === null) {
+        if (input['plan'] === undefined) {
+          const { text } = await siteFacts(site, ctx.signal);
+          return {
+            content: `What the template ${quoted(template.name, 80)} holds, found by the server:\n${dataWindow(`the person's site template ${quoted(template.name, 80)}`, text)}\n\n${PLAN_GUIDE}`,
+            label: `Read ${template.name}`,
+            facts: { count: site.pages.length, outcome: 'added' },
+          };
+        }
+        const asked = await askPlan(deps, { root, appKey, side, signal: ctx.signal, ask: (card) => ctx.ask(card) }, site, input['plan']);
+        if (asked.kind === 'refused') return refused(asked.content);
+        if (asked.kind === 'changes') return { content: asked.content, label: 'The plan came back with changes', facts: { outcome: 'declined' } };
+        plan = asked.file;
+        // What the plan's section 4 ticked is added now, and what it left is kept as done without: never asked again.
+        if (deps.needs !== undefined && plan.plan.added.length > 0) {
+          await deps.needs(ctx, appKey, templateWants(readLook(root, appKey), { side, fonts: googleFonts(site.pages.map((page) => page.html)).map((font) => font.family) }), { answer: plan.answer.added });
+        }
+      }
+      if (!sidesWithScreens(root, appKey).includes(side)) {
+        return {
+          content: `The plan is approved and kept in apps/${appKey}/template-plan.json. The app has no ${side} side with screens yet: call add_side for the ${side} side (nothing more is asked), then use_site again with the same attachment to bring the template in.`,
+          label: 'The plan is approved',
+          facts: { outcome: 'added' },
+        };
+      }
       const src = join(appDir(root, appKey), side, 'src');
       recoverSiteSwap(src);
 
@@ -198,11 +315,20 @@ export function useSiteTool(deps: UseSiteDeps, appKey: string, sessionId: string
       // The pages, one at a time: the event loop is let go between them.
       const pages = [...files.entries()].filter(([, file]) => file.kind === 'html').map(([path]) => path).sort((a, b) => (a === 'index.html' ? -1 : b === 'index.html' ? 1 : a.localeCompare(b))).slice(0, PAGES_MAX);
       const spots = readSpots(root, appKey);
+      let madeBefore: Record<string, string> = {};
+      try {
+        madeBefore = JSON.parse(readFileSync(join(src, SITE_DIR, SPOTS_FILE), 'utf8')) as Record<string, string>;
+      } catch {
+        madeBefore = {};
+      }
+      const madeNow: Record<string, string> = {};
+      const placeOnPage = new Map<string, number>();
       const taken = new Set(spots.map((spot) => spot.id));
       const labels = new Set(spots.map((spot) => spot.label.toLowerCase()));
       const newSpots: (SpotEntry & { from: string })[] = [];
       const converted: { page: string; file: string; screen: string; out: ConvertedPage }[] = [];
       const refusedPages: string[] = [];
+      const routes = pageRoutes(pages);
       for (const page of pages) {
         await yieldNow();
         const html = textOf(files.get(page)?.read() ?? null);
@@ -210,16 +336,25 @@ export function useSiteTool(deps: UseSiteDeps, appKey: string, sessionId: string
           refusedPages.push(`${page}: it could not be read as text`);
           continue;
         }
-        const slug = page.replace(/\.html?$/, '').replace(/[^A-Za-z0-9]+/g, '-').replace(/^-+|-+$/g, '').toLowerCase() || 'page';
+        const route = routes.get(page) as PageRoute;
         try {
           const out = convertPage(html, {
             page,
             has,
-            screenOf: (path) => (files.get(lowerExt(path))?.kind === 'html' ? screenPathOf(lowerExt(path)) : null),
+            screenOf: (path) => routes.get(lowerExt(path))?.screen ?? null,
             importOf: (path) => `../${SITE_DIR}/${lowerExt(path)}`,
-            component: componentNameOf(page),
+            component: route.component,
             spotFor: (picture: PageImage) => {
-              if (picture.repeated || picture.logo || !PICTURE_EXT.test(picture.path) || spots.length + newSpots.length >= SPOTS_MAX) return null;
+              if (picture.repeated || picture.logo || !PICTURE_EXT.test(picture.path)) return null;
+              const at = `${page}|${lowerExt(picture.path)}`;
+              const place = (placeOnPage.get(at) ?? 0) + 1;
+              placeOnPage.set(at, place);
+              const known = madeBefore[`${at}|${String(place)}`];
+              if (known !== undefined && spots.some((spot) => spot.id === known)) {
+                madeNow[`${at}|${String(place)}`] = known;
+                return known;
+              }
+              if (spots.length + newSpots.length >= SPOTS_MAX) return null;
               const bytes = files.get(lowerExt(picture.path))?.read() ?? null;
               if (bytes === null) return null;
               const fileName = picture.path.split('/').pop()?.replace(/\.[^.]+$/, '').replace(/[-_]+/g, ' ') ?? 'picture';
@@ -228,6 +363,7 @@ export function useSiteTool(deps: UseSiteDeps, appKey: string, sessionId: string
               labels.add(label.toLowerCase());
               const id = spotIdOf(label, taken);
               const size = picture.width !== null && picture.height !== null ? { width: picture.width, height: picture.height } : pictureSize(bytes);
+              madeNow[`${at}|${String(place)}`] = id;
               newSpots.push({
                 id,
                 label,
@@ -242,7 +378,7 @@ export function useSiteTool(deps: UseSiteDeps, appKey: string, sessionId: string
               return id;
             },
           });
-          converted.push({ page, file: `pages/${slug}.tsx`, screen: screenPathOf(page), out });
+          converted.push({ page, file: route.file, screen: route.screen, out });
         } catch (error) {
           if (error instanceof ConvertRefusal) refusedPages.push(error.message);
           else throw error;
@@ -292,8 +428,15 @@ export function useSiteTool(deps: UseSiteDeps, appKey: string, sessionId: string
 
       // The copy, whole: each file's bytes (a stylesheet as cleaned), the index, and the hashes of what was written.
       const hashes: Record<string, string> = {};
+      // The template's Google fonts, as the packages the project carries: one import per weight it named.
+      const listed = listedPackages(root);
+      const allTexts = [...site.pages.map((page) => page.html), ...order.map((path) => textOf(files.get(path)?.read() ?? null) ?? '')];
+      const fontImports = googleFonts(allTexts)
+        .filter((font) => listed.has(fontPackage(font.family)))
+        .flatMap((font) => (font.weights.length === 0 ? [fontPackage(font.family)] : font.weights.map((weight) => `${fontPackage(font.family)}/${String(weight)}.css`)));
       const index = [
         '/* The site template, loaded in its pages\' own order. Written by use_site: change the template\'s files with use_site, and fix what you need in design.css. */',
+        ...fontImports.map((path) => `@import ${JSON.stringify(path)};`),
         ...[...order, ...inline].map((path) => `@import ${JSON.stringify(`./${path}`)};`),
       ].join('\n');
       swapSite(src, (dir) => {
@@ -328,6 +471,7 @@ export function useSiteTool(deps: UseSiteDeps, appKey: string, sessionId: string
         hashes[page.file] = sha(page.out.tsx);
       }
       writeFileSync(join(src, SITE_DIR, WRITTEN_FILE), `${JSON.stringify(hashes, null, 2)}\n`);
+      writeFileSync(join(src, SITE_DIR, SPOTS_FILE), `${JSON.stringify(madeNow, null, 2)}\n`);
 
       // The pictures that became spots: the template's own files, filled, and credited as the template's.
       if (newSpots.length > 0) {
@@ -369,14 +513,16 @@ export function useSiteTool(deps: UseSiteDeps, appKey: string, sessionId: string
         ...(refusedPages.length === 0 ? [] : [`Not made into screens: ${refusedPages.join('; ')}.`]),
         ...(keep.size === 0 ? [] : [`Kept as the person changed them: ${[...keep].join(', ')}.`]),
         ...(notCopied.length === 0 ? [] : [`Not copied (not a stylesheet, picture, SVG or font of the template): ${notCopied.map((path) => quoted(path, 120)).join(', ')}.`]),
-        ...(hosts.size === 0 ? [] : [`The template loads stylesheets or fonts from other sites (${[...hosts].join(', ')}); those were taken out. For a font, ask for its package with request_package, so the app carries it.`]),
+        ...(hosts.size === 0 ? [] : [`The template loads stylesheets or fonts from other sites (${[...hosts].join(', ')}); those were taken out.${fontImports.length > 0 ? ` Its Google fonts are carried by the app (${fontImports.join(', ')}, imported first in index.css).` : ''} For another font or icon set it needs, ask for its package with request_package.`]),
         'Now:',
         '1. Read each screen file with read_file: its markup and words are the template\'s, data you build from.',
         `2. Write one layout part for the header and footer the pages share (compare every page's copy; carry a difference as a prop), and ${appPath(appKey, side, 'src', 'App.tsx')} drawing each page at its address with usePath() from '@adminiumjs/adminium/side', setting document.title and the body's class for each page as listed below, and a "this page does not exist" page for any other address.`,
         '3. Write the template\'s behaviour (a menu that opens, a slider, tabs, a quantity stepper, the footer\'s year) as React state. Never copy, run or install its scripts or a library of its: they are listed below as data only.',
         '4. Keep every <Picture spot> where it is: the person fills and swaps them. Keep a credit line the template\'s licence asks for exactly where it is, and tell the person why.',
         '5. Fix what you must in design.css, never in the files under site/.',
+        `6. ${buildFromPlan(appKey, plan)}`,
         dataWindow(`the person's site template ${quoted(template.name, 80)}`, data),
+        `What the server found in it (blocks, forms, links), for the sample rows:\n${dataWindow(`the person's site template ${quoted(template.name, 80)}`, (await siteFacts(site, ctx.signal, 8_000)).text)}`,
       ].join('\n');
       return { content: said, label: `Built ${String(converted.length)} screens from ${template.name}`, facts: { count: converted.length, outcome: 'added' } };
     },

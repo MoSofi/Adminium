@@ -59,7 +59,9 @@ import { isMinified, minifiedSummary, missingInSite, SITE_WINDOW_CHARS, textWind
 const SITE_LIST_FILES = 100;
 const SITE_KIND_WORDS = { html: 'a page', css: 'a stylesheet', js: 'a script', picture: 'a picture', svg: 'an SVG picture', font: 'a font', text: 'a licence or readme' } as const;
 import { readFigmaTool, type ReadFigmaDeps } from './figma/tool.js';
-import { useSiteTool } from './site/use-site.js';
+import type { DesignerSession } from './session-store.js';
+import { googleFonts, useSiteTool } from './site/use-site.js';
+import { readTemplatePlan } from './site/template-plan.js';
 import { dataWindow, quoted } from './untrusted.js';
 import { FOLDED_MARK } from './fold.js';
 import type { AddOnGetter, AddOnLook } from './get-add-on.js';
@@ -68,7 +70,7 @@ import { createJail, JailError, type Jail } from './jail.js';
 import { PICTURE_SHAPES } from './pictures.js';
 import { legacyPictures, prepareFills, writeFills } from './pictures-apply.js';
 import type { PictureDialog } from './picture-dialog.js';
-import { createNeedsAsker, screenWants, type NeedsDeps } from './ask-needs.js';
+import { createNeedsAsker, screenWants, templateWants, type NeedsDeps } from './ask-needs.js';
 import { DESIGNER_REACT_VERSION, fixedVersion, ICONS_PACKAGE, listedPackages, TAILWIND_PACKAGE, UI_HELPER_PACKAGES, type Wanted } from './needs.js';
 import type { Designer } from './service.js';
 import type { Skills } from './skills.js';
@@ -127,6 +129,8 @@ export interface ToolsDeps {
   install?: NeedsDeps['install'];
   /** Reading a part of a frame the person imported from Figma: offered only in a session that holds one. */
   figma?: Omit<ReadFigmaDeps, 'attachments'>;
+  /** The most tokens a request to the session's model may carry: a template build is refused below a floor. */
+  windowOf?: (session: DesignerSession) => Promise<number>;
   /** The app's pictures. */
   pictures?: {
     /** The app's sample rows are in already: once the app is next applied, they are added again with their pictures. */
@@ -352,6 +356,19 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string, sessionId?:
   const designDocument = (sessionId: string): Attachment | null =>
     (deps.attachments?.list(sessionId) ?? []).filter((entry) => entry.kind === 'doc' && entry.design === true).pop() ?? null;
 
+  /** The text of the pages and stylesheets of the site templates in this session: where the template's Google fonts are named. */
+  const templatePages = (sessionId: string): string[] => {
+    const out: string[] = [];
+    for (const entry of deps.attachments?.list(sessionId) ?? []) {
+      if (entry.kind === 'html' || entry.kind === 'css') out.push(deps.attachments?.read(sessionId, entry.id)?.toString('utf8') ?? '');
+      if (entry.kind !== 'site') continue;
+      for (const file of deps.attachments?.siteFiles(sessionId, entry.id)?.files ?? []) {
+        if (file.kind === 'html' || file.kind === 'css') out.push(deps.attachments?.siteFile(sessionId, entry.id, file.path)?.bytes.toString('utf8') ?? '');
+      }
+    }
+    return out;
+  };
+
   /** What the person wrote in this session: the first message of each turn. Never the engine's own notes to the model. */
   const personWords = (sessionId: string): string => {
     const seen = new Set<number>();
@@ -389,6 +406,12 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string, sessionId?:
     let skill: DesignSkill | null = picked ?? styleNamed(all, said);
     let how = 'the person picked it';
     let words: string | undefined;
+    // A site template decides the look: its own stylesheets are brought in by use_site, and no style is asked or picked over them.
+    const template = readTemplatePlan(deps.root, appKey) !== null || (deps.attachments?.list(ctx.session.id) ?? []).some((entry) => entry.kind === 'site' || entry.kind === 'html' || entry.kind === 'css');
+    if (skill === null && template) {
+      skill = all.find((entry) => entry.key === DEFAULT_LOOK.skill) ?? null;
+      how = 'a plain base and nothing more, because the person brought a site template: its own stylesheets are the look (use_site brings them in). Write none of this style’s own words about a look into the brief';
+    }
     // A picture of the page they want decides the look: no style is picked for the kind of business over it
     // (a real estate site drawn in black and white came out ivory, navy and serif, as "Classic hotel").
     // A design document decides it the same way: its colours and fonts are written out, and a style picked for the kind of business would be painted over them.
@@ -1211,7 +1234,12 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string, sessionId?:
         // The style, once for the app: chosen here, where the first screen people see is made.
         const { look, how } = await chooseStyle(ctx);
         // Everything the screens and their design need from outside, on one card.
-        const needs = await askNeeds(ctx, appKey, screenWants(deps.root, appKey, { side, publicToo: ctx.session.target === 'web', look, stylesDir }));
+        // A side built from an approved template plan: the plan's "Added to the project" was its answer, so no card is shown again.
+        const plan = side === 'customer' ? readTemplatePlan(deps.root, appKey) : null;
+        const needs =
+          plan === null
+            ? await askNeeds(ctx, appKey, screenWants(deps.root, appKey, { side, publicToo: ctx.session.target === 'web', look, stylesDir }))
+            : await askNeeds(ctx, appKey, templateWants(readLook(deps.root, appKey), { side, fonts: googleFonts(templatePages(ctx.session.id)).map((font) => font.family) }), { answer: plan.answer.added });
         const tailwind = listedPackages(deps.root).has(TAILWIND_PACKAGE);
         const icons = listedPackages(deps.root).has(ICONS_PACKAGE);
         const picture = (deps.attachments?.list(ctx.session.id) ?? []).some((entry) => entry.kind === 'image');
@@ -2060,7 +2088,7 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string, sessionId?:
     {
       name: 'use_pictures',
       description:
-        'Put pictures the person attached on sample rows of a table people look at before they choose, all in ONE call (each one’s attachment id is in the message it came with): "for": "rows", "table", and "row" (which sample row, from 1; left out, they are taken in order). A page’s picture goes in a spot with fill_spot. Never for a picture that shows a design or a page to build.',
+        'Put pictures the person attached, or a site template’s own ("path"), on sample rows of a table people look at before they choose, all in ONE call (each one’s attachment id is in the message it came with): "for": "rows", "table", and "row" (which sample row, from 1; left out, they are taken in order). A page’s picture goes in a spot with fill_spot. Never for a picture that shows a design or a page to build.',
       inputSchema: {
         type: 'object',
         properties: {
@@ -2072,6 +2100,7 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string, sessionId?:
               type: 'object',
               properties: {
                 attachment: { type: 'string', description: 'The attachment id, e.g. att_…' },
+                path: { type: 'string', description: 'With a site template: the picture’s path in it' },
                 for: { type: 'string', enum: ['page', 'rows'] },
                 name: { type: 'string', description: 'For a page: a short name for the file, e.g. hero' },
                 table: { type: 'string', description: 'For rows: the table’s ref' },
@@ -2120,11 +2149,18 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string, sessionId?:
             problems.push(`"${id.slice(0, 40)}": there is no such attachment in this session. A picture's id is in the message it came with.`);
             continue;
           }
-          const bytes = entry.kind === 'image' && entry.partOf === undefined ? (deps.attachments?.read(ctx.session.id, id) ?? null) : null;
+          // A site template's own picture, by its path in the template (a sample row's photo, as the template shows it).
+          const sitePath = entry.kind === 'site' && typeof item['path'] === 'string' ? item['path'] : null;
+          const sitePicture = sitePath === null ? null : (deps.attachments?.siteFile(ctx.session.id, id, sitePath) ?? null);
+          const bytes = sitePicture !== null ? sitePicture.bytes : entry.kind === 'image' && entry.partOf === undefined ? (deps.attachments?.read(ctx.session.id, id) ?? null) : null;
           // By its bytes again, whatever the list calls it: only a picture is ever written under pictures/.
           const type = bytes === null ? null : imageTypeOf(bytes);
           if (bytes === null || type === null) {
-            problems.push(`"${entry.label}" is not a picture the person attached${entry.partOf === undefined ? '' : ' (it is a part of one: give the picture’s own id)'}.`);
+            problems.push(
+              entry.kind === 'site'
+                ? `"${entry.label}": ${sitePath === null ? 'give "path", the picture’s path in the template' : `${quoted(sitePath, 120)} is not a picture of the template (PNG, JPEG, WebP or GIF)`}.`
+                : `"${entry.label}" is not a picture the person attached${entry.partOf === undefined ? '' : ' (it is a part of one: give the picture’s own id)'}.`,
+            );
             continue;
           }
           const ext = type === 'image/png' ? 'png' : type === 'image/webp' ? 'webp' : type === 'image/gif' ? 'gif' : 'jpg';
@@ -2134,7 +2170,7 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string, sessionId?:
             problems.push(`"${entry.label}": a page's picture goes in a spot. Name it with add_spots when it is not there, then call fill_spot with this attachment.`);
             continue;
           }
-          const wanted = typeof item['name'] === 'string' && item['name'].trim() !== '' ? item['name'] : rows && typeof item['table'] === 'string' ? item['table'] : entry.label.replace(/\.[a-z0-9]+$/i, '');
+          const wanted = typeof item['name'] === 'string' && item['name'].trim() !== '' ? item['name'] : rows && typeof item['table'] === 'string' ? item['table'] : (sitePath ?? entry.label).split('/').pop()?.replace(/\.[a-z0-9]+$/i, '') ?? 'picture';
           const base = wanted.toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '').replace(/^[^a-z]+/, '').slice(0, 28) || 'picture';
           let name = base;
           for (let n = 2; names.has(name); n += 1) name = `${base}-${String(n)}`;
@@ -2268,7 +2304,24 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string, sessionId?:
     },
     // Only where the session holds a site template, a page or a stylesheet.
     ...(() => {
-      const site = deps.attachments === undefined || sessionId === undefined ? null : useSiteTool({ root: deps.root, attachments: deps.attachments }, appKey, sessionId);
+      const site =
+        deps.attachments === undefined || sessionId === undefined
+          ? null
+          : useSiteTool(
+              {
+                root: deps.root,
+                attachments: deps.attachments,
+                needs: askNeeds,
+                ...((deps.windowOf ?? deps.figma?.windowOf) === undefined ? {} : { windowOf: (deps.windowOf ?? deps.figma?.windowOf) as NonNullable<ToolsDeps['windowOf']> }),
+                previewNeeds: (signal) => askNeeds.preview(templateWants(readLook(deps.root, appKey), { side: 'customer', fonts: googleFonts(templatePages(sessionId)).map((font) => font.family) }), signal),
+                addOn: async (key) => {
+                  const line = (await deps.listAddOns()).find((candidate) => candidate.key === key);
+                  return line === undefined ? null : { name: line.name, installed: line.state === 'installed' };
+                },
+              },
+              appKey,
+              sessionId,
+            );
       return site === null ? [] : [site];
     })(),
     // Only where the session holds a frame imported from Figma: elsewhere its definition would take room from every request for nothing.

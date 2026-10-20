@@ -8,6 +8,7 @@
  * answers it); the Designer only shows it where the person is looking.
  */
 import type { NeedItem } from './needs.js';
+import { planAnswerFor, type TemplatePlanAnswer, type TemplatePlanRequest } from './site/template-plan.js';
 
 /** A change to who may do what, as the "Check this before it goes live" card words it. */
 export type ChangeView =
@@ -125,6 +126,8 @@ export type DesignerCard =
       /** The person approved a template plan: what is asked is what was not on it. */
       planned: boolean;
     }
+  /** The plan for building from a site template, asked before anything is written (see `site/template-plan.ts`). */
+  | ({ id: string } & TemplatePlanRequest)
   | {
       id: string;
       type: 'removal';
@@ -148,6 +151,7 @@ export type CardAnswer =
   /** Yes: keep the picture on its screen. */
   | { type: 'keep-spot'; accept: boolean }
   | { type: 'access-change'; accept: boolean }
+  | TemplatePlanAnswer
   | { type: 'removal'; accept: boolean };
 
 /** A card's answer, checked against the card it is for; null when it does not fit. */
@@ -173,5 +177,6 @@ export function answerFor(card: DesignerCard, value: unknown): CardAnswer | null
   }
   // The spots card is answered by an Apply of the picture dialog, never on the card.
   if (card.type === 'spots') return null;
+  if (card.type === 'template-plan') return planAnswerFor(card, value);
   return typeof given['accept'] === 'boolean' ? { type: card.type, accept: given['accept'] } : null;
 }
