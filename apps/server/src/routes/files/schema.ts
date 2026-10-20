@@ -76,6 +76,12 @@ export const fileView = z.object({
     .nullable(),
   /** Same-origin content path — what a chip links to and a thumbnail renders. */
   contentPath: z.string(),
+  /**
+   * What the record holding this file is called, as the caller's own grid
+   * names it (a masked or hidden column never names it; its key then does).
+   * Sent only on a "used in" list, where a tile says whose picture it is.
+   */
+  recordLabel: z.string().optional(),
 });
 export type FileView = z.infer<typeof fileView>;
 
@@ -90,17 +96,44 @@ export const filesUploadReply = z.object({
 
 export const filesGetReply = z.object({ data: fileView });
 
+/**
+ * Where a copy goes: the column of a table it is made for. The copy is an
+ * upload the caller made for that column, so it is judged and stored as one.
+ */
+export const filesCopyBody = z.object({
+  connectionId: z.string().min(1),
+  table: z.string().min(1).max(400),
+  column: z.string().min(1).max(200),
+});
+
+/** The copy's reply is an upload's, and always carries the value to store. */
+export const filesCopyReply = z.object({ data: fileView, ref: z.string() });
+
+
 export const filesListQuery = z.object({
   q: z.string().max(200).optional(),
   kind: fileKindSchema.optional(),
-  /** `live` (default) · `trash` · `unattached` — the Files page's presets. */
-  state: z.enum(['live', 'trash', 'unattached']).default('live'),
+  /**
+   * `live` (default) · `trash` · `unattached` · `library` — the Files page's
+   * presets. `library`: uploads made on the Files page, which no record took.
+   */
+  state: z.enum(['live', 'trash', 'unattached', 'library']).default('live'),
   connectionId: z.string().min(1).optional(),
   table: z.string().min(1).max(400).optional(),
   recordId: z.string().min(1).max(400).optional(),
   destinationId: destinationIdOrLocal.optional(),
   uploadedBy: z.string().min(1).optional(),
   mime: z.string().min(1).max(200).optional(),
+  /** Only files of these kinds (`png,jpeg,webp,gif`), by the allowlist's own words. */
+  accept: z.string().max(200).regex(/^[a-z0-9]+(?:,[a-z0-9]+)*$/).optional(),
+  /**
+   * The files a table's records hold, for choosing one to copy: two names,
+   * never one string split on a separator. Asks `read` on the table and a
+   * column the caller reads; lists live files only, each one the caller may
+   * read, whoever uploaded it. The column decides the kinds listed.
+   */
+  usedInTable: z.string().min(1).max(400).optional(),
+  usedInColumn: z.string().min(1).max(200).optional(),
   /**
    * Uploaded at or after this epoch-ms instant — the Files page's **Recent**
    * preset.

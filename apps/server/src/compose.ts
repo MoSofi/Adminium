@@ -256,7 +256,7 @@ import { invoicesRoutes } from './routes/invoices/index.js';
 import { reportDocumentsRoutes } from './routes/report-documents/index.js';
 import { llmRoutes } from './routes/llm/index.js';
 import { meViewsRoutes } from './routes/me-views/index.js';
-import { fileHeldCheck, fileRecordCheck, hiddenFileCheck, ruledFileColumn, tableIdOf } from './files/read-limited.js';
+import { columnReadCheck, fileHeldCheck, fileRecordCheck, hiddenFileCheck, privateFileCheck, recordLabelsOf, ruledFileColumn, tableIdOf } from './files/read-limited.js';
 import { notificationsRoutes } from './routes/notifications/index.js';
 import { summariesRoutes } from './routes/summaries/index.js';
 import { onboardingRoutes } from './routes/onboarding/index.js';
@@ -1896,6 +1896,11 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           tableIdOf: (connectionId, table) => tableIdOf(meta, connectionId, table),
           // A file a record keeps in an app's own file column changes only with its record.
           heldByRecord: fileHeldCheck(meta, manager),
+          // A file a record keeps in a secret column is copied by nobody; in a personal one, into no other table.
+          privateFile: privateFileCheck(meta, manager),
+          // A "used in" list asks for a column the caller's role reads, and names each record as their grid does.
+          columnReadable: columnReadCheck(meta),
+          recordLabels: recordLabelsOf(meta, manager),
           // The sidecar half: `config.attachments` narrows the allowlist, the
           // cap and the destination for an upload that names no column, and
           // enforces the per-record count.

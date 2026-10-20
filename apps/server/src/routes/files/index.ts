@@ -57,10 +57,12 @@ import { DEFAULT_REF_SHAPE, formatRef, parseRef, type RefShape } from '../../fil
 import { SpoolTooLargeError } from '../../files/spool.js';
 import { UnsupportedFileTypeError, type FileStore } from '../../files/store.js';
 import type { SniffTypeKey } from '../../files/sniff.js';
-import { SNIFF_TYPE_KEYS } from '../../files/sniff.js';
+import { mimesForKeys, SNIFF_TYPE_KEYS } from '../../files/sniff.js';
 import {
   fileIdParams,
   filesAttachBody,
+  filesCopyBody,
+  filesCopyReply,
   filesContentQuery,
   filesGetReply,
   filesListQuery,
@@ -155,6 +157,16 @@ export interface FilesRoutesDeps {
    * hung on another record here. Absent: no such column exists.
    */
   heldByRecord?: ((file: StoredFile) => Promise<boolean>) | undefined;
+  /**
+   * Whether a record holds this file in a secret column (never copied) or a
+   * personal one (not copied into another table). Absent: no column keeps a
+   * file private.
+   */
+  privateFile?: ((file: StoredFile) => Promise<'secret' | 'personal' | null>) | undefined;
+  /** Whether the caller's role reads a column of a table. Absent: every column is read with its table. */
+  columnReadable?: ((request: FastifyRequest, input: { connectionId: string; table: string; column: string }) => Promise<boolean>) | undefined;
+  /** What a table's records are called, by id, as the caller's grid names them. Absent: by their keys. */
+  recordLabels?: ((request: FastifyRequest, input: { connectionId: string; table: string; recordIds: readonly string[] }) => Promise<Map<string, string>>) | undefined;
   /**
    * The table's `config.attachments` block, for a SIDECAR upload (one that
    * names no column). Absent ⇒ sidecar uploads take only the workspace
@@ -321,6 +333,70 @@ export function filesRoutes(deps: FilesRoutesDeps): FastifyPluginAsyncZod {
     return workspace.filter((key) => columnAccept.includes(key));
   }
 
+  /** Where an upload for a table (and a column of it) goes, how large it may be, what it may be, and whether a picture is cleaned. */
+  interface UploadLimits {
+    /** The named column's `file` block; null for a sidecar or library upload, or a column that holds no files. */
+    block: Awaited<ReturnType<NonNullable<FilesRoutesDeps['columnFileBlock']>>>;
+    /** The table's sidecar block, for an upload that names no column. */
+    sidecar: Awaited<ReturnType<NonNullable<FilesRoutesDeps['pageAttachments']>>>;
+    maxBytes: number;
+    destinationId: string | undefined;
+    allowedTypes: SniffTypeKey[];
+    clean: boolean;
+  }
+
+  /**
+   * THE ONE PLACE an upload's limits are worked out, for the upload route and
+   * the copy route alike: a copy is an upload the server makes from bytes it
+   * already holds, and two doors with two sets of limits would drift.
+   *
+   * A COLUMN upload reads that column's `file` block; a SIDECAR upload (no
+   * column named) reads the page's `config.attachments`. Both narrow the
+   * same three things, and neither can widen the workspace setting. A
+   * library upload has neither: no column to read a block from, and no
+   * table whose pages could carry a sidecar block. It gets the workspace
+   * limits.
+   */
+  async function uploadLimits(input: { connectionId: string; table: string | undefined; column: string | undefined; destinationId?: string | undefined }): Promise<UploadLimits> {
+    const { connectionId, table, column } = input;
+    const block =
+      column === undefined || table === undefined || deps.columnFileBlock === undefined
+        ? null
+        : await deps.columnFileBlock({ connectionId, table, column });
+    const sidecar =
+      column !== undefined || table === undefined || deps.pageAttachments === undefined
+        ? null
+        : await deps.pageAttachments({ connectionId, table });
+    const limits = block ?? sidecar;
+    return {
+      block,
+      sidecar,
+      maxBytes: Math.min(await settings.get('files.maxBytes'), limits?.maxBytes ?? Number.POSITIVE_INFINITY),
+      destinationId: input.destinationId ?? limits?.destinationId,
+      allowedTypes: await allowedTypesFor(limits?.accept),
+      clean: block?.ruled === true,
+    };
+  }
+
+  /** The value a column stores for a file, in the shape its block names: the server makes it, never the browser. */
+  async function refFor(request: FastifyRequest, block: UploadLimits['block'], file: StoredFile): Promise<string> {
+    const shape = block?.ref ?? DEFAULT_REF_SHAPE;
+    const row = file.destinationId === null ? null : await destinations.findById(file.destinationId);
+    const publicBaseUrl = row !== null && 'publicBaseUrl' in row.config ? row.config.publicBaseUrl : undefined;
+    return formatRef(
+      shape,
+      { id: file.id, storageKey: file.storageKey, publicBaseUrl },
+      // The same origin email links use: a stored `url` outlives this
+      // request and is opened by people who never sent it.
+      await linkOrigin(meta, request),
+    );
+  }
+
+  /** A table by the id the database gives it, however the screen named it. */
+  async function tableId(connectionId: string, table: string): Promise<string> {
+    return deps.tableIdOf === undefined ? table : ((await deps.tableIdOf(connectionId, table)) ?? table);
+  }
+
   return async (app) => {
     /**
      * D27's producer half for the SIDECAR routes. An attach, detach, trash or
@@ -449,27 +525,12 @@ export function filesRoutes(deps: FilesRoutesDeps): FastifyPluginAsyncZod {
           }
         }
 
-        // A COLUMN upload reads that column's `file` block; a SIDECAR upload
-        // (no column named) reads the page's `config.attachments`. Both narrow
-        // the same three things, and neither can widen the workspace setting.
-        // A library upload has neither: no column to read a block from, and no
-        // table whose pages could carry a sidecar block. It gets the workspace
-        // limits, which is what `limits === null` already means below.
-        const block =
-          column === undefined || table === undefined || deps.columnFileBlock === undefined
-            ? null
-            : await deps.columnFileBlock({ connectionId, table, column });
-        const sidecar =
-          column !== undefined || table === undefined || deps.pageAttachments === undefined
-            ? null
-            : await deps.pageAttachments({ connectionId, table });
-        const limits = block ?? sidecar;
-
-        const maxBytes = Math.min(
-          await settings.get('files.maxBytes'),
-          limits?.maxBytes ?? Number.POSITIVE_INFINITY,
-        );
-        const destinationId = request.query.destinationId ?? limits?.destinationId;
+        const { block, sidecar, maxBytes, destinationId, allowedTypes, clean } = await uploadLimits({
+          connectionId,
+          table,
+          column,
+          destinationId: request.query.destinationId,
+        });
 
         // The per-record cap, enforced BEFORE the bytes are spooled: a refusal
         // that arrives after a 200 MB upload has landed is a refusal that cost
@@ -493,9 +554,9 @@ export function filesRoutes(deps: FilesRoutesDeps): FastifyPluginAsyncZod {
             claimedMime: request.headers['content-type'],
             source: request.body as Readable,
             maxBytes,
-            allowedTypes: await allowedTypesFor(limits?.accept),
+            allowedTypes,
             uploadedBy: userId,
-            clean: block?.ruled === true,
+            clean,
             ...(destinationId === undefined
               ? {}
               : { destinationId: destinationId === LOCAL_DESTINATION_ID ? null : destinationId }),
@@ -547,18 +608,119 @@ export function filesRoutes(deps: FilesRoutesDeps): FastifyPluginAsyncZod {
         const view = toView(result.file);
         if (column === undefined) return reply.status(201).send({ data: view });
 
-        const shape = block?.ref ?? DEFAULT_REF_SHAPE;
-        const row = result.file.destinationId === null ? null : await destinations.findById(result.file.destinationId);
-        const publicBaseUrl =
-          row !== null && 'publicBaseUrl' in row.config ? row.config.publicBaseUrl : undefined;
-        const ref = formatRef(
-          shape,
-          { id: result.file.id, storageKey: result.file.storageKey, publicBaseUrl },
-          // The same origin email links use: a stored `url` outlives this
-          // request and is opened by people who never sent it.
-          await linkOrigin(meta, request),
-        );
+        const ref = await refFor(request, block, result.file);
         return reply.status(201).send({ data: view, ref });
+      },
+    );
+
+    /**
+     * A COPY of a file the caller may read, made for a column of a table: the
+     * way a record gets a picture another record or the Files page already
+     * has. The copy is the caller's own new upload, unclaimed, exactly as if
+     * they had uploaded the bytes for that column: Save names it and the
+     * record takes it, Cancel leaves it to the sweep. Nothing about the
+     * original changes, and nothing ties the two afterwards: deleting either
+     * never touches the other.
+     *
+     * Everything is asked BEFORE a byte is read, in this order:
+     *   1. the target: what an upload for that column asks (create or update
+     *      on the table), and the column is one that holds files;
+     *   2. the same connection: a file of another one, or of none, is not
+     *      copied across;
+     *   3. the caller may read the source, by the read rule of every files
+     *      route; a file a record keeps in a personal column stays in its table;
+     *   4. it is live, of a kind the column takes, no larger than it allows.
+     * A source the caller may not read, one in the bin and one that does not
+     * exist get the same 404: the answer is no way to learn of a file.
+     *
+     * The bytes are then read through the store and written through the
+     * upload's own path, with the upload's limits for that column: its
+     * destination (a library file on this server's disk, copied for a column
+     * whose files go to a bucket, lands in the bucket) and its cleaning (a
+     * picture copied into an app's own file column loses its camera notes, as
+     * an upload would, so the column's judge takes it).
+     */
+    app.post(
+      '/files/:id/copy',
+      {
+        // A copy writes bytes as an upload does, so it spends the uploads' budget.
+        config: { rateLimitBucket: 'upload', audit: audited('rbac') },
+        schema: { params: fileIdParams, body: filesCopyBody, response: { 201: filesCopyReply } },
+      },
+      async (request, reply) => {
+        const userId = requireUserId(request);
+        const { connectionId, column } = request.body;
+        const table = await tableId(connectionId, request.body.table);
+
+        // 1. The target.
+        const updatePermission = `table:${connectionId}:${table}:update`;
+        if (!(await request.can(`table:${connectionId}:${table}:create`)) && !(await request.can(updatePermission))) {
+          throw new ForbiddenError(`You need create or update on ${table} to add a file to it.`, 'FORBIDDEN', { permission: updatePermission });
+        }
+        const limits = await uploadLimits({ connectionId, table, column });
+        if (limits.block === null) {
+          throw new ValidationFailedError(`The column ${column} does not hold files.`, { column: 'not-a-file-column' });
+        }
+
+        // 2–4, answered alike when the answer is no.
+        const missing = (): NotFoundError => new NotFoundError(`File ${request.params.id} not found.`);
+        const source = await files.findById(request.params.id);
+        if (source === null || !SERVED_KINDS.has(source.kind)) throw missing();
+        if (source.entityConnectionId !== connectionId) throw missing();
+        if (!(await canRead(request, source))) throw missing();
+        // An upload no record took yet is its uploader's alone: another person's create form is nobody else's to copy from.
+        if (source.attachedAt === null && source.uploadedBy !== userId) throw missing();
+        const kept = (await deps.privateFile?.(source)) ?? null;
+        if (kept === 'secret' || (kept === 'personal' && source.entityTable !== table)) throw missing();
+        if (source.deletedAt !== null) throw missing();
+        if (!mimesForKeys(limits.allowedTypes).includes(source.mime)) {
+          throw new AppError(422, 'TYPE_NOT_ACCEPTED', `This column does not take ${source.mime} files.`, { mime: source.mime });
+        }
+        if (source.sizeBytes > limits.maxBytes) {
+          throw new AppError(422, 'TOO_LARGE', `That file is larger than this column's ${String(limits.maxBytes)}-byte limit.`, { maxBytes: limits.maxBytes });
+        }
+
+        let opened;
+        try {
+          opened = await storage.open(source);
+        } catch (error) {
+          if (error instanceof FileNotFoundError) throw missing();
+          throw error;
+        }
+        let result;
+        try {
+          result = await storage.putUpload({
+            kind: 'upload',
+            filename: source.filename,
+            source: opened.stream,
+            maxBytes: limits.maxBytes,
+            allowedTypes: limits.allowedTypes,
+            uploadedBy: userId,
+            clean: limits.clean,
+            ...(limits.destinationId === undefined
+              ? {}
+              : { destinationId: limits.destinationId === LOCAL_DESTINATION_ID ? null : limits.destinationId }),
+            // Unclaimed, as a create form's upload is: the save that names it is what claims it.
+            entityConnectionId: connectionId,
+            claimed: false,
+          });
+        } catch (error) {
+          if (error instanceof SpoolTooLargeError) {
+            throw new AppError(422, 'TOO_LARGE', `That file is larger than this column's ${String(limits.maxBytes)}-byte limit.`, { maxBytes: limits.maxBytes });
+          }
+          if (error instanceof UnsupportedFileTypeError) {
+            throw new AppError(422, 'TYPE_NOT_ACCEPTED', error.message, { ...(error.sniffedMime === undefined ? {} : { mime: error.sniffedMime }) });
+          }
+          throw error;
+        }
+
+        await app.rbac.audit(request, {
+          category: 'data',
+          action: 'file.copy',
+          connectionId,
+          changes: { after: { from: source.id, to: result.file.id, table, column } },
+        });
+        return reply.status(201).send({ data: toView(result.file), ref: await refFor(request, limits.block, result.file) });
       },
     );
 
@@ -571,25 +733,62 @@ export function filesRoutes(deps: FilesRoutesDeps): FastifyPluginAsyncZod {
         const query = request.query;
         const ofRecord = query.connectionId !== undefined && query.table !== undefined && query.recordId !== undefined;
 
+        // The kinds asked for, by the allowlist's words.
+        let accept: readonly SniffTypeKey[] | undefined;
+        if (query.accept !== undefined) {
+          const asked = query.accept.split(',');
+          const unknown = asked.find((key) => !(SNIFF_TYPE_KEYS as readonly string[]).includes(key));
+          if (unknown !== undefined) throw new ValidationFailedError(`${unknown} is not a kind of file this server knows.`, { accept: 'unknown-kind' });
+          accept = asked as SniffTypeKey[];
+        }
+
+        /*
+         * USED IN a table's column: the files its records hold, to choose one
+         * to copy. Not limited to the caller's own uploads — every file listed
+         * passes the read rule, so a file in a column their role does not
+         * read, or of a row they do not reach, is left out — and only live
+         * files: the bin is nobody else's to look through. The table is named
+         * by the one id the database gives it, for the grant and the query.
+         */
+        const usedIn = query.usedInTable !== undefined || query.usedInColumn !== undefined;
+        let usedTable: string | undefined;
+        if (usedIn) {
+          if (query.connectionId === undefined || query.usedInTable === undefined || query.usedInColumn === undefined) {
+            throw new ValidationFailedError('A "used in" list names its connection, its table and its column.', { usedInTable: 'required', usedInColumn: 'required', connectionId: 'required' });
+          }
+          if (query.state !== 'live') throw new ValidationFailedError('A "used in" list holds live files only.', { state: 'live-only' });
+          usedTable = await tableId(query.connectionId, query.usedInTable);
+          const permission = `table:${query.connectionId}:${usedTable}:read`;
+          const column = { connectionId: query.connectionId, table: usedTable, column: query.usedInColumn };
+          if (!(await request.can(permission)) || !((await deps.columnReadable?.(request, column)) ?? true)) {
+            throw new ForbiddenError(`You need read on ${usedTable} to see the files its records hold.`, 'FORBIDDEN', { permission });
+          }
+          // The column decides the kinds: what it takes, narrowed by what was asked.
+          const block = deps.columnFileBlock === undefined ? null : await deps.columnFileBlock(column);
+          const takes = await allowedTypesFor(block?.accept);
+          accept = accept === undefined ? takes : accept.filter((key) => takes.includes(key));
+        }
+
         const page = await files.search({
           state: query.state,
           kinds: [...SERVED_KINDS] as FileKind[],
           ...(query.q === undefined ? {} : { q: query.q }),
           ...(query.kind === undefined ? {} : { kind: query.kind }),
           ...(query.connectionId === undefined ? {} : { entityConnectionId: query.connectionId }),
-          ...(query.table === undefined ? {} : { entityTable: query.table }),
+          ...(usedTable !== undefined ? { entityTable: usedTable } : query.table === undefined ? {} : { entityTable: query.table }),
           ...(query.recordId === undefined ? {} : { entityId: query.recordId }),
           ...(query.since === undefined ? {} : { since: query.since }),
           ...(query.destinationId === undefined
             ? {}
             : { destinationId: query.destinationId === LOCAL_DESTINATION_ID ? null : query.destinationId }),
           ...(query.mime === undefined ? {} : { mime: query.mime }),
+          ...(accept === undefined ? {} : { mimes: mimesForKeys(accept) }),
           // Mine-only without the grant, the `exports.manage` precedent. An
           // explicit `uploadedBy` is honoured only for someone who may see
           // other people's files at all. A record's own list (its Files tab)
-          // is what the record holds, whoever uploaded it: each still passes
-          // the per-file read rule below.
-          uploadedBy: manage ? query.uploadedBy : ofRecord ? undefined : userId,
+          // is what the record holds, whoever uploaded it, and so is a "used
+          // in" list: each still passes the per-file read rule below.
+          uploadedBy: manage ? query.uploadedBy : ofRecord || usedIn ? undefined : userId,
           limit: query.limit,
           ...(query.cursor === undefined ? {} : { cursor: query.cursor }),
         });
@@ -598,11 +797,25 @@ export function filesRoutes(deps: FilesRoutesDeps): FastifyPluginAsyncZod {
         // passes the per-file read rule, so a table grant they lack cannot leak
         // a row through a record filter.
         // …and a file of a record out of the caller's reach is listed for nobody, that grant or not.
-        const visible = (await Promise.all(page.rows.map(async (row) => ((manage ? await reaches(request, row, 'read') : await canRead(request, row)) ? row : null)))).filter(
+        // A "used in" list asks the read rule of everybody: a column the role does not read is not shown to a file manager either.
+        const visible = (await Promise.all(page.rows.map(async (row) => ((manage && !usedIn ? await reaches(request, row, 'read') : await canRead(request, row)) ? row : null)))).filter(
           (row): row is StoredFile => row !== null,
         );
 
-        return { data: visible.map(toView), nextCursor: page.nextCursor };
+        if (usedTable === undefined || deps.recordLabels === undefined) return { data: visible.map(toView), nextCursor: page.nextCursor };
+        // Whose picture each one is, as the caller's own grid names the record.
+        const labels = await deps.recordLabels(request, {
+          connectionId: query.connectionId!,
+          table: usedTable,
+          recordIds: visible.flatMap((row) => (row.entityId === null ? [] : [row.entityId])),
+        });
+        return {
+          data: visible.map((row) => {
+            const recordLabel = row.entityId === null ? undefined : labels.get(row.entityId);
+            return recordLabel === undefined ? toView(row) : { ...toView(row), recordLabel };
+          }),
+          nextCursor: page.nextCursor,
+        };
       },
     );
 
