@@ -36,7 +36,7 @@ file. Every file is 8 KB or less.
 | `references/projects/pull-and-check--pull.md` | Pull | 1831 |
 | `references/projects/pull-and-check--check.md` | Check | 2008 |
 | `references/projects/hooks-and-actions--overview.md` | Hooks and actions | 762 |
-| `references/projects/hooks-and-actions--hooks.md` | Hooks | 3095 |
+| `references/projects/hooks-and-actions--hooks.md` | Hooks | 3201 |
 | `references/projects/hooks-and-actions--actions.md` | Actions | 1995 |
 | `references/projects/hooks-and-actions--the-db-helper.md` | The `db` helper | 1083 |
 | `references/projects/hooks-and-actions--building-and-deploying.md` | Building and deploying | 1012 |
