@@ -184,8 +184,9 @@ export function FromFigmaDialog({ open, onOpenChange, onImported, returnFocus }:
       if ('link' in failed) setLinkError((LINK_WORDS[failed.link] as () => string)());
       else if ('words' in failed) setLinkError(failed.words);
       else if (failed.refusal.kind === 'token' || failed.refusal.kind === 'not-connected') {
-        // A dead token is not a dead end: the token field is there again, in place.
-        setDead(true);
+        // A dead token is not a dead end: the token field is there again, in place. A token taken off
+        // elsewhere (the Security page) is no dead one: the dialog is simply not connected now.
+        setDead(failed.refusal.kind === 'token');
         setToken('');
         void queryClient.invalidateQueries({ queryKey: designerKeys.figma });
         requestAnimationFrame(() => tokenRef.current?.focus());
