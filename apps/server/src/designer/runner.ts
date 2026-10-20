@@ -31,6 +31,7 @@
  * until it is answered. Stop answers every waiting card with "stopped".
  */
 import { ATTACHMENT_MAX_PER_MESSAGE, attachmentNote, type Attachment, type Attachments } from './attachments.js';
+import { FIGMA_LONG_FORM_WINDOW } from './figma/distil.js';
 import { cleanPicked, pickedNote } from './picked.js';
 import { requestTokens, type PromptOpts } from './prompt.js';
 import { randomBytes } from 'node:crypto';
@@ -123,6 +124,8 @@ export interface RunnerDeps {
   limits(): Promise<DesignerLimits>;
   /** What people attach to a message: pictures and CSV files, kept in the session's folder. */
   attachments?: Attachments;
+  /** The most tokens a request to the session's model may carry: a Figma import goes as its short form below a floor. */
+  windowOf?(session: DesignerSession): Promise<number>;
   /** Send an event to the pages watching this session. */
   publish(event: DesignerEvent & { sessionId: string }): void;
   /** Record a turn's start and end. */
@@ -793,7 +796,10 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
         // What the person saved by hand since the Designer last finished: named, so it reads each again before it writes it.
         const edited = (session.handEdits ?? []).filter(plainPath).slice(0, HAND_EDITS_MAX);
         // The person's words first and alone; what the server says about a file is a block of its own; a picture is a reference, never its bytes.
-        const note = deps.attachments === undefined ? '' : attachmentNote(deps.attachments, sessionId, ids);
+        const window = files.some((file) => file.source === 'figma') ? await deps.windowOf?.(session).catch(() => undefined) : undefined;
+        const note = deps.attachments === undefined ? '' : attachmentNote(deps.attachments, sessionId, ids, window === undefined ? {} : { window });
+        // A model with a small window gets a Figma frame's short form, and not its picture: both would leave no room to talk.
+        const sent = files.filter((file) => file.kind === 'image' && !(file.source === 'figma' && window !== undefined && window < FIGMA_LONG_FORM_WINDOW));
         deps.store.appendMessage(sessionId, turn, {
           role: 'user',
           content: [
@@ -808,7 +814,7 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
                     text: `\n\n(Since your last turn the person changed these files by hand: ${JSON.stringify(edited)}. Read each one again before you change it, and keep what they changed unless this message asks otherwise.)`,
                   },
                 ]),
-            ...files.filter((file) => file.kind === 'image').flatMap((file) => pictureBlocks(file, deps.attachments?.partsOf(sessionId, file.id) ?? [])),
+            ...sent.flatMap((file) => pictureBlocks(file, deps.attachments?.partsOf(sessionId, file.id) ?? [])),
           ],
         });
         events(sessionId).emit(turn, {

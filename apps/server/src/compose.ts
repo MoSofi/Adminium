@@ -33,7 +33,7 @@
 import { existsSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
-import { llmKeyCryptoFromSecret, type AllowedVocabularies } from '@adminium/llm';
+import { ASSISTANT_INPUT_TOKEN_LIMIT, llmKeyCryptoFromSecret, type AllowedVocabularies } from '@adminium/llm';
 import { isAddOnManifest, validateManifest } from '@adminium/manifest';
 import {
   documentProfilesRepo,
@@ -2359,6 +2359,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
             needsName: (session) => designer?.needsName(session) === true,
           }),
           attachments: designerAttachments,
+          windowOf: async (session) => ASSISTANT_INPUT_TOKEN_LIMIT[(await aiConnections.find(session.connectionId))?.provider ?? 'openai-compatible'],
           tools: (session) =>
             createDesignerTools(
               {
