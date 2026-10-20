@@ -9,7 +9,7 @@
  * out of it, bytes that are no picture, an address that only looks like
  * Unsplash's, a write by one of the model's file tools.
  */
-import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -226,5 +226,23 @@ describe('a card’s answer about pictures', () => {
 
   it('never answers the spots card on the card: the picture dialog’s Apply does', () => {
     expect(answerFor({ id: 'spots-2', type: 'spots', spots: [{ id: 'hero', label: 'Hero', shape: 'wide' }] }, { accept: true })).toBeNull();
+  });
+});
+
+describe('a new side', () => {
+  it('starts the app’s spots, empty; an app whose screens import their pictures is left as it was made', async () => {
+    const { addSide } = await import('../src/project/apps/scaffold-app.js');
+    const manifest = { key: 'cafe', name: 'Cafe', version: '0.1.0', frontends: [{ side: 'staff', kind: 'none' }] };
+    mkdirSync(join(root, 'apps', 'cafe', 'manifest'), { recursive: true });
+    writeFileSync(join(root, 'apps', 'cafe', 'manifest', 'app.json'), JSON.stringify(manifest));
+    rmSync(pictures(), { recursive: true, force: true });
+    addSide({ root, key: 'cafe', name: 'Cafe', side: 'customer' });
+    expect(readSpots(root, 'cafe')).toEqual([]);
+    expect(readFileSync(join(pictures(), 'spots.json'), 'utf8')).toBe('{}\n');
+    // An older app: its customer screen imports its picture.
+    rmSync(join(root, 'apps', 'cafe', 'assets'), { recursive: true, force: true });
+    writeFileSync(join(root, 'apps', 'cafe', 'customer', 'src', 'App.tsx'), "import hero1 from '../../assets/pictures/hero-1.jpg';\nexport const App = () => <img src={hero1} alt='' />;\n");
+    addSide({ root, key: 'cafe', name: 'Cafe', side: 'staff' });
+    expect(existsSync(join(pictures(), 'spots.json'))).toBe(false);
   });
 });

@@ -18,6 +18,7 @@ import { join } from 'node:path';
 
 import { mentionsLook, readLook, resolveLook, type LookPlaces } from './look.js';
 import { hasOwnBuild } from './own-build.js';
+import { readCredits, readSpots, spotScreens, type SpotScreen } from '../../designer/spots.js';
 import { appDir, appPath, SIDES, type AppSide } from './read-app.js';
 import { code } from './side-calls.js';
 import { projectTailwind, tailwindCss } from './side-build.js';
@@ -25,7 +26,7 @@ import { contrast, inkOn, type Theme, type ThemeColours } from './theme.js';
 
 export interface DesignIssue {
   /** What kind of finding it is: a test and the page tell them apart by this. */
-  kind: 'class' | 'emoji' | 'colour' | 'font' | 'logo' | 'brief' | 'inline' | 'pictures' | 'contrast' | 'dashboard' | 'component' | 'address';
+  kind: 'class' | 'emoji' | 'colour' | 'font' | 'logo' | 'brief' | 'inline' | 'pictures' | 'spots' | 'contrast' | 'dashboard' | 'component' | 'address';
   /** One line for the model, the same each time. */
   line: string;
 }
@@ -35,8 +36,8 @@ export interface DesignCheckOptions extends LookPlaces {
   fresh?: boolean;
   /** Whether the project carries an icon package: the fix for an emoji is worded by it. */
   icons?: boolean;
-  /** Picture columns of tables customers read whose sample rows have no picture: asked only where pictures can be looked for. */
-  emptyPictureColumns?: { table: string; column: string }[];
+  /** Whether the person wants pictures on the page at all: said of a page with none only then (not when they said they bring their own, or want none). */
+  asksForPictures?: boolean;
 }
 
 const MAX_FILES = 60;
@@ -337,6 +338,83 @@ export function dashboardPageLine(request: string, written: readonly string[]): 
   return `- ${page} is a dashboard page, and this turn was asked for a look: dashboard pages are Adminium's own and take no design. If the change there was not asked for, put the page back as it was; the look belongs in the app's own screens (set_style, design.css).`;
 }
 
+/** The text inside the parentheses that open at `from`; null when they do not close. */
+function inParens(text: string, from: number): string | null {
+  let depth = 0;
+  for (let at = from; at < text.length && at < from + 8000; at += 1) {
+    const mark = text[at];
+    if (mark === '(') depth += 1;
+    else if (mark === ')') {
+      depth -= 1;
+      if (depth === 0) return text.slice(from + 1, at);
+    }
+  }
+  return null;
+}
+
+/**
+ * A spot drawn once for each row of a list: its id built from the row
+ * (`spot={`dish-${i}`}`), or three spots or more inside one repeated part.
+ * A picture of what is on offer belongs to its row, not to a spot.
+ */
+export function spotPerRow(source: string): boolean {
+  const text = code(source);
+  if (/<Picture\b[^>]*\bspot\s*=\s*\{(?!\s*["'][a-z][a-z0-9-]*["']\s*\})/.test(text)) return true;
+  for (const found of text.matchAll(/\.map\s*\(/g)) {
+    const inside = inParens(text, (found.index ?? 0) + found[0].length - 1);
+    if (inside !== null && (inside.match(/<Picture\b/g) ?? []).length >= 3) return true;
+  }
+  return false;
+}
+
+/** The import of a picture file of the app's own (not its logo) a screen writes; null when there is none. */
+export function importedPicture(source: string): string | null {
+  const found = /\bimport\s+\w+\s+from\s*['"](?:\.\.\/)+assets\/pictures\/([^'"]+\.(?:jpe?g|png|webp|gif|avif))['"]/i.exec(code(source));
+  return found === null ? null : (found[1] as string);
+}
+
+/**
+ * What the app's picture spots lack: a spot a screen draws that was never
+ * named, one named that no screen draws, a picture with no words for those
+ * who cannot see it, a picture file shown with an <img> where a spot belongs,
+ * a picture whose licence asks for a credit that no screen gives, and a spot
+ * drawn for each row of a list. Nothing for an app made before spots (it has
+ * no `spots.json`): its pictures become spots only when the person asks.
+ */
+function spotIssues(root: string, key: string, sides: readonly AppSide[]): DesignIssue[] {
+  const dir = appDir(root, key);
+  if (!existsSync(join(dir, 'assets', 'pictures', 'spots.json'))) return [];
+  const issues: DesignIssue[] = [];
+  const named = readSpots(root, key);
+  const drawn = spotScreens(root, key);
+  const screens = sides.flatMap((side) => sources(join(dir, side, 'src'), /\.(?:tsx|jsx)$/).map((screen) => ({ ...screen, at: appPath(key, side, 'src', screen.name) })));
+  for (const [id, where] of drawn) {
+    if (named.some((spot) => spot.id === id)) continue;
+    issues.push({ kind: 'spots', line: `- ${(where[0] as SpotScreen).file === '' ? key : appPath(key, (where[0] as SpotScreen).file)} draws the spot "${id}", which was never named, so it shows an empty frame: name it with add_spots (its label, shape and what it shows)${named.length === 0 ? '' : `, or draw a spot that is there (${named.map((spot) => spot.id).slice(0, 8).join(', ')})`}.` });
+  }
+  for (const spot of named) {
+    if (!drawn.has(spot.id)) issues.push({ kind: 'spots', line: `- The spot "${spot.id}" (${spot.label}) is named and no screen draws it: draw it with <Picture spot="${spot.id}" /> where it belongs.` });
+    // The person's words, which the model cannot write: it can only ask for them.
+    if (spot.file !== null && !spot.decorative && spot.alt.trim() === '') {
+      issues.push({ kind: 'spots', line: `- The spot "${spot.id}" (${spot.label}) shows a picture with no words for people who cannot see it: ask the person to describe it in Pictures, or to tick "Decorative" there.` });
+    }
+  }
+  const credits = readCredits(root, key);
+  const creditsSaid = screens.some((screen) => /picture credits|CREDITS\.json/i.test(screen.text));
+  for (const screen of screens) {
+    const file = importedPicture(screen.text);
+    if (file !== null) {
+      issues.push({ kind: 'spots', line: `- ${screen.at} shows assets/pictures/${file} with an <img>: a page's picture is a spot the person fills. Name it with add_spots and draw it with <Picture spot="…" />.` });
+      const credit = credits.find((line) => line.file === `assets/pictures/${file}`);
+      if (credit !== undefined && (credit.licenceCode === 'by' || credit.licenceCode === 'by-sa' || (credit.licenceCode === undefined && /^CC BY/i.test(credit.licence))) && !creditsSaid) {
+        issues.push({ kind: 'spots', line: `- ${screen.at} shows "${credit.title}" (${credit.licence}), whose licence asks for its creator's name, and no screen gives it: show it at the foot of the page under "Picture credits", or make the picture a spot (a spot's credit is drawn for it).` });
+      }
+    }
+    if (spotPerRow(screen.text)) issues.push({ kind: 'spots', line: `- ${screen.at} draws a spot for each row of a list: a picture of what is on offer belongs to its row. Give the table a picture column and show it with pictureUrl; keep spots for the page's own pictures.` });
+  }
+  return issues;
+}
+
 /**
  * What the screens of `apps/<key>/` lack as a design. Nothing for an app
  * with a build of its own (its authors' design), or with no starter side.
@@ -457,7 +535,7 @@ export async function designIssues(root: string, key: string, opts: DesignCheckO
       if (address === null || (!address.startsWith('/') && !address.includes('${') && existsSync(join(dir, side, 'public', address.replace(/^\.\//, ''))))) continue;
       issues.push({
         kind: 'pictures',
-        line: `- ${at(screen.name)} shows a picture from "${address}", an address nothing is at, so an empty frame shows. A page's picture is a file the screen imports (call find_pictures with "for": "page", then import hero1 from '../../assets/pictures/hero-1.jpg'); a row's picture comes from its picture column with pictureUrl. With no picture to show, take the <img> out and leave the tile plain.`,
+        line: `- ${at(screen.name)} shows a picture from "${address}", an address nothing is at, so an empty frame shows. A page's picture is a spot (add_spots, then <Picture spot="…" />); a row's picture comes from its picture column with pictureUrl. With no picture to show, take the <img> out and leave the tile plain.`,
       });
     }
     // More than one page, and one address for all of them. One line a side.
@@ -530,30 +608,22 @@ export async function designIssues(root: string, key: string, opts: DesignCheckO
     }
   }
 
-  // A public page with no picture on it at all, where pictures can be looked for: asked once, while the app is being made.
-  if (opts.fresh === true && opts.emptyPictureColumns !== undefined && sides.includes('customer' as AppSide)) {
+  // A public page with no picture on it at all: asked once, while the app is being made, unless the person said otherwise.
+  if (opts.fresh === true && opts.asksForPictures === true && sides.includes('customer' as AppSide)) {
     const screens = sources(join(dir, 'customer', 'src'), /\.(?:tsx|jsx)$/).filter((screen) => !screen.name.startsWith('ui/'));
     const pictured = screens.some((screen) => {
       const text = code(screen.text);
-      return /assets\/pictures\/|pictureUrl\s*\(|<img\b(?![^>]*\blogo\b)[^>]*\bsrc\s*=\s*\{(?!\s*logo\b)|\bimport\s+\w+\s+from\s*['"][^'"]+\.(?:jpe?g|png|webp|avif)['"]/.test(text);
+      return /<Picture\b|assets\/pictures\/|pictureUrl\s*\(|<img\b(?![^>]*\blogo\b)[^>]*\bsrc\s*=\s*\{(?!\s*logo\b)|\bimport\s+\w+\s+from\s*['"][^'"]+\.(?:jpe?g|png|webp|avif)['"]/.test(text);
     }) || sources(join(dir, 'customer', 'src'), /\.css$/).some((sheet) => sheet.name !== 'app.css' && /background(?:-image)?\s*:[^;]*url\(/.test(sheet.text));
-    if (screens.length > 0 && !pictured && opts.emptyPictureColumns.length === 0) {
+    if (screens.length > 0 && !pictured) {
       issues.push({
         kind: 'pictures',
-        line: `- The public page shows no picture at all, only words: a page for a business needs at least one of the place, the work or what is on offer. Call find_pictures once with what the first screen should show ("for": "page") and, where customers choose from a list, the list's rows ("for": "rows", with its "table"); then show them. If the person asked for a page without pictures, say so and leave it.`,
+        line: `- The public page shows no picture at all, only words: a page for a business needs at least one of the place, the work or what is on offer. Name what the first screen should show with add_spots and draw each with <Picture spot="…" />; where customers choose from a list, give its table a picture column. If the person asked for a page without pictures, say so and leave it.`,
       });
     }
   }
 
-  // What customers look at before they choose has pictures: a picture column whose sample rows are all empty is a page of grey tiles.
-  if (opts.fresh === true && opts.emptyPictureColumns !== undefined) {
-    for (const { table, column } of opts.emptyPictureColumns) {
-      issues.push({
-        kind: 'pictures',
-        line: `- No sample row of "${table}" has a picture in "${column}", so the page shows empty tiles: call find_pictures with { "id": "${table.replace(/_/g, '-')}", "words": what these rows show, "for": "rows", "table": "${table}", "column": "${column}" }.`,
-      });
-    }
-  }
+  issues.push(...spotIssues(root, key, sides));
 
   // The brief, for an app this session is making.
   if (opts.fresh === true) {

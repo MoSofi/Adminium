@@ -296,29 +296,77 @@ describe('a component a screen draws and never brings', () => {
 });
 
 describe('a public page with no picture on it', () => {
-  it('is said once while the app is being made, where pictures can be looked for, and not of a page that shows one', async () => {
+  it('is said once while the app is being made, when the person wants pictures, and not of a page that shows one', async () => {
     write('design.md', `# Brief\n${'A warm page for a bakery, with the menu first. '.repeat(3)}`);
     write('customer/src/App.tsx', screen('<div className="page"><img src={logo} alt="" className="logo" /><h1>Cakes</h1></div>'));
-    // Pictures can be looked for here (the list of empty picture columns is given, and is empty).
-    expect(await kinds({ fresh: true, emptyPictureColumns: [] })).toEqual(['pictures']);
-    // Not where this server looks for none, and not of an app that already has a version.
-    expect(await kinds({ fresh: true })).toEqual([]);
-    expect(await kinds({ emptyPictureColumns: [] })).toEqual([]);
-    // A picture of the page's own, or a row's, is a picture.
-    write('customer/src/App.tsx', `import hero1 from '../../assets/pictures/hero-1.jpg';\n${screen('<div className="page"><img src={logo} alt="" /><img src={hero1} alt="" /></div>')}`);
-    expect(await kinds({ fresh: true, emptyPictureColumns: [] })).toEqual([]);
+    expect(await kinds({ fresh: true, asksForPictures: true })).toEqual(['pictures']);
+    // Not when the person brings their own or wants none, and not of an app that already has a version.
+    expect(await kinds({ fresh: true, asksForPictures: false })).toEqual([]);
+    expect(await kinds({ asksForPictures: true })).toEqual([]);
+    // A spot, a row's picture, a picture the screen imports, and one a stylesheet draws behind a part, are pictures.
+    write('customer/src/App.tsx', `import { Picture } from '@adminiumjs/adminium/side';\n${screen('<div className="page"><img src={logo} alt="" /><Picture spot="hero" /></div>')}`);
+    expect(await kinds({ fresh: true, asksForPictures: true })).toEqual([]);
     write('customer/src/App.tsx', `import { pictureUrl } from '@adminiumjs/public-client';\n${screen('<div className="page"><img src={logo} alt="" /><img src={pictureUrl(base, config, table, row.id, "picture", row.picture)} alt="" /></div>')}`);
-    expect(await kinds({ fresh: true, emptyPictureColumns: [] })).toEqual([]);
-    // Any picture the screen imports, and one a stylesheet of the app's own draws behind a part, is a picture.
+    expect(await kinds({ fresh: true, asksForPictures: true })).toEqual([]);
     write('customer/src/App.tsx', `import shot from '../../assets/hero.jpg';\n${screen('<div className="page"><img src={logo} alt="" /><Hero image={shot} /></div>')}\nfunction Hero() { return null; }`);
-    expect(await kinds({ fresh: true, emptyPictureColumns: [] })).toEqual([]);
+    expect(await kinds({ fresh: true, asksForPictures: true })).toEqual([]);
     write('customer/src/App.tsx', screen('<div className="page hero-photo"><img src={logo} alt="" className="logo" /></div>'));
     write('customer/src/design.css', '.hero-photo { background-image: url("data:image/png;base64,AAAA"); }');
-    expect(await kinds({ fresh: true, emptyPictureColumns: [] })).toEqual([]);
-    write('customer/src/design.css', '');
-    // A picture column that is empty is said by its own line, not twice.
-    write('customer/src/App.tsx', screen('<div className="page"><img src={logo} alt="" className="logo" /></div>'));
-    expect(await kinds({ fresh: true, emptyPictureColumns: [{ table: 'cakes', column: 'picture' }] })).toEqual(['pictures']);
+    expect(await kinds({ fresh: true, asksForPictures: true })).toEqual([]);
+  });
+});
+
+describe('picture spots', () => {
+  const spots = (value: Record<string, unknown>): void => write('assets/pictures/spots.json', JSON.stringify(value));
+  const hero = { label: 'Hero', shape: 'wide', file: null };
+  const lines = async (): Promise<string[]> => (await designIssues(root, 'cakes')).filter((issue) => issue.kind === 'spots').map((issue) => issue.line);
+  const drawn = (body: string): string => `import { Picture } from '@adminiumjs/adminium/side';\n${screen(`<div className="page"><img src={logo} alt="" className="logo" />${body}</div>`)}`;
+
+  it('names a spot a screen draws that was never named, and one named that no screen draws', async () => {
+    spots({ hero, team: { label: 'Team', shape: 'square', file: null } });
+    write('customer/src/App.tsx', drawn('<Picture spot="hero" /><Picture spot="kitchen" />'));
+    expect(await lines()).toEqual([
+      '- apps/cakes/customer/src/App.tsx draws the spot "kitchen", which was never named, so it shows an empty frame: name it with add_spots (its label, shape and what it shows), or draw a spot that is there (hero, team).',
+      '- The spot "team" (Team) is named and no screen draws it: draw it with <Picture spot="team" /> where it belongs.',
+    ]);
+    write('customer/src/App.tsx', drawn('<Picture spot="hero" /><Picture spot={\'team\'} />'));
+    expect(await lines()).toEqual([]);
+  });
+
+  it('asks for the person’s words for a filled picture that has none, unless they ticked Decorative', async () => {
+    write('customer/src/App.tsx', drawn('<Picture spot="hero" />'));
+    spots({ hero: { ...hero, file: 'hero-1.jpg', alt: '' } });
+    expect(await lines()).toEqual(['- The spot "hero" (Hero) shows a picture with no words for people who cannot see it: ask the person to describe it in Pictures, or to tick "Decorative" there.']);
+    spots({ hero: { ...hero, file: 'hero-1.jpg', alt: '', decorative: true } });
+    expect(await lines()).toEqual([]);
+  });
+
+  it('says a picture file shown with an <img> is a spot’s, the logo excepted, and a credit its licence asks for when no screen gives it', async () => {
+    spots({});
+    write('customer/src/App.tsx', `import shop from '../../assets/pictures/shop-1.jpg';\n${screen('<div className="page"><img src={logo} alt="" className="logo" /><img src={shop} alt="" /></div>')}`);
+    write('assets/pictures/CREDITS.json', JSON.stringify([{ file: 'assets/pictures/shop-1.jpg', title: 'Shop', creator: 'Ana', creatorUrl: '', licence: 'CC BY 2.0', licenceUrl: '', source: 'Openverse', page: '', licenceCode: 'by' }]));
+    expect(await lines()).toEqual([
+      '- apps/cakes/customer/src/App.tsx shows assets/pictures/shop-1.jpg with an <img>: a page\'s picture is a spot the person fills. Name it with add_spots and draw it with <Picture spot="…" />.',
+      '- apps/cakes/customer/src/App.tsx shows "Shop" (CC BY 2.0), whose licence asks for its creator\'s name, and no screen gives it: show it at the foot of the page under "Picture credits", or make the picture a spot (a spot\'s credit is drawn for it).',
+    ]);
+    // A screen that gives the credits: only the spot is asked for.
+    write('customer/src/Footer.tsx', 'export function Footer() { return <p>Picture credits: …</p>; }');
+    expect(await lines()).toHaveLength(1);
+  });
+
+  it('says a spot drawn for each row of a list: three in one repeated part, or an id built from the row', async () => {
+    spots({ a: hero, b: hero, c: hero });
+    write('customer/src/App.tsx', drawn('{rows.map((row) => <div key={row.id}><Picture spot="a" /><Picture spot="b" /><Picture spot="c" /></div>)}'));
+    expect((await lines()).filter((line) => line.includes('for each row'))).toHaveLength(1);
+    write('customer/src/App.tsx', drawn('<Picture spot="a" /><Picture spot="b" /><Picture spot="c" />{rows.map((row) => <Picture key={row.id} spot={`dish-${String(row.id)}`} />)}'));
+    expect((await lines()).filter((line) => line.includes('for each row'))).toHaveLength(1);
+    write('customer/src/App.tsx', drawn('<Picture spot="a" /><Picture spot="b" /><Picture spot="c" />'));
+    expect(await lines()).toEqual([]);
+  });
+
+  it('says nothing of an app made before spots: its pictures become spots only when the person asks', async () => {
+    write('customer/src/App.tsx', `import shop from '../../assets/pictures/shop-1.jpg';\n${screen('<div className="page"><img src={logo} alt="" className="logo" /><img src={shop} alt="" /></div>')}`);
+    expect(await lines()).toEqual([]);
   });
 });
 

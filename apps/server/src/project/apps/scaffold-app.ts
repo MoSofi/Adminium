@@ -379,6 +379,20 @@ export function addPhoneSide(opts: { root: string; key: string; name: string; ve
  * `items` and `requests`): a pattern to rewrite for the app's tables. Returns
  * the files written, relative to the project; none when the side is there.
  */
+/** Whether an app's screens import a picture file of its own: an app made before picture spots. */
+function importsPictures(dir: string): boolean {
+  const walk = (folder: string): boolean => {
+    if (!existsSync(folder)) return false;
+    for (const entry of readdirSync(folder, { withFileTypes: true })) {
+      if (entry.name.startsWith('.') || entry.name === 'node_modules' || entry.isSymbolicLink()) continue;
+      const path = join(folder, entry.name);
+      if (entry.isDirectory() ? walk(path) : /\.(?:tsx|jsx)$/.test(entry.name) && /from\s*['"](?:\.\.\/)+assets\/pictures\/[^'"]+\.(?:jpe?g|png|webp|gif|avif)['"]/i.test(readFileSync(path, 'utf8'))) return true;
+    }
+    return false;
+  };
+  return walk(join(dir, 'staff', 'src')) || walk(join(dir, 'customer', 'src'));
+}
+
 export function addSide(opts: { root: string; key: string; name: string; side: AppSide; templates?: string }): string[] {
   const templates = opts.templates ?? appTemplateDir();
   const dir = appDir(opts.root, opts.key);
@@ -406,8 +420,9 @@ export function addSide(opts: { root: string; key: string; name: string; side: A
       created.push(appPath(opts.key, opts.side, file));
     }
     // The page's pictures are spots the person fills: the list starts empty. How a spot is drawn is the engine's (`Picture`).
+    // An app made before spots (its screens import their pictures) stays as it is: its pictures become spots on the person's word.
     const spots = join(dir, 'assets', 'pictures', 'spots.json');
-    if (!existsSync(spots)) {
+    if (!existsSync(spots) && !importsPictures(dir)) {
       mkdirSync(dirname(spots), { recursive: true });
       writeFileSync(spots, '{}\n');
       created.push(appPath(opts.key, 'assets', 'pictures', 'spots.json'));

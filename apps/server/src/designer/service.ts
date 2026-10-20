@@ -231,7 +231,6 @@ export interface PublicLook {
   pictures?: 'placeholders' | 'choose';
 }
 
-/** The picture columns of tables customers read, no sample row of which has a picture. */
 export function emptyPictureColumns(root: string, appKey: string, manifest: unknown): { table: string; column: string }[] {
   const app = manifest as { kind?: string; publicAccess?: { table?: string; methods?: string[] }[]; requiredSchema?: { tables?: { ref: string; columns: { ref: string; type: string; semantic?: string }[] }[] } } | null;
   if (app === null || app.kind !== 'app') return [];
@@ -655,7 +654,7 @@ export function createDesigner(host: DesignerHost): Designer {
     },
     // The design, held last: a class nothing styles, an emoji for an icon, no logo, no brief.
     design: async (session) => {
-      // The person brings the pictures, or asked for empty frames: a page without one is then as asked, and nothing is looked for.
+      // The person brings the pictures, or asked for no pictures: a page without one is then as asked.
       // (Only what the person wrote, the first message of each turn: never the engine's own notes to the model.)
       const opened = new Set<number>();
       const wrote: string[] = [];
@@ -670,7 +669,7 @@ export function createDesigner(host: DesignerHost): Designer {
           builtInDir: stylesDir,
           fresh: session.createdApp && session.version === null,
           icons: listedPackages(host.root).has(ICONS_PACKAGE),
-          ...(host.findsPictures?.() === true && !ownPictures ? { emptyPictureColumns: emptyPictureColumns(host.root, session.appKey, checkApp(host.root, session.appKey, { version: host.version }).manifest) } : {}),
+          asksForPictures: !ownPictures,
         })
       ).map((issue) => issue.line);
       // Asked for a look, and a dashboard page was written in this turn: those are Adminium's own.
