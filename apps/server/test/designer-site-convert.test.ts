@@ -341,7 +341,7 @@ describe('pictures', () => {
       '<header><a href="index.html"><img src="img/brand.png" alt="Harbor"></a></header>' +
         '<h2>Our  team</h2><p><img src="img/a.jpg" alt="A"></p>' +
         '<figure><img src="img/b.png"><figcaption>The <b>harbor</b> at dawn</figcaption></figure>' +
-        '<div class="grid"><div class="card"><a href="about.html"><img src="img/a.jpg"></a></div><div class="card">2</div><div class="card">3</div></div>' +
+        '<div class="grid"><div class="card"><a href="about.html"><img src="img/a.jpg"></a></div><div class="card"><a href="index.html"><img src="img/b.png"></a></div></div>' +
         '<div><div class="pair"><img src="img/b.png"></div><div class="pair"></div></div>' +
         '<img src="img/logo-dark.png">',
       { spotFor },
@@ -351,8 +351,34 @@ describe('pictures', () => {
       { path: 'img/a.jpg', near: 'Our team', repeated: false, logo: false },
       { path: 'img/b.png', near: 'The harbor at dawn', repeated: false, logo: false },
       { path: 'img/a.jpg', near: 'Our team', repeated: true, logo: false },
+      { path: 'img/b.png', near: 'Our team', repeated: true, logo: false },
       { path: 'img/b.png', near: 'Our team', repeated: false, logo: false },
       { path: 'img/logo-dark.png', near: 'Our team', repeated: false, logo: true },
+    ]);
+  });
+
+  it('takes the pictures of two cards of one shape as repeated, so neither becomes a spot', () => {
+    const spotUnlessRepeated = (picture: PageImage): string | null => (picture.repeated ? null : 'spot');
+    const cards =
+      '<div class="row"><div class="product"><img src="img/a.jpg"><h3>Chair</h3><b>$50</b></div>' +
+      '<div class="product"><img src="img/b.png"><h3>Table</h3><b>$90</b><span class="badge">Sale</span></div></div>';
+    const page = pageOf(cards, { spotFor: spotUnlessRepeated });
+    expect(page.pictures.map(({ path, repeated, spot }) => ({ path, repeated, spot }))).toEqual([
+      { path: 'img/a.jpg', repeated: true, spot: null },
+      { path: 'img/b.png', repeated: true, spot: null },
+    ]);
+    expect(page.tsx).not.toContain('<Picture');
+  });
+
+  it('keeps the pictures of a two-column layout with different content spots', () => {
+    const spotUnlessRepeated = (picture: PageImage): string | null => (picture.repeated ? null : 'spot');
+    const layout =
+      '<div class="row"><div class="col-md-6"><img src="img/a.jpg"></div>' +
+      '<div class="col-md-6"><h2>About us</h2><p>Words</p><img src="img/b.png"></div></div>';
+    const page = pageOf(layout, { spotFor: spotUnlessRepeated });
+    expect(page.pictures.map(({ path, repeated, spot }) => ({ path, repeated, spot }))).toEqual([
+      { path: 'img/a.jpg', repeated: false, spot: 'spot' },
+      { path: 'img/b.png', repeated: false, spot: 'spot' },
     ]);
   });
 

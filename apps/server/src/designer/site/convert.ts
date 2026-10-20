@@ -20,11 +20,10 @@
  * Each thing taken out is listed in plain words, so the person and the model can read what the
  * page lost. Stylesheets, inline styles and scripts are handed back as data for others to judge.
  */
-import { parse, type DefaultTreeAdapterMap } from 'parse5';
+import { parse } from 'parse5';
 
-type Node = DefaultTreeAdapterMap['node'];
-type Element = DefaultTreeAdapterMap['element'];
-type ParentNode = DefaultTreeAdapterMap['parentNode'];
+import { attrOf, HTML_NS, isElement, isHtml, textOf, type Element, type Node, type ParentNode } from './dom.js';
+import { repeatedBlockOf } from './find.js';
 
 export interface ConvertOptions {
   /** The page's path in the site: 'index.html', 'blog/post.html'. */
@@ -91,7 +90,6 @@ export class ConvertRefusal extends Error {
   override readonly name = 'ConvertRefusal';
 }
 
-const HTML_NS = 'http://www.w3.org/1999/xhtml';
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
 /** A tag or attribute name may hold letters, digits and dashes only. */
@@ -343,17 +341,6 @@ export function componentNameOf(page: string): string {
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1));
   const name = (words.length === 0 ? 'Home' : words.join('')).slice(0, 60);
   return /^[0-9]/.test(name) ? `Page${name}` : `${name}Page`;
-}
-
-const isElement = (node: Node): node is Element => 'tagName' in node;
-const attrOf = (el: Element, name: string): string | null => el.attrs.find((attr) => attr.name === name && attr.prefix === undefined)?.value ?? null;
-const isHtml = (el: Element, ...names: string[]): boolean => el.namespaceURI === HTML_NS && names.includes(el.tagName);
-
-/** The text an element holds, scripts and styles left out. */
-function textOf(node: Node): string {
-  if (node.nodeName === '#text' && 'value' in node) return node.value;
-  if (!('childNodes' in node) || (isElement(node) && ['script', 'style', 'template', 'noscript'].includes(node.tagName))) return '';
-  return node.childNodes.map(textOf).join('');
 }
 
 /** The text right inside a <style> or <script>. */
@@ -933,21 +920,9 @@ function inPre(node: Node): boolean {
   return false;
 }
 
-/** Whether an element sits in a block that repeats: an ancestor, up to six up, with two siblings of its tag and class. */
+/** Whether an element sits in a block that repeats (a product card, a team member): the finder's rule, so the plan and the pictures agree. */
 function repeats(el: Element): boolean {
-  let up = el.parentNode;
-  for (let level = 0; level < 6 && up !== null && isElement(up) && !isHtml(up, 'body', 'html'); level += 1) {
-    const block = up;
-    const parent = block.parentNode;
-    if (parent !== null) {
-      const tag = block.tagName;
-      const className = attrOf(block, 'class');
-      const same = parent.childNodes.filter((child) => child !== block && isElement(child) && child.tagName === tag && attrOf(child, 'class') === className);
-      if (same.length >= 2) return true;
-    }
-    up = parent;
-  }
-  return false;
+  return repeatedBlockOf(el) !== null;
 }
 
 /** A style attribute's declarations, split at `;` outside quotes and brackets. */
