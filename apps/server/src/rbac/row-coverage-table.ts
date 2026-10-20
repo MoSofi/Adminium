@@ -520,6 +520,7 @@ export const JOB_ROW_COVERAGE: Readonly<Record<string, RowMark>> = {
   'app-outbox-send': rows('system', 'Sends the mail an app\'s outbox row asks for, as the system.'),
   'app-outbox-effect': rows('system', 'Writes what a sent or failed mail does to its row, as the system.'),
   'app.timed-moves': rows('system', 'Moves rows whose time has come, as the system.'),
+  'payments.record': rows('system', 'Writes the payment a customer made into its record\'s payments, as the system, once the payment service confirmed it.'),
   'add-on-download': noRows('Fetches a package.'),
   'catalog-refresh': noRows('Refreshes the add-on catalogue.'),
   'app-download': noRows('Fetches a package.'),
