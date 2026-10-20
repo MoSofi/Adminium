@@ -12,6 +12,10 @@
  * locked with a password is refused in one sentence. The model is told the site's counts and lists
  * its files as data.
  *
+ * A template in the project's `site-templates/`: Home offers it by name ("Start from it" puts it with
+ * the message and writes the box's first words); the attach menu lists the project's templates in
+ * place; why a folder was not copied in when the project was made is said once, until put away.
+ *
  * The model speaks Ollama's protocol from this process. It proves the wiring, never that a real
  * model builds from a template.
  */
@@ -132,7 +136,7 @@ function templateModel(): Server {
         line({ model: 'fake', done: false, message: { role: 'assistant', content: '', tool_calls: [{ function: { name: 'read_attachment', arguments: { attachment: page ?? site } } }] } });
       } else if (site !== undefined) {
         const content = String(read?.content ?? '');
-        say(content.includes('of the site template "corner-cafe"') && content.includes('index.html | a page') ? 'I listed your template’s files.' : 'I could not list the files.');
+        say(/of the site template "[^"]+"/.test(content) && content.includes('index.html | a page') ? 'I listed your template’s files.' : 'I could not list the files.');
       } else {
         const content = String(read?.content ?? '');
         say(content.includes("DATA from the person's site template") && content.includes('Fresh bread every morning') ? 'I read your page as the template’s data.' : 'I could not read the page.');
@@ -275,4 +279,51 @@ test('a site template as a zip goes up at once, says what was left out, asks bef
   expect(told?.text).toContain('): 1 page.');
   expect(told?.text).not.toContain('Cafe');
   await expect(page.getByRole('list', { name: 'Attached files' }).last().getByRole('listitem')).toHaveText(['corner-cafe· 1 page · 1 file']);
+});
+
+test('a template in the project’s site-templates is offered on Home and in the attach menu, and taken in by its name', async ({}, testInfo) => {
+  testInfo.setTimeout(240_000);
+  project.write('site-templates/harbor-bakery/index.html', PAGE);
+  project.write('site-templates/harbor-bakery/css/style.css', STYLE);
+  project.write('site-templates/studio-one/index.html', '<!doctype html><html><body>Studio</body></html>');
+  project.write('site-templates/bad name!/index.html', PAGE);
+  project.write('.adminium/designer/site-template-note.json', JSON.stringify({ name: 'Downloads', why: 'Downloads holds more than 1,000 files and folders, so it is not copied in as a site template.' }));
+
+  await page.goto(sessionUrl.replace(/\/design\/ds_[0-9a-z]{24}$/, '/design'));
+  await expect(page.getByRole('heading', { name: 'What do you want to build?' })).toBeVisible();
+  const note = page.locator('[data-part="template-note"]');
+  await expect(note).toHaveText('Downloads was not copied in as a site template: Downloads holds more than 1,000 files and folders, so it is not copied in as a site template.');
+  const card = page.getByRole('region', { name: 'Site templates in this project' });
+  await expect(card).toContainText('There are site templates in this project.');
+  await expect(card.getByRole('listitem')).toHaveText(['bad name!: rename this folder to use it (letters, digits, space, . _ -)', 'harbor-bakeryStart from it', 'studio-oneStart from it']);
+  await bothThemes(page, 'the site templates on Home', testInfo);
+  await note.getByRole('button', { name: 'Dismiss' }).click();
+  await expect(note).toHaveCount(0);
+
+  // "Start from it": the box's first words, the template with the message; sent, it goes in by its name.
+  await card.getByRole('button', { name: 'Start from harbor-bakery' }).click();
+  const box = page.getByRole('textbox', { name: 'Describe your app' });
+  await expect(box).toHaveValue('Make an app from harbor-bakery.');
+  await expect(box).toBeFocused();
+  await expect(page.locator('[data-part="site-chip"]')).toHaveText('harbor-bakery · site template');
+  await page.keyboard.press('Enter');
+  await expect(page).toHaveURL(/\/design\/ds_[0-9a-z]{24}$/);
+  await expect(page.getByText('I listed your template’s files.')).toBeVisible({ timeout: 120_000 });
+  const told = asked.findLast((request) => request.text.includes('Make an app from harbor-bakery.'));
+  expect(told?.text).toContain('attached a site template');
+  expect(told?.text).toContain('1 page and 1 stylesheet');
+
+  // On the build page the menu lists the project's templates in place; a second one asks first.
+  await page.getByRole('button', { name: 'Attach' }).click();
+  const templates = page.getByRole('menuitem', { name: 'A site template in this project' });
+  await templates.click();
+  await expect(templates).toHaveAttribute('aria-expanded', 'true');
+  const names = page.getByRole('group', { name: 'Site templates in this project' }).getByRole('menuitem');
+  await expect(names).toHaveText(['harbor-bakery', 'studio-one']);
+  await bothThemes(page, 'the attach menu with the project’s templates', testInfo);
+  await names.filter({ hasText: 'studio-one' }).click();
+  const ask = page.getByRole('alertdialog');
+  await expect(ask).toContainText('This replaces harbor-bakery. What was already built from it stays.');
+  await ask.getByRole('button', { name: 'Keep harbor-bakery' }).click();
+  await expect(ask).toHaveCount(0);
 });
