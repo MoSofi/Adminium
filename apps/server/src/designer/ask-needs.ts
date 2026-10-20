@@ -115,8 +115,14 @@ export function createNeedsAsker(deps: NeedsDeps): NeedsAsker {
     plan.items = plan.items.filter((item) => !before.has(item.id));
     if (plan.items.length === 0) return { asked: false, added: [], left: again, failed: null, said: lines.join('\n') || 'Nothing was asked for.' };
 
-    const answer = await ctx.ask({ type: 'needs', items: plan.items });
+    // What a design does with the page's pictures, asked once per app with the first card that is due (never a card of its own).
+    // A template app is never asked: its pictures came with it, as filled spots.
+    const kept = readLook(deps.root, appKey);
+    const askPictures = kept !== null && kept.direction === undefined && kept.pictures === undefined && (kept.templateSides ?? []).length === 0;
+    const answer = await ctx.ask({ type: 'needs', items: plan.items, ...(askPictures ? { pictures: { preselect: 'placeholders' as const } } : {}) });
     const ticked = new Set(answer.type === 'needs' ? answer.accept : []);
+    // An answer that says nothing of it keeps what the card started on.
+    const pictures = answer.type !== 'needs' || !askPictures ? undefined : (answer.pictures ?? 'placeholders');
     const added = plan.items.filter((item) => ticked.has(item.id));
     const left = plan.items.filter((item) => !ticked.has(item.id));
     leftOut.set(turnKey, new Set([...before, ...left.map((item) => item.id)]));
@@ -140,9 +146,11 @@ export function createNeedsAsker(deps: NeedsDeps): NeedsAsker {
       for (const item of left) if (isKnownNeed(item)) without.add(item.kind === 'font' ? item.family : needName(item));
       for (const item of added) without.delete(item.kind === 'font' ? item.family : needName(item));
       const { without: _before, ...rest } = look;
+      const chosen = pictures === undefined ? rest : { ...rest, pictures };
       // A look kept before styles names no font and carries no package: its sides are left exactly as they are, edits of a person's included.
-      if (look.direction === undefined) applyLook(deps.root, appKey, without.size === 0 ? rest : { ...rest, without: [...without].sort() }, places);
+      if (look.direction === undefined) applyLook(deps.root, appKey, without.size === 0 ? chosen : { ...chosen, without: [...without].sort() }, places);
     }
+    if (pictures !== undefined) lines.push(pictures === 'choose' ? 'Pictures: the person chooses them. Draw each as a spot (add_spots); after the design a card opens the picture dialog for them.' : 'Pictures: placeholders for now. Draw each as a spot (add_spots); the person fills them later.');
 
     if (failed !== null) lines.push(`These could not be added:\n${failed}`);
     else if (added.length > 0) lines.push(`Added: ${added.map(needName).join(', ')}.`);

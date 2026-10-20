@@ -15,6 +15,7 @@ import { join } from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
+import { answerFor } from '../src/designer/cards.js';
 import { badgeOf, creditAsked, DEFAULT_BADGES, LICENCE_CODES, searchLicence } from '../src/designer/licences.js';
 import { cleanPicturePath, cleanSpot, parseSpots, readCredits, readPictureFile, readSpots, serverOwned, spotsFileProblem, spotVersion, unsplashAddress, writeCredits, writeSpots, type SpotEntry } from '../src/designer/spots.js';
 
@@ -209,5 +210,21 @@ describe('a picture’s licence', () => {
     expect(badgeOf('own')).toBe('own');
     expect(badgeOf('template')).toBe('template');
     expect(DEFAULT_BADGES).toEqual(['no-credit', 'host', 'credit']);
+  });
+});
+
+describe('a card’s answer about pictures', () => {
+  const needs = { id: 'c1', type: 'needs' as const, items: [{ id: 'n1', kind: 'package' as const, name: 'tailwindcss', version: '4.3.3', role: 'tailwind' as const }] };
+
+  it('takes the pictures choice only on a needs card that asked it, and the card’s start for an answer that says nothing', () => {
+    const asking = { ...needs, pictures: { preselect: 'placeholders' as const } };
+    expect(answerFor(asking, { accept: ['n1'], pictures: 'choose' })).toEqual({ type: 'needs', accept: ['n1'], pictures: 'choose' });
+    expect(answerFor(asking, { accept: [] })).toEqual({ type: 'needs', accept: [], pictures: 'placeholders' });
+    expect(answerFor(asking, { accept: [], pictures: 'surprise' })).toEqual({ type: 'needs', accept: [], pictures: 'placeholders' });
+    expect(answerFor(needs, { accept: ['n1'], pictures: 'choose' })).toEqual({ type: 'needs', accept: ['n1'] });
+  });
+
+  it('never answers the spots card on the card: the picture dialog’s Apply does', () => {
+    expect(answerFor({ id: 'spots-2', type: 'spots', spots: [{ id: 'hero', label: 'Hero', shape: 'wide' }] }, { accept: true })).toBeNull();
   });
 });

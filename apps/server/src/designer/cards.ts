@@ -20,6 +20,11 @@ export type DesignerCard =
        */
       type: 'needs';
       items: NeedItem[];
+      /**
+       * Asked once per app, in its own section under the ticks, while the app has made no choice: what a design does
+       * with the page's pictures. `preselect` is what the card starts on (placeholders, unless the person said otherwise).
+       */
+      pictures?: { preselect: 'placeholders' | 'choose' };
     }
   | {
       id: string;
@@ -109,8 +114,8 @@ export type CardRequest = DesignerCard extends infer Card ? (Card extends Design
 export type CardAnswer =
   | { type: 'question'; text: string }
   | { type: 'package'; accept: boolean }
-  /** The ids of the items ticked; none is "do without all of it". */
-  | { type: 'needs'; accept: string[] }
+  /** The ids of the items ticked; none is "do without all of it". With the pictures section, what the person chose there. */
+  | { type: 'needs'; accept: string[]; pictures?: 'placeholders' | 'choose' }
   /** The ids of the pictures ticked. */
   | { type: 'pictures'; accept: string[] }
   | { type: 'add-on'; accept: boolean }
@@ -128,7 +133,10 @@ export function answerFor(card: DesignerCard, value: unknown): CardAnswer | null
     if (!Array.isArray(given['accept'])) return null;
     // Only what the card offered: an id it does not have is nobody's yes.
     const offered = new Set(card.items.map((item) => item.id));
-    return { type: 'needs', accept: [...new Set(given['accept'].filter((id): id is string => typeof id === 'string' && offered.has(id)))] };
+    const accept = [...new Set(given['accept'].filter((id): id is string => typeof id === 'string' && offered.has(id)))];
+    // The pictures choice only on a card that asked it; one that is not a choice there is the card's own start.
+    if (card.pictures === undefined) return { type: 'needs', accept };
+    return { type: 'needs', accept, pictures: given['pictures'] === 'choose' || given['pictures'] === 'placeholders' ? given['pictures'] : card.pictures.preselect };
   }
   if (card.type === 'pictures') {
     if (!Array.isArray(given['accept'])) return null;

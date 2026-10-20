@@ -1236,3 +1236,44 @@ describe('picture spots, named by the Designer and filled by the person', () => 
     expect(readFileSync(join(root, 'apps', 'repairs', 'assets', 'pictures', hero?.file as string)).equals(png('front'))).toBe(true);
   });
 });
+
+describe('the needs card’s pictures section', () => {
+  const lookFile = (): string => join(root, 'apps', 'repairs', 'look.json');
+
+  it('asks once per app, on the card that is due anyway, starting on placeholders; the answer is kept in the look', async () => {
+    said = 'Something for my team.';
+    answers.push({ type: 'question', text: 'clean' }, { type: 'needs', accept: [], pictures: 'choose' });
+    const added = await run('add_side', { side: 'customer' });
+    const card = asked.find((one) => one.type === 'needs') as Extract<CardRequest, { type: 'needs' }>;
+    expect(card.pictures).toEqual({ preselect: 'placeholders' });
+    expect(JSON.parse(readFileSync(lookFile(), 'utf8'))).toMatchObject({ pictures: 'choose' });
+    expect(added.content).toContain('Pictures: the person chooses them.');
+    // Chosen: never asked again, on the next card that is due.
+    asked = [];
+    answers.push({ type: 'needs', accept: [] });
+    registry['@fontsource/archivo-black'] = '5.2.5';
+    registry['@fontsource/archivo'] = '5.2.6';
+    await run('set_style', { style: 'bold' });
+    expect((asked.find((one) => one.type === 'needs') as Extract<CardRequest, { type: 'needs' }> | undefined)?.pictures).toBeUndefined();
+  });
+
+  it('is not asked of an app whose pages follow a site template, and an answer with no choice keeps the card’s start', async () => {
+    said = 'Something for my team.';
+    answers.push({ type: 'question', text: 'clean' }, { type: 'needs', accept: [] });
+    await run('add_side', { side: 'customer' });
+    expect(JSON.parse(readFileSync(lookFile(), 'utf8'))).toMatchObject({ pictures: 'placeholders' });
+    // A template app (its look marks the template's sides): the card has no pictures section.
+    const look = JSON.parse(readFileSync(lookFile(), 'utf8')) as Record<string, unknown>;
+    delete look['pictures'];
+    writeFileSync(lookFile(), JSON.stringify({ ...look, templateSides: ['customer'] }));
+    asked = [];
+    answers.push({ type: 'needs', accept: [] });
+    registry['@fontsource/archivo-black'] = '5.2.5';
+    registry['@fontsource/archivo'] = '5.2.6';
+    await run('set_style', { style: 'bold' });
+    const card = asked.find((one) => one.type === 'needs') as Extract<CardRequest, { type: 'needs' }> | undefined;
+    // A card was due (the style's fonts), and it asks nothing about pictures.
+    expect(card?.items.length).toBeGreaterThan(0);
+    expect(card?.pictures).toBeUndefined();
+  });
+});
