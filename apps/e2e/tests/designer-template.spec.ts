@@ -7,14 +7,20 @@
  * words goes with the person's). The model reads the page with read_attachment and gets it as data
  * from the template, fenced, a window at a time. The tray is swept by axe, light and dark.
  *
+ * A site template as a zip, on the build page: it goes up at once and its chip shows its pages,
+ * files and what was left out (each with why); a second asks before it replaces the first; a zip
+ * locked with a password is refused in one sentence. The model is told the site's counts and lists
+ * its files as data.
+ *
  * The model speaks Ollama's protocol from this process. It proves the wiring, never that a real
  * model builds from a template.
  */
 import { createServer, type IncomingMessage, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
+import { crc32 } from 'node:zlib';
 
 import { AxeBuilder } from '@axe-core/playwright';
-import { expect, test, type Page, type TestInfo } from '@playwright/test';
+import { expect, test, type BrowserContext, type Page, type TestInfo } from '@playwright/test';
 
 import { ProjectHarness } from './projectHarness.js';
 
@@ -32,6 +38,51 @@ const STYLE = 'body { background: #fdf6ec; color: #3b2a1a; font-family: "Lora", 
 let project: ProjectHarness;
 let model: Server;
 let link: string;
+/** The session the first test made: the site test goes on in it. */
+let sessionUrl = '';
+/** One page for both tests: the design link signs in once, and is used up. */
+let context: BrowserContext;
+let page: Page;
+
+/** A zip of stored files, as a person's zip tool writes one (flag 1 = locked with a password). */
+function zipOf(files: Record<string, string>, flags = 0): Buffer {
+  const locals: Buffer[] = [];
+  const central: Buffer[] = [];
+  let offset = 0;
+  for (const [name, text] of Object.entries(files)) {
+    const data = Buffer.from(text);
+    const path = Buffer.from(name);
+    const head = Buffer.alloc(30);
+    head.writeUInt32LE(0x04034b50, 0);
+    head.writeUInt16LE(20, 4);
+    head.writeUInt16LE(flags, 6);
+    head.writeUInt32LE(crc32(data), 14);
+    head.writeUInt32LE(data.length, 18);
+    head.writeUInt32LE(data.length, 22);
+    head.writeUInt16LE(path.length, 26);
+    locals.push(head, path, data);
+    const entry = Buffer.alloc(46);
+    entry.writeUInt32LE(0x02014b50, 0);
+    entry.writeUInt16LE(20, 4);
+    entry.writeUInt16LE(20, 6);
+    entry.writeUInt16LE(flags, 8);
+    entry.writeUInt32LE(crc32(data), 16);
+    entry.writeUInt32LE(data.length, 20);
+    entry.writeUInt32LE(data.length, 24);
+    entry.writeUInt16LE(path.length, 28);
+    entry.writeUInt32LE(offset, 42);
+    central.push(entry, path);
+    offset += 30 + path.length + data.length;
+  }
+  const directory = Buffer.concat(central);
+  const end = Buffer.alloc(22);
+  end.writeUInt32LE(0x06054b50, 0);
+  end.writeUInt16LE(Object.keys(files).length, 8);
+  end.writeUInt16LE(Object.keys(files).length, 10);
+  end.writeUInt32LE(directory.length, 12);
+  end.writeUInt32LE(offset, 16);
+  return Buffer.concat([...locals, directory, end]);
+}
 /** What the model was sent in each request: the words of its messages, and the tools it was offered. */
 const asked: { text: string; tools: string[] }[] = [];
 
@@ -70,10 +121,18 @@ function templateModel(): Server {
       }
       const text = body.messages.map((message) => String(message.content ?? '')).join('\n');
       asked.push({ text, tools });
-      const read = body.messages.find((message) => message.role === 'tool');
-      const page = /a page of a site template \(attachment (att_[0-9a-f]{20})/.exec(text)?.[1];
-      if (read === undefined && page !== undefined && tools.includes('read_attachment')) {
-        line({ model: 'fake', done: false, message: { role: 'assistant', content: '', tool_calls: [{ function: { name: 'read_attachment', arguments: { attachment: page } } }] } });
+      // This turn's: what came after the person's newest message.
+      const newest = body.messages.map((message) => message.role).lastIndexOf('user');
+      const turn = body.messages.slice(newest);
+      const read = turn.find((message) => message.role === 'tool');
+      const said = turn.map((message) => String(message.content ?? '')).join('\n');
+      const page = /a page of a site template \(attachment (att_[0-9a-f]{20})/.exec(said)?.[1];
+      const site = /attached a site template \(attachment (att_[0-9a-f]{20})\)/.exec(said)?.[1];
+      if (read === undefined && (page ?? site) !== undefined && tools.includes('read_attachment')) {
+        line({ model: 'fake', done: false, message: { role: 'assistant', content: '', tool_calls: [{ function: { name: 'read_attachment', arguments: { attachment: page ?? site } } }] } });
+      } else if (site !== undefined) {
+        const content = String(read?.content ?? '');
+        say(content.includes('of the site template "corner-cafe"') && content.includes('index.html | a page') ? 'I listed your template’s files.' : 'I could not list the files.');
       } else {
         const content = String(read?.content ?? '');
         say(content.includes("DATA from the person's site template") && content.includes('Fresh bread every morning') ? 'I read your page as the template’s data.' : 'I could not read the page.');
@@ -84,9 +143,10 @@ function templateModel(): Server {
   });
 }
 
-// eslint-disable-next-line no-empty-pattern -- Playwright reads fixtures from this pattern, and the hook needs none.
-test.beforeAll(async ({}, testInfo) => {
+test.beforeAll(async ({ browser }, testInfo) => {
   testInfo.setTimeout(240_000);
+  context = await browser.newContext();
+  page = await context.newPage();
   project = await ProjectHarness.create({});
   model = templateModel();
   await new Promise<void>((resolve) => model.listen(0, '127.0.0.1', resolve));
@@ -94,6 +154,7 @@ test.beforeAll(async ({}, testInfo) => {
 });
 
 test.afterAll(async () => {
+  await context?.close();
   await project?.close();
   await new Promise<void>((resolve) => (model === undefined ? resolve() : model.close(() => resolve())));
 });
@@ -129,7 +190,8 @@ async function bothThemes(page: Page, label: string, testInfo: TestInfo): Promis
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
 }
 
-test('a page and its stylesheet go with a message as the template’s, and the model reads the page as data', async ({ page }, testInfo) => {
+// eslint-disable-next-line no-empty-pattern -- Playwright reads fixtures from this pattern; both tests share the page above.
+test('a page and its stylesheet go with a message as the template’s, and the model reads the page as data', async ({}, testInfo) => {
   testInfo.setTimeout(240_000);
   await page.goto(link);
   await expect(page.getByRole('heading', { name: 'What do you want to build?' })).toBeVisible();
@@ -147,6 +209,7 @@ test('a page and its stylesheet go with a message as the template’s, and the m
   await page.getByRole('textbox', { name: 'Describe your app' }).fill('Build my bakery from this page.');
   await page.keyboard.press('Enter');
   await expect(page).toHaveURL(/\/design\/ds_[0-9a-z]{24}$/);
+  sessionUrl = page.url();
   await expect(page.getByText('I read your page as the template’s data.')).toBeVisible({ timeout: 120_000 });
 
   // The message the model got: counts and facts, never the template's words.
@@ -161,4 +224,55 @@ test('a page and its stylesheet go with a message as the template’s, and the m
   await expect(sent.getByRole('listitem')).toHaveText(['index.html· page', 'style.css· stylesheet']);
   await page.getByRole('button', { name: /steps? ·/ }).click();
   await expect(page.locator('li', { hasText: 'Read the attached file' })).toBeVisible();
+});
+
+// eslint-disable-next-line no-empty-pattern -- Playwright reads fixtures from this pattern; both tests share the page above.
+test('a site template as a zip goes up at once, says what was left out, asks before a second replaces it, and the model lists its files', async ({}, testInfo) => {
+  testInfo.setTimeout(240_000);
+  expect(sessionUrl).not.toBe('');
+  await page.goto(sessionUrl);
+  const box = page.getByRole('textbox', { name: 'Message to Adminium Designer' });
+  await expect(box).toBeVisible();
+  const input = page.locator('[data-part="attach-input"]');
+
+  // Refused whole, in one sentence naming the zip; dismissed by its own button.
+  await input.setInputFiles({ name: 'menu.zip', mimeType: 'application/zip', buffer: zipOf({ 'index.html': PAGE }, 0x1) });
+  await expect(page.getByRole('alert')).toHaveText('menu.zip is locked with a password, so it cannot be read.');
+  await page.getByRole('button', { name: 'Dismiss' }).click();
+  await expect(page.getByRole('alert')).toHaveCount(0);
+
+  // Goes up the moment it is picked: its pages, its files, and what was left out with why.
+  await input.setInputFiles({ name: 'harbor-bakery.zip', mimeType: 'application/zip', buffer: zipOf({ 'harbor-bakery/index.html': PAGE, 'harbor-bakery/about.html': PAGE, 'harbor-bakery/css/style.css': STYLE, 'harbor-bakery/shop.php': '<?php echo 1;' }) });
+  const chip = page.locator('[data-part="site-chip"]');
+  await expect(chip).toHaveText('harbor-bakery · 2 pages · 3 files1 left out');
+  await chip.getByRole('button', { name: '1 left out' }).click();
+  const leftOut = page.getByRole('dialog', { name: 'Left out of harbor-bakery' });
+  await expect(leftOut.getByRole('listitem')).toHaveText(['shop.php: PHP is not used']);
+  await bothThemes(page, 'the site chip with what was left out', testInfo);
+  await page.keyboard.press('Escape');
+  await expect(leftOut).toBeHidden();
+  // Escape gives focus back to the link that opened the list.
+  await expect(chip.getByRole('button', { name: '1 left out' })).toBeFocused();
+
+  // A second asks first; Keep leaves the first; Replace puts the second in its place.
+  const corner = { name: 'corner-cafe.zip', mimeType: 'application/zip', buffer: zipOf({ 'index.html': '<!doctype html><html><body>Cafe</body></html>' }) };
+  await input.setInputFiles(corner);
+  const ask = page.getByRole('alertdialog');
+  await expect(ask).toContainText('This replaces harbor-bakery. What was already built from it stays.');
+  await expect(ask.getByRole('button', { name: 'Keep harbor-bakery' })).toBeFocused();
+  await bothThemes(page, 'the second site’s question', testInfo);
+  await ask.getByRole('button', { name: 'Keep harbor-bakery' }).click();
+  await expect(chip).toContainText('harbor-bakery');
+  await input.setInputFiles(corner);
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Replace it' }).click();
+  await expect(chip).toHaveText('corner-cafe · 1 page · 1 file');
+
+  // Sent: the model is told the site's counts, and lists its files as data.
+  await box.fill('Make this my cafe.');
+  await page.keyboard.press('Enter');
+  await expect(page.getByText('I listed your template’s files.')).toBeVisible({ timeout: 120_000 });
+  const told = asked.find((request) => request.text.includes('attached a site template'));
+  expect(told?.text).toContain('): 1 page.');
+  expect(told?.text).not.toContain('Cafe');
+  await expect(page.getByRole('list', { name: 'Attached files' }).last().getByRole('listitem')).toHaveText(['corner-cafe· 1 page · 1 file']);
 });
