@@ -29,7 +29,7 @@ import { createAppRouter } from '../../app/router.js';
 import { previewShows } from './sight.js';
 import { installTestI18n } from '../../i18n/testing.js';
 import { jsonResponse, makeBootstrap } from '../../test/fixtures.js';
-import type { DesignerEvent, DesignerEventBody, DesignerStyle, DesignerVersion, NeedItem, YourApp } from '../api.js';
+import type { DesignerEvent, DesignerEventBody, DesignerStyle, DesignerVersion, NeedItem, PicturesView, YourApp } from '../api.js';
 
 // The Code tab's editor is its own test's (`code/codeTab.test.tsx`). Here a stand-in types into the open file, so the page's part can be held: what it asks before a message is sent or the page is left.
 vi.mock('./CodeTab.js', () => ({
@@ -89,6 +89,8 @@ let readsImages: boolean | null;
 let turnBusy: boolean;
 /** The next save of files is refused: the file changed on disk. */
 let saveRefused: boolean;
+/** What the picture dialog reads; none (a 404) unless a test gives the app spots. */
+let picturesView: PicturesView | null;
 const FILE = 'apps/repairs/customer/src/App.tsx';
 const FILE_HASH = 'a'.repeat(64);
 
@@ -131,6 +133,7 @@ beforeEach(() => {
   turnBusy = false;
   saveRefused = false;
   readsImages = true;
+  picturesView = null;
   stored = [];
   versions = [
     { n: 1, name: 'v1', at: Date.now() - 60_000, current: false },
@@ -189,6 +192,7 @@ beforeEach(() => {
       if (url === `/api/v1/designer/sessions/${ID}/turns`) return Promise.resolve(jsonResponse(202, { turn: 9 }));
       if (url === `/api/v1/designer/sessions/${ID}/stop`) return Promise.resolve(jsonResponse(200, { stopped: true }));
       if (url === `/api/v1/designer/sessions/${ID}/answers`) return Promise.resolve(jsonResponse(200, { answered: true }));
+      if (url === `/api/v1/designer/sessions/${ID}/pictures`) return Promise.resolve(picturesView === null ? jsonResponse(404, { error: { code: 'NOT_FOUND', message: 'none', requestId: 'r' } }) : jsonResponse(200, picturesView));
       if (url.includes('/restore')) return Promise.resolve(jsonResponse(200, { version: { n: 4, name: 'v4' }, applied: true }));
       if (url === '/api/v1/designer/models') {
         return Promise.resolve(
@@ -570,26 +574,20 @@ describe('the build page', () => {
     ]);
   });
 
-  it('shows found pictures to tick, by ids alone, and says so when some are shown from another site instead of copied', async () => {
-    const groups = [{ id: 'hero', label: 'a set table', shape: 'wide' as const, pictures: [{ id: 'pic_1', title: 'A table', creator: 'Ana', licence: 'Unsplash licence', source: 'Unsplash' }, { id: 'pic_2', title: 'A bar', creator: 'Bo', licence: 'Unsplash licence', source: 'Unsplash' }] }];
-    stored = [ev(1, { kind: 'turn-started', text: 'A restaurant site.' }), ev(1, { kind: 'card', card: { id: 'p1', type: 'pictures', shelf: 'shelf_1', site: 'images.unsplash.com', groups } })];
+  it('draws an older session’s pictures card as it was answered, and asks nothing again', async () => {
+    const groups = [{ id: 'hero', label: 'a set table', shape: 'wide' as const, pictures: [{ id: 'pic_1', title: 'A table', creator: 'Ana', licence: 'CC BY 2.0', source: 'Openverse' }, { id: 'pic_2', title: 'A bar', creator: 'Bo', licence: 'CC BY 2.0', source: 'Openverse' }] }];
+    stored = [
+      ev(1, { kind: 'turn-started', text: 'A restaurant site.' }),
+      ev(1, { kind: 'card', card: { id: 'p1', type: 'pictures', shelf: 'shelf_1', groups } }),
+      ev(1, { kind: 'card-answered', id: 'p1', value: { type: 'pictures', accept: ['pic_1'] } }),
+      ev(1, { kind: 'card', card: { id: 'p2', type: 'pictures', shelf: 'shelf_2', groups } }),
+    ];
     await open();
-    const card = await screen.findByRole('group', { name: 'Pictures for the page. Use them?' });
-    expect(card.textContent).toContain('Some of these are shown straight from images.unsplash.com, not copied. That site then sees each visit to a page that shows them.');
-    // Each small copy comes from this server, named by the shelf and the picture's id: the page calls no other site.
-    expect([...card.querySelectorAll('img')].map((img) => img.getAttribute('src'))).toEqual([`/api/v1/designer/sessions/${ID}/picture-thumb/shelf_1/pic_1`, `/api/v1/designer/sessions/${ID}/picture-thumb/shelf_1/pic_2`]);
-    await userEvent.click(within(card).getByRole('checkbox', { name: 'Use the picture “A bar” by Bo' }));
-    await userEvent.click(within(card).getByRole('button', { name: 'Send' }));
-    await waitFor(() => expect(posted('/answers')).toEqual([{ cardId: 'p1', value: { accept: ['pic_1'] } }]));
-  });
-
-  it('says nothing of another site on a pictures card whose pictures are all copied', async () => {
-    const groups = [{ id: 'hero', label: 'a set table', shape: 'wide' as const, pictures: [{ id: 'pic_1', title: 'A table', creator: 'Ana', licence: 'CC BY 2.0', source: 'Openverse' }] }];
-    stored = [ev(1, { kind: 'turn-started', text: 'A restaurant site.' }), ev(1, { kind: 'card', card: { id: 'p2', type: 'pictures', shelf: 'shelf_2', groups } })];
-    await open();
-    const card = await screen.findByRole('group', { name: 'Pictures for the page. Use them?' });
-    expect(card.textContent).toContain('they are copied into your app, with their credits.');
-    expect(card.textContent).not.toContain('shown straight from');
+    const [answered, waiting] = await screen.findAllByRole('group', { name: 'Pictures for the page. Use them?' });
+    expect(answered?.textContent).toContain('Pictures added: 1. Their credits are kept with them.');
+    expect(waiting?.textContent).toContain('No answer was given.');
+    expect(within(waiting as HTMLElement).queryByRole('checkbox')).toBeNull();
+    expect(within(waiting as HTMLElement).queryByRole('button')).toBeNull();
   });
 
   it('reads the session again the moment the app is named mid-turn, so the preview goes by the new key and not only once the turn ends', async () => {
@@ -755,6 +753,45 @@ describe('the build page', () => {
     const pkg = screen.getByRole('group', { name: /A package is needed/ });
     expect(within(pkg).getByText('No answer was given.')).toBeTruthy();
     expect(within(pkg).queryByRole('button')).toBeNull();
+  });
+
+  it('draws nothing for a card it does not know, never another card’s buttons', async () => {
+    stored = [
+      ev(1, { kind: 'turn-started', text: 'Build it from my template.' }),
+      ev(1, { kind: 'card', card: { id: 't1', type: 'template-plan' } as never }),
+      ev(1, { kind: 'turn-finished', outcome: 'done' }),
+    ];
+    await open();
+    await screen.findByText('Build it from my template.');
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(document.querySelector('[data-card-id="t1"]')).toBeNull();
+  });
+
+  it('asks for the pictures of the spots a design made, and the chip in the saved row opens the dialog with what is left to fill', async () => {
+    picturesView = {
+      ownBuild: false,
+      spots: [{ id: 'hero', label: 'Hero', shape: 'wide', shows: 'a dish', search: 'fried chicken', version: 'a1', thumb: null, alt: '', decorative: false, licence: null }],
+      tables: [],
+      inApp: [],
+      mode: 'choose',
+      legacy: 0,
+      sources: [],
+      unsplash: 'ok',
+      version: 2,
+    };
+    stored = [
+      ev(1, { kind: 'turn-started', text: 'A home page.' }),
+      ev(1, { kind: 'version', n: 2, name: 'v2' }),
+      ev(1, { kind: 'turn-finished', outcome: 'done' }),
+      ev(1, { kind: 'card', card: { id: 'spots-1', type: 'spots', spots: [{ id: 'hero', label: 'Hero', shape: 'wide' }] } }),
+    ];
+    await open();
+    const card = await screen.findByRole('group', { name: 'Choose the pictures' });
+    expect(card.textContent).toContain('1 spot on the page is waiting for a picture.');
+    const chip = await screen.findByRole('button', { name: /^Pictures/ });
+    expect(chip.textContent).toBe('Pictures· 1 to fill');
+    await userEvent.click(chip);
+    expect(await screen.findByRole('dialog', { name: 'Pictures' })).toBeTruthy();
   });
 
   it('offers to continue or put the files back after a stop', async () => {

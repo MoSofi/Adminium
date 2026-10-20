@@ -76,6 +76,13 @@ export function stepLine(row: StepRow): string {
     case 'use_pictures':
       if (running) return t('designer:step.ownPicturesAdding', 'Adding your pictures');
       return row.outcome === 'added' ? t('designer:step.ownPicturesAdded', 'Your pictures added: {count}', { count: row.count ?? 0 }) : t('designer:step.ownPicturesFailed', 'Your pictures were not added');
+    case 'add_spots':
+      if (running) return t('designer:step.spotsNaming', 'Making picture spots');
+      return row.outcome === 'added' ? t('designer:step.spotsNamed', '{count, plural, one {# picture spot made} other {# picture spots made}}', { count: row.count ?? 0 }) : t('designer:step.spotsFailed', 'No picture spots made');
+    case 'fill_spot':
+      if (running) return t('designer:step.spotFilling', 'Putting your picture in {subject}', S);
+      return row.outcome === 'added' ? t('designer:step.spotFilled', 'Your picture is in {subject}', S) : t('designer:step.spotFillFailed', 'Your picture was not put in {subject}', S);
+    // A session from before spots replays its own searches.
     case 'find_pictures':
       if (running) return t('designer:step.picturesLooking', 'Looking for pictures');
       switch (row.outcome) {

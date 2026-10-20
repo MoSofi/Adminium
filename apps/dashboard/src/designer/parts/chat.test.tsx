@@ -4,7 +4,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest
 
 import { installTestI18n } from '../../i18n/testing.js';
 import type { StepRow } from '../build/turns.js';
-import { PersonMessage, SavedChip, StepsBlock, StyleChip } from './chat.js';
+import { KeepSpotCard, NeedsCard, PictureLines, PictureNote, PicturesChip, PersonMessage, SavedChip, SpotsCard, StepsBlock, StyleChip } from './chat.js';
 
 let restore: () => void;
 beforeAll(() => {
@@ -100,5 +100,84 @@ describe('what stands under a reply', () => {
     expect(items[0]?.querySelector('svg')?.getAttribute('class')).toContain('lucide-check');
     // The summary counts the Designer's own steps: the look is not one.
     expect(screen.getByRole('button').textContent).toContain('1 step');
+  });
+});
+
+describe('the needs card’s pictures section', () => {
+  const card = { id: 'n1', type: 'needs' as const, items: [{ id: 'font:Playfair Display', kind: 'font' as const, family: 'Playfair Display', use: 'headings' as const, version: '5.0.0' }], pictures: { preselect: 'placeholders' as const } };
+  it('is its own choice: the radio never changes the Send label, and Select all never touches it', () => {
+    const sent: unknown[] = [];
+    render(<NeedsCard card={card as never} answered={false} busy={false} onSend={(ids, pictures) => sent.push([ids, pictures])} />);
+    const group = screen.getByRole('radiogroup', { name: 'Pictures on the pages' });
+    const [placeholders, choose] = screen.getAllByRole('radio') as HTMLInputElement[];
+    expect([placeholders?.checked, choose?.checked]).toEqual([true, false]);
+    expect(group).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Deselect all' }));
+    expect(screen.getByRole('button', { name: 'Send — add nothing' })).toBeTruthy();
+    fireEvent.click(choose as HTMLInputElement);
+    // Ticks are counted, not the choice: nothing is added, whatever is chosen for the pictures.
+    expect(screen.getByRole('button', { name: 'Send — add nothing' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Select all' }));
+    expect((screen.getAllByRole('radio')[1] as HTMLInputElement).checked).toBe(true);
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }));
+    expect(sent).toEqual([[['font:Playfair Display'], 'choose']]);
+  });
+
+  it('answered, says the choice on a third line', () => {
+    render(<NeedsCard card={card as never} answered accepted={[]} answeredPictures="choose" busy={false} onSend={() => undefined} />);
+    expect(screen.getByText('Pictures: you choose.')).toBeTruthy();
+    cleanup();
+    render(<NeedsCard card={card as never} answered accepted={['font:Playfair Display']} answeredPictures="placeholders" busy={false} onSend={() => undefined} />);
+    expect(screen.getByText('Pictures: placeholders.')).toBeTruthy();
+  });
+});
+
+describe('the spots card, the keep-it card and the lines', () => {
+  const spots = { id: 'spots-2', type: 'spots' as const, spots: [{ id: 'hero', label: 'Hero', shape: 'wide' as const }, { id: 'team', label: 'Team', shape: 'wide' as const }, { id: 'kitchen', label: 'Kitchen', shape: 'square' as const }], rows: { table: 'Dishes', count: 8 } };
+  it('asks for the spots and the table’s rows, opens the dialog, and once pictures are chosen says which are still placeholders', () => {
+    const opened: number[] = [];
+    render(<SpotsCard card={spots} chosen={[]} onChoose={() => opened.push(1)} />);
+    expect(screen.getByRole('group', { name: 'Choose the pictures' }).textContent).toContain('3 spots on the page and 8 dishes are waiting for pictures.');
+    expect(screen.getByRole('list', { name: 'Spots on the page' }).querySelectorAll('li')).toHaveLength(3);
+    const button = screen.getByRole('button', { name: 'Choose pictures…' });
+    expect(button.getAttribute('aria-haspopup')).toBe('dialog');
+    fireEvent.click(button);
+    expect(opened).toEqual([1]);
+    cleanup();
+    render(<SpotsCard card={spots} chosen={['Hero', 'Team']} onChoose={() => undefined} />);
+    expect(screen.getByRole('group', { name: 'Choose the pictures' }).textContent).toContain('Pictures chosen: Hero and Team. Kitchen is still a placeholder.');
+  });
+
+  it('keeps a picture on its screen or lets it go, and says which', () => {
+    const card = { id: 'k1', type: 'keep-spot' as const, spot: 'hero', label: 'Hero', screen: 'Home' };
+    const said: string[] = [];
+    render(<KeepSpotCard card={card} answered={false} busy={false} onKeep={() => said.push('keep')} onLetGo={() => said.push('go')} />);
+    expect(screen.getByRole('group').textContent).toContain('The Designer took your picture Hero off Home. Keep it there?');
+    fireEvent.click(screen.getByRole('button', { name: 'Keep it on Home' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Let it go' }));
+    expect(said).toEqual(['keep', 'go']);
+    cleanup();
+    render(<KeepSpotCard card={card} answered kept busy={false} onKeep={() => undefined} onLetGo={() => undefined} />);
+    expect(screen.getByText('Kept Hero on Home.')).toBeTruthy();
+    cleanup();
+    render(<KeepSpotCard card={card} answered kept={false} busy={false} onKeep={() => undefined} onLetGo={() => undefined} />);
+    expect(screen.getByText('Hero is off Home.')).toBeTruthy();
+  });
+
+  it('counts what is left to fill on the chip, and says an Apply, its Undo and the placeholders note', () => {
+    render(<PicturesChip toFill={3} onOpen={() => undefined} />);
+    expect(screen.getByRole('button').textContent).toBe('Pictures· 3 to fill');
+    cleanup();
+    render(<PicturesChip toFill={0} onOpen={() => undefined} />);
+    expect(screen.getByRole('button').textContent).toBe('Pictures');
+    cleanup();
+    render(<PictureLines lines={[{ kind: 'applied', names: ['Hero', 'Team'], version: { n: 14, name: 'v14 · Pictures: Hero, Team' } }, { kind: 'undone', to: 13 }, { kind: 'note', note: 'still-empty', count: 3 }]} />);
+    expect([...document.querySelectorAll('[data-part="pictures-line"]')].map((line) => line.textContent)).toEqual(['You changed 2 pictures: Hero and Team. Saved as v14.', 'Undone: back to v13.']);
+    cleanup();
+    render(<PictureNote lines={[{ kind: 'note', note: 'still-empty', count: 3 }]} />);
+    expect(screen.getByText(/pictures are still placeholders/).textContent).toBe('3 pictures are still placeholders. Visitors see empty frames until you fill them.');
+    cleanup();
+    render(<PictureNote lines={[{ kind: 'note', note: 'placeholders', count: 3 }]} />);
+    expect(screen.getByText(/placeholders/).textContent).toBe('The pictures are placeholders. Choose pictures from Pictures under this message.');
   });
 });

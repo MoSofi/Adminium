@@ -23,7 +23,7 @@ import { t } from '../../i18n/t.js';
 import { useAppToasts } from '../../pages/toasts.js';
 import { AttachTray, SentFiles, useAttach, useReadsImages } from '../parts/attach.js';
 import { PickedTray, SentPicked } from '../parts/picked.js';
-import { designerApi, designerKeys, sessionQuery, versionsQuery, yourAppsQuery, type DesignerCard, type DesignerEffort, type DesignerPicked, type DesignerVersion } from '../api.js';
+import { designerApi, designerKeys, sessionQuery, versionsQuery, yourAppsQuery, type DesignerCard, type DesignerEffort, type DesignerPicked, type DesignerVersion, type PicturesApplied, type PicturesMode } from '../api.js';
 import { useDesignerModel } from '../models/useModel.js';
 import { useModelControl } from '../models/useModelControl.js';
 import { BuildComposer } from '../parts/BuildComposer.js';
@@ -45,11 +45,17 @@ import {
   SavedChip,
   SpendNotice,
   FigmaPausedLine,
+  KeepSpotCard,
+  PictureLines,
+  PictureNote,
+  PicturesChip,
+  SpotsCard,
   StepsBlock,
   StoppedNote,
   UsageLine,
 } from '../parts/chat.js';
 import { useDesktopVersions, VersionsOfferDialog } from '../parts/DesktopVersions.js';
+import { PictureDialog } from '../parts/pictures/PictureDialog.js';
 import { TopBar } from '../parts/TopBar.js';
 import { DesktopBuildShare } from '../parts/DesktopProject.js';
 import { CHAT_WIDTH, FOLDED_NEED_GUESS, views } from './barLevel.js';
@@ -84,9 +90,12 @@ function errorText(error: unknown): string {
 }
 
 /** A card's answer as it was sent: words, a yes or no, or (the needs card) the ids that were ticked. */
-function answerOf(value: unknown): { text?: string; accept?: boolean | string[] } {
-  return typeof value === 'object' && value !== null ? (value as { text?: string; accept?: boolean | string[] }) : {};
+function answerOf(value: unknown): { text?: string; accept?: boolean | string[]; pictures?: PicturesMode } {
+  return typeof value === 'object' && value !== null ? (value as { text?: string; accept?: boolean | string[]; pictures?: PicturesMode }) : {};
 }
+
+/** The fixed message of "Make them swappable": one turn that puts the app's own pictures in spots. */
+const SWAPPABLE_MESSAGE = 'Make the pictures of this app swappable: put each picture its screens import into a picture spot, keeping the picture, its words and its credit.';
 
 export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
   const queryClient = useQueryClient();
@@ -140,6 +149,7 @@ export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
     void queryClient.invalidateQueries({ queryKey: ['designer', 'phone', sessionId] });
     // The preview's list of installed apps: a live `app-changed` can be missed, a turn's end cannot.
     void queryClient.invalidateQueries({ queryKey: ['designer', 'installed'] });
+    void queryClient.invalidateQueries({ queryKey: designerKeys.pictures(sessionId) });
   };
 
   // The app was named mid-turn: its key changed, and the preview, the title and the versions all go by the key.
@@ -259,6 +269,32 @@ export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
     onError: fail(t('designer:versions.failed', 'The files could not be put back')),
   });
 
+  // The picture dialog: opened from the chip, the spots card or a spot of the preview, and given focus back to what opened it.
+  const [pictures, setPictures] = useState<{ open: boolean; spot: string | null; from: HTMLElement | null }>({ open: false, spot: null, from: null });
+  const openPictures = (spot: string | null = null): void => setPictures({ open: true, spot, from: document.activeElement instanceof HTMLElement ? document.activeElement : null });
+  const picturesView = useQuery({ queryKey: designerKeys.pictures(sessionId), queryFn: () => designerApi.pictures(sessionId), enabled: session.data !== undefined && turns.length > 0 });
+  const undoPictures = useMutation({
+    mutationFn: ({ from, to }: { from: number; to: number }) => designerApi.undoPictures(sessionId, from, to),
+    onSuccess: (_reply, { to }) => {
+      refresh();
+      toasts.push({ variant: 'success', title: t('designer:spots.undone', 'Undone: back to {version}.', { version: `v${String(to)}` }) });
+    },
+    onError: fail(t('designer:spots.undoFailed', 'The pictures could not be undone')),
+  });
+  const onPicturesApplied = (reply: PicturesApplied): void => {
+    refresh();
+    if (reply.version === null) return;
+    const { n } = reply.version;
+    const before = reply.before;
+    toasts.push({
+      variant: reply.applied ? 'success' : 'warning',
+      title: t('designer:spots.savedAs', 'Pictures saved as {version}.', { version: `v${String(n)}` }),
+      ...(reply.applied ? {} : { description: t('designer:versions.notApplied', 'They were not applied. The next turn will say why.') }),
+      ...(before === null ? {} : { action: { label: t('common.undo', 'Undo'), onAction: () => undoPictures.mutate({ from: n, to: before }) } }),
+    });
+  };
+  const swapping = working && turns.at(-1)?.text === SWAPPABLE_MESSAGE;
+
   // What keeps the app's files from being changed by hand right now, for the Code tab to say.
   const codeLock: CodeLock = working ? (waiting.length > 0 ? 'waiting' : 'turn') : (held ?? (restore.isPending ? 'restore' : look.isPending ? 'style' : null));
   const versionNow = session.data?.session.version ?? 0;
@@ -300,6 +336,12 @@ export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
   }
 
   const data = session.data;
+  // The pictures still to fill, for the chip; none for an app that builds its own screens, or one with no pictures at all.
+  const shown = picturesView.data;
+  const picturesChip =
+    shown === undefined || shown.ownBuild || (shown.spots.length === 0 && shown.tables.length === 0 && shown.legacy === 0)
+      ? null
+      : shown.spots.filter((spot) => spot.thumb === null).length + shown.tables.reduce((sum, table) => sum + table.rows.filter((row) => row.thumb === null).length, 0);
   const busy = start.isPending || answer.isPending || restore.isPending || newSession.isPending || look.isPending || held !== null;
   const appSessions = apps.data?.apps.find((app) => app.key === data?.session.appKey)?.sessions ?? [];
   // A session that has not been used yet is already a new one: another would only be an empty twin.
@@ -377,6 +419,7 @@ export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
         <SentFiles sessionId={sessionId} files={turn.attachments} />
         <SentPicked picked={turn.picked} />
         <DesignerMessage text={turn.reply} streaming={live}>
+          <PictureNote lines={turn.pictures} />
           <StepsBlock rows={turn.steps} stepCount={turn.stepCount} live={live} ms={ms} open={isOpen} onToggle={() => setOpen((map) => ({ ...map, [turn.turn]: !isOpen }))} />
           <FigmaPausedLine rows={turn.steps} />
           {live && turn.usage !== null ? <UsageLine step={turn.usage.step} tokens={turn.usage.tokens} /> : null}
@@ -407,24 +450,33 @@ export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
                   answered={answered}
                   closed={!live}
                   accepted={Array.isArray(said.accept) ? said.accept : undefined}
+                  answeredPictures={said.pictures}
                   busy={busy}
-                  onSend={(ids) => answer.mutate({ cardId: card.id, value: { accept: ids } })}
+                  onSend={(ids, chosen) => answer.mutate({ cardId: card.id, value: { accept: ids, ...(chosen === undefined ? {} : { pictures: chosen }) } })}
+                />
+              );
+            }
+            if (card.type === 'spots') {
+              // Answered by an Apply: what the dialog changed from this turn on.
+              const chosen = [...new Set(turns.filter((one) => one.turn >= turn.turn).flatMap((one) => one.pictures.flatMap((line) => (line.kind === 'applied' ? line.names : []))))];
+              return <SpotsCard key={card.id} card={card} chosen={chosen} onChoose={() => openPictures(card.spots[0]?.id ?? null)} />;
+            }
+            if (card.type === 'keep-spot') {
+              return (
+                <KeepSpotCard
+                  key={card.id}
+                  card={card}
+                  answered={answered}
+                  closed={!live}
+                  kept={yes}
+                  busy={busy}
+                  onKeep={() => answer.mutate({ cardId: card.id, value: { accept: true } })}
+                  onLetGo={() => answer.mutate({ cardId: card.id, value: { accept: false } })}
                 />
               );
             }
             if (card.type === 'pictures') {
-              return (
-                <PicturesCard
-                  key={card.id}
-                  card={card}
-                  sessionId={sessionId}
-                  answered={answered}
-                  closed={!live}
-                  accepted={Array.isArray(said.accept) ? said.accept : undefined}
-                  busy={busy}
-                  onSend={(ids) => answer.mutate({ cardId: card.id, value: { accept: ids } })}
-                />
-              );
+              return <PicturesCard key={card.id} card={card} answered={answered} accepted={Array.isArray(said.accept) ? said.accept : undefined} />;
             }
             if (card.type === 'package') {
               return (
@@ -468,6 +520,8 @@ export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
                 />
               );
             }
+            // A card this page does not know (a newer server's) draws nothing: never another card's buttons.
+            if (card.type !== 'removal') return null;
             return (
               <RemovalCard
                 key={card.id}
@@ -503,14 +557,16 @@ export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
           ) : null}
           {turn.look === null ? null : <LookChip direction={turn.look} />}
           {/* One row under the reply: what it was saved as, then the way to change the style. What the style was changed to comes after it. */}
-          {turn.version === null && !(last && !live && data?.look != null) ? null : (
+          {turn.version === null && !(last && !live && data?.look != null) && !(last && !live && picturesChip !== null) ? null : (
             <div data-part="saved-row" className="flex flex-wrap items-center gap-1.5">
               {turn.version === null ? null : <SavedChip name={turn.version.name} />}
               {last && !live && data?.look != null ? <StyleMenu current={data.look} styles={styles.data?.styles ?? []} pending={look.isPending} disabled={working || (busy && !look.isPending)} onPick={(skill) => look.mutate(skill)} /> : null}
+              {last && !live && picturesChip !== null ? <PicturesChip toFill={picturesChip} onOpen={() => openPictures()} /> : null}
             </div>
           )}
           {turn.style === null ? null : <StyleChip title={turn.style.title} fontsLater={turn.style.fonts.length > 0} />}
         </DesignerMessage>
+        <PictureLines lines={turn.pictures} />
       </div>
     );
   };
@@ -518,6 +574,23 @@ export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
   return (
     <div className="flex h-dvh flex-col bg-bg text-fg">
       {desktopVersions === null ? null : <VersionsOfferDialog versions={desktopVersions} open={offeringVersions} onOpenChange={setOfferingVersions} />}
+      {data === undefined ? null : (
+        <PictureDialog
+          sessionId={sessionId}
+          open={pictures.open}
+          onOpenChange={(next) => setPictures((before) => ({ ...before, open: next }))}
+          appName={data.session.title}
+          spot={pictures.spot}
+          working={working || (held !== null && held !== 'pictures')}
+          onApplied={onPicturesApplied}
+          onSwappable={() => {
+            setPictures((before) => ({ ...before, open: false }));
+            start.mutate({ message: SWAPPABLE_MESSAGE, attachments: [] });
+          }}
+          swapping={swapping}
+          returnFocus={() => pictures.from?.focus()}
+        />
+      )}
       <TopBar
         build
         middle={
@@ -648,8 +721,10 @@ export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
               code={code}
               codeAsked={codeAsked}
               onFix={(message) => (working || busy ? undefined : start.mutate({ message, attachments: [] }))}
-              onNotice={(title) => toasts.push({ variant: 'info', title })}
+              onNotice={(title, more) => toasts.push({ variant: 'info', title, ...(more === undefined ? {} : { description: more }) })}
               onFoldedNeed={setFoldedNeed}
+              spots={shown === undefined || shown.ownBuild ? undefined : shown.spots}
+              onSpot={(spot) => openPictures(spot)}
               onPicked={(element) => {
                 // The chip is in the chat, and so is where the person says what to change: both are brought to them.
                 setPicked(element);

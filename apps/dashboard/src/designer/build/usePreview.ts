@@ -25,7 +25,7 @@ import { getDesktopApi } from '../../lib/desktop-runtime.js';
 import { createRealtimeClient } from '../../app/ws.js';
 import type { InstalledApp } from '../../studio/apps/appsApi.js';
 import { designerApi, type DesignerPicked, type DesignerSession, type PhoneStatus } from '../api.js';
-import { pickEnded, pickedFrom } from './picked.js';
+import { pickEnded, pickedFrom, spotFrom, type SpotPick } from './picked.js';
 import { isDesignerPath, locationFrom, tidyPagePath, visit, type VisitedPage } from './pagePath.js';
 import { SHOT_WAIT_MS, shotFrom, type ShotArea } from './shot.js';
 import { previewShows, seesPage, setSeesPage } from './sight.js';
@@ -92,6 +92,8 @@ export interface PreviewModel {
   canPick: boolean;
   /** The person is pointing: the next click in the frame picks an element and reaches nothing else. */
   picking: boolean;
+  /** The app has picture spots: a click on one while pointing asks what was meant. */
+  hasSpots: boolean;
   setPicking: (on: boolean) => void;
   /** Whether the side shown can draw a part of itself now: a side of the app's own that has said where it is, and that it can. */
   canShoot: boolean;
@@ -102,7 +104,13 @@ export interface PreviewModel {
   shoot: (area: ShotArea) => Promise<File | null>;
 }
 
-export function usePreview(session: DesignerSession, turns: readonly TurnView[], onPicked?: (picked: DesignerPicked) => void): PreviewModel {
+/** The app's picture spots, and what a click on one is handed to (with the element, when it was pointed at). */
+export interface PreviewSpots {
+  ids: readonly string[];
+  onSpot: (spot: SpotPick, picked: DesignerPicked | null) => void;
+}
+
+export function usePreview(session: DesignerSession, turns: readonly TurnView[], onPicked?: (picked: DesignerPicked) => void, spots?: PreviewSpots): PreviewModel {
   const queryClient = useQueryClient();
   const info = useQuery(systemInfoQuery());
   const noPreview = info.data?.designer?.mode === 'live';
@@ -179,6 +187,8 @@ export function usePreview(session: DesignerSession, turns: readonly TurnView[],
   pickingNow.current = picking;
   const onPickedNow = useRef(onPicked);
   onPickedNow.current = onPicked;
+  const spotsNow = useRef(spots);
+  spotsNow.current = spots;
   const [shooting, setShootingState] = useState(false);
   /** The picture asked of the frame and not yet answered: its number, and what its answer is handed to. */
   const shotAsked = useRef<{ id: number; done: (file: File | null) => void } | null>(null);
@@ -252,6 +262,18 @@ export function usePreview(session: DesignerSession, turns: readonly TurnView[],
       if (event.origin !== origin) return;
       // From a frame of this page, not from any window that happens to share the preview's address.
       if (!Array.from(document.querySelectorAll('iframe')).some((entry) => entry.contentWindow === event.source)) return;
+      // A picture spot: pointed at, it asks what was meant; its wireframe's own button opens the dialog on it.
+      const spotsHere = spotsNow.current;
+      const spot = spotsHere === undefined ? null : spotFrom(event.data, session.appKey, side, spotsHere.ids);
+      if (spotsHere !== undefined && spot !== null) {
+        const element = pickedFrom(event.data, session.appKey, side);
+        if (element !== null) {
+          if (!pickingNow.current) return;
+          setPickingState(false);
+        }
+        spotsHere.onSpot(spot, element);
+        return;
+      }
       // An element is taken only while the person is pointing: a screen cannot hand one over unasked.
       const picked = pickedFrom(event.data, session.appKey, side);
       if (picked !== null || pickEnded(event.data, session.appKey)) {
@@ -527,6 +549,7 @@ export function usePreview(session: DesignerSession, turns: readonly TurnView[],
     canOpenTab,
     canPick,
     picking,
+    hasSpots: (spots?.ids.length ?? 0) > 0,
     setPicking,
     canShoot,
     shooting,

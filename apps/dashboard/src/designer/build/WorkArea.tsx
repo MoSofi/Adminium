@@ -19,9 +19,11 @@ import { AddressBar } from './AddressBar.js';
 import { CodeBarEnd } from './CodeBar.js';
 import { firstLevel, nextLevel, type BarLevel } from './barLevel.js';
 import { useKnownPages } from './knownPages.js';
+import type { SpotPick } from './picked.js';
 import { Preview } from './Preview.js';
 import type { TurnView } from './turns.js';
 import type { CodeFiles } from './useCodeFiles.js';
+import { SpotMenu } from './SpotMenu.js';
 import { usePreview } from './usePreview.js';
 import { seenAs, WorkBar, type WorkTab } from './WorkBar.js';
 
@@ -85,6 +87,8 @@ export function WorkArea({
   onFoldedNeed,
   onPicked,
   onShot,
+  spots,
+  onSpot,
 }: {
   session: DesignerSession;
   turns: readonly TurnView[];
@@ -93,18 +97,39 @@ export function WorkArea({
   /** Each time this grows the Code tab is opened: the page has something there for the person to see. */
   codeAsked?: number;
   onFix: (message: string) => void;
-  /** A word for the person, said as the page says such things. */
-  onNotice: (text: string) => void;
+  /** A word for the person, said as the page says such things; `more` is its second line. */
+  onNotice: (text: string, more?: string) => void;
   /** What the preview's bar needs at its most folded, once it has been measured. */
   onFoldedNeed?: (need: number) => void;
   /** The person pointed at an element of the previewed page. */
   onPicked?: (picked: DesignerPicked) => void;
   /** The person dragged over a part of the previewed page: a picture of it. */
   onShot?: (file: File) => void;
+  /** The app's picture spots, by id and name. */
+  spots?: readonly { id: string; label: string }[] | undefined;
+  /** Open the picture dialog on a spot. */
+  onSpot?: ((spot: string) => void) | undefined;
 }): ReactNode {
   const [tab, setTab] = useState('preview');
   const narrow = useNarrow();
-  const preview = usePreview(session, turns, onPicked);
+  /** A spot clicked while pointing: what was meant is asked over the frame. */
+  const [spotMenu, setSpotMenu] = useState<{ pick: SpotPick; picked: DesignerPicked } | null>(null);
+  const spotIds = useMemo(() => (spots ?? []).map((spot) => spot.id), [spots]);
+  const preview = usePreview(
+    session,
+    turns,
+    onPicked,
+    onSpot === undefined
+      ? undefined
+      : {
+          ids: spotIds,
+          onSpot: (pick, picked) => {
+            if (picked === null) onSpot(pick.spot);
+            else setSpotMenu({ pick, picked });
+          },
+        },
+  );
+  const closeSpotMenu = useCallback(() => setSpotMenu(null), []);
   const onPreview = tab === 'preview';
   const tabs: WorkTab[] = [
     { value: 'preview', label: t('designer:work.preview', 'Preview') },
@@ -228,6 +253,22 @@ export function WorkArea({
         */}
         <TabsContent value="preview" forceMount inert={!onPreview} className={`absolute inset-0 flex flex-col pt-0 ${onPreview ? '' : 'invisible'}`}>
           <Preview preview={preview} session={session} turns={turns} onFix={onFix} compact={narrow} onNotice={onNotice} {...(onShot === undefined ? {} : { onShot })} />
+          {spotMenu === null ? null : (
+            <SpotMenu
+              pick={spotMenu.pick}
+              label={spots?.find((spot) => spot.id === spotMenu.pick.spot)?.label ?? spotMenu.pick.spot}
+              frame={preview.frame.current}
+              onClose={closeSpotMenu}
+              onChange={() => {
+                setSpotMenu(null);
+                onSpot?.(spotMenu.pick.spot);
+              }}
+              onPoint={() => {
+                setSpotMenu(null);
+                onPicked?.(spotMenu.picked);
+              }}
+            />
+          )}
         </TabsContent>
         <TabsContent value="architecture" className="relative flex min-h-0 flex-1 flex-col bg-surface-2">
           {tab === 'architecture' ? (

@@ -46,3 +46,28 @@ export function pickEnded(data: unknown, appKey: string): boolean {
   const said = data as { type?: unknown; app?: unknown } | null;
   return said !== null && typeof said === 'object' && said.type === 'adminium:side-pick-ended' && said.app === appKey;
 }
+
+/** A picture spot of the page the person clicked: its id, and where it is drawn in the frame (none from a wireframe's own button). */
+export interface SpotPick {
+  spot: string;
+  box: { x: number; y: number; width: number; height: number } | null;
+}
+
+/**
+ * A spot the screen says was clicked: pointing at it (`side-picked` with its
+ * spot), or the "Choose a picture" of its wireframe (`side-spot`). Only a spot
+ * the app has is taken: a screen cannot name one into being.
+ */
+export function spotFrom(data: unknown, appKey: string, side: 'staff' | 'customer', spots: readonly string[]): SpotPick | null {
+  const said = data as { type?: unknown; app?: unknown; side?: unknown; spot?: unknown; box?: unknown } | null;
+  if (said === null || typeof said !== 'object' || said.app !== appKey || said.side !== side) return null;
+  if (said.type !== 'adminium:side-picked' && said.type !== 'adminium:side-spot') return null;
+  if (typeof said.spot !== 'string' || !spots.includes(said.spot)) return null;
+  const box = said.box as Record<string, unknown> | null | undefined;
+  const x = box?.['x'];
+  const y = box?.['y'];
+  const width = whole(box?.['width'], 20_000);
+  const height = whole(box?.['height'], 100_000);
+  const inside = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value) && Math.abs(value) <= 100_000;
+  return { spot: said.spot, box: said.type === 'adminium:side-picked' && inside(x) && inside(y) && width !== null && height !== null ? { x: Math.round(x), y: Math.round(y), width, height } : null };
+}

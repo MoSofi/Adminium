@@ -31,6 +31,12 @@ export interface CardView {
   answered: boolean;
 }
 
+/** A line about the app's pictures under a reply: an Apply of the picture dialog, its Undo, or the server's word as the turn ended. */
+export type PictureLine =
+  | { kind: 'applied'; names: string[]; version: { n: number; name: string } | null }
+  | { kind: 'undone'; to: number }
+  | { kind: 'note'; note: 'placeholders' | 'still-empty'; count: number };
+
 export interface TurnView {
   turn: number;
   /** What the person wrote; null for a turn whose start was not seen (a page opened mid-turn). */
@@ -68,6 +74,8 @@ export interface TurnView {
   finishedAt: number | null;
   /** The turn wrote, edited or deleted a file: "Put the files back" has something to do. */
   changedFiles: boolean;
+  /** What happened to the app's pictures under this reply, in order. */
+  pictures: PictureLine[];
 }
 
 const FILE_TOOLS = new Set(['write_file', 'edit_file', 'delete_file']);
@@ -96,6 +104,7 @@ function blank(turn: number, at: number): TurnView {
     startedAt: at,
     finishedAt: null,
     changedFiles: false,
+    pictures: [],
   };
 }
 
@@ -142,6 +151,8 @@ export function foldTurns(events: readonly DesignerEvent[]): TurnView[] {
 
   /** What a person's own act holds the folder for, while its events pass. */
   let held: FolderHold | null = null;
+  /** The reply's "Saved as" before the last going back. */
+  let savedBefore: { n: number; name: string } | null = null;
   for (const event of events) {
     if (event.by === 'person') {
       /*
@@ -152,9 +163,17 @@ export function foldTurns(events: readonly DesignerEvent[]): TurnView[] {
       if (event.kind === 'hold') held = event.what;
       else if (event.kind === 'released') held = null;
       const last = turns.get(event.turn);
+      if (event.kind === 'hold' && event.what === 'restore') savedBefore = last?.version ?? null;
       if (last !== undefined) {
         if (event.kind === 'style') last.style = { title: event.title, fonts: event.fonts ?? [] };
-        if (event.kind === 'version' && held !== 'save') last.version = { n: event.n, name: event.name };
+        // Pictures applied from the dialog say their own version on their own line.
+        if (event.kind === 'version' && held !== 'save' && held !== 'pictures') last.version = { n: event.n, name: event.name };
+        if (event.kind === 'pictures') last.pictures.push({ kind: 'applied', names: event.names, version: event.version });
+        if (event.kind === 'pictures-undone') {
+          last.pictures.push({ kind: 'undone', to: event.to });
+          // The pictures' Undo says itself on its own line: the reply's "Saved as" is the one it had before.
+          last.version = savedBefore;
+        }
       }
       continue;
     }
@@ -267,6 +286,9 @@ export function foldTurns(events: readonly DesignerEvent[]): TurnView[] {
           ...(event.provider === undefined ? {} : { provider: event.provider }),
           ...(event.status === undefined ? {} : { status: event.status }),
         };
+        break;
+      case 'pictures-note':
+        turn.pictures.push({ kind: 'note', note: event.note, count: event.count });
         break;
       case 'stopped':
         break;

@@ -61,6 +61,7 @@ function model(over: Partial<PreviewModel> = {}): PreviewModel {
     openTab: vi.fn(),
     canOpenTab: true,
     canPick: true,
+    hasSpots: false,
     picking: false,
     setPicking: vi.fn(),
     canShoot: true,
@@ -191,6 +192,12 @@ describe('the work bar', () => {
     await userEvent.click(pick);
     expect(preview.setPicking).toHaveBeenCalledWith(true);
     expect(onNotice).toHaveBeenCalledWith('Click the part of the page you want changed. Esc stops.');
+    cleanup();
+
+    // A page with picture spots says what a click on one does, on a second line.
+    const spotted = bar(0, model({ side: 'customer', hasSpots: true }));
+    await userEvent.click(screen.getByRole('button', { name: 'Pick an element on the page' }));
+    expect(spotted.onNotice).toHaveBeenCalledWith('Click the part of the page you want changed. Esc stops.', 'Click a picture to change it, or to point at it.');
     cleanup();
 
     // While pointing it is pressed, and a second press stops it with nothing more said.

@@ -203,8 +203,12 @@ export type DesignerCard =
       style?: StyleChoice[];
       more?: string[];
     }
-  /** Everything a step needs from outside the project, on one card: a checkbox each. */
-  | { id: string; type: 'needs'; items: NeedItem[] }
+  /** Everything a step needs from outside the project, on one card: a checkbox each. `pictures`: what a design does with the page's pictures, asked once per app. */
+  | { id: string; type: 'needs'; items: NeedItem[]; pictures?: { preselect: PicturesMode } }
+  /** The spots a design made, waiting for their pictures: opens the picture dialog. Waits for no answer: an Apply is its answer. */
+  | { id: string; type: 'spots'; spots: { id: string; label: string; shape: PictureShape }[]; rows?: { table: string; count: number } }
+  /** A turn took a picture the person placed off its screen: keep it there, or let it go. */
+  | { id: string; type: 'keep-spot'; spot: string; label: string; screen: string }
   /** Free pictures the Designer found: tick the ones to use. `shelf` and a picture's id name its small copy on this server. */
   | { id: string; type: 'pictures'; shelf: string; groups: PictureGroup[]; /** A site some of these are shown from, never copied. */ site?: string }
   /** Rows of an attached CSV into one of the app's tables: asked before any is loaded. */
@@ -225,6 +229,64 @@ export type NeedItem =
   | { id: string; kind: 'package'; name: string; version: string; role: NeedRole; why?: string }
   | { id: string; kind: 'font'; family: string; name: string; version: string; use: 'heading' | 'body' | 'other'; why?: string }
   | { id: string; kind: 'picture-site'; host: string; why?: string };
+
+export type PictureShape = 'wide' | 'tall' | 'square';
+/** What a design does with the page's pictures: leaves placeholders, or opens the picture dialog after it. */
+export type PicturesMode = 'placeholders' | 'choose';
+/** A licence's code, as the server reads it from the source: its badge is decided from it. */
+export type LicenceCode = 'cc0' | 'pdm' | 'by' | 'by-sa' | 'pexels' | 'unsplash' | 'own' | 'template';
+export type PictureSourceName = 'Openverse' | 'Pexels' | 'Unsplash';
+
+/** What the picture dialog draws for an app (`GET …/pictures`). */
+export interface PicturesView {
+  /** The app builds its own screens: its pictures are in its own files, and the dialog does not open. */
+  ownBuild: boolean;
+  spots: { id: string; label: string; shape: PictureShape; shows: string; search: string; version: string; thumb: string | null; alt: string; decorative: boolean; licence: { code: LicenceCode; name: string; title: string; creator: string } | null }[];
+  tables: { table: string; label: string; column: string; rows: { row: number; label: string; version: string; thumb: string | null }[] }[];
+  /** Pictures already in the app, to use again: a file of `assets/pictures/`, or a picture attached in this session. */
+  inApp: { key: string; name: string; thumb: string; licence: LicenceCode }[];
+  mode: PicturesMode;
+  /** Pictures the app's screens import themselves (made before spots). */
+  legacy: number;
+  /** The sources this server can search, each with the minutes it is busy for. */
+  sources: { name: PictureSourceName; busy: number | null }[];
+  /** `closed`: a page here may not be let load pictures from Unsplash. */
+  unsplash: 'ok' | 'closed';
+  version: number | null;
+}
+/** A picture a search found, named by the server's own ids. */
+export interface FoundPicture {
+  id: string;
+  title: string;
+  creator: string;
+  source: string;
+  licence: { code: LicenceCode; name: string };
+  /** The picture's own page. */
+  page: string;
+  /** Shown from its source's site, never copied. */
+  shown?: true;
+}
+export type PictureSearchReply =
+  | { state: 'ok'; shelf: string; pictures: FoundPicture[]; more: boolean; page: number }
+  | { state: 'busy'; source: PictureSourceName; minutes: number }
+  | { state: 'off' }
+  | { state: 'failed' };
+export type PicturePinReply = { state: 'kept'; small: boolean; shown?: true } | { state: 'gone' } | { state: 'failed' };
+export type PictureFillFrom = { shelf: string; picture: string } | { attachment: string } | { file: string } | { placeholder: true };
+export interface PictureFill {
+  spot?: string;
+  row?: { table: string; row: number };
+  version: string;
+  from: PictureFillFrom;
+  alt?: string;
+  decorative?: boolean;
+}
+export interface PicturesApplied {
+  results: { target: string; state: 'applied' | 'conflict' | 'gone'; small?: true }[];
+  version: { n: number; name: string } | null;
+  applied: boolean;
+  before: number | null;
+}
 
 export interface PictureGroup {
   id: string;
@@ -260,6 +322,8 @@ export interface AppLook {
   origin: 'built-in' | 'project' | 'earlier';
   accent?: string;
   swatch?: Swatch;
+  /** What a design does with the page's pictures. */
+  pictures?: PicturesMode;
 }
 
 /** The four looks of before styles: an older session's card still names them. */
@@ -328,10 +392,16 @@ export type DesignerEventBody =
   | { kind: 'hold'; what: FolderHold }
   | { kind: 'released'; what: FolderHold }
   /** The Designer was shown the page after a build. */
-  | { kind: 'sight'; side: string; path: string };
+  | { kind: 'sight'; side: string; path: string }
+  /** Pictures put in their spots from the picture dialog, with no turn: what changed, and the version it was saved as. */
+  | { kind: 'pictures'; names: string[]; version: { n: number; name: string } | null }
+  /** The pictures' Undo: back to this version. */
+  | { kind: 'pictures-undone'; to: number }
+  /** The server's word on the page's pictures as a turn ends. */
+  | { kind: 'pictures-note'; note: 'placeholders' | 'still-empty'; count: number };
 
 /** What a person can do from a page that takes the app's folder for a moment. */
-export type FolderHold = 'save' | 'style' | 'restore' | 'start';
+export type FolderHold = 'save' | 'style' | 'restore' | 'start' | 'pictures';
 
 /** `by: 'person'`: caused from a page, outside any turn. It carries the last turn's number and belongs to none. */
 export type DesignerEvent = DesignerEventBody & { seq: number; turn: number; at: number; by?: 'person' };
@@ -414,6 +484,7 @@ export const designerKeys = {
   versions: (id: string) => ['designer', 'versions', id] as const,
   architecture: (id: string) => ['designer', 'architecture', id] as const,
   files: (id: string) => ['designer', 'files', id] as const,
+  pictures: (id: string) => ['designer', 'pictures', id] as const,
 };
 
 /** A file for a message, as its raw bytes (this client is JSON-only, so the call and its CSRF header are written out). */
@@ -531,6 +602,15 @@ export const designerApi = {
   uploadAttachment,
   attachmentUrl: (id: string, attachment: string) => `${BASE}/sessions/${id}/attachments/${attachment}`,
   pictureThumbUrl: (id: string, shelf: string, picture: string) => `${BASE}/sessions/${id}/picture-thumb/${shelf}/${picture}`,
+  pictures: (id: string) => api.get<PicturesView>(`${BASE}/sessions/${id}/pictures`),
+  searchPictures: (id: string, input: { q: string; source: PictureSourceName; shape?: PictureShape; page?: number; shelf?: string }) =>
+    api.get<PictureSearchReply>(
+      `${BASE}/sessions/${id}/pictures/search?${new URLSearchParams({ q: input.q, source: input.source, ...(input.shape === undefined ? {} : { shape: input.shape }), ...(input.page === undefined ? {} : { page: String(input.page) }), ...(input.shelf === undefined ? {} : { shelf: input.shelf }) }).toString()}`,
+    ),
+  pinPicture: (id: string, shelf: string, picture: string) => api.post<PicturePinReply>(`${BASE}/sessions/${id}/pictures/pin`, { shelf, picture }),
+  applyPictures: (id: string, applyId: string, fills: readonly PictureFill[], mode?: PicturesMode) =>
+    api.post<PicturesApplied>(`${BASE}/sessions/${id}/pictures/apply`, { id: applyId, fills, ...(mode === undefined ? {} : { mode }) }),
+  undoPictures: (id: string, from: number, to: number) => api.post<{ version: { n: number; name: string } | null; applied: boolean }>(`${BASE}/sessions/${id}/pictures/undo`, { from, to }),
   readsImages: (connectionId: string, model: string) => api.post<{ readsImages: boolean | null }>(`${BASE}/models/reads-images`, { connectionId, model }),
   stop: (id: string) => api.post<{ stopped: boolean }>(`${BASE}/sessions/${id}/stop`, {}),
   answer: (id: string, cardId: string, value: unknown) => api.post<{ answered: true }>(`${BASE}/sessions/${id}/answers`, { cardId, value }),

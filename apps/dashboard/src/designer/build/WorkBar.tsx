@@ -164,7 +164,8 @@ export function WorkBar({
   /** That part takes the room the bar has left (the Code tab's), instead of sitting at its end. */
   endFills?: boolean;
   /** A word for the person, said as the page says such things. */
-  onNotice: (text: string) => void;
+  /** A word for the person; `more` is its second line. */
+  onNotice: (text: string, more?: string) => void;
   measuring?: boolean;
   barRef?: Ref<HTMLDivElement>;
 }): ReactNode {
@@ -177,7 +178,11 @@ export function WorkBar({
   };
   const setPicking = (on: boolean): void => {
     preview.setPicking(on);
-    if (on) onNotice(t('designer:pick.hint', 'Click the part of the page you want changed. Esc stops.'));
+    // A page with picture spots says what a click on one does.
+    if (!on) return;
+    const hint = t('designer:pick.hint', 'Click the part of the page you want changed. Esc stops.');
+    if (preview.hasSpots) onNotice(hint, t('designer:pick.spotsHint', 'Click a picture to change it, or to point at it.'));
+    else onNotice(hint);
   };
   // Before the first build, and on a live server, there is no preview to have tools for.
   const tools = tab === 'preview' && !preview.noPreview && preview.app !== null;

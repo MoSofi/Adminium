@@ -240,3 +240,40 @@ describe('what a person does outside a turn', () => {
   });
 });
 
+
+describe('the pictures under a reply', () => {
+  it('says an Apply on its own line, with its version, and leaves the reply’s own “Saved as” alone', () => {
+    seq = 0;
+    const turns = foldTurns([
+      at(1, { kind: 'turn-started', text: 'A home page.' }),
+      at(1, { kind: 'version', n: 2, name: 'v2' }),
+      at(1, { kind: 'pictures-note', note: 'placeholders', count: 3 }),
+      at(1, { kind: 'turn-finished', outcome: 'done' }),
+      { ...at(1, { kind: 'hold', what: 'pictures' }), by: 'person' },
+      { ...at(1, { kind: 'version', n: 3, name: 'v3 · Pictures: Hero, Team' }), by: 'person' },
+      { ...at(1, { kind: 'pictures', names: ['Hero', 'Team'], version: { n: 3, name: 'v3 · Pictures: Hero, Team' } }), by: 'person' },
+      { ...at(1, { kind: 'released', what: 'pictures' }), by: 'person' },
+    ]);
+    expect(turns[0]?.version).toEqual({ n: 2, name: 'v2' });
+    expect(turns[0]?.pictures).toEqual([
+      { kind: 'note', note: 'placeholders', count: 3 },
+      { kind: 'applied', names: ['Hero', 'Team'], version: { n: 3, name: 'v3 · Pictures: Hero, Team' } },
+    ]);
+  });
+
+  it('says the Undo on a line of its own, and the reply keeps the version it had', () => {
+    seq = 0;
+    const turns = foldTurns([
+      at(1, { kind: 'turn-started', text: 'A home page.' }),
+      at(1, { kind: 'version', n: 2, name: 'v2' }),
+      at(1, { kind: 'turn-finished', outcome: 'done' }),
+      { ...at(1, { kind: 'pictures', names: ['Hero'], version: { n: 3, name: 'v3 · Pictures: Hero' } }), by: 'person' },
+      { ...at(1, { kind: 'hold', what: 'restore' }), by: 'person' },
+      { ...at(1, { kind: 'version', n: 4, name: 'v4 · Back to v2' }), by: 'person' },
+      { ...at(1, { kind: 'released', what: 'restore' }), by: 'person' },
+      { ...at(1, { kind: 'pictures-undone', to: 2 }), by: 'person' },
+    ]);
+    expect(turns[0]?.version).toEqual({ n: 2, name: 'v2' });
+    expect(turns[0]?.pictures.at(-1)).toEqual({ kind: 'undone', to: 2 });
+  });
+});

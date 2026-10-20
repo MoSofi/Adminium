@@ -495,6 +495,7 @@ describe('Apply', { timeout: 180_000 }, () => {
     expect(undo.status, JSON.stringify(undo.body)).toBe(200);
     expect(JSON.parse(app.disk('assets/pictures/spots.json'))).toEqual(SPOTS);
     const events = (await app.call('GET', `/api/v1/designer/sessions/${app.id}/events-since?after=0`)).body['events'] as { kind: string; to?: number }[];
+    expect(events.find((event) => event.kind === 'pictures')).toMatchObject({ names: ['Team'], version: { n: 3 } });
     expect(events.at(-1)).toMatchObject({ kind: 'pictures-undone', to: 2 });
     // Undone already: the app is at another version now.
     expect((await app.call('POST', `/api/v1/designer/sessions/${app.id}/pictures/undo`, { from: (done.body['version'] as { n: number }).n, to: done.body['before'] })).status).toBe(409);

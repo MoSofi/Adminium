@@ -63,6 +63,7 @@ function model(over: Partial<PreviewModel> = {}): PreviewModel {
     openTab: vi.fn(),
     canOpenTab: true,
     canPick: true,
+    hasSpots: false,
     picking: false,
     setPicking: vi.fn(),
     canShoot: true,

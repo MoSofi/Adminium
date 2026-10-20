@@ -132,6 +132,7 @@ function turn(over: Partial<TurnView>): TurnView {
     startedAt: 0,
     finishedAt: 1,
     changedFiles: false,
+    pictures: [],
     ...over,
   };
 }
