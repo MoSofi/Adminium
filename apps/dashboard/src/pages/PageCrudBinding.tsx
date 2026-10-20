@@ -43,8 +43,9 @@ import {
 } from '@adminium/widgets';
 import { filtersFor, parseCrudDefaultFilters, parseCrudFilters, parseCrudForm, parseCrudLabels } from '@adminium/engine/config';
 
-import { bootstrapQuery } from '../app/bootstrap.js';
+import { bootstrapQuery, holdsSystemAction } from '../app/bootstrap.js';
 import { resolveFiles, uploadFile } from '../files/api.js';
+import { pictureChooser } from '../files/pictureChooser.js';
 import { listKeysOf, useListOptions } from '../api/optionLists.js';
 import { t } from '../i18n/t.js';
 import { PageActions } from '../shell/PageActionsProvider.js';
@@ -92,7 +93,8 @@ export function PageCrudBinding({
 }: PageTemplateProps) {
   // Read from the cache, never fetched here: the shell loads the bootstrap
   // before any page renders, and a page must not suspend on it.
-  const signedIn = useQueryClient().getQueryData(bootstrapQuery().queryKey)?.user;
+  const bootstrap = useQueryClient().getQueryData(bootstrapQuery().queryKey);
+  const signedIn = bootstrap?.user;
   /*
    * A `column.options` rule that names a LIST is resolved here, where the
    * reader's language is known: the built-ins from the browser's own data, a
@@ -393,9 +395,21 @@ export function PageCrudBinding({
    * a check it cannot enforce is not worth the round trip.
    */
   const hasFileColumns = useMemo(() => columns.some((column) => column.file !== undefined), [columns]);
+  /*
+   * "Choose existing…" on a picture column: this table's pictures, and the
+   * Files page's own uploads for someone who can open the Files page. Each
+   * choice is copied for the record by the server.
+   */
+  const filesPage = bootstrap !== undefined && holdsSystemAction(bootstrap, 'files.manage');
+  const pageTitle = tableLabelPlural ?? t(page.title.key, page.title.fallback);
+  const chooser = useMemo(
+    () => pictureChooser({ connectionId: page.source.connectionId ?? '', table: sourceTable, pageTitle, tableLabel: pageTitle, filesPage }),
+    [page.source.connectionId, sourceTable, pageTitle, filesPage],
+  );
   const fileAdapter = useMemo<PageCrudFiles>(
     () => ({
       resolve: (refs) => resolveFiles([...refs]),
+      choose: chooser,
       upload: async ({ file, column, signal, onProgress }) => {
         const result = await uploadFile({
           file,
@@ -413,7 +427,7 @@ export function PageCrudBinding({
         };
       },
     }),
-    [page.source.connectionId, sourceTable, columns],
+    [page.source.connectionId, sourceTable, columns, chooser],
   );
 
   if (pieces.length > 0 && link.isPending) {

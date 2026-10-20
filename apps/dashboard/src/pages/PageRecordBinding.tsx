@@ -41,11 +41,12 @@ import {
   type RecordAttachment,
   type PageRecordRelatedResolution,
   type RecordActivityFeed,
+  type PageCrudFiles,
 } from '@adminium/widgets';
 import { streamChannel } from '@adminium/widgets/binding';
 
 import { api, ApiError } from '../app/api.js';
-import { bootstrapQuery, findPageBySlug, flattenNav, slugForTable } from '../app/bootstrap.js';
+import { bootstrapQuery, findPageBySlug, flattenNav, holdsSystemAction, slugForTable } from '../app/bootstrap.js';
 import { hrefForPage } from '../app/links.js';
 import { createCrudApi } from '../api/crud.js';
 import { withPlaces } from '../api/places.js';
@@ -59,6 +60,7 @@ import {
   uploadFile,
   type FileDto,
 } from '../files/api.js';
+import { pictureChooser } from '../files/pictureChooser.js';
 import { getI18nInstance, t } from '../i18n/t.js';
 import { formatStamp } from '../team/teamApi.js';
 import { PageActions } from '../shell/PageActionsProvider.js';
@@ -102,6 +104,7 @@ export function PageRecordBinding({
   columnFacts,
   formRelations,
   currency,
+  tableLabelPlural,
 }: PageTemplateProps) {
   const crud = adapters.crud;
   const { data: bootstrap } = useSuspenseQuery(bootstrapQuery());
@@ -137,6 +140,29 @@ export function PageRecordBinding({
   const readOnly = page.config['readOnly'] === true;
   const connectionId = page.source.connectionId;
   const sourceTable = page.source.table;
+
+  /*
+   * The edit dialog's file columns: uploaded for their column, resolved when
+   * it opens, and, on a picture column, chosen from this table's pictures or
+   * (for someone who can open the Files page) that page's own uploads, each
+   * choice copied for the record by the server. The same transport the list's
+   * form has; absent ⇒ the dialog edits a file column as its text.
+   */
+  const pictureTitle = tableLabelPlural ?? t(page.title.key, page.title.fallback);
+  const filesPage = holdsSystemAction(bootstrap, 'files.manage');
+  const editFiles = useMemo<PageCrudFiles | undefined>(() => {
+    if (connectionId === null || !columns.some((column) => column.file !== undefined)) return undefined;
+    const table = sourceTable ?? crud?.table ?? '';
+    return {
+      resolve: (refs) => resolveFiles([...refs]),
+      choose: pictureChooser({ connectionId, table, pageTitle: pictureTitle, tableLabel: pictureTitle, filesPage }),
+      upload: async ({ file, column, signal, onProgress }) => {
+        const result = await uploadFile({ file, connectionId, table, column, signal, onProgress });
+        // The reference the SERVER minted, in the shape this column is configured for.
+        return { ref: result.ref ?? result.data.id, file: result.data };
+      },
+    };
+  }, [connectionId, columns, sourceTable, crud, pictureTitle, filesPage]);
 
   // The list URL this record page is a child of — derived from bootstrap by
   // pageId (PageTemplateProps carries no slug). Hidden pages included: a
@@ -724,6 +750,7 @@ export function PageRecordBinding({
         // `related` and `activity` follow — a page whose `config.attachments`
         // is off renders exactly as it did before the feature existed.
         attachments={attachments}
+        {...(editFiles === undefined ? {} : { files: editFiles })}
         // Not the same as `canUpdate`: an attach is authorised by `update` on
         // the entity's table but it is stated separately so the panel
         // never offers a dropzone the server would refuse. On a READ-ONLY

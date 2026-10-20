@@ -730,6 +730,7 @@ export function pagesRoutes(deps: PagesRoutesDeps): FastifyPluginAsyncZod {
               return {
                 data: { ...envelope, config: { ...templateConfig, layout: { ...parsed.data, items: [...items] } } },
                 canEditLayout,
+                revision: page.revision,
                 ...tableCapabilities,
                 ...facts,
                 ...(layoutStale ? { layoutStale: true } : {}),
@@ -737,7 +738,7 @@ export function pagesRoutes(deps: PagesRoutesDeps): FastifyPluginAsyncZod {
             }
           }
         }
-        return { data: config, canEditLayout, ...tableCapabilities, ...facts };
+        return { data: config, canEditLayout, revision: page.revision, ...tableCapabilities, ...facts };
       },
     );
 

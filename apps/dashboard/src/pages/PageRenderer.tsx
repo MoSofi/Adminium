@@ -141,6 +141,8 @@ function PageDocument({ pageId, slug, recordId }: { pageId: string; slug: string
       page={result.page}
       slug={slug}
       recordId={recordId}
+      pageId={pageId}
+      revision={result.revision}
       canEditLayout={result.canEditLayout}
       canCreate={result.canCreate}
       canUpdate={result.canUpdate}
@@ -188,6 +190,8 @@ export function TemplateMount({
   page,
   slug,
   recordId,
+  pageId,
+  revision,
   canEditLayout,
   canCreate,
   canUpdate,
@@ -207,6 +211,9 @@ export function TemplateMount({
   page: PageEnvelope;
   slug: string;
   recordId?: string | undefined;
+  /** The stored page's id, and its revision as read: a save naming a file it just uploaded carries both. */
+  pageId?: string | undefined;
+  revision?: number | null | undefined;
   canEditLayout?: boolean | undefined;
   canCreate?: boolean | undefined;
   canUpdate?: boolean | undefined;
@@ -253,7 +260,7 @@ export function TemplateMount({
     };
   }, [effectiveTemplate, attempt]);
 
-  const adapters = usePageAdapters(page, slug);
+  const adapters = usePageAdapters(page, slug, pageId === undefined || revision === undefined || revision === null ? null : { id: pageId, revision });
 
   // The connection's display currency, resolved once here so every template
   // gets it the same way and no binding has to know about the nav tree
@@ -384,7 +391,7 @@ export const ASSISTANT_GENERAL_TEMPLATES: ReadonlySet<string> = new Set([
 const NO_PARAMS = {};
 
 /** Data adapters + the WidgetEvent sink for one mounted page. */
-function usePageAdapters(page: PageEnvelope, slug: string): PageTemplateAdapters {
+function usePageAdapters(page: PageEnvelope, slug: string, stamp: { id: string; revision: number } | null = null): PageTemplateAdapters {
   const router = useRouter();
   const queryClient = useQueryClient();
   const notifyUndoable = useUndoToast();
@@ -392,8 +399,14 @@ function usePageAdapters(page: PageEnvelope, slug: string): PageTemplateAdapters
 
   const crud: BoundCrudApi | null = useMemo(() => {
     const { connectionId, table } = page.source;
-    return connectionId !== null && table !== null ? createCrudApi(connectionId, table) : null;
-  }, [page.source]);
+    if (connectionId === null || table === null) return null;
+    // A save naming a file this tab just uploaded says which page settings its form was drawn from;
+    // refused because they moved on, the page is read again and the person saves again.
+    return createCrudApi(connectionId, table, {
+      ...(stamp === null ? {} : { page: stamp }),
+      onPageChanged: () => void queryClient.invalidateQueries({ queryKey: ['page'] }),
+    });
+  }, [page.source, stamp?.id, stamp?.revision, queryClient]);
 
   // A layout with the day control is read for the chosen day (today to start).
   const withDay = useMemo(() => pageLayoutSchema.safeParse(page.config['layout']).data?.toolbar?.day === true, [page.config]);

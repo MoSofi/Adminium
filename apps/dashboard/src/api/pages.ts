@@ -180,6 +180,8 @@ export type PageDocumentResult =
   | {
       status: 'ok';
       page: PageEnvelope;
+      /** The stored document's revision as read; null from a server that does not say. */
+      revision: number | null;
       canEditLayout: boolean;
       /** Per-caller write capabilities for the envelope's source table (the
        *  same `table:` grants the data routes enforce) — false hides the
@@ -291,6 +293,7 @@ export function parsePageDocument(raw: unknown, options: ParsePageOptions = {}):
   return {
     status: 'ok',
     page: parsed.data,
+    revision: null,
     canEditLayout: false,
     canCreate: true,
     canUpdate: true,
@@ -321,6 +324,7 @@ export function pageQuery(pageId: string) {
     queryFn: async (): Promise<PageDocumentResult> => {
       const reply = await api.get<{
         data: unknown;
+        revision?: number;
         canEditLayout?: boolean;
         canCreate?: boolean;
         canUpdate?: boolean;
@@ -336,6 +340,7 @@ export function pageQuery(pageId: string) {
       return result.status === 'ok'
         ? {
             ...result,
+            revision: typeof reply.revision === 'number' ? reply.revision : null,
             canEditLayout: reply.canEditLayout === true,
             // `!== false`: only an explicit server denial hides an affordance
             // (absent = not computed, keep the permissive default).
