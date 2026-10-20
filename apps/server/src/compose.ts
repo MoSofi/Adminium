@@ -1055,7 +1055,13 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     // A message never stops the row it is about from being removed, where the app writes to people about removals.
     releases: (connectionId, tableId) => outboxProducers.releasing(connectionId, tableId),
     // A file column names only a file its writer uploaded and no record holds; a picture, one cleaned as it came in.
-    files: createFileColumnJudge({ meta, bytesOf: storedBytes(storage) }),
+    // A page's file column too, when a person saves it: what it newly names is an upload of theirs.
+    files: createFileColumnJudge({
+      meta,
+      bytesOf: storedBytes(storage),
+      pageColumns: async (connectionId, table) => new Set((await columnBlocks.forTable(connectionId, table)).byColumn.keys()),
+      publicBases: () => destinationResolver.publicBases(),
+    }),
   });
   /*
    * AN APP'S EMAILS. The producers queue rows in an installed app's outbox

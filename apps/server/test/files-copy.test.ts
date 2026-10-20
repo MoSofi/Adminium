@@ -79,8 +79,8 @@ for (const [dialect, available] of ENGINES) {
 
     beforeAll(async () => {
       w = await world(dialect);
-      await w.run(`CREATE TABLE dishes (id INTEGER PRIMARY KEY, name VARCHAR(80) NOT NULL, photo VARCHAR(400), photo_key VARCHAR(400), photo_url VARCHAR(600), scan VARCHAR(400), vault VARCHAR(400), owner_id VARCHAR(36))`);
       await w.run(`CREATE TABLE menus (id INTEGER PRIMARY KEY, title VARCHAR(80), cover VARCHAR(400), leaflet VARCHAR(400))`);
+      await w.run(`CREATE TABLE dishes (id INTEGER PRIMARY KEY, name VARCHAR(80) NOT NULL, photo VARCHAR(400), photo_key VARCHAR(400), photo_url VARCHAR(600), scan VARCHAR(400), vault VARCHAR(400), owner_id VARCHAR(36), menu_id INTEGER, FOREIGN KEY (menu_id) REFERENCES menus(id))`);
       await w.run(`CREATE TABLE badges (id INTEGER PRIMARY KEY, picture VARCHAR(64))`);
       await runIntrospection({ manager: w.manager, meta: w.meta, connectionId: w.connectionId });
       const tables = (await w.model()).tables;
@@ -93,6 +93,8 @@ for (const [dialect, available] of ENGINES) {
       await overrides.create({ connectionId: w.connectionId, op: 'column.secret', tableName: dishes, columnName: 'vault', value: { secret: true }, origin: 'user' } as never);
       await overrides.create({ connectionId: w.connectionId, op: 'column.staff', tableName: dishes, columnName: 'owner_id', value: { staff: true }, origin: 'user' });
       await overrides.create({ connectionId: w.connectionId, op: 'table.belongs', tableName: dishes, value: { ways: [{ column: 'owner_id' }] }, origin: 'user' });
+      // A dish takes its photo from its menu's cover when it names one: a value a save never sent.
+      await overrides.create({ connectionId: w.connectionId, op: 'column.copy', tableName: dishes, columnName: 'photo', value: { via: 'menu_id', from: 'cover', mode: 'always' }, origin: 'user' } as never);
       // An app's own picture column: a picture in it is kept without its camera notes.
       await overrides.create({ connectionId: w.connectionId, op: 'column.file', tableName: badges, columnName: 'picture', value: { accept: ['png'], maxBytes: 64 * 1024 }, origin: 'app' } as never);
       await page(dishes, 'dishes', [
@@ -353,6 +355,65 @@ for (const [dialect, available] of ENGINES) {
         expect(pictures.every((file) => file.mime.startsWith('image/'))).toBe(true);
         expect((await listed('dana', { state: 'library' })).map((file) => file.id)).not.toContain(picture);
         expect((await list('mara', { state: 'library', accept: 'png,nope' })).statusCode).toBe(422);
+      });
+    });
+
+    describe('what a save may name in a page’s file column', () => {
+      const save = async (who: Who, values: Record<string, unknown>, extra: Record<string, unknown> = {}): Promise<Reply> => {
+        nextId += 1;
+        return call(who, 'POST', `data/${w.connectionId}/${encodeURIComponent(dishes)}`, { values: { id: nextId, name: `Dish ${String(nextId)}`, owner_id: w.people.dana, ...values }, ...extra });
+      };
+      const issue = (res: Reply, column: string): string | undefined =>
+        (JSON.parse(res.body) as { error?: { details?: { fields?: Record<string, { code: string }> } } }).error?.details?.fields?.[column]?.code;
+
+      it('another person’s upload no record took is refused, and stays theirs', async () => {
+        const marasPending = await uploaded('mara', png({ fill: 120 }).bytes, { column: 'photo' });
+        const res = await save('dana', { photo: marasPending });
+        expect(res.statusCode, res.body).toBe(422);
+        expect(issue(res, 'photo')).toBe('file-not-here');
+        expect(await files().findById(marasPending)).toMatchObject({ attachedAt: null, entityTable: null, deletedAt: null });
+        // In a link's shape too.
+        const asLink = await save('dana', { photo_url: `https://elsewhere.example/api/v1/files/${marasPending}/content` });
+        expect(issue(asLink, 'photo_url')).toBe('file-not-here');
+        // Her own, and a link to another site, are hers to save.
+        const own = await uploaded('dana', png({ fill: 121 }).bytes, { column: 'photo' });
+        expect((await save('dana', { photo: own, photo_url: 'https://img.example.net/wings.jpg' })).statusCode).toBe(201);
+      });
+
+      it('a file another record or the Files page holds is refused: it is copied, never named', async () => {
+        const held = await uploaded('dana', png({ fill: 122 }).bytes, { column: 'photo' });
+        const first = await dish('dana', { photo: held });
+        expect(issue(await save('dana', { photo: held }), 'photo')).toBe('file-not-here');
+        const library = await uploaded('mara', png({ fill: 123 }).bytes, { table: null });
+        expect(issue(await save('mara', { photo: library }), 'photo')).toBe('file-not-here');
+        expect(await files().findById(held)).toMatchObject({ entityId: String(first) });
+        // A record saved again keeps what it held.
+        const kept = await call('dana', 'PATCH', `data/${w.connectionId}/${encodeURIComponent(dishes)}/${String(first)}`, { values: { name: 'Renamed', photo: held } });
+        expect(kept.statusCode, kept.body).toBe(200);
+      });
+
+      it('judges the values as they are written: a copy rule that names somebody else’s upload is refused', async () => {
+        const marasPending = await uploaded('mara', png({ fill: 124 }).bytes, { table: 'menus', column: 'cover' });
+        await w.run(`INSERT INTO menus (id, title, cover) VALUES (40, 'Lunch', '${marasPending}')`);
+        const res = await save('dana', { menu_id: 40 });
+        expect(res.statusCode, res.body).toBe(422);
+        expect(issue(res, 'photo')).toBe('file-not-here');
+      });
+
+      it('a save from a page whose settings changed since the form opened is refused, and the upload is kept', async () => {
+        const stored = (await pagesRepo(w.meta).listForConnection(w.connectionId)).find((one) => one.slug === 'dishes')!;
+        const upload = await uploaded('dana', png({ fill: 125 }).bytes, { column: 'photo' });
+        const page = { id: stored.id, revision: stored.revision };
+        const changed = await save('dana', { photo: upload }, { page: { ...page, revision: stored.revision + 1 } });
+        expect(changed.statusCode, changed.body).toBe(409);
+        expect(json<{ error: { code: string } }>(changed).error.code).toBe('PAGE_CHANGED');
+        expect(await files().findById(upload)).toMatchObject({ attachedAt: null, deletedAt: null });
+        const again = await save('dana', { photo: upload }, { page });
+        expect(again.statusCode, again.body).toBe(201);
+        expect((await files().findById(upload))!.attachedAt).not.toBeNull();
+        // An edit too.
+        const edit = await call('dana', 'PATCH', `data/${w.connectionId}/${encodeURIComponent(dishes)}/${String(nextId)}`, { values: { name: 'Again' }, page: { ...page, revision: page.revision + 3 } });
+        expect(edit.statusCode).toBe(409);
       });
     });
 

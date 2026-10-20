@@ -2292,11 +2292,10 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
    * no larger than it allows (`files/column-judge.ts`). Every writer and
    * every door but an undo; a door with no person behind it names no new
    * file at all. A file the row already held in that column is not judged
-   * again.
+   * again. A page's file column is judged as well, through a person's door.
    */
   async function fileIssues(action: WriteAction, target: WriteTarget, context: WriteContext, values: Row, stored: Row | null): Promise<FieldIssues | null> {
     if (action === 'delete' || context.origin === 'undo') return null;
-    if (![...target.table.columns.values()].some((column) => column.file !== undefined && Object.prototype.hasOwnProperty.call(values, column.name))) return null;
     const write = { connectionId: target.connectionId, table: target.table, origin: context.origin, actor: context.actor ?? null, values, stored };
     return (opts.files ?? NO_NEW_FILES).judge(write);
   }
